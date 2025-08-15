@@ -39,6 +39,10 @@ type Footer struct {
 type Props struct {
 	FontName  string
 	FontSize  int
+	StyleCode string // 3-digit style code: bold(1/0) + italic(1/0) + underline(1/0)
+	Bold      bool   // Parsed from first digit of StyleCode
+	Italic    bool   // Parsed from second digit of StyleCode
+	Underline bool   // Parsed from third digit of StyleCode
 	Alignment string
 	Borders   [4]int // left, right, top, bottom
 }
