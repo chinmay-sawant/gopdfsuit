@@ -11,14 +11,14 @@ import (
 // RegisterRoutes wires up API routes onto the provided Gin router.
 func RegisterRoutes(router *gin.Engine) {
 	v1 := router.Group("/api/v1")
-	v1.POST("/generate/pdf", handleGeneratePDF)
+	v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
 }
 
-func handleGeneratePDF(c *gin.Context) {
-	var requestData models.InvoiceData
-	if err := c.ShouldBindJSON(&requestData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
+func handleGenerateTemplatePDF(c *gin.Context) {
+	var template models.PDFTemplate
+	if err := c.ShouldBindJSON(&template); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
 		return
 	}
-	pdf.GeneratePDF(c, requestData)
+	pdf.GenerateTemplatePDF(c, template)
 }

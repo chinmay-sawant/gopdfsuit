@@ -28,3 +28,4 @@ go.work.sum
 # OS generated files
 .DS_Store
 Thumbs.db
+temp.json
