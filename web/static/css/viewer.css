@@ -284,6 +284,21 @@ body.theme-dark * {
   text-shadow: none !important;
 }
 
+/* Ensure JSON editor and PDF preview UI use white text in dark mode */
+body.theme-dark .panel-header h3,
+body.theme-dark #jsonDisplay,
+body.theme-dark #jsonCode,
+body.theme-dark .json-container,
+body.theme-dark .pdf-container,
+body.theme-dark .pdf-controls,
+body.theme-dark #pageInfo,
+body.theme-dark .loading,
+body.theme-dark .error,
+body.theme-dark .status-bar,
+body.theme-dark .subtitle {
+  color: #ffffff !important;
+}
+
 /* Apply panel & text variables */
 .header h1,
 .subtitle,
