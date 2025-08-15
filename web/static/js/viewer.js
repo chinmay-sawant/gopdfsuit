@@ -84,17 +84,27 @@ class PDFViewer {
     }
 
     initThemeFromStorage() {
-        const savedTheme = localStorage.getItem('gopdf_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        // Default to dark theme unless a preference is stored.
+        const savedTheme = localStorage.getItem('gopdf_theme') || 'dark';
         const savedGradient = localStorage.getItem('gopdf_gradient');
-        document.body.classList.toggle('theme-dark', savedTheme === 'dark');
-        document.body.classList.toggle('theme-light', savedTheme !== 'dark');
-        this.themeToggle.textContent = savedTheme === 'dark' ? '🌞' : '🌙';
-        this.populateGradients(savedTheme === 'dark');
+        const isDark = savedTheme === 'dark';
+        document.body.classList.toggle('theme-dark', isDark);
+        document.body.classList.toggle('theme-light', !isDark);
+        this.themeToggle.textContent = isDark ? '🌞' : '🌙';
+        // Populate gradients for the active theme first
+        this.populateGradients(isDark);
+
         if (savedGradient) {
             document.body.style.background = savedGradient;
             this.gradientSelect.value = savedGradient;
         } else {
-            this.applyGradient(); // set default
+            // Default dark gradient: Deep Space (index 3). Fallback to first if unavailable.
+            const defaultGradient = isDark
+                ? (this.darkGradients[3] && this.darkGradients[3].value) || this.darkGradients[0].value
+                : this.lightGradients[0].value;
+            document.body.style.background = defaultGradient;
+            this.gradientSelect.value = defaultGradient;
+            localStorage.setItem('gopdf_gradient', defaultGradient);
         }
     }
 

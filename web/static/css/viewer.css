@@ -434,3 +434,8 @@ body.theme-dark .token.property {
     padding: 0 15px;
   }
 }
+
+/* Override: make loading indicator text black in dark mode */
+body.theme-dark .loading {
+  color: #000000 !important;
+}
