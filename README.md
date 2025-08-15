@@ -126,6 +126,7 @@ go run ./cmd/gopdfsuit
 - **config.pageAlignment**: Page orientation
   - `1` - **Portrait** (vertical) - **Default**
   - `2` - **Landscape** (horizontal)
+- **config.watermark**: (optional) Text rendered diagonally (bottom-left to top-right) in light gray across every page. Automatically sized proportionally to page size.
 
 **Template Properties Explained:**
 
@@ -325,6 +326,7 @@ with open("survey-landscape.pdf", "wb") as f:
 - 🔄 **Page Orientation**: Portrait and landscape orientations
 - 🔤 **Flexible Typography**: Custom fonts, sizes, and alignments
 - 🔲 **Border Control**: Granular border configuration
+- 🛡️ **Diagonal Watermark**: Optional per-template watermark text across all pages
 - ⚡ **Fast**: In-memory PDF generation with height tracking
 - 📦 **Self-contained**: Single binary deployment
 - 🌐 **Cross-platform**: Runs on Windows, Linux, macOS

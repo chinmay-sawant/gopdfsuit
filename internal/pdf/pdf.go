@@ -115,6 +115,48 @@ func parseBorders(borderStr string) [4]int {
 	return borders
 }
 
+// --- new helper to escape parentheses in text ---
+func escapeText(s string) string {
+	s = strings.ReplaceAll(s, "(", "\\(")
+	return strings.ReplaceAll(s, ")", "\\)")
+}
+
+// --- new watermark drawer (diagonal bottom-left to top-right) ---
+func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimensions) {
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+	// Proportional font size (fallback minimum)
+	fontSize := int(pageDims.Width / 8)
+	if fontSize < 40 {
+		fontSize = 40
+	}
+	// Position roughly centered
+	x := pageDims.Width * 0.20
+	y := pageDims.Height * 0.30
+
+	// 45 degree rotation matrix components
+	c := 0.7071
+	s := 0.7071
+
+	contentStream.WriteString("q\n")
+	// Light gray fill/stroke
+	contentStream.WriteString("0.85 0.85 0.85 rg 0.85 0.85 0.85 RG\n")
+	contentStream.WriteString("BT\n")
+	contentStream.WriteString(fmt.Sprintf("/F1 %d Tf\n", fontSize))
+	contentStream.WriteString(fmt.Sprintf("%.4f %.4f %.4f %.4f %.2f %.2f Tm\n", c, s, -s, c, x, y))
+	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(text)))
+	contentStream.WriteString("ET\nQ\n")
+}
+
+// --- new page initializer (border + watermark) ---
+func initializePage(contentStream *bytes.Buffer, borderConfig, watermark string, pageDims PageDimensions) {
+	drawPageBorder(contentStream, borderConfig, pageDims)
+	if watermark != "" {
+		drawWatermark(contentStream, watermark, pageDims)
+	}
+}
+
 // getFontReference returns the appropriate font reference based on style properties
 func getFontReference(props models.Props) string {
 	if props.Bold && props.Italic {
@@ -267,8 +309,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 // generateAllContent processes the template and generates content across multiple pages
 func generateAllContent(template models.PDFTemplate, pageManager *PageManager) {
-	// Initialize first page with border
-	drawPageBorder(pageManager.GetCurrentContentStream(), template.Config.PageBorder, pageManager.PageDimensions)
+	// Initialize first page
+	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
 	// Title - Check if it fits on current page
 	titleProps := parseProps(template.Title.Props)
@@ -276,14 +318,14 @@ func generateAllContent(template models.PDFTemplate, pageManager *PageManager) {
 
 	if pageManager.CheckPageBreak(titleHeight) {
 		pageManager.AddNewPage()
-		drawPageBorder(pageManager.GetCurrentContentStream(), template.Config.PageBorder, pageManager.PageDimensions)
+		initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 	}
 
 	drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager)
 
 	// Tables - Process each table with automatic page breaks
 	for _, table := range template.Table {
-		drawTable(table, pageManager, template.Config.PageBorder)
+		drawTable(table, pageManager, template.Config.PageBorder, template.Config.Watermark)
 	}
 
 	// Draw footer and page numbers on every page (footer first to avoid overlap)
@@ -355,7 +397,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 }
 
 // drawTable renders a table with automatic page breaks
-func drawTable(table models.Table, pageManager *PageManager, borderConfig string) {
+func drawTable(table models.Table, pageManager *PageManager, borderConfig, watermark string) {
 	cellWidth := (pageManager.PageDimensions.Width - 2*margin) / float64(table.MaxColumns)
 	rowHeight := float64(25) // Standard row height
 
@@ -364,7 +406,7 @@ func drawTable(table models.Table, pageManager *PageManager, borderConfig string
 		if pageManager.CheckPageBreak(rowHeight) {
 			// Create new page and initialize it
 			pageManager.AddNewPage()
-			drawPageBorder(pageManager.GetCurrentContentStream(), borderConfig, pageManager.PageDimensions)
+			initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions)
 		}
 
 		// Get current content stream for this page
