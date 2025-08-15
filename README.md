@@ -10,26 +10,6 @@
 
 GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting **multiple page sizes**, **automatic page breaks**, tables, borders, checkboxes, **font styling (bold, italic, underline)**, and custom layouts without external dependencies.
 
-## 🏗️ Project Structure
-
-```
-GoPdfSuit/
-├── 📁 cmd/
-│   └── 📁 gopdfsuit/           # 🎯 Application entrypoint
-│       └── main.go
-├── 📁 internal/
-│   ├── 📁 handlers/            # 🔗 HTTP handlers and route registration
-│   │   └── handlers.go
-│   ├── 📁 models/              # 📊 Template data models
-│   │   └── models.go
-│   └── 📁 pdf/                 # 📄 Template-based PDF generation
-│       └── pdf.go
-├── 📄 go.mod                   # 📦 Go modules file
-├── 📄 temp.json               # 📋 Example template file
-├── 📄 .gitignore              # 🚫 Git ignore rules
-└── 📖 README.md               # 📚 This file
-```
-
 ## 🔧 Requirements
 
 - **Go** `1.20+` (project currently targets Go 1.23)
@@ -60,6 +40,47 @@ go run ./cmd/gopdfsuit
 ```
 
 ## 📡 API Reference
+
+### PDF Viewer Web Interface
+
+**New Feature:** Interactive web-based PDF viewer and template editor.
+
+**Endpoint:** `GET /` (Root endpoint)
+
+**Query Parameters:**
+- `file` (optional): JSON template filename to load automatically
+
+**Examples:**
+```
+http://localhost:8080/
+http://localhost:8080/?file=temp_multiplepage.json
+```
+
+**Features:**
+- 🖥️ **Interactive Web Interface**: Clean, responsive design with real-time preview
+- 📋 **JSON Template Editor**: Syntax-highlighted JSON display with copy functionality
+- 📄 **Live PDF Preview**: Real-time PDF generation and preview using PDF.js
+- 📱 **Multi-page Navigation**: Page controls for navigating through generated PDFs
+- ⬇️ **Download Support**: Direct PDF download functionality
+- 🔗 **URL Parameters**: Load templates directly via query parameters
+- 📱 **Responsive Design**: Works on desktop, tablet, and mobile devices
+
+### Template Data API
+
+**Endpoint:** `GET /api/v1/template-data`
+
+**Query Parameters:**
+- `file` (required): JSON template filename
+
+**Security Features:**
+- ✅ **Path Traversal Protection**: Only filenames (no directories) allowed
+- ✅ **File Extension Validation**: Only `.json` files accepted
+- ✅ **JSON Validation**: Template structure validation before serving
+
+**Example:**
+```bash
+curl "http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json"
+```
 
 ### Generate Template-based PDF
 
@@ -162,6 +183,34 @@ go run ./cmd/gopdfsuit
 - **File:** `template-pdf-<timestamp>.pdf` (auto-download)
 
 ## 🧪 Usage Examples
+
+### 🖥️ Web Interface Usage
+
+1. **Direct Access:**
+   ```
+   http://localhost:8080/
+   ```
+
+2. **Load Template via URL:**
+   ```
+   http://localhost:8080/?file=temp_multiplepage.json
+   ```
+
+3. **Interactive Workflow:**
+   - Enter filename in the input field
+   - Click "Load Template" to fetch JSON data
+   - Review the syntax-highlighted JSON structure
+   - Click "Generate PDF" to create and preview the PDF
+   - Use navigation controls to browse multi-page documents
+   - Download the generated PDF with one click
+
+### 📱 Multi-Page Healthcare Form (Web Interface)
+
+1. Navigate to: `http://localhost:8080/?file=temp_multiplepage.json`
+2. The interface will automatically load and display the template
+3. Click "Generate PDF" to create a multi-page healthcare form
+4. Use the page navigation controls to browse through pages
+5. Download the PDF using the download button
 
 ### 📱 Multi-Page Healthcare Form (cURL)
 ```bash
@@ -317,6 +366,7 @@ with open("survey-landscape.pdf", "wb") as f:
 ## ✨ Features
 
 - 🎯 **Template-based**: JSON-driven PDF generation
+- 🖥️ **Web Interface**: Interactive HTML viewer with real-time preview
 - 📋 **Tables & Forms**: Support for complex table layouts with automatic page breaks
 - ☑️ **Checkboxes**: Interactive checkbox elements
 - 🎨 **Font Styling**: Bold, italic, and underline text support
@@ -330,18 +380,52 @@ with open("survey-landscape.pdf", "wb") as f:
 - ⚡ **Fast**: In-memory PDF generation with height tracking
 - 📦 **Self-contained**: Single binary deployment
 - 🌐 **Cross-platform**: Runs on Windows, Linux, macOS
+- 📱 **Responsive**: Mobile-friendly web interface
+- 🔒 **Secure**: Path traversal protection and input validation
+
+## 🏗️ Project Structure
+
+```
+GoPdfSuit/
+├── 📁 cmd/
+│   └── 📁 gopdfsuit/           # 🎯 Application entrypoint
+│       └── main.go
+├── 📁 internal/
+│   ├── 📁 handlers/            # 🔗 HTTP handlers and route registration
+│   │   └── handlers.go
+│   ├── 📁 models/              # 📊 Template data models
+│   │   └── models.go
+│   └── 📁 pdf/                 # 📄 Template-based PDF generation
+│       └── pdf.go
+├── 📁 web/                     # 🌐 Web interface assets
+│   ├── 📁 static/
+│   │   ├── 📁 css/
+│   │   │   └── viewer.css      # 🎨 PDF viewer styles
+│   │   └── 📁 js/
+│   │       └── viewer.js       # ⚡ PDF viewer functionality
+│   └── 📁 templates/
+│       └── pdf_viewer.html     # 📄 PDF viewer HTML template
+├── 📄 go.mod                   # 📦 Go modules file
+├── 📄 temp_multiplepage.json   # 📋 Example multi-page template file
+├── 📄 .gitignore              # 🚫 Git ignore rules
+└── 📖 README.md               # 📚 This file
+```
 
 ## 🗺️ Roadmap & TODO
 
+- [x] 🖥️ Web-based PDF viewer and template editor
+- [x] 📋 Multi-page document support with automatic page breaks
+- [x] 🔒 Security features (path traversal protection, input validation)
 - [ ] 🧪 Add comprehensive unit tests
 - [ ] 🎨 Support for colors and advanced styling
 - [ ] 📊 Image embedding support
 - [ ] 🐳 Docker containerization
 - [ ] 📈 Metrics and health check endpoints
 - [ ] 🔐 Authentication and rate limiting
-- [ ] 📋 Multi-page document support
 - [ ] 💾 Template storage and management
 - [ ] 📧 Email delivery integration
+- [ ] 📝 Template editor with validation
+- [ ] 🔄 Real-time collaborative editing
 
 ## 🛠️ Development
 
