@@ -337,6 +337,20 @@ button:disabled {
   max-height: calc(100vh - 300px);
 }
 
+/* Hide scrollbars visually but keep scrolling for toolbox and canvas */
+.toolbox,
+.canvas {
+  -ms-overflow-style: none; /* IE, Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.toolbox::-webkit-scrollbar,
+.canvas::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
+}
+
 .canvas-placeholder {
   position: absolute;
   top: 50%;
@@ -749,6 +763,17 @@ button:disabled {
   padding: 20px;
   resize: vertical;
   outline: none;
+}
+
+/* Hide scrollbar for generated JSON textarea but keep it scrollable */
+.json-textarea {
+  -ms-overflow-style: none; /* IE, Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.json-textarea::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
 }
 
 /* Status Bar */
