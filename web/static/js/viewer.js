@@ -323,11 +323,24 @@ class PDFViewer {
     }
 
     toggleTheme() {
+        // remember the selected gradient index so we can map to the same position
+        // in the other theme's list (e.g. Dark "Nightfall" -> Light "Sunrise")
+        const prevIndex = this.gradientSelect ? this.gradientSelect.selectedIndex : 0;
+
         const darkNow = !document.body.classList.contains('theme-dark');
         document.body.classList.toggle('theme-dark', darkNow);
         document.body.classList.toggle('theme-light', !darkNow);
         this.themeToggle.textContent = darkNow ? '🌞' : '🌙';
+
+        // repopulate gradients for the new theme, then restore by index (clamped)
         this.populateGradients(darkNow);
+        if (this.gradientSelect) {
+            let idx = typeof prevIndex === 'number' ? prevIndex : 0;
+            if (idx < 0) idx = 0;
+            if (idx >= this.gradientSelect.options.length) idx = 0;
+            this.gradientSelect.selectedIndex = idx;
+        }
+
         this.applyGradient();
         localStorage.setItem('gopdf_theme', darkNow ? 'dark' : 'light');
     }
