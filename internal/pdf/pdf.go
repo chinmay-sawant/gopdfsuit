@@ -286,15 +286,15 @@ func generateAllContent(template models.PDFTemplate, pageManager *PageManager) {
 		drawTable(table, pageManager, template.Config.PageBorder)
 	}
 
-	// Add page numbers to all pages after content generation
+	// Draw footer and page numbers on every page (footer first to avoid overlap)
 	totalPages := len(pageManager.Pages)
 	for i := 0; i < totalPages; i++ {
+		// Draw footer on this page if footer text provided
+		if template.Footer.Text != "" {
+			drawFooter(&pageManager.ContentStreams[i], template.Footer, pageManager.PageDimensions)
+		}
+		// Draw page number on this page
 		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions)
-	}
-
-	// Footer - Always draw on the last page
-	if template.Footer.Text != "" {
-		drawFooter(pageManager.GetCurrentContentStream(), template.Footer, pageManager.PageDimensions)
 	}
 }
 
