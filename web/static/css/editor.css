@@ -483,71 +483,170 @@ button:disabled {
   font-size: 14px;
 }
 
-.property-row {
+/* Table properties use same formatting as table tools */
+.properties-panel .table-property-btn {
+  margin-right: 8px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  min-width: 110px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  background: var(--button-bg);
+  color: var(--text-color);
+  border: 1px solid var(--panel-border);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.properties-panel .table-property-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.properties-panel .table-property-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Border control grid styling */
+.border-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.border-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 4px;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+}
+
+.border-btn {
+  background: var(--button-bg);
+  color: var(--text-color);
+  border: 2px solid var(--panel-border);
+  border-radius: 6px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  padding: 4px;
 }
 
-.property-row label {
-  min-width: 80px;
+.border-btn:hover {
+  background: var(--draggable-hover);
+  transform: translateY(-1px);
+}
+
+.border-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.border-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--subtext-color);
+  font-size: 18px;
+}
+
+.border-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* Property stats styling */
+.property-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: var(--canvas-bg);
+  border-radius: 6px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   color: var(--subtext-color);
-}
-
-/* Slightly increase label width on larger screens for better alignment */
-@media (min-width: 1024px) {
-  .property-row label {
-    min-width: 110px;
-  }
-}
-
-.property-row input,
-.property-row select {
-  flex: 1;
-  padding: 6px 8px;
-  border: 1px solid var(--input-border);
+  padding: 4px 8px;
+  background: var(--panel-bg);
   border-radius: 4px;
-  background: var(--input-bg);
-  color: var(--text-color);
-  font-size: 13px;
+  border: 1px solid var(--panel-border);
 }
 
-/* Make numeric inputs for font-size and similar controls compact and aligned */
-.properties-panel .property-row input[type="number"] {
-  max-width: 120px;
-  width: 100%;
+.stat-item.selected-cells-info {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 
-/* Improve appearance of inputs inside canvas elements (e.g., title input) */
-.canvas-element .element-content input[type="text"],
-.canvas-element .element-content input[type="number"] {
-  width: 100%;
-  padding: 8px 10px;
+.stat-item i {
+  width: 14px;
+  text-align: center;
+}
+
+/* Table property controls - consistent with table tools */
+.table-property-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.table-property-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--subtext-color);
+  margin-bottom: 4px;
+  min-width: 100%;
+}
+
+.table-property-group input,
+.table-property-group select {
+  padding: 8px 12px;
   border: 1px solid var(--input-border);
   border-radius: 6px;
   background: var(--input-bg);
   color: var(--text-color);
   font-size: 14px;
+  min-width: 110px;
 }
 
-/* Give a little breathing room for table editor controls */
-.table-editor td {
-  padding: 10px;
-}
-
-.style-checkboxes {
-  display: flex;
-  gap: 10px;
-}
-
-.style-checkboxes label {
+/* Border hint styling */
+.border-hint {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  min-width: auto;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--subtext-color);
+  font-style: italic;
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: var(--canvas-bg);
+  border-radius: 4px;
+}
+
+.border-hint i {
+  color: var(--primary-color);
 }
 
 /* JSON Output */

@@ -159,7 +159,12 @@ class TemplateEditor {
         draggableItems.forEach(item => {
             item.draggable = true;
             item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', item.dataset.type);
+                const type = item.dataset.type;
+                if (type === 'checkbox') {
+                    e.dataTransfer.setData('text/cell-component', type);
+                } else {
+                    e.dataTransfer.setData('text/plain', type);
+                }
                 item.classList.add('dragging');
             });
             item.addEventListener('dragend', () => item.classList.remove('dragging'));
@@ -370,83 +375,81 @@ class TemplateEditor {
                     </div>
                     
                     <div class="property-group">
-                        <label><i class="fas fa-text-height"></i> Cell Font Size:</label>
-                        <div class="input-with-icon">
+                        <div class="table-property-group">
+                            <label><i class="fas fa-text-height"></i> Cell Font Size:</label>
                             <input type="number" id="propCellFontSize" value="${element.dataset.cellFontSize}" min="6" max="24">
-                            <i class="fas fa-font input-icon"></i>
                         </div>
                     </div>
                     
                     <div class="property-group">
-                        <label><i class="fas fa-align-left"></i> Cell Alignment:</label>
-                        <div class="select-with-icon">
+                        <div class="table-property-group">
+                            <label><i class="fas fa-align-left"></i> Cell Alignment:</label>
                             <select id="propCellAlignment">
-                                <option value="left" ${element.dataset.cellAlignment === 'left' ? 'selected' : ''}><i class="fas fa-align-left"></i> Left</option>
-                                <option value="center" ${element.dataset.cellAlignment === 'center' ? 'selected' : ''}><i class="fas fa-align-center"></i> Center</option>
-                                <option value="right" ${element.dataset.cellAlignment === 'right' ? 'selected' : ''}><i class="fas fa-align-right"></i> Right</option>
+                                <option value="left" ${element.dataset.cellAlignment === 'left' ? 'selected' : ''}>Left</option>
+                                <option value="center" ${element.dataset.cellAlignment === 'center' ? 'selected' : ''}>Center</option>
+                                <option value="right" ${element.dataset.cellAlignment === 'right' ? 'selected' : ''}>Right</option>
                             </select>
-                            <i class="fas fa-align-center select-icon"></i>
                         </div>
                     </div>
                     
                     ${selectedCellsCount > 0 ? `
-                    <div class="property-group selected-cells-borders">
-                        <label><i class="fas fa-border-style"></i> Selected Cells Border:</label>
-                        <div class="border-controls">
-                            <div class="border-grid">
-                                <button type="button" class="border-btn" data-border="top" title="Top Border">
-                                    <i class="fas fa-minus"></i>
-                                </button>
-                                <div></div>
-                                <div></div>
-                                <button type="button" class="border-btn" data-border="left" title="Left Border">
-                                    <i class="fas fa-minus rotate-90"></i>
-                                </button>
-                                <div class="border-center">
-                                    <i class="fas fa-th"></i>
+                    <div class="property-group">
+                        <div class="table-property-group">
+                            <label><i class="fas fa-border-style"></i> Selected Cells Border:</label>
+                            <div class="border-controls">
+                                <div class="border-grid">
+                                    <div></div>
+                                    <button type="button" class="border-btn" data-border="top" title="Top Border">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <div></div>
+                                    <button type="button" class="border-btn" data-border="left" title="Left Border">
+                                        <i class="fas fa-minus" style="transform: rotate(90deg);"></i>
+                                    </button>
+                                    <div class="border-center">
+                                        <i class="fas fa-th"></i>
+                                    </div>
+                                    <button type="button" class="border-btn" data-border="right" title="Right Border">
+                                        <i class="fas fa-minus" style="transform: rotate(90deg);"></i>
+                                    </button>
+                                    <div></div>
+                                    <button type="button" class="border-btn" data-border="bottom" title="Bottom Border">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                    <div></div>
                                 </div>
-                                <button type="button" class="border-btn" data-border="right" title="Right Border">
-                                    <i class="fas fa-minus rotate-90"></i>
-                                </button>
-                                <div></div>
-                                <button type="button" class="border-btn" data-border="bottom" title="Bottom Border">
-                                    <i class="fas fa-minus"></i>
-                                </button>
-                                <div></div>
-                            </div>
-                            <div class="border-actions">
-                                <button type="button" id="clearBordersBtn" class="btn-secondary">
-                                    <i class="fas fa-eraser"></i> Clear All
-                                </button>
-                                <button type="button" id="allBordersBtn" class="btn-primary">
-                                    <i class="fas fa-border-all"></i> All Borders
-                                </button>
+                                <div class="border-actions">
+                                    <button type="button" id="clearBordersBtn" class="btn-secondary">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                    <button type="button" id="allBordersBtn" class="btn-primary">
+                                        <i class="fas fa-border-all"></i> All
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>` : `
                     <div class="property-group">
-                        <label><i class="fas fa-border-style"></i> Table Border:</label>
-                        <div class="style-checkboxes">
-                            <label><input type="checkbox" id="propBorderTop"> <i class="fas fa-minus"></i> Top</label>
-                            <label><input type="checkbox" id="propBorderRight"> <i class="fas fa-minus rotate-90"></i> Right</label>
-                            <label><input type="checkbox" id="propBorderBottom"> <i class="fas fa-minus"></i> Bottom</label>
-                            <label><input type="checkbox" id="propBorderLeft"> <i class="fas fa-minus rotate-90"></i> Left</label>
-                        </div>
-                        <div class="border-hint">
-                            <i class="fas fa-info-circle"></i>
-                            Select cells with Ctrl+click or Ctrl+drag for individual cell borders
-                        </div>
-                    </div>`}
-                    
-                    <div class="property-group">
-                        <label><i class="fas fa-plus-square"></i> Add Components:</label>
-                        <div class="cell-components">
-                            <div class="draggable-cell-item" draggable="true" data-type="checkbox" title="Drag to table cell">
-                                <i class="fas fa-check-square"></i>
-                                <span>Checkbox</span>
+                        <div class="table-property-group">
+                            <label><i class="fas fa-border-style"></i> Table Border:</label>
+                            <button type="button" id="propBorderTop" class="table-property-btn">
+                                <i class="fas fa-minus"></i> Top
+                            </button>
+                            <button type="button" id="propBorderRight" class="table-property-btn">
+                                <i class="fas fa-minus" style="transform: rotate(90deg);"></i> Right
+                            </button>
+                            <button type="button" id="propBorderBottom" class="table-property-btn">
+                                <i class="fas fa-minus"></i> Bottom
+                            </button>
+                            <button type="button" id="propBorderLeft" class="table-property-btn">
+                                <i class="fas fa-minus" style="transform: rotate(90deg);"></i> Left
+                            </button>
+                            <div class="border-hint">
+                                <i class="fas fa-info-circle"></i>
+                                Select cells with Ctrl+click or Ctrl+drag for individual cell borders
                             </div>
                         </div>
-                    </div>
+                    </div>`}
                 `;
                 break;
 
@@ -471,48 +474,14 @@ class TemplateEditor {
 
         this.propertiesPanel.innerHTML = propertiesHTML;
 
-        // Setup cell component drag and drop
         if (type === 'table') {
-            this.setupCellComponentDrag();
             this.setupBorderControls();
-            
-            // Initialize border checkboxes for tables (existing code)
-            setTimeout(() => {
-                const tdSample = this.selectedCells.size > 0 ? Array.from(this.selectedCells)[0] : this.selectedElement.querySelector('td');
-                if (tdSample && !this.selectedCells.size) {
-                    const sampleProps = tdSample.dataset.props || tdSample.querySelector('input')?.dataset?.props;
-                    const parts = (sampleProps || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`).split(':');
-                    const bt = parts[4] === '1';
-                    const br = parts[5] === '1';
-                    const bb = parts[6] === '1';
-                    const bl = parts[7] === '1';
-                    const topCheck = document.getElementById('propBorderTop');
-                    const rightCheck = document.getElementById('propBorderRight');
-                    const bottomCheck = document.getElementById('propBorderBottom');
-                    const leftCheck = document.getElementById('propBorderLeft');
-                    if (topCheck) topCheck.checked = bt;
-                    if (rightCheck) rightCheck.checked = br;
-                    if (bottomCheck) bottomCheck.checked = bb;
-                    if (leftCheck) leftCheck.checked = bl;
-                }
-            }, 0);
+            this.initializeTableBorderButtons();
         }
 
         this.attachPropertyListeners();
     }
-
-    setupCellComponentDrag() {
-        const cellItems = this.propertiesPanel.querySelectorAll('.draggable-cell-item');
-        cellItems.forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/cell-component', item.dataset.type);
-                item.classList.add('dragging');
-            });
-            item.addEventListener('dragend', () => item.classList.remove('dragging'));
-        });
-    }
-
-    setupBorderControls() {
+setupBorderControls() {
         // Border button controls for selected cells
         const borderBtns = this.propertiesPanel.querySelectorAll('.border-btn');
         borderBtns.forEach(btn => {
@@ -545,32 +514,42 @@ class TemplateEditor {
         this.updateBorderButtonStates();
     }
 
-    toggleSelectedCellsBorder(borderType) {
-        if (this.selectedCells.size === 0) return;
+    initializeTableBorderButtons() {
+        const buttons = {
+            'propBorderTop': 4,
+            'propBorderRight': 5, 
+            'propBorderBottom': 6,
+            'propBorderLeft': 7
+        };
 
-        const borderMap = { top: 4, right: 5, bottom: 6, left: 7 };
-        const index = borderMap[borderType];
+        Object.entries(buttons).forEach(([buttonId, borderIndex]) => {
+            const button = document.getElementById(buttonId);
+            if (button) {
+                // Check if this border is active for all table cells
+                const table = this.selectedElement.querySelector('.template-table');
+                const cells = table.querySelectorAll('td');
+                let allActive = true;
 
-        this.selectedCells.forEach(cell => {
-            const input = cell.querySelector('input');
-            const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
-            const parts = existing.split(':');
-            while (parts.length < 8) parts.push('0');
-            
-            parts[index] = parts[index] === '1' ? '0' : '1';
-            const updated = parts.join(':');
-            cell.dataset.props = updated;
-            if (input) input.dataset.props = updated;
-            
-            // Visual feedback
-            const borderStyle = parts[index] === '1' ? '2px solid var(--primary-color)' : '';
-            cell.style[`border${borderType.charAt(0).toUpperCase() + borderType.slice(1)}`] = borderStyle;
+                cells.forEach(cell => {
+                    const input = cell.querySelector('input');
+                    const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+                    const parts = existing.split(':');
+                    if (parts[borderIndex] !== '1') {
+                        allActive = false;
+                    }
+                });
+
+                button.classList.toggle('active', allActive);
+                
+                button.addEventListener('click', () => {
+                    const isActive = button.classList.contains('active');
+                    this.toggleTableBorder(borderIndex, !isActive);
+                    button.classList.toggle('active', !isActive);
+                });
+            }
         });
-
-        this.generateJSON();
     }
-
-    clearSelectedCellsBorders() {
+clearSelectedCellsBorders() {
         if (this.selectedCells.size === 0) return;
 
         this.selectedCells.forEach(cell => {
@@ -590,9 +569,45 @@ class TemplateEditor {
 
         this.generateJSON();
     }
+    
+    toggleTableBorder(borderIndex, activate) {
+        const table = this.selectedElement.querySelector('.template-table');
+        const cells = table.querySelectorAll('td');
 
-    setAllSelectedCellsBorders() {
+        cells.forEach(cell => {
+            const input = cell.querySelector('input');
+            const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+            const parts = existing.split(':');
+            while (parts.length < 8) parts.push('0');
+            
+            parts[borderIndex] = activate ? '1' : '0';
+            const updated = parts.join(':');
+            cell.dataset.props = updated;
+            if (input) input.dataset.props = updated;
+        });
+
+        this.generateJSON();
+    }
+
+    toggleSelectedCellsBorder(borderType) {
         if (this.selectedCells.size === 0) return;
+
+        const borderMap = { top: 4, right: 5, bottom: 6, left: 7 };
+        const index = borderMap[borderType];
+
+        // Check if all selected cells have this border
+        let allHaveBorder = true;
+        this.selectedCells.forEach(cell => {
+            const input = cell.querySelector('input');
+            const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+            const parts = existing.split(':');
+            if (parts[index] !== '1') {
+                allHaveBorder = false;
+            }
+        });
+
+        // Toggle based on current state
+        const newState = !allHaveBorder;
 
         this.selectedCells.forEach(cell => {
             const input = cell.querySelector('input');
@@ -600,14 +615,14 @@ class TemplateEditor {
             const parts = existing.split(':');
             while (parts.length < 8) parts.push('0');
             
-            parts[4] = parts[5] = parts[6] = parts[7] = '1';
+            parts[index] = newState ? '1' : '0';
             const updated = parts.join(':');
             cell.dataset.props = updated;
             if (input) input.dataset.props = updated;
             
             // Visual feedback
-            const borderStyle = '2px solid var(--primary-color)';
-            cell.style.borderTop = cell.style.borderRight = cell.style.borderBottom = cell.style.borderLeft = borderStyle;
+            const borderSide = borderType.charAt(0).toUpperCase() + borderType.slice(1);
+            cell.style[`border${borderSide}`] = newState ? '2px solid var(--primary-color)' : '';
         });
 
         this.generateJSON();
