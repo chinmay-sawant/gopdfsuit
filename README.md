@@ -154,6 +154,7 @@ go run ./cmd/gopdfsuit
 - ✅ **Page Size Aware**: Respects selected page dimensions for break calculations
 - ✅ **Border Preservation**: Page borders are drawn on every new page
 - ✅ **Content Continuity**: Tables and content flow seamlessly across pages
+- ✅ **Page Numbering**: Automatic "Page X of Y" numbering in bottom right corner
 
 **Response:**
 - **Content-Type:** `application/pdf`
@@ -319,6 +320,7 @@ with open("survey-landscape.pdf", "wb") as f:
 - ☑️ **Checkboxes**: Interactive checkbox elements
 - 🎨 **Font Styling**: Bold, italic, and underline text support
 - 📄 **Multi-page Support**: Automatic page breaks and multi-page documents
+- 🔢 **Page Numbering**: Automatic page numbering in "Page X of Y" format
 - 📏 **Custom Page Sizes**: A4, Letter, Legal, A3, A5 support
 - 🔄 **Page Orientation**: Portrait and landscape orientations
 - 🔤 **Flexible Typography**: Custom fonts, sizes, and alignments

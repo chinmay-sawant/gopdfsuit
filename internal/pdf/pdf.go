@@ -286,6 +286,12 @@ func generateAllContent(template models.PDFTemplate, pageManager *PageManager) {
 		drawTable(table, pageManager, template.Config.PageBorder)
 	}
 
+	// Add page numbers to all pages after content generation
+	totalPages := len(pageManager.Pages)
+	for i := 0; i < totalPages; i++ {
+		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions)
+	}
+
 	// Footer - Always draw on the last page
 	if template.Footer.Text != "" {
 		drawFooter(pageManager.GetCurrentContentStream(), template.Footer, pageManager.PageDimensions)
@@ -478,19 +484,33 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageDims Page
 	contentStream.WriteString(strconv.Itoa(footerProps.FontSize))
 	contentStream.WriteString(" Tf\n")
 
-	var footerX float64
-	switch footerProps.Alignment {
-	case "center":
-		footerX = pageDims.Width / 2
-	case "right":
-		footerX = pageDims.Width - margin
-	default:
-		footerX = margin
-	}
+	// Position footer outside the page border on the left side
+	footerX := float64(20) // 20pt from left edge (outside margin)
+	footerY := float64(20) // 20pt from bottom edge (outside margin)
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
-	contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", footerX, float64(margin+10)))
+	contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", footerX, footerY))
 	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", footer.Text))
+	contentStream.WriteString("ET\n")
+}
+
+// drawPageNumber renders page number in bottom right corner
+func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions) {
+	pageText := fmt.Sprintf("Page %d of %d", currentPage, totalPages)
+
+	contentStream.WriteString("BT\n")
+	contentStream.WriteString("/F1 10 Tf\n") // Use Helvetica, 10pt
+
+	// Calculate text width for proper right alignment
+	textWidth := float64(len(pageText)) * 6 // Approximate character width for 10pt font
+
+	// Position outside the page border on the right side
+	pageNumberX := pageDims.Width - textWidth - 20 // 20pt from right edge (outside margin)
+	pageNumberY := float64(20)                     // 20pt from bottom edge (outside margin)
+
+	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
+	contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", pageNumberX, pageNumberY))
+	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", pageText))
 	contentStream.WriteString("ET\n")
 }
 
