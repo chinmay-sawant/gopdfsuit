@@ -508,44 +508,64 @@ class TemplateEditor {
         this.attachPropertyListeners();
     }
 setupBorderControls() {
-        // Border button controls for selected cells
-        const borderBtns = this.propertiesPanel.querySelectorAll('.border-btn');
-        borderBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const borderType = btn.dataset.border;
-                this.toggleSelectedCellsBorder(borderType);
-                this.updateBorderButtonStates();
-            });
+    // Border button controls for selected cells
+    const borderBtns = this.propertiesPanel.querySelectorAll('.border-btn');
+    borderBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const borderType = btn.dataset.border;
+            this.toggleSelectedCellsBorder(borderType);
+            this.updateBorderButtonStates();
         });
+    });
 
-        // Clear all borders button
-        const clearBtn = this.propertiesPanel.querySelector('#clearBordersBtn');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => {
-                this.clearSelectedCellsBorders();
-                this.updateBorderButtonStates();
-            });
-        }
-
-        // All borders button
-        const allBtn = this.propertiesPanel.querySelector('#allBordersBtn');
-        if (allBtn) {
-            allBtn.addEventListener('click', () => {
-                this.setAllSelectedCellsBorders();
-                this.updateBorderButtonStates();
-            });
-        }
-
-        // Update initial states
-        this.updateBorderButtonStates();
+    // Clear all borders button
+    const clearBtn = this.propertiesPanel.querySelector('#clearBordersBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            this.clearSelectedCellsBorders();
+            this.updateBorderButtonStates();
+        });
     }
+
+    // All borders button
+    const allBtn = this.propertiesPanel.querySelector('#allBordersBtn');
+    if (allBtn) {
+        allBtn.addEventListener('click', () => {
+            this.setAllSelectedCellsBorders();
+            this.updateBorderButtonStates();
+        });
+    }
+
+    // Update initial states
+    this.updateBorderButtonStates();
+}
+
+setAllSelectedCellsBorders() {
+    if (this.selectedCells.size === 0) return;
+
+    this.selectedCells.forEach(cell => {
+        const input = cell.querySelector('input');
+        const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+        const parts = existing.split(':');
+        while (parts.length < 8) parts.push('0');
+    // set left,right,top,bottom = 1
+    parts[4] = parts[5] = parts[6] = parts[7] = '1';
+        const updated = parts.join(':');
+        cell.dataset.props = updated;
+        if (input) input.dataset.props = updated;
+        cell.style.borderTop = cell.style.borderRight = cell.style.borderBottom = cell.style.borderLeft = '2px solid var(--primary-color)';
+    });
+
+    this.generateJSON();
+}
 
     initializeTableBorderButtons() {
         const buttons = {
-            'propBorderTop': 4,
-            'propBorderRight': 5, 
-            'propBorderBottom': 6,
-            'propBorderLeft': 7
+            // Use props order left(4), right(5), top(6), bottom(7)
+            'propBorderLeft': 4,
+            'propBorderRight': 5,
+            'propBorderTop': 6,
+            'propBorderBottom': 7
         };
 
         Object.entries(buttons).forEach(([buttonId, borderIndex]) => {
@@ -560,6 +580,7 @@ setupBorderControls() {
                     const input = cell.querySelector('input');
                     const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
                     const parts = existing.split(':');
+                    while (parts.length < 8) parts.push('0');
                     if (parts[borderIndex] !== '1') {
                         allActive = false;
                     }
@@ -584,6 +605,7 @@ clearSelectedCellsBorders() {
             const parts = existing.split(':');
             while (parts.length < 8) parts.push('0');
             
+            // clear left,right,top,bottom
             parts[4] = parts[5] = parts[6] = parts[7] = '0';
             const updated = parts.join(':');
             cell.dataset.props = updated;
@@ -605,7 +627,6 @@ clearSelectedCellsBorders() {
             const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
             const parts = existing.split(':');
             while (parts.length < 8) parts.push('0');
-            
             parts[borderIndex] = activate ? '1' : '0';
             const updated = parts.join(':');
             cell.dataset.props = updated;
@@ -618,7 +639,8 @@ clearSelectedCellsBorders() {
     toggleSelectedCellsBorder(borderType) {
         if (this.selectedCells.size === 0) return;
 
-        const borderMap = { top: 4, right: 5, bottom: 6, left: 7 };
+    // props order: left(4), right(5), top(6), bottom(7)
+    const borderMap = { left: 4, right: 5, top: 6, bottom: 7 };
         const index = borderMap[borderType];
 
         // Check if all selected cells have this border
@@ -627,6 +649,7 @@ clearSelectedCellsBorders() {
             const input = cell.querySelector('input');
             const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
             const parts = existing.split(':');
+            while (parts.length < 8) parts.push('0');
             if (parts[index] !== '1') {
                 allHaveBorder = false;
             }
@@ -640,7 +663,6 @@ clearSelectedCellsBorders() {
             const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
             const parts = existing.split(':');
             while (parts.length < 8) parts.push('0');
-            
             parts[index] = newState ? '1' : '0';
             const updated = parts.join(':');
             cell.dataset.props = updated;
@@ -656,25 +678,26 @@ clearSelectedCellsBorders() {
 
     updateBorderButtonStates() {
         if (this.selectedCells.size === 0) return;
-
-        const borderMap = { top: 4, right: 5, bottom: 6, left: 7 };
+    // props order: left(4), right(5), top(6), bottom(7)
+    const borderMap = { left: 4, right: 5, top: 6, bottom: 7 };
         const borderBtns = this.propertiesPanel.querySelectorAll('.border-btn');
 
         borderBtns.forEach(btn => {
             const borderType = btn.dataset.border;
             const index = borderMap[borderType];
-            let allSelected = true;
-
+            // Mark as active if ANY selected cell has this border (more intuitive for mixed selections)
+            let anySelected = false;
             this.selectedCells.forEach(cell => {
                 const input = cell.querySelector('input');
                 const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
                 const parts = existing.split(':');
-                if (parts[index] !== '1') {
-                    allSelected = false;
+                while (parts.length < 8) parts.push('0');
+                if (parts[index] === '1') {
+                    anySelected = true;
                 }
             });
 
-            btn.classList.toggle('active', allSelected);
+            btn.classList.toggle('active', anySelected);
         });
     }
 
@@ -712,28 +735,29 @@ clearSelectedCellsBorders() {
                 const bb = document.getElementById('propBorderBottom')?.checked;
                 const bl = document.getElementById('propBorderLeft')?.checked;
 
-                // Helper to apply border flags into the props string (preserve other parts)
-                const applyBorderToCell = (td) => {
-                    if (!td) return;
-                    // get existing props from td or input, or default
-                    const input = td.querySelector('input');
-                    const existing = td.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
-                    const parts = existing.split(':');
-                    // parts expected like [font1, size, style, align, top,right,bottom,left]
-                    while (parts.length < 8) parts.push('0');
-                    parts[4] = bt ? '1' : '0';
-                    parts[5] = br ? '1' : '0';
-                    parts[6] = bb ? '1' : '0';
-                    parts[7] = bl ? '1' : '0';
-                    const updated = parts.join(':');
-                    td.dataset.props = updated;
-                    if (input) input.dataset.props = updated;
-                    // visual feedback: toggle CSS border styles
-                    td.style.borderTop = bt ? '2px solid var(--primary-color)' : '';
-                    td.style.borderRight = br ? '2px solid var(--primary-color)' : '';
-                    td.style.borderBottom = bb ? '2px solid var(--primary-color)' : '';
-                    td.style.borderLeft = bl ? '2px solid var(--primary-color)' : '';
-                };
+                        // Helper to apply border flags into the props string (preserve other parts)
+                        const applyBorderToCell = (td) => {
+                            if (!td) return;
+                            // get existing props from td or input, or default
+                            const input = td.querySelector('input');
+                            const existing = td.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+                            const parts = existing.split(':');
+                            // parts expected like [font1, size, style, align, left,right,top,bottom]
+                            while (parts.length < 8) parts.push('0');
+                            // map flags: left(index4), right(5), top(6), bottom(7)
+                            parts[4] = bl ? '1' : '0';
+                            parts[5] = br ? '1' : '0';
+                            parts[6] = bt ? '1' : '0';
+                            parts[7] = bb ? '1' : '0';
+                            const updated = parts.join(':');
+                            td.dataset.props = updated;
+                            if (input) input.dataset.props = updated;
+                            // visual feedback: toggle CSS border styles
+                            td.style.borderTop = bt ? '2px solid var(--primary-color)' : '';
+                            td.style.borderRight = br ? '2px solid var(--primary-color)' : '';
+                            td.style.borderBottom = bb ? '2px solid var(--primary-color)' : '';
+                            td.style.borderLeft = bl ? '2px solid var(--primary-color)' : '';
+                        };
 
                 const table = this.selectedElement.querySelector('.template-table');
                 if (this.selectedCells.size > 0) {
@@ -935,8 +959,18 @@ clearSelectedCellsBorders() {
                         this.isSelectingCells = true;
                         this.toggleCellSelection(td);
                     } else {
-                        // Clear selection if not holding Ctrl
+                        // Normal click: select the table element and make this cell the single selected cell
+                        const parentElement = td.closest('.canvas-element');
+                        if (parentElement) {
+                            // Select the table element first (this clears element-level selection)
+                            this.selectElement(parentElement);
+                        }
+                        // Clear any previous cell selection and select this one
                         this.clearCellSelection();
+                        this.selectedCells.add(td);
+                        td.classList.add('selected-cell');
+                        // Update properties panel to show the selected cell's borders
+                        setTimeout(() => this.showProperties(this.selectedElement), 0);
                     }
                 });
                 
@@ -949,8 +983,9 @@ clearSelectedCellsBorders() {
                 // Prevent clicks inside table cells from deselecting the table
                 td.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    // If not in multi-select mode, show properties again to update selected cells count
-                    if (!this.isSelectingCells) {
+                    // If user clicked without holding Ctrl, we've already set this cell as selected in mousedown.
+                    // If we're in multi-select mode, just refresh properties to update counts.
+                    if (this.isSelectingCells) {
                         setTimeout(() => this.showProperties(this.selectedElement), 0);
                     }
                 });
