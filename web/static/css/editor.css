@@ -56,6 +56,12 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 20px;
+  /* Keep the control panel visible when scrolling */
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: blur(6px);
+  margin-top: 20px;
 }
 
 .control-group {
@@ -188,7 +194,8 @@ button:disabled {
   grid-template-columns: 280px 1fr 300px;
   gap: 20px;
   margin-bottom: 20px;
-  min-height: 600px;
+  /* Let the grid take remaining vertical space so sticky positioning can work */
+  min-height: calc(100vh - 320px); /* header + footer + controls approx */
 }
 
 /* Toolbox */
@@ -198,6 +205,10 @@ button:disabled {
   border-radius: 12px;
   padding: 20px;
   overflow-y: auto;
+  /* Make toolbox sticky so it doesn't scroll with the page */
+  position: sticky;
+  top: 20px; /* distance from top of viewport */
+  height: calc(100vh - 200px);
 }
 
 .toolbox h3 {
@@ -290,6 +301,8 @@ button:disabled {
   border-radius: 12px;
   display: flex;
   flex-direction: column;
+  /* Ensure the canvas column stretches and doesn't cause page scroll */
+  min-height: 0; /* allow children to control overflow */
 }
 
 .canvas-header {
@@ -319,6 +332,9 @@ button:disabled {
   position: relative;
   background: var(--canvas-bg);
   border-radius: 0 0 12px 12px;
+  /* let canvas handle vertical scrolling when content overflows */
+  overflow: auto;
+  max-height: calc(100vh - 300px);
 }
 
 .canvas-placeholder {
@@ -490,6 +506,9 @@ button:disabled {
   border-radius: 12px;
   padding: 20px;
   overflow-y: auto;
+  position: sticky;
+  top: 20px;
+  height: calc(100vh - 200px);
 }
 
 .properties-panel h3 {
