@@ -410,6 +410,12 @@ button:disabled {
   outline: 2px solid var(--primary-color);
 }
 
+/* highlight for multi-selected cells */
+.selected-cell {
+  box-shadow: inset 0 0 0 3px rgba(102, 126, 234, 0.12);
+  background: var(--table-cell-selected);
+}
+
 .cell-input {
   background: transparent;
   border: none;

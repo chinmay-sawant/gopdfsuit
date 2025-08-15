@@ -9,6 +9,9 @@ class TemplateEditor {
         // State Management
         this.selectedElement = null;
         this.elementCounter = 0;
+        // multi-cell selection state for table editing
+        this.isSelectingCells = false;
+        this.selectedCells = new Set();
         this.template = {
             config: {
                 pageBorder: "1:1:1:1",
@@ -41,7 +44,7 @@ class TemplateEditor {
     init() {
         this.setupEventListeners();
         this.setupDragAndDrop();
-        this.setupThemeControls();
+        this.setupThemeControls(); // Fixed: This function is now defined
         this.clearCanvas(); // Sets initial placeholder and state
         this.generateJSON();
         this.checkURLParams(); // Load from URL after setup
@@ -104,7 +107,14 @@ class TemplateEditor {
             }
             if (e.key === 'Escape') {
                 this.hidePasteModal();
+                // clear multi-cell selection when pressing Escape
+                this.clearCellSelection();
             }
+        });
+
+        // Stop cell selection on mouseup
+        document.addEventListener('mouseup', () => {
+            this.isSelectingCells = false;
         });
 
         // Click outside modal to close
@@ -117,6 +127,30 @@ class TemplateEditor {
         this.canvas.addEventListener('click', (e) => {
             if (e.target === this.canvas) this.deselectAllElements();
         });
+    }
+
+    // --- ADDED: Missing setupThemeControls method ---
+    setupThemeControls() {
+        const savedTheme = localStorage.getItem('gopdf_editor_theme') || 'light';
+        const savedGradient = localStorage.getItem('gopdf_editor_gradient');
+        const isDark = savedTheme === 'dark';
+
+        document.body.classList.toggle('theme-dark', isDark);
+        document.body.classList.toggle('theme-light', !isDark);
+        document.getElementById('themeToggle').textContent = isDark ? '🌞' : '🌙';
+
+        this.populateGradients(isDark);
+
+        const gradientSelect = document.getElementById('gradientSelect');
+        if (savedGradient) {
+            const currentGradients = isDark ? this.darkGradients : this.lightGradients;
+            const gradientExists = currentGradients.some(g => g.value === savedGradient);
+            if (gradientExists) {
+                gradientSelect.value = savedGradient;
+            }
+        }
+        
+        this.applyGradient(); 
     }
 
     setupDragAndDrop() {
@@ -142,25 +176,50 @@ class TemplateEditor {
             const elementType = e.dataTransfer.getData('text/plain');
             if (elementType) this.createElement(elementType);
         });
+
+        // Setup cell-specific drag and drop for checkboxes
+        this.setupCellDragAndDrop();
     }
 
-    setupThemeControls() {
-        const savedTheme = localStorage.getItem('gopdf_editor_theme') || 'dark';
-        const isDark = savedTheme === 'dark';
-        document.body.classList.toggle('theme-dark', isDark);
-        document.body.classList.toggle('theme-light', !isDark);
-        document.getElementById('themeToggle').textContent = isDark ? '🌞' : '🌙';
-        
-        this.populateGradients(isDark);
-        
-        const savedGradient = localStorage.getItem('gopdf_editor_gradient');
-        if (savedGradient) {
-            document.getElementById('gradientSelect').value = savedGradient;
-        } else {
-            const defaultGradient = isDark ? this.darkGradients[0].value : this.lightGradients[0].value;
-            document.getElementById('gradientSelect').value = defaultGradient;
+    setupCellDragAndDrop() {
+        // This will be called dynamically when tables are created
+        this.canvas.addEventListener('dragover', (e) => {
+            const cell = e.target.closest('td');
+            if (cell && e.dataTransfer.types.includes('text/cell-component')) {
+                e.preventDefault();
+                cell.classList.add('cell-drop-target');
+            }
+        });
+
+        this.canvas.addEventListener('dragleave', (e) => {
+            const cell = e.target.closest('td');
+            if (cell) {
+                cell.classList.remove('cell-drop-target');
+            }
+        });
+
+        this.canvas.addEventListener('drop', (e) => {
+            const cell = e.target.closest('td');
+            if (cell && e.dataTransfer.types.includes('text/cell-component')) {
+                e.preventDefault();
+                cell.classList.remove('cell-drop-target');
+                const componentType = e.dataTransfer.getData('text/cell-component');
+                this.addComponentToCell(cell, componentType);
+            }
+        });
+    }
+
+    addComponentToCell(cell, componentType) {
+        const input = cell.querySelector('input');
+        if (!input) return;
+
+        if (componentType === 'checkbox') {
+            input.type = 'checkbox';
+            input.checked = false;
+            input.className = 'cell-checkbox';
+            this.generateJSON();
+            this.updateStatus('Checkbox added to cell');
         }
-        this.applyGradient();
     }
 
     createElement(type, data = {}) {
@@ -248,6 +307,11 @@ class TemplateEditor {
         this.selectedElement = null;
         this.propertiesPanel.innerHTML = '<p class="no-selection">Select an element to edit its properties</p>';
         this.updateTableTools();
+        // clear any multi-cell selection state
+        if (this.selectedCells && this.selectedCells.size > 0) {
+            this.selectedCells.forEach(td => td.classList.remove('selected-cell'));
+            this.selectedCells.clear();
+        }
     }
 
     showProperties(element) {
@@ -257,13 +321,13 @@ class TemplateEditor {
         switch (type) {
             case 'title':
                 propertiesHTML = `
-                    <h4>Title Properties</h4>
+                    <h4><i class="fas fa-heading"></i> Title Properties</h4>
                     <div class="property-group">
-                        <label>Font Size:</label>
+                        <label><i class="fas fa-text-height"></i> Font Size:</label>
                         <input type="number" id="propFontSize" value="${element.dataset.fontSize}" min="8" max="72">
                     </div>
                     <div class="property-group">
-                        <label>Alignment:</label>
+                        <label><i class="fas fa-align-center"></i> Alignment:</label>
                         <select id="propAlignment">
                             <option value="left" ${element.dataset.alignment === 'left' ? 'selected' : ''}>Left</option>
                             <option value="center" ${element.dataset.alignment === 'center' ? 'selected' : ''}>Center</option>
@@ -271,11 +335,11 @@ class TemplateEditor {
                         </select>
                     </div>
                     <div class="property-group">
-                        <label>Style:</label>
+                        <label><i class="fas fa-bold"></i> Style:</label>
                         <div class="style-checkboxes">
-                            <label><input type="checkbox" id="propBold" ${element.dataset.bold === 'true' ? 'checked' : ''}> Bold</label>
-                            <label><input type="checkbox" id="propItalic" ${element.dataset.italic === 'true' ? 'checked' : ''}> Italic</label>
-                            <label><input type="checkbox" id="propUnderline" ${element.dataset.underline === 'true' ? 'checked' : ''}> Underline</label>
+                            <label><input type="checkbox" id="propBold" ${element.dataset.bold === 'true' ? 'checked' : ''}> <i class="fas fa-bold"></i> Bold</label>
+                            <label><input type="checkbox" id="propItalic" ${element.dataset.italic === 'true' ? 'checked' : ''}> <i class="fas fa-italic"></i> Italic</label>
+                            <label><input type="checkbox" id="propUnderline" ${element.dataset.underline === 'true' ? 'checked' : ''}> <i class="fas fa-underline"></i> Underline</label>
                         </div>
                     </div>
                 `;
@@ -285,34 +349,116 @@ class TemplateEditor {
                 const table = element.querySelector('.template-table');
                 const rows = table.querySelectorAll('tr');
                 const cols = rows.length > 0 ? rows[0].children.length : 0;
+                const selectedCellsCount = this.selectedCells.size;
+                
                 propertiesHTML = `
-                    <h4>Table Properties</h4>
-                    <div class="property-group"><label>Columns:</label><span>${cols}</span></div>
-                    <div class="property-group"><label>Rows:</label><span>${rows.length}</span></div>
-                    <div class="property-group">
-                        <label>Cell Font Size:</label>
-                        <input type="number" id="propCellFontSize" value="${element.dataset.cellFontSize}" min="6" max="24">
+                    <h4><i class="fas fa-table"></i> Table Properties</h4>
+                    <div class="property-stats">
+                        <div class="stat-item">
+                            <i class="fas fa-columns"></i>
+                            <span>Columns: ${cols}</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-grip-lines"></i>
+                            <span>Rows: ${rows.length}</span>
+                        </div>
+                        ${selectedCellsCount > 0 ? `
+                        <div class="stat-item selected-cells-info">
+                            <i class="fas fa-check-square"></i>
+                            <span>Selected: ${selectedCellsCount} cells</span>
+                        </div>` : ''}
                     </div>
+                    
                     <div class="property-group">
-                        <label>Cell Alignment:</label>
-                        <select id="propCellAlignment">
-                            <option value="left" ${element.dataset.cellAlignment === 'left' ? 'selected' : ''}>Left</option>
-                            <option value="center" ${element.dataset.cellAlignment === 'center' ? 'selected' : ''}>Center</option>
-                            <option value="right" ${element.dataset.cellAlignment === 'right' ? 'selected' : ''}>Right</option>
-                        </select>
+                        <label><i class="fas fa-text-height"></i> Cell Font Size:</label>
+                        <div class="input-with-icon">
+                            <input type="number" id="propCellFontSize" value="${element.dataset.cellFontSize}" min="6" max="24">
+                            <i class="fas fa-font input-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="property-group">
+                        <label><i class="fas fa-align-left"></i> Cell Alignment:</label>
+                        <div class="select-with-icon">
+                            <select id="propCellAlignment">
+                                <option value="left" ${element.dataset.cellAlignment === 'left' ? 'selected' : ''}><i class="fas fa-align-left"></i> Left</option>
+                                <option value="center" ${element.dataset.cellAlignment === 'center' ? 'selected' : ''}><i class="fas fa-align-center"></i> Center</option>
+                                <option value="right" ${element.dataset.cellAlignment === 'right' ? 'selected' : ''}><i class="fas fa-align-right"></i> Right</option>
+                            </select>
+                            <i class="fas fa-align-center select-icon"></i>
+                        </div>
+                    </div>
+                    
+                    ${selectedCellsCount > 0 ? `
+                    <div class="property-group selected-cells-borders">
+                        <label><i class="fas fa-border-style"></i> Selected Cells Border:</label>
+                        <div class="border-controls">
+                            <div class="border-grid">
+                                <button type="button" class="border-btn" data-border="top" title="Top Border">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <div></div>
+                                <div></div>
+                                <button type="button" class="border-btn" data-border="left" title="Left Border">
+                                    <i class="fas fa-minus rotate-90"></i>
+                                </button>
+                                <div class="border-center">
+                                    <i class="fas fa-th"></i>
+                                </div>
+                                <button type="button" class="border-btn" data-border="right" title="Right Border">
+                                    <i class="fas fa-minus rotate-90"></i>
+                                </button>
+                                <div></div>
+                                <button type="button" class="border-btn" data-border="bottom" title="Bottom Border">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <div></div>
+                            </div>
+                            <div class="border-actions">
+                                <button type="button" id="clearBordersBtn" class="btn-secondary">
+                                    <i class="fas fa-eraser"></i> Clear All
+                                </button>
+                                <button type="button" id="allBordersBtn" class="btn-primary">
+                                    <i class="fas fa-border-all"></i> All Borders
+                                </button>
+                            </div>
+                        </div>
+                    </div>` : `
+                    <div class="property-group">
+                        <label><i class="fas fa-border-style"></i> Table Border:</label>
+                        <div class="style-checkboxes">
+                            <label><input type="checkbox" id="propBorderTop"> <i class="fas fa-minus"></i> Top</label>
+                            <label><input type="checkbox" id="propBorderRight"> <i class="fas fa-minus rotate-90"></i> Right</label>
+                            <label><input type="checkbox" id="propBorderBottom"> <i class="fas fa-minus"></i> Bottom</label>
+                            <label><input type="checkbox" id="propBorderLeft"> <i class="fas fa-minus rotate-90"></i> Left</label>
+                        </div>
+                        <div class="border-hint">
+                            <i class="fas fa-info-circle"></i>
+                            Select cells with Ctrl+click or Ctrl+drag for individual cell borders
+                        </div>
+                    </div>`}
+                    
+                    <div class="property-group">
+                        <label><i class="fas fa-plus-square"></i> Add Components:</label>
+                        <div class="cell-components">
+                            <div class="draggable-cell-item" draggable="true" data-type="checkbox" title="Drag to table cell">
+                                <i class="fas fa-check-square"></i>
+                                <span>Checkbox</span>
+                            </div>
+                        </div>
                     </div>
                 `;
                 break;
 
             case 'footer':
                 propertiesHTML = `
-                    <h4>Footer Properties</h4>
+                    <h4><i class="fas fa-align-center"></i> Footer Properties</h4>
                     <div class="property-group">
-                        <label>Font Size:</label>
+                        <label><i class="fas fa-text-height"></i> Font Size:</label>
                         <input type="number" id="propFontSize" value="${element.dataset.fontSize}" min="6" max="24">
                     </div>
                     <div class="property-group">
-                        <label>Alignment:</label>
+                        <label><i class="fas fa-align-center"></i> Alignment:</label>
                         <select id="propAlignment">
                             <option value="left" ${element.dataset.alignment === 'left' ? 'selected' : ''}>Left</option>
                             <option value="center" ${element.dataset.alignment === 'center' ? 'selected' : ''}>Center</option>
@@ -324,7 +470,171 @@ class TemplateEditor {
         }
 
         this.propertiesPanel.innerHTML = propertiesHTML;
+
+        // Setup cell component drag and drop
+        if (type === 'table') {
+            this.setupCellComponentDrag();
+            this.setupBorderControls();
+            
+            // Initialize border checkboxes for tables (existing code)
+            setTimeout(() => {
+                const tdSample = this.selectedCells.size > 0 ? Array.from(this.selectedCells)[0] : this.selectedElement.querySelector('td');
+                if (tdSample && !this.selectedCells.size) {
+                    const sampleProps = tdSample.dataset.props || tdSample.querySelector('input')?.dataset?.props;
+                    const parts = (sampleProps || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`).split(':');
+                    const bt = parts[4] === '1';
+                    const br = parts[5] === '1';
+                    const bb = parts[6] === '1';
+                    const bl = parts[7] === '1';
+                    const topCheck = document.getElementById('propBorderTop');
+                    const rightCheck = document.getElementById('propBorderRight');
+                    const bottomCheck = document.getElementById('propBorderBottom');
+                    const leftCheck = document.getElementById('propBorderLeft');
+                    if (topCheck) topCheck.checked = bt;
+                    if (rightCheck) rightCheck.checked = br;
+                    if (bottomCheck) bottomCheck.checked = bb;
+                    if (leftCheck) leftCheck.checked = bl;
+                }
+            }, 0);
+        }
+
         this.attachPropertyListeners();
+    }
+
+    setupCellComponentDrag() {
+        const cellItems = this.propertiesPanel.querySelectorAll('.draggable-cell-item');
+        cellItems.forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/cell-component', item.dataset.type);
+                item.classList.add('dragging');
+            });
+            item.addEventListener('dragend', () => item.classList.remove('dragging'));
+        });
+    }
+
+    setupBorderControls() {
+        // Border button controls for selected cells
+        const borderBtns = this.propertiesPanel.querySelectorAll('.border-btn');
+        borderBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const borderType = btn.dataset.border;
+                this.toggleSelectedCellsBorder(borderType);
+                this.updateBorderButtonStates();
+            });
+        });
+
+        // Clear all borders button
+        const clearBtn = this.propertiesPanel.querySelector('#clearBordersBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                this.clearSelectedCellsBorders();
+                this.updateBorderButtonStates();
+            });
+        }
+
+        // All borders button
+        const allBtn = this.propertiesPanel.querySelector('#allBordersBtn');
+        if (allBtn) {
+            allBtn.addEventListener('click', () => {
+                this.setAllSelectedCellsBorders();
+                this.updateBorderButtonStates();
+            });
+        }
+
+        // Update initial states
+        this.updateBorderButtonStates();
+    }
+
+    toggleSelectedCellsBorder(borderType) {
+        if (this.selectedCells.size === 0) return;
+
+        const borderMap = { top: 4, right: 5, bottom: 6, left: 7 };
+        const index = borderMap[borderType];
+
+        this.selectedCells.forEach(cell => {
+            const input = cell.querySelector('input');
+            const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+            const parts = existing.split(':');
+            while (parts.length < 8) parts.push('0');
+            
+            parts[index] = parts[index] === '1' ? '0' : '1';
+            const updated = parts.join(':');
+            cell.dataset.props = updated;
+            if (input) input.dataset.props = updated;
+            
+            // Visual feedback
+            const borderStyle = parts[index] === '1' ? '2px solid var(--primary-color)' : '';
+            cell.style[`border${borderType.charAt(0).toUpperCase() + borderType.slice(1)}`] = borderStyle;
+        });
+
+        this.generateJSON();
+    }
+
+    clearSelectedCellsBorders() {
+        if (this.selectedCells.size === 0) return;
+
+        this.selectedCells.forEach(cell => {
+            const input = cell.querySelector('input');
+            const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+            const parts = existing.split(':');
+            while (parts.length < 8) parts.push('0');
+            
+            parts[4] = parts[5] = parts[6] = parts[7] = '0';
+            const updated = parts.join(':');
+            cell.dataset.props = updated;
+            if (input) input.dataset.props = updated;
+            
+            // Clear visual feedback
+            cell.style.borderTop = cell.style.borderRight = cell.style.borderBottom = cell.style.borderLeft = '';
+        });
+
+        this.generateJSON();
+    }
+
+    setAllSelectedCellsBorders() {
+        if (this.selectedCells.size === 0) return;
+
+        this.selectedCells.forEach(cell => {
+            const input = cell.querySelector('input');
+            const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+            const parts = existing.split(':');
+            while (parts.length < 8) parts.push('0');
+            
+            parts[4] = parts[5] = parts[6] = parts[7] = '1';
+            const updated = parts.join(':');
+            cell.dataset.props = updated;
+            if (input) input.dataset.props = updated;
+            
+            // Visual feedback
+            const borderStyle = '2px solid var(--primary-color)';
+            cell.style.borderTop = cell.style.borderRight = cell.style.borderBottom = cell.style.borderLeft = borderStyle;
+        });
+
+        this.generateJSON();
+    }
+
+    updateBorderButtonStates() {
+        if (this.selectedCells.size === 0) return;
+
+        const borderMap = { top: 4, right: 5, bottom: 6, left: 7 };
+        const borderBtns = this.propertiesPanel.querySelectorAll('.border-btn');
+
+        borderBtns.forEach(btn => {
+            const borderType = btn.dataset.border;
+            const index = borderMap[borderType];
+            let allSelected = true;
+
+            this.selectedCells.forEach(cell => {
+                const input = cell.querySelector('input');
+                const existing = cell.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+                const parts = existing.split(':');
+                if (parts[index] !== '1') {
+                    allSelected = false;
+                }
+            });
+
+            btn.classList.toggle('active', allSelected);
+        });
     }
 
     attachPropertyListeners() {
@@ -352,6 +662,42 @@ class TemplateEditor {
             case 'table':
                 this.selectedElement.dataset.cellFontSize = document.getElementById('propCellFontSize')?.value;
                 this.selectedElement.dataset.cellAlignment = document.getElementById('propCellAlignment')?.value;
+                // Border flags (top,right,bottom,left) apply to selected cells or all cells
+                const bt = document.getElementById('propBorderTop')?.checked;
+                const br = document.getElementById('propBorderRight')?.checked;
+                const bb = document.getElementById('propBorderBottom')?.checked;
+                const bl = document.getElementById('propBorderLeft')?.checked;
+
+                // Helper to apply border flags into the props string (preserve other parts)
+                const applyBorderToCell = (td) => {
+                    if (!td) return;
+                    // get existing props from td or input, or default
+                    const input = td.querySelector('input');
+                    const existing = td.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:0:0:0:0`;
+                    const parts = existing.split(':');
+                    // parts expected like [font1, size, style, align, top,right,bottom,left]
+                    while (parts.length < 8) parts.push('0');
+                    parts[4] = bt ? '1' : '0';
+                    parts[5] = br ? '1' : '0';
+                    parts[6] = bb ? '1' : '0';
+                    parts[7] = bl ? '1' : '0';
+                    const updated = parts.join(':');
+                    td.dataset.props = updated;
+                    if (input) input.dataset.props = updated;
+                    // visual feedback: toggle CSS border styles
+                    td.style.borderTop = bt ? '2px solid var(--primary-color)' : '';
+                    td.style.borderRight = br ? '2px solid var(--primary-color)' : '';
+                    td.style.borderBottom = bb ? '2px solid var(--primary-color)' : '';
+                    td.style.borderLeft = bl ? '2px solid var(--primary-color)' : '';
+                };
+
+                const table = this.selectedElement.querySelector('.template-table');
+                if (this.selectedCells.size > 0) {
+                    this.selectedCells.forEach(cell => applyBorderToCell(cell));
+                } else {
+                    // apply to all cells
+                    table.querySelectorAll('td').forEach(td => applyBorderToCell(td));
+                }
                 break;
         }
         this.generateJSON();
@@ -493,6 +839,7 @@ class TemplateEditor {
                 if (cellData.chequebox !== undefined) {
                     input.type = 'checkbox';
                     input.checked = cellData.chequebox;
+                    input.className = 'cell-checkbox';
                     if (cellData.props) input.dataset.props = cellData.props;
                 } else {
                     input.type = 'text';
@@ -502,47 +849,71 @@ class TemplateEditor {
                 }
                 input.addEventListener('input', () => this.generateJSON());
                 td.appendChild(input);
+                
+                // Enhanced multi-select behavior with better event handling
+                td.addEventListener('mousedown', (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.isSelectingCells = true;
+                        this.toggleCellSelection(td);
+                    } else {
+                        // Clear selection if not holding Ctrl
+                        this.clearCellSelection();
+                    }
+                });
+                
+                td.addEventListener('mouseenter', (e) => {
+                    if (this.isSelectingCells && (e.ctrlKey || e.metaKey)) {
+                        this.addCellToSelection(td);
+                    }
+                });
+                
+                // Prevent clicks inside table cells from deselecting the table
+                td.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // If not in multi-select mode, show properties again to update selected cells count
+                    if (!this.isSelectingCells) {
+                        setTimeout(() => this.showProperties(this.selectedElement), 0);
+                    }
+                });
+                
                 tr.appendChild(td);
             });
             tableElement.appendChild(tr);
         });
     }
 
-    async previewPDF() {
-        try {
-            this.updateStatus('Generating PDF preview...');
-            const response = await fetch('/api/v1/generate/template-pdf', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: this.jsonOutput.value
-            });
-            if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
-            
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            this.updateStatus('PDF preview opened in a new tab');
-        } catch (error) {
-            this.updateStatus(`Error generating PDF: ${error.message}`, true);
+    toggleCellSelection(td) {
+        if (this.selectedCells.has(td)) {
+            this.selectedCells.delete(td);
+            td.classList.remove('selected-cell');
+        } else {
+            this.selectedCells.add(td);
+            td.classList.add('selected-cell');
+        }
+        // Update properties panel to show current selection
+        setTimeout(() => this.showProperties(this.selectedElement), 0);
+    }
+
+    addCellToSelection(td) {
+        if (!this.selectedCells.has(td)) {
+            this.selectedCells.add(td);
+            td.classList.add('selected-cell');
+            // Update properties panel
+            setTimeout(() => this.showProperties(this.selectedElement), 0);
         }
     }
 
-    updateTableTools() {
-        const isTableSelected = this.selectedElement?.dataset.type === 'table';
-        document.getElementById('addRowBtn').disabled = !isTableSelected;
-        document.getElementById('addColumnBtn').disabled = !isTableSelected;
-        document.getElementById('removeRowBtn').disabled = !isTableSelected;
-        document.getElementById('removeColumnBtn').disabled = !isTableSelected;
-    }
-
-    clearCanvas() {
-        this.canvas.innerHTML = '<div class="canvas-placeholder"><i class="fas fa-mouse-pointer"></i><p>Drag components from the toolbox to start building your template</p></div>';
-        this.deselectAllElements();
-    }
-
-    clearPlaceholder() {
-        const placeholder = this.canvas.querySelector('.canvas-placeholder');
-        if (placeholder) placeholder.remove();
+    clearCellSelection() {
+        if (!this.selectedCells) return;
+        this.selectedCells.forEach(td => td.classList.remove('selected-cell'));
+        this.selectedCells.clear();
+        this.isSelectingCells = false;
+        // Update properties panel if table is selected
+        if (this.selectedElement?.dataset.type === 'table') {
+            setTimeout(() => this.showProperties(this.selectedElement), 0);
+        }
     }
 
     deleteElement(element) {
@@ -642,6 +1013,49 @@ class TemplateEditor {
         this.statusMessage.className = isError ? 'status-error' : 'status-success';
     }
 
+    // --- ADDED: Missing clearCanvas and clearPlaceholder methods ---
+    clearCanvas() {
+        this.canvas.innerHTML = '<div class="canvas-placeholder">Drag elements here to start building</div>';
+        this.deselectAllElements();
+        this.elementCounter = 0; 
+        this.generateJSON();
+    }
+
+    clearPlaceholder() {
+        const placeholder = this.canvas.querySelector('.canvas-placeholder');
+        if (placeholder) {
+            placeholder.remove();
+        }
+    }
+
+    // --- ADDED: Missing updateTableTools method ---
+    updateTableTools() {
+        const isTableSelected = this.selectedElement && this.selectedElement.dataset.type === 'table';
+        document.getElementById('addRowBtn').disabled = !isTableSelected;
+        document.getElementById('addColumnBtn').disabled = !isTableSelected;
+        document.getElementById('removeRowBtn').disabled = !isTableSelected;
+        document.getElementById('removeColumnBtn').disabled = !isTableSelected;
+    }
+
+    async previewPDF() {
+        try {
+            this.updateStatus('Generating PDF preview...');
+            const response = await fetch('/api/v1/generate/template-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: this.jsonOutput.value
+            });
+            if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+            
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            this.updateStatus('PDF preview opened in a new tab');
+        } catch (error) {
+            this.updateStatus(`Error generating PDF: ${error.message}`, true);
+        }
+    }
+
     // Table manipulation methods
     addTableRow() {
         if (!this.selectedElement || this.selectedElement.dataset.type !== 'table') return;
@@ -656,6 +1070,32 @@ class TemplateEditor {
             input.type = 'text';
             input.className = 'cell-input';
             input.addEventListener('input', () => this.generateJSON());
+            
+            // Add cell selection handlers
+            cell.addEventListener('mousedown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.isSelectingCells = true;
+                    this.toggleCellSelection(cell);
+                } else {
+                    this.clearCellSelection();
+                }
+            });
+            
+            cell.addEventListener('mouseenter', (e) => {
+                if (this.isSelectingCells && (e.ctrlKey || e.metaKey)) {
+                    this.addCellToSelection(cell);
+                }
+            });
+            
+            cell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!this.isSelectingCells) {
+                    setTimeout(() => this.showProperties(this.selectedElement), 0);
+                }
+            });
+            
             cell.appendChild(input);
         }
         this.showProperties(this.selectedElement); // To update row count
@@ -673,6 +1113,32 @@ class TemplateEditor {
             input.type = 'text';
             input.className = 'cell-input';
             input.addEventListener('input', () => this.generateJSON());
+            
+            // Add cell selection handlers
+            cell.addEventListener('mousedown', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.isSelectingCells = true;
+                    this.toggleCellSelection(cell);
+                } else {
+                    this.clearCellSelection();
+                }
+            });
+            
+            cell.addEventListener('mouseenter', (e) => {
+                if (this.isSelectingCells && (e.ctrlKey || e.metaKey)) {
+                    this.addCellToSelection(cell);
+                }
+            });
+            
+            cell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!this.isSelectingCells) {
+                    setTimeout(() => this.showProperties(this.selectedElement), 0);
+                }
+            });
+            
             cell.appendChild(input);
         });
         
