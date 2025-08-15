@@ -276,6 +276,11 @@ class TemplateEditor {
                 element.dataset.fontSize = data.fontSize || '10';
                 element.dataset.alignment = data.alignment || 'center';
                 break;
+
+            case 'spacer':
+                header.innerHTML = `<i class="fas fa-arrows-alt-v"></i> Spacer`;
+                // Spacer has no content, it's just for layout
+                break;
         }
 
         header.appendChild(deleteBtn);
@@ -432,24 +437,25 @@ class TemplateEditor {
                     <div class="property-group">
                         <div class="table-property-group">
                             <label><i class="fas fa-border-style"></i> Table Border:</label>
-                            <button type="button" id="propBorderTop" class="table-property-btn">
-                                <i class="fas fa-minus"></i> Top
+                            <button type="button" id="propBorderLeft" class="table-property-btn">
+                                <i class="fas fa-minus" style="transform: rotate(90deg);"></i> Left
                             </button>
                             <button type="button" id="propBorderRight" class="table-property-btn">
                                 <i class="fas fa-minus" style="transform: rotate(90deg);"></i> Right
                             </button>
+                            <button type="button" id="propBorderTop" class="table-property-btn">
+                                <i class="fas fa-minus"></i> Top
+                            </button>
                             <button type="button" id="propBorderBottom" class="table-property-btn">
                                 <i class="fas fa-minus"></i> Bottom
-                            </button>
-                            <button type="button" id="propBorderLeft" class="table-property-btn">
-                                <i class="fas fa-minus" style="transform: rotate(90deg);"></i> Left
                             </button>
                             <div class="border-hint">
                                 <i class="fas fa-info-circle"></i>
                                 Select cells with Ctrl+click or Ctrl+drag for individual cell borders
                             </div>
                         </div>
-                    </div>`}
+                    </div>`
+                }
                 `;
                 break;
 
@@ -774,6 +780,13 @@ clearSelectedCellsBorders() {
                         font: `font1:${element.dataset.fontSize}:001:${element.dataset.alignment}`,
                         text: element.querySelector('.footer-text').value
                     };
+                    break;
+                case 'spacer':
+                    // Add a dummy table with one empty row to create space
+                    this.template.table.push({
+                        maxcolumns: 1,
+                        rows: [{ row: [{ props: "font1:12:000:center:0:0:0:0", text: "" }] }]
+                    });
                     break;
             }
         });

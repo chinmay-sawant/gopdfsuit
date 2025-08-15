@@ -337,12 +337,25 @@ button:disabled {
 
 .canvas-element:hover {
   border-color: var(--primary-color);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .canvas-element.selected {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.canvas-element[data-type="spacer"] {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--element-bg),
+    var(--element-bg) 10px,
+    var(--canvas-bg) 10px,
+    var(--canvas-bg) 20px
+  );
+  height: 30px;
+  padding: 0;
+  border-style: dashed;
 }
 
 .canvas-element .element-label {
@@ -385,6 +398,19 @@ button:disabled {
 .canvas-element:hover .delete-btn,
 .canvas-element:hover .element-delete {
   display: flex;
+}
+
+/* Table styling on canvas */
+.template-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.template-table td {
+  border: 1px solid var(--table-border);
+  padding: 8px;
+  min-height: 30px;
+  position: relative;
 }
 
 /* Table Editor */
