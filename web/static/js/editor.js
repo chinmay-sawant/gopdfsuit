@@ -258,6 +258,13 @@ class TemplateEditor {
                 element.dataset.bold = data.bold !== undefined ? data.bold : 'true';
                 element.dataset.italic = data.italic || 'false';
                 element.dataset.underline = data.underline || 'false';
+                // Apply visual styles to the title input so it matches other inputs/buttons
+                // (will be overwritten later by property changes)
+                // Use a short timeout to ensure the element is in the DOM when queried
+                setTimeout(() => {
+                    const tInput = element.querySelector('.title-text');
+                    if (tInput) this.applyTextElementStyles(element, tInput);
+                }, 0);
                 break;
 
             case 'table':
@@ -275,6 +282,11 @@ class TemplateEditor {
                 // Set default data attributes
                 element.dataset.fontSize = data.fontSize || '10';
                 element.dataset.alignment = data.alignment || 'center';
+                // Apply visual styles to the footer input
+                setTimeout(() => {
+                    const fInput = element.querySelector('.footer-text');
+                    if (fInput) this.applyTextElementStyles(element, fInput);
+                }, 0);
                 break;
 
             case 'spacer':
@@ -333,16 +345,20 @@ class TemplateEditor {
                 propertiesHTML = `
                     <h4><i class="fas fa-heading"></i> Title Properties</h4>
                     <div class="property-group">
-                        <label><i class="fas fa-text-height"></i> Font Size:</label>
-                        <input type="number" id="propFontSize" value="${element.dataset.fontSize}" min="8" max="72">
+                        <div class="table-property-group">
+                            <label><i class="fas fa-text-height"></i> Font Size:</label>
+                            <input type="number" id="propFontSize" value="${element.dataset.fontSize}" min="8" max="72">
+                        </div>
                     </div>
                     <div class="property-group">
-                        <label><i class="fas fa-align-center"></i> Alignment:</label>
-                        <select id="propAlignment">
-                            <option value="left" ${element.dataset.alignment === 'left' ? 'selected' : ''}>Left</option>
-                            <option value="center" ${element.dataset.alignment === 'center' ? 'selected' : ''}>Center</option>
-                            <option value="right" ${element.dataset.alignment === 'right' ? 'selected' : ''}>Right</option>
-                        </select>
+                        <div class="table-property-group">
+                            <label><i class="fas fa-align-center"></i> Alignment:</label>
+                            <select id="propAlignment">
+                                <option value="left" ${element.dataset.alignment === 'left' ? 'selected' : ''}>Left</option>
+                                <option value="center" ${element.dataset.alignment === 'center' ? 'selected' : ''}>Center</option>
+                                <option value="right" ${element.dataset.alignment === 'right' ? 'selected' : ''}>Right</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="property-group">
                         <label><i class="fas fa-bold"></i> Style:</label>
@@ -463,16 +479,20 @@ class TemplateEditor {
                 propertiesHTML = `
                     <h4><i class="fas fa-align-center"></i> Footer Properties</h4>
                     <div class="property-group">
-                        <label><i class="fas fa-text-height"></i> Font Size:</label>
-                        <input type="number" id="propFontSize" value="${element.dataset.fontSize}" min="6" max="24">
+                        <div class="table-property-group">
+                            <label><i class="fas fa-text-height"></i> Font Size:</label>
+                            <input type="number" id="propFontSize" value="${element.dataset.fontSize}" min="6" max="24">
+                        </div>
                     </div>
                     <div class="property-group">
-                        <label><i class="fas fa-align-center"></i> Alignment:</label>
-                        <select id="propAlignment">
-                            <option value="left" ${element.dataset.alignment === 'left' ? 'selected' : ''}>Left</option>
-                            <option value="center" ${element.dataset.alignment === 'center' ? 'selected' : ''}>Center</option>
-                            <option value="right" ${element.dataset.alignment === 'right' ? 'selected' : ''}>Right</option>
-                        </select>
+                        <div class="table-property-group">
+                            <label><i class="fas fa-align-center"></i> Alignment:</label>
+                            <select id="propAlignment">
+                                <option value="left" ${element.dataset.alignment === 'left' ? 'selected' : ''}>Left</option>
+                                <option value="center" ${element.dataset.alignment === 'center' ? 'selected' : ''}>Center</option>
+                                <option value="right" ${element.dataset.alignment === 'right' ? 'selected' : ''}>Right</option>
+                            </select>
+                        </div>
                     </div>
                 `;
                 break;
@@ -679,6 +699,9 @@ clearSelectedCellsBorders() {
                     this.selectedElement.dataset.italic = document.getElementById('propItalic')?.checked;
                     this.selectedElement.dataset.underline = document.getElementById('propUnderline')?.checked;
                 }
+                // Update visual appearance of the title/footer input to match properties
+                const inputEl = this.selectedElement.querySelector('.title-text, .footer-text');
+                if (inputEl) this.applyTextElementStyles(this.selectedElement, inputEl);
                 break;
             case 'table':
                 this.selectedElement.dataset.cellFontSize = document.getElementById('propCellFontSize')?.value;
@@ -731,6 +754,32 @@ clearSelectedCellsBorders() {
         this.template.config.watermark = document.getElementById('watermark').value;
         this.generateJSON();
         this.updateStatus('Document settings updated');
+    }
+
+    // Apply visual styles to title/footer inputs so they match other form controls
+    applyTextElementStyles(element, inputEl) {
+        const fontSize = parseInt(element.dataset.fontSize || '12', 10);
+        const alignment = element.dataset.alignment || 'left';
+        const isBold = String(element.dataset.bold) === 'true';
+        const isItalic = String(element.dataset.italic) === 'true';
+        const isUnderline = String(element.dataset.underline) === 'true';
+
+        // Base input styles (match control-group inputs)
+        inputEl.style.padding = '8px 12px';
+        inputEl.style.border = '2px solid var(--input-border)';
+        inputEl.style.borderRadius = '6px';
+        inputEl.style.background = 'var(--input-bg)';
+        inputEl.style.color = 'var(--text-color)';
+        inputEl.style.width = '100%';
+        inputEl.style.boxSizing = 'border-box';
+        inputEl.style.fontFamily = 'inherit';
+
+        // Text-specific styles
+        inputEl.style.fontSize = fontSize + 'px';
+        inputEl.style.textAlign = alignment;
+        inputEl.style.fontWeight = isBold ? '700' : '400';
+        inputEl.style.fontStyle = isItalic ? 'italic' : 'normal';
+        inputEl.style.textDecoration = isUnderline ? 'underline' : 'none';
     }
 
     generateJSON() {

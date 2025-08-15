@@ -89,6 +89,25 @@ body {
   min-width: 200px;
 }
 
+/* Title and footer inputs should visually match other inputs */
+.title-text,
+.footer-text {
+  padding: 8px 12px;
+  border: 2px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text-color);
+  width: 100%;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.title-text:focus,
+.footer-text:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.08);
+}
+
 /* Theme Controls */
 .theme-controls {
   display: flex;
