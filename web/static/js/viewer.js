@@ -7,7 +7,20 @@ class PDFViewer {
         this.canvas = document.getElementById('pdfCanvas');
         this.ctx = this.canvas.getContext('2d');
         
+        this.lightGradients = [
+            { name: 'Default', value: 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)' },
+            { name: 'Sunrise', value: 'linear-gradient(120deg,#ff9a9e 0%,#fad0c4 100%)' },
+            { name: 'Aqua', value: 'linear-gradient(120deg,#a1c4fd 0%,#c2e9fb 100%)' },
+            { name: 'Mint', value: 'linear-gradient(120deg,#43cea2 0%,#185a9d 100%)' }
+        ];
+        this.darkGradients = [
+            { name: 'Default', value: 'linear-gradient(135deg,#141E30 0%,#243B55 100%)' },
+            { name: 'Nightfall', value: 'linear-gradient(135deg,#232526 0%,#414345 100%)' },
+            { name: 'Purple Haze', value: 'linear-gradient(135deg,#42275a 0%,#734b6d 100%)' },
+            { name: 'Deep Space', value: 'linear-gradient(135deg,#000428 0%,#004e92 100%)' }
+        ];
         this.initializeElements();
+        this.initThemeFromStorage();
         this.attachEventListeners();
         this.checkURLParams();
     }
@@ -25,6 +38,10 @@ class PDFViewer {
         this.statusMessage = document.getElementById('statusMessage');
         this.loadingIndicator = document.getElementById('loadingIndicator');
         this.errorIndicator = document.getElementById('errorIndicator');
+        this.themeToggle = document.getElementById('themeToggle');
+        this.gradientSelect = document.getElementById('gradientSelect');
+        this.applyJsonBtn = document.getElementById('applyJsonBtn');
+        this.jsonCode = document.getElementById('jsonCode');
     }
 
     attachEventListeners() {
@@ -34,6 +51,9 @@ class PDFViewer {
         this.prevPageBtn.addEventListener('click', () => this.previousPage());
         this.nextPageBtn.addEventListener('click', () => this.nextPage());
         this.downloadBtn.addEventListener('click', () => this.downloadPDF());
+        this.themeToggle.addEventListener('click', () => this.toggleTheme());
+        this.gradientSelect.addEventListener('change', () => this.applyGradient());
+        this.applyJsonBtn.addEventListener('click', () => this.applyJSONChanges());
         
         this.fileInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -49,15 +69,32 @@ class PDFViewer {
                 this.loadBtn.disabled = true;
             }
         });
+
+        this.jsonCode.addEventListener('input', () => {
+            this.applyJsonBtn.disabled = false;
+        });
+
+        // Ctrl/Cmd + S to apply
+        this.jsonCode.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                this.applyJSONChanges();
+            }
+        });
     }
 
-    checkURLParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const file = urlParams.get('file');
-        
-        if (file) {
-            this.fileInput.value = file;
-            this.loadTemplate();
+    initThemeFromStorage() {
+        const savedTheme = localStorage.getItem('gopdf_theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const savedGradient = localStorage.getItem('gopdf_gradient');
+        document.body.classList.toggle('theme-dark', savedTheme === 'dark');
+        document.body.classList.toggle('theme-light', savedTheme !== 'dark');
+        this.themeToggle.textContent = savedTheme === 'dark' ? '🌞' : '🌙';
+        this.populateGradients(savedTheme === 'dark');
+        if (savedGradient) {
+            document.body.style.background = savedGradient;
+            this.gradientSelect.value = savedGradient;
+        } else {
+            this.applyGradient(); // set default
         }
     }
 
@@ -106,13 +143,11 @@ class PDFViewer {
 
     displayJSON() {
         if (!this.currentTemplate) return;
-
         const formattedJSON = JSON.stringify(this.currentTemplate, null, 2);
-        this.jsonDisplay.innerHTML = `<code class="language-json">${this.escapeHtml(formattedJSON)}</code>`;
-        
-        // Apply syntax highlighting if Prism is available
+        this.jsonCode.textContent = formattedJSON;
+        this.applyJsonBtn.disabled = true;
         if (window.Prism) {
-            Prism.highlightElement(this.jsonDisplay.querySelector('code'));
+            Prism.highlightElement(this.jsonCode);
         }
     }
 
@@ -143,6 +178,12 @@ class PDFViewer {
     }
 
     async generatePDF() {
+        // apply pending edits automatically
+        if (!this.applyJsonBtn.disabled) {
+            this.applyJSONChanges();
+            if (!this.applyJsonBtn.disabled) return; // still invalid
+        }
+
         if (!this.currentTemplate) return;
 
         this.updateStatus('Generating PDF...');
@@ -279,6 +320,52 @@ class PDFViewer {
         this.loadingIndicator.style.display = 'none';
         this.errorIndicator.style.display = 'block';
         this.canvas.style.display = 'none';
+    }
+
+    toggleTheme() {
+        const darkNow = !document.body.classList.contains('theme-dark');
+        document.body.classList.toggle('theme-dark', darkNow);
+        document.body.classList.toggle('theme-light', !darkNow);
+        this.themeToggle.textContent = darkNow ? '🌞' : '🌙';
+        this.populateGradients(darkNow);
+        this.applyGradient();
+        localStorage.setItem('gopdf_theme', darkNow ? 'dark' : 'light');
+    }
+
+    populateGradients(isDark) {
+        const list = isDark ? this.darkGradients : this.lightGradients;
+        const prev = this.gradientSelect.value;
+        this.gradientSelect.innerHTML = '';
+        list.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.value;
+            opt.textContent = g.name;
+            this.gradientSelect.appendChild(opt);
+        });
+        // restore if compatible
+        if ([...this.gradientSelect.options].some(o => o.value === prev)) {
+            this.gradientSelect.value = prev;
+        }
+    }
+
+    applyGradient() {
+        const val = this.gradientSelect.value || (document.body.classList.contains('theme-dark') ? this.darkGradients[0].value : this.lightGradients[0].value);
+        document.body.style.background = val;
+        localStorage.setItem('gopdf_gradient', val);
+    }
+
+    applyJSONChanges() {
+        const raw = this.jsonCode.textContent;
+        try {
+            const parsed = JSON.parse(raw);
+            this.currentTemplate = parsed;
+            this.applyJsonBtn.disabled = true;
+            this.updateStatus('JSON applied');
+            // re-highlight
+            if (window.Prism) Prism.highlightElement(this.jsonCode);
+        } catch (e) {
+            this.updateStatus('Invalid JSON: ' + e.message, true);
+        }
     }
 }
 

@@ -13,7 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
   </head>
-  <body>
+  <body class="theme-light">
     <header class="header">
       <div class="container">
         <h1>📄 GoPdfSuit - PDF Viewer</h1>
@@ -34,12 +34,29 @@
           <button id="generateBtn" class="btn-secondary" disabled>
             Generate PDF
           </button>
+          <div class="theme-controls">
+            <button
+              id="themeToggle"
+              class="btn-small"
+              title="Toggle Light/Dark"
+            >
+              🌙
+            </button>
+            <select
+              id="gradientSelect"
+              class="gradient-select"
+              title="Select Gradient Theme"
+            ></select>
+          </div>
+          <button id="applyJsonBtn" class="btn-small" disabled>
+            Apply JSON Changes
+          </button>
         </div>
 
         <div class="content-grid">
           <div class="json-panel">
             <div class="panel-header">
-              <h3>📋 JSON Template</h3>
+              <h3>📋 JSON Template (Editable)</h3>
               <button id="copyBtn" class="btn-small" title="Copy JSON">
                 📋
               </button>
@@ -47,7 +64,7 @@
             <div class="json-container">
               <pre
                 id="jsonDisplay"
-              ><code class="language-json">// Load a template to see JSON structure...</code></pre>
+              ><code id="jsonCode" class="language-json" contenteditable="true" spellcheck="false">// Load a template to see JSON structure...</code></pre>
             </div>
           </div>
 

@@ -8,8 +8,7 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
   color: #333;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  min-height: 100vh;
+  transition: background 0.6s ease, color 0.3s ease;
 }
 
 .container {
@@ -42,11 +41,11 @@ body {
 }
 
 .input-section {
-  background: white;
+  background: var(--panel-bg);
   padding: 25px;
   border-radius: 15px;
   margin-bottom: 30px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--panel-border);
   display: flex;
   align-items: center;
   gap: 15px;
@@ -135,19 +134,19 @@ button:disabled {
 
 .json-panel,
 .pdf-panel {
-  background: white;
+  background: var(--panel-bg);
   border-radius: 15px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--panel-border);
   height: 600px;
   display: flex;
   flex-direction: column;
 }
 
 .panel-header {
-  background: #f8f9fa;
+  background: var(--code-bg);
   padding: 20px;
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid var(--panel-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -179,12 +178,14 @@ button:disabled {
   height: 100%;
   margin: 0;
   padding: 20px;
-  background: #f8f9fa;
+  background: var(--code-bg);
+  color: var(--code-text);
   border: none;
   font-family: "Fira Code", "Consolas", monospace;
   font-size: 14px;
   line-height: 1.5;
   overflow: auto;
+  text-shadow: none;
 }
 
 .pdf-container {
@@ -253,6 +254,125 @@ button:disabled {
   text-decoration: underline;
 }
 
+/* Theme variable setup */
+:root {
+  --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --panel-bg: #ffffff;
+  --panel-border: #dee2e6;
+  --text-color: #333;
+  --subtext-color: #495057;
+  --code-bg: #f8f9fa;
+  --code-text: #2d2d2d;
+  --link-color: #667eea;
+}
+
+body.theme-dark {
+  --panel-bg: #1f2530;
+  --panel-border: #2f3542;
+  --text-color: #e2e6ec;
+  --subtext-color: #c2c7cf;
+  --code-bg: #1e1e1e;
+  --code-text: #dcdcdc;
+  --link-color: #9aa9ff;
+  /* default dark gradient */
+  --bg-gradient: linear-gradient(135deg, #141e30 0%, #243b55 100%);
+}
+
+/* Apply panel & text variables */
+.header h1,
+.subtitle,
+.status-bar,
+.footer {
+  color: var(--text-color);
+}
+
+.input-section,
+.json-panel,
+.pdf-panel,
+.status-bar {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+}
+
+.panel-header {
+  background: var(--code-bg);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+#jsonDisplay {
+  background: var(--code-bg);
+  color: var(--code-text);
+  text-shadow: none;
+}
+
+/* Editable code focus */
+#jsonCode:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Theme controls */
+.theme-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.gradient-select {
+  padding: 8px 10px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--panel-bg);
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+body.theme-dark .gradient-select {
+  border-color: #394150;
+}
+
+/* Buttons adjust in dark mode */
+body.theme-dark .btn-primary {
+  background: #485ad8;
+}
+body.theme-dark .btn-secondary {
+  background: #23964b;
+}
+body.theme-dark .btn-small {
+  background: #2b323e;
+  color: var(--text-color);
+  border: 1px solid #394150;
+}
+body.theme-dark .btn-small:hover:not(:disabled) {
+  background: #343d4a;
+}
+
+/* Link colors */
+.footer a {
+  color: var(--link-color);
+}
+
+/* Ensure syntax highlighting colors remain legible in dark mode */
+body.theme-dark .token.string {
+  color: #98c379;
+}
+body.theme-dark .token.number {
+  color: #d19a66;
+}
+body.theme-dark .token.boolean {
+  color: #e06c75;
+}
+body.theme-dark .token.property {
+  color: #61afef;
+}
+
+/* Minor tweak for json panel scroll */
+.json-container {
+  scrollbar-width: thin;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .content-grid {
@@ -292,21 +412,4 @@ button:disabled {
   .container {
     padding: 0 15px;
   }
-}
-
-/* Syntax highlighting improvements */
-.token.string {
-  color: #032f62;
-}
-
-.token.number {
-  color: #005cc5;
-}
-
-.token.boolean {
-  color: #d73a49;
-}
-
-.token.property {
-  color: #6f42c1;
 }
