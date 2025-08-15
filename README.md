@@ -56,14 +56,29 @@ http://localhost:8080/
 http://localhost:8080/?file=temp_multiplepage.json
 ```
 
+### PDF Template Editor
+
+**New Feature:** Visual drag-and-drop PDF template editor.
+
+**Endpoint:** `GET /editor`
+
+**Query Parameters:**
+- `file` (optional): JSON template filename to load automatically
+
+**Examples:**
+```
+http://localhost:8080/editor
+http://localhost:8080/editor?file=temp_multiplepage.json
+```
+
 **Features:**
-- 🖥️ **Interactive Web Interface**: Clean, responsive design with real-time preview
-- 📋 **JSON Template Editor**: Syntax-highlighted JSON display with copy functionality
-- 📄 **Live PDF Preview**: Real-time PDF generation and preview using PDF.js
-- 📱 **Multi-page Navigation**: Page controls for navigating through generated PDFs
-- ⬇️ **Download Support**: Direct PDF download functionality
-- 🔗 **URL Parameters**: Load templates directly via query parameters
+- 🎨 **Drag-and-Drop Interface**: Visual template building with drag-and-drop components
+- 📋 **Real-time JSON Generation**: Live JSON template generation as you build
+- 🔧 **Component Properties**: Editable properties panel for each component
+- 📄 **Live PDF Preview**: Generate and preview PDFs instantly
+- 💾 **Template Loading**: Load existing templates for editing
 - 📱 **Responsive Design**: Works on desktop, tablet, and mobile devices
+- 🎨 **Theme Support**: Multiple gradient themes and dark/light mode
 
 ### Template Data API
 

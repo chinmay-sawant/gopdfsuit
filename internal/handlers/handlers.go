@@ -90,6 +90,9 @@ func RegisterRoutes(router *gin.Engine) {
 	v1 := router.Group("/api/v1")
 	v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
 	v1.GET("/template-data", handleGetTemplateData)
+
+	// Template editor endpoint
+	router.GET("/editor", PDFEditorHandler)
 }
 
 // handlePDFViewer serves the PDF viewer HTML page
@@ -145,4 +148,11 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		return
 	}
 	pdf.GenerateTemplatePDF(c, template)
+}
+
+// PDFEditorHandler serves the template editor interface
+func PDFEditorHandler(c *gin.Context) {
+	c.HTML(http.StatusOK, "pdf_editor.html", gin.H{
+		"title": "GoPdfSuit - Template Editor",
+	})
 }
