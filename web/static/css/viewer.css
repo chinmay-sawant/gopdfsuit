@@ -278,6 +278,12 @@ body.theme-dark {
   --bg-gradient: linear-gradient(135deg, #141e30 0%, #243b55 100%);
 }
 
+/* Ensure no unintended white/bright text-shadows appear in dark mode */
+body.theme-dark,
+body.theme-dark * {
+  text-shadow: none !important;
+}
+
 /* Apply panel & text variables */
 .header h1,
 .subtitle,
