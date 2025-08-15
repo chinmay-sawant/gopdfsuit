@@ -481,7 +481,7 @@ class TemplateEditor {
     
     populateTable(tableElement, tableData) {
         tableElement.innerHTML = ''; // Clear existing content
-        const rows = tableData.rows || [{ row: [{ text: "Field:" }, { text: "Value" }] }];
+        const rows = tableData.rows || [{ row: [{ text: "" }, { text: "" }] }];
 
         rows.forEach(rowData => {
             const tr = document.createElement('tr');
