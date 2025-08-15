@@ -4,11 +4,11 @@
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly using JSON configurations with advanced font styling support.
+> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly with **multi-page support**, **custom page sizes**, and **automatic page breaks**.
 
 ## 📖 Overview
 
-GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting tables, borders, checkboxes, **font styling (bold, italic, underline)**, and custom layouts without external dependencies.
+GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting **multiple page sizes**, **automatic page breaks**, tables, borders, checkboxes, **font styling (bold, italic, underline)**, and custom layouts without external dependencies.
 
 ## 🏗️ Project Structure
 
@@ -72,11 +72,13 @@ go run ./cmd/gopdfsuit
 ```json
 {
   "config": {
-    "pageBorder": "1:1:1:1"
+    "pageBorder": "1:1:1:1",
+    "page": "A4",
+    "pageAlignment": 1
   },
   "title": {
     "props": "font1:24:100:center:0:0:1:0",
-    "text": "Document Title"
+    "text": "Multi-Page Document Title"
   },
   "table": [
     {
@@ -106,15 +108,27 @@ go run ./cmd/gopdfsuit
     }
   ],
   "footer": {
-    "font": "font1:10:001:right",
-    "text": "Underlined Footer"
+    "font": "font1:10:001:center",
+    "text": "Multi-page Footer"
   }
 }
 ```
 
-**Template Properties Explained:**
+**Template Configuration Properties:**
 
 - **config.pageBorder**: `"left:right:top:bottom"` - Border widths for page edges
+- **config.page**: Page size specification
+  - `"A4"` - 8.27 × 11.69 inches (595 × 842 points) - **Default**
+  - `"LETTER"` - 8.5 × 11 inches (612 × 792 points)
+  - `"LEGAL"` - 8.5 × 14 inches (612 × 1008 points)
+  - `"A3"` - 11.69 × 16.54 inches (842 × 1191 points)
+  - `"A5"` - 5.83 × 8.27 inches (420 × 595 points)
+- **config.pageAlignment**: Page orientation
+  - `1` - **Portrait** (vertical) - **Default**
+  - `2` - **Landscape** (horizontal)
+
+**Template Properties Explained:**
+
 - **props**: `"fontname:fontsize:style:alignment:left:right:top:bottom"`
   - `fontname`: Font identifier (font1, font2, etc.)
   - `fontsize`: Font size in points
@@ -135,23 +149,31 @@ go run ./cmd/gopdfsuit
   - `left:right:top:bottom`: Border widths for cell edges
 - **chequebox**: Boolean value for checkbox state (true = checked, false = unchecked)
 
+**Automatic Page Break Features:**
+- ✅ **Height Tracking**: Monitors content height and automatically creates new pages
+- ✅ **Page Size Aware**: Respects selected page dimensions for break calculations
+- ✅ **Border Preservation**: Page borders are drawn on every new page
+- ✅ **Content Continuity**: Tables and content flow seamlessly across pages
+
 **Response:**
 - **Content-Type:** `application/pdf`
 - **File:** `template-pdf-<timestamp>.pdf` (auto-download)
 
 ## 🧪 Usage Examples
 
-### 📱 Healthcare Form with Font Styling (cURL)
+### 📱 Multi-Page Healthcare Form (cURL)
 ```bash
 curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
   -H "Content-Type: application/json" \
   -d '{
     "config": {
-      "pageBorder": "2:2:2:2"
+      "pageBorder": "2:2:2:2",
+      "page": "LETTER",
+      "pageAlignment": 1
     },
     "title": {
       "props": "font1:20:110:center:0:0:2:0",
-      "text": "Patient Encounter Form"
+      "text": "Patient Encounter Form - Multi Page"
     },
     "table": [
       {
@@ -176,47 +198,19 @@ curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
                 "text": "01/15/1980"
               }
             ]
-          },
-          {
-            "row": [
-              {
-                "props": "font1:12:100:left:1:0:1:1",
-                "text": "Gender: Male"
-              },
-              {
-                "props": "font1:12:000:center:0:0:1:1",
-                "chequebox": true
-              },
-              {
-                "props": "font1:12:100:left:0:0:1:1",
-                "text": "Female"
-              },
-              {
-                "props": "font1:12:000:center:0:1:1:1",
-                "chequebox": false
-              }
-            ]
           }
         ]
       }
     ],
     "footer": {
       "font": "font1:10:001:center",
-      "text": "Confidential Medical Document"
+      "text": "Confidential Medical Document - Auto Pagination"
     }
   }' \
-  --output patient-form-styled.pdf
+  --output patient-form-multipage.pdf
 ```
 
-### 🪟 Windows CMD Example
-```cmd
-curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"config\":{\"pageBorder\":\"1:1:1:1\"},\"title\":{\"props\":\"font1:16:center:0:0:1:0\",\"text\":\"Invoice Template\"},\"table\":[{\"maxcolumns\":2,\"rows\":[{\"row\":[{\"props\":\"font1:12:left:1:1:1:1\",\"text\":\"Item:\"},{\"props\":\"font1:12:right:1:1:1:1\",\"text\":\"$100.00\"}]}]}],\"footer\":{\"font\":\"font1:10:center\",\"text\":\"Thank you for your business\"}}" ^
-  --output invoice.pdf
-```
-
-### 🐍 Python Example with Font Styling
+### 🖼️ Landscape Layout Example (Python)
 ```python
 import requests
 import json
@@ -224,29 +218,43 @@ import json
 url = "http://localhost:8080/api/v1/generate/template-pdf"
 template = {
     "config": {
-        "pageBorder": "1:1:1:1"
+        "pageBorder": "1:1:1:1",
+        "page": "A4",
+        "pageAlignment": 2  # Landscape orientation
     },
     "title": {
-        "props": "font1:22:111:center:0:0:2:0",  # Bold + Italic + Underlined title
-        "text": "Survey Form"
+        "props": "font1:22:111:center:0:0:2:0",
+        "text": "Landscape Survey Form"
     },
     "table": [
         {
-            "maxcolumns": 3,
+            "maxcolumns": 6,  # More columns fit in landscape
             "rows": [
                 {
                     "row": [
                         {
-                            "props": "font1:14:100:left:1:1:1:1",  # Bold question
-                            "text": "Question 1: Are you satisfied?"
+                            "props": "font1:14:100:left:1:1:1:1",
+                            "text": "Question 1:"
                         },
                         {
                             "props": "font1:12:000:center:1:1:1:1",
                             "chequebox": True
                         },
                         {
-                            "props": "font1:12:010:left:1:1:1:1",  # Italic answer
-                            "text": "Yes"
+                            "props": "font1:12:010:left:1:1:1:1",
+                            "text": "Excellent"
+                        },
+                        {
+                            "props": "font1:12:000:center:1:1:1:1",
+                            "chequebox": False
+                        },
+                        {
+                            "props": "font1:12:010:left:1:1:1:1",
+                            "text": "Good"
+                        },
+                        {
+                            "props": "font1:12:000:left:1:1:1:1",
+                            "text": "Average"
                         }
                     ]
                 }
@@ -254,25 +262,68 @@ template = {
         }
     ],
     "footer": {
-        "font": "font1:10:001:right",  # Underlined footer
-        "text": "Page 1 of 1"
+        "font": "font1:10:001:right",
+        "text": "Landscape Page Layout"
     }
 }
 
 response = requests.post(url, json=template)
-with open("survey-styled.pdf", "wb") as f:
+with open("survey-landscape.pdf", "wb") as f:
     f.write(response.content)
+```
+
+### 📄 Large Document with Auto Page Breaks
+```json
+{
+  "config": {
+    "pageBorder": "1:1:1:1",
+    "page": "LEGAL",
+    "pageAlignment": 1
+  },
+  "title": {
+    "props": "font1:18:100:center:0:0:1:0",
+    "text": "Large Multi-Page Document"
+  },
+  "table": [
+    {
+      "maxcolumns": 2,
+      "rows": [
+        // Add many rows here - system will automatically create new pages
+        {
+          "row": [
+            {
+              "props": "font1:12:100:left:1:1:1:1",
+              "text": "Section 1: Introduction"
+            },
+            {
+              "props": "font1:12:000:left:1:1:1:1",
+              "text": "This document demonstrates automatic page breaks..."
+            }
+          ]
+        }
+        // ... more rows will automatically flow to new pages
+      ]
+    }
+  ],
+  "footer": {
+    "font": "font1:10:000:center",
+    "text": "Document continues across multiple pages automatically"
+  }
+}
 ```
 
 ## ✨ Features
 
 - 🎯 **Template-based**: JSON-driven PDF generation
-- 📋 **Tables & Forms**: Support for complex table layouts
+- 📋 **Tables & Forms**: Support for complex table layouts with automatic page breaks
 - ☑️ **Checkboxes**: Interactive checkbox elements
 - 🎨 **Font Styling**: Bold, italic, and underline text support
+- 📄 **Multi-page Support**: Automatic page breaks and multi-page documents
+- 📏 **Custom Page Sizes**: A4, Letter, Legal, A3, A5 support
+- 🔄 **Page Orientation**: Portrait and landscape orientations
 - 🔤 **Flexible Typography**: Custom fonts, sizes, and alignments
 - 🔲 **Border Control**: Granular border configuration
-- ⚡ **Fast**: In-memory PDF generation
+- ⚡ **Fast**: In-memory PDF generation with height tracking
 - 📦 **Self-contained**: Single binary deployment
 - 🌐 **Cross-platform**: Runs on Windows, Linux, macOS
 
@@ -308,6 +359,21 @@ go test ./...
 # Run tests with coverage
 go test -cover ./...
 ```
+
+**Page Break Logic:**
+- The system tracks current Y position on each page
+- When content would exceed page boundaries (considering margins), a new page is automatically created
+- Each new page includes configured page borders
+- Content flows seamlessly from one page to the next
+
+**Supported Page Sizes:**
+| Page Size | Dimensions (inches) | Dimensions (points) | Best For |
+|-----------|-------------------|-------------------|----------|
+| A4 | 8.27 × 11.69 | 595 × 842 | International standard |
+| Letter | 8.5 × 11 | 612 × 792 | US standard |
+| Legal | 8.5 × 14 | 612 × 1008 | Legal documents |
+| A3 | 11.69 × 16.54 | 842 × 1191 | Large format |
+| A5 | 5.83 × 8.27 | 420 × 595 | Small format |
 
 ## ⚠️ Production Notes
 

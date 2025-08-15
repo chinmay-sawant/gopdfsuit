@@ -8,7 +8,9 @@ type PDFTemplate struct {
 }
 
 type Config struct {
-	PageBorder string `json:"pageBorder"`
+	PageBorder    string `json:"pageBorder"`
+	Page          string `json:"page"`          // Page size: "A4", "Letter", "Legal", etc.
+	PageAlignment int    `json:"pageAlignment"` // 1 = Portrait (vertical), 2 = Landscape (horizontal)
 }
 
 type Title struct {
