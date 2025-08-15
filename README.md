@@ -4,11 +4,11 @@
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> 🚀 A lightweight Go web service that generates PDF invoices on-the-fly and returns them as downloadable attachments.
+> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly using JSON configurations.
 
 ## 📖 Overview
 
-GoPdfSuit is a simple yet powerful web service built with Go and the Gin framework. It features a custom in-memory PDF generator that creates minimal invoice PDFs without external dependencies, making it perfect for demonstration, testing, and lightweight production use.
+GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting tables, borders, checkboxes, and custom layouts without external dependencies.
 
 ## 🏗️ Project Structure
 
@@ -20,11 +20,12 @@ GoPdfSuit/
 ├── 📁 internal/
 │   ├── 📁 handlers/            # 🔗 HTTP handlers and route registration
 │   │   └── handlers.go
-│   ├── 📁 models/              # 📊 Request/response data models
+│   ├── 📁 models/              # 📊 Template data models
 │   │   └── models.go
-│   └── 📁 pdf/                 # 📄 PDF generation logic
+│   └── 📁 pdf/                 # 📄 Template-based PDF generation
 │       └── pdf.go
 ├── 📄 go.mod                   # 📦 Go modules file
+├── 📄 temp.json               # 📋 Example template file
 ├── 📄 .gitignore              # 🚫 Git ignore rules
 └── 📖 README.md               # 📚 This file
 ```
@@ -60,88 +61,218 @@ go run ./cmd/gopdfsuit
 
 ## 📡 API Reference
 
-### Generate PDF Invoice
+### Generate Template-based PDF
 
-**Endpoint:** `POST /api/v1/generate/pdf`
+**Endpoint:** `POST /api/v1/generate/template-pdf`
 
 **Headers:**
 - `Content-Type: application/json`
 
-**Request Body:**
+**Request Body Structure:**
 ```json
 {
-  "customer_name": "Acme Corporation",
-  "items": [
+  "config": {
+    "pageBorder": "1:1:1:1"
+  },
+  "title": {
+    "props": "font1:24:center:0:0:1:0",
+    "text": "Document Title"
+  },
+  "table": [
     {
-      "name": "Premium Widget",
-      "quantity": 2,
-      "price": 29.99
-    },
-    {
-      "name": "Professional Service",
-      "quantity": 1,
-      "price": 99.95
+      "maxcolumns": 4,
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:12:left:1:1:1:1",
+              "text": "Field Name:"
+            },
+            {
+              "props": "font1:12:left:1:1:1:1",
+              "text": "Field Value"
+            },
+            {
+              "props": "font1:12:center:1:1:1:1",
+              "chequebox": true
+            },
+            {
+              "props": "font1:12:right:1:1:1:1",
+              "text": "Right Aligned"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "total": 159.93
+  "footer": {
+    "font": "font1:10:right",
+    "text": "Footer Text"
+  }
 }
 ```
+
+**Template Properties Explained:**
+
+- **config.pageBorder**: `"left:right:top:bottom"` - Border widths for page edges
+- **props**: `"fontname:fontsize:alignment:left:right:top:bottom"`
+  - `fontname`: Font identifier (font1, font2, etc.)
+  - `fontsize`: Font size in points
+  - `alignment`: left, center, or right
+  - `left:right:top:bottom`: Border widths for cell edges
+- **chequebox**: Boolean value for checkbox state (true = checked, false = unchecked)
 
 **Response:**
 - **Content-Type:** `application/pdf`
-- **File:** `invoice-<timestamp>.pdf` (auto-download)
-
-**Error Response:**
-```json
-{
-  "error": "Invalid request data: <details>"
-}
-```
+- **File:** `template-pdf-<timestamp>.pdf` (auto-download)
 
 ## 🧪 Usage Examples
 
-### 📱 Using cURL (Unix/Linux/macOS)
+### 📱 Healthcare Form Example (cURL)
 ```bash
-curl -X POST "http://localhost:8080/api/v1/generate/pdf" \
+curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
   -H "Content-Type: application/json" \
   -d '{
-    "customer_name": "Tech Solutions Inc",
-    "items": [
-      {"name": "Cloud Hosting", "quantity": 1, "price": 49.99},
-      {"name": "SSL Certificate", "quantity": 2, "price": 15.00}
+    "config": {
+      "pageBorder": "1:1:1:1"
+    },
+    "title": {
+      "props": "font1:18:center:0:0:1:0",
+      "text": "Patient Encounter Form"
+    },
+    "table": [
+      {
+        "maxcolumns": 4,
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "font1:12:left:1:0:1:1",
+                "text": "Patient Name:"
+              },
+              {
+                "props": "font1:12:left:0:1:1:1",
+                "text": "John Doe"
+              },
+              {
+                "props": "font1:12:left:1:0:1:1",
+                "text": "DOB:"
+              },
+              {
+                "props": "font1:12:left:0:1:1:1",
+                "text": "01/15/1980"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "font1:12:left:1:0:1:1",
+                "text": "Gender: Male"
+              },
+              {
+                "props": "font1:12:center:0:0:1:1",
+                "chequebox": false
+              },
+              {
+                "props": "font1:12:left:0:0:1:1",
+                "text": "Female"
+              },
+              {
+                "props": "font1:12:center:0:1:1:1",
+                "chequebox": true
+              }
+            ]
+          }
+        ]
+      }
     ],
-    "total": 79.99
+    "footer": {
+      "font": "font1:10:center",
+      "text": "Confidential Medical Document"
+    }
   }' \
-  --output invoice.pdf
+  --output patient-form.pdf
 ```
 
-### 🪟 Using cURL (Windows CMD)
+### 🪟 Windows CMD Example
 ```cmd
-curl -X POST "http://localhost:8080/api/v1/generate/pdf" ^
+curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" ^
   -H "Content-Type: application/json" ^
-  -d "{\"customer_name\":\"Tech Solutions Inc\",\"items\":[{\"name\":\"Cloud Hosting\",\"quantity\":1,\"price\":49.99},{\"name\":\"SSL Certificate\",\"quantity\":2,\"price\":15.00}],\"total\":79.99}" ^
+  -d "{\"config\":{\"pageBorder\":\"1:1:1:1\"},\"title\":{\"props\":\"font1:16:center:0:0:1:0\",\"text\":\"Invoice Template\"},\"table\":[{\"maxcolumns\":2,\"rows\":[{\"row\":[{\"props\":\"font1:12:left:1:1:1:1\",\"text\":\"Item:\"},{\"props\":\"font1:12:right:1:1:1:1\",\"text\":\"$100.00\"}]}]}],\"footer\":{\"font\":\"font1:10:center\",\"text\":\"Thank you for your business\"}}" ^
   --output invoice.pdf
 ```
 
-### 🐍 Using Python
+### 🐍 Python Example
 ```python
 import requests
 import json
 
-url = "http://localhost:8080/api/v1/generate/pdf"
-data = {
-    "customer_name": "Python Developers LLC",
-    "items": [
-        {"name": "API Development", "quantity": 1, "price": 500.00},
-        {"name": "Testing Suite", "quantity": 1, "price": 200.00}
+url = "http://localhost:8080/api/v1/generate/template-pdf"
+template = {
+    "config": {
+        "pageBorder": "2:2:2:2"
+    },
+    "title": {
+        "props": "font1:20:center:0:0:2:0",
+        "text": "Survey Form"
+    },
+    "table": [
+        {
+            "maxcolumns": 3,
+            "rows": [
+                {
+                    "row": [
+                        {
+                            "props": "font1:12:left:1:1:1:1",
+                            "text": "Question 1: Are you satisfied?"
+                        },
+                        {
+                            "props": "font1:12:center:1:1:1:1",
+                            "chequebox": True
+                        },
+                        {
+                            "props": "font1:12:left:1:1:1:1",
+                            "text": "Yes"
+                        }
+                    ]
+                }
+            ]
+        }
     ],
-    "total": 700.00
+    "footer": {
+        "font": "font1:10:right",
+        "text": "Page 1 of 1"
+    }
 }
 
-response = requests.post(url, json=data)
-with open("invoice.pdf", "wb") as f:
+response = requests.post(url, json=template)
+with open("survey.pdf", "wb") as f:
     f.write(response.content)
 ```
+
+## ✨ Features
+
+- 🎯 **Template-based**: JSON-driven PDF generation
+- 📋 **Tables & Forms**: Support for complex table layouts
+- ☑️ **Checkboxes**: Interactive checkbox elements
+- 🎨 **Flexible Styling**: Custom fonts, sizes, and alignments
+- 🔲 **Border Control**: Granular border configuration
+- ⚡ **Fast**: In-memory PDF generation
+- 📦 **Self-contained**: Single binary deployment
+- 🌐 **Cross-platform**: Runs on Windows, Linux, macOS
+
+## 🗺️ Roadmap & TODO
+
+- [ ] 🧪 Add comprehensive unit tests
+- [ ] 🎨 Support for colors and advanced styling
+- [ ] 📊 Image embedding support
+- [ ] 🐳 Docker containerization
+- [ ] 📈 Metrics and health check endpoints
+- [ ] 🔐 Authentication and rate limiting
+- [ ] 📋 Multi-page document support
+- [ ] 💾 Template storage and management
+- [ ] 📧 Email delivery integration
 
 ## 🛠️ Development
 
@@ -162,42 +293,18 @@ go test ./...
 
 # Run tests with coverage
 go test -cover ./...
-
-# Run tests with verbose output
-go test -v ./...
 ```
-
-## ✨ Features
-
-- 🎯 **Lightweight**: No external PDF libraries required
-- ⚡ **Fast**: In-memory PDF generation
-- 🔧 **Simple API**: RESTful JSON interface
-- 📦 **Self-contained**: Single binary deployment
-- 🌐 **Cross-platform**: Runs on Windows, Linux, macOS
-- 🛡️ **Type-safe**: Full Go type checking
-
-## 🗺️ Roadmap & TODO
-
-- [ ] 🧪 Add comprehensive unit tests
-- [ ] 📊 Enhanced PDF layouts with tables and styling
-- [ ] 🐳 Docker containerization
-- [ ] 📈 Metrics and health check endpoints
-- [ ] 🔐 Authentication and rate limiting
-- [ ] 📋 Template-based PDF generation
-- [ ] 🎨 Custom branding and themes
-- [ ] 💾 Persistent invoice storage
-- [ ] 📧 Email delivery integration
 
 ## ⚠️ Production Notes
 
-> **⚠️ Important:** The current PDF generator is intentionally minimal and designed for demonstration purposes.
+> **⚠️ Important:** The current PDF generator creates basic layouts suitable for forms and simple documents.
 
 For production environments, consider:
-- Using established PDF libraries like [gofpdf](https://github.com/jung-kurt/gofpdf) or [chromedp](https://github.com/chromedp/chromedp)
-- Implementing streaming for large documents
-- Adding comprehensive error handling and logging
-- Setting up proper monitoring and metrics
-- Implementing request validation and sanitization
+- Implementing comprehensive input validation
+- Adding request size limits
+- Setting up proper logging and monitoring
+- Implementing caching for frequently used templates
+- Adding support for custom fonts and advanced layouts
 
 ## 🤝 Contributing
 
