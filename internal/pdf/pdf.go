@@ -20,17 +20,8 @@ const (
 
 func parseProps(props string) models.Props {
 	parts := strings.Split(props, ":")
-	if len(parts) < 5 {
-		return models.Props{
-			FontName:  "Helvetica",
-			FontSize:  12,
-			StyleCode: "000",
-			Bold:      false,
-			Italic:    false,
-			Underline: false,
-			Alignment: "left",
-			Borders:   [4]int{0, 0, 0, 0},
-		}
+	if len(parts) < 4 {
+		return models.Props{FontName: "Helvetica", FontSize: 12, Alignment: "left", Borders: [4]int{0, 0, 0, 0}}
 	}
 
 	fontSize, _ := strconv.Atoi(parts[1])
@@ -38,38 +29,17 @@ func parseProps(props string) models.Props {
 		fontSize = 12
 	}
 
-	// Parse 3-digit style code (bold:italic:underline)
-	styleCode := parts[2]
-	if len(styleCode) != 3 {
-		styleCode = "000" // Default to normal text
-	}
-
-	bold := styleCode[0] == '1'
-	italic := styleCode[1] == '1'
-	underline := styleCode[2] == '1'
-
-	// Parse alignment (now at index 3)
-	alignment := "left"
-	if len(parts) > 3 {
-		alignment = parts[3]
-	}
-
-	// Parse borders (now starting at index 4)
 	borders := [4]int{0, 0, 0, 0}
-	if len(parts) >= 8 {
-		for i := 4; i < 8 && i < len(parts); i++ {
-			borders[i-4], _ = strconv.Atoi(parts[i])
+	if len(parts) >= 7 {
+		for i := 3; i < 7 && i < len(parts); i++ {
+			borders[i-3], _ = strconv.Atoi(parts[i])
 		}
 	}
 
 	return models.Props{
 		FontName:  parts[0],
 		FontSize:  fontSize,
-		StyleCode: styleCode,
-		Bold:      bold,
-		Italic:    italic,
-		Underline: underline,
-		Alignment: alignment,
+		Alignment: parts[2],
 		Borders:   borders,
 	}
 }
@@ -83,18 +53,6 @@ func parseBorders(borderStr string) [4]int {
 		}
 	}
 	return borders
-}
-
-// getFontReference returns the appropriate font reference based on style properties
-func getFontReference(props models.Props) string {
-	if props.Bold && props.Italic {
-		return "/F4" // Helvetica-BoldOblique
-	} else if props.Bold {
-		return "/F2" // Helvetica-Bold
-	} else if props.Italic {
-		return "/F3" // Helvetica-Oblique
-	}
-	return "/F1" // Helvetica (normal)
 }
 
 // GenerateTemplatePDF generates a PDF document based on a template and sends it to the client.
@@ -114,11 +72,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	xrefOffsets[2] = pdfBuffer.Len()
 	pdfBuffer.WriteString("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
 
-	// Object 3: Page - Updated to include all font variants
+	// Object 3: Page
 	xrefOffsets[3] = pdfBuffer.Len()
 	pdfBuffer.WriteString("3 0 obj\n")
 	pdfBuffer.WriteString("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R ")
-	pdfBuffer.WriteString("/Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R /F4 8 0 R >> >> >>\n")
+	pdfBuffer.WriteString("/Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>\n")
 	pdfBuffer.WriteString("endobj\n")
 
 	// Generate content stream
@@ -152,11 +110,10 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		contentStream.WriteString("Q\n")
 	}
 
-	// Title - Updated to use new font system
+	// Title
 	titleProps := parseProps(template.Title.Props)
 	contentStream.WriteString("BT\n")
-	contentStream.WriteString(getFontReference(titleProps))
-	contentStream.WriteString(" ")
+	contentStream.WriteString("/F1 ")
 	contentStream.WriteString(strconv.Itoa(titleProps.FontSize))
 	contentStream.WriteString(" Tf\n")
 
@@ -234,10 +191,9 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 					}
 					contentStream.WriteString("Q\n")
 				} else if cell.Text != "" {
-					// Draw text with font styling support
+					// Draw text
 					contentStream.WriteString("BT\n")
-					contentStream.WriteString(getFontReference(cellProps))
-					contentStream.WriteString(" ")
+					contentStream.WriteString("/F1 ")
 					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 					contentStream.WriteString(" Tf\n")
 
@@ -253,17 +209,6 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 					textY := yPosition - rowHeight/2 - float64(cellProps.FontSize)/2
 					contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
-
-					// Add underline support if needed
-					if cellProps.Underline {
-						contentStream.WriteString("q\n")
-						contentStream.WriteString("0.5 w\n") // Underline thickness
-						underlineY := textY - 2
-						contentStream.WriteString(fmt.Sprintf("%.2f %.2f m %.2f %.2f l S\n",
-							textX, underlineY, textX+float64(len(cell.Text)*cellProps.FontSize/2), underlineY))
-						contentStream.WriteString("Q\n")
-					}
-
 					contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
 					contentStream.WriteString("ET\n")
 				}
@@ -275,12 +220,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		yPosition -= 20 // Space between tables
 	}
 
-	// Footer - Updated to use new font system
+	// Footer
 	if template.Footer.Text != "" {
 		footerProps := parseProps(template.Footer.Font)
 		contentStream.WriteString("BT\n")
-		contentStream.WriteString(getFontReference(footerProps))
-		contentStream.WriteString(" ")
+		contentStream.WriteString("/F1 ")
 		contentStream.WriteString(strconv.Itoa(footerProps.FontSize))
 		contentStream.WriteString(" Tf\n")
 
@@ -307,7 +251,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.Write(contentStream.Bytes())
 	pdfBuffer.WriteString("\nendstream\nendobj\n")
 
-	// Object 5: Font Helvetica (Normal)
+	// Object 5: Font Helvetica
 	xrefOffsets[5] = pdfBuffer.Len()
 	pdfBuffer.WriteString("5 0 obj\n")
 	pdfBuffer.WriteString("<< /Type /Font /Subtype /Type1 /Name /F1 /BaseFont /Helvetica >>\n")
@@ -319,27 +263,15 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString("<< /Type /Font /Subtype /Type1 /Name /F2 /BaseFont /Helvetica-Bold >>\n")
 	pdfBuffer.WriteString("endobj\n")
 
-	// Object 7: Font Helvetica-Oblique (Italic)
-	xrefOffsets[7] = pdfBuffer.Len()
-	pdfBuffer.WriteString("7 0 obj\n")
-	pdfBuffer.WriteString("<< /Type /Font /Subtype /Type1 /Name /F3 /BaseFont /Helvetica-Oblique >>\n")
-	pdfBuffer.WriteString("endobj\n")
-
-	// Object 8: Font Helvetica-BoldOblique (Bold + Italic)
-	xrefOffsets[8] = pdfBuffer.Len()
-	pdfBuffer.WriteString("8 0 obj\n")
-	pdfBuffer.WriteString("<< /Type /Font /Subtype /Type1 /Name /F4 /BaseFont /Helvetica-BoldOblique >>\n")
-	pdfBuffer.WriteString("endobj\n")
-
-	// Cross-reference table - Updated for 8 objects
+	// Cross-reference table
 	xrefStart := pdfBuffer.Len()
-	pdfBuffer.WriteString("xref\n0 9\n0000000000 65535 f \n")
-	for i := 1; i <= 8; i++ {
+	pdfBuffer.WriteString("xref\n0 7\n0000000000 65535 f \n")
+	for i := 1; i <= 6; i++ {
 		pdfBuffer.WriteString(fmt.Sprintf("%010d 00000 n \n", xrefOffsets[i]))
 	}
 
-	// Trailer - Updated size
-	pdfBuffer.WriteString("trailer\n<< /Size 9 /Root 1 0 R >>\n")
+	// Trailer
+	pdfBuffer.WriteString("trailer\n<< /Size 7 /Root 1 0 R >>\n")
 	pdfBuffer.WriteString("startxref\n")
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")

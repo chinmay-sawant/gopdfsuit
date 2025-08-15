@@ -4,11 +4,11 @@
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly using JSON configurations with advanced font styling support.
+> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly using JSON configurations.
 
 ## 📖 Overview
 
-GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting tables, borders, checkboxes, **font styling (bold, italic, underline)**, and custom layouts without external dependencies.
+GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting tables, borders, checkboxes, and custom layouts without external dependencies.
 
 ## 🏗️ Project Structure
 
@@ -75,7 +75,7 @@ go run ./cmd/gopdfsuit
     "pageBorder": "1:1:1:1"
   },
   "title": {
-    "props": "font1:24:100:center:0:0:1:0",
+    "props": "font1:24:center:0:0:1:0",
     "text": "Document Title"
   },
   "table": [
@@ -85,20 +85,20 @@ go run ./cmd/gopdfsuit
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:1:1:1",
-              "text": "Bold Field Name:"
+              "props": "font1:12:left:1:1:1:1",
+              "text": "Field Name:"
             },
             {
-              "props": "font1:12:000:left:1:1:1:1",
-              "text": "Normal Field Value"
+              "props": "font1:12:left:1:1:1:1",
+              "text": "Field Value"
             },
             {
-              "props": "font1:12:010:left:1:1:1:1",
-              "text": "Italic Text"
+              "props": "font1:12:center:1:1:1:1",
+              "chequebox": true
             },
             {
-              "props": "font1:12:111:right:1:1:1:1",
-              "text": "Bold+Italic+Underline"
+              "props": "font1:12:right:1:1:1:1",
+              "text": "Right Aligned"
             }
           ]
         }
@@ -106,8 +106,8 @@ go run ./cmd/gopdfsuit
     }
   ],
   "footer": {
-    "font": "font1:10:001:right",
-    "text": "Underlined Footer"
+    "font": "font1:10:right",
+    "text": "Footer Text"
   }
 }
 ```
@@ -115,22 +115,9 @@ go run ./cmd/gopdfsuit
 **Template Properties Explained:**
 
 - **config.pageBorder**: `"left:right:top:bottom"` - Border widths for page edges
-- **props**: `"fontname:fontsize:style:alignment:left:right:top:bottom"`
+- **props**: `"fontname:fontsize:alignment:left:right:top:bottom"`
   - `fontname`: Font identifier (font1, font2, etc.)
   - `fontsize`: Font size in points
-  - `style`: **3-digit style code** for text formatting:
-    - **First digit (Bold)**: `1` = bold, `0` = normal weight
-    - **Second digit (Italic)**: `1` = italic, `0` = normal style  
-    - **Third digit (Underline)**: `1` = underlined, `0` = no underline
-    - Examples:
-      - `000` = Normal text
-      - `100` = **Bold** text
-      - `010` = *Italic* text
-      - `001` = <u>Underlined</u> text
-      - `110` = ***Bold + Italic***
-      - `101` = **<u>Bold + Underlined</u>**
-      - `011` = *<u>Italic + Underlined</u>*
-      - `111` = ***<u>Bold + Italic + Underlined</u>***
   - `alignment`: left, center, or right
   - `left:right:top:bottom`: Border widths for cell edges
 - **chequebox**: Boolean value for checkbox state (true = checked, false = unchecked)
@@ -141,16 +128,16 @@ go run ./cmd/gopdfsuit
 
 ## 🧪 Usage Examples
 
-### 📱 Healthcare Form with Font Styling (cURL)
+### 📱 Healthcare Form Example (cURL)
 ```bash
 curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
   -H "Content-Type: application/json" \
   -d '{
     "config": {
-      "pageBorder": "2:2:2:2"
+      "pageBorder": "1:1:1:1"
     },
     "title": {
-      "props": "font1:20:110:center:0:0:2:0",
+      "props": "font1:18:center:0:0:1:0",
       "text": "Patient Encounter Form"
     },
     "table": [
@@ -160,19 +147,19 @@ curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
           {
             "row": [
               {
-                "props": "font1:12:100:left:1:0:1:1",
+                "props": "font1:12:left:1:0:1:1",
                 "text": "Patient Name:"
               },
               {
-                "props": "font1:12:000:left:0:1:1:1",
+                "props": "font1:12:left:0:1:1:1",
                 "text": "John Doe"
               },
               {
-                "props": "font1:12:100:left:1:0:1:1",
+                "props": "font1:12:left:1:0:1:1",
                 "text": "DOB:"
               },
               {
-                "props": "font1:12:010:left:0:1:1:1",
+                "props": "font1:12:left:0:1:1:1",
                 "text": "01/15/1980"
               }
             ]
@@ -180,20 +167,20 @@ curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
           {
             "row": [
               {
-                "props": "font1:12:100:left:1:0:1:1",
+                "props": "font1:12:left:1:0:1:1",
                 "text": "Gender: Male"
               },
               {
-                "props": "font1:12:000:center:0:0:1:1",
-                "chequebox": true
+                "props": "font1:12:center:0:0:1:1",
+                "chequebox": false
               },
               {
-                "props": "font1:12:100:left:0:0:1:1",
+                "props": "font1:12:left:0:0:1:1",
                 "text": "Female"
               },
               {
-                "props": "font1:12:000:center:0:1:1:1",
-                "chequebox": false
+                "props": "font1:12:center:0:1:1:1",
+                "chequebox": true
               }
             ]
           }
@@ -201,11 +188,11 @@ curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
       }
     ],
     "footer": {
-      "font": "font1:10:001:center",
+      "font": "font1:10:center",
       "text": "Confidential Medical Document"
     }
   }' \
-  --output patient-form-styled.pdf
+  --output patient-form.pdf
 ```
 
 ### 🪟 Windows CMD Example
@@ -216,7 +203,7 @@ curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" ^
   --output invoice.pdf
 ```
 
-### 🐍 Python Example with Font Styling
+### 🐍 Python Example
 ```python
 import requests
 import json
@@ -224,10 +211,10 @@ import json
 url = "http://localhost:8080/api/v1/generate/template-pdf"
 template = {
     "config": {
-        "pageBorder": "1:1:1:1"
+        "pageBorder": "2:2:2:2"
     },
     "title": {
-        "props": "font1:22:111:center:0:0:2:0",  # Bold + Italic + Underlined title
+        "props": "font1:20:center:0:0:2:0",
         "text": "Survey Form"
     },
     "table": [
@@ -237,15 +224,15 @@ template = {
                 {
                     "row": [
                         {
-                            "props": "font1:14:100:left:1:1:1:1",  # Bold question
+                            "props": "font1:12:left:1:1:1:1",
                             "text": "Question 1: Are you satisfied?"
                         },
                         {
-                            "props": "font1:12:000:center:1:1:1:1",
+                            "props": "font1:12:center:1:1:1:1",
                             "chequebox": True
                         },
                         {
-                            "props": "font1:12:010:left:1:1:1:1",  # Italic answer
+                            "props": "font1:12:left:1:1:1:1",
                             "text": "Yes"
                         }
                     ]
@@ -254,13 +241,13 @@ template = {
         }
     ],
     "footer": {
-        "font": "font1:10:001:right",  # Underlined footer
+        "font": "font1:10:right",
         "text": "Page 1 of 1"
     }
 }
 
 response = requests.post(url, json=template)
-with open("survey-styled.pdf", "wb") as f:
+with open("survey.pdf", "wb") as f:
     f.write(response.content)
 ```
 
@@ -269,8 +256,7 @@ with open("survey-styled.pdf", "wb") as f:
 - 🎯 **Template-based**: JSON-driven PDF generation
 - 📋 **Tables & Forms**: Support for complex table layouts
 - ☑️ **Checkboxes**: Interactive checkbox elements
-- 🎨 **Font Styling**: Bold, italic, and underline text support
-- 🔤 **Flexible Typography**: Custom fonts, sizes, and alignments
+- 🎨 **Flexible Styling**: Custom fonts, sizes, and alignments
 - 🔲 **Border Control**: Granular border configuration
 - ⚡ **Fast**: In-memory PDF generation
 - 📦 **Self-contained**: Single binary deployment
@@ -331,6 +317,12 @@ For production environments, consider:
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- 🌐 [Gin Web Framework](https://gin-gonic.com/) for the excellent HTTP router
+- 📖 [PDF Reference Manual](https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/pdf_reference_archives/PDFReference.pdf) for PDF format specifications
+- 🚀 Go community for continuous inspiration
 
 ---
 
