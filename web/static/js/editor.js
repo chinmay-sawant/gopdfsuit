@@ -395,11 +395,13 @@ class TemplateEditor {
                         rows: rows.map(row => ({
                             row: Array.from(row.children).map(cell => {
                                 const input = cell.querySelector('input');
-                                const props = `font1:${element.dataset.cellFontSize}:000:${element.dataset.cellAlignment}:1:1:1:1`;
-                                if (input.type === 'checkbox') {
+                                // Prefer props stored on the cell (from loaded template) or on the input
+                                const defaultProps = `font1:${element.dataset.cellFontSize}:000:${element.dataset.cellAlignment}:1:1:1:1`;
+                                const props = cell.dataset.props || input?.dataset?.props || defaultProps;
+                                if (input && input.type === 'checkbox') {
                                     return { props: props, chequebox: input.checked };
                                 } else {
-                                    return { props: props, text: input.value };
+                                    return { props: props, text: input ? input.value : '' };
                                 }
                             })
                         }))
@@ -486,13 +488,17 @@ class TemplateEditor {
             rowData.row?.forEach(cellData => {
                 const td = document.createElement('td');
                 const input = document.createElement('input');
+                // preserve any per-cell props on the td for later serialization
+                if (cellData.props) td.dataset.props = cellData.props;
                 if (cellData.chequebox !== undefined) {
                     input.type = 'checkbox';
                     input.checked = cellData.chequebox;
+                    if (cellData.props) input.dataset.props = cellData.props;
                 } else {
                     input.type = 'text';
                     input.value = this.escapeHtml(cellData.text || '');
                     input.className = 'cell-input';
+                    if (cellData.props) input.dataset.props = cellData.props;
                 }
                 input.addEventListener('input', () => this.generateJSON());
                 td.appendChild(input);
