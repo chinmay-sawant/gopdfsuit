@@ -1,0 +1,43 @@
+/* responsive.css */
+@media (max-width: 1400px) {
+  .editor-grid {
+    grid-template-columns: 260px 1fr 280px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .editor-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .toolbox,
+  .properties-panel {
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .control-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .control-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .theme-controls {
+    margin-left: 0;
+    justify-content: center;
+  }
+
+  .editor-grid {
+    gap: 15px;
+  }
+
+  .container {
+    padding: 0 15px;
+  }
+}

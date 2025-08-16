@@ -1,0 +1,47 @@
+/* json-output.css */
+.json-output {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.panel-header {
+  background: var(--code-bg);
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-header h3 {
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.json-textarea {
+  width: 100%;
+  height: 300px;
+  border: none;
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 20px;
+  resize: vertical;
+  outline: none;
+}
+
+.json-textarea {
+  -ms-overflow-style: none; /* IE, Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.json-textarea::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
+}
