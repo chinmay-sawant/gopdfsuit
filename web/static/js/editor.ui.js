@@ -24,6 +24,40 @@ TemplateEditor.prototype.applyTextElementStyles = function(element, inputEl) {
     inputEl.style.textDecoration = isUnderline ? 'underline' : 'none';
 };
 
+// Apply styles to a table cell <td> based on its dataset.props or parent table defaults
+TemplateEditor.prototype.applyCellStyles = function(td) {
+    if (!td) return;
+    const input = td.querySelector('input');
+    if (!input) return;
+
+    // props format: font1:<size>:<styleBits>:<alignment>:... where styleBits e.g. 101 => bold, no-italic, underline
+    const props = td.dataset.props || input.dataset.props;
+    let size = null, align = null, styleBits = null;
+    if (props) {
+        const parts = props.split(':');
+        styleBits = parts[2] || '000';
+        size = parts[1] || null;
+        align = parts[3] || null;
+    }
+
+    const parent = td.closest('.canvas-element');
+    if (!size && parent) size = parent.dataset.cellFontSize;
+    if (!align && parent) align = parent.dataset.cellAlignment;
+
+    if (size) input.style.fontSize = size + 'px';
+    if (align) input.style.textAlign = align;
+
+    // apply style bits
+    if (styleBits) {
+        const isBold = styleBits.charAt(0) === '1';
+        const isItalic = styleBits.charAt(1) === '1';
+        const isUnderline = styleBits.charAt(2) === '1';
+        input.style.fontWeight = isBold ? '700' : '400';
+        input.style.fontStyle = isItalic ? 'italic' : 'normal';
+        input.style.textDecoration = isUnderline ? 'underline' : 'none';
+    }
+};
+
 TemplateEditor.prototype.updateStatus = function(message, isError = false) {
     if (!this.statusMessage) return;
     this.statusMessage.textContent = message;

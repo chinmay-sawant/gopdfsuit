@@ -31,24 +31,29 @@ TemplateEditor.prototype.populateTable = function(tableElement, tableData) {
             input.addEventListener('input', () => this.generateJSON());
             td.appendChild(input);
 
+            // apply styles (font size, alignment, bold/italic/underline) for this cell
+            if (typeof this.applyCellStyles === 'function') this.applyCellStyles(td);
+
             td.addEventListener('mousedown', (e) => {
                 if (e.ctrlKey || e.metaKey) {
                     e.preventDefault();
                     e.stopPropagation();
                     this.isSelectingCells = true;
                     this.toggleCellSelection(td);
+                    if (typeof this.applyCellStyles === 'function') this.applyCellStyles(td);
                 } else {
                     const parentElement = td.closest('.canvas-element');
                     if (parentElement) this.selectElement(parentElement);
                     this.clearCellSelection();
                     this.selectedCells.add(td);
                     td.classList.add('selected-cell');
+                    if (typeof this.applyCellStyles === 'function') this.applyCellStyles(td);
                     setTimeout(() => this.showProperties(this.selectedElement), 0);
                 }
             });
 
             td.addEventListener('mouseenter', (e) => {
-                if (this.isSelectingCells && (e.ctrlKey || e.metaKey)) this.addCellToSelection(td);
+                if (this.isSelectingCells && (e.ctrlKey || e.metaKey)) { this.addCellToSelection(td); if (typeof this.applyCellStyles === 'function') this.applyCellStyles(td); }
             });
 
             td.addEventListener('click', (e) => {

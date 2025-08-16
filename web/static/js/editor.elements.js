@@ -169,6 +169,16 @@ TemplateEditor.prototype.showProperties = function(element) {
                     </div>
                 </div>
             </div>`;
+                        // insert style controls for selected cells
+                        selectedCellsHtml += `
+            <div class="property-group">
+                <label><i class="fas fa-bold"></i> Cell Style:</label>
+                <div class="style-checkboxes">
+                    <label><input type="checkbox" id="propCellBold"> <i class="fas fa-bold"></i> Bold</label>
+                    <label><input type="checkbox" id="propCellItalic"> <i class="fas fa-italic"></i> Italic</label>
+                    <label><input type="checkbox" id="propCellUnderline"> <i class="fas fa-underline"></i> Underline</label>
+                </div>
+            </div>`;
                         } else {
                                 selectedCellsHtml = `
             <div class="property-group">
@@ -238,6 +248,14 @@ TemplateEditor.prototype.showProperties = function(element) {
                 const alignSelect = this.propertiesPanel.querySelector('#propCellAlignment');
                 if (fontInput) fontInput.value = size;
                 if (alignSelect) alignSelect.value = align;
+                    // populate style checkboxes
+                    const styleBits = parts[2] || '000';
+                    const boldCb = this.propertiesPanel.querySelector('#propCellBold');
+                    const italicCb = this.propertiesPanel.querySelector('#propCellItalic');
+                    const underlineCb = this.propertiesPanel.querySelector('#propCellUnderline');
+                    if (boldCb) boldCb.checked = styleBits.charAt(0) === '1';
+                    if (italicCb) italicCb.checked = styleBits.charAt(1) === '1';
+                    if (underlineCb) underlineCb.checked = styleBits.charAt(2) === '1';
             }
         }
     }
@@ -437,17 +455,25 @@ TemplateEditor.prototype.updateElementFromProperties = function() {
         case 'table':
             const newCellFontSize = document.getElementById('propCellFontSize')?.value;
             const newCellAlignment = document.getElementById('propCellAlignment')?.value;
-            if (this.selectedCells && this.selectedCells.size > 0) {
+        const cellBold = document.getElementById('propCellBold')?.checked;
+        const cellItalic = document.getElementById('propCellItalic')?.checked;
+        const cellUnderline = document.getElementById('propCellUnderline')?.checked;
+
+        if (this.selectedCells && this.selectedCells.size > 0) {
                 this.selectedCells.forEach(td => {
                     const input = td.querySelector('input');
                     const existing = td.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:1:1:1:1`;
                     const parts = existing.split(':');
                     while (parts.length < 8) parts.push('0');
-                    if (newCellFontSize) parts[1] = newCellFontSize;
-                    if (newCellAlignment) parts[3] = newCellAlignment;
+            if (newCellFontSize) parts[1] = newCellFontSize;
+            if (newCellAlignment) parts[3] = newCellAlignment;
+            // style bits
+            const styleBits = `${cellBold ? '1' : '0'}${cellItalic ? '1' : '0'}${cellUnderline ? '1' : '0'}`;
+            parts[2] = styleBits;
                     const updated = parts.join(':');
                     td.dataset.props = updated;
                     if (input) input.dataset.props = updated;
+            if (typeof this.applyCellStyles === 'function') this.applyCellStyles(td);
                 });
             } else {
                 if (newCellFontSize) this.selectedElement.dataset.cellFontSize = newCellFontSize;
