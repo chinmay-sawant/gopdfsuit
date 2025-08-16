@@ -168,6 +168,33 @@ class TemplateEditor {
                 item.classList.add('dragging');
             });
             item.addEventListener('dragend', () => item.classList.remove('dragging'));
+            // Click the toolbox item to add it directly to the canvas (except checkbox)
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const type = item.dataset.type;
+                if (type === 'checkbox') {
+                    // If a table is selected, allow quick add to selected cells or first cell
+                    if (this.selectedElement && this.selectedElement.dataset.type === 'table') {
+                        if (this.selectedCells && this.selectedCells.size > 0) {
+                            this.selectedCells.forEach(cell => this.addComponentToCell(cell, 'checkbox'));
+                            this.updateStatus('Checkbox added to selected cell(s)');
+                        } else {
+                            const firstCell = this.selectedElement.querySelector('td');
+                            if (firstCell) {
+                                this.addComponentToCell(firstCell, 'checkbox');
+                                this.updateStatus('Checkbox added to first table cell');
+                            } else {
+                                this.updateStatus('No table cell found to add checkbox', true);
+                            }
+                        }
+                    } else {
+                        // Not added directly; guide the user to drag into a table cell
+                        this.updateStatus('Drag the checkbox into a table cell to add it');
+                    }
+                } else {
+                    this.createElement(type);
+                }
+            });
         });
 
         this.canvas.addEventListener('dragover', (e) => {
