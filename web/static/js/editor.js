@@ -532,6 +532,27 @@ class TemplateEditor {
             this.initializeTableBorderButtons();
         }
 
+        // If table cells are selected, populate the cell-specific controls with the
+        // first selected cell's properties so editing affects only that cell(s).
+        if (type === 'table' && this.selectedCells && this.selectedCells.size > 0) {
+            // Use the first selected cell as representative
+            const firstCell = this.selectedCells.values().next().value;
+            if (firstCell) {
+                const input = firstCell.querySelector('input');
+                const props = firstCell.dataset.props || input?.dataset?.props;
+                if (props) {
+                    // props format: font1:<size>:<style>:<align>:...  (we only need size and align)
+                    const parts = props.split(':');
+                    const size = parts[1] || this.selectedElement.dataset.cellFontSize || '12';
+                    const align = parts[3] || this.selectedElement.dataset.cellAlignment || 'left';
+                    const fontInput = this.propertiesPanel.querySelector('#propCellFontSize');
+                    const alignSelect = this.propertiesPanel.querySelector('#propCellAlignment');
+                    if (fontInput) fontInput.value = size;
+                    if (alignSelect) alignSelect.value = align;
+                }
+            }
+        }
+
         this.attachPropertyListeners();
     }
 setupBorderControls() {
@@ -754,8 +775,40 @@ clearSelectedCellsBorders() {
                 if (inputEl) this.applyTextElementStyles(this.selectedElement, inputEl);
                 break;
             case 'table':
-                this.selectedElement.dataset.cellFontSize = document.getElementById('propCellFontSize')?.value;
-                this.selectedElement.dataset.cellAlignment = document.getElementById('propCellAlignment')?.value;
+                const newCellFontSize = document.getElementById('propCellFontSize')?.value;
+                const newCellAlignment = document.getElementById('propCellAlignment')?.value;
+                // If cells are selected, apply size/alignment only to selected cells
+                if (this.selectedCells && this.selectedCells.size > 0) {
+                    this.selectedCells.forEach(td => {
+                        // get existing props
+                        const input = td.querySelector('input');
+                        const existing = td.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:1:1:1:1`;
+                        const parts = existing.split(':');
+                        while (parts.length < 8) parts.push('0');
+                        // update size and alignment (index 1=size, index3=align)
+                        if (newCellFontSize) parts[1] = newCellFontSize;
+                        if (newCellAlignment) parts[3] = newCellAlignment;
+                        const updated = parts.join(':');
+                        td.dataset.props = updated;
+                        if (input) input.dataset.props = updated;
+                    });
+                } else {
+                    // No selected cells: update table defaults and apply to all cells
+                    if (newCellFontSize) this.selectedElement.dataset.cellFontSize = newCellFontSize;
+                    if (newCellAlignment) this.selectedElement.dataset.cellAlignment = newCellAlignment;
+                    const table = this.selectedElement.querySelector('.template-table');
+                    table.querySelectorAll('td').forEach(td => {
+                        const input = td.querySelector('input');
+                        const existing = td.dataset.props || input?.dataset?.props || `font1:${this.selectedElement.dataset.cellFontSize}:000:${this.selectedElement.dataset.cellAlignment}:1:1:1:1`;
+                        const parts = existing.split(':');
+                        while (parts.length < 8) parts.push('0');
+                        if (newCellFontSize) parts[1] = newCellFontSize;
+                        if (newCellAlignment) parts[3] = newCellAlignment;
+                        const updated = parts.join(':');
+                        td.dataset.props = updated;
+                        if (input) input.dataset.props = updated;
+                    });
+                }
                 // Border flags (top,right,bottom,left) apply to selected cells or all cells
                 const bt = document.getElementById('propBorderTop')?.checked;
                 const br = document.getElementById('propBorderRight')?.checked;
