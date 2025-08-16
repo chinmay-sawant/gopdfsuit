@@ -539,6 +539,107 @@ button:disabled {
   gap: 15px;
 }
 
+/* Make property controls (like Title properties) visually match toolbox components */
+.properties-content .property-group {
+  /* Wrap each group in a subtle 'card' that matches toolbox items */
+  background: var(--draggable-bg);
+  border: 2px dashed var(--draggable-border);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text-color);
+}
+
+.properties-content .property-group .table-property-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.properties-content .property-group .style-checkboxes {
+  display: flex;
+  flex-direction: column; /* stack controls vertically */
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.properties-content .property-group label {
+  font-weight: 600;
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.properties-content .property-group input[type="number"],
+.properties-content .property-group select,
+.properties-content .property-group input[type="text"] {
+  padding: 8px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+.properties-content .property-group .style-checkboxes label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.properties-content .property-group .style-checkboxes input[type="checkbox"] {
+  transform: scale(1.05);
+}
+
+/* Make the bold/italic/underline icons look like toolbox icons and show checked state */
+.properties-content .property-group .style-checkboxes label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+}
+
+.properties-content .property-group .style-checkboxes input[type="checkbox"] {
+  /* hide native checkbox but keep it accessible */
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.properties-content .property-group .style-checkboxes i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  color: var(--primary-color);
+  background: var(--draggable-bg);
+  border: 2px dashed var(--draggable-border);
+  border-radius: 6px;
+}
+
+.properties-content
+  .property-group
+  .style-checkboxes
+  input[type="checkbox"]:checked
+  + i {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+
+.properties-content .property-group .style-checkboxes label:hover i {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+}
+
 .no-selection {
   color: var(--subtext-color);
   text-align: center;
