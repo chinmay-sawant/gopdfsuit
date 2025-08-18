@@ -1,0 +1,31 @@
+/* footer.css */
+.status-bar {
+  background: var(--status-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px 20px;
+  text-align: center;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+.footer {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 20px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: auto;
+}
+
+.footer a {
+  color: var(--text-color);
+  text-decoration: none;
+  font-weight: 600;
+  margin: 0 10px;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}

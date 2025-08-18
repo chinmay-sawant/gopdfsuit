@@ -1,0 +1,441 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  transition: background 0.6s ease, color 0.3s ease;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.header {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.header h1 {
+  color: white;
+  font-size: 2.5rem;
+  margin-bottom: 5px;
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.1rem;
+}
+
+.main-content {
+  padding: 30px 0;
+  flex: 1;
+}
+
+.input-section {
+  background: var(--panel-bg);
+  padding: 25px;
+  border-radius: 15px;
+  margin-bottom: 30px;
+  border: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.input-section label {
+  font-weight: 600;
+  color: #555;
+  min-width: 150px;
+}
+
+#fileInput {
+  flex: 1;
+  min-width: 300px;
+  padding: 12px 15px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+#fileInput:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-small {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #5a6fd8;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: #28a745;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-2px);
+}
+
+.btn-small {
+  padding: 8px 12px;
+  font-size: 14px;
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+}
+
+.btn-small:hover:not(:disabled) {
+  background: #e9ecef;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.json-panel,
+.pdf-panel {
+  background: var(--panel-bg);
+  border-radius: 15px;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  background: var(--code-bg);
+  padding: 20px;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-header h3 {
+  color: #495057;
+  font-size: 1.3rem;
+}
+
+.pdf-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.json-container,
+.pdf-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.json-container {
+  padding: 0;
+}
+
+#jsonDisplay {
+  height: 100%;
+  margin: 0;
+  padding: 20px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  border: none;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: auto;
+  text-shadow: none;
+}
+
+.pdf-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f0f0f0;
+  padding: 20px;
+}
+
+#pdfCanvas {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  background: white;
+}
+
+.loading,
+.error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.loading {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  border: 2px solid rgba(102, 126, 234, 0.3);
+}
+
+.error {
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  border: 2px solid rgba(220, 53, 69, 0.3);
+}
+
+.status-bar {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 15px 25px;
+  border-radius: 10px;
+  text-align: center;
+  font-weight: 500;
+  color: #495057;
+}
+
+.footer {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 20px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.footer a {
+  color: white;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* Theme variable setup */
+:root {
+  --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --panel-bg: #ffffff;
+  --panel-border: #dee2e6;
+  --text-color: #333;
+  --subtext-color: #495057;
+  --code-bg: #f8f9fa;
+  --code-text: #2d2d2d;
+  --link-color: #667eea;
+}
+
+body.theme-dark {
+  --panel-bg: #1f2530;
+  --panel-border: #2f3542;
+  --text-color: #e2e6ec;
+  --subtext-color: #c2c7cf;
+  --code-bg: #1e1e1e;
+  --code-text: #dcdcdc;
+  --link-color: #9aa9ff;
+  /* default dark gradient */
+  --bg-gradient: linear-gradient(135deg, #141e30 0%, #243b55 100%);
+}
+
+/* Ensure no unintended white/bright text-shadows appear in dark mode */
+body.theme-dark,
+body.theme-dark * {
+  text-shadow: none !important;
+}
+
+/* Ensure JSON editor and PDF preview UI use white text in dark mode */
+body.theme-dark .panel-header h3,
+body.theme-dark #jsonDisplay,
+body.theme-dark #jsonCode,
+body.theme-dark .json-container,
+body.theme-dark .pdf-container,
+body.theme-dark .pdf-controls,
+body.theme-dark #pageInfo,
+body.theme-dark .loading,
+body.theme-dark .error,
+body.theme-dark .status-bar,
+body.theme-dark .subtitle {
+  color: #ffffff !important;
+}
+
+/* Apply panel & text variables */
+.header h1,
+.subtitle,
+.status-bar,
+.footer {
+  color: var(--text-color);
+}
+
+.input-section,
+.json-panel,
+.pdf-panel,
+.status-bar {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+}
+
+.panel-header {
+  background: var(--code-bg);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+#jsonDisplay {
+  background: var(--code-bg);
+  color: var(--code-text);
+  text-shadow: none;
+}
+
+/* Editable code focus */
+#jsonCode:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Theme controls */
+.theme-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.gradient-select {
+  padding: 8px 10px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--panel-bg);
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+body.theme-dark .gradient-select {
+  border-color: #394150;
+}
+
+/* Buttons adjust in dark mode */
+body.theme-dark .btn-primary {
+  background: #485ad8;
+}
+body.theme-dark .btn-secondary {
+  background: #23964b;
+}
+body.theme-dark .btn-small {
+  background: #2b323e;
+  color: var(--text-color);
+  border: 1px solid #394150;
+}
+body.theme-dark .btn-small:hover:not(:disabled) {
+  background: #343d4a;
+}
+
+/* Link colors */
+.footer a {
+  color: var(--link-color);
+}
+
+/* Ensure syntax highlighting colors remain legible in dark mode */
+body.theme-dark .token.string {
+  color: #98c379;
+}
+body.theme-dark .token.number {
+  color: #d19a66;
+}
+body.theme-dark .token.boolean {
+  color: #e06c75;
+}
+body.theme-dark .token.property {
+  color: #61afef;
+}
+
+/* Minor tweak for json panel scroll */
+.json-container {
+  scrollbar-width: thin;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .json-panel,
+  .pdf-panel {
+    height: 500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header h1 {
+    font-size: 2rem;
+  }
+
+  .input-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .input-section label {
+    min-width: auto;
+  }
+
+  #fileInput {
+    min-width: auto;
+  }
+
+  .pdf-controls {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .container {
+    padding: 0 15px;
+  }
+}
+
+/* Override: make loading indicator text black in dark mode */
+body.theme-dark .loading {
+  color: #000000 !important;
+}
