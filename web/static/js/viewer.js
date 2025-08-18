@@ -55,42 +55,46 @@ class PDFViewer {
     }
 
     attachEventListeners() {
-        this.loadBtn.addEventListener('click', () => this.loadTemplate());
-        this.generateBtn.addEventListener('click', () => this.generatePDF());
-        this.copyBtn.addEventListener('click', () => this.copyJSON());
-        this.prevPageBtn.addEventListener('click', () => this.previousPage());
-        this.nextPageBtn.addEventListener('click', () => this.nextPage());
-        this.downloadBtn.addEventListener('click', () => this.downloadPDF());
-        this.themeToggle.addEventListener('click', () => this.toggleTheme());
-        this.gradientSelect.addEventListener('change', () => this.applyGradient());
-        this.applyJsonBtn.addEventListener('click', () => this.applyJSONChanges());
-        
-        this.fileInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.loadTemplate();
-            }
-        });
+        if (this.loadBtn) this.loadBtn.addEventListener('click', () => this.loadTemplate());
+        if (this.generateBtn) this.generateBtn.addEventListener('click', () => this.generatePDF());
+        if (this.copyBtn) this.copyBtn.addEventListener('click', () => this.copyJSON());
+        if (this.prevPageBtn) this.prevPageBtn.addEventListener('click', () => this.previousPage());
+        if (this.nextPageBtn) this.nextPageBtn.addEventListener('click', () => this.nextPage());
+        if (this.downloadBtn) this.downloadBtn.addEventListener('click', () => this.downloadPDF());
+        if (this.themeToggle) this.themeToggle.addEventListener('click', () => this.toggleTheme());
+        if (this.gradientSelect) this.gradientSelect.addEventListener('change', () => this.applyGradient());
+        if (this.applyJsonBtn) this.applyJsonBtn.addEventListener('click', () => this.applyJSONChanges());
 
-        // Auto-load on file input change
-        this.fileInput.addEventListener('input', () => {
-            if (this.fileInput.value.trim()) {
-                this.loadBtn.disabled = false;
-            } else {
-                this.loadBtn.disabled = true;
-            }
-        });
+        if (this.fileInput) {
+            this.fileInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.loadTemplate();
+                }
+            });
 
-        this.jsonCode.addEventListener('input', () => {
-            this.applyJsonBtn.disabled = false;
-        });
+            // Auto-load on file input change
+            this.fileInput.addEventListener('input', () => {
+                if (this.fileInput.value && this.fileInput.value.trim()) {
+                    if (this.loadBtn) this.loadBtn.disabled = false;
+                } else {
+                    if (this.loadBtn) this.loadBtn.disabled = true;
+                }
+            });
+        }
 
-        // Ctrl/Cmd + S to apply
-        this.jsonCode.addEventListener('keydown', (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                e.preventDefault();
-                this.applyJSONChanges();
-            }
-        });
+        if (this.jsonCode) {
+            this.jsonCode.addEventListener('input', () => {
+                if (this.applyJsonBtn) this.applyJsonBtn.disabled = false;
+            });
+
+            // Ctrl/Cmd + S to apply
+            this.jsonCode.addEventListener('keydown', (e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                    e.preventDefault();
+                    this.applyJSONChanges();
+                }
+            });
+        }
     }
 
     initThemeFromStorage() {

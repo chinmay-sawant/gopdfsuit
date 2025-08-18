@@ -2,8 +2,11 @@ package pdf
 
 import (
 	"bytes"
+	"encoding/xml"
+	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -563,4 +566,192 @@ func formatPageKids(pageIDs []int) string {
 		kids = append(kids, fmt.Sprintf("%d 0 R", id))
 	}
 	return strings.Join(kids, " ")
+}
+
+// --- XFDF parsing and PDF form helpers (best-effort) ---
+
+// XFDF structures for minimal parsing
+type xfdfField struct {
+	XMLName xml.Name `xml:"field"`
+	Name    string   `xml:"name,attr"`
+	Value   string   `xml:"value"`
+}
+
+type xfdfRoot struct {
+	XMLName xml.Name    `xml:"xfdf"`
+	Fields  []xfdfField `xml:"fields>field"`
+}
+
+// ParseXFDF parses XFDF bytes and returns a map of field name -> value
+func ParseXFDF(xfdfBytes []byte) (map[string]string, error) {
+	var root xfdfRoot
+	if err := xml.Unmarshal(xfdfBytes, &root); err != nil {
+		return nil, err
+	}
+	m := make(map[string]string)
+	for _, f := range root.Fields {
+		name := strings.TrimSpace(f.Name)
+		val := strings.TrimSpace(f.Value)
+		m[name] = val
+	}
+	return m, nil
+}
+
+// DetectFormFields scans PDF bytes and returns a unique list of AcroForm field names.
+// This is a heuristic: it looks for occurrences of "/T (name)" inside the PDF bytes.
+func DetectFormFields(pdfBytes []byte) ([]string, error) {
+	if len(pdfBytes) == 0 {
+		return nil, errors.New("empty pdf bytes")
+	}
+	// Regex to find /T (fieldname)
+	re := regexp.MustCompile(`/T\s*\(([^\)]*)\)`)
+	matches := re.FindAllSubmatch(pdfBytes, -1)
+	set := make(map[string]struct{})
+	for _, m := range matches {
+		if len(m) > 1 {
+			name := string(m[1])
+			if strings.TrimSpace(name) != "" {
+				set[name] = struct{}{}
+			}
+		}
+	}
+	var names []string
+	for k := range set {
+		names = append(names, k)
+	}
+	return names, nil
+}
+
+// escapePDFString escapes parentheses and backslashes for PDF literal strings
+func escapePDFString(s string) string {
+	s = strings.ReplaceAll(s, `\\`, `\\\\`)
+	s = strings.ReplaceAll(s, `(`, `\\(`)
+	s = strings.ReplaceAll(s, `)`, `\\)`)
+	return s
+}
+
+// FillPDFWithXFDF attempts a best-effort in-place fill of PDF form fields using XFDF data.
+// It searches for each field name occurrence (/T (name)) and then replaces the nearby /V (...) value.
+// Notes/limitations:
+// - This is a heuristic string-based approach and not a full PDF object rewrite.
+// - It tries to preserve structure; if a /V entry is not found it will insert one near the field name.
+// - For complex PDFs (compressed object streams, non-literal strings) this may not work.
+func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
+	if len(pdfBytes) == 0 {
+		return nil, errors.New("empty pdf bytes")
+	}
+	fields, err := ParseXFDF(xfdfBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]byte, len(pdfBytes))
+	copy(out, pdfBytes)
+
+	// For each field in XFDF, find all /T (name) occurrences and replace/insert nearby /V
+	for name, val := range fields {
+		// build regex safely for the name
+		re := regexp.MustCompile(fmt.Sprintf(`/T\s*\(%s\)`, regexp.QuoteMeta(name)))
+		matches := re.FindAllIndex(out, -1)
+		if len(matches) == 0 {
+			// try case-insensitive fallback: scan for the name ignoring case
+			re2 := regexp.MustCompile(`(?i)/T\s*\(` + regexp.QuoteMeta(name) + `\)`)
+			matches = re2.FindAllIndex(out, -1)
+		}
+		if len(matches) == 0 {
+			// no matches for this field name; continue
+			continue
+		}
+
+		esc := escapePDFString(val)
+		newV := []byte(fmt.Sprintf("/V (%s)", esc))
+
+		// Process each occurrence (walk from end to start so byte offsets remain valid when modifying)
+		for i := len(matches) - 1; i >= 0; i-- {
+			idx := matches[i][0]
+			// search for a /V ( ... ) after the /T occurrence, within a reasonable window
+			searchStart := idx
+			searchEnd := idx + 2048
+			if searchEnd > len(out) {
+				searchEnd = len(out)
+			}
+			segment := out[searchStart:searchEnd]
+
+			vRel := bytes.Index(segment, []byte("/V ("))
+			if vRel >= 0 {
+				// found existing /V ( ... ) - find its closing ')'
+				vStart := searchStart + vRel
+				valStart := vStart + len([]byte("/V ("))
+				valEnd := bytes.IndexByte(out[valStart:], ')')
+				if valEnd < 0 {
+					// malformed - skip this occurrence
+					continue
+				}
+				valEnd = valStart + valEnd
+				// Replace the entire /V (...) token
+				out = append(out[:vStart], append(newV, out[valEnd+1:]...)...)
+			} else {
+				// No /V found nearby; attempt to insert before the enclosing '>>' or 'endobj'
+				closerRel := bytes.Index(segment, []byte(">>"))
+				insertPos := -1
+				if closerRel >= 0 {
+					insertPos = searchStart + closerRel
+				} else {
+					endobjRel := bytes.Index(segment, []byte("endobj"))
+					if endobjRel >= 0 {
+						insertPos = searchStart + endobjRel
+					}
+				}
+				if insertPos > 0 {
+					insertion := append([]byte(" "), newV...)
+					out = append(out[:insertPos], append(insertion, out[insertPos:]...)...)
+				}
+			}
+		}
+	}
+
+	// Ensure viewers will regenerate appearances by setting AcroForm /NeedAppearances true
+	// Find AcroForm reference in the original PDF (e.g. "/AcroForm 21 0 R")
+	acRe := regexp.MustCompile(`/AcroForm\s+(\d+)\s0\sR`)
+	if am := acRe.FindSubmatch(pdfBytes); len(am) > 1 {
+		objNum := string(am[1])
+		objHeader := []byte(fmt.Sprintf("%s 0 obj", objNum))
+		if objPos := bytes.Index(out, objHeader); objPos >= 0 {
+			// find first '<<' after the header
+			dictStartRel := bytes.Index(out[objPos:], []byte("<<"))
+			if dictStartRel >= 0 {
+				dictStart := objPos + dictStartRel
+				// walk the bytes to find the matching top-level '>>' for this '<<'
+				depth := 0
+				i := dictStart
+				dictEnd := -1
+				for i < len(out)-1 {
+					if i+1 < len(out) && out[i] == '<' && out[i+1] == '<' {
+						depth++
+						i += 2
+						continue
+					}
+					if i+1 < len(out) && out[i] == '>' && out[i+1] == '>' {
+						depth--
+						i += 2
+						if depth == 0 {
+							dictEnd = i - 2 // position of the '>>'
+							break
+						}
+						continue
+					}
+					i++
+				}
+				if dictEnd >= 0 {
+					// only insert if not present already in the top-level dict
+					if !bytes.Contains(out[dictStart:dictEnd+2], []byte("/NeedAppearances")) {
+						insertion := []byte(" /NeedAppearances true")
+						out = append(out[:dictEnd], append(insertion, out[dictEnd:]...)...)
+					}
+				}
+			}
+		}
+	}
+
+	return out, nil
 }

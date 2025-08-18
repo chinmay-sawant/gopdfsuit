@@ -426,6 +426,38 @@ GoPdfSuit/
 └── 📖 README.md               # 📚 This file
 ```
 
+## 🧩 XFDF / AcroForm filling (new)
+
+This project includes a simple AcroForm/XFDF fill feature that accepts PDF bytes and XFDF (field data) and returns a filled PDF.
+
+Endpoints and UI
+- `POST /api/v1/fill` — accepts multipart/form-data with two file fields: `pdf` (the source PDF) and `xfdf` (the XFDF file). Returns `application/pdf` with the filled document as an attachment.
+- `GET /filler` — simple web UI where users can upload a PDF and an XFDF file and download the filled PDF (uses the `/api/v1/fill` endpoint).
+
+Quick curl example (multipart file upload):
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/fill" \
+  -F "pdf=@patient.pdf;type=application/pdf" \
+  -F "xfdf=@patient.xfdf;type=application/xml" \
+  --output filled.pdf
+```
+
+Server-run example (UI):
+
+1. Start server from repo root:
+```bash
+go run ./cmd/gopdfsuit
+```
+2. Open `http://localhost:8080/filler` in your browser and upload PDF + XFDF.
+
+Behaviour and limitations
+- The filler uses a best-effort, byte-oriented approach implemented in the `internal/pdf` package: it parses XFDF, searches for AcroForm field names (heuristic `/T (name)`), and writes or inserts `/V (value)` tokens into the PDF bytes.
+- For many simple AcroForm PDFs this works and the code sets `/NeedAppearances true` in the AcroForm so viewers regenerate appearances.
+- Limitations: PDFs using compressed object streams, indirect references for field values, non-literal strings, or requiring generated appearance streams (`/AP`) may not render values correctly in all viewers. For robust, production-grade appearance updates, integrate a PDF library (e.g., pdfcpu or unidoc) to rebuild field appearance streams.
+
+If you'd like, I can add a library-backed implementation that guarantees visual appearances across viewers.
+
 ## 🗺️ Roadmap & TODO
 
 - [x] 🖥️ Web-based PDF viewer and template editor

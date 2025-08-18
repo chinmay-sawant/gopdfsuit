@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{.title}}</title>
+    <link rel="stylesheet" href="/static/css/viewer.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+  </head>
+  <body class="theme-dark">
+    <header class="header">
+      <div class="container">
+        <h1>📄 GoPdfSuit - PDF Filler</h1>
+        <p class="subtitle">
+          Upload a PDF and an XFDF to generate a filled PDF
+        </p>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="container">
+        <div class="input-section">
+          <label for="pdfFile">PDF file</label>
+          <input type="file" id="pdfFile" accept="application/pdf" />
+
+          <label for="xfdfFile">XFDF file</label>
+          <input type="file" id="xfdfFile" accept=".xfdf,.xml" />
+
+          <div style="margin-top: 12px">
+            <button id="fillBtn" class="btn-secondary">Fill & Download</button>
+            <div class="theme-controls">
+              <button
+                id="themeToggle"
+                class="btn-small"
+                title="Toggle Light/Dark"
+              >
+                🌞
+              </button>
+              <select
+                id="gradientSelect"
+                class="gradient-select"
+                title="Select Gradient Theme"
+              ></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-grid">
+          <div class="json-panel">
+            <div class="panel-header">
+              <h3>📋 Instructions</h3>
+            </div>
+            <div class="json-container">
+              <pre style="margin: 0; padding: 12px; color: #ddd">
+Select a PDF and XFDF file, then click 'Fill & Download' to receive the filled PDF.</pre
+              >
+            </div>
+          </div>
+
+          <div class="pdf-panel">
+            <div class="panel-header">
+              <h3>📄 Result</h3>
+              <div class="pdf-controls">
+                <button
+                  id="downloadBtn"
+                  class="btn-small"
+                  disabled
+                  title="No PDF"
+                >
+                  ⬇️
+                </button>
+              </div>
+            </div>
+            <div class="pdf-container">
+              <canvas id="pdfCanvas"></canvas>
+              <div id="loadingIndicator" class="loading">No result yet</div>
+              <div id="errorIndicator" class="error" style="display: none">
+                Failed to load PDF
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-bar">
+          <span id="statusMessage">Ready</span>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>
+          Made with ❤️ by
+          <a href="https://github.com/chinmay-sawant">Chinmay Sawant</a> |
+          <a href="https://github.com/chinmay-sawant/gopdfsuit"
+            >GitHub Repository</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script src="/static/js/viewer.js"></script>
+    <script>
+      // Keep the simple filler behavior but reuse the viewer layout and status elements
+      document
+        .getElementById("fillBtn")
+        .addEventListener("click", async function () {
+          const pdfInput = document.getElementById("pdfFile");
+          const xfdfInput = document.getElementById("xfdfFile");
+          if (!pdfInput.files.length || !xfdfInput.files.length) {
+            alert("Please choose both PDF and XFDF files");
+            return;
+          }
+
+          const form = new FormData();
+          form.append("pdf", pdfInput.files[0]);
+          form.append("xfdf", xfdfInput.files[0]);
+
+          const status = document.getElementById("statusMessage");
+          status.textContent = "Uploading...";
+
+          const resp = await fetch("/api/v1/fill", {
+            method: "POST",
+            body: form,
+          });
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ error: "unknown" }));
+            status.textContent = "Error: " + (err.error || resp.status);
+            return;
+          }
+
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "filled.pdf";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+
+          status.textContent = "Filled PDF downloaded";
+        });
+    </script>
+  </body>
+</html>
