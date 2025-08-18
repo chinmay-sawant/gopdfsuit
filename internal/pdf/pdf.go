@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -648,28 +649,37 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	out := make([]byte, len(pdfBytes))
 	copy(out, pdfBytes)
 
-	// For each field in XFDF, find all /T (name) occurrences and replace/insert nearby /V
+	type job struct {
+		field              string
+		text               string
+		dictStart          int
+		dictEnd            int
+		llx, lly, urx, ury float64
+		width, height      float64
+		q                  int
+		fontSize           float64
+		apObjNum           int
+		fontName           string
+		isButton           bool
+	}
+	jobs := make([]job, 0)
+
 	for name, val := range fields {
-		// build regex safely for the name
 		re := regexp.MustCompile(fmt.Sprintf(`/T\s*\(%s\)`, regexp.QuoteMeta(name)))
 		matches := re.FindAllIndex(out, -1)
 		if len(matches) == 0 {
-			// try case-insensitive fallback: scan for the name ignoring case
 			re2 := regexp.MustCompile(`(?i)/T\s*\(` + regexp.QuoteMeta(name) + `\)`)
 			matches = re2.FindAllIndex(out, -1)
 		}
 		if len(matches) == 0 {
-			// no matches for this field name; continue
 			continue
 		}
 
 		esc := escapePDFString(val)
 		newV := []byte(fmt.Sprintf("/V (%s)", esc))
 
-		// Process each occurrence (walk from end to start so byte offsets remain valid when modifying)
 		for i := len(matches) - 1; i >= 0; i-- {
 			idx := matches[i][0]
-			// search for a /V ( ... ) after the /T occurrence, within a reasonable window
 			searchStart := idx
 			searchEnd := idx + 2048
 			if searchEnd > len(out) {
@@ -677,81 +687,413 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			}
 			segment := out[searchStart:searchEnd]
 
-			vRel := bytes.Index(segment, []byte("/V ("))
-			if vRel >= 0 {
-				// found existing /V ( ... ) - find its closing ')'
-				vStart := searchStart + vRel
-				valStart := vStart + len([]byte("/V ("))
-				valEnd := bytes.IndexByte(out[valStart:], ')')
-				if valEnd < 0 {
-					// malformed - skip this occurrence
-					continue
-				}
-				valEnd = valStart + valEnd
-				// Replace the entire /V (...) token
-				out = append(out[:vStart], append(newV, out[valEnd+1:]...)...)
-			} else {
-				// No /V found nearby; attempt to insert before the enclosing '>>' or 'endobj'
-				closerRel := bytes.Index(segment, []byte(">>"))
-				insertPos := -1
-				if closerRel >= 0 {
-					insertPos = searchStart + closerRel
+			// Check if this is a button field
+			isButton := bytes.Contains(segment, []byte("/FT /Btn"))
+
+			// For button fields, handle both /V and /AS
+			if isButton {
+				// Handle /V field
+				vRel := bytes.Index(segment, []byte("/V "))
+				if vRel >= 0 {
+					// Find the value - could be /V /Off, /V /Yes, or /V (value)
+					vStart := searchStart + vRel
+					vEnd := vStart + 3 // Start after "/V "
+
+					// Skip whitespace
+					for vEnd < len(out) && (out[vEnd] == ' ' || out[vEnd] == '\t' || out[vEnd] == '\n' || out[vEnd] == '\r') {
+						vEnd++
+					}
+
+					if vEnd < len(out) {
+						if out[vEnd] == '/' {
+							// Name object like /Off or /Yes
+							nameEnd := vEnd + 1
+							for nameEnd < len(out) && out[nameEnd] != ' ' && out[nameEnd] != '\t' && out[nameEnd] != '\n' && out[nameEnd] != '\r' && out[nameEnd] != '>' {
+								nameEnd++
+							}
+							// Replace with new value
+							if strings.ToLower(val) == "yes" || strings.ToLower(val) == "true" || val == "1" {
+								newButtonV := []byte("/V /Yes")
+								out = append(out[:vStart], append(newButtonV, out[nameEnd:]...)...)
+							} else {
+								newButtonV := []byte("/V /Off")
+								out = append(out[:vStart], append(newButtonV, out[nameEnd:]...)...)
+							}
+						} else if out[vEnd] == '(' {
+							// String value
+							valStart := vEnd + 1
+							valEnd := bytes.IndexByte(out[valStart:], ')')
+							if valEnd >= 0 {
+								valEnd = valStart + valEnd
+								out = append(out[:vStart], append(newV, out[valEnd+1:]...)...)
+							}
+						}
+					}
 				} else {
-					endobjRel := bytes.Index(segment, []byte("endobj"))
-					if endobjRel >= 0 {
-						insertPos = searchStart + endobjRel
+					// Insert /V if not found
+					closerRel := bytes.Index(segment, []byte(">>"))
+					if closerRel >= 0 {
+						insertPos := searchStart + closerRel
+						if strings.ToLower(val) == "yes" || strings.ToLower(val) == "true" || val == "1" {
+							insertion := []byte(" /V /Yes")
+							out = append(out[:insertPos], append(insertion, out[insertPos:]...)...)
+						} else {
+							insertion := []byte(" /V /Off")
+							out = append(out[:insertPos], append(insertion, out[insertPos:]...)...)
+						}
 					}
 				}
-				if insertPos > 0 {
-					insertion := append([]byte(" "), newV...)
-					out = append(out[:insertPos], append(insertion, out[insertPos:]...)...)
-				}
-			}
-		}
-	}
 
-	// Ensure viewers will regenerate appearances by setting AcroForm /NeedAppearances true
-	// Find AcroForm reference in the original PDF (e.g. "/AcroForm 21 0 R")
-	acRe := regexp.MustCompile(`/AcroForm\s+(\d+)\s0\sR`)
-	if am := acRe.FindSubmatch(pdfBytes); len(am) > 1 {
-		objNum := string(am[1])
-		objHeader := []byte(fmt.Sprintf("%s 0 obj", objNum))
-		if objPos := bytes.Index(out, objHeader); objPos >= 0 {
-			// find first '<<' after the header
-			dictStartRel := bytes.Index(out[objPos:], []byte("<<"))
-			if dictStartRel >= 0 {
-				dictStart := objPos + dictStartRel
-				// walk the bytes to find the matching top-level '>>' for this '<<'
-				depth := 0
-				i := dictStart
-				dictEnd := -1
-				for i < len(out)-1 {
-					if i+1 < len(out) && out[i] == '<' && out[i+1] == '<' {
-						depth++
-						i += 2
+				// Handle /AS (Appearance State) field - this is crucial for Adobe Acrobat
+				asRe := regexp.MustCompile(`/AS\s*/(\w+)`)
+				if asMatch := asRe.FindIndex(segment); asMatch != nil {
+					asStart := searchStart + asMatch[0]
+					asEnd := searchStart + asMatch[1]
+
+					if strings.ToLower(val) == "yes" || strings.ToLower(val) == "true" || val == "1" {
+						newAS := []byte("/AS /Yes")
+						out = append(out[:asStart], append(newAS, out[asEnd:]...)...)
+					} else {
+						newAS := []byte("/AS /Off")
+						out = append(out[:asStart], append(newAS, out[asEnd:]...)...)
+					}
+				} else {
+					// Insert /AS if not found
+					closerRel := bytes.Index(segment, []byte(">>"))
+					if closerRel >= 0 {
+						insertPos := searchStart + closerRel
+						if strings.ToLower(val) == "yes" || strings.ToLower(val) == "true" || val == "1" {
+							insertion := []byte(" /AS /Yes")
+							out = append(out[:insertPos], append(insertion, out[insertPos:]...)...)
+						} else {
+							insertion := []byte(" /AS /Off")
+							out = append(out[:insertPos], append(insertion, out[insertPos:]...)...)
+						}
+					}
+				}
+			} else {
+				// Handle text fields as before
+				vRel := bytes.Index(segment, []byte("/V ("))
+				if vRel >= 0 {
+					vStart := searchStart + vRel
+					valStart := vStart + len([]byte("/V ("))
+					valEnd := bytes.IndexByte(out[valStart:], ')')
+					if valEnd < 0 {
 						continue
 					}
-					if i+1 < len(out) && out[i] == '>' && out[i+1] == '>' {
+					valEnd = valStart + valEnd
+					out = append(out[:vStart], append(newV, out[valEnd+1:]...)...)
+				} else {
+					closerRel := bytes.Index(segment, []byte(">>"))
+					insertPos := -1
+					if closerRel >= 0 {
+						insertPos = searchStart + closerRel
+					} else {
+						endobjRel := bytes.Index(segment, []byte("endobj"))
+						if endobjRel >= 0 {
+							insertPos = searchStart + endobjRel
+						}
+					}
+					if insertPos > 0 {
+						insertion := append([]byte(" "), newV...)
+						out = append(out[:insertPos], append(insertion, out[insertPos:]...)...)
+					}
+				}
+			}
+
+			// find surrounding dict for appearance streams (only for text fields)
+			if !isButton {
+				ctxStart := idx - 2048
+				if ctxStart < 0 {
+					ctxStart = 0
+				}
+				ctxEnd := idx + 2048
+				if ctxEnd > len(out) {
+					ctxEnd = len(out)
+				}
+				ctx := out[ctxStart:ctxEnd]
+				relDictStart := bytes.LastIndex(ctx[:idx-ctxStart+1], []byte("<<"))
+				if relDictStart < 0 {
+					continue
+				}
+				dictStart := ctxStart + relDictStart
+
+				depth := 0
+				j := dictStart
+				dictEnd := -1
+				for j < ctxEnd-1 {
+					if j+1 < len(out) && out[j] == '<' && out[j+1] == '<' {
+						depth++
+						j += 2
+						continue
+					}
+					if j+1 < len(out) && out[j] == '>' && out[j+1] == '>' {
 						depth--
-						i += 2
+						j += 2
 						if depth == 0 {
-							dictEnd = i - 2 // position of the '>>'
+							dictEnd = j - 2
 							break
 						}
 						continue
 					}
-					i++
+					j++
 				}
-				if dictEnd >= 0 {
-					// only insert if not present already in the top-level dict
-					if !bytes.Contains(out[dictStart:dictEnd+2], []byte("/NeedAppearances")) {
-						insertion := []byte(" /NeedAppearances true")
-						out = append(out[:dictEnd], append(insertion, out[dictEnd:]...)...)
+				if dictEnd < 0 {
+					continue
+				}
+
+				dictBytes := out[dictStart : dictEnd+2]
+				if bytes.Contains(dictBytes, []byte("/AP")) {
+					continue
+				}
+
+				rectRe := regexp.MustCompile(`/Rect\s*\[\s*([^\]]+)\s*\]`)
+				rectMatch := rectRe.FindSubmatch(dictBytes)
+				if rectMatch == nil {
+					continue
+				}
+				coords := strings.Fields(string(rectMatch[1]))
+				if len(coords) < 4 {
+					continue
+				}
+				llx, _ := strconv.ParseFloat(coords[0], 64)
+				lly, _ := strconv.ParseFloat(coords[1], 64)
+				urx, _ := strconv.ParseFloat(coords[2], 64)
+				ury, _ := strconv.ParseFloat(coords[3], 64)
+				width := urx - llx
+				height := ury - lly
+
+				q := 0
+				qRe := regexp.MustCompile(`/Q\s*(\d)`)
+				qMatch := qRe.FindSubmatch(dictBytes)
+				if qMatch != nil {
+					q, _ = strconv.Atoi(string(qMatch[1]))
+				}
+
+				fontSize := 12.0
+				fontName := "Helvetica"
+				daRe := regexp.MustCompile(`/DA\s*\(([^\)]*)\)`)
+				daMatch := daRe.FindSubmatch(dictBytes)
+				if daMatch != nil {
+					daStr := string(daMatch[1])
+					tfRe := regexp.MustCompile(`/(\w+)\s+(\d+\.?\d*)\s*Tf`)
+					tfMatch := tfRe.FindStringSubmatch(daStr)
+					if len(tfMatch) > 2 {
+						fontName = tfMatch[1]
+						if fs, err := strconv.ParseFloat(tfMatch[2], 64); err == nil {
+							fontSize = fs
+						}
+					}
+				}
+
+				// Auto-adjust font size if text is too large for field
+				if len(val) > 0 {
+					maxTextWidth := width - 4 // 2pt padding on each side
+					estimatedTextWidth := float64(len(val)) * fontSize * 0.6
+					if estimatedTextWidth > maxTextWidth && maxTextWidth > 0 {
+						fontSize = maxTextWidth / (float64(len(val)) * 0.6)
+						if fontSize < 6 {
+							fontSize = 6 // Minimum readable font size
+						}
+					}
+				}
+
+				jobs = append(jobs, job{
+					field:     name,
+					text:      val,
+					dictStart: dictStart,
+					dictEnd:   dictEnd,
+					llx:       llx, lly: lly, urx: urx, ury: ury,
+					width: width, height: height,
+					q:        q,
+					fontSize: fontSize,
+					fontName: fontName,
+					isButton: false,
+				})
+			}
+		}
+	}
+
+	if len(jobs) == 0 {
+		// fallback: set NeedAppearances true
+		acRe := regexp.MustCompile(`/AcroForm\s+(\d+)\s0\sR`)
+		if am := acRe.FindSubmatch(pdfBytes); len(am) > 1 {
+			objNum := string(am[1])
+			objHeader := []byte(fmt.Sprintf("%s 0 obj", objNum))
+			if objPos := bytes.Index(out, objHeader); objPos >= 0 {
+				dictStartRel := bytes.Index(out[objPos:], []byte("<<"))
+				if dictStartRel >= 0 {
+					dictStart := objPos + dictStartRel
+					depth := 0
+					i := dictStart
+					dictEnd := -1
+					for i < len(out)-1 {
+						if i+1 < len(out) && out[i] == '<' && out[i+1] == '<' {
+							depth++
+							i += 2
+							continue
+						}
+						if i+1 < len(out) && out[i] == '>' && out[i+1] == '>' {
+							depth--
+							i += 2
+							if depth == 0 {
+								dictEnd = i - 2
+								break
+							}
+							continue
+						}
+						i++
+					}
+					if dictEnd >= 0 {
+						if !bytes.Contains(out[dictStart:dictEnd+2], []byte("/NeedAppearances")) {
+							insertion := []byte(" /NeedAppearances true")
+							out = append(out[:dictEnd], append(insertion, out[dictEnd:]...)...)
+						}
 					}
 				}
 			}
 		}
+		return out, nil
 	}
+
+	// have jobs -> create AP objects
+	sort.Slice(jobs, func(i, j int) bool { return jobs[i].dictStart > jobs[j].dictStart })
+
+	objRe := regexp.MustCompile(`(\d+)\s+0\s+obj`)
+	allObjMatches := objRe.FindAllSubmatchIndex(out, -1)
+	highest := 0
+	for _, m := range allObjMatches {
+		numBytes := out[m[2]:m[3]]
+		if n, err := strconv.Atoi(string(numBytes)); err == nil && n > highest {
+			highest = n
+		}
+	}
+	nextObj := highest + 1
+
+	if sx := bytes.LastIndex(out, []byte("startxref")); sx >= 0 {
+		out = out[:sx]
+	}
+
+	delta := 0
+	for i := range jobs {
+		apNum := nextObj
+		jobs[i].apObjNum = apNum
+		insertPos := jobs[i].dictEnd + delta
+		apRef := []byte(fmt.Sprintf(" /AP << /N %d 0 R >>", apNum))
+		out = append(out[:insertPos], append(apRef, out[insertPos:]...)...)
+		delta += len(apRef)
+		nextObj++
+	}
+
+	for _, job := range jobs {
+		text := escapePDFString(job.text)
+
+		// Calculate text positioning based on alignment
+		var tx float64
+		textWidth := float64(len(job.text)) * job.fontSize * 0.6
+		switch job.q {
+		case 1: // Center
+			tx = (job.width - textWidth) / 2
+		case 2: // Right
+			tx = job.width - textWidth - 2
+		default: // Left
+			tx = 2
+		}
+		if tx < 2 {
+			tx = 2
+		}
+
+		// Center text vertically in field
+		ty := (job.height - job.fontSize) / 2
+		if ty < 0 {
+			ty = 2
+		}
+
+		// Create appearance stream with proper PDF operators
+		streamBody := fmt.Sprintf("q\n"+
+			"BT\n"+
+			"/%s %.2f Tf\n"+
+			"0 g\n"+
+			"%.2f %.2f Td\n"+
+			"(%s) Tj\n"+
+			"ET\n"+
+			"Q\n", job.fontName, job.fontSize, tx, ty, text)
+
+		// Determine font base name for resources
+		baseFontName := "Helvetica"
+		switch job.fontName {
+		case "TiRo", "Times-Roman", "Times":
+			baseFontName = "Times-Roman"
+		case "TiBo", "Times-Bold":
+			baseFontName = "Times-Bold"
+		case "TiIt", "Times-Italic":
+			baseFontName = "Times-Italic"
+		case "TiBI", "Times-BoldItalic":
+			baseFontName = "Times-BoldItalic"
+		case "Cour", "Courier":
+			baseFontName = "Courier"
+		case "CoBo", "Courier-Bold":
+			baseFontName = "Courier-Bold"
+		case "CoOb", "Courier-Oblique":
+			baseFontName = "Courier-Oblique"
+		case "CoBO", "Courier-BoldOblique":
+			baseFontName = "Courier-BoldOblique"
+		default:
+			baseFontName = "Helvetica"
+		}
+
+		// Create XObject appearance stream
+		apObj := fmt.Sprintf("%d 0 obj\n"+
+			"<< /Type /XObject\n"+
+			"   /Subtype /Form\n"+
+			"   /BBox [0 0 %.2f %.2f]\n"+
+			"   /Resources << /Font << /%s << /Type /Font /Subtype /Type1 /BaseFont /%s >> >> >>\n"+
+			"   /Length %d\n"+
+			">>\n"+
+			"stream\n"+
+			"%s"+
+			"endstream\n"+
+			"endobj\n",
+			job.apObjNum, job.width, job.height, job.fontName, baseFontName, len(streamBody), streamBody)
+
+		out = append(out, []byte(apObj)...)
+	}
+
+	// rebuild xref
+	objMatches := objRe.FindAllSubmatchIndex(out, -1)
+	offsets := make(map[int]int)
+	maxObj := 0
+	for _, m := range objMatches {
+		num, _ := strconv.Atoi(string(out[m[2]:m[3]]))
+		offsets[num] = m[0]
+		if num > maxObj {
+			maxObj = num
+		}
+	}
+	xrefStart := len(out)
+	xrefBuf := bytes.NewBuffer(nil)
+	xrefBuf.WriteString(fmt.Sprintf("xref\n0 %d\n", maxObj+1))
+	xrefBuf.WriteString("0000000000 65535 f \n")
+	for i := 1; i <= maxObj; i++ {
+		if off, ok := offsets[i]; ok {
+			xrefBuf.WriteString(fmt.Sprintf("%010d 00000 n \n", off))
+		} else {
+			xrefBuf.WriteString("0000000000 00000 f \n")
+		}
+	}
+
+	// find Root from original pdf
+	root := 1
+	rootRe := regexp.MustCompile(`/Root\s+(\d+)\s0\sR`)
+	if rm := rootRe.FindSubmatch(pdfBytes); len(rm) > 1 {
+		if r, err := strconv.Atoi(string(rm[1])); err == nil {
+			root = r
+		}
+	}
+
+	trailer := fmt.Sprintf("trailer\n<< /Size %d /Root %d 0 R >>\nstartxref\n%d\n%%EOF\n", maxObj+1, root, xrefStart)
+	out = append(out, xrefBuf.Bytes()...)
+	out = append(out, []byte(trailer)...)
 
 	return out, nil
 }
