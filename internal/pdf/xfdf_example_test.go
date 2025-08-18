@@ -8,11 +8,11 @@ import (
 
 // This test demonstrates DetectFormFields and FillPDFWithXFDF on the sample files
 func TestXFDFFillSample(t *testing.T) {
-	pdfBytes, err := os.ReadFile("../..//patient_encounter_form.pdf")
+	pdfBytes, err := os.ReadFile("../..//sampledata/pdf+xfdf/us_hospital_encounter_acroform.pdf")
 	if err != nil {
 		t.Fatalf("read pdf: %v", err)
 	}
-	xfdfBytes, err := os.ReadFile("../..//patient_encounter_form.xfdf")
+	xfdfBytes, err := os.ReadFile("../..//sampledata/pdf+xfdf/us_hospital_encounter_data.xfdf")
 	if err != nil {
 		t.Fatalf("read xfdf: %v", err)
 	}
