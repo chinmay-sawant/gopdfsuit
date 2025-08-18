@@ -593,6 +593,7 @@ func ParseXFDF(xfdfBytes []byte) (map[string]string, error) {
 	for _, f := range root.Fields {
 		name := strings.TrimSpace(f.Name)
 		val := strings.TrimSpace(f.Value)
+		// Don't escape the XFDF value here - keep it as original
 		m[name] = val
 	}
 	return m, nil
@@ -625,18 +626,14 @@ func DetectFormFields(pdfBytes []byte) ([]string, error) {
 
 // escapePDFString escapes parentheses and backslashes for PDF literal strings
 func escapePDFString(s string) string {
-	s = strings.ReplaceAll(s, `\\`, `\\\\`)
-	s = strings.ReplaceAll(s, `(`, `\\(`)
-	s = strings.ReplaceAll(s, `)`, `\\)`)
+	// Only escape backslashes and parentheses for PDF syntax, not for display
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `(`, `\(`)
+	s = strings.ReplaceAll(s, `)`, `\)`)
 	return s
 }
 
 // FillPDFWithXFDF attempts a best-effort in-place fill of PDF form fields using XFDF data.
-// It searches for each field name occurrence (/T (name)) and then replaces the nearby /V (...) value.
-// Notes/limitations:
-// - This is a heuristic string-based approach and not a full PDF object rewrite.
-// - It tries to preserve structure; if a /V entry is not found it will insert one near the field name.
-// - For complex PDFs (compressed object streams, non-literal strings) this may not work.
 func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	if len(pdfBytes) == 0 {
 		return nil, errors.New("empty pdf bytes")
@@ -661,6 +658,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		apObjNum           int
 		fontName           string
 		isButton           bool
+		fontResourceName   string
 	}
 	jobs := make([]job, 0)
 
@@ -675,6 +673,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			continue
 		}
 
+		// Only escape for PDF syntax when setting the /V value
 		esc := escapePDFString(val)
 		newV := []byte(fmt.Sprintf("/V (%s)", esc))
 
@@ -772,7 +771,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 					}
 				}
 			} else {
-				// Handle text fields as before
+				// Handle text fields - set both /V value and create appearance
 				vRel := bytes.Index(segment, []byte("/V ("))
 				if vRel >= 0 {
 					vStart := searchStart + vRel
@@ -843,8 +842,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				}
 
 				dictBytes := out[dictStart : dictEnd+2]
-				if bytes.Contains(dictBytes, []byte("/AP")) {
-					continue
+
+				// Remove existing /AP if present to replace it with our own
+				apRe := regexp.MustCompile(`\s*/AP\s*<<[^>]*>>\s*`)
+				if apRe.Match(dictBytes) {
+					out = apRe.ReplaceAll(out, []byte(" "))
 				}
 
 				rectRe := regexp.MustCompile(`/Rect\s*\[\s*([^\]]+)\s*\]`)
@@ -871,7 +873,8 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				}
 
 				fontSize := 12.0
-				fontName := "Helvetica"
+				fontName := "Helv"
+				fontResourceName := "Helv"
 				daRe := regexp.MustCompile(`/DA\s*\(([^\)]*)\)`)
 				daMatch := daRe.FindSubmatch(dictBytes)
 				if daMatch != nil {
@@ -880,6 +883,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 					tfMatch := tfRe.FindStringSubmatch(daStr)
 					if len(tfMatch) > 2 {
 						fontName = tfMatch[1]
+						fontResourceName = tfMatch[1]
 						if fs, err := strconv.ParseFloat(tfMatch[2], 64); err == nil {
 							fontSize = fs
 						}
@@ -888,27 +892,28 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 
 				// Auto-adjust font size if text is too large for field
 				if len(val) > 0 {
-					maxTextWidth := width - 4 // 2pt padding on each side
+					maxTextWidth := width - 6 // 3pt padding on each side
 					estimatedTextWidth := float64(len(val)) * fontSize * 0.6
 					if estimatedTextWidth > maxTextWidth && maxTextWidth > 0 {
 						fontSize = maxTextWidth / (float64(len(val)) * 0.6)
-						if fontSize < 6 {
-							fontSize = 6 // Minimum readable font size
+						if fontSize < 8 {
+							fontSize = 8 // Minimum readable font size
 						}
 					}
 				}
 
 				jobs = append(jobs, job{
 					field:     name,
-					text:      val,
+					text:      val, // Use original value without escaping for display
 					dictStart: dictStart,
 					dictEnd:   dictEnd,
 					llx:       llx, lly: lly, urx: urx, ury: ury,
 					width: width, height: height,
-					q:        q,
-					fontSize: fontSize,
-					fontName: fontName,
-					isButton: false,
+					q:                q,
+					fontSize:         fontSize,
+					fontName:         fontName,
+					fontResourceName: fontResourceName,
+					isButton:         false,
 				})
 			}
 		}
@@ -985,43 +990,81 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		nextObj++
 	}
 
+	// Always set NeedAppearances to false since we're providing proper appearances
+	acRe := regexp.MustCompile(`/AcroForm\s+(\d+)\s0\sR`)
+	if am := acRe.FindSubmatch(out); len(am) > 1 {
+		objNum := string(am[1])
+		objHeader := []byte(fmt.Sprintf("%s 0 obj", objNum))
+		if objPos := bytes.Index(out, objHeader); objPos >= 0 {
+			dictStartRel := bytes.Index(out[objPos:], []byte("<<"))
+			if dictStartRel >= 0 {
+				dictStart := objPos + dictStartRel
+				depth := 0
+				i := dictStart
+				dictEnd := -1
+				for i < len(out)-1 {
+					if i+1 < len(out) && out[i] == '<' && out[i+1] == '<' {
+						depth++
+						i += 2
+						continue
+					}
+					if i+1 < len(out) && out[i] == '>' && out[i+1] == '>' {
+						depth--
+						i += 2
+						if depth == 0 {
+							dictEnd = i - 2
+							break
+						}
+						continue
+					}
+					i++
+				}
+				if dictEnd >= 0 {
+					dictBytes := out[dictStart : dictEnd+2]
+					// Remove existing NeedAppearances if present
+					needAppRe := regexp.MustCompile(`\s*/NeedAppearances\s+(?:true|false)`)
+					if needAppRe.Match(dictBytes) {
+						out = needAppRe.ReplaceAll(out, []byte(""))
+						dictEnd -= len(needAppRe.Find(dictBytes))
+					}
+					// Add NeedAppearances false
+					insertion := []byte(" /NeedAppearances false")
+					out = append(out[:dictEnd], append(insertion, out[dictEnd:]...)...)
+				}
+			}
+		}
+	}
+
 	for _, job := range jobs {
-		text := escapePDFString(job.text)
+		// Use original text for display (no extra escaping)
+		displayText := job.text
+		// Only escape for the PDF stream syntax
+		streamText := escapePDFString(job.text)
 
 		// Calculate text positioning based on alignment
 		var tx float64
-		textWidth := float64(len(job.text)) * job.fontSize * 0.6
+		textWidth := float64(len(displayText)) * job.fontSize * 0.6
 		switch job.q {
 		case 1: // Center
 			tx = (job.width - textWidth) / 2
 		case 2: // Right
-			tx = job.width - textWidth - 2
+			tx = job.width - textWidth - 3
 		default: // Left
-			tx = 2
+			tx = 3
 		}
-		if tx < 2 {
-			tx = 2
-		}
-
-		// Center text vertically in field
-		ty := (job.height - job.fontSize) / 2
-		if ty < 0 {
-			ty = 2
+		if tx < 3 {
+			tx = 3
 		}
 
-		// Create appearance stream with proper PDF operators
-		streamBody := fmt.Sprintf("q\n"+
-			"BT\n"+
-			"/%s %.2f Tf\n"+
-			"0 g\n"+
-			"%.2f %.2f Td\n"+
-			"(%s) Tj\n"+
-			"ET\n"+
-			"Q\n", job.fontName, job.fontSize, tx, ty, text)
+		// Center text vertically in field with better calculation
+		ty := (job.height-job.fontSize)/2 + 2
+		if ty < 3 {
+			ty = 3
+		}
 
 		// Determine font base name for resources
 		baseFontName := "Helvetica"
-		switch job.fontName {
+		switch job.fontResourceName {
 		case "TiRo", "Times-Roman", "Times":
 			baseFontName = "Times-Roman"
 		case "TiBo", "Times-Bold":
@@ -1038,23 +1081,46 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			baseFontName = "Courier-Oblique"
 		case "CoBO", "Courier-BoldOblique":
 			baseFontName = "Courier-BoldOblique"
+		case "Helv", "Helvetica":
+			baseFontName = "Helvetica"
+		case "HeBo", "Helvetica-Bold":
+			baseFontName = "Helvetica-Bold"
+		case "HeOb", "Helvetica-Oblique":
+			baseFontName = "Helvetica-Oblique"
+		case "HeBO", "Helvetica-BoldOblique":
+			baseFontName = "Helvetica-BoldOblique"
 		default:
 			baseFontName = "Helvetica"
 		}
 
-		// Create XObject appearance stream
+		// Create enhanced appearance stream with proper PDF operators for Adobe compatibility
+		streamBody := fmt.Sprintf("q\n"+
+			"0 0 %.2f %.2f re W n\n"+ // Clipping rectangle
+			"1 1 1 rg\n"+ // White background
+			"0 0 %.2f %.2f re f\n"+ // Fill background
+			"BT\n"+
+			"0 0 0 rg\n"+ // Black text color
+			"/%s %.2f Tf\n"+
+			"%.2f %.2f Td\n"+
+			"(%s) Tj\n"+
+			"ET\n"+
+			"Q\n", job.width, job.height, job.width, job.height, job.fontResourceName, job.fontSize, tx, ty, streamText)
+
+		// Create XObject appearance stream with enhanced font resources and proper structure
 		apObj := fmt.Sprintf("%d 0 obj\n"+
 			"<< /Type /XObject\n"+
 			"   /Subtype /Form\n"+
+			"   /FormType 1\n"+
 			"   /BBox [0 0 %.2f %.2f]\n"+
-			"   /Resources << /Font << /%s << /Type /Font /Subtype /Type1 /BaseFont /%s >> >> >>\n"+
+			"   /Matrix [1 0 0 1 0 0]\n"+
+			"   /Resources << /Font << /%s << /Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding >> >> >>\n"+
 			"   /Length %d\n"+
 			">>\n"+
 			"stream\n"+
 			"%s"+
 			"endstream\n"+
 			"endobj\n",
-			job.apObjNum, job.width, job.height, job.fontName, baseFontName, len(streamBody), streamBody)
+			job.apObjNum, job.width, job.height, job.fontResourceName, baseFontName, len(streamBody), streamBody)
 
 		out = append(out, []byte(apObj)...)
 	}
