@@ -76,8 +76,8 @@ func parseBorders(borderStr string) [4]int {
 
 // --- new helper to escape parentheses in text ---
 func escapeText(s string) string {
-	s = strings.ReplaceAll(s, "(", "\\(")
-	return strings.ReplaceAll(s, ")", "\\)")
+	// Use the same PDF-safe escaping as escapePDFString to avoid duplicating logic.
+	return escapePDFString(s)
 }
 
 // getFontReference returns the appropriate font reference based on style properties
@@ -103,9 +103,32 @@ func formatPageKids(pageIDs []int) string {
 
 // escapePDFString escapes parentheses and backslashes for PDF literal strings
 func escapePDFString(s string) string {
-	// Only escape backslashes and parentheses for PDF syntax, not for display
-	s = strings.ReplaceAll(s, `\\`, `\\\\`)
-	s = strings.ReplaceAll(s, `(`, `\\(`)
-	s = strings.ReplaceAll(s, `)`, `\\)`)
-	return s
+	// Produce a PDF-literal-safe string where:
+	// - existing escapes for parentheses (i.e. "\(" or "\)") are preserved
+	// - other backslashes are escaped to "\\"
+	// - unescaped parentheses are prefixed with a backslash
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch == '\\' {
+			// If backslash is followed by a parenthesis, keep as an escape for that paren
+			if i+1 < len(s) && (s[i+1] == '(' || s[i+1] == ')') {
+				b.WriteByte('\\')
+				b.WriteByte(s[i+1])
+				i++ // skip next
+				continue
+			}
+			// Otherwise escape the backslash itself
+			b.WriteString("\\\\")
+			continue
+		}
+		if ch == '(' || ch == ')' {
+			// not already escaped (previous char wasn't backslash) -> escape it
+			b.WriteByte('\\')
+			b.WriteByte(ch)
+			continue
+		}
+		b.WriteByte(ch)
+	}
+	return b.String()
 }
