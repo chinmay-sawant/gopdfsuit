@@ -25,6 +25,16 @@ class PDFViewer {
         this.checkURLParams();
     }
 
+    checkURLParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const file = urlParams.get('file');
+            
+            if (file) {
+                this.fileInput.value = file;
+                this.loadTemplate();
+            }
+        }
+        
     initializeElements() {
         this.fileInput = document.getElementById('fileInput');
         this.loadBtn = document.getElementById('loadBtn');
