@@ -12,7 +12,108 @@
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
+    <style>
+      /* Controls row for Fill & Download + theme controls */
+      .controls-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .theme-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-left: auto; /* push theme controls to the right */
+      }
+
+      #fillBtn {
+        padding: 8px 14px;
+        font-weight: 600;
+        border-radius: 6px;
+      }
+
+      .btn-small {
+        padding: 6px 8px;
+        border-radius: 6px;
+      }
+
+      .gradient-select {
+        min-width: 160px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: var(--panel-bg, #222);
+        color: var(--text, #fff);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      /* File input styling */
+      .input-section label {
+        display: block;
+        margin: 8px 0 6px;
+        font-weight: 600;
+      }
+
+      .input-section input[type="file"] {
+        display: block;
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text, #fff);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        cursor: pointer;
+      }
+
+      /* File chooser button inside input */
+      .input-section input[type="file"]::file-selector-button {
+        margin-right: 12px;
+        padding: 8px 12px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.12);
+        color: inherit;
+        border: none;
+        cursor: pointer;
+      }
+
+      /* Light theme overrides: ensure selects and file inputs are dark text on light background */
+      body.theme-light .gradient-select {
+        background: #fff;
+        color: #111;
+        border: 1px solid #ccc;
+      }
+
+      body.theme-light .input-section input[type="file"] {
+        background: #fff;
+        color: #111;
+        border: 1px solid #ccc;
+      }
+
+      body.theme-light .input-section input[type="file"]::file-selector-button {
+        background: #f0f0f0;
+        color: #111;
+      }
+
+      /* Responsive: stack controls on narrow screens */
+      @media (max-width: 540px) {
+        .controls-row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .theme-controls {
+          margin-left: 0;
+          justify-content: flex-end;
+        }
+        .gradient-select {
+          width: 100%;
+        }
+      }
+    </style>
   </head>
+
   <body class="theme-dark">
     <header class="header">
       <div class="container">
@@ -32,7 +133,7 @@
           <label for="xfdfFile">XFDF file</label>
           <input type="file" id="xfdfFile" accept=".xfdf,.xml" />
 
-          <div style="margin-top: 12px">
+          <div class="controls-row" style="margin-top: 12px">
             <button id="fillBtn" class="btn-secondary">Fill & Download</button>
             <div class="theme-controls">
               <button
@@ -51,44 +152,37 @@
           </div>
         </div>
 
-        <div class="content-grid">
-          <div class="json-panel">
-            <div class="panel-header">
-              <h3>📋 Instructions</h3>
-            </div>
-            <div class="json-container">
-              <pre style="margin: 0; padding: 12px; color: #ddd">
-Select a PDF and XFDF file, then click 'Fill & Download' to receive the filled PDF.</pre
-              >
-            </div>
-          </div>
-
-          <div class="pdf-panel">
-            <div class="panel-header">
-              <h3>📄 Result</h3>
-              <div class="pdf-controls">
-                <button
-                  id="downloadBtn"
-                  class="btn-small"
-                  disabled
-                  title="No PDF"
-                >
-                  ⬇️
-                </button>
-              </div>
-            </div>
-            <div class="pdf-container">
-              <canvas id="pdfCanvas"></canvas>
-              <div id="loadingIndicator" class="loading">No result yet</div>
-              <div id="errorIndicator" class="error" style="display: none">
-                Failed to load PDF
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div class="status-bar">
           <span id="statusMessage">Ready</span>
+        </div>
+
+        <!-- Hidden viewer elements kept for shared viewer.js compatibility -->
+        <div
+          aria-hidden="true"
+          style="
+            position: absolute;
+            left: -9999px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+          "
+        >
+          <canvas id="pdfCanvas"></canvas>
+          <div id="loadingIndicator" class="loading" style="display: none">
+            Loading...
+          </div>
+          <div id="errorIndicator" class="error" style="display: none">
+            Failed to load PDF
+          </div>
+          <button
+            id="downloadBtn"
+            class="btn-small"
+            disabled
+            style="display: none"
+          >
+            ⬇️
+          </button>
         </div>
       </div>
     </main>
