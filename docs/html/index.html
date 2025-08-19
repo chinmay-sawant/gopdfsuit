@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,6 +19,10 @@
         </button>
         <h1>📄 GoPdfSuit Documentation</h1>
         <div class="header-actions">
+          <button class="theme-toggle" id="themeToggle">
+            <i class="fas fa-moon"></i>
+            <span>Light</span>
+          </button>
           <a
             href="https://github.com/chinmay-sawant/gopdfsuit"
             class="github-link"
@@ -171,8 +175,10 @@
           <h1>📄 GoPdfSuit Overview</h1>
           <p class="lead">
             A powerful Go web service that generates template-based PDF
-            documents on-the-fly with multi-page support, custom page sizes, and
-            automatic page breaks.
+            documents on-the-fly with multi-page support, custom page sizes,
+            automatic page breaks, and comprehensive form filling capabilities.
+            Built with Go 1.23+ and featuring a modern web interface with
+            dark/light theme support.
           </p>
 
           <!-- Screenshots Carousel -->
@@ -182,7 +188,7 @@
               <div class="carousel-track">
                 <div class="carousel-slide active">
                   <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/viewer.png"
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/fix-10-website/docs/screenshots/viewer.png"
                     alt="PDF Viewer"
                     class="carousel-image"
                   />
@@ -190,13 +196,13 @@
                     <h3>PDF Viewer</h3>
                     <p>
                       Interactive web-based PDF viewer with real-time template
-                      editing and preview
+                      editing, syntax highlighting, and multi-theme support
                     </p>
                   </div>
                 </div>
                 <div class="carousel-slide">
                   <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/editor.png"
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/fix-10-website/docs/screenshots/editor.png"
                     alt="Template Editor"
                     class="carousel-image"
                   />
@@ -204,13 +210,13 @@
                     <h3>Template Editor</h3>
                     <p>
                       Visual drag-and-drop PDF template designer with live JSON
-                      generation
+                      generation and properties panel
                     </p>
                   </div>
                 </div>
                 <div class="carousel-slide">
                   <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/filler.png"
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/fix-10-website/docs/screenshots/filler.png"
                     alt="PDF Filler"
                     class="carousel-image"
                   />
@@ -218,6 +224,7 @@
                     <h3>PDF Filler</h3>
                     <p>
                       Upload PDFs and XFDF files to generate filled documents
+                      with AcroForm support
                     </p>
                   </div>
                 </div>
@@ -243,23 +250,24 @@
               <h3>Template-based PDF Generation</h3>
               <p>
                 Create professional PDF documents from JSON templates with
-                automatic page breaks and multi-page support.
+                automatic page breaks, multi-page support, and intelligent
+                height tracking.
               </p>
             </div>
             <div class="feature-card">
               <i class="fas fa-desktop"></i>
-              <h3>Web Interface</h3>
+              <h3>Modern Web Interface</h3>
               <p>
                 Interactive HTML viewer with real-time preview, syntax
-                highlighting, and mobile-responsive design.
+                highlighting, dark/light themes, and mobile-responsive design.
               </p>
             </div>
             <div class="feature-card">
               <i class="fas fa-table"></i>
               <h3>Advanced Tables & Forms</h3>
               <p>
-                Support for complex table layouts, checkboxes, and font styling
-                with automatic page flow.
+                Support for complex table layouts, checkboxes, AcroForm filling,
+                and font styling with automatic page flow and border controls.
               </p>
             </div>
             <div class="feature-card">
@@ -267,7 +275,52 @@
               <h3>Flexible Configuration</h3>
               <p>
                 Custom page sizes (A4, Letter, Legal, A3, A5), orientations,
-                borders, and watermarks.
+                borders, watermarks, and comprehensive template structure.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-paint-brush"></i>
+              <h3>Rich Typography</h3>
+              <p>
+                Bold, italic, underline text support with 3-digit style codes,
+                custom font sizes, alignments, and flexible positioning.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-shield-alt"></i>
+              <h3>Security Features</h3>
+              <p>
+                Path traversal protection, input validation, JSON structure
+                validation, and secure file handling for production deployments.
+              </p>
+            </div>
+          </div>
+
+          <!-- Architecture Overview -->
+          <h2>🏗️ Architecture</h2>
+          <div class="features-grid">
+            <div class="feature-card">
+              <i class="fas fa-server"></i>
+              <h3>Go Backend</h3>
+              <p>
+                Built with Go 1.23+ using Gin framework for high-performance
+                HTTP handling
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-code"></i>
+              <h3>Modular Structure</h3>
+              <p>
+                Clean separation: handlers, models, PDF generation, and web
+                assets
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-memory"></i>
+              <h3>In-Memory Processing</h3>
+              <p>
+                Fast PDF generation with height tracking and automatic page
+                management
               </p>
             </div>
           </div>
@@ -277,22 +330,22 @@
             <div class="stat-item">
               <i class="fas fa-code"></i>
               <h3>Go 1.23+</h3>
-              <p>Built with modern Go</p>
+              <p>Built with modern Go and Gin framework</p>
             </div>
             <div class="stat-item">
               <i class="fas fa-rocket"></i>
               <h3>Fast</h3>
-              <p>In-memory PDF generation</p>
+              <p>In-memory PDF generation with auto page breaks</p>
             </div>
             <div class="stat-item">
               <i class="fas fa-shield-alt"></i>
               <h3>Secure</h3>
-              <p>Input validation & protection</p>
+              <p>Input validation & path traversal protection</p>
             </div>
             <div class="stat-item">
               <i class="fas fa-server"></i>
               <h3>Self-contained</h3>
-              <p>Single binary deployment</p>
+              <p>Single binary deployment with embedded assets</p>
             </div>
           </div>
         </section>
