@@ -188,7 +188,7 @@
               <div class="carousel-track">
                 <div class="carousel-slide active">
                   <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/fix-10-website/docs/screenshots/viewer.png"
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/viewer.png"
                     alt="PDF Viewer"
                     class="carousel-image"
                   />
@@ -202,7 +202,7 @@
                 </div>
                 <div class="carousel-slide">
                   <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/fix-10-website/docs/screenshots/editor.png"
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/editor.png"
                     alt="Template Editor"
                     class="carousel-image"
                   />
@@ -216,7 +216,7 @@
                 </div>
                 <div class="carousel-slide">
                   <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/fix-10-website/docs/screenshots/filler.png"
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/filler.png"
                     alt="PDF Filler"
                     class="carousel-image"
                   />
@@ -371,11 +371,16 @@
                 </caption>
                 <thead>
                   <tr>
-                    <th>Feature / Tool</th>
-                    <th>GoPdfSuit (MIT)</th>
-                    <th>Aspose (Proprietary)</th>
-                    <th>iText (AGPL / Commercial)</th>
-                    <th>UniDoc (Commercial)</th>
+                    <th><i class="fas fa-list"></i> Feature / Tool</th>
+                    <th><i class="fas fa-gavel"></i> GoPdfSuit (MIT)</th>
+                    <th>
+                      <i class="fas fa-building"></i> Aspose (Proprietary)
+                    </th>
+                    <th>
+                      <i class="fas fa-balance-scale"></i> iText (AGPL /
+                      Commercial)
+                    </th>
+                    <th><i class="fas fa-crown"></i> UniDoc (Commercial)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -450,6 +455,41 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+            <div class="perf-notes">
+              <h3>Endpoint performance (developer environment)</h3>
+              <div class="table-wrap">
+                <table class="endpoint-table compact">
+                  <thead>
+                    <tr>
+                      <th>Endpoint</th>
+                      <th>Avg latency (ms)</th>
+                      <th>Max latency (ms)</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>POST /api/v1/generate/template-pdf</td>
+                      <td>1.0285</td>
+                      <td>1.4204</td>
+                      <td>Logs: 1.4204ms, 636.5µs</td>
+                    </tr>
+                    <tr>
+                      <td>POST /fill</td>
+                      <td>~12</td>
+                      <td>12</td>
+                      <td>
+                        Max observed in developer environment (single sample)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="muted-note">
+                Times measured on developer machine; results vary by hardware.
+                Times are shown in milliseconds (ms).
+              </p>
             </div>
           </div>
         </section>

@@ -613,6 +613,57 @@ body {
   }
 }
 
+/* Compact variant for comparison tables */
+.comparison-table.compact th,
+.comparison-table.compact td {
+  padding: 8px 10px;
+}
+.comparison-table.compact {
+  font-size: 0.9rem;
+}
+.comparison-table.compact thead th i {
+  color: var(--link-color);
+  margin-right: 6px;
+}
+
+/* Performance notes box */
+.perf-notes {
+  margin-top: 0.6rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.perf-notes pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* Endpoint stats table */
+.endpoint-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-color);
+}
+.endpoint-table th,
+.endpoint-table td {
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+  font-size: 0.92rem;
+}
+.endpoint-table thead th {
+  background: var(--surface-elev-1);
+  font-weight: 600;
+}
+.muted-note {
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  font-size: 0.92rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .sidebar {
