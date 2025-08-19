@@ -85,10 +85,13 @@ func RegisterRoutes(router *gin.Engine) {
 
 	// Root endpoint for PDF viewer
 	router.GET("/", handlePDFViewer)
+	// PDF filler UI
+	router.GET("/filler", handlePDFFiller)
 
 	// API endpoints
 	v1 := router.Group("/api/v1")
 	v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
+	v1.POST("/fill", handleFillPDF)
 	v1.GET("/template-data", handleGetTemplateData)
 
 	// Template editor endpoint
@@ -99,6 +102,13 @@ func RegisterRoutes(router *gin.Engine) {
 func handlePDFViewer(c *gin.Context) {
 	c.HTML(http.StatusOK, "pdf_viewer.html", gin.H{
 		"title": "GoPdfSuit - PDF Viewer",
+	})
+}
+
+// handlePDFFiller serves the PDF filler UI page
+func handlePDFFiller(c *gin.Context) {
+	c.HTML(http.StatusOK, "pdf_filler.html", gin.H{
+		"title": "GoPdfSuit - PDF Filler",
 	})
 }
 
@@ -148,6 +158,60 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		return
 	}
 	pdf.GenerateTemplatePDF(c, template)
+}
+
+// handleFillPDF accepts multipart form data with fields 'pdf' and 'xfdf' (files or raw bytes)
+// and returns the filled PDF bytes as application/pdf
+func handleFillPDF(c *gin.Context) {
+	// Try multipart form file upload
+	pdfFile, pdfHeader, _ := c.Request.FormFile("pdf")
+	var pdfBytes []byte
+	if pdfFile != nil {
+		defer pdfFile.Close()
+		buf := make([]byte, pdfHeader.Size)
+		_, err := pdfFile.Read(buf)
+		if err == nil {
+			pdfBytes = buf
+		}
+	}
+
+	xfdfFile, xfdfHeader, _ := c.Request.FormFile("xfdf")
+	var xfdfBytes []byte
+	if xfdfFile != nil {
+		defer xfdfFile.Close()
+		buf := make([]byte, xfdfHeader.Size)
+		_, err := xfdfFile.Read(buf)
+		if err == nil {
+			xfdfBytes = buf
+		}
+	}
+
+	// If files not provided, try to read raw body fields
+	if len(pdfBytes) == 0 {
+		if b := c.PostForm("pdf_bytes"); b != "" {
+			pdfBytes = []byte(b)
+		}
+	}
+	if len(xfdfBytes) == 0 {
+		if b := c.PostForm("xfdf_bytes"); b != "" {
+			xfdfBytes = []byte(b)
+		}
+	}
+
+	if len(pdfBytes) == 0 || len(xfdfBytes) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing pdf or xfdf data"})
+		return
+	}
+
+	out, err := pdf.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", "attachment; filename=filled.pdf")
+	c.Data(http.StatusOK, "application/pdf", out)
 }
 
 // PDFEditorHandler serves the template editor interface
