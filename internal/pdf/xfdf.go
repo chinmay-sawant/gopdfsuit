@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/scripts"
 )
 
 // XFDF structures for minimal parsing
@@ -389,7 +391,13 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				}
 			}
 		}
-		return out, nil
+		// After in-place edits, call FlattenPDFBytes to produce a flattened PDF bytes stream.
+		// Note: FlattenPDFBytes is implemented in this package as a no-op stub currently.
+		flat, err := FlattenPDFBytes(out)
+		if err != nil {
+			return nil, err
+		}
+		return flat, nil
 	}
 
 	// have jobs -> create AP objects
@@ -592,5 +600,19 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	out = append(out, xrefBuf.Bytes()...)
 	out = append(out, []byte(trailer)...)
 
-	return out, nil
+	// After creating appearance streams and rebuilding xref, call FlattenPDFBytes
+	flat, err := FlattenPDFBytes(out)
+	if err != nil {
+		return nil, err
+	}
+	return flat, nil
+}
+
+// FlattenPDFBytes flattens form fields from the provided PDF bytes and returns flattened PDF bytes.
+// This is a local stub so callers in this package can invoke flattening. Replace implementation
+// to call the shared flattener when available.
+func FlattenPDFBytes(pdfBytes []byte) ([]byte, error) {
+	// TODO: call the canonical flattener (e.g., scripts.FlattenPDFBytes) once moved into an importable package.
+	// For now, return the input bytes unchanged.
+	return scripts.FlattenPDFBytes(pdfBytes)
 }

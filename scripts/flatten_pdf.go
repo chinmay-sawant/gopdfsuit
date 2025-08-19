@@ -1,4 +1,4 @@
-package main
+package scripts
 
 import (
 	"fmt"
@@ -413,6 +413,198 @@ func rebuildPDF(objs map[int][]byte, modifiedObjs map[int][]byte, trailerRaw []b
 	out = append(out, []byte("%%EOF\n")...)
 
 	return writeBytes(outPath, out)
+}
+
+// rebuildPDFBytes is like rebuildPDF but returns the PDF bytes instead of writing to disk.
+func rebuildPDFBytes(objs map[int][]byte, modifiedObjs map[int][]byte, trailerRaw []byte) ([]byte, error) {
+	// Build header
+	header := []byte("%PDF-1.4\n%\xFF\xFF\xFF\xFF\n")
+
+	// Find max object number
+	maxObj := 0
+	for num := range objs {
+		if num > maxObj {
+			maxObj = num
+		}
+	}
+	for num := range modifiedObjs {
+		if num > maxObj {
+			maxObj = num
+		}
+	}
+
+	var out []byte
+	out = append(out, header...)
+	offsets := make(map[int]int)
+	offsets[0] = 0
+
+	// Write objects
+	for i := 1; i <= maxObj; i++ {
+		offsets[i] = len(out)
+
+		var body []byte
+		if modBody, exists := modifiedObjs[i]; exists {
+			body = modBody
+		} else if origBody, exists := objs[i]; exists {
+			body = origBody
+		} else {
+			body = []byte("<< /Type /Null >>")
+		}
+
+		objHeader := fmt.Sprintf("%d 0 obj\n", i)
+		out = append(out, []byte(objHeader)...)
+		out = append(out, body...)
+		out = append(out, []byte("\nendobj\n")...)
+	}
+
+	// Write xref table
+	xrefOffset := len(out)
+	out = append(out, []byte("xref\n")...)
+	out = append(out, []byte(fmt.Sprintf("0 %d\n", maxObj+1))...)
+	out = append(out, []byte("0000000000 65535 f \n")...)
+
+	for i := 1; i <= maxObj; i++ {
+		out = append(out, []byte(fmt.Sprintf("%010d 00000 n \n", offsets[i]))...)
+	}
+
+	// Write trailer
+	tr := string(trailerRaw)
+	sizeRe := regexp.MustCompile(`/Size\s+\d+`)
+	if sizeRe.MatchString(tr) {
+		tr = sizeRe.ReplaceAllString(tr, fmt.Sprintf("/Size %d", maxObj+1))
+	} else {
+		tr = tr + fmt.Sprintf("\n/Size %d", maxObj+1)
+	}
+
+	out = append(out, []byte("trailer\n")...)
+	out = append(out, []byte(tr)...)
+	out = append(out, []byte("\nstartxref\n")...)
+	out = append(out, []byte(fmt.Sprintf("%d\n", xrefOffset))...)
+	out = append(out, []byte("%%EOF\n")...)
+
+	return out, nil
+}
+
+// FlattenPDFBytes flattens form fields from the input PDF bytes and returns a new PDF as bytes.
+func FlattenPDFBytes(pdf []byte) ([]byte, error) {
+	objs := findObjects(pdf)
+	trailer := getTrailer(pdf)
+
+	// Find page object
+	var pageNum int
+	found := false
+	for num, body := range objs {
+		if strings.Contains(string(body), "/Type /Page") {
+			pageNum = num
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, fmt.Errorf("no page object found")
+	}
+
+	pinfo := extractPageInfo(objs, pageNum)
+
+	var fields []*Widget
+	var annotsToKeep []int
+
+	for _, a := range pinfo.Annots {
+		if objBody, exists := objs[a]; exists {
+			w := parseWidget(objBody)
+			if w == nil {
+				annotsToKeep = append(annotsToKeep, a)
+				continue
+			}
+
+			// Check if it's a button
+			s := string(objBody)
+			isButton := strings.Contains(s, "/FT /Btn")
+
+			if !isButton {
+				// Check parent for button type
+				parentRe := regexp.MustCompile(`/Parent\s+(\d+)\s+0\s+R`)
+				if match := parentRe.FindStringSubmatch(s); match != nil {
+					if pnum, err := strconv.Atoi(match[1]); err == nil {
+						if parentBody, exists := objs[pnum]; exists {
+							if strings.Contains(string(parentBody), "/FT /Btn") {
+								isButton = true
+							}
+						}
+					}
+				}
+			}
+
+			if isButton {
+				annotsToKeep = append(annotsToKeep, a)
+			} else if w.Value != "" {
+				fields = append(fields, w)
+			}
+		}
+	}
+
+	acro := acroformDAAndFont(objs)
+	contentBytes := buildTextDrawOps(fields, acro)
+
+	if len(contentBytes) == 0 {
+		// No overlay content; return original PDF bytes
+		return pdf, nil
+	}
+
+	// Create new content stream object
+	nextObj := maxObj(objs) + 1
+	streamBody := fmt.Sprintf("<< /Length %d >>\nstream\n", len(contentBytes))
+	streamBodyBytes := append([]byte(streamBody), contentBytes...)
+	streamBodyBytes = append(streamBodyBytes, []byte("\nendstream")...)
+
+	// Modify page object
+	pageBody := string(objs[pageNum])
+
+	// Update Annots
+	if len(annotsToKeep) > 0 {
+		var annotsStrs []string
+		for _, n := range annotsToKeep {
+			annotsStrs = append(annotsStrs, fmt.Sprintf("%d 0 R", n))
+		}
+		annotsStr := strings.Join(annotsStrs, " ")
+		annotsRe := regexp.MustCompile(`(?s)/Annots\s*\[.*?\]`)
+		pageBody = annotsRe.ReplaceAllString(pageBody, fmt.Sprintf("/Annots [ %s ]", annotsStr))
+	} else {
+		annotsRe := regexp.MustCompile(`(?s)/Annots\s*\[.*?\]\s*`)
+		pageBody = annotsRe.ReplaceAllString(pageBody, "")
+	}
+
+	// Update Contents
+	contentsRe := regexp.MustCompile(`/Contents\s+\d+\s+0\s+R`)
+	pageBody = contentsRe.ReplaceAllString(pageBody,
+		fmt.Sprintf("/Contents [ %d 0 R %d 0 R ]", pinfo.Contents, nextObj))
+
+	// Handle font resources if present
+	if pinfo.Resources != "" {
+		fontRe := regexp.MustCompile(`/Font\s+(\d+)\s+0\s+R`)
+		if match := fontRe.FindStringSubmatch(pinfo.Resources); match != nil {
+			if fontRefNum, err := strconv.Atoi(match[1]); err == nil {
+				if fontObjBody, exists := objs[fontRefNum]; exists {
+					newRes := mergeFontResources(pinfo.Resources, string(fontObjBody))
+					resRe := regexp.MustCompile(`(?s)/Resources\s*<<.*?>>`)
+					pageBody = resRe.ReplaceAllString(pageBody, "/Resources "+newRes)
+				}
+			}
+		}
+	}
+
+	// Prepare modified objects
+	modified := make(map[int][]byte)
+	modified[nextObj] = streamBodyBytes
+	modified[pageNum] = []byte(pageBody)
+
+	// Rebuild PDF in-memory and return bytes
+	outBytes, err := rebuildPDFBytes(objs, modified, trailer)
+	if err != nil {
+		return nil, err
+	}
+	return outBytes, nil
 }
 
 func main() {
