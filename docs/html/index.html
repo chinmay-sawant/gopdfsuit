@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoPdfSuit Documentation</title>
+    <link rel="stylesheet" href="../css/docs.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="header-content">
+        <button class="sidebar-toggle" id="sidebarToggle">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1>📄 GoPdfSuit Documentation</h1>
+        <div class="header-actions">
+          <button class="theme-toggle" id="themeToggle">
+            <i class="fas fa-moon"></i>
+            <span>Light</span>
+          </button>
+          <a
+            href="https://github.com/chinmay-sawant/gopdfsuit"
+            class="github-link"
+            target="_blank"
+          >
+            <i class="fab fa-github"></i>
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <!-- Sidebar -->
+      <nav class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+          <div class="sidebar-section">
+            <h3>Getting Started</h3>
+            <ul>
+              <li>
+                <a
+                  href="#overview"
+                  class="nav-link active"
+                  data-section="overview"
+                >
+                  <i class="fas fa-home"></i> Overview
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#installation"
+                  class="nav-link"
+                  data-section="installation"
+                >
+                  <i class="fas fa-download"></i> Installation
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#quick-start"
+                  class="nav-link"
+                  data-section="quick-start"
+                >
+                  <i class="fas fa-rocket"></i> Quick Start
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="sidebar-section">
+            <h3>Features</h3>
+            <ul>
+              <li>
+                <a
+                  href="#pdf-viewer"
+                  class="nav-link"
+                  data-section="pdf-viewer"
+                >
+                  <i class="fas fa-eye"></i> PDF Viewer
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#template-editor"
+                  class="nav-link"
+                  data-section="template-editor"
+                >
+                  <i class="fas fa-edit"></i> Template Editor
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#pdf-filler"
+                  class="nav-link"
+                  data-section="pdf-filler"
+                >
+                  <i class="fas fa-fill-drip"></i> PDF Filler
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="sidebar-section">
+            <h3>API Reference</h3>
+            <ul>
+              <li>
+                <a
+                  href="#api-endpoints"
+                  class="nav-link"
+                  data-section="api-endpoints"
+                >
+                  <i class="fas fa-code"></i> API Endpoints
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#template-structure"
+                  class="nav-link"
+                  data-section="template-structure"
+                >
+                  <i class="fas fa-file-code"></i> Template Structure
+                </a>
+              </li>
+              <li>
+                <a href="#examples" class="nav-link" data-section="examples">
+                  <i class="fas fa-code-branch"></i> Examples
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="sidebar-section">
+            <h3>Advanced</h3>
+            <ul>
+              <li>
+                <a
+                  href="#configuration"
+                  class="nav-link"
+                  data-section="configuration"
+                >
+                  <i class="fas fa-cogs"></i> Configuration
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#development"
+                  class="nav-link"
+                  data-section="development"
+                >
+                  <i class="fas fa-tools"></i> Development
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#contributing"
+                  class="nav-link"
+                  data-section="contributing"
+                >
+                  <i class="fas fa-users"></i> Contributing
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="content" id="content">
+        <!-- Overview Section -->
+        <section id="overview-section" class="content-section active">
+          <h1>📄 GoPdfSuit Overview</h1>
+          <p class="lead">
+            A powerful Go web service that generates template-based PDF
+            documents on-the-fly with multi-page support, custom page sizes,
+            automatic page breaks, and comprehensive form filling capabilities.
+            Built with Go 1.23+ and featuring a modern web interface with
+            dark/light theme support.
+          </p>
+
+          <!-- Screenshots Carousel -->
+          <div class="carousel-container">
+            <h2>Features Showcase</h2>
+            <div class="carousel" id="carousel">
+              <div class="carousel-track">
+                <div class="carousel-slide active">
+                  <img
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/viewer.png"
+                    alt="PDF Viewer"
+                    class="carousel-image"
+                  />
+                  <div class="carousel-caption">
+                    <h3>PDF Viewer</h3>
+                    <p>
+                      Interactive web-based PDF viewer with real-time template
+                      editing, syntax highlighting, and multi-theme support
+                    </p>
+                  </div>
+                </div>
+                <div class="carousel-slide">
+                  <img
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/editor.png"
+                    alt="Template Editor"
+                    class="carousel-image"
+                  />
+                  <div class="carousel-caption">
+                    <h3>Template Editor</h3>
+                    <p>
+                      Visual drag-and-drop PDF template designer with live JSON
+                      generation and properties panel
+                    </p>
+                  </div>
+                </div>
+                <div class="carousel-slide">
+                  <img
+                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/filler.png"
+                    alt="PDF Filler"
+                    class="carousel-image"
+                  />
+                  <div class="carousel-caption">
+                    <h3>PDF Filler</h3>
+                    <p>
+                      Upload PDFs and XFDF files to generate filled documents
+                      with AcroForm support
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button class="carousel-btn prev" id="prevBtn">
+                <i class="fas fa-chevron-left"></i>
+              </button>
+              <button class="carousel-btn next" id="nextBtn">
+                <i class="fas fa-chevron-right"></i>
+              </button>
+              <div class="carousel-indicators">
+                <span class="indicator active" data-slide="0"></span>
+                <span class="indicator" data-slide="1"></span>
+                <span class="indicator" data-slide="2"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Key Features -->
+          <div class="features-grid">
+            <div class="feature-card">
+              <i class="fas fa-file-pdf"></i>
+              <h3>Template-based PDF Generation</h3>
+              <p>
+                Create professional PDF documents from JSON templates with
+                automatic page breaks, multi-page support, and intelligent
+                height tracking.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-desktop"></i>
+              <h3>Modern Web Interface</h3>
+              <p>
+                Interactive HTML viewer with real-time preview, syntax
+                highlighting, dark/light themes, and mobile-responsive design.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-table"></i>
+              <h3>Advanced Tables & Forms</h3>
+              <p>
+                Support for complex table layouts, checkboxes, AcroForm filling,
+                and font styling with automatic page flow and border controls.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-cogs"></i>
+              <h3>Flexible Configuration</h3>
+              <p>
+                Custom page sizes (A4, Letter, Legal, A3, A5), orientations,
+                borders, watermarks, and comprehensive template structure.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-paint-brush"></i>
+              <h3>Rich Typography</h3>
+              <p>
+                Bold, italic, underline text support with 3-digit style codes,
+                custom font sizes, alignments, and flexible positioning.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-shield-alt"></i>
+              <h3>Security Features</h3>
+              <p>
+                Path traversal protection, input validation, JSON structure
+                validation, and secure file handling for production deployments.
+              </p>
+            </div>
+          </div>
+
+          <!-- Architecture Overview -->
+          <h2>🏗️ Architecture</h2>
+          <div class="features-grid">
+            <div class="feature-card">
+              <i class="fas fa-server"></i>
+              <h3>Go Backend</h3>
+              <p>
+                Built with Go 1.23+ using Gin framework for high-performance
+                HTTP handling
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-code"></i>
+              <h3>Modular Structure</h3>
+              <p>
+                Clean separation: handlers, models, PDF generation, and web
+                assets
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="fas fa-memory"></i>
+              <h3>In-Memory Processing</h3>
+              <p>
+                Fast PDF generation with height tracking and automatic page
+                management
+              </p>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="stats-section">
+            <div class="stat-item">
+              <i class="fas fa-code"></i>
+              <h3>Go 1.23+</h3>
+              <p>Built with modern Go and Gin framework</p>
+            </div>
+            <div class="stat-item">
+              <i class="fas fa-rocket"></i>
+              <h3>Fast</h3>
+              <p>In-memory PDF generation with auto page breaks</p>
+            </div>
+            <div class="stat-item">
+              <i class="fas fa-shield-alt"></i>
+              <h3>Secure</h3>
+              <p>Input validation & path traversal protection</p>
+            </div>
+            <div class="stat-item">
+              <i class="fas fa-server"></i>
+              <h3>Self-contained</h3>
+              <p>Single binary deployment with embedded assets</p>
+            </div>
+          </div>
+
+          <!-- Comparison Table: GoPdfSuit vs Licensed Tools -->
+          <h2>🔍 GoPdfSuit vs Licensed PDF SDKs</h2>
+          <p class="lead">
+            Comparison of features and benefits. GoPdfSuit is FREE and Open
+            Source (MIT). Sample test data is available in
+            <code>sampledata/json</code> (results may vary by machine).
+          </p>
+          <div class="code-block">
+            <div class="table-wrap">
+              <table class="comparison-table">
+                <caption
+                  style="
+                    caption-side: top;
+                    text-align: left;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                  "
+                >
+                  Feature comparison: GoPdfSuit vs Aspose / iText / UniDoc
+                </caption>
+                <thead>
+                  <tr>
+                    <th><i class="fas fa-list"></i> Feature / Tool</th>
+                    <th><i class="fas fa-gavel"></i> GoPdfSuit (MIT)</th>
+                    <th>
+                      <i class="fas fa-building"></i> Aspose (Proprietary)
+                    </th>
+                    <th>
+                      <i class="fas fa-balance-scale"></i> iText (AGPL /
+                      Commercial)
+                    </th>
+                    <th><i class="fas fa-crown"></i> UniDoc (Commercial)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>License / Cost</td>
+                    <td>MIT — Free & Open Source</td>
+                    <td>Commercial — per-developer / per-server pricing</td>
+                    <td>
+                      AGPL (open) or Commercial license for closed-source use
+                    </td>
+                    <td>Commercial tiers (Business / Gold / Platinum)</td>
+                  </tr>
+                  <tr>
+                    <td>In-memory generation (speed)</td>
+                    <td>
+                      ✅ In-memory — millisecond-scale generation (JSON
+                      templates, local tests)
+                    </td>
+                    <td>✅ High-performance enterprise generation (varies)</td>
+                    <td>✅ High-performance, depends on integration</td>
+                    <td>✅ High-performance, optimized SDK</td>
+                  </tr>
+                  <tr>
+                    <td>Template-driven (JSON)</td>
+                    <td>✅ Native JSON templates for fast authoring</td>
+                    <td>❌ Typically API/SDK-based, not JSON template-first</td>
+                    <td>❌ API/library-based (templates via code)</td>
+                    <td>❌ SDK / API-based (code-first)</td>
+                  </tr>
+                  <tr>
+                    <td>AcroForm / XFDF filling & appearance</td>
+                    <td>
+                      ✅ XFDF filling (heuristic injection). Appearance may rely
+                      on viewer (/NeedAppearances). Fill up to ~12ms in local
+                      tests.
+                    </td>
+                    <td>
+                      ✅ Full AcroForm support + appearance stream generation
+                    </td>
+                    <td>✅ Full AcroForm & appearance control via API</td>
+                    <td>✅ Full support; commercial appearance handling</td>
+                  </tr>
+                  <tr>
+                    <td>Appearance streams / viewer compatibility</td>
+                    <td>
+                      Limited — best-effort; some viewers may regenerate
+                      appearances
+                    </td>
+                    <td>
+                      Full support — appearance streams generated reliably
+                    </td>
+                    <td>Full support via API</td>
+                    <td>Full support (enterprise features)</td>
+                  </tr>
+                  <tr>
+                    <td>Deployment</td>
+                    <td>Single binary, no external runtime required</td>
+                    <td>
+                      Library or service; commercial deployments supported
+                    </td>
+                    <td>
+                      Library for integration; commercial options available
+                    </td>
+                    <td>SDKs with enterprise deployment options</td>
+                  </tr>
+                  <tr>
+                    <td>Support & SLA</td>
+                    <td>Community support (GitHub issues)</td>
+                    <td>Commercial support and SLAs</td>
+                    <td>Commercial support available with license</td>
+                    <td>Commercial support with tiers and SLA</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="perf-notes">
+              <h3>Endpoint performance (developer environment)</h3>
+              <div class="table-wrap">
+                <table class="endpoint-table compact">
+                  <thead>
+                    <tr>
+                      <th>Endpoint</th>
+                      <th>Avg latency (ms)</th>
+                      <th>Max latency (ms)</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>POST /api/v1/generate/template-pdf</td>
+                      <td>1.0285</td>
+                      <td>1.4204</td>
+                      <td>Logs: 1.4204ms, 636.5µs</td>
+                    </tr>
+                    <tr>
+                      <td>POST /fill</td>
+                      <td>~12</td>
+                      <td>12</td>
+                      <td>
+                        Max observed in developer environment (single sample)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="muted-note">
+                Times measured on developer machine; results vary by hardware.
+                Times are shown in milliseconds (ms).
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Installation Section -->
+        <section id="installation-section" class="content-section">
+          <h1>🔧 Installation</h1>
+
+          <h2>Requirements</h2>
+          <ul>
+            <li>
+              <strong>Go</strong> 1.20+ (project currently targets Go 1.23)
+            </li>
+            <li>
+              <strong>Dependencies</strong>: Automatically managed via Go
+              modules
+            </li>
+          </ul>
+
+          <h2>Installation Steps</h2>
+          <div class="code-block">
+            <h3>1. Clone the Repository</h3>
+            <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
+cd gopdfsuit</code></pre>
+          </div>
+
+          <div class="code-block">
+            <h3>2. Install Dependencies</h3>
+            <pre><code>go mod download</code></pre>
+          </div>
+
+          <div class="code-block">
+            <h3>3. Run the Server</h3>
+            <pre><code># From repository root
+go run ./cmd/gopdfsuit</code></pre>
+          </div>
+
+          <div class="success-message">
+            <i class="fas fa-check-circle"></i>
+            <strong>Server Running:</strong> 🌐 Server listening on:
+            http://localhost:8080
+          </div>
+        </section>
+
+        <!-- Quick Start Section -->
+        <section id="quick-start-section" class="content-section">
+          <h1>⚡ Quick Start</h1>
+
+          <h2>Web Interface Access</h2>
+          <div class="quick-links">
+            <a href="http://localhost:8080/" class="quick-link" target="_blank">
+              <i class="fas fa-eye"></i>
+              <div>
+                <h3>PDF Viewer</h3>
+                <p>Interactive template editor and PDF preview</p>
+              </div>
+            </a>
+            <a
+              href="http://localhost:8080/editor"
+              class="quick-link"
+              target="_blank"
+            >
+              <i class="fas fa-edit"></i>
+              <div>
+                <h3>Template Editor</h3>
+                <p>Visual drag-and-drop template designer</p>
+              </div>
+            </a>
+            <a
+              href="http://localhost:8080/filler"
+              class="quick-link"
+              target="_blank"
+            >
+              <i class="fas fa-fill-drip"></i>
+              <div>
+                <h3>PDF Filler</h3>
+                <p>Upload and fill PDF forms with XFDF</p>
+              </div>
+            </a>
+          </div>
+
+          <h2>Example Usage</h2>
+          <div class="code-block">
+            <h3>Load Template via URL</h3>
+            <pre><code>http://localhost:8080/?file=temp_multiplepage.json</code></pre>
+          </div>
+        </section>
+
+        <!-- Other sections would go here with similar structure -->
+      </main>
+    </div>
+
+    <script src="../js/docs.js"></script>
+  </body>
+</html>
