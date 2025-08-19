@@ -38,26 +38,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const content = document.getElementById('content');
     const sidebarToggle = document.getElementById('sidebarToggle');
 
-    // Navigation click handlers
+    // Navigation click handlers (single handler handles dynamic creation)
     navLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-            
+
             const targetSection = this.dataset.section;
-            
+
+            // If the section content is defined in sectionsData but not present in DOM, create it
+            const existingSection = document.getElementById(targetSection + '-section');
+            if (!existingSection && sectionsData[targetSection]) {
+                const newSection = document.createElement('section');
+                newSection.id = targetSection + '-section';
+                newSection.className = 'content-section';
+                newSection.innerHTML = sectionsData[targetSection].content;
+                content.appendChild(newSection);
+                // Add copy buttons for any code blocks inside the newly created section
+                attachCopyButtons(newSection);
+            }
+
             // Remove active class from all nav links and sections
             navLinks.forEach(nav => nav.classList.remove('active'));
-            contentSections.forEach(section => section.classList.remove('active'));
-            
+            // Re-query content sections to include dynamically added ones
+            const allSections = document.querySelectorAll('.content-section');
+            allSections.forEach(section => section.classList.remove('active'));
+
             // Add active class to clicked nav link
             this.classList.add('active');
-            
-            // Show target section
+
+            // Show target section (now exists)
             const targetElement = document.getElementById(targetSection + '-section');
             if (targetElement) {
                 targetElement.classList.add('active');
             }
-            
+
             // Close sidebar on mobile
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove('show');
@@ -477,25 +491,266 @@ with open('filled_form.pdf', 'wb') as f:
                 </div>
             `
         }
+            ,
+            'template-structure': {
+                title: '🧩 Template Structure',
+                content: `
+                    <h1>🧩 Template Structure</h1>
+                    <p class="lead">JSON-driven template format used by GoPdfSuit. Templates define the document layout, components and properties.</p>
+
+                    <h2>Top-level Fields</h2>
+                    <ul>
+                        <li><strong>config</strong>: Page configuration (size, borders, orientation, watermark)</li>
+                        <li><strong>title</strong>: Optional title component (props + text)</li>
+                        <li><strong>table</strong>: Array of table blocks that contain rows and cells</li>
+                        <li><strong>footer</strong>: Footer configuration (font, text)</li>
+                    </ul>
+
+                    <h2>Component Shapes (contract)</h2>
+                    <p>Inputs/outputs and validation rules:</p>
+                    <ul>
+                        <li><strong>Cell</strong>: { props: string, text?: string, chequebox?: boolean }</li>
+                        <li><strong>Row</strong>: { row: Cell[] }</li>
+                        <li><strong>Table</strong>: { maxcolumns: number, rows: Row[] }</li>
+                        <li><strong>Props format</strong>: "fontName:fontSize:style:alignment:left:right:top:bottom"</li>
+                    </ul>
+
+                    <h2>Style Flags</h2>
+                    <p>Style is a 3-digit code: <code>bold(1/0)italic(1/0)underline(1/0)</code> e.g. <code>110</code> = bold+italic.</p>
+
+                    <h2>Example Minimal Template</h2>
+                    <div class="code-block">
+                        <pre><code>{
+      "config": { "pageBorder": "1:1:1:1", "page": "A4", "pageAlignment": 1 },
+      "title": { "props": "font1:20:100:center:0:0:2:0", "text": "Sample Title" },
+      "table": [ { "maxcolumns": 2, "rows": [ { "row": [ { "props": "font1:12:100:left:1:1:1:1", "text": "Label:" }, { "props": "font1:12:000:left:0:1:1:1", "text": "Value" } ] } ] } ],
+      "footer": { "font": "font1:10:001:center", "text": "Page footer" }
+    }</code></pre>
+                    </div>
+                `
+            },
+            'examples': {
+                title: '📄 Examples',
+                content: `
+                    <h1>📄 Examples</h1>
+                    <p class="lead">Practical sample templates and usage patterns. Sample data is available in the <code>sampledata/json</code> folder.</p>
+
+                    <h2>Multi-page Example</h2>
+                    <div class="code-block">
+                        <pre><code>// See sampledata/json/temp_mutliplepage.json for a full example
+    {
+      "config": { "page": "A4", "pageBorder": "1:1:1:1", "pageAlignment": 1 },
+      "title": { "props": "font1:22:100:center:0:0:2:0", "text": "Multi-Page Demo" },
+      "table": [ { "maxcolumns": 4, "rows": [ /* many rows to demonstrate auto page breaks */ ] } ],
+      "footer": { "font": "font1:10:000:center", "text": "Confidential" }
+    }
+    </code></pre>
+                    </div>
+
+                    <h2>Filler Example (XFDF)</h2>
+                    <div class="code-block">
+                        <pre><code>// Use the web UI or POST to /api/v1/fill with multipart form-data (pdf + xfdf)
+    // Example XFDF content is available in the sampledata folder
+    </code></pre>
+                    </div>
+                `
+            },
+            'configuration': {
+                title: '⚙️ Configuration',
+                content: `
+                    <h1>⚙️ Configuration</h1>
+                    <p class="lead">Configuration options for server and templates.</p>
+
+                    <h2>Template Config</h2>
+                    <ul>
+                        <li><strong>page</strong>: Page size (A4, LETTER, LEGAL, A3, A5)</li>
+                        <li><strong>pageAlignment</strong>: 1=portrait, 2=landscape</li>
+                        <li><strong>pageBorder</strong>: "left:right:top:bottom" border widths in points</li>
+                        <li><strong>watermark</strong>: Optional text rendered diagonally across pages</li>
+                    </ul>
+
+                    <h2>Server Config (dev)</h2>
+                    <ul>
+                        <li><strong>Upload size limits</strong>: Configure max upload size for /api/v1/fill</li>
+                        <li><strong>Timeouts</strong>: Request and generation timeouts to prevent runaway jobs</li>
+                        <li><strong>Logging</strong>: Verbose logging can be enabled in development</li>
+                    </ul>
+
+                    <h2>Performance Note</h2>
+                    <p>GoPdfSuit generates PDFs entirely in-memory. Typical generation from JSON (tested locally) completes in milliseconds; filling a PDF via XFDF takes up to ~12ms depending on the PDF complexity and environment. Test data is in <code>sampledata/json</code>.</p>
+                `
+            },
+            'development': {
+                title: '🛠️ Development',
+                content: `
+                    <h1>🛠️ Development</h1>
+                    <p class="lead">Developer guidance for running and extending GoPdfSuit.</p>
+
+                    <h2>Build & Run</h2>
+                    <div class="code-block">
+                        <pre><code>go mod download
+    # Run server
+    go run ./cmd/gopdfsuit</code></pre>
+                    </div>
+
+                    <h2>Tests</h2>
+                    <p>Run unit tests with:</p>
+                    <div class="code-block"><pre><code>go test ./... -v</code></pre></div>
+
+                    <h2>Project Layout</h2>
+                    <ul>
+                        <li><code>cmd/</code>: application entrypoints</li>
+                        <li><code>internal/</code>: handlers, models, pdf generation</li>
+                        <li><code>web/</code>: UI templates and static assets</li>
+                        <li><code>sampledata/</code>: example templates and XFDF samples</li>
+                    </ul>
+                `
+            },
+            'contributing': {
+                title: '🤝 Contributing',
+                content: `
+                    <h1>🤝 Contributing</h1>
+                    <p class="lead">How to contribute to GoPdfSuit.</p>
+
+                    <h2>Process</h2>
+                    <ol>
+                        <li>Fork the repo</li>
+                        <li>Create a feature branch: <code>git checkout -b feature/my-change</code></li>
+                        <li>Write tests for new behaviour</li>
+                        <li>Open a PR and include a description and screenshots</li>
+                    </ol>
+
+                    <h2>Code Style</h2>
+                    <ul>
+                        <li>Follow Go idioms and formatting (<code>gofmt</code>)</li>
+                        <li>Keep public APIs stable; add feature flags for breaking changes</li>
+                    </ul>
+
+                    <h2>Communication</h2>
+                    <p>Open issues for bugs or proposals. Label your PRs with the relevant tags.</p>
+                `
+            },
+            'comparison': {
+                title: '🔍 Comparison',
+                content: `
+                    <h1>🔍 GoPdfSuit vs Licensed Tools</h1>
+                    <p class="lead">A practical comparison between GoPdfSuit and commercial licensed PDF SDKs (e.g., Aspose, Unidoc commercial).</p>
+
+                    <h2>At-a-glance Comparison</h2>
+                    <div class="code-block">
+                        <h3>Feature Comparison</h3>
+                        <table style="width:100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="border:1px solid var(--border-color); padding:8px; text-align:left;">Feature / Tool</th>
+                                    <th style="border:1px solid var(--border-color); padding:8px; text-align:left;">GoPdfSuit (OSS)</th>
+                                    <th style="border:1px solid var(--border-color); padding:8px; text-align:left;">Aspose / Commercial</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">In-memory generation</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">✅ Very fast (ms)</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">✅ Available</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">JSON template driven</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">✅ Yes</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">❌ Usually API-based or proprietary templates</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">AcroForm filling (XFDF)</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">✅ Yes (heuristic)</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">✅ Robust, appearance-ready</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Cost</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">✅ Free (MIT)</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">❌ Paid license</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Appearance streams</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Limited</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Full support</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Speed (generate)</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Milliseconds (local tests)</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Variable</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Deployment</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Single binary</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Library or service</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Extensibility</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">✅ Open-source</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">✅ (with license)</td>
+                                </tr>
+                                <tr>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Support</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Community</td>
+                                    <td style="border:1px solid var(--border-color); padding:8px;">Commercial SLA</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h2>Benefits of GoPdfSuit</h2>
+                    <ul>
+                        <li>Generates PDFs entirely in-memory for speed and security</li>
+                        <li>Millisecond-scale JSON-based generation (tested locally) which is suitable for high-throughput systems</li>
+                        <li>Lightweight single-binary deployment with no external dependencies</li>
+                        <li>Transparent open-source codebase for customization</li>
+                    </ul>
+
+                    <h2>When to choose a commercial SDK</h2>
+                    <ul>
+                        <li>Require guaranteed appearance stream generation across all viewers</li>
+                        <li>Need enterprise support, SLAs and advanced features (PDF/A, advanced annotations, OCR)</li>
+                        <li>Large-scale document transformations requiring optimized native routines</li>
+                    </ul>
+                `
+            }
     };
 
-    // Load content for sections that don't exist in HTML
-    navLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            const sectionName = this.dataset.section;
-            const existingSection = document.getElementById(sectionName + '-section');
-            
-            if (!existingSection && sectionsData[sectionName]) {
-                // Create section dynamically
-                const newSection = document.createElement('section');
-                newSection.id = sectionName + '-section';
-                newSection.className = 'content-section';
-                newSection.innerHTML = sectionsData[sectionName].content;
-                content.appendChild(newSection);
-            }
+    // Attach copy buttons to code blocks (for static and dynamic content)
+    function attachCopyButtons(root = document) {
+        const blocks = root.querySelectorAll('.code-block');
+        blocks.forEach(block => {
+            if (block.querySelector('.copy-btn')) return; // already added
+            const pre = block.querySelector('pre');
+            if (!pre) return;
+
+            const btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.type = 'button';
+            btn.innerHTML = '<i class="fas fa-copy"></i><span>Copy</span>';
+
+            btn.addEventListener('click', async function() {
+                const code = pre.innerText;
+                try {
+                    await navigator.clipboard.writeText(code);
+                    btn.classList.add('copied');
+                    btn.querySelector('span').textContent = 'Copied';
+                    setTimeout(() => {
+                        btn.classList.remove('copied');
+                        btn.querySelector('span').textContent = 'Copy';
+                    }, 1500);
+                } catch (err) {
+                    console.warn('Copy failed', err);
+                }
+            });
+
+            block.appendChild(btn);
         });
-    });
+    }
+
+    // (Dynamic sections are created in the navigation click handler above)
 
     // Initialize carousel
     updateCarousel();
+    // Attach copy buttons for any existing static code blocks
+    attachCopyButtons();
 });

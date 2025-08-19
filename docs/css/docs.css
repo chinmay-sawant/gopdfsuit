@@ -473,6 +473,7 @@ body {
 /* Code Blocks */
 .code-block {
   margin: 2rem 0;
+  position: relative; /* allow absolute-positioned copy button */
 }
 
 .code-block h3 {
@@ -489,6 +490,73 @@ body {
   font-family: "Fira Code", Consolas, monospace;
   line-height: 1.5;
   border: 1px solid var(--border-color);
+}
+
+/* Copy button for code blocks */
+.copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--code-text);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s, transform 0.08s;
+}
+
+.copy-btn:hover {
+  background: rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+
+.copy-btn.copied {
+  background: rgba(40, 160, 80, 0.9);
+  color: #fff;
+}
+
+/* Normalize list and details alignment inside dynamic content sections */
+.content-section ul,
+.content-section ol {
+  margin: 1rem 0;
+  padding-left: 1.25rem;
+  list-style-position: outside;
+}
+
+.content-section li {
+  margin-bottom: 0.45rem;
+  line-height: 1.45;
+}
+
+/* Make sure nested strong/code in li don't break alignment */
+.content-section li > strong,
+.content-section li > code {
+  display: inline-block;
+}
+
+/* Details/summary styling to match content flow */
+.content-section details {
+  margin: 1rem 0;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  padding: 0.6rem 0.9rem;
+  border-radius: 8px;
+}
+
+.content-section details summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  outline: none;
+}
+
+.content-section details[open] {
+  box-shadow: 0 6px 18px var(--shadow-hover);
 }
 
 /* Success Message */

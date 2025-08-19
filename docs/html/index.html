@@ -348,6 +348,173 @@
               <p>Single binary deployment with embedded assets</p>
             </div>
           </div>
+
+          <!-- Comparison Table: GoPdfSuit vs Licensed Tools -->
+          <h2>🔍 GoPdfSuit vs Licensed PDF SDKs</h2>
+          <p class="lead">
+            Comparison of features and benefits. GoPdfSuit is FREE and Open
+            Source (MIT). Sample test data is available in
+            <code>sampledata/json</code> (results may vary by machine).
+          </p>
+          <div class="code-block">
+            <table style="width: 100%; border-collapse: collapse">
+              <thead>
+                <tr>
+                  <th
+                    style="
+                      border: 1px solid var(--border-color);
+                      padding: 8px;
+                      text-align: left;
+                    "
+                  >
+                    Feature / Tool
+                  </th>
+                  <th
+                    style="
+                      border: 1px solid var(--border-color);
+                      padding: 8px;
+                      text-align: left;
+                    "
+                  >
+                    GoPdfSuit (OSS)
+                  </th>
+                  <th
+                    style="
+                      border: 1px solid var(--border-color);
+                      padding: 8px;
+                      text-align: left;
+                    "
+                  >
+                    Licensed SDKs (e.g., Aspose)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    In-memory generation
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    ✅ Yes — very fast (millisecond-scale generation from JSON
+                    in local tests)
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    ✅ Yes — enterprise-grade
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Template-driven (JSON)
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    ✅ Native JSON templates for quick generation
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    ❌ Usually API-based or proprietary templates
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    AcroForm / XFDF filling
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    ✅ Supported (heuristic XFDF handling; fills in-memory).
+                    Fill operations measured up to ~12ms locally.
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    ✅ Robust appearance and enterprise features
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Cost & License
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    ✅ Free — MIT license (Open Source)
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    ❌ Commercial license (cost applies)
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Appearance streams
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Limited — relies on viewer regeneration (/NeedAppearances)
+                    for some PDFs
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Full support — generates appearances and advanced rendering
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Deployment
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Single binary, no external runtime
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Library or hosted service (varies)
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Support
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Community & repo issues
+                  </td>
+                  <td
+                    style="border: 1px solid var(--border-color); padding: 8px"
+                  >
+                    Commercial SLA and dedicated support
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <!-- Installation Section -->
