@@ -1,10 +1,9 @@
-package main
+package scripts
 
 import (
 	"bytes"
 	"fmt"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -58,17 +57,17 @@ var (
 func findObjects(pdfBytes []byte) map[int][]byte {
 	objs := make(map[int][]byte)
 	matches := objRegex.FindAllSubmatch(pdfBytes, -1)
-	fmt.Printf("Found %d objects in PDF\n", len(matches))
+	// fmt.Printf("Found %d objects in PDF\n", len(matches))
 	for _, m := range matches {
 		num, err := strconv.Atoi(string(m[1]))
 		if err != nil {
-			fmt.Printf("Warning: Failed to parse object number: %s\n", string(m[1]))
+			// fmt.Printf("Warning: Failed to parse object number: %s\n", string(m[1]))
 			continue
 		}
 		// In Go, trim whitespace from the byte slice.
 		body := bytes.TrimSpace(m[2])
 		objs[num] = body
-		fmt.Printf("Object %d: %d bytes\n", num, len(body))
+		// fmt.Printf("Object %d: %d bytes\n", num, len(body))
 	}
 	return objs
 }
@@ -211,7 +210,7 @@ func parseWidget(objBody []byte, objs map[int][]byte) *WidgetInfo {
 		return nil
 	}
 
-	fmt.Printf("Parsing widget: %s\n", s[:min(200, len(s))])
+	// fmt.Printf("Parsing widget: %s\n", s[:min(200, len(s))])
 
 	w := &WidgetInfo{}
 
@@ -223,7 +222,7 @@ func parseWidget(objBody []byte, objs map[int][]byte) *WidgetInfo {
 				w.Rect = append(w.Rect, f)
 			}
 		}
-		fmt.Printf("Found rect: %v\n", w.Rect)
+		// fmt.Printf("Found rect: %v\n", w.Rect)
 	}
 
 	// Value /V could be a literal, a name (/Name), a hex string (<...>), or an indirect ref.
@@ -233,19 +232,19 @@ func parseWidget(objBody []byte, objs map[int][]byte) *WidgetInfo {
 		start := loc[1] - 1
 		val, _ := extractLiteralFrom(s, start)
 		w.Value = val
-		fmt.Printf("Found literal value: '%s'\n", val)
+		// fmt.Printf("Found literal value: '%s'\n", val)
 	} else if m := valueNameRegex.FindStringSubmatch(s); len(m) > 1 {
 		w.Value = m[1]
-		fmt.Printf("Found name value: '%s'\n", w.Value)
+		// fmt.Printf("Found name value: '%s'\n", w.Value)
 	} else if m := valueHexRegex.FindStringSubmatch(s); len(m) > 1 {
 		if bs, err := hexDecode(m[1]); err == nil {
 			w.Value = string(bs)
-			fmt.Printf("Found hex value: '%s'\n", w.Value)
+			// fmt.Printf("Found hex value: '%s'\n", w.Value)
 		}
 	} else if m := valueRefRegex.FindStringSubmatch(s); len(m) > 1 {
 		if refNum, err := strconv.Atoi(m[1]); err == nil {
 			w.Value = resolveValueFromObj(objs, refNum)
-			fmt.Printf("Found ref value: '%s' (from obj %d)\n", w.Value, refNum)
+			// fmt.Printf("Found ref value: '%s' (from obj %d)\n", w.Value, refNum)
 		}
 	}
 
@@ -452,7 +451,7 @@ func mergeFontResources(pageResourcesText, fontObjText string) string {
 
 // rebuildPDF constructs the new PDF file from original and modified objects.
 // Equivalent to the Python `rebuild_pdf` function.
-func rebuildPDF(objs map[int][]byte, modifiedObjs map[int][]byte, trailerRaw []byte, outPath string) error {
+func rebuildPDF(objs map[int][]byte, modifiedObjs map[int][]byte, trailerRaw []byte) ([]byte, error) {
 	var out bytes.Buffer
 	header := "%PDF-1.4\n%\xff\xff\xff\xff\n"
 	out.WriteString(header)
@@ -506,7 +505,7 @@ func rebuildPDF(objs map[int][]byte, modifiedObjs map[int][]byte, trailerRaw []b
 	out.WriteString(tr)
 	fmt.Fprintf(&out, "\nstartxref\n%d\n%%%%EOF\n", xrefOffset)
 
-	return os.WriteFile(outPath, out.Bytes(), 0644)
+	return out.Bytes(), nil
 }
 
 func min(a, b int) int {
@@ -516,20 +515,8 @@ func min(a, b int) int {
 	return b
 }
 
-func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run flatten_pdf.go input.pdf output.pdf")
-		os.Exit(1)
-	}
-	inp := os.Args[1]
-	outp := os.Args[2]
-
-	fmt.Printf("Reading PDF file: %s\n", inp)
-	pdf, err := os.ReadFile(inp)
-	if err != nil {
-		log.Fatalf("Error reading input file: %v", err)
-	}
-	fmt.Printf("Read %d bytes from PDF\n", len(pdf))
+func FlattenPDFBytes(pdf []byte) ([]byte, error) {
+	// fmt.Printf("Read %d bytes from PDF\n", len(pdf))
 
 	objs := findObjects(pdf)
 	trailer := getTrailer(pdf)
@@ -546,11 +533,11 @@ func main() {
 			// Count annotations for this page
 			pinfo, err := extractPageInfo(objs, num)
 			if err != nil {
-				fmt.Printf("Error extracting info for page %d: %v\n", num, err)
+				// fmt.Printf("Error extracting info for page %d: %v\n", num, err)
 				continue
 			}
 			pageAnnotCounts[num] = len(pinfo.Annots)
-			fmt.Printf("Found page object: %d with %d annotations\n", num, len(pinfo.Annots))
+			// fmt.Printf("Found page object: %d with %d annotations\n", num, len(pinfo.Annots))
 		}
 	}
 
@@ -571,14 +558,15 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Selected page object %d with %d annotations\n", pageNum, maxAnnots)
+	// fmt.Printf("Selected page object %d with %d annotations\n", pageNum, maxAnnots)
 
 	pinfo, err := extractPageInfo(objs, pageNum)
 	if err != nil {
 		log.Fatalf("Error extracting page info: %v", err)
+		return nil, err
 	}
 
-	fmt.Printf("Page has %d annotations\n", len(pinfo.Annots))
+	// fmt.Printf("Page has %d annotations\n", len(pinfo.Annots))
 
 	var fields []*WidgetInfo
 	var annotsToKeep []int
@@ -586,14 +574,14 @@ func main() {
 	for _, a := range pinfo.Annots {
 		raw, ok := objs[a]
 		if !ok {
-			fmt.Printf("Warning: Annotation object %d not found\n", a)
+			// fmt.Printf("Warning: Annotation object %d not found\n", a)
 			continue
 		}
 
-		fmt.Printf("Processing annotation %d\n", a)
+		// fmt.Printf("Processing annotation %d\n", a)
 		w := parseWidget(raw, objs)
 		if w == nil {
-			fmt.Printf("Annotation %d is not a widget, keeping\n", a)
+			// fmt.Printf("Annotation %d is not a widget, keeping\n", a)
 			annotsToKeep = append(annotsToKeep, a)
 			continue
 		}
@@ -603,30 +591,30 @@ func main() {
 		s := string(raw)
 		if strings.Contains(s, "/FT /Btn") {
 			isButton = true
-			fmt.Printf("Widget %d is a button (direct)\n", a)
+			// fmt.Printf("Widget %d is a button (direct)\n", a)
 		} else {
 			pm := parentRegex.FindStringSubmatch(s)
 			if len(pm) > 1 {
 				pnum, _ := strconv.Atoi(pm[1])
 				if pbody, pexists := objs[pnum]; pexists && bytes.Contains(pbody, []byte("/FT /Btn")) {
 					isButton = true
-					fmt.Printf("Widget %d is a button (inherited from parent %d)\n", a, pnum)
+					// fmt.Printf("Widget %d is a button (inherited from parent %d)\n", a, pnum)
 				}
 			}
 		}
 
 		if isButton {
-			fmt.Printf("Keeping button widget %d\n", a)
+			// fmt.Printf("Keeping button widget %d\n", a)
 			annotsToKeep = append(annotsToKeep, a)
 		} else if w.Value != "" {
-			fmt.Printf("Adding text field %d with value: '%s'\n", a, w.Value)
+			// fmt.Printf("Adding text field %d with value: '%s'\n", a, w.Value)
 			fields = append(fields, w)
 		} else {
-			fmt.Printf("Widget %d has no value, skipping\n", a)
+			// fmt.Printf("Widget %d has no value, skipping\n", a)
 		}
 	}
 
-	fmt.Printf("Found %d text fields with values, %d annotations to keep\n", len(fields), len(annotsToKeep))
+	// fmt.Printf("Found %d text fields with values, %d annotations to keep\n", len(fields), len(annotsToKeep))
 
 	if len(fields) == 0 {
 		fmt.Println("No non-button widget fields with values found; only buttons/checkboxes will be preserved.")
@@ -637,13 +625,10 @@ func main() {
 
 	if len(contentBytes) == 0 {
 		fmt.Println("No overlay content to add; writing original file copy.")
-		if err := os.WriteFile(outp, pdf, 0644); err != nil {
-			log.Fatalf("Failed to write output file: %v", err)
-		}
-		return
+		return pdf, nil
 	}
 
-	fmt.Printf("Generated %d bytes of content stream\n", len(contentBytes))
+	// fmt.Printf("Generated %d bytes of content stream\n", len(contentBytes))
 
 	// Create new content stream object
 	nextObj := 0
@@ -688,9 +673,11 @@ func main() {
 	modified[pageNum] = []byte(pageBody)
 
 	// Rebuild and write PDF
-	if err := rebuildPDF(objs, modified, trailer, outp); err != nil {
+	var outBytes []byte
+	outBytes, err = rebuildPDF(objs, modified, trailer)
+	if err != nil {
 		log.Fatalf("Failed to rebuild PDF: %v", err)
+		return nil, err
 	}
-
-	fmt.Println("Wrote flattened PDF to", outp)
+	return outBytes, nil
 }
