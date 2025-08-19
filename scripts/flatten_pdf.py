@@ -83,9 +83,93 @@ def parse_widget(obj_body):
     rect = None
     if rect_m:
         rect = [float(rect_m.group(i)) for i in range(1,5)]
-    # Value /V (string)
-    v_m = re.search(r"/V\s*\((.*?)\)", s, re.S)
-    value = v_m.group(1) if v_m else None
+    # Value /V (literal string). Extract robustly to handle escaped parentheses
+    value = None
+    vm = re.search(r"/V\s*\(", s)
+    if vm:
+        start = vm.end()  # index after the opening '('
+        # scan for matching ')' respecting backslash-escapes
+        i = start
+        buf = []
+        data = s
+        length = len(data)
+        while i < length:
+            ch = data[i]
+            if ch == ')':
+                # end of literal string
+                break
+            if ch == '\\':
+                # escape sequence; include both backslash and next char for decoding
+                if i + 1 < length:
+                    esc = data[i+1]
+                    buf.append('\\' + esc)
+                    i += 2
+                    continue
+                else:
+                    # dangling backslash
+                    buf.append('\\')
+                    i += 1
+                    continue
+            else:
+                buf.append(ch)
+                i += 1
+        raw_value = ''.join(buf)
+        # decode PDF literal string escapes like \(, \), \\ and octal
+        def decode_pdf_literal(sraw):
+            out = []
+            i = 0
+            L = len(sraw)
+            while i < L:
+                c = sraw[i]
+                if c != '\\':
+                    out.append(c)
+                    i += 1
+                else:
+                    # escape
+                    i += 1
+                    if i >= L:
+                        break
+                    e = sraw[i]
+                    if e == 'n':
+                        out.append('\n')
+                        i += 1
+                    elif e == 'r':
+                        out.append('\r')
+                        i += 1
+                    elif e == 't':
+                        out.append('\t')
+                        i += 1
+                    elif e == 'b':
+                        out.append('\b')
+                        i += 1
+                    elif e == 'f':
+                        out.append('\f')
+                        i += 1
+                    elif e in ('\\', '(', ')'):
+                        out.append(e)
+                        i += 1
+                    elif e.isdigit():
+                        # up to three octal digits
+                        octal = e
+                        i += 1
+                        for _ in range(2):
+                            if i < L and sraw[i].isdigit():
+                                octal += sraw[i]
+                                i += 1
+                            else:
+                                break
+                        try:
+                            out.append(chr(int(octal, 8)))
+                        except Exception:
+                            # fallback: raw
+                            out.append(octal)
+                    else:
+                        # unknown escape, keep char
+                        out.append(e)
+                        i += 1
+            return ''.join(out)
+
+        value = decode_pdf_literal(raw_value)
     # Default Appearance /DA
     da_m = re.search(r"/DA\s*\((.*?)\)", s)
     da = da_m.group(1) if da_m else None
@@ -117,6 +201,7 @@ def acroform_da_and_font(objs):
 
 
 def escape_pdf_text(t):
+    # escape backslash, left and right paren for PDF literal strings
     return t.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
 
 
