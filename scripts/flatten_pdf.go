@@ -1,22 +1,86 @@
-package scripts
+package main
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-// Widget represents a PDF widget annotation
-type Widget struct {
-	Rect  []float64
-	Value string
-	DA    string
+// This Go program is a direct conversion of the Python script `flatten_pdf.py`.
+// It performs the same functions:
+// - Parses objects from a single-file PDF.
+// - Collects widget annotations from the first page.
+// - For each widget with a value (/V), creates a page content stream to draw the text.
+// - Removes the interactive form fields (/Annots) from the page.
+// - Writes a new PDF with the added content stream and a rebuilt xref/trailer.
+//
+// Limitations from the original script are preserved:
+// - Works on simple PDFs.
+// - Does not decode or edit existing compressed content streams.
+// - Best-effort flattening.
+//
+// Usage:
+//   go run flatten_pdf.go input.pdf output.pdf
+
+// Global compiled regex patterns for efficiency, mirroring those in the Python script.
+var (
+	objRegex              = regexp.MustCompile(`(?s)(\d+)\s+0\s+obj(.*?)endobj`)
+	trailerRegex          = regexp.MustCompile(`(?s)trailer(.*?)startxref`)
+	annotsRegex           = regexp.MustCompile(`(?s)/Annots\s*\[(.*?)\]`)
+	refRegex              = regexp.MustCompile(`(\d+)\s+0\s+R`)
+	contentsRegex         = regexp.MustCompile(`/Contents\s+(\d+)\s+0\s+R`)
+	contentsArrRegex      = regexp.MustCompile(`/Contents\s*\[(.*?)\]`)
+	resourcesRegex        = regexp.MustCompile(`(?s)/Resources\s*(<<.*?)>>`)
+	rectRegex             = regexp.MustCompile(`/Rect\s*\[\s*([\d\.-]+)\s+([\d\.-]+)\s+([\d\.-]+)\s+([\d\.-]+)\s*\]`)
+	valueStartRegex       = regexp.MustCompile(`/V\s*\(`)
+	daRegex               = regexp.MustCompile(`/DA\s*\((.*?)\)`)
+	valueNameRegex        = regexp.MustCompile(`/V\s*/([^\s\)<>\[]+)`)
+	valueHexRegex         = regexp.MustCompile(`/V\s*<([0-9A-Fa-f]+)>`)
+	valueRefRegex         = regexp.MustCompile(`/V\s+(\d+)\s+0\s+R`)
+	parentRegex           = regexp.MustCompile(`/Parent\s+(\d+)\s+0\s+R`)
+	drRegex               = regexp.MustCompile(`(?s)/DR\s*(<<.*?)>>`)
+	helvRegex             = regexp.MustCompile(`/Helv\s+(\d+)\s+0\s+R`)
+	fontSizeRegex         = regexp.MustCompile(`(\d+(?:\.\d+)?)\s+Tf`)
+	fontRefRegex          = regexp.MustCompile(`/Font\s+(\d+)\s+0\s+R`)
+	procSetRegex          = regexp.MustCompile(`(?s)/ProcSet\s*(\[.*?\])`)
+	sizeRegex             = regexp.MustCompile(`/Size\s+\d+`)
+	annotsReplaceRegex    = regexp.MustCompile(`(?s)/Annots\s*\[.*?\]\s*`)
+	contentsReplaceRegex  = regexp.MustCompile(`/Contents\s+\d+\s+0\s+R`)
+	resourcesReplaceRegex = regexp.MustCompile(`(?s)/Resources\s*<<.*?>>`)
+)
+
+// findObjects parses a PDF file's bytes and extracts all object bodies.
+// It's equivalent to the Python `find_objects` function.
+func findObjects(pdfBytes []byte) map[int][]byte {
+	objs := make(map[int][]byte)
+	matches := objRegex.FindAllSubmatch(pdfBytes, -1)
+	for _, m := range matches {
+		num, err := strconv.Atoi(string(m[1]))
+		if err != nil {
+			continue
+		}
+		// In Go, trim whitespace from the byte slice.
+		body := bytes.TrimSpace(m[2])
+		objs[num] = body
+	}
+	return objs
 }
 
-// PageInfo contains information extracted from a PDF page object
+// getTrailer extracts the trailer dictionary from the PDF bytes.
+// It's equivalent to the Python `get_trailer` function.
+func getTrailer(pdfBytes []byte) []byte {
+	m := trailerRegex.FindSubmatch(pdfBytes)
+	if len(m) > 1 {
+		return bytes.TrimSpace(m[1])
+	}
+	return nil
+}
+
+// PageInfo holds extracted information from a Page object.
 type PageInfo struct {
 	Body      string
 	Annots    []int
@@ -24,587 +88,415 @@ type PageInfo struct {
 	Resources string
 }
 
-// AcroFormInfo contains AcroForm default appearance and font information
+// extractPageInfo parses a page object to find annotations, contents, and resources.
+// It's equivalent to the Python `extract_page_info` function.
+func extractPageInfo(objs map[int][]byte, pageObjNum int) (*PageInfo, error) {
+	bodyBytes, ok := objs[pageObjNum]
+	if !ok {
+		return nil, fmt.Errorf("page object %d not found", pageObjNum)
+	}
+	// The Python script uses 'latin1' encoding, which is a 1-to-1 byte mapping.
+	// In Go, we can convert the byte slice to a string, as it will preserve the bytes.
+	body := string(bodyBytes)
+
+	info := &PageInfo{Body: body}
+
+	// Get Annots list of object refs
+	annotsMatch := annotsRegex.FindStringSubmatch(body)
+	if len(annotsMatch) > 1 {
+		refsMatches := refRegex.FindAllStringSubmatch(annotsMatch[1], -1)
+		for _, r := range refsMatches {
+			if num, err := strconv.Atoi(r[1]); err == nil {
+				info.Annots = append(info.Annots, num)
+			}
+		}
+	}
+
+	// Find Contents ref (single) or array; prefer the first ref found
+	contentsMatch := contentsRegex.FindStringSubmatch(body)
+	if len(contentsMatch) > 1 {
+		if num, err := strconv.Atoi(contentsMatch[1]); err == nil {
+			info.Contents = num
+		}
+	} else {
+		contentsArrMatch := contentsArrRegex.FindStringSubmatch(body)
+		if len(contentsArrMatch) > 1 {
+			refs := refRegex.FindAllStringSubmatch(contentsArrMatch[1], -1)
+			if len(refs) > 0 {
+				if num, err := strconv.Atoi(refs[0][1]); err == nil {
+					info.Contents = num
+				}
+			}
+		}
+	}
+
+	// Find Resources
+	resourcesMatch := resourcesRegex.FindStringSubmatch(body)
+	if len(resourcesMatch) > 1 {
+		info.Resources = resourcesMatch[1]
+	}
+
+	return info, nil
+}
+
+// WidgetInfo holds extracted information from a Widget annotation object.
+type WidgetInfo struct {
+	Rect  []float64
+	Value string
+	DA    string
+}
+
+// decodePDFLiteral decodes a PDF literal string, handling escapes like \(, \), \\, and octal codes.
+func decodePDFLiteral(s string) string {
+	var out strings.Builder
+	r := strings.NewReader(s)
+	for r.Len() > 0 {
+		ch, _, _ := r.ReadRune()
+		if ch != '\\' {
+			out.WriteRune(ch)
+			continue
+		}
+		// Handle escape sequence
+		if r.Len() == 0 {
+			break
+		}
+		esc, _, _ := r.ReadRune()
+		switch esc {
+		case 'n':
+			out.WriteRune('\n')
+		case 'r':
+			out.WriteRune('\r')
+		case 't':
+			out.WriteRune('\t')
+		case 'b':
+			out.WriteRune('\b')
+		case 'f':
+			out.WriteRune('\f')
+		case '\\', '(', ')':
+			out.WriteRune(esc)
+		default:
+			if esc >= '0' && esc <= '7' {
+				// Octal escape
+				oct := string(esc)
+				for i := 0; i < 2 && r.Len() > 0; i++ {
+					peek, _, _ := r.ReadRune()
+					if peek >= '0' && peek <= '7' {
+						oct += string(peek)
+					} else {
+						r.UnreadRune()
+						break
+					}
+				}
+				if val, err := strconv.ParseInt(oct, 8, 32); err == nil {
+					out.WriteRune(rune(val))
+				} else {
+					out.WriteString(oct) // fallback
+				}
+			} else {
+				out.WriteRune(esc) // Unknown escape
+			}
+		}
+	}
+	return out.String()
+}
+
+// parseWidget parses a widget annotation's body.
+// It's equivalent to the Python `parse_widget` function.
+func parseWidget(objBody []byte, objs map[int][]byte) *WidgetInfo {
+	s := string(objBody)
+	if !strings.Contains(s, "/Subtype /Widget") {
+		return nil
+	}
+
+	w := &WidgetInfo{}
+
+	// Rect
+	rectMatch := rectRegex.FindStringSubmatch(s)
+	if len(rectMatch) == 5 {
+		for i := 1; i <= 4; i++ {
+			if f, err := strconv.ParseFloat(rectMatch[i], 64); err == nil {
+				w.Rect = append(w.Rect, f)
+			}
+		}
+	}
+
+	// Value /V could be a literal, a name (/Name), a hex string (<...>), or an indirect ref.
+	// Try literal first
+	if loc := valueStartRegex.FindStringIndex(s); loc != nil {
+		// loc[1] points after the '(' so pass index of '('
+		start := loc[1] - 1
+		val, _ := extractLiteralFrom(s, start)
+		w.Value = val
+	} else if m := valueNameRegex.FindStringSubmatch(s); len(m) > 1 {
+		w.Value = m[1]
+	} else if m := valueHexRegex.FindStringSubmatch(s); len(m) > 1 {
+		if bs, err := hexDecode(m[1]); err == nil {
+			w.Value = string(bs)
+		}
+	} else if m := valueRefRegex.FindStringSubmatch(s); len(m) > 1 {
+		if refNum, err := strconv.Atoi(m[1]); err == nil {
+			w.Value = resolveValueFromObj(objs, refNum)
+		}
+	}
+
+	// Default Appearance /DA
+	daMatch := daRegex.FindStringSubmatch(s)
+	if len(daMatch) > 1 {
+		w.DA = daMatch[1]
+	}
+
+	return w
+}
+
+// extractLiteralFrom finds a literal string starting at the given index of the input
+// (where the '(' is located) and decodes it handling escapes. It returns the
+// decoded string and the position after the closing ')'.
+func extractLiteralFrom(s string, startIdx int) (string, int) {
+	var buf strings.Builder
+	i := startIdx + 1 // skip '('
+	for i < len(s) {
+		ch := s[i]
+		if ch == ')' {
+			return decodePDFLiteral(buf.String()), i + 1
+		}
+		if ch == '\\' {
+			if i+1 < len(s) {
+				// copy the escaped char sequence into buf so decodePDFLiteral can process
+				buf.WriteByte('\\')
+				buf.WriteByte(s[i+1])
+				i += 2
+				continue
+			}
+			buf.WriteByte('\\')
+			i++
+			continue
+		}
+		buf.WriteByte(ch)
+		i++
+	}
+	// no closing paren
+	return decodePDFLiteral(buf.String()), i
+}
+
+// resolveValueFromObj attempts to resolve a /V that is an indirect reference
+// by reading the referenced object and extracting a literal, hex, or name value.
+func resolveValueFromObj(objs map[int][]byte, ref int) string {
+	body, ok := objs[ref]
+	if !ok {
+		return ""
+	}
+	s := string(body)
+	// Try literal inside the object
+	if loc := valueStartRegex.FindStringIndex(s); loc != nil {
+		// start points to the '('
+		start := loc[1] - 1
+		val, _ := extractLiteralFrom(s, start)
+		return val
+	}
+	// Try hex string
+	if m := valueHexRegex.FindStringSubmatch(s); len(m) > 1 {
+		if b, err := strconv.ParseUint("0", 10, 64); err == nil { // noop to keep imports
+			_ = b
+		}
+		if bs, err := hexDecode(m[1]); err == nil {
+			return string(bs)
+		}
+	}
+	// Try name
+	if m := valueNameRegex.FindStringSubmatch(s); len(m) > 1 {
+		return m[1]
+	}
+	// As a last resort, if the object body itself is a literal string (starts with '(')
+	ts := strings.TrimSpace(s)
+	if len(ts) > 0 && ts[0] == '(' {
+		val, _ := extractLiteralFrom(ts, 0)
+		return val
+	}
+	return ""
+}
+
+// hexDecode decodes a hex string (without angle brackets) into bytes.
+func hexDecode(h string) ([]byte, error) {
+	// If odd length, pad with a 0
+	if len(h)%2 == 1 {
+		h = "0" + h
+	}
+	dst := make([]byte, len(h)/2)
+	for i := 0; i < len(dst); i++ {
+		v, err := strconv.ParseUint(h[i*2:i*2+2], 16, 8)
+		if err != nil {
+			return nil, err
+		}
+		dst[i] = byte(v)
+	}
+	return dst, nil
+}
+
+// AcroFormInfo holds information from the AcroForm dictionary.
 type AcroFormInfo struct {
 	DA      string
 	HelvRef int
 }
 
-// readBytes reads all bytes from a file
-func readBytes(path string) ([]byte, error) {
-	return ioutil.ReadFile(path)
-}
-
-// writeBytes writes bytes to a file
-func writeBytes(path string, data []byte) error {
-	return ioutil.WriteFile(path, data, 0644)
-}
-
-// findObjects finds all PDF objects and returns them as a map
-func findObjects(pdfBytes []byte) map[int][]byte {
-	objs := make(map[int][]byte)
-	re := regexp.MustCompile(`(?s)(\d+)\s+0\s+obj(.*?)endobj`)
-	matches := re.FindAllSubmatch(pdfBytes, -1)
-
-	for _, match := range matches {
-		num, err := strconv.Atoi(string(match[1]))
-		if err != nil {
-			continue
-		}
-		body := strings.TrimSpace(string(match[2]))
-		objs[num] = []byte(body)
-	}
-	return objs
-}
-
-// getTrailer extracts the PDF trailer
-func getTrailer(pdfBytes []byte) []byte {
-	re := regexp.MustCompile(`(?s)trailer(.*?)startxref`)
-	match := re.FindSubmatch(pdfBytes)
-	if match == nil {
-		return []byte{}
-	}
-	return []byte(strings.TrimSpace(string(match[1])))
-}
-
-// extractPageInfo extracts information from a page object
-func extractPageInfo(objs map[int][]byte, pageObjNum int) PageInfo {
-	body := string(objs[pageObjNum])
-
-	// Get Annots list of object refs
-	var annots []int
-	annotsRe := regexp.MustCompile(`(?s)/Annots\s*\[(.*?)\]`)
-	if match := annotsRe.FindStringSubmatch(body); match != nil {
-		refsRe := regexp.MustCompile(`(\d+)\s+0\s+R`)
-		refs := refsRe.FindAllStringSubmatch(match[1], -1)
-		for _, ref := range refs {
-			if num, err := strconv.Atoi(ref[1]); err == nil {
-				annots = append(annots, num)
-			}
-		}
-	}
-
-	// Find Contents ref
-	contentsRe := regexp.MustCompile(`/Contents\s+(\d+)\s+0\s+R`)
-	var contentsRef int
-	if match := contentsRe.FindStringSubmatch(body); match != nil {
-		contentsRef, _ = strconv.Atoi(match[1])
-	}
-
-	// Find Resources
-	resRe := regexp.MustCompile(`(?s)/Resources\s*(<<.*?>>)`)
-	var resources string
-	if match := resRe.FindStringSubmatch(body); match != nil {
-		resources = match[1]
-	}
-
-	return PageInfo{
-		Body:      body,
-		Annots:    annots,
-		Contents:  contentsRef,
-		Resources: resources,
-	}
-}
-
-// parseWidget parses a widget annotation object
-func parseWidget(objBody []byte) *Widget {
-	s := string(objBody)
-
-	// Only process /Subtype /Widget
-	if !strings.Contains(s, "/Subtype /Widget") {
-		return nil
-	}
-
-	// Parse Rect
-	rectRe := regexp.MustCompile(`/Rect\s*\[\s*([\d\.-]+)\s+([\d\.-]+)\s+([\d\.-]+)\s+([\d\.-]+)\s*\]`)
-	var rect []float64
-	if match := rectRe.FindStringSubmatch(s); match != nil {
-		for i := 1; i <= 4; i++ {
-			if val, err := strconv.ParseFloat(match[i], 64); err == nil {
-				rect = append(rect, val)
-			}
-		}
-	}
-
-	// Parse Value /V (literal string)
-	var value string
-	valueRe := regexp.MustCompile(`/V\s*\(`)
-	if match := valueRe.FindStringIndex(s); match != nil {
-		start := match[1] // index after the opening '('
-		value = extractPDFLiteralString(s, start)
-	}
-
-	// Parse Default Appearance /DA
-	var da string
-	daRe := regexp.MustCompile(`/DA\s*\((.*?)\)`)
-	if match := daRe.FindStringSubmatch(s); match != nil {
-		da = match[1]
-	}
-
-	return &Widget{
-		Rect:  rect,
-		Value: value,
-		DA:    da,
-	}
-}
-
-// extractPDFLiteralString extracts a PDF literal string starting at the given position
-func extractPDFLiteralString(s string, start int) string {
-	var buf strings.Builder
-	i := start
-	length := len(s)
-
-	for i < length {
-		ch := s[i]
-		if ch == ')' {
-			break
-		}
-		if ch == '\\' && i+1 < length {
-			esc := s[i+1]
-			buf.WriteByte('\\')
-			buf.WriteByte(esc)
-			i += 2
-		} else {
-			buf.WriteByte(ch)
-			i++
-		}
-	}
-
-	return decodePDFLiteral(buf.String())
-}
-
-// decodePDFLiteral decodes PDF literal string escapes
-func decodePDFLiteral(raw string) string {
-	var out strings.Builder
-	i := 0
-	length := len(raw)
-
-	for i < length {
-		c := raw[i]
-		if c != '\\' {
-			out.WriteByte(c)
-			i++
-		} else {
-			i++
-			if i >= length {
-				break
-			}
-			e := raw[i]
-			switch e {
-			case 'n':
-				out.WriteByte('\n')
-			case 'r':
-				out.WriteByte('\r')
-			case 't':
-				out.WriteByte('\t')
-			case 'b':
-				out.WriteByte('\b')
-			case 'f':
-				out.WriteByte('\f')
-			case '\\', '(', ')':
-				out.WriteByte(e)
-			default:
-				if e >= '0' && e <= '7' {
-					// Parse octal
-					octal := string(e)
-					i++
-					for j := 0; j < 2 && i < length && raw[i] >= '0' && raw[i] <= '7'; j++ {
-						octal += string(raw[i])
-						i++
-					}
-					i-- // will be incremented at end of loop
-					if val, err := strconv.ParseInt(octal, 8, 32); err == nil {
-						out.WriteByte(byte(val))
-					} else {
-						out.WriteString(octal)
-					}
-				} else {
-					out.WriteByte(e)
-				}
-			}
-			i++
-		}
-	}
-
-	return out.String()
-}
-
-// acroformDAAndFont extracts AcroForm default appearance and font information
-func acroformDAAndFont(objs map[int][]byte) AcroFormInfo {
+// acroformDAAndFont finds the AcroForm dictionary and extracts default appearance and font info.
+func acroformDAAndFont(objs map[int][]byte) *AcroFormInfo {
+	info := &AcroFormInfo{}
 	for _, body := range objs {
 		s := string(body)
 		if strings.Contains(s, "/AcroForm") || strings.Contains(s, "/NeedAppearances") {
-			var da string
-			daRe := regexp.MustCompile(`/DA\s*\((.*?)\)`)
-			if match := daRe.FindStringSubmatch(s); match != nil {
-				da = match[1]
+			daMatch := daRegex.FindStringSubmatch(s)
+			if len(daMatch) > 1 {
+				info.DA = daMatch[1]
 			}
 
-			var fontRef int
-			drRe := regexp.MustCompile(`(?s)/DR\s*(<<.*?>>)`)
-			if match := drRe.FindStringSubmatch(s); match != nil {
-				helvRe := regexp.MustCompile(`/Helv\s+(\d+)\s+0\s+R`)
-				if helvMatch := helvRe.FindStringSubmatch(match[1]); helvMatch != nil {
-					fontRef, _ = strconv.Atoi(helvMatch[1])
+			drMatch := drRegex.FindStringSubmatch(s)
+			if len(drMatch) > 1 {
+				helvMatch := helvRegex.FindStringSubmatch(drMatch[1])
+				if len(helvMatch) > 1 {
+					if ref, err := strconv.Atoi(helvMatch[1]); err == nil {
+						info.HelvRef = ref
+					}
 				}
 			}
-
-			return AcroFormInfo{DA: da, HelvRef: fontRef}
+			return info
 		}
 	}
-	return AcroFormInfo{}
+	return info
 }
 
-// escapePDFText escapes text for PDF literal strings
+// escapePDFText escapes characters for a PDF literal string.
 func escapePDFText(t string) string {
-	t = strings.ReplaceAll(t, "\\", "\\\\")
-	t = strings.ReplaceAll(t, "(", "\\(")
-	t = strings.ReplaceAll(t, ")", "\\)")
-	return t
+	r := strings.NewReplacer(`\`, `\\`, `(`, `\(`, `)`, `\)`)
+	return r.Replace(t)
 }
 
-// buildTextDrawOps builds text drawing operations for the fields
-func buildTextDrawOps(fields []*Widget, acroDA AcroFormInfo) []byte {
+// buildTextDrawOps creates the content stream to draw flattened field values.
+// Equivalent to the Python `build_text_draw_ops` function.
+func buildTextDrawOps(fields []*WidgetInfo, acroDA *AcroFormInfo) []byte {
 	var ops []string
-
 	for _, f := range fields {
 		if f.Value == "" || len(f.Rect) != 4 {
 			continue
 		}
-
 		x0, y0, _, y1 := f.Rect[0], f.Rect[1], f.Rect[2], f.Rect[3]
+		// width := x1 - x0 // This variable was unused. REMOVED.
 		height := y1 - y0
 
-		// Derive font size from DA
 		size := 12.0
-		if f.DA != "" {
-			sizeRe := regexp.MustCompile(`(\d+(?:\.\d+)?)\s+Tf`)
-			if match := sizeRe.FindStringSubmatch(f.DA); match != nil {
-				if val, err := strconv.ParseFloat(match[1], 64); err == nil {
-					size = val
-				}
-			}
-		} else if acroDA.DA != "" {
-			sizeRe := regexp.MustCompile(`(\d+(?:\.\d+)?)\s+Tf`)
-			if match := sizeRe.FindStringSubmatch(acroDA.DA); match != nil {
-				if val, err := strconv.ParseFloat(match[1], 64); err == nil {
-					size = val
+		daString := f.DA
+		if daString == "" && acroDA != nil {
+			daString = acroDA.DA
+		}
+		if daString != "" {
+			m := fontSizeRegex.FindStringSubmatch(daString)
+			if len(m) > 1 {
+				if s, err := strconv.ParseFloat(m[1], 64); err == nil {
+					size = s
 				}
 			}
 		}
 
-		// Basic vertical centering and small left padding
 		tx := x0 + 2
-		ty := y0 + max(0, (height-size)/2.0)
+		ty := y0 + (height-size)/2.0
+		if ty < y0 {
+			ty = y0
+		}
 		text := escapePDFText(f.Value)
-
-		cmd := fmt.Sprintf("BT /Helv %.0f Tf 0 0 0 rg %.3f %.3f Td (%s) Tj ET",
-			size, tx, ty, text)
+		cmd := fmt.Sprintf("BT /Helv %.2f Tf 0 0 0 rg %.3f %.3f Td (%s) Tj ET", size, tx, ty, text)
 		ops = append(ops, cmd)
 	}
 
 	if len(ops) == 0 {
-		return []byte{}
+		return nil
 	}
 
 	content := "q\n" + strings.Join(ops, "\n") + "\nQ\n"
 	return []byte(content)
 }
 
-// max returns the maximum of two float64 values
-func max(a, b float64) float64 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// mergeFontResources merges font resources
+// mergeFontResources merges existing font dictionaries with the one needed for flattening.
+// Equivalent to the Python `merge_font_resources` function.
 func mergeFontResources(pageResourcesText, fontObjText string) string {
 	fontObjInner := strings.TrimSpace(fontObjText)
 	fontObjInner = strings.TrimPrefix(fontObjInner, "<<")
 	fontObjInner = strings.TrimSuffix(fontObjInner, ">>")
 	fontObjInner = strings.TrimSpace(fontObjInner)
 
-	procRe := regexp.MustCompile(`(?s)/ProcSet\s*(\[.*?\])`)
+	procMatch := procSetRegex.FindStringSubmatch(pageResourcesText)
 	var proc string
-	if match := procRe.FindStringSubmatch(pageResourcesText); match != nil {
-		proc = match[1]
+	if len(procMatch) > 1 {
+		proc = procMatch[1]
 	}
 
-	fontEntries := fontObjInner
-	newFont := "<< /Helv 5 0 R"
-	if fontEntries != "" {
-		newFont += " " + fontEntries
+	newFontDict := "<< /Helv 5 0 R"
+	if fontObjInner != "" {
+		newFontDict += " " + fontObjInner
 	}
-	newFont += " >>"
+	newFontDict += " >>"
 
 	if proc != "" {
-		return fmt.Sprintf("<< /Font %s /ProcSet %s >>", newFont, proc)
+		return fmt.Sprintf("<< /Font %s /ProcSet %s >>", newFontDict, proc)
 	}
-	return fmt.Sprintf("<< /Font %s >>", newFont)
+	return fmt.Sprintf("<< /Font %s >>", newFontDict)
 }
 
-// rebuildPDF rebuilds the PDF with modifications
+// rebuildPDF constructs the new PDF file from original and modified objects.
+// Equivalent to the Python `rebuild_pdf` function.
 func rebuildPDF(objs map[int][]byte, modifiedObjs map[int][]byte, trailerRaw []byte, outPath string) error {
-	// Build header
-	header := []byte("%PDF-1.4\n%\xFF\xFF\xFF\xFF\n")
+	var out bytes.Buffer
+	header := "%PDF-1.4\n%\xff\xff\xff\xff\n"
+	out.WriteString(header)
 
-	// Find max object number
 	maxObj := 0
-	for num := range objs {
-		if num > maxObj {
-			maxObj = num
+	for k := range objs {
+		if k > maxObj {
+			maxObj = k
 		}
 	}
-	for num := range modifiedObjs {
-		if num > maxObj {
-			maxObj = num
+	for k := range modifiedObjs {
+		if k > maxObj {
+			maxObj = k
 		}
 	}
 
-	var out []byte
-	out = append(out, header...)
-	offsets := make(map[int]int)
-	offsets[0] = 0
-
-	// Write objects
+	offsets := make([]int, maxObj+1)
 	for i := 1; i <= maxObj; i++ {
-		offsets[i] = len(out)
-
-		var body []byte
-		if modBody, exists := modifiedObjs[i]; exists {
-			body = modBody
-		} else if origBody, exists := objs[i]; exists {
-			body = origBody
-		} else {
+		offsets[i] = out.Len()
+		body, ok := modifiedObjs[i]
+		if !ok {
+			body, ok = objs[i]
+		}
+		if !ok {
+			// Emit null object to preserve numbering
 			body = []byte("<< /Type /Null >>")
 		}
 
-		objHeader := fmt.Sprintf("%d 0 obj\n", i)
-		out = append(out, []byte(objHeader)...)
-		out = append(out, body...)
-		out = append(out, []byte("\nendobj\n")...)
+		fmt.Fprintf(&out, "%d 0 obj\n", i)
+		out.Write(body)
+		out.WriteString("\nendobj\n")
 	}
 
-	// Write xref table
-	xrefOffset := len(out)
-	out = append(out, []byte("xref\n")...)
-	out = append(out, []byte(fmt.Sprintf("0 %d\n", maxObj+1))...)
-	out = append(out, []byte("0000000000 65535 f \n")...)
-
+	xrefOffset := out.Len()
+	fmt.Fprintf(&out, "xref\n0 %d\n", maxObj+1)
+	out.WriteString("0000000000 65535 f \n")
 	for i := 1; i <= maxObj; i++ {
-		out = append(out, []byte(fmt.Sprintf("%010d 00000 n \n", offsets[i]))...)
+		fmt.Fprintf(&out, "%010d 00000 n \n", offsets[i])
 	}
 
-	// Write trailer
+	// Update trailer size
 	tr := string(trailerRaw)
-	sizeRe := regexp.MustCompile(`/Size\s+\d+`)
-	if sizeRe.MatchString(tr) {
-		tr = sizeRe.ReplaceAllString(tr, fmt.Sprintf("/Size %d", maxObj+1))
+	newSize := fmt.Sprintf("/Size %d", maxObj+1)
+	if strings.Contains(tr, "/Size") {
+		tr = sizeRegex.ReplaceAllString(tr, newSize)
 	} else {
-		tr = tr + fmt.Sprintf("\n/Size %d", maxObj+1)
+		tr += "\n" + newSize
 	}
 
-	out = append(out, []byte("trailer\n")...)
-	out = append(out, []byte(tr)...)
-	out = append(out, []byte("\nstartxref\n")...)
-	out = append(out, []byte(fmt.Sprintf("%d\n", xrefOffset))...)
-	out = append(out, []byte("%%EOF\n")...)
+	out.WriteString("trailer\n")
+	out.WriteString(tr)
+	fmt.Fprintf(&out, "\nstartxref\n%d\n%%%%EOF\n", xrefOffset)
 
-	return writeBytes(outPath, out)
-}
-
-// rebuildPDFBytes is like rebuildPDF but returns the PDF bytes instead of writing to disk.
-func rebuildPDFBytes(objs map[int][]byte, modifiedObjs map[int][]byte, trailerRaw []byte) ([]byte, error) {
-	// Build header
-	header := []byte("%PDF-1.4\n%\xFF\xFF\xFF\xFF\n")
-
-	// Find max object number
-	maxObj := 0
-	for num := range objs {
-		if num > maxObj {
-			maxObj = num
-		}
-	}
-	for num := range modifiedObjs {
-		if num > maxObj {
-			maxObj = num
-		}
-	}
-
-	var out []byte
-	out = append(out, header...)
-	offsets := make(map[int]int)
-	offsets[0] = 0
-
-	// Write objects
-	for i := 1; i <= maxObj; i++ {
-		offsets[i] = len(out)
-
-		var body []byte
-		if modBody, exists := modifiedObjs[i]; exists {
-			body = modBody
-		} else if origBody, exists := objs[i]; exists {
-			body = origBody
-		} else {
-			body = []byte("<< /Type /Null >>")
-		}
-
-		objHeader := fmt.Sprintf("%d 0 obj\n", i)
-		out = append(out, []byte(objHeader)...)
-		out = append(out, body...)
-		out = append(out, []byte("\nendobj\n")...)
-	}
-
-	// Write xref table
-	xrefOffset := len(out)
-	out = append(out, []byte("xref\n")...)
-	out = append(out, []byte(fmt.Sprintf("0 %d\n", maxObj+1))...)
-	out = append(out, []byte("0000000000 65535 f \n")...)
-
-	for i := 1; i <= maxObj; i++ {
-		out = append(out, []byte(fmt.Sprintf("%010d 00000 n \n", offsets[i]))...)
-	}
-
-	// Write trailer
-	tr := string(trailerRaw)
-	sizeRe := regexp.MustCompile(`/Size\s+\d+`)
-	if sizeRe.MatchString(tr) {
-		tr = sizeRe.ReplaceAllString(tr, fmt.Sprintf("/Size %d", maxObj+1))
-	} else {
-		tr = tr + fmt.Sprintf("\n/Size %d", maxObj+1)
-	}
-
-	out = append(out, []byte("trailer\n")...)
-	out = append(out, []byte(tr)...)
-	out = append(out, []byte("\nstartxref\n")...)
-	out = append(out, []byte(fmt.Sprintf("%d\n", xrefOffset))...)
-	out = append(out, []byte("%%EOF\n")...)
-
-	return out, nil
-}
-
-// FlattenPDFBytes flattens form fields from the input PDF bytes and returns a new PDF as bytes.
-func FlattenPDFBytes(pdf []byte) ([]byte, error) {
-	objs := findObjects(pdf)
-	trailer := getTrailer(pdf)
-
-	// Find page object
-	var pageNum int
-	found := false
-	for num, body := range objs {
-		if strings.Contains(string(body), "/Type /Page") {
-			pageNum = num
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return nil, fmt.Errorf("no page object found")
-	}
-
-	pinfo := extractPageInfo(objs, pageNum)
-
-	var fields []*Widget
-	var annotsToKeep []int
-
-	for _, a := range pinfo.Annots {
-		if objBody, exists := objs[a]; exists {
-			w := parseWidget(objBody)
-			if w == nil {
-				annotsToKeep = append(annotsToKeep, a)
-				continue
-			}
-
-			// Check if it's a button
-			s := string(objBody)
-			isButton := strings.Contains(s, "/FT /Btn")
-
-			if !isButton {
-				// Check parent for button type
-				parentRe := regexp.MustCompile(`/Parent\s+(\d+)\s+0\s+R`)
-				if match := parentRe.FindStringSubmatch(s); match != nil {
-					if pnum, err := strconv.Atoi(match[1]); err == nil {
-						if parentBody, exists := objs[pnum]; exists {
-							if strings.Contains(string(parentBody), "/FT /Btn") {
-								isButton = true
-							}
-						}
-					}
-				}
-			}
-
-			if isButton {
-				annotsToKeep = append(annotsToKeep, a)
-			} else if w.Value != "" {
-				fields = append(fields, w)
-			}
-		}
-	}
-
-	acro := acroformDAAndFont(objs)
-	contentBytes := buildTextDrawOps(fields, acro)
-
-	if len(contentBytes) == 0 {
-		// No overlay content; return original PDF bytes
-		return pdf, nil
-	}
-
-	// Create new content stream object
-	nextObj := maxObj(objs) + 1
-	streamBody := fmt.Sprintf("<< /Length %d >>\nstream\n", len(contentBytes))
-	streamBodyBytes := append([]byte(streamBody), contentBytes...)
-	streamBodyBytes = append(streamBodyBytes, []byte("\nendstream")...)
-
-	// Modify page object
-	pageBody := string(objs[pageNum])
-
-	// Update Annots
-	if len(annotsToKeep) > 0 {
-		var annotsStrs []string
-		for _, n := range annotsToKeep {
-			annotsStrs = append(annotsStrs, fmt.Sprintf("%d 0 R", n))
-		}
-		annotsStr := strings.Join(annotsStrs, " ")
-		annotsRe := regexp.MustCompile(`(?s)/Annots\s*\[.*?\]`)
-		pageBody = annotsRe.ReplaceAllString(pageBody, fmt.Sprintf("/Annots [ %s ]", annotsStr))
-	} else {
-		annotsRe := regexp.MustCompile(`(?s)/Annots\s*\[.*?\]\s*`)
-		pageBody = annotsRe.ReplaceAllString(pageBody, "")
-	}
-
-	// Update Contents
-	contentsRe := regexp.MustCompile(`/Contents\s+\d+\s+0\s+R`)
-	pageBody = contentsRe.ReplaceAllString(pageBody,
-		fmt.Sprintf("/Contents [ %d 0 R %d 0 R ]", pinfo.Contents, nextObj))
-
-	// Handle font resources if present
-	if pinfo.Resources != "" {
-		fontRe := regexp.MustCompile(`/Font\s+(\d+)\s+0\s+R`)
-		if match := fontRe.FindStringSubmatch(pinfo.Resources); match != nil {
-			if fontRefNum, err := strconv.Atoi(match[1]); err == nil {
-				if fontObjBody, exists := objs[fontRefNum]; exists {
-					newRes := mergeFontResources(pinfo.Resources, string(fontObjBody))
-					resRe := regexp.MustCompile(`(?s)/Resources\s*<<.*?>>`)
-					pageBody = resRe.ReplaceAllString(pageBody, "/Resources "+newRes)
-				}
-			}
-		}
-	}
-
-	// Prepare modified objects
-	modified := make(map[int][]byte)
-	modified[nextObj] = streamBodyBytes
-	modified[pageNum] = []byte(pageBody)
-
-	// Rebuild PDF in-memory and return bytes
-	outBytes, err := rebuildPDFBytes(objs, modified, trailer)
-	if err != nil {
-		return nil, err
-	}
-	return outBytes, nil
+	return os.WriteFile(outPath, out.Bytes(), 0644)
 }
 
 func main() {
@@ -612,71 +504,67 @@ func main() {
 		fmt.Println("Usage: go run flatten_pdf.go input.pdf output.pdf")
 		os.Exit(1)
 	}
-
 	inp := os.Args[1]
 	outp := os.Args[2]
 
-	pdf, err := readBytes(inp)
+	pdf, err := os.ReadFile(inp)
 	if err != nil {
-		fmt.Printf("Error reading input file: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error reading input file: %v", err)
 	}
 
 	objs := findObjects(pdf)
 	trailer := getTrailer(pdf)
 
 	// Find page object
-	var pageNum int
-	found := false
+	pageNum := -1
 	for num, body := range objs {
-		if strings.Contains(string(body), "/Type /Page") {
+		if bytes.Contains(body, []byte("/Type /Page")) {
 			pageNum = num
-			found = true
 			break
 		}
 	}
-
-	if !found {
-		fmt.Println("No page object found.")
-		os.Exit(1)
+	if pageNum == -1 {
+		log.Fatal("No page object found.")
 	}
 
-	pinfo := extractPageInfo(objs, pageNum)
+	pinfo, err := extractPageInfo(objs, pageNum)
+	if err != nil {
+		log.Fatalf("Error extracting page info: %v", err)
+	}
 
-	var fields []*Widget
+	var fields []*WidgetInfo
 	var annotsToKeep []int
-
 	for _, a := range pinfo.Annots {
-		if objBody, exists := objs[a]; exists {
-			w := parseWidget(objBody)
-			if w == nil {
-				annotsToKeep = append(annotsToKeep, a)
-				continue
-			}
+		raw, ok := objs[a]
+		if !ok {
+			continue
+		}
 
-			// Check if it's a button
-			s := string(objBody)
-			isButton := strings.Contains(s, "/FT /Btn")
+		w := parseWidget(raw, objs)
+		if w == nil {
+			annotsToKeep = append(annotsToKeep, a)
+			continue
+		}
 
-			if !isButton {
-				// Check parent for button type
-				parentRe := regexp.MustCompile(`/Parent\s+(\d+)\s+0\s+R`)
-				if match := parentRe.FindStringSubmatch(s); match != nil {
-					if pnum, err := strconv.Atoi(match[1]); err == nil {
-						if parentBody, exists := objs[pnum]; exists {
-							if strings.Contains(string(parentBody), "/FT /Btn") {
-								isButton = true
-							}
-						}
-					}
+		// Check if the widget is a button/checkbox to preserve it
+		isButton := false
+		s := string(raw)
+		if strings.Contains(s, "/FT /Btn") {
+			isButton = true
+		} else {
+			pm := parentRegex.FindStringSubmatch(s)
+			if len(pm) > 1 {
+				pnum, _ := strconv.Atoi(pm[1])
+				if pbody, pexists := objs[pnum]; pexists && bytes.Contains(pbody, []byte("/FT /Btn")) {
+					isButton = true
 				}
 			}
+		}
 
-			if isButton {
-				annotsToKeep = append(annotsToKeep, a)
-			} else if w.Value != "" {
-				fields = append(fields, w)
-			}
+		if isButton {
+			annotsToKeep = append(annotsToKeep, a)
+		} else if w.Value != "" {
+			fields = append(fields, w)
 		}
 	}
 
@@ -689,76 +577,58 @@ func main() {
 
 	if len(contentBytes) == 0 {
 		fmt.Println("No overlay content to add; writing original file copy.")
-		if err := writeBytes(outp, pdf); err != nil {
-			fmt.Printf("Error writing output file: %v\n", err)
-			os.Exit(1)
+		if err := os.WriteFile(outp, pdf, 0644); err != nil {
+			log.Fatalf("Failed to write output file: %v", err)
 		}
 		return
 	}
 
 	// Create new content stream object
-	nextObj := maxObj(objs) + 1
-	streamBody := fmt.Sprintf("<< /Length %d >>\nstream\n", len(contentBytes))
-	streamBodyBytes := append([]byte(streamBody), contentBytes...)
-	streamBodyBytes = append(streamBodyBytes, []byte("\nendstream")...)
+	nextObj := 0
+	for k := range objs {
+		if k > nextObj {
+			nextObj = k
+		}
+	}
+	nextObj++
+
+	streamBody := fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", len(contentBytes), contentBytes)
 
 	// Modify page object
-	pageBody := string(objs[pageNum])
-
-	// Update Annots
+	pageBody := pinfo.Body
 	if len(annotsToKeep) > 0 {
-		var annotsStrs []string
+		var annotsRefs []string
 		for _, n := range annotsToKeep {
-			annotsStrs = append(annotsStrs, fmt.Sprintf("%d 0 R", n))
+			annotsRefs = append(annotsRefs, fmt.Sprintf("%d 0 R", n))
 		}
-		annotsStr := strings.Join(annotsStrs, " ")
-		annotsRe := regexp.MustCompile(`(?s)/Annots\s*\[.*?\]`)
-		pageBody = annotsRe.ReplaceAllString(pageBody, fmt.Sprintf("/Annots [ %s ]", annotsStr))
+		newAnnots := fmt.Sprintf("/Annots [ %s ]", strings.Join(annotsRefs, " "))
+		pageBody = annotsRegex.ReplaceAllString(pageBody, newAnnots)
 	} else {
-		annotsRe := regexp.MustCompile(`(?s)/Annots\s*\[.*?\]\s*`)
-		pageBody = annotsRe.ReplaceAllString(pageBody, "")
+		pageBody = annotsReplaceRegex.ReplaceAllString(pageBody, "")
 	}
+	newContents := fmt.Sprintf("/Contents [ %d 0 R %d 0 R ]", pinfo.Contents, nextObj)
+	pageBody = contentsReplaceRegex.ReplaceAllString(pageBody, newContents)
 
-	// Update Contents
-	contentsRe := regexp.MustCompile(`/Contents\s+\d+\s+0\s+R`)
-	pageBody = contentsRe.ReplaceAllString(pageBody,
-		fmt.Sprintf("/Contents [ %d 0 R %d 0 R ]", pinfo.Contents, nextObj))
-
-	// Handle font resources if present
+	// Merge font resources
 	if pinfo.Resources != "" {
-		fontRe := regexp.MustCompile(`/Font\s+(\d+)\s+0\s+R`)
-		if match := fontRe.FindStringSubmatch(pinfo.Resources); match != nil {
-			if fontRefNum, err := strconv.Atoi(match[1]); err == nil {
-				if fontObjBody, exists := objs[fontRefNum]; exists {
-					newRes := mergeFontResources(pinfo.Resources, string(fontObjBody))
-					resRe := regexp.MustCompile(`(?s)/Resources\s*<<.*?>>`)
-					pageBody = resRe.ReplaceAllString(pageBody, "/Resources "+newRes)
-				}
+		m := fontRefRegex.FindStringSubmatch(pinfo.Resources)
+		if len(m) > 1 {
+			fontRefNum, _ := strconv.Atoi(m[1])
+			if fontObjBytes, ok := objs[fontRefNum]; ok {
+				newRes := mergeFontResources(pinfo.Resources, string(fontObjBytes))
+				pageBody = resourcesReplaceRegex.ReplaceAllString(pageBody, "/Resources "+newRes)
 			}
 		}
 	}
 
-	// Prepare modified objects
 	modified := make(map[int][]byte)
-	modified[nextObj] = streamBodyBytes
+	modified[nextObj] = []byte(streamBody)
 	modified[pageNum] = []byte(pageBody)
 
-	// Rebuild PDF
+	// Rebuild and write PDF
 	if err := rebuildPDF(objs, modified, trailer, outp); err != nil {
-		fmt.Printf("Error rebuilding PDF: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to rebuild PDF: %v", err)
 	}
 
-	fmt.Printf("Wrote flattened PDF to %s\n", outp)
-}
-
-// maxObj returns the maximum object number
-func maxObj(objs map[int][]byte) int {
-	max := 0
-	for num := range objs {
-		if num > max {
-			max = num
-		}
-	}
-	return max
+	fmt.Println("Wrote flattened PDF to", outp)
 }
