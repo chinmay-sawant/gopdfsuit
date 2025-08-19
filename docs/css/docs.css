@@ -573,6 +573,46 @@ body {
   border: 1px solid var(--border-color);
 }
 
+/* Comparison table styling */
+.table-wrap {
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-color);
+  font-size: 0.95rem;
+}
+.comparison-table caption {
+  color: var(--text-muted);
+}
+.comparison-table th,
+.comparison-table td {
+  border: 1px solid var(--border-color);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.comparison-table thead th {
+  background: var(--surface-elev-1);
+  font-weight: 600;
+}
+.comparison-table tbody tr:nth-child(odd) {
+  background: var(--surface-elev-0);
+}
+.comparison-table td {
+  line-height: 1.35;
+}
+
+@media (max-width: 700px) {
+  .comparison-table th,
+  .comparison-table td {
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .sidebar {

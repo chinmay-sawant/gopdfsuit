@@ -357,163 +357,100 @@
             <code>sampledata/json</code> (results may vary by machine).
           </p>
           <div class="code-block">
-            <table style="width: 100%; border-collapse: collapse">
-              <thead>
-                <tr>
-                  <th
-                    style="
-                      border: 1px solid var(--border-color);
-                      padding: 8px;
-                      text-align: left;
-                    "
-                  >
-                    Feature / Tool
-                  </th>
-                  <th
-                    style="
-                      border: 1px solid var(--border-color);
-                      padding: 8px;
-                      text-align: left;
-                    "
-                  >
-                    GoPdfSuit (OSS)
-                  </th>
-                  <th
-                    style="
-                      border: 1px solid var(--border-color);
-                      padding: 8px;
-                      text-align: left;
-                    "
-                  >
-                    Licensed SDKs (e.g., Aspose)
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    In-memory generation
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    ✅ Yes — very fast (millisecond-scale generation from JSON
-                    in local tests)
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    ✅ Yes — enterprise-grade
-                  </td>
-                </tr>
-                <tr>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Template-driven (JSON)
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    ✅ Native JSON templates for quick generation
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    ❌ Usually API-based or proprietary templates
-                  </td>
-                </tr>
-                <tr>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    AcroForm / XFDF filling
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    ✅ Supported (heuristic XFDF handling; fills in-memory).
-                    Fill operations measured up to ~12ms locally.
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    ✅ Robust appearance and enterprise features
-                  </td>
-                </tr>
-                <tr>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Cost & License
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    ✅ Free — MIT license (Open Source)
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    ❌ Commercial license (cost applies)
-                  </td>
-                </tr>
-                <tr>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Appearance streams
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Limited — relies on viewer regeneration (/NeedAppearances)
-                    for some PDFs
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Full support — generates appearances and advanced rendering
-                  </td>
-                </tr>
-                <tr>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Deployment
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Single binary, no external runtime
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Library or hosted service (varies)
-                  </td>
-                </tr>
-                <tr>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Support
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Community & repo issues
-                  </td>
-                  <td
-                    style="border: 1px solid var(--border-color); padding: 8px"
-                  >
-                    Commercial SLA and dedicated support
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="table-wrap">
+              <table class="comparison-table">
+                <caption
+                  style="
+                    caption-side: top;
+                    text-align: left;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                  "
+                >
+                  Feature comparison: GoPdfSuit vs Aspose / iText / UniDoc
+                </caption>
+                <thead>
+                  <tr>
+                    <th>Feature / Tool</th>
+                    <th>GoPdfSuit (MIT)</th>
+                    <th>Aspose (Proprietary)</th>
+                    <th>iText (AGPL / Commercial)</th>
+                    <th>UniDoc (Commercial)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>License / Cost</td>
+                    <td>MIT — Free & Open Source</td>
+                    <td>Commercial — per-developer / per-server pricing</td>
+                    <td>
+                      AGPL (open) or Commercial license for closed-source use
+                    </td>
+                    <td>Commercial tiers (Business / Gold / Platinum)</td>
+                  </tr>
+                  <tr>
+                    <td>In-memory generation (speed)</td>
+                    <td>
+                      ✅ In-memory — millisecond-scale generation (JSON
+                      templates, local tests)
+                    </td>
+                    <td>✅ High-performance enterprise generation (varies)</td>
+                    <td>✅ High-performance, depends on integration</td>
+                    <td>✅ High-performance, optimized SDK</td>
+                  </tr>
+                  <tr>
+                    <td>Template-driven (JSON)</td>
+                    <td>✅ Native JSON templates for fast authoring</td>
+                    <td>❌ Typically API/SDK-based, not JSON template-first</td>
+                    <td>❌ API/library-based (templates via code)</td>
+                    <td>❌ SDK / API-based (code-first)</td>
+                  </tr>
+                  <tr>
+                    <td>AcroForm / XFDF filling & appearance</td>
+                    <td>
+                      ✅ XFDF filling (heuristic injection). Appearance may rely
+                      on viewer (/NeedAppearances). Fill up to ~12ms in local
+                      tests.
+                    </td>
+                    <td>
+                      ✅ Full AcroForm support + appearance stream generation
+                    </td>
+                    <td>✅ Full AcroForm & appearance control via API</td>
+                    <td>✅ Full support; commercial appearance handling</td>
+                  </tr>
+                  <tr>
+                    <td>Appearance streams / viewer compatibility</td>
+                    <td>
+                      Limited — best-effort; some viewers may regenerate
+                      appearances
+                    </td>
+                    <td>
+                      Full support — appearance streams generated reliably
+                    </td>
+                    <td>Full support via API</td>
+                    <td>Full support (enterprise features)</td>
+                  </tr>
+                  <tr>
+                    <td>Deployment</td>
+                    <td>Single binary, no external runtime required</td>
+                    <td>
+                      Library or service; commercial deployments supported
+                    </td>
+                    <td>
+                      Library for integration; commercial options available
+                    </td>
+                    <td>SDKs with enterprise deployment options</td>
+                  </tr>
+                  <tr>
+                    <td>Support & SLA</td>
+                    <td>Community support (GitHub issues)</td>
+                    <td>Commercial support and SLAs</td>
+                    <td>Commercial support available with license</td>
+                    <td>Commercial support with tiers and SLA</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 
