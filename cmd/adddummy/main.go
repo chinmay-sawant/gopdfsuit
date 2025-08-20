@@ -84,13 +84,13 @@ func main() {
 		}
 		// escape value for PDF literal string
 		esc := escapePDFString(val)
-
 		// choose literal string or name token depending on value
 		var insertion []byte
-		// prepare AP object for visible appearance
-		// only create AP for text-like values (we'll create for all non-empty values)
+		// detect if this widget is a button (checkbox/radio)
+		isButton := bytes.Contains(dictBytes, []byte("/FT/Btn")) || bytes.Contains(dictBytes, []byte("/FT /Btn"))
+		// prepare AP object for visible appearance for non-button fields
 		apNum := -1
-		if val != "" {
+		if val != "" && !isButton {
 			apNum = nextObj
 			nextObj++
 			// parse Rect to compute BBox
@@ -115,19 +115,40 @@ func main() {
 			apObjs = append(apObjs, apObj{num: apNum, data: objBytes})
 		}
 
-		if isPDFName(val) {
-			// name object (no parentheses)
-			if apNum > 0 {
-				insertion = []byte(" /V /" + val + fmt.Sprintf(" /AP<</N %d 0 R>>", apNum))
-			} else {
-				insertion = []byte(" /V /" + val)
+		if isButton {
+			// For button fields (checkbox/radio) set /V and /AS to a name
+			// Determine the 'on' appearance name from the AP if present
+			onName := "On"
+			if bytes.Contains(dictBytes, []byte("/Yes")) {
+				onName = "Yes"
 			}
+			if bytes.Contains(dictBytes, []byte("/On")) {
+				onName = "On"
+			}
+			// interpret a variety of truthy values as checked
+			lv := strings.ToLower(strings.TrimSpace(val))
+			checked := lv == "yes" || lv == "y" || lv == "true" || lv == "1" || lv == "on" || lv == "checked"
+			chosen := "Off"
+			if checked {
+				chosen = onName
+			}
+			// set value and appearance state as name tokens
+			insertion = []byte(" /V /" + chosen + " /AS/" + chosen)
 		} else {
-			// escape value for PDF literal string
-			if apNum > 0 {
-				insertion = []byte(" /V (" + esc + ")" + fmt.Sprintf(" /AP<</N %d 0 R>>", apNum))
+			if isPDFName(val) {
+				// name object (no parentheses)
+				if apNum > 0 {
+					insertion = []byte(" /V /" + val + fmt.Sprintf(" /AP<</N %d 0 R>>", apNum))
+				} else {
+					insertion = []byte(" /V /" + val)
+				}
 			} else {
-				insertion = []byte(" /V (" + esc + ")")
+				// escape value for PDF literal string
+				if apNum > 0 {
+					insertion = []byte(" /V (" + esc + ")" + fmt.Sprintf(" /AP<</N %d 0 R>>", apNum))
+				} else {
+					insertion = []byte(" /V (" + esc + ")")
+				}
 			}
 		}
 
@@ -135,6 +156,11 @@ func main() {
 		if !bytes.Contains(dictBytes, []byte("/DA(")) {
 			// prepend DA insertion as well
 			insertion = append([]byte(" /DA(/Helv 12 Tf 0 g)"), insertion...)
+		}
+
+		// ensure widget field is read-only (set /Ff 1) so it's not editable/clickable
+		if !bytes.Contains(dictBytes, []byte("/Ff")) {
+			insertion = append([]byte(" /Ff 1"), insertion...)
 		}
 
 		// insert before the closing >> (r.end points just after the >>)
