@@ -542,7 +542,7 @@ func FlattenPDFBytes(pdf []byte) ([]byte, error) {
 	}
 
 	if len(pageNumbers) == 0 {
-		log.Fatal("No page object found.")
+		return nil, fmt.Errorf("no page object found")
 	}
 
 	// Choose the page with the most annotations (most likely to be the form page)

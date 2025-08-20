@@ -8,8 +8,12 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
+
+	pdfpkg "github.com/chinmay-sawant/gopdfsuit/internal/pdf"
 )
 
 // CLI tool: insert /V (dummy) into widget annotation dictionaries that lack /V
@@ -35,7 +39,10 @@ func main() {
 	fmt.Printf("debug: found %d candidate widget dict ranges\n", len(inds))
 	if len(inds) == 0 {
 		fmt.Println("No widget dictionaries found")
-		if err := os.WriteFile(*outPath, b, 0644); err != nil {
+		// ensure viewers will regenerate appearances when needed
+		b2 := addAcroFormIfMissing(b)
+		bWithNA := ensureNeedAppearances(b2)
+		if err := os.WriteFile(*outPath, bWithNA, 0644); err != nil {
 			log.Fatalf("failed to write output: %v", err)
 		}
 		fmt.Printf("wrote copy to %s\n", *outPath)
@@ -83,10 +90,148 @@ func main() {
 		modified++
 	}
 
-	if err := os.WriteFile(*outPath, out, 0644); err != nil {
+	// If an XFDF file exists, call the internal PDF helper to generate appearances (/AP)
+	if xfdfBytes, rerr := os.ReadFile(xfdfPath); rerr == nil && len(xfdfBytes) > 0 {
+		if filled, ferr := pdfpkg.FillPDFWithXFDF(out, xfdfBytes); ferr == nil {
+			out = filled
+		} else {
+			fmt.Printf("debug: FillPDFWithXFDF failed: %v\n", ferr)
+		}
+	}
+
+	out2 := addAcroFormIfMissing(out)
+	out3 := ensureNeedAppearances(out2)
+	if err := os.WriteFile(*outPath, out3, 0644); err != nil {
 		log.Fatalf("failed to write output: %v", err)
 	}
 	fmt.Printf("wrote modified PDF to %s (modified %d widgets)\n", *outPath, modified)
+}
+
+// addAcroFormIfMissing ensures the Catalog (object 1) contains an /AcroForm
+// reference. If absent it appends a minimal AcroForm object with
+// /NeedAppearances true and an empty /Fields array, and references it from the Catalog.
+func addAcroFormIfMissing(pdf []byte) []byte {
+	if bytes.Contains(pdf, []byte("/AcroForm")) {
+		return pdf
+	}
+	// find highest object number
+	objRe := regexp.MustCompile(`(?m)^(\d+)\s+0\s+obj`)
+	matches := objRe.FindAllSubmatch(pdf, -1)
+	highest := 0
+	for _, m := range matches {
+		if n, err := strconv.Atoi(string(m[1])); err == nil && n > highest {
+			highest = n
+		}
+	}
+	next := highest + 1
+
+	// find Catalog object (1 0 obj)
+	objHeader := []byte("1 0 obj")
+	objPos := bytes.Index(pdf, objHeader)
+	if objPos < 0 {
+		return pdf
+	}
+	dictStartRel := bytes.Index(pdf[objPos:], []byte("<<"))
+	if dictStartRel < 0 {
+		return pdf
+	}
+	dictStart := objPos + dictStartRel
+	// find matching >>
+	depth := 0
+	i := dictStart
+	dictEnd := -1
+	for i < len(pdf)-1 {
+		if i+1 < len(pdf) && pdf[i] == '<' && pdf[i+1] == '<' {
+			depth++
+			i += 2
+			continue
+		}
+		if i+1 < len(pdf) && pdf[i] == '>' && pdf[i+1] == '>' {
+			depth--
+			i += 2
+			if depth == 0 {
+				dictEnd = i
+				break
+			}
+			continue
+		}
+		i++
+	}
+	if dictEnd < 0 {
+		return pdf
+	}
+	// insert AcroForm reference into Catalog dict
+	acRef := []byte(fmt.Sprintf(" /AcroForm %d 0 R", next))
+	pdf = append(pdf[:dictEnd], append(acRef, pdf[dictEnd:]...)...)
+
+	// prepare minimal AcroForm object
+	acObj := []byte(fmt.Sprintf("\n%d 0 obj\n<< /NeedAppearances true /Fields [] >>\nendobj\n", next))
+	// insert before startxref if present, else append
+	sx := bytes.LastIndex(pdf, []byte("startxref"))
+	if sx >= 0 {
+		pdf = append(pdf[:sx], append(acObj, pdf[sx:]...)...)
+	} else {
+		pdf = append(pdf, acObj...)
+	}
+	return pdf
+}
+
+// ensureNeedAppearances sets /NeedAppearances true in the AcroForm dictionary
+// if an AcroForm object is present. It returns the possibly-modified bytes.
+func ensureNeedAppearances(pdf []byte) []byte {
+	acRe := regexp.MustCompile(`/AcroForm\s+(\d+)\s0\sR`)
+	am := acRe.FindSubmatch(pdf)
+	if len(am) <= 1 {
+		// no AcroForm reference found; nothing to do
+		return pdf
+	}
+	objNum := string(am[1])
+	objHeader := []byte(fmt.Sprintf("%s 0 obj", objNum))
+	objPos := bytes.Index(pdf, objHeader)
+	if objPos < 0 {
+		return pdf
+	}
+	dictStartRel := bytes.Index(pdf[objPos:], []byte("<<"))
+	if dictStartRel < 0 {
+		return pdf
+	}
+	dictStart := objPos + dictStartRel
+	// find matching >> using depth count
+	depth := 0
+	i := dictStart
+	dictEnd := -1
+	for i < len(pdf)-1 {
+		if i+1 < len(pdf) && pdf[i] == '<' && pdf[i+1] == '<' {
+			depth++
+			i += 2
+			continue
+		}
+		if i+1 < len(pdf) && pdf[i] == '>' && pdf[i+1] == '>' {
+			depth--
+			i += 2
+			if depth == 0 {
+				dictEnd = i
+				break
+			}
+			continue
+		}
+		i++
+	}
+	if dictEnd < 0 {
+		return pdf
+	}
+	dictBytes := pdf[dictStart:dictEnd]
+	// if NeedAppearances exists, set it to true; otherwise insert before closing >>
+	needRe := regexp.MustCompile(`\s*/NeedAppearances\s+(?:true|false)`)
+	if needRe.Match(dictBytes) {
+		// replace existing occurrence inside the slice
+		pdf = needRe.ReplaceAll(pdf, []byte(" /NeedAppearances true"))
+		return pdf
+	}
+	// insert ' /NeedAppearances true' before dictEnd
+	insertion := []byte(" /NeedAppearances true")
+	out := append(pdf[:dictEnd], append(insertion, pdf[dictEnd:]...)...)
+	return out
 }
 
 // isPDFName returns true when s is safe to write as a PDF name object (no spaces or delimiter chars)
@@ -95,7 +240,7 @@ func isPDFName(s string) bool {
 		return false
 	}
 	// PDF name must not contain whitespace or delimiters: ()<>[]/% or space
-	if strings.IndexAny(s, "()<>[]/%\\ \t\n\r\f") >= 0 {
+	if strings.ContainsAny(s, "()<>[]/%\\ \t\n\r\f") {
 		return false
 	}
 	// additionally avoid names that start with a digit-only value like "123"? it's fine, allow it
