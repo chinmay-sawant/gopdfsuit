@@ -76,7 +76,7 @@ func main() {
 		// determine field name (T) inside this widget dict and look up xfdf map
 		dictBytes := out[r.start:r.end]
 		fieldName := extractFieldName(dictBytes)
-		val := "dummy"
+		val := ""
 		if fieldName != "" {
 			if v, ok := xfdfMap[fieldName]; ok {
 				val = v
@@ -349,12 +349,12 @@ func isPDFName(s string) bool {
 	if s == "" {
 		return false
 	}
-	// PDF name must not contain whitespace or delimiters: ()<>[]/% or space
-	if strings.ContainsAny(s, "()<>[]/%\\ \t\n\r\f") {
-		return false
-	}
-	// additionally avoid names that start with a digit-only value like "123"? it's fine, allow it
-	return true
+	// Only treat values that look like simple identifiers as PDF names.
+	// This avoids interpreting dates like "2025-08-20" or values with hyphens
+	// as name objects. Allow letters, digits and underscore, and require the
+	// first character be a letter or underscore (no leading hyphen or digit).
+	matched, _ := regexp.MatchString(`^[A-Za-z_][A-Za-z0-9_]*$`, s)
+	return matched
 }
 
 type rng struct{ start, end int }
