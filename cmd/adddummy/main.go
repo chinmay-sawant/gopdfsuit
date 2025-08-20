@@ -12,14 +12,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	pdfpkg "github.com/chinmay-sawant/gopdfsuit/internal/pdf"
 )
 
 // CLI tool: insert /V (dummy) into widget annotation dictionaries that lack /V
 func main() {
-	inPath := flag.String("in", "sampledata/patient2/patient2.pdf", "input PDF path")
-	outPath := flag.String("out", "sampledata/patient2/output.pdf", "output PDF path")
+	inPath := flag.String("in", "../../sampledata/patient2/patient2.pdf", "input PDF path")
+	outPath := flag.String("out", "../../sampledata/patient2/output.pdf", "output PDF path")
 	flag.Parse()
 
 	b, err := os.ReadFile(*inPath)
@@ -51,6 +49,23 @@ func main() {
 
 	sort.Slice(inds, func(i, j int) bool { return inds[i].start > inds[j].start })
 	out := b
+	// compute highest existing object number so we can allocate new object
+	// numbers for appearance streams without colliding
+	objRe := regexp.MustCompile(`(?m)^(\d+)\s+0\s+obj`)
+	matches := objRe.FindAllSubmatch(out, -1)
+	highest := 0
+	for _, m := range matches {
+		if n, err := strconv.Atoi(string(m[1])); err == nil && n > highest {
+			highest = n
+		}
+	}
+	nextObj := highest + 1
+	// collect appearance objects to append at the end
+	type apObj struct {
+		num  int
+		data []byte
+	}
+	var apObjs []apObj
 	modified := 0
 	for _, r := range inds {
 		fmt.Printf("debug: candidate range start=%d end=%d\n", r.start, r.end)
@@ -72,12 +87,54 @@ func main() {
 
 		// choose literal string or name token depending on value
 		var insertion []byte
+		// prepare AP object for visible appearance
+		// only create AP for text-like values (we'll create for all non-empty values)
+		apNum := -1
+		if val != "" {
+			apNum = nextObj
+			nextObj++
+			// parse Rect to compute BBox
+			x1, y1, x2, y2 := parseRect(dictBytes)
+			w := x2 - x1
+			h := y2 - y1
+			if w <= 0 {
+				w = 200
+			}
+			if h <= 0 {
+				h = 14
+			}
+			// build simple appearance stream using /Helv font
+			// position text slightly inset (2,2)
+			// use 12 or available size from DA; keep 12 by default
+			content := fmt.Sprintf("BT /Helv 12 Tf 0 g 2 2 Td (%s) Tj ET", esc)
+			// make stream bytes and Form XObject
+			stream := []byte(content)
+			// compressing streams is optional; keep uncompressed for simplicity
+			bbox := fmt.Sprintf("[0 0 %s %s]", formatFloat(w), formatFloat(h))
+			objBytes := []byte(fmt.Sprintf("\n%d 0 obj\n<< /Type /XObject /Subtype /Form /BBox %s /Resources << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length %d >>\nstream\n%s\nendstream\nendobj\n", apNum, bbox, len(stream), stream))
+			apObjs = append(apObjs, apObj{num: apNum, data: objBytes})
+		}
+
 		if isPDFName(val) {
 			// name object (no parentheses)
-			insertion = []byte(" /V /" + val)
+			if apNum > 0 {
+				insertion = []byte(" /V /" + val + fmt.Sprintf(" /AP<</N %d 0 R>>", apNum))
+			} else {
+				insertion = []byte(" /V /" + val)
+			}
 		} else {
 			// escape value for PDF literal string
-			insertion = []byte(" /V (" + esc + ")")
+			if apNum > 0 {
+				insertion = []byte(" /V (" + esc + ")" + fmt.Sprintf(" /AP<</N %d 0 R>>", apNum))
+			} else {
+				insertion = []byte(" /V (" + esc + ")")
+			}
+		}
+
+		// ensure widget has a DA (default appearance) so viewers use expected font
+		if !bytes.Contains(dictBytes, []byte("/DA(")) {
+			// prepend DA insertion as well
+			insertion = append([]byte(" /DA(/Helv 12 Tf 0 g)"), insertion...)
 		}
 
 		// insert before the closing >> (r.end points just after the >>)
@@ -90,12 +147,17 @@ func main() {
 		modified++
 	}
 
-	// If an XFDF file exists, call the internal PDF helper to generate appearances (/AP)
-	if xfdfBytes, rerr := os.ReadFile(xfdfPath); rerr == nil && len(xfdfBytes) > 0 {
-		if filled, ferr := pdfpkg.FillPDFWithXFDF(out, xfdfBytes); ferr == nil {
-			out = filled
-		} else {
-			fmt.Printf("debug: FillPDFWithXFDF failed: %v\n", ferr)
+	// append appearance objects before startxref (if any)
+	if len(apObjs) > 0 {
+		sx := bytes.LastIndex(out, []byte("startxref"))
+		for _, a := range apObjs {
+			if sx >= 0 {
+				out = append(out[:sx], append(a.data, out[sx:]...)...)
+				// update sx to point before the same startxref for next insertion
+				sx = sx + len(a.data)
+			} else {
+				out = append(out, a.data...)
+			}
 		}
 	}
 
@@ -164,8 +226,10 @@ func addAcroFormIfMissing(pdf []byte) []byte {
 	acRef := []byte(fmt.Sprintf(" /AcroForm %d 0 R", next))
 	pdf = append(pdf[:dictEnd], append(acRef, pdf[dictEnd:]...)...)
 
-	// prepare minimal AcroForm object
-	acObj := []byte(fmt.Sprintf("\n%d 0 obj\n<< /NeedAppearances true /Fields [] >>\nendobj\n", next))
+	// prepare minimal AcroForm object with a default resource (DR) mapping
+	// providing standard fonts so viewers can render appearances without needing
+	// to generate appearance streams for each widget.
+	acObj := []byte(fmt.Sprintf("\n%d 0 obj\n<< /NeedAppearances true /Fields [] /DR << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> /TiBI << /Type /Font /Subtype /Type1 /BaseFont /Times-BoldItalic /Encoding /WinAnsiEncoding >> >> >> >>\nendobj\n", next))
 	// insert before startxref if present, else append
 	sx := bytes.LastIndex(pdf, []byte("startxref"))
 	if sx >= 0 {
@@ -221,17 +285,63 @@ func ensureNeedAppearances(pdf []byte) []byte {
 		return pdf
 	}
 	dictBytes := pdf[dictStart:dictEnd]
-	// if NeedAppearances exists, set it to true; otherwise insert before closing >>
+	// ensure /NeedAppearances true inside the AcroForm dictionary
 	needRe := regexp.MustCompile(`\s*/NeedAppearances\s+(?:true|false)`)
 	if needRe.Match(dictBytes) {
-		// replace existing occurrence inside the slice
-		pdf = needRe.ReplaceAll(pdf, []byte(" /NeedAppearances true"))
+		// replace occurrence just inside the AcroForm dict slice and write back
+		newDict := needRe.ReplaceAll(dictBytes, []byte(" /NeedAppearances true"))
+		pdf = append(pdf[:dictStart], append(newDict, pdf[dictEnd:]...)...)
+	} else {
+		// insert ' /NeedAppearances true' before dictEnd
+		newDict := append(dictBytes, []byte(" /NeedAppearances true")...)
+		pdf = append(pdf[:dictStart], append(newDict, pdf[dictEnd:]...)...)
+	}
+
+	// After updating NeedAppearances, ensure the AcroForm has a default resource
+	// font dictionary (/DR) to map resource names like /Helv or /TiBI to actual
+	// base fonts. If no /DR exists, insert one before the closing '>>'.
+	// Re-locate the AcroForm object header and dict bounds because the PDF
+	// byte offsets may have shifted after the previous edit.
+	objHeader = []byte(fmt.Sprintf("%s 0 obj", objNum))
+	objPos = bytes.Index(pdf, objHeader)
+	if objPos < 0 {
 		return pdf
 	}
-	// insert ' /NeedAppearances true' before dictEnd
-	insertion := []byte(" /NeedAppearances true")
-	out := append(pdf[:dictEnd], append(insertion, pdf[dictEnd:]...)...)
-	return out
+	dictStartRel = bytes.Index(pdf[objPos:], []byte("<<"))
+	if dictStartRel < 0 {
+		return pdf
+	}
+	dictStart = objPos + dictStartRel
+	// find matching >> using depth count
+	depth = 0
+	i = dictStart
+	dictEnd = -1
+	for i < len(pdf)-1 {
+		if i+1 < len(pdf) && pdf[i] == '<' && pdf[i+1] == '<' {
+			depth++
+			i += 2
+			continue
+		}
+		if i+1 < len(pdf) && pdf[i] == '>' && pdf[i+1] == '>' {
+			depth--
+			i += 2
+			if depth == 0 {
+				dictEnd = i
+				break
+			}
+			continue
+		}
+		i++
+	}
+	if dictEnd < 0 {
+		return pdf
+	}
+	dictBytes = pdf[dictStart:dictEnd]
+	if !bytes.Contains(dictBytes, []byte("/DR")) {
+		drInsertion := []byte(" /DR << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> /TiBI << /Type /Font /Subtype /Type1 /BaseFont /Times-BoldItalic /Encoding /WinAnsiEncoding >> >> >>")
+		pdf = append(pdf[:dictEnd], append(drInsertion, pdf[dictEnd:]...)...)
+	}
+	return pdf
 }
 
 // isPDFName returns true when s is safe to write as a PDF name object (no spaces or delimiter chars)
@@ -443,4 +553,29 @@ func extractFieldName(dict []byte) string {
 func escapePDFString(s string) string {
 	r := strings.NewReplacer("\\", "\\\\", "(", "\\(", ")", "\\)")
 	return r.Replace(s)
+}
+
+// parseRect extracts numeric values from a /Rect[...] entry inside a widget dict.
+// It returns x1,y1,x2,y2 as floats; on failure returns zeros.
+func parseRect(dict []byte) (float64, float64, float64, float64) {
+	re := regexp.MustCompile(`/Rect\s*\[([^\]]+)\]`)
+	m := re.FindSubmatch(dict)
+	if len(m) < 2 {
+		return 0, 0, 0, 0
+	}
+	parts := strings.Fields(string(m[1]))
+	if len(parts) < 4 {
+		return 0, 0, 0, 0
+	}
+	f := func(s string) float64 {
+		v, _ := strconv.ParseFloat(s, 64)
+		return v
+	}
+	return f(parts[0]), f(parts[1]), f(parts[2]), f(parts[3])
+}
+
+func formatFloat(f float64) string {
+	// simple formatting without trailing zeros
+	s := strconv.FormatFloat(f, 'f', -1, 64)
+	return s
 }
