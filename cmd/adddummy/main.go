@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"encoding/xml"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sort"
+	"strings"
 )
 
 // CLI tool: insert /V (dummy) into widget annotation dictionaries that lack /V
@@ -18,6 +21,14 @@ func main() {
 	b, err := os.ReadFile(*inPath)
 	if err != nil {
 		log.Fatalf("failed to read input: %v", err)
+	}
+
+	// attempt to load an XFDF alongside the PDF (same base name)
+	xfdfPath := strings.TrimSuffix(*inPath, ".pdf") + ".xfdf"
+	xfdfMap, err := parseXfdf(xfdfPath)
+	if err != nil {
+		fmt.Printf("debug: couldn't parse xfdf %s: %v\n", xfdfPath, err)
+		xfdfMap = map[string]string{}
 	}
 
 	inds := findWidgetDictRanges(b)
@@ -40,13 +51,34 @@ func main() {
 		if bytes.Contains(seg, []byte("/V ")) || bytes.Contains(seg, []byte("/V(")) || bytes.Contains(seg, []byte("/V/")) {
 			continue
 		}
+		// determine field name (T) inside this widget dict and look up xfdf map
+		dictBytes := out[r.start:r.end]
+		fieldName := extractFieldName(dictBytes)
+		val := "dummy"
+		if fieldName != "" {
+			if v, ok := xfdfMap[fieldName]; ok {
+				val = v
+			}
+		}
+		// escape value for PDF literal string
+		esc := escapePDFString(val)
+
+		// choose literal string or name token depending on value
+		var insertion []byte
+		if isPDFName(val) {
+			// name object (no parentheses)
+			insertion = []byte(" /V /" + val)
+		} else {
+			// escape value for PDF literal string
+			insertion = []byte(" /V (" + esc + ")")
+		}
+
 		// insert before the closing >> (r.end points just after the >>)
 		insertPos := r.end - 2
 		if insertPos < r.start {
 			// sanity: fallback to r.end if computed insert position invalid
 			insertPos = r.end
 		}
-		insertion := []byte(" /V (dummy)")
 		out = append(out[:insertPos], append(insertion, out[insertPos:]...)...)
 		modified++
 	}
@@ -55,6 +87,19 @@ func main() {
 		log.Fatalf("failed to write output: %v", err)
 	}
 	fmt.Printf("wrote modified PDF to %s (modified %d widgets)\n", *outPath, modified)
+}
+
+// isPDFName returns true when s is safe to write as a PDF name object (no spaces or delimiter chars)
+func isPDFName(s string) bool {
+	if s == "" {
+		return false
+	}
+	// PDF name must not contain whitespace or delimiters: ()<>[]/% or space
+	if strings.IndexAny(s, "()<>[]/%\\ \t\n\r\f") >= 0 {
+		return false
+	}
+	// additionally avoid names that start with a digit-only value like "123"? it's fine, allow it
+	return true
 }
 
 type rng struct{ start, end int }
@@ -186,3 +231,71 @@ func findWidgetDictRanges(pdf []byte) []rng {
 }
 
 // (helper removed)
+
+// parseXfdf reads a .xfdf file and returns a map[fieldName]value
+func parseXfdf(path string) (map[string]string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	dec := xml.NewDecoder(bytes.NewReader(b))
+	m := map[string]string{}
+	type XField struct {
+		XMLName xml.Name `xml:"field"`
+		Name    string   `xml:"name,attr"`
+		Value   string   `xml:"value"`
+	}
+	for {
+		t, err := dec.Token()
+		if err != nil {
+			if err == io.EOF { // io isn't imported now; replace with nil check
+				break
+			}
+			return nil, err
+		}
+		se, ok := t.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		if se.Name.Local == "field" {
+			var xf XField
+			if err := dec.DecodeElement(&xf, &se); err != nil {
+				// ignore individual decode errors
+				continue
+			}
+			if xf.Name != "" {
+				m[xf.Name] = xf.Value
+			}
+		}
+	}
+	return m, nil
+}
+
+// extractFieldName finds /T(fieldname) inside a dictionary blob and returns the fieldname (unescaped)
+func extractFieldName(dict []byte) string {
+	idx := bytes.Index(dict, []byte("/T("))
+	if idx < 0 {
+		return ""
+	}
+	start := idx + 3
+	var sb strings.Builder
+	for i := start; i < len(dict); i++ {
+		b := dict[i]
+		if b == ')' {
+			return sb.String()
+		}
+		if b == '\\' && i+1 < len(dict) {
+			sb.WriteByte(dict[i+1])
+			i++
+			continue
+		}
+		sb.WriteByte(b)
+	}
+	return sb.String()
+}
+
+// escapePDFString escapes parentheses and backslashes for a PDF literal string
+func escapePDFString(s string) string {
+	r := strings.NewReplacer("\\", "\\\\", "(", "\\(", ")", "\\)")
+	return r.Replace(s)
+}
