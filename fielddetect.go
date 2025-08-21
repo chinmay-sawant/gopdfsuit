@@ -273,116 +273,42 @@ func main() {
 	// Attempt to parse XRef streams to augment object map
 	parseXRefStreams(data, objMap)
 
-	// Helper to find refs in a body
-	refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-
-	found := make(map[string]bool)
-
-	// We'll inspect any object that either contains /T or is referenced by
-	// /Annots, /Fields or /Kids arrays. First gather candidate objects.
-	candidateKeys := make(map[string]bool)
-	for k, body := range objMap {
-		if bytesIndex(body, []byte(`/T`)) >= 0 || bytesIndex(body, []byte(`/Annots`)) >= 0 || bytesIndex(body, []byte(`/Fields`)) >= 0 || bytesIndex(body, []byte(`/Kids`)) >= 0 {
-			candidateKeys[k] = true
-			// also collect direct refs inside this body
-			for _, r := range refRe.FindAllSubmatch(body, -1) {
-				refKey := string(r[1]) + " " + string(r[2])
-				candidateKeys[refKey] = true
+	// Try to locate the AcroForm via Root->/AcroForm and traverse fields
+	structured := make(map[string]string)
+	if rootRef, ok := findRootRef(data); ok {
+		if rootBody, ok2 := objMap[rootRef]; ok2 {
+			if acroRef, ok3 := getAcroFormRef(rootBody, data); ok3 {
+				// acroRef should be like "n m"
+				if afBody, ok4 := objMap[acroRef]; ok4 {
+					// find /Fields array
+					fieldsRe := regexp.MustCompile(`/Fields\s*\[(.*?)\]`)
+					if fm := fieldsRe.FindSubmatch(afBody); fm != nil {
+						inner := fm[1]
+						refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
+						for _, r := range refRe.FindAllSubmatch(inner, -1) {
+							fref := string(r[1]) + " " + string(r[2])
+							traverseField(fref, objMap, "", structured)
+						}
+					} else {
+						// maybe Fields is a single ref
+						singleFields := regexp.MustCompile(`/Fields\s+(\d+)\s+(\d+)\s+R`)
+						if sm := singleFields.FindSubmatch(afBody); sm != nil {
+							fref := string(sm[1]) + " " + string(sm[2])
+							traverseField(fref, objMap, "", structured)
+						}
+					}
+				}
 			}
 		}
 	}
 
-	// tRe for detecting /T inside an object body
-	tRe := regexp.MustCompile(`/T\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
-
-	fmt.Printf("Detected %d candidate objects to scan for fields.\n", len(candidateKeys))
-	// Also scan all objects as a fallback (no raw dumps)
-
-	fmt.Println("\nFIELDS:")
-	for k, body := range objMap {
-		submatches := tRe.FindAllSubmatchIndex(body, -1)
-		for _, mi := range submatches {
-			var name string
-			if mi[4] != -1 && mi[5] != -1 {
-				name = string(body[mi[4]:mi[5]])
-			} else if mi[6] != -1 && mi[7] != -1 {
-				name = decodeHexString(string(body[mi[6]:mi[7]]))
-			} else if mi[8] != -1 && mi[9] != -1 {
-				name = string(body[mi[8]:mi[9]])
+	if len(structured) > 0 {
+		fmt.Println("STRUCTURED FIELDS:")
+		for k, v := range structured {
+			if v == "" {
+				fmt.Printf("- %s: <empty>\n", k)
 			} else {
-				continue
-			}
-
-			// Now try structured AcroForm extraction using Catalog -> /AcroForm -> /Fields
-			structured := make(map[string]string)
-			if rootRef, ok := findRootRef(data); ok {
-				// look up Root object body
-				if rootBody, ok := objMap[rootRef]; ok {
-					if afRef, ok := getAcroFormRef(rootBody, data); ok {
-						// resolve AcroForm obj
-						if afBody, ok := objMap[afRef]; ok {
-							// find /Fields array and parse refs
-							fieldsRe := regexp.MustCompile(`/Fields\s*\[(.*?)\]`)
-							refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-							if m := fieldsRe.FindSubmatch(afBody); m != nil {
-								inner := m[1]
-								for _, r := range refRe.FindAllSubmatch(inner, -1) {
-									fref := string(r[1]) + " " + string(r[2])
-									traverseField(fref, objMap, "", structured)
-								}
-							} else {
-								// fields might be single refs or indirect
-								singleFieldsRe := regexp.MustCompile(`/Fields\s+(\d+)\s+(\d+)\s+R`)
-								if m2 := singleFieldsRe.FindSubmatch(afBody); m2 != nil {
-									fref := string(m2[1]) + " " + string(m2[2])
-									traverseField(fref, objMap, "", structured)
-								}
-							}
-						}
-					}
-				}
-			}
-
-			if len(structured) > 0 {
-				fmt.Println("\nSTRUCTURED FIELDS:")
-				for k, v := range structured {
-					if v == "" {
-						fmt.Printf("- %s: <no value>\n", k)
-					} else {
-						fmt.Printf("- %s: %s\n", k, v)
-					}
-				}
-			} else {
-				fmt.Println("\nNo structured AcroForm fields found via Catalog->AcroForm->Fields (or fields were empty).")
-			}
-			name = strings.TrimSpace(name)
-			if name == "" || found[name] {
-				continue
-			}
-			found[name] = true
-
-			// look for /V or /AS inside this same object first
-			endPos := mi[1]
-			tType, val := extractTokenGroups(body, endPos)
-			if tType == "" {
-				// if not found, search referenced objects (Kids/Annots)
-				refs := refRe.FindAllSubmatch(body, -1)
-				for _, r := range refs {
-					refKey := string(r[1]) + " " + string(r[2])
-					if rb, ok := objMap[refKey]; ok {
-						rt, rv := extractTokenGroups(rb, 0)
-						if rt != "" {
-							tType, val = rt, rv
-							break
-						}
-					}
-				}
-			}
-
-			if tType == "" {
-				fmt.Printf("- Obj %s Key: %s  Value: <not found>\n", k, name)
-			} else {
-				fmt.Printf("- Obj %s Key: %s  %s: %s\n", k, name, tType, val)
+				fmt.Printf("- %s: %s\n", k, v)
 			}
 		}
 	}
@@ -655,24 +581,76 @@ func trailerHasEncrypt(data []byte) bool {
 // resolveValueRef attempts to resolve a /V value which can be an indirect ref like '123 0 R'
 // or a literal inside the given object body. If a ref is found, follow to referenced object.
 func resolveValueRef(body []byte, objMap map[string][]byte) string {
-	// check for direct /V literal
-	vType, v := extractTokenGroups(body, 0)
-	if vType != "" && v != "" {
-		return v
-	}
-	// check for /V n m R
-	refRe := regexp.MustCompile(`/V\s*(\d+)\s+(\d+)\s+R`)
-	if m := refRe.FindSubmatch(body); m != nil {
-		ref := string(m[1]) + " " + string(m[2])
-		if rb, ok := objMap[ref]; ok {
-			// try literal inside referenced object
-			if _, val := extractTokenGroups(rb, 0); val != "" {
-				return val
-			}
-			// if ref object is a stream, attempt to decode and search
-			// as a last resort, return placeholder
-			return "<resolved indirect>"
+	// recursive resolver with depth limit
+	var resolve func(b []byte, depth int) string
+	resolve = func(b []byte, depth int) string {
+		if depth > 6 {
+			return ""
 		}
+		// direct literal nearby
+		if tType, v := extractTokenGroups(b, 0); tType != "" && v != "" {
+			return v
+		}
+		// try to extract any literal from the bytes (including stream contents)
+		if s := extractStringFromBytes(b); s != "" {
+			return s
+		}
+		// check for /V n m R (indirect)
+		refRe := regexp.MustCompile(`/V\s*(\d+)\s+(\d+)\s+R`)
+		if m := refRe.FindSubmatch(b); m != nil {
+			ref := string(m[1]) + " " + string(m[2])
+			if rb, ok := objMap[ref]; ok {
+				// if referenced object has a stream, decompress and search inside
+				streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+				if sm := streamRe.FindSubmatch(rb); sm != nil {
+					var dec []byte
+					if d, err := tryZlibDecompress(sm[1]); err == nil {
+						dec = d
+					} else if d, err := tryFlateDecompress(sm[1]); err == nil {
+						dec = d
+					} else {
+						dec = sm[1]
+					}
+					if s := extractStringFromBytes(dec); s != "" {
+						return s
+					}
+				}
+				// try recursion on the referenced object's bytes
+				if s := resolve(rb, depth+1); s != "" {
+					return s
+				}
+				// last resort: try to find literal tokens anywhere in referenced bytes
+				if s := extractStringFromBytes(rb); s != "" {
+					return s
+				}
+				return "<resolved indirect>"
+			}
+		}
+		return ""
+	}
+
+	return resolve(body, 0)
+}
+
+// extractStringFromBytes looks for common PDF literal representations in arbitrary bytes:
+// - parentheses literal ( ... )
+// - hex literal <A1B2>
+// - name /Name
+func extractStringFromBytes(b []byte) string {
+	// search for literal paren string
+	parenRe := regexp.MustCompile(`\(([^)]{1,200})\)`)
+	if m := parenRe.FindSubmatch(b); m != nil {
+		return string(m[1])
+	}
+	// hex string
+	hexRe := regexp.MustCompile(`<([0-9A-Fa-f\s]{2,400})>`)
+	if m := hexRe.FindSubmatch(b); m != nil {
+		return decodeHexString(string(m[1]))
+	}
+	// name
+	nameRe := regexp.MustCompile(`/([A-Za-z0-9_+-]{1,200})`)
+	if m := nameRe.FindSubmatch(b); m != nil {
+		return string(m[1])
 	}
 	return ""
 }
