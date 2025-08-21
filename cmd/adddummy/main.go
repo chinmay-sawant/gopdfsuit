@@ -62,8 +62,9 @@ func main() {
 	nextObj := highest + 1
 	// collect appearance objects to append at the end
 	type apObj struct {
-		num  int
-		data []byte
+		num    int
+		data   []byte
+		stream []byte // raw stream content (between stream\n and endstream)
 	}
 	var apObjs []apObj
 	modified := 0
@@ -112,7 +113,7 @@ func main() {
 			// compressing streams is optional; keep uncompressed for simplicity
 			bbox := fmt.Sprintf("[0 0 %s %s]", formatFloat(w), formatFloat(h))
 			objBytes := []byte(fmt.Sprintf("\n%d 0 obj\n<< /Type /XObject /Subtype /Form /BBox %s /Resources << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >> >> /Length %d >>\nstream\n%s\nendstream\nendobj\n", apNum, bbox, len(stream), stream))
-			apObjs = append(apObjs, apObj{num: apNum, data: objBytes})
+			apObjs = append(apObjs, apObj{num: apNum, data: objBytes, stream: stream})
 		}
 
 		if isButton {
@@ -173,8 +174,16 @@ func main() {
 		modified++
 	}
 
-	// append appearance objects before startxref (if any)
+	// Before appending appearance objects, remove any existing Form XObject objects
+	// whose stream content exactly matches the appearance stream we're adding. This
+	// avoids leaving a static Form XObject that draws the same text beneath the
+	// widget appearance (which would produce a duplicate visual when the widget
+	// is rendered).
 	if len(apObjs) > 0 {
+		for _, a := range apObjs {
+			out = removeFormObjectsMatchingStream(out, a.stream)
+		}
+
 		sx := bytes.LastIndex(out, []byte("startxref"))
 		for _, a := range apObjs {
 			if sx >= 0 {
@@ -604,4 +613,63 @@ func formatFloat(f float64) string {
 	// simple formatting without trailing zeros
 	s := strconv.FormatFloat(f, 'f', -1, 64)
 	return s
+}
+
+// removeFormObjectsMatchingStream scans the PDF bytes for Form XObject objects
+// (object dictionaries containing '/Type /XObject' and '/Subtype /Form') and
+// removes any object whose stream body equals the provided streamBytes. Returns
+// a new byte slice with matching objects removed.
+func removeFormObjectsMatchingStream(pdf []byte, streamBytes []byte) []byte {
+	// look for occurrences of "obj" headers and inspect following dict/stream
+	objRe := regexp.MustCompile(`(?m)^(\d+)\s+0\s+obj`) // reuse earlier re
+	matches := objRe.FindAllIndex(pdf, -1)
+	if len(matches) == 0 {
+		return pdf
+	}
+
+	// We'll build a new buffer skipping matched objects
+	out := make([]byte, 0, len(pdf))
+	last := 0
+	for _, mi := range matches {
+		objStart := mi[0]
+		// attempt to find 'endobj' after objStart
+		endobjIdx := bytes.Index(pdf[objStart:], []byte("endobj"))
+		if endobjIdx < 0 {
+			continue
+		}
+		objEnd := objStart + endobjIdx + len("endobj")
+		objBytes := pdf[objStart:objEnd]
+		// quick check for XObject /Subtype /Form
+		if !bytes.Contains(objBytes, []byte("/Type /XObject")) || !bytes.Contains(objBytes, []byte("/Subtype /Form")) {
+			continue
+		}
+		// find stream body
+		streamIdx := bytes.Index(objBytes, []byte("stream\n"))
+		if streamIdx < 0 {
+			streamIdx = bytes.Index(objBytes, []byte("stream\r\n"))
+		}
+		if streamIdx < 0 {
+			continue
+		}
+		streamStart := objStart + streamIdx + len("stream\n")
+		// find endstream after streamStart
+		endstreamIdx := bytes.Index(pdf[streamStart:], []byte("endstream"))
+		if endstreamIdx < 0 {
+			continue
+		}
+		streamEnd := streamStart + endstreamIdx
+		body := pdf[streamStart:streamEnd]
+		// normalize by trimming whitespace
+		if bytes.Equal(bytes.TrimSpace(body), bytes.TrimSpace(streamBytes)) {
+			// copy content before this object
+			out = append(out, pdf[last:objStart]...)
+			last = objEnd
+		}
+	}
+	// append remainder
+	out = append(out, pdf[last:]...)
+	if len(out) == 0 {
+		return pdf
+	}
+	return out
 }
