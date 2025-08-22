@@ -1,57 +1,99 @@
-// Save this file as temp2.go
+// Save this file as NoAcroForm.go
 
 package main
 
 import (
 	"bytes"
+	"encoding/xml"
 	"fmt"
 	"log"
 	"os"
 	"regexp"
+	"strings"
 )
 
-// extractStringValue is a helper function to extract a value from a PDF dictionary string.
-func extractStringValue(data []byte, re *regexp.Regexp) string {
-	match := re.FindSubmatch(data)
-	if len(match) > 1 {
-		return string(match[1])
+// Structs to unmarshal the XFDF XML data into.
+type XFDF struct {
+	XMLName xml.Name `xml:"xfdf"`
+	Fields  Fields   `xml:"fields"`
+}
+
+type Fields struct {
+	XMLName xml.Name `xml:"fields"`
+	Fields  []Field  `xml:"field"`
+}
+
+type Field struct {
+	XMLName xml.Name `xml:"field"`
+	Name    string   `xml:"name,attr"`
+	Value   string   `xml:"value"`
+}
+
+// escapePDFString escapes characters that are special inside a PDF string literal.
+func escapePDFString(s string) string {
+	r := strings.NewReplacer(
+		`\`, `\\`,
+		`(`, `\(`,
+		`)`, `\)`,
+	)
+	return r.Replace(s)
+}
+
+// parseXFDF reads an XFDF file and returns a map of field names to values.
+func parseXFDF(filename string) (map[string]string, error) {
+	xmlFile, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read XFDF file %s: %w", filename, err)
 	}
-	return "N/A"
+
+	var xfdfData XFDF
+	if err := xml.Unmarshal(xmlFile, &xfdfData); err != nil {
+		return nil, fmt.Errorf("failed to parse XFDF xml: %w", err)
+	}
+
+	fieldMap := make(map[string]string)
+	for _, field := range xfdfData.Fields.Fields {
+		fieldMap[field.Name] = field.Value
+	}
+
+	fmt.Printf("Successfully parsed %s, found %d field values.\n\n", filename, len(fieldMap))
+	return fieldMap, nil
 }
 
 func main() {
-	// Define the input and output file names
-	inputFile := "./sampledata/patient2/patient2.pdf" // Updated to match your path
+	// Define the input file names
+	inputFile := "./sampledata/patient2/patient2.pdf"
+	xfdfFile := "./sampledata/patient2/patient2.xfdf" // Updated to match your path
 	outputFile := "temp2.pdf"
 
-	content, err := os.ReadFile(inputFile)
+	// 1. Parse the XFDF file to get the data map.
+	xfdfData, err := parseXFDF(xfdfFile)
 	if err != nil {
-		log.Fatalf("Failed to read input file %s: %v", inputFile, err)
+		log.Fatal(err)
 	}
 
-	fmt.Printf("Successfully read %s (%d bytes).\n\n", inputFile, len(content))
+	// 2. Read the entire PDF file.
+	content, err := os.ReadFile(inputFile)
+	if err != nil {
+		log.Fatalf("Failed to read input PDF file %s: %v", inputFile, err)
+	}
+	fmt.Printf("Successfully read PDF %s (%d bytes).\n\n", inputFile, len(content))
 
-	// Pre-compile regular expressions for efficiency
+	// Pre-compile regular expressions
 	reObject := regexp.MustCompile(`(?s)(\d+\s+\d+\s+obj)(.*?)(\bendobj\b)`)
 	reIsAnnot := regexp.MustCompile(`/Type\s*/Annot`)
 	reIsWidget := regexp.MustCompile(`/Subtype\s*/Widget`)
-	reHasValue := regexp.MustCompile(`/V\s+`)
 	reIsBtn := regexp.MustCompile(`/FT\s*/Btn`)
 	reIsTx := regexp.MustCompile(`/FT\s*/Tx`)
 	reFieldNameT := regexp.MustCompile(`/T\s*\((.*?)\)`)
-	reFieldNameTU := regexp.MustCompile(`/TU\s*\((.*?)\)`)
-
-	// *** THE KEY NEW REGEX ***
-	// This regex finds and removes the entire /AP dictionary.
-	// It looks for /AP, optional whitespace, <<, then anything (non-greedy) until >>.
 	reRemoveAP := regexp.MustCompile(`/AP\s*<<.*?>>`)
 
 	matches := reObject.FindAllSubmatchIndex(content, -1)
 	if matches == nil {
-		log.Fatal("No PDF objects found. The file may be invalid or empty.")
+		log.Fatal("No PDF objects found.")
 	}
 
-	fmt.Println("--- Scanning for Form Fields ---")
+	fmt.Println("--- Scanning and Filling Form Fields ---")
 
 	var newContent bytes.Buffer
 	var lastIndex int = 0
@@ -65,33 +107,43 @@ func main() {
 		objFooter := content[match[6]:match[7]]
 
 		if reIsAnnot.Match(objBody) && reIsWidget.Match(objBody) {
-			fieldName := extractStringValue(objBody, reFieldNameT)
-			fieldTU := extractStringValue(objBody, reFieldNameTU)
-			fmt.Printf("Found Field: Name=%-25s TU=%-25s\n", fieldName, fieldTU)
+			// *** THE CRITICAL FIX IS HERE ***
+			// First, safely check if a field name exists before trying to access it.
+			fieldNameMatch := reFieldNameT.FindSubmatch(objBody)
+			if len(fieldNameMatch) < 2 {
+				// This widget has no /T key. It cannot be matched to the XFDF.
+				// Write the original object and skip to the next one.
+				newContent.Write(content[match[0]:match[1]])
+				lastIndex = match[1]
+				continue
+			}
+			fieldName := string(fieldNameMatch[1])
+			// *** END OF FIX ***
 
-			if !reHasValue.Match(objBody) {
+			// Check if we have a value for this field from our XFDF map
+			if value, ok := xfdfData[fieldName]; ok {
 				var valueToAdd []byte
-				modifiedObjBody := objBody // Start with the original body
+				modifiedObjBody := objBody
 
-				if fieldName == "Today" && reIsTx.Match(objBody) {
-					// For text fields, remove the stale /AP dict and add the new /V value
-					modifiedObjBody = reRemoveAP.ReplaceAll(modifiedObjBody, []byte(""))
-					valueToAdd = []byte(" /V (todaysdate)")
-				} else if reIsBtn.Match(objBody) {
-					// For buttons, KEEP the /AP dict but set the /AS and /V states
-					valueToAdd = []byte(" /AS /On /V /On")
+				if reIsBtn.Match(objBody) {
+					// Handle buttons: Check for "On" or "Yes" to turn on.
+					if strings.EqualFold(value, "On") || strings.EqualFold(value, "Yes") {
+						valueToAdd = []byte(" /AS /On /V /On")
+					}
 				} else if reIsTx.Match(objBody) {
-					// For other text fields, do the same as the "Today" field
-					modifiedObjBody = reRemoveAP.ReplaceAll(modifiedObjBody, []byte(""))
-					valueToAdd = []byte(" /V (Dummy)")
+					// Handle text fields: remove stale appearance and add new value.
+					if value != "N/A" { // Don't fill fields marked as N/A
+						modifiedObjBody = reRemoveAP.ReplaceAll(modifiedObjBody, []byte(""))
+						safeValue := escapePDFString(value)
+						valueToAdd = []byte(fmt.Sprintf(" /V (%s)", safeValue))
+					}
 				}
 
 				if valueToAdd != nil {
-					// Find the insertion point in the (potentially already modified) body
 					loc := reIsAnnot.FindIndex(modifiedObjBody)
 					if loc != nil {
 						modifiedCount++
-						fmt.Printf("-> MODIFIED object %s\n", bytes.TrimSpace(objHeader))
+						fmt.Printf("-> Filling field '%s'\n", fieldName)
 
 						insertionIndex := loc[1]
 						finalBody := new(bytes.Buffer)
@@ -122,6 +174,6 @@ func main() {
 	}
 
 	fmt.Println("\n--- Processing Complete ---")
-	fmt.Printf("Modified %d form field objects.\n", modifiedCount)
+	fmt.Printf("Modified and filled %d form field objects.\n", modifiedCount)
 	fmt.Printf("Output saved to: %s\n", outputFile)
 }
