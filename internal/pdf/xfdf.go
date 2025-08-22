@@ -928,13 +928,24 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		out = append(out[:dictEnd-2], append(apRef, out[dictEnd-2:]...)...)
 	}
 
+	// Force NeedAppearances to false because we are generating them.
 	needAppRe := regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
 	if needAppRe.Match(out) {
-		out = needAppRe.ReplaceAll(out, []byte("/NeedAppearances true"))
+		// If it exists, force it to false.
+		out = needAppRe.ReplaceAll(out, []byte("/NeedAppearances false"))
 	} else {
-		acroFormRe := regexp.MustCompile(`/AcroForm\s*<<`)
+		// If it doesn't exist, add it as false.
+		acroFormRe := regexp.MustCompile(`(/AcroForm\s*<<)`)
 		if loc := acroFormRe.FindIndex(out); loc != nil {
-			out = append(out[:loc[1]], append([]byte("/NeedAppearances false"), out[loc[1]:]...)...)
+			insertPos := loc[1]
+			// Use a byte slice for the new content to insert
+			insertContent := []byte(" /NeedAppearances false ")
+			// Create a new slice to hold the result
+			newOut := make([]byte, 0, len(out)+len(insertContent))
+			newOut = append(newOut, out[:insertPos]...)
+			newOut = append(newOut, insertContent...)
+			newOut = append(newOut, out[insertPos:]...)
+			out = newOut
 		}
 	}
 
@@ -957,8 +968,8 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		if y < 2 {
 			y = 2
 		}
-		streamBody := fmt.Sprintf("q\n0 0 %.2f %.2f re W n\nBT\n/Tx BMC\n0 g\n/%s %.2f Tf\n%.2f %.2f Td\n(%s) Tj\nEMC\nET\nQ",
-			job.width, job.height, job.fontResourceName, job.fontSize, tx, y, streamText)
+		streamBody := fmt.Sprintf("q\nBT\n/F1 %.2f Tf\n0 g\n%.2f %.2f Td\n(%s) Tj\nET\nQ",
+			job.fontSize, tx, y, streamText)
 		fontObj := fmt.Sprintf("\n%d 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/%s/Encoding/WinAnsiEncoding>>\nendobj\n", job.fontObjNum, job.fontResourceName)
 		out = append(out, []byte(fontObj)...)
 		var compBuf bytes.Buffer
@@ -966,8 +977,8 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		zw.Write([]byte(streamBody))
 		zw.Close()
 		comp := compBuf.Bytes()
-		apObj := fmt.Sprintf("\n%d 0 obj\n<</Type/XObject/Subtype/Form/FormType 1/BBox[0 0 %.2f %.2f]/Resources<</Font<</%s %d 0 R>>/ProcSet[/PDF/Text]>>/Filter/FlateDecode/Length %d>>\nstream\n%s\nendstream\nendobj\n",
-			job.apObjNum, job.width, job.height, job.fontResourceName, job.fontObjNum, len(comp), string(comp))
+		apObj := fmt.Sprintf("\n%d 0 obj\n<</Type/XObject/Subtype/Form/FormType 1/BBox[0 0 %.2f %.2f]/Resources<</Font<</F1 %d 0 R>>/ProcSet[/PDF/Text]>>/Filter/FlateDecode/Length %d>>\nstream\n%s\nendstream\nendobj\n",
+			job.apObjNum, job.width, job.height, job.fontObjNum, len(comp), string(comp))
 		out = append(out, []byte(apObj)...)
 	}
 
