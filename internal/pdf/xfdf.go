@@ -15,6 +15,17 @@ import (
 	"strings"
 )
 
+// Standard Helvetica widths for characters 32-126 (space to tilde)
+// As per the PDF 1.7 Specification, Appendix D.
+var helveticaWidths = []int{
+	278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278,
+	556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556,
+	1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778,
+	667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556,
+	222, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556,
+	556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584,
+}
+
 // XFDF structures for minimal parsing
 type xfdfField struct {
 	XMLName xml.Name `xml:"field"`
@@ -746,13 +757,13 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		fontSize         float64
 		apObjNum         int
 		fontObjNum       int
+		fontDescObjNum   int
 		fontResourceName string
 		radioExportValue string
 	}
 	var allJobs []job
 
 	// --- PASS 1: DISCOVERY (READ-ONLY) ---
-	// Discover all widget annotations and their properties from the original PDF.
 	widgetRe := regexp.MustCompile(`(?s)<<.*?/Subtype\s*/Widget.*?>>`)
 	nameRe := regexp.MustCompile(`/T\s*\((.*?)\)`)
 	widgetMatches := widgetRe.FindAllIndex(out, -1)
@@ -806,12 +817,14 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			if qMatch := qRe.FindSubmatch(dictBytes); qMatch != nil {
 				newJob.q, _ = strconv.Atoi(string(qMatch[1]))
 			}
-			newJob.fontSize, newJob.fontResourceName = 12.0, "Helv"
+			newJob.fontSize, newJob.fontResourceName = 12.0, "Helv" // Default to Helv
 			daRe := regexp.MustCompile(`/DA\s*\((.*?)\)`)
 			if daMatch := daRe.FindSubmatch(dictBytes); daMatch != nil {
 				tfRe := regexp.MustCompile(`/([\w.-]+)\s+([\d.]+)\s+Tf`)
 				if tfMatch := tfRe.FindStringSubmatch(string(daMatch[1])); len(tfMatch) > 2 {
-					newJob.fontResourceName = tfMatch[1]
+					// NOTE: This logic assumes standard PDF fonts. If the original font was embedded,
+					// we are replacing it with a standard one (Helvetica). This is usually fine.
+					newJob.fontResourceName = "Helv" // Force Helvetica for consistency
 					if fs, err := strconv.ParseFloat(tfMatch[2], 64); err == nil {
 						newJob.fontSize = fs
 					}
@@ -914,6 +927,8 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	sort.Slice(textJobs, func(i, j int) bool { return textJobs[i].dictStart > textJobs[j].dictStart })
 
 	for _, job := range textJobs {
+		job.fontDescObjNum = nextObj
+		nextObj++
 		job.fontObjNum = nextObj
 		nextObj++
 		job.apObjNum = nextObj
@@ -928,19 +943,14 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		out = append(out[:dictEnd-2], append(apRef, out[dictEnd-2:]...)...)
 	}
 
-	// Force NeedAppearances to false because we are generating them.
 	needAppRe := regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
 	if needAppRe.Match(out) {
-		// If it exists, force it to false.
 		out = needAppRe.ReplaceAll(out, []byte("/NeedAppearances false"))
 	} else {
-		// If it doesn't exist, add it as false.
 		acroFormRe := regexp.MustCompile(`(/AcroForm\s*<<)`)
 		if loc := acroFormRe.FindIndex(out); loc != nil {
 			insertPos := loc[1]
-			// Use a byte slice for the new content to insert
 			insertContent := []byte(" /NeedAppearances false ")
-			// Create a new slice to hold the result
 			newOut := make([]byte, 0, len(out)+len(insertContent))
 			newOut = append(newOut, out[:insertPos]...)
 			newOut = append(newOut, insertContent...)
@@ -970,8 +980,33 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		}
 		streamBody := fmt.Sprintf("q\nBT\n/F1 %.2f Tf\n0 g\n%.2f %.2f Td\n(%s) Tj\nET\nQ",
 			job.fontSize, tx, y, streamText)
-		fontObj := fmt.Sprintf("\n%d 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/%s/Encoding/WinAnsiEncoding>>\nendobj\n", job.fontObjNum, job.fontResourceName)
+
+		fontDescObj := fmt.Sprintf("\n%d 0 obj\n<</Type/FontDescriptor/FontName/%s/Flags 32/FontBBox[-558 -225 1000 931]/ItalicAngle 0/Ascent 905/Descent -212/CapHeight 905/StemV 88>>\nendobj\n",
+			job.fontDescObjNum, job.fontResourceName)
+		out = append(out, []byte(fontDescObj)...)
+
+		// --- START OF CHANGES ---
+
+		// Build the widths array string from the constant.
+		var widthsBuf strings.Builder
+		widthsBuf.WriteString("[")
+		for i, w := range helveticaWidths {
+			widthsBuf.WriteString(strconv.Itoa(w))
+			if i < len(helveticaWidths)-1 {
+				widthsBuf.WriteString(" ")
+			}
+		}
+		widthsBuf.WriteString("]")
+		widthsStr := widthsBuf.String()
+
+		// Update the Font object to include FirstChar, LastChar, and the Widths array.
+		fontObj := fmt.Sprintf("\n%d 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/%s/Encoding/WinAnsiEncoding/FirstChar 32/LastChar 126/Widths %s/FontDescriptor %d 0 R>>\nendobj\n",
+			job.fontObjNum, job.fontResourceName, widthsStr, job.fontDescObjNum)
+
+		// --- END OF CHANGES ---
+
 		out = append(out, []byte(fontObj)...)
+
 		var compBuf bytes.Buffer
 		zw, _ := zlib.NewWriterLevel(&compBuf, zlib.BestCompression)
 		zw.Write([]byte(streamBody))

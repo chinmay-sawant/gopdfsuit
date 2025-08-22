@@ -101,10 +101,17 @@ func formatPageKids(pageIDs []int) string {
 	return strings.Join(kids, " ")
 }
 
-// escapePDFString escapes characters that are special inside a PDF string literal.
+// escapePDFString escapes characters as required for PDF literal strings.
 func escapePDFString(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "(", "\\(")
-	s = strings.ReplaceAll(s, ")", "\\)")
-	return s
+	var sb strings.Builder
+	for _, r := range s {
+		switch r {
+		case '(', ')', '\\':
+			sb.WriteRune('\\')
+			sb.WriteRune(r)
+		default:
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
 }
