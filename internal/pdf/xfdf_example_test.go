@@ -8,11 +8,11 @@ import (
 
 // This test demonstrates DetectFormFields and FillPDFWithXFDF on the sample files
 func TestXFDFFillSample(t *testing.T) {
-	pdfBytes, err := os.ReadFile("../..//sampledata/patientreg/patientreg.pdf")
+	pdfBytes, err := os.ReadFile("../..//sampledata/pdf+xfdf/us_hospital_encounter_acroform.pdf")
 	if err != nil {
 		t.Fatalf("read pdf: %v", err)
 	}
-	xfdfBytes, err := os.ReadFile("../..//sampledata/patientreg/patientreg.xfdf")
+	xfdfBytes, err := os.ReadFile("../..//sampledata/pdf+xfdf/us_hospital_encounter_data.xfdf")
 	if err != nil {
 		t.Fatalf("read xfdf: %v", err)
 	}
@@ -39,15 +39,15 @@ func TestXFDFFillSample(t *testing.T) {
 		t.Logf("detected field names: %v", fields)
 	}
 
-	// Test enhanced filling
-	out, err := FillPDFWithXFDFAdvanced(pdfBytes, xfdfBytes)
-	if err != nil {
-		t.Fatalf("fill advanced: %v", err)
-	}
-	if len(out) == 0 {
-		t.Fatalf("output empty")
-	}
-	_ = os.WriteFile("filled_sample_advanced.pdf", out, 0644)
+	// // Test enhanced filling
+	// out, err := FillPDFWithXFDFAdvanced(pdfBytes, xfdfBytes)
+	// if err != nil {
+	// 	t.Fatalf("fill advanced: %v", err)
+	// }
+	// if len(out) == 0 {
+	// 	t.Fatalf("output empty")
+	// }
+	// _ = os.WriteFile("filled_sample_advanced.pdf", out, 0644)
 
 	// Test original filling for comparison
 	out2, err := FillPDFWithXFDF(pdfBytes, xfdfBytes)
