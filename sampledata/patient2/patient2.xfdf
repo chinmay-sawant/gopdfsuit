@@ -1,207 +1,584 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<xfdf xmlns="http://ns.adobe.com/xfdf/" xml:space="preserve">
+<?xml version="1.0" ?>
+<xfdf xmlns="http://ns.adobe.com/xfdf/" xml_space="preserve">
   <fields>
-    <field name="Provider Name"><value>Dr. A. Mehta</value></field>
-    <field name="Today"><value>2025-08-20</value></field>
-    <field name="Provider Reference Yes"><value>Yes</value></field>
-    <field name="Provider Reference No"><value>Yes</value></field>
-    <field name="Referring Physician"><value>N/A</value></field>
-    <field name="Acute Myocardial Infarction"><value>N/A</value></field>
-    <field name="Anemia Low Blood Count"><value>N/A</value></field>
-    <field name="Arthritis"><value>N/A</value></field>
-    <field name="Asthma"><value>N/A</value></field>
-    <field name="Autoimmune Disorder"><value>N/A</value></field>
-    <field name="Blood"><value>N/A</value></field>
-    <field name="Cancer list types"><value>No</value></field>
-    <field name="Chest Pain Angina"><value>Yes</value></field>
-    <field name="Chronic Liver Disease"><value>N/A</value></field>
-    <field name="COPD Chronic Obstructive"><value>N/A</value></field>
-    <field name="Diabetes Mellitus"><value>Yes</value></field>
-    <field name="Emotional Disturbance"><value>N/A</value></field>
-    <field name="Gastricduodenal Ulcer"><value>N/A</value></field>
-    <field name="Heart Disease"><value>N/A</value></field>
-    <field name="Heartburn"><value>Yes</value></field>
-    <field name="Hepatic Liver Disorder"><value>No</value></field>
-    <field name="Hepatitis"><value>No</value></field>
-    <field name="HIV Infection"><value>No</value></field>
-    <field name="Hypercholesterolemia"><value>Yes</value></field>
-    <field name="Hypertension"><value>Yes</value></field>
-    <field name="Irritable Bowel"><value>N/A</value></field>
-    <field name="Kidney Disease"><value>No</value></field>
-    <field name="Lower Back Pain"><value>Yes</value></field>
-    <field name="Mitral Valve Disorder"><value>Yes</value></field>
-    <field name="Murmurs"><value>N/A</value></field>
-    <field name="Obesity"><value>Yes</value></field>
-    <field name="Obstructive Sleep Apnea"><value>Yes</value></field>
-    <field name="Osteoporosis"><value>Yes</value></field>
-    <field name="Peripheral Vascular"><value>N/A</value></field>
-    <field name="Pneumonia"><value>No</value></field>
-    <field name="Pulmonary Disease"><value>No</value></field>
-    <field name="Recent Methicillinresistant"><value>N/A</value></field>
-    <field name="Rheumatic Fever"><value>N/A</value></field>
-    <field name="Seizure Disorder"><value>No</value></field>
-    <field name="Sinusitis"><value>N/A</value></field>
-    <field name="Stroke Syndrome"><value>No</value></field>
-    <field name="Thromboembolic Disease"><value>No</value></field>
-    <field name="Thrombophlebitis"><value>No</value></field>
-    <field name="Thyroid Disorder"><value>Yes</value></field>
-    <field name="Transient Ischemic Attack"><value>N/A</value></field>
-    <field name="Tuberculosis"><value>Yes</value></field>
-    <field name="Other specify"><value>N/A</value></field>
-    <field name="Other Condition1"><value>N/A</value></field>
-    <field name="Other Condition2"><value>N/A</value></field>
-    <field name="No Surgical History"><value>Yes</value></field>
-    <field name="SurgeryRow1"><value>N/A</value></field>
-    <field name="DateRow1"><value>2025-08-20</value></field>
-    <field name="SurgeryRow1_2"><value>N/A</value></field>
-    <field name="DateRow1_2"><value>2025-08-20</value></field>
-    <field name="SurgeryRow2"><value>N/A</value></field>
-    <field name="DateRow2"><value>2025-08-20</value></field>
-    <field name="SurgeryRow2_2"><value>N/A</value></field>
-    <field name="DateRow2_2"><value>2025-08-20</value></field>
-    <field name="SurgeryRow3"><value>N/A</value></field>
-    <field name="DateRow3"><value>2025-08-20</value></field>
-    <field name="SurgeryRow3_2"><value>N/A</value></field>
-    <field name="DateRow3_2"><value>2025-08-20</value></field>
-    <field name="SurgeryRow4"><value>N/A</value></field>
-    <field name="DateRow4"><value>2025-08-20</value></field>
-    <field name="SurgeryRow4_2"><value>N/A</value></field>
-    <field name="DateRow4_2"><value>2025-08-20</value></field>
-    <field name="No Family Medical History"><value>Yes</value></field>
-    <field name="Family Member"><value>N/A</value></field>
-    <field name="Anemia Low Blood Count_2"><value>N/A</value></field>
-    <field name="Family MemberAnemia Low Blood Count"><value>N/A</value></field>
-    <field name="Hypercholesterolemia_2"><value>N/A</value></field>
-    <field name="Family MemberHypercholesterolemia"><value>N/A</value></field>
-    <field name="Cancer list types_2"><value>N/A</value></field>
-    <field name="Family MemberCancer list types"><value>Father - prostate cancer</value></field>
-    <field name="Hypertension_2"><value>N/A</value></field>
-    <field name="Family MemberHypertension"><value>N/A</value></field>
-    <field name="Cancer list typesRow1"><value>N/A</value></field>
-    <field name="Family MemberRow3"><value>N/A</value></field>
-    <field name="Osteoporosis_2"><value>N/A</value></field>
-    <field name="Family MemberOsteoporosis"><value>N/A</value></field>
-    <field name="Cancer list typesRow2"><value>N/A</value></field>
-    <field name="Family MemberRow4"><value>N/A</value></field>
-    <field name="Pulmonary Disease_2"><value>N/A</value></field>
-    <field name="Family MemberPulmonary Disease"><value>N/A</value></field>
-    <field name="COPD"><value>N/A</value></field>
-    <field name="Family MemberCOPD"><value>N/A</value></field>
-    <field name="Renal Disease"><value>N/A</value></field>
-    <field name="Family MemberRenal Disease"><value>N/A</value></field>
-    <field name="Diabetes Mellitus_2"><value>N/A</value></field>
-    <field name="Family MemberDiabetes Mellitus"><value>Mother - Type 2 Diabetes</value></field>
-    <field name="Stroke Syndrome_2"><value>N/A</value></field>
-    <field name="Family MemberStroke Syndrome"><value>N/A</value></field>
-    <field name="Emphysema"><value>N/A</value></field>
-    <field name="Family MemberEmphysema"><value>N/A</value></field>
-    <field name="Thromboembolic Disease_2"><value>N/A</value></field>
-    <field name="Family MemberThromboembolic Disease"><value>N/A</value></field>
-    <field name="Heart Disease_2"><value>N/A</value></field>
-    <field name="Family MemberHeart Disease"><value>N/A</value></field>
-    <field name="UnattainablePatient Adopted"><value>N/A</value></field>
-    <field name="Family MemberUnattainablePatient Adopted"><value>N/A</value></field>
-    <field name="Hepatic Liver Disorder_2"><value>N/A</value></field>
-    <field name="Family MemberHepatic Liver Disorder"><value>N/A</value></field>
-    <field name="Other"><value>N/A</value></field>
-    <field name="Family MemberOther"><value>N/A</value></field>
-    <field name="Father Deceased Age Cause"><value>N/A</value></field>
-    <field name="Mother Deceased Age Cause"><value>N/A</value></field>
-    <field name="State Problem"><value>Intermittent chest discomfort and exertional dyspnea. History of HTN and T2DM.</value></field>
-    <field name="Cancer Type1"><value>N/A</value></field>
-    <field name="Cancer Type2"><value>N/A</value></field>
-    <field name="AgeDeceased1"><value>N/A</value></field>
-    <field name="AgeDeceased2"><value>N/A</value></field>
-    <field name="Other Condition3"><value>N/A</value></field>
-    <field name="Married"><value>N/A</value></field>
-    <field name="Single"><value>N/A</value></field>
-    <field name="Widowed"><value>N/A</value></field>
-    <field name="Separated"><value>N/A</value></field>
-    <field name="Divorced"><value>N/A</value></field>
-    <field name="Life Partner"><value>N/A</value></field>
-    <field name="Alcohol Use"><value>N/A</value></field>
-    <field name="Drug Use Recreational"><value>No</value></field>
-    <field name="Use Intravenous Drugs"><value>No</value></field>
-    <field name="Previous History of Smoking"><value>Quit 1990; 0.5 pack/day for 15 years</value></field>
-    <field name="Weekly"><value>N/A</value></field>
-    <field name="Explain"><value>N/A</value></field>
-    <field name="Explain_2"><value>N/A</value></field>
-    <field name="Date Quit"><value>2025-08-20</value></field>
-    <field name="Packs Per Day"><value>N/A</value></field>
-    <field name="Years of Smoking"><value>N/A</value></field>
-    <field name="Attempts to Quit"><value>Nicotine patches</value></field>
-    <field name="Methods Used to Quit"><value>N/A</value></field>
-    <field name="No History of Smoking"><value>N/A</value></field>
-    <field name="SmokingNicotine Substances"><value>N/A</value></field>
-    <field name="Current Diet"><value>Vegetarian, low salt</value></field>
-    <field name="Occupation"><value>Retired school teacher</value></field>
-    <field name="Travel"><value>No recent international travel</value></field>
-    <field name="Wishing to Stop Smoking"><value>N/A</value></field>
-    <field name="Cigarettes"><value>N/A</value></field>
-    <field name="Packstimes Per Day"><value>12:40</value></field>
-    <field name="Years"><value>N/A</value></field>
-    <field name="Cigars"><value>N/A</value></field>
-    <field name="Chewing"><value>N/A</value></field>
-    <field name="Tobacco"><value>N/A</value></field>
-    <field name="Pipe"><value>N/A</value></field>
-    <field name="CurrentDietExplain"><value>N/A</value></field>
-    <field name="List All"><value>N/A</value></field>
-    <field name="Travel Country"><value>No recent international travel</value></field>
-    <field name="No Known Allergies"><value>Yes</value></field>
-    <field name="AllergyRow1"><value>Penicillin</value></field>
-    <field name="ReactionRow1"><value>N/A</value></field>
-    <field name="AllergyRow1_2"><value>Penicillin</value></field>
-    <field name="ReactionRow1_2"><value>N/A</value></field>
-    <field name="AllergyRow2"><value>Penicillin</value></field>
-    <field name="ReactionRow2"><value>N/A</value></field>
-    <field name="AllergyRow2_2"><value>Penicillin</value></field>
-    <field name="ReactionRow2_2"><value>N/A</value></field>
-    <field name="AllergyRow3"><value>Penicillin</value></field>
-    <field name="ReactionRow3"><value>N/A</value></field>
-    <field name="AllergyRow3_2"><value>Penicillin</value></field>
-    <field name="ReactionRow3_2"><value>N/A</value></field>
-    <field name="No Current Medications"><value>Yes</value></field>
-    <field name="MedicationsRow1"><value>Metformin 500mg; Amlodipine 5mg; Atorvastatin 10mg</value></field>
-    <field name="DosageRow1"><value>As directed</value></field>
-    <field name="FrequencyRow1"><value>Once daily</value></field>
-    <field name="Reason for TakingRow1"><value>As prescribed</value></field>
-    <field name="MedicationsRow2"><value>Metformin 500mg; Amlodipine 5mg; Atorvastatin 10mg</value></field>
-    <field name="DosageRow2"><value>As directed</value></field>
-    <field name="FrequencyRow2"><value>Once daily</value></field>
-    <field name="Reason for TakingRow2"><value>As prescribed</value></field>
-    <field name="MedicationsRow3"><value>Metformin 500mg; Amlodipine 5mg; Atorvastatin 10mg</value></field>
-    <field name="DosageRow3"><value>As directed</value></field>
-    <field name="FrequencyRow3"><value>Once daily</value></field>
-    <field name="Reason for TakingRow3"><value>As prescribed</value></field>
-    <field name="MedicationsRow4"><value>Metformin 500mg; Amlodipine 5mg; Atorvastatin 10mg</value></field>
-    <field name="DosageRow4"><value>As directed</value></field>
-    <field name="FrequencyRow4"><value>Once daily</value></field>
-    <field name="Reason for TakingRow4"><value>As prescribed</value></field>
-    <field name="MedicationsRow5"><value>Metformin 500mg; Amlodipine 5mg; Atorvastatin 10mg</value></field>
-    <field name="DosageRow5"><value>As directed</value></field>
-    <field name="FrequencyRow5"><value>Once daily</value></field>
-    <field name="Reason for TakingRow5"><value>As prescribed</value></field>
-    <field name="MedicationsRow6"><value>Metformin 500mg; Amlodipine 5mg; Atorvastatin 10mg</value></field>
-    <field name="DosageRow6"><value>As directed</value></field>
-    <field name="FrequencyRow6"><value>Once daily</value></field>
-    <field name="Reason for TakingRow6"><value>As prescribed</value></field>
-    <field name="MedicationsRow7"><value>Metformin 500mg; Amlodipine 5mg; Atorvastatin 10mg</value></field>
-    <field name="DosageRow7"><value>As directed</value></field>
-    <field name="FrequencyRow7"><value>Once daily</value></field>
-    <field name="Reason for TakingRow7"><value>As prescribed</value></field>
-    <field name="Yes_3"><value>N/A</value></field>
-    <field name="undefined_3"><value>N/A</value></field>
-    <field name="No Explain"><value>N/A</value></field>
-    <field name="trials or used experimental drugs"><value>N/A</value></field>
-    <field name="Yes_4"><value>N/A</value></field>
-    <field name="No Last Menstrual Period Date"><value>N/A</value></field>
-    <field name="Physician Signature Date"><value>2025-08-20</value></field>
-    <field name="Physician Signature Time"><value>13:10</value></field>
-    <field name="Patient Signature Date"><value>2025-08-20</value></field>
-    <field name="Patient Signature Time"><value>13:10</value></field>
-    <field name="Any other medical history"><value>Intermittent chest discomfort and exertional dyspnea. History of HTN and T2DM.</value></field>
-    <field name="Patient Signature"><value>Adam B. Jones</value></field>
-    <field name="Physician Signature"><value>Dr. A. Mehta</value></field>
+    <field name="MRN">
+      <value>123456</value>
+    </field>
+    <field name="Patient Name">
+      <value>John Doe</value>
+    </field>
+    <field name="Date of Birth">
+      <value>01/01/1980</value>
+    </field>
+    <field name="Provider Name">
+      <value>Dr. Smith</value>
+    </field>
+    <field name="Today">
+      <value>04/01/2024</value>
+    </field>
+    <field name="Provider Reference Yes">
+      <value>Yes</value>
+    </field>
+    <field name="Referring Physician">
+      <value>Dr. Adams</value>
+    </field>
+    <field name="Acute Myocardial Infarction">
+      <value>No</value>
+    </field>
+    <field name="Anemia Low Blood Count">
+      <value>Yes</value>
+    </field>
+    <field name="Arthritis">
+      <value>No</value>
+    </field>
+    <field name="Asthma">
+      <value>Yes</value>
+    </field>
+    <field name="Autoimmune Disorder">
+      <value>No</value>
+    </field>
+    <field name="Blood">
+      <value>Yes</value>
+    </field>
+    <field name="Cancer list types">
+      <value>Lung Cancer</value>
+    </field>
+    <field name="Chest Pain Angina">
+      <value>No</value>
+    </field>
+    <field name="Chronic Liver Disease">
+      <value>No</value>
+    </field>
+    <field name="COPD Chronic Obstructive">
+      <value>Yes</value>
+    </field>
+    <field name="Diabetes Mellitus">
+      <value>Yes</value>
+    </field>
+    <field name="Emotional Disturbance">
+      <value>No</value>
+    </field>
+    <field name="Gastricduodenal Ulcer">
+      <value>No</value>
+    </field>
+    <field name="Heart Disease">
+      <value>Yes</value>
+    </field>
+    <field name="Heartburn">
+      <value>No</value>
+    </field>
+    <field name="Hepatic Liver Disorder">
+      <value>No</value>
+    </field>
+    <field name="Hepatitis">
+      <value>No</value>
+    </field>
+    <field name="HIV Infection">
+      <value>No</value>
+    </field>
+    <field name="Hypercholesterolemia">
+      <value>Yes</value>
+    </field>
+    <field name="Hypertension">
+      <value>Yes</value>
+    </field>
+    <field name="Irritable Bowel">
+      <value>No</value>
+    </field>
+    <field name="Kidney Disease">
+      <value>No</value>
+    </field>
+    <field name="Lower Back Pain">
+      <value>Yes</value>
+    </field>
+    <field name="Mitral Valve Disorder">
+      <value>No</value>
+    </field>
+    <field name="Murmurs">
+      <value>No</value>
+    </field>
+    <field name="MedicalHistory.Obesity">
+      <value>Yes</value>
+    </field>
+    <field name="Obstructive Sleep Apnea">
+      <value>No</value>
+    </field>
+    <field name="Osteoporosis">
+      <value>No</value>
+    </field>
+    <field name="Peripheral Vascular">
+      <value>No</value>
+    </field>
+    <field name="Pneumonia">
+      <value>No</value>
+    </field>
+    <field name="Pulmonary Disease">
+      <value>Yes</value>
+    </field>
+    <field name="Recent Methicillinresistant">
+      <value>No</value>
+    </field>
+    <field name="Rheumatic Fever">
+      <value>No</value>
+    </field>
+    <field name="Seizure Disorder">
+      <value>No</value>
+    </field>
+    <field name="MedicalHistory.Sinusitis">
+      <value>No</value>
+    </field>
+    <field name="Stroke Syndrome">
+      <value>No</value>
+    </field>
+    <field name="Thromboembolic Disease">
+      <value>No</value>
+    </field>
+    <field name="Thrombophlebitis">
+      <value>No</value>
+    </field>
+    <field name="Thyroid Disorder">
+      <value>No</value>
+    </field>
+    <field name="Transient Ischemic Attack">
+      <value>No</value>
+    </field>
+    <field name="Tuberculosis">
+      <value>No</value>
+    </field>
+    <field name="Other specify">
+      <value>None</value>
+    </field>
+    <field name="Other Condition1">
+      <value>None</value>
+    </field>
+    <field name="Other Condition2">
+      <value>None</value>
+    </field>
+    <field name="SurgeryRow1">
+      <value>Appendectomy</value>
+    </field>
+    <field name="DateRow1">
+      <value>01/01/2010</value>
+    </field>
+    <field name="SurgeryRow1_2">
+      <value>Gallbladder Removal</value>
+    </field>
+    <field name="DateRow1_2">
+      <value>06/15/2015</value>
+    </field>
+    <field name="SurgeryRow2">
+      <value>Knee Surgery</value>
+    </field>
+    <field name="DateRow2">
+      <value>03/20/2018</value>
+    </field>
+    <field name="SurgeryRow2_2">
+      <value>Hernia Repair</value>
+    </field>
+    <field name="DateRow2_2">
+      <value>09/10/2020</value>
+    </field>
+    <field name="SurgeryRow3">
+      <value>Cataract Surgery</value>
+    </field>
+    <field name="DateRow3">
+      <value>11/05/2021</value>
+    </field>
+    <field name="SurgeryRow3_2">
+      <value>Tonsillectomy</value>
+    </field>
+    <field name="DateRow3_2">
+      <value>07/22/2005</value>
+    </field>
+    <field name="SurgeryRow4">
+      <value>Hip Replacement</value>
+    </field>
+    <field name="DateRow4">
+      <value>02/14/2023</value>
+    </field>
+    <field name="SurgeryRow4_2">
+      <value>None</value>
+    </field>
+    <field name="DateRow4_2">
+      <value>None</value>
+    </field>
+    <field name="Family Member">
+      <value>Mother</value>
+    </field>
+    <field name="Anemia Low Blood Count_2">
+      <value>Yes</value>
+    </field>
+    <field name="Family MemberAnemia Low Blood Count">
+      <value>Father</value>
+    </field>
+    <field name="Hypercholesterolemia_2">
+      <value>Yes</value>
+    </field>
+    <field name="Family MemberHypercholesterolemia">
+      <value>Mother</value>
+    </field>
+    <field name="Cancer list types_2">
+      <value>Breast Cancer</value>
+    </field>
+    <field name="Family MemberCancer list types">
+      <value>Aunt</value>
+    </field>
+    <field name="Hypertension_2">
+      <value>Yes</value>
+    </field>
+    <field name="Family MemberHypertension">
+      <value>Grandfather</value>
+    </field>
+    <field name="Cancer list typesRow1">
+      <value>Skin Cancer</value>
+    </field>
+    <field name="Family MemberRow3">
+      <value>Uncle</value>
+    </field>
+    <field name="Osteoporosis_2">
+      <value>No</value>
+    </field>
+    <field name="Family MemberOsteoporosis">
+      <value>None</value>
+    </field>
+    <field name="Cancer list typesRow2">
+      <value>Prostate Cancer</value>
+    </field>
+    <field name="Family MemberRow4">
+      <value>Grandmother</value>
+    </field>
+    <field name="Pulmonary Disease_2">
+      <value>Yes</value>
+    </field>
+    <field name="Family MemberPulmonary Disease">
+      <value>Father</value>
+    </field>
+    <field name="COPD">
+      <value>No</value>
+    </field>
+    <field name="Family MemberCOPD">
+      <value>None</value>
+    </field>
+    <field name="Renal Disease">
+      <value>No</value>
+    </field>
+    <field name="Family MemberRenal Disease">
+      <value>None</value>
+    </field>
+	<field name="Diabetes Mellitus_2">
+      <value>Yes</value>
+    </field>
+    <field name="Family MemberDiabetes Mellitus">
+      <value>Mother</value>
+    </field>
+    <field name="Stroke Syndrome_2">
+      <value>No</value>
+    </field>
+    <field name="Family MemberStroke Syndrome">
+      <value>Father</value>
+    </field>
+    <field name="Emphysema">
+      <value>No</value>
+    </field>
+    <field name="Family MemberEmphysema">
+      <value>None</value>
+    </field>
+    <field name="Thromboembolic Disease_2">
+      <value>Yes</value>
+    </field>
+    <field name="Family MemberThromboembolic Disease">
+      <value>Grandparent</value>
+    </field>
+    <field name="Heart Disease_2">
+      <value>Yes</value>
+    </field>
+    <field name="Family MemberHeart Disease">
+      <value>Father</value>
+    </field>
+    <field name="UnattainablePatient Adopted">
+      <value>No</value>
+    </field>
+    <field name="Family MemberUnattainablePatient Adopted">
+      <value>No</value>
+    </field>
+    <field name="Hepatic Liver Disorder_2">
+      <value>No</value>
+    </field>
+    <field name="Family MemberHepatic Liver Disorder">
+      <value>None</value>
+    </field>
+    <field name="Other">
+      <value>None</value>
+    </field>
+    <field name="Family MemberOther">
+      <value>None</value>
+    </field>
+    <field name="Father Deceased Age Cause">
+      <value>75 - Heart Attack</value>
+    </field>
+    <field name="Mother Deceased Age Cause">
+      <value>70 - Stroke</value>
+    </field>
+    <field name="State Problem">
+      <value>Chest Pain</value>
+    </field>
+    <field name="Cancer Type1">
+      <value>Lung Cancer</value>
+    </field>
+    <field name="Cancer Type2">
+      <value>Skin Cancer</value>
+    </field>
+    <field name="AgeDeceased1">
+      <value>65</value>
+    </field>
+    <field name="AgeDeceased2">
+      <value>72</value>
+    </field>
+    <field name="Other Condition3">
+      <value>High Blood Pressure</value>
+    </field>
+    <field name="Married">
+      <value>Yes</value>
+    </field>
+    <field name="Alcohol Use">
+      <value>Occasionally</value>
+    </field>
+    <field name="Drug Use Recreational">
+      <value>No</value>
+    </field>
+    <field name="Use Intravenous Drugs">
+      <value>No</value>
+    </field>
+    <field name="Previous History of Smoking">
+      <value>Yes</value>
+    </field>
+    <field name="Weekly">
+      <value>2 times</value>
+    </field>
+    <field name="Explain">
+      <value>No recreational drug use</value>
+    </field>
+    <field name="Explain_2">
+      <value>No IV drug use</value>
+    </field>
+    <field name="Date Quit">
+      <value>01/01/2020</value>
+    </field>
+    <field name="Packs Per Day">
+      <value>1</value>
+    </field>
+    <field name="Years of Smoking">
+      <value>10</value>
+    </field>
+    <field name="Attempts to Quit">
+      <value>2</value>
+    </field>
+    <field name="Methods Used to Quit">
+      <value>Nicotine Patch</value>
+    </field>
+    <field name="No History of Smoking">
+      <value>No</value>
+    </field>
+    <field name="SmokingNicotine Substances">
+      <value>Cigarettes</value>
+    </field>
+    <field name="Current Diet">
+      <value>Balanced</value>
+    </field>
+    <field name="Occupation">
+      <value>Software Engineer</value>
+    </field>
+    <field name="Travel">
+      <value>Canada</value>
+    </field>
+    <field name="Wishing to Stop Smoking">
+      <value>Yes</value>
+    </field>
+    <field name="Cigarettes">
+      <value>Yes</value>
+    </field>
+    <field name="Packstimes Per Day">
+      <value>1</value>
+    </field>
+    <field name="Years">
+      <value>10</value>
+    </field>
+    <field name="Cigars">
+      <value>No</value>
+    </field>
+    <field name="Chewing">
+      <value>No</value>
+    </field>
+    <field name="Tobacco">
+      <value>No</value>
+    </field>
+    <field name="Pipe">
+      <value>No</value>
+    </field>
+    <field name="CurrentDietExplain">
+      <value>Includes fruits and vegetables</value>
+    </field>
+    <field name="List All">
+      <value>Vitamin D, Omega-3</value>
+    </field>
+    <field name="Travel Country">
+      <value>Canada</value>
+    </field>
+    <field name="Do you have an advanced directive">
+      <value>Yes</value>
+    </field>
+    <field name="AllergyRow1">
+      <value>Peanuts</value>
+    </field>
+    <field name="ReactionRow1">
+      <value>Anaphylaxis</value>
+    </field>
+    <field name="AllergyRow1_2">
+      <value>Penicillin</value>
+    </field>
+    <field name="ReactionRow1_2">
+      <value>Rash</value>
+    </field>
+    <field name="AllergyRow2">
+      <value>Dust</value>
+    </field>
+    <field name="ReactionRow2">
+      <value>Sneezing</value>
+    </field>
+    <field name="AllergyRow2_2">
+      <value>Pollen</value>
+    </field>
+    <field name="ReactionRow2_2">
+      <value>Itchy eyes</value>
+    </field>
+    <field name="AllergyRow3">
+      <value>Shellfish</value>
+    </field>
+    <field name="ReactionRow3">
+      <value>Hives</value>
+    </field>
+    <field name="AllergyRow3_2">
+      <value>Latex</value>
+    </field>
+    <field name="ReactionRow3_2">
+      <value>Skin irritation</value>
+    </field>
+    <field name="MedicationsRow1">
+      <value>Metformin</value>
+    </field>
+    <field name="DosageRow1">
+      <value>500mg</value>
+    </field>
+    <field name="FrequencyRow1">
+      <value>Twice a day</value>
+    </field>
+    <field name="Reason for TakingRow1">
+      <value>Diabetes</value>
+    </field>
+    <field name="MedicationsRow2">
+      <value>Lisinopril</value>
+    </field>
+    <field name="DosageRow2">
+      <value>10mg</value>
+    </field>
+    <field name="FrequencyRow2">
+      <value>Once a day</value>
+    </field>
+    <field name="Reason for TakingRow2">
+      <value>Hypertension</value>
+    </field>
+    <field name="MedicationsRow3">
+      <value>Atorvastatin</value>
+    </field>
+    <field name="DosageRow3">
+      <value>20mg</value>
+    </field>
+    <field name="FrequencyRow3">
+      <value>Once a day</value>
+    </field>
+    <field name="Reason for TakingRow3">
+      <value>Cholesterol</value>
+    </field>
+    <field name="MedicationsRow4">
+      <value>Omeprazole</value>
+    </field>
+    <field name="DosageRow4">
+      <value>40mg</value>
+    </field>
+    <field name="FrequencyRow4">
+      <value>Once a day</value>
+    </field>
+    <field name="Reason for TakingRow4">
+      <value>Acid reflux</value>
+    </field>
+    <field name="MedicationsRow5">
+      <value>Albuterol</value>
+    </field>
+    <field name="DosageRow5">
+      <value>2 puffs</value>
+    </field>
+    <field name="FrequencyRow5">
+      <value>As needed</value>
+    </field>
+    <field name="Reason for TakingRow5">
+      <value>Asthma</value>
+    </field>
+    <field name="MedicationsRow6">
+      <value>Levothyroxine</value>
+    </field>
+    <field name="DosageRow6">
+      <value>75mcg</value>
+    </field>
+	<field name="FrequencyRow6">
+      <value>Twice daily</value>
+    </field>
+    <field name="Reason for TakingRow6">
+      <value>Blood pressure control</value>
+    </field>
+    <field name="MedicationsRow7">
+      <value>Metformin</value>
+    </field>
+    <field name="DosageRow7">
+      <value>500mg</value>
+    </field>
+    <field name="FrequencyRow7">
+      <value>Once daily</value>
+    </field>
+    <field name="Reason for TakingRow7">
+      <value>Diabetes management</value>
+    </field>
+    <field name="Yes_3">
+      <value>Yes</value>
+    </field>
+    <field name="No Explain">
+      <value>Patient declined to provide details</value>
+    </field>
+    <field name="trials or used experimental drugs">
+      <value>No</value>
+    </field>
+    <field name="No Last Menstrual Period Date">
+      <value>N/A</value>
+    </field>
+    <field name="Physician Signature Date">
+      <value>2024-04-01</value>
+    </field>
+    <field name="Physician Signature Time">
+      <value>10:30 AM</value>
+    </field>
+    <field name="Patient Signature Date">
+      <value>2024-04-01</value>
+    </field>
+    <field name="Patient Signature Time">
+      <value>10:00 AM</value>
+    </field>
+    <field name="Any other medical history">
+      <value>History of seasonal allergies</value>
+    </field>
+    <field name="Patient Signature">
+      <value>John Doe</value>
+    </field>
+    <field name="Physician Signature">
+      <value>Dr. Smith</value>
+    </field>
   </fields>
-  <f href="/mnt/data/patient2.pdf"/>
 </xfdf>

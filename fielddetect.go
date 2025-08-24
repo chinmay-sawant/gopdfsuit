@@ -72,7 +72,7 @@ func extractTokenGroups(content []byte, pos int) (string, string) {
 	return "", ""
 }
 
-func main() {
+func main2() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: fielddetect <file.pdf>")
 		fmt.Println("Default: sampledata/patientreg/patientreg.pdf")
