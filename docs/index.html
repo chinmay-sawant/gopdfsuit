@@ -5,12 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GoPdfSuit - Powerful PDF Generation Service</title>
     <meta name="description" content="A powerful Go web service that generates template-based PDF documents with multi-page support, custom page sizes, and PDF merge capabilities.">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/backgrounds.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/navigation.css">
+    <link rel="stylesheet" href="css/hero.css">
+    <link rel="stylesheet" href="css/features.css">
+    <link rel="stylesheet" href="css/quickstart.css">
+    <link rel="stylesheet" href="css/api.css">
+    <link rel="stylesheet" href="css/examples.css">
+    <link rel="stylesheet" href="css/screenshots.css">
+    <link rel="stylesheet" href="css/footer.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/responsive.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
+<body data-theme="dark">
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-brand">
@@ -19,11 +34,12 @@
             </div>
             <div class="nav-links">
                 <a href="#features" class="nav-link">Features</a>
+                <a href="#screenshots" class="nav-link">Screenshots</a>
                 <a href="#api" class="nav-link">API</a>
                 <a href="#examples" class="nav-link">Examples</a>
                 <a href="#quickstart" class="nav-link">Quick Start</a>
                 <button class="theme-toggle" id="themeToggle">
-                    <span class="theme-icon">🌙</span>
+                    <span class="theme-icon">☀️</span>
                 </button>
             </div>
         </div>
@@ -31,7 +47,7 @@
 
     <main>
         <!-- Hero Section -->
-        <section class="hero">
+        <section class="hero gradient-bg">
             <div class="container">
                 <div class="hero-content">
                     <h1 class="hero-title">
@@ -41,17 +57,21 @@
                     <p class="hero-description">
                         A flexible Go web service that generates template-based PDF documents with 
                         multi-page support, custom page sizes, automatic page breaks, and PDF merge capabilities.
+                        Built with Go 1.23+ and the Gin framework for high performance.
                     </p>
                     <div class="hero-badges">
-                        <span class="badge">Go 1.23+</span>
-                        <span class="badge">Gin Framework</span>
-                        <span class="badge">MIT License</span>
+                        <span class="badge" style="--i: 1">Go 1.23+</span>
+                        <span class="badge" style="--i: 2">Gin Framework</span>
+                        <span class="badge" style="--i: 3">MIT License</span>
+                        <span class="badge" style="--i: 4">Multi-page Support</span>
+                        <span class="badge" style="--i: 5">Template-based</span>
                     </div>
                     <div class="hero-actions">
-                        <a href="#quickstart" class="btn btn-primary">Get Started</a>
-                        <a href="https://github.com/chinmay-sawant/gopdfsuit" class="btn btn-secondary" target="_blank">
+                        <a href="#quickstart" class="btn btn-primary btn-animated">Get Started</a>
+                        <a href="https://github.com/chinmay-sawant/gopdfsuit" class="btn btn-secondary btn-animated" target="_blank">
                             View on GitHub
                         </a>
+                        <a href="#screenshots" class="btn btn-outline btn-animated">See Screenshots</a>
                     </div>
                 </div>
                 <div class="hero-code">
@@ -71,54 +91,162 @@ go run ./cmd/gopdfsuit</code></pre>
         </section>
 
         <!-- Features Section -->
-        <section id="features" class="features">
+        <section id="features" class="features gradient-bg-alt">
             <div class="container">
                 <h2 class="section-title">Key Features</h2>
                 <div class="features-grid">
                     <div class="feature-card">
                         <div class="feature-icon">🎯</div>
                         <h3>Template-based</h3>
-                        <p>JSON-driven PDF generation with flexible template system</p>
+                        <p>JSON-driven PDF generation with flexible template system and automatic validation</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🖥️</div>
                         <h3>Web Interface</h3>
-                        <p>Interactive HTML viewer with real-time preview and editing</p>
+                        <p>Interactive HTML viewer with real-time preview, editing, and drag-and-drop editor</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">📄</div>
                         <h3>Multi-page Support</h3>
-                        <p>Automatic page breaks and multi-page document generation</p>
+                        <p>Automatic page breaks, height tracking, and seamless content flow across pages</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🔗</div>
                         <h3>PDF Merge</h3>
-                        <p>Combine multiple PDFs with drag-and-drop interface</p>
+                        <p>Combine multiple PDFs with drag-and-drop interface and file reordering</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🎨</div>
                         <h3>Font Styling</h3>
-                        <p>Bold, italic, and underline text support with custom fonts</p>
+                        <p>Bold, italic, and underline text support with 3-digit style codes</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">📏</div>
                         <h3>Custom Page Sizes</h3>
-                        <p>A4, Letter, Legal, A3, A5 support with portrait/landscape</p>
+                        <p>A4, Letter, Legal, A3, A5 support with portrait/landscape orientations</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">☑️</div>
+                        <h3>Interactive Elements</h3>
+                        <p>Checkbox support, table layouts, and form elements with granular border control</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🛡️</div>
+                        <h3>Security Features</h3>
+                        <p>Path traversal protection, input validation, and secure file handling</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🖊️</div>
+                        <h3>Form Filling <span class="badge badge-wip">Work in Progress</span></h3>
+                        <p>AcroForm/XFDF support for filling existing PDF forms with field data</p>
+                        <div class="wip-notice">
+                            <small><strong>Note:</strong> PDF form filling functionality is currently under active development.</small>
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
 
+        <!-- Screenshots Section -->
+        <section id="screenshots" class="screenshots mesh-bg">
+            <div class="container">
+                <h2 class="section-title">Interface Screenshots</h2>
+                <p class="section-subtitle">Explore the intuitive web interfaces for PDF generation, editing, and management</p>
+                
+                <div id="screenshotCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="5000">
+                    <!-- Carousel Indicators -->
+                    <div class="carousel-indicators">
+                        <button type="button" data-bs-target="#screenshotCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                        <button type="button" data-bs-target="#screenshotCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                        <button type="button" data-bs-target="#screenshotCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+                        <button type="button" data-bs-target="#screenshotCarousel" data-bs-slide-to="3" aria-label="Slide 4"></button>
+                    </div>
+
+                    <!-- Carousel Inner -->
+                    <div class="carousel-inner">
+                        <div class="carousel-item active">
+                            <img src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/viewer.png" class="d-block w-100" alt="PDF Viewer Interface" loading="lazy">
+                            <div class="carousel-caption">
+                                <h3>📄 PDF Viewer</h3>
+                                <p>Interactive web-based PDF viewer with real-time template editing, JSON preview, and instant PDF generation</p>
+                                <div class="slide-features">
+                                    <span class="slide-feature">Real-time Preview</span>
+                                    <span class="slide-feature">JSON Editor</span>
+                                    <span class="slide-feature">Theme Support</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="carousel-item">
+                            <img src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/editor.png" class="d-block w-100" alt="Template Editor Interface" loading="lazy">
+                            <div class="carousel-caption">
+                                <h3>🎨 Template Editor</h3>
+                                <p>Visual drag-and-drop template designer with component properties panel and live JSON generation</p>
+                                <div class="slide-features">
+                                    <span class="slide-feature">Drag & Drop</span>
+                                    <span class="slide-feature">Live Preview</span>
+                                    <span class="slide-feature">Property Editor</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="carousel-item">
+                            <img src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/merge.png" class="d-block w-100" alt="PDF Merge Interface" loading="lazy">
+                            <div class="carousel-caption">
+                                <h3>🔗 PDF Merge</h3>
+                                <p>Intuitive PDF merging with drag-and-drop file upload, reordering, and instant preview</p>
+                                <div class="slide-features">
+                                    <span class="slide-feature">File Reordering</span>
+                                    <span class="slide-feature">Instant Merge</span>
+                                    <span class="slide-feature">Progress Tracking</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="carousel-item">
+                            <img src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/filler.png" class="d-block w-100" alt="PDF Filler Interface" loading="lazy">
+                            <div class="carousel-caption">
+                                <h3>🖊️ PDF Filler</h3>
+                                <p>AcroForm and XFDF support for filling existing PDF forms with field data and validation</p>
+                                <div class="slide-features">
+                                    <span class="slide-feature">XFDF Support</span>
+                                    <span class="slide-feature">Form Validation</span>
+                                    <span class="slide-feature">Auto Download</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Carousel Controls -->
+                    <button class="carousel-control-prev" type="button" data-bs-target="#screenshotCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#screenshotCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
         <!-- Quick Start Section -->
-        <section id="quickstart" class="quickstart">
+        <section id="quickstart" class="quickstart gradient-bg animate-on-scroll">
             <div class="container">
                 <h2 class="section-title">Quick Start</h2>
+                <p class="section-subtitle">Get GoPdfSuit running in under 2 minutes</p>
                 <div class="quickstart-steps">
                     <div class="step">
                         <div class="step-number">1</div>
                         <div class="step-content">
                             <h3>Clone Repository</h3>
+                            <p>Download the source code from GitHub</p>
                             <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-title">Clone Command</span>
+                                    <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git
+cd gopdfsuit">📋</button>
+                                </div>
                                 <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit</code></pre>
                             </div>
@@ -128,7 +256,12 @@ cd gopdfsuit</code></pre>
                         <div class="step-number">2</div>
                         <div class="step-content">
                             <h3>Install Dependencies</h3>
+                            <p>Go modules will automatically download required dependencies</p>
                             <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-title">Dependencies</span>
+                                    <button class="copy-btn" data-copy="go mod download">📋</button>
+                                </div>
                                 <pre><code>go mod download</code></pre>
                             </div>
                         </div>
@@ -137,7 +270,12 @@ cd gopdfsuit</code></pre>
                         <div class="step-number">3</div>
                         <div class="step-content">
                             <h3>Run Server</h3>
+                            <p>Start the web service with all interfaces available</p>
                             <div class="code-block">
+                                <div class="code-header">
+                                    <span class="code-title">Start Server</span>
+                                    <button class="copy-btn" data-copy="go run ./cmd/gopdfsuit">📋</button>
+                                </div>
                                 <pre><code>go run ./cmd/gopdfsuit</code></pre>
                             </div>
                         </div>
@@ -146,7 +284,21 @@ cd gopdfsuit</code></pre>
                         <div class="step-number">4</div>
                         <div class="step-content">
                             <h3>Open Browser</h3>
-                            <p>Navigate to <code>http://localhost:8080</code></p>
+                            <p>Navigate to the web interface and start creating PDFs</p>
+                            <div class="url-list">
+                                <div class="url-item">
+                                    <code>http://localhost:8080</code>
+                                    <span class="url-desc">PDF Viewer</span>
+                                </div>
+                                <div class="url-item">
+                                    <code>http://localhost:8080/editor</code>
+                                    <span class="url-desc">Template Editor</span>
+                                </div>
+                                <div class="url-item">
+                                    <code>http://localhost:8080/merge</code>
+                                    <span class="url-desc">PDF Merge</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -154,66 +306,337 @@ cd gopdfsuit</code></pre>
         </section>
 
         <!-- API Reference Section -->
-        <section id="api" class="api">
+        <section id="api" class="api dots-bg animate-on-scroll">
             <div class="container">
                 <h2 class="section-title">API Reference</h2>
+                <p class="section-subtitle">Comprehensive REST API for PDF generation, merging, and form filling</p>
                 <div class="api-grid">
-                    <div class="api-card">
-                        <div class="api-method get">GET</div>
-                        <div class="api-content">
-                            <h3>/</h3>
-                            <p>Interactive web-based PDF viewer and template editor</p>
-                            <div class="api-params">
-                                <span class="param">file (optional) - JSON template filename</span>
+                    <!-- Web Interfaces -->
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/</h3>
+                                <p>Interactive web-based PDF viewer and template editor</p>
+                                <div class="api-params">
+                                    <span class="param">file (optional) - JSON template filename</span>
+                                </div>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Description</h4>
+                                <p>The main web interface for PDF generation. Features real-time JSON editing, PDF preview, theme switching, and template loading with URL parameters.</p>
+                            </div>
+                            <div class="api-example">
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">Example URLs</span>
+                                        <button class="copy-btn" data-copy="http://localhost:8080/
+http://localhost:8080/?file=temp_multiplepage.json">📋</button>
+                                    </div>
+                                    <pre><code>http://localhost:8080/
+http://localhost:8080/?file=temp_multiplepage.json</code></pre>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="api-card">
-                        <div class="api-method get">GET</div>
-                        <div class="api-content">
-                            <h3>/editor</h3>
-                            <p>Visual drag-and-drop PDF template editor</p>
-                            <div class="api-params">
-                                <span class="param">file (optional) - JSON template filename</span>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/editor</h3>
+                                <p>Visual drag-and-drop PDF template editor</p>
+                                <div class="api-params">
+                                    <span class="param">file (optional) - JSON template filename</span>
+                                </div>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Features</h4>
+                                <ul>
+                                    <li>🎨 Drag-and-drop interface for visual template building</li>
+                                    <li>📋 Real-time JSON generation as you build</li>
+                                    <li>🔧 Component properties panel for customization</li>
+                                    <li>📄 Live PDF preview with instant generation</li>
+                                    <li>💾 Template loading and saving capabilities</li>
+                                </ul>
+                            </div>
+                            <div class="api-example">
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">Example URLs</span>
+                                        <button class="copy-btn" data-copy="http://localhost:8080/editor
+http://localhost:8080/editor?file=temp_multiplepage.json">📋</button>
+                                    </div>
+                                    <pre><code>http://localhost:8080/editor
+http://localhost:8080/editor?file=temp_multiplepage.json</code></pre>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="api-card">
-                        <div class="api-method post">POST</div>
-                        <div class="api-content">
-                            <h3>/api/v1/generate/template-pdf</h3>
-                            <p>Generate template-based PDF from JSON configuration</p>
-                            <div class="api-params">
-                                <span class="param">Content-Type: application/json</span>
+
+                    <!-- Core API Endpoints -->
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method post">POST</div>
+                            <div class="api-content">
+                                <h3>/api/v1/generate/template-pdf</h3>
+                                <p>Generate template-based PDF from JSON configuration</p>
+                                <div class="api-params">
+                                    <span class="param">Content-Type: application/json</span>
+                                </div>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Template Configuration</h4>
+                                <ul>
+                                    <li><strong>config.page:</strong> A4, LETTER, LEGAL, A3, A5</li>
+                                    <li><strong>config.pageAlignment:</strong> 1 (Portrait), 2 (Landscape)</li>
+                                    <li><strong>config.pageBorder:</strong> "left:right:top:bottom" border widths</li>
+                                    <li><strong>config.watermark:</strong> Optional diagonal watermark text</li>
+                                    <li><strong>props format:</strong> "font:size:style:align:left:right:top:bottom"</li>
+                                    <li><strong>style codes:</strong> 3-digit (bold:italic:underline) - 000 to 111</li>
+                                </ul>
+                            </div>
+                            <div class="api-example">
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">cURL Example</span>
+                                        <button class="copy-btn" data-copy='curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
+  -H "Content-Type: application/json" \
+  -d '\''{
+    "config": {
+      "pageBorder": "2:2:2:2",
+      "page": "A4",
+      "pageAlignment": 1,
+      "watermark": "CONFIDENTIAL"
+    },
+    "title": {
+      "props": "font1:20:110:center:0:0:2:0",
+      "text": "Multi-Page Document"
+    },
+    "table": [{
+      "maxcolumns": 2,
+      "rows": [{
+        "row": [{
+          "props": "font1:12:100:left:1:1:1:1",
+          "text": "Field Name:"
+        }, {
+          "props": "font1:12:000:left:1:1:1:1",
+          "text": "Field Value"
+        }]
+      }]
+    }],
+    "footer": {
+      "font": "font1:10:001:center",
+      "text": "Page footer with auto-pagination"
+    }
+  }'\'' \
+  --output document.pdf'>📋</button>
+                                    </div>
+                                    <pre><code>curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "config": {
+      "pageBorder": "2:2:2:2",
+      "page": "A4",
+      "pageAlignment": 1,
+      "watermark": "CONFIDENTIAL"
+    },
+    "title": {
+      "props": "font1:20:110:center:0:0:2:0",
+      "text": "Multi-Page Document"
+    },
+    "table": [{
+      "maxcolumns": 2,
+      "rows": [{
+        "row": [{
+          "props": "font1:12:100:left:1:1:1:1",
+          "text": "Field Name:"
+        }, {
+          "props": "font1:12:000:left:1:1:1:1",
+          "text": "Field Value"
+        }]
+      }]
+    }],
+    "footer": {
+      "font": "font1:10:001:center",
+      "text": "Page footer with auto-pagination"
+    }
+  }' \
+  --output document.pdf</code></pre>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="api-card">
-                        <div class="api-method post">POST</div>
-                        <div class="api-content">
-                            <h3>/api/v1/merge</h3>
-                            <p>Combine multiple PDF files into a single document</p>
-                            <div class="api-params">
-                                <span class="param">Content-Type: multipart/form-data</span>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method post">POST</div>
+                            <div class="api-content">
+                                <h3>/api/v1/merge</h3>
+                                <p>Combine multiple PDF files into a single document</p>
+                                <div class="api-params">
+                                    <span class="param">Content-Type: multipart/form-data</span>
+                                </div>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Features</h4>
+                                <ul>
+                                    <li>🔄 Merge multiple PDFs in specified order</li>
+                                    <li>📄 Preserves original document formatting</li>
+                                    <li>⚡ Fast in-memory processing</li>
+                                    <li>🔒 Secure file handling with validation</li>
+                                </ul>
+                            </div>
+                            <div class="api-example">
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">cURL Example</span>
+                                        <button class="copy-btn" data-copy='curl -X POST "http://localhost:8080/api/v1/merge" \
+  -F "pdf=@document1.pdf" \
+  -F "pdf=@document2.pdf" \
+  -F "pdf=@document3.pdf" \
+  --output merged-document.pdf'>📋</button>
+                                    </div>
+                                    <pre><code>curl -X POST "http://localhost:8080/api/v1/merge" \
+  -F "pdf=@document1.pdf" \
+  -F "pdf=@document2.pdf" \
+  -F "pdf=@document3.pdf" \
+  --output merged-document.pdf</code></pre>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="api-card">
-                        <div class="api-method post">POST</div>
-                        <div class="api-content">
-                            <h3>/api/v1/fill</h3>
-                            <p>Fill PDF forms using XFDF data</p>
-                            <div class="api-params">
-                                <span class="param">pdf - Source PDF file</span>
-                                <span class="param">xfdf - XFDF field data</span>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method post">POST</div>
+                            <div class="api-content">
+                                <h3>/api/v1/fill</h3>
+                                <p>Fill PDF forms using XFDF data</p>
+                                <div class="api-params">
+                                    <span class="param">pdf - Source PDF file</span>
+                                    <span class="param">xfdf - XFDF field data</span>
+                                </div>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Form Filling Features</h4>
+                                <ul>
+                                    <li>📝 AcroForm field filling support</li>
+                                    <li>🔧 XFDF data format compatibility</li>
+                                    <li>✅ Automatic field validation</li>
+                                    <li>🎨 Preserves form appearance and layout</li>
+                                </ul>
+                            </div>
+                            <div class="api-example">
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">cURL Example</span>
+                                        <button class="copy-btn" data-copy='curl -X POST "http://localhost:8080/api/v1/fill" \
+  -F "pdf=@form-template.pdf" \
+  -F "xfdf=@form-data.xfdf" \
+  --output filled-form.pdf'>📋</button>
+                                    </div>
+                                    <pre><code>curl -X POST "http://localhost:8080/api/v1/fill" \
+  -F "pdf=@form-template.pdf" \
+  -F "xfdf=@form-data.xfdf" \
+  --output filled-form.pdf</code></pre>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="api-card">
-                        <div class="api-method get">GET</div>
-                        <div class="api-content">
-                            <h3>/merge</h3>
-                            <p>Web interface for PDF merging with drag-and-drop</p>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/api/v1/template-data</h3>
+                                <p>Load JSON template data with security validation</p>
+                                <div class="api-params">
+                                    <span class="param">file (required) - JSON template filename</span>
+                                </div>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Security Features</h4>
+                                <ul>
+                                    <li>🔒 Path traversal protection</li>
+                                    <li>✅ File extension validation (.json only)</li>
+                                    <li>📋 JSON structure validation</li>
+                                    <li>🛡️ Input sanitization</li>
+                                </ul>
+                            </div>
+                            <div class="api-example">
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">cURL Example</span>
+                                        <button class="copy-btn" data-copy='curl "http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json"'>📋</button>
+                                    </div>
+                                    <pre><code>curl "http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json"</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Web Interface Endpoints -->
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/merge</h3>
+                                <p>Web interface for PDF merging with drag-and-drop</p>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Interface Features</h4>
+                                <ul>
+                                    <li>🎯 Drag & drop file upload interface</li>
+                                    <li>🔄 File reordering before merge</li>
+                                    <li>👁️ Live preview of merged PDF</li>
+                                    <li>📱 Responsive design for all devices</li>
+                                    <li>🎨 Theme support with gradient options</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/filler</h3>
+                                <p>Web interface for PDF form filling</p>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Form Filling Interface</h4>
+                                <ul>
+                                    <li>📁 Simple file upload for PDF and XFDF</li>
+                                    <li>✅ Real-time validation and error handling</li>
+                                    <li>⬇️ Automatic download of filled PDF</li>
+                                    <li>🔧 Support for complex form structures</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -221,109 +644,426 @@ cd gopdfsuit</code></pre>
         </section>
 
         <!-- Examples Section -->
-        <section id="examples" class="examples">
+        <section id="examples" class="examples grid-bg animate-on-scroll">
             <div class="container">
                 <h2 class="section-title">Usage Examples</h2>
+                <p class="section-subtitle">Practical examples for different programming languages and use cases</p>
                 <div class="examples-tabs">
                     <button class="tab-btn active" data-tab="curl">cURL</button>
                     <button class="tab-btn" data-tab="python">Python</button>
+                    <button class="tab-btn" data-tab="javascript">JavaScript</button>
                     <button class="tab-btn" data-tab="json">JSON Template</button>
                 </div>
+                
                 <div class="tab-content active" id="curl">
+                    <h3>Healthcare Form Example</h3>
                     <div class="code-block">
                         <div class="code-header">
-                            <span class="code-title">Generate PDF with cURL</span>
+                            <span class="code-title">Multi-page Healthcare Form with cURL</span>
                             <button class="copy-btn" data-copy='curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
   -H "Content-Type: application/json" \
-  -d '"'"'{"config":{"page":"A4","pageAlignment":1},"title":{"props":"font1:20:100:center:0:0:2:0","text":"Sample Document"}}'"'"' \
-  --output document.pdf'>📋</button>
+  -d '"'"'{
+    "config": {
+      "pageBorder": "2:2:2:2",
+      "page": "LETTER",
+      "pageAlignment": 1,
+      "watermark": "CONFIDENTIAL"
+    },
+    "title": {
+      "props": "font1:20:110:center:0:0:2:0",
+      "text": "Patient Encounter Form - Multi Page"
+    },
+    "table": [{
+      "maxcolumns": 4,
+      "rows": [{
+        "row": [{
+          "props": "font1:12:100:left:1:0:1:1",
+          "text": "Patient Name:"
+        }, {
+          "props": "font1:12:000:left:0:1:1:1",
+          "text": "John Doe"
+        }, {
+          "props": "font1:12:100:left:1:0:1:1",
+          "text": "DOB:"
+        }, {
+          "props": "font1:12:010:left:0:1:1:1",
+          "text": "01/15/1980"
+        }]
+      }]
+    }],
+    "footer": {
+      "font": "font1:10:001:center",
+      "text": "Confidential Medical Document - Auto Pagination"
+    }
+  }'"'"' \
+  --output patient-form-multipage.pdf'>📋</button>
                         </div>
                         <pre><code>curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
   -H "Content-Type: application/json" \
-  -d '{"config":{"page":"A4","pageAlignment":1},"title":{"props":"font1:20:100:center:0:0:2:0","text":"Sample Document"}}' \
-  --output document.pdf</code></pre>
+  -d '{
+    "config": {
+      "pageBorder": "2:2:2:2",
+      "page": "LETTER",
+      "pageAlignment": 1,
+      "watermark": "CONFIDENTIAL"
+    },
+    "title": {
+      "props": "font1:20:110:center:0:0:2:0",
+      "text": "Patient Encounter Form - Multi Page"
+    },
+    "table": [{
+      "maxcolumns": 4,
+      "rows": [{
+        "row": [{
+          "props": "font1:12:100:left:1:0:1:1",
+          "text": "Patient Name:"
+        }, {
+          "props": "font1:12:000:left:0:1:1:1",
+          "text": "John Doe"
+        }, {
+          "props": "font1:12:100:left:1:0:1:1",
+          "text": "DOB:"
+        }, {
+          "props": "font1:12:010:left:0:1:1:1",
+          "text": "01/15/1980"
+        }]
+      }]
+    }],
+    "footer": {
+      "font": "font1:10:001:center",
+      "text": "Confidential Medical Document - Auto Pagination"
+    }
+  }' \
+  --output patient-form-multipage.pdf</code></pre>
                     </div>
                 </div>
+                
                 <div class="tab-content" id="python">
+                    <h3>Landscape Survey Form</h3>
                     <div class="code-block">
                         <div class="code-header">
-                            <span class="code-title">Generate PDF with Python</span>
+                            <span class="code-title">Landscape Layout with Python</span>
                             <button class="copy-btn" data-copy='import requests
+import json
 
 url = "http://localhost:8080/api/v1/generate/template-pdf"
 template = {
-    "config": {"page": "A4", "pageAlignment": 1},
-    "title": {"props": "font1:20:100:center:0:0:2:0", "text": "Sample Document"}
+    "config": {
+        "pageBorder": "1:1:1:1",
+        "page": "A4",
+        "pageAlignment": 2  # Landscape orientation
+    },
+    "title": {
+        "props": "font1:22:111:center:0:0:2:0",
+        "text": "Landscape Survey Form"
+    },
+    "table": [{
+        "maxcolumns": 6,  # More columns fit in landscape
+        "rows": [{
+            "row": [{
+                "props": "font1:14:100:left:1:1:1:1",
+                "text": "Question 1:"
+            }, {
+                "props": "font1:12:000:center:1:1:1:1",
+                "chequebox": True
+            }, {
+                "props": "font1:12:010:left:1:1:1:1",
+                "text": "Excellent"
+            }, {
+                "props": "font1:12:000:center:1:1:1:1",
+                "chequebox": False
+            }, {
+                "props": "font1:12:010:left:1:1:1:1",
+                "text": "Good"
+            }, {
+                "props": "font1:12:000:left:1:1:1:1",
+                "text": "Average"
+            }]
+        }]
+    }],
+    "footer": {
+        "font": "font1:10:001:right",
+        "text": "Landscape Page Layout"
+    }
 }
 
 response = requests.post(url, json=template)
-with open("document.pdf", "wb") as f:
-    f.write(response.content)'>📋</button>
+with open("survey-landscape.pdf", "wb") as f:
+    f.write(response.content)
+
+print("PDF generated successfully!")'>📋</button>
                         </div>
                         <pre><code>import requests
+import json
 
 url = "http://localhost:8080/api/v1/generate/template-pdf"
 template = {
-    "config": {"page": "A4", "pageAlignment": 1},
-    "title": {"props": "font1:20:100:center:0:0:2:0", "text": "Sample Document"}
+    "config": {
+        "pageBorder": "1:1:1:1",
+        "page": "A4",
+        "pageAlignment": 2  # Landscape orientation
+    },
+    "title": {
+        "props": "font1:22:111:center:0:0:2:0",
+        "text": "Landscape Survey Form"
+    },
+    "table": [{
+        "maxcolumns": 6,  # More columns fit in landscape
+        "rows": [{
+            "row": [{
+                "props": "font1:14:100:left:1:1:1:1",
+                "text": "Question 1:"
+            }, {
+                "props": "font1:12:000:center:1:1:1:1",
+                "chequebox": True
+            }, {
+                "props": "font1:12:010:left:1:1:1:1",
+                "text": "Excellent"
+            }, {
+                "props": "font1:12:000:center:1:1:1:1",
+                "chequebox": False
+            }, {
+                "props": "font1:12:010:left:1:1:1:1",
+                "text": "Good"
+            }, {
+                "props": "font1:12:000:left:1:1:1:1",
+                "text": "Average"
+            }]
+        }]
+    }],
+    "footer": {
+        "font": "font1:10:001:right",
+        "text": "Landscape Page Layout"
+    }
 }
 
 response = requests.post(url, json=template)
-with open("document.pdf", "wb") as f:
-    f.write(response.content)</code></pre>
+with open("survey-landscape.pdf", "wb") as f:
+    f.write(response.content)
+
+print("PDF generated successfully!")</code></pre>
                     </div>
                 </div>
-                <div class="tab-content" id="json">
+                
+                <div class="tab-content" id="javascript">
+                    <h3>JavaScript/Node.js Integration</h3>
                     <div class="code-block">
                         <div class="code-header">
-                            <span class="code-title">JSON Template Structure</span>
+                            <span class="code-title">Node.js with Fetch API</span>
+                            <button class="copy-btn" data-copy='const fs = require('"'"'fs'"'"');
+
+async function generatePDF() {
+    const template = {
+        "config": {
+            "pageBorder": "1:1:1:1",
+            "page": "A4",
+            "pageAlignment": 1
+        },
+        "title": {
+            "props": "font1:24:100:center:0:0:1:0",
+            "text": "JavaScript Generated Document"
+        },
+        "table": [{
+            "maxcolumns": 2,
+            "rows": [{
+                "row": [{
+                    "props": "font1:12:100:left:1:1:1:1",
+                    "text": "Generated with:"
+                }, {
+                    "props": "font1:12:010:left:1:1:1:1",
+                    "text": "Node.js & GoPdfSuit"
+                }]
+            }]
+        }]
+    };
+
+    try {
+        const response = await fetch('"'"'http://localhost:8080/api/v1/generate/template-pdf'"'"', {
+            method: '"'"'POST'"'"',
+            headers: {
+                '"'"'Content-Type'"'"': '"'"'application/json'"'"'
+            },
+            body: JSON.stringify(template)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        fs.writeFileSync('"'"'generated-document.pdf'"'"', Buffer.from(buffer));
+        console.log('"'"'PDF generated successfully!'"'"');
+    } catch (error) {
+        console.error('"'"'Error generating PDF:'"'"', error);
+    }
+}
+
+generatePDF();'>📋</button>
+                        </div>
+                        <pre><code>const fs = require('fs');
+
+async function generatePDF() {
+    const template = {
+        "config": {
+            "pageBorder": "1:1:1:1",
+            "page": "A4",
+            "pageAlignment": 1
+        },
+        "title": {
+            "props": "font1:24:100:center:0:0:1:0",
+            "text": "JavaScript Generated Document"
+        },
+        "table": [{
+            "maxcolumns": 2,
+            "rows": [{
+                "row": [{
+                    "props": "font1:12:100:left:1:1:1:1",
+                    "text": "Generated with:"
+                }, {
+                    "props": "font1:12:010:left:1:1:1:1",
+                    "text": "Node.js & GoPdfSuit"
+                }]
+            }]
+        }]
+    };
+
+    try {
+        const response = await fetch('http://localhost:8080/api/v1/generate/template-pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(template)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        fs.writeFileSync('generated-document.pdf', Buffer.from(buffer));
+        console.log('PDF generated successfully!');
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+    }
+}
+
+generatePDF();</code></pre>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="json">
+                    <h3>Complete Template Structure</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">Advanced Multi-page Template</span>
                             <button class="copy-btn" data-copy='{
   "config": {
-    "pageBorder": "1:1:1:1",
+    "pageBorder": "2:2:2:2",
     "page": "A4",
-    "pageAlignment": 1
+    "pageAlignment": 1,
+    "watermark": "CONFIDENTIAL"
   },
   "title": {
     "props": "font1:24:100:center:0:0:1:0",
-    "text": "Document Title"
+    "text": "Complete Document Template"
   },
   "table": [{
-    "maxcolumns": 2,
+    "maxcolumns": 3,
     "rows": [{
       "row": [{
-        "props": "font1:12:100:left:1:1:1:1",
-        "text": "Field Name:"
+        "props": "font1:14:100:left:1:1:1:1",
+        "text": "Bold Header"
       }, {
-        "props": "font1:12:000:left:1:1:1:1",
-        "text": "Field Value"
+        "props": "font1:12:010:center:1:1:1:1",
+        "text": "Italic Center"
+      }, {
+        "props": "font1:12:001:right:1:1:1:1",
+        "text": "Underlined Right"
+      }]
+    }, {
+      "row": [{
+        "props": "font1:12:111:left:1:1:1:1",
+        "text": "Bold+Italic+Underline"
+      }, {
+        "props": "font1:12:000:center:1:1:1:1",
+        "chequebox": true
+      }, {
+        "props": "font1:12:000:right:1:1:1:1",
+        "text": "Normal Text"
       }]
     }]
-  }]
+  }],
+  "footer": {
+    "font": "font1:10:001:center",
+    "text": "Auto-paginated footer with page numbers"
+  }
 }'>📋</button>
                         </div>
                         <pre><code>{
   "config": {
-    "pageBorder": "1:1:1:1",
+    "pageBorder": "2:2:2:2",
     "page": "A4",
-    "pageAlignment": 1
+    "pageAlignment": 1,
+    "watermark": "CONFIDENTIAL"
   },
   "title": {
     "props": "font1:24:100:center:0:0:1:0",
-    "text": "Document Title"
+    "text": "Complete Document Template"
   },
   "table": [{
-    "maxcolumns": 2,
+    "maxcolumns": 3,
     "rows": [{
       "row": [{
-        "props": "font1:12:100:left:1:1:1:1",
-        "text": "Field Name:"
+        "props": "font1:14:100:left:1:1:1:1",
+        "text": "Bold Header"
       }, {
-        "props": "font1:12:000:left:1:1:1:1",
-        "text": "Field Value"
+        "props": "font1:12:010:center:1:1:1:1",
+        "text": "Italic Center"
+      }, {
+        "props": "font1:12:001:right:1:1:1:1",
+        "text": "Underlined Right"
+      }]
+    }, {
+      "row": [{
+        "props": "font1:12:111:left:1:1:1:1",
+        "text": "Bold+Italic+Underline"
+      }, {
+        "props": "font1:12:000:center:1:1:1:1",
+        "chequebox": true
+      }, {
+        "props": "font1:12:000:right:1:1:1:1",
+        "text": "Normal Text"
       }]
     }]
-  }]
+  }],
+  "footer": {
+    "font": "font1:10:001:center",
+    "text": "Auto-paginated footer with page numbers"
+  }
 }</code></pre>
+                    </div>
+                    
+                    <div class="template-guide">
+                        <h4>Template Property Guide</h4>
+                        <div class="property-grid">
+                            <div class="property-item">
+                                <strong>Page Sizes:</strong>
+                                <code>A4, LETTER, LEGAL, A3, A5</code>
+                            </div>
+                            <div class="property-item">
+                                <strong>Orientation:</strong>
+                                <code>1 (Portrait), 2 (Landscape)</code>
+                            </div>
+                            <div class="property-item">
+                                <strong>Style Codes:</strong>
+                                <code>000-111 (bold:italic:underline)</code>
+                            </div>
+                            <div class="property-item">
+                                <strong>Alignment:</strong>
+                                <code>left, center, right</code>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -341,15 +1081,18 @@ with open("document.pdf", "wb") as f:
                     <a href="https://github.com/chinmay-sawant/gopdfsuit" target="_blank">GitHub</a>
                     <a href="#api">Documentation</a>
                     <a href="#examples">Examples</a>
+                    <a href="#screenshots">Screenshots</a>
                 </div>
                 <div class="footer-info">
                     <p>Made with ❤️ by <a href="https://github.com/chinmay-sawant" target="_blank">Chinmay Sawant</a></p>
+                    <p class="footer-version">v1.0.0 • Built with Go 1.23+ & Gin Framework</p>
                 </div>
             </div>
         </div>
     </footer>
 
-    <script src="script.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/script.js"></script>
 </body>
 </html>
-        
