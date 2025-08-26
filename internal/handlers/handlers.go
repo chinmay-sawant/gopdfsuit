@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -92,10 +94,13 @@ func RegisterRoutes(router *gin.Engine) {
 	v1 := router.Group("/api/v1")
 	v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
 	v1.POST("/fill", handleFillPDF)
+	v1.POST("/merge", handleMergePDFs)
 	v1.GET("/template-data", handleGetTemplateData)
 
 	// Template editor endpoint
 	router.GET("/editor", PDFEditorHandler)
+	// PDF merge UI
+	router.GET("/merge", PDFMergeHandler)
 }
 
 // handlePDFViewer serves the PDF viewer HTML page
@@ -214,9 +219,61 @@ func handleFillPDF(c *gin.Context) {
 	c.Data(http.StatusOK, "application/pdf", out)
 }
 
+// handleMergePDFs accepts multiple 'pdf' form files, merges them into a single PDF,
+// and returns the merged PDF as application/pdf
+func handleMergePDFs(c *gin.Context) {
+	// Parse multipart form (let Gin handle it) - use Request.MultipartReader via FormFile in a loop
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid multipart form: " + err.Error()})
+		return
+	}
+
+	files := form.File["pdf"]
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No pdf files provided; use field name 'pdf' multiple times"})
+		return
+	}
+
+	var pdfBytesList [][]byte
+	// Process files in the exact order they appear in the form to maintain selection sequence
+	for i, fh := range files {
+		fmt.Printf("Processing file %d: %s\n", i+1, fh.Filename)
+		f, err := fh.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
+			return
+		}
+		buf, err := io.ReadAll(f)
+		f.Close()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
+			return
+		}
+		pdfBytesList = append(pdfBytesList, buf)
+	}
+
+	merged, err := pdf.MergePDFs(pdfBytesList)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", "attachment; filename=merged.pdf")
+	c.Data(http.StatusOK, "application/pdf", merged)
+}
+
 // PDFEditorHandler serves the template editor interface
 func PDFEditorHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "pdf_editor.html", gin.H{
 		"title": "GoPdfSuit - Template Editor",
+	})
+}
+
+// PDFMergeHandler serves the merge UI
+func PDFMergeHandler(c *gin.Context) {
+	c.HTML(http.StatusOK, "pdf_merge.html", gin.H{
+		"title": "GoPdfSuit - PDF Merge",
 	})
 }

@@ -411,5 +411,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 
 // Initialize the PDF viewer when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new PDFViewer();
+    // expose the viewer instance globally so other pages/scripts (like merge) can reuse
+    window.gopdfViewer = new PDFViewer();
 });

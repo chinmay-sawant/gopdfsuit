@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoPdfSuit - PDF Merge</title>
+    <link rel="stylesheet" href="/static/css/viewer.css" />
+    <link rel="stylesheet" href="/static/css/merge.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  </head>
+  <body class="theme-dark">
+    <header class="header">
+      <div class="container">
+        <h1>📄 GoPdfSuit - PDF Merge</h1>
+        <p class="subtitle">
+          Upload multiple PDFs to merge and preview the result in order
+        </p>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="container">
+        <div class="merge-container">
+          <!-- Sidebar with controls -->
+          <div class="merge-sidebar">
+            <div class="theme-controls">
+              <button
+                id="themeToggle"
+                class="btn-small"
+                title="Toggle Light/Dark"
+              >
+                🌞
+              </button>
+              <select
+                id="gradientSelect"
+                class="gradient-select"
+                title="Select Gradient Theme"
+              ></select>
+            </div>
+
+            <div class="file-input-enhanced">
+              <label for="pdfFiles">
+                <i class="fas fa-file-pdf"></i>
+                Choose PDF files (multiple)
+              </label>
+              <input
+                type="file"
+                id="pdfFiles"
+                accept="application/pdf"
+                multiple
+              />
+              <div id="fileList" class="file-list" style="display: none"></div>
+            </div>
+
+            <div class="merge-actions">
+              <button id="mergeBtn" class="btn-merge-primary">
+                <i class="fas fa-compress-arrows-alt"></i>
+                Merge & Preview
+              </button>
+              <button id="downloadMerged" class="btn-merge-secondary" disabled>
+                <i class="fas fa-download"></i>
+                Download Merged PDF
+              </button>
+            </div>
+
+            <div class="status-enhanced">
+              <div class="status-text" id="statusMessage">
+                Ready to merge PDFs
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview panel matching pdf_viewer.html structure -->
+          <div class="merge-preview">
+            <div class="merge-preview-header">
+              <h3>
+                <i class="fas fa-eye"></i>
+                📄 PDF Preview
+              </h3>
+              <div class="pdf-controls">
+                <button id="prevPage" disabled>◀</button>
+                <span id="pageInfo">Page 1 of 1</span>
+                <button id="nextPage" disabled>▶</button>
+                <button id="downloadBtn" disabled title="Download PDF">
+                  ⬇️
+                </button>
+              </div>
+            </div>
+
+            <div class="merge-preview-content">
+              <div id="emptyState" class="merge-empty-state">
+                <i class="fas fa-file-pdf"></i>
+                <div>Select PDF files and click "Merge & Preview"</div>
+                <div style="margin-top: 8px; font-size: 14px; opacity: 0.7">
+                  Files will be merged in the order you select them
+                </div>
+              </div>
+
+              <canvas
+                id="pdfCanvas"
+                class="merge-pdf-canvas"
+                style="display: none"
+              ></canvas>
+
+              <div id="loadingIndicator" class="loading" style="display: none">
+                <i class="fas fa-spinner fa-spin"></i>
+                Processing merge...
+              </div>
+
+              <div id="errorIndicator" class="error" style="display: none">
+                <i class="fas fa-exclamation-triangle"></i>
+                Failed to load merged PDF
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <p>
+          Made with ❤️ by
+          <a href="https://github.com/chinmay-sawant">Chinmay Sawant</a>
+        </p>
+      </div>
+    </footer>
+
+    <script src="/static/js/viewer.js"></script>
+    <script>
+      let mergedPDFBlob = null;
+      let selectedFilesOrder = [];
+
+      // File selection handler - preserve exact selection order
+      document
+        .getElementById("pdfFiles")
+        .addEventListener("change", function (event) {
+          const fileList = document.getElementById("fileList");
+          const files = this.files;
+
+          // Reset and rebuild the selection order based on user action
+          selectedFilesOrder = [];
+
+          // Track files with their selection timestamp to maintain order
+          const fileArray = Array.from(files);
+          const currentTime = Date.now();
+
+          // Add selection timestamp to each file for ordering
+          fileArray.forEach((file, index) => {
+            file._selectionOrder = currentTime + index;
+            selectedFilesOrder.push(file);
+          });
+
+          if (files.length > 0) {
+            fileList.style.display = "block";
+            fileList.innerHTML = "";
+
+            // Display files in the order they appear in selectedFilesOrder
+            selectedFilesOrder.forEach((file, index) => {
+              const fileItem = document.createElement("div");
+              fileItem.className = "file-item";
+              fileItem.innerHTML = `
+              <i class="fas fa-file-pdf"></i>
+              <span>${file.name}</span>
+              <small style="margin-left: auto; opacity: 0.7;">#${
+                index + 1
+              }</small>
+            `;
+              fileList.appendChild(fileItem);
+            });
+
+            // Log for debugging
+            console.log(
+              "Files selected in order:",
+              selectedFilesOrder.map((f) => f.name)
+            );
+          } else {
+            fileList.style.display = "none";
+            selectedFilesOrder = [];
+          }
+        });
+
+      // Merge and preview handler
+      document
+        .getElementById("mergeBtn")
+        .addEventListener("click", async () => {
+          const input = document.getElementById("pdfFiles");
+          const status = document.getElementById("statusMessage");
+          const emptyState = document.getElementById("emptyState");
+          const loadingIndicator = document.getElementById("loadingIndicator");
+          const canvas = document.getElementById("pdfCanvas");
+          const errorIndicator = document.getElementById("errorIndicator");
+
+          if (!selectedFilesOrder.length) {
+            alert("Please choose at least one PDF file to merge");
+            return;
+          }
+
+          // Show loading state
+          emptyState.style.display = "none";
+          canvas.style.display = "none";
+          errorIndicator.style.display = "none";
+          loadingIndicator.style.display = "flex";
+
+          const form = new FormData();
+          selectedFilesOrder.forEach((file) => {
+            form.append("pdf", file);
+          });
+
+          status.textContent = "Merging PDFs...";
+
+          try {
+            const resp = await fetch("/api/v1/merge", {
+              method: "POST",
+              body: form,
+            });
+
+            if (!resp.ok) {
+              throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+            }
+
+            const blob = await resp.blob();
+            mergedPDFBlob = blob;
+
+            // Hide loading, show canvas
+            loadingIndicator.style.display = "none";
+            canvas.style.display = "block";
+
+            // Load PDF in viewer (using the same logic as pdf_viewer.html)
+            const viewer = window.gopdfViewer;
+            if (viewer && typeof viewer.loadPDFFromBlob === "function") {
+              await viewer.loadPDFFromBlob(blob);
+              status.textContent = `Merged ${selectedFilesOrder.length} PDFs successfully`;
+
+              // Enable both download buttons
+              document.getElementById("downloadMerged").disabled = false;
+              document.getElementById("downloadBtn").disabled = false;
+
+              // Store blob for download
+              viewer.currentPDFBlob = blob;
+            } else {
+              throw new Error("PDF viewer not available");
+            }
+          } catch (error) {
+            loadingIndicator.style.display = "none";
+            errorIndicator.style.display = "flex";
+            status.textContent = "Error: " + error.message;
+            console.error("Merge error:", error);
+          }
+        });
+
+      // Download handlers
+      document
+        .getElementById("downloadMerged")
+        .addEventListener("click", () => {
+          if (mergedPDFBlob) {
+            downloadPDF(mergedPDFBlob);
+          }
+        });
+
+      document.getElementById("downloadBtn").addEventListener("click", () => {
+        if (mergedPDFBlob) {
+          downloadPDF(mergedPDFBlob);
+        }
+      });
+
+      function downloadPDF(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `merged-${new Date().getTime()}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        document.getElementById("statusMessage").textContent =
+          "Merged PDF downloaded";
+      }
+    </script>
+  </body>
+</html>

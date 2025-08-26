@@ -197,6 +197,46 @@ curl "http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json"
 - **Content-Type:** `application/pdf`
 - **File:** `template-pdf-<timestamp>.pdf` (auto-download)
 
+### PDF Merge
+
+**New Feature:** Combine multiple PDF files into a single document.
+
+**Endpoint:** `POST /api/v1/merge`
+
+**Headers:**
+- `Content-Type: multipart/form-data`
+
+**Form Data Parameters:**
+- `pdf` (required): One or more PDF files to merge (repeatable)
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8080/api/v1/merge" \
+  -F "pdf=@file1.pdf" \
+  -F "pdf=@file2.pdf" \
+  -F "pdf=@file3.pdf" \
+  --output merged.pdf
+```
+
+### PDF Form Filling
+
+**Endpoint:** `POST /api/v1/fill`
+
+**Headers:**
+- `Content-Type: multipart/form-data`
+
+**Form Data Parameters:**
+- `pdf` (required): The source PDF file
+- `xfdf` (required): The XFDF file with field data
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8080/api/v1/fill" \
+  -F "pdf=@patient.pdf" \
+  -F "xfdf=@patient.xfdf" \
+  --output filled.pdf
+```
+
 ## 🧪 Usage Examples
 
 ### 🖥️ Web Interface Usage
@@ -410,8 +450,10 @@ GoPdfSuit/
 │   │   └── handlers.go
 │   ├── 📁 models/              # 📊 Template data models
 │   │   └── models.go
-│   └── 📁 pdf/                 # 📄 Template-based PDF generation
-│       └── pdf.go
+│   ├── 📁 pdf/                 # 📄 Template-based PDF generation
+│   │   ├── pdf.go
+│   │   ├── filler.go
+│   │   └── merge.go
 ├── 📁 web/                     # 🌐 Web interface assets
 │   ├── 📁 static/
 │   │   ├── 📁 css/
@@ -419,7 +461,8 @@ GoPdfSuit/
 │   │   └── 📁 js/
 │   │       └── viewer.js       # ⚡ PDF viewer functionality
 │   └── 📁 templates/
-│       └── pdf_viewer.html     # 📄 PDF viewer HTML template
+│       ├── pdf_viewer.html     # 📄 PDF viewer HTML template
+│       └── pdf_merge.html      # 📄 PDF merge HTML template
 ├── 📄 go.mod                   # 📦 Go modules file
 ├── 📄 temp_multiplepage.json   # 📋 Example multi-page template file
 ├── 📄 .gitignore              # 🚫 Git ignore rules
