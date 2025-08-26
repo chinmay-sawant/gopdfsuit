@@ -1,5 +1,5 @@
 .hero {
-  margin-top: 4rem;
+  margin-top: 0;
   padding: 8rem 0;
   background: var(--background);
   position: relative;
@@ -153,4 +153,19 @@
   .hero-description {
     font-size: 1.1rem;
   }
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0; /* Changed from previous value to 0 */
+  background: linear-gradient(
+    135deg,
+    rgba(74, 144, 226, 0.1) 0%,
+    rgba(80, 200, 120, 0.1) 100%
+  );
+  z-index: -1;
 }

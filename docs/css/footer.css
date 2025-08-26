@@ -2,7 +2,7 @@
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 3rem 0 2rem;
-  margin-top: 4rem;
+  margin-top: 0;
 }
 
 .footer-content {
