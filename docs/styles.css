@@ -33,6 +33,7 @@
   --border-light: #21262d;
   --shadow: rgba(0, 0, 0, 0.3);
   --shadow-elevated: rgba(0, 0, 0, 0.4);
+  /* variables centralized in css/variables.css */
 }
 
 * {
@@ -60,107 +61,9 @@ body {
   padding: 0 2rem;
 }
 
-/* Navigation */
-.navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: var(--surface-elevated);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border);
-  z-index: 1000;
-  transition: var(--transition);
-}
+/* Navigation moved to css/navigation.css */
 
-.nav-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 4rem;
-}
-
-.nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-.nav-icon {
-  font-size: 1.5rem;
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-}
-
-.nav-link {
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-weight: 500;
-  transition: var(--transition);
-  position: relative;
-}
-
-.nav-link:hover {
-  color: var(--primary-color);
-}
-
-.nav-link::after {
-  content: "";
-  position: absolute;
-  bottom: -0.5rem;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: var(--gradient);
-  transition: var(--transition);
-}
-
-.nav-link:hover::after {
-  width: 100%;
-}
-
-.theme-toggle {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--border-radius);
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: var(--transition);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.theme-toggle:hover {
-  background: var(--border);
-  transform: scale(1.05);
-}
-
-.theme-icon {
-  font-size: 1.2rem;
-}
-
-/* Hero Section */
-.hero {
-  margin-top: 4rem;
-  padding: 6rem 0;
-  background: linear-gradient(
-    135deg,
-    var(--surface) 0%,
-    var(--background) 100%
-  );
-}
+/* Hero styles are defined in css/hero.css */
 
 .hero-content {
   text-align: center;

@@ -1,5 +1,5 @@
 .examples {
-  padding: 8rem 0;
+  padding: 6rem 0;
 }
 
 .examples-tabs {
@@ -75,7 +75,7 @@
 }
 
 .template-guide {
-  margin-top: 3rem;
+  margin-top: 1.5rem;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   border-radius: 12px;

@@ -21,6 +21,8 @@
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  /* nav link color used in dark theme for easy tuning */
+  --nav-link-dark: #ffffff;
 }
 
 [data-theme="dark"] {
@@ -46,4 +48,6 @@
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
   --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  /* allow override for nav link color in dark theme */
+  --nav-link-dark: #ffffff;
 }
