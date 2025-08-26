@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xfdf xmlns="http://ns.adobe.com/xfdf/" xml:space="preserve">
+  <fields>
+    <field name="patient_name"><value>John Doe</value></field>
+    <field name="date_of_birth"><value>01/15/1985</value></field>
+    <field name="address"><value>123 Main St Apt 4B</value></field>
+    <field name="city"><value>Springfield</value></field>
+    <field name="state"><value>CA</value></field>
+    <field name="zip"><value>90210</value></field>
+    <field name="phone"><value>(555) 123-4567</value></field>
+    <field name="email"><value>john.doe@example.com</value></field>
+    <field name="mrn"><value>A1234567</value></field>
+    <field name="encounter_date"><value>08/26/2025</value></field>
+    <field name="provider_name"><value>Dr. Smith</value></field>
+    <field name="facility_name"><value>Downtown Clinic</value></field>
+    <field name="reason_for_visit"><value>Cough and fever x3 days</value></field>
+    <field name="blood_pressure"><value>120/78</value></field>
+    <field name="heart_rate"><value>76</value></field>
+    <field name="temperature"><value>98.6</value></field>
+    <field name="insurance_provider"><value>Acme Health</value></field>
+    <field name="policy_number"><value>PLCY-987654</value></field>
+    <field name="copay_amount"><value>25.00</value></field>
+    <field name="diagnosis"><value>J06.9 - Acute upper respiratory infection</value></field>
+    <field name="procedures"><value>Rapid strep, COVID-19 Ag</value></field>
+    <field name="medications"><value>Acetaminophen 500mg prn</value></field>
+    <field name="follow_up_date"><value>09/02/2025</value></field>
+    <field name="notes"><value>No red flags. Home care advised.</value></field>
+    <field name="patient_signature"><value>John Doe</value></field>
+    <field name="allergy_nkda"><value>Yes</value></field>
+    <field name="allergy_penicillin"><value>Off</value></field>
+    <field name="allergy_latex"><value>Yes</value></field>
+    <field name="allergy_nuts"><value>Off</value></field>
+    <field name="smoking_status"><value>Never</value></field>
+  </fields>
+  <f href="us_encounter_form.pdf" />
+</xfdf>
