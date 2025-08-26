@@ -4,11 +4,11 @@
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly with **multi-page support**, **custom page sizes**, and **automatic page breaks**.
+> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly with **multi-page support**, **custom page sizes**, **automatic page breaks**, and **PDF merge capabilities**.
 
 ## 📖 Overview
 
-GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting **multiple page sizes**, **automatic page breaks**, tables, borders, checkboxes, **font styling (bold, italic, underline)**, and custom layouts without external dependencies.
+GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting **multiple page sizes**, **automatic page breaks**, **PDF merging**, **form filling**, tables, borders, checkboxes, **font styling (bold, italic, underline)**, and custom layouts without external dependencies.
 
 ## 🔧 Requirements
 
@@ -199,15 +199,24 @@ curl "http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json"
 
 ### PDF Merge
 
-**New Feature:** Combine multiple PDF files into a single document.
+**New Feature:** Combine multiple PDF files into a single document with drag-and-drop interface.
 
 **Endpoint:** `POST /api/v1/merge`
+
+**Web Interface:** `GET /merge`
 
 **Headers:**
 - `Content-Type: multipart/form-data`
 
 **Form Data Parameters:**
 - `pdf` (required): One or more PDF files to merge (repeatable)
+
+**Features:**
+- 🎯 **Drag & Drop Interface**: Intuitive file upload with visual feedback
+- 🔄 **File Reordering**: Drag files to change merge order before processing
+- 👁️ **Live Preview**: Preview merged PDF with page navigation
+- 📱 **Responsive Design**: Works on desktop, tablet, and mobile devices
+- 🎨 **Theme Support**: Multiple gradient themes and dark/light mode
 
 **Example:**
 ```bash
@@ -216,6 +225,11 @@ curl -X POST "http://localhost:8080/api/v1/merge" \
   -F "pdf=@file2.pdf" \
   -F "pdf=@file3.pdf" \
   --output merged.pdf
+```
+
+**Web Interface Access:**
+```
+http://localhost:8080/merge
 ```
 
 ### PDF Form Filling
@@ -241,23 +255,25 @@ curl -X POST "http://localhost:8080/api/v1/fill" \
 
 ### 🖥️ Web Interface Usage
 
-1. **Direct Access:**
+1. **PDF Viewer:**
    ```
    http://localhost:8080/
    ```
 
-2. **Load Template via URL:**
+2. **Template Editor:**
    ```
-   http://localhost:8080/?file=temp_multiplepage.json
+   http://localhost:8080/editor
    ```
 
-3. **Interactive Workflow:**
-   - Enter filename in the input field
-   - Click "Load Template" to fetch JSON data
-   - Review the syntax-highlighted JSON structure
-   - Click "Generate PDF" to create and preview the PDF
-   - Use navigation controls to browse multi-page documents
-   - Download the generated PDF with one click
+3. **PDF Merger:**
+   ```
+   http://localhost:8080/merge
+   ```
+
+4. **PDF Filler:**
+   ```
+   http://localhost:8080/filler
+   ```
 
 ### 📱 Multi-Page Healthcare Form (Web Interface)
 
@@ -422,6 +438,8 @@ with open("survey-landscape.pdf", "wb") as f:
 
 - 🎯 **Template-based**: JSON-driven PDF generation
 - 🖥️ **Web Interface**: Interactive HTML viewer with real-time preview
+- 🔗 **PDF Merge**: Combine multiple PDFs with drag-and-drop interface
+- 🖊️ **Form Filling**: AcroForm/XFDF support for filling PDF forms
 - 📋 **Tables & Forms**: Support for complex table layouts with automatic page breaks
 - ☑️ **Checkboxes**: Interactive checkbox elements
 - 🎨 **Font Styling**: Bold, italic, and underline text support
@@ -457,12 +475,14 @@ GoPdfSuit/
 ├── 📁 web/                     # 🌐 Web interface assets
 │   ├── 📁 static/
 │   │   ├── 📁 css/
-│   │   │   └── viewer.css      # 🎨 PDF viewer styles
+│   │   │   ├── viewer.css      # 🎨 PDF viewer styles
+│   │   │   └── merge.css       # 🎨 PDF merge styles
 │   │   └── 📁 js/
 │   │       └── viewer.js       # ⚡ PDF viewer functionality
 │   └── 📁 templates/
 │       ├── pdf_viewer.html     # 📄 PDF viewer HTML template
-│       └── pdf_merge.html      # 📄 PDF merge HTML template
+│       ├── pdf_merge.html      # 📄 PDF merge HTML template
+│       └── pdf_filler.html     # 📄 PDF filler HTML template
 ├── 📄 go.mod                   # 📦 Go modules file
 ├── 📄 temp_multiplepage.json   # 📋 Example multi-page template file
 ├── 📄 .gitignore              # 🚫 Git ignore rules
