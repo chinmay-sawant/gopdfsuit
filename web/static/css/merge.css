@@ -230,9 +230,12 @@ body.theme-dark {
   min-height: 64px;
   display: block;
   position: relative;
-  /* Ensure the file list fills the sidebar width and doesn't overflow */
-  width: 100%;
+  /* Increase width by 20% so list items have more room, keep it aligned */
+  width: 120%;
   box-sizing: border-box;
+  /* shift left by half the extra width so it visually aligns with the sidebar */
+  margin-left: -10%;
+  overflow: visible;
 }
 
 .file-item {
@@ -244,6 +247,9 @@ body.theme-dark {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: grab;
   user-select: none;
+  /* ensure file items respect the expanded width and don't overflow */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .file-item:hover {
@@ -279,6 +285,8 @@ body.theme-dark {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
+  /* reserve space on the right for the absolute-positioned remove button */
+  padding-right: 56px;
   position: relative;
   z-index: 2;
 }
@@ -338,6 +346,12 @@ body.theme-dark {
   border-radius: 6px;
   transition: all 0.2s ease;
   flex-shrink: 0;
+  /* make sure the remove button is always visible at the right */
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
 }
 
 .remove-btn:hover {
