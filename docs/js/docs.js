@@ -241,6 +241,122 @@ http://localhost:8080/?file=patient_form.json&theme=dark</code></pre>
                 </ul>
             `
         },
+        'pdf-merger': {
+            title: '🔗 PDF Merger',
+            content: `
+                <h1>🔗 PDF Merger</h1>
+                <p class="lead">Combine multiple PDF files into a single document with drag-and-drop interface, file reordering, and live preview capabilities.</p>
+                
+                <h2>✨ Key Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-file-upload"></i>
+                        <h3>Drag & Drop Upload</h3>
+                        <p>Intuitive file selection with drag-and-drop or browse functionality</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-sort"></i>
+                        <h3>File Reordering</h3>
+                        <p>Drag files to reorder them before merging with visual feedback</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-eye"></i>
+                        <h3>Live Preview</h3>
+                        <p>Preview merged PDF with page navigation before download</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-download"></i>
+                        <h3>Instant Download</h3>
+                        <p>Download merged PDF immediately after processing</p>
+                    </div>
+                </div>
+
+                <h2>🔗 Access Points</h2>
+                <div class="code-block">
+                    <pre><code># Web interface
+http://localhost:8080/merge
+
+# API endpoint
+POST http://localhost:8080/api/v1/merge</code></pre>
+                </div>
+
+                <h2>📡 API Usage</h2>
+                <div class="code-block">
+                    <h3>cURL Example - Multiple PDF Merge</h3>
+                    <pre><code>curl -X POST "http://localhost:8080/api/v1/merge" \\
+  -F "pdf=@file1.pdf" \\
+  -F "pdf=@file2.pdf" \\
+  -F "pdf=@file3.pdf" \\
+  --output merged.pdf</code></pre>
+                </div>
+
+                <div class="code-block">
+                    <h3>Python Example</h3>
+                    <pre><code>import requests
+
+url = "http://localhost:8080/api/v1/merge"
+files = [
+    ('pdf', ('file1.pdf', open('document1.pdf', 'rb'), 'application/pdf')),
+    ('pdf', ('file2.pdf', open('document2.pdf', 'rb'), 'application/pdf')),
+    ('pdf', ('file3.pdf', open('document3.pdf', 'rb'), 'application/pdf'))
+]
+
+response = requests.post(url, files=files)
+with open('merged_document.pdf', 'wb') as f:
+    f.write(response.content)</code></pre>
+                </div>
+
+                <h2>🖱️ Web Interface Workflow</h2>
+                <ol>
+                    <li><strong>Upload Files:</strong> Drag PDF files or click to browse and select</li>
+                    <li><strong>Reorder Files:</strong> Drag files in the list to change merge order</li>
+                    <li><strong>Preview:</strong> Click "Merge PDFs" to create and preview the result</li>
+                    <li><strong>Download:</strong> Use download button to save the merged PDF</li>
+                    <li><strong>Clear List:</strong> Remove all files to start over</li>
+                </ol>
+
+                <h2>🔧 Technical Features</h2>
+                <ul>
+                    <li><strong>File Validation:</strong> Automatic PDF file type checking</li>
+                    <li><strong>Order Preservation:</strong> Files merged in the exact order shown</li>
+                    <li><strong>Memory Processing:</strong> In-memory merge for security and speed</li>
+                    <li><strong>Progress Feedback:</strong> Visual indicators during merge process</li>
+                    <li><strong>Error Handling:</strong> Clear error messages for invalid files</li>
+                </ul>
+
+                <h2>📋 Supported Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-file-pdf"></i>
+                        <h3>Multiple Formats</h3>
+                        <p>Supports various PDF versions and compression types</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-layer-group"></i>
+                        <h3>Page Preservation</h3>
+                        <p>Maintains original page layouts and content integrity</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-bookmark"></i>
+                        <h3>Metadata Handling</h3>
+                        <p>Preserves document metadata where possible</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-shield-alt"></i>
+                        <h3>Secure Processing</h3>
+                        <p>No temporary files, all processing in memory</p>
+                    </div>
+                </div>
+
+                <h2>⚠️ Limitations & Notes</h2>
+                <ul>
+                    <li><strong>File Size:</strong> Total upload size limited by server configuration</li>
+                    <li><strong>Browser Support:</strong> Modern browsers required for drag-and-drop</li>
+                    <li><strong>Complex PDFs:</strong> Some advanced PDF features may not be preserved</li>
+                    <li><strong>Memory Usage:</strong> Large files processed entirely in memory</li>
+                </ul>
+            `
+        },
         'template-editor': {
             title: '🎨 Template Editor',
             content: `
@@ -481,6 +597,16 @@ with open('filled_form.pdf', 'wb') as f:
   --output document.pdf</code></pre>
                 </div>
 
+                <h2>PDF Merge API</h2>
+                <div class="code-block">
+                    <h3>POST /api/v1/merge</h3>
+                    <pre><code>curl -X POST "http://localhost:8080/api/v1/merge" \\
+  -F "pdf=@file1.pdf" \\
+  -F "pdf=@file2.pdf" \\
+  -F "pdf=@file3.pdf" \\
+  --output merged.pdf</code></pre>
+                </div>
+
                 <h2>PDF Filling API</h2>
                 <div class="code-block">
                     <h3>POST /api/v1/fill</h3>
@@ -489,6 +615,31 @@ with open('filled_form.pdf', 'wb') as f:
   -F "xfdf=@data.xfdf" \\
   --output filled.pdf</code></pre>
                 </div>
+
+                <h2>Web Interface Endpoints</h2>
+                <div class="code-block">
+                    <h3>Available Web UIs</h3>
+                    <pre><code># PDF Viewer with template editing
+GET /
+
+# Visual template editor
+GET /editor
+
+# PDF merger interface
+GET /merge
+
+# PDF form filler interface
+GET /filler</code></pre>
+                </div>
+
+                <h2>Request/Response Details</h2>
+                <ul>
+                    <li><strong>Template Data:</strong> Returns JSON template structure</li>
+                    <li><strong>PDF Generation:</strong> Accepts JSON, returns application/pdf</li>
+                    <li><strong>PDF Merge:</strong> Accepts multiple PDF files via multipart form-data</li>
+                    <li><strong>PDF Fill:</strong> Accepts PDF + XFDF files, returns filled PDF</li>
+                    <li><strong>All PDF endpoints:</strong> Return files with auto-download headers</li>
+                </ul>
             `
         }
             ,
@@ -716,41 +867,41 @@ with open('filled_form.pdf', 'wb') as f:
     };
 
     // Attach copy buttons to code blocks (for static and dynamic content)
-    function attachCopyButtons(root = document) {
-        const blocks = root.querySelectorAll('.code-block');
-        blocks.forEach(block => {
-            if (block.querySelector('.copy-btn')) return; // already added
-            const pre = block.querySelector('pre');
-            if (!pre) return;
 
-            const btn = document.createElement('button');
-            btn.className = 'copy-btn';
-            btn.type = 'button';
-            btn.innerHTML = '<i class="fas fa-copy"></i><span>Copy</span>';
 
-            btn.addEventListener('click', async function() {
-                const code = pre.innerText;
-                try {
-                    await navigator.clipboard.writeText(code);
-                    btn.classList.add('copied');
-                    btn.querySelector('span').textContent = 'Copied';
-                    setTimeout(() => {
-                        btn.classList.remove('copied');
-                        btn.querySelector('span').textContent = 'Copy';
-                    }, 1500);
-                } catch (err) {
-                    console.warn('Copy failed', err);
-                }
-            });
 
-            block.appendChild(btn);
-        });
-    }
 
-    // (Dynamic sections are created in the navigation click handler above)
 
-    // Initialize carousel
-    updateCarousel();
-    // Attach copy buttons for any existing static code blocks
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    updateCarousel();    // Initialize carousel    // (Dynamic sections are created in the navigation click handler above)    }        });            block.appendChild(btn);            });                }                    console.warn('Copy failed', err);                } catch (err) {                    }, 1500);                        btn.querySelector('span').textContent = 'Copy';                        btn.classList.remove('copied');                    setTimeout(() => {                    btn.querySelector('span').textContent = 'Copied';                    btn.classList.add('copied');                    await navigator.clipboard.writeText(code);                try {                const code = pre.innerText;            btn.addEventListener('click', async function() {            btn.innerHTML = '<i class="fas fa-copy"></i><span>Copy</span>';            btn.type = 'button';            btn.className = 'copy-btn';            const btn = document.createElement('button');            if (!pre) return;            const pre = block.querySelector('pre');            if (block.querySelector('.copy-btn')) return; // already added        blocks.forEach(block => {        const blocks = root.querySelectorAll('.code-block');    function attachCopyButtons(root = document) {    // Attach copy buttons for any existing static code blocks
     attachCopyButtons();
 });
