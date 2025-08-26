@@ -223,61 +223,133 @@ body.theme-dark {
 
 .file-list {
   margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  min-height: 64px;
+  display: block;
+  position: relative;
+  /* Ensure the file list fills the sidebar width and doesn't overflow */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .file-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 6px;
+  position: relative;
   margin-bottom: 8px;
-  font-size: 14px;
-  color: var(--text-muted, #aaa);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px dashed rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: grab;
+  user-select: none;
 }
 
-.file-item i {
+.file-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.file-item:active {
+  cursor: grabbing;
+}
+
+.file-item.dragging {
+  opacity: 0.7;
+  transform: rotate(2deg) scale(1.02);
+  z-index: 1000;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent-color, #007acc);
+  background: rgba(102, 126, 234, 0.1);
+}
+
+/* Simple drag hover state */
+.file-item.drag-hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: var(--accent-color, #007acc);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 122, 204, 0.4);
+}
+
+.file-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  position: relative;
+  z-index: 2;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.drag-indicator {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.file-item:hover .drag-indicator {
   color: var(--accent-color, #007acc);
 }
 
-.status-enhanced {
-  margin-top: auto;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+.file-icon {
+  color: #dc3545;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
+.file-name {
+  color: var(--text, #fff);
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-order {
+  color: var(--text-muted, #888);
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.remove-btn {
+  background: transparent;
+  border: none;
+  color: rgba(220, 53, 69, 0.7);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.remove-btn:hover {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
+  transform: scale(1.1);
+}
+
+/* Status message enhancement */
 .status-enhanced .status-text {
   color: var(--text, #fff);
   font-weight: 500;
-}
-
-/* Loading and error states matching pdf_viewer.html */
-.loading,
-.error {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  padding: 20px;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.loading {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
-  border: 2px solid rgba(102, 126, 234, 0.3);
-}
-
-.error {
-  background: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
-  border: 2px solid rgba(220, 53, 69, 0.3);
 }
 
 /* Responsive design */
@@ -294,5 +366,191 @@ body.theme-dark {
   .merge-preview {
     order: 1;
     min-height: 400px;
+  }
+}
+
+.drop-zone-bottom {
+  bottom: -3px;
+}
+
+.drop-zone.drop-active {
+  height: 8px;
+  background: linear-gradient(
+    90deg,
+    transparent 10%,
+    var(--accent-color, #007acc) 50%,
+    transparent 90%
+  );
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(0, 122, 204, 0.6);
+  animation: dropGlow 0.6s ease-in-out infinite alternate;
+}
+
+.drop-zone-top.drop-active {
+  top: -4px;
+}
+
+.drop-zone-bottom.drop-active {
+  bottom: -4px;
+}
+
+@keyframes dropGlow {
+  0% {
+    box-shadow: 0 0 8px rgba(0, 122, 204, 0.4);
+    opacity: 0.8;
+  }
+  100% {
+    box-shadow: 0 0 16px rgba(0, 122, 204, 0.8);
+    opacity: 1;
+  }
+}
+
+/* Drag placeholder */
+.drag-placeholder {
+  margin: 8px 0;
+  padding: 16px;
+  border: 2px dashed var(--accent-color, #007acc);
+  border-radius: 8px;
+  background: rgba(102, 126, 234, 0.05);
+  text-align: center;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.placeholder-content {
+  color: var(--accent-color, #007acc);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Prevent drag instruction from being draggable */
+.drag-instruction {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  text-align: center;
+  color: var(--text-muted, #888);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.drag-instruction i {
+  color: var(--accent-color, #007acc);
+  opacity: 0.7;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .merge-container {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .merge-sidebar {
+    order: 2;
+  }
+
+  .merge-preview {
+    order: 1;
+    min-height: 400px;
+  }
+}
+/* Controls row and input styles reused from pdf_filler.html to keep UI consistent */
+.controls-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.theme-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto; /* push theme controls to the right */
+}
+
+.btn-small {
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.gradient-select {
+  min-width: 160px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--panel-bg, #222);
+  color: var(--text, #fff);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* File input styling */
+.input-section label {
+  display: block;
+  margin: 8px 0 6px;
+  font-weight: 600;
+}
+
+.input-section input[type="file"] {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text, #fff);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.input-section input[type="file"]::file-selector-button {
+  margin-right: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit;
+  border: none;
+  cursor: pointer;
+}
+
+/* Light theme overrides */
+body.theme-light .gradient-select {
+  background: #fff;
+  color: #111;
+  border: 1px solid #ccc;
+}
+
+body.theme-light .input-section input[type="file"] {
+  background: #fff;
+  color: #111;
+  border: 1px solid #ccc;
+}
+
+body.theme-light .input-section input[type="file"]::file-selector-button {
+  background: #f0f0f0;
+  color: #111;
+}
+
+@media (max-width: 540px) {
+  .controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .theme-controls {
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+  .gradient-select {
+    width: 100%;
   }
 }

@@ -23,26 +23,25 @@
         <div class="merge-container">
           <!-- Sidebar with controls -->
           <div class="merge-sidebar">
-            <div class="theme-controls">
-              <button
-                id="themeToggle"
-                class="btn-small"
-                title="Toggle Light/Dark"
-              >
-                🌞
-              </button>
-              <select
-                id="gradientSelect"
-                class="gradient-select"
-                title="Select Gradient Theme"
-              ></select>
+            <div class="controls-row" style="width: 100%">
+              <div class="theme-controls">
+                <button
+                  id="themeToggle"
+                  class="btn-small"
+                  title="Toggle Light/Dark"
+                >
+                  🌞
+                </button>
+                <select
+                  id="gradientSelect"
+                  class="gradient-select"
+                  title="Select Gradient Theme"
+                ></select>
+              </div>
             </div>
 
-            <div class="file-input-enhanced">
-              <label for="pdfFiles">
-                <i class="fas fa-file-pdf"></i>
-                Choose PDF files (multiple)
-              </label>
+            <div class="input-section" style="margin-top: 12px">
+              <label for="pdfFiles">Choose PDF files (multiple)</label>
               <input
                 type="file"
                 id="pdfFiles"
@@ -52,7 +51,7 @@
               <div id="fileList" class="file-list" style="display: none"></div>
             </div>
 
-            <div class="merge-actions">
+            <div class="merge-actions" style="margin-top: 12px">
               <button id="mergeBtn" class="btn-merge-primary">
                 <i class="fas fa-compress-arrows-alt"></i>
                 Merge & Preview
@@ -63,7 +62,7 @@
               </button>
             </div>
 
-            <div class="status-enhanced">
+            <div class="status-enhanced" style="margin-top: 12px">
               <div class="status-text" id="statusMessage">
                 Ready to merge PDFs
               </div>
@@ -131,54 +130,210 @@
       let mergedPDFBlob = null;
       let selectedFilesOrder = [];
 
-      // File selection handler - preserve exact selection order
+      // Helper to build a stable id for a File (accessible to handlers)
+      const fileId = (f) => `${f.name}|${f.size}|${f.lastModified}`;
+
+      const renderSelectedFiles = () => {
+        const fileList = document.getElementById("fileList");
+        if (selectedFilesOrder.length === 0) {
+          fileList.style.display = "none";
+          fileList.innerHTML = "";
+          return;
+        }
+
+        fileList.style.display = "block";
+        fileList.innerHTML = "";
+
+        selectedFilesOrder.forEach((file, index) => {
+          const id = fileId(file);
+          const fileItem = document.createElement("div");
+          fileItem.className = "file-item";
+          fileItem.setAttribute("data-id", id);
+          fileItem.setAttribute("data-index", index);
+          fileItem.setAttribute("draggable", "true");
+          fileItem.innerHTML = `
+              <div class="file-content">
+                <div class="file-info">
+                  <i class="fas fa-grip-vertical drag-indicator"></i>
+                  <i class="fas fa-file-pdf file-icon"></i>
+                  <span class="file-name">${file.name}</span>
+                  <small class="file-order">#${index + 1}</small>
+                </div>
+                <button class="remove-btn" title="Remove" data-id="${id}">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            `;
+          fileList.appendChild(fileItem);
+        });
+
+        // Add instruction note at the bottom
+        const instructionNote = document.createElement("div");
+        instructionNote.className = "drag-instruction";
+        instructionNote.innerHTML = `
+          <i class="fas fa-info-circle"></i>
+          <span>Drag files to rearrange merge order</span>
+        `;
+        fileList.appendChild(instructionNote);
+      };
+
+      // File selection handler - preserve exact selection order across sequential picks
       document
         .getElementById("pdfFiles")
         .addEventListener("change", function (event) {
-          const fileList = document.getElementById("fileList");
-          const files = this.files;
+          const newFiles = Array.from(this.files || []);
 
-          // Reset and rebuild the selection order based on user action
-          selectedFilesOrder = [];
-
-          // Track files with their selection timestamp to maintain order
-          const fileArray = Array.from(files);
-          const currentTime = Date.now();
-
-          // Add selection timestamp to each file for ordering
-          fileArray.forEach((file, index) => {
-            file._selectionOrder = currentTime + index;
-            selectedFilesOrder.push(file);
+          // For each file in the new selection (in the order the dialog reports):
+          // - if it already exists in selectedFilesOrder, remove it from its old position
+          //   and append it (so re-selecting reorders to the dialog order)
+          // - if it's new, append it
+          newFiles.forEach((f) => {
+            const id = fileId(f);
+            const existingIndex = selectedFilesOrder.findIndex(
+              (sf) => fileId(sf) === id
+            );
+            if (existingIndex !== -1) {
+              const [existingFile] = selectedFilesOrder.splice(
+                existingIndex,
+                1
+              );
+              selectedFilesOrder.push(existingFile);
+            } else {
+              selectedFilesOrder.push(f);
+            }
           });
 
-          if (files.length > 0) {
-            fileList.style.display = "block";
-            fileList.innerHTML = "";
+          renderSelectedFiles();
 
-            // Display files in the order they appear in selectedFilesOrder
-            selectedFilesOrder.forEach((file, index) => {
-              const fileItem = document.createElement("div");
-              fileItem.className = "file-item";
-              fileItem.innerHTML = `
-              <i class="fas fa-file-pdf"></i>
-              <span>${file.name}</span>
-              <small style="margin-left: auto; opacity: 0.7;">#${
-                index + 1
-              }</small>
-            `;
-              fileList.appendChild(fileItem);
-            });
+          console.log(
+            "Files selected in order:",
+            selectedFilesOrder.map((f) => f.name)
+          );
 
-            // Log for debugging
-            console.log(
-              "Files selected in order:",
-              selectedFilesOrder.map((f) => f.name)
-            );
-          } else {
-            fileList.style.display = "none";
-            selectedFilesOrder = [];
+          // Clear the native input so the user can 'add' files in multiple dialogs
+          // while we keep the authoritative list in selectedFilesOrder.
+          try {
+            this.value = "";
+          } catch (e) {
+            // some browsers don't allow clearing, ignore
           }
         });
+
+      // Delegated handler for remove button
+      document
+        .getElementById("fileList")
+        .addEventListener("click", function (e) {
+          const target = e.target.closest(".remove-btn");
+          if (target) {
+            const id = target.getAttribute("data-id");
+            const idx = selectedFilesOrder.findIndex((f) => fileId(f) === id);
+            if (idx !== -1) {
+              selectedFilesOrder.splice(idx, 1);
+              renderSelectedFiles();
+            }
+          }
+        });
+
+      // Simplified drag and drop reorder with hover-based behavior
+      (function () {
+        const fileListEl = document.getElementById("fileList");
+        let draggedElement = null;
+        let draggedIndex = null;
+
+        fileListEl.addEventListener("dragstart", (e) => {
+          const fileItem = e.target.closest(".file-item");
+          if (!fileItem || fileItem.classList.contains("drag-instruction"))
+            return;
+
+          draggedElement = fileItem;
+          draggedIndex = parseInt(fileItem.getAttribute("data-index"));
+          e.dataTransfer.setData("text/plain", draggedIndex.toString());
+          e.dataTransfer.effectAllowed = "move";
+
+          // Add dragging class with animation
+          fileItem.classList.add("dragging");
+        });
+
+        fileListEl.addEventListener("dragend", (e) => {
+          const fileItem = e.target.closest(".file-item");
+          if (fileItem) {
+            fileItem.classList.remove("dragging");
+          }
+
+          // Remove all drop highlights
+          document.querySelectorAll(".file-item").forEach((item) => {
+            item.classList.remove("drag-hover");
+          });
+
+          draggedElement = null;
+          draggedIndex = null;
+        });
+
+        fileListEl.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+
+          if (!draggedElement) return;
+
+          const targetItem = e.target.closest(".file-item");
+          if (
+            !targetItem ||
+            targetItem === draggedElement ||
+            targetItem.classList.contains("drag-instruction")
+          ) {
+            return;
+          }
+
+          // Clear all previous highlights
+          document.querySelectorAll(".file-item").forEach((item) => {
+            item.classList.remove("drag-hover");
+          });
+
+          // Highlight the target item
+          targetItem.classList.add("drag-hover");
+        });
+
+        fileListEl.addEventListener("dragleave", (e) => {
+          // Only clear highlights if leaving the file list entirely
+          if (!fileListEl.contains(e.relatedTarget)) {
+            document.querySelectorAll(".file-item").forEach((item) => {
+              item.classList.remove("drag-hover");
+            });
+          }
+        });
+
+        fileListEl.addEventListener("drop", (e) => {
+          e.preventDefault();
+
+          if (draggedIndex === null) return;
+
+          const targetItem = e.target.closest(".file-item");
+          if (
+            !targetItem ||
+            targetItem === draggedElement ||
+            targetItem.classList.contains("drag-instruction")
+          ) {
+            return;
+          }
+
+          const targetIndex = parseInt(targetItem.getAttribute("data-index"));
+
+          // Perform the reorder - move dragged item to target position
+          if (draggedIndex !== targetIndex) {
+            const [movedFile] = selectedFilesOrder.splice(draggedIndex, 1);
+            selectedFilesOrder.splice(targetIndex, 0, movedFile);
+
+            console.log(
+              `Moved file from position ${draggedIndex + 1} to ${
+                targetIndex + 1
+              }:`,
+              selectedFilesOrder.map((f, i) => `${i + 1}. ${f.name}`)
+            );
+
+            renderSelectedFiles();
+          }
+        });
+      })();
 
       // Merge and preview handler
       document
