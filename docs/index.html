@@ -1,622 +1,355 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GoPdfSuit Documentation</title>
-    <link rel="stylesheet" href="./css/docs.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-    />
-  </head>
-  <body>
-    <!-- Header -->
-    <header class="header">
-      <div class="header-content">
-        <button class="sidebar-toggle" id="sidebarToggle">
-          <i class="fas fa-bars"></i>
-        </button>
-        <h1>📄 GoPdfSuit Documentation</h1>
-        <div class="header-actions">
-          <button class="theme-toggle" id="themeToggle">
-            <i class="fas fa-moon"></i>
-            <span>Light</span>
-          </button>
-          <a
-            href="https://github.com/chinmay-sawant/gopdfsuit"
-            class="github-link"
-            target="_blank"
-          >
-            <i class="fab fa-github"></i>
-          </a>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoPdfSuit - Powerful PDF Generation Service</title>
+    <meta name="description" content="A powerful Go web service that generates template-based PDF documents with multi-page support, custom page sizes, and PDF merge capabilities.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="nav-icon">📄</span>
+                <span class="nav-title">GoPdfSuit</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#api" class="nav-link">API</a>
+                <a href="#examples" class="nav-link">Examples</a>
+                <a href="#quickstart" class="nav-link">Quick Start</a>
+                <button class="theme-toggle" id="themeToggle">
+                    <span class="theme-icon">🌙</span>
+                </button>
+            </div>
         </div>
-      </div>
-    </header>
+    </nav>
 
-    <div class="main-container">
-      <!-- Sidebar -->
-      <nav class="sidebar" id="sidebar">
-        <div class="sidebar-content">
-          <div class="sidebar-section">
-            <h3>Getting Started</h3>
-            <ul>
-              <li>
-                <a
-                  href="#overview"
-                  class="nav-link active"
-                  data-section="overview"
-                >
-                  <i class="fas fa-home"></i> Overview
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#installation"
-                  class="nav-link"
-                  data-section="installation"
-                >
-                  <i class="fas fa-download"></i> Installation
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#quick-start"
-                  class="nav-link"
-                  data-section="quick-start"
-                >
-                  <i class="fas fa-rocket"></i> Quick Start
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div class="sidebar-section">
-            <h3>Features</h3>
-            <ul>
-              <li>
-                <a
-                  href="#pdf-viewer"
-                  class="nav-link"
-                  data-section="pdf-viewer"
-                >
-                  <i class="fas fa-eye"></i> PDF Viewer
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#template-editor"
-                  class="nav-link"
-                  data-section="template-editor"
-                >
-                  <i class="fas fa-edit"></i> Template Editor
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#pdf-merger"
-                  class="nav-link"
-                  data-section="pdf-merger"
-                >
-                  <i class="fas fa-layer-group"></i> PDF Merger
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#pdf-filler"
-                  class="nav-link"
-                  data-section="pdf-filler"
-                >
-                  <i class="fas fa-fill-drip"></i> PDF Filler
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div class="sidebar-section">
-            <h3>API Reference</h3>
-            <ul>
-              <li>
-                <a
-                  href="#api-endpoints"
-                  class="nav-link"
-                  data-section="api-endpoints"
-                >
-                  <i class="fas fa-code"></i> API Endpoints
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#template-structure"
-                  class="nav-link"
-                  data-section="template-structure"
-                >
-                  <i class="fas fa-file-code"></i> Template Structure
-                </a>
-              </li>
-              <li>
-                <a href="#examples" class="nav-link" data-section="examples">
-                  <i class="fas fa-code-branch"></i> Examples
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div class="sidebar-section">
-            <h3>Advanced</h3>
-            <ul>
-              <li>
-                <a
-                  href="#configuration"
-                  class="nav-link"
-                  data-section="configuration"
-                >
-                  <i class="fas fa-cogs"></i> Configuration
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#development"
-                  class="nav-link"
-                  data-section="development"
-                >
-                  <i class="fas fa-tools"></i> Development
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#contributing"
-                  class="nav-link"
-                  data-section="contributing"
-                >
-                  <i class="fas fa-users"></i> Contributing
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
-
-      <!-- Main Content -->
-      <main class="content" id="content">
-        <!-- Overview Section -->
-        <section id="overview-section" class="content-section active">
-          <h1>📄 GoPdfSuit Overview</h1>
-          <p class="lead">
-            A powerful Go web service that generates template-based PDF
-            documents on-the-fly with multi-page support, custom page sizes,
-            automatic page breaks, and comprehensive form filling capabilities.
-            Built with Go 1.23+ and featuring a modern web interface with
-            dark/light theme support.
-          </p>
-
-          <!-- Screenshots Carousel -->
-          <div class="carousel-container">
-            <h2>Features Showcase</h2>
-            <div class="carousel" id="carousel">
-              <div class="carousel-track">
-                <div class="carousel-slide active">
-                  <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/viewer.png"
-                    alt="PDF Viewer"
-                    class="carousel-image"
-                  />
-                  <div class="carousel-caption">
-                    <h3>PDF Viewer</h3>
-                    <p>
-                      Interactive web-based PDF viewer with real-time template
-                      editing, syntax highlighting, and multi-theme support
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1 class="hero-title">
+                        GoPdfSuit
+                        <span class="hero-subtitle">Powerful PDF Generation Service</span>
+                    </h1>
+                    <p class="hero-description">
+                        A flexible Go web service that generates template-based PDF documents with 
+                        multi-page support, custom page sizes, automatic page breaks, and PDF merge capabilities.
                     </p>
-                  </div>
+                    <div class="hero-badges">
+                        <span class="badge">Go 1.23+</span>
+                        <span class="badge">Gin Framework</span>
+                        <span class="badge">MIT License</span>
+                    </div>
+                    <div class="hero-actions">
+                        <a href="#quickstart" class="btn btn-primary">Get Started</a>
+                        <a href="https://github.com/chinmay-sawant/gopdfsuit" class="btn btn-secondary" target="_blank">
+                            View on GitHub
+                        </a>
+                    </div>
                 </div>
-                <div class="carousel-slide">
-                  <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/editor.png"
-                    alt="Template Editor"
-                    class="carousel-image"
-                  />
-                  <div class="carousel-caption">
-                    <h3>Template Editor</h3>
-                    <p>
-                      Visual drag-and-drop PDF template designer with live JSON
-                      generation and properties panel
-                    </p>
-                  </div>
+                <div class="hero-code">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">Quick Start</span>
+                            <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git
+cd gopdfsuit
+go run ./cmd/gopdfsuit">📋</button>
+                        </div>
+                        <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
+cd gopdfsuit
+go run ./cmd/gopdfsuit</code></pre>
+                    </div>
                 </div>
-                <div class="carousel-slide">
-                  <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/merge.png"
-                    alt="PDF Merger"
-                    class="carousel-image"
-                  />
-                  <div class="carousel-caption">
-                    <h3>PDF Merger</h3>
-                    <p>
-                      Combine multiple PDF files with drag-and-drop interface,
-                      file reordering, and live preview
-                    </p>
-                  </div>
-                </div>
-                <div class="carousel-slide">
-                  <img
-                    src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/filler.png"
-                    alt="PDF Filler"
-                    class="carousel-image"
-                  />
-                  <div class="carousel-caption">
-                    <h3>PDF Filler</h3>
-                    <p>
-                      Upload PDFs and XFDF files to generate filled documents
-                      with AcroForm support
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <button class="carousel-btn prev" id="prevBtn">
-                <i class="fas fa-chevron-left"></i>
-              </button>
-              <button class="carousel-btn next" id="nextBtn">
-                <i class="fas fa-chevron-right"></i>
-              </button>
-              <div class="carousel-indicators">
-                <span class="indicator active" data-slide="0"></span>
-                <span class="indicator" data-slide="1"></span>
-                <span class="indicator" data-slide="2"></span>
-                <span class="indicator" data-slide="3"></span>
-              </div>
             </div>
-          </div>
-
-          <!-- Key Features -->
-          <div class="features-grid">
-            <div class="feature-card">
-              <i class="fas fa-file-pdf"></i>
-              <h3>Template-based PDF Generation</h3>
-              <p>
-                Create professional PDF documents from JSON templates with
-                automatic page breaks, multi-page support, and intelligent
-                height tracking.
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="fas fa-desktop"></i>
-              <h3>Modern Web Interface</h3>
-              <p>
-                Interactive HTML viewer with real-time preview, syntax
-                highlighting, dark/light themes, and mobile-responsive design.
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="fas fa-table"></i>
-              <h3>Advanced Tables & Forms</h3>
-              <p>
-                Support for complex table layouts, checkboxes, AcroForm filling,
-                and font styling with automatic page flow and border controls.
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="fas fa-cogs"></i>
-              <h3>Flexible Configuration</h3>
-              <p>
-                Custom page sizes (A4, Letter, Legal, A3, A5), orientations,
-                borders, watermarks, and comprehensive template structure.
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="fas fa-paint-brush"></i>
-              <h3>Rich Typography</h3>
-              <p>
-                Bold, italic, underline text support with 3-digit style codes,
-                custom font sizes, alignments, and flexible positioning.
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="fas fa-shield-alt"></i>
-              <h3>Security Features</h3>
-              <p>
-                Path traversal protection, input validation, JSON structure
-                validation, and secure file handling for production deployments.
-              </p>
-            </div>
-          </div>
-
-          <!-- Architecture Overview -->
-          <h2>🏗️ Architecture</h2>
-          <div class="features-grid">
-            <div class="feature-card">
-              <i class="fas fa-server"></i>
-              <h3>Go Backend</h3>
-              <p>
-                Built with Go 1.23+ using Gin framework for high-performance
-                HTTP handling
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="fas fa-code"></i>
-              <h3>Modular Structure</h3>
-              <p>
-                Clean separation: handlers, models, PDF generation, and web
-                assets
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="fas fa-memory"></i>
-              <h3>In-Memory Processing</h3>
-              <p>
-                Fast PDF generation with height tracking and automatic page
-                management
-              </p>
-            </div>
-          </div>
-
-          <!-- Quick Stats -->
-          <div class="stats-section">
-            <div class="stat-item">
-              <i class="fas fa-code"></i>
-              <h3>Go 1.23+</h3>
-              <p>Built with modern Go and Gin framework</p>
-            </div>
-            <div class="stat-item">
-              <i class="fas fa-rocket"></i>
-              <h3>Fast</h3>
-              <p>In-memory PDF generation with auto page breaks</p>
-            </div>
-            <div class="stat-item">
-              <i class="fas fa-shield-alt"></i>
-              <h3>Secure</h3>
-              <p>Input validation & path traversal protection</p>
-            </div>
-            <div class="stat-item">
-              <i class="fas fa-server"></i>
-              <h3>Self-contained</h3>
-              <p>Single binary deployment with embedded assets</p>
-            </div>
-          </div>
-
-          <!-- Comparison Table: GoPdfSuit vs Licensed Tools -->
-          <h2>🔍 GoPdfSuit vs Licensed PDF SDKs</h2>
-          <p class="lead">
-            Comparison of features and benefits. GoPdfSuit is FREE and Open
-            Source (MIT). Sample test data is available in
-            <code>sampledata/json</code> (results may vary by machine).
-          </p>
-          <div class="code-block">
-            <div class="table-wrap">
-              <table class="comparison-table">
-                <caption
-                  style="
-                    caption-side: top;
-                    text-align: left;
-                    font-weight: 600;
-                    margin-bottom: 8px;
-                  "
-                >
-                  Feature comparison: GoPdfSuit vs Aspose / iText / UniDoc
-                </caption>
-                <thead>
-                  <tr>
-                    <th><i class="fas fa-list"></i> Feature / Tool</th>
-                    <th><i class="fas fa-gavel"></i> GoPdfSuit (MIT)</th>
-                    <th>
-                      <i class="fas fa-building"></i> Aspose (Proprietary)
-                    </th>
-                    <th>
-                      <i class="fas fa-balance-scale"></i> iText (AGPL /
-                      Commercial)
-                    </th>
-                    <th><i class="fas fa-crown"></i> UniDoc (Commercial)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>License / Cost</td>
-                    <td>MIT — Free & Open Source</td>
-                    <td>Commercial — per-developer / per-server pricing</td>
-                    <td>
-                      AGPL (open) or Commercial license for closed-source use
-                    </td>
-                    <td>Commercial tiers (Business / Gold / Platinum)</td>
-                  </tr>
-                  <tr>
-                    <td>In-memory generation (speed)</td>
-                    <td>
-                      ✅ In-memory — millisecond-scale generation (JSON
-                      templates, local tests)
-                    </td>
-                    <td>✅ High-performance enterprise generation (varies)</td>
-                    <td>✅ High-performance, depends on integration</td>
-                    <td>✅ High-performance, optimized SDK</td>
-                  </tr>
-                  <tr>
-                    <td>Template-driven (JSON)</td>
-                    <td>✅ Native JSON templates for fast authoring</td>
-                    <td>❌ Typically API/SDK-based, not JSON template-first</td>
-                    <td>❌ API/library-based (templates via code)</td>
-                    <td>❌ SDK / API-based (code-first)</td>
-                  </tr>
-                  <tr>
-                    <td>AcroForm / XFDF filling & appearance</td>
-                    <td>
-                      ✅ XFDF filling (heuristic injection). Appearance may rely
-                      on viewer (/NeedAppearances). Fill up to ~12ms in local
-                      tests.
-                    </td>
-                    <td>
-                      ✅ Full AcroForm support + appearance stream generation
-                    </td>
-                    <td>✅ Full AcroForm & appearance control via API</td>
-                    <td>✅ Full support; commercial appearance handling</td>
-                  </tr>
-                  <tr>
-                    <td>Appearance streams / viewer compatibility</td>
-                    <td>
-                      Limited — best-effort; some viewers may regenerate
-                      appearances
-                    </td>
-                    <td>
-                      Full support — appearance streams generated reliably
-                    </td>
-                    <td>Full support via API</td>
-                    <td>Full support (enterprise features)</td>
-                  </tr>
-                  <tr>
-                    <td>Deployment</td>
-                    <td>Single binary, no external runtime required</td>
-                    <td>
-                      Library or service; commercial deployments supported
-                    </td>
-                    <td>
-                      Library for integration; commercial options available
-                    </td>
-                    <td>SDKs with enterprise deployment options</td>
-                  </tr>
-                  <tr>
-                    <td>Support & SLA</td>
-                    <td>Community support (GitHub issues)</td>
-                    <td>Commercial support and SLAs</td>
-                    <td>Commercial support available with license</td>
-                    <td>Commercial support with tiers and SLA</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="perf-notes">
-              <h3>Endpoint performance (developer environment)</h3>
-              <div class="table-wrap">
-                <table class="endpoint-table compact">
-                  <thead>
-                    <tr>
-                      <th>Endpoint</th>
-                      <th>Avg latency (ms)</th>
-                      <th>Max latency (ms)</th>
-                      <th>Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>POST /api/v1/generate/template-pdf</td>
-                      <td>1.0285</td>
-                      <td>1.4204</td>
-                      <td>Logs: 1.4204ms, 636.5µs</td>
-                    </tr>
-                    <tr>
-                      <td>POST /fill</td>
-                      <td>~12</td>
-                      <td>12</td>
-                      <td>
-                        Max observed in developer environment (single sample)
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p class="muted-note">
-                Times measured on developer machine; results vary by hardware.
-                Times are shown in milliseconds (ms).
-              </p>
-            </div>
-          </div>
         </section>
 
-        <!-- Installation Section -->
-        <section id="installation-section" class="content-section">
-          <h1>🔧 Installation</h1>
-
-          <h2>Requirements</h2>
-          <ul>
-            <li>
-              <strong>Go</strong> 1.20+ (project currently targets Go 1.23)
-            </li>
-            <li>
-              <strong>Dependencies</strong>: Automatically managed via Go
-              modules
-            </li>
-          </ul>
-
-          <h2>Installation Steps</h2>
-          <div class="code-block">
-            <h3>1. Clone the Repository</h3>
-            <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
-cd gopdfsuit</code></pre>
-          </div>
-
-          <div class="code-block">
-            <h3>2. Install Dependencies</h3>
-            <pre><code>go mod download</code></pre>
-          </div>
-
-          <div class="code-block">
-            <h3>3. Run the Server</h3>
-            <pre><code># From repository root
-go run ./cmd/gopdfsuit</code></pre>
-          </div>
-
-          <div class="success-message">
-            <i class="fas fa-check-circle"></i>
-            <strong>Server Running:</strong> 🌐 Server listening on:
-            http://localhost:8080
-          </div>
+        <!-- Features Section -->
+        <section id="features" class="features">
+            <div class="container">
+                <h2 class="section-title">Key Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Template-based</h3>
+                        <p>JSON-driven PDF generation with flexible template system</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🖥️</div>
+                        <h3>Web Interface</h3>
+                        <p>Interactive HTML viewer with real-time preview and editing</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📄</div>
+                        <h3>Multi-page Support</h3>
+                        <p>Automatic page breaks and multi-page document generation</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔗</div>
+                        <h3>PDF Merge</h3>
+                        <p>Combine multiple PDFs with drag-and-drop interface</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎨</div>
+                        <h3>Font Styling</h3>
+                        <p>Bold, italic, and underline text support with custom fonts</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📏</div>
+                        <h3>Custom Page Sizes</h3>
+                        <p>A4, Letter, Legal, A3, A5 support with portrait/landscape</p>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- Quick Start Section -->
-        <section id="quick-start-section" class="content-section">
-          <h1>⚡ Quick Start</h1>
-
-          <h2>Web Interface Access</h2>
-          <div class="quick-links">
-            <a href="http://localhost:8080/" class="quick-link" target="_blank">
-              <i class="fas fa-eye"></i>
-              <div>
-                <h3>PDF Viewer</h3>
-                <p>Interactive template editor and PDF preview</p>
-              </div>
-            </a>
-            <a
-              href="http://localhost:8080/editor"
-              class="quick-link"
-              target="_blank"
-            >
-              <i class="fas fa-edit"></i>
-              <div>
-                <h3>Template Editor</h3>
-                <p>Visual drag-and-drop template designer</p>
-              </div>
-            </a>
-            <a
-              href="http://localhost:8080/merge"
-              class="quick-link"
-              target="_blank"
-            >
-              <i class="fas fa-layer-group"></i>
-              <div>
-                <h3>PDF Merger</h3>
-                <p>Combine multiple PDFs with drag-and-drop interface</p>
-              </div>
-            </a>
-            <a
-              href="http://localhost:8080/filler"
-              class="quick-link"
-              target="_blank"
-            >
-              <i class="fas fa-fill-drip"></i>
-              <div>
-                <h3>PDF Filler</h3>
-                <p>Upload and fill PDF forms with XFDF</p>
-              </div>
-            </a>
-          </div>
-
-          <h2>Example Usage</h2>
-          <div class="code-block">
-            <h3>Load Template via URL</h3>
-            <pre><code>http://localhost:8080/?file=temp_multiplepage.json</code></pre>
-          </div>
+        <section id="quickstart" class="quickstart">
+            <div class="container">
+                <h2 class="section-title">Quick Start</h2>
+                <div class="quickstart-steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Clone Repository</h3>
+                            <div class="code-block">
+                                <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
+cd gopdfsuit</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Install Dependencies</h3>
+                            <div class="code-block">
+                                <pre><code>go mod download</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Run Server</h3>
+                            <div class="code-block">
+                                <pre><code>go run ./cmd/gopdfsuit</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Open Browser</h3>
+                            <p>Navigate to <code>http://localhost:8080</code></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
-        <!-- Other sections would go here with similar structure -->
-      </main>
-    </div>
+        <!-- API Reference Section -->
+        <section id="api" class="api">
+            <div class="container">
+                <h2 class="section-title">API Reference</h2>
+                <div class="api-grid">
+                    <div class="api-card">
+                        <div class="api-method get">GET</div>
+                        <div class="api-content">
+                            <h3>/</h3>
+                            <p>Interactive web-based PDF viewer and template editor</p>
+                            <div class="api-params">
+                                <span class="param">file (optional) - JSON template filename</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="api-card">
+                        <div class="api-method get">GET</div>
+                        <div class="api-content">
+                            <h3>/editor</h3>
+                            <p>Visual drag-and-drop PDF template editor</p>
+                            <div class="api-params">
+                                <span class="param">file (optional) - JSON template filename</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="api-card">
+                        <div class="api-method post">POST</div>
+                        <div class="api-content">
+                            <h3>/api/v1/generate/template-pdf</h3>
+                            <p>Generate template-based PDF from JSON configuration</p>
+                            <div class="api-params">
+                                <span class="param">Content-Type: application/json</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="api-card">
+                        <div class="api-method post">POST</div>
+                        <div class="api-content">
+                            <h3>/api/v1/merge</h3>
+                            <p>Combine multiple PDF files into a single document</p>
+                            <div class="api-params">
+                                <span class="param">Content-Type: multipart/form-data</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="api-card">
+                        <div class="api-method post">POST</div>
+                        <div class="api-content">
+                            <h3>/api/v1/fill</h3>
+                            <p>Fill PDF forms using XFDF data</p>
+                            <div class="api-params">
+                                <span class="param">pdf - Source PDF file</span>
+                                <span class="param">xfdf - XFDF field data</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="api-card">
+                        <div class="api-method get">GET</div>
+                        <div class="api-content">
+                            <h3>/merge</h3>
+                            <p>Web interface for PDF merging with drag-and-drop</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-    <script src="./js/docs.js"></script>
-  </body>
+        <!-- Examples Section -->
+        <section id="examples" class="examples">
+            <div class="container">
+                <h2 class="section-title">Usage Examples</h2>
+                <div class="examples-tabs">
+                    <button class="tab-btn active" data-tab="curl">cURL</button>
+                    <button class="tab-btn" data-tab="python">Python</button>
+                    <button class="tab-btn" data-tab="json">JSON Template</button>
+                </div>
+                <div class="tab-content active" id="curl">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">Generate PDF with cURL</span>
+                            <button class="copy-btn" data-copy='curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
+  -H "Content-Type: application/json" \
+  -d '"'"'{"config":{"page":"A4","pageAlignment":1},"title":{"props":"font1:20:100:center:0:0:2:0","text":"Sample Document"}}'"'"' \
+  --output document.pdf'>📋</button>
+                        </div>
+                        <pre><code>curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
+  -H "Content-Type: application/json" \
+  -d '{"config":{"page":"A4","pageAlignment":1},"title":{"props":"font1:20:100:center:0:0:2:0","text":"Sample Document"}}' \
+  --output document.pdf</code></pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="python">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">Generate PDF with Python</span>
+                            <button class="copy-btn" data-copy='import requests
+
+url = "http://localhost:8080/api/v1/generate/template-pdf"
+template = {
+    "config": {"page": "A4", "pageAlignment": 1},
+    "title": {"props": "font1:20:100:center:0:0:2:0", "text": "Sample Document"}
+}
+
+response = requests.post(url, json=template)
+with open("document.pdf", "wb") as f:
+    f.write(response.content)'>📋</button>
+                        </div>
+                        <pre><code>import requests
+
+url = "http://localhost:8080/api/v1/generate/template-pdf"
+template = {
+    "config": {"page": "A4", "pageAlignment": 1},
+    "title": {"props": "font1:20:100:center:0:0:2:0", "text": "Sample Document"}
+}
+
+response = requests.post(url, json=template)
+with open("document.pdf", "wb") as f:
+    f.write(response.content)</code></pre>
+                    </div>
+                </div>
+                <div class="tab-content" id="json">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">JSON Template Structure</span>
+                            <button class="copy-btn" data-copy='{
+  "config": {
+    "pageBorder": "1:1:1:1",
+    "page": "A4",
+    "pageAlignment": 1
+  },
+  "title": {
+    "props": "font1:24:100:center:0:0:1:0",
+    "text": "Document Title"
+  },
+  "table": [{
+    "maxcolumns": 2,
+    "rows": [{
+      "row": [{
+        "props": "font1:12:100:left:1:1:1:1",
+        "text": "Field Name:"
+      }, {
+        "props": "font1:12:000:left:1:1:1:1",
+        "text": "Field Value"
+      }]
+    }]
+  }]
+}'>📋</button>
+                        </div>
+                        <pre><code>{
+  "config": {
+    "pageBorder": "1:1:1:1",
+    "page": "A4",
+    "pageAlignment": 1
+  },
+  "title": {
+    "props": "font1:24:100:center:0:0:1:0",
+    "text": "Document Title"
+  },
+  "table": [{
+    "maxcolumns": 2,
+    "rows": [{
+      "row": [{
+        "props": "font1:12:100:left:1:1:1:1",
+        "text": "Field Name:"
+      }, {
+        "props": "font1:12:000:left:1:1:1:1",
+        "text": "Field Value"
+      }]
+    }]
+  }]
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="footer-icon">📄</span>
+                    <span class="footer-title">GoPdfSuit</span>
+                </div>
+                <div class="footer-links">
+                    <a href="https://github.com/chinmay-sawant/gopdfsuit" target="_blank">GitHub</a>
+                    <a href="#api">Documentation</a>
+                    <a href="#examples">Examples</a>
+                </div>
+                <div class="footer-info">
+                    <p>Made with ❤️ by <a href="https://github.com/chinmay-sawant" target="_blank">Chinmay Sawant</a></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
 </html>
+        
