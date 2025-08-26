@@ -101,34 +101,17 @@ func formatPageKids(pageIDs []int) string {
 	return strings.Join(kids, " ")
 }
 
-// escapePDFString escapes parentheses and backslashes for PDF literal strings
+// escapePDFString escapes characters as required for PDF literal strings.
 func escapePDFString(s string) string {
-	// Produce a PDF-literal-safe string where:
-	// - existing escapes for parentheses (i.e. "\(" or "\)") are preserved
-	// - other backslashes are escaped to "\\"
-	// - unescaped parentheses are prefixed with a backslash
-	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		if ch == '\\' {
-			// If backslash is followed by a parenthesis, keep as an escape for that paren
-			if i+1 < len(s) && (s[i+1] == '(' || s[i+1] == ')') {
-				b.WriteByte('\\')
-				b.WriteByte(s[i+1])
-				i++ // skip next
-				continue
-			}
-			// Otherwise escape the backslash itself
-			b.WriteString("\\\\")
-			continue
+	var sb strings.Builder
+	for _, r := range s {
+		switch r {
+		case '(', ')', '\\':
+			sb.WriteRune('\\')
+			sb.WriteRune(r)
+		default:
+			sb.WriteRune(r)
 		}
-		if ch == '(' || ch == ')' {
-			// not already escaped (previous char wasn't backslash) -> escape it
-			b.WriteByte('\\')
-			b.WriteByte(ch)
-			continue
-		}
-		b.WriteByte(ch)
 	}
-	return b.String()
+	return sb.String()
 }
