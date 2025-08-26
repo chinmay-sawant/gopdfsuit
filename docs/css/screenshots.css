@@ -9,24 +9,52 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  /* fixed height so carousel has consistent size across slides */
+  height: 450px;
+}
+
+.carousel-item {
+  height: 100%;
 }
 
 .carousel-item img {
   width: 100%;
-  height: auto;
-  max-height: 600px;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover; /* make image fill the slide while preserving aspect ratio */
   background: var(--card-bg);
 }
 
 .carousel-caption {
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-  padding: 2rem;
+  /* remove dark gradient so caption doesn't add a heavy overlay */
+  background: transparent;
+  padding: 1.25rem 1.5rem;
   text-align: left;
   bottom: 0;
   left: 0;
   right: 0;
   border-radius: 0;
+}
+
+/* Caption backdrop box for readability */
+.caption-box {
+  display: inline-block;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  max-width: 80%;
+}
+
+.caption-box h3,
+.caption-box p {
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .caption-box {
+    background: rgba(0, 0, 0, 0.55);
+    padding: 0.5rem 0.75rem;
+    max-width: 100%;
+  }
 }
 
 .carousel-caption h3 {
@@ -120,5 +148,21 @@
   .slide-feature {
     font-size: 0.75rem;
     padding: 0.2rem 0.5rem;
+  }
+}
+
+/* Responsive carousel heights */
+@media (max-width: 992px) {
+  .carousel {
+    height: 380px;
+  }
+}
+
+@media (max-width: 768px) {
+  .carousel {
+    height: 260px;
+  }
+  .carousel-item img {
+    object-position: center top;
   }
 }
