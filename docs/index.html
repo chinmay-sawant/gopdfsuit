@@ -34,6 +34,7 @@
             </div>
             <div class="nav-links">
                 <a href="#features" class="nav-link">Features</a>
+                <a href="#comparison" class="nav-link">Comparison</a>
                 <a href="#screenshots" class="nav-link">Screenshots</a>
                 <a href="#api" class="nav-link">API</a>
                 <a href="#examples" class="nav-link">Examples</a>
@@ -139,6 +140,198 @@ go run ./cmd/gopdfsuit</code></pre>
                         <div class="feature-icon">🖊️</div>
                         <h3>Form Filling</h3>
                         <p>AcroForm/XFDF support for filling existing PDF forms with field data</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Comparison Section -->
+        <section id="comparison" class="comparison dots-bg animate-on-scroll">
+            <div class="container">
+                <h2 class="section-title">🆚 Feature Comparison</h2>
+                <p class="section-subtitle">How GoPdfSuit compares with leading PDF libraries and services</p>
+                
+                <div class="comparison-table-container">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Feature</th>
+                                <th class="gopdf-column">🚀 GoPdfSuit</th>
+                                <th>UniPDF</th>
+                                <th>Aspose.PDF</th>
+                                <th>iText</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="feature-category">💰 Pricing</td>
+                                <td class="price-free">Free (MIT License)</td>
+                                <td class="price-paid">$3,990/dev/year</td>
+                                <td class="price-paid">$1,999/dev/year</td>
+                                <td class="price-paid">$3,800/dev/year</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">🚀 Performance</td>
+                                <td class="gopdf-highlight"><strong>Ultra Fast (179µs-1.7ms)</strong></td>
+                                <td>Moderate</td>
+                                <td>Moderate</td>
+                                <td>Moderate</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">📦 Deployment</td>
+                                <td class="gopdf-highlight"><strong>Microservice/Sidecar/Docker</strong></td>
+                                <td>Library Integration</td>
+                                <td>Library Integration</td>
+                                <td>Library Integration</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">🧠 Memory Usage</td>
+                                <td class="gopdf-highlight"><strong>In-Memory Processing</strong></td>
+                                <td>File-based</td>
+                                <td>Mixed</td>
+                                <td>Mixed</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">🔧 Integration</td>
+                                <td class="gopdf-highlight"><strong>REST API (Language Agnostic)</strong></td>
+                                <td>Go Library Only</td>
+                                <td>.NET/Java/C++</td>
+                                <td>Java/.NET/Python</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">📄 Template Engine</td>
+                                <td class="gopdf-highlight"><strong>JSON-based Templates</strong></td>
+                                <td>Code-based</td>
+                                <td>Code-based</td>
+                                <td>Code-based</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">🌐 Web Interface</td>
+                                <td class="gopdf-highlight"><strong>Built-in Viewer/Editor</strong></td>
+                                <td class="feature-none">None</td>
+                                <td class="feature-none">None</td>
+                                <td class="feature-none">None</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">📋 Form Filling</td>
+                                <td class="gopdf-highlight"><strong>XFDF Support</strong></td>
+                                <td class="feature-full">✅ Full Support</td>
+                                <td class="feature-full">✅ Full Support</td>
+                                <td class="feature-full">✅ Full Support</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">🔗 PDF Merge</td>
+                                <td class="gopdf-highlight"><strong>Drag & Drop UI</strong></td>
+                                <td class="feature-programmatic">✅ Programmatic</td>
+                                <td class="feature-programmatic">✅ Programmatic</td>
+                                <td class="feature-programmatic">✅ Programmatic</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">📱 Multi-page Support</td>
+                                <td class="gopdf-highlight"><strong>Auto Page Breaks</strong></td>
+                                <td class="feature-manual">✅ Manual Control</td>
+                                <td class="feature-manual">✅ Manual Control</td>
+                                <td class="feature-manual">✅ Manual Control</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">🎨 Styling</td>
+                                <td class="gopdf-highlight"><strong>Font Styles + Borders</strong></td>
+                                <td class="feature-advanced">✅ Advanced</td>
+                                <td class="feature-advanced">✅ Advanced</td>
+                                <td class="feature-advanced">✅ Advanced</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">☑️ Interactive Elements</td>
+                                <td class="gopdf-highlight"><strong>Checkboxes</strong></td>
+                                <td class="feature-full">✅ Full Support</td>
+                                <td class="feature-full">✅ Full Support</td>
+                                <td class="feature-full">✅ Full Support</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">📏 Page Formats</td>
+                                <td class="gopdf-highlight"><strong>A3, A4, A5, Letter, Legal</strong></td>
+                                <td class="feature-full">✅ All Formats</td>
+                                <td class="feature-full">✅ All Formats</td>
+                                <td class="feature-full">✅ All Formats</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">🔒 Security</td>
+                                <td class="feature-basic"><strong>Basic Validation</strong></td>
+                                <td class="feature-advanced">✅ Advanced</td>
+                                <td class="feature-enterprise">✅ Enterprise</td>
+                                <td class="feature-enterprise">✅ Enterprise</td>
+                            </tr>
+                            <tr>
+                                <td class="feature-category">🛠️ Maintenance</td>
+                                <td class="gopdf-highlight"><strong>Single Binary</strong></td>
+                                <td class="feature-updates">Library Updates</td>
+                                <td class="feature-updates">Library Updates</td>
+                                <td class="feature-updates">Library Updates</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="performance-section">
+                    <h3>🏃‍♂️ Performance Benchmarks</h3>
+                    <p class="performance-intro">
+                        <strong>GoPdfSuit Performance (temp_multiplepage.json - 2 pages):</strong>
+                    </p>
+                    <div class="performance-metrics">
+                        <div class="metric-card">
+                            <div class="metric-value">697.8µs</div>
+                            <div class="metric-label">First Request</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">1.7ms</div>
+                            <div class="metric-label">Peak Request</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">179.6µs</div>
+                            <div class="metric-label">Fastest Request</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">573.7µs</div>
+                            <div class="metric-label">Average Request</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="advantages-section">
+                    <div class="advantage-card">
+                        <div class="advantage-icon">🚀</div>
+                        <div class="advantage-title">Ultra Fast Performance</div>
+                        <div class="advantage-desc">Sub-millisecond to low-millisecond response times with in-memory processing</div>
+                    </div>
+                    
+                    <div class="advantage-card">
+                        <div class="advantage-icon">💰</div>
+                        <div class="advantage-title">Cost Effective</div>
+                        <div class="advantage-desc">MIT license vs $2k-$4k per developer per year for commercial alternatives</div>
+                    </div>
+                    
+                    <div class="advantage-card">
+                        <div class="advantage-icon">🔧</div>
+                        <div class="advantage-title">Easy Deployment</div>
+                        <div class="advantage-desc">Microservice architecture vs library integration requirements</div>
+                    </div>
+                    
+                    <div class="advantage-card">
+                        <div class="advantage-icon">🌐</div>
+                        <div class="advantage-title">Language Agnostic</div>
+                        <div class="advantage-desc">REST API accessible from any programming language</div>
+                    </div>
+                    
+                    <div class="advantage-card">
+                        <div class="advantage-icon">📦</div>
+                        <div class="advantage-title">Zero Dependencies</div>
+                        <div class="advantage-desc">Single binary deployment with built-in web interface</div>
+                    </div>
+                    
+                    <div class="advantage-card">
+                        <div class="advantage-icon">🎨</div>
+                        <div class="advantage-title">Template-Driven</div>
+                        <div class="advantage-desc">JSON-based templates vs code-based document generation</div>
                     </div>
                 </div>
             </div>
@@ -303,6 +496,11 @@ cd gopdfsuit</code></pre>
                                     <code>http://localhost:8080/merge</code>
                                     <span class="url-desc">PDF Merge</span>
                                 </div>
+                                    <div class="url-item">
+                                    <code>http://localhost:8080/filler</code>
+                                    <span class="url-desc">PDF Filler (PDF + XFDF)</span>
+                                </div>
+                                
                             </div>
                         </div>
                     </div>

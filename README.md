@@ -434,6 +434,45 @@ with open("survey-landscape.pdf", "wb") as f:
 }
 ```
 
+## 🆚 Feature Comparison
+
+| Feature | GoPdfSuit | UniPDF | Aspose.PDF | iText |
+|---------|-----------|---------|------------|-------|
+| **💰 Pricing** | **Free (MIT License)** | $3,990/dev/year | $1,999/dev/year | $3,800/dev/year |
+| **🚀 Performance** | **Ultra Fast (179µs-1.7ms)** | Moderate | Moderate | Moderate |
+| **📦 Deployment** | **Microservice/Sidecar/Docker** | Library Integration | Library Integration | Library Integration |
+| **🧠 Memory Usage** | **In-Memory Processing** | File-based | Mixed | Mixed |
+| **🔧 Integration** | **REST API (Language Agnostic)** | Go Library Only | .NET/Java/C++ | Java/.NET/Python |
+| **📄 Template Engine** | **JSON-based Templates** | Code-based | Code-based | Code-based |
+| **🌐 Web Interface** | **Built-in Viewer/Editor** | None | None | None |
+| **📋 Form Filling** | **XFDF Support** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
+| **🔗 PDF Merge** | **Drag & Drop UI** | ✅ Programmatic | ✅ Programmatic | ✅ Programmatic |
+| **📱 Multi-page Support** | **Auto Page Breaks** | ✅ Manual Control | ✅ Manual Control | ✅ Manual Control |
+| **🎨 Styling** | **Font Styles + Borders** | ✅ Advanced | ✅ Advanced | ✅ Advanced |
+| **☑️ Interactive Elements** | **Checkboxes** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
+| **📏 Page Formats** | **A3, A4, A5, Letter, Legal** | ✅ All Formats | ✅ All Formats | ✅ All Formats |
+| **🔒 Security** | **Basic Validation** | ✅ Advanced | ✅ Enterprise | ✅ Enterprise |
+| **🛠️ Maintenance** | **Single Binary** | Library Updates | Library Updates | Library Updates |
+
+### 🏃‍♂️ Performance Benchmarks
+
+**GoPdfSuit Performance (temp_multiplepage.json - 2 pages):**
+```
+[GIN] 2025/08/28 - 00:40:18 | 200 |       697.8µs | POST "/api/v1/generate/template-pdf"
+[GIN] 2025/08/28 - 00:40:55 | 200 |      1.7542ms | POST "/api/v1/generate/template-pdf"  
+[GIN] 2025/08/28 - 00:40:57 | 200 |       179.6µs | POST "/api/v1/generate/template-pdf"
+[GIN] 2025/08/28 - 00:40:58 | 200 |       573.7µs | POST "/api/v1/generate/template-pdf"
+```
+
+**Key Advantages:**
+- 🚀 **Ultra Fast**: Sub-millisecond to low-millisecond response times
+- 💰 **Cost Effective**: MIT license vs $2k-$4k/developer/year
+- 🔧 **Easy Deployment**: Microservice architecture vs library integration
+- 🌐 **Language Agnostic**: REST API accessible from any programming language
+- 📦 **Zero Dependencies**: Single binary deployment
+
+**📊 [View Detailed Comparison →](comparison.html)**
+
 ## ✨ Features
 
 - 🎯 **Template-based**: JSON-driven PDF generation
