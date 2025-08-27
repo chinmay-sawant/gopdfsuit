@@ -122,38 +122,7 @@
   color: var(--text-primary);
 }
 
-/* Work in Progress specific styling */
-.feature-card:has(.badge-wip) {
-  border: 2px solid var(--warning-color);
-  background: linear-gradient(
-    135deg,
-    var(--card-bg) 0%,
-    rgba(251, 191, 36, 0.05) 100%
-  );
-}
-
-.feature-card:has(.badge-wip)::before {
-  background: linear-gradient(90deg, var(--warning-color), #f59e0b);
-}
-
-.wip-notice {
-  background: rgba(251, 191, 36, 0.1);
-  border: 1px solid rgba(251, 191, 36, 0.3);
-  border-radius: 8px;
-  padding: 12px;
-  margin-top: 12px;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  color: var(--warning-color);
-  position: relative;
-  overflow: hidden;
-}
-
-.wip-notice::before {
-  content: "⚠️";
-  margin-right: 8px;
-  font-size: 1rem;
-}
+/* Work in Progress styles removed - badge and notice deprecated */
 
 /* Staggered animation for cards */
 .feature-card:nth-child(1) {
