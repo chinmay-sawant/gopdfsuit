@@ -100,6 +100,8 @@
 .hero-badges .badge {
   animation: float 3s ease-in-out infinite;
   animation-delay: calc(var(--i) * 0.2s);
+  /* Ensure badge text is dark in light theme for readability */
+  color: var(--text-primary);
 }
 
 .hero-actions {

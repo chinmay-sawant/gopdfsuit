@@ -112,6 +112,32 @@
   box-shadow: 0 8px 25px rgba(96, 165, 250, 0.6);
 }
 
+/* Screenshot button variant - visible like Get Started in light mode */
+.btn-screenshots {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.btn-screenshots:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+/* Dark theme adjustments for screenshot button */
+[data-theme="dark"] .btn-screenshots {
+  /* use gradient for a richer look in dark mode */
+  background: var(--gradient);
+  color: white;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .btn-screenshots:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+}
+
 .btn-secondary {
   background: var(--card-bg);
   color: var(--text-primary);
