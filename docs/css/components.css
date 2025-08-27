@@ -170,7 +170,7 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   overflow: hidden;
-  margin: 1.5rem 0;
+  margin: 0;
   transition: all 0.3s ease;
   position: relative;
   box-shadow: var(--shadow);
