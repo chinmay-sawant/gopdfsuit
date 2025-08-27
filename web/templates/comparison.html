@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoPdfSuit vs Competitors - Feature Comparison</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+
+      .header h1 {
+        color: #2c3e50;
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+      }
+
+      .header p {
+        color: #7f8c8d;
+        font-size: 1.2rem;
+      }
+
+      .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 30px 0;
+        overflow-x: auto;
+        display: block;
+        white-space: nowrap;
+      }
+
+      .comparison-table thead {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .comparison-table th,
+      .comparison-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        min-width: 200px;
+      }
+
+      .comparison-table th {
+        font-weight: 600;
+        font-size: 1.1rem;
+      }
+
+      .comparison-table tbody tr:nth-child(even) {
+        background-color: #f8f9fa;
+      }
+
+      .comparison-table tbody tr:hover {
+        background-color: #e3f2fd;
+        transform: scale(1.01);
+        transition: all 0.3s ease;
+      }
+
+      .feature-category {
+        font-weight: bold;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .price-free {
+        color: #27ae60;
+        font-weight: bold;
+        font-size: 1.1rem;
+      }
+
+      .price-paid {
+        color: #e74c3c;
+        font-weight: bold;
+      }
+
+      .performance-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 25px;
+        margin: 30px 0;
+      }
+
+      .performance-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .metric-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+
+      .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 10px;
+      }
+
+      .metric-label {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+      }
+
+      .advantages-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin: 30px 0;
+      }
+
+      .advantage-card {
+        background: white;
+        border-left: 5px solid #667eea;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .advantage-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+      }
+
+      .advantage-title {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 10px;
+      }
+
+      .advantage-desc {
+        color: #7f8c8d;
+      }
+
+      .back-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+      }
+
+      .back-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      }
+
+      @media (max-width: 768px) {
+        .container {
+          padding: 20px;
+        }
+
+        .header h1 {
+          font-size: 2rem;
+        }
+
+        .comparison-table {
+          font-size: 0.9rem;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+          padding: 10px;
+          min-width: 150px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <a href="/" class="back-button">← Back to PDF Viewer</a>
+
+      <div class="header">
+        <h1>🆚 GoPdfSuit vs Competitors</h1>
+        <p>Comprehensive feature and pricing comparison</p>
+      </div>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>🚀 GoPdfSuit</th>
+            <th>UniPDF</th>
+            <th>Aspose.PDF</th>
+            <th>iText</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="feature-category">💰 Pricing</td>
+            <td class="price-free">Free (MIT License)</td>
+            <td class="price-paid">$3,990/dev/year</td>
+            <td class="price-paid">$1,999/dev/year</td>
+            <td class="price-paid">$3,800/dev/year</td>
+          </tr>
+          <tr>
+            <td class="feature-category">🚀 Performance</td>
+            <td><strong>Ultra Fast (179µs-1.7ms)</strong></td>
+            <td>Moderate</td>
+            <td>Moderate</td>
+            <td>Moderate</td>
+          </tr>
+          <tr>
+            <td class="feature-category">📦 Deployment</td>
+            <td><strong>Microservice/Sidecar/Docker</strong></td>
+            <td>Library Integration</td>
+            <td>Library Integration</td>
+            <td>Library Integration</td>
+          </tr>
+          <tr>
+            <td class="feature-category">🧠 Memory Usage</td>
+            <td><strong>In-Memory Processing</strong></td>
+            <td>File-based</td>
+            <td>Mixed</td>
+            <td>Mixed</td>
+          </tr>
+          <tr>
+            <td class="feature-category">🔧 Integration</td>
+            <td><strong>REST API (Language Agnostic)</strong></td>
+            <td>Go Library Only</td>
+            <td>.NET/Java/C++</td>
+            <td>Java/.NET/Python</td>
+          </tr>
+          <tr>
+            <td class="feature-category">📄 Template Engine</td>
+            <td><strong>JSON-based Templates</strong></td>
+            <td>Code-based</td>
+            <td>Code-based</td>
+            <td>Code-based</td>
+          </tr>
+          <tr>
+            <td class="feature-category">🌐 Web Interface</td>
+            <td><strong>Built-in Viewer/Editor</strong></td>
+            <td>None</td>
+            <td>None</td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td class="feature-category">📋 Form Filling</td>
+            <td><strong>XFDF Support</strong></td>
+            <td>✅ Full Support</td>
+            <td>✅ Full Support</td>
+            <td>✅ Full Support</td>
+          </tr>
+          <tr>
+            <td class="feature-category">🔗 PDF Merge</td>
+            <td><strong>Drag & Drop UI</strong></td>
+            <td>✅ Programmatic</td>
+            <td>✅ Programmatic</td>
+            <td>✅ Programmatic</td>
+          </tr>
+          <tr>
+            <td class="feature-category">📱 Multi-page Support</td>
+            <td><strong>Auto Page Breaks</strong></td>
+            <td>✅ Manual Control</td>
+            <td>✅ Manual Control</td>
+            <td>✅ Manual Control</td>
+          </tr>
+          <tr>
+            <td class="feature-category">🎨 Styling</td>
+            <td><strong>Font Styles + Borders</strong></td>
+            <td>✅ Advanced</td>
+            <td>✅ Advanced</td>
+            <td>✅ Advanced</td>
+          </tr>
+          <tr>
+            <td class="feature-category">☑️ Interactive Elements</td>
+            <td><strong>Checkboxes</strong></td>
+            <td>✅ Full Support</td>
+            <td>✅ Full Support</td>
+            <td>✅ Full Support</td>
+          </tr>
+          <tr>
+            <td class="feature-category">📏 Page Formats</td>
+            <td><strong>A3, A4, A5, Letter, Legal</strong></td>
+            <td>✅ All Formats</td>
+            <td>✅ All Formats</td>
+            <td>✅ All Formats</td>
+          </tr>
+          <tr>
+            <td class="feature-category">🔒 Security</td>
+            <td><strong>Basic Validation</strong></td>
+            <td>✅ Advanced</td>
+            <td>✅ Enterprise</td>
+            <td>✅ Enterprise</td>
+          </tr>
+          <tr>
+            <td class="feature-category">🛠️ Maintenance</td>
+            <td><strong>Single Binary</strong></td>
+            <td>Library Updates</td>
+            <td>Library Updates</td>
+            <td>Library Updates</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="performance-section">
+        <h2>🏃‍♂️ Performance Benchmarks</h2>
+        <p>
+          <strong
+            >GoPdfSuit Performance (temp_multiplepage.json - 2 pages):</strong
+          >
+        </p>
+        <div class="performance-metrics">
+          <div class="metric-card">
+            <div class="metric-value">697.8µs</div>
+            <div class="metric-label">First Request</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">1.7542ms</div>
+            <div class="metric-label">Peak Request</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">179.6µs</div>
+            <div class="metric-label">Fastest Request</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">573.7µs</div>
+            <div class="metric-label">Average Request</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="advantages-section">
+        <div class="advantage-card">
+          <div class="advantage-icon">🚀</div>
+          <div class="advantage-title">Ultra Fast Performance</div>
+          <div class="advantage-desc">
+            Sub-millisecond to low-millisecond response times with in-memory
+            processing
+          </div>
+        </div>
+
+        <div class="advantage-card">
+          <div class="advantage-icon">💰</div>
+          <div class="advantage-title">Cost Effective</div>
+          <div class="advantage-desc">
+            MIT license vs $2k-$4k per developer per year for commercial
+            alternatives
+          </div>
+        </div>
+
+        <div class="advantage-card">
+          <div class="advantage-icon">🔧</div>
+          <div class="advantage-title">Easy Deployment</div>
+          <div class="advantage-desc">
+            Microservice architecture vs library integration requirements
+          </div>
+        </div>
+
+        <div class="advantage-card">
+          <div class="advantage-icon">🌐</div>
+          <div class="advantage-title">Language Agnostic</div>
+          <div class="advantage-desc">
+            REST API accessible from any programming language
+          </div>
+        </div>
+
+        <div class="advantage-card">
+          <div class="advantage-icon">📦</div>
+          <div class="advantage-title">Zero Dependencies</div>
+          <div class="advantage-desc">
+            Single binary deployment with built-in web interface
+          </div>
+        </div>
+
+        <div class="advantage-card">
+          <div class="advantage-icon">🎨</div>
+          <div class="advantage-title">Template-Driven</div>
+          <div class="advantage-desc">
+            JSON-based templates vs code-based document generation
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
