@@ -1,0 +1,53 @@
+:root {
+  /* Light theme colors */
+  --primary-color: #2563eb;
+  --secondary-color: #64748b;
+  --accent-color: #06b6d4;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+
+  --background: #ffffff;
+  --surface: #f8fafc;
+  --card-bg: #ffffff;
+  --border-color: #e2e8f0;
+
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  --gradient: linear-gradient(135deg, #2563eb, #06b6d4);
+  --gradient-accent: linear-gradient(135deg, #8b5cf6, #ec4899);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  /* nav link color used in dark theme for easy tuning */
+  --nav-link-dark: #ffffff;
+}
+
+[data-theme="dark"] {
+  /* Much darker theme colors */
+  --primary-color: #60a5fa;
+  --secondary-color: #94a3b8;
+  --accent-color: #22d3ee;
+  --success-color: #34d399;
+  --warning-color: #fbbf24;
+  --error-color: #f87171;
+
+  --background: #020617;
+  --surface: #0f172a;
+  --card-bg: #1e293b;
+  --border-color: #334155;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+
+  --gradient: linear-gradient(135deg, #60a5fa, #22d3ee);
+  --gradient-accent: linear-gradient(135deg, #a78bfa, #f472b6);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  /* allow override for nav link color in dark theme */
+  --nav-link-dark: #ffffff;
+}
