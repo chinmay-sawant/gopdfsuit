@@ -47,6 +47,58 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Carousel Caption Switching Functionality
+    function initCarouselCaptions() {
+        const carousel = document.getElementById('screenshotCarousel');
+        const captionContents = document.querySelectorAll('.caption-content');
+        
+        if (!carousel || captionContents.length === 0) return;
+        
+        // Function to update active caption
+        function updateActiveCaption(activeIndex) {
+            // Remove active class from all captions
+            captionContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Add active class to the corresponding caption
+            const activeCaption = document.querySelector(`.caption-content[data-slide="${activeIndex}"]`);
+            if (activeCaption) {
+                activeCaption.classList.add('active');
+            }
+        }
+        
+        // Listen for carousel slide events
+        carousel.addEventListener('slid.bs.carousel', function(event) {
+            const activeIndex = event.to;
+            updateActiveCaption(activeIndex);
+        });
+        
+        // Handle indicator clicks
+        const indicators = document.querySelectorAll('.carousel-indicators button');
+        indicators.forEach((indicator, index) => {
+            indicator.addEventListener('click', function() {
+                updateActiveCaption(index);
+            });
+        });
+        
+        // Handle control button clicks
+        const controls = document.querySelectorAll('.carousel-control-prev, .carousel-control-next');
+        controls.forEach(control => {
+            control.addEventListener('click', function() {
+                // Small delay to allow carousel to update first
+                setTimeout(() => {
+                    const activeSlide = document.querySelector('.carousel-item.active');
+                    const activeIndex = Array.from(activeSlide.parentNode.children).indexOf(activeSlide);
+                    updateActiveCaption(activeIndex);
+                }, 100);
+            });
+        });
+        
+        // Initialize with first caption active
+        updateActiveCaption(0);
+    }
+
     // Scroll animations
     function initScrollAnimations() {
         const observerOptions = {
@@ -214,6 +266,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add new initializations
         initScrollAnimations();
+        initCarouselCaptions();
         createParticles();
         
         // Enhanced copy button feedback
