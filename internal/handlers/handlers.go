@@ -90,12 +90,22 @@ func RegisterRoutes(router *gin.Engine) {
 	// PDF filler UI
 	router.GET("/filler", handlePDFFiller)
 
+	// WKHTML UI pages
+	router.GET("/wkhtmltopdf", handleWKHTMLToPDFPage)
+	router.GET("/wkhtmltoimage", handleWKHTMLToImagePage)
+
 	// API endpoints
 	v1 := router.Group("/api/v1")
 	v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
 	v1.POST("/fill", handleFillPDF)
 	v1.POST("/merge", handleMergePDFs)
 	v1.GET("/template-data", handleGetTemplateData)
+
+	// WKHTML endpoints
+	v1.POST("/wkhtmltopdf", handleWKHTMLToPDF)
+	v1.POST("/wkhtmltoimage", handleWKHTMLToImage)
+	v1.GET("/wkhtmltopdf", handleWKHTMLToPDF)
+	v1.GET("/wkhtmltoimage", handleWKHTMLToImage)
 
 	// Template editor endpoint
 	router.GET("/editor", PDFEditorHandler)
@@ -276,4 +286,97 @@ func PDFMergeHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "pdf_merge.html", gin.H{
 		"title": "GoPdfSuit - PDF Merge",
 	})
+}
+
+// handleWKHTMLToPDFPage serves the wkhtmltopdf converter UI
+func handleWKHTMLToPDFPage(c *gin.Context) {
+	c.HTML(http.StatusOK, "wkhtmltopdf.html", gin.H{
+		"title": "GoPdfSuit - HTML to PDF Converter",
+	})
+}
+
+// handleWKHTMLToImagePage serves the wkhtmltoimage converter UI
+func handleWKHTMLToImagePage(c *gin.Context) {
+	c.HTML(http.StatusOK, "wkhtmltoimage.html", gin.H{
+		"title": "GoPdfSuit - HTML to Image Converter",
+	})
+}
+
+// handleWKHTMLToPDF handles HTML to PDF conversion using wkhtmltopdf
+func handleWKHTMLToPDF(c *gin.Context) {
+	var req models.WKHTMLToPDFRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
+		return
+	}
+
+	// Set defaults
+	if req.PageSize == "" {
+		req.PageSize = "A4"
+	}
+	if req.Orientation == "" {
+		req.Orientation = "Portrait"
+	}
+	if req.MarginTop == "" {
+		req.MarginTop = "10mm"
+	}
+	if req.MarginRight == "" {
+		req.MarginRight = "10mm"
+	}
+	if req.MarginBottom == "" {
+		req.MarginBottom = "10mm"
+	}
+	if req.MarginLeft == "" {
+		req.MarginLeft = "10mm"
+	}
+	if req.DPI == 0 {
+		req.DPI = 300
+	}
+
+	pdfBytes, err := pdf.ConvertHTMLToPDF(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF conversion failed: " + err.Error()})
+		return
+	}
+
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", "attachment; filename=converted.pdf")
+	c.Data(http.StatusOK, "application/pdf", pdfBytes)
+}
+
+// handleWKHTMLToImage handles HTML to image conversion using wkhtmltoimage
+func handleWKHTMLToImage(c *gin.Context) {
+	var req models.WKHTMLToImageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
+		return
+	}
+
+	// Set defaults
+	if req.Format == "" {
+		req.Format = "png"
+	}
+	if req.Quality == 0 {
+		req.Quality = 94
+	}
+	if req.Zoom == 0 {
+		req.Zoom = 1.0
+	}
+
+	imageBytes, err := pdf.ConvertHTMLToImage(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Image conversion failed: " + err.Error()})
+		return
+	}
+
+	contentType := "image/png"
+	if req.Format == "jpg" || req.Format == "jpeg" {
+		contentType = "image/jpeg"
+	} else if req.Format == "svg" {
+		contentType = "image/svg+xml"
+	}
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=converted.%s", req.Format))
+	c.Data(http.StatusOK, contentType, imageBytes)
 }

@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Amazon Invoice - Order #123-4567890-1234567</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Amazon Ember", Arial, sans-serif;
+        line-height: 1.4;
+        color: #0f1111;
+        background-color: #eaeded;
+        padding: 20px;
+      }
+
+      .invoice-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border: 1px solid #ddd;
+      }
+
+      .header {
+        background: #ff9900;
+        color: white;
+        padding: 20px;
+        text-align: center;
+        border-bottom: 3px solid #e68a00;
+      }
+
+      .amazon-logo {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .invoice-title {
+        font-size: 1.5em;
+        margin-bottom: 5px;
+      }
+
+      .invoice-subtitle {
+        font-size: 0.9em;
+        opacity: 0.9;
+      }
+
+      .invoice-details {
+        padding: 20px;
+        border-bottom: 1px solid #ddd;
+        background: #f8f9fa;
+      }
+
+      .details-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      .detail-section h3 {
+        color: #ff9900;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+      }
+
+      .detail-item {
+        margin-bottom: 8px;
+        font-size: 0.9em;
+      }
+
+      .detail-label {
+        font-weight: bold;
+        color: #565959;
+      }
+
+      .address-block {
+        background: #f9f9f9;
+        padding: 15px;
+        border: 1px solid #ddd;
+        margin-top: 5px;
+      }
+
+      .address-line {
+        display: block;
+        margin-bottom: 3px;
+        line-height: 1.3;
+      }
+
+      .order-items {
+        padding: 20px;
+      }
+
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background: white;
+        border: 1px solid #ddd;
+      }
+
+      .items-table th {
+        background: #f5f5f5;
+        padding: 12px;
+        text-align: left;
+        font-weight: bold;
+        color: #333;
+        border-bottom: 2px solid #ff9900;
+      }
+
+      .items-table td {
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
+        vertical-align: top;
+      }
+
+      .item-checkbox {
+        transform: scale(1.2);
+        margin-right: 10px;
+      }
+
+      .item-image {
+        width: 60px;
+        height: 60px;
+        background: #ff9900;
+        border: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 10px;
+      }
+
+      .item-details h4 {
+        color: #0f1111;
+        margin-bottom: 5px;
+        font-size: 0.95em;
+      }
+
+      .item-details p {
+        color: #565959;
+        font-size: 0.85em;
+        margin-bottom: 2px;
+      }
+
+      .item-price {
+        text-align: right;
+        font-weight: bold;
+        color: #0f1111;
+      }
+
+      .payment-section {
+        padding: 20px;
+        background: #f8f9fa;
+        border-top: 1px solid #ddd;
+      }
+
+      .payment-methods {
+        margin: 20px 0;
+      }
+
+      .payment-method {
+        margin-bottom: 15px;
+        padding: 15px;
+        background: white;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: border-color 0.2s;
+        display: block;
+      }
+
+      .payment-method:hover {
+        border-color: #ff9900;
+      }
+
+      .payment-method:has(.payment-radio:checked) {
+        border-color: #ff9900;
+        background: #fff8f0;
+      }
+
+      .payment-radio {
+        display: inline-block;
+        margin-right: 10px;
+        transform: scale(1.2);
+        accent-color: #ff9900;
+        cursor: pointer;
+      }
+
+      .payment-radio:focus {
+        outline: 2px solid #ff9900;
+        outline-offset: 2px;
+      }
+
+      .payment-radio:checked + .payment-method {
+        border-color: #ff9900;
+        background: #fff8f0;
+      }
+
+      .payment-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .payment-icon {
+        width: 24px;
+        height: 24px;
+        background: #0066c0;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 10px;
+        margin-right: 10px;
+      }
+
+      .payment-name {
+        font-weight: bold;
+        color: #0f1111;
+      }
+
+      .payment-details {
+        color: #565959;
+        font-size: 0.9em;
+      }
+
+      .order-summary {
+        background: white;
+        padding: 20px;
+        border: 1px solid #ddd;
+        margin-top: 20px;
+      }
+
+      .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .summary-row.total {
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #0f1111;
+        border-bottom: 2px solid #ff9900;
+        margin-top: 10px;
+        padding-top: 15px;
+      }
+
+      .terms-section {
+        padding: 20px;
+        background: #f9f9f9;
+        border-top: 1px solid #ddd;
+      }
+
+      .terms-checkbox {
+        margin-right: 10px;
+        transform: scale(1.1);
+      }
+
+      .terms-text {
+        font-size: 0.9em;
+        color: #565959;
+        line-height: 1.4;
+      }
+
+      .terms-link {
+        color: #0066c0;
+        text-decoration: none;
+      }
+
+      .terms-link:hover {
+        text-decoration: underline;
+      }
+
+      .footer {
+        background: #131921;
+        color: white;
+        padding: 20px;
+        text-align: center;
+        font-size: 0.85em;
+      }
+
+      .action-buttons {
+        padding: 20px;
+        text-align: center;
+        background: #f8f9fa;
+        border-top: 1px solid #ddd;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 1em;
+        font-weight: bold;
+        cursor: pointer;
+        margin: 0 10px;
+        transition: background-color 0.2s;
+      }
+
+      .btn-primary {
+        background: #ff9900;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #e68a00;
+      }
+
+      .btn-secondary {
+        background: #131921;
+        color: white;
+      }
+
+      .btn-secondary:hover {
+        background: #232f3e;
+      }
+
+      @media (max-width: 768px) {
+        .details-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .items-table {
+          font-size: 0.9em;
+        }
+
+        .items-table th,
+        .items-table td {
+          padding: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-container">
+      <!-- Header -->
+      <div class="header">
+        <div class="amazon-logo">amazon</div>
+        <div class="invoice-title">Invoice</div>
+        <div class="invoice-subtitle">Order #123-4567890-1234567</div>
+      </div>
+
+      <!-- Invoice Details -->
+      <div class="invoice-details">
+        <div class="details-grid">
+          <div class="detail-section">
+            <h3>Order Information</h3>
+            <div class="detail-item">
+              <span class="detail-label">Invoice Number:</span> INV-2025-001
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Order Date:</span> August 29, 2025
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Invoice Date:</span> August 29, 2025
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Payment Terms:</span> Due on receipt
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h3>Sold By</h3>
+            <div class="detail-item">
+              <span class="detail-label">Amazon.com Services LLC</span>
+            </div>
+            <div class="address-block">
+              <span class="address-line">410 Terry Ave North</span>
+              <span class="address-line">Seattle, WA 98109-5210</span>
+              <span class="address-line">United States</span>
+              <span class="address-line">Phone: 1-888-280-4331</span>
+              <span class="address-line">Email: orders@amazon.com</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="details-grid" style="margin-top: 20px">
+          <div class="detail-section">
+            <h3>Bill To</h3>
+            <div class="address-block">
+              <span class="address-line">John Smith</span>
+              <span class="address-line">123 Main Street</span>
+              <span class="address-line">Apt 4B</span>
+              <span class="address-line">New York, NY 10001</span>
+              <span class="address-line">United States</span>
+              <span class="address-line">Phone: (555) 123-4567</span>
+              <span class="address-line">Email: john.smith@email.com</span>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <h3>Ship To</h3>
+            <div class="address-block">
+              <span class="address-line">John Smith</span>
+              <span class="address-line">456 Delivery Avenue</span>
+              <span class="address-line">Suite 200</span>
+              <span class="address-line">Brooklyn, NY 11201</span>
+              <span class="address-line">United States</span>
+              <span class="address-line">Phone: (555) 987-6543</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Order Items -->
+      <div class="order-items">
+        <h3 style="color: #ff9900; margin-bottom: 15px">Order Items</h3>
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 40px">
+                <input type="checkbox" id="selectAll" class="item-checkbox" />
+              </th>
+              <th style="width: 80px">Image</th>
+              <th>Item Details</th>
+              <th style="width: 100px; text-align: center">Quantity</th>
+              <th style="width: 100px; text-align: right">Price</th>
+              <th style="width: 100px; text-align: right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox" class="item-checkbox" checked /></td>
+              <td>
+                <div class="item-image">Book</div>
+              </td>
+              <td>
+                <div class="item-details">
+                  <h4>The Complete Guide to Web Development</h4>
+                  <p><strong>ISBN:</strong> 978-0123456789</p>
+                  <p><strong>Author:</strong> Jane Developer</p>
+                  <p><strong>Publisher:</strong> Tech Books Inc.</p>
+                  <p><strong>Edition:</strong> 3rd Edition (2024)</p>
+                  <p><strong>Format:</strong> Hardcover, 450 pages</p>
+                </div>
+              </td>
+              <td style="text-align: center">1</td>
+              <td class="item-price">$49.99</td>
+              <td class="item-price">$49.99</td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="item-checkbox" checked /></td>
+              <td>
+                <div class="item-image" style="background: #0066c0">Laptop</div>
+              </td>
+              <td>
+                <div class="item-details">
+                  <h4>Professional Laptop Pro 15"</h4>
+                  <p><strong>Model:</strong> LP-2025-PRO</p>
+                  <p><strong>Processor:</strong> Intel i7-12700H</p>
+                  <p><strong>RAM:</strong> 16GB DDR5</p>
+                  <p><strong>Storage:</strong> 512GB SSD</p>
+                  <p><strong>Display:</strong> 15.6" 4K OLED</p>
+                  <p><strong>OS:</strong> Windows 11 Pro</p>
+                </div>
+              </td>
+              <td style="text-align: center">1</td>
+              <td class="item-price">$1,299.99</td>
+              <td class="item-price">$1,299.99</td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="item-checkbox" /></td>
+              <td>
+                <div class="item-image" style="background: #00a82d">Mouse</div>
+              </td>
+              <td>
+                <div class="item-details">
+                  <h4>Wireless Ergonomic Mouse</h4>
+                  <p><strong>Model:</strong> WM-5000</p>
+                  <p><strong>Connectivity:</strong> Bluetooth 5.0</p>
+                  <p><strong>Battery:</strong> 2x AAA (up to 12 months)</p>
+                  <p><strong>DPI:</strong> 1600</p>
+                  <p><strong>Color:</strong> Graphite</p>
+                </div>
+              </td>
+              <td style="text-align: center">1</td>
+              <td class="item-price">$29.99</td>
+              <td class="item-price">$29.99</td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="item-checkbox" checked /></td>
+              <td>
+                <div class="item-image" style="background: #565959">
+                  Headphones
+                </div>
+              </td>
+              <td>
+                <div class="item-details">
+                  <h4>Premium Wireless Headphones</h4>
+                  <p><strong>Model:</strong> WH-9000</p>
+                  <p><strong>Driver:</strong> 40mm Neodymium</p>
+                  <p><strong>Battery:</strong> 30 hours playback</p>
+                  <p><strong>Features:</strong> Active Noise Cancellation</p>
+                  <p><strong>Color:</strong> Midnight Black</p>
+                </div>
+              </td>
+              <td style="text-align: center">1</td>
+              <td class="item-price">$199.99</td>
+              <td class="item-price">$199.99</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Payment Section -->
+      <div class="payment-section">
+        <h3 style="color: #ff9900; margin-bottom: 15px">Payment Method</h3>
+
+        <div class="payment-methods">
+          <label for="credit_card" class="payment-method">
+            <input
+              type="radio"
+              id="credit_card"
+              name="payment_method"
+              class="payment-radio"
+              checked
+            />
+            <div class="payment-header">
+              <div
+                class="payment-icon"
+                style="
+                  background: #0066c0;
+                  background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjE0IiB4PSIyIiB5PSI1IiByeD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+CjxsaW5lIHgxPSI2IiB5MT0iOSIgeDI9IjEwIiB5Mj0iOSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+CjxsaW5lIHgxPSI2IiB5MT0iMTMiIHgyPSIxMCIgeTI9IjEzIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiLz4KPC9zdmc+');
+                  background-size: 16px;
+                  background-repeat: no-repeat;
+                  background-position: center;
+                "
+              ></div>
+              <span class="payment-name">Credit Card</span>
+            </div>
+            <div class="payment-details">
+              **** **** **** 1234 (Visa)<br />
+              Expires: 12/2027
+            </div>
+          </label>
+
+          <label for="paypal" class="payment-method">
+            <input
+              type="radio"
+              id="paypal"
+              name="payment_method"
+              class="payment-radio"
+            />
+            <div class="payment-header">
+              <div
+                class="payment-icon"
+                style="
+                  background: #0070ba;
+                  background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE5IDZsLTUgNHYxNGg1VjEwbDQtNHYxMEgxOVY2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTkgNHYxNGg1VjEwbDQtNHYxMEg5VjRaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4=');
+                  background-size: 16px;
+                  background-repeat: no-repeat;
+                  background-position: center;
+                "
+              ></div>
+              <span class="payment-name">PayPal</span>
+            </div>
+            <div class="payment-details">
+              john.smith@email.com<br />
+              Verified account
+            </div>
+          </label>
+
+          <label for="bank_transfer" class="payment-method">
+            <input
+              type="radio"
+              id="bank_transfer"
+              name="payment_method"
+              class="payment-radio"
+            />
+            <div class="payment-header">
+              <div
+                class="payment-icon"
+                style="
+                  background: #0f1111;
+                  background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiB4PSI0IiB5PSI2IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiLz4KPHJlY3Qgd2lkdGg9IjQiIGhlaWdodD0iNCIgeD0iNiIgeT0iOCIgZmlsbD0id2hpdGUiLz4KPHJlY3Qgd2lkdGg9IjQiIGhlaWdodD0iNCIgeD0iMTQiIHk9IjgiIGZpbGw9IndoaXRlIi8+CjxsaW5lIHgxPSI2IiB5MT0iMTQiIHgyPSIxOCIgeTI9IjE0IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiLz4KPC9zdmc+');
+                  background-size: 16px;
+                  background-repeat: no-repeat;
+                  background-position: center;
+                "
+              ></div>
+              <span class="payment-name">Bank Transfer</span>
+            </div>
+            <div class="payment-details">
+              Account: ****1234<br />
+              Routing: 123456789
+            </div>
+          </label>
+        </div>
+
+        <div class="order-summary">
+          <h4 style="margin-bottom: 15px; color: #0f1111">Order Summary</h4>
+          <div class="summary-row">
+            <span>Subtotal (3 items):</span>
+            <span>$1,579.96</span>
+          </div>
+          <div class="summary-row">
+            <span>Shipping & Handling:</span>
+            <span>$9.99</span>
+          </div>
+          <div class="summary-row">
+            <span>Tax:</span>
+            <span>$126.40</span>
+          </div>
+          <div class="summary-row">
+            <span>Discount:</span>
+            <span>-$25.00</span>
+          </div>
+          <div class="summary-row total">
+            <span>Total:</span>
+            <span>$1,691.35</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Terms and Conditions -->
+      <div class="terms-section">
+        <h3 style="color: #ff9900; margin-bottom: 15px">
+          Terms and Conditions
+        </h3>
+
+        <div style="margin-bottom: 15px">
+          <input type="checkbox" id="terms_accept" class="terms-checkbox" />
+          <label for="terms_accept" class="terms-text">
+            I agree to the
+            <a href="#" class="terms-link">Terms of Service</a> and
+            <a href="#" class="terms-link">Privacy Policy</a>. I understand that
+            this purchase is subject to Amazon's return policy and that all
+            sales are final unless otherwise specified.
+          </label>
+        </div>
+
+        <div style="margin-bottom: 15px">
+          <input type="checkbox" id="newsletter" class="terms-checkbox" />
+          <label for="newsletter" class="terms-text">
+            I would like to receive promotional emails and special offers from
+            Amazon and its affiliates.
+          </label>
+        </div>
+
+        <div>
+          <input type="checkbox" id="sms_updates" class="terms-checkbox" />
+          <label for="sms_updates" class="terms-text">
+            I agree to receive SMS updates about my order status and delivery
+            notifications.
+          </label>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn btn-secondary">Print Invoice</button>
+        <button class="btn btn-secondary">Download PDF</button>
+        <button class="btn btn-primary">Confirm Payment</button>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <p>Thank you for shopping with Amazon!</p>
+        <p>
+          Questions about your order? Visit
+          <a href="#" style="color: #ff9900">Amazon Help</a> or contact us at
+          1-888-280-4331
+        </p>
+        <p>
+          &copy; 2025 Amazon.com, Inc. or its affiliates. All rights reserved.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // Select All functionality
+      document
+        .getElementById("selectAll")
+        .addEventListener("change", function () {
+          const checkboxes = document.querySelectorAll(
+            ".item-checkbox:not(#selectAll)"
+          );
+          checkboxes.forEach((checkbox) => {
+            checkbox.checked = this.checked;
+          });
+        });
+
+      // Individual checkbox change affects select all
+      document
+        .querySelectorAll(".item-checkbox:not(#selectAll)")
+        .forEach((checkbox) => {
+          checkbox.addEventListener("change", function () {
+            const allCheckboxes = document.querySelectorAll(
+              ".item-checkbox:not(#selectAll)"
+            );
+            const checkedBoxes = document.querySelectorAll(
+              ".item-checkbox:not(#selectAll):checked"
+            );
+            const selectAll = document.getElementById("selectAll");
+
+            selectAll.checked = allCheckboxes.length === checkedBoxes.length;
+            selectAll.indeterminate =
+              checkedBoxes.length > 0 &&
+              checkedBoxes.length < allCheckboxes.length;
+          });
+        });
+
+      // Payment method selection
+      document.querySelectorAll(".payment-radio").forEach((radio) => {
+        radio.addEventListener("change", function () {
+          // Remove selected class from all payment methods
+          document.querySelectorAll(".payment-method").forEach((method) => {
+            method.classList.remove("selected");
+          });
+          // Add selected class to the parent of the checked radio
+          if (this.checked) {
+            this.closest(".payment-method").classList.add("selected");
+          }
+        });
+      });
+
+      // Initialize the selected state on page load
+      document.querySelectorAll(".payment-radio:checked").forEach((radio) => {
+        radio.closest(".payment-method").classList.add("selected");
+      });
+
+      // Form validation
+      document
+        .querySelector(".btn-primary")
+        .addEventListener("click", function (e) {
+          const termsAccepted = document.getElementById("terms_accept").checked;
+          const selectedItems = document.querySelectorAll(
+            ".item-checkbox:not(#selectAll):checked"
+          ).length;
+
+          if (!termsAccepted) {
+            alert("Please accept the Terms and Conditions to proceed.");
+            e.preventDefault();
+            return;
+          }
+
+          if (selectedItems === 0) {
+            alert("Please select at least one item to proceed.");
+            e.preventDefault();
+            return;
+          }
+
+          alert("Payment confirmed! Thank you for your purchase.");
+        });
+    </script>
+  </body>
+</html>

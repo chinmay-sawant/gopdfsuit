@@ -2,39 +2,58 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
+[![wkhtmltopdf](https://img.shields.io/badge/wkhtmltopdf-0.12.6+-FF6B35?style=flat)](https://wkhtmltopdf.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly with **multi-page support**, **custom page sizes**, **automatic page breaks**, and **PDF merge capabilities**.
+> 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly with **multi-page support**, **custom page sizes**, **automatic page breaks**, **PDF merge capabilities**, and **HTML to PDF/Image conversion**.
 
 ## 📖 Overview
 
 GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting **multiple page sizes**, **automatic page breaks**, **PDF merging**, **form filling**, tables, borders, checkboxes, **font styling (bold, italic, underline)**, and custom layouts without external dependencies.
 
+**New Features:** HTML to PDF and Image conversion using wkhtmltopdf/wkhtmltoimage with web interfaces and REST APIs.
+
 ## 🔧 Requirements
 
 - **Go** `1.20+` (project currently targets Go 1.23)
+- **wkhtmltopdf** `0.12.6+` (for HTML to PDF conversion)
+- **wkhtmltoimage** `0.12.6+` (for HTML to Image conversion)
 - **Dependencies**: Automatically managed via Go modules
 
 ## ⚡ Quick Start
 
-### 1️⃣ Clone the Repository
+### 1️⃣ Install System Dependencies
+
+**For HTML to PDF/Image conversion:**
+```bash
+# Ubuntu/Debian
+sudo apt-get install wkhtmltopdf wkhtmltoimage
+
+# macOS (with Homebrew)
+brew install wkhtmltopdf
+
+# Windows - Download from: https://wkhtmltopdf.org/downloads.html
+# Or use Chocolatey: choco install wkhtmltopdf
+```
+
+### 2️⃣ Clone the Repository
 ```bash
 git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit
 ```
 
-### 2️⃣ Install Dependencies
+### 3️⃣ Install Dependencies
 ```bash
 go mod download
 ```
 
-### 3️⃣ Run the Server
+### 4️⃣ Run the Server
 ```bash
 # From repository root
 go run ./cmd/gopdfsuit
 ```
 
-### 4️⃣ Server Running
+### 5️⃣ Server Running
 ```
 🌐 Server listening on: http://localhost:8080
 ```
@@ -232,6 +251,88 @@ curl -X POST "http://localhost:8080/api/v1/merge" \
 http://localhost:8080/merge
 ```
 
+### HTML to PDF Converter
+
+**New Feature:** Convert HTML content or web pages to PDF with full control over page settings.
+
+**Endpoint:** `GET /wkhtmltopdf`
+
+**API Endpoint:** `POST /api/v1/wkhtmltopdf`
+
+**Headers:** `Content-Type: application/json`
+
+**Request Body:**
+```json
+{
+  "html": "<!DOCTYPE html><html><body><h1>Hello World</h1></body></html>",
+  "url": "https://example.com",
+  "page_size": "A4",
+  "orientation": "Portrait",
+  "margin_top": "10mm",
+  "margin_right": "10mm",
+  "margin_bottom": "10mm",
+  "margin_left": "10mm",
+  "dpi": 300,
+  "grayscale": false,
+  "low_quality": false
+}
+```
+
+**Features:**
+- ✅ **HTML Content**: Convert raw HTML strings to PDF
+- ✅ **URL Conversion**: Convert web pages directly to PDF
+- ✅ **Page Control**: Custom page sizes (A4, Letter, Legal, A3)
+- ✅ **Orientation**: Portrait and Landscape modes
+- ✅ **Margins**: Precise margin control
+- ✅ **Quality**: DPI settings for high-quality output
+- ✅ **Color Modes**: Grayscale and color options
+- ✅ **File Size**: Low quality option for smaller files
+
+**Web Interface Access:**
+```
+http://localhost:8080/wkhtmltopdf
+```
+
+### HTML to Image Converter
+
+**New Feature:** Convert HTML content or web pages to images (PNG, JPG, SVG).
+
+**Endpoint:** `GET /wkhtmltoimage`
+
+**API Endpoint:** `POST /api/v1/wkhtmltoimage`
+
+**Headers:** `Content-Type: application/json`
+
+**Request Body:**
+```json
+{
+  "html": "<!DOCTYPE html><html><body><h1>Hello World</h1></body></html>",
+  "url": "https://example.com",
+  "format": "png",
+  "width": 800,
+  "height": 600,
+  "quality": 94,
+  "zoom": 1.0,
+  "crop_width": 400,
+  "crop_height": 300,
+  "crop_x": 0,
+  "crop_y": 0
+}
+```
+
+**Features:**
+- ✅ **Multiple Formats**: PNG, JPG, SVG output
+- ✅ **Dimensions**: Custom width and height
+- ✅ **Quality Control**: 1-100 quality settings
+- ✅ **Zoom**: Scale content with zoom factor
+- ✅ **Cropping**: Precise image cropping options
+- ✅ **Real-time Preview**: Live HTML preview before conversion
+
+**Web Interface Access:**
+```
+http://localhost:8080/wkhtmltoimage
+```
+
 ### PDF Form Filling
 
 **Endpoint:** `POST /api/v1/fill`
@@ -273,6 +374,16 @@ curl -X POST "http://localhost:8080/api/v1/fill" \
 4. **PDF Filler:**
    ```
    http://localhost:8080/filler
+   ```
+
+5. **HTML to PDF Converter:**
+   ```
+   http://localhost:8080/wkhtmltopdf
+   ```
+
+6. **HTML to Image Converter:**
+   ```
+   http://localhost:8080/wkhtmltoimage
    ```
 
 ### 📱 Multi-Page Healthcare Form (Web Interface)
@@ -434,6 +545,80 @@ with open("survey-landscape.pdf", "wb") as f:
 }
 ```
 
+### 🌐 HTML to PDF Conversion (Web Interface)
+
+1. Navigate to: `http://localhost:8080/wkhtmltopdf`
+2. Choose input type: HTML Content or URL
+3. Enter your HTML or paste a URL
+4. Configure PDF options (page size, margins, orientation)
+5. Click "Convert to PDF" to download
+6. Use "Preview HTML" to see how it will look before conversion
+
+### 🌐 HTML to Image Conversion (Web Interface)
+
+1. Navigate to: `http://localhost:8080/wkhtmltoimage`
+2. Choose input type: HTML Content or URL
+3. Enter your HTML or paste a URL
+4. Configure image options (format, dimensions, quality)
+5. Set cropping options if needed
+6. Click "Convert to Image" to download
+7. Use "Preview HTML" to preview before conversion
+
+### 📄 HTML to PDF Conversion (cURL)
+```bash
+curl -X POST "http://localhost:8080/api/v1/wkhtmltopdf" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "html": "<!DOCTYPE html><html><head><title>Sample</title></head><body><h1>Hello World</h1><p>This is a sample PDF generated from HTML.</p></body></html>",
+    "page_size": "A4",
+    "orientation": "Portrait",
+    "margin_top": "20mm",
+    "margin_bottom": "20mm",
+    "margin_left": "15mm",
+    "margin_right": "15mm",
+    "dpi": 300
+  }' \
+  --output sample.pdf
+```
+
+### 🖼️ HTML to Image Conversion (cURL)
+```bash
+curl -X POST "http://localhost:8080/api/v1/wkhtmltoimage" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "html": "<!DOCTYPE html><html><body style=\"background: linear-gradient(45deg, #ff6b6b, #4ecdc4); color: white; text-align: center; padding: 50px;\"><h1>Beautiful Image</h1><p>Generated from HTML content</p></body></html>",
+    "format": "png",
+    "width": 800,
+    "height": 600,
+    "quality": 95,
+    "zoom": 1.2
+  }' \
+  --output beautiful-image.png
+```
+
+### 🌐 URL to PDF Conversion (Python)
+```python
+import requests
+import json
+
+url = "http://localhost:8080/api/v1/wkhtmltopdf"
+data = {
+    "url": "https://example.com",
+    "page_size": "A4",
+    "orientation": "Portrait",
+    "margin_top": "10mm",
+    "margin_right": "10mm",
+    "margin_bottom": "10mm",
+    "margin_left": "10mm",
+    "dpi": 300,
+    "grayscale": False
+}
+
+response = requests.post(url, json=data)
+with open("website.pdf", "wb") as f:
+    f.write(response.content)
+```
+
 ## 🆚 Feature Comparison
 
 | Feature | GoPdfSuit | UniPDF | Aspose.PDF | iText |
@@ -447,6 +632,7 @@ with open("survey-landscape.pdf", "wb") as f:
 | **🌐 Web Interface** | **Built-in Viewer/Editor** | None | None | None |
 | **📋 Form Filling** | **XFDF Support** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
 | **🔗 PDF Merge** | **Drag & Drop UI** | ✅ Programmatic | ✅ Programmatic | ✅ Programmatic |
+| **🌐 HTML to PDF/Image** | **wkhtmltopdf/wkhtmltoimage** | ❌ Not Available | ❌ Not Available | ❌ Not Available |
 | **📱 Multi-page Support** | **Auto Page Breaks** | ✅ Manual Control | ✅ Manual Control | ✅ Manual Control |
 | **🎨 Styling** | **Font Styles + Borders** | ✅ Advanced | ✅ Advanced | ✅ Advanced |
 | **☑️ Interactive Elements** | **Checkboxes** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
@@ -479,6 +665,8 @@ with open("survey-landscape.pdf", "wb") as f:
 - 🖥️ **Web Interface**: Interactive HTML viewer with real-time preview
 - 🔗 **PDF Merge**: Combine multiple PDFs with drag-and-drop interface
 - 🖊️ **Form Filling**: AcroForm/XFDF support for filling PDF forms
+- 🌐 **HTML to PDF**: Convert HTML content or web pages to PDF with wkhtmltopdf
+- 🖼️ **HTML to Image**: Convert HTML content or web pages to PNG/JPG/SVG with wkhtmltoimage
 - 📋 **Tables & Forms**: Support for complex table layouts with automatic page breaks
 - ☑️ **Checkboxes**: Interactive checkbox elements
 - 🎨 **Font Styling**: Bold, italic, and underline text support
@@ -501,31 +689,132 @@ with open("survey-landscape.pdf", "wb") as f:
 GoPdfSuit/
 ├── 📁 cmd/
 │   └── 📁 gopdfsuit/           # 🎯 Application entrypoint
-│       └── main.go
+│       ├── main.go
+│       ├── tmp/
+│       │   ├── build-errors.log
+│       │   └── main.exe
+├── 📁 docs/                    # 📚 Documentation website
+│   ├── index.html              # 🏠 Main documentation page
+│   ├── styles.css              # 🎨 Documentation styles
+│   ├── 📁 css/                 # 🎨 Documentation CSS components
+│   │   ├── animations.css
+│   │   ├── api.css
+│   │   ├── backgrounds.css
+│   │   ├── base.css
+│   │   ├── components.css
+│   │   ├── examples.css
+│   │   ├── features.css
+│   │   ├── footer.css
+│   │   ├── hero.css
+│   │   ├── navigation.css
+│   │   ├── quickstart.css
+│   │   ├── responsive.css
+│   │   ├── screenshots.css
+│   │   └── variables.css
+│   ├── 📁 includes/            # 📄 Documentation includes
+│   │   ├── api.html
+│   │   └── examples.html
+│   └── 📁 js/                  # ⚡ Documentation JavaScript
+│       ├── include.js
+│       └── script.js
+│   └── 📁 screenshots/         # 📸 Feature screenshots
+│       ├── editor.png
+│       ├── filler.png
+│       ├── merge.png
+│       └── viewer.png
 ├── 📁 internal/
 │   ├── 📁 handlers/            # 🔗 HTTP handlers and route registration
 │   │   └── handlers.go
 │   ├── 📁 models/              # 📊 Template data models
 │   │   └── models.go
-│   ├── 📁 pdf/                 # 📄 Template-based PDF generation
-│   │   ├── pdf.go
-│   │   ├── filler.go
-│   │   └── merge.go
+│   └── 📁 pdf/                 # 📄 PDF generation and processing
+│       ├── pdf.go              # 🌐 HTML to PDF/Image conversion
+│       ├── draw.go             # 🎨 Drawing utilities
+│       ├── generator.go        # ⚙️ PDF generation orchestration
+│       ├── merge.go            # 🔗 PDF merging
+│       ├── pagemanager.go      # 📄 Page management
+│       ├── types.go            # 📏 Page size definitions
+│       ├── utils.go            # 🛠️ Helper utilities
+│       ├── xfdf.go             # 🖊️ XFDF form filling
+│       └── xfdf_example_test.go # 🧪 XFDF tests
 ├── 📁 web/                     # 🌐 Web interface assets
 │   ├── 📁 static/
-│   │   ├── 📁 css/
-│   │   │   ├── viewer.css      # 🎨 PDF viewer styles
-│   │   │   └── merge.css       # 🎨 PDF merge styles
-│   │   └── 📁 js/
-│   │       └── viewer.js       # ⚡ PDF viewer functionality
-│   └── 📁 templates/
-│       ├── pdf_viewer.html     # 📄 PDF viewer HTML template
-│       ├── pdf_merge.html      # 📄 PDF merge HTML template
-│       └── pdf_filler.html     # 📄 PDF filler HTML template
+│   │   ├── 📁 css/             # 🎨 Web interface styles
+│   │   │   ├── reset.css       # 🔄 CSS reset
+│   │   │   ├── theme.css       # 🎨 Theme variables
+│   │   │   ├── base.css        # 📐 Base styles
+│   │   │   ├── components.css  # 🧩 UI components
+│   │   │   ├── buttons.css     # 🔘 Button styles
+│   │   │   ├── tables.css      # � Table styles
+│   │   │   ├── modals.css      # 📱 Modal styles
+│   │   │   ├── canvas.css      # � Canvas styles
+│   │   │   ├── draggable.css   # 🖱️ Drag-and-drop styles
+│   │   │   ├── editor.css      # ✏️ Editor interface styles
+│   │   │   ├── editor-grid.css # � Editor grid system
+│   │   │   ├── properties.css  # ⚙️ Property panel styles
+│   │   │   ├── json-output.css # � JSON output styles
+│   │   │   ├── viewer.css      # 👁️ PDF viewer styles
+│   │   │   ├── merge.css       # 🔗 PDF merge styles
+│   │   │   ├── wkhtmltopdf.css # 🌐 HTML to PDF converter styles
+│   │   │   ├── wkhtmltoimage.css # 🖼️ HTML to Image converter styles
+│   │   │   ├── header.css      # 📋 Header styles
+│   │   │   ├── footer.css      # 📄 Footer styles
+│   │   │   ├── control-panel.css # 🎛️ Control panel styles
+│   │   │   ├── merge.css       # 🔗 PDF merge styles
+│   │   │   └── responsive.css  # � Responsive design
+│   │   └── �📁 js/              # ⚡ Web interface JavaScript
+│   │       ├── viewer.js       # 👁️ PDF viewer functionality
+│   │       ├── editor.core.js  # ⚙️ Editor core functionality
+│   │       ├── editor.elements.js # 🧩 Editor elements
+│   │       ├── editor.js       # ✏️ Main editor functionality
+│   │       ├── editor.loader.js # 📥 Editor template loader
+│   │       ├── editor.model.js # 📊 Editor data model
+│   │       ├── editor.setup.js # ⚙️ Editor setup
+│   │       ├── editor.table.js # 📊 Table editor
+│   │       ├── editor.ui.js    # 🎨 Editor UI components
+│   │       ├── wkhtmltopdf.js  # 🌐 HTML to PDF converter JS
+│   │       └── wkhtmltoimage.js # 🖼️ HTML to Image converter JS
+│   └── 📁 templates/            # 📄 HTML templates
+│       ├── pdf_viewer.html     # �️ PDF viewer template
+│       ├── pdf_editor.html     # ✏️ PDF editor template
+│       ├── pdf_merge.html      # � PDF merge template
+│       ├── pdf_filler.html     # �️ PDF filler template
+│       ├── wkhtmltopdf.html    # 🌐 HTML to PDF converter template
+│       └── wkhtmltoimage.html  # 🖼️ HTML to Image converter template
+├── 📁 sampledata/              # 📋 Sample data and templates
+│   ├── 📁 encounter_1.7/       # 🏥 Healthcare encounter samples
+│   │   ├── us_encounter_form_data.xfdf
+│   │   └── us_encounter_form.pdf
+│   ├── 📁 json/                # 📄 JSON template samples
+│   │   ├── temp_bold+italic+underline.json
+│   │   ├── temp_mutliplepage.json
+│   │   ├── temp_og.json
+│   │   └── temp.json
+│   ├── 📁 patient2/            # 👤 Patient data samples
+│   │   ├── filled.pdf
+│   │   ├── jefferson_filled.pdf
+│   │   └── patient2_chatgpt.xfdf
+│   ├── 📁 patientreg/          # 📋 Patient registration samples
+│   │   ├── patientreg_filled.pdf
+│   │   ├── patientreg.pdf
+│   │   └── patientreg.xfdf
+│   └── 📁 pdf+xfdf/            # 📄 PDF and XFDF sample pairs
+│       ├── us_hospital_encounter_acroform.pdf
+│       └── us_hospital_encounter_data.xfdf
+├── 📁 scripts/                 # 🛠️ Utility scripts
+│   ├── add_dummy_values.go     # � Add dummy data script
+│   ├── flatten_pdf.go          # 📄 PDF flattening script
+│   ├── flatten_pdf.py          # 🐍 Python PDF flattening script
+│   └── 📁 __pycache__/         # 🐍 Python cache
+├── 📁 tmp/                     # 🗂️ Temporary files
+│   └── build-errors.log        # 📋 Build error logs
 ├── 📄 go.mod                   # 📦 Go modules file
-├── 📄 temp_multiplepage.json   # 📋 Example multi-page template file
+├── 📄 go.sum                   # 📦 Go modules checksums
+├── 📄 temp_multiplepage.json   # 📋 Example multi-page template
+├── 📄 xfdf_debug.log           # 🐛 XFDF debugging logs
+├── 📄 gopdfsuit.exe            # 🚀 Compiled Windows binary
 ├── 📄 .gitignore              # 🚫 Git ignore rules
-└── 📖 README.md               # 📚 This file
+└── 📖 README.md               # 📚 This documentation
 ```
 
 ## 🧩 XFDF / AcroForm filling (new)

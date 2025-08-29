@@ -49,3 +49,37 @@ type Props struct {
 	Alignment string
 	Borders   [4]int // left, right, top, bottom
 }
+
+// WKHTMLToPDFRequest represents the input for wkhtmltopdf conversion
+type WKHTMLToPDFRequest struct {
+	HTML         string            `json:"html,omitempty"`        // Raw HTML content
+	URL          string            `json:"url,omitempty"`         // URL to convert
+	OutputPath   string            `json:"output_path,omitempty"` // Optional output path
+	PageSize     string            `json:"page_size"`             // A4, Letter, etc. (default: A4)
+	Orientation  string            `json:"orientation"`           // Portrait, Landscape (default: Portrait)
+	MarginTop    string            `json:"margin_top"`            // Top margin (default: 10mm)
+	MarginRight  string            `json:"margin_right"`          // Right margin (default: 10mm)
+	MarginBottom string            `json:"margin_bottom"`         // Bottom margin (default: 10mm)
+	MarginLeft   string            `json:"margin_left"`           // Left margin (default: 10mm)
+	DPI          int               `json:"dpi,omitempty"`         // DPI for better quality (default: 300)
+	Grayscale    bool              `json:"grayscale"`             // Convert to grayscale
+	LowQuality   bool              `json:"low_quality"`           // Lower quality for smaller file size
+	Options      map[string]string `json:"options,omitempty"`     // Additional wkhtmltopdf options
+}
+
+// WKHTMLToImageRequest represents the input for wkhtmltoimage conversion
+type WKHTMLToImageRequest struct {
+	HTML       string            `json:"html,omitempty"`        // Raw HTML content
+	URL        string            `json:"url,omitempty"`         // URL to convert
+	OutputPath string            `json:"output_path,omitempty"` // Optional output path
+	Format     string            `json:"format"`                // png, jpg, svg (default: png)
+	Width      int               `json:"width,omitempty"`       // Image width in pixels
+	Height     int               `json:"height,omitempty"`      // Image height in pixels
+	Quality    int               `json:"quality,omitempty"`     // Image quality 1-100 (default: 94)
+	Zoom       float64           `json:"zoom,omitempty"`        // Zoom factor (default: 1.0)
+	CropWidth  int               `json:"crop_width,omitempty"`  // Crop width
+	CropHeight int               `json:"crop_height,omitempty"` // Crop height
+	CropX      int               `json:"crop_x,omitempty"`      // Crop X offset
+	CropY      int               `json:"crop_y,omitempty"`      // Crop Y offset
+	Options    map[string]string `json:"options,omitempty"`     // Additional wkhtmltoimage options
+}

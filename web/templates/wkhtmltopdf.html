@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoPdfSuit - HTML to PDF Converter</title>
+    <link rel="stylesheet" href="/static/css/wkhtmltopdf.css" />
+  </head>
+  <body>
+    <header>
+      <h1>HTML to PDF Converter</h1>
+      <p>Convert HTML content or web pages to PDF using wkhtmltopdf</p>
+    </header>
+
+    <main>
+      <div class="converter-container">
+        <form id="pdfForm" class="converter-form">
+          <div class="input-section">
+            <h2>Input Options</h2>
+            <div class="form-group">
+              <label for="inputType">Input Type:</label>
+              <select id="inputType" name="inputType">
+                <option value="html">HTML Content</option>
+                <option value="url">URL</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="htmlGroup">
+              <label for="htmlContent">HTML Content:</label>
+              <textarea
+                id="htmlContent"
+                name="htmlContent"
+                rows="10"
+                placeholder="Enter your HTML content here..."
+              ></textarea>
+            </div>
+
+            <div class="form-group" id="urlGroup" style="display: none">
+              <label for="urlInput">URL:</label>
+              <input
+                type="url"
+                id="urlInput"
+                name="urlInput"
+                placeholder="https://example.com"
+              />
+            </div>
+          </div>
+
+          <div class="options-section">
+            <h2>PDF Options</h2>
+            <div class="options-grid">
+              <div class="form-group">
+                <label for="pageSize">Page Size:</label>
+                <select id="pageSize" name="pageSize">
+                  <option value="A4">A4</option>
+                  <option value="Letter">Letter</option>
+                  <option value="Legal">Legal</option>
+                  <option value="A3">A3</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="orientation">Orientation:</label>
+                <select id="orientation" name="orientation">
+                  <option value="Portrait">Portrait</option>
+                  <option value="Landscape">Landscape</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="dpi">DPI:</label>
+                <input
+                  type="number"
+                  id="dpi"
+                  name="dpi"
+                  value="300"
+                  min="72"
+                  max="1200"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="marginTop">Top Margin:</label>
+                <input
+                  type="text"
+                  id="marginTop"
+                  name="marginTop"
+                  value="10mm"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="marginRight">Right Margin:</label>
+                <input
+                  type="text"
+                  id="marginRight"
+                  name="marginRight"
+                  value="10mm"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="marginBottom">Bottom Margin:</label>
+                <input
+                  type="text"
+                  id="marginBottom"
+                  name="marginBottom"
+                  value="10mm"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="marginLeft">Left Margin:</label>
+                <input
+                  type="text"
+                  id="marginLeft"
+                  name="marginLeft"
+                  value="10mm"
+                />
+              </div>
+            </div>
+
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="grayscale" name="grayscale" />
+                Grayscale
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="lowQuality" name="lowQuality" />
+                Low Quality (smaller file)
+              </label>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="convert-btn">Convert to PDF</button>
+            <button type="button" id="previewBtn" class="preview-btn">
+              Preview HTML
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div id="previewModal" class="modal" style="display: none">
+        <div class="modal-content">
+          <span class="close">&times;</span>
+          <h2>HTML Preview</h2>
+          <iframe id="previewFrame" width="100%" height="400px"></iframe>
+        </div>
+      </div>
+    </main>
+
+    <script src="/static/js/wkhtmltopdf.js"></script>
+  </body>
+</html>
