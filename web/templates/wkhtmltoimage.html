@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GoPdfSuit - HTML to Image Converter</title>
+    <link rel="stylesheet" href="/static/css/wkhtmltoimage.css" />
+  </head>
+  <body>
+    <header>
+      <h1>HTML to Image Converter</h1>
+      <p>Convert HTML content or web pages to images using wkhtmltoimage</p>
+    </header>
+
+    <main>
+      <div class="converter-container">
+        <form id="imageForm" class="converter-form">
+          <div class="input-section">
+            <h2>Input Options</h2>
+            <div class="form-group">
+              <label for="inputType">Input Type:</label>
+              <select id="inputType" name="inputType">
+                <option value="html">HTML Content</option>
+                <option value="url">URL</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="htmlGroup">
+              <label for="htmlContent">HTML Content:</label>
+              <textarea
+                id="htmlContent"
+                name="htmlContent"
+                rows="10"
+                placeholder="Enter your HTML content here..."
+              ></textarea>
+            </div>
+
+            <div class="form-group" id="urlGroup" style="display: none">
+              <label for="urlInput">URL:</label>
+              <input
+                type="url"
+                id="urlInput"
+                name="urlInput"
+                placeholder="https://example.com"
+              />
+            </div>
+          </div>
+
+          <div class="options-section">
+            <h2>Image Options</h2>
+            <div class="options-grid">
+              <div class="form-group">
+                <label for="format">Format:</label>
+                <select id="format" name="format">
+                  <option value="png">PNG</option>
+                  <option value="jpg">JPG</option>
+                  <option value="svg">SVG</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="width">Width (px):</label>
+                <input
+                  type="number"
+                  id="width"
+                  name="width"
+                  placeholder="Auto"
+                  min="1"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="height">Height (px):</label>
+                <input
+                  type="number"
+                  id="height"
+                  name="height"
+                  placeholder="Auto"
+                  min="1"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="quality">Quality (1-100):</label>
+                <input
+                  type="number"
+                  id="quality"
+                  name="quality"
+                  value="94"
+                  min="1"
+                  max="100"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="zoom">Zoom:</label>
+                <input
+                  type="number"
+                  id="zoom"
+                  name="zoom"
+                  value="1.0"
+                  step="0.1"
+                  min="0.1"
+                  max="5.0"
+                />
+              </div>
+            </div>
+
+            <div class="crop-section">
+              <h3>Crop Options (Optional)</h3>
+              <div class="options-grid">
+                <div class="form-group">
+                  <label for="cropWidth">Crop Width:</label>
+                  <input
+                    type="number"
+                    id="cropWidth"
+                    name="cropWidth"
+                    min="1"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label for="cropHeight">Crop Height:</label>
+                  <input
+                    type="number"
+                    id="cropHeight"
+                    name="cropHeight"
+                    min="1"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label for="cropX">Crop X Offset:</label>
+                  <input type="number" id="cropX" name="cropX" min="0" />
+                </div>
+
+                <div class="form-group">
+                  <label for="cropY">Crop Y Offset:</label>
+                  <input type="number" id="cropY" name="cropY" min="0" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="convert-btn">Convert to Image</button>
+            <button type="button" id="previewBtn" class="preview-btn">
+              Preview HTML
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div id="previewModal" class="modal" style="display: none">
+        <div class="modal-content">
+          <span class="close">&times;</span>
+          <h2>HTML Preview</h2>
+          <iframe id="previewFrame" width="100%" height="400px"></iframe>
+        </div>
+      </div>
+    </main>
+
+    <script src="/static/js/wkhtmltoimage.js"></script>
+  </body>
+</html>
