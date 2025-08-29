@@ -747,12 +747,12 @@ GoPdfSuit/
 │   │   │   ├── buttons.css     # 🔘 Button styles
 │   │   │   ├── tables.css      # � Table styles
 │   │   │   ├── modals.css      # 📱 Modal styles
-│   │   │   ├── canvas.css      # � Canvas styles
+│   │   │   ├── canvas.css      # 🎨 Canvas styles
 │   │   │   ├── draggable.css   # 🖱️ Drag-and-drop styles
 │   │   │   ├── editor.css      # ✏️ Editor interface styles
-│   │   │   ├── editor-grid.css # � Editor grid system
+│   │   │   ├── editor-grid.css # 📐 Editor grid system
 │   │   │   ├── properties.css  # ⚙️ Property panel styles
-│   │   │   ├── json-output.css # � JSON output styles
+│   │   │   ├── json-output.css # 📄 JSON output styles
 │   │   │   ├── viewer.css      # 👁️ PDF viewer styles
 │   │   │   ├── merge.css       # 🔗 PDF merge styles
 │   │   │   ├── wkhtmltopdf.css # 🌐 HTML to PDF converter styles
@@ -761,8 +761,8 @@ GoPdfSuit/
 │   │   │   ├── footer.css      # 📄 Footer styles
 │   │   │   ├── control-panel.css # 🎛️ Control panel styles
 │   │   │   ├── merge.css       # 🔗 PDF merge styles
-│   │   │   └── responsive.css  # � Responsive design
-│   │   └── �📁 js/              # ⚡ Web interface JavaScript
+│   │   │   └── responsive.css  # 📱 Responsive design
+│   │   └── 📁 js/              # ⚡ Web interface JavaScript
 │   │       ├── viewer.js       # 👁️ PDF viewer functionality
 │   │       ├── editor.core.js  # ⚙️ Editor core functionality
 │   │       ├── editor.elements.js # 🧩 Editor elements
@@ -775,10 +775,10 @@ GoPdfSuit/
 │   │       ├── wkhtmltopdf.js  # 🌐 HTML to PDF converter JS
 │   │       └── wkhtmltoimage.js # 🖼️ HTML to Image converter JS
 │   └── 📁 templates/            # 📄 HTML templates
-│       ├── pdf_viewer.html     # �️ PDF viewer template
+│       ├── pdf_viewer.html     # 👁️ PDF viewer template
 │       ├── pdf_editor.html     # ✏️ PDF editor template
-│       ├── pdf_merge.html      # � PDF merge template
-│       ├── pdf_filler.html     # �️ PDF filler template
+│       ├── pdf_merge.html      # 🔗 PDF merge template
+│       ├── pdf_filler.html     # 📝 PDF filler template
 │       ├── wkhtmltopdf.html    # 🌐 HTML to PDF converter template
 │       └── wkhtmltoimage.html  # 🖼️ HTML to Image converter template
 ├── 📁 sampledata/              # 📋 Sample data and templates
@@ -802,7 +802,7 @@ GoPdfSuit/
 │       ├── us_hospital_encounter_acroform.pdf
 │       └── us_hospital_encounter_data.xfdf
 ├── 📁 scripts/                 # 🛠️ Utility scripts
-│   ├── add_dummy_values.go     # � Add dummy data script
+│   ├── add_dummy_values.go     # 📊 Add dummy data script
 │   ├── flatten_pdf.go          # 📄 PDF flattening script
 │   ├── flatten_pdf.py          # 🐍 Python PDF flattening script
 │   └── 📁 __pycache__/         # 🐍 Python cache
