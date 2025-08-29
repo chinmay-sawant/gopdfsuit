@@ -632,7 +632,7 @@ with open("website.pdf", "wb") as f:
 | **🌐 Web Interface** | **Built-in Viewer/Editor** | None | None | None |
 | **📋 Form Filling** | **XFDF Support** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
 | **🔗 PDF Merge** | **Drag & Drop UI** | ✅ Programmatic | ✅ Programmatic | ✅ Programmatic |
-| **🌐 HTML to PDF/Image** | **wkhtmltopdf/wkhtmltoimage** | ❌ Not Available | ❌ Not Available | ❌ Not Available |
+| **🌐 HTML to PDF/Image** | **wkhtmltopdf/wkhtmltoimage** | Requires UniHTML product | Requires Aspose.HTML product | Requires custom integration |
 | **📱 Multi-page Support** | **Auto Page Breaks** | ✅ Manual Control | ✅ Manual Control | ✅ Manual Control |
 | **🎨 Styling** | **Font Styles + Borders** | ✅ Advanced | ✅ Advanced | ✅ Advanced |
 | **☑️ Interactive Elements** | **Checkboxes** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
