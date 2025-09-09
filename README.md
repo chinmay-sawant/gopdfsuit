@@ -102,7 +102,7 @@ docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest
 
 #### Push to Docker Hub (for maintainers)
 ```bash
-make dockertag
+make docker && make dockertag
 ```
 
 ### Docker Configuration

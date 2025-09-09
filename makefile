@@ -7,8 +7,10 @@ docker:
 
 dockertag:
 	docker tag gopdfsuit:$(VERSION) $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
+	docker tag gopdfsuit:$(VERSION) $(DOCKERUSERNAME)/gopdfsuit:latest
 	docker login
 	docker push $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
+	docker push $(DOCKERUSERNAME)/gopdfsuit:latest
 
 build:
 	go build -o bin/app .
