@@ -83,11 +83,20 @@
                             <span class="code-title">Quick Start</span>
                             <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit
-go run ./cmd/gopdfsuit">📋</button>
+go run ./cmd/gopdfsuit
+
+# Or using Docker:
+docker pull chinmaysawant/gopdfsuit:1.0.0
+docker run -p 8080:8080 chinmaysawant/gopdfsuit:1.0.0">📋</button>
                         </div>
-                        <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
+                        <pre><code># Traditional setup:
+git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit
-go run ./cmd/gopdfsuit</code></pre>
+go run ./cmd/gopdfsuit
+
+# Or using Docker:
+docker pull chinmaysawant/gopdfsuit:1.0.0
+docker run -p 8080:8080 chinmaysawant/gopdfsuit:1.0.0</code></pre>
                     </div>
                 </div>
             </div>
@@ -563,6 +572,54 @@ cd gopdfsuit</code></pre>
                                     <code>http://localhost:8080/wkhtmltoimage</code>
                                     <span class="url-desc">HTML to Image Converter</span>
                                 </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <br> <br>
+                <div class="docker-deployment">
+                    <h3>🐳 Docker Deployment</h3>
+                    <p>For a quick setup without installing Go or dependencies, use Docker:</p>
+                    <div class="quickstart-steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>Pull Docker Image</h4>
+                                <p>Download the latest Docker image from Docker Hub</p>
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">Pull Image</span>
+                                        <button class="copy-btn" data-copy="docker pull chinmaysawant/gopdfsuit:1.0.0">📋</button>
+                                    </div>
+                                    <pre><code>docker pull chinmaysawant/gopdfsuit:1.0.0</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>Run Container</h4>
+                                <p>Start the GoPdfSuit container</p>
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">Run Container</span>
+                                        <button class="copy-btn" data-copy="docker run -p 8080:8080 chinmaysawant/gopdfsuit:1.0.0">📋</button>
+                                    </div>
+                                    <pre><code>docker run -p 8080:8080 chinmaysawant/gopdfsuit:1.0.0</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>Access Application</h4>
+                                <p>Open your browser to start using GoPdfSuit</p>
+                                <div class="url-list">
+                                    <a href="http://localhost:8080" target="_blank" class="url-item">
+                                        <code>http://localhost:8080</code>
+                                        <span class="url-desc">GoPdfSuit Web Interface</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>

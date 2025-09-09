@@ -2,6 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
+[![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=flat&logo=docker)](https://hub.docker.com/)
 [![wkhtmltopdf](https://img.shields.io/badge/wkhtmltopdf-0.12.6+-FF6B35?style=flat)](https://wkhtmltopdf.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -57,6 +58,59 @@ go run ./cmd/gopdfsuit
 ```
 🌐 Server listening on: http://localhost:8080
 ```
+
+## 🐳 Docker Deployment
+
+GoPdfSuit can be easily deployed using Docker for containerized environments.
+
+### Prerequisites
+- Docker installed on your system
+
+### Build and Run with Docker
+
+1. **Clone the repository** (if not already done):
+   ```bash
+   git clone https://github.com/chinmay-sawant/gopdfsuit.git
+   cd gopdfsuit
+   ```
+
+2. **Build the Docker image**:
+   ```bash
+   docker build -f dockerfolder/Dockerfile --build-arg VERSION=1.0 -t gopdfsuit:1.0 .
+   ```
+
+3. **Run the container**:
+   ```bash
+   docker run -p 8080:8080 gopdfsuit:1.0
+   ```
+
+4. **Access the application**:
+   - Open your browser to `http://localhost:8080`
+
+### Docker Hub
+
+The image is available on Docker Hub:
+
+- **Repository**: `chinmay-sawant/gopdfsuit`
+- **Latest Version**: `chinmay-sawant/gopdfsuit:latest`
+
+#### Pull from Docker Hub
+```bash
+docker pull chinmaysawant/gopdfsuit:latest
+docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest
+```
+
+#### Push to Docker Hub (for maintainers)
+```bash
+make dockertag
+```
+
+### Docker Configuration
+
+- **Port**: 8080 (configurable via `EXPOSE` in Dockerfile)
+- **Base Image**: Alpine Linux for minimal size
+- **Multi-stage Build**: Optimized for smaller final image size
+- **Included Files**: Web assets, LICENSE, README, and sample templates
 
 ## 📡 API Reference
 
@@ -857,7 +911,7 @@ If you'd like, I can add a library-backed implementation that guarantees visual 
 - [ ] 🧪 Add comprehensive unit tests
 - [ ] 🎨 Support for colors and advanced styling
 - [ ] 📊 Image embedding support
-- [ ] 🐳 Docker containerization
+- [x] 🐳 Docker containerization
 - [ ] 📈 Metrics and health check endpoints
 - [ ] 🔐 Authentication and rate limiting
 - [ ] 💾 Template storage and management
