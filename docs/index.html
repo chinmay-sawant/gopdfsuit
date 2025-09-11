@@ -41,8 +41,13 @@
                 <a href="#api" class="nav-link">API</a>
                 <a href="#examples" class="nav-link">Examples</a>
                 <a href="#quickstart" class="nav-link">Quick Start</a>
+                <a href="https://github.com/chinmay-sawant/gopdfsuit" target="_blank" class="github-stars" id="github-stars">
+                    <i class="fab fa-github"></i>
+                    <span class="star-icon">⭐</span>
+                    <span class="star-count">Loading...</span>
+                </a>
                 <button class="theme-toggle" id="themeToggle">
-                    <span class="theme-icon">☀️</span>
+                    <span class="theme-icon" id="themeIcon">☀️</span>
                 </button>
             </div>
         </div>
@@ -81,15 +86,9 @@
                     <div class="code-block">
                         <div class="code-header">
                             <span class="code-title">Quick Start</span>
-                            <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git
-cd gopdfsuit
-go run ./cmd/gopdfsuit
-
-# Or using Docker:
-docker pull chinmaysawant/gopdfsuit:latest
-docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest">📋</button>
+                            <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git&#10;cd gopdfsuit&#10;go run ./cmd/gopdfsuit&#10;&#10;# Or using Docker:&#10;docker pull chinmaysawant/gopdfsuit:latest&#10;docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest">📋</button>
                         </div>
-                        <pre><code># Traditional setup:
+<pre><code># Traditional setup:
 git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit
 go run ./cmd/gopdfsuit
@@ -506,8 +505,7 @@ docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest</code></pre>
                             <div class="code-block">
                                 <div class="code-header">
                                     <span class="code-title">Clone Command</span>
-                                    <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git
-cd gopdfsuit">📋</button>
+                                    <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git&#10;cd gopdfsuit">📋</button>
                                 </div>
                                 <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit</code></pre>
@@ -655,8 +653,7 @@ cd gopdfsuit</code></pre>
                                 <div class="code-block">
                                     <div class="code-header">
                                         <span class="code-title">Example URLs</span>
-                                        <button class="copy-btn" data-copy="http://localhost:8080/
-http://localhost:8080/?file=temp_multiplepage.json">📋</button>
+                                        <button class="copy-btn" data-copy="http://localhost:8080/&#10;http://localhost:8080/?file=temp_multiplepage.json">📋</button>
                                     </div>
                                     <pre><code>http://localhost:8080/
 http://localhost:8080/?file=temp_multiplepage.json</code></pre>
@@ -692,8 +689,7 @@ http://localhost:8080/?file=temp_multiplepage.json</code></pre>
                                 <div class="code-block">
                                     <div class="code-header">
                                         <span class="code-title">Example URLs</span>
-                                        <button class="copy-btn" data-copy="http://localhost:8080/editor
-http://localhost:8080/editor?file=temp_multiplepage.json">📋</button>
+                                        <button class="copy-btn" data-copy="http://localhost:8080/editor&#10;http://localhost:8080/editor?file=temp_multiplepage.json">📋</button>
                                     </div>
                                     <pre><code>http://localhost:8080/editor
 http://localhost:8080/editor?file=temp_multiplepage.json</code></pre>
@@ -848,6 +844,7 @@ http://localhost:8080/editor?file=temp_multiplepage.json</code></pre>
                                 <h3>/api/v1/fill</h3>
                                 <p>Fill PDF forms using XFDF data</p>
                                 <div class="api-params">
+                                    <span class="param">Content-Type: multipart/form-data</span>
                                     <span class="param">pdf - Source PDF file</span>
                                     <span class="param">xfdf - XFDF field data</span>
                                 </div>
@@ -957,6 +954,53 @@ http://localhost:8080/editor?file=temp_multiplepage.json</code></pre>
                                     <li>✅ Real-time validation and error handling</li>
                                     <li>⬇️ Automatic download of filled PDF</li>
                                     <li>🔧 Support for complex form structures</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/wkhtmltopdf</h3>
+                                <p>Web interface for HTML to PDF conversion</p>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Interface Features</h4>
+                                <ul>
+                                    <li>🌐 URL input or HTML content editor</li>
+                                    <li>⚙️ Visual configuration panel for PDF options</li>
+                                    <li>👁️ Live preview of conversion settings</li>
+                                    <li>⬇️ Instant download of generated PDF</li>
+                                    <li>🎨 Theme support with modern UI</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/wkhtmltoimage</h3>
+                                <p>Web interface for HTML to image conversion</p>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Interface Features</h4>
+                                <ul>
+                                    <li>🖼️ URL input or HTML content editor</li>
+                                    <li>⚙️ Visual configuration for image options</li>
+                                    <li>📐 Dimension and format controls</li>
+                                    <li>👁️ Live preview of conversion settings</li>
+                                    <li>⬇️ Instant download of generated images</li>
+                                    <li>🎨 Theme support with modern UI</li>
                                 </ul>
                             </div>
                         </div>

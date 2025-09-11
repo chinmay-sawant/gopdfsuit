@@ -41,6 +41,42 @@
   transition: color 0.3s ease;
 }
 
+.github-stars {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  margin-left: 1rem;
+  margin-right: 0.5rem;
+}
+
+.github-stars:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.github-stars .fab {
+  font-size: 1.1rem;
+}
+
+.star-icon {
+  font-size: 1rem;
+}
+
+.star-count {
+  font-size: 0.875rem;
+}
+
 .nav-links {
   display: flex;
   align-items: center;

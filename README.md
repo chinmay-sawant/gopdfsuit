@@ -66,6 +66,38 @@ GoPdfSuit can be easily deployed using Docker for containerized environments.
 ### Prerequisites
 - Docker installed on your system
 
+### Makefile Variables
+
+You can customize the Docker build using environment variables:
+
+```bash
+# Set custom version
+export VERSION=1.0.0
+
+# Set custom Docker Hub username
+export DOCKERUSERNAME=yourusername
+
+# Build with custom settings
+make docker
+```
+
+Default values:
+- `VERSION=1.0.0`
+- `DOCKERUSERNAME=chinmaysawant`
+
+### Available Makefile Targets
+
+- `make docker` - Build and run Docker container
+- `make dockertag` - Tag and push to Docker Hub
+- `make build` - Build Go application
+- `make test` - Run tests
+- `make clean` - Clean build artifacts
+- `make run` - Run application locally
+- `make fmt` - Format Go code
+- `make vet` - Run Go vet
+- `make mod` - Tidy Go modules
+- `make pull` - Pull and run Docker image from Docker Hub 
+
 ### Build and Run with Docker
 
 1. **Clone the repository** (if not already done):
@@ -76,28 +108,48 @@ GoPdfSuit can be easily deployed using Docker for containerized environments.
 
 2. **Build the Docker image**:
    ```bash
-   docker build -f dockerfolder/Dockerfile --build-arg VERSION=1.0 -t gopdfsuit:1.0 .
+   make docker
+   # Or manually:
+   # docker build -f dockerfolder/Dockerfile --build-arg VERSION=1.0.0 -t gopdfsuit:1.0.0 .
+   # docker run -d -p 8080:8080 gopdfsuit:1.0.0
    ```
 
-3. **Run the container**:
-   ```bash
-   docker run -p 8080:8080 gopdfsuit:1.0
-   ```
-
-4. **Access the application**:
+3. **Access the application**:
    - Open your browser to `http://localhost:8080`
+
+### Alternative Docker Build Options
+
+GoPdfSuit provides multiple Dockerfile options for different wkhtmltopdf compatibility needs:
+
+#### Standard Build (Recommended)
+```bash
+docker build -f dockerfolder/Dockerfile --build-arg VERSION=1.0.0 -t gopdfsuit:1.0.0 .
+```
+
+#### Troubleshooting wkhtmltopdf Installation
+
+If you encounter issues with wkhtmltopdf 0.12.6 installation:
+
+1. **Try the Ubuntu-based build** (Option 2) for better compatibility
+2. **Use the modern build** (Option 3) if you don't need exactly version 0.12.6
+3. **Check the standard build** (Option 1) which includes multiple fallback methods
 
 ### Docker Hub
 
 The image is available on Docker Hub:
 
-- **Repository**: `chinmay-sawant/gopdfsuit`
-- **Latest Version**: `chinmay-sawant/gopdfsuit:latest`
+- **Repository**: `chinmaysawant/gopdfsuit` (configurable via `DOCKERUSERNAME`)
+- **Latest Version**: `chinmaysawant/gopdfsuit:latest`
 
 #### Pull from Docker Hub
 ```bash
 docker pull chinmaysawant/gopdfsuit:latest
-docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest
+docker run -d -p 8080:8080 chinmaysawant/gopdfsuit:latest
+```
+
+#### Run Docker Image Using Make 
+```bash
+make pull 
 ```
 
 #### Push to Docker Hub (for maintainers)
@@ -108,7 +160,8 @@ make docker && make dockertag
 ### Docker Configuration
 
 - **Port**: 8080 (configurable via `EXPOSE` in Dockerfile)
-- **Base Image**: Alpine Linux for minimal size
+- **Base Images**:
+  - `Dockerfile`: Alpine Linux (minimal, multi-method wkhtmltopdf)
 - **Multi-stage Build**: Optimized for smaller final image size
 - **Included Files**: Web assets, LICENSE, README, and sample templates
 

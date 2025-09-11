@@ -12,6 +12,10 @@ dockertag:
 	docker push $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
 	docker push $(DOCKERUSERNAME)/gopdfsuit:latest
 
+pull:
+	docker pull $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
+	docker run -d -p 8080:8080 $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
+
 build:
 	go build -o bin/app .
 
