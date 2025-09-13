@@ -50,8 +50,8 @@ type Props struct {
 	Borders   [4]int // left, right, top, bottom
 }
 
-// WKHTMLToPDFRequest represents the input for wkhtmltopdf conversion
-type WKHTMLToPDFRequest struct {
+// htmlToPDFRequest represents the input for htmltopdf conversion
+type HtmlToPDFRequest struct {
 	HTML         string            `json:"html,omitempty"`        // Raw HTML content
 	URL          string            `json:"url,omitempty"`         // URL to convert
 	OutputPath   string            `json:"output_path,omitempty"` // Optional output path
@@ -64,11 +64,11 @@ type WKHTMLToPDFRequest struct {
 	DPI          int               `json:"dpi,omitempty"`         // DPI for better quality (default: 300)
 	Grayscale    bool              `json:"grayscale"`             // Convert to grayscale
 	LowQuality   bool              `json:"low_quality"`           // Lower quality for smaller file size
-	Options      map[string]string `json:"options,omitempty"`     // Additional wkhtmltopdf options
+	Options      map[string]string `json:"options,omitempty"`     // Additional htmltopdf options
 }
 
-// WKHTMLToImageRequest represents the input for wkhtmltoimage conversion
-type WKHTMLToImageRequest struct {
+// htmlToImageRequest represents the input for htmltoimage conversion
+type HtmlToImageRequest struct {
 	HTML       string            `json:"html,omitempty"`        // Raw HTML content
 	URL        string            `json:"url,omitempty"`         // URL to convert
 	OutputPath string            `json:"output_path,omitempty"` // Optional output path
@@ -81,5 +81,5 @@ type WKHTMLToImageRequest struct {
 	CropHeight int               `json:"crop_height,omitempty"` // Crop height
 	CropX      int               `json:"crop_x,omitempty"`      // Crop X offset
 	CropY      int               `json:"crop_y,omitempty"`      // Crop Y offset
-	Options    map[string]string `json:"options,omitempty"`     // Additional wkhtmltoimage options
+	Options    map[string]string `json:"options,omitempty"`     // Additional htmltoimage options
 }

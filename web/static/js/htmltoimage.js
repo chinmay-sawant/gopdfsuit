@@ -1,4 +1,4 @@
-// WKHTML to Image Converter JavaScript
+// HTML to Image Converter JavaScript (powered by gochromedp)
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('imageForm');
     const inputType = document.getElementById('inputType');
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const formData = getFormData();
 
-            const response = await fetch('/api/v1/wkhtmltoimage', {
+            const response = await fetch('/api/v1/htmltoimage', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

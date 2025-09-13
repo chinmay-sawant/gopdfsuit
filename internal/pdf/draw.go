@@ -223,7 +223,7 @@ func drawTable(table models.Table, pageManager *PageManager, borderConfig, water
 }
 
 // drawFooter renders the document footer
-func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageDims PageDimensions) {
+func drawFooter(contentStream *bytes.Buffer, footer models.Footer) {
 	footerProps := parseProps(footer.Font)
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(footerProps))

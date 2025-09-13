@@ -300,89 +300,6 @@ func addParentRef(pageBody []byte, parentObjNum int) []byte {
 	return result.Bytes()
 }
 
-// ensurePageAnnotations ensures that page objects have proper /Annots references to form fields
-func ensurePageAnnotations(pageBody []byte, allFormFields []int) []byte {
-	// Find existing annotations
-	annotsRe := regexp.MustCompile(`/Annots\s*\[(.*?)\]`)
-
-	// If page already has annotations, leave them as is (they should be remapped already)
-	if annotsRe.Match(pageBody) {
-		return pageBody
-	}
-
-	// For pages without annotations, we need to check if any form fields should be on this page
-	// This is a simplified approach - in a real implementation you'd need to check field positioning
-	// For now, we'll ensure the page structure is valid
-	return pageBody
-}
-
-// extractFormFields finds form field objects in the PDF
-func extractFormFields(pdfData []byte, objMap map[int][]byte) []int {
-	var fields []int
-	fieldSet := make(map[int]bool) // Avoid duplicates
-
-	// First try to find AcroForm in the catalog
-	if rootRef, ok := findRootRef(pdfData); ok {
-		var rootNum int
-		if _, err := fmt.Sscanf(rootRef, "%d", &rootNum); err == nil {
-			if rootBody, exists := objMap[rootNum]; exists {
-				acroFormRe := regexp.MustCompile(`/AcroForm\s+(\d+)\s+\d+\s+R`)
-				if match := acroFormRe.FindSubmatch(rootBody); match != nil {
-					if acroFormNum, err := strconv.Atoi(string(match[1])); err == nil {
-						if acroFormBody, exists := objMap[acroFormNum]; exists {
-							fieldsRe := regexp.MustCompile(`/Fields\s*\[(.*?)\]`)
-							if fieldsMatch := fieldsRe.FindSubmatch(acroFormBody); fieldsMatch != nil {
-								refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
-								for _, ref := range refRe.FindAllSubmatch(fieldsMatch[1], -1) {
-									if fieldNum, err := strconv.Atoi(string(ref[1])); err == nil {
-										if !fieldSet[fieldNum] {
-											fields = append(fields, fieldNum)
-											fieldSet[fieldNum] = true
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Also scan for widget annotations in page objects
-	for _, body := range objMap {
-		if bytesIndex(body, []byte("/Type /Page")) >= 0 {
-			annotsRe := regexp.MustCompile(`/Annots\s*\[(.*?)\]`)
-			if annotsMatch := annotsRe.FindSubmatch(body); annotsMatch != nil {
-				refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
-				for _, ref := range refRe.FindAllSubmatch(annotsMatch[1], -1) {
-					if annotNum, err := strconv.Atoi(string(ref[1])); err == nil {
-						if annotBody, exists := objMap[annotNum]; exists {
-							// Check if this annotation is a widget (form field)
-							if bytesIndex(annotBody, []byte("/Subtype /Widget")) >= 0 {
-								if !fieldSet[annotNum] {
-									fields = append(fields, annotNum)
-									fieldSet[annotNum] = true
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Fallback: scan all objects for form field types
-	for objNum, body := range objMap {
-		if isFormFieldObject(body) && !fieldSet[objNum] {
-			fields = append(fields, objNum)
-			fieldSet[objNum] = true
-		}
-	}
-
-	return fields
-}
-
 // extractFormFieldsFromFile finds form field objects in a specific PDF file
 func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
 	var fields []int
@@ -443,7 +360,7 @@ func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
 }
 
 // isFormFieldObject checks if an object body represents a form field
-func isFormFieldObject(body []byte) bool {
+func IsFormFieldObject(body []byte) bool {
 	// Check for common form field indicators
 	formFieldTypes := [][]byte{
 		[]byte("/FT /Tx"),          // Text field

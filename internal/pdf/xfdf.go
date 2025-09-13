@@ -359,19 +359,6 @@ func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string
 	return "", false
 }
 
-// findStartXref finds the last startxref offset in the file
-func findStartXref(data []byte) (int64, bool) {
-	re := regexp.MustCompile(`startxref\s*(\d+)`)
-	ms := re.FindAllSubmatch(data, -1)
-	if len(ms) == 0 {
-		return 0, false
-	}
-	last := ms[len(ms)-1]
-	var off int64
-	fmt.Sscanf(string(last[1]), "%d", &off)
-	return off, true
-}
-
 // trailerHasEncrypt checks if trailer or any trailer 'Encrypt' appears
 func trailerHasEncrypt(data []byte) bool {
 	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)

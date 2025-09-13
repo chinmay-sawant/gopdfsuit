@@ -41,8 +41,13 @@
                 <a href="#api" class="nav-link">API</a>
                 <a href="#examples" class="nav-link">Examples</a>
                 <a href="#quickstart" class="nav-link">Quick Start</a>
+                <a href="https://github.com/chinmay-sawant/gopdfsuit" target="_blank" class="github-stars" id="github-stars">
+                    <i class="fab fa-github"></i>
+                    <span class="star-icon">⭐</span>
+                    <span class="star-count">Loading...</span>
+                </a>
                 <button class="theme-toggle" id="themeToggle">
-                    <span class="theme-icon">☀️</span>
+                    <span class="theme-icon" id="themeIcon">☀️</span>
                 </button>
             </div>
         </div>
@@ -81,13 +86,16 @@
                     <div class="code-block">
                         <div class="code-header">
                             <span class="code-title">Quick Start</span>
-                            <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git
-cd gopdfsuit
-go run ./cmd/gopdfsuit">📋</button>
+                            <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git&#10;cd gopdfsuit&#10;go run ./cmd/gopdfsuit&#10;&#10;# Or using Docker:&#10;docker pull chinmaysawant/gopdfsuit:latest&#10;docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest">📋</button>
                         </div>
-                        <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
+<pre><code># Traditional setup:
+git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit
-go run ./cmd/gopdfsuit</code></pre>
+go run ./cmd/gopdfsuit
+
+# Or using Docker:
+docker pull chinmaysawant/gopdfsuit:latest
+docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest</code></pre>
                     </div>
                 </div>
             </div>
@@ -101,7 +109,7 @@ go run ./cmd/gopdfsuit</code></pre>
                     <div class="feature-card">
                         <div class="feature-icon">🌐</div>
                         <h3>HTML Conversion</h3>
-                        <p>Convert HTML content and web pages to PDF or images with wkhtmltopdf/wkhtmltoimage</p>
+                        <p>Convert HTML content and web pages to PDF or images with gochromedp</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon">🎯</div>
@@ -235,7 +243,7 @@ go run ./cmd/gopdfsuit</code></pre>
                             </tr>
                             <tr>
                                 <td class="feature-category">🌐 HTML to PDF/Image</td>
-                                <td class="gopdf-highlight"><strong>wkhtmltopdf/wkhtmltoimage</strong></td>
+                                <td class="gopdf-highlight"><strong>gochromedp</strong></td>
                                 <td class="feature-none">❌ Requires UniHTML product</td>
                                 <td class="feature-none">❌ Requires Aspose.HTML product</td>
                                 <td class="feature-none">❌ Requires custom integration</td>
@@ -387,11 +395,11 @@ go run ./cmd/gopdfsuit</code></pre>
                         </div>
 
                         <div class="carousel-item">
-                            <img src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/wkhtmltopdf.png" class="d-block w-100" alt="HTML to PDF Converter" loading="lazy">
+                            <img src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/htmltopdf.png" class="d-block w-100" alt="HTML to PDF Converter" loading="lazy">
                         </div>
 
                         <div class="carousel-item">
-                            <img src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/wkhtmltoimage.png" class="d-block w-100" alt="HTML to Image Converter" loading="lazy">
+                            <img src="https://github.com/chinmay-sawant/gopdfsuit/raw/master/docs/screenshots/htmltoimage.png" class="d-block w-100" alt="HTML to Image Converter" loading="lazy">
                         </div>
                     </div>
 
@@ -459,7 +467,7 @@ go run ./cmd/gopdfsuit</code></pre>
                     <div class="caption-content" data-slide="4">
                         <div class="caption-box">
                             <h3>🌐 HTML to PDF</h3>
-                            <p>Convert HTML content and web pages to high-quality PDF documents with wkhtmltopdf</p>
+                            <p>Convert HTML content and web pages to high-quality PDF documents with gochromedp</p>
                             <div class="slide-features">
                                 <span class="slide-feature">HTML Content</span>
                                 <span class="slide-feature">URL Conversion</span>
@@ -471,7 +479,7 @@ go run ./cmd/gopdfsuit</code></pre>
                     <div class="caption-content" data-slide="5">
                         <div class="caption-box">
                             <h3>🖼️ HTML to Image</h3>
-                            <p>Convert HTML content and web pages to PNG/JPEG images with wkhtmltoimage</p>
+                            <p>Convert HTML content and web pages to PNG/JPEG images with gochromedp</p>
                             <div class="slide-features">
                                 <span class="slide-feature">Multiple Formats</span>
                                 <span class="slide-feature">Custom Dimensions</span>
@@ -497,8 +505,7 @@ go run ./cmd/gopdfsuit</code></pre>
                             <div class="code-block">
                                 <div class="code-header">
                                     <span class="code-title">Clone Command</span>
-                                    <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git
-cd gopdfsuit">📋</button>
+                                    <button class="copy-btn" data-copy="git clone https://github.com/chinmay-sawant/gopdfsuit.git&#10;cd gopdfsuit">📋</button>
                                 </div>
                                 <pre><code>git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit</code></pre>
@@ -555,14 +562,62 @@ cd gopdfsuit</code></pre>
                                     <code>http://localhost:8080/filler</code>
                                     <span class="url-desc">PDF Filler (PDF + XFDF)</span>
                                 </a>
-                                <a href="http://localhost:8080/wkhtmltopdf" target="_blank" class="url-item">
-                                    <code>http://localhost:8080/wkhtmltopdf</code>
+                                <a href="http://localhost:8080/htmltopdf" target="_blank" class="url-item">
+                                    <code>http://localhost:8080/htmltopdf</code>
                                     <span class="url-desc">HTML to PDF Converter</span>
                                 </a>
-                                <a href="http://localhost:8080/wkhtmltoimage" target="_blank" class="url-item">
-                                    <code>http://localhost:8080/wkhtmltoimage</code>
+                                <a href="http://localhost:8080/htmltoimage" target="_blank" class="url-item">
+                                    <code>http://localhost:8080/htmltoimage</code>
                                     <span class="url-desc">HTML to Image Converter</span>
                                 </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <br> <br>
+                <div class="docker-deployment">
+                    <h3>🐳 Docker Deployment</h3>
+                    <p>For a quick setup without installing Go or dependencies, use Docker:</p>
+                    <div class="quickstart-steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>Pull Docker Image</h4>
+                                <p>Download the latest Docker image from Docker Hub</p>
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">Pull Image</span>
+                                        <button class="copy-btn" data-copy="docker pull chinmaysawant/gopdfsuit:latest">📋</button>
+                                    </div>
+                                    <pre><code>docker pull chinmaysawant/gopdfsuit:latest</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>Run Container</h4>
+                                <p>Start the GoPdfSuit container</p>
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <span class="code-title">Run Container</span>
+                                        <button class="copy-btn" data-copy="docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest">📋</button>
+                                    </div>
+                                    <pre><code>docker run -p 8080:8080 chinmaysawant/gopdfsuit:latest</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>Access Application</h4>
+                                <p>Open your browser to start using GoPdfSuit</p>
+                                <div class="url-list">
+                                    <a href="http://localhost:8080" target="_blank" class="url-item">
+                                        <code>http://localhost:8080</code>
+                                        <span class="url-desc">GoPdfSuit Web Interface</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -598,8 +653,7 @@ cd gopdfsuit</code></pre>
                                 <div class="code-block">
                                     <div class="code-header">
                                         <span class="code-title">Example URLs</span>
-                                        <button class="copy-btn" data-copy="http://localhost:8080/
-http://localhost:8080/?file=temp_multiplepage.json">📋</button>
+                                        <button class="copy-btn" data-copy="http://localhost:8080/&#10;http://localhost:8080/?file=temp_multiplepage.json">📋</button>
                                     </div>
                                     <pre><code>http://localhost:8080/
 http://localhost:8080/?file=temp_multiplepage.json</code></pre>
@@ -635,8 +689,7 @@ http://localhost:8080/?file=temp_multiplepage.json</code></pre>
                                 <div class="code-block">
                                     <div class="code-header">
                                         <span class="code-title">Example URLs</span>
-                                        <button class="copy-btn" data-copy="http://localhost:8080/editor
-http://localhost:8080/editor?file=temp_multiplepage.json">📋</button>
+                                        <button class="copy-btn" data-copy="http://localhost:8080/editor&#10;http://localhost:8080/editor?file=temp_multiplepage.json">📋</button>
                                     </div>
                                     <pre><code>http://localhost:8080/editor
 http://localhost:8080/editor?file=temp_multiplepage.json</code></pre>
@@ -791,6 +844,7 @@ http://localhost:8080/editor?file=temp_multiplepage.json</code></pre>
                                 <h3>/api/v1/fill</h3>
                                 <p>Fill PDF forms using XFDF data</p>
                                 <div class="api-params">
+                                    <span class="param">Content-Type: multipart/form-data</span>
                                     <span class="param">pdf - Source PDF file</span>
                                     <span class="param">xfdf - XFDF field data</span>
                                 </div>
@@ -900,6 +954,53 @@ http://localhost:8080/editor?file=temp_multiplepage.json</code></pre>
                                     <li>✅ Real-time validation and error handling</li>
                                     <li>⬇️ Automatic download of filled PDF</li>
                                     <li>🔧 Support for complex form structures</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/htmltopdf</h3>
+                                <p>Web interface for HTML to PDF conversion</p>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Interface Features</h4>
+                                <ul>
+                                    <li>🌐 URL input or HTML content editor</li>
+                                    <li>⚙️ Visual configuration panel for PDF options</li>
+                                    <li>👁️ Live preview of conversion settings</li>
+                                    <li>⬇️ Instant download of generated PDF</li>
+                                    <li>🎨 Theme support with modern UI</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="api-card" data-expandable="true">
+                        <div class="api-header">
+                            <div class="api-method get">GET</div>
+                            <div class="api-content">
+                                <h3>/htmltoimage</h3>
+                                <p>Web interface for HTML to image conversion</p>
+                            </div>
+                            <button class="api-expand">+</button>
+                        </div>
+                        <div class="api-details">
+                            <div class="api-description">
+                                <h4>Interface Features</h4>
+                                <ul>
+                                    <li>🖼️ URL input or HTML content editor</li>
+                                    <li>⚙️ Visual configuration for image options</li>
+                                    <li>📐 Dimension and format controls</li>
+                                    <li>👁️ Live preview of conversion settings</li>
+                                    <li>⬇️ Instant download of generated images</li>
+                                    <li>🎨 Theme support with modern UI</li>
                                 </ul>
                             </div>
                         </div>

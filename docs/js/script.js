@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
             themeToggle.style.transform = 'rotate(0deg)';
         }, 300);
     });
-    });
+});
 
     // Copy to Clipboard Functionality
     function copyToClipboard(text) {
@@ -167,6 +167,30 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // GitHub Stars Functionality
+    async function fetchGitHubStars() {
+        const starsElement = document.getElementById('github-stars');
+        if (!starsElement) return;
+        
+        try {
+            const response = await fetch('https://api.github.com/repos/chinmay-sawant/gopdfsuit');
+            if (!response.ok) {
+                throw new Error('Failed to fetch GitHub data');
+            }
+            
+            const data = await response.json();
+            const starCount = data.stargazers_count;
+            
+            // Format the number (e.g., 1.2k for 1200)
+            const formattedStars = starCount >= 1000 ? (starCount / 1000).toFixed(1) + 'k' : starCount.toString();
+            
+            starsElement.querySelector('.star-count').textContent = formattedStars;
+        } catch (error) {
+            console.error('Error fetching GitHub stars:', error);
+            starsElement.querySelector('.star-count').textContent = 'N/A';
+        }
+    }
+
     // Enhanced API card expansion
     function initAPICards() {
         const apiCards = document.querySelectorAll('.api-card[data-expandable="true"]');
@@ -268,6 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initScrollAnimations();
         initCarouselCaptions();
         createParticles();
+        fetchGitHubStars();
         
         // Enhanced copy button feedback
         document.querySelectorAll('.copy-btn').forEach(btn => {
