@@ -4,7 +4,7 @@ go 1.23.0
 
 require github.com/gin-gonic/gin v1.10.1
 
-require github.com/chinmay-sawant/gochromedp v1.0.1
+require github.com/chinmay-sawant/gochromedp v1.0.2
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20240801214329-3f85d328b335 // indirect
