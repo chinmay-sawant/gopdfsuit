@@ -1,6 +1,6 @@
 # Build from the root directory using: docker build -f dockerfolder/Dockerfile -t gopdfsuit .
 
-# Build stage
+# --- Build stage ---
 FROM golang:1.23.0-alpine AS builder
 
 WORKDIR /app
@@ -17,11 +17,10 @@ COPY . .
 # Build the binary
 RUN go build -o gopdfsuit ./cmd/gopdfsuit
 
+
 # --- Final stage ---
-# Use the Ubuntu 18.04 (Bionic) base image, which is the exact environment
-# the pre-compiled wkhtmltopdf binary was built for. This guarantees
-# that all dependencies like libssl1.1 will be available.
-FROM ubuntu:18.04
+# Use Debian 12 for a native (non-snap) Chromium package
+FROM debian:12-slim
 
 ARG VERSION=latest
 LABEL version=$VERSION
@@ -29,30 +28,35 @@ LABEL version=$VERSION
 # Set DEBIAN_FRONTEND to noninteractive to prevent apt-get from prompting for input
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install dependencies, download wkhtmltopdf, install it, and clean up in a single layer.
+# Install dependencies for headless Chromium, install Chromium itself, and clean up.
+# We need fonts and other libraries for it to render pages correctly.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    wget \
+    chromium \
+    # Add common dependencies for headless browsers to prevent rendering issues
+    libxss1 \
+    libasound2 \
+    libnspr4 \
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    fonts-liberation \
     ca-certificates \
-    xvfb \
-    fontconfig \
-    libxrender1 \
-    xfonts-75dpi \
-    xfonts-base \
-    && echo "Downloading and installing wkhtmltopdf..." \
-    && wget -q https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6-1/wkhtmltox_0.12.6-1.bionic_amd64.deb -O /tmp/wkhtmltox.deb \
-    # apt will now correctly find all dependencies (like libssl1.1) from the Ubuntu 18.04 repos.
-    && apt-get install -y /tmp/wkhtmltox.deb \
     && echo "Cleaning up..." \
-    && rm /tmp/wkhtmltox.deb \
-    && apt-get purge -y --auto-remove wget \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Verify wkhtmltopdf installation
-RUN wkhtmltopdf --version && wkhtmltoimage --version && echo "✅ wkhtmltopdf installation successful"
-
-WORKDIR /root/
+WORKDIR /app/
 
 # Copy the binary from builder stage
 COPY --from=builder /app/gopdfsuit .
@@ -72,5 +76,7 @@ COPY --from=builder /app/temp_mutliplepage.json .
 # Expose port if the app serves on a port (assuming 8080, adjust if needed)
 EXPOSE 8080
 
-# Run the binary
+# Run the binary.
+# NOTE: Your Go application likely needs to launch Chromium with the '--no-sandbox' flag
+# when running as the root user inside a Docker container.
 CMD ["./gopdfsuit"]

@@ -129,7 +129,7 @@ func generateAllContent(template models.PDFTemplate, pageManager *PageManager) {
 	for i := 0; i < totalPages; i++ {
 		// Draw footer on this page if footer text provided
 		if template.Footer.Text != "" {
-			drawFooter(&pageManager.ContentStreams[i], template.Footer, pageManager.PageDimensions)
+			drawFooter(&pageManager.ContentStreams[i], template.Footer)
 		}
 		// Draw page number on this page
 		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions)

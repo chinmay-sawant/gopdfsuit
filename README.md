@@ -3,7 +3,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
 [![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=flat&logo=docker)](https://hub.docker.com/)
-[![wkhtmltopdf](https://img.shields.io/badge/wkhtmltopdf-0.12.6+-FF6B35?style=flat)](https://wkhtmltopdf.org/)
+[![gochromedp](https://img.shields.io/badge/gochromedp-1.0+-00ADD8?style=flat)](https://github.com/chinmay-sawant/gochromedp)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > 🚀 A powerful Go web service that generates template-based PDF documents on-the-fly with **multi-page support**, **custom page sizes**, **automatic page breaks**, **PDF merge capabilities**, and **HTML to PDF/Image conversion**.
@@ -12,13 +12,12 @@
 
 GoPdfSuit is a flexible web service built with Go and the Gin framework. It features a custom template-based PDF generator that creates professional documents from JSON templates, supporting **multiple page sizes**, **automatic page breaks**, **PDF merging**, **form filling**, tables, borders, checkboxes, **font styling (bold, italic, underline)**, and custom layouts without external dependencies.
 
-**New Features:** HTML to PDF and Image conversion using wkhtmltopdf/wkhtmltoimage with web interfaces and REST APIs.
+**New Features:** HTML to PDF and Image conversion using gochromedp with web interfaces and REST APIs.
 
 ## 🔧 Requirements
 
 - **Go** `1.20+` (project currently targets Go 1.23)
-- **wkhtmltopdf** `0.12.6+` (for HTML to PDF conversion)
-- **wkhtmltoimage** `0.12.6+` (for HTML to Image conversion)
+- **gochromedp** `1.0+` (for HTML to PDF/Image conversion)
 - **Dependencies**: Automatically managed via Go modules
 
 ## ⚡ Quick Start
@@ -28,14 +27,15 @@ GoPdfSuit is a flexible web service built with Go and the Gin framework. It feat
 **For HTML to PDF/Image conversion:**
 ```bash
 # Ubuntu/Debian
-sudo apt-get install wkhtmltopdf wkhtmltoimage
+sudo apt-get install chromium-browser
 
 # macOS (with Homebrew)
-brew install wkhtmltopdf
+brew install chromium
 
-# Windows - Download from: https://wkhtmltopdf.org/downloads.html
-# Or use Chocolatey: choco install wkhtmltopdf
+# Windows - Download Chrome from: https://www.google.com/chrome/
 ```
+
+**Note:** gochromedp uses Chromium headless for HTML conversion, so Chrome/Chromium must be installed.
 
 ### 2️⃣ Clone the Repository
 ```bash
@@ -119,20 +119,21 @@ Default values:
 
 ### Alternative Docker Build Options
 
-GoPdfSuit provides multiple Dockerfile options for different wkhtmltopdf compatibility needs:
+GoPdfSuit provides multiple Dockerfile options for different gochromedp compatibility needs:
 
 #### Standard Build (Recommended)
 ```bash
 docker build -f dockerfolder/Dockerfile --build-arg VERSION=1.0.0 -t gopdfsuit:1.0.0 .
 ```
 
-#### Troubleshooting wkhtmltopdf Installation
+#### Troubleshooting gochromedp/Chromium Installation
 
-If you encounter issues with wkhtmltopdf 0.12.6 installation:
+If you encounter issues with gochromedp or Chromium installation:
 
-1. **Try the Ubuntu-based build** (Option 2) for better compatibility
-2. **Use the modern build** (Option 3) if you don't need exactly version 0.12.6
-3. **Check the standard build** (Option 1) which includes multiple fallback methods
+1. **Ensure Chromium/Chrome is installed** and accessible
+2. **Try the Ubuntu-based build** (Option 2) for better compatibility
+3. **Use the modern build** (Option 3) if you don't need specific Chromium versions
+4. **Check the standard build** (Option 1) which includes multiple fallback methods
 
 ### Docker Hub
 
@@ -161,7 +162,7 @@ make docker && make dockertag
 
 - **Port**: 8080 (configurable via `EXPOSE` in Dockerfile)
 - **Base Images**:
-  - `Dockerfile`: Alpine Linux (minimal, multi-method wkhtmltopdf)
+  - `Dockerfile`: Alpine Linux (minimal, with gochromedp and Chromium)
 - **Multi-stage Build**: Optimized for smaller final image size
 - **Included Files**: Web assets, LICENSE, README, and sample templates
 
@@ -360,11 +361,11 @@ http://localhost:8080/merge
 
 ### HTML to PDF Converter
 
-**New Feature:** Convert HTML content or web pages to PDF with full control over page settings.
+**New Feature:** Convert HTML content or web pages to PDF using gochromedp with full control over page settings.
 
-**Endpoint:** `GET /wkhtmltopdf`
+**Endpoint:** `GET /htmltopdf`
 
-**API Endpoint:** `POST /api/v1/wkhtmltopdf`
+**API Endpoint:** `POST /api/v1/htmltopdf`
 
 **Headers:** `Content-Type: application/json`
 
@@ -397,16 +398,16 @@ http://localhost:8080/merge
 
 **Web Interface Access:**
 ```
-http://localhost:8080/wkhtmltopdf
+http://localhost:8080/htmltopdf
 ```
 
 ### HTML to Image Converter
 
-**New Feature:** Convert HTML content or web pages to images (PNG, JPG, SVG).
+**New Feature:** Convert HTML content or web pages to images (PNG, JPG, SVG) using gochromedp.
 
-**Endpoint:** `GET /wkhtmltoimage`
+**Endpoint:** `GET /htmltoimage`
 
-**API Endpoint:** `POST /api/v1/wkhtmltoimage`
+**API Endpoint:** `POST /api/v1/htmltoimage`
 
 **Headers:** `Content-Type: application/json`
 
@@ -437,7 +438,7 @@ http://localhost:8080/wkhtmltopdf
 
 **Web Interface Access:**
 ```
-http://localhost:8080/wkhtmltoimage
+http://localhost:8080/htmltoimage
 ```
 
 ### PDF Form Filling
@@ -485,12 +486,12 @@ curl -X POST "http://localhost:8080/api/v1/fill" \
 
 5. **HTML to PDF Converter:**
    ```
-   http://localhost:8080/wkhtmltopdf
+   http://localhost:8080/htmltopdf
    ```
 
 6. **HTML to Image Converter:**
    ```
-   http://localhost:8080/wkhtmltoimage
+   http://localhost:8080/htmltoimage
    ```
 
 ### 📱 Multi-Page Healthcare Form (Web Interface)
@@ -654,7 +655,7 @@ with open("survey-landscape.pdf", "wb") as f:
 
 ### 🌐 HTML to PDF Conversion (Web Interface)
 
-1. Navigate to: `http://localhost:8080/wkhtmltopdf`
+1. Navigate to: `http://localhost:8080/htmltopdf`
 2. Choose input type: HTML Content or URL
 3. Enter your HTML or paste a URL
 4. Configure PDF options (page size, margins, orientation)
@@ -663,7 +664,7 @@ with open("survey-landscape.pdf", "wb") as f:
 
 ### 🌐 HTML to Image Conversion (Web Interface)
 
-1. Navigate to: `http://localhost:8080/wkhtmltoimage`
+1. Navigate to: `http://localhost:8080/htmltoimage`
 2. Choose input type: HTML Content or URL
 3. Enter your HTML or paste a URL
 4. Configure image options (format, dimensions, quality)
@@ -673,7 +674,7 @@ with open("survey-landscape.pdf", "wb") as f:
 
 ### 📄 HTML to PDF Conversion (cURL)
 ```bash
-curl -X POST "http://localhost:8080/api/v1/wkhtmltopdf" \
+curl -X POST "http://localhost:8080/api/v1/htmltopdf" \
   -H "Content-Type: application/json" \
   -d '{
     "html": "<!DOCTYPE html><html><head><title>Sample</title></head><body><h1>Hello World</h1><p>This is a sample PDF generated from HTML.</p></body></html>",
@@ -690,7 +691,7 @@ curl -X POST "http://localhost:8080/api/v1/wkhtmltopdf" \
 
 ### 🖼️ HTML to Image Conversion (cURL)
 ```bash
-curl -X POST "http://localhost:8080/api/v1/wkhtmltoimage" \
+curl -X POST "http://localhost:8080/api/v1/htmltoimage" \
   -H "Content-Type: application/json" \
   -d '{
     "html": "<!DOCTYPE html><html><body style=\"background: linear-gradient(45deg, #ff6b6b, #4ecdc4); color: white; text-align: center; padding: 50px;\"><h1>Beautiful Image</h1><p>Generated from HTML content</p></body></html>",
@@ -708,7 +709,7 @@ curl -X POST "http://localhost:8080/api/v1/wkhtmltoimage" \
 import requests
 import json
 
-url = "http://localhost:8080/api/v1/wkhtmltopdf"
+url = "http://localhost:8080/api/v1/htmltopdf"
 data = {
     "url": "https://example.com",
     "page_size": "A4",
@@ -739,7 +740,7 @@ with open("website.pdf", "wb") as f:
 | **🌐 Web Interface** | **Built-in Viewer/Editor** | None | None | None |
 | **📋 Form Filling** | **XFDF Support** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
 | **🔗 PDF Merge** | **Drag & Drop UI** | ✅ Programmatic | ✅ Programmatic | ✅ Programmatic |
-| **🌐 HTML to PDF/Image** | **wkhtmltopdf/wkhtmltoimage** | Requires UniHTML product | Requires Aspose.HTML product | Requires custom integration |
+| **🌐 HTML to PDF/Image** | **gochromedp (Chromium)** | Requires UniHTML product | Requires Aspose.HTML product | Requires custom integration |
 | **📱 Multi-page Support** | **Auto Page Breaks** | ✅ Manual Control | ✅ Manual Control | ✅ Manual Control |
 | **🎨 Styling** | **Font Styles + Borders** | ✅ Advanced | ✅ Advanced | ✅ Advanced |
 | **☑️ Interactive Elements** | **Checkboxes** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
@@ -772,8 +773,8 @@ with open("website.pdf", "wb") as f:
 - 🖥️ **Web Interface**: Interactive HTML viewer with real-time preview
 - 🔗 **PDF Merge**: Combine multiple PDFs with drag-and-drop interface
 - 🖊️ **Form Filling**: AcroForm/XFDF support for filling PDF forms
-- 🌐 **HTML to PDF**: Convert HTML content or web pages to PDF with wkhtmltopdf
-- 🖼️ **HTML to Image**: Convert HTML content or web pages to PNG/JPG/SVG with wkhtmltoimage
+- 🌐 **HTML to PDF**: Convert HTML content or web pages to PDF with gochromedp
+- 🖼️ **HTML to Image**: Convert HTML content or web pages to PNG/JPG/SVG with gochromedp
 - 📋 **Tables & Forms**: Support for complex table layouts with automatic page breaks
 - ☑️ **Checkboxes**: Interactive checkbox elements
 - 🎨 **Font Styling**: Bold, italic, and underline text support
@@ -862,8 +863,8 @@ GoPdfSuit/
 │   │   │   ├── json-output.css # 📄 JSON output styles
 │   │   │   ├── viewer.css      # 👁️ PDF viewer styles
 │   │   │   ├── merge.css       # 🔗 PDF merge styles
-│   │   │   ├── wkhtmltopdf.css # 🌐 HTML to PDF converter styles
-│   │   │   ├── wkhtmltoimage.css # 🖼️ HTML to Image converter styles
+│   │   │   ├── htmltopdf.css # 🌐 HTML to PDF converter styles
+│   │   │   ├── htmltoimage.css # 🖼️ HTML to Image converter styles
 │   │   │   ├── header.css      # 📋 Header styles
 │   │   │   ├── footer.css      # 📄 Footer styles
 │   │   │   ├── control-panel.css # 🎛️ Control panel styles
@@ -879,15 +880,15 @@ GoPdfSuit/
 │   │       ├── editor.setup.js # ⚙️ Editor setup
 │   │       ├── editor.table.js # 📊 Table editor
 │   │       ├── editor.ui.js    # 🎨 Editor UI components
-│   │       ├── wkhtmltopdf.js  # 🌐 HTML to PDF converter JS
-│   │       └── wkhtmltoimage.js # 🖼️ HTML to Image converter JS
+│   │       ├── htmltopdf.js  # 🌐 HTML to PDF converter JS
+│   │       └── htmltoimage.js # 🖼️ HTML to Image converter JS
 │   └── 📁 templates/            # 📄 HTML templates
 │       ├── pdf_viewer.html     # 👁️ PDF viewer template
 │       ├── pdf_editor.html     # ✏️ PDF editor template
 │       ├── pdf_merge.html      # 🔗 PDF merge template
 │       ├── pdf_filler.html     # 📝 PDF filler template
-│       ├── wkhtmltopdf.html    # 🌐 HTML to PDF converter template
-│       └── wkhtmltoimage.html  # 🖼️ HTML to Image converter template
+│       ├── htmltopdf.html    # 🌐 HTML to PDF converter template
+│       └── htmltoimage.html  # 🖼️ HTML to Image converter template
 ├── 📁 sampledata/              # 📋 Sample data and templates
 │   ├── 📁 encounter_1.7/       # 🏥 Healthcare encounter samples
 │   │   ├── us_encounter_form_data.xfdf
