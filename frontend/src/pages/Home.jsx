@@ -80,7 +80,7 @@ const Home = () => {
             <h1 style={{ 
               fontSize: '3.5rem',
               fontWeight: '800',
-              background: 'linear-gradient(135deg, #fff 0%, #4ecdc4 100%)',
+              background: 'linear-gradient(135deg, hsl(var(--foreground)) 0%, #4ecdc4 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               marginBottom: 0,
@@ -92,7 +92,7 @@ const Home = () => {
           <p style={{ 
             fontSize: '1.5rem',
             marginBottom: '2rem',
-            color: 'rgba(255, 255, 255, 0.9)',
+            color: 'hsl(var(--muted-foreground))',
             maxWidth: '800px',
             margin: '0 auto 2rem',
           }}>
@@ -166,10 +166,10 @@ const Home = () => {
                     gap: '1rem',
                   }}>
                     {feature.icon}
-                    <h3 style={{ marginBottom: 0, color: 'white' }}>{feature.title}</h3>
+                    <h3 style={{ marginBottom: 0, color: 'hsl(var(--foreground))' }}>{feature.title}</h3>
                   </div>
                   <p style={{ 
-                    color: 'rgba(255, 255, 255, 0.8)',
+                    color: 'hsl(var(--muted-foreground))',
                     marginBottom: 0,
                     lineHeight: 1.6,
                   }}>
@@ -185,10 +185,10 @@ const Home = () => {
       {/* Quick Start Section */}
       <section style={{ padding: '4rem 0' }}>
         <div className="container">
-          <h2 className="text-center mb-4" style={{ color: 'white' }}>⚡ Quick Start</h2>
+          <h2 className="text-center mb-4" style={{ color: 'hsl(var(--foreground))' }}>⚡ Quick Start</h2>
           
           <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <h3 style={{ color: 'white', marginBottom: '1rem' }}>🚀 Get Started in 3 Steps</h3>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🚀 Get Started in 3 Steps</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
@@ -205,7 +205,7 @@ const Home = () => {
                   flexShrink: 0,
                 }}>1</div>
                 <div>
-                  <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>Clone & Run</h4>
+                  <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem' }}>Clone & Run</h4>
                   <code style={{ 
                     background: 'rgba(0, 0, 0, 0.3)',
                     padding: '0.5rem',
@@ -235,8 +235,8 @@ const Home = () => {
                   flexShrink: 0,
                 }}>2</div>
                 <div>
-                  <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>Server Ready</h4>
-                  <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: 0 }}>
+                  <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem' }}>Server Ready</h4>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: 0 }}>
                     🌐 Server listening on: <code style={{ color: '#4ecdc4' }}>http://localhost:8080</code>
                   </p>
                 </div>
@@ -256,8 +256,8 @@ const Home = () => {
                   flexShrink: 0,
                 }}>3</div>
                 <div>
-                  <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>Start Creating</h4>
-                  <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: 0 }}>
+                  <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem' }}>Start Creating</h4>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: 0 }}>
                     Navigate to any tool above to start generating PDFs, merging documents, or converting HTML!
                   </p>
                 </div>
@@ -270,12 +270,12 @@ const Home = () => {
       {/* API Overview */}
       <section style={{ padding: '4rem 0' }}>
         <div className="container">
-          <h2 className="text-center mb-4" style={{ color: 'white' }}>📡 API Endpoints</h2>
+          <h2 className="text-center mb-4" style={{ color: 'hsl(var(--foreground))' }}>📡 API Endpoints</h2>
           
           <div className="grid grid-2">
             <div className="card">
-              <h3 style={{ color: 'white', marginBottom: '1rem' }}>🔧 REST API</h3>
-              <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem' }}>
+              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🔧 REST API</h3>
+              <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem' }}>
                 <div style={{ marginBottom: '0.5rem' }}>
                   <code style={{ color: '#4ecdc4' }}>POST /api/v1/generate/template-pdf</code> - Generate PDF from JSON template
                 </div>
@@ -295,8 +295,8 @@ const Home = () => {
             </div>
 
             <div className="card">
-              <h3 style={{ color: 'white', marginBottom: '1rem' }}>🌐 Web Interfaces</h3>
-              <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem' }}>
+              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🌐 Web Interfaces</h3>
+              <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem' }}>
                 <div style={{ marginBottom: '0.5rem' }}>
                   <code style={{ color: '#4ecdc4' }}>GET /</code> - PDF Viewer & Template Processor
                 </div>
@@ -322,8 +322,8 @@ const Home = () => {
       <section style={{ padding: '4rem 0' }}>
         <div className="container">
           <div className="card" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
-            <h2 style={{ color: 'white', marginBottom: '1rem' }}>🏃‍♂️ Performance</h2>
-            <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '1rem' }}>
+            <h2 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🏃‍♂️ Performance</h2>
+            <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '1rem' }}>
               Ultra-fast PDF generation with in-memory processing
             </p>
             <div style={{
@@ -340,7 +340,7 @@ const Home = () => {
               [GIN] 200 | 573.7µs | POST "/api/v1/generate/template-pdf"
             </div>
             <p style={{ 
-              color: 'rgba(255, 255, 255, 0.6)', 
+              color: 'hsl(var(--muted-foreground))', 
               marginTop: '1rem', 
               fontSize: '0.9rem',
               marginBottom: 0,
@@ -360,7 +360,7 @@ const Home = () => {
         <div className="container">
           <div style={{ 
             textAlign: 'center',
-            color: 'rgba(255, 255, 255, 0.8)',
+            color: 'hsl(var(--muted-foreground))',
           }}>
             <p style={{ marginBottom: '1rem' }}>
               Made with ❤️ and ☕ by{' '}

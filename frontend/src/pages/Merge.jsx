@@ -80,12 +80,12 @@ const MergePage = () => {
             justifyContent: 'center',
             gap: '1rem',
             marginBottom: '1rem',
-            color: 'white',
+            color: 'hsl(var(--foreground))',
           }}>
             <Merge size={40} />
             PDF Merge Tool
           </h1>
-          <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '1.1rem' }}>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem' }}>
             Combine multiple PDF files with drag-and-drop reordering
           </p>
         </div>
@@ -93,7 +93,7 @@ const MergePage = () => {
         <div className="grid grid-2" style={{ gap: '2rem' }}>
           {/* File Upload Section */}
           <div className="card">
-            <h3 style={{ color: 'white', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Upload size={20} />
               Upload PDF Files
             </h3>
@@ -110,44 +110,44 @@ const MergePage = () => {
             <div
               onClick={() => fileInputRef.current?.click()}
               style={{
-                border: '2px dashed rgba(255, 255, 255, 0.3)',
+                border: '2px dashed hsl(var(--border))',
                 borderRadius: '8px',
                 padding: '3rem 2rem',
                 textAlign: 'center',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 marginBottom: '2rem',
-                background: 'rgba(255, 255, 255, 0.05)',
+                background: 'hsl(var(--muted))',
               }}
               onDragOver={(e) => {
                 e.preventDefault()
-                e.currentTarget.style.borderColor = '#4ecdc4'
-                e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)'
+                e.currentTarget.style.borderColor = 'var(--secondary-color)'
+                e.currentTarget.style.background = 'color-mix(in hsl, var(--secondary-color) 10%, transparent)'
               }}
               onDragLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                e.currentTarget.style.borderColor = 'hsl(var(--border))'
+                e.currentTarget.style.background = 'hsl(var(--muted))'
               }}
               onDrop={(e) => {
                 e.preventDefault()
                 const droppedFiles = Array.from(e.dataTransfer.files).filter(file => file.type === 'application/pdf')
                 setFiles(prev => [...prev, ...droppedFiles])
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                e.currentTarget.style.borderColor = 'hsl(var(--border))'
+                e.currentTarget.style.background = 'hsl(var(--muted))'
               }}
             >
-              <Upload size={48} style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '1rem' }} />
-              <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem', fontSize: '1.1rem' }}>
+              <Upload size={48} style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '1rem' }} />
+              <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem', fontSize: '1.1rem' }}>
                 Click to upload or drag & drop PDF files
               </p>
-              <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.9rem', marginBottom: 0 }}>
+              <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem', marginBottom: 0 }}>
                 Select multiple files to merge them together
               </p>
             </div>
 
             {files.length > 0 && (
               <div>
-                <h4 style={{ color: 'white', marginBottom: '1rem' }}>
+                <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>
                   Selected Files ({files.length})
                 </h4>
                 <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
@@ -159,7 +159,7 @@ const MergePage = () => {
                         alignItems: 'center',
                         gap: '1rem',
                         padding: '0.75rem',
-                        background: 'rgba(255, 255, 255, 0.1)',
+                        background: 'hsl(var(--accent))',
                         borderRadius: '6px',
                         marginBottom: '0.5rem',
                       }}
@@ -167,7 +167,7 @@ const MergePage = () => {
                       <FileText size={16} style={{ color: '#4ecdc4' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ 
-                          color: 'white', 
+                          color: 'hsl(var(--foreground))', 
                           fontSize: '0.9rem',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -175,7 +175,7 @@ const MergePage = () => {
                         }}>
                           {file.name}
                         </div>
-                        <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.8rem' }}>
+                        <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem' }}>
                           {formatFileSize(file.size)}
                         </div>
                       </div>
@@ -185,8 +185,8 @@ const MergePage = () => {
                           disabled={index === 0}
                           style={{
                             background: 'none',
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                            color: 'white',
+                            border: '1px solid hsl(var(--border))',
+                            color: 'hsl(var(--foreground))',
                             borderRadius: '4px',
                             padding: '0.25rem 0.5rem',
                             cursor: index === 0 ? 'not-allowed' : 'pointer',
@@ -200,8 +200,8 @@ const MergePage = () => {
                           disabled={index === files.length - 1}
                           style={{
                             background: 'none',
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                            color: 'white',
+                            border: '1px solid hsl(var(--border))',
+                            color: 'hsl(var(--foreground))',
                             borderRadius: '4px',
                             padding: '0.25rem 0.5rem',
                             cursor: index === files.length - 1 ? 'not-allowed' : 'pointer',
@@ -250,7 +250,7 @@ const MergePage = () => {
 
           {/* Preview Section */}
           <div className="card">
-            <h3 style={{ color: 'white', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={20} />
               Merged PDF Preview
             </h3>
@@ -262,7 +262,7 @@ const MergePage = () => {
                   style={{
                     width: '100%',
                     height: '500px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '6px',
                   }}
                   title="Merged PDF Preview"
@@ -294,10 +294,10 @@ const MergePage = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(0, 0, 0, 0.2)',
+                background: 'hsl(var(--muted))',
                 borderRadius: '6px',
-                border: '2px dashed rgba(255, 255, 255, 0.3)',
-                color: 'rgba(255, 255, 255, 0.6)',
+                border: '2px dashed hsl(var(--border))',
+                color: 'hsl(var(--muted-foreground))',
                 textAlign: 'center',
               }}>
                 <div>
@@ -314,26 +314,26 @@ const MergePage = () => {
 
         {/* Instructions */}
         <div className="card" style={{ marginTop: '2rem' }}>
-          <h3 style={{ color: 'white', marginBottom: '1rem' }}>📋 How to Use</h3>
+          <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>📋 How to Use</h3>
           <div className="grid grid-3" style={{ gap: '1rem' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>1️⃣</div>
               <h4 style={{ color: '#4ecdc4', marginBottom: '0.5rem' }}>Upload PDFs</h4>
-              <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem', marginBottom: 0 }}>
+              <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem', marginBottom: 0 }}>
                 Click or drag & drop multiple PDF files
               </p>
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>2️⃣</div>
               <h4 style={{ color: '#4ecdc4', marginBottom: '0.5rem' }}>Reorder</h4>
-              <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem', marginBottom: 0 }}>
+              <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem', marginBottom: 0 }}>
                 Use ↑↓ buttons to change the order
               </p>
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>3️⃣</div>
               <h4 style={{ color: '#4ecdc4', marginBottom: '0.5rem' }}>Merge</h4>
-              <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem', marginBottom: 0 }}>
+              <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem', marginBottom: 0 }}>
                 Click "Merge PDFs" to combine and download
               </p>
             </div>

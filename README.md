@@ -846,7 +846,7 @@ GoPdfSuit/
 │   │   └── us_encounter_form.pdf
 │   ├── 📁 json/                # 📄 JSON template samples
 │   │   ├── temp_bold+italic+underline.json
-│   │   ├── temp_mutliplepage.json
+│   │   ├── temp_multiplepage.json
 │   │   ├── temp_og.json
 │   │   └── temp.json
 │   ├── 📁 patient2/            # 👤 Patient data samples

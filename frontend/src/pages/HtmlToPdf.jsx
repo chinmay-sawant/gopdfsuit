@@ -118,12 +118,12 @@ const HtmlToPdf = () => {
             justifyContent: 'center',
             gap: '1rem',
             marginBottom: '1rem',
-            color: 'white',
+            color: 'hsl(var(--foreground))',
           }}>
             <Globe size={40} />
             HTML to PDF Converter
           </h1>
-          <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '1.1rem' }}>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem' }}>
             Convert HTML content or web pages to PDF using Chromium engine
           </p>
         </div>
@@ -131,7 +131,7 @@ const HtmlToPdf = () => {
         <div className="grid grid-2" style={{ gap: '2rem' }}>
           {/* Input Section */}
           <div className="card">
-            <h3 style={{ color: 'white', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={20} />
               HTML Input
             </h3>
@@ -161,7 +161,7 @@ const HtmlToPdf = () => {
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem', 
-                  color: 'rgba(255, 255, 255, 0.9)',
+                  color: 'hsl(var(--foreground))',
                   fontWeight: '500',
                 }}>
                   HTML Content:
@@ -175,9 +175,9 @@ const HtmlToPdf = () => {
                     height: '300px',
                     padding: '1rem',
                     borderRadius: '6px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    color: 'white',
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--background))',
+                    color: 'hsl(var(--foreground))',
                     fontSize: '0.9rem',
                     fontFamily: 'monospace',
                     resize: 'vertical',
@@ -206,7 +206,7 @@ const HtmlToPdf = () => {
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem', 
-                  color: 'rgba(255, 255, 255, 0.9)',
+                  color: 'hsl(var(--foreground))',
                   fontWeight: '500',
                 }}>
                   Website URL:
@@ -220,9 +220,9 @@ const HtmlToPdf = () => {
                     width: '100%',
                     padding: '0.75rem',
                     borderRadius: '6px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    color: 'white',
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--background))',
+                    color: 'hsl(var(--foreground))',
                     fontSize: '1rem',
                     marginBottom: '1rem',
                   }}
@@ -249,13 +249,13 @@ const HtmlToPdf = () => {
             {/* HTML Preview */}
             {showPreview && inputType === 'html' && htmlContent && (
               <div style={{ marginTop: '1rem' }}>
-                <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>HTML Preview:</h4>
+                <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem' }}>HTML Preview:</h4>
                 <iframe
                   srcDoc={htmlContent}
                   style={{
                     width: '100%',
                     height: '200px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '6px',
                     background: 'white',
                   }}
@@ -267,7 +267,7 @@ const HtmlToPdf = () => {
 
           {/* Configuration & Preview Section */}
           <div className="card">
-            <h3 style={{ color: 'white', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Settings size={20} />
               PDF Configuration
             </h3>
@@ -275,7 +275,7 @@ const HtmlToPdf = () => {
             <div style={{ marginBottom: '2rem' }}>
               <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Page Size:
                   </label>
                   <select
@@ -285,9 +285,9 @@ const HtmlToPdf = () => {
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
                     }}
                   >
                     <option value="A4">A4</option>
@@ -297,7 +297,7 @@ const HtmlToPdf = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Orientation:
                   </label>
                   <select
@@ -307,9 +307,9 @@ const HtmlToPdf = () => {
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
                     }}
                   >
                     <option value="Portrait">Portrait</option>
@@ -320,7 +320,7 @@ const HtmlToPdf = () => {
 
               <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Margins (Top/Bottom):
                   </label>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -328,18 +328,18 @@ const HtmlToPdf = () => {
                       type="text"
                       value={config.margin_top}
                       onChange={(e) => setConfig(prev => ({ ...prev, margin_top: e.target.value }))}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                     />
                     <input
                       type="text"
                       value={config.margin_bottom}
                       onChange={(e) => setConfig(prev => ({ ...prev, margin_bottom: e.target.value }))}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                     />
                   </div>
                 </div>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Margins (Left/Right):
                   </label>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -347,13 +347,13 @@ const HtmlToPdf = () => {
                       type="text"
                       value={config.margin_left}
                       onChange={(e) => setConfig(prev => ({ ...prev, margin_left: e.target.value }))}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                     />
                     <input
                       type="text"
                       value={config.margin_right}
                       onChange={(e) => setConfig(prev => ({ ...prev, margin_right: e.target.value }))}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                     />
                   </div>
                 </div>
@@ -361,7 +361,7 @@ const HtmlToPdf = () => {
 
               <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     DPI Quality:
                   </label>
                   <select
@@ -371,9 +371,9 @@ const HtmlToPdf = () => {
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
                     }}
                   >
                     <option value={150}>150 DPI</option>
@@ -382,7 +382,7 @@ const HtmlToPdf = () => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem' }}>
                     <input
                       type="checkbox"
                       checked={config.grayscale}
@@ -390,7 +390,7 @@ const HtmlToPdf = () => {
                     />
                     Grayscale
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem' }}>
                     <input
                       type="checkbox"
                       checked={config.low_quality}
@@ -422,13 +422,13 @@ const HtmlToPdf = () => {
             {/* PDF Preview */}
             {pdfUrl && (
               <div>
-                <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>PDF Preview:</h4>
+                <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem' }}>PDF Preview:</h4>
                 <iframe
                   src={pdfUrl}
                   style={{
                     width: '100%',
                     height: '300px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '6px',
                   }}
                   title="PDF Preview"

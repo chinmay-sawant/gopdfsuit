@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X } from 'lucide-react'
+import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon } from 'lucide-react'
+import { useTheme } from '../theme'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
+  const { theme, toggle } = useTheme()
   const location = useLocation()
 
   const navItems = [
@@ -17,15 +19,7 @@ const Navbar = () => {
   ]
 
   return (
-    <nav style={{
-      background: 'rgba(255, 255, 255, 0.1)',
-      backdropFilter: 'blur(10px)',
-      borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
-      padding: '1rem 0',
-      position: 'sticky',
-      top: 0,
-      zIndex: 1000,
-    }}>
+    <nav className="navbar" style={{ padding: '0.75rem 0' }}>
       <div className="container">
         <div style={{
           display: 'flex',
@@ -38,7 +32,7 @@ const Navbar = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              color: 'white',
+              color: 'hsl(var(--foreground))',
               textDecoration: 'none',
               fontSize: '1.5rem',
               fontWeight: '700',
@@ -64,21 +58,21 @@ const Navbar = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  color: location.pathname === path ? '#4ecdc4' : 'white',
+                  color: location.pathname === path ? 'var(--secondary-color)' : 'hsl(var(--muted-foreground))',
                   textDecoration: 'none',
                   padding: '0.5rem 1rem',
                   borderRadius: '6px',
                   transition: 'all 0.3s ease',
-                  background: location.pathname === path ? 'rgba(78, 205, 196, 0.2)' : 'transparent',
+                  background: location.pathname === path ? 'color-mix(in hsl, var(--secondary-color) 15%, transparent)' : 'transparent',
                 }}
                 onMouseEnter={(e) => {
                   if (location.pathname !== path) {
-                    e.target.style.background = 'rgba(255, 255, 255, 0.1)'
+                    e.currentTarget.style.background = 'hsl(var(--accent))'
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (location.pathname !== path) {
-                    e.target.style.background = 'transparent'
+                    e.currentTarget.style.background = 'transparent'
                   }
                 }}
               >
@@ -86,6 +80,22 @@ const Navbar = () => {
                 {label}
               </Link>
             ))}
+
+            {/* Theme toggle - desktop */}
+            <button
+              onClick={toggle}
+              title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+              style={{
+                background: 'transparent',
+                border: '1px solid hsl(var(--border))',
+                padding: '0.4rem 0.6rem',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                color: 'hsl(var(--foreground))',
+              }}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -95,7 +105,7 @@ const Navbar = () => {
               display: 'none',
               background: 'none',
               border: 'none',
-              color: 'white',
+              color: 'hsl(var(--foreground))',
               cursor: 'pointer',
               padding: '0.5rem',
             }}
@@ -113,7 +123,7 @@ const Navbar = () => {
             gap: '0.5rem',
             marginTop: '1rem',
             padding: '1rem',
-            background: 'rgba(255, 255, 255, 0.1)',
+            background: 'hsl(var(--card))',
             borderRadius: '8px',
           }} className="mobile-menu">
             {navItems.slice(1).map(({ path, label, icon: Icon }) => (
@@ -125,17 +135,38 @@ const Navbar = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  color: location.pathname === path ? '#4ecdc4' : 'white',
+                  color: location.pathname === path ? 'var(--secondary-color)' : 'hsl(var(--muted-foreground))',
                   textDecoration: 'none',
                   padding: '0.75rem',
                   borderRadius: '6px',
-                  background: location.pathname === path ? 'rgba(78, 205, 196, 0.2)' : 'transparent',
+                  background: location.pathname === path ? 'color-mix(in hsl, var(--secondary-color) 15%, transparent)' : 'transparent',
                 }}
               >
                 <Icon size={16} />
                 {label}
               </Link>
             ))}
+
+            {/* Theme toggle - mobile */}
+            <button
+              onClick={toggle}
+              title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+              style={{
+                background: 'transparent',
+                border: '1px solid hsl(var(--border))',
+                padding: '0.6rem',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                color: 'hsl(var(--foreground))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              <span className="text-muted">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+            </button>
           </div>
         )}
       </div>

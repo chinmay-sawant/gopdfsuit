@@ -70,8 +70,8 @@ COPY --from=builder /app/LICENSE .
 # Copy README.md
 COPY --from=builder /app/README.md .
 
-# Copy temp_mutliplepage.json
-COPY --from=builder /app/temp_mutliplepage.json .
+# Copy temp_multiplepage.json
+COPY --from=builder /app/temp_multiplepage.json .
 
 # Expose port if the app serves on a port (assuming 8080, adjust if needed)
 EXPOSE 8080

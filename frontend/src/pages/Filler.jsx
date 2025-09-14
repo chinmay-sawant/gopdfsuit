@@ -75,12 +75,12 @@ const Filler = () => {
             justifyContent: 'center',
             gap: '1rem',
             marginBottom: '1rem',
-            color: 'white',
+            color: 'hsl(var(--foreground))',
           }}>
             <FileCheck size={40} />
             PDF Form Filler
           </h1>
-          <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '1.1rem' }}>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem' }}>
             Fill PDF forms using XFDF data with AcroForm support
           </p>
         </div>
@@ -88,7 +88,7 @@ const Filler = () => {
         <div className="grid grid-2" style={{ gap: '2rem' }}>
           {/* Upload Section */}
           <div className="card">
-            <h3 style={{ color: 'white', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Upload size={20} />
               Upload Files
             </h3>
@@ -98,7 +98,7 @@ const Filler = () => {
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                color: 'rgba(255, 255, 255, 0.9)',
+                color: 'hsl(var(--foreground))',
                 fontWeight: '500',
               }}>
                 PDF File (AcroForm):
@@ -113,21 +113,21 @@ const Filler = () => {
               <div
                 onClick={() => pdfInputRef.current?.click()}
                 style={{
-                  border: '2px dashed rgba(255, 255, 255, 0.3)',
+                  border: '2px dashed hsl(var(--border))',
                   borderRadius: '8px',
                   padding: '2rem',
                   textAlign: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'hsl(var(--muted))',
                 }}
               >
-                <FileText size={32} style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '0.5rem' }} />
-                <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>
+                <FileText size={32} style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }} />
+                <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
                   {pdfFile ? pdfFile.name : 'Click to upload PDF file'}
                 </p>
                 {pdfFile && (
-                  <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.8rem', marginBottom: 0 }}>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem', marginBottom: 0 }}>
                     {formatFileSize(pdfFile.size)}
                   </p>
                 )}
@@ -139,7 +139,7 @@ const Filler = () => {
               <label style={{ 
                 display: 'block', 
                 marginBottom: '0.5rem', 
-                color: 'rgba(255, 255, 255, 0.9)',
+                color: 'hsl(var(--foreground))',
                 fontWeight: '500',
               }}>
                 XFDF File (Form Data):
@@ -154,21 +154,21 @@ const Filler = () => {
               <div
                 onClick={() => xfdfInputRef.current?.click()}
                 style={{
-                  border: '2px dashed rgba(255, 255, 255, 0.3)',
+                  border: '2px dashed hsl(var(--border))',
                   borderRadius: '8px',
                   padding: '2rem',
                   textAlign: 'center',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  background: 'rgba(255, 255, 255, 0.05)',
+                  background: 'hsl(var(--muted))',
                 }}
               >
-                <FileText size={32} style={{ color: 'rgba(255, 255, 255, 0.5)', marginBottom: '0.5rem' }} />
-                <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>
+                <FileText size={32} style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }} />
+                <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
                   {xfdfFile ? xfdfFile.name : 'Click to upload XFDF file'}
                 </p>
                 {xfdfFile && (
-                  <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '0.8rem', marginBottom: 0 }}>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem', marginBottom: 0 }}>
                     {formatFileSize(xfdfFile.size)}
                   </p>
                 )}
@@ -195,7 +195,7 @@ const Filler = () => {
 
           {/* Preview Section */}
           <div className="card">
-            <h3 style={{ color: 'white', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={20} />
               Filled PDF Preview
             </h3>
@@ -207,7 +207,7 @@ const Filler = () => {
                   style={{
                     width: '100%',
                     height: '500px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '6px',
                   }}
                   title="Filled PDF Preview"
@@ -239,10 +239,10 @@ const Filler = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(0, 0, 0, 0.2)',
+                background: 'hsl(var(--muted))',
                 borderRadius: '6px',
-                border: '2px dashed rgba(255, 255, 255, 0.3)',
-                color: 'rgba(255, 255, 255, 0.6)',
+                border: '2px dashed hsl(var(--border))',
+                color: 'hsl(var(--muted-foreground))',
                 textAlign: 'center',
               }}>
                 <div>
@@ -259,12 +259,12 @@ const Filler = () => {
 
         {/* Instructions */}
         <div className="card" style={{ marginTop: '2rem' }}>
-          <h3 style={{ color: 'white', marginBottom: '1rem' }}>📋 How to Use PDF Form Filler</h3>
+          <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>📋 How to Use PDF Form Filler</h3>
           
           <div className="grid grid-2" style={{ gap: '2rem', marginBottom: '2rem' }}>
             <div>
               <h4 style={{ color: '#4ecdc4', marginBottom: '1rem' }}>Steps:</h4>
-              <ol style={{ color: 'rgba(255, 255, 255, 0.8)', lineHeight: 1.8, paddingLeft: '1.5rem' }}>
+              <ol style={{ color: 'hsl(var(--muted-foreground))', lineHeight: 1.8, paddingLeft: '1.5rem' }}>
                 <li>Upload a PDF file with AcroForm fields</li>
                 <li>Upload an XFDF file containing the form data</li>
                 <li>Click "Fill PDF Form" to process</li>
@@ -274,7 +274,7 @@ const Filler = () => {
             
             <div>
               <h4 style={{ color: '#4ecdc4', marginBottom: '1rem' }}>File Requirements:</h4>
-              <ul style={{ color: 'rgba(255, 255, 255, 0.8)', lineHeight: 1.8, paddingLeft: '1.5rem' }}>
+              <ul style={{ color: 'hsl(var(--muted-foreground))', lineHeight: 1.8, paddingLeft: '1.5rem' }}>
                 <li><strong>PDF:</strong> Must contain AcroForm fields</li>
                 <li><strong>XFDF:</strong> XML file with field data mappings</li>
                 <li>Field names in XFDF must match PDF form fields</li>
@@ -285,15 +285,15 @@ const Filler = () => {
 
           <div style={{ 
             padding: '1rem',
-            background: 'rgba(0, 122, 204, 0.1)',
+            background: 'color-mix(in hsl, var(--primary-color) 10%, transparent)',
             borderRadius: '6px',
-            border: '1px solid rgba(0, 122, 204, 0.3)',
+            border: '1px solid color-mix(in hsl, var(--primary-color) 30%, transparent)',
           }}>
-            <h4 style={{ color: '#007acc', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h4 style={{ color: 'var(--primary-color)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={16} />
               Sample Files Available
             </h4>
-            <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: 0, fontSize: '0.9rem' }}>
+            <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: 0, fontSize: '0.9rem' }}>
               Check the <code style={{ color: '#4ecdc4' }}>sampledata/</code> directory for example PDF and XFDF files to test with.
             </p>
           </div>

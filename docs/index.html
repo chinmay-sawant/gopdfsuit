@@ -2,14 +2,25 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>GoPdfSuit - PDF Generation Suite</title>
-    <script type="module" crossorigin src="assets/index-CkQT2KqG.js"></script>
-    <link rel="stylesheet" crossorigin href="assets/index-B18B6kPC.css">
+    <script>
+      // Apply saved theme ASAP to prevent FOUC
+      (function() {
+        try {
+          var saved = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = saved || (prefersDark ? 'dark' : 'light');
+          if (theme === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-jwm5G82_.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DjFdRXHG.css">
   </head>
   <body>
-    <div id="root"></div>
-
+    <div id="root"></div>
   </body>
 </html>

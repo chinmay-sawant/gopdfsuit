@@ -118,12 +118,12 @@ const HtmlToImage = () => {
             justifyContent: 'center',
             gap: '1rem',
             marginBottom: '1rem',
-            color: 'white',
+            color: 'hsl(var(--foreground))',
           }}>
             <Image size={40} />
             HTML to Image Converter
           </h1>
-          <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '1.1rem' }}>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem' }}>
             Convert HTML content or web pages to PNG, JPG, or SVG images
           </p>
         </div>
@@ -131,7 +131,7 @@ const HtmlToImage = () => {
         <div className="grid grid-2" style={{ gap: '2rem' }}>
           {/* Input Section */}
           <div className="card">
-            <h3 style={{ color: 'white', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Globe size={20} />
               HTML Input
             </h3>
@@ -161,7 +161,7 @@ const HtmlToImage = () => {
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem', 
-                  color: 'rgba(255, 255, 255, 0.9)',
+                  color: 'hsl(var(--foreground))',
                   fontWeight: '500',
                 }}>
                   HTML Content:
@@ -175,9 +175,9 @@ const HtmlToImage = () => {
                     height: '300px',
                     padding: '1rem',
                     borderRadius: '6px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    color: 'white',
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--background))',
+                    color: 'hsl(var(--foreground))',
                     fontSize: '0.9rem',
                     fontFamily: 'monospace',
                     resize: 'vertical',
@@ -206,7 +206,7 @@ const HtmlToImage = () => {
                 <label style={{ 
                   display: 'block', 
                   marginBottom: '0.5rem', 
-                  color: 'rgba(255, 255, 255, 0.9)',
+                  color: 'hsl(var(--foreground))',
                   fontWeight: '500',
                 }}>
                   Website URL:
@@ -220,9 +220,9 @@ const HtmlToImage = () => {
                     width: '100%',
                     padding: '0.75rem',
                     borderRadius: '6px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    color: 'white',
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--background))',
+                    color: 'hsl(var(--foreground))',
                     fontSize: '1rem',
                     marginBottom: '1rem',
                   }}
@@ -249,13 +249,13 @@ const HtmlToImage = () => {
             {/* HTML Preview */}
             {showPreview && inputType === 'html' && htmlContent && (
               <div style={{ marginTop: '1rem' }}>
-                <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>HTML Preview:</h4>
+                <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem' }}>HTML Preview:</h4>
                 <iframe
                   srcDoc={htmlContent}
                   style={{
                     width: '100%',
                     height: '200px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '6px',
                     background: 'white',
                   }}
@@ -267,7 +267,7 @@ const HtmlToImage = () => {
 
           {/* Configuration & Preview Section */}
           <div className="card">
-            <h3 style={{ color: 'white', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Settings size={20} />
               Image Configuration
             </h3>
@@ -275,7 +275,7 @@ const HtmlToImage = () => {
             <div style={{ marginBottom: '2rem' }}>
               <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Format:
                   </label>
                   <select
@@ -285,9 +285,9 @@ const HtmlToImage = () => {
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
                     }}
                   >
                     <option value="png">PNG</option>
@@ -296,7 +296,7 @@ const HtmlToImage = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Quality (1-100):
                   </label>
                   <input
@@ -309,9 +309,9 @@ const HtmlToImage = () => {
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
                     }}
                   />
                 </div>
@@ -319,7 +319,7 @@ const HtmlToImage = () => {
 
               <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Width (px):
                   </label>
                   <input
@@ -330,14 +330,14 @@ const HtmlToImage = () => {
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
                     }}
                   />
                 </div>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Height (px):
                   </label>
                   <input
@@ -348,9 +348,9 @@ const HtmlToImage = () => {
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
                     }}
                   />
                 </div>
@@ -358,7 +358,7 @@ const HtmlToImage = () => {
 
               <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Zoom Factor:
                   </label>
                   <input
@@ -372,14 +372,14 @@ const HtmlToImage = () => {
                       width: '100%',
                       padding: '0.5rem',
                       borderRadius: '4px',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: 'white',
+                      border: '1px solid hsl(var(--border))',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
                     }}
                   />
                 </div>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Crop (W×H):
                   </label>
                   <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -388,14 +388,14 @@ const HtmlToImage = () => {
                       placeholder="Width"
                       value={config.crop_width || ''}
                       onChange={(e) => setConfig(prev => ({ ...prev, crop_width: parseInt(e.target.value) || 0 }))}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                     />
                     <input
                       type="number"
                       placeholder="Height"
                       value={config.crop_height || ''}
                       onChange={(e) => setConfig(prev => ({ ...prev, crop_height: parseInt(e.target.value) || 0 }))}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                     />
                   </div>
                 </div>
@@ -403,7 +403,7 @@ const HtmlToImage = () => {
 
               <div className="grid grid-2" style={{ gap: '1rem' }}>
                 <div>
-                  <label style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
+                  <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.25rem' }}>
                     Crop Offset (X,Y):
                   </label>
                   <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -412,14 +412,14 @@ const HtmlToImage = () => {
                       placeholder="X"
                       value={config.crop_x || ''}
                       onChange={(e) => setConfig(prev => ({ ...prev, crop_x: parseInt(e.target.value) || 0 }))}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                     />
                     <input
                       type="number"
                       placeholder="Y"
                       value={config.crop_y || ''}
                       onChange={(e) => setConfig(prev => ({ ...prev, crop_y: parseInt(e.target.value) || 0 }))}
-                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid rgba(255, 255, 255, 0.3)', background: 'rgba(255, 255, 255, 0.1)', color: 'white' }}
+                      style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                     />
                   </div>
                 </div>
@@ -446,13 +446,13 @@ const HtmlToImage = () => {
             {/* Image Preview */}
             {imageUrl && (
               <div>
-                <h4 style={{ color: 'white', marginBottom: '0.5rem' }}>Image Preview:</h4>
+                <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem' }}>Image Preview:</h4>
                 <div style={{
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '6px',
                   padding: '1rem',
                   textAlign: 'center',
-                  background: 'rgba(0, 0, 0, 0.2)',
+                  background: 'hsl(var(--muted))',
                   marginBottom: '1rem',
                 }}>
                   <img
@@ -492,7 +492,7 @@ const HtmlToImage = () => {
 
         {/* Quick Presets */}
         <div className="card" style={{ marginTop: '2rem' }}>
-          <h3 style={{ color: 'white', marginBottom: '1rem' }}>🎨 Quick Presets</h3>
+          <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🎨 Quick Presets</h3>
           <div className="grid grid-3" style={{ gap: '1rem' }}>
             <button
               onClick={() => setConfig(prev => ({ ...prev, width: 1920, height: 1080, zoom: 1.0 }))}
