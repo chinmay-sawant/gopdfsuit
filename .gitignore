@@ -32,3 +32,5 @@ Thumbs.db
 patientreg/
 patient2/
 presentation.html
+
+frontend/node_modules/

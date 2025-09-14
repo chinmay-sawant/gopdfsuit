@@ -6,4 +6,4 @@
 *.html linguist-vendored
 
 /docs/ linguist-vendored
-/web/ linguist-vendored
+/docs/ linguist-vendored

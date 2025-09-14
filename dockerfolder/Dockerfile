@@ -62,7 +62,7 @@ WORKDIR /app/
 COPY --from=builder /app/gopdfsuit .
 
 # Copy the web folder
-COPY --from=builder /app/web ./web
+COPY --from=builder /app/docs ./docs
 
 # Copy LICENSE
 COPY --from=builder /app/LICENSE .

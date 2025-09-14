@@ -34,7 +34,7 @@ func getProjectRoot() string {
 				break
 			}
 			// if a web directory exists here, assume this is the project root
-			if info, err := os.Stat(filepath.Join(cur, "web")); err == nil && info.IsDir() {
+			if info, err := os.Stat(filepath.Join(cur, "docs")); err == nil && info.IsDir() {
 				return cur
 			}
 			parent := filepath.Dir(cur)
@@ -64,7 +64,7 @@ func getProjectRoot() string {
 	// when running from cmd/gopdfsuit), but only if that path exists.
 	if wd, err := os.Getwd(); err == nil {
 		twoUp := filepath.Clean(filepath.Join(wd, "..", ".."))
-		if info, err := os.Stat(filepath.Join(twoUp, "web")); err == nil && info.IsDir() {
+		if info, err := os.Stat(filepath.Join(twoUp, "docs")); err == nil && info.IsDir() {
 			return twoUp
 		}
 		return wd
@@ -79,20 +79,8 @@ func RegisterRoutes(router *gin.Engine) {
 	// the repo root or from inside cmd/gopdfsuit (where the exe often lives).
 	base := getProjectRoot()
 
-	// Serve static files
-	router.Static("/static", filepath.Join(base, "web", "static"))
-
-	// Load HTML templates (use absolute path)
-	router.LoadHTMLGlob(filepath.Join(base, "web", "templates", "*"))
-
-	// Root endpoint for PDF viewer
-	router.GET("/", handlePDFViewer)
-	// PDF filler UI
-	router.GET("/filler", handlePDFFiller)
-
-	// HTML to PDF/Image UI pages (powered by gochromedp)
-	router.GET("/htmltopdf", handlehtmlToPDFPage)
-	router.GET("/htmltoimage", handlehtmlToImagePage)
+	// Serve static assets from Vite build
+	router.Static("/assets", filepath.Join(base, "docs", "assets"))
 
 	// API endpoints
 	v1 := router.Group("/api/v1")
@@ -104,27 +92,27 @@ func RegisterRoutes(router *gin.Engine) {
 	// HTML to PDF/Image endpoints (powered by gochromedp)
 	v1.POST("/htmltopdf", handlehtmlToPDF)
 	v1.POST("/htmltoimage", handlehtmlToImage)
-	v1.GET("/htmltopdf", handlehtmlToPDF)
-	v1.GET("/htmltoimage", handlehtmlToImage)
+	// v1.GET("/htmltopdf", handlehtmlToPDF)
+	// v1.GET("/htmltoimage", handlehtmlToImage)
 
-	// Template editor endpoint
-	router.GET("/editor", PDFEditorHandler)
-	// PDF merge UI
-	router.GET("/merge", PDFMergeHandler)
+	// Serve React app for all frontend routes (SPA fallback)
+	router.NoRoute(handleSPA)
 }
 
-// handlePDFViewer serves the PDF viewer HTML page
-func handlePDFViewer(c *gin.Context) {
-	c.HTML(http.StatusOK, "pdf_viewer.html", gin.H{
-		"title": "GoPdfSuit - PDF Viewer",
-	})
-}
+// handleSPA serves the React SPA for all frontend routes
+func handleSPA(c *gin.Context) {
+	base := getProjectRoot()
+	indexPath := filepath.Join(base, "docs", "index.html")
 
-// handlePDFFiller serves the PDF filler UI page
-func handlePDFFiller(c *gin.Context) {
-	c.HTML(http.StatusOK, "pdf_filler.html", gin.H{
-		"title": "GoPdfSuit - PDF Filler",
-	})
+	// Check if the file exists
+	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Frontend not built. Please run 'npm run build' in the frontend directory.",
+		})
+		return
+	}
+
+	c.File(indexPath)
 }
 
 // handleGetTemplateData serves JSON template data based on file query parameter
@@ -272,34 +260,6 @@ func handleMergePDFs(c *gin.Context) {
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "attachment; filename=merged.pdf")
 	c.Data(http.StatusOK, "application/pdf", merged)
-}
-
-// PDFEditorHandler serves the template editor interface
-func PDFEditorHandler(c *gin.Context) {
-	c.HTML(http.StatusOK, "pdf_editor.html", gin.H{
-		"title": "GoPdfSuit - Template Editor",
-	})
-}
-
-// PDFMergeHandler serves the merge UI
-func PDFMergeHandler(c *gin.Context) {
-	c.HTML(http.StatusOK, "pdf_merge.html", gin.H{
-		"title": "GoPdfSuit - PDF Merge",
-	})
-}
-
-// handlehtmlToPDFPage serves the htmltopdf converter UI
-func handlehtmlToPDFPage(c *gin.Context) {
-	c.HTML(http.StatusOK, "htmltopdf.html", gin.H{
-		"title": "GoPdfSuit - HTML to PDF Converter",
-	})
-}
-
-// handlehtmlToImagePage serves the htmltoimage converter UI
-func handlehtmlToImagePage(c *gin.Context) {
-	c.HTML(http.StatusOK, "htmltoimage.html", gin.H{
-		"title": "GoPdfSuit - HTML to Image Converter",
-	})
 }
 
 // handlehtmlToPDF handles HTML to PDF conversion using htmltopdf
