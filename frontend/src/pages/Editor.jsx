@@ -45,6 +45,38 @@ const formatProps = (props) => {
   return `${props.font}:${props.size}:${props.style}:${props.align}:${props.borders.join(':')}`
 }
 
+// Helper function to convert props to CSS style object
+const getStyleFromProps = (propsString) => {
+  const parsed = parseProps(propsString)
+  const style = {
+    fontSize: `${parsed.size}px`,
+    textAlign: parsed.align,
+    borderLeftWidth: `${parsed.borders[0]}px`,
+    borderRightWidth: `${parsed.borders[1]}px`,
+    borderTopWidth: `${parsed.borders[2]}px`,
+    borderBottomWidth: `${parsed.borders[3]}px`,
+    borderStyle: 'solid',
+    borderColor: 'hsl(var(--border))'
+  }
+  
+  // Apply font weight
+  if (parsed.style[0] === '1') {
+    style.fontWeight = 'bold'
+  }
+  
+  // Apply italic
+  if (parsed.style[1] === '1') {
+    style.fontStyle = 'italic'
+  }
+  
+  // Apply underline
+  if (parsed.style[2] === '1') {
+    style.textDecoration = 'underline'
+  }
+  
+  return style
+}
+
 function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, onDownloadPDF }) {
   const [templateInput, setTemplateInput] = useState('')
 
@@ -248,18 +280,19 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
   const renderContent = () => {
     switch (element.type) {
       case 'title':
+        const titleStyle = getStyleFromProps(element.props)
         return (
           <div style={{ 
-            fontSize: '18px', 
-            fontWeight: 'bold', 
-            textAlign: 'center',
             padding: '10px',
-            border: '2px dashed hsl(var(--border))',
             borderRadius: '4px',
             minHeight: '40px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            borderLeft: `${titleStyle.borderLeftWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
+            borderRight: `${titleStyle.borderRightWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
+            borderTop: `${titleStyle.borderTopWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
+            borderBottom: `${titleStyle.borderBottomWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`
           }}>
             <input
               type="text"
@@ -269,11 +302,13 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                 width: '100%',
                 border: 'none',
                 background: 'transparent',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                textAlign: 'center',
                 color: 'hsl(var(--foreground))',
                 outline: 'none',
+                fontSize: titleStyle.fontSize,
+                textAlign: titleStyle.textAlign,
+                fontWeight: titleStyle.fontWeight,
+                fontStyle: titleStyle.fontStyle,
+                textDecoration: titleStyle.textDecoration
               }}
               placeholder="Document Title"
             />
@@ -281,59 +316,72 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
         )
       case 'table':
         return (
-          <div style={{ border: '2px dashed hsl(var(--border))', borderRadius: '4px', padding: '10px' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <div style={{ borderRadius: '4px', padding: '10px' }}>
+            <table style={{ borderCollapse: 'separate', width: '100%', borderSpacing: '0' }}>
               <tbody>
                 {element.rows?.map((row, rowIdx) => (
                   <tr key={rowIdx}>
-                    {row.row?.map((cell, colIdx) => (
-                      <td
-                        key={colIdx}
-                        style={{
-                          border: '1px solid hsl(var(--border))',
-                          padding: '4px 8px',
-                          minWidth: '80px',
-                          minHeight: '24px',
-                          fontSize: '12px'
-                        }}
-                      >
-                        {cell.chequebox !== undefined ? (
-                          <input 
-                            type="checkbox" 
-                            checked={cell.chequebox} 
-                            onChange={(e) => {
-                              const newRows = [...element.rows]
-                              newRows[rowIdx].row[colIdx] = { 
-                                ...newRows[rowIdx].row[colIdx], 
-                                chequebox: e.target.checked 
-                              }
-                              onUpdate({ rows: newRows })
-                            }}
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={cell.text || `Cell ${rowIdx + 1},${colIdx + 1}`}
-                            onChange={(e) => {
-                              const newRows = [...element.rows]
-                              newRows[rowIdx].row[colIdx] = { 
-                                ...newRows[rowIdx].row[colIdx], 
-                                text: e.target.value 
-                              }
-                              onUpdate({ rows: newRows })
-                            }}
-                            style={{
-                              width: '100%',
-                              border: 'none',
-                              background: 'transparent',
-                              fontSize: '12px',
-                              padding: '2px',
-                              color: 'hsl(var(--foreground))',
-                            }}
-                          />
-                        )}
-                      </td>
-                    ))}
+                    {row.row?.map((cell, colIdx) => {
+                      const cellStyle = getStyleFromProps(cell.props)
+                      const tdStyle = {
+                        borderLeft: `${cellStyle.borderLeftWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
+                        borderRight: `${cellStyle.borderRightWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
+                        borderTop: `${cellStyle.borderTopWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
+                        borderBottom: `${cellStyle.borderBottomWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
+                        padding: '4px 8px',
+                        minWidth: '80px',
+                        minHeight: '24px'
+                      }
+                      const inputStyle = {
+                        fontSize: cellStyle.fontSize,
+                        textAlign: cellStyle.textAlign,
+                        fontWeight: cellStyle.fontWeight,
+                        fontStyle: cellStyle.fontStyle,
+                        textDecoration: cellStyle.textDecoration,
+                        width: '100%',
+                        border: 'none',
+                        background: 'transparent',
+                        padding: '2px',
+                        color: 'hsl(var(--foreground))',
+                        outline: 'none'
+                      }
+                      return (
+                        <td
+                          key={colIdx}
+                          style={tdStyle}
+                        >
+                          {cell.chequebox !== undefined ? (
+                            <input 
+                              type="checkbox" 
+                              checked={cell.chequebox} 
+                              onChange={(e) => {
+                                const newRows = [...element.rows]
+                                newRows[rowIdx].row[colIdx] = { 
+                                  ...newRows[rowIdx].row[colIdx], 
+                                  chequebox: e.target.checked 
+                                }
+                                onUpdate({ rows: newRows })
+                              }}
+                              style={inputStyle}
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={cell.text || ''}
+                              onChange={(e) => {
+                                const newRows = [...element.rows]
+                                newRows[rowIdx].row[colIdx] = { 
+                                  ...newRows[rowIdx].row[colIdx], 
+                                  text: e.target.value 
+                                }
+                                onUpdate({ rows: newRows })
+                              }}
+                              style={inputStyle}
+                            />
+                          )}
+                        </td>
+                      )
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -341,18 +389,19 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           </div>
         )
       case 'footer':
+        const footerStyle = getStyleFromProps(element.props)
         return (
           <div style={{ 
-            fontSize: '12px', 
-            fontStyle: 'italic',
-            textAlign: 'center',
             padding: '10px',
-            border: '2px dashed hsl(var(--border))',
             borderRadius: '4px',
             minHeight: '30px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            borderLeft: `${footerStyle.borderLeftWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
+            borderRight: `${footerStyle.borderRightWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
+            borderTop: `${footerStyle.borderTopWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
+            borderBottom: `${footerStyle.borderBottomWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`
           }}>
             <input
               type="text"
@@ -362,11 +411,13 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                 width: '100%',
                 border: 'none',
                 background: 'transparent',
-                fontSize: '12px',
-                fontStyle: 'italic',
-                textAlign: 'center',
                 color: 'hsl(var(--foreground))',
                 outline: 'none',
+                fontSize: footerStyle.fontSize,
+                textAlign: footerStyle.textAlign,
+                fontWeight: footerStyle.fontWeight,
+                fontStyle: footerStyle.fontStyle,
+                textDecoration: footerStyle.textDecoration
               }}
               placeholder="Page footer text"
             />
@@ -508,16 +559,16 @@ export default function Editor() {
           rows: [
             {
               row: [
-                { props: 'font1:12:000:left:1:1:1:1', text: 'Cell 1,1' },
-                { props: 'font1:12:000:left:1:1:1:1', text: 'Cell 1,2' },
-                { props: 'font1:12:000:left:1:1:1:1', text: 'Cell 1,3' }
+                { props: 'font1:12:000:left:1:1:1:1', text: '' },
+                { props: 'font1:12:000:left:1:1:1:1', text: '' },
+                { props: 'font1:12:000:left:1:1:1:1', text: '' }
               ]
             },
             {
               row: [
-                { props: 'font1:12:000:left:1:1:1:1', text: 'Cell 2,1' },
-                { props: 'font1:12:000:left:1:1:1:1', text: 'Cell 2,2' },
-                { props: 'font1:12:000:left:1:1:1:1', text: 'Cell 2,3' }
+                { props: 'font1:12:000:left:1:1:1:1', text: '' },
+                { props: 'font1:12:000:left:1:1:1:1', text: '' },
+                { props: 'font1:12:000:left:1:1:1:1', text: '' }
               ]
             }
           ]
@@ -535,7 +586,7 @@ export default function Editor() {
       case 'footer':
         if (!footer) {
           setFooter({
-            font: 'font1:10:001:center',
+            props: 'font1:10:001:center:0:0:0:0',
             text: 'Page footer text'
           })
           setSelectedId('footer')
@@ -957,7 +1008,7 @@ export default function Editor() {
                             const updatedRows = selectedElement.rows?.map(row => {
                               const newRow = [...(row.row || [])]
                               while (newRow.length < newCols) {
-                                newRow.push({ props: 'font1:12:000:left:1:1:1:1', text: `Cell ${row.row?.length || 0 + 1}` })
+                                newRow.push({ props: 'font1:12:000:left:1:1:1:1', text: '' })
                               }
                               if (newRow.length > newCols) {
                                 newRow.splice(newCols)
@@ -976,7 +1027,7 @@ export default function Editor() {
                             const newRow = { 
                               row: Array(selectedElement.maxcolumns || 3).fill().map((_, i) => ({
                                 props: 'font1:12:000:left:1:1:1:1',
-                                text: `Cell ${(selectedElement.rows?.length || 0) + 1},${i + 1}`
+                                text: ''
                               }))
                             }
                             updateElement(selectedElement.id, { 
@@ -1024,8 +1075,8 @@ export default function Editor() {
                       <div>
                         <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
                         <PropsEditor 
-                          props={selectedElement.font} 
-                          onChange={(font) => updateElement(selectedElement.id, { font })}
+                          props={selectedElement.props} 
+                          onChange={(props) => updateElement(selectedElement.id, { props })}
                         />
                       </div>
                     </>

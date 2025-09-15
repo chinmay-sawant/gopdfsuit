@@ -191,7 +191,7 @@ const Viewer = () => {
             <button 
               onClick={generatePDF}
               disabled={isLoading || !templateData.trim()}
-              className="btn btn-primary"
+              className="btn"
               style={{ 
                 width: '100%', 
                 marginTop: '1rem',
