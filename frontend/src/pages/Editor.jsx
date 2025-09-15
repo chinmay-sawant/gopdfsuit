@@ -191,142 +191,212 @@ function DraggableComponent({ type, componentData, isDragging, onDragStart, onDr
 function PropsEditor({ props, onChange }) {
   const parsed = parseProps(props)
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      <div className="flex gap-2">
-        <label style={{ width: '50px', fontSize: '0.9rem' }}>Font:</label>
-        <select
-          value={parsed.font}
-          onChange={(e) => onChange(formatProps({ ...parsed, font: e.target.value }))}
-          style={{ flex: 1, padding: '0.25rem' }}
+  const updateBorder = (index, value) => {
+    const newBorders = [...parsed.borders]
+    newBorders[index] = Math.max(0, Math.min(10, value))
+    onChange(formatProps({ ...parsed, borders: newBorders }))
+  }
+
+  const BorderControls = ({ label, index }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label style={{ fontSize: '0.8rem', fontWeight: '500', color: 'hsl(var(--muted-foreground))' }}>{label}</label>
+      <div style={{ display: 'flex', gap: '0.25rem' }}>
+        <button
+          onClick={() => updateBorder(index, parsed.borders[index] - 1)}
+          disabled={parsed.borders[index] <= 0}
+          style={{
+            padding: '0.25rem 0.5rem',
+            fontSize: '0.8rem',
+            border: '1px solid hsl(var(--border))',
+            background: 'hsl(var(--background))',
+            color: 'hsl(var(--foreground))',
+            borderRadius: '4px',
+            cursor: parsed.borders[index] > 0 ? 'pointer' : 'not-allowed',
+            opacity: parsed.borders[index] > 0 ? 1 : 0.5
+          }}
         >
-          <option value="font1">Font 1</option>
-          <option value="font2">Font 2</option>
-        </select>
+          −
+        </button>
+        <span style={{
+          padding: '0.25rem 0.5rem',
+          fontSize: '0.8rem',
+          minWidth: '2rem',
+          textAlign: 'center',
+          background: 'hsl(var(--muted))',
+          borderRadius: '4px'
+        }}>
+          {parsed.borders[index]}px
+        </span>
+        <button
+          onClick={() => updateBorder(index, parsed.borders[index] + 1)}
+          disabled={parsed.borders[index] >= 10}
+          style={{
+            padding: '0.25rem 0.5rem',
+            fontSize: '0.8rem',
+            border: '1px solid hsl(var(--border))',
+            background: 'hsl(var(--background))',
+            color: 'hsl(var(--foreground))',
+            borderRadius: '4px',
+            cursor: parsed.borders[index] < 10 ? 'pointer' : 'not-allowed',
+            opacity: parsed.borders[index] < 10 ? 1 : 0.5
+          }}
+        >
+          +
+        </button>
       </div>
-      <div className="flex gap-2">
-        <label style={{ width: '50px', fontSize: '0.9rem' }}>Size:</label>
-        <input
-          type="number"
-          min="8"
-          max="72"
-          value={parsed.size}
-          onChange={(e) => onChange(formatProps({ ...parsed, size: parseInt(e.target.value) }))}
-          style={{ flex: 1, padding: '0.25rem' }}
-        />
-      </div>
-      <div className="flex gap-2">
-        <label style={{ width: '50px', fontSize: '0.9rem' }}>Style:</label>
-        <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
-          <label style={{ fontSize: '0.8rem' }}>
-            <input
-              type="checkbox"
-              checked={parsed.style[0] === '1'}
-              onChange={(e) => {
-                const newStyle = parsed.style.split('')
-                newStyle[0] = e.target.checked ? '1' : '0'
-                onChange(formatProps({ ...parsed, style: newStyle.join('') }))
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Font Section */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <h4 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', color: 'hsl(var(--foreground))' }}>Font</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Family</label>
+            <select
+              value={parsed.font}
+              onChange={(e) => onChange(formatProps({ ...parsed, font: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px',
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
+                fontSize: '0.9rem'
               }}
-            /> B
-          </label>
-          <label style={{ fontSize: '0.8rem' }}>
-            <input
-              type="checkbox"
-              checked={parsed.style[1] === '1'}
-              onChange={(e) => {
-                const newStyle = parsed.style.split('')
-                newStyle[1] = e.target.checked ? '1' : '0'
-                onChange(formatProps({ ...parsed, style: newStyle.join('') }))
+            >
+              <option value="font1">Font 1</option>
+              <option value="font2">Font 2</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Size</label>
+            <select
+              value={parsed.size}
+              onChange={(e) => onChange(formatProps({ ...parsed, size: parseInt(e.target.value) }))}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px',
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
+                fontSize: '0.9rem'
               }}
-            /> I
-          </label>
-          <label style={{ fontSize: '0.8rem' }}>
-            <input
-              type="checkbox"
-              checked={parsed.style[2] === '1'}
-              onChange={(e) => {
-                const newStyle = parsed.style.split('')
-                newStyle[2] = e.target.checked ? '1' : '0'
-                onChange(formatProps({ ...parsed, style: newStyle.join('') }))
-              }}
-            /> U
-          </label>
+            >
+              {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72].map(size => (
+                <option key={size} value={size}>{size}px</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
-      <div className="flex gap-2">
-        <label style={{ width: '50px', fontSize: '0.9rem' }}>Align:</label>
-        <select
-          value={parsed.align}
-          onChange={(e) => onChange(formatProps({ ...parsed, align: e.target.value }))}
-          style={{ flex: 1, padding: '0.25rem' }}
-        >
-          <option value="left">Left</option>
-          <option value="center">Center</option>
-          <option value="right">Right</option>
-        </select>
+
+      {/* Style Section */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <h4 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', color: 'hsl(var(--foreground))' }}>Style</h4>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {[
+            { key: 0, label: 'B', title: 'Bold' },
+            { key: 1, label: 'I', title: 'Italic' },
+            { key: 2, label: 'U', title: 'Underline' }
+          ].map(({ key, label, title }) => (
+            <button
+              key={key}
+              onClick={() => {
+                const newStyle = parsed.style.split('')
+                newStyle[key] = newStyle[key] === '1' ? '0' : '1'
+                onChange(formatProps({ ...parsed, style: newStyle.join('') }))
+              }}
+              style={{
+                padding: '0.5rem 0.75rem',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px',
+                background: parsed.style[key] === '1' ? 'hsl(var(--accent))' : 'hsl(var(--background))',
+                color: parsed.style[key] === '1' ? 'hsl(var(--accent-foreground))' : 'hsl(var(--foreground))',
+                fontSize: '0.9rem',
+                fontWeight: parsed.style[key] === '1' ? '600' : '400',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              title={title}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
-      <div style={{ marginTop: '1rem' }}>
-        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Borders:</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-          <div className="flex gap-2">
-            <label style={{ width: '30px', fontSize: '0.8rem' }}>Left:</label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={parsed.borders[0]}
-              onChange={(e) => {
-                const newBorders = [...parsed.borders]
-                newBorders[0] = parseInt(e.target.value) || 0
-                onChange(formatProps({ ...parsed, borders: newBorders }))
+
+      {/* Alignment Section */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <h4 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', color: 'hsl(var(--foreground))' }}>Alignment</h4>
+        <div style={{ display: 'flex', gap: '0.25rem' }}>
+          {[
+            { value: 'left', label: 'Left', icon: '⬅' },
+            { value: 'center', label: 'Center', icon: '⬌' },
+            { value: 'right', label: 'Right', icon: '➡' }
+          ].map(({ value, label, icon }) => (
+            <button
+              key={value}
+              onClick={() => onChange(formatProps({ ...parsed, align: value }))}
+              style={{
+                flex: 1,
+                padding: '0.5rem',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px',
+                background: parsed.align === value ? 'hsl(var(--accent))' : 'hsl(var(--background))',
+                color: parsed.align === value ? 'hsl(var(--accent-foreground))' : 'hsl(var(--foreground))',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
               }}
-              style={{ flex: 1, padding: '0.25rem', fontSize: '0.8rem' }}
-            />
-          </div>
-          <div className="flex gap-2">
-            <label style={{ width: '30px', fontSize: '0.8rem' }}>Right:</label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={parsed.borders[1]}
-              onChange={(e) => {
-                const newBorders = [...parsed.borders]
-                newBorders[1] = parseInt(e.target.value) || 0
-                onChange(formatProps({ ...parsed, borders: newBorders }))
-              }}
-              style={{ flex: 1, padding: '0.25rem', fontSize: '0.8rem' }}
-            />
-          </div>
-          <div className="flex gap-2">
-            <label style={{ width: '30px', fontSize: '0.8rem' }}>Top:</label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={parsed.borders[2]}
-              onChange={(e) => {
-                const newBorders = [...parsed.borders]
-                newBorders[2] = parseInt(e.target.value) || 0
-                onChange(formatProps({ ...parsed, borders: newBorders }))
-              }}
-              style={{ flex: 1, padding: '0.25rem', fontSize: '0.8rem' }}
-            />
-          </div>
-          <div className="flex gap-2">
-            <label style={{ width: '30px', fontSize: '0.8rem' }}>Bottom:</label>
-            <input
-              type="number"
-              min="0"
-              max="10"
-              value={parsed.borders[3]}
-              onChange={(e) => {
-                const newBorders = [...parsed.borders]
-                newBorders[3] = parseInt(e.target.value) || 0
-                onChange(formatProps({ ...parsed, borders: newBorders }))
-              }}
-              style={{ flex: 1, padding: '0.25rem', fontSize: '0.8rem' }}
-            />
+            >
+              {icon} {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Borders Section */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <h4 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', color: 'hsl(var(--foreground))' }}>Borders</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <BorderControls label="Left" index={0} />
+          <BorderControls label="Right" index={1} />
+          <BorderControls label="Top" index={2} />
+          <BorderControls label="Bottom" index={3} />
+        </div>
+
+        {/* Quick Border Presets */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <label style={{ fontSize: '0.8rem', fontWeight: '500', color: 'hsl(var(--muted-foreground))' }}>Quick Set</label>
+          <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+            {[
+              { label: 'None', borders: [0, 0, 0, 0] },
+              { label: 'All', borders: [1, 1, 1, 1] },
+              { label: 'Box', borders: [1, 1, 1, 1] },
+              { label: 'Bottom', borders: [0, 0, 1, 0] }
+            ].map(({ label, borders }) => (
+              <button
+                key={label}
+                onClick={() => onChange(formatProps({ ...parsed, borders }))}
+                style={{
+                  padding: '0.25rem 0.5rem',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '4px',
+                  background: 'hsl(var(--muted))',
+                  color: 'hsl(var(--muted-foreground))',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
