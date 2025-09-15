@@ -8,6 +8,7 @@ import Merge from './pages/Merge'
 import Filler from './pages/Filler'
 import HtmlToPdf from './pages/HtmlToPdf'
 import HtmlToImage from './pages/HtmlToImage'
+import Screenshots from './pages/Screenshots'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="/filler" element={<Filler />} />
           <Route path="/htmltopdf" element={<HtmlToPdf />} />
           <Route path="/htmltoimage" element={<HtmlToImage />} />
+          <Route path="/screenshots" element={<Screenshots />} />
         </Routes>
       </div>
     </Router>

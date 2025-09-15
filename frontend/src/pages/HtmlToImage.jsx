@@ -427,7 +427,7 @@ const HtmlToImage = () => {
                   <button 
                     onClick={convertToImage}
                     disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())}
-                    className="btn btn-primary"
+                    className="btn"
                     style={{ 
                       width: '100%',
                       display: 'flex',

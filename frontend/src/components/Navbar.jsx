@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon } from 'lucide-react'
+import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera } from 'lucide-react'
 import { useTheme } from '../theme'
 
 const Navbar = () => {
@@ -16,6 +16,7 @@ const Navbar = () => {
     { path: '/filler', label: 'Filler', icon: FileCheck },
     { path: '/htmltopdf', label: 'HTML→PDF', icon: Globe },
     { path: '/htmltoimage', label: 'HTML→Image', icon: Image },
+    { path: '/screenshots', label: 'Screenshots', icon: Camera },
   ]
 
   return (
