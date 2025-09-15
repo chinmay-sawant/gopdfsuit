@@ -265,16 +265,88 @@ function PropsEditor({ props, onChange }) {
           <option value="right">Right</option>
         </select>
       </div>
+      <div style={{ marginTop: '1rem' }}>
+        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Borders:</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+          <div className="flex gap-2">
+            <label style={{ width: '30px', fontSize: '0.8rem' }}>Left:</label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              value={parsed.borders[0]}
+              onChange={(e) => {
+                const newBorders = [...parsed.borders]
+                newBorders[0] = parseInt(e.target.value) || 0
+                onChange(formatProps({ ...parsed, borders: newBorders }))
+              }}
+              style={{ flex: 1, padding: '0.25rem', fontSize: '0.8rem' }}
+            />
+          </div>
+          <div className="flex gap-2">
+            <label style={{ width: '30px', fontSize: '0.8rem' }}>Right:</label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              value={parsed.borders[1]}
+              onChange={(e) => {
+                const newBorders = [...parsed.borders]
+                newBorders[1] = parseInt(e.target.value) || 0
+                onChange(formatProps({ ...parsed, borders: newBorders }))
+              }}
+              style={{ flex: 1, padding: '0.25rem', fontSize: '0.8rem' }}
+            />
+          </div>
+          <div className="flex gap-2">
+            <label style={{ width: '30px', fontSize: '0.8rem' }}>Top:</label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              value={parsed.borders[2]}
+              onChange={(e) => {
+                const newBorders = [...parsed.borders]
+                newBorders[2] = parseInt(e.target.value) || 0
+                onChange(formatProps({ ...parsed, borders: newBorders }))
+              }}
+              style={{ flex: 1, padding: '0.25rem', fontSize: '0.8rem' }}
+            />
+          </div>
+          <div className="flex gap-2">
+            <label style={{ width: '30px', fontSize: '0.8rem' }}>Bottom:</label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              value={parsed.borders[3]}
+              onChange={(e) => {
+                const newBorders = [...parsed.borders]
+                newBorders[3] = parseInt(e.target.value) || 0
+                onChange(formatProps({ ...parsed, borders: newBorders }))
+              }}
+              style={{ flex: 1, padding: '0.25rem', fontSize: '0.8rem' }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown }) {
+function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect }) {
   const [isResizing, setIsResizing] = useState(false)
 
   const handleClick = (e) => {
     e.stopPropagation()
     onSelect(element.id)
+    onCellSelect(null) // Clear cell selection when table is selected
+  }
+
+  const handleCellClick = (rowIdx, colIdx, e) => {
+    e.stopPropagation()
+    onSelect(element.id)
+    onCellSelect({ rowIdx, colIdx })
   }
 
   const renderContent = () => {
@@ -323,6 +395,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                   <tr key={rowIdx}>
                     {row.row?.map((cell, colIdx) => {
                       const cellStyle = getStyleFromProps(cell.props)
+                      const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
                       const tdStyle = {
                         borderLeft: `${cellStyle.borderLeftWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
                         borderRight: `${cellStyle.borderRightWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
@@ -330,7 +403,9 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         borderBottom: `${cellStyle.borderBottomWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
                         padding: '4px 8px',
                         minWidth: '80px',
-                        minHeight: '24px'
+                        minHeight: '24px',
+                        backgroundColor: isCellSelected ? 'hsl(var(--accent))' : 'transparent',
+                        cursor: 'pointer'
                       }
                       const inputStyle = {
                         fontSize: cellStyle.fontSize,
@@ -349,18 +424,25 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         <td
                           key={colIdx}
                           style={tdStyle}
+                          onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
                         >
                           {cell.chequebox !== undefined ? (
                             <input 
                               type="checkbox" 
                               checked={cell.chequebox} 
                               onChange={(e) => {
+                                e.stopPropagation()
                                 const newRows = [...element.rows]
                                 newRows[rowIdx].row[colIdx] = { 
                                   ...newRows[rowIdx].row[colIdx], 
                                   chequebox: e.target.checked 
                                 }
                                 onUpdate({ rows: newRows })
+                              }}
+                              onFocus={() => handleCellClick(rowIdx, colIdx)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCellClick(rowIdx, colIdx)
                               }}
                               style={inputStyle}
                             />
@@ -369,12 +451,18 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                               type="text"
                               value={cell.text || ''}
                               onChange={(e) => {
+                                e.stopPropagation()
                                 const newRows = [...element.rows]
                                 newRows[rowIdx].row[colIdx] = { 
                                   ...newRows[rowIdx].row[colIdx], 
                                   text: e.target.value 
                                 }
                                 onUpdate({ rows: newRows })
+                              }}
+                              onFocus={() => handleCellClick(rowIdx, colIdx)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCellClick(rowIdx, colIdx)
                               }}
                               style={inputStyle}
                             />
@@ -452,11 +540,12 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
       style={{
         position: 'relative',
         margin: '10px 0',
-        padding: isSelected ? '8px' : '0',
-        border: isSelected ? '2px solid var(--secondary-color)' : '2px solid transparent',
-        borderRadius: '6px',
+        padding: isSelected && element.type !== 'table' ? '8px' : '0',
+        border: isSelected && element.type !== 'table' ? '2px solid var(--secondary-color)' : '2px solid transparent',
+        borderRadius: element.type === 'table' ? '0' : '6px',
         cursor: 'pointer',
-        background: isSelected ? 'hsl(var(--accent))' : 'transparent',
+        background: isSelected && element.type !== 'table' ? 'hsl(var(--accent))' : 'transparent',
+        boxShadow: isSelected && element.type === 'table' ? '0 0 0 2px var(--secondary-color)' : 'none',
         transition: 'all 0.2s ease'
       }}
     >
@@ -522,6 +611,7 @@ export default function Editor() {
   const [footer, setFooter] = useState(null)
   const [spacers, setSpacers] = useState([])
   const [selectedId, setSelectedId] = useState(null)
+  const [selectedCell, setSelectedCell] = useState(null)
   const [draggedType, setDraggedType] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [pdfUrl, setPdfUrl] = useState(null)
@@ -538,6 +628,9 @@ export default function Editor() {
   }, [title, tables, spacers, footer])
 
   const selectedElement = allElements.find(el => el.id === selectedId) || null
+  const selectedCellElement = selectedElement && selectedCell && selectedElement.type === 'table' 
+    ? selectedElement.rows[selectedCell.rowIdx]?.row[selectedCell.colIdx] 
+    : null
   const currentPageSize = PAGE_SIZES[config.page] || PAGE_SIZES.A4
 
   const generateId = () => Math.random().toString(36).substr(2, 9)
@@ -622,6 +715,7 @@ export default function Editor() {
       setSpacers(prev => prev.filter((_, i) => i !== idx))
     }
     setSelectedId(null)
+    setSelectedCell(null)
   }
 
   const moveElement = (index, direction) => {
@@ -656,6 +750,7 @@ export default function Editor() {
   const handleCanvasClick = (e) => {
     if (e.target === canvasRef.current) {
       setSelectedId(null)
+      setSelectedCell(null)
     }
   }
 
@@ -696,6 +791,7 @@ export default function Editor() {
         setSpacers(data.spacer || [])
         setFooter(data.footer || null)
         setSelectedId(null)
+        setSelectedCell(null)
         
       } else {
         alert('Failed to load template')
@@ -936,6 +1032,8 @@ export default function Editor() {
                         onDelete={deleteElement}
                         canMoveUp={element.type === 'table' && index > (title ? 1 : 0)}
                         canMoveDown={element.type === 'table' && index < allElements.length - (footer ? 2 : 1)}
+                        selectedCell={selectedCell}
+                        onCellSelect={setSelectedCell}
                       />
                     ))}
                   </div>
@@ -1058,6 +1156,46 @@ export default function Editor() {
                       <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))' }}>
                         Rows: {selectedElement.rows?.length || 0}, Columns: {selectedElement.maxcolumns || 3}
                       </div>
+
+                      {selectedCell && selectedCellElement && (
+                        <>
+                          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.5rem' }}>
+                              Cell Properties (Row {selectedCell.rowIdx + 1}, Column {selectedCell.colIdx + 1})
+                            </div>
+                            <div style={{ marginBottom: '0.5rem' }}>
+                              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
+                              <input
+                                type="text"
+                                value={selectedCellElement.text || ''}
+                                onChange={(e) => {
+                                  const newRows = [...selectedElement.rows]
+                                  newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                    ...selectedCellElement, 
+                                    text: e.target.value 
+                                  }
+                                  updateElement(selectedElement.id, { rows: newRows })
+                                }}
+                                style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
+                              <PropsEditor 
+                                props={selectedCellElement.props} 
+                                onChange={(props) => {
+                                  const newRows = [...selectedElement.rows]
+                                  newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                    ...selectedCellElement, 
+                                    props 
+                                  }
+                                  updateElement(selectedElement.id, { rows: newRows })
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
 
