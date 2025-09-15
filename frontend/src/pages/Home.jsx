@@ -56,7 +56,7 @@ const Home = () => {
   ]
 
   const highlights = [
-    { icon: <Zap />, title: 'Ultra Fast', desc: 'Sub-millisecond to low-millisecond response times' },
+    { icon: <Zap />, title: 'Ultra Fast', desc: 'Average 0.8ms response time for PDF generation' },
     { icon: <Shield />, title: 'Secure', desc: 'Path traversal protection and input validation' },
     { icon: <Download />, title: 'Self-contained', desc: 'Single binary deployment with zero dependencies' },
   ]
@@ -319,23 +319,70 @@ const Home = () => {
       {/* Performance Section */}
       <section style={{ padding: '4rem 0' }}>
         <div className="container">
-          <div className="card" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
+          <div className="card" style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
             <h2 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🏃‍♂️ Performance</h2>
-            <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '1rem' }}>
+            <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '2rem' }}>
               Ultra-fast PDF generation with in-memory processing
             </p>
+            
+            {/* Performance Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+              <div style={{ 
+                background: 'rgba(78, 205, 196, 0.1)', 
+                padding: '1rem', 
+                borderRadius: '8px',
+                border: '1px solid rgba(78, 205, 196, 0.3)'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#4ecdc4' }}>806 µs</div>
+                <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Average Response</div>
+              </div>
+              <div style={{ 
+                background: 'rgba(0, 122, 204, 0.1)', 
+                padding: '1rem', 
+                borderRadius: '8px',
+                border: '1px solid rgba(0, 122, 204, 0.3)'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#007acc' }}>417 µs</div>
+                <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Min Response</div>
+              </div>
+              <div style={{ 
+                background: 'rgba(255, 193, 7, 0.1)', 
+                padding: '1rem', 
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 193, 7, 0.3)'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ffc107' }}>2.05 ms</div>
+                <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Max Response</div>
+              </div>
+            </div>
+            
+            {/* Sample Logs */}
             <div style={{
               background: 'rgba(0, 0, 0, 0.3)',
               padding: '1rem',
               borderRadius: '8px',
               fontFamily: 'monospace',
               color: '#4ecdc4',
-              fontSize: '0.9rem',
+              fontSize: '0.8rem',
               textAlign: 'left',
+              maxHeight: '200px',
+              overflowY: 'auto'
             }}>
-              [GIN] 200 | 697.8µs | POST "/api/v1/generate/template-pdf"<br/>
-              [GIN] 200 | 179.6µs | POST "/api/v1/generate/template-pdf"<br/>
-              [GIN] 200 | 573.7µs | POST "/api/v1/generate/template-pdf"
+              <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Recent Performance Logs:</div>
+              [GIN] 2025/09/16 - 01:25:53 | 200 |       417.4µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:56 | 200 |       505.1µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:57 | 200 |      1.1047ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:57 | 200 |       515.1µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:58 | 200 |      2.0475ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:58 | 200 |       850.4µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:59 | 200 |       503.6µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:59 | 200 |       503.8µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:59 | 200 |       681.8µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:59 | 200 |      1.0021ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:26:10 | 200 |       504.3µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:26:10 | 200 |       504.5µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:26:10 | 200 |      1.5052ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:26:10 | 200 |         652µs |             ::1 | POST     "/api/v1/generate/template-pdf"
             </div>
             <p style={{ 
               color: 'hsl(var(--muted-foreground))', 
@@ -343,7 +390,7 @@ const Home = () => {
               fontSize: '0.9rem',
               marginBottom: 0,
             }}>
-              Performance benchmarks for multi-page PDF generation
+              Performance benchmarks for multi-page PDF generation (14 samples - temp_multiplepage.json)
             </p>
           </div>
         </div>
