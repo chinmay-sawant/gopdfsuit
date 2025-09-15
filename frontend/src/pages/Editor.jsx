@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react'
-import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download } from 'lucide-react'
+import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X } from 'lucide-react'
 import { useTheme } from '../theme'
 import PdfPreview from '../components/PdfPreview'
 
@@ -200,6 +200,78 @@ function DraggableComponent({ type, componentData, isDragging, onDragStart, onDr
     >
       <IconComponent size={16} />
       <span style={{ fontSize: '0.9rem' }}>{componentData.label}</span>
+    </div>
+  )
+}
+
+function DropZone({ index, onDrop, onAddComponent, isVisible, isToolboxDragging }) {
+  const [isHovered, setIsHovered] = useState(false)
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation() // Prevent main canvas from handling drag over
+    e.dataTransfer.dropEffect = isToolboxDragging ? 'copy' : 'move'
+    setIsHovered(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.stopPropagation() // Prevent main canvas from handling drag leave
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsHovered(false)
+    }
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation() // Prevent the main canvas from also handling this drop
+    setIsHovered(false)
+    const draggedData = e.dataTransfer.getData('text/plain')
+
+    if (isToolboxDragging && COMPONENT_TYPES[draggedData]) {
+      // Dropping from toolbox - add new component
+      onAddComponent(draggedData, index)
+    } else {
+      // Dropping existing component for reordering
+      onDrop(draggedData)
+    }
+  }
+
+  // Don't render anything if not visible (not dragging)
+  if (!isVisible && !isHovered) {
+    return null
+  }
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={{
+        height: isHovered ? '40px' : '20px',
+        width: '100%',
+        background: isHovered
+          ? 'hsl(var(--accent))'
+          : 'hsl(var(--muted))',
+        border: isHovered ? '2px dashed var(--secondary-color)' : '1px dashed hsl(var(--border))',
+        borderRadius: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s ease',
+        opacity: 1,
+        margin: '5px 0',
+        cursor: isHovered ? 'pointer' : 'default'
+      }}
+    >
+      {isHovered && (
+        <span style={{
+          fontSize: '12px',
+          color: 'hsl(var(--muted-foreground))',
+          fontWeight: '500'
+        }}>
+          {isToolboxDragging ? 'Drop to add component' : 'Drop here'}
+        </span>
+      )}
     </div>
   )
 }
@@ -520,7 +592,7 @@ function PropsEditor({ props, onChange }) {
   )
 }
 
-function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect }) {
+function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging }) {
   const [isResizing, setIsResizing] = useState(false)
 
   const handleClick = (e) => {
@@ -530,9 +602,32 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
   }
 
   const handleCellClick = (rowIdx, colIdx, e) => {
-    e.stopPropagation()
+    if (e) e.stopPropagation()
     onSelect(element.id)
     onCellSelect({ rowIdx, colIdx })
+  }
+
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData('text/plain', element.id)
+    e.dataTransfer.effectAllowed = 'move'
+    onDragStart(element.id)
+  }
+
+  const handleDragEnd = () => {
+    onDragEnd()
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    const draggedId = e.dataTransfer.getData('text/plain')
+    if (draggedId !== element.id) {
+      onDrop(draggedId, element.id)
+    }
   }
 
   const renderContent = () => {
@@ -723,59 +818,97 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
   return (
     <div 
       onClick={handleClick}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       style={{
         position: 'relative',
         margin: '10px 0',
         padding: isSelected && element.type !== 'table' ? '8px' : '0',
         border: isSelected && element.type !== 'table' ? '2px solid var(--secondary-color)' : '2px solid transparent',
         borderRadius: element.type === 'table' ? '0' : '6px',
-        cursor: 'pointer',
+        cursor: isDragging ? 'grabbing' : 'grab',
         background: isSelected && element.type !== 'table' ? 'hsl(var(--accent))' : 'transparent',
         boxShadow: isSelected && element.type === 'table' ? '0 0 0 2px var(--secondary-color)' : 'none',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.2s ease',
+        opacity: isDragging ? 0.5 : 1
       }}
     >
       {isSelected && (
         <div style={{
           position: 'absolute',
-          top: '-30px',
+          top: '-35px',
           right: '0',
           display: 'flex',
-          gap: '2px',
+          gap: '4px',
           background: 'hsl(var(--card))',
           border: '1px solid hsl(var(--border))',
-          borderRadius: '4px',
-          padding: '2px',
-          zIndex: 10
+          borderRadius: '8px',
+          padding: '4px',
+          zIndex: 10,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
         }}>
           <button
             onClick={(e) => { e.stopPropagation(); onMove(index, 'up') }}
             disabled={!canMoveUp}
             style={{ 
-              padding: '2px 4px', 
-              fontSize: '10px', 
-              opacity: canMoveUp ? 1 : 0.5,
-              cursor: canMoveUp ? 'pointer' : 'not-allowed'
+              padding: '6px',
+              border: 'none',
+              borderRadius: '6px',
+              background: canMoveUp ? 'hsl(var(--muted))' : 'hsl(var(--muted))',
+              color: canMoveUp ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+              cursor: canMoveUp ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              opacity: canMoveUp ? 1 : 0.5
             }}
-          >↑</button>
+            title="Move Up"
+          >
+            <ChevronUp size={14} />
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); onMove(index, 'down') }}
             disabled={!canMoveDown}
             style={{ 
-              padding: '2px 4px', 
-              fontSize: '10px',
-              opacity: canMoveDown ? 1 : 0.5,
-              cursor: canMoveDown ? 'pointer' : 'not-allowed'
+              padding: '6px',
+              border: 'none',
+              borderRadius: '6px',
+              background: canMoveDown ? 'hsl(var(--muted))' : 'hsl(var(--muted))',
+              color: canMoveDown ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+              cursor: canMoveDown ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              opacity: canMoveDown ? 1 : 0.5
             }}
-          >↓</button>
+            title="Move Down"
+          >
+            <ChevronDown size={14} />
+          </button>
+          <div style={{ width: '1px', background: 'hsl(var(--border))', margin: '4px 0' }}></div>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(element.id) }}
             style={{ 
-              padding: '2px 4px', 
-              fontSize: '10px',
-              color: 'hsl(var(--destructive))'
+              padding: '6px',
+              border: 'none',
+              borderRadius: '6px',
+              background: 'hsl(var(--destructive))',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease'
             }}
-          >×</button>
+            title="Delete Component"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
@@ -793,13 +926,13 @@ export default function Editor() {
   const { theme, setTheme } = useTheme()
   const [config, setConfig] = useState({ pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
   const [title, setTitle] = useState(null)
-  const [tables, setTables] = useState([])
+  const [components, setComponents] = useState([]) // Combined ordered array for tables and spacers
   const [footer, setFooter] = useState(null)
-  const [spacers, setSpacers] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [selectedCell, setSelectedCell] = useState(null)
   const [draggedType, setDraggedType] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [draggedComponentId, setDraggedComponentId] = useState(null)
   const [pdfUrl, setPdfUrl] = useState(null)
   const canvasRef = useRef(null)
 
@@ -807,11 +940,16 @@ export default function Editor() {
   const allElements = useMemo(() => {
     const elements = []
     if (title) elements.push({ ...title, id: 'title', type: 'title' })
-    tables.forEach((table, idx) => elements.push({ ...table, id: `table-${idx}`, type: 'table' }))
-    spacers.forEach((spacer, idx) => elements.push({ ...spacer, id: `spacer-${idx}`, type: 'spacer' }))
+    components.forEach((component, idx) => {
+      if (component.type === 'table') {
+        elements.push({ ...component, id: `table-${idx}`, type: 'table' })
+      } else if (component.type === 'spacer') {
+        elements.push({ ...component, id: `spacer-${idx}`, type: 'spacer' })
+      }
+    })
     if (footer) elements.push({ ...footer, id: 'footer', type: 'footer' })
     return elements
-  }, [title, tables, spacers, footer])
+  }, [title, components, footer])
 
   const selectedElement = allElements.find(el => el.id === selectedId) || null
   const selectedCellElement = selectedElement && selectedCell && selectedElement.type === 'table' 
@@ -821,7 +959,7 @@ export default function Editor() {
 
   const generateId = () => Math.random().toString(36).substr(2, 9)
 
-  const addElement = (type) => {
+  const addElementAtPosition = (type, position) => {
     switch (type) {
       case 'title':
         if (!title) {
@@ -834,6 +972,7 @@ export default function Editor() {
         break
       case 'table':
         const newTable = {
+          type: 'table',
           maxcolumns: 3,
           rows: [
             {
@@ -852,15 +991,26 @@ export default function Editor() {
             }
           ]
         }
-        setTables(prev => [...prev, newTable])
-        setSelectedId(`table-${tables.length}`)
+        setComponents(prev => {
+          const newComponents = [...prev]
+          const insertIndex = title ? position - 1 : position
+          newComponents.splice(insertIndex, 0, newTable)
+          return newComponents
+        })
+        setSelectedId(`table-${title ? position - 1 : position}`)
         break
       case 'spacer':
         const newSpacer = {
+          type: 'spacer',
           height: 20
         }
-        setSpacers(prev => [...prev, newSpacer])
-        setSelectedId(`spacer-${spacers.length}`)
+        setComponents(prev => {
+          const newComponents = [...prev]
+          const insertIndex = title ? position - 1 : position
+          newComponents.splice(insertIndex, 0, newSpacer)
+          return newComponents
+        })
+        setSelectedId(`spacer-${title ? position - 1 : position}`)
         break
       case 'footer':
         if (!footer) {
@@ -879,12 +1029,9 @@ export default function Editor() {
       setTitle(prev => ({ ...prev, ...updates }))
     } else if (id === 'footer') {
       setFooter(prev => ({ ...prev, ...updates }))
-    } else if (id.startsWith('table-')) {
+    } else if (id.startsWith('table-') || id.startsWith('spacer-')) {
       const idx = parseInt(id.split('-')[1])
-      setTables(prev => prev.map((table, i) => i === idx ? { ...table, ...updates } : table))
-    } else if (id.startsWith('spacer-')) {
-      const idx = parseInt(id.split('-')[1])
-      setSpacers(prev => prev.map((spacer, i) => i === idx ? { ...spacer, ...updates } : spacer))
+      setComponents(prev => prev.map((component, i) => i === idx ? { ...component, ...updates } : component))
     }
   }
 
@@ -893,44 +1040,60 @@ export default function Editor() {
       setTitle(null)
     } else if (id === 'footer') {
       setFooter(null)
-    } else if (id.startsWith('table-')) {
+    } else if (id.startsWith('table-') || id.startsWith('spacer-')) {
       const idx = parseInt(id.split('-')[1])
-      setTables(prev => prev.filter((_, i) => i !== idx))
-    } else if (id.startsWith('spacer-')) {
-      const idx = parseInt(id.split('-')[1])
-      setSpacers(prev => prev.filter((_, i) => i !== idx))
+      setComponents(prev => prev.filter((_, i) => i !== idx))
     }
     setSelectedId(null)
     setSelectedCell(null)
   }
 
   const moveElement = (index, direction) => {
-    // Only tables can be moved for now
-    const tableElements = allElements.filter(el => el.type === 'table')
-    const elementIndex = allElements.findIndex((_, i) => i === index)
-    const element = allElements[elementIndex]
-    
-    if (element?.type !== 'table') return
-    
-    const tableIndex = parseInt(element.id.split('-')[1])
-    
-    if (direction === 'up' && tableIndex > 0) {
-      setTables(prev => {
-        const newTables = [...prev]
-        const temp = newTables[tableIndex]
-        newTables[tableIndex] = newTables[tableIndex - 1]
-        newTables[tableIndex - 1] = temp
-        return newTables
-      })
-    } else if (direction === 'down' && tableIndex < tables.length - 1) {
-      setTables(prev => {
-        const newTables = [...prev]
-        const temp = newTables[tableIndex]
-        newTables[tableIndex] = newTables[tableIndex + 1]
-        newTables[tableIndex + 1] = temp
-        return newTables
-      })
+    const element = allElements[index]
+    if (!element) return
+
+    let targetIndex
+    if (direction === 'up' && index > (title ? 1 : 0)) {
+      targetIndex = index - 1
+    } else if (direction === 'down' && index < allElements.length - (footer ? 2 : 1)) {
+      targetIndex = index + 1
+    } else {
+      return // Cannot move in that direction
     }
+
+    // Calculate the actual index in the components array (excluding title and footer)
+    const componentIndex = title ? index - 1 : index
+    const targetComponentIndex = title ? targetIndex - 1 : targetIndex
+
+    // Swap elements in the components array
+    setComponents(prev => {
+      const newComponents = [...prev]
+      const temp = newComponents[componentIndex]
+      newComponents[componentIndex] = newComponents[targetComponentIndex]
+      newComponents[targetComponentIndex] = temp
+      return newComponents
+    })
+  }
+
+  const handleComponentDrop = (draggedId, targetId) => {
+    const draggedIndex = allElements.findIndex(el => el.id === draggedId)
+    const targetIndex = allElements.findIndex(el => el.id === targetId)
+
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) return
+
+    // Calculate the actual indices in the components array (excluding title and footer)
+    const draggedComponentIndex = title ? draggedIndex - 1 : draggedIndex
+    const targetComponentIndex = title ? targetIndex - 1 : targetIndex
+
+    // Move the dragged element to the target position
+    setComponents(prev => {
+      const newComponents = [...prev]
+      const [draggedElement] = newComponents.splice(draggedComponentIndex, 1)
+      newComponents.splice(targetComponentIndex, 0, draggedElement)
+      return newComponents
+    })
+
+    setDraggedComponentId(null)
   }
 
   const handleCanvasClick = (e) => {
@@ -944,11 +1107,19 @@ export default function Editor() {
     e.preventDefault()
     setIsDragOver(false)
     setDraggedType(null)
-    
+
     const type = e.dataTransfer.getData('text/plain')
     if (!type || !COMPONENT_TYPES[type]) return
-    
-    addElement(type)
+
+    // If there are no components, add at the beginning
+    if (allElements.length === 0) {
+      addElementAtPosition(type, title ? 1 : 0)
+    }
+    // If there are components but no specific drop zone was targeted,
+    // add at the end (this handles drops on empty canvas areas)
+    else if (allElements.length > 0) {
+      addElementAtPosition(type, allElements.length)
+    }
   }
 
   const handleDragOver = (e) => {
@@ -973,8 +1144,17 @@ export default function Editor() {
         // Parse the JSON structure from the template
         setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
         setTitle(data.title || null)
-        setTables(data.table || [])
-        setSpacers(data.spacer || [])
+
+        // Combine tables and spacers into components array, preserving order
+        const combinedComponents = []
+        if (data.table) {
+          data.table.forEach(table => combinedComponents.push({ ...table, type: 'table' }))
+        }
+        if (data.spacer) {
+          data.spacer.forEach(spacer => combinedComponents.push({ ...spacer, type: 'spacer' }))
+        }
+        setComponents(combinedComponents)
+
         setFooter(data.footer || null)
         setSelectedId(null)
         setSelectedCell(null)
@@ -1049,13 +1229,18 @@ export default function Editor() {
   const getJsonOutput = () => {
     const output = { config }
     if (title) output.title = title
+
+    // Separate components back into tables and spacers for JSON output
+    const tables = components.filter(comp => comp.type === 'table').map(({ type, ...rest }) => rest)
+    const spacers = components.filter(comp => comp.type === 'spacer').map(({ type, ...rest }) => rest)
+
     if (tables.length > 0) output.table = tables
     if (spacers.length > 0) output.spacer = spacers
     if (footer) output.footer = footer
     return output
   }
 
-  const jsonOutput = useMemo(() => getJsonOutput(), [config, title, tables, spacers, footer])
+  const jsonOutput = useMemo(() => getJsonOutput(), [config, title, components, footer])
 
   return (
     <div style={{ padding: '1rem 0', minHeight: '100vh' }}>
@@ -1243,22 +1428,58 @@ export default function Editor() {
                     </div>
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                    {allElements.map((element, index) => (
-                      <ComponentItem
-                        key={element.id}
-                        element={element}
-                        index={index}
-                        isSelected={element.id === selectedId}
-                        onSelect={setSelectedId}
-                        onUpdate={(updates) => updateElement(element.id, updates)}
-                        onMove={moveElement}
-                        onDelete={deleteElement}
-                        canMoveUp={element.type === 'table' && index > (title ? 1 : 0)}
-                        canMoveDown={element.type === 'table' && index < allElements.length - (footer ? 2 : 1)}
-                        selectedCell={selectedCell}
-                        onCellSelect={setSelectedCell}
+                    {/* Drop zone at the beginning */}
+                    {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
+                      <DropZone
+                        index={title ? 1 : 0}
+                        onDrop={(draggedId) => handleComponentDrop(draggedId, title ? 1 : 0)}
+                        onAddComponent={(type, position) => addElementAtPosition(type, title ? 1 : 0)}
+                        isVisible={true}
+                        isToolboxDragging={draggedType !== null}
                       />
+                    )}
+
+                    {allElements.map((element, index) => (
+                      <React.Fragment key={element.id}>
+                        <ComponentItem
+                          element={element}
+                          index={index}
+                          isSelected={element.id === selectedId}
+                          onSelect={setSelectedId}
+                          onUpdate={(updates) => updateElement(element.id, updates)}
+                          onMove={moveElement}
+                          onDelete={deleteElement}
+                          canMoveUp={index > (title ? 1 : 0)}
+                          canMoveDown={index < allElements.length - (footer ? 2 : 1)}
+                          selectedCell={selectedCell}
+                          onCellSelect={setSelectedCell}
+                          onDragStart={setDraggedComponentId}
+                          onDragEnd={() => setDraggedComponentId(null)}
+                          onDrop={handleComponentDrop}
+                          isDragging={draggedComponentId === element.id}
+                        />
+                        {index < allElements.length - 1 && (
+                          <DropZone
+                            index={index + 1}
+                            onDrop={(draggedId) => handleComponentDrop(draggedId, index + 1)}
+                            onAddComponent={(type, position) => addElementAtPosition(type, position)}
+                            isVisible={draggedComponentId !== null || draggedType !== null}
+                            isToolboxDragging={draggedType !== null}
+                          />
+                        )}
+                      </React.Fragment>
                     ))}
+
+                    {/* Drop zone at the end */}
+                    {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
+                      <DropZone
+                        index={allElements.length}
+                        onDrop={(draggedId) => handleComponentDrop(draggedId, allElements.length)}
+                        onAddComponent={(type, position) => addElementAtPosition(type, position)}
+                        isVisible={true}
+                        isToolboxDragging={draggedType !== null}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
