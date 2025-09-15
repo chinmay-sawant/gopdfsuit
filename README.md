@@ -734,7 +734,6 @@ with open("website.pdf", "wb") as f:
 ```
 
 ## 🆚 Feature Comparison
-
 | Feature | GoPdfSuit | UniPDF | Aspose.PDF | iText |
 |---------|-----------|---------|------------|-------|
 | **💰 Pricing** | **Free (MIT License)** | $3,990/dev/year | $1,999/dev/year | $3,800/dev/year |
@@ -752,6 +751,7 @@ with open("website.pdf", "wb") as f:
 | **☑️ Interactive Elements** | **Checkboxes** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
 | **📏 Page Formats** | **A3, A4, A5, Letter, Legal** | ✅ All Formats | ✅ All Formats | ✅ All Formats |
 | **🔒 Security** | **Basic Validation** | ✅ Advanced | ✅ Enterprise | ✅ Enterprise |
+| **🐳 Docker Support** | **✅ Built-in (Multi-stage, Alpine-based)** | ❌ Not Applicable (Library) | ❌ Not Applicable (Library) | ❌ Not Applicable (Library) |
 | **🛠️ Maintenance** | **Single Binary** | Library Updates | Library Updates | Library Updates |
 
 ### 🏃‍♂️ Performance Benchmarks

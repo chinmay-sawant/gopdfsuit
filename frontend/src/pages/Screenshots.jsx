@@ -304,7 +304,7 @@ const Screenshots = () => {
             )}
             <img
               key={currentSlide}
-              src={`https://raw.githubusercontent.com/chinmay-sawant/gopdfsuit/fix-35-newwebsite/screenshots/${screenshots[currentSlide]}.png`}
+              src={`https://raw.githubusercontent.com/chinmay-sawant/gopdfsuit/master/screenshots/${screenshots[currentSlide]}.png`}
               alt={`Screenshot ${screenshots[currentSlide]}`}
               onLoad={() => handleImageLoad(screenshots[currentSlide])}
               onError={() => handleImageLoad(screenshots[currentSlide])}
@@ -520,7 +520,7 @@ const Screenshots = () => {
               }}
             >
               <img
-                src={`https://raw.githubusercontent.com/chinmay-sawant/gopdfsuit/fix-35-newwebsite/screenshots/${num}.png`}
+                src={`https://raw.githubusercontent.com/chinmay-sawant/gopdfsuit/master/screenshots/${num}.png`}
                 alt={`Thumbnail ${num}`}
                 style={{
                   width: '100%',

@@ -16,6 +16,7 @@ const Navbar = () => {
     { path: '/filler', label: 'Filler', icon: FileCheck },
     { path: '/htmltopdf', label: 'HTML→PDF', icon: Globe },
     { path: '/htmltoimage', label: 'HTML→Image', icon: Image },
+    { path: '/comparison', label: 'Comparison', icon: FileCheck },
     { path: '/screenshots', label: 'Screenshots', icon: Camera },
   ]
 

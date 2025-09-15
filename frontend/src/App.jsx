@@ -9,6 +9,7 @@ import Filler from './pages/Filler'
 import HtmlToPdf from './pages/HtmlToPdf'
 import HtmlToImage from './pages/HtmlToImage'
 import Screenshots from './pages/Screenshots'
+import Comparison from './pages/Comparison'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/htmltopdf" element={<HtmlToPdf />} />
           <Route path="/htmltoimage" element={<HtmlToImage />} />
           <Route path="/screenshots" element={<Screenshots />} />
+          <Route path="/comparison" element={<Comparison />} />
         </Routes>
       </div>
     </Router>
