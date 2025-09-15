@@ -592,7 +592,7 @@ function PropsEditor({ props, onChange }) {
   )
 }
 
-function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging }) {
+function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop }) {
   const [isResizing, setIsResizing] = useState(false)
 
   const handleClick = (e) => {
@@ -706,6 +706,21 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                           key={colIdx}
                           style={tdStyle}
                           onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
+                          onDragOver={(e) => {
+                            if (draggedType === 'checkbox') {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            const draggedData = e.dataTransfer.getData('text/plain')
+                            if (draggedData === 'checkbox') {
+                            handleCellDrop(element, onUpdate, rowIdx, colIdx, draggedData)
+                            }
+                          }}
+                          className={draggedType === 'checkbox' ? 'drop-target' : ''}
                         >
                           {cell.chequebox !== undefined ? (
                             <input 
@@ -1096,6 +1111,19 @@ export default function Editor() {
     setDraggedComponentId(null)
   }
 
+  const handleCellDrop = (element, onUpdate, rowIdx, colIdx, draggedType) => {
+    if (draggedType !== 'checkbox') return
+
+    // Update the table cell to contain a checkbox
+    const newRows = [...element.rows]
+    newRows[rowIdx].row[colIdx] = {
+      ...newRows[rowIdx].row[colIdx],
+      chequebox: false, // Start unchecked
+      text: undefined // Remove any existing text
+    }
+    onUpdate({ rows: newRows })
+  }
+
   const handleCanvasClick = (e) => {
     if (e.target === canvasRef.current) {
       setSelectedId(null)
@@ -1244,6 +1272,15 @@ export default function Editor() {
 
   return (
     <div style={{ padding: '1rem 0', minHeight: '100vh' }}>
+      <style>
+        {`
+          .drop-target {
+            background-color: hsl(var(--accent)) !important;
+            border: 2px dashed hsl(var(--primary)) !important;
+            opacity: 0.8;
+          }
+        `}
+      </style>
       <div className="container-full">
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
@@ -1457,6 +1494,8 @@ export default function Editor() {
                           onDragEnd={() => setDraggedComponentId(null)}
                           onDrop={handleComponentDrop}
                           isDragging={draggedComponentId === element.id}
+                          draggedType={draggedType}
+                          handleCellDrop={handleCellDrop}
                         />
                         {index < allElements.length - 1 && (
                           <DropZone
