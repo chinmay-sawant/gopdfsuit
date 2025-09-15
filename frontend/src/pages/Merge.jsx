@@ -231,7 +231,7 @@ const MergePage = () => {
                 <button 
                   onClick={mergePDFs}
                   disabled={isLoading || files.length < 2}
-                  className="btn btn-primary"
+                  className="btn"
                   style={{ 
                     width: '100%', 
                     marginTop: '1rem',

@@ -141,14 +141,14 @@ const HtmlToImage = () => {
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
                 <button
                   onClick={() => setInputType('html')}
-                  className={`btn ${inputType === 'html' ? 'btn-primary' : 'btn-secondary'}`}
+                  className={`btn ${inputType === 'html' ? 'btn' : 'btn'}`}
                   style={{ opacity: inputType === 'html' ? 1 : 0.6 }}
                 >
                   HTML Content
                 </button>
                 <button
                   onClick={() => setInputType('url')}
-                  className={`btn ${inputType === 'url' ? 'btn-primary' : 'btn-secondary'}`}
+                  className={`btn ${inputType === 'url' ? 'btn' : 'btn'}`}
                   style={{ opacity: inputType === 'url' ? 1 : 0.6 }}
                 >
                   Website URL
