@@ -10,13 +10,30 @@ const Viewer = () => {
 
   const loadTemplate = async () => {
     if (!fileName.trim()) return
-    
+
     setIsLoading(true)
     try {
       const response = await fetch(`/api/v1/template-data?file=${encodeURIComponent(fileName)}`)
       if (response.ok) {
         const data = await response.json()
         setTemplateData(JSON.stringify(data, null, 2))
+
+        // Directly call the generate PDF API
+        const pdfResponse = await fetch('/api/v1/generate/template-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        })
+
+        if (pdfResponse.ok) {
+          const blob = await pdfResponse.blob()
+          const url = URL.createObjectURL(blob)
+          setPdfUrl(url)
+        } else {
+          alert('Failed to generate PDF')
+        }
       } else {
         alert('Failed to load template')
       }
@@ -45,16 +62,6 @@ const Viewer = () => {
         const blob = await response.blob()
         const url = URL.createObjectURL(blob)
         setPdfUrl(url)
-        
-        // Show PDF preview first, then auto-download after a short delay
-        setTimeout(() => {
-          const link = document.createElement('a')
-          link.href = url
-          link.download = `template-pdf-${Date.now()}.pdf`
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-        }, 1000) // 1 second delay to show preview first
       } else {
         alert('Failed to generate PDF')
       }
@@ -222,9 +229,6 @@ const Viewer = () => {
               </h3>
               {pdfUrl && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>
-                    Auto-download in progress
-                  </span>
                   <button 
                     onClick={() => {
                       const link = document.createElement('a')
