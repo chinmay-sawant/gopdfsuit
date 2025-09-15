@@ -85,7 +85,7 @@ const Screenshots = () => {
                   </div>
                 )}
                 <img
-                  src={`https://raw.githubusercontent.com/chinmay-sawant/gopdfsuit/fix-35-newwebsite/screenshots/${num}`}
+                  src={`https://raw.githubusercontent.com/chinmay-sawant/gopdfsuit/fix-35-newwebsite/screenshots/${num}.png`}
                   alt={`Screenshot ${num}`}
                   onLoad={() => handleImageLoad(num)}
                   onError={() => handleImageLoad(num)}
