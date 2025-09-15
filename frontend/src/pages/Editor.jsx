@@ -45,6 +45,22 @@ const formatProps = (props) => {
   return `${props.font}:${props.size}:${props.style}:${props.align}:${props.borders.join(':')}`
 }
 
+// Page border helpers
+const parsePageBorder = (borderString) => {
+  if (!borderString) return [0, 0, 0, 0]
+  const parts = borderString.split(':')
+  return [
+    parseInt(parts[0]) || 0,
+    parseInt(parts[1]) || 0,
+    parseInt(parts[2]) || 0,
+    parseInt(parts[3]) || 0
+  ]
+}
+
+const formatPageBorder = (borders) => {
+  return borders.join(':')
+}
+
 // Helper function to convert props to CSS style object
 const getStyleFromProps = (propsString) => {
   const parsed = parseProps(propsString)
@@ -184,6 +200,106 @@ function DraggableComponent({ type, componentData, isDragging, onDragStart, onDr
     >
       <IconComponent size={16} />
       <span style={{ fontSize: '0.9rem' }}>{componentData.label}</span>
+    </div>
+  )
+}
+
+function PageBorderControls({ borders, onChange }) {
+  const updateBorder = (index, value) => {
+    const newBorders = [...borders]
+    newBorders[index] = Math.max(0, Math.min(10, value))
+    onChange(newBorders)
+  }
+
+  const BorderControl = ({ label, index }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <label style={{ fontSize: '0.8rem', fontWeight: '500', color: 'hsl(var(--muted-foreground))' }}>{label}</label>
+      <div style={{ display: 'flex', gap: '0.25rem' }}>
+        <button
+          onClick={() => updateBorder(index, borders[index] - 1)}
+          disabled={borders[index] <= 0}
+          style={{
+            padding: '0.25rem 0.5rem',
+            fontSize: '0.8rem',
+            border: '1px solid hsl(var(--border))',
+            background: 'hsl(var(--background))',
+            color: 'hsl(var(--foreground))',
+            borderRadius: '4px',
+            cursor: borders[index] > 0 ? 'pointer' : 'not-allowed',
+            opacity: borders[index] > 0 ? 1 : 0.5
+          }}
+        >
+          −
+        </button>
+        <span style={{
+          padding: '0.25rem 0.5rem',
+          fontSize: '0.8rem',
+          minWidth: '2rem',
+          textAlign: 'center',
+          background: 'hsl(var(--muted))',
+          borderRadius: '4px'
+        }}>
+          {borders[index]}px
+        </span>
+        <button
+          onClick={() => updateBorder(index, borders[index] + 1)}
+          disabled={borders[index] >= 10}
+          style={{
+            padding: '0.25rem 0.5rem',
+            fontSize: '0.8rem',
+            border: '1px solid hsl(var(--border))',
+            background: 'hsl(var(--background))',
+            color: 'hsl(var(--foreground))',
+            borderRadius: '4px',
+            cursor: borders[index] < 10 ? 'pointer' : 'not-allowed',
+            opacity: borders[index] < 10 ? 1 : 0.5
+          }}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <h5 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', color: 'hsl(var(--foreground))' }}>Page Borders</h5>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+        <BorderControl label="Left" index={0} />
+        <BorderControl label="Right" index={1} />
+        <BorderControl label="Top" index={2} />
+        <BorderControl label="Bottom" index={3} />
+      </div>
+
+      {/* Quick Border Presets */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: '500', color: 'hsl(var(--muted-foreground))' }}>Quick Set</label>
+        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+          {[
+            { label: 'None', borders: [0, 0, 0, 0] },
+            { label: 'All', borders: [1, 1, 1, 1] },
+            { label: 'Box', borders: [1, 1, 1, 1] },
+            { label: 'Bottom', borders: [0, 0, 1, 0] }
+          ].map(({ label, borders: presetBorders }) => (
+            <button
+              key={label}
+              onClick={() => onChange(presetBorders)}
+              style={{
+                padding: '0.25rem 0.5rem',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '4px',
+                background: 'hsl(var(--muted))',
+                color: 'hsl(var(--muted-foreground))',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -1023,6 +1139,43 @@ export default function Editor() {
                     placeholder="Optional watermark text"
                     style={{ width: '100%', padding: '0.25rem' }}
                   />
+                </div>
+
+                {/* Page Border Controls */}
+                <div style={{ marginTop: '1rem' }}>
+                  <PageBorderControls
+                    borders={parsePageBorder(config.pageBorder)}
+                    onChange={(borders) => setConfig(prev => ({ ...prev, pageBorder: formatPageBorder(borders) }))}
+                  />
+                </div>
+
+                {/* Page Alignment Controls */}
+                <div style={{ marginTop: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Page Alignment</label>
+                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                    {[
+                      { value: 1, label: 'Portrait' },
+                      { value: 2, label: 'Landscape' }
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => setConfig(prev => ({ ...prev, pageAlignment: value }))}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '6px',
+                          background: config.pageAlignment === value ? 'hsl(var(--accent))' : 'hsl(var(--background))',
+                          color: config.pageAlignment === value ? 'hsl(var(--accent-foreground))' : 'hsl(var(--foreground))',
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.5rem' }}>
