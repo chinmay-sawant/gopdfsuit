@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react'
 import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download } from 'lucide-react'
 import { useTheme } from '../theme'
+import PdfPreview from '../components/PdfPreview'
 
 // Enhanced PDF template editor with improved drag-drop, template loading, and resize functionality
 // Features: JSON template parsing, visual component ordering, resize handles, props editor, PDF preview
@@ -260,7 +261,22 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            {element.text || 'Document Title'}
+            <input
+              type="text"
+              value={element.text || 'Document Title'}
+              onChange={(e) => onUpdate({ text: e.target.value })}
+              style={{
+                width: '100%',
+                border: 'none',
+                background: 'transparent',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                color: 'hsl(var(--foreground))',
+                outline: 'none',
+              }}
+              placeholder="Document Title"
+            />
           </div>
         )
       case 'table':
@@ -281,11 +297,41 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                           fontSize: '12px'
                         }}
                       >
-                        {cell.text || cell.chequebox !== undefined ? (
-                          cell.chequebox !== undefined ? (
-                            <input type="checkbox" checked={cell.chequebox} readOnly />
-                          ) : cell.text
-                        ) : `Cell ${rowIdx + 1},${colIdx + 1}`}
+                        {cell.chequebox !== undefined ? (
+                          <input 
+                            type="checkbox" 
+                            checked={cell.chequebox} 
+                            onChange={(e) => {
+                              const newRows = [...element.rows]
+                              newRows[rowIdx].row[colIdx] = { 
+                                ...newRows[rowIdx].row[colIdx], 
+                                chequebox: e.target.checked 
+                              }
+                              onUpdate({ rows: newRows })
+                            }}
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            value={cell.text || `Cell ${rowIdx + 1},${colIdx + 1}`}
+                            onChange={(e) => {
+                              const newRows = [...element.rows]
+                              newRows[rowIdx].row[colIdx] = { 
+                                ...newRows[rowIdx].row[colIdx], 
+                                text: e.target.value 
+                              }
+                              onUpdate({ rows: newRows })
+                            }}
+                            style={{
+                              width: '100%',
+                              border: 'none',
+                              background: 'transparent',
+                              fontSize: '12px',
+                              padding: '2px',
+                              color: 'hsl(var(--foreground))',
+                            }}
+                          />
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -308,7 +354,22 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            {element.text || 'Page footer text'}
+            <input
+              type="text"
+              value={element.text || 'Page footer text'}
+              onChange={(e) => onUpdate({ text: e.target.value })}
+              style={{
+                width: '100%',
+                border: 'none',
+                background: 'transparent',
+                fontSize: '12px',
+                fontStyle: 'italic',
+                textAlign: 'center',
+                color: 'hsl(var(--foreground))',
+                outline: 'none',
+              }}
+              placeholder="Page footer text"
+            />
           </div>
         )
       case 'spacer':
@@ -408,6 +469,7 @@ export default function Editor() {
   const [title, setTitle] = useState(null)
   const [tables, setTables] = useState([])
   const [footer, setFooter] = useState(null)
+  const [spacers, setSpacers] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [draggedType, setDraggedType] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -419,9 +481,10 @@ export default function Editor() {
     const elements = []
     if (title) elements.push({ ...title, id: 'title', type: 'title' })
     tables.forEach((table, idx) => elements.push({ ...table, id: `table-${idx}`, type: 'table' }))
+    spacers.forEach((spacer, idx) => elements.push({ ...spacer, id: `spacer-${idx}`, type: 'spacer' }))
     if (footer) elements.push({ ...footer, id: 'footer', type: 'footer' })
     return elements
-  }, [title, tables, footer])
+  }, [title, tables, spacers, footer])
 
   const selectedElement = allElements.find(el => el.id === selectedId) || null
   const currentPageSize = PAGE_SIZES[config.page] || PAGE_SIZES.A4
@@ -462,6 +525,13 @@ export default function Editor() {
         setTables(prev => [...prev, newTable])
         setSelectedId(`table-${tables.length}`)
         break
+      case 'spacer':
+        const newSpacer = {
+          height: 20
+        }
+        setSpacers(prev => [...prev, newSpacer])
+        setSelectedId(`spacer-${spacers.length}`)
+        break
       case 'footer':
         if (!footer) {
           setFooter({
@@ -482,6 +552,9 @@ export default function Editor() {
     } else if (id.startsWith('table-')) {
       const idx = parseInt(id.split('-')[1])
       setTables(prev => prev.map((table, i) => i === idx ? { ...table, ...updates } : table))
+    } else if (id.startsWith('spacer-')) {
+      const idx = parseInt(id.split('-')[1])
+      setSpacers(prev => prev.map((spacer, i) => i === idx ? { ...spacer, ...updates } : spacer))
     }
   }
 
@@ -493,6 +566,9 @@ export default function Editor() {
     } else if (id.startsWith('table-')) {
       const idx = parseInt(id.split('-')[1])
       setTables(prev => prev.filter((_, i) => i !== idx))
+    } else if (id.startsWith('spacer-')) {
+      const idx = parseInt(id.split('-')[1])
+      setSpacers(prev => prev.filter((_, i) => i !== idx))
     }
     setSelectedId(null)
   }
@@ -566,10 +642,10 @@ export default function Editor() {
         setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
         setTitle(data.title || null)
         setTables(data.table || [])
+        setSpacers(data.spacer || [])
         setFooter(data.footer || null)
         setSelectedId(null)
         
-        alert('Template loaded successfully!')
       } else {
         alert('Failed to load template')
       }
@@ -641,15 +717,16 @@ export default function Editor() {
     const output = { config }
     if (title) output.title = title
     if (tables.length > 0) output.table = tables
+    if (spacers.length > 0) output.spacer = spacers
     if (footer) output.footer = footer
     return output
   }
 
-  const jsonOutput = useMemo(() => getJsonOutput(), [config, title, tables, footer])
+  const jsonOutput = useMemo(() => getJsonOutput(), [config, title, tables, spacers, footer])
 
   return (
     <div style={{ padding: '1rem 0', minHeight: '100vh' }}>
-      <div className="container">
+      <div className="container-full">
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
           <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>
@@ -751,9 +828,9 @@ export default function Editor() {
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   style={{
-                    width: Math.min(currentPageSize.width * 0.7, 500),
-                    minHeight: Math.min(currentPageSize.height * 0.7, 700),
-                    background: isDragOver 
+                    width: '100%',
+                    height: '100%',
+                    background: isDragOver
                       ? 'repeating-linear-gradient(45deg, hsl(var(--secondary-color)) 0px, hsl(var(--secondary-color)) 2px, transparent 2px, transparent 20px)'
                       : 'hsl(var(--card))',
                     border: isDragOver ? '3px dashed var(--secondary-color)' : '2px solid hsl(var(--border))',
@@ -817,15 +894,11 @@ export default function Editor() {
 
             {/* PDF Preview */}
             {pdfUrl && (
-              <div className="card" style={{ padding: '1rem' }}>
-                <h4 style={{ marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Eye size={16} /> PDF Preview
-                </h4>
-                <iframe
-                  src={pdfUrl}
-                  style={{ width: '100%', height: '400px', border: '1px solid hsl(var(--border))', borderRadius: '4px' }}
-                />
-              </div>
+              <PdfPreview 
+                pdfUrl={pdfUrl} 
+                title="Template Preview"
+                onClose={() => setPdfUrl(null)}
+              />
             )}
           </div>
 
@@ -953,6 +1026,22 @@ export default function Editor() {
                         <PropsEditor 
                           props={selectedElement.font} 
                           onChange={(font) => updateElement(selectedElement.id, { font })}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {selectedElement.type === 'spacer' && (
+                    <>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Height (px):</label>
+                        <input
+                          type="number"
+                          value={selectedElement.height || 20}
+                          onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 20 })}
+                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                          min="1"
+                          max="200"
                         />
                       </div>
                     </>

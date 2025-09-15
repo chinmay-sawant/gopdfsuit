@@ -92,6 +92,13 @@ body {
   padding: 0 1rem;
 }
 
+/* Full width container for editor and viewer pages */
+.container-full {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -124,6 +131,16 @@ body {
   background: hsl(var(--primary)) brightness(0.9);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  color: hsl(var(--primary-foreground));
+}
+
+/* Ensure proper contrast for btn-primary text in both themes */
+:root .btn-primary {
+  color: white; /* White text on dark primary background in light mode */
+}
+
+.dark .btn-primary {
+  color: black; /* Black text on light primary background in dark mode */
 }
 
 .btn-secondary {
@@ -251,6 +268,15 @@ code {
   font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Consolas', monospace;
   font-size: 0.875rem;
   border: 1px solid hsl(var(--border));
+}
+
+/* Darker background for code in light mode */
+:root code {
+  background: hsl(220 14% 96%); /* Light gray background for better contrast */
+}
+
+.dark code {
+  background: hsl(var(--muted)); /* Use default dark theme muted color */
 }
 
 pre {

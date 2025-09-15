@@ -80,9 +80,7 @@ const Home = () => {
             <h1 style={{ 
               fontSize: '3.5rem',
               fontWeight: '800',
-              background: 'linear-gradient(135deg, hsl(var(--foreground)) 0%, #4ecdc4 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              color: 'hsl(var(--foreground))',
               marginBottom: 0,
             }}>
               GoPdfSuit
@@ -132,7 +130,7 @@ const Home = () => {
                   {React.cloneElement(highlight.icon, { size: 24 })}
                 </div>
                 <h3 style={{ marginBottom: '0.5rem', fontSize: '1.2rem' }}>{highlight.title}</h3>
-                <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: 0, fontSize: '0.9rem' }}>
+                <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: 0, fontSize: '0.9rem' }}>
                   {highlight.desc}
                 </p>
               </div>
@@ -144,7 +142,7 @@ const Home = () => {
       {/* Features Section */}
       <section style={{ padding: '4rem 0' }}>
         <div className="container">
-          <h2 className="text-center mb-8" style={{ color: 'white' }}>✨ Features</h2>
+          <h2 className="text-center mb-8" style={{ color: 'hsl(var(--foreground))' }}>✨ Features</h2>
           
           <div className="grid grid-2">
             {features.map((feature, index) => (

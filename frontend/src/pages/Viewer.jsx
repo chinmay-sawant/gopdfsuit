@@ -79,7 +79,7 @@ const Viewer = () => {
 
   return (
     <div style={{ padding: '2rem 0', minHeight: '100vh' }}>
-      <div className="container">
+      <div className="container-full">
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <h1 style={{ 
             display: 'flex', 
@@ -352,13 +352,12 @@ const Viewer = () => {
                 textAlign: 'center',
               }}>
                 <div>
-                  <FileText size={64} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-                  <h4 style={{ marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>No PDF Preview</h4>
-                  <p style={{ marginBottom: 0 }}>
-                    Load a JSON template and click "Generate PDF" to see the preview here
+                  <FileText size={48} style={{ marginBottom: '1rem', opacity: 0.3 }} />
+                  <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>
+                    Load a JSON template to start generating PDFs
                   </p>
-                  <p style={{ fontSize: '0.85rem', opacity: 0.8, marginTop: '0.5rem' }}>
-                    The PDF will be displayed first, then automatically downloaded
+                  <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>
+                    Enter template data above and click "Generate PDF" to see the preview
                   </p>
                 </div>
               </div>

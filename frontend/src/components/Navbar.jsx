@@ -68,11 +68,13 @@ const Navbar = () => {
                 onMouseEnter={(e) => {
                   if (location.pathname !== path) {
                     e.currentTarget.style.background = 'hsl(var(--accent))'
+                    e.currentTarget.style.color = 'hsl(var(--accent-foreground))'
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (location.pathname !== path) {
                     e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.color = 'hsl(var(--muted-foreground))'
                   }
                 }}
               >
@@ -92,6 +94,15 @@ const Navbar = () => {
                 borderRadius: '8px',
                 cursor: 'pointer',
                 color: 'hsl(var(--foreground))',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'hsl(var(--accent))'
+                e.currentTarget.style.color = 'hsl(var(--accent-foreground))'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'hsl(var(--foreground))'
               }}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -161,7 +172,16 @@ const Navbar = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '0.5rem'
+                gap: '0.5rem',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'hsl(var(--accent))'
+                e.currentTarget.style.color = 'hsl(var(--accent-foreground))'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'hsl(var(--foreground))'
               }}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
