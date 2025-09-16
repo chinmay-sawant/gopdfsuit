@@ -46,6 +46,12 @@ cd gopdfsuit
 ### 3️⃣ Install Dependencies
 ```bash
 go mod download
+
+# Build frontend (React/Vite)
+cd frontend
+npm install
+npm run build
+cd ..
 ```
 
 ### 4️⃣ Run the Server
@@ -728,7 +734,6 @@ with open("website.pdf", "wb") as f:
 ```
 
 ## 🆚 Feature Comparison
-
 | Feature | GoPdfSuit | UniPDF | Aspose.PDF | iText |
 |---------|-----------|---------|------------|-------|
 | **💰 Pricing** | **Free (MIT License)** | $3,990/dev/year | $1,999/dev/year | $3,800/dev/year |
@@ -746,6 +751,7 @@ with open("website.pdf", "wb") as f:
 | **☑️ Interactive Elements** | **Checkboxes** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
 | **📏 Page Formats** | **A3, A4, A5, Letter, Legal** | ✅ All Formats | ✅ All Formats | ✅ All Formats |
 | **🔒 Security** | **Basic Validation** | ✅ Advanced | ✅ Enterprise | ✅ Enterprise |
+| **🐳 Docker Support** | **✅ Built-in (Multi-stage, Alpine-based)** | ❌ Not Applicable (Library) | ❌ Not Applicable (Library) | ❌ Not Applicable (Library) |
 | **🛠️ Maintenance** | **Single Binary** | Library Updates | Library Updates | Library Updates |
 
 ### 🏃‍♂️ Performance Benchmarks
@@ -770,7 +776,7 @@ with open("website.pdf", "wb") as f:
 ## ✨ Features
 
 - 🎯 **Template-based**: JSON-driven PDF generation
-- 🖥️ **Web Interface**: Interactive HTML viewer with real-time preview
+- ⚛️ **Modern Web Interface**: React-based SPA with real-time preview
 - 🔗 **PDF Merge**: Combine multiple PDFs with drag-and-drop interface
 - 🖊️ **Form Filling**: AcroForm/XFDF support for filling PDF forms
 - 🌐 **HTML to PDF**: Convert HTML content or web pages to PDF with gochromedp
@@ -788,8 +794,9 @@ with open("website.pdf", "wb") as f:
 - ⚡ **Fast**: In-memory PDF generation with height tracking
 - 📦 **Self-contained**: Single binary deployment
 - 🌐 **Cross-platform**: Runs on Windows, Linux, macOS
-- 📱 **Responsive**: Mobile-friendly web interface
+- 📱 **Responsive**: Mobile-friendly React interface with modern design
 - 🔒 **Secure**: Path traversal protection and input validation
+- 🚀 **Fast**: Vite-powered frontend with optimized builds
 
 ## 🏗️ Project Structure
 
@@ -797,39 +804,25 @@ with open("website.pdf", "wb") as f:
 GoPdfSuit/
 ├── 📁 cmd/
 │   └── 📁 gopdfsuit/           # 🎯 Application entrypoint
-│       ├── main.go
-│       ├── tmp/
-│       │   ├── build-errors.log
-│       │   └── main.exe
-├── 📁 docs/                    # 📚 Documentation website
-│   ├── index.html              # 🏠 Main documentation page
-│   ├── styles.css              # 🎨 Documentation styles
-│   ├── 📁 css/                 # 🎨 Documentation CSS components
-│   │   ├── animations.css
-│   │   ├── api.css
-│   │   ├── backgrounds.css
-│   │   ├── base.css
-│   │   ├── components.css
-│   │   ├── examples.css
-│   │   ├── features.css
-│   │   ├── footer.css
-│   │   ├── hero.css
-│   │   ├── navigation.css
-│   │   ├── quickstart.css
-│   │   ├── responsive.css
-│   │   ├── screenshots.css
-│   │   └── variables.css
-│   ├── 📁 includes/            # 📄 Documentation includes
-│   │   ├── api.html
-│   │   └── examples.html
-│   └── 📁 js/                  # ⚡ Documentation JavaScript
-│       ├── include.js
-│       └── script.js
-│   └── 📁 screenshots/         # 📸 Feature screenshots
-│       ├── editor.png
-│       ├── filler.png
-│       ├── merge.png
-│       └── viewer.png
+│       └── main.go
+├── 📁 frontend/                # ⚛️ React frontend (Vite)
+│   ├── src/
+│   │   ├── 📁 components/      # 🧩 React components
+│   │   │   └── Navbar.jsx      # 🧭 Navigation component
+│   │   ├── 📁 pages/           # 📄 Page components
+│   │   │   ├── Home.jsx        # � Homepage with README content
+│   │   │   ├── Viewer.jsx      # 👁️ PDF viewer and template processor
+│   │   │   ├── Editor.jsx      # ✏️ PDF template editor
+│   │   │   ├── Merge.jsx       # 🔗 PDF merge tool
+│   │   │   ├── Filler.jsx      # 📝 PDF form filler
+│   │   │   ├── HtmlToPdf.jsx   # 🌐 HTML to PDF converter
+│   │   │   └── HtmlToImage.jsx # 🖼️ HTML to Image converter
+│   │   ├── App.jsx             # ⚛️ Main app component with routing
+│   │   ├── main.jsx            # 🎯 React entry point
+│   │   └── index.css           # 🎨 Global styles
+│   ├── package.json            # � Frontend dependencies
+│   ├── vite.config.js          # ⚙️ Vite configuration
+│   └── index.html              # 📄 HTML template
 ├── 📁 internal/
 │   ├── 📁 handlers/            # 🔗 HTTP handlers and route registration
 │   │   └── handlers.go
@@ -845,57 +838,15 @@ GoPdfSuit/
 │       ├── utils.go            # 🛠️ Helper utilities
 │       ├── xfdf.go             # 🖊️ XFDF form filling
 │       └── xfdf_example_test.go # 🧪 XFDF tests
-├── 📁 web/                     # 🌐 Web interface assets
-│   ├── 📁 static/
-│   │   ├── 📁 css/             # 🎨 Web interface styles
-│   │   │   ├── reset.css       # 🔄 CSS reset
-│   │   │   ├── theme.css       # 🎨 Theme variables
-│   │   │   ├── base.css        # 📐 Base styles
-│   │   │   ├── components.css  # 🧩 UI components
-│   │   │   ├── buttons.css     # 🔘 Button styles
-│   │   │   ├── tables.css      # � Table styles
-│   │   │   ├── modals.css      # 📱 Modal styles
-│   │   │   ├── canvas.css      # 🎨 Canvas styles
-│   │   │   ├── draggable.css   # 🖱️ Drag-and-drop styles
-│   │   │   ├── editor.css      # ✏️ Editor interface styles
-│   │   │   ├── editor-grid.css # 📐 Editor grid system
-│   │   │   ├── properties.css  # ⚙️ Property panel styles
-│   │   │   ├── json-output.css # 📄 JSON output styles
-│   │   │   ├── viewer.css      # 👁️ PDF viewer styles
-│   │   │   ├── merge.css       # 🔗 PDF merge styles
-│   │   │   ├── htmltopdf.css # 🌐 HTML to PDF converter styles
-│   │   │   ├── htmltoimage.css # 🖼️ HTML to Image converter styles
-│   │   │   ├── header.css      # 📋 Header styles
-│   │   │   ├── footer.css      # 📄 Footer styles
-│   │   │   ├── control-panel.css # 🎛️ Control panel styles
-│   │   │   ├── merge.css       # 🔗 PDF merge styles
-│   │   │   └── responsive.css  # 📱 Responsive design
-│   │   └── 📁 js/              # ⚡ Web interface JavaScript
-│   │       ├── viewer.js       # 👁️ PDF viewer functionality
-│   │       ├── editor.core.js  # ⚙️ Editor core functionality
-│   │       ├── editor.elements.js # 🧩 Editor elements
-│   │       ├── editor.js       # ✏️ Main editor functionality
-│   │       ├── editor.loader.js # 📥 Editor template loader
-│   │       ├── editor.model.js # 📊 Editor data model
-│   │       ├── editor.setup.js # ⚙️ Editor setup
-│   │       ├── editor.table.js # 📊 Table editor
-│   │       ├── editor.ui.js    # 🎨 Editor UI components
-│   │       ├── htmltopdf.js  # 🌐 HTML to PDF converter JS
-│   │       └── htmltoimage.js # 🖼️ HTML to Image converter JS
-│   └── 📁 templates/            # 📄 HTML templates
-│       ├── pdf_viewer.html     # 👁️ PDF viewer template
-│       ├── pdf_editor.html     # ✏️ PDF editor template
-│       ├── pdf_merge.html      # 🔗 PDF merge template
-│       ├── pdf_filler.html     # 📝 PDF filler template
-│       ├── htmltopdf.html    # 🌐 HTML to PDF converter template
-│       └── htmltoimage.html  # 🖼️ HTML to Image converter template
+├── 📁 docs/
+│   └── 📁 assets/                # 🏗️ Built frontend assets (generated by Vite)
 ├── 📁 sampledata/              # 📋 Sample data and templates
 │   ├── 📁 encounter_1.7/       # 🏥 Healthcare encounter samples
 │   │   ├── us_encounter_form_data.xfdf
 │   │   └── us_encounter_form.pdf
 │   ├── 📁 json/                # 📄 JSON template samples
 │   │   ├── temp_bold+italic+underline.json
-│   │   ├── temp_mutliplepage.json
+│   │   ├── temp_multiplepage.json
 │   │   ├── temp_og.json
 │   │   └── temp.json
 │   ├── 📁 patient2/            # 👤 Patient data samples

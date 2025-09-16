@@ -26,7 +26,8 @@ clean:
 	rm -rf bin/
 
 run:
-	go run .
+	cd frontend && npm run build && cd ..
+	go run cmd/gopdfsuit/main.go
 
 fmt:
 	go fmt ./...
