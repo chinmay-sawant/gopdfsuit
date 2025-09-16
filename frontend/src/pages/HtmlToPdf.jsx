@@ -405,7 +405,7 @@ const HtmlToPdf = () => {
             <button 
               onClick={convertToPdf}
               disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())}
-              className="btn btn-primary"
+              className="btn"
               style={{ 
                 width: '100%',
                 display: 'flex',
@@ -440,7 +440,7 @@ const HtmlToPdf = () => {
                     link.download = `html-to-pdf-${Date.now()}.pdf`
                     link.click()
                   }}
-                  className="btn btn-primary"
+                  className="btn"
                   style={{ 
                     width: '100%', 
                     marginTop: '1rem',

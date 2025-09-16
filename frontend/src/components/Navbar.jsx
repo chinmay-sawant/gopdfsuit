@@ -36,13 +36,15 @@ const Navbar = () => {
               gap: '0.5rem',
               color: 'hsl(var(--foreground))',
               textDecoration: 'none',
-              fontSize: '1.5rem',
+              fontSize: '2rem',
               fontWeight: '700',
+              lineHeight: '1',
+              marginRight: '2rem',
             }}
           >
-            📄 GoPdfSuit
+            <span style={{ verticalAlign: 'middle' }}>📄</span> GoPdfSuit
           </Link>
-
+            
           {/* Desktop Menu */}
           <div style={{
             display: 'flex',

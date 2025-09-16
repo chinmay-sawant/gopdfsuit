@@ -329,7 +329,7 @@ const Viewer = () => {
                       link.click()
                       document.body.removeChild(link)
                     }}
-                    className="btn btn-primary"
+                    className="btn"
                     style={{ 
                       padding: '0.5rem 1rem',
                       fontSize: '0.9rem',

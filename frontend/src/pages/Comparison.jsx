@@ -644,7 +644,7 @@ const Comparison = () => {
             }}>
               <Link 
                 to="/"
-                className="btn btn-primary"
+                className="btn"
                 style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
               >
                 Try Demo
