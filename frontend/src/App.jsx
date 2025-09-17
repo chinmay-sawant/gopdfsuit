@@ -13,7 +13,7 @@ import Comparison from './pages/Comparison'
 
 function App() {
   return (
-    <Router>
+    <Router basename="/gopdfsuit">
       <div className="App">
         <Navbar />
         <Routes>
