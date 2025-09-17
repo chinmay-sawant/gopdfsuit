@@ -29,7 +29,7 @@ const Navbar = () => {
           alignItems: 'center',
         }}>
           <Link 
-            to="/" 
+            to="/gopdfsuit" 
             style={{
               display: 'flex',
               alignItems: 'center',
