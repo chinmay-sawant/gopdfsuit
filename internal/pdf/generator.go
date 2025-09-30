@@ -27,7 +27,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
 	imageObjectIDs := make(map[int]int)        // map imageIndex to PDF object ID
 
+	// Process cell images - map tableIdx:rowIdx:colIdx to XObject ID
+	cellImageObjects := make(map[string]*ImageObject)
+	cellImageObjectIDs := make(map[string]int)
+
 	nextImageObjectID := 1000 // Start image objects at ID 1000
+
+	// Process standalone images
 	for i, img := range template.Image {
 		if img.ImageData != "" {
 			imgObj, err := DecodeImageData(img.ImageData)
@@ -36,6 +42,24 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 				imageObjects[i] = imgObj
 				imageObjectIDs[i] = nextImageObjectID
 				nextImageObjectID++
+			}
+		}
+	}
+
+	// Process cell images in tables
+	for tableIdx, table := range template.Table {
+		for rowIdx, row := range table.Rows {
+			for colIdx, cell := range row.Row {
+				if cell.Image != nil && cell.Image.ImageData != "" {
+					imgObj, err := DecodeImageData(cell.Image.ImageData)
+					if err == nil {
+						imgObj.ObjectID = nextImageObjectID
+						cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
+						cellImageObjects[cellKey] = imgObj
+						cellImageObjectIDs[cellKey] = nextImageObjectID
+						nextImageObjectID++
+					}
+				}
 			}
 		}
 	}
@@ -49,8 +73,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
 
 	// Generate all content first to know how many pages we need
-	// Pass imageObjectIDs so content generation can reference them
-	generateAllContentWithImages(template, pageManager, imageObjectIDs)
+	// Pass imageObjectIDs and cellImageObjectIDs so content generation can reference them
+	generateAllContentWithImages(template, pageManager, imageObjectIDs, cellImageObjectIDs)
 
 	// Object 2: Pages (will be updated after we know total page count)
 	xrefOffsets[2] = pdfBuffer.Len()
@@ -64,12 +88,18 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	contentObjectStart := totalPages + 3               // Content objects start after pages
 	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
 
-	// Build XObject references for page resources
+	// Build XObject references for page resources (standalone images + cell images)
 	xobjectRefs := ""
-	if len(imageObjects) > 0 {
+	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
 		xobjectRefs = " /XObject <<"
+		// Add standalone images
 		for i, objID := range imageObjectIDs {
 			xobjectRefs += fmt.Sprintf(" /Im%d %d 0 R", i, objID)
+		}
+		// Add cell images
+		for cellKey, objID := range cellImageObjectIDs {
+			// Use cellKey as unique identifier (e.g., CellImg_0_1_2)
+			xobjectRefs += fmt.Sprintf(" /CellImg_%s %d 0 R", cellKey, objID)
 		}
 		xobjectRefs += " >>"
 	}
@@ -110,18 +140,29 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString("endobj\n")
 	}
 
-	// Generate image XObjects
+	// Generate image XObjects (standalone images)
 	for _, imgObj := range imageObjects {
+		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+	}
+
+	// Generate image XObjects (cell images)
+	for _, imgObj := range cellImageObjects {
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
 		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
 	}
 
 	// Cross-reference table
 	totalObjects := fontObjectStart + 4
-	if len(imageObjects) > 0 {
-		// Find max image object ID
+	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
+		// Find max image object ID (both standalone and cell images)
 		maxImgID := 0
 		for _, objID := range imageObjectIDs {
+			if objID > maxImgID {
+				maxImgID = objID
+			}
+		}
+		for _, objID := range cellImageObjectIDs {
 			if objID > maxImgID {
 				maxImgID = objID
 			}
@@ -155,7 +196,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 }
 
 // generateAllContentWithImages processes the template and generates content with image support
-func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjectIDs map[int]int) {
+func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int) {
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
@@ -171,8 +212,8 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 	drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager)
 
 	// Tables - Process each table with automatic page breaks
-	for _, table := range template.Table {
-		drawTable(table, pageManager, template.Config.PageBorder, template.Config.Watermark)
+	for tableIdx, table := range template.Table {
+		drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 	}
 
 	// Images - Process each image with automatic page breaks

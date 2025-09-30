@@ -708,7 +708,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                           style={tdStyle}
                           onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
                           onDragOver={(e) => {
-                            if (draggedType === 'checkbox') {
+                            if (draggedType === 'checkbox' || draggedType === 'image') {
                               e.preventDefault()
                               e.stopPropagation()
                             }
@@ -717,11 +717,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                             e.preventDefault()
                             e.stopPropagation()
                             const draggedData = e.dataTransfer.getData('text/plain')
-                            if (draggedData === 'checkbox') {
+                            if (draggedData === 'checkbox' || draggedData === 'image') {
                             handleCellDrop(element, onUpdate, rowIdx, colIdx, draggedData)
                             }
                           }}
-                          className={draggedType === 'checkbox' ? 'drop-target' : ''}
+                          className={(draggedType === 'checkbox' || draggedType === 'image') ? 'drop-target' : ''}
                         >
                           {cell.chequebox !== undefined ? (
                             <input 
@@ -743,6 +743,32 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                               }}
                               style={inputStyle}
                             />
+                          ) : cell.image !== undefined ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px' }}>
+                              {cell.image.imagedata ? (
+                                <img 
+                                  src={cell.image.imagedata.startsWith('data:') ? cell.image.imagedata : `data:image/png;base64,${cell.image.imagedata}`}
+                                  alt={cell.image.imagename || 'Cell Image'}
+                                  style={{ 
+                                    maxWidth: '100%', 
+                                    maxHeight: cell.image.height || 80,
+                                    objectFit: 'contain'
+                                  }}
+                                />
+                              ) : (
+                                <div style={{ 
+                                  display: 'flex', 
+                                  flexDirection: 'column', 
+                                  alignItems: 'center',
+                                  padding: '8px',
+                                  fontSize: '10px',
+                                  color: 'hsl(var(--muted-foreground))'
+                                }}>
+                                  <ImageIcon size={16} />
+                                  <span>No image</span>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <input
                               type="text"
@@ -1173,15 +1199,33 @@ export default function Editor() {
   }
 
   const handleCellDrop = (element, onUpdate, rowIdx, colIdx, draggedType) => {
-    if (draggedType !== 'checkbox') return
+    if (draggedType !== 'checkbox' && draggedType !== 'image') return
 
-    // Update the table cell to contain a checkbox
     const newRows = [...element.rows]
-    newRows[rowIdx].row[colIdx] = {
-      ...newRows[rowIdx].row[colIdx],
-      chequebox: false, // Start unchecked
-      text: undefined // Remove any existing text
+    
+    if (draggedType === 'checkbox') {
+      // Update the table cell to contain a checkbox
+      newRows[rowIdx].row[colIdx] = {
+        ...newRows[rowIdx].row[colIdx],
+        chequebox: false, // Start unchecked
+        text: undefined, // Remove any existing text
+        image: undefined // Remove any existing image
+      }
+    } else if (draggedType === 'image') {
+      // Update the table cell to contain an image placeholder
+      newRows[rowIdx].row[colIdx] = {
+        ...newRows[rowIdx].row[colIdx],
+        image: {
+          imagename: '',
+          imagedata: '',
+          width: 100,
+          height: 100
+        },
+        text: undefined, // Remove any existing text
+        chequebox: undefined // Remove any existing checkbox
+      }
     }
+    
     onUpdate({ rows: newRows })
   }
 
@@ -1712,36 +1756,159 @@ export default function Editor() {
                             <div style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.5rem' }}>
                               Cell Properties (Row {selectedCell.rowIdx + 1}, Column {selectedCell.colIdx + 1})
                             </div>
-                            <div style={{ marginBottom: '0.5rem' }}>
-                              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
-                              <input
-                                type="text"
-                                value={selectedCellElement.text || ''}
-                                onChange={(e) => {
-                                  const newRows = [...selectedElement.rows]
-                                  newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                    ...selectedCellElement, 
-                                    text: e.target.value 
-                                  }
-                                  updateElement(selectedElement.id, { rows: newRows })
-                                }}
-                                style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                              />
-                            </div>
-                            <div>
-                              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
-                              <PropsEditor 
-                                props={selectedCellElement.props} 
-                                onChange={(props) => {
-                                  const newRows = [...selectedElement.rows]
-                                  newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                    ...selectedCellElement, 
-                                    props 
-                                  }
-                                  updateElement(selectedElement.id, { rows: newRows })
-                                }}
-                              />
-                            </div>
+                            
+                            {selectedCellElement.image !== undefined ? (
+                              <>
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image:</label>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      const file = e.target.files[0]
+                                      if (file) {
+                                        const reader = new FileReader()
+                                        reader.onload = (event) => {
+                                          const newRows = [...selectedElement.rows]
+                                          newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                            ...selectedCellElement,
+                                            image: {
+                                              ...selectedCellElement.image,
+                                              imagename: file.name,
+                                              imagedata: event.target.result
+                                            }
+                                          }
+                                          updateElement(selectedElement.id, { rows: newRows })
+                                        }
+                                        reader.readAsDataURL(file)
+                                      }
+                                    }}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                  />
+                                </div>
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image Name:</label>
+                                  <input
+                                    type="text"
+                                    value={selectedCellElement.image?.imagename || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                        ...selectedCellElement,
+                                        image: {
+                                          ...selectedCellElement.image,
+                                          imagename: e.target.value
+                                        }
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                  />
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Width:</label>
+                                    <input
+                                      type="number"
+                                      value={selectedCellElement.image?.width || 100}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          image: {
+                                            ...selectedCellElement.image,
+                                            width: parseFloat(e.target.value) || 100
+                                          }
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Height:</label>
+                                    <input
+                                      type="number"
+                                      value={selectedCellElement.image?.height || 100}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          image: {
+                                            ...selectedCellElement.image,
+                                            height: parseFloat(e.target.value) || 100
+                                          }
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                    />
+                                  </div>
+                                </div>
+                                {selectedCellElement.image?.imagedata && (
+                                  <div style={{
+                                    padding: '0.5rem',
+                                    borderRadius: '4px',
+                                    background: 'hsl(var(--muted))',
+                                    fontSize: '0.85rem',
+                                    color: 'hsl(var(--muted-foreground))'
+                                  }}>
+                                    Image loaded: {selectedCellElement.image.imagename || 'Unnamed'}
+                                  </div>
+                                )}
+                              </>
+                            ) : selectedCellElement.chequebox !== undefined ? (
+                              <div style={{ marginBottom: '0.5rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedCellElement.chequebox}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                        ...selectedCellElement, 
+                                        chequebox: e.target.checked 
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                  />
+                                  Checked
+                                </label>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
+                                  <input
+                                    type="text"
+                                    value={selectedCellElement.text || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                        ...selectedCellElement, 
+                                        text: e.target.value 
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
+                                  <PropsEditor 
+                                    props={selectedCellElement.props} 
+                                    onChange={(props) => {
+                                      const newRows = [...selectedElement.rows]
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                        ...selectedCellElement, 
+                                        props 
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                  />
+                                </div>
+                              </>
+                            )}
                           </div>
                         </>
                       )}

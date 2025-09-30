@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"image"
-	"image/jpeg"
-	_ "image/png" // Register PNG decoder
+	_ "image/jpeg" // Register JPEG decoder
+	_ "image/png"  // Register PNG decoder
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
@@ -58,30 +58,39 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	}
 
 	// Convert image to raw RGB data for PDF
-	var buf bytes.Buffer
-
 	switch format {
 	case "png":
-		// For PNG, convert to uncompressed RGB
-		// Note: We're not using /FlateDecode because we need to implement actual zlib compression
-		// Uncompressed RGB is simpler and works reliably
-		imgObj.Filter = "" // No filter = uncompressed
-		imgObj.ImageData, err = convertToRGB(img)
-		if err != nil {
-			return nil, err
+		// For PNG, convert to RGB with proper alpha handling
+		// Check if image has transparency
+		hasAlpha := false
+		switch img.(type) {
+		case *image.NRGBA, *image.RGBA, *image.RGBA64, *image.NRGBA64:
+			hasAlpha = true
+		}
+
+		if hasAlpha {
+			// For images with transparency, convert to RGBA with white background
+			imgObj.Filter = "" // No filter = uncompressed
+			imgObj.ImageData, err = convertToRGBWithAlpha(img)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// For opaque images, convert to RGB
+			imgObj.Filter = "" // No filter = uncompressed
+			imgObj.ImageData, err = convertToRGB(img)
+			if err != nil {
+				return nil, err
+			}
 		}
 		imgObj.ImageDataLen = len(imgObj.ImageData)
 
 	case "jpeg", "jpg":
-		// For JPEG, we can use DCTDecode (JPEG compression)
+		// For JPEG, use original bytes directly to preserve quality
+		// No re-encoding needed - this prevents quality loss and distortion
 		imgObj.Filter = "/DCTDecode"
-		// Re-encode as JPEG
-		err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: 85})
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode JPEG: %v", err)
-		}
-		imgObj.ImageData = buf.Bytes()
-		imgObj.ImageDataLen = len(imgObj.ImageData)
+		imgObj.ImageData = imageBytes // Use original JPEG data
+		imgObj.ImageDataLen = len(imageBytes)
 
 	default:
 		// For other formats, convert to uncompressed RGB
@@ -105,6 +114,7 @@ func convertToRGB(img image.Image) ([]byte, error) {
 	// Create RGB buffer
 	rgbData := make([]byte, width*height*3)
 
+	// Read image top-to-bottom (normal order)
 	idx := 0
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
@@ -117,7 +127,40 @@ func convertToRGB(img image.Image) ([]byte, error) {
 		}
 	}
 
-	// Compress the data using flate (zlib) - can be added later for optimization
+	return rgbData, nil
+}
+
+// convertToRGBWithAlpha converts an image with alpha channel to RGB
+// Blends transparent pixels with white background
+func convertToRGBWithAlpha(img image.Image) ([]byte, error) {
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	// Create RGB buffer
+	rgbData := make([]byte, width*height*3)
+
+	// Read image top-to-bottom (normal order)
+	idx := 0
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, g, b, a := img.At(x, y).RGBA()
+
+			// Convert from 16-bit to 8-bit
+			r8 := byte(r >> 8)
+			g8 := byte(g >> 8)
+			b8 := byte(b >> 8)
+			a8 := float64(a) / 65535.0
+
+			// Blend with white background (255, 255, 255)
+			// Formula: result = foreground * alpha + background * (1 - alpha)
+			rgbData[idx] = byte(float64(r8)*a8 + 255*(1-a8))
+			rgbData[idx+1] = byte(float64(g8)*a8 + 255*(1-a8))
+			rgbData[idx+2] = byte(float64(b8)*a8 + 255*(1-a8))
+			idx += 3
+		}
+	}
+
 	return rgbData, nil
 }
 

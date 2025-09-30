@@ -4,6 +4,7 @@
 *.tsx linguist-vendored
 *.css linguist-vendored
 *.html linguist-vendored
+*.json linguist-vendored
 
 /docs/ linguist-vendored
 /docs/ linguist-vendored

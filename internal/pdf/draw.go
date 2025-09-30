@@ -102,11 +102,11 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 }
 
 // drawTable renders a table with automatic page breaks
-func drawTable(table models.Table, pageManager *PageManager, borderConfig, watermark string) {
+func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
 	cellWidth := (pageManager.PageDimensions.Width - 2*margin) / float64(table.MaxColumns)
 	rowHeight := float64(25) // Standard row height
 
-	for _, row := range table.Rows {
+	for rowIdx, row := range table.Rows {
 		// Check if row fits on current page
 		if pageManager.CheckPageBreak(rowHeight) {
 			// Create new page and initialize it
@@ -118,13 +118,13 @@ func drawTable(table models.Table, pageManager *PageManager, borderConfig, water
 		contentStream := pageManager.GetCurrentContentStream()
 
 		// Draw row cells
-		for colIndex, cell := range row.Row {
-			if colIndex >= table.MaxColumns {
+		for colIdx, cell := range row.Row {
+			if colIdx >= table.MaxColumns {
 				break
 			}
 
 			cellProps := parseProps(cell.Props)
-			cellX := float64(margin) + float64(colIndex)*cellWidth
+			cellX := float64(margin) + float64(colIdx)*cellWidth
 
 			// Draw cell borders
 			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
@@ -148,8 +148,66 @@ func drawTable(table models.Table, pageManager *PageManager, borderConfig, water
 				contentStream.WriteString("Q\n")
 			}
 
-			// Draw text or checkbox
-			if cell.Checkbox != nil {
+			// Draw text, checkbox, or image
+			if cell.Image != nil {
+				// Check if we have an XObject for this cell image
+				cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
+				if _, exists := cellImageObjectIDs[cellKey]; exists && cell.Image.ImageData != "" {
+					// Render actual image using XObject
+					imgWidth := cell.Image.Width
+					imgHeight := cell.Image.Height
+					if imgWidth > cellWidth-10 {
+						imgWidth = cellWidth - 10
+					}
+					if imgHeight > rowHeight-10 {
+						imgHeight = rowHeight - 10
+					}
+
+					imgX := cellX + (cellWidth-imgWidth)/2
+					imgY := pageManager.CurrentYPos - (rowHeight+imgHeight)/2
+
+					// Draw actual image using XObject
+					contentStream.WriteString("q\n")
+					contentStream.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n",
+						imgWidth, imgHeight, imgX, imgY))
+					contentStream.WriteString(fmt.Sprintf("/CellImg_%s Do\n", cellKey))
+					contentStream.WriteString("Q\n")
+				} else {
+					// Fall back to placeholder if no XObject
+					imgWidth := cell.Image.Width
+					imgHeight := cell.Image.Height
+					if imgWidth > cellWidth-10 {
+						imgWidth = cellWidth - 10
+					}
+					if imgHeight > rowHeight-10 {
+						imgHeight = rowHeight - 10
+					}
+
+					imgX := cellX + (cellWidth-imgWidth)/2
+					imgY := pageManager.CurrentYPos - (rowHeight+imgHeight)/2
+
+					// Draw placeholder border
+					contentStream.WriteString("q\n")
+					contentStream.WriteString("0.5 w\n")
+					contentStream.WriteString("0.7 0.7 0.7 RG\n")
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re S\n",
+						imgX, imgY, imgWidth, imgHeight))
+					contentStream.WriteString("Q\n")
+
+					// Draw image name
+					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
+						contentStream.WriteString("BT\n")
+						contentStream.WriteString("/F1 8 Tf\n")
+						contentStream.WriteString("0.5 0.5 0.5 rg\n")
+						textX := imgX + imgWidth/2 - float64(len(cell.Image.ImageName)*2)
+						textY := imgY + imgHeight/2
+						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+						contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
+						contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(cell.Image.ImageName)))
+						contentStream.WriteString("ET\n")
+					}
+				}
+			} else if cell.Checkbox != nil {
 				// Draw checkbox
 				checkboxSize := 10.0
 				checkboxX := cellX + (cellWidth-checkboxSize)/2

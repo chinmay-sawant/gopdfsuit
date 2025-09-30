@@ -33,6 +33,7 @@ type Cell struct {
 	Props    string `json:"props"`
 	Text     string `json:"text,omitempty"`
 	Checkbox *bool  `json:"chequebox,omitempty"`
+	Image    *Image `json:"image,omitempty"` // Support for images in cells
 }
 
 type Image struct {
