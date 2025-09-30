@@ -4,6 +4,7 @@ type PDFTemplate struct {
 	Config Config  `json:"config"`
 	Title  Title   `json:"title"`
 	Table  []Table `json:"table"`
+	Image  []Image `json:"image,omitempty"`
 	Footer Footer  `json:"footer"`
 }
 
@@ -32,6 +33,13 @@ type Cell struct {
 	Props    string `json:"props"`
 	Text     string `json:"text,omitempty"`
 	Checkbox *bool  `json:"chequebox,omitempty"`
+}
+
+type Image struct {
+	ImageName string  `json:"imagename"`
+	ImageData string  `json:"imagedata"` // Base64 encoded image data
+	Width     float64 `json:"width"`
+	Height    float64 `json:"height"`
 }
 
 type Footer struct {

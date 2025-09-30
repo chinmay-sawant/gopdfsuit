@@ -260,3 +260,92 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", pageText))
 	contentStream.WriteString("ET\n")
 }
+
+// drawImage renders an image in the PDF with automatic page breaks
+func drawImage(image models.Image, pageManager *PageManager, borderConfig, watermark string) {
+	// Skip if no image data
+	if image.ImageData == "" {
+		return
+	}
+
+	imageHeight := image.Height
+	if imageHeight == 0 {
+		imageHeight = 200 // Default height
+	}
+
+	// Add some spacing before image
+	spacing := float64(20)
+
+	// Check if image fits on current page
+	if pageManager.CheckPageBreak(imageHeight + spacing) {
+		// Create new page and initialize it
+		pageManager.AddNewPage()
+		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions)
+	}
+
+	// Get current content stream for this page
+	contentStream := pageManager.GetCurrentContentStream()
+
+	// For now, we'll draw a placeholder rectangle for the image
+	// Full PDF image embedding would require creating XObject image streams
+	// which is complex. This is a simplified version that shows where the image would go.
+
+	imageWidth := image.Width
+	if imageWidth == 0 {
+		imageWidth = 300 // Default width
+	}
+
+	// Center the image horizontally
+	imageX := (pageManager.PageDimensions.Width - imageWidth) / 2
+	imageY := pageManager.CurrentYPos - imageHeight
+
+	// Draw a border around the image area
+	contentStream.WriteString("q\n")
+	contentStream.WriteString("0.5 w\n")
+	contentStream.WriteString("0.8 0.8 0.8 RG\n") // Light gray border
+	contentStream.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re S\n",
+		imageX, imageY, imageWidth, imageHeight))
+	contentStream.WriteString("Q\n")
+
+	// Add image name text in the center
+	if image.ImageName != "" {
+		contentStream.WriteString("BT\n")
+		contentStream.WriteString("/F1 10 Tf\n")
+		contentStream.WriteString("0.6 0.6 0.6 rg\n") // Gray text
+
+		// Center the text
+		textX := imageX + imageWidth/2
+		textY := imageY + imageHeight/2
+
+		contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+		contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
+		contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(image.ImageName)))
+		contentStream.WriteString("ET\n")
+	}
+
+	pageManager.CurrentYPos -= (imageHeight + spacing)
+}
+
+// drawImageWithXObjectInternal handles image drawing with XObject, including page breaks
+func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pageManager *PageManager, borderConfig, watermark string) {
+	imageHeight := image.Height
+	if imageHeight == 0 {
+		imageHeight = 200 // Default height
+	}
+
+	// Add some spacing before image
+	spacing := float64(20)
+
+	// Check if image fits on current page
+	if pageManager.CheckPageBreak(imageHeight + spacing) {
+		// Create new page and initialize it
+		pageManager.AddNewPage()
+		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions)
+	}
+
+	// Get current content stream for this page
+	contentStream := pageManager.GetCurrentContentStream()
+
+	// Draw the image using XObject
+	drawImageWithXObject(contentStream, image, imageXObjectRef, pageManager)
+}
