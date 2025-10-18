@@ -96,6 +96,11 @@ func RegisterRoutes(router *gin.Engine) {
 	// v1.GET("/htmltopdf", handlehtmlToPDF)
 	// v1.GET("/htmltoimage", handlehtmlToImage)
 
+	// Redirect root path to /gopdfsuit
+	router.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/gopdfsuit")
+	})
+
 	// Serve React app for all frontend routes (SPA fallback)
 	router.NoRoute(handleSPA)
 }
