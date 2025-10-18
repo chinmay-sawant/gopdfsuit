@@ -147,6 +147,16 @@ const Comparison = () => {
       fontSize: '0.9rem',
       fontWeight: isOurs ? '600' : '500',
       transition: 'all 0.3s ease',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      textAlign: 'center',
+      minHeight: '60px',
+      wordWrap: 'break-word',
+      overflowWrap: 'break-word',
+      wordBreak: 'break-word',
+      whiteSpace: 'normal',
+      lineHeight: '1.4',
     }
 
     if (isOurs) {
@@ -348,7 +358,7 @@ const Comparison = () => {
               margin: '0 auto',
             }}
           >
-            <div style={{ minWidth: '800px' }}>
+            <div style={{ width: '100%', minWidth: '100%' }}>
               {/* Header Row */}
               <div style={{ 
                 display: 'grid',
@@ -357,8 +367,9 @@ const Comparison = () => {
                 marginBottom: '1rem',
                 paddingBottom: '1rem',
                 borderBottom: '2px solid rgba(78, 205, 196, 0.3)',
+                alignItems: 'center',
               }}>
-                <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'hsl(var(--foreground))' }}>
+                <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'hsl(var(--foreground))', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', minHeight: '60px' }}>
                   Feature
                 </div>
                 {competitors.map((competitor, index) => (
@@ -369,12 +380,18 @@ const Comparison = () => {
                       fontWeight: 'bold',
                       fontSize: '1.1rem',
                       color: competitor.isOurs ? '#4ecdc4' : 'hsl(var(--foreground))',
-                      padding: '0.5rem',
+                      padding: '0.75rem',
                       borderRadius: '8px',
                       background: competitor.isOurs ? 'rgba(78, 205, 196, 0.1)' : 'transparent',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: '60px',
+                      border: competitor.isOurs ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
                     }}
                   >
-                    {competitor.name}
+                    <div>{competitor.name}</div>
                     {competitor.isOurs && (
                       <div style={{ 
                         fontSize: '0.8rem', 
@@ -398,23 +415,27 @@ const Comparison = () => {
                     gridTemplateColumns: '2fr repeat(4, 1fr)',
                     gap: '1rem',
                     marginBottom: '0.75rem',
-                    padding: '0.5rem',
+                    padding: '1rem',
                     borderRadius: '8px',
                     background: featureIndex % 2 === 0 ? 'rgba(0, 0, 0, 0.05)' : 'transparent',
                     animationDelay: `${0.4 + featureIndex * 0.05}s`,
+                    alignItems: 'center',
+                    minHeight: '80px',
                   }}
                 >
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
+                    justifyContent: 'flex-start',
                     gap: '0.75rem',
                     fontWeight: '500',
                     color: 'hsl(var(--foreground))',
+                    height: '100%',
                   }}>
-                    <div style={{ color: '#4ecdc4' }}>
+                    <div style={{ color: '#4ecdc4', flexShrink: 0 }}>
                       {feature.icon}
                     </div>
-                    {feature.label}
+                    <span>{feature.label}</span>
                   </div>
                   
                   {competitors.map((competitor) => (
