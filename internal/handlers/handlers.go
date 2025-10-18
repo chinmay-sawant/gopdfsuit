@@ -79,8 +79,9 @@ func RegisterRoutes(router *gin.Engine) {
 	// the repo root or from inside cmd/gopdfsuit (where the exe often lives).
 	base := getProjectRoot()
 
-	// Serve static assets from Vite build
-	router.Static("/assets", filepath.Join(base, "docs", "assets"))
+	// Serve static assets from Vite build (matching the base path in vite.config.js)
+	router.Static("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
+	router.Static("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
 
 	// API endpoints
 	v1 := router.Group("/api/v1")
