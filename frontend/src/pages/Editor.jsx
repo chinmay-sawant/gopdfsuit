@@ -669,12 +669,76 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           </div>
         )
       case 'table':
+        // Resize state helpers (persisted in element.columnwidths / element.rowheights)
+        const handleColumnResizeStart = (e, colIdx) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const startX = e.clientX
+          const startWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
+            ? [...element.columnwidths]
+            : Array(element.maxcolumns).fill(1)
+          const totalInitial = startWidths.reduce((a,b)=>a+b,0)
+          const onMouseMove = (me) => {
+            const dx = me.clientX - startX
+            const container = e.currentTarget.parentElement.parentElement // td > tr > table
+            const tablePixelWidth = container.getBoundingClientRect().width
+            const weightDelta = (dx / tablePixelWidth) * totalInitial
+            const newWidths = [...startWidths]
+            newWidths[colIdx] = Math.max(0.2, startWidths[colIdx] + weightDelta)
+            // Adjust next column opposite to keep relative scale stable
+            if (colIdx < newWidths.length - 1) {
+              newWidths[colIdx+1] = Math.max(0.2, newWidths[colIdx+1] - weightDelta)
+            }
+            // Normalize
+            const sum = newWidths.reduce((a,b)=>a+b,0)
+            const normalized = newWidths.map(w => w / sum)
+            updateElement(element.id, { columnwidths: normalized })
+          }
+          const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove)
+            window.removeEventListener('mouseup', onMouseUp)
+          }
+          window.addEventListener('mousemove', onMouseMove)
+          window.addEventListener('mouseup', onMouseUp)
+        }
+        const handleRowResizeStart = (e, rowIdx) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const startY = e.clientY
+          const startHeights = element.rowheights && element.rowheights.length === element.rows.length
+            ? [...element.rowheights]
+            : Array(element.rows.length).fill(1)
+          const onMouseMove = (me) => {
+            const dy = me.clientY - startY
+            const rowEl = e.currentTarget.parentElement // tr
+            const rowPixelHeight = rowEl.getBoundingClientRect().height || 25
+            const scaleDelta = dy / rowPixelHeight
+            const newHeights = [...startHeights]
+            newHeights[rowIdx] = Math.max(0.5, startHeights[rowIdx] + scaleDelta)
+            updateElement(element.id, { rowheights: newHeights })
+          }
+            const onMouseUp = () => {
+              window.removeEventListener('mousemove', onMouseMove)
+              window.removeEventListener('mouseup', onMouseUp)
+            }
+            window.addEventListener('mousemove', onMouseMove)
+            window.addEventListener('mouseup', onMouseUp)
+        }
+        const colWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
+          ? element.columnwidths
+          : Array(element.maxcolumns).fill(1 / element.maxcolumns)
+        const rowScales = element.rowheights && element.rowheights.length === element.rows.length
+          ? element.rowheights
+          : Array(element.rows.length).fill(1)
         return (
           <div style={{ borderRadius: '4px', padding: '10px' }}>
-            <table style={{ borderCollapse: 'separate', width: '100%', borderSpacing: '0' }}>
+            <table style={{ borderCollapse: 'separate', width: '100%', borderSpacing: '0', tableLayout: 'fixed' }}>
+              <colgroup>
+                {colWeights.map((w,i)=>(<col key={i} style={{ width: `${(w*100).toFixed(3)}%` }} />))}
+              </colgroup>
               <tbody>
                 {element.rows?.map((row, rowIdx) => (
-                  <tr key={rowIdx}>
+                  <tr key={rowIdx} style={{ height: `${rowScales[rowIdx]*25}px`, position: 'relative' }}>
                     {row.row?.map((cell, colIdx) => {
                       const cellStyle = getStyleFromProps(cell.props)
                       const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
@@ -687,7 +751,8 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         minWidth: '80px',
                         minHeight: '24px',
                         backgroundColor: isCellSelected ? 'hsl(var(--accent))' : 'transparent',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        position: 'relative'
                       }
                       const inputStyle = {
                         fontSize: cellStyle.fontSize,
@@ -788,6 +853,38 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                 handleCellClick(rowIdx, colIdx)
                               }}
                               style={inputStyle}
+                            />
+                          )}
+                          {/* Column resize handle (except last cell) */}
+                          {colIdx < (element.maxcolumns - 1) && (
+                            <div
+                              onMouseDown={(e)=>handleColumnResizeStart(e,colIdx)}
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                right: 0,
+                                width: '6px',
+                                height: '100%',
+                                cursor: 'col-resize',
+                                zIndex: 5,
+                                userSelect: 'none'
+                              }}
+                            />
+                          )}
+                          {/* Row resize handle (only one per row at bottom spanning first cell) */}
+                          {colIdx === 0 && rowIdx < element.rows.length -1 && (
+                            <div
+                              onMouseDown={(e)=>handleRowResizeStart(e,rowIdx)}
+                              style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '5px',
+                                cursor: 'row-resize',
+                                zIndex: 4,
+                                userSelect: 'none'
+                              }}
                             />
                           )}
                         </td>
@@ -1060,6 +1157,7 @@ export default function Editor() {
         const newTable = {
           type: 'table',
           maxcolumns: 3,
+          columnwidths: [1/3, 1/3, 1/3],
           rows: [
             {
               row: [
@@ -1706,7 +1804,25 @@ export default function Editor() {
                               }
                               return { row: newRow }
                             })
-                            updateElement(selectedElement.id, { maxcolumns: newCols, rows: updatedRows })
+                            // Adjust column widths proportionally
+                            let newWidths = []
+                            if (selectedElement.columnwidths && selectedElement.columnwidths.length > 0) {
+                              const current = selectedElement.columnwidths
+                              if (newCols === current.length) newWidths = current
+                              else if (newCols > current.length) {
+                                const remain = newCols - current.length
+                                const extra = Array(remain).fill(1 / newCols)
+                                newWidths = [...current, ...extra]
+                              } else {
+                                newWidths = current.slice(0, newCols)
+                              }
+                            } else {
+                              newWidths = Array(newCols).fill(1 / newCols)
+                            }
+                            // Normalize to sum 1
+                            const sum = newWidths.reduce((a,b)=>a+b,0) || 1
+                            newWidths = newWidths.map(w => w / sum)
+                            updateElement(selectedElement.id, { maxcolumns: newCols, rows: updatedRows, columnwidths: newWidths })
                           }}
                           style={{ flex: 1, padding: '0.25rem' }}
                         />
@@ -1748,6 +1864,103 @@ export default function Editor() {
 
                       <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))' }}>
                         Rows: {selectedElement.rows?.length || 0}, Columns: {selectedElement.maxcolumns || 3}
+                      </div>
+
+                      {/* Column Widths Controls */}
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                        <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Column Widths (weights)</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '0.5rem' }}>
+                          {Array.from({ length: selectedElement.maxcolumns }).map((_, colIdx) => {
+                            const colWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
+                              ? selectedElement.columnwidths
+                              : Array(selectedElement.maxcolumns).fill(1 / selectedElement.maxcolumns)
+                            return (
+                              <div key={colIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <label style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Col {colIdx + 1}</label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0.1"
+                                  value={(colWeights[colIdx] * 100).toFixed(1)}
+                                  onChange={(e) => {
+                                    const newWeights = [...colWeights]
+                                    newWeights[colIdx] = Math.max(0.1, parseFloat(e.target.value) || 0) / 100
+                                    const sum = newWeights.reduce((a,b)=>a+b,0)
+                                    const normalized = newWeights.map(w => w / sum)
+                                    updateElement(selectedElement.id, { columnwidths: normalized })
+                                  }}
+                                  style={{ width: '100%', padding: '0.25rem', fontSize: '0.8rem' }}
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <button
+                          onClick={() => {
+                            const evenWeights = Array(selectedElement.maxcolumns).fill(1 / selectedElement.maxcolumns)
+                            updateElement(selectedElement.id, { columnwidths: evenWeights })
+                          }}
+                          style={{
+                            marginTop: '0.5rem',
+                            padding: '0.25rem 0.5rem',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '4px',
+                            background: 'hsl(var(--muted))',
+                            color: 'hsl(var(--muted-foreground))',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Reset to Equal
+                        </button>
+                      </div>
+
+                      {/* Row Heights Controls */}
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                        <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Row Heights (multipliers)</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '0.5rem' }}>
+                          {selectedElement.rows?.map((row, rowIdx) => {
+                            const rowScales = selectedElement.rowheights && selectedElement.rowheights.length === selectedElement.rows.length
+                              ? selectedElement.rowheights
+                              : Array(selectedElement.rows.length).fill(1)
+                            return (
+                              <div key={rowIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <label style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Row {rowIdx + 1}</label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0.5"
+                                  max="5"
+                                  value={rowScales[rowIdx].toFixed(1)}
+                                  onChange={(e) => {
+                                    const newHeights = [...rowScales]
+                                    newHeights[rowIdx] = Math.max(0.5, Math.min(5, parseFloat(e.target.value) || 1))
+                                    updateElement(selectedElement.id, { rowheights: newHeights })
+                                  }}
+                                  style={{ width: '100%', padding: '0.25rem', fontSize: '0.8rem' }}
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <button
+                          onClick={() => {
+                            const evenHeights = Array(selectedElement.rows.length).fill(1)
+                            updateElement(selectedElement.id, { rowheights: evenHeights })
+                          }}
+                          style={{
+                            marginTop: '0.5rem',
+                            padding: '0.25rem 0.5rem',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '4px',
+                            background: 'hsl(var(--muted))',
+                            color: 'hsl(var(--muted-foreground))',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Reset to Default
+                        </button>
                       </div>
 
                       {selectedCell && selectedCellElement && (

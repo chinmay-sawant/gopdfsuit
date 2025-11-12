@@ -103,10 +103,43 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 // drawTable renders a table with automatic page breaks
 func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
-	cellWidth := (pageManager.PageDimensions.Width - 2*margin) / float64(table.MaxColumns)
-	rowHeight := float64(25) // Standard row height
+	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
+	baseRowHeight := float64(25) // Standard row height
+
+	// Compute column widths in points using weights if provided
+	colWidths := make([]float64, table.MaxColumns)
+	if len(table.ColumnWidths) == table.MaxColumns {
+		// Normalize weights to sum 1
+		var sum float64
+		for _, w := range table.ColumnWidths {
+			if w > 0 {
+				sum += w
+			}
+		}
+		if sum <= 0 {
+			for i := range colWidths {
+				colWidths[i] = availableWidth / float64(table.MaxColumns)
+			}
+		} else {
+			for i, w := range table.ColumnWidths {
+				if w <= 0 {
+					w = 0
+				}
+				colWidths[i] = (w / sum) * availableWidth
+			}
+		}
+	} else {
+		for i := range colWidths {
+			colWidths[i] = availableWidth / float64(table.MaxColumns)
+		}
+	}
 
 	for rowIdx, row := range table.Rows {
+		// Determine this row's height
+		rowHeight := baseRowHeight
+		if rowIdx < len(table.RowHeights) && table.RowHeights[rowIdx] > 0 {
+			rowHeight = baseRowHeight * table.RowHeights[rowIdx]
+		}
 		// Check if row fits on current page
 		if pageManager.CheckPageBreak(rowHeight) {
 			// Create new page and initialize it
@@ -124,7 +157,12 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			}
 
 			cellProps := parseProps(cell.Props)
-			cellX := float64(margin) + float64(colIdx)*cellWidth
+			// Compute X by summing prior column widths
+			cellX := float64(margin)
+			for i := 0; i < colIdx; i++ {
+				cellX += colWidths[i]
+			}
+			cellWidth := colWidths[colIdx]
 
 			// Draw cell borders
 			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {

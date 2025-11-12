@@ -23,6 +23,13 @@ type Title struct {
 type Table struct {
 	MaxColumns int   `json:"maxcolumns"`
 	Rows       []Row `json:"rows"`
+	// ColumnWidths represent relative width weights per column. If empty or length
+	// mismatches MaxColumns, widths are evenly distributed. Example: [2,1,1] will
+	// allocate 50%,25%,25% of available table width respectively.
+	ColumnWidths []float64 `json:"columnwidths,omitempty"`
+	// RowHeights override the default row height (25). Values are in PDF points.
+	// If a row index is out of bounds or value <=0 the default height is used.
+	RowHeights []float64 `json:"rowheights,omitempty"`
 }
 
 type Row struct {
@@ -34,6 +41,12 @@ type Cell struct {
 	Text     string `json:"text,omitempty"`
 	Checkbox *bool  `json:"chequebox,omitempty"`
 	Image    *Image `json:"image,omitempty"` // Support for images in cells
+	// Optional explicit width/height for the cell. Width is treated as a weight
+	// when ColumnWidths is not supplied at Table level. Height can influence
+	// RowHeights if those are not explicitly set (frontend may promote edits
+	// to RowHeights / ColumnWidths).
+	Width  *float64 `json:"width,omitempty"`
+	Height *float64 `json:"height,omitempty"`
 }
 
 type Image struct {
