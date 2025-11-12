@@ -674,25 +674,26 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           e.preventDefault()
           e.stopPropagation()
           const startX = e.clientX
+          const tableEl = e.currentTarget.closest('table')
+          const tablePixelWidth = tableEl ? tableEl.getBoundingClientRect().width : 600
           const startWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
             ? [...element.columnwidths]
-            : Array(element.maxcolumns).fill(1)
-          const totalInitial = startWidths.reduce((a,b)=>a+b,0)
+            : Array(element.maxcolumns).fill(1 / element.maxcolumns)
+          
           const onMouseMove = (me) => {
             const dx = me.clientX - startX
-            const container = e.currentTarget.parentElement.parentElement // td > tr > table
-            const tablePixelWidth = container.getBoundingClientRect().width
-            const weightDelta = (dx / tablePixelWidth) * totalInitial
+            // Convert pixel delta to weight delta
+            const weightDelta = dx / tablePixelWidth
             const newWidths = [...startWidths]
-            newWidths[colIdx] = Math.max(0.2, startWidths[colIdx] + weightDelta)
-            // Adjust next column opposite to keep relative scale stable
+            newWidths[colIdx] = Math.max(0.05, startWidths[colIdx] + weightDelta)
+            // Adjust next column opposite to keep total width stable
             if (colIdx < newWidths.length - 1) {
-              newWidths[colIdx+1] = Math.max(0.2, newWidths[colIdx+1] - weightDelta)
+              newWidths[colIdx+1] = Math.max(0.05, startWidths[colIdx+1] - weightDelta)
             }
-            // Normalize
+            // Normalize to sum to 1
             const sum = newWidths.reduce((a,b)=>a+b,0)
             const normalized = newWidths.map(w => w / sum)
-            updateElement(element.id, { columnwidths: normalized })
+            onUpdate({ columnwidths: normalized })
           }
           const onMouseUp = () => {
             window.removeEventListener('mousemove', onMouseMove)
@@ -708,21 +709,22 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           const startHeights = element.rowheights && element.rowheights.length === element.rows.length
             ? [...element.rowheights]
             : Array(element.rows.length).fill(1)
+          const baseHeight = 25 // Base row height in pixels
+          
           const onMouseMove = (me) => {
             const dy = me.clientY - startY
-            const rowEl = e.currentTarget.parentElement // tr
-            const rowPixelHeight = rowEl.getBoundingClientRect().height || 25
-            const scaleDelta = dy / rowPixelHeight
+            // Scale factor: how much to change the multiplier based on pixel movement
+            const scaleDelta = dy / baseHeight
             const newHeights = [...startHeights]
-            newHeights[rowIdx] = Math.max(0.5, startHeights[rowIdx] + scaleDelta)
-            updateElement(element.id, { rowheights: newHeights })
+            newHeights[rowIdx] = Math.max(0.5, Math.min(5, startHeights[rowIdx] + scaleDelta))
+            onUpdate({ rowheights: newHeights })
           }
-            const onMouseUp = () => {
-              window.removeEventListener('mousemove', onMouseMove)
-              window.removeEventListener('mouseup', onMouseUp)
-            }
-            window.addEventListener('mousemove', onMouseMove)
-            window.addEventListener('mouseup', onMouseUp)
+          const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove)
+            window.removeEventListener('mouseup', onMouseUp)
+          }
+          window.addEventListener('mousemove', onMouseMove)
+          window.addEventListener('mouseup', onMouseUp)
         }
         const colWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
           ? element.columnwidths
@@ -742,6 +744,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                     {row.row?.map((cell, colIdx) => {
                       const cellStyle = getStyleFromProps(cell.props)
                       const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
+                      const computedRowHeight = `${rowScales[rowIdx]*25}px`
                       const tdStyle = {
                         borderLeft: `${cellStyle.borderLeftWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
                         borderRight: `${cellStyle.borderRightWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
@@ -750,6 +753,9 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         padding: '4px 8px',
                         minWidth: '80px',
                         minHeight: '24px',
+                        height: computedRowHeight,
+                        verticalAlign: 'middle',
+                        overflow: 'hidden',
                         backgroundColor: isCellSelected ? 'hsl(var(--accent))' : 'transparent',
                         cursor: 'pointer',
                         position: 'relative'
@@ -761,6 +767,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         fontStyle: cellStyle.fontStyle,
                         textDecoration: cellStyle.textDecoration,
                         width: '100%',
+                        height: '100%',
                         border: 'none',
                         background: 'transparent',
                         padding: '2px',
@@ -862,29 +869,35 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                               style={{
                                 position: 'absolute',
                                 top: 0,
-                                right: 0,
+                                right: '-3px',
                                 width: '6px',
                                 height: '100%',
                                 cursor: 'col-resize',
                                 zIndex: 5,
-                                userSelect: 'none'
+                                userSelect: 'none',
+                                background: 'transparent'
                               }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                             />
                           )}
                           {/* Row resize handle (only one per row at bottom spanning first cell) */}
-                          {colIdx === 0 && rowIdx < element.rows.length -1 && (
+                          {colIdx === 0 && rowIdx < element.rows.length - 1 && (
                             <div
                               onMouseDown={(e)=>handleRowResizeStart(e,rowIdx)}
                               style={{
                                 position: 'absolute',
-                                bottom: 0,
+                                bottom: '-3px',
                                 left: 0,
                                 width: '100%',
-                                height: '5px',
+                                height: '6px',
                                 cursor: 'row-resize',
                                 zIndex: 4,
-                                userSelect: 'none'
+                                userSelect: 'none',
+                                background: 'transparent'
                               }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                             />
                           )}
                         </td>
