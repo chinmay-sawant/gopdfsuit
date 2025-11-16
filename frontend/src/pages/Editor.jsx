@@ -2135,6 +2135,83 @@ export default function Editor() {
                                 </div>
                               </>
                             )}
+
+                            {/* Cell Size Controls - applies to all cell types */}
+                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Cell Size Override (optional)</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width (pts)</label>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    placeholder="Auto"
+                                    value={selectedCellElement.width || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      const value = parseFloat(e.target.value)
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                        ...selectedCellElement,
+                                        width: value > 0 ? value : undefined
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Height (pts)</label>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    placeholder="Auto"
+                                    value={selectedCellElement.height || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      const value = parseFloat(e.target.value)
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                        ...selectedCellElement,
+                                        height: value > 0 ? value : undefined
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
+                                  />
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const newRows = [...selectedElement.rows]
+                                  const { width, height, ...rest } = selectedCellElement
+                                  newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = rest
+                                  updateElement(selectedElement.id, { rows: newRows })
+                                }}
+                                style={{
+                                  marginTop: '0.5rem',
+                                  padding: '0.25rem 0.5rem',
+                                  border: '1px solid hsl(var(--border))',
+                                  borderRadius: '4px',
+                                  background: 'hsl(var(--muted))',
+                                  color: 'hsl(var(--muted-foreground))',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                  width: '100%'
+                                }}
+                              >
+                                Reset to Column/Row Defaults
+                              </button>
+                              <p style={{ 
+                                fontSize: '0.75rem', 
+                                color: 'hsl(var(--muted-foreground))', 
+                                marginTop: '0.5rem',
+                                marginBottom: 0,
+                                lineHeight: 1.4
+                              }}>
+                                Leave empty to use table's column width and row height. Set values to override for this specific cell.
+                              </p>
+                            </div>
                           </div>
                         </>
                       )}
