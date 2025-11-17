@@ -14,6 +14,10 @@ const PAGE_SIZES = {
   A5: { width: 420, height: 595, name: 'A5' }
 }
 
+// Standard margin in points (1 inch = 72 points, 2 inches total for left+right)
+const MARGIN = 72
+const getUsableWidth = (pageWidth) => pageWidth - (2 * MARGIN)
+
 // Component types matching the JSON template structure
 const COMPONENT_TYPES = {
   title: { icon: Type, label: 'Title', defaultText: 'Document Title' },
@@ -1167,6 +1171,7 @@ export default function Editor() {
         }
         break
       case 'table':
+        const usableWidth = getUsableWidth(currentPageSize.width)
         const newTable = {
           type: 'table',
           maxcolumns: 3,
@@ -1174,16 +1179,16 @@ export default function Editor() {
           rows: [
             {
               row: [
-                { props: 'font1:12:000:left:1:1:1:1', text: '' },
-                { props: 'font1:12:000:left:1:1:1:1', text: '' },
-                { props: 'font1:12:000:left:1:1:1:1', text: '' }
+                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
+                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
+                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) }
               ]
             },
             {
               row: [
-                { props: 'font1:12:000:left:1:1:1:1', text: '' },
-                { props: 'font1:12:000:left:1:1:1:1', text: '' },
-                { props: 'font1:12:000:left:1:1:1:1', text: '' }
+                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
+                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
+                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) }
               ]
             }
           ]
@@ -1807,6 +1812,27 @@ export default function Editor() {
                           value={selectedElement.maxcolumns || 3}
                           onChange={(e) => {
                             const newCols = parseInt(e.target.value)
+                            if (isNaN(newCols) || newCols < 1 || newCols > 10) return
+
+                            // Adjust column widths proportionally
+                            let newWidths = []
+                            const currentWidths = selectedElement.columnwidths || []
+                            if (newCols === currentWidths.length) {
+                              newWidths = currentWidths
+                            } else if (newCols > currentWidths.length) {
+                              const remain = newCols - currentWidths.length
+                              const existingSum = currentWidths.reduce((a, b) => a + b, 0)
+                              const newPartWidth = (1 - existingSum) / remain
+                              const extra = Array(remain).fill(Math.max(0.01, newPartWidth))
+                              newWidths = [...currentWidths, ...extra]
+                            } else {
+                              newWidths = currentWidths.slice(0, newCols)
+                            }
+                            
+                            // Normalize to sum 1
+                            const sum = newWidths.reduce((a,b)=>a+b,0) || 1
+                            const normalizedWidths = newWidths.map(w => w / sum)
+
                             const updatedRows = selectedElement.rows?.map(row => {
                               const newRow = [...(row.row || [])]
                               while (newRow.length < newCols) {
@@ -1815,27 +1841,18 @@ export default function Editor() {
                               if (newRow.length > newCols) {
                                 newRow.splice(newCols)
                               }
-                              return { row: newRow }
+                              
+                              // Update widths for all cells in the row
+                              const usableWidth = getUsableWidth(currentPageSize.width)
+                              const updatedCells = newRow.map((cell, colIdx) => ({
+                                ...cell,
+                                width: usableWidth * normalizedWidths[colIdx]
+                              }))
+
+                              return { row: updatedCells }
                             })
-                            // Adjust column widths proportionally
-                            let newWidths = []
-                            if (selectedElement.columnwidths && selectedElement.columnwidths.length > 0) {
-                              const current = selectedElement.columnwidths
-                              if (newCols === current.length) newWidths = current
-                              else if (newCols > current.length) {
-                                const remain = newCols - current.length
-                                const extra = Array(remain).fill(1 / newCols)
-                                newWidths = [...current, ...extra]
-                              } else {
-                                newWidths = current.slice(0, newCols)
-                              }
-                            } else {
-                              newWidths = Array(newCols).fill(1 / newCols)
-                            }
-                            // Normalize to sum 1
-                            const sum = newWidths.reduce((a,b)=>a+b,0) || 1
-                            newWidths = newWidths.map(w => w / sum)
-                            updateElement(selectedElement.id, { maxcolumns: newCols, rows: updatedRows, columnwidths: newWidths })
+                            
+                            updateElement(selectedElement.id, { maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths })
                           }}
                           style={{ flex: 1, padding: '0.25rem' }}
                         />
@@ -1844,10 +1861,12 @@ export default function Editor() {
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
                           onClick={() => {
+                            const usableWidth = getUsableWidth(currentPageSize.width)
                             const newRow = { 
                               row: Array(selectedElement.maxcolumns || 3).fill().map((_, i) => ({
                                 props: 'font1:12:000:left:1:1:1:1',
-                                text: ''
+                                text: '',
+                                width: usableWidth * (selectedElement.columnwidths ? selectedElement.columnwidths[i] : 1 / selectedElement.maxcolumns)
                               }))
                             }
                             updateElement(selectedElement.id, { 
@@ -1900,7 +1919,17 @@ export default function Editor() {
                                     newWeights[colIdx] = Math.max(0.1, parseFloat(e.target.value) || 0) / 100
                                     const sum = newWeights.reduce((a,b)=>a+b,0)
                                     const normalized = newWeights.map(w => w / sum)
-                                    updateElement(selectedElement.id, { columnwidths: normalized })
+
+                                    const usableWidth = getUsableWidth(currentPageSize.width)
+                                    const updatedRows = selectedElement.rows.map(row => ({
+                                      ...row,
+                                      row: row.row.map((cell, cIdx) => ({
+                                        ...cell,
+                                        width: usableWidth * normalized[cIdx]
+                                      }))
+                                    }))
+
+                                    updateElement(selectedElement.id, { columnwidths: normalized, rows: updatedRows })
                                   }}
                                   style={{ width: '100%', padding: '0.25rem', fontSize: '0.8rem' }}
                                 />
@@ -1911,7 +1940,15 @@ export default function Editor() {
                         <button
                           onClick={() => {
                             const evenWeights = Array(selectedElement.maxcolumns).fill(1 / selectedElement.maxcolumns)
-                            updateElement(selectedElement.id, { columnwidths: evenWeights })
+                            const usableWidth = getUsableWidth(currentPageSize.width)
+                            const updatedRows = selectedElement.rows.map(row => ({
+                              ...row,
+                              row: row.row.map((cell, cIdx) => ({
+                                ...cell,
+                                width: usableWidth * evenWeights[cIdx]
+                              }))
+                            }))
+                            updateElement(selectedElement.id, { columnwidths: evenWeights, rows: updatedRows })
                           }}
                           style={{
                             marginTop: '0.5rem',
@@ -2138,7 +2175,7 @@ export default function Editor() {
 
                             {/* Cell Size Controls - applies to all cell types */}
                             <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Cell Size Override (optional)</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Cell Size Override</div>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                                 <div>
                                   <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width (pts)</label>
