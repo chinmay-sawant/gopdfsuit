@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
@@ -68,13 +69,37 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString("%PDF-1.7\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
-	// Object 1: Catalog
-	xrefOffsets[1] = pdfBuffer.Len()
-	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
-
 	// Generate all content first to know how many pages we need
 	// Pass imageObjectIDs and cellImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjectIDs, cellImageObjectIDs)
+
+	// Collect all widget IDs for AcroForm
+	var allWidgetIDs []int
+	for _, annots := range pageManager.PageAnnots {
+		allWidgetIDs = append(allWidgetIDs, annots...)
+	}
+
+	// Object 1: Catalog
+	xrefOffsets[1] = pdfBuffer.Len()
+	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
+	if len(allWidgetIDs) > 0 {
+		// Create AcroForm object
+		acroFormID := pageManager.NextObjectID
+		pageManager.NextObjectID++
+
+		var fieldsRef strings.Builder
+		fieldsRef.WriteString("[")
+		for _, id := range allWidgetIDs {
+			fieldsRef.WriteString(fmt.Sprintf(" %d 0 R", id))
+		}
+		fieldsRef.WriteString("]")
+
+		acroFormContent := fmt.Sprintf("<< /Fields %s /NeedAppearances true /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
+		pageManager.ExtraObjects[acroFormID] = acroFormContent
+
+		pdfBuffer.WriteString(fmt.Sprintf(" /AcroForm %d 0 R", acroFormID))
+	}
+	pdfBuffer.WriteString(" >>\nendobj\n")
 
 	// Object 2: Pages (will be updated after we know total page count)
 	xrefOffsets[2] = pdfBuffer.Len()
@@ -101,18 +126,53 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			// Use cellKey as unique identifier (e.g., CellImg_0_1_2)
 			xobjectRefs += fmt.Sprintf(" /CellImg_%s %d 0 R", cellKey, objID)
 		}
+		// Add extra objects (appearance streams) that are XObjects
+		for id, content := range pageManager.ExtraObjects {
+			if strings.Contains(content, "/Type /XObject") {
+				xobjectRefs += fmt.Sprintf(" /XObj%d %d 0 R", id, id)
+			}
+		}
 		xobjectRefs += " >>"
+	} else {
+		// Even if no images, we might have XObjects from form fields (appearance streams)
+		hasXObjects := false
+		for _, content := range pageManager.ExtraObjects {
+			if strings.Contains(content, "/Type /XObject") {
+				hasXObjects = true
+				break
+			}
+		}
+		if hasXObjects {
+			xobjectRefs = " /XObject <<"
+			for id, content := range pageManager.ExtraObjects {
+				if strings.Contains(content, "/Type /XObject") {
+					xobjectRefs += fmt.Sprintf(" /XObj%d %d 0 R", id, id)
+				}
+			}
+			xobjectRefs += " >>"
+		}
 	}
 
 	// Generate page objects
 	for i, pageID := range pageManager.Pages {
 		xrefOffsets[pageID] = pdfBuffer.Len()
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", pageID))
+
+		// Add Annots if present
+		annotsStr := ""
+		if i < len(pageManager.PageAnnots) && len(pageManager.PageAnnots[i]) > 0 {
+			annotsStr = " /Annots ["
+			for _, annotID := range pageManager.PageAnnots[i] {
+				annotsStr += fmt.Sprintf(" %d 0 R", annotID)
+			}
+			annotsStr += "]"
+		}
+
 		pdfBuffer.WriteString(fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] ",
 			pageDims.Width, pageDims.Height))
 		pdfBuffer.WriteString(fmt.Sprintf("/Contents %d 0 R ", contentObjectStart+i))
-		pdfBuffer.WriteString(fmt.Sprintf("/Resources << /Font << /F1 %d 0 R /F2 %d 0 R /F3 %d 0 R /F4 %d 0 R >>%s >> >>\n",
-			fontObjectStart, fontObjectStart+1, fontObjectStart+2, fontObjectStart+3, xobjectRefs))
+		pdfBuffer.WriteString(fmt.Sprintf("/Resources << /Font << /F1 %d 0 R /F2 %d 0 R /F3 %d 0 R /F4 %d 0 R >>%s >>%s >>\n",
+			fontObjectStart, fontObjectStart+1, fontObjectStart+2, fontObjectStart+3, xobjectRefs, annotsStr))
 		pdfBuffer.WriteString("endobj\n")
 	}
 
@@ -152,6 +212,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
 	}
 
+	// Generate Extra Objects (Widgets, Appearance Streams, AcroForm)
+	for id, content := range pageManager.ExtraObjects {
+		xrefOffsets[id] = pdfBuffer.Len()
+		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", id, content))
+	}
+
 	// Cross-reference table
 	totalObjects := fontObjectStart + 4
 	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
@@ -170,6 +236,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		if maxImgID >= totalObjects {
 			totalObjects = maxImgID + 1
 		}
+	}
+
+	// Check extra objects for max ID
+	if pageManager.NextObjectID > totalObjects {
+		totalObjects = pageManager.NextObjectID
 	}
 
 	xrefStart := pdfBuffer.Len()

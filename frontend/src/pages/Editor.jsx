@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react'
-import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon } from 'lucide-react'
+import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle } from 'lucide-react'
 import { useTheme } from '../theme'
 import PdfPreview from '../components/PdfPreview'
 
@@ -25,6 +25,8 @@ const COMPONENT_TYPES = {
   footer: { icon: FileText, label: 'Footer', defaultText: 'Page footer text' },
   spacer: { icon: Minus, label: 'Spacer', height: 20 },
   checkbox: { icon: CheckSquare, label: 'Checkbox' },
+  radio: { icon: Circle, label: 'Radio Button' },
+  text_input: { icon: Type, label: 'Text Input' },
   image: { icon: ImageIcon, label: 'Image' }
 }
 
@@ -832,7 +834,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                           style={tdStyle}
                           onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
                           onDragOver={(e) => {
-                            if (draggedType === 'checkbox' || draggedType === 'image') {
+                            if (draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input') {
                               e.preventDefault()
                               e.stopPropagation()
                             }
@@ -841,13 +843,76 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                             e.preventDefault()
                             e.stopPropagation()
                             const draggedData = e.dataTransfer.getData('text/plain')
-                            if (draggedData === 'checkbox' || draggedData === 'image') {
+                            if (draggedData === 'checkbox' || draggedData === 'image' || draggedData === 'radio' || draggedData === 'text_input') {
                             handleCellDrop(element, onUpdate, rowIdx, colIdx, draggedData)
                             }
                           }}
-                          className={(draggedType === 'checkbox' || draggedType === 'image') ? 'drop-target' : ''}
+                          className={(draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input') ? 'drop-target' : ''}
                         >
-                          {cell.chequebox !== undefined ? (
+                          {cell.form_field ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '2px', width: '100%' }}>
+                              {cell.form_field.type === 'text' ? (
+                                <input
+                                  type="text"
+                                  value={cell.form_field.value || ''}
+                                  onChange={(e) => {
+                                    e.stopPropagation()
+                                    const newRows = [...element.rows]
+                                    newRows[rowIdx].row[colIdx] = {
+                                      ...newRows[rowIdx].row[colIdx],
+                                      form_field: {
+                                        ...cell.form_field,
+                                        value: e.target.value
+                                      }
+                                    }
+                                    onUpdate({ rows: newRows })
+                                  }}
+                                  placeholder={cell.form_field.name}
+                                  style={{ 
+                                    width: '100%', 
+                                    height: '100%', 
+                                    border: 'none', 
+                                    borderRadius: '0',
+                                    fontSize: '10px',
+                                    padding: '4px',
+                                    background: 'transparent',
+                                    color: 'hsl(var(--foreground))'
+                                  }}
+                                  onFocus={() => handleCellClick(rowIdx, colIdx)}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleCellClick(rowIdx, colIdx)
+                                  }}
+                                />
+                              ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                  <input 
+                                    type={cell.form_field.type === 'radio' ? 'radio' : 'checkbox'}
+                                    checked={cell.form_field.checked}
+                                    onChange={(e) => {
+                                      e.stopPropagation()
+                                      const newRows = [...element.rows]
+                                      newRows[rowIdx].row[colIdx] = { 
+                                        ...newRows[rowIdx].row[colIdx], 
+                                        form_field: {
+                                          ...cell.form_field,
+                                          checked: e.target.checked
+                                        }
+                                      }
+                                      onUpdate({ rows: newRows })
+                                    }}
+                                    onFocus={() => handleCellClick(rowIdx, colIdx)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleCellClick(rowIdx, colIdx)
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  <span style={{ fontSize: '9px', color: 'hsl(var(--muted-foreground))' }}>{cell.form_field.name}</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : cell.chequebox !== undefined ? (
                             <input 
                               type="checkbox" 
                               checked={cell.chequebox} 
@@ -1363,17 +1428,52 @@ export default function Editor() {
   }
 
   const handleCellDrop = (element, onUpdate, rowIdx, colIdx, draggedType) => {
-    if (draggedType !== 'checkbox' && draggedType !== 'image') return
+    if (draggedType !== 'checkbox' && draggedType !== 'image' && draggedType !== 'radio' && draggedType !== 'text_input') return
 
     const newRows = [...element.rows]
     
     if (draggedType === 'checkbox') {
-      // Update the table cell to contain a checkbox
+      // Update the table cell to contain a checkbox form field
       newRows[rowIdx].row[colIdx] = {
         ...newRows[rowIdx].row[colIdx],
-        chequebox: false, // Start unchecked
+        form_field: {
+          type: 'checkbox',
+          name: `chk_${rowIdx}_${colIdx}`,
+          checked: false,
+          value: 'Yes'
+        },
+        chequebox: undefined, // Remove legacy checkbox
         text: undefined, // Remove any existing text
         image: undefined // Remove any existing image
+      }
+    } else if (draggedType === 'radio') {
+      // Update the table cell to contain a radio form field
+      newRows[rowIdx].row[colIdx] = {
+        ...newRows[rowIdx].row[colIdx],
+        form_field: {
+          type: 'radio',
+          name: `radio_group_${rowIdx}`,
+          checked: false,
+          value: `opt_${colIdx}`,
+          shape: 'round'
+        },
+        chequebox: undefined,
+        text: undefined,
+        image: undefined
+      }
+    } else if (draggedType === 'text_input') {
+      // Update the table cell to contain a text input form field
+      newRows[rowIdx].row[colIdx] = {
+        ...newRows[rowIdx].row[colIdx],
+        form_field: {
+          type: 'text',
+          name: `text_${rowIdx}_${colIdx}`,
+          value: '',
+          checked: false
+        },
+        chequebox: undefined,
+        text: undefined,
+        image: undefined
       }
     } else if (draggedType === 'image') {
       // Update the table cell to contain an image placeholder
@@ -1386,7 +1486,8 @@ export default function Editor() {
           height: 100
         },
         text: undefined, // Remove any existing text
-        chequebox: undefined // Remove any existing checkbox
+        chequebox: undefined, // Remove any existing checkbox
+        form_field: undefined
       }
     }
     
@@ -2109,7 +2210,7 @@ export default function Editor() {
                                   onChange={(e) => {
                                     const newWeights = [...colWeights]
                                     newWeights[colIdx] = Math.max(0.1, parseFloat(e.target.value) || 0) / 100
-                                    const sum = newWeights.reduce((a,b)=>a+b,0)
+                                    const sum = newWeights.reduce((a,b)=>a+b,0) || 1
                                     const normalized = newWeights.map(w => w / sum)
 
                                     const usableWidth = getUsableWidth(currentPageSize.width)
@@ -2312,6 +2413,99 @@ export default function Editor() {
                                   </div>
                                 )}
                               </>
+                            ) : selectedCellElement.form_field ? (
+                              <div style={{ marginBottom: '0.5rem' }}>
+                                <div style={{ padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '4px', marginBottom: '0.5rem' }}>
+                                  <strong>{selectedCellElement.form_field.type === 'radio' ? 'Radio Button' : selectedCellElement.form_field.type === 'text' ? 'Text Input' : 'Checkbox'} Field</strong>
+                                </div>
+                                
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Field Name:</label>
+                                  <input
+                                    type="text"
+                                    value={selectedCellElement.form_field.name}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                        ...selectedCellElement, 
+                                        form_field: {
+                                          ...selectedCellElement.form_field,
+                                          name: e.target.value
+                                        }
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                  />
+                                </div>
+
+                                {selectedCellElement.form_field.type === 'radio' && (
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Shape:</label>
+                                    <select
+                                      value={selectedCellElement.form_field.shape || 'round'}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                          ...selectedCellElement, 
+                                          form_field: {
+                                            ...selectedCellElement.form_field,
+                                            shape: e.target.value
+                                          }
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                    >
+                                      <option value="round">Round</option>
+                                      <option value="square">Square</option>
+                                    </select>
+                                  </div>
+                                )}
+
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>{selectedCellElement.form_field.type === 'text' ? 'Default Value:' : 'Export Value:'}</label>
+                                  <input
+                                    type="text"
+                                    value={selectedCellElement.form_field.value}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                        ...selectedCellElement, 
+                                        form_field: {
+                                          ...selectedCellElement.form_field,
+                                          value: e.target.value
+                                        }
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                  />
+                                </div>
+
+                                {selectedCellElement.form_field.type !== 'text' && (
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedCellElement.form_field.checked}
+                                        onChange={(e) => {
+                                          const newRows = [...selectedElement.rows]
+                                          newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                            ...selectedCellElement, 
+                                            form_field: {
+                                              ...selectedCellElement.form_field,
+                                              checked: e.target.checked
+                                            }
+                                          }
+                                          updateElement(selectedElement.id, { rows: newRows })
+                                        }}
+                                      />
+                                      Default Checked
+                                    </label>
+                                  </div>
+                                )}
+                              </div>
                             ) : selectedCellElement.chequebox !== undefined ? (
                               <div style={{ marginBottom: '0.5rem' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
