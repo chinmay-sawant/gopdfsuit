@@ -597,7 +597,7 @@ function PropsEditor({ props, onChange }) {
   )
 }
 
-function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop }) {
+function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop, currentPageSize }) {
   const [isResizing, setIsResizing] = useState(false)
 
   const handleClick = (e) => {
@@ -673,31 +673,71 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           </div>
         )
       case 'table':
-        // Resize state helpers (persisted in element.columnwidths / element.rowheights)
-        const handleColumnResizeStart = (e, colIdx) => {
+        // Get page dimensions for width calculations
+        const MARGIN = 72
+        const getUsableWidth = (pageWidth) => pageWidth - (2 * MARGIN)
+        
+        // Use passed currentPageSize prop
+        const usableWidthForTable = getUsableWidth(currentPageSize.width)
+        
+        // Per-cell width resize handler
+        const handleCellWidthResizeStart = (e, rowIdx, colIdx) => {
           e.preventDefault()
           e.stopPropagation()
           const startX = e.clientX
-          const tableEl = e.currentTarget.closest('table')
-          const tablePixelWidth = tableEl ? tableEl.getBoundingClientRect().width : 600
-          const startWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
-            ? [...element.columnwidths]
-            : Array(element.maxcolumns).fill(1 / element.maxcolumns)
+          const cell = element.rows[rowIdx].row[colIdx]
+          const startWidth = cell.width || (usableWidthForTable * (element.columnwidths?.[colIdx] || 1/element.maxcolumns))
           
           const onMouseMove = (me) => {
             const dx = me.clientX - startX
-            // Convert pixel delta to weight delta
-            const weightDelta = dx / tablePixelWidth
-            const newWidths = [...startWidths]
-            newWidths[colIdx] = Math.max(0.05, startWidths[colIdx] + weightDelta)
-            // Adjust next column opposite to keep total width stable
-            if (colIdx < newWidths.length - 1) {
-              newWidths[colIdx+1] = Math.max(0.05, startWidths[colIdx+1] - weightDelta)
+            let newWidth = Math.max(50, startWidth + dx)
+            const widthChange = newWidth - startWidth
+            
+            // Update only this specific cell's width
+            const newRows = [...element.rows]
+            newRows[rowIdx] = {
+              ...newRows[rowIdx],
+              row: newRows[rowIdx].row.map((c, idx) => 
+                idx === colIdx ? { ...c, width: newWidth } : c
+              )
             }
-            // Normalize to sum to 1
-            const sum = newWidths.reduce((a,b)=>a+b,0)
-            const normalized = newWidths.map(w => w / sum)
-            onUpdate({ columnwidths: normalized })
+            
+            // If this is column 0, redistribute the change across columns 1 and 2+
+            if (colIdx === 0) {
+              const numOtherCols = element.maxcolumns - 1
+              const redistributePerCol = widthChange / numOtherCols
+              
+              newRows[rowIdx].row = newRows[rowIdx].row.map((c, idx) => {
+                if (idx === 0) return c
+                const currentWidth = c.width || (usableWidthForTable * (element.columnwidths?.[idx] || 1/element.maxcolumns))
+                const newColWidth = currentWidth - redistributePerCol
+                return { ...c, width: Math.max(0, newColWidth) }
+              })
+            }
+            // If this is a middle column (not first, not last), only subtract from next column
+            // When expanding (positive widthChange), subtract from next column
+            // When shrinking (negative widthChange), add space back to next column
+            else if (colIdx > 0 && colIdx < element.maxcolumns - 1) {
+              const nextCell = newRows[rowIdx].row[colIdx + 1]
+              const nextWidth = nextCell.width || (usableWidthForTable * (element.columnwidths?.[colIdx + 1] || 1/element.maxcolumns))
+              const newNextWidth = nextWidth - widthChange
+              // Always subtract the change from the next column (if expanding this column, next shrinks; if shrinking, next expands)
+              newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(0, newNextWidth) }
+            }
+            // Last column should not be resizable (handled in render)
+            
+            // Final safety check: ensure total doesn't exceed usable width
+            const totalWidth = newRows[rowIdx].row.reduce((sum, c) => sum + (c.width || 0), 0)
+            if (totalWidth > usableWidthForTable + 1) { // +1 for rounding tolerance
+              // Proportionally scale down all cells to fit
+              const scale = usableWidthForTable / totalWidth
+              newRows[rowIdx].row = newRows[rowIdx].row.map(c => ({
+                ...c,
+                width: (c.width || 0) * scale
+              }))
+            }
+            
+            onUpdate({ rows: newRows })
           }
           const onMouseUp = () => {
             window.removeEventListener('mousemove', onMouseMove)
@@ -706,22 +746,28 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           window.addEventListener('mousemove', onMouseMove)
           window.addEventListener('mouseup', onMouseUp)
         }
-        const handleRowResizeStart = (e, rowIdx) => {
+        
+        // Per-cell height resize handler
+        const handleCellHeightResizeStart = (e, rowIdx, colIdx) => {
           e.preventDefault()
           e.stopPropagation()
           const startY = e.clientY
-          const startHeights = element.rowheights && element.rowheights.length === element.rows.length
-            ? [...element.rowheights]
-            : Array(element.rows.length).fill(1)
-          const baseHeight = 25 // Base row height in pixels
+          const cell = element.rows[rowIdx].row[colIdx]
+          const startHeight = cell.height || 25
           
           const onMouseMove = (me) => {
             const dy = me.clientY - startY
-            // Scale factor: how much to change the multiplier based on pixel movement
-            const scaleDelta = dy / baseHeight
-            const newHeights = [...startHeights]
-            newHeights[rowIdx] = Math.max(0.5, Math.min(5, startHeights[rowIdx] + scaleDelta))
-            onUpdate({ rowheights: newHeights })
+            const newHeight = Math.max(20, startHeight + dy)
+            
+            // Update only this specific cell's height
+            const newRows = [...element.rows]
+            newRows[rowIdx] = {
+              ...newRows[rowIdx],
+              row: newRows[rowIdx].row.map((c, idx) => 
+                idx === colIdx ? { ...c, height: newHeight } : c
+              )
+            }
+            onUpdate({ rows: newRows })
           }
           const onMouseUp = () => {
             window.removeEventListener('mousemove', onMouseMove)
@@ -733,36 +779,38 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
         const colWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
           ? element.columnwidths
           : Array(element.maxcolumns).fill(1 / element.maxcolumns)
-        const rowScales = element.rowheights && element.rowheights.length === element.rows.length
-          ? element.rowheights
-          : Array(element.rows.length).fill(1)
         return (
-          <div style={{ borderRadius: '4px', padding: '10px' }}>
-            <table style={{ borderCollapse: 'separate', width: '100%', borderSpacing: '0', tableLayout: 'fixed' }}>
-              <colgroup>
-                {colWeights.map((w,i)=>(<col key={i} style={{ width: `${(w*100).toFixed(3)}%` }} />))}
-              </colgroup>
+          <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto' }}>
+            <table style={{ borderCollapse: 'separate', borderSpacing: '0', tableLayout: 'auto' }}>
               <tbody>
                 {element.rows?.map((row, rowIdx) => (
-                  <tr key={rowIdx} style={{ height: `${rowScales[rowIdx]*25}px`, position: 'relative' }}>
+                  <tr key={rowIdx} style={{ position: 'relative', display: 'flex' }}>
                     {row.row?.map((cell, colIdx) => {
                       const cellStyle = getStyleFromProps(cell.props)
                       const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
-                      const computedRowHeight = `${rowScales[rowIdx]*25}px`
+                      
+                      // Use cell-specific width if available, otherwise fall back to column width
+                      const cellWidth = cell.width || (usableWidthForTable * colWeights[colIdx])
+                      const cellHeight = cell.height || 25
+                      
                       const tdStyle = {
                         borderLeft: `${cellStyle.borderLeftWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
                         borderRight: `${cellStyle.borderRightWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
                         borderTop: `${cellStyle.borderTopWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
                         borderBottom: `${cellStyle.borderBottomWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
                         padding: '4px 8px',
-                        minWidth: '80px',
-                        minHeight: '24px',
-                        height: computedRowHeight,
+                        width: `${cellWidth}px`,
+                        height: `${cellHeight}px`,
+                        minWidth: `${cellWidth}px`,
+                        maxWidth: `${cellWidth}px`,
+                        minHeight: '20px',
                         verticalAlign: 'middle',
                         overflow: 'hidden',
                         backgroundColor: isCellSelected ? 'hsl(var(--accent))' : 'transparent',
                         cursor: 'pointer',
-                        position: 'relative'
+                        position: 'relative',
+                        boxSizing: 'border-box',
+                        flexShrink: 0
                       }
                       const inputStyle = {
                         fontSize: cellStyle.fontSize,
@@ -866,10 +914,10 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                               style={inputStyle}
                             />
                           )}
-                          {/* Column resize handle (except last cell) */}
+                          {/* Cell width resize handle (except last column) */}
                           {colIdx < (element.maxcolumns - 1) && (
                             <div
-                              onMouseDown={(e)=>handleColumnResizeStart(e,colIdx)}
+                              onMouseDown={(e)=>handleCellWidthResizeStart(e, rowIdx, colIdx)}
                               style={{
                                 position: 'absolute',
                                 top: 0,
@@ -881,29 +929,29 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                 userSelect: 'none',
                                 background: 'transparent'
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.5)'}
                               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                              title="Drag to resize cell width"
                             />
                           )}
-                          {/* Row resize handle (only one per row at bottom spanning first cell) */}
-                          {colIdx === 0 && rowIdx < element.rows.length - 1 && (
-                            <div
-                              onMouseDown={(e)=>handleRowResizeStart(e,rowIdx)}
-                              style={{
-                                position: 'absolute',
-                                bottom: '-3px',
-                                left: 0,
-                                width: '100%',
-                                height: '6px',
-                                cursor: 'row-resize',
-                                zIndex: 4,
-                                userSelect: 'none',
-                                background: 'transparent'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                            />
-                          )}
+                          {/* Cell height resize handle (all cells) */}
+                          <div
+                            onMouseDown={(e)=>handleCellHeightResizeStart(e, rowIdx, colIdx)}
+                            style={{
+                              position: 'absolute',
+                              bottom: '-3px',
+                              left: 0,
+                              width: '100%',
+                              height: '6px',
+                              cursor: 'row-resize',
+                              zIndex: 4,
+                              userSelect: 'none',
+                              background: 'transparent'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34, 197, 94, 0.5)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            title="Drag to resize cell height"
+                          />
                         </td>
                       )
                     })}
@@ -1722,6 +1770,7 @@ export default function Editor() {
                           isDragging={draggedComponentId === element.id}
                           draggedType={draggedType}
                           handleCellDrop={handleCellDrop}
+                          currentPageSize={currentPageSize}
                         />
                         {index < allElements.length - 1 && (
                           <DropZone
@@ -2175,7 +2224,10 @@ export default function Editor() {
 
                             {/* Cell Size Controls - applies to all cell types */}
                             <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Cell Size Override</div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Cell Size Override</div>
+                              <div style={{ fontSize: '0.75rem', marginBottom: '0.5rem', color: 'hsl(var(--muted-foreground))' }}>
+                                💡 Drag the blue handle (right edge) to resize width, or green handle (bottom edge) to resize height
+                              </div>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                                 <div>
                                   <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width (pts)</label>
@@ -2187,15 +2239,20 @@ export default function Editor() {
                                     value={selectedCellElement.width || ''}
                                     onChange={(e) => {
                                       const newRows = [...selectedElement.rows]
-                                      const value = parseFloat(e.target.value)
+                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
                                       newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
                                         ...selectedCellElement,
-                                        width: value > 0 ? value : undefined
+                                        width: value
                                       }
                                       updateElement(selectedElement.id, { rows: newRows })
                                     }}
                                     style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
                                   />
+                                  {selectedCellElement.width && (
+                                    <div style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>
+                                      Custom: {selectedCellElement.width.toFixed(2)}pts
+                                    </div>
+                                  )}
                                 </div>
                                 <div>
                                   <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Height (pts)</label>
@@ -2207,17 +2264,44 @@ export default function Editor() {
                                     value={selectedCellElement.height || ''}
                                     onChange={(e) => {
                                       const newRows = [...selectedElement.rows]
-                                      const value = parseFloat(e.target.value)
+                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
                                       newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
                                         ...selectedCellElement,
-                                        height: value > 0 ? value : undefined
+                                        height: value
                                       }
                                       updateElement(selectedElement.id, { rows: newRows })
                                     }}
                                     style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
                                   />
+                                  {selectedCellElement.height && (
+                                    <div style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>
+                                      Custom: {selectedCellElement.height.toFixed(2)}pts
+                                    </div>
+                                  )}
                                 </div>
                               </div>
+                              
+                              {/* Width Redistribution Info */}
+                              <div style={{ 
+                                marginTop: '0.75rem', 
+                                padding: '0.5rem', 
+                                borderRadius: '4px', 
+                                background: 'hsl(var(--muted))',
+                                fontSize: '0.7rem',
+                                color: 'hsl(var(--muted-foreground))',
+                                lineHeight: '1.4'
+                              }}>
+                                <strong>Width Adjustment Rules:</strong><br/>
+                                • Column {selectedCell.colIdx + 1} of {selectedElement.maxcolumns}<br/>
+                                {selectedCell.colIdx === 0 ? (
+                                  "• First column: width distributed to all other columns"
+                                ) : selectedCell.colIdx === selectedElement.maxcolumns - 1 ? (
+                                  "• Last column: resize disabled (cannot adjust)"
+                                ) : (
+                                  `• Middle column: width only affects next column`
+                                )}
+                              </div>
+                              
                               <button
                                 onClick={() => {
                                   const newRows = [...selectedElement.rows]
