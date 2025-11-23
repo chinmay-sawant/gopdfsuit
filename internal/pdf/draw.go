@@ -103,10 +103,50 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 // drawTable renders a table with automatic page breaks
 func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
-	cellWidth := (pageManager.PageDimensions.Width - 2*margin) / float64(table.MaxColumns)
-	rowHeight := float64(25) // Standard row height
+	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
+	baseRowHeight := float64(25) // Standard row height
+
+	// Compute column widths in points using weights if provided
+	colWidths := make([]float64, table.MaxColumns)
+	if len(table.ColumnWidths) == table.MaxColumns {
+		// Normalize weights to sum 1
+		var sum float64
+		for _, w := range table.ColumnWidths {
+			if w > 0 {
+				sum += w
+			}
+		}
+		if sum <= 0 {
+			for i := range colWidths {
+				colWidths[i] = availableWidth / float64(table.MaxColumns)
+			}
+		} else {
+			for i, w := range table.ColumnWidths {
+				if w <= 0 {
+					w = 0
+				}
+				colWidths[i] = (w / sum) * availableWidth
+			}
+		}
+	} else {
+		for i := range colWidths {
+			colWidths[i] = availableWidth / float64(table.MaxColumns)
+		}
+	}
 
 	for rowIdx, row := range table.Rows {
+		// Determine this row's height - check if any cell in row has custom height
+		rowHeight := baseRowHeight
+		if rowIdx < len(table.RowHeights) && table.RowHeights[rowIdx] > 0 {
+			rowHeight = baseRowHeight * table.RowHeights[rowIdx]
+		}
+		// Override with max cell height if any cell specifies it
+		for _, cell := range row.Row {
+			if cell.Height != nil && *cell.Height > rowHeight {
+				rowHeight = *cell.Height
+			}
+		}
+
 		// Check if row fits on current page
 		if pageManager.CheckPageBreak(rowHeight) {
 			// Create new page and initialize it
@@ -118,24 +158,40 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 		contentStream := pageManager.GetCurrentContentStream()
 
 		// Draw row cells
+		currentX := float64(margin)
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
 				break
 			}
 
 			cellProps := parseProps(cell.Props)
-			cellX := float64(margin) + float64(colIdx)*cellWidth
+			cellX := currentX
+
+			// Use cell-specific width if provided, otherwise use column width
+			cellWidth := colWidths[colIdx]
+			if cell.Width != nil && *cell.Width > 0 {
+				cellWidth = *cell.Width
+			}
+
+			// Use cell-specific height if provided, otherwise use row height
+			cellHeight := rowHeight
+			if cell.Height != nil && *cell.Height > 0 {
+				cellHeight = *cell.Height
+			}
+
+			// Update X position for next cell
+			currentX += cellWidth
 
 			// Draw cell borders
 			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
 				contentStream.WriteString("q\n")
 				if cellProps.Borders[0] > 0 { // left
 					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-rowHeight, cellX, pageManager.CurrentYPos))
+						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
 				}
 				if cellProps.Borders[1] > 0 { // right
 					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-rowHeight, cellX+cellWidth, pageManager.CurrentYPos))
+						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
 				}
 				if cellProps.Borders[2] > 0 { // top
 					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
@@ -143,7 +199,7 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				}
 				if cellProps.Borders[3] > 0 { // bottom
 					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-rowHeight, cellX+cellWidth, pageManager.CurrentYPos-rowHeight))
+						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
 				}
 				contentStream.WriteString("Q\n")
 			}
@@ -159,12 +215,12 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					if imgWidth > cellWidth-10 {
 						imgWidth = cellWidth - 10
 					}
-					if imgHeight > rowHeight-10 {
-						imgHeight = rowHeight - 10
+					if imgHeight > cellHeight-10 {
+						imgHeight = cellHeight - 10
 					}
 
 					imgX := cellX + (cellWidth-imgWidth)/2
-					imgY := pageManager.CurrentYPos - (rowHeight+imgHeight)/2
+					imgY := pageManager.CurrentYPos - (cellHeight+imgHeight)/2
 
 					// Draw actual image using XObject
 					contentStream.WriteString("q\n")
@@ -179,8 +235,8 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					if imgWidth > cellWidth-10 {
 						imgWidth = cellWidth - 10
 					}
-					if imgHeight > rowHeight-10 {
-						imgHeight = rowHeight - 10
+					if imgHeight > cellHeight-10 {
+						imgHeight = cellHeight - 10
 					}
 
 					imgX := cellX + (cellWidth-imgWidth)/2
@@ -211,7 +267,7 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				// Draw checkbox
 				checkboxSize := 10.0
 				checkboxX := cellX + (cellWidth-checkboxSize)/2
-				checkboxY := pageManager.CurrentYPos - (rowHeight+checkboxSize)/2
+				checkboxY := pageManager.CurrentYPos - (cellHeight+checkboxSize)/2
 
 				contentStream.WriteString("q\n")
 				contentStream.WriteString("1 w\n")
@@ -242,7 +298,7 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					textX = cellX + 5
 				}
 
-				textY := pageManager.CurrentYPos - rowHeight/2 - float64(cellProps.FontSize)/2
+				textY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
 
 				// Reset text matrix and position absolutely
 				contentStream.WriteString("1 0 0 1 0 0 Tm\n")
