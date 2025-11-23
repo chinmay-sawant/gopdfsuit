@@ -1943,6 +1943,149 @@ export default function Editor() {
                         </button>
                       </div>
 
+                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        <button
+                          onClick={() => {
+                            try {
+                              const currentCols = selectedElement.maxcolumns || 3
+                              const newCols = currentCols + 1
+                              
+                              if (newCols > 10) {
+                                alert('Maximum 10 columns allowed')
+                                return
+                              }
+
+                              // Calculate new column widths
+                              const currentWidths = selectedElement.columnwidths || Array(currentCols).fill(1 / currentCols)
+                              const newColumnWeight = 1 / newCols
+                              const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
+                              const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
+                              
+                              // Normalize to ensure sum is exactly 1
+                              const sum = newWidths.reduce((a, b) => a + b, 0)
+                              const normalizedWidths = newWidths.map(w => w / sum)
+
+                              // Get usable width for calculations
+                              const usableWidth = getUsableWidth(currentPageSize.width)
+
+                              // Add new cell to all rows with default borders (1:1:1:1)
+                              const updatedRows = selectedElement.rows?.map(row => {
+                                const newRow = [...(row.row || [])]
+                                // Add new cell with all borders enabled
+                                newRow.push({ 
+                                  props: 'font1:12:000:left:1:1:1:1',
+                                  text: '',
+                                  width: usableWidth * normalizedWidths[newCols - 1]
+                                })
+                                
+                                // Update widths for all cells including existing ones
+                                const updatedCells = newRow.map((cell, colIdx) => ({
+                                  ...cell,
+                                  width: usableWidth * normalizedWidths[colIdx]
+                                }))
+
+                                return { row: updatedCells }
+                              })
+
+                              // Validate that all rows have the correct number of columns
+                              const allRowsValid = updatedRows.every(row => row.row.length === newCols)
+                              
+                              if (!allRowsValid) {
+                                alert('Failed to update JSON: Row validation failed')
+                                return
+                              }
+
+                              // Update the element
+                              updateElement(selectedElement.id, { 
+                                maxcolumns: newCols, 
+                                rows: updatedRows, 
+                                columnwidths: normalizedWidths 
+                              })
+
+                              // Success - component will re-render automatically
+                              console.log('Column added successfully')
+                            } catch (error) {
+                              console.error('Failed to add column:', error)
+                              alert('Failed to update JSON: ' + error.message)
+                            }
+                          }}
+                          className="btn"
+                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
+                          disabled={selectedElement.maxcolumns >= 10}
+                        >
+                          <Plus size={12} /> Add Column
+                        </button>
+                        <button
+                          onClick={() => {
+                            try {
+                              const currentCols = selectedElement.maxcolumns || 3
+                              
+                              if (currentCols <= 1) {
+                                alert('Cannot remove the last column')
+                                return
+                              }
+
+                              const newCols = currentCols - 1
+
+                              // Calculate new column widths (redistribute the removed column's weight)
+                              const currentWidths = selectedElement.columnwidths || Array(currentCols).fill(1 / currentCols)
+                              const removedWeight = currentWidths[currentCols - 1]
+                              const newWidths = currentWidths.slice(0, newCols)
+                              
+                              // Distribute removed weight proportionally to remaining columns
+                              const currentSum = newWidths.reduce((a, b) => a + b, 0)
+                              const normalizedWidths = newWidths.map(w => (w / currentSum) * (currentSum + removedWeight))
+                              
+                              // Normalize to ensure sum is exactly 1
+                              const sum = normalizedWidths.reduce((a, b) => a + b, 0)
+                              const finalWidths = normalizedWidths.map(w => w / sum)
+
+                              // Get usable width for calculations
+                              const usableWidth = getUsableWidth(currentPageSize.width)
+
+                              // Remove last cell from all rows
+                              const updatedRows = selectedElement.rows?.map(row => {
+                                const newRow = row.row.slice(0, newCols)
+                                
+                                // Update widths for remaining cells
+                                const updatedCells = newRow.map((cell, colIdx) => ({
+                                  ...cell,
+                                  width: usableWidth * finalWidths[colIdx]
+                                }))
+
+                                return { row: updatedCells }
+                              })
+
+                              // Validate that all rows have the correct number of columns
+                              const allRowsValid = updatedRows.every(row => row.row.length === newCols)
+                              
+                              if (!allRowsValid) {
+                                alert('Failed to update JSON: Row validation failed')
+                                return
+                              }
+
+                              // Update the element
+                              updateElement(selectedElement.id, { 
+                                maxcolumns: newCols, 
+                                rows: updatedRows, 
+                                columnwidths: finalWidths 
+                              })
+
+                              // Success - component will re-render automatically
+                              console.log('Column removed successfully')
+                            } catch (error) {
+                              console.error('Failed to remove column:', error)
+                              alert('Failed to update JSON: ' + error.message)
+                            }
+                          }}
+                          className="btn"
+                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
+                          disabled={!selectedElement.rows || selectedElement.maxcolumns <= 1}
+                        >
+                          Remove Column
+                        </button>
+                      </div>
+
                       <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))' }}>
                         Rows: {selectedElement.rows?.length || 0}, Columns: {selectedElement.maxcolumns || 3}
                       </div>
