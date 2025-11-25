@@ -1,0 +1,687 @@
+{
+  "config": {
+    "pageBorder": "1:1:1:1",
+    "page": "A4",
+    "pageAlignment": 1,
+    "watermark": ""
+  },
+  "title": {
+    "props": "font1:18:100:left:0:0:0:1",
+    "text": "amazon"
+  },
+  "table": [
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1, 1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:11:100:left:1:1:1:0",
+              "text": "Order Receipt"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:0",
+              "text": "Tax Invoice/Bill of Supply"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Order Number:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "408-7629485-3125678"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Order Date:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "November 25, 2025"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Invoice Number:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "INV-2025-11-4587632"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Invoice Date:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "November 25, 2025"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1, 1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Sold By"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Ship From"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "Amazon.com Services LLC"
+            },
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "Amazon Fulfillment Center"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "410 Terry Ave N"
+            },
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "1200 Warehouse Way"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:0:1",
+              "text": "Seattle, WA 98109, USA"
+            },
+            {
+              "props": "font1:8:000:left:1:1:0:1",
+              "text": "Phoenix, AZ 85043, USA"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1, 1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Billing Address"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Shipping Address"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "John Smith"
+            },
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "John Smith"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "456 Oak Street, Apt 12B"
+            },
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "456 Oak Street, Apt 12B"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "San Francisco, CA 94102"
+            },
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "San Francisco, CA 94102"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "United States"
+            },
+            {
+              "props": "font1:8:000:left:1:1:0:0",
+              "text": "United States"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:0:1",
+              "text": "Phone: +1 (415) 555-0198"
+            },
+            {
+              "props": "font1:8:000:left:1:1:0:1",
+              "text": "Phone: +1 (415) 555-0198"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1, 1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Payment Method"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Shipping Details"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Visa ending in 4829"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Carrier: UPS Ground"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Transaction ID: TXN-84759236"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Tracking: 1Z999AA10123456784"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Payment Date: Nov 25, 2025"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Est. Delivery: Nov 28-30, 2025"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 4,
+      "columnwidths": [3, 1, 1, 1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Order Items"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Qty"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Unit Price"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Total"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "Apple AirPods Pro (2nd Gen)"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "1"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$249.00"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$249.00"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:010:left:1:1:0:1",
+              "text": "ASIN: B0BDHWDR12 | White"
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "Anker 735 Charger (GaNPrime 65W)"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "2"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$45.99"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$91.98"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:010:left:1:1:0:1",
+              "text": "ASIN: B09W2PNLX6 | Black"
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "Samsung 970 EVO Plus SSD 1TB"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "1"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$89.99"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$89.99"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:010:left:1:1:0:1",
+              "text": "ASIN: B07MFZY2F2 | NVMe M.2"
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "Logitech MX Master 3S Mouse"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "1"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$99.99"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$99.99"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:010:left:1:1:0:1",
+              "text": "ASIN: B09HM94VDS | Graphite"
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "USB-C Hub Multiport Adapter 8-in-1"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "1"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$35.99"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:0",
+              "text": "$35.99"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:010:left:1:1:0:1",
+              "text": "ASIN: B07H4VQ52P | Silver"
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            },
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [3, 1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Order Summary"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": ""
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Subtotal (6 items):"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "$566.95"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Shipping & Handling:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "$0.00"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Prime Discount (PRIME15):"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "-$56.70"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Total Before Tax:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "$510.25"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Estimated Tax (8.625%):"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "$44.01"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Grand Total:"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "$554.26"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1, 1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Customer Information"
+            },
+            {
+              "props": "font1:10:100:left:1:1:1:1",
+              "text": "Order Status"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Customer ID: CUST-98745632"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Status: Processing"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Email: john.smith@email.com"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Prime Member: Yes"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Account Since: March 2018"
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Rewards Earned: 554 pts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Terms & Conditions"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:000:left:1:1:0:0",
+              "text": "Return Policy: Most items can be returned within 30 days of delivery."
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:000:left:1:1:0:0",
+              "text": "A-to-Z Guarantee: Your purchase is protected by Amazon's A-to-Z Guarantee."
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:000:left:1:1:0:0",
+              "text": "Customer Service: Contact us at 1-888-280-4331 or visit amazon.com/help"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:7:000:left:1:1:0:1",
+              "text": "This invoice was generated electronically and is valid without signature."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "image": [],
+  "footer": {
+    "font": "font1:8:000:left",
+    "text": "Thank you for shopping with Amazon!"
+  }
+}
