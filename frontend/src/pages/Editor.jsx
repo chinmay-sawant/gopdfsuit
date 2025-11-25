@@ -2809,8 +2809,35 @@ export default function Editor() {
                 <FileText size={18} /> JSON Template
               </h3>
               <textarea
-                readOnly
                 value={JSON.stringify(jsonOutput, null, 2)}
+                onChange={(e) => {
+                  try {
+                    const data = JSON.parse(e.target.value)
+                    
+                    // Parse the JSON structure from the pasted content (same as loadTemplate)
+                    setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
+                    setTitle(data.title || null)
+
+                    // Combine tables, spacers, and images into components array, preserving order
+                    const combinedComponents = []
+                    if (data.table) {
+                      data.table.forEach(table => combinedComponents.push({ ...table, type: 'table' }))
+                    }
+                    if (data.spacer) {
+                      data.spacer.forEach(spacer => combinedComponents.push({ ...spacer, type: 'spacer' }))
+                    }
+                    if (data.image) {
+                      data.image.forEach(image => combinedComponents.push({ ...image, type: 'image' }))
+                    }
+                    setComponents(combinedComponents)
+
+                    setFooter(data.footer || null)
+                    setSelectedId(null)
+                    setSelectedCell(null)
+                  } catch (err) {
+                    // Invalid JSON - do nothing, let user continue editing
+                  }
+                }}
                 style={{
                   width: '100%',
                   height: '300px',
@@ -2825,6 +2852,13 @@ export default function Editor() {
                   lineHeight: '1.4'
                 }}
               />
+              <p style={{ 
+                marginTop: '0.5rem', 
+                fontSize: '0.75rem', 
+                color: 'hsl(var(--muted-foreground))'
+              }}>
+                Paste JSON here to load template data
+              </p>
             </div>
           </div>
         </div>
