@@ -263,6 +263,21 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 						contentStream.WriteString("ET\n")
 					}
 				}
+			} else if cell.FormField != nil {
+				// Draw form field widget
+				fieldWidth := 12.0
+				fieldHeight := 12.0
+
+				if cell.FormField.Type == "text" {
+					fieldWidth = cellWidth - 4
+					fieldHeight = cellHeight - 4
+				}
+
+				fieldX := cellX + (cellWidth-fieldWidth)/2
+				fieldY := pageManager.CurrentYPos - (cellHeight+fieldHeight)/2
+
+				drawWidget(cell, fieldX, fieldY, fieldWidth, fieldHeight, pageManager)
+
 			} else if cell.Checkbox != nil {
 				// Draw checkbox
 				checkboxSize := 10.0
@@ -462,4 +477,114 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 
 	// Draw the image using XObject
 	drawImageWithXObject(contentStream, image, imageXObjectRef, pageManager)
+}
+
+// drawWidget creates a widget annotation for a form field
+func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) {
+	if cell.FormField == nil {
+		return
+	}
+
+	field := cell.FormField
+	// Calculate rect
+	rect := fmt.Sprintf("[%.2f %.2f %.2f %.2f]", x, y, x+w, y+h)
+
+	var widgetDict strings.Builder
+	widgetDict.WriteString("<< /Type /Annot /Subtype /Widget")
+	widgetDict.WriteString(fmt.Sprintf(" /Rect %s", rect))
+	widgetDict.WriteString(fmt.Sprintf(" /T (%s)", escapeText(field.Name)))
+	widgetDict.WriteString(" /F 4") // Print flag
+
+	if field.Type == "checkbox" {
+		widgetDict.WriteString(" /FT /Btn")
+
+		onState := "/Yes"
+		offState := "/Off"
+
+		val := offState
+		if field.Checked {
+			val = onState
+		}
+
+		widgetDict.WriteString(fmt.Sprintf(" /V %s /AS %s", val, val))
+
+		// Checkbox Appearance Streams
+		// On Appearance (Box with X)
+		onAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %.2f %.2f re S 2 2 m %.2f %.2f l 2 %.2f m %.2f 2 l S Q", w, h, w-2, h-2, h-2, w-2)
+		onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(onAP), onAP))
+
+		// Off Appearance (Empty Box)
+		offAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %.2f %.2f re S Q", w, h)
+		offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(offAP), offAP))
+
+		widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /Yes %d 0 R /Off %d 0 R >> >>", onAPID, offAPID))
+
+	} else if field.Type == "radio" {
+		widgetDict.WriteString(" /FT /Btn /Ff 49152") // Radio button flag
+
+		onState := "/" + field.Value
+		offState := "/Off"
+
+		val := offState
+		if field.Checked {
+			val = onState
+		}
+
+		widgetDict.WriteString(fmt.Sprintf(" /V %s /AS %s", val, val))
+
+		if field.Shape == "square" {
+			// Radio Appearance Streams (Square with dot)
+			onAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %.2f %.2f re S 3 3 %.2f %.2f re f Q", w, h, w-6, h-6)
+			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(onAP), onAP))
+
+			offAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %.2f %.2f re S Q", w, h)
+			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(offAP), offAP))
+
+			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
+		} else {
+			// Default to Round (Circle)
+			r := w/2 - 1
+			cx := w / 2
+			cy := h / 2
+			k := 0.55228 * r
+
+			// Outer circle path (Stroke)
+			circlePath := fmt.Sprintf("%.2f %.2f m %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c S",
+				cx+r, cy, cx+r, cy+k, cx+k, cy+r, cx, cy+r,
+				cx-k, cy+r, cx-r, cy+k, cx-r, cy,
+				cx-r, cy-k, cx-k, cy-r, cx, cy-r,
+				cx+k, cy-r, cx+r, cy-k, cx+r, cy)
+
+			// Inner dot path (Fill) - radius r/2
+			r2 := r / 2
+			k2 := 0.55228 * r2
+			dotPath := fmt.Sprintf("%.2f %.2f m %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c f",
+				cx+r2, cy, cx+r2, cy+k2, cx+k2, cy+r2, cx, cy+r2,
+				cx-k2, cy+r2, cx-r2, cy+k2, cx-r2, cy,
+				cx-r2, cy-k2, cx-k2, cy-r2, cx, cy-r2,
+				cx+k2, cy-r2, cx+r2, cy-k2, cx+r2, cy)
+
+			onAP := fmt.Sprintf("q 1 w 0 0 0 RG %s %s Q", circlePath, dotPath)
+			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(onAP), onAP))
+
+			offAP := fmt.Sprintf("q 1 w 0 0 0 RG %s Q", circlePath)
+			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(offAP), offAP))
+
+			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
+		}
+	} else if field.Type == "text" {
+		widgetDict.WriteString(" /FT /Tx") // Text field
+		widgetDict.WriteString(fmt.Sprintf(" /V (%s)", escapeText(field.Value)))
+
+		// Appearance Stream for Text Field (Simple Box)
+		apBox := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %.2f %.2f re S Q", w, h)
+		apID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(apBox), apBox))
+
+		widgetDict.WriteString(fmt.Sprintf(" /AP << /N %d 0 R >>", apID))
+	}
+
+	widgetDict.WriteString(" >>")
+
+	objID := pageManager.AddExtraObject(widgetDict.String())
+	pageManager.AddAnnotation(objID)
 }

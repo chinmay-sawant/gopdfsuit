@@ -45,8 +45,18 @@ type Cell struct {
 	// when ColumnWidths is not supplied at Table level. Height can influence
 	// RowHeights if those are not explicitly set (frontend may promote edits
 	// to RowHeights / ColumnWidths).
-	Width  *float64 `json:"width,omitempty"`
-	Height *float64 `json:"height,omitempty"`
+	Width     *float64   `json:"width,omitempty"`
+	Height    *float64   `json:"height,omitempty"`
+	FormField *FormField `json:"form_field,omitempty"` // Support for fillable form fields
+}
+
+type FormField struct {
+	Type      string `json:"type"` // "checkbox", "radio", "text"
+	Name      string `json:"name"`
+	Value     string `json:"value"` // Export value for radio/checkbox, default value for text
+	Checked   bool   `json:"checked"`
+	GroupName string `json:"group_name,omitempty"` // For radio buttons
+	Shape     string `json:"shape,omitempty"`      // "round" or "square" (for radio)
 }
 
 type Image struct {

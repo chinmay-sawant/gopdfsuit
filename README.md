@@ -318,6 +318,12 @@ curl "http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json"
   - `alignment`: left, center, or right
   - `left:right:top:bottom`: Border widths for cell edges
 - **chequebox**: Boolean value for checkbox state (true = checked, false = unchecked)
+- **form_field**: Object defining a fillable form field (checkbox or radio button)
+  - `type`: `"checkbox"` or `"radio"`
+  - `name`: Field name (required for form data extraction)
+  - `value`: Export value (e.g., "Yes", "Option1")
+  - `checked`: Boolean initial state
+  - `group_name`: (Optional) Group name for radio buttons
 
 **Automatic Page Break Features:**
 - ✅ **Height Tracking**: Monitors content height and automatically creates new pages
@@ -749,6 +755,8 @@ with open("website.pdf", "wb") as f:
 | **📱 Multi-page Support** | **Auto Page Breaks** | ✅ Manual Control | ✅ Manual Control | ✅ Manual Control |
 | **🎨 Styling** | **Font Styles + Borders** | ✅ Advanced | ✅ Advanced | ✅ Advanced |
 | **☑️ Interactive Elements** | **Checkboxes** | ✅ Full Support | ✅ Full Support | ✅ Full Support |
+| **🔘 Radio Buttons** | **Interactive radio button groups** | ❌ Not Supported | ❌ Not Supported | ❌ Not Supported |
+| **📝 Fillable Fields** | **Generate PDFs with fillable form fields** | ❌ Not Supported | ❌ Not Supported | ❌ Not Supported |
 | **📏 Page Formats** | **A3, A4, A5, Letter, Legal** | ✅ All Formats | ✅ All Formats | ✅ All Formats |
 | **🔒 Security** | **Basic Validation** | ✅ Advanced | ✅ Enterprise | ✅ Enterprise |
 | **🐳 Docker Support** | **✅ Built-in (Multi-stage, Alpine-based)** | ❌ Not Applicable (Library) | ❌ Not Applicable (Library) | ❌ Not Applicable (Library) |
@@ -783,6 +791,8 @@ with open("website.pdf", "wb") as f:
 - 🖼️ **HTML to Image**: Convert HTML content or web pages to PNG/JPG/SVG with gochromedp
 - 📋 **Tables & Forms**: Support for complex table layouts with automatic page breaks
 - ☑️ **Checkboxes**: Interactive checkbox elements
+- 🔘 **Radio Buttons**: Interactive radio button groups
+- 📝 **Fillable Fields**: Generate PDFs with fillable form fields
 - 🎨 **Font Styling**: Bold, italic, and underline text support
 - 📄 **Multi-page Support**: Automatic page breaks and multi-page documents
 - 🔢 **Page Numbering**: Automatic page numbering in "Page X of Y" format
