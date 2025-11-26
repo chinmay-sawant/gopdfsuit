@@ -70,8 +70,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
 	// Generate all content first to know how many pages we need
-	// Pass imageObjectIDs and cellImageObjectIDs so content generation can reference them
-	generateAllContentWithImages(template, pageManager, imageObjectIDs, cellImageObjectIDs)
+	// Pass imageObjects, imageObjectIDs and cellImageObjectIDs so content generation can reference them
+	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs)
 
 	// Collect all widget IDs for AcroForm
 	var allWidgetIDs []int
@@ -267,7 +267,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 }
 
 // generateAllContentWithImages processes the template and generates content with image support
-func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int) {
+func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int) {
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
@@ -324,9 +324,9 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 					continue
 				}
 				if imgIdx >= 0 {
-					if _, exists := imageObjectIDs[imgIdx]; exists {
+					if imgObj, exists := imageObjects[imgIdx]; exists {
 						imageXObjectRef := fmt.Sprintf("/Im%d", imgIdx)
-						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark)
+						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
 					}
@@ -349,10 +349,10 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 
 		// Images - Process each image with automatic page breaks
 		for i, image := range template.Image {
-			if _, exists := imageObjectIDs[i]; exists {
+			if imgObj, exists := imageObjects[i]; exists {
 				// Image was successfully decoded, draw it with XObject reference
 				imageXObjectRef := fmt.Sprintf("/Im%d", i)
-				drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark)
+				drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 			} else {
 				// Fall back to placeholder if image couldn't be decoded
 				drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)

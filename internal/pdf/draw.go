@@ -217,18 +217,14 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				// Check if we have an XObject for this cell image
 				cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
 				if _, exists := cellImageObjectIDs[cellKey]; exists && cell.Image.ImageData != "" {
-					// Render actual image using XObject
-					imgWidth := cell.Image.Width
-					imgHeight := cell.Image.Height
-					if imgWidth > cellWidth-10 {
-						imgWidth = cellWidth - 10
-					}
-					if imgHeight > cellHeight-10 {
-						imgHeight = cellHeight - 10
-					}
+					// Render actual image using XObject - fit 100% to cell
+					// Use full cell dimensions (no padding)
+					imgWidth := cellWidth
+					imgHeight := cellHeight
 
-					imgX := cellX + (cellWidth-imgWidth)/2
-					imgY := pageManager.CurrentYPos - (cellHeight+imgHeight)/2
+					// Position at cell's top-left corner
+					imgX := cellX
+					imgY := pageManager.CurrentYPos - cellHeight
 
 					// Draw actual image using XObject
 					contentStream.WriteString("q\n")
@@ -237,18 +233,12 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					contentStream.WriteString(fmt.Sprintf("/CellImg_%s Do\n", cellKey))
 					contentStream.WriteString("Q\n")
 				} else {
-					// Fall back to placeholder if no XObject
-					imgWidth := cell.Image.Width
-					imgHeight := cell.Image.Height
-					if imgWidth > cellWidth-10 {
-						imgWidth = cellWidth - 10
-					}
-					if imgHeight > cellHeight-10 {
-						imgHeight = cellHeight - 10
-					}
+					// Fall back to placeholder if no XObject - fit 100% to cell
+					imgWidth := cellWidth
+					imgHeight := cellHeight
 
-					imgX := cellX + (cellWidth-imgWidth)/2
-					imgY := pageManager.CurrentYPos - (rowHeight+imgHeight)/2
+					imgX := cellX
+					imgY := pageManager.CurrentYPos - cellHeight
 
 					// Draw placeholder border
 					contentStream.WriteString("q\n")
@@ -476,17 +466,24 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 }
 
 // drawImageWithXObjectInternal handles image drawing with XObject, including page breaks
-func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pageManager *PageManager, borderConfig, watermark string) {
-	imageHeight := image.Height
-	if imageHeight == 0 {
+func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pageManager *PageManager, borderConfig, watermark string, originalImgWidth, originalImgHeight int) {
+	// Calculate usable width to estimate height for page break check
+	usableWidth := pageManager.PageDimensions.Width - 2*margin
+
+	// Calculate height based on aspect ratio
+	var imageHeight float64
+	if originalImgWidth > 0 && originalImgHeight > 0 {
+		aspectRatio := float64(originalImgHeight) / float64(originalImgWidth)
+		imageHeight = usableWidth * aspectRatio
+	} else if image.Height > 0 && image.Width > 0 {
+		aspectRatio := image.Height / image.Width
+		imageHeight = usableWidth * aspectRatio
+	} else {
 		imageHeight = 200 // Default height
 	}
 
-	// Add some spacing before image
-	spacing := float64(20)
-
-	// Check if image fits on current page
-	if pageManager.CheckPageBreak(imageHeight + spacing) {
+	// Check if image fits on current page (no extra spacing)
+	if pageManager.CheckPageBreak(imageHeight) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
 		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions)
@@ -496,7 +493,7 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 	contentStream := pageManager.GetCurrentContentStream()
 
 	// Draw the image using XObject
-	drawImageWithXObject(contentStream, image, imageXObjectRef, pageManager)
+	drawImageWithXObject(contentStream, image, imageXObjectRef, pageManager, originalImgWidth, originalImgHeight)
 }
 
 // drawWidget creates a widget annotation for a form field

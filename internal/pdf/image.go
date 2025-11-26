@@ -191,19 +191,31 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 }
 
 // drawImageWithXObject renders an image using XObject reference
-func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, imageXObjectRef string, pageManager *PageManager) {
-	imageHeight := image.Height
-	if imageHeight == 0 {
+// For standalone images, it fits the image to the full usable width (between margins)
+func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, imageXObjectRef string, pageManager *PageManager, originalImgWidth, originalImgHeight int) {
+	// Calculate the usable width (page width minus margins on both sides)
+	usableWidth := pageManager.PageDimensions.Width - 2*margin
+
+	// Use the full usable width for the image
+	imageWidth := usableWidth
+
+	// Calculate height to maintain aspect ratio
+	var imageHeight float64
+	if originalImgWidth > 0 && originalImgHeight > 0 {
+		// Maintain aspect ratio based on original image dimensions
+		aspectRatio := float64(originalImgHeight) / float64(originalImgWidth)
+		imageHeight = imageWidth * aspectRatio
+	} else if image.Height > 0 && image.Width > 0 {
+		// Use provided dimensions to calculate aspect ratio
+		aspectRatio := image.Height / image.Width
+		imageHeight = imageWidth * aspectRatio
+	} else {
+		// Default height if no dimensions available
 		imageHeight = 200
 	}
 
-	imageWidth := image.Width
-	if imageWidth == 0 {
-		imageWidth = 300
-	}
-
-	// Center the image horizontally
-	imageX := (pageManager.PageDimensions.Width - imageWidth) / 2
+	// Position image at the left margin
+	imageX := float64(margin)
 	imageY := pageManager.CurrentYPos - imageHeight
 
 	// Save graphics state
@@ -221,5 +233,5 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 	// Restore graphics state
 	contentStream.WriteString("Q\n")
 
-	pageManager.CurrentYPos -= (imageHeight + 20) // 20pt spacing
+	pageManager.CurrentYPos -= imageHeight // No extra spacing
 }
