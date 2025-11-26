@@ -82,12 +82,20 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	contentStream.WriteString(strconv.Itoa(titleProps.FontSize))
 	contentStream.WriteString(" Tf\n")
 
+	// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
+	textWidth := float64(len(title.Text)) * float64(titleProps.FontSize) * 0.5
+
+	// Calculate available width (page width minus both margins)
+	availableWidth := pageManager.PageDimensions.Width - 2*margin
+
 	var titleX float64
 	switch titleProps.Alignment {
 	case "center":
-		titleX = pageManager.PageDimensions.Width / 2
+		// Center the text within the available area (between margins)
+		titleX = margin + (availableWidth-textWidth)/2
 	case "right":
-		titleX = pageManager.PageDimensions.Width - margin
+		// Right align: position text so it ends at the right margin
+		titleX = pageManager.PageDimensions.Width - margin - textWidth
 	default:
 		titleX = margin
 	}
@@ -303,12 +311,17 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
 
+				// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
+				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
+
 				var textX float64
 				switch cellProps.Alignment {
 				case "center":
-					textX = cellX + cellWidth/2
+					// Center the text within the cell
+					textX = cellX + (cellWidth-textWidth)/2
 				case "right":
-					textX = cellX + cellWidth - 5
+					// Right align: position text so it ends near the right edge of cell
+					textX = cellX + cellWidth - textWidth - 5
 				default:
 					textX = cellX + 5
 				}
