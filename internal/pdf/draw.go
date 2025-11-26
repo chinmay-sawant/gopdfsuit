@@ -362,6 +362,15 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 	}
 }
 
+// drawSpacer adds vertical space in the document
+func drawSpacer(spacer models.Spacer, pageManager *PageManager) {
+	height := spacer.Height
+	if height <= 0 {
+		height = 20 // Default spacer height
+	}
+	pageManager.CurrentYPos -= height
+}
+
 // drawFooter renders the document footer
 func drawFooter(contentStream *bytes.Buffer, footer models.Footer) {
 	footerProps := parseProps(footer.Font)

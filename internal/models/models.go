@@ -1,11 +1,25 @@
 package models
 
 type PDFTemplate struct {
-	Config Config  `json:"config"`
-	Title  Title   `json:"title"`
-	Table  []Table `json:"table"`
-	Image  []Image `json:"image,omitempty"`
-	Footer Footer  `json:"footer"`
+	Config   Config    `json:"config"`
+	Title    Title     `json:"title"`
+	Table    []Table   `json:"table"`
+	Spacer   []Spacer  `json:"spacer,omitempty"`
+	Image    []Image   `json:"image,omitempty"`
+	Elements []Element `json:"elements,omitempty"` // Ordered elements (tables, spacers, images)
+	Footer   Footer    `json:"footer"`
+}
+
+type Spacer struct {
+	Height float64 `json:"height"`
+}
+
+type Element struct {
+	Type   string  `json:"type"`             // "table", "spacer", "image"
+	Index  int     `json:"index,omitempty"`  // Index into the respective array (Table, Spacer, Image)
+	Table  *Table  `json:"table,omitempty"`  // Inline table data (alternative to index)
+	Spacer *Spacer `json:"spacer,omitempty"` // Inline spacer data (alternative to index)
+	Image  *Image  `json:"image,omitempty"`  // Inline image data (alternative to index)
 }
 
 type Config struct {

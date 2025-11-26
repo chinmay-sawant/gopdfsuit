@@ -284,20 +284,79 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager)
 	}
 
-	// Tables - Process each table with automatic page breaks
-	for tableIdx, table := range template.Table {
-		drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
-	}
+	// Check if we have ordered elements array
+	if len(template.Elements) > 0 {
+		// Process elements in order
+		tableIdx := 0
+		for _, elem := range template.Elements {
+			switch elem.Type {
+			case "table":
+				var table models.Table
+				if elem.Table != nil {
+					table = *elem.Table
+				} else if elem.Index < len(template.Table) {
+					table = template.Table[elem.Index]
+				} else {
+					continue
+				}
+				drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
+				tableIdx++
+			case "spacer":
+				var spacer models.Spacer
+				if elem.Spacer != nil {
+					spacer = *elem.Spacer
+				} else if elem.Index < len(template.Spacer) {
+					spacer = template.Spacer[elem.Index]
+				} else {
+					continue
+				}
+				drawSpacer(spacer, pageManager)
+			case "image":
+				var image models.Image
+				var imgIdx int
+				if elem.Image != nil {
+					image = *elem.Image
+					imgIdx = -1 // No index for inline image
+				} else if elem.Index < len(template.Image) {
+					image = template.Image[elem.Index]
+					imgIdx = elem.Index
+				} else {
+					continue
+				}
+				if imgIdx >= 0 {
+					if _, exists := imageObjectIDs[imgIdx]; exists {
+						imageXObjectRef := fmt.Sprintf("/Im%d", imgIdx)
+						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark)
+					} else {
+						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+					}
+				} else {
+					drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+				}
+			}
+		}
+	} else {
+		// Legacy mode: process tables, then spacers, then images (spacers at end)
+		// Tables - Process each table with automatic page breaks
+		for tableIdx, table := range template.Table {
+			drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
+		}
 
-	// Images - Process each image with automatic page breaks
-	for i, image := range template.Image {
-		if _, exists := imageObjectIDs[i]; exists {
-			// Image was successfully decoded, draw it with XObject reference
-			imageXObjectRef := fmt.Sprintf("/Im%d", i)
-			drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark)
-		} else {
-			// Fall back to placeholder if image couldn't be decoded
-			drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+		// Spacers - Process each spacer (added after tables in legacy mode)
+		for _, spacer := range template.Spacer {
+			drawSpacer(spacer, pageManager)
+		}
+
+		// Images - Process each image with automatic page breaks
+		for i, image := range template.Image {
+			if _, exists := imageObjectIDs[i]; exists {
+				// Image was successfully decoded, draw it with XObject reference
+				imageXObjectRef := fmt.Sprintf("/Im%d", i)
+				drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark)
+			} else {
+				// Fall back to placeholder if image couldn't be decoded
+				drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+			}
 		}
 	}
 

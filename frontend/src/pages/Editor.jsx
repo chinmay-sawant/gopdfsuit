@@ -1639,6 +1639,24 @@ export default function Editor() {
     if (tables.length > 0) output.table = tables
     if (spacers.length > 0) output.spacer = spacers
     if (images.length > 0) output.image = images
+
+    // Also include ordered elements array to preserve the order
+    if (components.length > 0) {
+      let tableIdx = 0
+      let spacerIdx = 0
+      let imageIdx = 0
+      output.elements = components.map(comp => {
+        if (comp.type === 'table') {
+          return { type: 'table', index: tableIdx++ }
+        } else if (comp.type === 'spacer') {
+          return { type: 'spacer', index: spacerIdx++ }
+        } else if (comp.type === 'image') {
+          return { type: 'image', index: imageIdx++ }
+        }
+        return null
+      }).filter(Boolean)
+    }
+
     if (footer) output.footer = footer
     return output
   }
