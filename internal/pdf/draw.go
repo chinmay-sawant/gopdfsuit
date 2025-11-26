@@ -360,8 +360,6 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 
 		pageManager.CurrentYPos -= rowHeight
 	}
-
-	pageManager.CurrentYPos -= 20 // Space between tables
 }
 
 // drawFooter renders the document footer
