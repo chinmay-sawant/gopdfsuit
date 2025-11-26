@@ -1668,6 +1668,52 @@ export default function Editor() {
 
   const jsonOutput = useMemo(() => getJsonOutput(), [config, title, components, footer])
 
+  // Local state for JSON editing
+  const [jsonText, setJsonText] = useState('')
+  const [isJsonEditing, setIsJsonEditing] = useState(false)
+
+  // Update jsonText when jsonOutput changes (but not while editing)
+  React.useEffect(() => {
+    if (!isJsonEditing) {
+      setJsonText(JSON.stringify(jsonOutput, null, 2))
+    }
+  }, [jsonOutput, isJsonEditing])
+
+  const handleJsonChange = (e) => {
+    setJsonText(e.target.value)
+  }
+
+  const handleJsonBlur = () => {
+    setIsJsonEditing(false)
+    try {
+      const data = JSON.parse(jsonText)
+      
+      // Parse the JSON structure from the pasted content
+      setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
+      setTitle(data.title || null)
+
+      // Combine tables, spacers, and images into components array, preserving order
+      const combinedComponents = []
+      if (data.table) {
+        data.table.forEach(table => combinedComponents.push({ ...table, type: 'table' }))
+      }
+      if (data.spacer) {
+        data.spacer.forEach(spacer => combinedComponents.push({ ...spacer, type: 'spacer' }))
+      }
+      if (data.image) {
+        data.image.forEach(image => combinedComponents.push({ ...image, type: 'image' }))
+      }
+      setComponents(combinedComponents)
+
+      setFooter(data.footer || null)
+      setSelectedId(null)
+      setSelectedCell(null)
+    } catch (err) {
+      // Invalid JSON - reset to current state
+      setJsonText(JSON.stringify(jsonOutput, null, 2))
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <style>
@@ -1678,10 +1724,11 @@ export default function Editor() {
             opacity: 0.8;
           }
           .editor-sidebar {
-            height: calc(100vh - 140px);
-            overflow-y: auto;
             position: sticky;
-            top: 140px;
+            top: 80px;
+            height: calc(100vh - 100px);
+            overflow-y: auto;
+            align-self: flex-start;
           }
           .editor-sidebar::-webkit-scrollbar {
             width: 6px;
@@ -1712,6 +1759,14 @@ export default function Editor() {
             max-height: calc(100vh - 200px);
             overflow-y: auto;
           }
+          .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: hsl(var(--background));
+            border-bottom: 1px solid hsl(var(--border));
+            padding: 0.75rem 1rem;
+          }
           @media (max-width: 1400px) {
             .editor-main-grid {
               grid-template-columns: 240px 1fr 300px !important;
@@ -1735,14 +1790,7 @@ export default function Editor() {
       </style>
       
       {/* Sticky Header */}
-      <div style={{ 
-        position: 'sticky', 
-        top: 0, 
-        zIndex: 100, 
-        background: 'hsl(var(--background))',
-        borderBottom: '1px solid hsl(var(--border))',
-        padding: '0.75rem 1rem'
-      }}>
+      <div className="sticky-header">
         <div className="container-full">
           {/* Compact Header */}
           <div style={{ 
@@ -3049,59 +3097,46 @@ export default function Editor() {
 
             {/* JSON Output */}
             <div className="card" style={{ padding: '1rem', flex: 1 }}>
-              <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText size={18} /> JSON Template
-              </h3>
+              <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                  <FileText size={16} /> JSON Template
+                </h3>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(jsonText)
+                  }}
+                  className="btn"
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                >
+                  <Copy size={12} /> Copy
+                </button>
+              </div>
               <textarea
-                value={JSON.stringify(jsonOutput, null, 2)}
-                onChange={(e) => {
-                  try {
-                    const data = JSON.parse(e.target.value)
-                    
-                    // Parse the JSON structure from the pasted content (same as loadTemplate)
-                    setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
-                    setTitle(data.title || null)
-
-                    // Combine tables, spacers, and images into components array, preserving order
-                    const combinedComponents = []
-                    if (data.table) {
-                      data.table.forEach(table => combinedComponents.push({ ...table, type: 'table' }))
-                    }
-                    if (data.spacer) {
-                      data.spacer.forEach(spacer => combinedComponents.push({ ...spacer, type: 'spacer' }))
-                    }
-                    if (data.image) {
-                      data.image.forEach(image => combinedComponents.push({ ...image, type: 'image' }))
-                    }
-                    setComponents(combinedComponents)
-
-                    setFooter(data.footer || null)
-                    setSelectedId(null)
-                    setSelectedCell(null)
-                  } catch (err) {
-                    // Invalid JSON - do nothing, let user continue editing
-                  }
-                }}
+                value={jsonText}
+                onChange={handleJsonChange}
+                onFocus={() => setIsJsonEditing(true)}
+                onBlur={handleJsonBlur}
                 style={{
                   width: '100%',
-                  height: '300px',
+                  height: '250px',
                   fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
-                  fontSize: '0.75rem',
+                  fontSize: '0.7rem',
                   padding: '0.75rem',
                   resize: 'vertical',
-                  background: 'hsl(var(--muted))',
-                  color: 'hsl(var(--foreground))',
+                  background: '#1e1e1e',
+                  color: '#d4d4d4',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '4px',
                   lineHeight: '1.4'
                 }}
+                spellCheck={false}
               />
               <p style={{ 
                 marginTop: '0.5rem', 
-                fontSize: '0.75rem', 
+                fontSize: '0.7rem', 
                 color: 'hsl(var(--muted-foreground))'
               }}>
-                Paste JSON here to load template data
+                Edit JSON directly or paste to load template. Changes apply on blur.
               </p>
             </div>
           </div>
