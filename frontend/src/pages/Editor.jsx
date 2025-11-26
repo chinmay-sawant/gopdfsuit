@@ -79,7 +79,7 @@ const getStyleFromProps = (propsString) => {
     borderTopWidth: `${parsed.borders[2]}px`,
     borderBottomWidth: `${parsed.borders[3]}px`,
     borderStyle: 'solid',
-    borderColor: 'hsl(var(--border))'
+    borderColor: '#333'
   }
   
   // Apply font weight
@@ -649,10 +649,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderLeft: `${titleStyle.borderLeftWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
-            borderRight: `${titleStyle.borderRightWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
-            borderTop: `${titleStyle.borderTopWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
-            borderBottom: `${titleStyle.borderBottomWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`
+            background: 'white',
+            borderLeft: `${titleStyle.borderLeftWidth} solid ${titleStyle.borderColor}`,
+            borderRight: `${titleStyle.borderRightWidth} solid ${titleStyle.borderColor}`,
+            borderTop: `${titleStyle.borderTopWidth} solid ${titleStyle.borderColor}`,
+            borderBottom: `${titleStyle.borderBottomWidth} solid ${titleStyle.borderColor}`
           }}>
             <input
               type="text"
@@ -662,7 +663,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                 width: '100%',
                 border: 'none',
                 background: 'transparent',
-                color: 'hsl(var(--foreground))',
+                color: '#333',
                 outline: 'none',
                 fontSize: titleStyle.fontSize,
                 textAlign: titleStyle.textAlign,
@@ -782,11 +783,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           ? element.columnwidths
           : Array(element.maxcolumns).fill(1 / element.maxcolumns)
         return (
-          <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'separate', borderSpacing: '0', tableLayout: 'auto' }}>
+          <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto', background: 'white' }}>
+            <table style={{ borderCollapse: 'collapse', borderSpacing: '0', tableLayout: 'fixed', width: '100%' }}>
               <tbody>
                 {element.rows?.map((row, rowIdx) => (
-                  <tr key={rowIdx} style={{ position: 'relative', display: 'flex' }}>
+                  <tr key={rowIdx} style={{ position: 'relative' }}>
                     {row.row?.map((cell, colIdx) => {
                       const cellStyle = getStyleFromProps(cell.props)
                       const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
@@ -795,11 +796,14 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                       const cellWidth = cell.width || (usableWidthForTable * colWeights[colIdx])
                       const cellHeight = cell.height || 25
                       
+                      // Ensure borders are visible - use explicit border if cell has border props
+                      const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' || 
+                                        cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
                       const tdStyle = {
-                        borderLeft: `${cellStyle.borderLeftWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
-                        borderRight: `${cellStyle.borderRightWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
-                        borderTop: `${cellStyle.borderTopWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
-                        borderBottom: `${cellStyle.borderBottomWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
+                        borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
+                        borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
+                        borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
+                        borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
                         padding: '4px 8px',
                         width: `${cellWidth}px`,
                         height: `${cellHeight}px`,
@@ -808,7 +812,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         minHeight: '20px',
                         verticalAlign: 'middle',
                         overflow: 'hidden',
-                        backgroundColor: isCellSelected ? 'hsl(var(--accent))' : 'transparent',
+                        backgroundColor: isCellSelected ? '#e3f2fd' : '#fff',
                         cursor: 'pointer',
                         position: 'relative',
                         boxSizing: 'border-box',
@@ -825,7 +829,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         border: 'none',
                         background: 'transparent',
                         padding: '2px',
-                        color: 'hsl(var(--foreground))',
+                        color: '#333',
                         outline: 'none'
                       }
                       return (
@@ -1036,10 +1040,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderLeft: `${footerStyle.borderLeftWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
-            borderRight: `${footerStyle.borderRightWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
-            borderTop: `${footerStyle.borderTopWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
-            borderBottom: `${footerStyle.borderBottomWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`
+            background: 'white',
+            borderLeft: `${footerStyle.borderLeftWidth} solid ${footerStyle.borderColor}`,
+            borderRight: `${footerStyle.borderRightWidth} solid ${footerStyle.borderColor}`,
+            borderTop: `${footerStyle.borderTopWidth} solid ${footerStyle.borderColor}`,
+            borderBottom: `${footerStyle.borderBottomWidth} solid ${footerStyle.borderColor}`
           }}>
             <input
               type="text"
@@ -1049,7 +1054,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                 width: '100%',
                 border: 'none',
                 background: 'transparent',
-                color: 'hsl(var(--foreground))',
+                color: '#333',
                 outline: 'none',
                 fontSize: footerStyle.fontSize,
                 textAlign: footerStyle.textAlign,
@@ -1066,15 +1071,15 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           <div style={{ 
             height: element.height || 20, 
             width: '100%', 
-            background: 'repeating-linear-gradient(90deg, hsl(var(--muted)) 0px, hsl(var(--muted)) 2px, transparent 2px, transparent 10px)',
-            border: '2px dashed hsl(var(--border))',
+            background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 2px, transparent 2px, transparent 10px)',
+            border: '2px dashed #bbb',
             borderRadius: '4px',
-            opacity: 0.7,
+            opacity: 0.9,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '12px',
-            color: 'hsl(var(--muted-foreground))'
+            color: '#666'
           }}>
             Spacer ({element.height || 20}px)
           </div>
@@ -1089,8 +1094,8 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '2px dashed hsl(var(--border))',
-            background: 'hsl(var(--muted))'
+            border: '2px dashed #bbb',
+            background: '#f5f5f5'
           }}>
             {element.imagedata ? (
               <div style={{ width: '100%', textAlign: 'center' }}>
@@ -1104,17 +1109,17 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                     borderRadius: '4px'
                   }}
                 />
-                <div style={{ marginTop: '8px', fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))' }}>
+                <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#666' }}>
                   {element.imagename || 'Uploaded Image'}
                 </div>
               </div>
             ) : (
               <div style={{ textAlign: 'center' }}>
-                <ImageIcon size={32} style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }} />
-                <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>
+                <ImageIcon size={32} style={{ color: '#999', marginBottom: '8px' }} />
+                <div style={{ fontSize: '0.9rem', color: '#666' }}>
                   No image selected
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginTop: '4px' }}>
+                <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '4px' }}>
                   Select an image from properties
                 </div>
               </div>
@@ -1136,12 +1141,12 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
       onDrop={handleDrop}
       style={{
         position: 'relative',
-        margin: '10px 0',
+        margin: '4px 0',
         padding: isSelected && element.type !== 'table' ? '8px' : '0',
         border: isSelected && element.type !== 'table' ? '2px solid var(--secondary-color)' : '2px solid transparent',
         borderRadius: element.type === 'table' ? '0' : '6px',
         cursor: isDragging ? 'grabbing' : 'grab',
-        background: isSelected && element.type !== 'table' ? 'hsl(var(--accent))' : 'transparent',
+        background: isSelected && element.type !== 'table' ? '#e3f2fd' : 'transparent',
         boxShadow: isSelected && element.type === 'table' ? '0 0 0 2px var(--secondary-color)' : 'none',
         transition: 'all 0.2s ease',
         opacity: isDragging ? 0.5 : 1
@@ -1222,9 +1227,9 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           </button>
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <GripVertical size={14} style={{ color: 'hsl(var(--muted-foreground))' }} />
-        <span style={{ fontSize: '12px', fontWeight: '500', color: 'hsl(var(--muted-foreground))' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+        <GripVertical size={14} style={{ color: '#888' }} />
+        <span style={{ fontSize: '11px', fontWeight: '500', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {element.type.charAt(0).toUpperCase() + element.type.slice(1)}
         </span>
       </div>
@@ -1664,7 +1669,7 @@ export default function Editor() {
   const jsonOutput = useMemo(() => getJsonOutput(), [config, title, components, footer])
 
   return (
-    <div style={{ padding: '1rem 0', minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <style>
         {`
           .drop-target {
@@ -1672,248 +1677,429 @@ export default function Editor() {
             border: 2px dashed hsl(var(--primary)) !important;
             opacity: 0.8;
           }
+          .editor-sidebar {
+            height: calc(100vh - 140px);
+            overflow-y: auto;
+            position: sticky;
+            top: 140px;
+          }
+          .editor-sidebar::-webkit-scrollbar {
+            width: 6px;
+          }
+          .editor-sidebar::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .editor-sidebar::-webkit-scrollbar-thumb {
+            background: hsl(var(--border));
+            border-radius: 3px;
+          }
+          .editor-sidebar::-webkit-scrollbar-thumb:hover {
+            background: hsl(var(--muted-foreground));
+          }
+          .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            cursor: pointer;
+            user-select: none;
+          }
+          .section-header:hover {
+            opacity: 0.8;
+          }
+          .canvas-container {
+            min-height: 500px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+          }
+          @media (max-width: 1400px) {
+            .editor-main-grid {
+              grid-template-columns: 240px 1fr 300px !important;
+            }
+          }
+          @media (max-width: 1100px) {
+            .editor-main-grid {
+              grid-template-columns: 1fr !important;
+            }
+            .editor-sidebar {
+              height: auto;
+              position: relative;
+              top: 0;
+            }
+            .canvas-container {
+              min-height: 400px;
+              max-height: none;
+            }
+          }
         `}
       </style>
-      <div className="container-full">
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-          <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>
-            <Edit size={32} /> PDF Template Editor
-          </h1>
-          <p className="text-muted">Create professional PDF templates with enhanced controls</p>
+      
+      {/* Sticky Header */}
+      <div style={{ 
+        position: 'sticky', 
+        top: 0, 
+        zIndex: 100, 
+        background: 'hsl(var(--background))',
+        borderBottom: '1px solid hsl(var(--border))',
+        padding: '0.75rem 1rem'
+      }}>
+        <div className="container-full">
+          {/* Compact Header */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            gap: '1rem',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Edit size={24} style={{ color: 'var(--secondary-color)' }} />
+              <div>
+                <h1 style={{ fontSize: '1.25rem', margin: 0, color: 'hsl(var(--foreground))' }}>PDF Template Editor</h1>
+                <p style={{ fontSize: '0.75rem', margin: 0, color: 'hsl(var(--muted-foreground))' }}>
+                  {allElements.length} elements • {config.page} {config.pageAlignment === 1 ? 'Portrait' : 'Landscape'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="Load template file..."
+                style={{ 
+                  padding: '0.4rem 0.75rem', 
+                  fontSize: '0.85rem', 
+                  width: '200px',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px',
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))'
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.value.trim()) {
+                    loadTemplate(e.target.value.trim())
+                  }
+                }}
+              />
+              <button
+                onClick={previewPDF}
+                className="btn btn-secondary"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Eye size={14} /> Preview
+              </button>
+              <button
+                onClick={downloadPDF}
+                className="btn"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Download size={14} /> Generate
+              </button>
+              <button
+                onClick={copyJSON}
+                className="btn"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Copy size={14} /> Copy
+              </button>
+              
+              <div style={{ 
+                display: 'flex', 
+                border: '1px solid hsl(var(--border))', 
+                borderRadius: '6px',
+                marginLeft: '0.5rem'
+              }}>
+                <button
+                  onClick={() => setTheme('light')}
+                  style={{
+                    padding: '0.4rem 0.5rem',
+                    background: theme === 'light' ? 'hsl(var(--accent))' : 'transparent',
+                    color: 'hsl(var(--foreground))',
+                    border: 'none',
+                    borderRight: '1px solid hsl(var(--border))',
+                    cursor: 'pointer',
+                    borderRadius: '5px 0 0 5px'
+                  }}
+                >
+                  <Sun size={14} />
+                </button>
+                <button
+                  onClick={() => setTheme('dark')}
+                  style={{
+                    padding: '0.4rem 0.5rem',
+                    background: theme === 'dark' ? 'hsl(var(--accent))' : 'transparent',
+                    color: 'hsl(var(--foreground))',
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: '0 5px 5px 0'
+                  }}
+                >
+                  <Moon size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <Toolbar 
-          theme={theme} 
-          setTheme={setTheme}
-          onLoadTemplate={loadTemplate}
-          onPreviewPDF={previewPDF}
-          onDownloadPDF={downloadPDF}
-          onCopyJSON={copyJSON}
-        />
-
-        {/* Main Layout: Toolbox | Canvas | Properties */}
-        <div className="grid" style={{ gridTemplateColumns: '280px 1fr 350px', gap: '1rem' }}>
+      {/* Main Content */}
+      <div className="container-full" style={{ flex: 1, padding: '1rem' }}>
+        <div className="grid editor-main-grid" style={{ gridTemplateColumns: '280px 1fr 350px', gap: '1rem', alignItems: 'start' }}>
           
-          {/* Left: Toolbox */}
-          <div className="card" style={{ padding: '1rem' }}>
-            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Square size={18} /> Components
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {Object.entries(COMPONENT_TYPES).map(([type, data]) => (
-                <DraggableComponent
-                  key={type}
-                  type={type}
-                  componentData={data}
-                  isDragging={draggedType}
-                  onDragStart={setDraggedType}
-                  onDragEnd={() => setDraggedType(null)}
-                />
-              ))}
+          {/* Left: Components & Settings */}
+          <div className="editor-sidebar">
+            {/* Components Section */}
+            <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+              <h3 style={{ 
+                margin: '0 0 0.75rem 0', 
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                color: 'hsl(var(--foreground))'
+              }}>
+                <Square size={16} /> Components
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                {Object.entries(COMPONENT_TYPES).map(([type, data]) => (
+                  <DraggableComponent
+                    key={type}
+                    type={type}
+                    componentData={data}
+                    isDragging={draggedType}
+                    onDragStart={setDraggedType}
+                    onDragEnd={() => setDraggedType(null)}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Document Settings */}
-            <div style={{ marginTop: '1.5rem' }}>
-              <h4 style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Settings size={16} /> Document Config
-              </h4>
+            <div className="card" style={{ padding: '1rem' }}>
+              <h3 style={{ 
+                margin: '0 0 0.75rem 0', 
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                color: 'hsl(var(--foreground))'
+              }}>
+                <Settings size={16} /> Document Settings
+              </h3>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem' }}>Page Size:</label>
-                  <select
-                    value={config.page}
-                    onChange={(e) => setConfig(prev => ({ ...prev, page: e.target.value }))}
-                    style={{ width: '100%', padding: '0.25rem' }}
-                  >
-                    {Object.entries(PAGE_SIZES).map(([key, size]) => (
-                      <option key={key} value={key}>{size.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem' }}>Orientation:</label>
-                  <select
-                    value={config.pageAlignment}
-                    onChange={(e) => setConfig(prev => ({ ...prev, pageAlignment: parseInt(e.target.value) }))}
-                    style={{ width: '100%', padding: '0.25rem' }}
-                  >
-                    <option value={1}>Portrait</option>
-                    <option value={2}>Landscape</option>
-                  </select>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Page Size & Orientation Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Page Size</label>
+                    <select
+                      value={config.page}
+                      onChange={(e) => setConfig(prev => ({ ...prev, page: e.target.value }))}
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.4rem',
+                        fontSize: '0.85rem',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '4px',
+                        background: 'hsl(var(--background))',
+                        color: 'hsl(var(--foreground))'
+                      }}
+                    >
+                      {Object.entries(PAGE_SIZES).map(([key, size]) => (
+                        <option key={key} value={key}>{size.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Orientation</label>
+                    <select
+                      value={config.pageAlignment}
+                      onChange={(e) => setConfig(prev => ({ ...prev, pageAlignment: parseInt(e.target.value) }))}
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.4rem',
+                        fontSize: '0.85rem',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '4px',
+                        background: 'hsl(var(--background))',
+                        color: 'hsl(var(--foreground))'
+                      }}
+                    >
+                      <option value={1}>Portrait</option>
+                      <option value={2}>Landscape</option>
+                    </select>
+                  </div>
                 </div>
 
+                {/* Watermark */}
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem' }}>Watermark:</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Watermark</label>
                   <input
                     type="text"
                     value={config.watermark || ''}
                     onChange={(e) => setConfig(prev => ({ ...prev, watermark: e.target.value }))}
                     placeholder="Optional watermark text"
-                    style={{ width: '100%', padding: '0.25rem' }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '0.4rem',
+                      fontSize: '0.85rem',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '4px',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))'
+                    }}
                   />
                 </div>
 
-                {/* Page Border Controls */}
-                <div style={{ marginTop: '1rem' }}>
+                {/* Page Borders */}
+                <div style={{ paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
                   <PageBorderControls
                     borders={parsePageBorder(config.pageBorder)}
                     onChange={(borders) => setConfig(prev => ({ ...prev, pageBorder: formatPageBorder(borders) }))}
                   />
                 </div>
 
-                {/* Page Alignment Controls */}
-                <div style={{ marginTop: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Page Alignment</label>
-                  <div style={{ display: 'flex', gap: '0.25rem' }}>
-                    {[
-                      { value: 1, label: 'Portrait' },
-                      { value: 2, label: 'Landscape' }
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        onClick={() => setConfig(prev => ({ ...prev, pageAlignment: value }))}
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '6px',
-                          background: config.pageAlignment === value ? 'hsl(var(--accent))' : 'hsl(var(--background))',
-                          color: config.pageAlignment === value ? 'hsl(var(--accent-foreground))' : 'hsl(var(--foreground))',
-                          fontSize: '0.9rem',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                {/* Page Info */}
+                <div style={{ 
+                  padding: '0.5rem', 
+                  background: 'hsl(var(--muted))', 
+                  borderRadius: '4px',
+                  fontSize: '0.75rem', 
+                  color: 'hsl(var(--muted-foreground))'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Dimensions:</span>
+                    <span>{currentPageSize.width} × {currentPageSize.height} pts</span>
                   </div>
-                </div>
-
-                <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.5rem' }}>
-                  <div>Size: {currentPageSize.width} × {currentPageSize.height}</div>
-                  <div>Elements: {allElements.length}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                    <span>Usable Width:</span>
+                    <span>{getUsableWidth(currentPageSize.width)} pts</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Center: Canvas */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Canvas */}
-            <div className="card" style={{ padding: '1rem', flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div
-                  ref={canvasRef}
-                  onClick={handleCanvasClick}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: isDragOver
-                      ? 'repeating-linear-gradient(45deg, hsl(var(--secondary-color)) 0px, hsl(var(--secondary-color)) 2px, transparent 2px, transparent 20px)'
-                      : 'hsl(var(--card))',
-                    border: isDragOver ? '3px dashed var(--secondary-color)' : '2px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    cursor: 'default',
-                    color: 'hsl(var(--foreground))',
-                    padding: '20px',
-                    overflow: 'auto'
-                  }}
-                >
-                  {allElements.length === 0 && !isDragOver && (
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      height: '100%',
-                      textAlign: 'center',
-                      color: 'hsl(var(--muted-foreground))',
-                      pointerEvents: 'none',
-                    }}>
-                      <Square size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                      <p>Drag components here to start building your template</p>
-                      <p style={{ fontSize: '0.9rem', opacity: 0.7 }}>Load a template file to see existing content</p>
-                    </div>
-                  )}
-                  {isDragOver && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      height: '100%',
-                      textAlign: 'center',
-                      color: 'var(--secondary-color)',
-                      pointerEvents: 'none',
-                      fontWeight: '600',
-                      fontSize: '1.1rem'
-                    }}>
-                      Drop here to add component
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                    {/* Drop zone at the beginning */}
-                    {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
-                      <DropZone
-                        index={title ? 1 : 0}
-                        onDrop={(draggedId) => handleComponentDrop(draggedId, title ? 1 : 0)}
-                        onAddComponent={(type, position) => addElementAtPosition(type, title ? 1 : 0)}
-                        isVisible={true}
-                        isToolboxDragging={draggedType !== null}
-                      />
-                    )}
-
-                    {allElements.map((element, index) => (
-                      <React.Fragment key={element.id}>
-                        <ComponentItem
-                          element={element}
-                          index={index}
-                          isSelected={element.id === selectedId}
-                          onSelect={setSelectedId}
-                          onUpdate={(updates) => updateElement(element.id, updates)}
-                          onMove={moveElement}
-                          onDelete={deleteElement}
-                          canMoveUp={index > (title ? 1 : 0)}
-                          canMoveDown={index < allElements.length - (footer ? 2 : 1)}
-                          selectedCell={selectedCell}
-                          onCellSelect={setSelectedCell}
-                          onDragStart={setDraggedComponentId}
-                          onDragEnd={() => setDraggedComponentId(null)}
-                          onDrop={handleComponentDrop}
-                          isDragging={draggedComponentId === element.id}
-                          draggedType={draggedType}
-                          handleCellDrop={handleCellDrop}
-                          currentPageSize={currentPageSize}
-                        />
-                        {index < allElements.length - 1 && (
-                          <DropZone
-                            index={index + 1}
-                            onDrop={(draggedId) => handleComponentDrop(draggedId, index + 1)}
-                            onAddComponent={(type, position) => addElementAtPosition(type, position)}
-                            isVisible={draggedComponentId !== null || draggedType !== null}
-                            isToolboxDragging={draggedType !== null}
-                          />
-                        )}
-                      </React.Fragment>
-                    ))}
-
-                    {/* Drop zone at the end */}
-                    {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
-                      <DropZone
-                        index={allElements.length}
-                        onDrop={(draggedId) => handleComponentDrop(draggedId, allElements.length)}
-                        onAddComponent={(type, position) => addElementAtPosition(type, position)}
-                        isVisible={true}
-                        isToolboxDragging={draggedType !== null}
-                      />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+            {/* Page size indicator */}
+            <div style={{ 
+              fontSize: '0.75rem', 
+              color: '#666', 
+              textAlign: 'center',
+              padding: '0.25rem 0.5rem',
+              background: '#e9ecef',
+              borderRadius: '4px'
+            }}>
+              {currentPageSize.name} - {currentPageSize.width} × {currentPageSize.height} pts
+            </div>
+            <div className="card" style={{ 
+              padding: '1rem',
+              width: `${Math.min(currentPageSize.width, 650)}px`,
+              maxWidth: '100%',
+              transition: 'width 0.3s ease'
+            }}>
+              <div 
+                className="canvas-container"
+                ref={canvasRef}
+                onClick={handleCanvasClick}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                style={{
+                  background: isDragOver
+                    ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)'
+                    : '#fff',
+                  border: isDragOver ? '3px dashed var(--secondary-color)' : '1px solid #ddd',
+                  borderRadius: '4px',
+                  padding: '1rem',
+                  transition: 'all 0.2s ease',
+                  minHeight: `${Math.min(currentPageSize.height * 0.6, 600)}px`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-start',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                }}
+              >
+                {allElements.length === 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '300px',
+                    textAlign: 'center',
+                    color: '#999',
+                    pointerEvents: 'none',
+                  }}>
+                    <Square size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                    <p style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '0.5rem' }}>
+                      {isDragOver ? 'Drop here to add component' : 'Drop components here'}
+                    </p>
+                    {!isDragOver && (
+                      <p style={{ fontSize: '0.85rem', opacity: 0.7 }}>Drag from the left panel or load a template</p>
                     )}
                   </div>
+                )}
+                {/* Elements container - align items at top */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0', alignItems: 'stretch' }}>
+                  {/* Drop zone at the beginning */}
+                  {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
+                    <DropZone
+                      index={title ? 1 : 0}
+                      onDrop={(draggedId) => handleComponentDrop(draggedId, title ? 1 : 0)}
+                      onAddComponent={(type, position) => addElementAtPosition(type, title ? 1 : 0)}
+                      isVisible={true}
+                      isToolboxDragging={draggedType !== null}
+                    />
+                  )}
+
+                  {allElements.map((element, index) => (
+                    <React.Fragment key={element.id}>
+                      <ComponentItem
+                        element={element}
+                        index={index}
+                        isSelected={element.id === selectedId}
+                        onSelect={setSelectedId}
+                        onUpdate={(updates) => updateElement(element.id, updates)}
+                        onMove={moveElement}
+                        onDelete={deleteElement}
+                        canMoveUp={index > (title ? 1 : 0)}
+                        canMoveDown={index < allElements.length - (footer ? 2 : 1)}
+                        selectedCell={selectedCell}
+                        onCellSelect={setSelectedCell}
+                        onDragStart={setDraggedComponentId}
+                        onDragEnd={() => setDraggedComponentId(null)}
+                        onDrop={handleComponentDrop}
+                        isDragging={draggedComponentId === element.id}
+                        draggedType={draggedType}
+                        handleCellDrop={handleCellDrop}
+                        currentPageSize={currentPageSize}
+                      />
+                      {index < allElements.length - 1 && (
+                        <DropZone
+                          index={index + 1}
+                          onDrop={(draggedId) => handleComponentDrop(draggedId, index + 1)}
+                          onAddComponent={(type, position) => addElementAtPosition(type, position)}
+                          isVisible={draggedComponentId !== null || draggedType !== null}
+                          isToolboxDragging={draggedType !== null}
+                        />
+                      )}
+                    </React.Fragment>
+                  ))}
+
+                  {/* Drop zone at the end */}
+                  {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
+                    <DropZone
+                      index={allElements.length}
+                      onDrop={(draggedId) => handleComponentDrop(draggedId, allElements.length)}
+                      onAddComponent={(type, position) => addElementAtPosition(type, position)}
+                      isVisible={true}
+                      isToolboxDragging={draggedType !== null}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1929,38 +2115,78 @@ export default function Editor() {
           </div>
 
           {/* Right: Properties & JSON */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="editor-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {/* Properties Panel */}
             <div className="card" style={{ padding: '1rem' }}>
-              <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Edit size={18} /> Properties
+              <h3 style={{ 
+                margin: '0 0 0.75rem 0', 
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                color: 'hsl(var(--foreground))'
+              }}>
+                <Edit size={16} /> Properties
               </h3>
               
               {!selectedElement && (
-                <div className="text-muted" style={{ textAlign: 'center', padding: '1rem' }}>
-                  Select a component to edit properties
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '2rem 1rem',
+                  color: 'hsl(var(--muted-foreground))',
+                  background: 'hsl(var(--muted))',
+                  borderRadius: '6px'
+                }}>
+                  <Settings size={24} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                  <p style={{ fontSize: '0.85rem', margin: 0 }}>Select a component to edit</p>
                 </div>
               )}
               
               {selectedElement && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ padding: '0.5rem', background: 'hsl(var(--accent))', borderRadius: '4px' }}>
-                    <strong>{selectedElement.type.charAt(0).toUpperCase() + selectedElement.type.slice(1)}</strong>
+                  <div style={{ 
+                    padding: '0.5rem 0.75rem', 
+                    background: 'hsl(var(--accent))', 
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <strong style={{ fontSize: '0.9rem' }}>
+                      {selectedElement.type.charAt(0).toUpperCase() + selectedElement.type.slice(1)}
+                    </strong>
+                    <button
+                      onClick={() => deleteElement(selectedElement.id)}
+                      style={{ 
+                        background: 'hsl(var(--destructive))', 
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '0.25rem 0.5rem',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
                   </div>
 
                   {selectedElement.type === 'title' && (
                     <>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
+                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
                         <input
                           type="text"
                           value={selectedElement.text || ''}
                           onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
                         />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
                         <PropsEditor 
                           props={selectedElement.props} 
                           onChange={(props) => updateElement(selectedElement.id, { props })}
@@ -1971,8 +2197,8 @@ export default function Editor() {
 
                   {selectedElement.type === 'table' && (
                     <>
-                      <div className="flex gap-2">
-                        <label style={{ width: '80px', fontSize: '0.9rem' }}>Max Columns:</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Columns:</label>
                         <input
                           type="number"
                           min="1"
