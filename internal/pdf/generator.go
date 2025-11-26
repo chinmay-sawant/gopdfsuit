@@ -271,16 +271,18 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
-	// Title - Check if it fits on current page
-	titleProps := parseProps(template.Title.Props)
-	titleHeight := float64(titleProps.FontSize + 50) // Title + spacing
+	// Title - Only process if title text is provided
+	if template.Title.Text != "" {
+		titleProps := parseProps(template.Title.Props)
+		titleHeight := float64(titleProps.FontSize + 50) // Title + spacing
 
-	if pageManager.CheckPageBreak(titleHeight) {
-		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
+		if pageManager.CheckPageBreak(titleHeight) {
+			pageManager.AddNewPage()
+			initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
+		}
+
+		drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager)
 	}
-
-	drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager)
 
 	// Tables - Process each table with automatic page breaks
 	for tableIdx, table := range template.Table {
