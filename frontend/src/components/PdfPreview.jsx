@@ -11,6 +11,7 @@ import {
   X,
   Loader2
 } from 'lucide-react'
+import { useTheme } from '../theme'
 
 export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -19,6 +20,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const iframeRef = useRef(null)
+  const { theme } = useTheme()
 
   useEffect(() => {
     setIsLoading(true)
@@ -111,10 +113,10 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
           alignItems: 'center',
           gap: '0.5rem',
           fontSize: isFullscreen ? '1.1rem' : '1rem',
-          color: '#333'
+          color: theme === 'dark' ? '#fff' : '#333'
         }}>
           <Eye size={16} /> {title}
-          {isLoading && <Loader2 size={14} className="animate-spin" style={{ color: '#666' }} />}
+          {isLoading && <Loader2 size={14} className="animate-spin" style={{ color: theme === 'dark' ? '#fff' : '#666' }} />}
         </h4>
 
         {/* Control buttons */}
@@ -122,7 +124,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
           {/* Zoom level indicator */}
           <span style={{
             fontSize: '0.85rem',
-            color: '#666',
+            color: theme === 'dark' ? '#fff' : '#666',
             minWidth: '45px',
             textAlign: 'center',
             fontWeight: '500'
@@ -295,7 +297,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '0.5rem',
-            color: '#666'
+            color: theme === 'dark' ? '#fff' : '#666'
           }}>
             <Loader2 size={24} className="animate-spin" />
             <span style={{ fontSize: '0.9rem' }}>Loading PDF...</span>
@@ -312,7 +314,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '0.5rem',
-            color: '#dc2626',
+            color: theme === 'dark' ? '#fff' : '#dc2626',
             textAlign: 'center'
           }}>
             <X size={24} />
@@ -321,9 +323,9 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
               onClick={handleRefresh}
               style={{
                 padding: '0.25rem 0.5rem',
-                background: '#f5f5f5',
-                color: '#333',
-                border: '1px solid #ddd',
+                background: theme === 'dark' ? '#374151' : '#f5f5f5',
+                color: theme === 'dark' ? '#fff' : '#333',
+                border: theme === 'dark' ? '1px solid #4b5563' : '1px solid #ddd',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontSize: '0.8rem'
