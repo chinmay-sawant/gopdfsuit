@@ -560,31 +560,47 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
 		} else {
 			// Default to Round (Circle)
-			r := w/2 - 1
+			// Add /MK dictionary with appearance characteristics for circle radio button
+			// /BC = border color (black), /BG = background color (light gray), /CA = caption (l = bullet in ZapfDingbats)
+			widgetDict.WriteString(" /MK << /BC [0 0 0] /BG [0.9 0.9 0.9] /CA (l) >>")
+
+			// Center point and radius calculations
 			cx := w / 2
 			cy := h / 2
-			k := 0.55228 * r
+			outerR := cx - 0.5      // Outer circle radius (slightly smaller than half width)
+			innerR := outerR * 0.45 // Inner dot radius (about 45% of outer)
 
-			// Outer circle path (Stroke)
-			circlePath := fmt.Sprintf("%.2f %.2f m %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c S",
-				cx+r, cy, cx+r, cy+k, cx+k, cy+r, cx, cy+r,
-				cx-k, cy+r, cx-r, cy+k, cx-r, cy,
-				cx-r, cy-k, cx-k, cy-r, cx, cy-r,
-				cx+k, cy-r, cx+r, cy-k, cx+r, cy)
+			// Bézier curve control point factor
+			k := 0.5523 // approximation of 4*(sqrt(2)-1)/3 for circle
 
-			// Inner dot path (Fill) - radius r/2
-			r2 := r / 2
-			k2 := 0.55228 * r2
-			dotPath := fmt.Sprintf("%.2f %.2f m %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c f",
-				cx+r2, cy, cx+r2, cy+k2, cx+k2, cy+r2, cx, cy+r2,
-				cx-k2, cy+r2, cx-r2, cy+k2, cx-r2, cy,
-				cx-r2, cy-k2, cx-k2, cy-r2, cx, cy-r2,
-				cx+k2, cy-r2, cx+r2, cy-k2, cx+r2, cy)
+			// Build outer circle path using Bézier curves (centered at origin, will use cm to translate)
+			// This draws a circle from the right side, going counter-clockwise
+			// Each Bézier curve segment: x1 y1 x2 y2 x3 y3 c
+			outerCirclePath := fmt.Sprintf("%.4f 0 m %.4f %.4f %.4f %.4f 0 %.4f c %.4f %.4f %.4f %.4f %.4f 0 c %.4f %.4f %.4f %.4f 0 %.4f c %.4f %.4f %.4f %.4f %.4f 0 c h",
+				outerR,
+				outerR, outerR*k, outerR*k, outerR, outerR,
+				-outerR*k, outerR, -outerR, outerR*k, -outerR,
+				-outerR, -outerR*k, -outerR*k, -outerR, -outerR,
+				outerR*k, -outerR, outerR, -outerR*k, outerR)
 
-			onAP := fmt.Sprintf("q 1 w 0 0 0 RG %s %s Q", circlePath, dotPath)
+			// Build inner dot circle path
+			innerCirclePath := fmt.Sprintf("%.4f 0 m %.4f %.4f %.4f %.4f 0 %.4f c %.4f %.4f %.4f %.4f %.4f 0 c %.4f %.4f %.4f %.4f 0 %.4f c %.4f %.4f %.4f %.4f %.4f 0 c h",
+				innerR,
+				innerR, innerR*k, innerR*k, innerR, innerR,
+				-innerR*k, innerR, -innerR, innerR*k, -innerR,
+				-innerR, -innerR*k, -innerR*k, -innerR, -innerR,
+				innerR*k, -innerR, innerR, -innerR*k, innerR)
+
+			// ON appearance: Light background fill + dark stroke + dark inner dot
+			// Using 'B' (fill and stroke) for combined operation
+			onAP := fmt.Sprintf("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 %.2f %.2f cm\n%s\nB\nQ\nq\n0 0 0 rg\n1 0 0 1 %.2f %.2f cm\n%s\nf\nQ",
+				cx, cy, outerCirclePath,
+				cx, cy, innerCirclePath)
 			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(onAP), onAP))
 
-			offAP := fmt.Sprintf("q 1 w 0 0 0 RG %s Q", circlePath)
+			// OFF appearance: Light background fill + dark stroke (no inner dot)
+			offAP := fmt.Sprintf("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 %.2f %.2f cm\n%s\nB\nQ",
+				cx, cy, outerCirclePath)
 			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(offAP), offAP))
 
 			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
