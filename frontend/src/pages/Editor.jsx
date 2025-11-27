@@ -1812,6 +1812,7 @@ export default function Editor() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <input
+                id="template-file-input"
                 type="text"
                 placeholder="Load template file..."
                 style={{ 
@@ -1829,6 +1830,18 @@ export default function Editor() {
                   }
                 }}
               />
+              <button
+                onClick={() => {
+                  const input = document.getElementById('template-file-input')
+                  if (input && input.value.trim()) {
+                    loadTemplate(input.value.trim())
+                  }
+                }}
+                className="btn"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Upload size={14} /> Load
+              </button>
               <button
                 onClick={previewPDF}
                 className="btn btn-secondary"
