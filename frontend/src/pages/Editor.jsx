@@ -1071,7 +1071,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           <div style={{ 
             height: element.height || 20, 
             width: '100%', 
-            background: 'repeating-linear-gradient(90deg, #e0e0e0 0px, #e0e0e0 2px, transparent 2px, transparent 10px)',
+            background: 'white',
             border: '2px dashed #bbb',
             borderRadius: '4px',
             opacity: 0.9,
