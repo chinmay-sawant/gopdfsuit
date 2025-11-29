@@ -683,13 +683,22 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
         // Use passed currentPageSize prop
         const usableWidthForTable = getUsableWidth(currentPageSize.width)
         
+        // Helper to get normalized column weight
+        const getNormalizedColWeight = (colIdx) => {
+          const rawWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
+            ? element.columnwidths
+            : Array(element.maxcolumns).fill(1)
+          const total = rawWeights.reduce((sum, w) => sum + w, 0)
+          return rawWeights[colIdx] / total
+        }
+        
         // Per-cell width resize handler
         const handleCellWidthResizeStart = (e, rowIdx, colIdx) => {
           e.preventDefault()
           e.stopPropagation()
           const startX = e.clientX
           const cell = element.rows[rowIdx].row[colIdx]
-          const startWidth = cell.width || (usableWidthForTable * (element.columnwidths?.[colIdx] || 1/element.maxcolumns))
+          const startWidth = cell.width || (usableWidthForTable * getNormalizedColWeight(colIdx))
           
           const onMouseMove = (me) => {
             const dx = me.clientX - startX
@@ -712,7 +721,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
               
               newRows[rowIdx].row = newRows[rowIdx].row.map((c, idx) => {
                 if (idx === 0) return c
-                const currentWidth = c.width || (usableWidthForTable * (element.columnwidths?.[idx] || 1/element.maxcolumns))
+                const currentWidth = c.width || (usableWidthForTable * getNormalizedColWeight(idx))
                 const newColWidth = currentWidth - redistributePerCol
                 return { ...c, width: Math.max(0, newColWidth) }
               })
@@ -722,7 +731,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             // When shrinking (negative widthChange), add space back to next column
             else if (colIdx > 0 && colIdx < element.maxcolumns - 1) {
               const nextCell = newRows[rowIdx].row[colIdx + 1]
-              const nextWidth = nextCell.width || (usableWidthForTable * (element.columnwidths?.[colIdx + 1] || 1/element.maxcolumns))
+              const nextWidth = nextCell.width || (usableWidthForTable * getNormalizedColWeight(colIdx + 1))
               const newNextWidth = nextWidth - widthChange
               // Always subtract the change from the next column (if expanding this column, next shrinks; if shrinking, next expands)
               newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(0, newNextWidth) }
@@ -779,9 +788,12 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           window.addEventListener('mousemove', onMouseMove)
           window.addEventListener('mouseup', onMouseUp)
         }
-        const colWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
+        // Normalize columnwidths so they represent fractions that sum to 1
+        const rawColWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
           ? element.columnwidths
-          : Array(element.maxcolumns).fill(1 / element.maxcolumns)
+          : Array(element.maxcolumns).fill(1)
+        const totalWeight = rawColWidths.reduce((sum, w) => sum + w, 0)
+        const colWeights = rawColWidths.map(w => w / totalWeight)
         return (
           <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto', background: 'white' }}>
             <table style={{ borderCollapse: 'collapse', borderSpacing: '0', tableLayout: 'fixed', width: '100%' }}>
@@ -2269,9 +2281,12 @@ export default function Editor() {
                             const newCols = parseInt(e.target.value)
                             if (isNaN(newCols) || newCols < 1 || newCols > 10) return
 
-                            // Adjust column widths proportionally
+                            // Adjust column widths proportionally - normalize first
                             let newWidths = []
-                            const currentWidths = selectedElement.columnwidths || []
+                            const rawWidths = selectedElement.columnwidths || []
+                            const rawSum = rawWidths.reduce((a, b) => a + b, 0) || 1
+                            const currentWidths = rawWidths.map(w => w / rawSum)
+                            
                             if (newCols === currentWidths.length) {
                               newWidths = currentWidths
                             } else if (newCols > currentWidths.length) {
@@ -2317,11 +2332,18 @@ export default function Editor() {
                         <button
                           onClick={() => {
                             const usableWidth = getUsableWidth(currentPageSize.width)
+                            // Normalize columnwidths for proper width calculation
+                            const rawWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
+                              ? selectedElement.columnwidths
+                              : Array(selectedElement.maxcolumns).fill(1)
+                            const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0)
+                            const normalizedWeights = rawWeights.map(w => w / totalWeight)
+                            
                             const newRow = { 
                               row: Array(selectedElement.maxcolumns || 3).fill().map((_, i) => ({
                                 props: 'font1:12:000:left:1:1:1:1',
                                 text: '',
-                                width: usableWidth * (selectedElement.columnwidths ? selectedElement.columnwidths[i] : 1 / selectedElement.maxcolumns)
+                                width: usableWidth * normalizedWeights[i]
                               }))
                             }
                             updateElement(selectedElement.id, { 
@@ -2361,8 +2383,11 @@ export default function Editor() {
                                 return
                               }
 
-                              // Calculate new column widths
-                              const currentWidths = selectedElement.columnwidths || Array(currentCols).fill(1 / currentCols)
+                              // Calculate new column widths - normalize current weights first
+                              const rawWidths = selectedElement.columnwidths || Array(currentCols).fill(1)
+                              const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                              const currentWidths = rawWidths.map(w => w / rawSum)
+                              
                               const newColumnWeight = 1 / newCols
                               const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
                               const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
@@ -2434,7 +2459,11 @@ export default function Editor() {
                               const newCols = currentCols - 1
 
                               // Calculate new column widths (redistribute the removed column's weight)
-                              const currentWidths = selectedElement.columnwidths || Array(currentCols).fill(1 / currentCols)
+                              // First normalize current weights
+                              const rawWidths = selectedElement.columnwidths || Array(currentCols).fill(1)
+                              const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                              const currentWidths = rawWidths.map(w => w / rawSum)
+                              
                               const removedWeight = currentWidths[currentCols - 1]
                               const newWidths = currentWidths.slice(0, newCols)
                               
@@ -2501,9 +2530,12 @@ export default function Editor() {
                         <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Column Widths (weights)</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '0.5rem' }}>
                           {Array.from({ length: selectedElement.maxcolumns }).map((_, colIdx) => {
-                            const colWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
+                            // Normalize columnwidths for display
+                            const rawWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
                               ? selectedElement.columnwidths
-                              : Array(selectedElement.maxcolumns).fill(1 / selectedElement.maxcolumns)
+                              : Array(selectedElement.maxcolumns).fill(1)
+                            const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0)
+                            const colWeights = rawWeights.map(w => w / totalWeight)
                             return (
                               <div key={colIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                 <label style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Col {colIdx + 1}</label>
