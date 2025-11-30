@@ -29,6 +29,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	imageObjectIDs := make(map[int]int)        // map imageIndex to PDF object ID
 
 	// Process cell images - map tableIdx:rowIdx:colIdx to XObject ID
+	// Also process title table images with prefix "title:"
 	cellImageObjects := make(map[string]*ImageObject)
 	cellImageObjectIDs := make(map[string]int)
 
@@ -43,6 +44,24 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 				imageObjects[i] = imgObj
 				imageObjectIDs[i] = nextImageObjectID
 				nextImageObjectID++
+			}
+		}
+	}
+
+	// Process title table images
+	if template.Title.Table != nil {
+		for rowIdx, row := range template.Title.Table.Rows {
+			for colIdx, cell := range row.Row {
+				if cell.Image != nil && cell.Image.ImageData != "" {
+					imgObj, err := DecodeImageData(cell.Image.ImageData)
+					if err == nil {
+						imgObj.ObjectID = nextImageObjectID
+						cellKey := fmt.Sprintf("title:%d:%d", rowIdx, colIdx)
+						cellImageObjects[cellKey] = imgObj
+						cellImageObjectIDs[cellKey] = nextImageObjectID
+						nextImageObjectID++
+					}
+				}
 			}
 		}
 	}
@@ -271,17 +290,34 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
-	// Title - Only process if title text is provided
-	if template.Title.Text != "" {
+	// Title - Process if title text is provided OR if title has a table
+	if template.Title.Text != "" || template.Title.Table != nil {
 		titleProps := parseProps(template.Title.Props)
-		titleHeight := float64(titleProps.FontSize + 50) // Title + spacing
+
+		// Calculate title height based on content
+		var titleHeight float64
+		if template.Title.Table != nil && len(template.Title.Table.Rows) > 0 {
+			// Estimate height from table rows
+			for _, row := range template.Title.Table.Rows {
+				rowH := 25.0
+				for _, cell := range row.Row {
+					if cell.Height != nil && *cell.Height > rowH {
+						rowH = *cell.Height
+					}
+				}
+				titleHeight += rowH
+			}
+			titleHeight += 20 // Extra spacing
+		} else {
+			titleHeight = float64(titleProps.FontSize + 50) // Title + spacing
+		}
 
 		if pageManager.CheckPageBreak(titleHeight) {
 			pageManager.AddNewPage()
 			initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 		}
 
-		drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager)
+		drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager, cellImageObjectIDs)
 	}
 
 	// Check if we have ordered elements array

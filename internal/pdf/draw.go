@@ -74,8 +74,15 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 	}
 }
 
-// drawTitle renders the document title
-func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps models.Props, pageManager *PageManager) {
+// drawTitle renders the document title (either simple text or embedded table)
+func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps models.Props, pageManager *PageManager, cellImageObjectIDs map[string]int) {
+	// Check if title has an embedded table
+	if title.Table != nil && len(title.Table.Rows) > 0 {
+		drawTitleTable(contentStream, title.Table, pageManager, cellImageObjectIDs)
+		return
+	}
+
+	// Simple text title
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(titleProps))
 	contentStream.WriteString(" ")
@@ -107,6 +114,198 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	contentStream.WriteString("ET\n")
 
 	pageManager.CurrentYPos -= 30
+}
+
+// drawTitleTable renders an embedded table within the title section (no borders by default)
+func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageManager *PageManager, cellImageObjectIDs map[string]int) {
+	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
+	baseRowHeight := float64(25) // Standard row height
+
+	// Compute column widths in points using weights if provided
+	colWidths := make([]float64, table.MaxColumns)
+	if len(table.ColumnWidths) == table.MaxColumns {
+		// Normalize weights to sum 1
+		var sum float64
+		for _, w := range table.ColumnWidths {
+			if w > 0 {
+				sum += w
+			}
+		}
+		if sum <= 0 {
+			for i := range colWidths {
+				colWidths[i] = availableWidth / float64(table.MaxColumns)
+			}
+		} else {
+			for i, w := range table.ColumnWidths {
+				if w <= 0 {
+					w = 0
+				}
+				colWidths[i] = (w / sum) * availableWidth
+			}
+		}
+	} else {
+		for i := range colWidths {
+			colWidths[i] = availableWidth / float64(table.MaxColumns)
+		}
+	}
+
+	for rowIdx, row := range table.Rows {
+		// Determine this row's height
+		rowHeight := baseRowHeight
+		for _, cell := range row.Row {
+			if cell.Height != nil && *cell.Height > rowHeight {
+				rowHeight = *cell.Height
+			}
+		}
+
+		// Draw row cells
+		currentX := float64(margin)
+		for colIdx, cell := range row.Row {
+			if colIdx >= table.MaxColumns {
+				break
+			}
+
+			cellProps := parseProps(cell.Props)
+			cellX := currentX
+
+			// Use cell-specific width if provided, otherwise use column width
+			cellWidth := colWidths[colIdx]
+			if cell.Width != nil && *cell.Width > 0 {
+				cellWidth = *cell.Width
+			}
+
+			// Use cell-specific height if provided, otherwise use row height
+			cellHeight := rowHeight
+			if cell.Height != nil && *cell.Height > 0 {
+				cellHeight = *cell.Height
+			}
+
+			// Update X position for next cell
+			currentX += cellWidth
+
+			// Draw cell borders (title table cells have borders if specified in props)
+			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
+				contentStream.WriteString("q\n")
+				if cellProps.Borders[0] > 0 { // left
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[1] > 0 { // right
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[2] > 0 { // top
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[2]), cellX, pageManager.CurrentYPos, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[3] > 0 { // bottom
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
+				}
+				contentStream.WriteString("Q\n")
+			}
+
+			// Draw image or text
+			if cell.Image != nil && cell.Image.ImageData != "" {
+				// Check if we have an XObject for this title cell image
+				cellKey := fmt.Sprintf("title:%d:%d", rowIdx, colIdx)
+				if _, exists := cellImageObjectIDs[cellKey]; exists {
+					// Render actual image using XObject - fit 100% to cell
+					imgWidth := cellWidth
+					imgHeight := cellHeight
+
+					imgX := cellX
+					imgY := pageManager.CurrentYPos - cellHeight
+
+					// Draw actual image using XObject
+					contentStream.WriteString("q\n")
+					contentStream.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n",
+						imgWidth, imgHeight, imgX, imgY))
+					contentStream.WriteString(fmt.Sprintf("/CellImg_%s Do\n", cellKey))
+					contentStream.WriteString("Q\n")
+				} else {
+					// Fall back to placeholder
+					imgWidth := cellWidth
+					imgHeight := cellHeight
+					imgX := cellX
+					imgY := pageManager.CurrentYPos - cellHeight
+
+					// Draw placeholder border
+					contentStream.WriteString("q\n")
+					contentStream.WriteString("0.5 w\n")
+					contentStream.WriteString("0.7 0.7 0.7 RG\n")
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re S\n",
+						imgX, imgY, imgWidth, imgHeight))
+					contentStream.WriteString("Q\n")
+
+					// Draw image name
+					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
+						contentStream.WriteString("BT\n")
+						contentStream.WriteString("/F1 8 Tf\n")
+						contentStream.WriteString("0.5 0.5 0.5 rg\n")
+						textX := imgX + imgWidth/2 - float64(len(cell.Image.ImageName)*2)
+						textY := imgY + imgHeight/2
+						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+						contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
+						contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(cell.Image.ImageName)))
+						contentStream.WriteString("ET\n")
+					}
+				}
+			} else if cell.Text != "" {
+				// Draw text with font styling
+				contentStream.WriteString("BT\n")
+				contentStream.WriteString(getFontReference(cellProps))
+				contentStream.WriteString(" ")
+				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+				contentStream.WriteString(" Tf\n")
+
+				// Calculate approximate text width
+				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
+
+				var textX float64
+				switch cellProps.Alignment {
+				case "center":
+					textX = cellX + (cellWidth-textWidth)/2
+				case "right":
+					textX = cellX + cellWidth - textWidth - 5
+				default:
+					textX = cellX + 5
+				}
+
+				textY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
+
+				contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+				contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
+
+				// Add underline support
+				if cellProps.Underline {
+					contentStream.WriteString("ET\n")
+					contentStream.WriteString("q\n")
+					contentStream.WriteString("0.5 w\n")
+					underlineY := textY - 2
+					textWidth := float64(len(cell.Text) * cellProps.FontSize / 2)
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f m %.2f %.2f l S\n",
+						textX, underlineY, textX+textWidth, underlineY))
+					contentStream.WriteString("Q\n")
+					contentStream.WriteString("BT\n")
+					contentStream.WriteString(getFontReference(cellProps))
+					contentStream.WriteString(" ")
+					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+					contentStream.WriteString(" Tf\n")
+					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
+				}
+
+				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
+				contentStream.WriteString("ET\n")
+			}
+		}
+
+		pageManager.CurrentYPos -= rowHeight
+	}
+
+	// Add some spacing after the title table
+	pageManager.CurrentYPos -= 10
 }
 
 // drawTable renders a table with automatic page breaks

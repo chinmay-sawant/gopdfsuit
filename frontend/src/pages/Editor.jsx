@@ -640,39 +640,350 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
   const renderContent = () => {
     switch (element.type) {
       case 'title':
-        const titleStyle = getStyleFromProps(element.props)
+        // Title now uses an embedded table structure for logo + text support
+        const MARGIN_TITLE = 72
+        const getUsableWidthTitle = (pageWidth) => pageWidth - (2 * MARGIN_TITLE)
+        const usableWidthForTitle = getUsableWidthTitle(currentPageSize.width)
+        
+        // Get or create the title table structure
+        const titleTable = element.table || {
+          maxcolumns: 3,
+          columnwidths: [1, 2, 1],
+          rows: [{
+            row: [
+              { props: 'font1:12:000:left:0:0:0:0', text: '', image: null },
+              { props: 'font1:18:100:center:0:0:0:0', text: element.text || 'Document Title' },
+              { props: 'font1:12:000:right:0:0:0:0', text: '' }
+            ]
+          }]
+        }
+        
+        // Helper to get normalized column weight for title table
+        const getNormalizedColWeightTitle = (colIdx) => {
+          const rawWeights = titleTable.columnwidths && titleTable.columnwidths.length === titleTable.maxcolumns
+            ? titleTable.columnwidths
+            : Array(titleTable.maxcolumns).fill(1)
+          const total = rawWeights.reduce((sum, w) => sum + w, 0)
+          return rawWeights[colIdx] / total
+        }
+        
+        // Per-cell width resize handler for title table
+        const handleTitleCellWidthResizeStart = (e, rowIdx, colIdx) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const startX = e.clientX
+          const cell = titleTable.rows[rowIdx].row[colIdx]
+          const startWidth = cell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+          
+          const onMouseMove = (me) => {
+            const dx = me.clientX - startX
+            let newWidth = Math.max(50, startWidth + dx)
+            const widthChange = newWidth - startWidth
+            
+            const newRows = [...titleTable.rows]
+            newRows[rowIdx] = {
+              ...newRows[rowIdx],
+              row: newRows[rowIdx].row.map((c, idx) => 
+                idx === colIdx ? { ...c, width: newWidth } : c
+              )
+            }
+            
+            // Redistribute width to adjacent columns
+            if (colIdx < titleTable.maxcolumns - 1) {
+              const nextCell = newRows[rowIdx].row[colIdx + 1]
+              const nextWidth = nextCell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx + 1))
+              const newNextWidth = nextWidth - widthChange
+              newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(50, newNextWidth) }
+            }
+            
+            onUpdate({ table: { ...titleTable, rows: newRows } })
+          }
+          const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove)
+            window.removeEventListener('mouseup', onMouseUp)
+          }
+          window.addEventListener('mousemove', onMouseMove)
+          window.addEventListener('mouseup', onMouseUp)
+        }
+        
+        // Per-cell height resize handler for title table
+        const handleTitleCellHeightResizeStart = (e, rowIdx, colIdx) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const startY = e.clientY
+          const cell = titleTable.rows[rowIdx].row[colIdx]
+          const startHeight = cell.height || 50
+          
+          const onMouseMove = (me) => {
+            const dy = me.clientY - startY
+            const newHeight = Math.max(30, startHeight + dy)
+            
+            // Update all cells in this row to same height
+            const newRows = [...titleTable.rows]
+            newRows[rowIdx] = {
+              ...newRows[rowIdx],
+              row: newRows[rowIdx].row.map(c => ({ ...c, height: newHeight }))
+            }
+            onUpdate({ table: { ...titleTable, rows: newRows } })
+          }
+          const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove)
+            window.removeEventListener('mouseup', onMouseUp)
+          }
+          window.addEventListener('mousemove', onMouseMove)
+          window.addEventListener('mouseup', onMouseUp)
+        }
+        
+        // Handle image upload for title cells
+        const handleTitleImageUpload = (rowIdx, colIdx, file) => {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            const imageData = e.target.result
+            const newRows = [...titleTable.rows]
+            newRows[rowIdx] = {
+              ...newRows[rowIdx],
+              row: newRows[rowIdx].row.map((c, idx) => 
+                idx === colIdx ? { 
+                  ...c, 
+                  image: { 
+                    imagename: file.name, 
+                    imagedata: imageData,
+                    width: 100,
+                    height: 50
+                  },
+                  text: '' // Clear text when image is added
+                } : c
+              )
+            }
+            onUpdate({ table: { ...titleTable, rows: newRows } })
+          }
+          reader.readAsDataURL(file)
+        }
+        
+        // Helper to update a specific title table cell with proper immutable updates
+        const updateTitleTableCell = (rowIdx, colIdx, cellUpdates) => {
+          const newRows = titleTable.rows.map((row, rIdx) => 
+            rIdx === rowIdx
+              ? {
+                  ...row,
+                  row: row.row.map((c, cIdx) =>
+                    cIdx === colIdx
+                      ? { ...c, ...cellUpdates }
+                      : c
+                  )
+                }
+              : row
+          )
+          onUpdate({ table: { ...titleTable, rows: newRows } })
+        }
+        
         return (
           <div style={{ 
-            padding: '10px',
             borderRadius: '4px',
-            minHeight: '40px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
             background: 'white',
-            borderLeft: `${titleStyle.borderLeftWidth} solid ${titleStyle.borderColor}`,
-            borderRight: `${titleStyle.borderRightWidth} solid ${titleStyle.borderColor}`,
-            borderTop: `${titleStyle.borderTopWidth} solid ${titleStyle.borderColor}`,
-            borderBottom: `${titleStyle.borderBottomWidth} solid ${titleStyle.borderColor}`
+            overflowX: 'auto'
           }}>
-            <input
-              type="text"
-              value={element.text || 'Document Title'}
-              onChange={(e) => onUpdate({ text: e.target.value })}
-              style={{
-                width: '100%',
-                border: 'none',
-                background: 'transparent',
-                color: '#333',
-                outline: 'none',
-                fontSize: titleStyle.fontSize,
-                textAlign: titleStyle.textAlign,
-                fontWeight: titleStyle.fontWeight,
-                fontStyle: titleStyle.fontStyle,
-                textDecoration: titleStyle.textDecoration
-              }}
-              placeholder="Document Title"
-            />
+            <table style={{ borderCollapse: 'collapse', borderSpacing: '0', tableLayout: 'fixed', width: '100%' }}>
+              <tbody>
+                {titleTable.rows?.map((row, rowIdx) => (
+                  <tr key={rowIdx} style={{ position: 'relative' }}>
+                    {row.row?.map((cell, colIdx) => {
+                      const cellStyle = getStyleFromProps(cell.props)
+                      const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
+                      
+                      const cellWidth = cell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+                      const cellHeight = cell.height || 50
+                      
+                      const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' || 
+                                        cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
+                      
+                      return (
+                        <td
+                          key={colIdx}
+                          style={{
+                            borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
+                            borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
+                            borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
+                            borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
+                            padding: '4px 8px',
+                            width: `${cellWidth}px`,
+                            height: `${cellHeight}px`,
+                            minWidth: `${cellWidth}px`,
+                            maxWidth: `${cellWidth}px`,
+                            minHeight: '30px',
+                            verticalAlign: 'middle',
+                            overflow: 'hidden',
+                            backgroundColor: isCellSelected ? '#e3f2fd' : '#fff',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            boxSizing: 'border-box'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onSelect(element.id)
+                            onCellSelect({ rowIdx, colIdx })
+                          }}
+                          onDragOver={(e) => {
+                            if (draggedType === 'image') {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            const files = e.dataTransfer.files
+                            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                              handleTitleImageUpload(rowIdx, colIdx, files[0])
+                            }
+                          }}
+                        >
+                          {/* Cell content: image or text */}
+                          {cell.image && cell.image.imagedata ? (
+                            <div 
+                              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%', justifyContent: 'center' }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onSelect(element.id)
+                                onCellSelect({ rowIdx, colIdx })
+                              }}
+                            >
+                              <img 
+                                src={cell.image.imagedata.startsWith('data:') ? cell.image.imagedata : `data:image/png;base64,${cell.image.imagedata}`}
+                                alt={cell.image.imagename || 'Logo'}
+                                style={{ 
+                                  maxWidth: '100%', 
+                                  maxHeight: cellHeight - 10,
+                                  objectFit: 'contain'
+                                }}
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onSelect(element.id)
+                                  onCellSelect({ rowIdx, colIdx })
+                                  updateTitleTableCell(rowIdx, colIdx, { image: null })
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  top: '2px',
+                                  right: '2px',
+                                  background: 'rgba(255,0,0,0.7)',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '50%',
+                                  width: '16px',
+                                  height: '16px',
+                                  fontSize: '10px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="Remove image"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%' }}>
+                              <input
+                                type="text"
+                                value={cell.text || ''}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  updateTitleTableCell(rowIdx, colIdx, { text: e.target.value })
+                                }}
+                                placeholder={colIdx === 0 ? 'Logo/Image' : colIdx === 1 ? 'Document Title' : 'Right Text'}
+                                style={{
+                                  width: '100%',
+                                  flex: 1,
+                                  border: 'none',
+                                  background: 'transparent',
+                                  color: '#333',
+                                  outline: 'none',
+                                  fontSize: cellStyle.fontSize,
+                                  textAlign: cellStyle.textAlign,
+                                  fontWeight: cellStyle.fontWeight,
+                                  fontStyle: cellStyle.fontStyle,
+                                  textDecoration: cellStyle.textDecoration
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onSelect(element.id)
+                                  onCellSelect({ rowIdx, colIdx })
+                                }}
+                              />
+                              {colIdx === 0 && (
+                                <label 
+                                  style={{ 
+                                    fontSize: '9px', 
+                                    color: 'hsl(var(--muted-foreground))',
+                                    cursor: 'pointer',
+                                    padding: '2px 4px',
+                                    background: 'hsl(var(--muted))',
+                                    borderRadius: '4px'
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onSelect(element.id)
+                                    onCellSelect({ rowIdx, colIdx })
+                                  }}
+                                >
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                      if (e.target.files[0]) {
+                                        handleTitleImageUpload(rowIdx, colIdx, e.target.files[0])
+                                      }
+                                    }}
+                                  />
+                                  + Add Logo
+                                </label>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Width resize handle */}
+                          {colIdx < titleTable.maxcolumns - 1 && (
+                            <div
+                              onMouseDown={(e) => handleTitleCellWidthResizeStart(e, rowIdx, colIdx)}
+                              style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: '4px',
+                                cursor: 'col-resize',
+                                background: isCellSelected ? 'rgba(25, 118, 210, 0.3)' : 'transparent'
+                              }}
+                              title="Drag to resize width"
+                            />
+                          )}
+                          
+                          {/* Height resize handle */}
+                          <div
+                            onMouseDown={(e) => handleTitleCellHeightResizeStart(e, rowIdx, colIdx)}
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              height: '4px',
+                              cursor: 'row-resize',
+                              background: isCellSelected ? 'rgba(25, 118, 210, 0.3)' : 'transparent'
+                            }}
+                            title="Drag to resize height"
+                          />
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )
       case 'table':
@@ -1295,7 +1606,20 @@ export default function Editor() {
         if (!title) {
           setTitle({
             props: 'font1:18:100:center:0:0:1:0',
-            text: 'Document Title'
+            text: 'Document Title',
+            table: {
+              maxcolumns: 3,
+              columnwidths: [1/3, 1/3, 1/3],
+              rows: [
+                {
+                  row: [
+                    { props: 'font1:12:000:left:0:0:0:0', text: '' },
+                    { props: 'font1:18:100:center:0:0:0:0', text: 'Document Title' },
+                    { props: 'font1:12:000:left:0:0:0:0', text: '' }
+                  ]
+                }
+              ]
+            }
           })
           setSelectedId('title')
         }
@@ -1558,7 +1882,27 @@ export default function Editor() {
         
         // Parse the JSON structure from the template
         setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
-        setTitle(data.title || null)
+        
+        // Ensure title has table structure
+        if (data.title) {
+          const titleWithTable = {
+            ...data.title,
+            table: data.title.table || {
+              maxcolumns: 3,
+              columnwidths: [1/3, 1/3, 1/3],
+              rows: [{
+                row: [
+                  { props: 'font1:12:000:left:0:0:0:0', text: '' },
+                  { props: 'font1:18:100:center:0:0:0:0', text: data.title.text || 'Document Title' },
+                  { props: 'font1:12:000:left:0:0:0:0', text: '' }
+                ]
+              }]
+            }
+          }
+          setTitle(titleWithTable)
+        } else {
+          setTitle(null)
+        }
 
         // Combine tables, spacers, and images into components array, preserving order
         const combinedComponents = []
@@ -1702,7 +2046,27 @@ export default function Editor() {
       
       // Parse the JSON structure from the pasted content
       setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
-      setTitle(data.title || null)
+      
+      // Ensure title has table structure
+      if (data.title) {
+        const titleWithTable = {
+          ...data.title,
+          table: data.title.table || {
+            maxcolumns: 3,
+            columnwidths: [1/3, 1/3, 1/3],
+            rows: [{
+              row: [
+                { props: 'font1:12:000:left:0:0:0:0', text: '' },
+                { props: 'font1:18:100:center:0:0:0:0', text: data.title.text || 'Document Title' },
+                { props: 'font1:12:000:left:0:0:0:0', text: '' }
+              ]
+            }]
+          }
+        }
+        setTitle(titleWithTable)
+      } else {
+        setTitle(null)
+      }
 
       // Combine tables, spacers, and images into components array, preserving order
       const combinedComponents = []
@@ -2250,21 +2614,354 @@ export default function Editor() {
 
                   {selectedElement.type === 'title' && (
                     <>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
-                        <input
-                          type="text"
-                          value={selectedElement.text || ''}
-                          onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
-                        />
+                      <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
+                          Title Table Settings
+                        </div>
+                        
+                        {selectedElement.table && (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                              <label style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Columns:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={selectedElement.table.maxcolumns || 3}
+                                onChange={(e) => {
+                                  const newCols = parseInt(e.target.value)
+                                  if (isNaN(newCols) || newCols < 1 || newCols > 10) return
+
+                                  const table = selectedElement.table
+                                  let newWidths = []
+                                  const rawWidths = table.columnwidths || []
+                                  const rawSum = rawWidths.reduce((a, b) => a + b, 0) || 1
+                                  const currentWidths = rawWidths.map(w => w / rawSum)
+                                  
+                                  if (newCols === currentWidths.length) {
+                                    newWidths = currentWidths
+                                  } else if (newCols > currentWidths.length) {
+                                    const remain = newCols - currentWidths.length
+                                    const existingSum = currentWidths.reduce((a, b) => a + b, 0)
+                                    const newPartWidth = (1 - existingSum) / remain
+                                    newWidths = [...currentWidths, ...Array(remain).fill(Math.max(0.01, newPartWidth))]
+                                  } else {
+                                    newWidths = currentWidths.slice(0, newCols)
+                                  }
+                                  
+                                  const sum = newWidths.reduce((a, b) => a + b, 0) || 1
+                                  const normalizedWidths = newWidths.map(w => w / sum)
+
+                                  const updatedRows = table.rows?.map(row => {
+                                    const newRow = [...(row.row || [])]
+                                    while (newRow.length < newCols) {
+                                      newRow.push({ props: 'font1:12:000:left:0:0:0:0', text: '' })
+                                    }
+                                    if (newRow.length > newCols) {
+                                      newRow.splice(newCols)
+                                    }
+                                    return { row: newRow }
+                                  })
+                                  
+                                  updateElement(selectedElement.id, { 
+                                    table: { 
+                                      ...table, 
+                                      maxcolumns: newCols, 
+                                      rows: updatedRows, 
+                                      columnwidths: normalizedWidths 
+                                    } 
+                                  })
+                                }}
+                                style={{ flex: 1, padding: '0.25rem' }}
+                              />
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                onClick={() => {
+                                  const table = selectedElement.table
+                                  const newRow = {
+                                    row: Array(table.maxcolumns).fill(null).map(() => ({
+                                      props: 'font1:12:000:left:0:0:0:0',
+                                      text: ''
+                                    }))
+                                  }
+                                  updateElement(selectedElement.id, {
+                                    table: { ...table, rows: [...(table.rows || []), newRow] }
+                                  })
+                                }}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.4rem',
+                                  fontSize: '0.75rem',
+                                  border: '1px solid hsl(var(--border))',
+                                  borderRadius: '4px',
+                                  background: 'hsl(var(--muted))',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Add Row
+                              </button>
+                              {selectedElement.table.rows?.length > 1 && (
+                                <button
+                                  onClick={() => {
+                                    const table = selectedElement.table
+                                    // Remove selected row if a cell is selected, otherwise remove last row
+                                    const rowIdxToRemove = selectedCell ? selectedCell.rowIdx : table.rows.length - 1
+                                    const newRows = table.rows.filter((_, idx) => idx !== rowIdxToRemove)
+                                    updateElement(selectedElement.id, {
+                                      table: { ...table, rows: newRows }
+                                    })
+                                    // Clear cell selection if the selected row was removed
+                                    if (selectedCell && selectedCell.rowIdx === rowIdxToRemove) {
+                                      setSelectedCell(null)
+                                    } else if (selectedCell && selectedCell.rowIdx > rowIdxToRemove) {
+                                      // Adjust selected cell row index if it was after the removed row
+                                      setSelectedCell({ ...selectedCell, rowIdx: selectedCell.rowIdx - 1 })
+                                    }
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '0.4rem',
+                                    fontSize: '0.75rem',
+                                    border: '1px solid hsl(var(--destructive))',
+                                    borderRadius: '4px',
+                                    background: 'hsl(var(--destructive))',
+                                    color: 'white',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Remove Row {selectedCell ? `(Row ${selectedCell.rowIdx + 1})` : '(Last)'}
+                                </button>
+                              )}
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <button
+                                onClick={() => {
+                                  const table = selectedElement.table
+                                  const currentCols = table.maxcolumns || 3
+                                  const newCols = currentCols + 1
+                                  
+                                  if (newCols > 10) {
+                                    alert('Maximum 10 columns allowed')
+                                    return
+                                  }
+
+                                  // Calculate new column widths
+                                  const rawWidths = table.columnwidths || Array(currentCols).fill(1)
+                                  const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                                  const currentWidths = rawWidths.map(w => w / rawSum)
+                                  
+                                  const newColumnWeight = 1 / newCols
+                                  const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
+                                  const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
+                                  
+                                  const sum = newWidths.reduce((a, b) => a + b, 0)
+                                  const normalizedWidths = newWidths.map(w => w / sum)
+
+                                  // Add new cell to all rows
+                                  const updatedRows = table.rows?.map(row => {
+                                    const newRow = [...(row.row || [])]
+                                    newRow.push({ props: 'font1:12:000:left:0:0:0:0', text: '' })
+                                    return { row: newRow }
+                                  })
+
+                                  updateElement(selectedElement.id, {
+                                    table: { ...table, maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths }
+                                  })
+                                }}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.4rem',
+                                  fontSize: '0.75rem',
+                                  border: '1px solid hsl(var(--border))',
+                                  borderRadius: '4px',
+                                  background: 'hsl(var(--muted))',
+                                  cursor: 'pointer'
+                                }}
+                                disabled={selectedElement.table.maxcolumns >= 10}
+                              >
+                                Add Column
+                              </button>
+                              {selectedElement.table.maxcolumns > 1 && (
+                                <button
+                                  onClick={() => {
+                                    const table = selectedElement.table
+                                    const currentCols = table.maxcolumns || 3
+                                    
+                                    if (currentCols <= 1) {
+                                      alert('Cannot remove the last column')
+                                      return
+                                    }
+
+                                    // Remove selected column if a cell is selected, otherwise remove last column
+                                    const colIdxToRemove = selectedCell ? selectedCell.colIdx : currentCols - 1
+                                    const newCols = currentCols - 1
+
+                                    // Calculate new column widths
+                                    const rawWidths = table.columnwidths || Array(currentCols).fill(1)
+                                    const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                                    const currentWidths = rawWidths.map(w => w / rawSum)
+                                    
+                                    const removedWeight = currentWidths[colIdxToRemove]
+                                    const newWidths = currentWidths.filter((_, idx) => idx !== colIdxToRemove)
+                                    
+                                    const currentSum = newWidths.reduce((a, b) => a + b, 0)
+                                    const normalizedWidths = newWidths.map(w => w / currentSum)
+
+                                    // Remove cell from all rows at the selected column
+                                    const updatedRows = table.rows?.map(row => {
+                                      const newRow = row.row.filter((_, idx) => idx !== colIdxToRemove)
+                                      return { row: newRow }
+                                    })
+
+                                    updateElement(selectedElement.id, {
+                                      table: { ...table, maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths }
+                                    })
+                                    
+                                    // Clear or adjust cell selection
+                                    if (selectedCell && selectedCell.colIdx === colIdxToRemove) {
+                                      setSelectedCell(null)
+                                    } else if (selectedCell && selectedCell.colIdx > colIdxToRemove) {
+                                      setSelectedCell({ ...selectedCell, colIdx: selectedCell.colIdx - 1 })
+                                    }
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '0.4rem',
+                                    fontSize: '0.75rem',
+                                    border: '1px solid hsl(var(--destructive))',
+                                    borderRadius: '4px',
+                                    background: 'hsl(var(--destructive))',
+                                    color: 'white',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Remove Column {selectedCell ? `(Col ${selectedCell.colIdx + 1})` : '(Last)'}
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <div>
-                        <PropsEditor 
-                          props={selectedElement.props} 
-                          onChange={(props) => updateElement(selectedElement.id, { props })}
-                        />
-                      </div>
+                      
+                      {selectedCell && selectedElement.table && selectedElement.table.rows?.[selectedCell.rowIdx]?.row?.[selectedCell.colIdx] && (
+                        <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
+                            Title Cell (Row {selectedCell.rowIdx + 1}, Col {selectedCell.colIdx + 1})
+                          </div>
+                          
+                          {(() => {
+                            const cell = selectedElement.table.rows[selectedCell.rowIdx].row[selectedCell.colIdx]
+                            
+                            // Helper function to update title table cell with proper immutable updates
+                            const updateTitleCell = (cellUpdates) => {
+                              const table = selectedElement.table
+                              const newRows = table.rows.map((row, rIdx) => 
+                                rIdx === selectedCell.rowIdx
+                                  ? {
+                                      ...row,
+                                      row: row.row.map((c, cIdx) =>
+                                        cIdx === selectedCell.colIdx
+                                          ? { ...c, ...cellUpdates }
+                                          : c
+                                      )
+                                    }
+                                  : row
+                              )
+                              updateElement(selectedElement.id, { table: { ...table, rows: newRows } })
+                            }
+                            
+                            return (
+                              <>
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
+                                  <input
+                                    type="text"
+                                    value={cell.text || ''}
+                                    onChange={(e) => updateTitleCell({ text: e.target.value })}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
+                                  />
+                                </div>
+                                
+                                {cell.image ? (
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Image:</label>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                      <input
+                                        type="number"
+                                        value={cell.image.width || 100}
+                                        onChange={(e) => updateTitleCell({ 
+                                          image: { ...cell.image, width: parseFloat(e.target.value) || 100 } 
+                                        })}
+                                        placeholder="Width"
+                                        style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem' }}
+                                      />
+                                      <input
+                                        type="number"
+                                        value={cell.image.height || 50}
+                                        onChange={(e) => updateTitleCell({ 
+                                          image: { ...cell.image, height: parseFloat(e.target.value) || 50 } 
+                                        })}
+                                        placeholder="Height"
+                                        style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem' }}
+                                      />
+                                    </div>
+                                    <button
+                                      onClick={() => updateTitleCell({ image: null })}
+                                      style={{
+                                        padding: '0.25rem 0.5rem',
+                                        fontSize: '0.75rem',
+                                        border: '1px solid hsl(var(--destructive))',
+                                        borderRadius: '4px',
+                                        background: 'hsl(var(--destructive))',
+                                        color: 'white',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      Remove Image
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Add Image:</label>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files[0]
+                                        if (file) {
+                                          const reader = new FileReader()
+                                          reader.onload = (event) => {
+                                            updateTitleCell({
+                                              image: {
+                                                imagename: file.name,
+                                                imagedata: event.target.result,
+                                                width: 100,
+                                                height: 50
+                                              }
+                                            })
+                                          }
+                                          reader.readAsDataURL(file)
+                                        }
+                                      }}
+                                      style={{ width: '100%', fontSize: '0.75rem' }}
+                                    />
+                                  </div>
+                                )}
+                                
+                                <div>
+                                  <PropsEditor 
+                                    props={cell.props} 
+                                    onChange={(props) => updateTitleCell({ props })}
+                                  />
+                                </div>
+                              </>
+                            )
+                          })()}
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -2358,16 +3055,34 @@ export default function Editor() {
                         <button
                           onClick={() => {
                             if (selectedElement.rows?.length > 1) {
+                              // Remove selected row if a cell is selected, otherwise remove last row
+                              const rowIdxToRemove = selectedCell ? selectedCell.rowIdx : selectedElement.rows.length - 1
+                              const newRows = selectedElement.rows.filter((_, idx) => idx !== rowIdxToRemove)
+                              
+                              // Also update rowheights if they exist
+                              let newRowHeights = selectedElement.rowheights
+                              if (newRowHeights && newRowHeights.length > 0) {
+                                newRowHeights = newRowHeights.filter((_, idx) => idx !== rowIdxToRemove)
+                              }
+                              
                               updateElement(selectedElement.id, { 
-                                rows: selectedElement.rows.slice(0, -1)
+                                rows: newRows,
+                                ...(newRowHeights ? { rowheights: newRowHeights } : {})
                               })
+                              
+                              // Clear or adjust cell selection
+                              if (selectedCell && selectedCell.rowIdx === rowIdxToRemove) {
+                                setSelectedCell(null)
+                              } else if (selectedCell && selectedCell.rowIdx > rowIdxToRemove) {
+                                setSelectedCell({ ...selectedCell, rowIdx: selectedCell.rowIdx - 1 })
+                              }
                             }
                           }}
                           className="btn"
                           style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
                           disabled={!selectedElement.rows || selectedElement.rows.length <= 1}
                         >
-                          Remove Row
+                          Remove Row {selectedCell ? `(Row ${selectedCell.rowIdx + 1})` : '(Last)'}
                         </button>
                       </div>
 
@@ -2456,6 +3171,8 @@ export default function Editor() {
                                 return
                               }
 
+                              // Remove selected column if a cell is selected, otherwise remove last column
+                              const colIdxToRemove = selectedCell ? selectedCell.colIdx : currentCols - 1
                               const newCols = currentCols - 1
 
                               // Calculate new column widths (redistribute the removed column's weight)
@@ -2464,28 +3181,24 @@ export default function Editor() {
                               const rawSum = rawWidths.reduce((a, b) => a + b, 0)
                               const currentWidths = rawWidths.map(w => w / rawSum)
                               
-                              const removedWeight = currentWidths[currentCols - 1]
-                              const newWidths = currentWidths.slice(0, newCols)
+                              const removedWeight = currentWidths[colIdxToRemove]
+                              const newWidths = currentWidths.filter((_, idx) => idx !== colIdxToRemove)
                               
                               // Distribute removed weight proportionally to remaining columns
                               const currentSum = newWidths.reduce((a, b) => a + b, 0)
-                              const normalizedWidths = newWidths.map(w => (w / currentSum) * (currentSum + removedWeight))
-                              
-                              // Normalize to ensure sum is exactly 1
-                              const sum = normalizedWidths.reduce((a, b) => a + b, 0)
-                              const finalWidths = normalizedWidths.map(w => w / sum)
+                              const normalizedWidths = newWidths.map(w => w / currentSum)
 
                               // Get usable width for calculations
                               const usableWidth = getUsableWidth(currentPageSize.width)
 
-                              // Remove last cell from all rows
+                              // Remove cell at selected column from all rows
                               const updatedRows = selectedElement.rows?.map(row => {
-                                const newRow = row.row.slice(0, newCols)
+                                const newRow = row.row.filter((_, idx) => idx !== colIdxToRemove)
                                 
                                 // Update widths for remaining cells
                                 const updatedCells = newRow.map((cell, colIdx) => ({
                                   ...cell,
-                                  width: usableWidth * finalWidths[colIdx]
+                                  width: usableWidth * normalizedWidths[colIdx]
                                 }))
 
                                 return { row: updatedCells }
@@ -2503,8 +3216,15 @@ export default function Editor() {
                               updateElement(selectedElement.id, { 
                                 maxcolumns: newCols, 
                                 rows: updatedRows, 
-                                columnwidths: finalWidths 
+                                columnwidths: normalizedWidths 
                               })
+                              
+                              // Clear or adjust cell selection
+                              if (selectedCell && selectedCell.colIdx === colIdxToRemove) {
+                                setSelectedCell(null)
+                              } else if (selectedCell && selectedCell.colIdx > colIdxToRemove) {
+                                setSelectedCell({ ...selectedCell, colIdx: selectedCell.colIdx - 1 })
+                              }
 
                               // Success - component will re-render automatically
                               console.log('Column removed successfully')
@@ -2517,7 +3237,7 @@ export default function Editor() {
                           style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
                           disabled={!selectedElement.rows || selectedElement.maxcolumns <= 1}
                         >
-                          Remove Column
+                          Remove Column {selectedCell ? `(Col ${selectedCell.colIdx + 1})` : '(Last)'}
                         </button>
                       </div>
 

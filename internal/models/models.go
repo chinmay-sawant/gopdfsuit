@@ -32,6 +32,16 @@ type Config struct {
 type Title struct {
 	Props string `json:"props"`
 	Text  string `json:"text"`
+	// Table allows embedding a table inside the title for complex layouts (e.g., logo + text)
+	// When Table is provided, Text is ignored and the table is rendered instead
+	Table *TitleTable `json:"table,omitempty"`
+}
+
+// TitleTable represents an embedded table within the title section
+type TitleTable struct {
+	MaxColumns   int       `json:"maxcolumns"`
+	ColumnWidths []float64 `json:"columnwidths,omitempty"`
+	Rows         []Row     `json:"rows"`
 }
 
 type Table struct {
