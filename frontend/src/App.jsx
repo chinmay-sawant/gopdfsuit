@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
 import Editor from './pages/Editor'
@@ -13,7 +13,7 @@ import Comparison from './pages/Comparison'
 
 function App() {
   return (
-    <Router basename="/gopdfsuit">
+    <Router>
       <div className="App">
         <Navbar />
         <Routes>
