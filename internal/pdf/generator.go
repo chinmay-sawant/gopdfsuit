@@ -307,9 +307,8 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 				}
 				titleHeight += rowH
 			}
-			titleHeight += 20 // Extra spacing
 		} else {
-			titleHeight = float64(titleProps.FontSize + 50) // Title + spacing
+			titleHeight = float64(titleProps.FontSize) // Title only, no extra spacing
 		}
 
 		if pageManager.CheckPageBreak(titleHeight) {

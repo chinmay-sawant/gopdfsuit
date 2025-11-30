@@ -107,13 +107,11 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 		titleX = margin
 	}
 
-	pageManager.CurrentYPos -= float64(titleProps.FontSize + 20)
+	pageManager.CurrentYPos -= float64(titleProps.FontSize)
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", titleX, pageManager.CurrentYPos))
 	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", title.Text))
 	contentStream.WriteString("ET\n")
-
-	pageManager.CurrentYPos -= 30
 }
 
 // drawTitleTable renders an embedded table within the title section (no borders by default)
@@ -183,42 +181,24 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			// Update X position for next cell
 			currentX += cellWidth
 
-			// Draw cell borders (title table cells have borders if specified in props)
-			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
-				contentStream.WriteString("q\n")
-				if cellProps.Borders[0] > 0 { // left
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[1] > 0 { // right
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[2] > 0 { // top
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[2]), cellX, pageManager.CurrentYPos, cellX+cellWidth, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[3] > 0 { // bottom
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
-				}
-				contentStream.WriteString("Q\n")
-			}
-
-			// Draw image or text
+			// Draw image first (so borders are drawn on top)
 			if cell.Image != nil && cell.Image.ImageData != "" {
 				// Check if we have an XObject for this title cell image
 				cellKey := fmt.Sprintf("title:%d:%d", rowIdx, colIdx)
 				if _, exists := cellImageObjectIDs[cellKey]; exists {
-					// Render actual image using XObject - fit 100% to cell
-					imgWidth := cellWidth
-					imgHeight := cellHeight
+					// Render actual image using XObject - fit inside cell with small padding for border
+					borderPadding := 1.0 // Small padding to keep image inside borders
+					imgWidth := cellWidth - 2*borderPadding
+					imgHeight := cellHeight - 2*borderPadding
 
-					imgX := cellX
-					imgY := pageManager.CurrentYPos - cellHeight
+					imgX := cellX + borderPadding
+					imgY := pageManager.CurrentYPos - cellHeight + borderPadding
 
-					// Draw actual image using XObject
+					// Draw actual image using XObject with clipping to prevent overflow
 					contentStream.WriteString("q\n")
+					// Set up clipping rectangle to confine image within cell bounds (with padding)
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re W n\n",
+						imgX, imgY, imgWidth, imgHeight))
 					contentStream.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n",
 						imgWidth, imgHeight, imgX, imgY))
 					contentStream.WriteString(fmt.Sprintf("/CellImg_%s Do\n", cellKey))
@@ -299,13 +279,32 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
 				contentStream.WriteString("ET\n")
 			}
+
+			// Draw cell borders AFTER content (so they appear on top of images)
+			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
+				contentStream.WriteString("q\n")
+				if cellProps.Borders[0] > 0 { // left
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[1] > 0 { // right
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[2] > 0 { // top
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[2]), cellX, pageManager.CurrentYPos, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[3] > 0 { // bottom
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
+				}
+				contentStream.WriteString("Q\n")
+			}
 		}
 
 		pageManager.CurrentYPos -= rowHeight
 	}
-
-	// Add some spacing after the title table
-	pageManager.CurrentYPos -= 10
 }
 
 // drawTable renders a table with automatic page breaks
@@ -389,44 +388,25 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			// Update X position for next cell
 			currentX += cellWidth
 
-			// Draw cell borders
-			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
-				contentStream.WriteString("q\n")
-				if cellProps.Borders[0] > 0 { // left
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[1] > 0 { // right
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[2] > 0 { // top
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[2]), cellX, pageManager.CurrentYPos, cellX+cellWidth, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[3] > 0 { // bottom
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
-				}
-				contentStream.WriteString("Q\n")
-			}
-
-			// Draw text, checkbox, or image
+			// Draw content first (so borders are drawn on top of images)
 			if cell.Image != nil {
 				// Check if we have an XObject for this cell image
 				cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
 				if _, exists := cellImageObjectIDs[cellKey]; exists && cell.Image.ImageData != "" {
-					// Render actual image using XObject - fit 100% to cell
-					// Use full cell dimensions (no padding)
-					imgWidth := cellWidth
-					imgHeight := cellHeight
+					// Render actual image using XObject - fit inside cell with small padding for border
+					borderPadding := 1.0 // Small padding to keep image inside borders
+					imgWidth := cellWidth - 2*borderPadding
+					imgHeight := cellHeight - 2*borderPadding
 
-					// Position at cell's top-left corner
-					imgX := cellX
-					imgY := pageManager.CurrentYPos - cellHeight
+					// Position at cell's top-left corner with padding
+					imgX := cellX + borderPadding
+					imgY := pageManager.CurrentYPos - cellHeight + borderPadding
 
-					// Draw actual image using XObject
+					// Draw actual image using XObject with clipping to prevent overflow
 					contentStream.WriteString("q\n")
+					// Set up clipping rectangle to confine image within cell bounds (with padding)
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re W n\n",
+						imgX, imgY, imgWidth, imgHeight))
 					contentStream.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n",
 						imgWidth, imgHeight, imgX, imgY))
 					contentStream.WriteString(fmt.Sprintf("/CellImg_%s Do\n", cellKey))
@@ -544,6 +524,28 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 
 				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
 				contentStream.WriteString("ET\n")
+			}
+
+			// Draw cell borders AFTER content (so they appear on top of images)
+			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
+				contentStream.WriteString("q\n")
+				if cellProps.Borders[0] > 0 { // left
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[1] > 0 { // right
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[2] > 0 { // top
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[2]), cellX, pageManager.CurrentYPos, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[3] > 0 { // bottom
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
+				}
+				contentStream.WriteString("Q\n")
 			}
 		}
 
