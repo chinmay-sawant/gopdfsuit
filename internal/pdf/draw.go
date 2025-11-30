@@ -74,31 +74,237 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 	}
 }
 
-// drawTitle renders the document title
-func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps models.Props, pageManager *PageManager) {
+// drawTitle renders the document title (either simple text or embedded table)
+func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps models.Props, pageManager *PageManager, cellImageObjectIDs map[string]int) {
+	// Check if title has an embedded table
+	if title.Table != nil && len(title.Table.Rows) > 0 {
+		drawTitleTable(contentStream, title.Table, pageManager, cellImageObjectIDs)
+		return
+	}
+
+	// Simple text title
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(titleProps))
 	contentStream.WriteString(" ")
 	contentStream.WriteString(strconv.Itoa(titleProps.FontSize))
 	contentStream.WriteString(" Tf\n")
 
+	// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
+	textWidth := float64(len(title.Text)) * float64(titleProps.FontSize) * 0.5
+
+	// Calculate available width (page width minus both margins)
+	availableWidth := pageManager.PageDimensions.Width - 2*margin
+
 	var titleX float64
 	switch titleProps.Alignment {
 	case "center":
-		titleX = pageManager.PageDimensions.Width / 2
+		// Center the text within the available area (between margins)
+		titleX = margin + (availableWidth-textWidth)/2
 	case "right":
-		titleX = pageManager.PageDimensions.Width - margin
+		// Right align: position text so it ends at the right margin
+		titleX = pageManager.PageDimensions.Width - margin - textWidth
 	default:
 		titleX = margin
 	}
 
-	pageManager.CurrentYPos -= float64(titleProps.FontSize + 20)
+	pageManager.CurrentYPos -= float64(titleProps.FontSize)
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", titleX, pageManager.CurrentYPos))
 	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", title.Text))
 	contentStream.WriteString("ET\n")
+}
 
-	pageManager.CurrentYPos -= 30
+// drawTitleTable renders an embedded table within the title section (no borders by default)
+func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageManager *PageManager, cellImageObjectIDs map[string]int) {
+	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
+	baseRowHeight := float64(25) // Standard row height
+
+	// Compute column widths in points using weights if provided
+	colWidths := make([]float64, table.MaxColumns)
+	if len(table.ColumnWidths) == table.MaxColumns {
+		// Normalize weights to sum 1
+		var sum float64
+		for _, w := range table.ColumnWidths {
+			if w > 0 {
+				sum += w
+			}
+		}
+		if sum <= 0 {
+			for i := range colWidths {
+				colWidths[i] = availableWidth / float64(table.MaxColumns)
+			}
+		} else {
+			for i, w := range table.ColumnWidths {
+				if w <= 0 {
+					w = 0
+				}
+				colWidths[i] = (w / sum) * availableWidth
+			}
+		}
+	} else {
+		for i := range colWidths {
+			colWidths[i] = availableWidth / float64(table.MaxColumns)
+		}
+	}
+
+	for rowIdx, row := range table.Rows {
+		// Determine this row's height
+		rowHeight := baseRowHeight
+		for _, cell := range row.Row {
+			if cell.Height != nil && *cell.Height > rowHeight {
+				rowHeight = *cell.Height
+			}
+		}
+
+		// Draw row cells
+		currentX := float64(margin)
+		for colIdx, cell := range row.Row {
+			if colIdx >= table.MaxColumns {
+				break
+			}
+
+			cellProps := parseProps(cell.Props)
+			cellX := currentX
+
+			// Use cell-specific width if provided, otherwise use column width
+			cellWidth := colWidths[colIdx]
+			if cell.Width != nil && *cell.Width > 0 {
+				cellWidth = *cell.Width
+			}
+
+			// Use cell-specific height if provided, otherwise use row height
+			cellHeight := rowHeight
+			if cell.Height != nil && *cell.Height > 0 {
+				cellHeight = *cell.Height
+			}
+
+			// Update X position for next cell
+			currentX += cellWidth
+
+			// Draw image first (so borders are drawn on top)
+			if cell.Image != nil && cell.Image.ImageData != "" {
+				// Check if we have an XObject for this title cell image
+				cellKey := fmt.Sprintf("title:%d:%d", rowIdx, colIdx)
+				if _, exists := cellImageObjectIDs[cellKey]; exists {
+					// Render actual image using XObject - fit inside cell with small padding for border
+					borderPadding := 1.0 // Small padding to keep image inside borders
+					imgWidth := cellWidth - 2*borderPadding
+					imgHeight := cellHeight - 2*borderPadding
+
+					imgX := cellX + borderPadding
+					imgY := pageManager.CurrentYPos - cellHeight + borderPadding
+
+					// Draw actual image using XObject with clipping to prevent overflow
+					contentStream.WriteString("q\n")
+					// Set up clipping rectangle to confine image within cell bounds (with padding)
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re W n\n",
+						imgX, imgY, imgWidth, imgHeight))
+					contentStream.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n",
+						imgWidth, imgHeight, imgX, imgY))
+					contentStream.WriteString(fmt.Sprintf("/CellImg_%s Do\n", cellKey))
+					contentStream.WriteString("Q\n")
+				} else {
+					// Fall back to placeholder
+					imgWidth := cellWidth
+					imgHeight := cellHeight
+					imgX := cellX
+					imgY := pageManager.CurrentYPos - cellHeight
+
+					// Draw placeholder border
+					contentStream.WriteString("q\n")
+					contentStream.WriteString("0.5 w\n")
+					contentStream.WriteString("0.7 0.7 0.7 RG\n")
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re S\n",
+						imgX, imgY, imgWidth, imgHeight))
+					contentStream.WriteString("Q\n")
+
+					// Draw image name
+					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
+						contentStream.WriteString("BT\n")
+						contentStream.WriteString("/F1 8 Tf\n")
+						contentStream.WriteString("0.5 0.5 0.5 rg\n")
+						textX := imgX + imgWidth/2 - float64(len(cell.Image.ImageName)*2)
+						textY := imgY + imgHeight/2
+						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+						contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
+						contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(cell.Image.ImageName)))
+						contentStream.WriteString("ET\n")
+					}
+				}
+			} else if cell.Text != "" {
+				// Draw text with font styling
+				contentStream.WriteString("BT\n")
+				contentStream.WriteString(getFontReference(cellProps))
+				contentStream.WriteString(" ")
+				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+				contentStream.WriteString(" Tf\n")
+
+				// Calculate approximate text width
+				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
+
+				var textX float64
+				switch cellProps.Alignment {
+				case "center":
+					textX = cellX + (cellWidth-textWidth)/2
+				case "right":
+					textX = cellX + cellWidth - textWidth - 5
+				default:
+					textX = cellX + 5
+				}
+
+				textY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
+
+				contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+				contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
+
+				// Add underline support
+				if cellProps.Underline {
+					contentStream.WriteString("ET\n")
+					contentStream.WriteString("q\n")
+					contentStream.WriteString("0.5 w\n")
+					underlineY := textY - 2
+					textWidth := float64(len(cell.Text) * cellProps.FontSize / 2)
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f m %.2f %.2f l S\n",
+						textX, underlineY, textX+textWidth, underlineY))
+					contentStream.WriteString("Q\n")
+					contentStream.WriteString("BT\n")
+					contentStream.WriteString(getFontReference(cellProps))
+					contentStream.WriteString(" ")
+					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+					contentStream.WriteString(" Tf\n")
+					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f Td\n", textX, textY))
+				}
+
+				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
+				contentStream.WriteString("ET\n")
+			}
+
+			// Draw cell borders AFTER content (so they appear on top of images)
+			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
+				contentStream.WriteString("q\n")
+				if cellProps.Borders[0] > 0 { // left
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[1] > 0 { // right
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[2] > 0 { // top
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[2]), cellX, pageManager.CurrentYPos, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[3] > 0 { // bottom
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
+				}
+				contentStream.WriteString("Q\n")
+			}
+		}
+
+		pageManager.CurrentYPos -= rowHeight
+	}
 }
 
 // drawTable renders a table with automatic page breaks
@@ -182,65 +388,36 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			// Update X position for next cell
 			currentX += cellWidth
 
-			// Draw cell borders
-			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
-				contentStream.WriteString("q\n")
-				if cellProps.Borders[0] > 0 { // left
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[1] > 0 { // right
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[2] > 0 { // top
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[2]), cellX, pageManager.CurrentYPos, cellX+cellWidth, pageManager.CurrentYPos))
-				}
-				if cellProps.Borders[3] > 0 { // bottom
-					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
-						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
-				}
-				contentStream.WriteString("Q\n")
-			}
-
-			// Draw text, checkbox, or image
+			// Draw content first (so borders are drawn on top of images)
 			if cell.Image != nil {
 				// Check if we have an XObject for this cell image
 				cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
 				if _, exists := cellImageObjectIDs[cellKey]; exists && cell.Image.ImageData != "" {
-					// Render actual image using XObject
-					imgWidth := cell.Image.Width
-					imgHeight := cell.Image.Height
-					if imgWidth > cellWidth-10 {
-						imgWidth = cellWidth - 10
-					}
-					if imgHeight > cellHeight-10 {
-						imgHeight = cellHeight - 10
-					}
+					// Render actual image using XObject - fit inside cell with small padding for border
+					borderPadding := 1.0 // Small padding to keep image inside borders
+					imgWidth := cellWidth - 2*borderPadding
+					imgHeight := cellHeight - 2*borderPadding
 
-					imgX := cellX + (cellWidth-imgWidth)/2
-					imgY := pageManager.CurrentYPos - (cellHeight+imgHeight)/2
+					// Position at cell's top-left corner with padding
+					imgX := cellX + borderPadding
+					imgY := pageManager.CurrentYPos - cellHeight + borderPadding
 
-					// Draw actual image using XObject
+					// Draw actual image using XObject with clipping to prevent overflow
 					contentStream.WriteString("q\n")
+					// Set up clipping rectangle to confine image within cell bounds (with padding)
+					contentStream.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re W n\n",
+						imgX, imgY, imgWidth, imgHeight))
 					contentStream.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n",
 						imgWidth, imgHeight, imgX, imgY))
 					contentStream.WriteString(fmt.Sprintf("/CellImg_%s Do\n", cellKey))
 					contentStream.WriteString("Q\n")
 				} else {
-					// Fall back to placeholder if no XObject
-					imgWidth := cell.Image.Width
-					imgHeight := cell.Image.Height
-					if imgWidth > cellWidth-10 {
-						imgWidth = cellWidth - 10
-					}
-					if imgHeight > cellHeight-10 {
-						imgHeight = cellHeight - 10
-					}
+					// Fall back to placeholder if no XObject - fit 100% to cell
+					imgWidth := cellWidth
+					imgHeight := cellHeight
 
-					imgX := cellX + (cellWidth-imgWidth)/2
-					imgY := pageManager.CurrentYPos - (rowHeight+imgHeight)/2
+					imgX := cellX
+					imgY := pageManager.CurrentYPos - cellHeight
 
 					// Draw placeholder border
 					contentStream.WriteString("q\n")
@@ -303,12 +480,17 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
 
+				// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
+				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
+
 				var textX float64
 				switch cellProps.Alignment {
 				case "center":
-					textX = cellX + cellWidth/2
+					// Center the text within the cell
+					textX = cellX + (cellWidth-textWidth)/2
 				case "right":
-					textX = cellX + cellWidth - 5
+					// Right align: position text so it ends near the right edge of cell
+					textX = cellX + cellWidth - textWidth - 5
 				default:
 					textX = cellX + 5
 				}
@@ -343,12 +525,41 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
 				contentStream.WriteString("ET\n")
 			}
+
+			// Draw cell borders AFTER content (so they appear on top of images)
+			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
+				contentStream.WriteString("q\n")
+				if cellProps.Borders[0] > 0 { // left
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[0]), cellX, pageManager.CurrentYPos-cellHeight, cellX, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[1] > 0 { // right
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[1]), cellX+cellWidth, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[2] > 0 { // top
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[2]), cellX, pageManager.CurrentYPos, cellX+cellWidth, pageManager.CurrentYPos))
+				}
+				if cellProps.Borders[3] > 0 { // bottom
+					contentStream.WriteString(fmt.Sprintf("%.2f w %.2f %.2f m %.2f %.2f l S\n",
+						float64(cellProps.Borders[3]), cellX, pageManager.CurrentYPos-cellHeight, cellX+cellWidth, pageManager.CurrentYPos-cellHeight))
+				}
+				contentStream.WriteString("Q\n")
+			}
 		}
 
 		pageManager.CurrentYPos -= rowHeight
 	}
+}
 
-	pageManager.CurrentYPos -= 20 // Space between tables
+// drawSpacer adds vertical space in the document
+func drawSpacer(spacer models.Spacer, pageManager *PageManager) {
+	height := spacer.Height
+	if height <= 0 {
+		height = 20 // Default spacer height
+	}
+	pageManager.CurrentYPos -= height
 }
 
 // drawFooter renders the document footer
@@ -456,17 +667,24 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 }
 
 // drawImageWithXObjectInternal handles image drawing with XObject, including page breaks
-func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pageManager *PageManager, borderConfig, watermark string) {
-	imageHeight := image.Height
-	if imageHeight == 0 {
+func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pageManager *PageManager, borderConfig, watermark string, originalImgWidth, originalImgHeight int) {
+	// Calculate usable width to estimate height for page break check
+	usableWidth := pageManager.PageDimensions.Width - 2*margin
+
+	// Calculate height based on aspect ratio
+	var imageHeight float64
+	if originalImgWidth > 0 && originalImgHeight > 0 {
+		aspectRatio := float64(originalImgHeight) / float64(originalImgWidth)
+		imageHeight = usableWidth * aspectRatio
+	} else if image.Height > 0 && image.Width > 0 {
+		aspectRatio := image.Height / image.Width
+		imageHeight = usableWidth * aspectRatio
+	} else {
 		imageHeight = 200 // Default height
 	}
 
-	// Add some spacing before image
-	spacing := float64(20)
-
-	// Check if image fits on current page
-	if pageManager.CheckPageBreak(imageHeight + spacing) {
+	// Check if image fits on current page (no extra spacing)
+	if pageManager.CheckPageBreak(imageHeight) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
 		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions)
@@ -476,7 +694,7 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 	contentStream := pageManager.GetCurrentContentStream()
 
 	// Draw the image using XObject
-	drawImageWithXObject(contentStream, image, imageXObjectRef, pageManager)
+	drawImageWithXObject(contentStream, image, imageXObjectRef, pageManager, originalImgWidth, originalImgHeight)
 }
 
 // drawWidget creates a widget annotation for a form field
@@ -543,31 +761,47 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
 		} else {
 			// Default to Round (Circle)
-			r := w/2 - 1
+			// Add /MK dictionary with appearance characteristics for circle radio button
+			// /BC = border color (black), /BG = background color (light gray), /CA = caption (l = bullet in ZapfDingbats)
+			widgetDict.WriteString(" /MK << /BC [0 0 0] /BG [0.9 0.9 0.9] /CA (l) >>")
+
+			// Center point and radius calculations
 			cx := w / 2
 			cy := h / 2
-			k := 0.55228 * r
+			outerR := cx - 0.5      // Outer circle radius (slightly smaller than half width)
+			innerR := outerR * 0.45 // Inner dot radius (about 45% of outer)
 
-			// Outer circle path (Stroke)
-			circlePath := fmt.Sprintf("%.2f %.2f m %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c S",
-				cx+r, cy, cx+r, cy+k, cx+k, cy+r, cx, cy+r,
-				cx-k, cy+r, cx-r, cy+k, cx-r, cy,
-				cx-r, cy-k, cx-k, cy-r, cx, cy-r,
-				cx+k, cy-r, cx+r, cy-k, cx+r, cy)
+			// Bézier curve control point factor
+			k := 0.5523 // approximation of 4*(sqrt(2)-1)/3 for circle
 
-			// Inner dot path (Fill) - radius r/2
-			r2 := r / 2
-			k2 := 0.55228 * r2
-			dotPath := fmt.Sprintf("%.2f %.2f m %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c %.2f %.2f %.2f %.2f %.2f %.2f c f",
-				cx+r2, cy, cx+r2, cy+k2, cx+k2, cy+r2, cx, cy+r2,
-				cx-k2, cy+r2, cx-r2, cy+k2, cx-r2, cy,
-				cx-r2, cy-k2, cx-k2, cy-r2, cx, cy-r2,
-				cx+k2, cy-r2, cx+r2, cy-k2, cx+r2, cy)
+			// Build outer circle path using Bézier curves (centered at origin, will use cm to translate)
+			// This draws a circle from the right side, going counter-clockwise
+			// Each Bézier curve segment: x1 y1 x2 y2 x3 y3 c
+			outerCirclePath := fmt.Sprintf("%.4f 0 m %.4f %.4f %.4f %.4f 0 %.4f c %.4f %.4f %.4f %.4f %.4f 0 c %.4f %.4f %.4f %.4f 0 %.4f c %.4f %.4f %.4f %.4f %.4f 0 c h",
+				outerR,
+				outerR, outerR*k, outerR*k, outerR, outerR,
+				-outerR*k, outerR, -outerR, outerR*k, -outerR,
+				-outerR, -outerR*k, -outerR*k, -outerR, -outerR,
+				outerR*k, -outerR, outerR, -outerR*k, outerR)
 
-			onAP := fmt.Sprintf("q 1 w 0 0 0 RG %s %s Q", circlePath, dotPath)
+			// Build inner dot circle path
+			innerCirclePath := fmt.Sprintf("%.4f 0 m %.4f %.4f %.4f %.4f 0 %.4f c %.4f %.4f %.4f %.4f %.4f 0 c %.4f %.4f %.4f %.4f 0 %.4f c %.4f %.4f %.4f %.4f %.4f 0 c h",
+				innerR,
+				innerR, innerR*k, innerR*k, innerR, innerR,
+				-innerR*k, innerR, -innerR, innerR*k, -innerR,
+				-innerR, -innerR*k, -innerR*k, -innerR, -innerR,
+				innerR*k, -innerR, innerR, -innerR*k, innerR)
+
+			// ON appearance: Light background fill + dark stroke + dark inner dot
+			// Using 'B' (fill and stroke) for combined operation
+			onAP := fmt.Sprintf("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 %.2f %.2f cm\n%s\nB\nQ\nq\n0 0 0 rg\n1 0 0 1 %.2f %.2f cm\n%s\nf\nQ",
+				cx, cy, outerCirclePath,
+				cx, cy, innerCirclePath)
 			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(onAP), onAP))
 
-			offAP := fmt.Sprintf("q 1 w 0 0 0 RG %s Q", circlePath)
+			// OFF appearance: Light background fill + dark stroke (no inner dot)
+			offAP := fmt.Sprintf("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 %.2f %.2f cm\n%s\nB\nQ",
+				cx, cy, outerCirclePath)
 			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %.2f %.2f] /Resources << >> /Length %d >> stream\n%s\nendstream", w, h, len(offAP), offAP))
 
 			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))

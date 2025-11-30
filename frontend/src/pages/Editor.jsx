@@ -79,7 +79,7 @@ const getStyleFromProps = (propsString) => {
     borderTopWidth: `${parsed.borders[2]}px`,
     borderBottomWidth: `${parsed.borders[3]}px`,
     borderStyle: 'solid',
-    borderColor: 'hsl(var(--border))'
+    borderColor: '#333'
   }
   
   // Apply font weight
@@ -640,38 +640,350 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
   const renderContent = () => {
     switch (element.type) {
       case 'title':
-        const titleStyle = getStyleFromProps(element.props)
+        // Title now uses an embedded table structure for logo + text support
+        const MARGIN_TITLE = 72
+        const getUsableWidthTitle = (pageWidth) => pageWidth - (2 * MARGIN_TITLE)
+        const usableWidthForTitle = getUsableWidthTitle(currentPageSize.width)
+        
+        // Get or create the title table structure
+        const titleTable = element.table || {
+          maxcolumns: 3,
+          columnwidths: [1, 2, 1],
+          rows: [{
+            row: [
+              { props: 'font1:12:000:left:0:0:0:0', text: '', image: null },
+              { props: 'font1:18:100:center:0:0:0:0', text: element.text || 'Document Title' },
+              { props: 'font1:12:000:right:0:0:0:0', text: '' }
+            ]
+          }]
+        }
+        
+        // Helper to get normalized column weight for title table
+        const getNormalizedColWeightTitle = (colIdx) => {
+          const rawWeights = titleTable.columnwidths && titleTable.columnwidths.length === titleTable.maxcolumns
+            ? titleTable.columnwidths
+            : Array(titleTable.maxcolumns).fill(1)
+          const total = rawWeights.reduce((sum, w) => sum + w, 0)
+          return rawWeights[colIdx] / total
+        }
+        
+        // Per-cell width resize handler for title table
+        const handleTitleCellWidthResizeStart = (e, rowIdx, colIdx) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const startX = e.clientX
+          const cell = titleTable.rows[rowIdx].row[colIdx]
+          const startWidth = cell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+          
+          const onMouseMove = (me) => {
+            const dx = me.clientX - startX
+            let newWidth = Math.max(50, startWidth + dx)
+            const widthChange = newWidth - startWidth
+            
+            const newRows = [...titleTable.rows]
+            newRows[rowIdx] = {
+              ...newRows[rowIdx],
+              row: newRows[rowIdx].row.map((c, idx) => 
+                idx === colIdx ? { ...c, width: newWidth } : c
+              )
+            }
+            
+            // Redistribute width to adjacent columns
+            if (colIdx < titleTable.maxcolumns - 1) {
+              const nextCell = newRows[rowIdx].row[colIdx + 1]
+              const nextWidth = nextCell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx + 1))
+              const newNextWidth = nextWidth - widthChange
+              newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(50, newNextWidth) }
+            }
+            
+            onUpdate({ table: { ...titleTable, rows: newRows } })
+          }
+          const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove)
+            window.removeEventListener('mouseup', onMouseUp)
+          }
+          window.addEventListener('mousemove', onMouseMove)
+          window.addEventListener('mouseup', onMouseUp)
+        }
+        
+        // Per-cell height resize handler for title table
+        const handleTitleCellHeightResizeStart = (e, rowIdx, colIdx) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const startY = e.clientY
+          const cell = titleTable.rows[rowIdx].row[colIdx]
+          const startHeight = cell.height || 50
+          
+          const onMouseMove = (me) => {
+            const dy = me.clientY - startY
+            const newHeight = Math.max(30, startHeight + dy)
+            
+            // Update all cells in this row to same height
+            const newRows = [...titleTable.rows]
+            newRows[rowIdx] = {
+              ...newRows[rowIdx],
+              row: newRows[rowIdx].row.map(c => ({ ...c, height: newHeight }))
+            }
+            onUpdate({ table: { ...titleTable, rows: newRows } })
+          }
+          const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove)
+            window.removeEventListener('mouseup', onMouseUp)
+          }
+          window.addEventListener('mousemove', onMouseMove)
+          window.addEventListener('mouseup', onMouseUp)
+        }
+        
+        // Handle image upload for title cells
+        const handleTitleImageUpload = (rowIdx, colIdx, file) => {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            const imageData = e.target.result
+            const newRows = [...titleTable.rows]
+            newRows[rowIdx] = {
+              ...newRows[rowIdx],
+              row: newRows[rowIdx].row.map((c, idx) => 
+                idx === colIdx ? { 
+                  ...c, 
+                  image: { 
+                    imagename: file.name, 
+                    imagedata: imageData,
+                    width: 100,
+                    height: 50
+                  },
+                  text: '' // Clear text when image is added
+                } : c
+              )
+            }
+            onUpdate({ table: { ...titleTable, rows: newRows } })
+          }
+          reader.readAsDataURL(file)
+        }
+        
+        // Helper to update a specific title table cell with proper immutable updates
+        const updateTitleTableCell = (rowIdx, colIdx, cellUpdates) => {
+          const newRows = titleTable.rows.map((row, rIdx) => 
+            rIdx === rowIdx
+              ? {
+                  ...row,
+                  row: row.row.map((c, cIdx) =>
+                    cIdx === colIdx
+                      ? { ...c, ...cellUpdates }
+                      : c
+                  )
+                }
+              : row
+          )
+          onUpdate({ table: { ...titleTable, rows: newRows } })
+        }
+        
         return (
           <div style={{ 
-            padding: '10px',
             borderRadius: '4px',
-            minHeight: '40px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderLeft: `${titleStyle.borderLeftWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
-            borderRight: `${titleStyle.borderRightWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
-            borderTop: `${titleStyle.borderTopWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`,
-            borderBottom: `${titleStyle.borderBottomWidth} ${titleStyle.borderStyle} ${titleStyle.borderColor}`
+            background: 'white',
+            overflowX: 'auto'
           }}>
-            <input
-              type="text"
-              value={element.text || 'Document Title'}
-              onChange={(e) => onUpdate({ text: e.target.value })}
-              style={{
-                width: '100%',
-                border: 'none',
-                background: 'transparent',
-                color: 'hsl(var(--foreground))',
-                outline: 'none',
-                fontSize: titleStyle.fontSize,
-                textAlign: titleStyle.textAlign,
-                fontWeight: titleStyle.fontWeight,
-                fontStyle: titleStyle.fontStyle,
-                textDecoration: titleStyle.textDecoration
-              }}
-              placeholder="Document Title"
-            />
+            <table style={{ borderCollapse: 'collapse', borderSpacing: '0', tableLayout: 'fixed', width: '100%' }}>
+              <tbody>
+                {titleTable.rows?.map((row, rowIdx) => (
+                  <tr key={rowIdx} style={{ position: 'relative' }}>
+                    {row.row?.map((cell, colIdx) => {
+                      const cellStyle = getStyleFromProps(cell.props)
+                      const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
+                      
+                      const cellWidth = cell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+                      const cellHeight = cell.height || 50
+                      
+                      const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' || 
+                                        cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
+                      
+                      return (
+                        <td
+                          key={colIdx}
+                          style={{
+                            borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
+                            borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
+                            borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
+                            borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
+                            padding: '4px 8px',
+                            width: `${cellWidth}px`,
+                            height: `${cellHeight}px`,
+                            minWidth: `${cellWidth}px`,
+                            maxWidth: `${cellWidth}px`,
+                            minHeight: '30px',
+                            verticalAlign: 'middle',
+                            overflow: 'hidden',
+                            backgroundColor: isCellSelected ? '#e3f2fd' : '#fff',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            boxSizing: 'border-box'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onSelect(element.id)
+                            onCellSelect({ rowIdx, colIdx })
+                          }}
+                          onDragOver={(e) => {
+                            if (draggedType === 'image') {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            const files = e.dataTransfer.files
+                            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                              handleTitleImageUpload(rowIdx, colIdx, files[0])
+                            }
+                          }}
+                        >
+                          {/* Cell content: image or text */}
+                          {cell.image && cell.image.imagedata ? (
+                            <div 
+                              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%', justifyContent: 'center' }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onSelect(element.id)
+                                onCellSelect({ rowIdx, colIdx })
+                              }}
+                            >
+                              <img 
+                                src={cell.image.imagedata.startsWith('data:') ? cell.image.imagedata : `data:image/png;base64,${cell.image.imagedata}`}
+                                alt={cell.image.imagename || 'Logo'}
+                                style={{ 
+                                  maxWidth: '100%', 
+                                  maxHeight: cellHeight - 10,
+                                  objectFit: 'contain'
+                                }}
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onSelect(element.id)
+                                  onCellSelect({ rowIdx, colIdx })
+                                  updateTitleTableCell(rowIdx, colIdx, { image: null })
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  top: '2px',
+                                  right: '2px',
+                                  background: 'rgba(255,0,0,0.7)',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '50%',
+                                  width: '16px',
+                                  height: '16px',
+                                  fontSize: '10px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="Remove image"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%' }}>
+                              <input
+                                type="text"
+                                value={cell.text || ''}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  updateTitleTableCell(rowIdx, colIdx, { text: e.target.value })
+                                }}
+                                placeholder={colIdx === 0 ? 'Logo/Image' : colIdx === 1 ? 'Document Title' : 'Right Text'}
+                                style={{
+                                  width: '100%',
+                                  flex: 1,
+                                  border: 'none',
+                                  background: 'transparent',
+                                  color: '#333',
+                                  outline: 'none',
+                                  fontSize: cellStyle.fontSize,
+                                  textAlign: cellStyle.textAlign,
+                                  fontWeight: cellStyle.fontWeight,
+                                  fontStyle: cellStyle.fontStyle,
+                                  textDecoration: cellStyle.textDecoration
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onSelect(element.id)
+                                  onCellSelect({ rowIdx, colIdx })
+                                }}
+                              />
+                              {colIdx === 0 && (
+                                <label 
+                                  style={{ 
+                                    fontSize: '9px', 
+                                    color: 'hsl(var(--muted-foreground))',
+                                    cursor: 'pointer',
+                                    padding: '2px 4px',
+                                    background: 'hsl(var(--muted))',
+                                    borderRadius: '4px'
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onSelect(element.id)
+                                    onCellSelect({ rowIdx, colIdx })
+                                  }}
+                                >
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                      if (e.target.files[0]) {
+                                        handleTitleImageUpload(rowIdx, colIdx, e.target.files[0])
+                                      }
+                                    }}
+                                  />
+                                  + Add Logo
+                                </label>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Width resize handle */}
+                          {colIdx < titleTable.maxcolumns - 1 && (
+                            <div
+                              onMouseDown={(e) => handleTitleCellWidthResizeStart(e, rowIdx, colIdx)}
+                              style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: '4px',
+                                cursor: 'col-resize',
+                                background: isCellSelected ? 'rgba(25, 118, 210, 0.3)' : 'transparent'
+                              }}
+                              title="Drag to resize width"
+                            />
+                          )}
+                          
+                          {/* Height resize handle */}
+                          <div
+                            onMouseDown={(e) => handleTitleCellHeightResizeStart(e, rowIdx, colIdx)}
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              height: '4px',
+                              cursor: 'row-resize',
+                              background: isCellSelected ? 'rgba(25, 118, 210, 0.3)' : 'transparent'
+                            }}
+                            title="Drag to resize height"
+                          />
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )
       case 'table':
@@ -682,13 +994,22 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
         // Use passed currentPageSize prop
         const usableWidthForTable = getUsableWidth(currentPageSize.width)
         
+        // Helper to get normalized column weight
+        const getNormalizedColWeight = (colIdx) => {
+          const rawWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
+            ? element.columnwidths
+            : Array(element.maxcolumns).fill(1)
+          const total = rawWeights.reduce((sum, w) => sum + w, 0)
+          return rawWeights[colIdx] / total
+        }
+        
         // Per-cell width resize handler
         const handleCellWidthResizeStart = (e, rowIdx, colIdx) => {
           e.preventDefault()
           e.stopPropagation()
           const startX = e.clientX
           const cell = element.rows[rowIdx].row[colIdx]
-          const startWidth = cell.width || (usableWidthForTable * (element.columnwidths?.[colIdx] || 1/element.maxcolumns))
+          const startWidth = cell.width || (usableWidthForTable * getNormalizedColWeight(colIdx))
           
           const onMouseMove = (me) => {
             const dx = me.clientX - startX
@@ -711,7 +1032,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
               
               newRows[rowIdx].row = newRows[rowIdx].row.map((c, idx) => {
                 if (idx === 0) return c
-                const currentWidth = c.width || (usableWidthForTable * (element.columnwidths?.[idx] || 1/element.maxcolumns))
+                const currentWidth = c.width || (usableWidthForTable * getNormalizedColWeight(idx))
                 const newColWidth = currentWidth - redistributePerCol
                 return { ...c, width: Math.max(0, newColWidth) }
               })
@@ -721,7 +1042,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             // When shrinking (negative widthChange), add space back to next column
             else if (colIdx > 0 && colIdx < element.maxcolumns - 1) {
               const nextCell = newRows[rowIdx].row[colIdx + 1]
-              const nextWidth = nextCell.width || (usableWidthForTable * (element.columnwidths?.[colIdx + 1] || 1/element.maxcolumns))
+              const nextWidth = nextCell.width || (usableWidthForTable * getNormalizedColWeight(colIdx + 1))
               const newNextWidth = nextWidth - widthChange
               // Always subtract the change from the next column (if expanding this column, next shrinks; if shrinking, next expands)
               newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(0, newNextWidth) }
@@ -778,15 +1099,18 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           window.addEventListener('mousemove', onMouseMove)
           window.addEventListener('mouseup', onMouseUp)
         }
-        const colWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
+        // Normalize columnwidths so they represent fractions that sum to 1
+        const rawColWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
           ? element.columnwidths
-          : Array(element.maxcolumns).fill(1 / element.maxcolumns)
+          : Array(element.maxcolumns).fill(1)
+        const totalWeight = rawColWidths.reduce((sum, w) => sum + w, 0)
+        const colWeights = rawColWidths.map(w => w / totalWeight)
         return (
-          <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'separate', borderSpacing: '0', tableLayout: 'auto' }}>
+          <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto', background: 'white' }}>
+            <table style={{ borderCollapse: 'collapse', borderSpacing: '0', tableLayout: 'fixed', width: '100%' }}>
               <tbody>
                 {element.rows?.map((row, rowIdx) => (
-                  <tr key={rowIdx} style={{ position: 'relative', display: 'flex' }}>
+                  <tr key={rowIdx} style={{ position: 'relative' }}>
                     {row.row?.map((cell, colIdx) => {
                       const cellStyle = getStyleFromProps(cell.props)
                       const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
@@ -795,11 +1119,14 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                       const cellWidth = cell.width || (usableWidthForTable * colWeights[colIdx])
                       const cellHeight = cell.height || 25
                       
+                      // Ensure borders are visible - use explicit border if cell has border props
+                      const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' || 
+                                        cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
                       const tdStyle = {
-                        borderLeft: `${cellStyle.borderLeftWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
-                        borderRight: `${cellStyle.borderRightWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
-                        borderTop: `${cellStyle.borderTopWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
-                        borderBottom: `${cellStyle.borderBottomWidth} ${cellStyle.borderStyle} ${cellStyle.borderColor}`,
+                        borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
+                        borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
+                        borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
+                        borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
                         padding: '4px 8px',
                         width: `${cellWidth}px`,
                         height: `${cellHeight}px`,
@@ -808,7 +1135,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         minHeight: '20px',
                         verticalAlign: 'middle',
                         overflow: 'hidden',
-                        backgroundColor: isCellSelected ? 'hsl(var(--accent))' : 'transparent',
+                        backgroundColor: isCellSelected ? '#e3f2fd' : '#fff',
                         cursor: 'pointer',
                         position: 'relative',
                         boxSizing: 'border-box',
@@ -825,7 +1152,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         border: 'none',
                         background: 'transparent',
                         padding: '2px',
-                        color: 'hsl(var(--foreground))',
+                        color: '#333',
                         outline: 'none'
                       }
                       return (
@@ -1036,10 +1363,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderLeft: `${footerStyle.borderLeftWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
-            borderRight: `${footerStyle.borderRightWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
-            borderTop: `${footerStyle.borderTopWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`,
-            borderBottom: `${footerStyle.borderBottomWidth} ${footerStyle.borderStyle} ${footerStyle.borderColor}`
+            background: 'white',
+            borderLeft: `${footerStyle.borderLeftWidth} solid ${footerStyle.borderColor}`,
+            borderRight: `${footerStyle.borderRightWidth} solid ${footerStyle.borderColor}`,
+            borderTop: `${footerStyle.borderTopWidth} solid ${footerStyle.borderColor}`,
+            borderBottom: `${footerStyle.borderBottomWidth} solid ${footerStyle.borderColor}`
           }}>
             <input
               type="text"
@@ -1049,7 +1377,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                 width: '100%',
                 border: 'none',
                 background: 'transparent',
-                color: 'hsl(var(--foreground))',
+                color: '#333',
                 outline: 'none',
                 fontSize: footerStyle.fontSize,
                 textAlign: footerStyle.textAlign,
@@ -1066,15 +1394,15 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           <div style={{ 
             height: element.height || 20, 
             width: '100%', 
-            background: 'repeating-linear-gradient(90deg, hsl(var(--muted)) 0px, hsl(var(--muted)) 2px, transparent 2px, transparent 10px)',
-            border: '2px dashed hsl(var(--border))',
+            background: 'white',
+            border: '2px dashed #bbb',
             borderRadius: '4px',
-            opacity: 0.7,
+            opacity: 0.9,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '12px',
-            color: 'hsl(var(--muted-foreground))'
+            color: '#666'
           }}>
             Spacer ({element.height || 20}px)
           </div>
@@ -1089,8 +1417,8 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '2px dashed hsl(var(--border))',
-            background: 'hsl(var(--muted))'
+            border: '2px dashed #bbb',
+            background: '#f5f5f5'
           }}>
             {element.imagedata ? (
               <div style={{ width: '100%', textAlign: 'center' }}>
@@ -1104,17 +1432,17 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                     borderRadius: '4px'
                   }}
                 />
-                <div style={{ marginTop: '8px', fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))' }}>
+                <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#666' }}>
                   {element.imagename || 'Uploaded Image'}
                 </div>
               </div>
             ) : (
               <div style={{ textAlign: 'center' }}>
-                <ImageIcon size={32} style={{ color: 'hsl(var(--muted-foreground))', marginBottom: '8px' }} />
-                <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>
+                <ImageIcon size={32} style={{ color: '#999', marginBottom: '8px' }} />
+                <div style={{ fontSize: '0.9rem', color: '#666' }}>
                   No image selected
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginTop: '4px' }}>
+                <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '4px' }}>
                   Select an image from properties
                 </div>
               </div>
@@ -1136,12 +1464,12 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
       onDrop={handleDrop}
       style={{
         position: 'relative',
-        margin: '10px 0',
+        margin: '4px 0',
         padding: isSelected && element.type !== 'table' ? '8px' : '0',
         border: isSelected && element.type !== 'table' ? '2px solid var(--secondary-color)' : '2px solid transparent',
         borderRadius: element.type === 'table' ? '0' : '6px',
         cursor: isDragging ? 'grabbing' : 'grab',
-        background: isSelected && element.type !== 'table' ? 'hsl(var(--accent))' : 'transparent',
+        background: isSelected && element.type !== 'table' ? '#e3f2fd' : 'transparent',
         boxShadow: isSelected && element.type === 'table' ? '0 0 0 2px var(--secondary-color)' : 'none',
         transition: 'all 0.2s ease',
         opacity: isDragging ? 0.5 : 1
@@ -1222,9 +1550,9 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           </button>
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <GripVertical size={14} style={{ color: 'hsl(var(--muted-foreground))' }} />
-        <span style={{ fontSize: '12px', fontWeight: '500', color: 'hsl(var(--muted-foreground))' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+        <GripVertical size={14} style={{ color: '#888' }} />
+        <span style={{ fontSize: '11px', fontWeight: '500', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {element.type.charAt(0).toUpperCase() + element.type.slice(1)}
         </span>
       </div>
@@ -1278,7 +1606,20 @@ export default function Editor() {
         if (!title) {
           setTitle({
             props: 'font1:18:100:center:0:0:1:0',
-            text: 'Document Title'
+            text: 'Document Title',
+            table: {
+              maxcolumns: 3,
+              columnwidths: [1/3, 1/3, 1/3],
+              rows: [
+                {
+                  row: [
+                    { props: 'font1:12:000:left:0:0:0:0', text: '' },
+                    { props: 'font1:18:100:center:0:0:0:0', text: 'Document Title' },
+                    { props: 'font1:12:000:left:0:0:0:0', text: '' }
+                  ]
+                }
+              ]
+            }
           })
           setSelectedId('title')
         }
@@ -1541,7 +1882,27 @@ export default function Editor() {
         
         // Parse the JSON structure from the template
         setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
-        setTitle(data.title || null)
+        
+        // Ensure title has table structure
+        if (data.title) {
+          const titleWithTable = {
+            ...data.title,
+            table: data.title.table || {
+              maxcolumns: 3,
+              columnwidths: [1/3, 1/3, 1/3],
+              rows: [{
+                row: [
+                  { props: 'font1:12:000:left:0:0:0:0', text: '' },
+                  { props: 'font1:18:100:center:0:0:0:0', text: data.title.text || 'Document Title' },
+                  { props: 'font1:12:000:left:0:0:0:0', text: '' }
+                ]
+              }]
+            }
+          }
+          setTitle(titleWithTable)
+        } else {
+          setTitle(null)
+        }
 
         // Combine tables, spacers, and images into components array, preserving order
         const combinedComponents = []
@@ -1639,14 +2000,98 @@ export default function Editor() {
     if (tables.length > 0) output.table = tables
     if (spacers.length > 0) output.spacer = spacers
     if (images.length > 0) output.image = images
+
+    // Also include ordered elements array to preserve the order
+    if (components.length > 0) {
+      let tableIdx = 0
+      let spacerIdx = 0
+      let imageIdx = 0
+      output.elements = components.map(comp => {
+        if (comp.type === 'table') {
+          return { type: 'table', index: tableIdx++ }
+        } else if (comp.type === 'spacer') {
+          return { type: 'spacer', index: spacerIdx++ }
+        } else if (comp.type === 'image') {
+          return { type: 'image', index: imageIdx++ }
+        }
+        return null
+      }).filter(Boolean)
+    }
+
     if (footer) output.footer = footer
     return output
   }
 
   const jsonOutput = useMemo(() => getJsonOutput(), [config, title, components, footer])
 
+  // Local state for JSON editing
+  const [jsonText, setJsonText] = useState('')
+  const [isJsonEditing, setIsJsonEditing] = useState(false)
+
+  // Update jsonText when jsonOutput changes (but not while editing)
+  React.useEffect(() => {
+    if (!isJsonEditing) {
+      setJsonText(JSON.stringify(jsonOutput, null, 2))
+    }
+  }, [jsonOutput, isJsonEditing])
+
+  const handleJsonChange = (e) => {
+    setJsonText(e.target.value)
+  }
+
+  const handleJsonBlur = () => {
+    setIsJsonEditing(false)
+    try {
+      const data = JSON.parse(jsonText)
+      
+      // Parse the JSON structure from the pasted content
+      setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
+      
+      // Ensure title has table structure
+      if (data.title) {
+        const titleWithTable = {
+          ...data.title,
+          table: data.title.table || {
+            maxcolumns: 3,
+            columnwidths: [1/3, 1/3, 1/3],
+            rows: [{
+              row: [
+                { props: 'font1:12:000:left:0:0:0:0', text: '' },
+                { props: 'font1:18:100:center:0:0:0:0', text: data.title.text || 'Document Title' },
+                { props: 'font1:12:000:left:0:0:0:0', text: '' }
+              ]
+            }]
+          }
+        }
+        setTitle(titleWithTable)
+      } else {
+        setTitle(null)
+      }
+
+      // Combine tables, spacers, and images into components array, preserving order
+      const combinedComponents = []
+      if (data.table) {
+        data.table.forEach(table => combinedComponents.push({ ...table, type: 'table' }))
+      }
+      if (data.spacer) {
+        data.spacer.forEach(spacer => combinedComponents.push({ ...spacer, type: 'spacer' }))
+      }
+      if (data.image) {
+        data.image.forEach(image => combinedComponents.push({ ...image, type: 'image' }))
+      }
+      setComponents(combinedComponents)
+
+      setFooter(data.footer || null)
+      setSelectedId(null)
+      setSelectedCell(null)
+    } catch (err) {
+      // Invalid JSON - reset to current state
+      setJsonText(JSON.stringify(jsonOutput, null, 2))
+    }
+  }
+
   return (
-    <div style={{ padding: '1rem 0', minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <style>
         {`
           .drop-target {
@@ -1654,248 +2099,444 @@ export default function Editor() {
             border: 2px dashed hsl(var(--primary)) !important;
             opacity: 0.8;
           }
+          .editor-sidebar {
+            position: sticky;
+            top: 80px;
+            height: calc(100vh - 100px);
+            overflow-y: auto;
+            align-self: flex-start;
+          }
+          .editor-sidebar::-webkit-scrollbar {
+            width: 6px;
+          }
+          .editor-sidebar::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .editor-sidebar::-webkit-scrollbar-thumb {
+            background: hsl(var(--border));
+            border-radius: 3px;
+          }
+          .editor-sidebar::-webkit-scrollbar-thumb:hover {
+            background: hsl(var(--muted-foreground));
+          }
+          .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            cursor: pointer;
+            user-select: none;
+          }
+          .section-header:hover {
+            opacity: 0.8;
+          }
+          .canvas-container {
+            min-height: 500px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+          }
+          .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: hsl(var(--background));
+            border-bottom: 1px solid hsl(var(--border));
+            padding: 0.75rem 1rem;
+          }
+          @media (max-width: 1400px) {
+            .editor-main-grid {
+              grid-template-columns: 240px 1fr 300px !important;
+            }
+          }
+          @media (max-width: 1100px) {
+            .editor-main-grid {
+              grid-template-columns: 1fr !important;
+            }
+            .editor-sidebar {
+              height: auto;
+              position: relative;
+              top: 0;
+            }
+            .canvas-container {
+              min-height: 400px;
+              max-height: none;
+            }
+          }
         `}
       </style>
-      <div className="container-full">
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-          <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>
-            <Edit size={32} /> PDF Template Editor
-          </h1>
-          <p className="text-muted">Create professional PDF templates with enhanced controls</p>
+      
+      {/* Sticky Header */}
+      <div className="sticky-header">
+        <div className="container-full">
+          {/* Compact Header */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            gap: '1rem',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Edit size={24} style={{ color: 'var(--secondary-color)' }} />
+              <div>
+                <h1 style={{ fontSize: '1.25rem', margin: 0, color: 'hsl(var(--foreground))' }}>PDF Template Editor</h1>
+                <p style={{ fontSize: '0.75rem', margin: 0, color: 'hsl(var(--muted-foreground))' }}>
+                  {allElements.length} elements • {config.page} {config.pageAlignment === 1 ? 'Portrait' : 'Landscape'}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <input
+                id="template-file-input"
+                type="text"
+                placeholder="Load template file..."
+                style={{ 
+                  padding: '0.4rem 0.75rem', 
+                  fontSize: '0.85rem', 
+                  width: '200px',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px',
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))'
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.value.trim()) {
+                    loadTemplate(e.target.value.trim())
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  const input = document.getElementById('template-file-input')
+                  if (input && input.value.trim()) {
+                    loadTemplate(input.value.trim())
+                  }
+                }}
+                className="btn"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Upload size={14} /> Load
+              </button>
+              <button
+                onClick={previewPDF}
+                className="btn btn-secondary"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Eye size={14} /> Preview
+              </button>
+              <button
+                onClick={downloadPDF}
+                className="btn"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Download size={14} /> Generate
+              </button>
+              <button
+                onClick={copyJSON}
+                className="btn"
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Copy size={14} /> Copy
+              </button>
+              
+              <div style={{ 
+                display: 'flex', 
+                border: '1px solid hsl(var(--border))', 
+                borderRadius: '6px',
+                marginLeft: '0.5rem'
+              }}>
+                <button
+                  onClick={() => setTheme('light')}
+                  style={{
+                    padding: '0.4rem 0.5rem',
+                    background: theme === 'light' ? 'hsl(var(--accent))' : 'transparent',
+                    color: 'hsl(var(--foreground))',
+                    border: 'none',
+                    borderRight: '1px solid hsl(var(--border))',
+                    cursor: 'pointer',
+                    borderRadius: '5px 0 0 5px'
+                  }}
+                >
+                  <Sun size={14} />
+                </button>
+                <button
+                  onClick={() => setTheme('dark')}
+                  style={{
+                    padding: '0.4rem 0.5rem',
+                    background: theme === 'dark' ? 'hsl(var(--accent))' : 'transparent',
+                    color: 'hsl(var(--foreground))',
+                    border: 'none',
+                    cursor: 'pointer',
+                    borderRadius: '0 5px 5px 0'
+                  }}
+                >
+                  <Moon size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <Toolbar 
-          theme={theme} 
-          setTheme={setTheme}
-          onLoadTemplate={loadTemplate}
-          onPreviewPDF={previewPDF}
-          onDownloadPDF={downloadPDF}
-          onCopyJSON={copyJSON}
-        />
-
-        {/* Main Layout: Toolbox | Canvas | Properties */}
-        <div className="grid" style={{ gridTemplateColumns: '280px 1fr 350px', gap: '1rem' }}>
+      {/* Main Content */}
+      <div className="container-full" style={{ flex: 1, padding: '1rem' }}>
+        <div className="grid editor-main-grid" style={{ gridTemplateColumns: '280px 1fr 350px', gap: '1rem', alignItems: 'start' }}>
           
-          {/* Left: Toolbox */}
-          <div className="card" style={{ padding: '1rem' }}>
-            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Square size={18} /> Components
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {Object.entries(COMPONENT_TYPES).map(([type, data]) => (
-                <DraggableComponent
-                  key={type}
-                  type={type}
-                  componentData={data}
-                  isDragging={draggedType}
-                  onDragStart={setDraggedType}
-                  onDragEnd={() => setDraggedType(null)}
-                />
-              ))}
+          {/* Left: Components & Settings */}
+          <div className="editor-sidebar">
+            {/* Components Section */}
+            <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+              <h3 style={{ 
+                margin: '0 0 0.75rem 0', 
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                color: 'hsl(var(--foreground))'
+              }}>
+                <Square size={16} /> Components
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                {Object.entries(COMPONENT_TYPES).map(([type, data]) => (
+                  <DraggableComponent
+                    key={type}
+                    type={type}
+                    componentData={data}
+                    isDragging={draggedType}
+                    onDragStart={setDraggedType}
+                    onDragEnd={() => setDraggedType(null)}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Document Settings */}
-            <div style={{ marginTop: '1.5rem' }}>
-              <h4 style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Settings size={16} /> Document Config
-              </h4>
+            <div className="card" style={{ padding: '1rem' }}>
+              <h3 style={{ 
+                margin: '0 0 0.75rem 0', 
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                color: 'hsl(var(--foreground))'
+              }}>
+                <Settings size={16} /> Document Settings
+              </h3>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem' }}>Page Size:</label>
-                  <select
-                    value={config.page}
-                    onChange={(e) => setConfig(prev => ({ ...prev, page: e.target.value }))}
-                    style={{ width: '100%', padding: '0.25rem' }}
-                  >
-                    {Object.entries(PAGE_SIZES).map(([key, size]) => (
-                      <option key={key} value={key}>{size.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem' }}>Orientation:</label>
-                  <select
-                    value={config.pageAlignment}
-                    onChange={(e) => setConfig(prev => ({ ...prev, pageAlignment: parseInt(e.target.value) }))}
-                    style={{ width: '100%', padding: '0.25rem' }}
-                  >
-                    <option value={1}>Portrait</option>
-                    <option value={2}>Landscape</option>
-                  </select>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Page Size & Orientation Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Page Size</label>
+                    <select
+                      value={config.page}
+                      onChange={(e) => setConfig(prev => ({ ...prev, page: e.target.value }))}
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.4rem',
+                        fontSize: '0.85rem',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '4px',
+                        background: 'hsl(var(--background))',
+                        color: 'hsl(var(--foreground))'
+                      }}
+                    >
+                      {Object.entries(PAGE_SIZES).map(([key, size]) => (
+                        <option key={key} value={key}>{size.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Orientation</label>
+                    <select
+                      value={config.pageAlignment}
+                      onChange={(e) => setConfig(prev => ({ ...prev, pageAlignment: parseInt(e.target.value) }))}
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.4rem',
+                        fontSize: '0.85rem',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '4px',
+                        background: 'hsl(var(--background))',
+                        color: 'hsl(var(--foreground))'
+                      }}
+                    >
+                      <option value={1}>Portrait</option>
+                      <option value={2}>Landscape</option>
+                    </select>
+                  </div>
                 </div>
 
+                {/* Watermark */}
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.25rem' }}>Watermark:</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Watermark</label>
                   <input
                     type="text"
                     value={config.watermark || ''}
                     onChange={(e) => setConfig(prev => ({ ...prev, watermark: e.target.value }))}
                     placeholder="Optional watermark text"
-                    style={{ width: '100%', padding: '0.25rem' }}
+                    style={{ 
+                      width: '100%', 
+                      padding: '0.4rem',
+                      fontSize: '0.85rem',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '4px',
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))'
+                    }}
                   />
                 </div>
 
-                {/* Page Border Controls */}
-                <div style={{ marginTop: '1rem' }}>
+                {/* Page Borders */}
+                <div style={{ paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
                   <PageBorderControls
                     borders={parsePageBorder(config.pageBorder)}
                     onChange={(borders) => setConfig(prev => ({ ...prev, pageBorder: formatPageBorder(borders) }))}
                   />
                 </div>
 
-                {/* Page Alignment Controls */}
-                <div style={{ marginTop: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Page Alignment</label>
-                  <div style={{ display: 'flex', gap: '0.25rem' }}>
-                    {[
-                      { value: 1, label: 'Portrait' },
-                      { value: 2, label: 'Landscape' }
-                    ].map(({ value, label }) => (
-                      <button
-                        key={value}
-                        onClick={() => setConfig(prev => ({ ...prev, pageAlignment: value }))}
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '6px',
-                          background: config.pageAlignment === value ? 'hsl(var(--accent))' : 'hsl(var(--background))',
-                          color: config.pageAlignment === value ? 'hsl(var(--accent-foreground))' : 'hsl(var(--foreground))',
-                          fontSize: '0.9rem',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                {/* Page Info */}
+                <div style={{ 
+                  padding: '0.5rem', 
+                  background: 'hsl(var(--muted))', 
+                  borderRadius: '4px',
+                  fontSize: '0.75rem', 
+                  color: 'hsl(var(--muted-foreground))'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Dimensions:</span>
+                    <span>{currentPageSize.width} × {currentPageSize.height} pts</span>
                   </div>
-                </div>
-
-                <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.5rem' }}>
-                  <div>Size: {currentPageSize.width} × {currentPageSize.height}</div>
-                  <div>Elements: {allElements.length}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                    <span>Usable Width:</span>
+                    <span>{getUsableWidth(currentPageSize.width)} pts</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Center: Canvas */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Canvas */}
-            <div className="card" style={{ padding: '1rem', flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div
-                  ref={canvasRef}
-                  onClick={handleCanvasClick}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: isDragOver
-                      ? 'repeating-linear-gradient(45deg, hsl(var(--secondary-color)) 0px, hsl(var(--secondary-color)) 2px, transparent 2px, transparent 20px)'
-                      : 'hsl(var(--card))',
-                    border: isDragOver ? '3px dashed var(--secondary-color)' : '2px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    cursor: 'default',
-                    color: 'hsl(var(--foreground))',
-                    padding: '20px',
-                    overflow: 'auto'
-                  }}
-                >
-                  {allElements.length === 0 && !isDragOver && (
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      height: '100%',
-                      textAlign: 'center',
-                      color: 'hsl(var(--muted-foreground))',
-                      pointerEvents: 'none',
-                    }}>
-                      <Square size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                      <p>Drag components here to start building your template</p>
-                      <p style={{ fontSize: '0.9rem', opacity: 0.7 }}>Load a template file to see existing content</p>
-                    </div>
-                  )}
-                  {isDragOver && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      height: '100%',
-                      textAlign: 'center',
-                      color: 'var(--secondary-color)',
-                      pointerEvents: 'none',
-                      fontWeight: '600',
-                      fontSize: '1.1rem'
-                    }}>
-                      Drop here to add component
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                    {/* Drop zone at the beginning */}
-                    {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
-                      <DropZone
-                        index={title ? 1 : 0}
-                        onDrop={(draggedId) => handleComponentDrop(draggedId, title ? 1 : 0)}
-                        onAddComponent={(type, position) => addElementAtPosition(type, title ? 1 : 0)}
-                        isVisible={true}
-                        isToolboxDragging={draggedType !== null}
-                      />
-                    )}
-
-                    {allElements.map((element, index) => (
-                      <React.Fragment key={element.id}>
-                        <ComponentItem
-                          element={element}
-                          index={index}
-                          isSelected={element.id === selectedId}
-                          onSelect={setSelectedId}
-                          onUpdate={(updates) => updateElement(element.id, updates)}
-                          onMove={moveElement}
-                          onDelete={deleteElement}
-                          canMoveUp={index > (title ? 1 : 0)}
-                          canMoveDown={index < allElements.length - (footer ? 2 : 1)}
-                          selectedCell={selectedCell}
-                          onCellSelect={setSelectedCell}
-                          onDragStart={setDraggedComponentId}
-                          onDragEnd={() => setDraggedComponentId(null)}
-                          onDrop={handleComponentDrop}
-                          isDragging={draggedComponentId === element.id}
-                          draggedType={draggedType}
-                          handleCellDrop={handleCellDrop}
-                          currentPageSize={currentPageSize}
-                        />
-                        {index < allElements.length - 1 && (
-                          <DropZone
-                            index={index + 1}
-                            onDrop={(draggedId) => handleComponentDrop(draggedId, index + 1)}
-                            onAddComponent={(type, position) => addElementAtPosition(type, position)}
-                            isVisible={draggedComponentId !== null || draggedType !== null}
-                            isToolboxDragging={draggedType !== null}
-                          />
-                        )}
-                      </React.Fragment>
-                    ))}
-
-                    {/* Drop zone at the end */}
-                    {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
-                      <DropZone
-                        index={allElements.length}
-                        onDrop={(draggedId) => handleComponentDrop(draggedId, allElements.length)}
-                        onAddComponent={(type, position) => addElementAtPosition(type, position)}
-                        isVisible={true}
-                        isToolboxDragging={draggedType !== null}
-                      />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+            {/* Page size indicator */}
+            <div style={{ 
+              fontSize: '0.75rem', 
+              color: '#666', 
+              textAlign: 'center',
+              padding: '0.25rem 0.5rem',
+              background: '#e9ecef',
+              borderRadius: '4px'
+            }}>
+              {currentPageSize.name} - {currentPageSize.width} × {currentPageSize.height} pts
+            </div>
+            <div className="card" style={{ 
+              padding: '1rem',
+              width: `${Math.min(currentPageSize.width, 650)}px`,
+              maxWidth: '100%',
+              transition: 'width 0.3s ease'
+            }}>
+              <div 
+                className="canvas-container"
+                ref={canvasRef}
+                onClick={handleCanvasClick}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                style={{
+                  background: isDragOver
+                    ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)'
+                    : '#fff',
+                  border: isDragOver ? '3px dashed var(--secondary-color)' : '1px solid #ddd',
+                  borderRadius: '4px',
+                  padding: '1rem',
+                  transition: 'all 0.2s ease',
+                  minHeight: `${Math.min(currentPageSize.height * 0.6, 600)}px`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-start',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                }}
+              >
+                {allElements.length === 0 && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '300px',
+                    textAlign: 'center',
+                    color: '#999',
+                    pointerEvents: 'none',
+                  }}>
+                    <Square size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                    <p style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '0.5rem' }}>
+                      {isDragOver ? 'Drop here to add component' : 'Drop components here'}
+                    </p>
+                    {!isDragOver && (
+                      <p style={{ fontSize: '0.85rem', opacity: 0.7 }}>Drag from the left panel or load a template</p>
                     )}
                   </div>
+                )}
+                {/* Elements container - align items at top */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0', alignItems: 'stretch' }}>
+                  {/* Drop zone at the beginning */}
+                  {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
+                    <DropZone
+                      index={title ? 1 : 0}
+                      onDrop={(draggedId) => handleComponentDrop(draggedId, title ? 1 : 0)}
+                      onAddComponent={(type, position) => addElementAtPosition(type, title ? 1 : 0)}
+                      isVisible={true}
+                      isToolboxDragging={draggedType !== null}
+                    />
+                  )}
+
+                  {allElements.map((element, index) => (
+                    <React.Fragment key={element.id}>
+                      <ComponentItem
+                        element={element}
+                        index={index}
+                        isSelected={element.id === selectedId}
+                        onSelect={setSelectedId}
+                        onUpdate={(updates) => updateElement(element.id, updates)}
+                        onMove={moveElement}
+                        onDelete={deleteElement}
+                        canMoveUp={index > (title ? 1 : 0)}
+                        canMoveDown={index < allElements.length - (footer ? 2 : 1)}
+                        selectedCell={selectedCell}
+                        onCellSelect={setSelectedCell}
+                        onDragStart={setDraggedComponentId}
+                        onDragEnd={() => setDraggedComponentId(null)}
+                        onDrop={handleComponentDrop}
+                        isDragging={draggedComponentId === element.id}
+                        draggedType={draggedType}
+                        handleCellDrop={handleCellDrop}
+                        currentPageSize={currentPageSize}
+                      />
+                      {index < allElements.length - 1 && (
+                        <DropZone
+                          index={index + 1}
+                          onDrop={(draggedId) => handleComponentDrop(draggedId, index + 1)}
+                          onAddComponent={(type, position) => addElementAtPosition(type, position)}
+                          isVisible={draggedComponentId !== null || draggedType !== null}
+                          isToolboxDragging={draggedType !== null}
+                        />
+                      )}
+                    </React.Fragment>
+                  ))}
+
+                  {/* Drop zone at the end */}
+                  {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
+                    <DropZone
+                      index={allElements.length}
+                      onDrop={(draggedId) => handleComponentDrop(draggedId, allElements.length)}
+                      onAddComponent={(type, position) => addElementAtPosition(type, position)}
+                      isVisible={true}
+                      isToolboxDragging={draggedType !== null}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1911,50 +2552,423 @@ export default function Editor() {
           </div>
 
           {/* Right: Properties & JSON */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="editor-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {/* Properties Panel */}
             <div className="card" style={{ padding: '1rem' }}>
-              <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Edit size={18} /> Properties
+              <h3 style={{ 
+                margin: '0 0 0.75rem 0', 
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                color: 'hsl(var(--foreground))'
+              }}>
+                <Edit size={16} /> Properties
               </h3>
               
               {!selectedElement && (
-                <div className="text-muted" style={{ textAlign: 'center', padding: '1rem' }}>
-                  Select a component to edit properties
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '2rem 1rem',
+                  color: 'hsl(var(--muted-foreground))',
+                  background: 'hsl(var(--muted))',
+                  borderRadius: '6px'
+                }}>
+                  <Settings size={24} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                  <p style={{ fontSize: '0.85rem', margin: 0 }}>Select a component to edit</p>
                 </div>
               )}
               
               {selectedElement && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ padding: '0.5rem', background: 'hsl(var(--accent))', borderRadius: '4px' }}>
-                    <strong>{selectedElement.type.charAt(0).toUpperCase() + selectedElement.type.slice(1)}</strong>
+                  <div style={{ 
+                    padding: '0.5rem 0.75rem', 
+                    background: 'hsl(var(--accent))', 
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <strong style={{ fontSize: '0.9rem' }}>
+                      {selectedElement.type.charAt(0).toUpperCase() + selectedElement.type.slice(1)}
+                    </strong>
+                    <button
+                      onClick={() => deleteElement(selectedElement.id)}
+                      style={{ 
+                        background: 'hsl(var(--destructive))', 
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '0.25rem 0.5rem',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
                   </div>
 
                   {selectedElement.type === 'title' && (
                     <>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
-                        <input
-                          type="text"
-                          value={selectedElement.text || ''}
-                          onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                        />
+                      <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
+                          Title Table Settings
+                        </div>
+                        
+                        {selectedElement.table && (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                              <label style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Columns:</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="10"
+                                value={selectedElement.table.maxcolumns || 3}
+                                onChange={(e) => {
+                                  const newCols = parseInt(e.target.value)
+                                  if (isNaN(newCols) || newCols < 1 || newCols > 10) return
+
+                                  const table = selectedElement.table
+                                  let newWidths = []
+                                  const rawWidths = table.columnwidths || []
+                                  const rawSum = rawWidths.reduce((a, b) => a + b, 0) || 1
+                                  const currentWidths = rawWidths.map(w => w / rawSum)
+                                  
+                                  if (newCols === currentWidths.length) {
+                                    newWidths = currentWidths
+                                  } else if (newCols > currentWidths.length) {
+                                    const remain = newCols - currentWidths.length
+                                    const existingSum = currentWidths.reduce((a, b) => a + b, 0)
+                                    const newPartWidth = (1 - existingSum) / remain
+                                    newWidths = [...currentWidths, ...Array(remain).fill(Math.max(0.01, newPartWidth))]
+                                  } else {
+                                    newWidths = currentWidths.slice(0, newCols)
+                                  }
+                                  
+                                  const sum = newWidths.reduce((a, b) => a + b, 0) || 1
+                                  const normalizedWidths = newWidths.map(w => w / sum)
+
+                                  const updatedRows = table.rows?.map(row => {
+                                    const newRow = [...(row.row || [])]
+                                    while (newRow.length < newCols) {
+                                      newRow.push({ props: 'font1:12:000:left:0:0:0:0', text: '' })
+                                    }
+                                    if (newRow.length > newCols) {
+                                      newRow.splice(newCols)
+                                    }
+                                    return { row: newRow }
+                                  })
+                                  
+                                  updateElement(selectedElement.id, { 
+                                    table: { 
+                                      ...table, 
+                                      maxcolumns: newCols, 
+                                      rows: updatedRows, 
+                                      columnwidths: normalizedWidths 
+                                    } 
+                                  })
+                                }}
+                                style={{ flex: 1, padding: '0.25rem' }}
+                              />
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button
+                                onClick={() => {
+                                  const table = selectedElement.table
+                                  const newRow = {
+                                    row: Array(table.maxcolumns).fill(null).map(() => ({
+                                      props: 'font1:12:000:left:0:0:0:0',
+                                      text: ''
+                                    }))
+                                  }
+                                  updateElement(selectedElement.id, {
+                                    table: { ...table, rows: [...(table.rows || []), newRow] }
+                                  })
+                                }}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.4rem',
+                                  fontSize: '0.75rem',
+                                  border: '1px solid hsl(var(--border))',
+                                  borderRadius: '4px',
+                                  background: 'hsl(var(--muted))',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Add Row
+                              </button>
+                              {selectedElement.table.rows?.length > 1 && (
+                                <button
+                                  onClick={() => {
+                                    const table = selectedElement.table
+                                    // Remove selected row if a cell is selected, otherwise remove last row
+                                    const rowIdxToRemove = selectedCell ? selectedCell.rowIdx : table.rows.length - 1
+                                    const newRows = table.rows.filter((_, idx) => idx !== rowIdxToRemove)
+                                    updateElement(selectedElement.id, {
+                                      table: { ...table, rows: newRows }
+                                    })
+                                    // Clear cell selection if the selected row was removed
+                                    if (selectedCell && selectedCell.rowIdx === rowIdxToRemove) {
+                                      setSelectedCell(null)
+                                    } else if (selectedCell && selectedCell.rowIdx > rowIdxToRemove) {
+                                      // Adjust selected cell row index if it was after the removed row
+                                      setSelectedCell({ ...selectedCell, rowIdx: selectedCell.rowIdx - 1 })
+                                    }
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '0.4rem',
+                                    fontSize: '0.75rem',
+                                    border: '1px solid hsl(var(--destructive))',
+                                    borderRadius: '4px',
+                                    background: 'hsl(var(--destructive))',
+                                    color: 'white',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Remove Row {selectedCell ? `(Row ${selectedCell.rowIdx + 1})` : '(Last)'}
+                                </button>
+                              )}
+                            </div>
+                            
+                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                              <button
+                                onClick={() => {
+                                  const table = selectedElement.table
+                                  const currentCols = table.maxcolumns || 3
+                                  const newCols = currentCols + 1
+                                  
+                                  if (newCols > 10) {
+                                    alert('Maximum 10 columns allowed')
+                                    return
+                                  }
+
+                                  // Calculate new column widths
+                                  const rawWidths = table.columnwidths || Array(currentCols).fill(1)
+                                  const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                                  const currentWidths = rawWidths.map(w => w / rawSum)
+                                  
+                                  const newColumnWeight = 1 / newCols
+                                  const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
+                                  const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
+                                  
+                                  const sum = newWidths.reduce((a, b) => a + b, 0)
+                                  const normalizedWidths = newWidths.map(w => w / sum)
+
+                                  // Add new cell to all rows
+                                  const updatedRows = table.rows?.map(row => {
+                                    const newRow = [...(row.row || [])]
+                                    newRow.push({ props: 'font1:12:000:left:0:0:0:0', text: '' })
+                                    return { row: newRow }
+                                  })
+
+                                  updateElement(selectedElement.id, {
+                                    table: { ...table, maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths }
+                                  })
+                                }}
+                                style={{
+                                  flex: 1,
+                                  padding: '0.4rem',
+                                  fontSize: '0.75rem',
+                                  border: '1px solid hsl(var(--border))',
+                                  borderRadius: '4px',
+                                  background: 'hsl(var(--muted))',
+                                  cursor: 'pointer'
+                                }}
+                                disabled={selectedElement.table.maxcolumns >= 10}
+                              >
+                                Add Column
+                              </button>
+                              {selectedElement.table.maxcolumns > 1 && (
+                                <button
+                                  onClick={() => {
+                                    const table = selectedElement.table
+                                    const currentCols = table.maxcolumns || 3
+                                    
+                                    if (currentCols <= 1) {
+                                      alert('Cannot remove the last column')
+                                      return
+                                    }
+
+                                    // Remove selected column if a cell is selected, otherwise remove last column
+                                    const colIdxToRemove = selectedCell ? selectedCell.colIdx : currentCols - 1
+                                    const newCols = currentCols - 1
+
+                                    // Calculate new column widths
+                                    const rawWidths = table.columnwidths || Array(currentCols).fill(1)
+                                    const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                                    const currentWidths = rawWidths.map(w => w / rawSum)
+                                    
+                                    const removedWeight = currentWidths[colIdxToRemove]
+                                    const newWidths = currentWidths.filter((_, idx) => idx !== colIdxToRemove)
+                                    
+                                    const currentSum = newWidths.reduce((a, b) => a + b, 0)
+                                    const normalizedWidths = newWidths.map(w => w / currentSum)
+
+                                    // Remove cell from all rows at the selected column
+                                    const updatedRows = table.rows?.map(row => {
+                                      const newRow = row.row.filter((_, idx) => idx !== colIdxToRemove)
+                                      return { row: newRow }
+                                    })
+
+                                    updateElement(selectedElement.id, {
+                                      table: { ...table, maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths }
+                                    })
+                                    
+                                    // Clear or adjust cell selection
+                                    if (selectedCell && selectedCell.colIdx === colIdxToRemove) {
+                                      setSelectedCell(null)
+                                    } else if (selectedCell && selectedCell.colIdx > colIdxToRemove) {
+                                      setSelectedCell({ ...selectedCell, colIdx: selectedCell.colIdx - 1 })
+                                    }
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    padding: '0.4rem',
+                                    fontSize: '0.75rem',
+                                    border: '1px solid hsl(var(--destructive))',
+                                    borderRadius: '4px',
+                                    background: 'hsl(var(--destructive))',
+                                    color: 'white',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Remove Column {selectedCell ? `(Col ${selectedCell.colIdx + 1})` : '(Last)'}
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
-                        <PropsEditor 
-                          props={selectedElement.props} 
-                          onChange={(props) => updateElement(selectedElement.id, { props })}
-                        />
-                      </div>
+                      
+                      {selectedCell && selectedElement.table && selectedElement.table.rows?.[selectedCell.rowIdx]?.row?.[selectedCell.colIdx] && (
+                        <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
+                            Title Cell (Row {selectedCell.rowIdx + 1}, Col {selectedCell.colIdx + 1})
+                          </div>
+                          
+                          {(() => {
+                            const cell = selectedElement.table.rows[selectedCell.rowIdx].row[selectedCell.colIdx]
+                            
+                            // Helper function to update title table cell with proper immutable updates
+                            const updateTitleCell = (cellUpdates) => {
+                              const table = selectedElement.table
+                              const newRows = table.rows.map((row, rIdx) => 
+                                rIdx === selectedCell.rowIdx
+                                  ? {
+                                      ...row,
+                                      row: row.row.map((c, cIdx) =>
+                                        cIdx === selectedCell.colIdx
+                                          ? { ...c, ...cellUpdates }
+                                          : c
+                                      )
+                                    }
+                                  : row
+                              )
+                              updateElement(selectedElement.id, { table: { ...table, rows: newRows } })
+                            }
+                            
+                            return (
+                              <>
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
+                                  <input
+                                    type="text"
+                                    value={cell.text || ''}
+                                    onChange={(e) => updateTitleCell({ text: e.target.value })}
+                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
+                                  />
+                                </div>
+                                
+                                {cell.image ? (
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Image:</label>
+                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                      <input
+                                        type="number"
+                                        value={cell.image.width || 100}
+                                        onChange={(e) => updateTitleCell({ 
+                                          image: { ...cell.image, width: parseFloat(e.target.value) || 100 } 
+                                        })}
+                                        placeholder="Width"
+                                        style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem' }}
+                                      />
+                                      <input
+                                        type="number"
+                                        value={cell.image.height || 50}
+                                        onChange={(e) => updateTitleCell({ 
+                                          image: { ...cell.image, height: parseFloat(e.target.value) || 50 } 
+                                        })}
+                                        placeholder="Height"
+                                        style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem' }}
+                                      />
+                                    </div>
+                                    <button
+                                      onClick={() => updateTitleCell({ image: null })}
+                                      style={{
+                                        padding: '0.25rem 0.5rem',
+                                        fontSize: '0.75rem',
+                                        border: '1px solid hsl(var(--destructive))',
+                                        borderRadius: '4px',
+                                        background: 'hsl(var(--destructive))',
+                                        color: 'white',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      Remove Image
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Add Image:</label>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                        const file = e.target.files[0]
+                                        if (file) {
+                                          const reader = new FileReader()
+                                          reader.onload = (event) => {
+                                            updateTitleCell({
+                                              image: {
+                                                imagename: file.name,
+                                                imagedata: event.target.result,
+                                                width: 100,
+                                                height: 50
+                                              }
+                                            })
+                                          }
+                                          reader.readAsDataURL(file)
+                                        }
+                                      }}
+                                      style={{ width: '100%', fontSize: '0.75rem' }}
+                                    />
+                                  </div>
+                                )}
+                                
+                                <div>
+                                  <PropsEditor 
+                                    props={cell.props} 
+                                    onChange={(props) => updateTitleCell({ props })}
+                                  />
+                                </div>
+                              </>
+                            )
+                          })()}
+                        </div>
+                      )}
                     </>
                   )}
 
                   {selectedElement.type === 'table' && (
                     <>
-                      <div className="flex gap-2">
-                        <label style={{ width: '80px', fontSize: '0.9rem' }}>Max Columns:</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Columns:</label>
                         <input
                           type="number"
                           min="1"
@@ -1964,9 +2978,12 @@ export default function Editor() {
                             const newCols = parseInt(e.target.value)
                             if (isNaN(newCols) || newCols < 1 || newCols > 10) return
 
-                            // Adjust column widths proportionally
+                            // Adjust column widths proportionally - normalize first
                             let newWidths = []
-                            const currentWidths = selectedElement.columnwidths || []
+                            const rawWidths = selectedElement.columnwidths || []
+                            const rawSum = rawWidths.reduce((a, b) => a + b, 0) || 1
+                            const currentWidths = rawWidths.map(w => w / rawSum)
+                            
                             if (newCols === currentWidths.length) {
                               newWidths = currentWidths
                             } else if (newCols > currentWidths.length) {
@@ -2012,11 +3029,18 @@ export default function Editor() {
                         <button
                           onClick={() => {
                             const usableWidth = getUsableWidth(currentPageSize.width)
+                            // Normalize columnwidths for proper width calculation
+                            const rawWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
+                              ? selectedElement.columnwidths
+                              : Array(selectedElement.maxcolumns).fill(1)
+                            const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0)
+                            const normalizedWeights = rawWeights.map(w => w / totalWeight)
+                            
                             const newRow = { 
                               row: Array(selectedElement.maxcolumns || 3).fill().map((_, i) => ({
                                 props: 'font1:12:000:left:1:1:1:1',
                                 text: '',
-                                width: usableWidth * (selectedElement.columnwidths ? selectedElement.columnwidths[i] : 1 / selectedElement.maxcolumns)
+                                width: usableWidth * normalizedWeights[i]
                               }))
                             }
                             updateElement(selectedElement.id, { 
@@ -2031,16 +3055,34 @@ export default function Editor() {
                         <button
                           onClick={() => {
                             if (selectedElement.rows?.length > 1) {
+                              // Remove selected row if a cell is selected, otherwise remove last row
+                              const rowIdxToRemove = selectedCell ? selectedCell.rowIdx : selectedElement.rows.length - 1
+                              const newRows = selectedElement.rows.filter((_, idx) => idx !== rowIdxToRemove)
+                              
+                              // Also update rowheights if they exist
+                              let newRowHeights = selectedElement.rowheights
+                              if (newRowHeights && newRowHeights.length > 0) {
+                                newRowHeights = newRowHeights.filter((_, idx) => idx !== rowIdxToRemove)
+                              }
+                              
                               updateElement(selectedElement.id, { 
-                                rows: selectedElement.rows.slice(0, -1)
+                                rows: newRows,
+                                ...(newRowHeights ? { rowheights: newRowHeights } : {})
                               })
+                              
+                              // Clear or adjust cell selection
+                              if (selectedCell && selectedCell.rowIdx === rowIdxToRemove) {
+                                setSelectedCell(null)
+                              } else if (selectedCell && selectedCell.rowIdx > rowIdxToRemove) {
+                                setSelectedCell({ ...selectedCell, rowIdx: selectedCell.rowIdx - 1 })
+                              }
                             }
                           }}
                           className="btn"
                           style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
                           disabled={!selectedElement.rows || selectedElement.rows.length <= 1}
                         >
-                          Remove Row
+                          Remove Row {selectedCell ? `(Row ${selectedCell.rowIdx + 1})` : '(Last)'}
                         </button>
                       </div>
 
@@ -2056,8 +3098,11 @@ export default function Editor() {
                                 return
                               }
 
-                              // Calculate new column widths
-                              const currentWidths = selectedElement.columnwidths || Array(currentCols).fill(1 / currentCols)
+                              // Calculate new column widths - normalize current weights first
+                              const rawWidths = selectedElement.columnwidths || Array(currentCols).fill(1)
+                              const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                              const currentWidths = rawWidths.map(w => w / rawSum)
+                              
                               const newColumnWeight = 1 / newCols
                               const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
                               const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
@@ -2126,32 +3171,34 @@ export default function Editor() {
                                 return
                               }
 
+                              // Remove selected column if a cell is selected, otherwise remove last column
+                              const colIdxToRemove = selectedCell ? selectedCell.colIdx : currentCols - 1
                               const newCols = currentCols - 1
 
                               // Calculate new column widths (redistribute the removed column's weight)
-                              const currentWidths = selectedElement.columnwidths || Array(currentCols).fill(1 / currentCols)
-                              const removedWeight = currentWidths[currentCols - 1]
-                              const newWidths = currentWidths.slice(0, newCols)
+                              // First normalize current weights
+                              const rawWidths = selectedElement.columnwidths || Array(currentCols).fill(1)
+                              const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                              const currentWidths = rawWidths.map(w => w / rawSum)
+                              
+                              const removedWeight = currentWidths[colIdxToRemove]
+                              const newWidths = currentWidths.filter((_, idx) => idx !== colIdxToRemove)
                               
                               // Distribute removed weight proportionally to remaining columns
                               const currentSum = newWidths.reduce((a, b) => a + b, 0)
-                              const normalizedWidths = newWidths.map(w => (w / currentSum) * (currentSum + removedWeight))
-                              
-                              // Normalize to ensure sum is exactly 1
-                              const sum = normalizedWidths.reduce((a, b) => a + b, 0)
-                              const finalWidths = normalizedWidths.map(w => w / sum)
+                              const normalizedWidths = newWidths.map(w => w / currentSum)
 
                               // Get usable width for calculations
                               const usableWidth = getUsableWidth(currentPageSize.width)
 
-                              // Remove last cell from all rows
+                              // Remove cell at selected column from all rows
                               const updatedRows = selectedElement.rows?.map(row => {
-                                const newRow = row.row.slice(0, newCols)
+                                const newRow = row.row.filter((_, idx) => idx !== colIdxToRemove)
                                 
                                 // Update widths for remaining cells
                                 const updatedCells = newRow.map((cell, colIdx) => ({
                                   ...cell,
-                                  width: usableWidth * finalWidths[colIdx]
+                                  width: usableWidth * normalizedWidths[colIdx]
                                 }))
 
                                 return { row: updatedCells }
@@ -2169,8 +3216,15 @@ export default function Editor() {
                               updateElement(selectedElement.id, { 
                                 maxcolumns: newCols, 
                                 rows: updatedRows, 
-                                columnwidths: finalWidths 
+                                columnwidths: normalizedWidths 
                               })
+                              
+                              // Clear or adjust cell selection
+                              if (selectedCell && selectedCell.colIdx === colIdxToRemove) {
+                                setSelectedCell(null)
+                              } else if (selectedCell && selectedCell.colIdx > colIdxToRemove) {
+                                setSelectedCell({ ...selectedCell, colIdx: selectedCell.colIdx - 1 })
+                              }
 
                               // Success - component will re-render automatically
                               console.log('Column removed successfully')
@@ -2183,7 +3237,7 @@ export default function Editor() {
                           style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
                           disabled={!selectedElement.rows || selectedElement.maxcolumns <= 1}
                         >
-                          Remove Column
+                          Remove Column {selectedCell ? `(Col ${selectedCell.colIdx + 1})` : '(Last)'}
                         </button>
                       </div>
 
@@ -2196,9 +3250,12 @@ export default function Editor() {
                         <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Column Widths (weights)</div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '0.5rem' }}>
                           {Array.from({ length: selectedElement.maxcolumns }).map((_, colIdx) => {
-                            const colWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
+                            // Normalize columnwidths for display
+                            const rawWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
                               ? selectedElement.columnwidths
-                              : Array(selectedElement.maxcolumns).fill(1 / selectedElement.maxcolumns)
+                              : Array(selectedElement.maxcolumns).fill(1)
+                            const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0)
+                            const colWeights = rawWeights.map(w => w / totalWeight)
                             return (
                               <div key={colIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                 <label style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Col {colIdx + 1}</label>
@@ -2805,59 +3862,46 @@ export default function Editor() {
 
             {/* JSON Output */}
             <div className="card" style={{ padding: '1rem', flex: 1 }}>
-              <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText size={18} /> JSON Template
-              </h3>
+              <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                  <FileText size={16} /> JSON Template
+                </h3>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(jsonText)
+                  }}
+                  className="btn"
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                >
+                  <Copy size={12} /> Copy
+                </button>
+              </div>
               <textarea
-                value={JSON.stringify(jsonOutput, null, 2)}
-                onChange={(e) => {
-                  try {
-                    const data = JSON.parse(e.target.value)
-                    
-                    // Parse the JSON structure from the pasted content (same as loadTemplate)
-                    setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
-                    setTitle(data.title || null)
-
-                    // Combine tables, spacers, and images into components array, preserving order
-                    const combinedComponents = []
-                    if (data.table) {
-                      data.table.forEach(table => combinedComponents.push({ ...table, type: 'table' }))
-                    }
-                    if (data.spacer) {
-                      data.spacer.forEach(spacer => combinedComponents.push({ ...spacer, type: 'spacer' }))
-                    }
-                    if (data.image) {
-                      data.image.forEach(image => combinedComponents.push({ ...image, type: 'image' }))
-                    }
-                    setComponents(combinedComponents)
-
-                    setFooter(data.footer || null)
-                    setSelectedId(null)
-                    setSelectedCell(null)
-                  } catch (err) {
-                    // Invalid JSON - do nothing, let user continue editing
-                  }
-                }}
+                value={jsonText}
+                onChange={handleJsonChange}
+                onFocus={() => setIsJsonEditing(true)}
+                onBlur={handleJsonBlur}
                 style={{
                   width: '100%',
-                  height: '300px',
+                  height: '250px',
                   fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
-                  fontSize: '0.75rem',
+                  fontSize: '0.7rem',
                   padding: '0.75rem',
                   resize: 'vertical',
-                  background: 'hsl(var(--muted))',
-                  color: 'hsl(var(--foreground))',
+                  background: '#1e1e1e',
+                  color: '#d4d4d4',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '4px',
                   lineHeight: '1.4'
                 }}
+                spellCheck={false}
               />
               <p style={{ 
                 marginTop: '0.5rem', 
-                fontSize: '0.75rem', 
+                fontSize: '0.7rem', 
                 color: 'hsl(var(--muted-foreground))'
               }}>
-                Paste JSON here to load template data
+                Edit JSON directly or paste to load template. Changes apply on blur.
               </p>
             </div>
           </div>

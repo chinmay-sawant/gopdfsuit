@@ -11,6 +11,7 @@ import {
   X,
   Loader2
 } from 'lucide-react'
+import { useTheme } from '../theme'
 
 export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -19,6 +20,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const iframeRef = useRef(null)
+  const { theme } = useTheme()
 
   useEffect(() => {
     setIsLoading(true)
@@ -72,7 +74,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
     right: 0,
     bottom: 0,
     zIndex: 9999,
-    background: 'hsl(var(--background))',
+    background: '#fff',
     display: 'flex',
     flexDirection: 'column'
   } : {
@@ -83,7 +85,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
 
   const iframeStyles = {
     width: '100%',
-    height: isFullscreen ? 'calc(100vh - 60px)' : '400px',
+    height: '100%',
     border: 'none',
     borderRadius: isFullscreen ? '0' : '4px',
     background: 'transparent',
@@ -101,8 +103,8 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
         justifyContent: 'space-between',
         marginBottom: isFullscreen ? '0' : '0.5rem',
         padding: isFullscreen ? '0.75rem 1rem' : '0',
-        borderBottom: isFullscreen ? '1px solid hsl(var(--border))' : 'none',
-        background: isFullscreen ? 'hsl(var(--card))' : 'transparent',
+        borderBottom: isFullscreen ? '1px solid #e5e5e5' : 'none',
+        background: isFullscreen ? '#fff' : 'transparent',
         flexShrink: 0
       }}>
         <h4 style={{
@@ -110,10 +112,11 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
-          fontSize: isFullscreen ? '1.1rem' : '1rem'
+          fontSize: isFullscreen ? '1.1rem' : '1rem',
+          color: theme === 'dark' ? '#fff' : '#333'
         }}>
           <Eye size={16} /> {title}
-          {isLoading && <Loader2 size={14} className="animate-spin" />}
+          {isLoading && <Loader2 size={14} className="animate-spin" style={{ color: theme === 'dark' ? '#fff' : '#666' }} />}
         </h4>
 
         {/* Control buttons */}
@@ -121,9 +124,10 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
           {/* Zoom level indicator */}
           <span style={{
             fontSize: '0.85rem',
-            color: 'hsl(var(--muted-foreground))',
+            color: theme === 'dark' ? '#fff' : '#666',
             minWidth: '45px',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontWeight: '500'
           }}>
             {zoomLevel}%
           </span>
@@ -136,11 +140,15 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             title="Zoom Out"
             style={{
               padding: '0.4rem',
-              background: 'hsl(var(--secondary))',
-              border: '1px solid hsl(var(--border))',
+              background: '#f5f5f5',
+              color: '#333',
+              border: '1px solid #ddd',
               borderRadius: '4px',
               cursor: zoomLevel <= 50 ? 'not-allowed' : 'pointer',
-              opacity: zoomLevel <= 50 ? 0.5 : 1
+              opacity: zoomLevel <= 50 ? 0.5 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             <ZoomOut size={14} />
@@ -153,11 +161,15 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             title="Zoom In"
             style={{
               padding: '0.4rem',
-              background: 'hsl(var(--secondary))',
-              border: '1px solid hsl(var(--border))',
+              background: '#f5f5f5',
+              color: '#333',
+              border: '1px solid #ddd',
               borderRadius: '4px',
               cursor: zoomLevel >= 200 ? 'not-allowed' : 'pointer',
-              opacity: zoomLevel >= 200 ? 0.5 : 1
+              opacity: zoomLevel >= 200 ? 0.5 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             <ZoomIn size={14} />
@@ -169,10 +181,14 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             title="Rotate 90°"
             style={{
               padding: '0.4rem',
-              background: 'hsl(var(--secondary))',
-              border: '1px solid hsl(var(--border))',
+              background: '#f5f5f5',
+              color: '#333',
+              border: '1px solid #ddd',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             <RotateCw size={14} />
@@ -184,10 +200,14 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             title="Refresh"
             style={{
               padding: '0.4rem',
-              background: 'hsl(var(--secondary))',
-              border: '1px solid hsl(var(--border))',
+              background: '#f5f5f5',
+              color: '#333',
+              border: '1px solid #ddd',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             <RefreshCw size={14} />
@@ -199,11 +219,14 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             title="Download PDF"
             style={{
               padding: '0.4rem',
-              background: 'hsl(var(--primary))',
-              color: 'hsl(var(--primary-foreground))',
-              border: '1px solid hsl(var(--primary))',
+              background: '#2563eb',
+              color: '#fff',
+              border: '1px solid #2563eb',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             <Download size={14} />
@@ -215,10 +238,14 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             style={{
               padding: '0.4rem',
-              background: 'hsl(var(--secondary))',
-              border: '1px solid hsl(var(--border))',
+              background: '#f5f5f5',
+              color: '#333',
+              border: '1px solid #ddd',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
@@ -231,11 +258,14 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
               title="Close"
               style={{
                 padding: '0.4rem',
-                background: 'hsl(var(--destructive))',
-                color: 'hsl(var(--destructive-foreground))',
-                border: '1px solid hsl(var(--destructive))',
+                background: '#dc2626',
+                color: '#fff',
+                border: '1px solid #dc2626',
                 borderRadius: '4px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
             >
               <X size={14} />
@@ -250,12 +280,12 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
         overflow: 'hidden',
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'stretch',
         padding: isFullscreen ? '1rem' : '0',
-        background: isFullscreen ? 'hsl(var(--muted))' : 'transparent',
+        background: isFullscreen ? '#f5f5f5' : 'transparent',
         position: 'relative',
         width: '100%',
-        minHeight: isFullscreen ? 'calc(100vh - 60px)' : '400px'
+        height: isFullscreen ? 'calc(100vh - 60px)' : '700px'
       }}>
         {isLoading && (
           <div style={{
@@ -267,7 +297,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '0.5rem',
-            color: 'hsl(var(--muted-foreground))'
+            color: theme === 'dark' ? '#fff' : '#666'
           }}>
             <Loader2 size={24} className="animate-spin" />
             <span style={{ fontSize: '0.9rem' }}>Loading PDF...</span>
@@ -284,7 +314,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
             flexDirection: 'column',
             alignItems: 'center',
             gap: '0.5rem',
-            color: 'hsl(var(--destructive))',
+            color: theme === 'dark' ? '#fff' : '#dc2626',
             textAlign: 'center'
           }}>
             <X size={24} />
@@ -293,8 +323,9 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
               onClick={handleRefresh}
               style={{
                 padding: '0.25rem 0.5rem',
-                background: 'hsl(var(--secondary))',
-                border: '1px solid hsl(var(--border))',
+                background: theme === 'dark' ? '#374151' : '#f5f5f5',
+                color: theme === 'dark' ? '#fff' : '#333',
+                border: theme === 'dark' ? '1px solid #4b5563' : '1px solid #ddd',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontSize: '0.8rem'
@@ -308,7 +339,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
         {!hasError && (
           <div style={{
             width: '100%',
-            height: '100%',
+            height: isFullscreen ? '100%' : '700px',
             overflow: 'hidden',
             borderRadius: isFullscreen ? '8px' : '4px',
             boxShadow: isFullscreen ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',

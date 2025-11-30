@@ -29,6 +29,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	imageObjectIDs := make(map[int]int)        // map imageIndex to PDF object ID
 
 	// Process cell images - map tableIdx:rowIdx:colIdx to XObject ID
+	// Also process title table images with prefix "title:"
 	cellImageObjects := make(map[string]*ImageObject)
 	cellImageObjectIDs := make(map[string]int)
 
@@ -43,6 +44,24 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 				imageObjects[i] = imgObj
 				imageObjectIDs[i] = nextImageObjectID
 				nextImageObjectID++
+			}
+		}
+	}
+
+	// Process title table images
+	if template.Title.Table != nil {
+		for rowIdx, row := range template.Title.Table.Rows {
+			for colIdx, cell := range row.Row {
+				if cell.Image != nil && cell.Image.ImageData != "" {
+					imgObj, err := DecodeImageData(cell.Image.ImageData)
+					if err == nil {
+						imgObj.ObjectID = nextImageObjectID
+						cellKey := fmt.Sprintf("title:%d:%d", rowIdx, colIdx)
+						cellImageObjects[cellKey] = imgObj
+						cellImageObjectIDs[cellKey] = nextImageObjectID
+						nextImageObjectID++
+					}
+				}
 			}
 		}
 	}
@@ -70,8 +89,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
 	// Generate all content first to know how many pages we need
-	// Pass imageObjectIDs and cellImageObjectIDs so content generation can reference them
-	generateAllContentWithImages(template, pageManager, imageObjectIDs, cellImageObjectIDs)
+	// Pass imageObjects, imageObjectIDs and cellImageObjectIDs so content generation can reference them
+	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs)
 
 	// Collect all widget IDs for AcroForm
 	var allWidgetIDs []int
@@ -267,35 +286,112 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 }
 
 // generateAllContentWithImages processes the template and generates content with image support
-func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int) {
+func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int) {
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
-	// Title - Check if it fits on current page
-	titleProps := parseProps(template.Title.Props)
-	titleHeight := float64(titleProps.FontSize + 50) // Title + spacing
+	// Title - Process if title text is provided OR if title has a table
+	if template.Title.Text != "" || template.Title.Table != nil {
+		titleProps := parseProps(template.Title.Props)
 
-	if pageManager.CheckPageBreak(titleHeight) {
-		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
-	}
-
-	drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager)
-
-	// Tables - Process each table with automatic page breaks
-	for tableIdx, table := range template.Table {
-		drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
-	}
-
-	// Images - Process each image with automatic page breaks
-	for i, image := range template.Image {
-		if _, exists := imageObjectIDs[i]; exists {
-			// Image was successfully decoded, draw it with XObject reference
-			imageXObjectRef := fmt.Sprintf("/Im%d", i)
-			drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark)
+		// Calculate title height based on content
+		var titleHeight float64
+		if template.Title.Table != nil && len(template.Title.Table.Rows) > 0 {
+			// Estimate height from table rows
+			for _, row := range template.Title.Table.Rows {
+				rowH := 25.0
+				for _, cell := range row.Row {
+					if cell.Height != nil && *cell.Height > rowH {
+						rowH = *cell.Height
+					}
+				}
+				titleHeight += rowH
+			}
 		} else {
-			// Fall back to placeholder if image couldn't be decoded
-			drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+			titleHeight = float64(titleProps.FontSize) // Title only, no extra spacing
+		}
+
+		if pageManager.CheckPageBreak(titleHeight) {
+			pageManager.AddNewPage()
+			initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
+		}
+
+		drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager, cellImageObjectIDs)
+	}
+
+	// Check if we have ordered elements array
+	if len(template.Elements) > 0 {
+		// Process elements in order
+		tableIdx := 0
+		for _, elem := range template.Elements {
+			switch elem.Type {
+			case "table":
+				var table models.Table
+				if elem.Table != nil {
+					table = *elem.Table
+				} else if elem.Index < len(template.Table) {
+					table = template.Table[elem.Index]
+				} else {
+					continue
+				}
+				drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
+				tableIdx++
+			case "spacer":
+				var spacer models.Spacer
+				if elem.Spacer != nil {
+					spacer = *elem.Spacer
+				} else if elem.Index < len(template.Spacer) {
+					spacer = template.Spacer[elem.Index]
+				} else {
+					continue
+				}
+				drawSpacer(spacer, pageManager)
+			case "image":
+				var image models.Image
+				var imgIdx int
+				if elem.Image != nil {
+					image = *elem.Image
+					imgIdx = -1 // No index for inline image
+				} else if elem.Index < len(template.Image) {
+					image = template.Image[elem.Index]
+					imgIdx = elem.Index
+				} else {
+					continue
+				}
+				if imgIdx >= 0 {
+					if imgObj, exists := imageObjects[imgIdx]; exists {
+						imageXObjectRef := fmt.Sprintf("/Im%d", imgIdx)
+						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
+					} else {
+						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+					}
+				} else {
+					drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+				}
+			}
+		}
+	} else {
+		// Legacy mode: process tables, then spacers, then images (spacers at end)
+		// Tables - Process each table with automatic page breaks
+		for tableIdx, table := range template.Table {
+			drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
+		}
+
+		// Spacers - Process each spacer (added after tables in legacy mode)
+		for _, spacer := range template.Spacer {
+			drawSpacer(spacer, pageManager)
+		}
+
+		// Images - Process each image with automatic page breaks
+		for i, image := range template.Image {
+			if imgObj, exists := imageObjects[i]; exists {
+				// Image was successfully decoded, draw it with XObject reference
+				imageXObjectRef := fmt.Sprintf("/Im%d", i)
+				drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
+			} else {
+				// Fall back to placeholder if image couldn't be decoded
+				drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+			}
 		}
 	}
 
