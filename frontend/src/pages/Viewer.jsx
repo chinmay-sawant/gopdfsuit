@@ -8,6 +8,17 @@ const Viewer = () => {
   const [pdfUrl, setPdfUrl] = useState('')
   const fileInputRef = useRef(null)
 
+  // Check if running on GitHub Pages
+  const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')
+
+  const showError = (message) => {
+    if (isGitHubPages) {
+      alert('Run the Application Locally To Generate The PDF')
+    } else {
+      alert(message)
+    }
+  }
+
   const loadTemplate = async () => {
     if (!fileName.trim()) return
 
@@ -32,13 +43,13 @@ const Viewer = () => {
           const url = URL.createObjectURL(blob)
           setPdfUrl(url)
         } else {
-          alert('Failed to generate PDF')
+          showError('Failed to generate PDF')
         }
       } else {
-        alert('Failed to load template')
+        showError('Failed to load template')
       }
     } catch (error) {
-      alert('Error loading template: ' + error.message)
+      showError('Error loading template: ' + error.message)
     } finally {
       setIsLoading(false)
     }
@@ -63,10 +74,10 @@ const Viewer = () => {
         const url = URL.createObjectURL(blob)
         setPdfUrl(url)
       } else {
-        alert('Failed to generate PDF')
+        showError('Failed to generate PDF')
       }
     } catch (error) {
-      alert('Error generating PDF: ' + error.message)
+      showError('Error generating PDF: ' + error.message)
     } finally {
       setIsLoading(false)
     }

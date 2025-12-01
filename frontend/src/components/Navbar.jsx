@@ -8,6 +8,9 @@ const Navbar = () => {
   const { theme, toggle } = useTheme()
   const location = useLocation()
 
+  // Check if running on GitHub Pages
+  const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')
+
   const navItems = [
     { path: '/', label: 'Home', icon: FileText },
     { path: '/viewer', label: 'Viewer', icon: FileText },
@@ -21,29 +24,40 @@ const Navbar = () => {
   ]
 
   return (
-    <nav className="navbar" style={{ padding: '0.75rem 0' }}>
-      <div className="container">
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <Link 
-            to="/" 
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: 'hsl(var(--foreground))',
-              textDecoration: 'none',
-              fontSize: '2rem',
-              fontWeight: '700',
-              lineHeight: '1',
-              marginRight: '2rem',
-            }}
-          >
-            <span style={{ verticalAlign: 'middle' }}>📄</span> GoPdfSuit
-          </Link>
+    <>
+      {/* Preview Ribbon for GitHub Pages - Fixed position on left */}
+      {isGitHubPages && (
+        <div 
+          className="preview-ribbon"
+          title="Run the app locally to generate the PDF"
+        >
+          Preview
+        </div>
+      )}
+      
+      <nav className="navbar" style={{ padding: '0.75rem 0' }}>
+        <div className="container">
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <Link 
+              to="/" 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: 'hsl(var(--foreground))',
+                textDecoration: 'none',
+                fontSize: '2rem',
+                fontWeight: '700',
+                lineHeight: '1',
+                marginRight: '2rem',
+              }}
+            >
+              <span style={{ verticalAlign: 'middle' }}>📄</span> GoPdfSuit
+            </Link>
             
           {/* Desktop Menu */}
           <div style={{
@@ -209,8 +223,45 @@ const Navbar = () => {
             display: none !important;
           }
         }
+        .preview-ribbon {
+          position: fixed;
+          left: -40px;
+          top: 80px;
+          transform: rotate(-45deg);
+          background: hsl(var(--foreground));
+          color: hsl(var(--background));
+          padding: 0.5rem 3rem;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          z-index: 1000;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          cursor: help;
+          transition: all 0.2s ease;
+        }
+        .preview-ribbon:hover {
+          filter: brightness(1.2);
+        }
+        @media (max-width: 768px) {
+          .preview-ribbon {
+            left: -50px;
+            top: 60px;
+            padding: 0.4rem 2.5rem;
+            font-size: 0.65rem;
+          }
+        }
+        @media (max-width: 480px) {
+          .preview-ribbon {
+            left: -55px;
+            top: 50px;
+            padding: 0.35rem 2rem;
+            font-size: 0.6rem;
+          }
+        }
       `}</style>
     </nav>
+    </>
   )
 }
 
