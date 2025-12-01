@@ -1,0 +1,51 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.amazonreceipt'
+version = '1.0.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // iText 8 Core
+    implementation 'com.itextpdf:itext-core:8.0.4'
+    implementation 'com.itextpdf:layout:8.0.4'
+    implementation 'com.itextpdf:kernel:8.0.4'
+    implementation 'com.itextpdf:io:8.0.4'
+    
+    // Google Gson for JSON parsing
+    implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // SLF4J for logging
+    implementation 'org.slf4j:slf4j-simple:2.0.9'
+}
+
+application {
+    mainClass = 'com.amazonreceipt.AmazonReceiptGenerator'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.amazonreceipt.AmazonReceiptGenerator'
+    }
+    
+    // Create fat JAR with all dependencies
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
