@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -270,11 +271,16 @@ func handleMergePDFs(c *gin.Context) {
 
 // handlehtmlToPDF handles HTML to PDF conversion using htmltopdf
 func handlehtmlToPDF(c *gin.Context) {
+	log.Printf("Starting HTML to PDF conversion request")
+
 	var req models.HtmlToPDFRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
 	}
+
+	log.Printf("Request parsed successfully. HTML length: %d, URL: %s", len(req.HTML), req.URL)
 
 	// Set defaults
 	if req.PageSize == "" {
@@ -299,11 +305,16 @@ func handlehtmlToPDF(c *gin.Context) {
 		req.DPI = 300
 	}
 
+	log.Printf("Calling pdf.ConvertHTMLToPDF with options: PageSize=%s, Orientation=%s, DPI=%d", req.PageSize, req.Orientation, req.DPI)
+
 	pdfBytes, err := pdf.ConvertHTMLToPDF(req)
 	if err != nil {
+		log.Printf("PDF conversion failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF conversion failed: " + err.Error()})
 		return
 	}
+
+	log.Printf("PDF conversion successful. PDF size: %d bytes", len(pdfBytes))
 
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "attachment; filename=converted.pdf")
@@ -312,11 +323,16 @@ func handlehtmlToPDF(c *gin.Context) {
 
 // handlehtmlToImage handles HTML to image conversion using htmltoimage
 func handlehtmlToImage(c *gin.Context) {
+	log.Printf("Starting HTML to image conversion request")
+
 	var req models.HtmlToImageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
 	}
+
+	log.Printf("Request parsed successfully. HTML length: %d, URL: %s, Format: %s", len(req.HTML), req.URL, req.Format)
 
 	// Set defaults
 	if req.Format == "" {
@@ -329,11 +345,16 @@ func handlehtmlToImage(c *gin.Context) {
 		req.Zoom = 1.0
 	}
 
+	log.Printf("Calling pdf.ConvertHTMLToImage with options: Format=%s, Quality=%d, Zoom=%.2f", req.Format, req.Quality, req.Zoom)
+
 	imageBytes, err := pdf.ConvertHTMLToImage(req)
 	if err != nil {
+		log.Printf("Image conversion failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Image conversion failed: " + err.Error()})
 		return
 	}
+
+	log.Printf("Image conversion successful. Image size: %d bytes", len(imageBytes))
 
 	contentType := "image/png"
 	switch req.Format {

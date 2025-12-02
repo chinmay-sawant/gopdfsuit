@@ -17,6 +17,7 @@ GoPdfSuit is a flexible web service built with Go and the Gin framework. It feat
 ## 🔧 Requirements
 
 - **Go** `1.20+` (project currently targets Go 1.23)
+- **Google Chrome** (required for HTML to PDF/Image conversion)
 - **gochromedp** `1.0+` (for HTML to PDF/Image conversion)
 - **Dependencies**: Automatically managed via Go modules
 
@@ -26,16 +27,29 @@ GoPdfSuit is a flexible web service built with Go and the Gin framework. It feat
 
 **For HTML to PDF/Image conversion:**
 ```bash
-# Ubuntu/Debian
-sudo apt-get install chromium-browser
+# Ubuntu/Debian (including WSL2)
+sudo apt update
+sudo apt install -y wget gnupg
+wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list'
+sudo apt update
+sudo apt install -y google-chrome-stable
+
+# Verify installation
+google-chrome --version
 
 # macOS (with Homebrew)
-brew install chromium
+brew install --cask google-chrome
 
 # Windows - Download Chrome from: https://www.google.com/chrome/
 ```
 
-**Note:** gochromedp uses Chromium headless for HTML conversion, so Chrome/Chromium must be installed.
+> **⚠️ Important:** Google Chrome is required for HTML to PDF and HTML to Image conversion features. Without Chrome installed, you'll see this error:
+> ```
+> PDF conversion failed: failed to generate PDF: exec: "google-chrome": executable file not found in $PATH
+> ```
+
+**Note:** gochromedp uses Chromium headless for HTML conversion, so Chrome/Chromium must be installed and accessible in your PATH.
 
 ### 2️⃣ Clone the Repository
 ```bash
@@ -136,10 +150,19 @@ docker build -f dockerfolder/Dockerfile --build-arg VERSION=1.0.0 -t gopdfsuit:1
 
 If you encounter issues with gochromedp or Chromium installation:
 
-1. **Ensure Chromium/Chrome is installed** and accessible
-2. **Try the Ubuntu-based build** (Option 2) for better compatibility
-3. **Use the modern build** (Option 3) if you don't need specific Chromium versions
-4. **Check the standard build** (Option 1) which includes multiple fallback methods
+1. **Ensure Google Chrome is installed** and accessible:
+   ```bash
+   google-chrome --version
+   # Should output: Google Chrome 143.0.7499.40 (or similar)
+   ```
+
+2. **Common Error:** `exec: "google-chrome": executable file not found in $PATH`
+   - **Solution:** Install Google Chrome using the instructions above
+   - **Alternative:** Use Chromium: `sudo apt install chromium-browser`
+
+3. **Try the Ubuntu-based build** (Option 2) for better compatibility
+4. **Use the modern build** (Option 3) if you don't need specific Chromium versions
+5. **Check the standard build** (Option 1) which includes multiple fallback methods
 
 ### Docker Hub
 
