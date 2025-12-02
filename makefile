@@ -1,4 +1,4 @@
-VERSION ?= 1.0.0
+VERSION ?= 2.0.0
 DOCKERUSERNAME ?= chinmaysawant
 
 docker:
@@ -17,7 +17,8 @@ pull:
 	docker run -d -p 8080:8080 $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
 
 build:
-	go build -o bin/app .
+	mkdir -p bin
+	go build -o bin/app ./cmd/gopdfsuit
 
 test:
 	go test ./...
