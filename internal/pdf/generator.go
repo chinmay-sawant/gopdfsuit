@@ -2,6 +2,9 @@ package pdf
 
 import (
 	"bytes"
+	"crypto/md5"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -113,7 +116,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 		fieldsRef.WriteString("]")
 
-		acroFormContent := fmt.Sprintf("<< /Fields %s /NeedAppearances true /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
+		// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
+		acroFormContent := fmt.Sprintf("<< /Fields %s /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
 		pageManager.ExtraObjects[acroFormID] = acroFormContent
 
 		pdfBuffer.WriteString(fmt.Sprintf(" /AcroForm %d 0 R", acroFormID))
@@ -133,22 +137,24 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
 
 	// Build XObject references for page resources (standalone images + cell images)
+	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /X0 for appearance streams
 	xobjectRefs := ""
 	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
 		xobjectRefs = " /XObject <<"
-		// Add standalone images
+		// Add standalone images with short names
 		for i, objID := range imageObjectIDs {
-			xobjectRefs += fmt.Sprintf(" /Im%d %d 0 R", i, objID)
+			xobjectRefs += fmt.Sprintf(" /I%d %d 0 R", i, objID)
 		}
-		// Add cell images
+		// Add cell images with short names
 		for cellKey, objID := range cellImageObjectIDs {
-			// Use cellKey as unique identifier (e.g., CellImg_0_1_2)
-			xobjectRefs += fmt.Sprintf(" /CellImg_%s %d 0 R", cellKey, objID)
+			// Use short cellKey identifier (e.g., C0_1_2 instead of CellImg_0:1:2)
+			shortKey := strings.ReplaceAll(cellKey, ":", "_")
+			xobjectRefs += fmt.Sprintf(" /C%s %d 0 R", shortKey, objID)
 		}
-		// Add extra objects (appearance streams) that are XObjects
+		// Add extra objects (appearance streams) that are XObjects with short names
 		for id, content := range pageManager.ExtraObjects {
 			if strings.Contains(content, "/Type /XObject") {
-				xobjectRefs += fmt.Sprintf(" /XObj%d %d 0 R", id, id)
+				xobjectRefs += fmt.Sprintf(" /X%d %d 0 R", id, id)
 			}
 		}
 		xobjectRefs += " >>"
@@ -165,7 +171,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			xobjectRefs = " /XObject <<"
 			for id, content := range pageManager.ExtraObjects {
 				if strings.Contains(content, "/Type /XObject") {
-					xobjectRefs += fmt.Sprintf(" /XObj%d %d 0 R", id, id)
+					xobjectRefs += fmt.Sprintf(" /X%d %d 0 R", id, id)
 				}
 			}
 			xobjectRefs += " >>"
@@ -195,7 +201,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString("endobj\n")
 	}
 
-	// Generate content stream objects
+	// Generate content stream objects (uncompressed for maximum compatibility)
 	for i, contentStream := range pageManager.ContentStreams {
 		objectID := contentObjectStart + i
 		xrefOffsets[objectID] = pdfBuffer.Len()
@@ -237,43 +243,81 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", id, content))
 	}
 
-	// Cross-reference table
-	totalObjects := fontObjectStart + 4
-	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
-		// Find max image object ID (both standalone and cell images)
-		maxImgID := 0
-		for _, objID := range imageObjectIDs {
-			if objID > maxImgID {
-				maxImgID = objID
+	// Generate Info dictionary with Producer metadata
+	infoObjectID := pageManager.NextObjectID
+	pageManager.NextObjectID++
+	xrefOffsets[infoObjectID] = pdfBuffer.Len()
+	creationDate := time.Now().Format("D:20060102150405-07'00'")
+	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
+	pdfBuffer.WriteString(fmt.Sprintf("<< /Producer (GoPDFSuit) /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+	pdfBuffer.WriteString("endobj\n")
+
+	// Generate Document ID (two MD5 hashes - one based on content, one random)
+	contentHash := md5.Sum(pdfBuffer.Bytes())
+	randomBytes := make([]byte, 16)
+	rand.Read(randomBytes)
+	randomHash := md5.Sum(randomBytes)
+	documentID := fmt.Sprintf("[<%s> <%s>]", hex.EncodeToString(contentHash[:]), hex.EncodeToString(randomHash[:]))
+
+	// Build compact XRef table - collect all used object IDs and sort them
+	usedObjects := make([]int, 0, len(xrefOffsets)+1)
+	usedObjects = append(usedObjects, 0) // Object 0 is always the free list head
+	for objID := range xrefOffsets {
+		usedObjects = append(usedObjects, objID)
+	}
+
+	// Sort the used objects
+	for i := 0; i < len(usedObjects)-1; i++ {
+		for j := i + 1; j < len(usedObjects); j++ {
+			if usedObjects[i] > usedObjects[j] {
+				usedObjects[i], usedObjects[j] = usedObjects[j], usedObjects[i]
 			}
-		}
-		for _, objID := range cellImageObjectIDs {
-			if objID > maxImgID {
-				maxImgID = objID
-			}
-		}
-		if maxImgID >= totalObjects {
-			totalObjects = maxImgID + 1
 		}
 	}
 
-	// Check extra objects for max ID
-	if pageManager.NextObjectID > totalObjects {
-		totalObjects = pageManager.NextObjectID
+	// Find max object ID for Size field
+	maxObjID := 0
+	for objID := range xrefOffsets {
+		if objID > maxObjID {
+			maxObjID = objID
+		}
 	}
+	if infoObjectID > maxObjID {
+		maxObjID = infoObjectID
+	}
+	totalObjects := maxObjID + 1
 
+	// Write compact XRef table using subsections
 	xrefStart := pdfBuffer.Len()
-	pdfBuffer.WriteString(fmt.Sprintf("xref\n0 %d\n0000000000 65535 f \n", totalObjects))
-	for i := 1; i < totalObjects; i++ {
-		if offset, exists := xrefOffsets[i]; exists {
-			pdfBuffer.WriteString(fmt.Sprintf("%010d 00000 n \n", offset))
-		} else {
-			pdfBuffer.WriteString("0000000000 65535 f \n")
+	pdfBuffer.WriteString("xref\n")
+
+	// Group consecutive objects into subsections
+	var subsections []struct{ start, count int }
+	i := 0
+	for i < len(usedObjects) {
+		start := usedObjects[i]
+		count := 1
+		for i+count < len(usedObjects) && usedObjects[i+count] == start+count {
+			count++
+		}
+		subsections = append(subsections, struct{ start, count int }{start, count})
+		i += count
+	}
+
+	for _, sub := range subsections {
+		pdfBuffer.WriteString(fmt.Sprintf("%d %d\n", sub.start, sub.count))
+		for j := 0; j < sub.count; j++ {
+			objID := sub.start + j
+			if objID == 0 {
+				pdfBuffer.WriteString("0000000000 65535 f \n")
+			} else if offset, exists := xrefOffsets[objID]; exists {
+				pdfBuffer.WriteString(fmt.Sprintf("%010d 00000 n \n", offset))
+			}
 		}
 	}
 
-	// Trailer
-	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R >>\n", totalObjects))
+	// Trailer with Info and ID
+	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s >>\n", totalObjects, infoObjectID, documentID))
 	pdfBuffer.WriteString("startxref\n")
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
@@ -360,7 +404,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 				}
 				if imgIdx >= 0 {
 					if imgObj, exists := imageObjects[imgIdx]; exists {
-						imageXObjectRef := fmt.Sprintf("/Im%d", imgIdx)
+						imageXObjectRef := fmt.Sprintf("/I%d", imgIdx)
 						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
@@ -386,7 +430,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		for i, image := range template.Image {
 			if imgObj, exists := imageObjects[i]; exists {
 				// Image was successfully decoded, draw it with XObject reference
-				imageXObjectRef := fmt.Sprintf("/Im%d", i)
+				imageXObjectRef := fmt.Sprintf("/I%d", i)
 				drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 			} else {
 				// Fall back to placeholder if image couldn't be decoded

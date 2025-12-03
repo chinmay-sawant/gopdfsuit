@@ -12,6 +12,11 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 )
 
+// fmtNumImg formats a float with 2 decimal places for image dimensions
+func fmtNumImg(f float64) string {
+	return fmt.Sprintf("%.2f", f)
+}
+
 // ImageObject represents a PDF image XObject
 type ImageObject struct {
 	ObjectID     int
@@ -224,8 +229,8 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 	// Set up transformation matrix to position and scale the image
 	// PDF images are drawn in a 1x1 unit square by default
 	// We need to scale and translate to our desired size and position
-	contentStream.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n",
-		imageWidth, imageHeight, imageX, imageY))
+	contentStream.WriteString(fmt.Sprintf("%s 0 0 %s %s %s cm\n",
+		fmtNumImg(imageWidth), fmtNumImg(imageHeight), fmtNumImg(imageX), fmtNumImg(imageY)))
 
 	// Draw the image using the XObject reference
 	contentStream.WriteString(fmt.Sprintf("%s Do\n", imageXObjectRef))
