@@ -22,8 +22,8 @@ All tests load the payload from an external JSON file:
 Run the installation script:
 
 ```bash
-chmod +x test/install_k6.sh
-./test/install_k6.sh
+chmod +x install_k6.sh
+./install_k6.sh
 ```
 
 Or install manually:
@@ -72,25 +72,25 @@ go run cmd/gopdfsuit/main.go
 ### Smoke Test (Quick Verification)
 
 ```bash
-k6 run test/smoke_test.js
+k6 run smoke_test.js
 ```
 
 ### Load Test (Full Suite)
 
 ```bash
-k6 run test/load_test.js
+k6 run load_test.js
 ```
 
 ### Spike Test
 
 ```bash
-k6 run test/spike_test.js
+k6 run spike_test.js
 ```
 
 ### Soak Test (30 minutes)
 
 ```bash
-k6 run test/soak_test.js
+k6 run soak_test.js
 ```
 
 ### Custom Configuration
@@ -99,14 +99,14 @@ Override virtual users and duration:
 
 ```bash
 # Run with 20 VUs for 1 minute
-k6 run --vus 20 --duration 1m test/smoke_test.js
+k6 run --vus 20 --duration 1m smoke_test.js
 ```
 
 Override base URL:
 
 ```bash
 # Test against different server
-k6 run -e BASE_URL=http://your-server:8080 test/load_test.js
+k6 run -e BASE_URL=http://your-server:8080 load_test.js
 ```
 
 ## 📊 Test Scenarios
@@ -162,21 +162,21 @@ By default, k6 outputs results to the console with a summary.
 ### JSON Output
 
 ```bash
-k6 run --out json=results.json test/load_test.js
+k6 run --out json=results.json load_test.js
 ```
 
 ### HTML Report (with k6-reporter)
 
 ```bash
 # Install k6-reporter extension first
-k6 run --out json=results.json test/load_test.js
+k6 run --out json=results.json load_test.js
 # Then convert to HTML using k6-reporter
 ```
 
 ### InfluxDB + Grafana
 
 ```bash
-k6 run --out influxdb=http://localhost:8086/k6 test/load_test.js
+k6 run --out influxdb=http://localhost:8086/k6 load_test.js
 ```
 
 ## 🔧 Customization
@@ -191,7 +191,7 @@ To use a different JSON file, update the `open()` path in each test file:
 
 ```javascript
 // Change this line in the test files
-const amazonReceiptPayload = JSON.parse(open('../sampledata/amazon/amazon_receipt.json'));
+const amazonReceiptPayload = JSON.parse(open('../../sampledata/amazon/amazon_receipt.json'));
 
 // To use a different file
 const customPayload = JSON.parse(open('../sampledata/your/custom_file.json'));

@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 // Load JSON payload from file (executed once at init time)
-const amazonReceiptPayload = JSON.parse(open('../sampledata/amazon/amazon_receipt.json'));
+const amazonReceiptPayload = JSON.parse(open('../../sampledata/amazon/amazon_receipt.json'));
 
 // Simple smoke test configuration
 export const options = {

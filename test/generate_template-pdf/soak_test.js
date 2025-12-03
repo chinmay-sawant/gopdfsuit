@@ -8,7 +8,7 @@ const pdfGenerationTime = new Trend('pdf_generation_time');
 const successfulRequests = new Counter('successful_requests');
 
 // Load JSON payload from file (executed once at init time)
-const amazonReceiptPayload = JSON.parse(open('../sampledata/amazon/amazon_receipt.json'));
+const amazonReceiptPayload = JSON.parse(open('../../sampledata/amazon/amazon_receipt.json'));
 
 // Soak test configuration - sustained load over extended period
 export const options = {

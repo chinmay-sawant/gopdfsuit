@@ -9,7 +9,7 @@ const successfulRequests = new Counter('successful_requests');
 const failedRequests = new Counter('failed_requests');
 
 // Load JSON payload from file (executed once at init time)
-const amazonReceiptPayload = JSON.parse(open('../sampledata/amazon/amazon_receipt.json'));
+const amazonReceiptPayload = JSON.parse(open('../../sampledata/amazon/amazon_receipt.json'));
 
 // Spike test configuration - sudden increase in load
 export const options = {
