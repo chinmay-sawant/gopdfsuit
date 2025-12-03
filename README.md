@@ -75,9 +75,28 @@ go run ./cmd/gopdfsuit
 ```
 
 ### 5️⃣ Server Running
+
+It is recommended to use the actual IP instead of localhost for optimal performance.
+
+To find your IP address:
+
+**Linux/WSL:**
+```bash
+ip addr show eth0 | grep inet
 ```
-🌐 Server listening on: http://localhost:8080
+Or more generally:
+```bash
+hostname -I
 ```
+
+**Windows:**
+```bash
+ipconfig | findstr IPv4
+```
+
+Example: `http://172.21.234.195:8080`
+
+Using localhost adds overhead and extra latency.
 
 ## 🐳 Docker Deployment
 
