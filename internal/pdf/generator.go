@@ -87,8 +87,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
-	// PDF Header
-	pdfBuffer.WriteString("%PDF-1.7\n")
+	// PDF Header (PDF 2.0 for modern standards compliance)
+	pdfBuffer.WriteString("%PDF-2.0\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
 	// Generate all content first to know how many pages we need

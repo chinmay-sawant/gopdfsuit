@@ -813,9 +813,27 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		widgetDict.WriteString(" /FT /Tx") // Text field
 		widgetDict.WriteString(fmt.Sprintf(" /V (%s)", escapeText(field.Value)))
 
-		// Appearance Stream for Text Field (Simple Box) using 're' operator
-		apBox := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S Q", fmtNum(w), fmtNum(h))
-		apID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(apBox), apBox))
+		// Default Appearance string for text rendering
+		widgetDict.WriteString(" /DA (/Helv 10 Tf 0 g)")
+
+		// Build appearance stream with box border and text content
+		var apStream strings.Builder
+		// Draw border
+		apStream.WriteString(fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S Q ", fmtNum(w), fmtNum(h)))
+		// Draw text if value exists
+		if field.Value != "" {
+			fontSize := 10.0
+			if h < 14 {
+				fontSize = h - 4
+			}
+			textY := (h - fontSize) / 2 // Vertically center text
+			textX := 2.0                // Small left padding
+			apStream.WriteString(fmt.Sprintf("BT /Helv %s Tf %s %s Td (%s) Tj ET", fmtNum(fontSize), fmtNum(textX), fmtNum(textY), escapeText(field.Value)))
+		}
+		apContent := apStream.String()
+
+		// Create appearance XObject with font resources
+		apID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(apContent), apContent))
 
 		widgetDict.WriteString(fmt.Sprintf(" /AP << /N %d 0 R >>", apID))
 	}
