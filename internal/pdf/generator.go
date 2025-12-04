@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"compress/zlib"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
@@ -201,14 +202,22 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString("endobj\n")
 	}
 
-	// Generate content stream objects (uncompressed for maximum compatibility)
+	// Generate content stream objects with FlateDecode compression
 	for i, contentStream := range pageManager.ContentStreams {
 		objectID := contentObjectStart + i
 		xrefOffsets[objectID] = pdfBuffer.Len()
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", objectID))
-		pdfBuffer.WriteString(fmt.Sprintf("<< /Length %d >>\n", contentStream.Len()))
-		pdfBuffer.WriteString("stream\n")
-		pdfBuffer.Write(contentStream.Bytes())
+
+		// Compress content stream with zlib (PDF FlateDecode expects zlib format, not raw deflate)
+		var compressedBuf bytes.Buffer
+		zlibWriter := zlib.NewWriter(&compressedBuf)
+		zlibWriter.Write(contentStream.Bytes())
+		zlibWriter.Close()
+		compressedData := compressedBuf.Bytes()
+
+		// Write stream - Length is exact byte count of compressed data
+		pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(compressedData)))
+		pdfBuffer.Write(compressedData)
 		pdfBuffer.WriteString("\nendstream\nendobj\n")
 	}
 

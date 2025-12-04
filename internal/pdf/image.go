@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"compress/zlib"
 	"encoding/base64"
 	"fmt"
 	"image"
@@ -73,21 +74,27 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 			hasAlpha = true
 		}
 
+		var rawRGB []byte
 		if hasAlpha {
 			// For images with transparency, convert to RGBA with white background
-			imgObj.Filter = "" // No filter = uncompressed
-			imgObj.ImageData, err = convertToRGBWithAlpha(img)
+			rawRGB, err = convertToRGBWithAlpha(img)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// For opaque images, convert to RGB
-			imgObj.Filter = "" // No filter = uncompressed
-			imgObj.ImageData, err = convertToRGB(img)
+			rawRGB, err = convertToRGB(img)
 			if err != nil {
 				return nil, err
 			}
 		}
+		// Compress with zlib (PDF FlateDecode expects zlib format)
+		var compressedBuf bytes.Buffer
+		zlibWriter := zlib.NewWriter(&compressedBuf)
+		zlibWriter.Write(rawRGB)
+		zlibWriter.Close()
+		imgObj.Filter = "/FlateDecode"
+		imgObj.ImageData = compressedBuf.Bytes()
 		imgObj.ImageDataLen = len(imgObj.ImageData)
 
 	case "jpeg", "jpg":
@@ -98,12 +105,18 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		imgObj.ImageDataLen = len(imageBytes)
 
 	default:
-		// For other formats, convert to uncompressed RGB
-		imgObj.Filter = "" // No filter = uncompressed
-		imgObj.ImageData, err = convertToRGB(img)
+		// For other formats, convert to RGB and compress with zlib
+		rawRGB, err := convertToRGB(img)
 		if err != nil {
 			return nil, err
 		}
+		// Compress with zlib (PDF FlateDecode expects zlib format)
+		var compressedBuf bytes.Buffer
+		zlibWriter := zlib.NewWriter(&compressedBuf)
+		zlibWriter.Write(rawRGB)
+		zlibWriter.Close()
+		imgObj.Filter = "/FlateDecode"
+		imgObj.ImageData = compressedBuf.Bytes()
 		imgObj.ImageDataLen = len(imgObj.ImageData)
 	}
 
