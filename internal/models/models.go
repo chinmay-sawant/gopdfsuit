@@ -23,10 +23,11 @@ type Element struct {
 }
 
 type Config struct {
-	PageBorder    string `json:"pageBorder"`
-	Page          string `json:"page"`                // Page size: "A4", "Letter", "Legal", etc.
-	PageAlignment int    `json:"pageAlignment"`       // 1 = Portrait (vertical), 2 = Landscape (horizontal)
-	Watermark     string `json:"watermark,omitempty"` // Optional diagonal watermark text
+	PageBorder          string `json:"pageBorder"`
+	Page                string `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
+	PageAlignment       int    `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
+	Watermark           string `json:"watermark,omitempty"`           // Optional diagonal watermark text
+	ArlingtonCompatible bool   `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
 }
 
 type Title struct {

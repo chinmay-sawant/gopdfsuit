@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"compress/zlib"
 	"encoding/base64"
 	"fmt"
 	"image"
@@ -11,6 +12,11 @@ import (
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 )
+
+// fmtNumImg formats a float with 2 decimal places for image dimensions
+func fmtNumImg(f float64) string {
+	return fmt.Sprintf("%.2f", f)
+}
 
 // ImageObject represents a PDF image XObject
 type ImageObject struct {
@@ -68,21 +74,27 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 			hasAlpha = true
 		}
 
+		var rawRGB []byte
 		if hasAlpha {
 			// For images with transparency, convert to RGBA with white background
-			imgObj.Filter = "" // No filter = uncompressed
-			imgObj.ImageData, err = convertToRGBWithAlpha(img)
+			rawRGB, err = convertToRGBWithAlpha(img)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// For opaque images, convert to RGB
-			imgObj.Filter = "" // No filter = uncompressed
-			imgObj.ImageData, err = convertToRGB(img)
+			rawRGB, err = convertToRGB(img)
 			if err != nil {
 				return nil, err
 			}
 		}
+		// Compress with zlib (PDF FlateDecode expects zlib format)
+		var compressedBuf bytes.Buffer
+		zlibWriter := zlib.NewWriter(&compressedBuf)
+		zlibWriter.Write(rawRGB)
+		zlibWriter.Close()
+		imgObj.Filter = "/FlateDecode"
+		imgObj.ImageData = compressedBuf.Bytes()
 		imgObj.ImageDataLen = len(imgObj.ImageData)
 
 	case "jpeg", "jpg":
@@ -93,12 +105,18 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		imgObj.ImageDataLen = len(imageBytes)
 
 	default:
-		// For other formats, convert to uncompressed RGB
-		imgObj.Filter = "" // No filter = uncompressed
-		imgObj.ImageData, err = convertToRGB(img)
+		// For other formats, convert to RGB and compress with zlib
+		rawRGB, err := convertToRGB(img)
 		if err != nil {
 			return nil, err
 		}
+		// Compress with zlib (PDF FlateDecode expects zlib format)
+		var compressedBuf bytes.Buffer
+		zlibWriter := zlib.NewWriter(&compressedBuf)
+		zlibWriter.Write(rawRGB)
+		zlibWriter.Close()
+		imgObj.Filter = "/FlateDecode"
+		imgObj.ImageData = compressedBuf.Bytes()
 		imgObj.ImageDataLen = len(imgObj.ImageData)
 	}
 
@@ -224,8 +242,8 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 	// Set up transformation matrix to position and scale the image
 	// PDF images are drawn in a 1x1 unit square by default
 	// We need to scale and translate to our desired size and position
-	contentStream.WriteString(fmt.Sprintf("%.2f 0 0 %.2f %.2f %.2f cm\n",
-		imageWidth, imageHeight, imageX, imageY))
+	contentStream.WriteString(fmt.Sprintf("%s 0 0 %s %s %s cm\n",
+		fmtNumImg(imageWidth), fmtNumImg(imageHeight), fmtNumImg(imageX), fmtNumImg(imageY)))
 
 	// Draw the image using the XObject reference
 	contentStream.WriteString(fmt.Sprintf("%s Do\n", imageXObjectRef))

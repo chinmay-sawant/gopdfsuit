@@ -2,6 +2,10 @@ package pdf
 
 import (
 	"bytes"
+	"compress/zlib"
+	"crypto/md5"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -21,8 +25,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pageConfig := template.Config
 	pageDims := getPageDimensions(pageConfig.Page, pageConfig.PageAlignment)
 
-	// Initialize page manager
-	pageManager := NewPageManager(pageDims)
+	// Initialize page manager with Arlington compatibility flag
+	pageManager := NewPageManager(pageDims, template.Config.ArlingtonCompatible)
 
 	// Process images and create XObjects
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
@@ -84,8 +88,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
-	// PDF Header
-	pdfBuffer.WriteString("%PDF-1.7\n")
+	// PDF Header (PDF 2.0 for modern standards compliance)
+	pdfBuffer.WriteString("%PDF-2.0\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
 	// Generate all content first to know how many pages we need
@@ -98,9 +102,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		allWidgetIDs = append(allWidgetIDs, annots...)
 	}
 
-	// Object 1: Catalog
+	// Object 1: Catalog with accessibility and compliance improvements
 	xrefOffsets[1] = pdfBuffer.Len()
 	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
+	// Add language tag for accessibility (PDF/UA requirement)
+	pdfBuffer.WriteString(" /Lang (en-US)")
+	// Add MarkInfo to indicate this is a tagged PDF (even if minimal)
+	pdfBuffer.WriteString(" /MarkInfo << /Marked false >>")
 	if len(allWidgetIDs) > 0 {
 		// Create AcroForm object
 		acroFormID := pageManager.NextObjectID
@@ -113,7 +121,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 		fieldsRef.WriteString("]")
 
-		acroFormContent := fmt.Sprintf("<< /Fields %s /NeedAppearances true /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
+		// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
+		acroFormContent := fmt.Sprintf("<< /Fields %s /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
 		pageManager.ExtraObjects[acroFormID] = acroFormContent
 
 		pdfBuffer.WriteString(fmt.Sprintf(" /AcroForm %d 0 R", acroFormID))
@@ -132,23 +141,34 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	contentObjectStart := totalPages + 3               // Content objects start after pages
 	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
 
+	// Font object layout depends on Arlington compatibility mode:
+	// - Arlington mode: 4 font dicts + 4 font descriptors + 2 shared widths arrays = 10 objects
+	// - Simple mode: 4 font dicts only = 4 objects
+	var fontDescriptorStart, widthsArrayStart int
+	if template.Config.ArlingtonCompatible {
+		fontDescriptorStart = fontObjectStart + 4  // FontDescriptors start after font dicts
+		widthsArrayStart = fontDescriptorStart + 4 // Widths arrays start after descriptors (only 2 used)
+	}
+
 	// Build XObject references for page resources (standalone images + cell images)
+	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /X0 for appearance streams
 	xobjectRefs := ""
 	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
 		xobjectRefs = " /XObject <<"
-		// Add standalone images
+		// Add standalone images with short names
 		for i, objID := range imageObjectIDs {
-			xobjectRefs += fmt.Sprintf(" /Im%d %d 0 R", i, objID)
+			xobjectRefs += fmt.Sprintf(" /I%d %d 0 R", i, objID)
 		}
-		// Add cell images
+		// Add cell images with short names
 		for cellKey, objID := range cellImageObjectIDs {
-			// Use cellKey as unique identifier (e.g., CellImg_0_1_2)
-			xobjectRefs += fmt.Sprintf(" /CellImg_%s %d 0 R", cellKey, objID)
+			// Use short cellKey identifier (e.g., C0_1_2 instead of CellImg_0:1:2)
+			shortKey := strings.ReplaceAll(cellKey, ":", "_")
+			xobjectRefs += fmt.Sprintf(" /C%s %d 0 R", shortKey, objID)
 		}
-		// Add extra objects (appearance streams) that are XObjects
+		// Add extra objects (appearance streams) that are XObjects with short names
 		for id, content := range pageManager.ExtraObjects {
 			if strings.Contains(content, "/Type /XObject") {
-				xobjectRefs += fmt.Sprintf(" /XObj%d %d 0 R", id, id)
+				xobjectRefs += fmt.Sprintf(" /X%d %d 0 R", id, id)
 			}
 		}
 		xobjectRefs += " >>"
@@ -165,7 +185,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			xobjectRefs = " /XObject <<"
 			for id, content := range pageManager.ExtraObjects {
 				if strings.Contains(content, "/Type /XObject") {
-					xobjectRefs += fmt.Sprintf(" /XObj%d %d 0 R", id, id)
+					xobjectRefs += fmt.Sprintf(" /X%d %d 0 R", id, id)
 				}
 			}
 			xobjectRefs += " >>"
@@ -195,28 +215,72 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString("endobj\n")
 	}
 
-	// Generate content stream objects
+	// Generate content stream objects with FlateDecode compression
 	for i, contentStream := range pageManager.ContentStreams {
 		objectID := contentObjectStart + i
 		xrefOffsets[objectID] = pdfBuffer.Len()
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", objectID))
-		pdfBuffer.WriteString(fmt.Sprintf("<< /Length %d >>\n", contentStream.Len()))
-		pdfBuffer.WriteString("stream\n")
-		pdfBuffer.Write(contentStream.Bytes())
+
+		// Compress content stream with zlib (PDF FlateDecode expects zlib format, not raw deflate)
+		var compressedBuf bytes.Buffer
+		zlibWriter := zlib.NewWriter(&compressedBuf)
+		zlibWriter.Write(contentStream.Bytes())
+		zlibWriter.Close()
+		compressedData := compressedBuf.Bytes()
+
+		// Write stream - Length is exact byte count of compressed data
+		pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(compressedData)))
+		pdfBuffer.Write(compressedData)
 		pdfBuffer.WriteString("\nendstream\nendobj\n")
 	}
 
-	// Generate font objects
+	// Generate font objects - conditional based on Arlington compatibility
 	fontNames := []string{"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"}
 	fontRefs := []string{"/F1", "/F2", "/F3", "/F4"}
 
-	for i, fontName := range fontNames {
-		objectID := fontObjectStart + i
-		xrefOffsets[objectID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", objectID))
-		pdfBuffer.WriteString(fmt.Sprintf("<< /Type /Font /Subtype /Type1 /Name %s /BaseFont /%s >>\n",
-			fontRefs[i], fontName))
-		pdfBuffer.WriteString("endobj\n")
+	if template.Config.ArlingtonCompatible {
+		// Arlington mode: Generate PDF 2.0 compliant font objects with full metrics
+		// Optimization: Share widths arrays between fonts with identical widths
+		// - Helvetica and Helvetica-Oblique share the same widths
+		// - Helvetica-Bold and Helvetica-BoldOblique share the same widths
+		// This reduces from 4 widths arrays to 2
+
+		// Only 2 widths arrays needed (regular and bold)
+		regularWidthsObjID := widthsArrayStart
+		boldWidthsObjID := widthsArrayStart + 1
+
+		// Generate shared widths arrays first
+		xrefOffsets[regularWidthsObjID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(GenerateWidthsArrayObject("Helvetica", regularWidthsObjID))
+
+		xrefOffsets[boldWidthsObjID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(GenerateWidthsArrayObject("Helvetica-Bold", boldWidthsObjID))
+
+		for i, fontName := range fontNames {
+			fontObjID := fontObjectStart + i
+			fdObjID := fontDescriptorStart + i
+
+			// Use shared widths array (regular for Helvetica/Helvetica-Oblique, bold for Bold variants)
+			widthsObjID := regularWidthsObjID
+			if fontName == "Helvetica-Bold" || fontName == "Helvetica-BoldOblique" {
+				widthsObjID = boldWidthsObjID
+			}
+
+			// Generate Font dictionary
+			xrefOffsets[fontObjID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(GenerateFontObject(fontName, fontObjID, fdObjID, widthsObjID))
+
+			// Generate FontDescriptor
+			xrefOffsets[fdObjID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(GenerateFontDescriptorObject(fontName, fdObjID))
+		}
+	} else {
+		// Simple mode: Generate basic font objects without full metrics (smaller file size)
+		for i, fontName := range fontNames {
+			fontObjID := fontObjectStart + i
+			xrefOffsets[fontObjID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(GenerateSimpleFontObject(fontName, fontRefs[i], fontObjID))
+		}
 	}
 
 	// Generate image XObjects (standalone images)
@@ -237,43 +301,85 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", id, content))
 	}
 
-	// Cross-reference table
-	totalObjects := fontObjectStart + 4
-	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
-		// Find max image object ID (both standalone and cell images)
-		maxImgID := 0
-		for _, objID := range imageObjectIDs {
-			if objID > maxImgID {
-				maxImgID = objID
+	// Generate Info dictionary - keeping minimal for PDF 2.0
+	// Note: Producer, Creator, Title are deprecated in PDF 2.0 but still widely used
+	// For full compliance, these should be in XMP metadata stream instead
+	infoObjectID := pageManager.NextObjectID
+	pageManager.NextObjectID++
+	xrefOffsets[infoObjectID] = pdfBuffer.Len()
+	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
+	creationDate := time.Now().Format("D:20060102150405-07'00'")
+	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
+	// Minimal Info dict with just dates (dates are not deprecated)
+	pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+	pdfBuffer.WriteString("endobj\n")
+
+	// Generate Document ID (two MD5 hashes - one based on content, one random)
+	contentHash := md5.Sum(pdfBuffer.Bytes())
+	randomBytes := make([]byte, 16)
+	rand.Read(randomBytes)
+	randomHash := md5.Sum(randomBytes)
+	documentID := fmt.Sprintf("[<%s> <%s>]", hex.EncodeToString(contentHash[:]), hex.EncodeToString(randomHash[:]))
+
+	// Build compact XRef table - collect all used object IDs and sort them
+	usedObjects := make([]int, 0, len(xrefOffsets)+1)
+	usedObjects = append(usedObjects, 0) // Object 0 is always the free list head
+	for objID := range xrefOffsets {
+		usedObjects = append(usedObjects, objID)
+	}
+
+	// Sort the used objects
+	for i := 0; i < len(usedObjects)-1; i++ {
+		for j := i + 1; j < len(usedObjects); j++ {
+			if usedObjects[i] > usedObjects[j] {
+				usedObjects[i], usedObjects[j] = usedObjects[j], usedObjects[i]
 			}
-		}
-		for _, objID := range cellImageObjectIDs {
-			if objID > maxImgID {
-				maxImgID = objID
-			}
-		}
-		if maxImgID >= totalObjects {
-			totalObjects = maxImgID + 1
 		}
 	}
 
-	// Check extra objects for max ID
-	if pageManager.NextObjectID > totalObjects {
-		totalObjects = pageManager.NextObjectID
+	// Find max object ID for Size field
+	maxObjID := 0
+	for objID := range xrefOffsets {
+		if objID > maxObjID {
+			maxObjID = objID
+		}
 	}
+	if infoObjectID > maxObjID {
+		maxObjID = infoObjectID
+	}
+	totalObjects := maxObjID + 1
 
+	// Write compact XRef table using subsections
 	xrefStart := pdfBuffer.Len()
-	pdfBuffer.WriteString(fmt.Sprintf("xref\n0 %d\n0000000000 65535 f \n", totalObjects))
-	for i := 1; i < totalObjects; i++ {
-		if offset, exists := xrefOffsets[i]; exists {
-			pdfBuffer.WriteString(fmt.Sprintf("%010d 00000 n \n", offset))
-		} else {
-			pdfBuffer.WriteString("0000000000 65535 f \n")
+	pdfBuffer.WriteString("xref\n")
+
+	// Group consecutive objects into subsections
+	var subsections []struct{ start, count int }
+	i := 0
+	for i < len(usedObjects) {
+		start := usedObjects[i]
+		count := 1
+		for i+count < len(usedObjects) && usedObjects[i+count] == start+count {
+			count++
+		}
+		subsections = append(subsections, struct{ start, count int }{start, count})
+		i += count
+	}
+
+	for _, sub := range subsections {
+		pdfBuffer.WriteString(fmt.Sprintf("%d %d\n", sub.start, sub.count))
+		for j := 0; j < sub.count; j++ {
+			objID := sub.start + j
+			if objID == 0 {
+				pdfBuffer.WriteString("0000000000 65535 f \n")
+			} else if offset, exists := xrefOffsets[objID]; exists {
+				pdfBuffer.WriteString(fmt.Sprintf("%010d 00000 n \n", offset))
+			}
 		}
 	}
 
-	// Trailer
-	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R >>\n", totalObjects))
+	// Trailer with Info and ID
+	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s >>\n", totalObjects, infoObjectID, documentID))
 	pdfBuffer.WriteString("startxref\n")
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
@@ -360,7 +466,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 				}
 				if imgIdx >= 0 {
 					if imgObj, exists := imageObjects[imgIdx]; exists {
-						imageXObjectRef := fmt.Sprintf("/Im%d", imgIdx)
+						imageXObjectRef := fmt.Sprintf("/I%d", imgIdx)
 						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
@@ -386,7 +492,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		for i, image := range template.Image {
 			if imgObj, exists := imageObjects[i]; exists {
 				// Image was successfully decoded, draw it with XObject reference
-				imageXObjectRef := fmt.Sprintf("/Im%d", i)
+				imageXObjectRef := fmt.Sprintf("/I%d", i)
 				drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 			} else {
 				// Fall back to placeholder if image couldn't be decoded

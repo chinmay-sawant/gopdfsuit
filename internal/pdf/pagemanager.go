@@ -4,27 +4,29 @@ import "bytes"
 
 // PageManager handles multi-page document generation
 type PageManager struct {
-	Pages            []int   // List of page object IDs
-	CurrentPageIndex int     // Current page index (0-based)
-	CurrentYPos      float64 // Current Y position on page
-	PageDimensions   PageDimensions
-	ContentStreams   []bytes.Buffer // Content for each page
-	PageAnnots       [][]int        // Annotation Object IDs per page
-	ExtraObjects     map[int]string // Object ID -> Object Content
-	NextObjectID     int            // Counter for new objects
+	Pages               []int   // List of page object IDs
+	CurrentPageIndex    int     // Current page index (0-based)
+	CurrentYPos         float64 // Current Y position on page
+	PageDimensions      PageDimensions
+	ContentStreams      []bytes.Buffer // Content for each page
+	PageAnnots          [][]int        // Annotation Object IDs per page
+	ExtraObjects        map[int]string // Object ID -> Object Content
+	NextObjectID        int            // Counter for new objects
+	ArlingtonCompatible bool           // Whether to use Arlington Model compliant fonts
 }
 
 // NewPageManager creates a new page manager with initial page
-func NewPageManager(pageDims PageDimensions) *PageManager {
+func NewPageManager(pageDims PageDimensions, arlingtonCompatible bool) *PageManager {
 	pm := &PageManager{
-		Pages:            []int{3}, // First page starts at object 3
-		CurrentPageIndex: 0,        // Start with first page
-		CurrentYPos:      pageDims.Height - margin,
-		PageDimensions:   pageDims,
-		ContentStreams:   make([]bytes.Buffer, 1),
-		PageAnnots:       make([][]int, 1),
-		ExtraObjects:     make(map[int]string),
-		NextObjectID:     2000, // Start extra objects at 2000 to avoid conflicts
+		Pages:               []int{3}, // First page starts at object 3
+		CurrentPageIndex:    0,        // Start with first page
+		CurrentYPos:         pageDims.Height - margin,
+		PageDimensions:      pageDims,
+		ContentStreams:      make([]bytes.Buffer, 1),
+		PageAnnots:          make([][]int, 1),
+		ExtraObjects:        make(map[int]string),
+		NextObjectID:        2000, // Start extra objects at 2000 to avoid conflicts
+		ArlingtonCompatible: arlingtonCompatible,
 	}
 	return pm
 }
