@@ -900,7 +900,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                   flex: 1,
                                   border: 'none',
                                   background: 'transparent',
-                                  color: '#333',
+                                  color: '#000',
                                   outline: 'none',
                                   fontSize: cellStyle.fontSize,
                                   textAlign: cellStyle.textAlign,
@@ -1152,7 +1152,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         border: 'none',
                         background: 'transparent',
                         padding: '2px',
-                        color: '#333',
+                        color: '#000',
                         outline: 'none'
                       }
                       return (
@@ -1203,7 +1203,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                     fontSize: '10px',
                                     padding: '4px',
                                     background: 'transparent',
-                                    color: 'hsl(var(--foreground))'
+                                    color: '#000'
                                   }}
                                   onFocus={() => handleCellClick(rowIdx, colIdx)}
                                   onClick={(e) => {
@@ -1377,7 +1377,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                 width: '100%',
                 border: 'none',
                 background: 'transparent',
-                color: '#333',
+                color: '#000',
                 outline: 'none',
                 fontSize: footerStyle.fontSize,
                 textAlign: footerStyle.textAlign,
