@@ -841,8 +841,14 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		apStream.WriteString("EMC")
 		apContent := apStream.String()
 
-		// Create appearance XObject with complete PDF 2.0 compliant font resources
-		helveticaFont := GetHelveticaFontResourceString()
+		// Create appearance XObject with font resources
+		// Use full metrics for Arlington compatibility, simple definition otherwise
+		var helveticaFont string
+		if pageManager.ArlingtonCompatible {
+			helveticaFont = GetHelveticaFontResourceString()
+		} else {
+			helveticaFont = GetSimpleHelveticaFontResourceString()
+		}
 		apID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << /Helv %s >> >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), helveticaFont, len(apContent), apContent))
 
 		widgetDict.WriteString(fmt.Sprintf(" /AP << /N %d 0 R >>", apID))

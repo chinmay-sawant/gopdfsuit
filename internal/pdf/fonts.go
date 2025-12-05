@@ -198,6 +198,7 @@ func GenerateWidthsArrayObject(fontName string, objectID int) string {
 
 // GetHelveticaFontResourceString returns a complete inline font resource for XObjects
 // This is used in form field appearance streams - optimized for minimal size
+// arlingtonCompatible: if true, includes full font metrics for PDF 2.0 compliance
 func GetHelveticaFontResourceString() string {
 	metrics := GetFontMetrics("Helvetica")
 
@@ -215,4 +216,17 @@ func GetHelveticaFontResourceString() string {
 	// Build compact font dictionary with inline FontDescriptor
 	return fmt.Sprintf(`<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding/FirstChar %d/LastChar %d/Widths %s/FontDescriptor<</Type/FontDescriptor/FontName/Helvetica/Flags 32/FontBBox[-166 -225 1000 931]/ItalicAngle 0/Ascent 718/Descent -207/CapHeight 718/StemV 88/XHeight 523>>>>`,
 		metrics.FirstChar, metrics.LastChar, widths.String())
+}
+
+// GetSimpleHelveticaFontResourceString returns a simple inline font resource for XObjects
+// This is used when Arlington compatibility is OFF - minimal font definition
+func GetSimpleHelveticaFontResourceString() string {
+	return `<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>`
+}
+
+// GenerateSimpleFontObject creates a simple font object (non-Arlington mode)
+// This is the legacy format without FirstChar, LastChar, Widths, and FontDescriptor
+func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int) string {
+	return fmt.Sprintf("%d 0 obj\n<< /Type /Font /Subtype /Type1 /Name %s /BaseFont /%s >>\nendobj\n",
+		fontObjectID, fontRef, fontName)
 }

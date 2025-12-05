@@ -25,8 +25,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pageConfig := template.Config
 	pageDims := getPageDimensions(pageConfig.Page, pageConfig.PageAlignment)
 
-	// Initialize page manager
-	pageManager := NewPageManager(pageDims)
+	// Initialize page manager with Arlington compatibility flag
+	pageManager := NewPageManager(pageDims, template.Config.ArlingtonCompatible)
 
 	// Process images and create XObjects
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
@@ -140,10 +140,15 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	totalPages := len(pageManager.Pages)
 	contentObjectStart := totalPages + 3               // Content objects start after pages
 	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
-	// Font object layout: 4 font dicts + 4 font descriptors + 2 shared widths arrays = 10 objects
-	// Helvetica & Helvetica-Oblique share widths, Helvetica-Bold & Helvetica-BoldOblique share widths
-	fontDescriptorStart := fontObjectStart + 4  // FontDescriptors start after font dicts
-	widthsArrayStart := fontDescriptorStart + 4 // Widths arrays start after descriptors (only 2 used)
+
+	// Font object layout depends on Arlington compatibility mode:
+	// - Arlington mode: 4 font dicts + 4 font descriptors + 2 shared widths arrays = 10 objects
+	// - Simple mode: 4 font dicts only = 4 objects
+	var fontDescriptorStart, widthsArrayStart int
+	if template.Config.ArlingtonCompatible {
+		fontDescriptorStart = fontObjectStart + 4  // FontDescriptors start after font dicts
+		widthsArrayStart = fontDescriptorStart + 4 // Widths arrays start after descriptors (only 2 used)
+	}
 
 	// Build XObject references for page resources (standalone images + cell images)
 	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /X0 for appearance streams
@@ -229,41 +234,53 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString("\nendstream\nendobj\n")
 	}
 
-	// Generate PDF 2.0 compliant font objects with full metrics
-	// Optimization: Share widths arrays between fonts with identical widths
-	// - Helvetica and Helvetica-Oblique share the same widths
-	// - Helvetica-Bold and Helvetica-BoldOblique share the same widths
-	// This reduces from 4 widths arrays to 2
+	// Generate font objects - conditional based on Arlington compatibility
 	fontNames := []string{"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique"}
+	fontRefs := []string{"/F1", "/F2", "/F3", "/F4"}
 
-	// Only 2 widths arrays needed (regular and bold)
-	regularWidthsObjID := widthsArrayStart
-	boldWidthsObjID := widthsArrayStart + 1
+	if template.Config.ArlingtonCompatible {
+		// Arlington mode: Generate PDF 2.0 compliant font objects with full metrics
+		// Optimization: Share widths arrays between fonts with identical widths
+		// - Helvetica and Helvetica-Oblique share the same widths
+		// - Helvetica-Bold and Helvetica-BoldOblique share the same widths
+		// This reduces from 4 widths arrays to 2
 
-	// Generate shared widths arrays first
-	xrefOffsets[regularWidthsObjID] = pdfBuffer.Len()
-	pdfBuffer.WriteString(GenerateWidthsArrayObject("Helvetica", regularWidthsObjID))
+		// Only 2 widths arrays needed (regular and bold)
+		regularWidthsObjID := widthsArrayStart
+		boldWidthsObjID := widthsArrayStart + 1
 
-	xrefOffsets[boldWidthsObjID] = pdfBuffer.Len()
-	pdfBuffer.WriteString(GenerateWidthsArrayObject("Helvetica-Bold", boldWidthsObjID))
+		// Generate shared widths arrays first
+		xrefOffsets[regularWidthsObjID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(GenerateWidthsArrayObject("Helvetica", regularWidthsObjID))
 
-	for i, fontName := range fontNames {
-		fontObjID := fontObjectStart + i
-		fdObjID := fontDescriptorStart + i
+		xrefOffsets[boldWidthsObjID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(GenerateWidthsArrayObject("Helvetica-Bold", boldWidthsObjID))
 
-		// Use shared widths array (regular for Helvetica/Helvetica-Oblique, bold for Bold variants)
-		widthsObjID := regularWidthsObjID
-		if fontName == "Helvetica-Bold" || fontName == "Helvetica-BoldOblique" {
-			widthsObjID = boldWidthsObjID
+		for i, fontName := range fontNames {
+			fontObjID := fontObjectStart + i
+			fdObjID := fontDescriptorStart + i
+
+			// Use shared widths array (regular for Helvetica/Helvetica-Oblique, bold for Bold variants)
+			widthsObjID := regularWidthsObjID
+			if fontName == "Helvetica-Bold" || fontName == "Helvetica-BoldOblique" {
+				widthsObjID = boldWidthsObjID
+			}
+
+			// Generate Font dictionary
+			xrefOffsets[fontObjID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(GenerateFontObject(fontName, fontObjID, fdObjID, widthsObjID))
+
+			// Generate FontDescriptor
+			xrefOffsets[fdObjID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(GenerateFontDescriptorObject(fontName, fdObjID))
 		}
-
-		// Generate Font dictionary
-		xrefOffsets[fontObjID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(GenerateFontObject(fontName, fontObjID, fdObjID, widthsObjID))
-
-		// Generate FontDescriptor
-		xrefOffsets[fdObjID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(GenerateFontDescriptorObject(fontName, fdObjID))
+	} else {
+		// Simple mode: Generate basic font objects without full metrics (smaller file size)
+		for i, fontName := range fontNames {
+			fontObjID := fontObjectStart + i
+			xrefOffsets[fontObjID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(GenerateSimpleFontObject(fontName, fontRefs[i], fontObjID))
+		}
 	}
 
 	// Generate image XObjects (standalone images)

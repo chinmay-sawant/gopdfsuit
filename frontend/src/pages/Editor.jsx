@@ -2390,6 +2390,73 @@ export default function Editor() {
                   />
                 </div>
 
+                {/* Arlington Compatible Toggle */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  padding: '0.5rem',
+                  background: 'hsl(var(--muted))',
+                  borderRadius: '4px'
+                }}>
+                  <div>
+                    <label style={{ 
+                      display: 'block', 
+                      fontSize: '0.8rem', 
+                      fontWeight: '500',
+                      color: 'hsl(var(--foreground))'
+                    }}>
+                      Arlington Compatible
+                    </label>
+                    <span style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'hsl(var(--muted-foreground))'
+                    }}>
+                      PDF 2.0 compliant fonts
+                    </span>
+                  </div>
+                  <label style={{ 
+                    position: 'relative', 
+                    display: 'inline-block', 
+                    width: '40px', 
+                    height: '22px' 
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={config.arlingtonCompatible || false}
+                      onChange={(e) => setConfig(prev => ({ ...prev, arlingtonCompatible: e.target.checked }))}
+                      style={{ 
+                        opacity: 0, 
+                        width: 0, 
+                        height: 0 
+                      }}
+                    />
+                    <span style={{
+                      position: 'absolute',
+                      cursor: 'pointer',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: config.arlingtonCompatible ? 'var(--secondary-color)' : 'hsl(var(--border))',
+                      transition: '0.3s',
+                      borderRadius: '22px'
+                    }}>
+                      <span style={{
+                        position: 'absolute',
+                        content: '""',
+                        height: '16px',
+                        width: '16px',
+                        left: config.arlingtonCompatible ? '21px' : '3px',
+                        bottom: '3px',
+                        backgroundColor: 'white',
+                        transition: '0.3s',
+                        borderRadius: '50%'
+                      }} />
+                    </span>
+                  </label>
+                </div>
+
                 {/* Page Borders */}
                 <div style={{ paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
                   <PageBorderControls
