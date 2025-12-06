@@ -36,6 +36,10 @@ type Title struct {
 	// Table allows embedding a table inside the title for complex layouts (e.g., logo + text)
 	// When Table is provided, Text is ignored and the table is rendered instead
 	Table *TitleTable `json:"table,omitempty"`
+	// BgColor is the background color for the title section.
+	BgColor string `json:"bgcolor,omitempty"`
+	// TextColor is the text color for the title text.
+	TextColor string `json:"textcolor,omitempty"`
 }
 
 // TitleTable represents an embedded table within the title section

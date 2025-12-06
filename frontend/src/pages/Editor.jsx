@@ -798,7 +798,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                         cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
                       
                       // Determine background color for title cells
-                      const titleCellBgColor = isCellSelected ? '#e3f2fd' : (cell.bgcolor || '#fff')
+                      const titleCellBgColor = isCellSelected ? '#e3f2fd' : (cell.bgcolor || element.bgcolor || '#fff')
                       
                       return (
                         <td
@@ -903,7 +903,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                   flex: 1,
                                   border: 'none',
                                   background: 'transparent',
-                                  color: '#000',
+                                  color: cell.textcolor || element.textcolor || '#000',
                                   outline: 'none',
                                   fontSize: cellStyle.fontSize,
                                   textAlign: cellStyle.textAlign,
@@ -2692,6 +2692,159 @@ export default function Editor() {
 
                   {selectedElement.type === 'title' && (
                     <>
+                      {/* Title Background Color */}
+                      <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Title Background Color</div>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <input
+                            type="color"
+                            value={selectedElement.bgcolor || '#ffffff'}
+                            onChange={(e) => {
+                              updateElement(selectedElement.id, { bgcolor: e.target.value })
+                            }}
+                            style={{ 
+                              width: '40px', 
+                              height: '40px', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              padding: '2px'
+                            }}
+                          />
+                          <input
+                            type="text"
+                            value={selectedElement.bgcolor || ''}
+                            onChange={(e) => {
+                              updateElement(selectedElement.id, { bgcolor: e.target.value })
+                            }}
+                            placeholder="#RRGGBB or transparent"
+                            style={{ 
+                              flex: 1, 
+                              padding: '0.4rem', 
+                              fontSize: '0.85rem',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px'
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              updateElement(selectedElement.id, { bgcolor: '' })
+                            }}
+                            style={{
+                              padding: '0.4rem 0.75rem',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px',
+                              background: 'hsl(var(--muted))',
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                          {[
+                            { label: 'White', color: '#FFFFFF' },
+                            { label: 'Light Gray', color: '#F0F0F0' },
+                            { label: 'Light Blue', color: '#E3F2FD' },
+                            { label: 'Light Green', color: '#E8F5E9' },
+                            { label: 'Light Yellow', color: '#FFFDE7' },
+                            { label: 'Light Red', color: '#FFEBEE' }
+                          ].map(({ label, color }) => (
+                            <button
+                              key={color}
+                              onClick={() => updateElement(selectedElement.id, { bgcolor: color })}
+                              title={label}
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                background: color,
+                                border: selectedElement.bgcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Title Text Color */}
+                      <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Title Text Color</div>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <input
+                            type="color"
+                            value={selectedElement.textcolor || '#000000'}
+                            onChange={(e) => {
+                              updateElement(selectedElement.id, { textcolor: e.target.value })
+                            }}
+                            style={{ 
+                              width: '40px', 
+                              height: '40px', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              padding: '2px'
+                            }}
+                          />
+                          <input
+                            type="text"
+                            value={selectedElement.textcolor || ''}
+                            onChange={(e) => {
+                              updateElement(selectedElement.id, { textcolor: e.target.value })
+                            }}
+                            placeholder="#RRGGBB (default: black)"
+                            style={{ 
+                              flex: 1, 
+                              padding: '0.4rem', 
+                              fontSize: '0.85rem',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px'
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              updateElement(selectedElement.id, { textcolor: '' })
+                            }}
+                            style={{
+                              padding: '0.4rem 0.75rem',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px',
+                              background: 'hsl(var(--muted))',
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                          {[
+                            { label: 'Black', color: '#000000' },
+                            { label: 'Dark Gray', color: '#333333' },
+                            { label: 'White', color: '#FFFFFF' },
+                            { label: 'Red', color: '#F44336' },
+                            { label: 'Blue', color: '#2196F3' },
+                            { label: 'Green', color: '#4CAF50' }
+                          ].map(({ label, color }) => (
+                            <button
+                              key={color}
+                              onClick={() => updateElement(selectedElement.id, { textcolor: color })}
+                              title={label}
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                background: color,
+                                border: selectedElement.textcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                cursor: 'pointer'
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
                       <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
                           Title Table Settings
