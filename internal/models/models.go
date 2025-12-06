@@ -55,6 +55,10 @@ type Table struct {
 	// RowHeights override the default row height (25). Values are in PDF points.
 	// If a row index is out of bounds or value <=0 the default height is used.
 	RowHeights []float64 `json:"rowheights,omitempty"`
+	// BgColor is the default background color for all cells in the table.
+	// Format: hexadecimal color code (e.g., "#FF0000" for red, "#00000000" for transparent).
+	// Individual cell BgColor takes precedence over table BgColor.
+	BgColor string `json:"bgcolor,omitempty"`
 }
 
 type Row struct {
@@ -73,6 +77,10 @@ type Cell struct {
 	Width     *float64   `json:"width,omitempty"`
 	Height    *float64   `json:"height,omitempty"`
 	FormField *FormField `json:"form_field,omitempty"` // Support for fillable form fields
+	// BgColor is the background color for this specific cell.
+	// Format: hexadecimal color code (e.g., "#FF0000" for red, "#00000000" for transparent).
+	// Takes precedence over table-level BgColor.
+	BgColor string `json:"bgcolor,omitempty"`
 }
 
 type FormField struct {

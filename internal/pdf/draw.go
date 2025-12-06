@@ -186,6 +186,15 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			// Update X position for next cell
 			currentX += cellWidth
 
+			// Draw cell background color FIRST (before any content)
+			if r, g, b, _, valid := parseHexColor(cell.BgColor); valid {
+				contentStream.WriteString("q\n")
+				contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+				contentStream.WriteString(fmt.Sprintf("%s %s %s %s re f\n",
+					fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellWidth), fmtNum(cellHeight)))
+				contentStream.WriteString("Q\n")
+			}
+
 			// Draw image first (so borders are drawn on top)
 			if cell.Image != nil && cell.Image.ImageData != "" {
 				// Check if we have an XObject for this title cell image
@@ -394,7 +403,21 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			// Update X position for next cell
 			currentX += cellWidth
 
-			// Draw content first (so borders are drawn on top of images)
+			// Draw cell background color FIRST (before any content)
+			// Cell-specific bgcolor takes precedence over table-level bgcolor
+			bgColor := cell.BgColor
+			if bgColor == "" {
+				bgColor = table.BgColor
+			}
+			if r, g, b, _, valid := parseHexColor(bgColor); valid {
+				contentStream.WriteString("q\n")
+				contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+				contentStream.WriteString(fmt.Sprintf("%s %s %s %s re f\n",
+					fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellWidth), fmtNum(cellHeight)))
+				contentStream.WriteString("Q\n")
+			}
+
+			// Draw content (so borders are drawn on top of images)
 			if cell.Image != nil {
 				// Check if we have an XObject for this cell image
 				cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
