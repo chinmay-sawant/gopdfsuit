@@ -254,6 +254,14 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
 
+				// Set text color - always explicitly set to avoid state leakage, default to black
+				if r, g, b, _, valid := parseHexColor(cell.TextColor); valid {
+					contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+				} else {
+					// Default to black if no valid color specified
+					contentStream.WriteString("0 0 0 rg\n")
+				}
+
 				// Calculate approximate text width
 				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
 
@@ -509,6 +517,19 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				contentStream.WriteString(" ")
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
+
+				// Set text color (cell-level takes precedence over table-level, default to black)
+				// Always explicitly set the color to avoid state leakage from previous tables
+				textColor := cell.TextColor
+				if textColor == "" {
+					textColor = table.TextColor
+				}
+				if r, g, b, _, valid := parseHexColor(textColor); valid {
+					contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+				} else {
+					// Default to black if no valid color specified
+					contentStream.WriteString("0 0 0 rg\n")
+				}
 
 				// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
 				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5

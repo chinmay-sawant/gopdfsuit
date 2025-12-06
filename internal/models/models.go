@@ -59,6 +59,10 @@ type Table struct {
 	// Format: hexadecimal color code (e.g., "#FF0000" for red, "#00000000" for transparent).
 	// Individual cell BgColor takes precedence over table BgColor.
 	BgColor string `json:"bgcolor,omitempty"`
+	// TextColor is the default text/font color for all cells in the table.
+	// Format: hexadecimal color code (e.g., "#FF0000" for red). Default is black.
+	// Individual cell TextColor takes precedence over table TextColor.
+	TextColor string `json:"textcolor,omitempty"`
 }
 
 type Row struct {
@@ -81,6 +85,10 @@ type Cell struct {
 	// Format: hexadecimal color code (e.g., "#FF0000" for red, "#00000000" for transparent).
 	// Takes precedence over table-level BgColor.
 	BgColor string `json:"bgcolor,omitempty"`
+	// TextColor is the text/font color for this specific cell.
+	// Format: hexadecimal color code (e.g., "#FF0000" for red). Default is black.
+	// Takes precedence over table-level TextColor.
+	TextColor string `json:"textcolor,omitempty"`
 }
 
 type FormField struct {
