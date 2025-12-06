@@ -83,16 +83,37 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps models.Props, pageManager *PageManager, cellImageObjectIDs map[string]int) {
 	// Check if title has an embedded table
 	if title.Table != nil && len(title.Table.Rows) > 0 {
-		drawTitleTable(contentStream, title.Table, pageManager, cellImageObjectIDs)
+		drawTitleTable(contentStream, title.Table, pageManager, cellImageObjectIDs, title.BgColor, title.TextColor)
 		return
 	}
 
 	// Simple text title
+	// Draw background color if specified
+	if r, g, b, _, valid := parseHexColor(title.BgColor); valid {
+		rectX := float64(margin)
+		rectY := pageManager.CurrentYPos - float64(titleProps.FontSize)
+		rectW := pageManager.PageDimensions.Width - 2*float64(margin)
+		rectH := float64(titleProps.FontSize)
+
+		contentStream.WriteString("q\n")
+		contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+		contentStream.WriteString(fmt.Sprintf("%s %s %s %s re f\n",
+			fmtNum(rectX), fmtNum(rectY), fmtNum(rectW), fmtNum(rectH)))
+		contentStream.WriteString("Q\n")
+	}
+
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(titleProps))
 	contentStream.WriteString(" ")
 	contentStream.WriteString(strconv.Itoa(titleProps.FontSize))
 	contentStream.WriteString(" Tf\n")
+
+	// Set text color
+	if r, g, b, _, valid := parseHexColor(title.TextColor); valid {
+		contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+	} else {
+		contentStream.WriteString("0 0 0 rg\n")
+	}
 
 	// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
 	textWidth := float64(len(title.Text)) * float64(titleProps.FontSize) * 0.5
@@ -120,7 +141,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 }
 
 // drawTitleTable renders an embedded table within the title section (no borders by default)
-func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageManager *PageManager, cellImageObjectIDs map[string]int) {
+func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageManager *PageManager, cellImageObjectIDs map[string]int, defaultBgColor, defaultTextColor string) {
 	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
 	baseRowHeight := float64(25) // Standard row height
 
@@ -161,7 +182,45 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			}
 		}
 
-		// Draw row cells
+		// Draw row cells - Pass 1: Backgrounds
+		// We draw all backgrounds first so that if text from one cell overflows into another,
+		// it isn't covered by the next cell's background.
+		bgX := float64(margin)
+		for colIdx, cell := range row.Row {
+			if colIdx >= table.MaxColumns {
+				break
+			}
+
+			// Use cell-specific width if provided, otherwise use column width
+			cellWidth := colWidths[colIdx]
+			if cell.Width != nil && *cell.Width > 0 {
+				cellWidth = *cell.Width
+			}
+
+			// Use cell-specific height if provided, otherwise use row height
+			cellHeight := rowHeight
+			if cell.Height != nil && *cell.Height > 0 {
+				cellHeight = *cell.Height
+			}
+
+			// Draw cell background color
+			// Use cell-specific color if available, otherwise use default (title-level) color
+			bgColor := cell.BgColor
+			if bgColor == "" {
+				bgColor = defaultBgColor
+			}
+			if r, g, b, _, valid := parseHexColor(bgColor); valid {
+				contentStream.WriteString("q\n")
+				contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+				contentStream.WriteString(fmt.Sprintf("%s %s %s %s re f\n",
+					fmtNum(bgX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellWidth), fmtNum(cellHeight)))
+				contentStream.WriteString("Q\n")
+			}
+
+			bgX += cellWidth
+		}
+
+		// Draw row cells - Pass 2: Content and Borders
 		currentX := float64(margin)
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
@@ -244,6 +303,19 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				contentStream.WriteString(" ")
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
+
+				// Set text color - always explicitly set to avoid state leakage, default to black
+				// Use cell-specific color if available, otherwise use default (title-level) color
+				textColor := cell.TextColor
+				if textColor == "" {
+					textColor = defaultTextColor
+				}
+				if r, g, b, _, valid := parseHexColor(textColor); valid {
+					contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+				} else {
+					// Default to black if no valid color specified
+					contentStream.WriteString("0 0 0 rg\n")
+				}
 
 				// Calculate approximate text width
 				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
@@ -394,7 +466,21 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			// Update X position for next cell
 			currentX += cellWidth
 
-			// Draw content first (so borders are drawn on top of images)
+			// Draw cell background color FIRST (before any content)
+			// Cell-specific bgcolor takes precedence over table-level bgcolor
+			bgColor := cell.BgColor
+			if bgColor == "" {
+				bgColor = table.BgColor
+			}
+			if r, g, b, _, valid := parseHexColor(bgColor); valid {
+				contentStream.WriteString("q\n")
+				contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+				contentStream.WriteString(fmt.Sprintf("%s %s %s %s re f\n",
+					fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellWidth), fmtNum(cellHeight)))
+				contentStream.WriteString("Q\n")
+			}
+
+			// Draw content (so borders are drawn on top of images)
 			if cell.Image != nil {
 				// Check if we have an XObject for this cell image
 				cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
@@ -486,6 +572,19 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				contentStream.WriteString(" ")
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
+
+				// Set text color (cell-level takes precedence over table-level, default to black)
+				// Always explicitly set the color to avoid state leakage from previous tables
+				textColor := cell.TextColor
+				if textColor == "" {
+					textColor = table.TextColor
+				}
+				if r, g, b, _, valid := parseHexColor(textColor); valid {
+					contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+				} else {
+					// Default to black if no valid color specified
+					contentStream.WriteString("0 0 0 rg\n")
+				}
 
 				// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
 				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5

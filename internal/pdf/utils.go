@@ -7,6 +7,58 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 )
 
+// parseHexColor parses a hexadecimal color string and returns RGB values (0.0-1.0)
+// Supports formats: "#RRGGBB", "#RRGGBBAA", "RRGGBB", "RRGGBBAA"
+// Returns r, g, b, a (alpha) and a boolean indicating if the color is valid and non-transparent
+func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
+	if hexColor == "" {
+		return 0, 0, 0, 0, false
+	}
+
+	// Remove # prefix if present
+	hexColor = strings.TrimPrefix(hexColor, "#")
+
+	// Check length
+	if len(hexColor) != 6 && len(hexColor) != 8 {
+		return 0, 0, 0, 0, false
+	}
+
+	// Parse RGB values
+	rVal, err := strconv.ParseInt(hexColor[0:2], 16, 64)
+	if err != nil {
+		return 0, 0, 0, 0, false
+	}
+	gVal, err := strconv.ParseInt(hexColor[2:4], 16, 64)
+	if err != nil {
+		return 0, 0, 0, 0, false
+	}
+	bVal, err := strconv.ParseInt(hexColor[4:6], 16, 64)
+	if err != nil {
+		return 0, 0, 0, 0, false
+	}
+
+	r = float64(rVal) / 255.0
+	g = float64(gVal) / 255.0
+	b = float64(bVal) / 255.0
+	a = 1.0
+
+	// Parse alpha if present
+	if len(hexColor) == 8 {
+		aVal, err := strconv.ParseInt(hexColor[6:8], 16, 64)
+		if err != nil {
+			return 0, 0, 0, 0, false
+		}
+		a = float64(aVal) / 255.0
+	}
+
+	// Consider fully transparent colors as "not valid" for rendering
+	if a == 0 {
+		return 0, 0, 0, 0, false
+	}
+
+	return r, g, b, a, true
+}
+
 func parseProps(props string) models.Props {
 	parts := strings.Split(props, ":")
 	if len(parts) < 5 {
