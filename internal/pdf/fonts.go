@@ -3,6 +3,8 @@ package pdf
 import (
 	"fmt"
 	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 )
 
 // PDF 2.0 compliant font definitions for the standard 14 fonts
@@ -229,4 +231,32 @@ func GetSimpleHelveticaFontResourceString() string {
 func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int) string {
 	return fmt.Sprintf("%d 0 obj\n<< /Type /Font /Subtype /Type1 /Name %s /BaseFont /%s >>\nendobj\n",
 		fontObjectID, fontRef, fontName)
+}
+
+// GetAvailableFonts returns the list of available fonts for PDF generation.
+// This includes the standard PDF Type 1 fonts and commonly used fonts.
+func GetAvailableFonts() []models.FontInfo {
+	return []models.FontInfo{
+		// Standard PDF Type 1 Fonts - Helvetica family (guaranteed to work in all PDF readers)
+		{ID: "Helvetica", Name: "Helvetica", DisplayName: "Helvetica", Reference: "/F1"},
+		{ID: "Helvetica-Bold", Name: "Helvetica-Bold", DisplayName: "Helvetica Bold", Reference: "/F2"},
+		{ID: "Helvetica-Oblique", Name: "Helvetica-Oblique", DisplayName: "Helvetica Italic", Reference: "/F3"},
+		{ID: "Helvetica-BoldOblique", Name: "Helvetica-BoldOblique", DisplayName: "Helvetica Bold Italic", Reference: "/F4"},
+
+		// Standard PDF Type 1 Fonts - Times family
+		{ID: "Times-Roman", Name: "Times-Roman", DisplayName: "Times Roman", Reference: "/F1"},
+		{ID: "Times-Bold", Name: "Times-Bold", DisplayName: "Times Bold", Reference: "/F2"},
+		{ID: "Times-Italic", Name: "Times-Italic", DisplayName: "Times Italic", Reference: "/F3"},
+		{ID: "Times-BoldItalic", Name: "Times-BoldItalic", DisplayName: "Times Bold Italic", Reference: "/F4"},
+
+		// Standard PDF Type 1 Fonts - Courier family (monospace)
+		{ID: "Courier", Name: "Courier", DisplayName: "Courier", Reference: "/F1"},
+		{ID: "Courier-Bold", Name: "Courier-Bold", DisplayName: "Courier Bold", Reference: "/F2"},
+		{ID: "Courier-Oblique", Name: "Courier-Oblique", DisplayName: "Courier Italic", Reference: "/F3"},
+		{ID: "Courier-BoldOblique", Name: "Courier-BoldOblique", DisplayName: "Courier Bold Italic", Reference: "/F4"},
+
+		// Standard PDF Type 1 Fonts - Symbol and Decorative
+		{ID: "Symbol", Name: "Symbol", DisplayName: "Symbol", Reference: "/F1"},
+		{ID: "ZapfDingbats", Name: "ZapfDingbats", DisplayName: "Zapf Dingbats", Reference: "/F1"},
+	}
 }

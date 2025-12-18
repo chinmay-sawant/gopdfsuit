@@ -132,8 +132,23 @@ func escapeText(s string) string {
 	return escapePDFString(s)
 }
 
-// getFontReference returns the appropriate font reference based on style properties
+// getFontReference returns the appropriate font reference based on the font name
+// and style properties. If a specific font name is provided (e.g., "Helvetica-Bold"),
+// it takes precedence. Otherwise, falls back to using bold/italic style flags.
 func getFontReference(props models.Props) string {
+	// First check if FontName directly specifies a font variant
+	switch props.FontName {
+	case "Helvetica":
+		return "/F1"
+	case "Helvetica-Bold":
+		return "/F2"
+	case "Helvetica-Oblique":
+		return "/F3"
+	case "Helvetica-BoldOblique":
+		return "/F4"
+	}
+
+	// Fallback: use bold/italic flags (for legacy "font1", "font2" style IDs)
 	if props.Bold && props.Italic {
 		return "/F4" // Helvetica-BoldOblique
 	} else if props.Bold {
