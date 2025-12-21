@@ -160,3 +160,11 @@ type HtmlToImageRequest struct {
 	CropY      int               `json:"crop_y,omitempty"`      // Crop Y offset
 	Options    map[string]string `json:"options,omitempty"`     // Additional htmltoimage options
 }
+
+// FontInfo represents a font's information for the API response
+type FontInfo struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"`
+	Reference   string `json:"reference"`
+}

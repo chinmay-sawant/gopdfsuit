@@ -90,6 +90,7 @@ func RegisterRoutes(router *gin.Engine) {
 	v1.POST("/fill", handleFillPDF)
 	v1.POST("/merge", handleMergePDFs)
 	v1.GET("/template-data", handleGetTemplateData)
+	v1.GET("/fonts", handleGetFonts)
 
 	// HTML to PDF/Image endpoints (powered by gochromedp)
 	v1.POST("/htmltopdf", handlehtmlToPDF)
@@ -159,6 +160,16 @@ func handleGetTemplateData(c *gin.Context) {
 	// Return the JSON data
 	c.Header("Content-Type", "application/json")
 	c.Data(http.StatusOK, "application/json", data)
+}
+
+// handleGetFonts returns the list of available fonts for PDF generation
+func handleGetFonts(c *gin.Context) {
+	// Get available fonts from the pdf package
+	fonts := pdf.GetAvailableFonts()
+
+	c.JSON(http.StatusOK, gin.H{
+		"fonts": fonts,
+	})
 }
 
 func handleGenerateTemplatePDF(c *gin.Context) {

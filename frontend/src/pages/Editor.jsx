@@ -1,7 +1,29 @@
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle } from 'lucide-react'
 import { useTheme } from '../theme'
 import PdfPreview from '../components/PdfPreview'
+
+// Default fonts - Standard PDF Type 1 fonts (guaranteed to work in all PDF readers)
+const DEFAULT_FONTS = [
+  // Helvetica family (sans-serif)
+  { id: 'Helvetica', name: 'Helvetica', displayName: 'Helvetica' },
+  { id: 'Helvetica-Bold', name: 'Helvetica-Bold', displayName: 'Helvetica Bold' },
+  { id: 'Helvetica-Oblique', name: 'Helvetica-Oblique', displayName: 'Helvetica Italic' },
+  { id: 'Helvetica-BoldOblique', name: 'Helvetica-BoldOblique', displayName: 'Helvetica Bold Italic' },
+  // Times family (serif)
+  { id: 'Times-Roman', name: 'Times-Roman', displayName: 'Times Roman' },
+  { id: 'Times-Bold', name: 'Times-Bold', displayName: 'Times Bold' },
+  { id: 'Times-Italic', name: 'Times-Italic', displayName: 'Times Italic' },
+  { id: 'Times-BoldItalic', name: 'Times-BoldItalic', displayName: 'Times Bold Italic' },
+  // Courier family (monospace)
+  { id: 'Courier', name: 'Courier', displayName: 'Courier' },
+  { id: 'Courier-Bold', name: 'Courier-Bold', displayName: 'Courier Bold' },
+  { id: 'Courier-Oblique', name: 'Courier-Oblique', displayName: 'Courier Italic' },
+  { id: 'Courier-BoldOblique', name: 'Courier-BoldOblique', displayName: 'Courier Bold Italic' },
+  // Symbol and Decorative
+  { id: 'Symbol', name: 'Symbol', displayName: 'Symbol' },
+  { id: 'ZapfDingbats', name: 'ZapfDingbats', displayName: 'Zapf Dingbats' }
+]
 
 // Enhanced PDF template editor with improved drag-drop, template loading, and resize functionality
 // Features: JSON template parsing, visual component ordering, resize handles, props editor, PDF preview
@@ -32,10 +54,10 @@ const COMPONENT_TYPES = {
 
 // Font style helpers
 const parseProps = (propsString) => {
-  if (!propsString) return { font: 'font1', size: 12, style: '000', align: 'left', borders: [0, 0, 0, 0] }
+  if (!propsString) return { font: 'Helvetica', size: 12, style: '000', align: 'left', borders: [0, 0, 0, 0] }
   const parts = propsString.split(':')
   return {
-    font: parts[0] || 'font1',
+    font: parts[0] || 'Helvetica',
     size: parseInt(parts[1]) || 12,
     style: parts[2] || '000',
     align: parts[3] || 'left',
@@ -68,12 +90,56 @@ const formatPageBorder = (borders) => {
   return borders.join(':')
 }
 
+// Helper function to get CSS font family from font name
+const getFontFamily = (fontName) => {
+  // Map PDF font names to CSS font families
+  if (!fontName) return 'Helvetica, Arial, sans-serif'
+  
+  // Standard PDF Type 1 fonts mapping to CSS
+  const fontMap = {
+    // Helvetica family
+    'Helvetica': 'Helvetica, Arial, sans-serif',
+    'Helvetica-Bold': 'Helvetica, Arial, sans-serif',
+    'Helvetica-Oblique': 'Helvetica, Arial, sans-serif',
+    'Helvetica-BoldOblique': 'Helvetica, Arial, sans-serif',
+    // Times family
+    'Times-Roman': 'Times New Roman, Times, serif',
+    'Times-Bold': 'Times New Roman, Times, serif',
+    'Times-Italic': 'Times New Roman, Times, serif',
+    'Times-BoldItalic': 'Times New Roman, Times, serif',
+    // Courier family
+    'Courier': 'Courier New, Courier, monospace',
+    'Courier-Bold': 'Courier New, Courier, monospace',
+    'Courier-Oblique': 'Courier New, Courier, monospace',
+    'Courier-BoldOblique': 'Courier New, Courier, monospace',
+    // Symbol fonts
+    'Symbol': 'Symbol, serif',
+    'ZapfDingbats': 'ZapfDingbats, Wingdings, serif',
+  }
+  
+  // Return mapped font or the font name itself
+  return fontMap[fontName] || `"${fontName}", sans-serif`
+}
+
+// Helper function to determine if font name implies bold/italic
+const getFontStyleFromName = (fontName) => {
+  if (!fontName) return { isBold: false, isItalic: false }
+  const lower = fontName.toLowerCase()
+  return {
+    isBold: lower.includes('bold'),
+    isItalic: lower.includes('oblique') || lower.includes('italic')
+  }
+}
+
 // Helper function to convert props to CSS style object
 const getStyleFromProps = (propsString) => {
   const parsed = parseProps(propsString)
+  const fontStyles = getFontStyleFromName(parsed.font)
+  
   const style = {
     fontSize: `${parsed.size}px`,
     textAlign: parsed.align,
+    fontFamily: getFontFamily(parsed.font),
     borderLeftWidth: `${parsed.borders[0]}px`,
     borderRightWidth: `${parsed.borders[1]}px`,
     borderTopWidth: `${parsed.borders[2]}px`,
@@ -82,13 +148,13 @@ const getStyleFromProps = (propsString) => {
     borderColor: '#333'
   }
   
-  // Apply font weight
-  if (parsed.style[0] === '1') {
+  // Apply font weight - from style code OR font name
+  if (parsed.style[0] === '1' || fontStyles.isBold) {
     style.fontWeight = 'bold'
   }
   
-  // Apply italic
-  if (parsed.style[1] === '1') {
+  // Apply italic - from style code OR font name
+  if (parsed.style[1] === '1' || fontStyles.isItalic) {
     style.fontStyle = 'italic'
   }
   
@@ -104,7 +170,22 @@ function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, on
   const [templateInput, setTemplateInput] = useState('')
 
   return (
-    <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem 1rem' }}>
+    <div className="card" style={{ 
+      marginBottom: '1rem', 
+      padding: '0.75rem 1rem',
+      position: 'sticky',
+      top: '74px', // Increased to ensure it clears the navbar
+      zIndex: 40,
+      transition: 'all 0.2s ease',
+      borderRadius: '0',
+      borderLeft: 'none',
+      borderRight: 'none',
+      marginLeft: '-1rem',
+      marginRight: '-1rem',
+      width: 'calc(100% + 2rem)',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+      background: 'hsl(var(--card))' // Ensure background is opaque
+    }}>
       <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <div className="flex items-center gap-3">
           <Edit size={20} />
@@ -383,7 +464,7 @@ function PageBorderControls({ borders, onChange }) {
   )
 }
 
-function PropsEditor({ props, onChange }) {
+function PropsEditor({ props, onChange, fonts = DEFAULT_FONTS }) {
   const parsed = parseProps(props)
 
   const updateBorder = (index, value) => {
@@ -463,8 +544,9 @@ function PropsEditor({ props, onChange }) {
                 fontSize: '0.9rem'
               }}
             >
-              <option value="font1">Font 1</option>
-              <option value="font2">Font 2</option>
+              {fonts.map(font => (
+                <option key={font.id} value={font.id}>{font.displayName}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -651,9 +733,9 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           columnwidths: [1, 2, 1],
           rows: [{
             row: [
-              { props: 'font1:12:000:left:0:0:0:0', text: '', image: null },
-              { props: 'font1:18:100:center:0:0:0:0', text: element.text || 'Document Title' },
-              { props: 'font1:12:000:right:0:0:0:0', text: '' }
+              { props: 'Helvetica:12:000:left:0:0:0:0', text: '', image: null },
+              { props: 'Helvetica:18:100:center:0:0:0:0', text: element.text || 'Document Title' },
+              { props: 'Helvetica:12:000:right:0:0:0:0', text: '' }
             ]
           }]
         }
@@ -1584,7 +1666,32 @@ export default function Editor() {
   const [isDragOver, setIsDragOver] = useState(false)
   const [draggedComponentId, setDraggedComponentId] = useState(null)
   const [pdfUrl, setPdfUrl] = useState(null)
+  const [fonts, setFonts] = useState(DEFAULT_FONTS)
+  const [fontsLoading, setFontsLoading] = useState(true)
   const canvasRef = useRef(null)
+
+  // Fetch fonts from API on component mount
+  useEffect(() => {
+    const fetchFonts = async () => {
+      try {
+        setFontsLoading(true)
+        const response = await fetch('/api/v1/fonts')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.fonts && Array.isArray(data.fonts)) {
+            setFonts(data.fonts)
+          }
+        } else {
+          console.warn('Failed to fetch fonts, using defaults')
+        }
+      } catch (error) {
+        console.error('Error fetching fonts:', error)
+      } finally {
+        setFontsLoading(false)
+      }
+    }
+    fetchFonts()
+  }, [])
 
   // Get all elements in order for display
   const allElements = useMemo(() => {
@@ -1616,7 +1723,7 @@ export default function Editor() {
       case 'title':
         if (!title) {
           setTitle({
-            props: 'font1:18:100:center:0:0:1:0',
+            props: 'Helvetica:18:100:center:0:0:1:0',
             text: 'Document Title',
             table: {
               maxcolumns: 3,
@@ -1624,9 +1731,9 @@ export default function Editor() {
               rows: [
                 {
                   row: [
-                    { props: 'font1:12:000:left:0:0:0:0', text: '' },
-                    { props: 'font1:18:100:center:0:0:0:0', text: 'Document Title' },
-                    { props: 'font1:12:000:left:0:0:0:0', text: '' }
+                    { props: 'Helvetica:12:000:left:0:0:0:0', text: '' },
+                    { props: 'Helvetica:18:100:center:0:0:0:0', text: 'Document Title' },
+                    { props: 'Helvetica:12:000:left:0:0:0:0', text: '' }
                   ]
                 }
               ]
@@ -1644,16 +1751,16 @@ export default function Editor() {
           rows: [
             {
               row: [
-                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
-                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
-                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) }
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) }
               ]
             },
             {
               row: [
-                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
-                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
-                { props: 'font1:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) }
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) }
               ]
             }
           ]
@@ -1698,7 +1805,7 @@ export default function Editor() {
       case 'footer':
         if (!footer) {
           setFooter({
-            props: 'font1:10:001:center:0:0:0:0',
+            props: 'Helvetica:10:001:center:0:0:0:0',
             text: 'Page footer text'
           })
           setSelectedId('footer')
@@ -1903,9 +2010,9 @@ export default function Editor() {
               columnwidths: [1/3, 1/3, 1/3],
               rows: [{
                 row: [
-                  { props: 'font1:12:000:left:0:0:0:0', text: '' },
-                  { props: 'font1:18:100:center:0:0:0:0', text: data.title.text || 'Document Title' },
-                  { props: 'font1:12:000:left:0:0:0:0', text: '' }
+                  { props: 'Helvetica:12:000:left:0:0:0:0', text: '' },
+                  { props: 'Helvetica:18:100:center:0:0:0:0', text: data.title.text || 'Document Title' },
+                  { props: 'Helvetica:12:000:left:0:0:0:0', text: '' }
                 ]
               }]
             }
@@ -2067,9 +2174,9 @@ export default function Editor() {
             columnwidths: [1/3, 1/3, 1/3],
             rows: [{
               row: [
-                { props: 'font1:12:000:left:0:0:0:0', text: '' },
-                { props: 'font1:18:100:center:0:0:0:0', text: data.title.text || 'Document Title' },
-                { props: 'font1:12:000:left:0:0:0:0', text: '' }
+                { props: 'Helvetica:12:000:left:0:0:0:0', text: '' },
+                { props: 'Helvetica:18:100:center:0:0:0:0', text: data.title.text || 'Document Title' },
+                { props: 'Helvetica:12:000:left:0:0:0:0', text: '' }
               ]
             }]
           }
@@ -2102,7 +2209,7 @@ export default function Editor() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <>
       <style>
         {`
           .drop-target {
@@ -2112,8 +2219,8 @@ export default function Editor() {
           }
           .editor-sidebar {
             position: sticky;
-            top: 80px;
-            height: calc(100vh - 100px);
+            top: 144px;
+            height: calc(100vh - 164px);
             overflow-y: auto;
             align-self: flex-start;
           }
@@ -2176,6 +2283,8 @@ export default function Editor() {
         `}
       </style>
       
+      {/* Fixed Header Wrapper */}
+      <div style={{ position: 'fixed', top: '58px', left: 0, right: 0, zIndex: 1000 }}>
       {/* Sticky Header */}
       <div className="sticky-header">
         <div className="container-full">
@@ -2289,6 +2398,10 @@ export default function Editor() {
           </div>
         </div>
       </div>
+      </div>
+
+      {/* Main Content Wrapper */}
+      <div style={{ marginTop: '138px', minHeight: 'calc(100vh - 138px)', display: 'flex', flexDirection: 'column' }}>
 
       {/* Main Content */}
       <div className="container-full" style={{ flex: 1, padding: '1rem' }}>
@@ -2886,7 +2999,7 @@ export default function Editor() {
                                   const updatedRows = table.rows?.map(row => {
                                     const newRow = [...(row.row || [])]
                                     while (newRow.length < newCols) {
-                                      newRow.push({ props: 'font1:12:000:left:0:0:0:0', text: '' })
+                                      newRow.push({ props: 'Helvetica:12:000:left:0:0:0:0', text: '' })
                                     }
                                     if (newRow.length > newCols) {
                                       newRow.splice(newCols)
@@ -2913,7 +3026,7 @@ export default function Editor() {
                                   const table = selectedElement.table
                                   const newRow = {
                                     row: Array(table.maxcolumns).fill(null).map(() => ({
-                                      props: 'font1:12:000:left:0:0:0:0',
+                                      props: 'Helvetica:12:000:left:0:0:0:0',
                                       text: ''
                                     }))
                                   }
@@ -2994,7 +3107,7 @@ export default function Editor() {
                                   // Add new cell to all rows
                                   const updatedRows = table.rows?.map(row => {
                                     const newRow = [...(row.row || [])]
-                                    newRow.push({ props: 'font1:12:000:left:0:0:0:0', text: '' })
+                                    newRow.push({ props: 'Helvetica:12:000:left:0:0:0:0', text: '' })
                                     return { row: newRow }
                                   })
 
@@ -3186,6 +3299,7 @@ export default function Editor() {
                                   <PropsEditor 
                                     props={cell.props} 
                                     onChange={(props) => updateTitleCell({ props })}
+                                    fonts={fonts}
                                   />
                                 </div>
                               </>
@@ -3234,7 +3348,7 @@ export default function Editor() {
                             const updatedRows = selectedElement.rows?.map(row => {
                               const newRow = [...(row.row || [])]
                               while (newRow.length < newCols) {
-                                newRow.push({ props: 'font1:12:000:left:1:1:1:1', text: '' })
+                                newRow.push({ props: 'Helvetica:12:000:left:1:1:1:1', text: '' })
                               }
                               if (newRow.length > newCols) {
                                 newRow.splice(newCols)
@@ -3269,7 +3383,7 @@ export default function Editor() {
                             
                             const newRow = { 
                               row: Array(selectedElement.maxcolumns || 3).fill().map((_, i) => ({
-                                props: 'font1:12:000:left:1:1:1:1',
+                                props: 'Helvetica:12:000:left:1:1:1:1',
                                 text: '',
                                 width: usableWidth * normalizedWeights[i]
                               }))
@@ -3350,7 +3464,7 @@ export default function Editor() {
                                 const newRow = [...(row.row || [])]
                                 // Add new cell with all borders enabled
                                 newRow.push({ 
-                                  props: 'font1:12:000:left:1:1:1:1',
+                                  props: 'Helvetica:12:000:left:1:1:1:1',
                                   text: '',
                                   width: usableWidth * normalizedWidths[newCols - 1]
                                 })
@@ -4002,6 +4116,7 @@ export default function Editor() {
                                       }
                                       updateElement(selectedElement.id, { rows: newRows })
                                     }}
+                                    fonts={fonts}
                                   />
                                 </div>
                               </>
@@ -4374,6 +4489,7 @@ export default function Editor() {
                         <PropsEditor 
                           props={selectedElement.props} 
                           onChange={(props) => updateElement(selectedElement.id, { props })}
+                          fonts={fonts}
                         />
                       </div>
                     </>
@@ -4545,6 +4661,7 @@ export default function Editor() {
           }
         }
       `}</style>
-    </div>
+      </div>
+    </>
   )
 }
