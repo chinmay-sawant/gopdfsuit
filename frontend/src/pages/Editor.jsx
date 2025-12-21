@@ -170,7 +170,22 @@ function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, on
   const [templateInput, setTemplateInput] = useState('')
 
   return (
-    <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem 1rem' }}>
+    <div className="card" style={{ 
+      marginBottom: '1rem', 
+      padding: '0.75rem 1rem',
+      position: 'sticky',
+      top: '74px', // Increased to ensure it clears the navbar
+      zIndex: 40,
+      transition: 'all 0.2s ease',
+      borderRadius: '0',
+      borderLeft: 'none',
+      borderRight: 'none',
+      marginLeft: '-1rem',
+      marginRight: '-1rem',
+      width: 'calc(100% + 2rem)',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+      background: 'hsl(var(--card))' // Ensure background is opaque
+    }}>
       <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <div className="flex items-center gap-3">
           <Edit size={20} />
@@ -2194,7 +2209,7 @@ export default function Editor() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <>
       <style>
         {`
           .drop-target {
@@ -2204,8 +2219,8 @@ export default function Editor() {
           }
           .editor-sidebar {
             position: sticky;
-            top: 80px;
-            height: calc(100vh - 100px);
+            top: 144px;
+            height: calc(100vh - 164px);
             overflow-y: auto;
             align-self: flex-start;
           }
@@ -2268,6 +2283,8 @@ export default function Editor() {
         `}
       </style>
       
+      {/* Fixed Header Wrapper */}
+      <div style={{ position: 'fixed', top: '58px', left: 0, right: 0, zIndex: 1000 }}>
       {/* Sticky Header */}
       <div className="sticky-header">
         <div className="container-full">
@@ -2381,6 +2398,10 @@ export default function Editor() {
           </div>
         </div>
       </div>
+      </div>
+
+      {/* Main Content Wrapper */}
+      <div style={{ marginTop: '138px', minHeight: 'calc(100vh - 138px)', display: 'flex', flexDirection: 'column' }}>
 
       {/* Main Content */}
       <div className="container-full" style={{ flex: 1, padding: '1rem' }}>
@@ -4640,6 +4661,7 @@ export default function Editor() {
           }
         }
       `}</style>
-    </div>
+      </div>
+    </>
   )
 }
