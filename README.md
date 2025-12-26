@@ -24,6 +24,11 @@
 - [Contributing](#-contributing)
 - [License](#-license)
 
+### 📚 Documentation
+
+- [📋 Template Reference](guides/TEMPLATE_REFERENCE.md) - Complete JSON template format guide with examples
+- [🛠️ Makefile Reference](guides/MAKEFILE.md) - Build, test, and deployment commands
+
 ---
 
 ## 📖 Overview
@@ -101,6 +106,8 @@ docker run -d -p 8080:8080 chinmaysawant/gopdfsuit:latest
 
 <details>
 <summary><b>📋 Makefile Targets</b></summary>
+
+> 📖 **Full documentation:** [Makefile Reference Guide](guides/MAKEFILE.md)
 
 | Command | Description |
 |---------|-------------|
@@ -190,6 +197,8 @@ curl -X POST "http://localhost:8080/api/v1/fill" \
 ---
 
 ## 📋 Template Format
+
+> 📖 **Full documentation:** [Template Reference Guide](guides/TEMPLATE_REFERENCE.md)
 
 ### Props Syntax
 `"fontname:fontsize:style:alignment:left:right:top:bottom"`
