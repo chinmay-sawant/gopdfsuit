@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
-import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle } from 'lucide-react'
+import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check } from 'lucide-react'
 import { useTheme } from '../theme'
 import PdfPreview from '../components/PdfPreview'
 
@@ -1668,6 +1668,7 @@ export default function Editor() {
   const [pdfUrl, setPdfUrl] = useState(null)
   const [fonts, setFonts] = useState(DEFAULT_FONTS)
   const [fontsLoading, setFontsLoading] = useState(true)
+  const [copiedId, setCopiedId] = useState(null)
   const canvasRef = useRef(null)
 
   // Fetch fonts from API on component mount
@@ -2097,12 +2098,12 @@ export default function Editor() {
 
   const copyJSON = async () => {
     const templateData = getJsonOutput()
-    
     try {
       await navigator.clipboard.writeText(JSON.stringify(templateData, null, 2))
-      alert('JSON copied to clipboard!')
+      setCopiedId('toolbar')
+      setTimeout(() => setCopiedId(null), 2000)
     } catch (error) {
-      alert('Failed to copy JSON')
+      console.error('Copy failed:', error)
     }
   }
 
@@ -2357,7 +2358,7 @@ export default function Editor() {
                 className="btn"
                 style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
               >
-                <Copy size={14} /> Copy
+                {copiedId === 'toolbar' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
               </button>
               
               <div style={{ 
@@ -4608,13 +4609,19 @@ export default function Editor() {
                   <FileText size={16} /> JSON Template
                 </h3>
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(jsonText)
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(jsonText)
+                      setCopiedId('json')
+                      setTimeout(() => setCopiedId(null), 2000)
+                    } catch (error) {
+                      console.error('Copy failed:', error)
+                    }
                   }}
                   className="btn"
                   style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                 >
-                  <Copy size={12} /> Copy
+                  {copiedId === 'json' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
                 </button>
               </div>
               <textarea
