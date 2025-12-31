@@ -83,20 +83,46 @@
         {
           "row": [
             {
-              "props": "font1:10:100:left:1:0:0:1",
-              "text": "Address:"
+              "props": "font1:10:100:left:1:0:0:0",
+              "text": "Address:",
+              "height": 26
             },
             {
-              "props": "font1:10:000:left:0:0:0:1",
-              "text": "123 Business Ave, Suite 456, City, State 12345"
+              "props": "font1:10:000:left:0:0:0:0",
+              "text": "123 Business Ave, ",
+              "height": 24
             },
             {
-              "props": "font1:10:100:left:0:0:0:1",
+              "props": "font1:10:100:left:0:0:0:0",
               "text": "Fiscal Year:"
             },
             {
-              "props": "font1:10:000:left:0:1:0:1",
+              "props": "font1:10:000:left:0:1:0:0",
               "text": "2025"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:10:000:left:1:0:0:1",
+              "text": "Suite 456, City, State 12345",
+              "width": 84.56249999999999
+            },
+            {
+              "props": "Helvetica:12:000:left:0:0:0:1",
+              "text": "",
+              "width": 140.9375
+            },
+            {
+              "props": "Helvetica:12:000:left:0:0:0:1",
+              "text": "",
+              "width": 84.56249999999999
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "",
+              "width": 140.9375
             }
           ]
         }
@@ -440,6 +466,17 @@
       ]
     }
   ],
+  "spacer": [
+    {
+      "height": 160
+    },
+    {
+      "height": 150
+    },
+    {
+      "height": 50
+    }
+  ],
   "elements": [
     {
       "type": "table",
@@ -458,6 +495,10 @@
       "index": 3
     },
     {
+      "type": "spacer",
+      "index": 0
+    },
+    {
       "type": "table",
       "index": 4
     },
@@ -472,6 +513,14 @@
     {
       "type": "table",
       "index": 7
+    },
+    {
+      "type": "spacer",
+      "index": 1
+    },
+    {
+      "type": "spacer",
+      "index": 2
     }
   ],
   "footer": {
