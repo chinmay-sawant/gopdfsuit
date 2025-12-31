@@ -1,6 +1,6 @@
 {
     "config": {
-        "page": "A4",
+        "page": "LETTER",
         "pageAlignment": 1,
         "pageBorder": "0:0:0:0",
         "watermark": "CONFIDENTIAL"
@@ -23,12 +23,12 @@
                         {
                             "props": "Helvetica:12:000:left:0:0:0:0",
                             "text": "",
-                            "width": 100.33333333333331
+                            "width": 76.33333333333331
                         },
                         {
                             "props": "Helvetica:18:100:center:0:0:0:0",
                             "text": "PROFESSIONAL SERVICES AGREEMENT",
-                            "width": 200.33333333333331
+                            "width": 224.33333333333331
                         },
                         {
                             "props": "Helvetica:12:000:left:0:0:0:0",
@@ -47,7 +47,7 @@
                     "row": [
                         {
                             "props": "font1:10:010:center:0:0:0:0",
-                            "text": "This Professional Services Agreement (the \"Agreement\")is made and entered into "
+                            "text": "This Professional Services Agreement (the \"Agreement\") is made and entered into "
                         }
                     ]
                 },
@@ -55,21 +55,8 @@
                     "row": [
                         {
                             "props": "Helvetica:10:000:center:0:0:0:0",
-                            "text": "as of October 25, 2023 (the \"Effective Date\"),by and between:",
+                            "text": "as of October 25, 2023 (the \"Effective Date\"), by and between:",
                             "width": 451
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "maxcolumns": 1,
-            "rows": [
-                {
-                    "row": [
-                        {
-                            "props": "font1:5:000:left:0:0:0:0",
-                            "text": " "
                         }
                     ]
                 }
@@ -102,11 +89,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:0",
+                            "props": "font1:10:100:left:1:1:0:0",
                             "text": "Global Tech Solutions Ltd."
                         },
                         {
-                            "props": "font1:10:100:left:0:1:0:0",
+                            "props": "font1:10:100:left:1:1:0:0",
                             "text": "Apex Legal Consultants"
                         }
                     ]
@@ -114,11 +101,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:0",
+                            "props": "font1:10:000:left:1:1:0:0",
                             "text": "100 Innovation Drive"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:0",
+                            "props": "font1:10:000:left:1:1:0:0",
                             "text": "500 Legal Plaza"
                         }
                     ]
@@ -126,11 +113,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:0",
+                            "props": "font1:10:000:left:1:1:0:0",
                             "text": "Silicon Valley, CA 94025"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:0",
+                            "props": "font1:10:000:left:1:1:0:0",
                             "text": "New York, NY 10018"
                         }
                     ]
@@ -138,11 +125,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:1:1",
+                            "props": "font1:10:000:left:1:1:1:1",
                             "text": "Attn: Michael Chen, CTO"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:1:1",
+                            "props": "font1:10:000:left:1:1:1:1",
                             "text": "Attn: Jessica Pearson, Partner"
                         }
                     ]
@@ -155,20 +142,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
-                            "text": " "
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "maxcolumns": 1,
-            "rows": [
-                {
-                    "row": [
-                        {
-                            "props": "font1:14:100:left:0:0:0:1",
+                            "props": "font1:14:100:left:0:0:0:0",
                             "text": "1. SERVICES AND TERM",
                             "textcolor": "#2980B9"
                         }
@@ -191,7 +165,7 @@
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "font1:10:000:left:0:1:1:1",
                             "text": "Enterprise Software Licensing Review"
                         }
                     ]
@@ -205,7 +179,7 @@
                         },
                         {
                             "props": "font1:10:000:left:0:1:0:1",
-                            "text": "Review of current software licenses, negotiation with vendors"
+                            "text": "Review of current software licenses, negotiation with vendors, and compliance audit."
                         }
                     ]
                 },
@@ -243,20 +217,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
-                            "text": " "
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "maxcolumns": 1,
-            "rows": [
-                {
-                    "row": [
-                        {
-                            "props": "font1:14:100:left:0:0:0:1",
+                            "props": "font1:14:100:left:0:0:0:0",
                             "text": "2. COMPENSATION",
                             "textcolor": "#2980B9"
                         }
@@ -279,7 +240,7 @@
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "font1:10:000:left:0:1:1:1",
                             "text": "$15,000.00"
                         }
                     ]
@@ -318,20 +279,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
-                            "text": " "
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "maxcolumns": 1,
-            "rows": [
-                {
-                    "row": [
-                        {
-                            "props": "font1:14:100:left:0:0:0:1",
+                            "props": "font1:14:100:left:0:0:0:0",
                             "text": "3. LEGAL PROVISIONS",
                             "textcolor": "#2980B9"
                         }
@@ -354,7 +302,7 @@
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "font1:10:000:left:0:1:1:1",
                             "text": "5 years from termination of agreement"
                         }
                     ]
@@ -406,19 +354,6 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
-                            "text": " "
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "maxcolumns": 1,
-            "rows": [
-                {
-                    "row": [
-                        {
                             "props": "font1:12:100:left:0:0:0:0",
                             "text": "IN WITNESS WHEREOF, the parties have executed this Agreement."
                         }
@@ -432,16 +367,15 @@
                 1,
                 1
             ],
-            "bgcolor": "#F9F9F9",
             "rows": [
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:1:0",
+                            "props": "font1:10:100:left:0:0:0:0",
                             "text": "CLIENT:"
                         },
                         {
-                            "props": "font1:10:100:left:0:1:1:0",
+                            "props": "font1:10:100:left:0:0:0:0",
                             "text": "PROVIDER:"
                         }
                     ]
@@ -449,11 +383,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:0",
+                            "props": "font1:10:000:left:0:0:0:0",
                             "text": "\n\n__________________________"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:0",
+                            "props": "font1:10:000:left:0:0:0:0",
                             "text": "\n\n__________________________"
                         }
                     ]
@@ -461,11 +395,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:0",
+                            "props": "font1:10:000:left:0:0:0:0",
                             "text": "Name: Michael Chen"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:0",
+                            "props": "font1:10:000:left:0:0:0:0",
                             "text": "Name: Jessica Pearson"
                         }
                     ]
@@ -473,11 +407,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:0",
+                            "props": "font1:10:000:left:0:0:0:0",
                             "text": "Title: Chief Technology Officer"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:0",
+                            "props": "font1:10:000:left:0:0:0:0",
                             "text": "Title: Managing Partner"
                         }
                     ]
@@ -485,16 +419,21 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "font1:10:000:left:0:0:0:0",
                             "text": "Date: October 25, 2023"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "font1:10:000:left:0:0:0:0",
                             "text": "Date: October 26, 2023"
                         }
                     ]
                 }
             ]
+        }
+    ],
+    "spacer": [
+        {
+            "height": 150
         }
     ],
     "elements": [
@@ -539,24 +478,8 @@
             "index": 9
         },
         {
-            "type": "table",
-            "index": 10
-        },
-        {
-            "type": "table",
-            "index": 11
-        },
-        {
-            "type": "table",
-            "index": 12
-        },
-        {
-            "type": "table",
-            "index": 13
-        },
-        {
-            "type": "table",
-            "index": 14
+            "type": "spacer",
+            "index": 0
         }
     ],
     "footer": {
