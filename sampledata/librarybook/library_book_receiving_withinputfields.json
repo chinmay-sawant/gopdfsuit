@@ -1,0 +1,1222 @@
+{
+  "config": {
+    "pageBorder": "1:1:1:1",
+    "page": "A4",
+    "pageAlignment": 1,
+    "watermark": ""
+  },
+  "title": {
+    "props": "font1:18:100:center:0:0:0:1",
+    "text": "LIBRARY BOOK RECEIVING FORM",
+    "table": {
+      "maxcolumns": 3,
+      "columnwidths": [
+        0.3333333333333333,
+        0.3333333333333333,
+        0.3333333333333333
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:12:000:left:0:0:0:0",
+              "text": ""
+            },
+            {
+              "props": "Helvetica:18:100:center:0:0:0:0",
+              "text": "LIBRARY BOOK RECEIVING FORM"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:0:0:0",
+              "text": ""
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "table": [
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:11:100:left:1:1:1:1",
+              "text": "SECTION A: LIBRARY INFORMATION",
+              "bgcolor": "#E8F4FD",
+              "textcolor": "#1565C0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 4,
+      "columnwidths": [
+        1.2,
+        2,
+        1.2,
+        2
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Library Name:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Central City Public Library",
+              "form_field": {
+                "type": "text",
+                "name": "library_name",
+                "value": "Central City Public Library"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Branch Code:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "CCPL-MAIN-001",
+              "form_field": {
+                "type": "text",
+                "name": "branch_code",
+                "value": "CCPL-MAIN-001"
+              }
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Receiving Date:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "12/31/2025",
+              "form_field": {
+                "type": "text",
+                "name": "receiving_date",
+                "value": "12/31/2025"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Receipt Number:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "REC-2025-087542",
+              "form_field": {
+                "type": "text",
+                "name": "receipt_number",
+                "value": "REC-2025-087542"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:11:100:left:1:1:1:1",
+              "text": "SECTION B: BOOK DETAILS",
+              "bgcolor": "#E8F4FD",
+              "textcolor": "#1565C0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 4,
+      "columnwidths": [
+        1,
+        2,
+        1,
+        2
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Book Title:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "The Art of Programming",
+              "form_field": {
+                "type": "text",
+                "name": "book_title",
+                "value": "The Art of Programming"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "ISBN:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "978-3-16-148410-0",
+              "form_field": {
+                "type": "text",
+                "name": "isbn",
+                "value": "978-3-16-148410-0"
+              }
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Author:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Dr. Jonathan Mitchell",
+              "form_field": {
+                "type": "text",
+                "name": "author",
+                "value": "Dr. Jonathan Mitchell"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Publisher:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "TechBooks Publishing Inc.",
+              "form_field": {
+                "type": "text",
+                "name": "publisher",
+                "value": "TechBooks Publishing Inc."
+              }
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Edition:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "3rd Edition",
+              "form_field": {
+                "type": "text",
+                "name": "edition",
+                "value": "3rd Edition"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Publication Year:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "2024",
+              "form_field": {
+                "type": "text",
+                "name": "publication_year",
+                "value": "2024"
+              }
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Category:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Computer Science",
+              "form_field": {
+                "type": "text",
+                "name": "category",
+                "value": "Computer Science"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Call Number:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "005.133 MIT",
+              "form_field": {
+                "type": "text",
+                "name": "call_number",
+                "value": "005.133 MIT"
+              }
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Accession No:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "ACC-2025-004521",
+              "form_field": {
+                "type": "text",
+                "name": "accession_number",
+                "value": "ACC-2025-004521"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Barcode ID:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "LIB-78542136987",
+              "form_field": {
+                "type": "text",
+                "name": "barcode_id",
+                "value": "LIB-78542136987"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:11:100:left:1:1:1:1",
+              "text": "SECTION C: ACQUISITION DETAILS",
+              "bgcolor": "#E8F4FD",
+              "textcolor": "#1565C0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 6,
+      "columnwidths": [
+        1.2,
+        0.4,
+        1.2,
+        0.4,
+        1.2,
+        0.4
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Acquisition Type:"
+            },
+            {
+              "props": "font1:9:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "radio",
+                "name": "acq_purchase",
+                "value": "purchase",
+                "checked": true,
+                "group_name": "acquisition_type",
+                "shape": "round"
+              }
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Purchase"
+            },
+            {
+              "props": "font1:9:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "radio",
+                "name": "acq_donation",
+                "value": "donation",
+                "checked": false,
+                "group_name": "acquisition_type",
+                "shape": "round"
+              }
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Donation"
+            },
+            {
+              "props": "font1:9:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "radio",
+                "name": "acq_exchange",
+                "value": "exchange",
+                "checked": false,
+                "group_name": "acquisition_type",
+                "shape": "round"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 4,
+      "columnwidths": [
+        1.2,
+        2,
+        1.2,
+        2
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Vendor/Donor:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "BookWorld Distributors LLC",
+              "form_field": {
+                "type": "text",
+                "name": "vendor_donor",
+                "value": "BookWorld Distributors LLC"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Invoice Number:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "INV-BWD-2025-4521",
+              "form_field": {
+                "type": "text",
+                "name": "invoice_number",
+                "value": "INV-BWD-2025-4521"
+              }
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Purchase Price:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "$45.99",
+              "form_field": {
+                "type": "text",
+                "name": "purchase_price",
+                "value": "$45.99"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Order Date:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "12/15/2025",
+              "form_field": {
+                "type": "text",
+                "name": "order_date",
+                "value": "12/15/2025"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:11:100:left:1:1:1:1",
+              "text": "SECTION D: CONDITION ASSESSMENT",
+              "bgcolor": "#E8F4FD",
+              "textcolor": "#1565C0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 8,
+      "columnwidths": [
+        1.5,
+        0.4,
+        1,
+        0.4,
+        1,
+        0.4,
+        1,
+        0.4
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Book Condition:"
+            },
+            {
+              "props": "font1:9:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "radio",
+                "name": "condition_new",
+                "value": "new",
+                "checked": true,
+                "group_name": "book_condition",
+                "shape": "round"
+              }
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "New"
+            },
+            {
+              "props": "font1:9:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "radio",
+                "name": "condition_good",
+                "value": "good",
+                "checked": false,
+                "group_name": "book_condition",
+                "shape": "round"
+              }
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Good"
+            },
+            {
+              "props": "font1:9:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "radio",
+                "name": "condition_fair",
+                "value": "fair",
+                "checked": false,
+                "group_name": "book_condition",
+                "shape": "round"
+              }
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Fair"
+            },
+            {
+              "props": "font1:9:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "radio",
+                "name": "condition_damaged",
+                "value": "damaged",
+                "checked": false,
+                "group_name": "book_condition",
+                "shape": "round"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Inspection Checklist:"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 6,
+      "columnwidths": [
+        0.3,
+        1.5,
+        0.3,
+        1.5,
+        0.3,
+        1.5
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "check_cover",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Cover Intact"
+            },
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "check_spine",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Spine Undamaged"
+            },
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "check_pages",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "All Pages Present"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "check_binding",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Binding Secure"
+            },
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "check_dust_jacket",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Dust Jacket Present"
+            },
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "check_cd_media",
+                "value": "Yes",
+                "checked": false
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "CD/Media Included"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [
+        1,
+        4
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Condition Notes:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Book received in excellent condition. No visible damage or defects noted.",
+              "form_field": {
+                "type": "text",
+                "name": "condition_notes",
+                "value": "Book received in excellent condition. No visible damage or defects noted."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:11:100:left:1:1:1:1",
+              "text": "SECTION E: PROCESSING INFORMATION",
+              "bgcolor": "#E8F4FD",
+              "textcolor": "#1565C0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 4,
+      "columnwidths": [
+        1.2,
+        2,
+        1.2,
+        2
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Received By:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Emily Rodriguez",
+              "form_field": {
+                "type": "text",
+                "name": "received_by",
+                "value": "Emily Rodriguez"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Employee ID:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "EMP-LIB-4521",
+              "form_field": {
+                "type": "text",
+                "name": "employee_id",
+                "value": "EMP-LIB-4521"
+              }
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Shelf Location:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Floor 2, Aisle C, Shelf 14",
+              "form_field": {
+                "type": "text",
+                "name": "shelf_location",
+                "value": "Floor 2, Aisle C, Shelf 14"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Date Cataloged:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "12/31/2025",
+              "form_field": {
+                "type": "text",
+                "name": "date_cataloged",
+                "value": "12/31/2025"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Processing Tasks Completed:"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 4,
+      "columnwidths": [
+        0.3,
+        2,
+        0.3,
+        2
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "task_stamp",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Library Stamp Applied"
+            },
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "task_spine_label",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Spine Label Attached"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "task_barcode",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Barcode Label Applied"
+            },
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "task_catalog",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Added to Catalog System"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "task_security",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Security Strip Inserted"
+            },
+            {
+              "props": "font1:8:000:center:1:1:1:1",
+              "text": "",
+              "form_field": {
+                "type": "checkbox",
+                "name": "task_cover",
+                "value": "Yes",
+                "checked": true
+              }
+            },
+            {
+              "props": "font1:8:000:left:1:1:1:1",
+              "text": "Protective Cover Applied"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:11:100:left:1:1:1:1",
+              "text": "SECTION F: AUTHORIZATION",
+              "bgcolor": "#E8F4FD",
+              "textcolor": "#1565C0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 4,
+      "columnwidths": [
+        1.2,
+        2,
+        1,
+        1.5
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Librarian Signature:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Emily Rodriguez",
+              "form_field": {
+                "type": "text",
+                "name": "librarian_signature",
+                "value": "Emily Rodriguez"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Date:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "12/31/2025",
+              "form_field": {
+                "type": "text",
+                "name": "signature_date",
+                "value": "12/31/2025"
+              }
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Supervisor Approval:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "Dr. Margaret Chen",
+              "form_field": {
+                "type": "text",
+                "name": "supervisor_approval",
+                "value": "Dr. Margaret Chen"
+              }
+            },
+            {
+              "props": "font1:9:100:left:1:1:1:1",
+              "text": "Date:"
+            },
+            {
+              "props": "font1:9:000:left:1:1:1:1",
+              "text": "12/31/2025",
+              "form_field": {
+                "type": "text",
+                "name": "approval_date",
+                "value": "12/31/2025"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:11:100:left:1:1:1:1",
+              "text": "SECTION G: IDENTIFICATION CODES",
+              "bgcolor": "#FFF3E0",
+              "textcolor": "#E65100"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [
+        1,
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:100:center:1:1:1:0",
+              "text": "QR CODE - CATALOG LINK"
+            },
+            {
+              "props": "font1:9:100:center:1:1:1:0",
+              "text": "BARCODE - BOOK ID"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [
+        1,
+        1
+      ],
+      "rowheights": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:9:000:center:1:1:0:1",
+              "height": 150,
+              "image": {
+                "imagename": "qr_code",
+                "imagedata": "iVBORw0KGgoAAAANSUhEUgAAAJYAAACWAQAAAAAUekxPAAABT0lEQVR4nN2WMW7jMBBF35gG6K2oG9AnMX2jXCAOZDj3WvEm0gEWkDoRYPS3SBMkW2xhGkGmIn4xn+SfPzMmPsfb7gsE3x1DA2DzM6ANINQH3UVSH/yoEbxUm3AU61h6LB0gW9/sT8PleNd8/8aiy2s7Dq+ZpU7lWM4k9ffn2IOBPRH9CMUgPKjG36PiRHo/3p83lzPXzqkC5bxcuhbvIEm6jU7AKfQtvJr9bzOr1Mlvflga+BINfgtbkNwInEIDPZA0AG6U1pOX6mP6GtKatIWbagSSGmiEBj+EHpD85jeeW3BIml+CpBGghUY7sqXopv20jyvY/NrM+7MTcU3Kbeogm9mOtyOgwx3y/TcmqQ91cvlgayuOYh0Qy5Fs50YcALxCJGlY/Nxi9gAsdXJj+VVSuHR/GvhS0lU11riCtZgzH/a1uJq28KC+Zj9k3/0LHljGnzd1FPoAAAAASUVORK5CYII=",
+                "width": 150,
+                "height": 150
+              }
+            },
+            {
+              "props": "font1:9:000:center:1:1:0:1",
+              "height": 150,
+              "image": {
+                "imagename": "barcode",
+                "imagedata": "iVBORw0KGgoAAAANSUhEUgAAASwAAABQCAIAAAAsiN8sAAAXqklEQVR4nO2be3AV1RnAv927952b3JAA5gGlaacw3aTyshSLFJ1UWgZro4IttAISnrY4nXaozjgIllbUFsfBPrSaF00ipW1QiyCISkswI20Tg26AmExCEmK8Ibk3uffm3ruP0z++yZll74Mktd04Pb8/MnvPfud7nfPtnj274QghwGAwzIM32wEG4/8dVoQMhsmMrwhVVQWA8+fPi6IoimJXV1c4HBZF8fLlyyiwYMGC06dPoyQKv/LKK6IovvrqqwAQiUQAoKysDLsfPHjwvffeE0Vx3rx5oiiWlJQAwKJFi0RRXLRoEQprmgYAxcXFixcv1ntSVFR04cKF3/3ud6IoSpIEANFoFAA2b968c+dOAHjwwQdFUfzBD34AALIsA0BXV5coig8//DBq+NOf/iSK4le/+lUA+Oc//ymK4o033iiKYnFxMRrduHEj+tnc3AwAoiieP38eAGKxGADcf//9jz76KA3qb3/7myiKVVVVtKWurk4Uxfnz54uiuGHDBlmWi4qKRFG87bbbAOCWW2659dZbAQAfB6LR6OLFi0VRRBmfz7d79260/q9//au2thaPDx061NTUJIpibW0tNVReXr58+XI6OgMDA6IobtmyhQbe0dGB3e+55x5CyMKFC6mhgYGBRx55RBTF3t5eKl9aWory3d3djz766Pbt22l6cbz2798PAN3d3YWFhaIorlixAiMSRfFLX/qSKIqrVq3CJK9cuXL+/PnoGEZ60003nTp1ijq/b98+tPXGG2+8+eaboigeO3aMnn3uuedoDh9++GG/34/CqF8UxTVr1qiqikbRmeHh4R/96Eco1tDQQD3fu3cvVfXYY48BwH333acfQbQuiuKuXbuuXr2Kx6tXr9YnFg0hg4ODfX19oijKsrxp0yZsxBmC8mNHGJc0EgqF6LzXNE2SJIwTABobGwOBAB5j0q9evSpJ0tWrV2lLX18fdv/444+pKhidAU1NTbFYzGazYSUgzc3Nw8PDeh/ef//9cDh85coVSZLC4TBV3tramp2dDQAffvihJEkzZswA3USXJKmoqAg19Pf3S5LkcrkAIBgMUjd8Ph8eXLp0CRtDoRAASJKEB6jt0qVL+rkVCAQkSerr66MtqB9Veb1eQsj777+P4WOYVquVhkMI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",
+                "width": 150,
+                "height": 150
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [
+        1,
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:7:000:center:1:1:1:1",
+              "text": "Scan for catalog entry"
+            },
+            {
+              "props": "font1:7:000:center:1:1:1:1",
+              "text": "LIB-78542136987"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "font1:7:010:center:1:1:1:1",
+              "text": "This document is property of Central City Public Library. For internal use only.",
+              "bgcolor": "#F5F5F5"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "type": "table",
+      "index": 0
+    },
+    {
+      "type": "table",
+      "index": 1
+    },
+    {
+      "type": "table",
+      "index": 2
+    },
+    {
+      "type": "table",
+      "index": 3
+    },
+    {
+      "type": "table",
+      "index": 4
+    },
+    {
+      "type": "table",
+      "index": 5
+    },
+    {
+      "type": "table",
+      "index": 6
+    },
+    {
+      "type": "table",
+      "index": 7
+    },
+    {
+      "type": "table",
+      "index": 8
+    },
+    {
+      "type": "table",
+      "index": 9
+    },
+    {
+      "type": "table",
+      "index": 10
+    },
+    {
+      "type": "table",
+      "index": 11
+    },
+    {
+      "type": "table",
+      "index": 12
+    },
+    {
+      "type": "table",
+      "index": 13
+    },
+    {
+      "type": "table",
+      "index": 14
+    },
+    {
+      "type": "table",
+      "index": 15
+    },
+    {
+      "type": "table",
+      "index": 16
+    },
+    {
+      "type": "table",
+      "index": 17
+    },
+    {
+      "type": "table",
+      "index": 18
+    },
+    {
+      "type": "table",
+      "index": 19
+    },
+    {
+      "type": "table",
+      "index": 20
+    },
+    {
+      "type": "table",
+      "index": 21
+    },
+    {
+      "type": "table",
+      "index": 22
+    }
+  ],
+  "footer": {
+    "font": "font1:7:000:center",
+    "text": "CENTRAL CITY PUBLIC LIBRARY - BOOK RECEIVING DEPARTMENT - Form LBR-2025"
+  }
+}
