@@ -135,7 +135,17 @@ func escapeText(s string) string {
 // getFontReference returns the appropriate font reference based on the font name
 // and style properties. If a specific font name is provided (e.g., "Helvetica-Bold"),
 // it takes precedence. Otherwise, falls back to using bold/italic style flags.
+// For custom fonts, checks the font registry and returns the custom font reference.
 func getFontReference(props models.Props) string {
+	// First, check if this is a custom font
+	registry := GetFontRegistry()
+	if registry.HasFont(props.FontName) {
+		ref := registry.GetFontReference(props.FontName)
+		if ref != "" {
+			return ref
+		}
+	}
+
 	// Check if FontName directly specifies a font variant
 	switch props.FontName {
 	// Helvetica family (F1-F4)
@@ -205,4 +215,47 @@ func escapePDFString(s string) string {
 		}
 	}
 	return sb.String()
+}
+
+// isCustomFont checks if the font name refers to a registered custom font
+func isCustomFont(fontName string) bool {
+	registry := GetFontRegistry()
+	return registry.HasFont(fontName)
+}
+
+// markFontUsage marks characters as used for font subsetting
+func markFontUsage(fontName string, text string) {
+	if isCustomFont(fontName) {
+		registry := GetFontRegistry()
+		registry.MarkCharsUsed(fontName, text)
+	}
+}
+
+// EstimateTextWidth estimates the width of text in points for a given font and size
+// Uses actual glyph widths for custom fonts, approximation for standard fonts
+func EstimateTextWidth(fontName string, text string, fontSize float64) float64 {
+	registry := GetFontRegistry()
+	if registry.HasFont(fontName) {
+		return registry.GetScaledTextWidth(fontName, text, fontSize)
+	}
+
+	// Approximation for standard fonts (average character width ~0.5-0.6 em)
+	avgCharWidth := 0.5
+	switch fontName {
+	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
+		avgCharWidth = 0.6 // Monospace is wider
+	case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
+		avgCharWidth = 0.45 // Times is slightly narrower
+	}
+
+	return float64(len([]rune(text))) * fontSize * avgCharWidth
+}
+
+// formatTextForPDF formats text for use in a PDF content stream
+// For custom fonts, returns hex-encoded string; for standard fonts, returns escaped literal
+func formatTextForPDF(fontName string, text string) string {
+	if isCustomFont(fontName) {
+		return EncodeTextForCustomFont(text)
+	}
+	return "(" + escapePDFString(text) + ")"
 }

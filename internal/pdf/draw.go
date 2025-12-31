@@ -136,7 +136,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	pageManager.CurrentYPos -= float64(titleProps.FontSize)
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(titleX), fmtNum(pageManager.CurrentYPos)))
-	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", title.Text))
+	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(titleProps.FontName, title.Text)))
 	contentStream.WriteString("ET\n")
 }
 
@@ -354,7 +354,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
 				}
 
-				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
+				contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(cellProps.FontName, cell.Text)))
 				contentStream.WriteString("ET\n")
 			}
 
@@ -628,7 +628,7 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
 				}
 
-				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
+				contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(cellProps.FontName, cell.Text)))
 				contentStream.WriteString("ET\n")
 			}
 
@@ -683,7 +683,7 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer) {
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%d %d Td\n", footerX, footerY))
-	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", footer.Text))
+	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(footerProps.FontName, footer.Text)))
 	contentStream.WriteString("ET\n")
 }
 

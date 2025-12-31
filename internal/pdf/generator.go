@@ -28,6 +28,38 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Initialize page manager with Arlington compatibility flag
 	pageManager := NewPageManager(pageDims, template.Config.ArlingtonCompatible)
 
+	// Reset font registry usage tracking for this PDF
+	fontRegistry := GetFontRegistry()
+	fontRegistry.ResetUsage()
+
+	// Load custom fonts from config
+	for _, fontConfig := range template.Config.CustomFonts {
+		if fontConfig.Name == "" {
+			continue
+		}
+		if fontConfig.FontData != "" {
+			// Load from base64 data
+			if err := fontRegistry.RegisterFontFromBase64(fontConfig.Name, fontConfig.FontData); err != nil {
+				// Log error but continue
+				fmt.Printf("Warning: failed to load custom font %s from data: %v\n", fontConfig.Name, err)
+			}
+		} else if fontConfig.FilePath != "" {
+			// Load from file path
+			if err := fontRegistry.RegisterFontFromFile(fontConfig.Name, fontConfig.FilePath); err != nil {
+				// Log error but continue
+				fmt.Printf("Warning: failed to load custom font %s from file: %v\n", fontConfig.Name, err)
+			}
+		}
+	}
+
+	// Pre-scan template to mark all font usage for subsetting
+	scanTemplateForFontUsage(template, fontRegistry)
+
+	// Generate font subsets
+	if err := fontRegistry.GenerateSubsets(); err != nil {
+		fmt.Printf("Warning: failed to generate font subsets: %v\n", err)
+	}
+
 	// Process images and create XObjects
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
 	imageObjectIDs := make(map[int]int)        // map imageIndex to PDF object ID
@@ -152,6 +184,17 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		widthsArrayStart = fontDescriptorStart + numFonts // Widths arrays start after descriptors
 	}
 
+	// Assign object IDs to custom fonts (after standard fonts)
+	customFontObjectStart := fontObjectStart + numFonts
+	if template.Config.ArlingtonCompatible {
+		// In Arlington mode, standard fonts use more objects
+		customFontObjectStart = widthsArrayStart + 10 // After widths arrays (estimated)
+	}
+	customFontObjectStart = fontRegistry.AssignObjectIDs(customFontObjectStart)
+
+	// Build custom font resource references
+	customFontRefs := fontRegistry.GeneratePDFFontResources()
+
 	// Build XObject references for page resources (standalone images + cell images)
 	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /X0 for appearance streams
 	xobjectRefs := ""
@@ -213,11 +256,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			pageDims.Width, pageDims.Height))
 		pdfBuffer.WriteString(fmt.Sprintf("/Contents %d 0 R ", contentObjectStart+i))
 		// Include all 14 standard PDF fonts: Helvetica (F1-F4), Times (F5-F8), Courier (F9-F12), Symbol (F13), ZapfDingbats (F14)
-		pdfBuffer.WriteString(fmt.Sprintf("/Resources << /Font << /F1 %d 0 R /F2 %d 0 R /F3 %d 0 R /F4 %d 0 R /F5 %d 0 R /F6 %d 0 R /F7 %d 0 R /F8 %d 0 R /F9 %d 0 R /F10 %d 0 R /F11 %d 0 R /F12 %d 0 R /F13 %d 0 R /F14 %d 0 R >>%s >>%s >>\n",
+		// Also include any custom fonts that are used
+		pdfBuffer.WriteString(fmt.Sprintf("/Resources << /Font << /F1 %d 0 R /F2 %d 0 R /F3 %d 0 R /F4 %d 0 R /F5 %d 0 R /F6 %d 0 R /F7 %d 0 R /F8 %d 0 R /F9 %d 0 R /F10 %d 0 R /F11 %d 0 R /F12 %d 0 R /F13 %d 0 R /F14 %d 0 R%s >>%s >>%s >>\n",
 			fontObjectStart, fontObjectStart+1, fontObjectStart+2, fontObjectStart+3,
 			fontObjectStart+4, fontObjectStart+5, fontObjectStart+6, fontObjectStart+7,
 			fontObjectStart+8, fontObjectStart+9, fontObjectStart+10, fontObjectStart+11,
-			fontObjectStart+12, fontObjectStart+13, xobjectRefs, annotsStr))
+			fontObjectStart+12, fontObjectStart+13, customFontRefs, xobjectRefs, annotsStr))
 		pdfBuffer.WriteString("endobj\n")
 	}
 
@@ -320,6 +364,16 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	for _, imgObj := range cellImageObjects {
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
 		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+	}
+
+	// Generate custom font objects (TrueType/OpenType embedded fonts)
+	usedFonts := fontRegistry.GetUsedFonts()
+	for _, font := range usedFonts {
+		fontObjects := GenerateTrueTypeFontObjects(font)
+		for objID, content := range fontObjects {
+			xrefOffsets[objID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", objID, content))
+		}
 	}
 
 	// Generate Extra Objects (Widgets, Appearance Streams, AcroForm)
@@ -537,5 +591,68 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		}
 		// Draw page number on this page
 		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions)
+	}
+}
+
+// scanTemplateForFontUsage scans all text in template and marks font usage for subsetting
+func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontRegistry) {
+	// Scan title
+	if template.Title.Text != "" {
+		props := parseProps(template.Title.Props)
+		if registry.HasFont(props.FontName) {
+			registry.MarkCharsUsed(props.FontName, template.Title.Text)
+		}
+	}
+
+	// Scan title table if present
+	if template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					props := parseProps(cell.Props)
+					if registry.HasFont(props.FontName) {
+						registry.MarkCharsUsed(props.FontName, cell.Text)
+					}
+				}
+			}
+		}
+	}
+
+	// Scan tables
+	for _, table := range template.Table {
+		for _, row := range table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					props := parseProps(cell.Props)
+					if registry.HasFont(props.FontName) {
+						registry.MarkCharsUsed(props.FontName, cell.Text)
+					}
+				}
+			}
+		}
+	}
+
+	// Scan elements (ordered)
+	for _, elem := range template.Elements {
+		if elem.Type == "table" && elem.Table != nil {
+			for _, row := range elem.Table.Rows {
+				for _, cell := range row.Row {
+					if cell.Text != "" {
+						props := parseProps(cell.Props)
+						if registry.HasFont(props.FontName) {
+							registry.MarkCharsUsed(props.FontName, cell.Text)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Scan footer
+	if template.Footer.Text != "" {
+		props := parseProps(template.Footer.Font)
+		if registry.HasFont(props.FontName) {
+			registry.MarkCharsUsed(props.FontName, template.Footer.Text)
+		}
 	}
 }
