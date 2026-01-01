@@ -96,10 +96,41 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Pass imageObjects, imageObjectIDs and cellImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs)
 
-	// Collect all widget IDs for AcroForm
+	// Build document outlines (bookmarks) if provided
+	outlineBuilder := NewOutlineBuilder(pageManager)
+	outlineObjID := outlineBuilder.BuildOutlines(template.Config.Bookmarks)
+
+	// Get named destinations for internal links
+	namesObjID, hasNames := outlineBuilder.GetNamedDestinations()
+
+	// Setup PDF/A handler if enabled
+	var pdfaHandler *PDFAHandler
+	if template.Config.PDFA != nil && template.Config.PDFA.Enabled {
+		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager)
+	}
+
+	// Setup digital signature if enabled
+	var pdfSigner *PDFSigner
+	var sigIDs *SignatureIDs
+	if template.Config.Signature != nil && template.Config.Signature.Enabled {
+		var err error
+		pdfSigner, err = NewPDFSigner(template.Config.Signature)
+		if err == nil && pdfSigner != nil {
+			sigIDs = pdfSigner.CreateSignatureField(pageManager, pageDims)
+		}
+	}
+
+	// Collect all widget IDs for AcroForm (filter out link annotations)
 	var allWidgetIDs []int
 	for _, annots := range pageManager.PageAnnots {
-		allWidgetIDs = append(allWidgetIDs, annots...)
+		for _, annotID := range annots {
+			// Check if this is a widget annotation (not a link)
+			if content, exists := pageManager.ExtraObjects[annotID]; exists {
+				if strings.Contains(content, "/Subtype /Widget") {
+					allWidgetIDs = append(allWidgetIDs, annotID)
+				}
+			}
+		}
 	}
 
 	// Object 1: Catalog with accessibility and compliance improvements
@@ -107,8 +138,25 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
 	// Add language tag for accessibility (PDF/UA requirement)
 	pdfBuffer.WriteString(" /Lang (en-US)")
-	// Add MarkInfo to indicate this is a tagged PDF (even if minimal)
-	pdfBuffer.WriteString(" /MarkInfo << /Marked false >>")
+
+	// Add PDF/A specific entries or default MarkInfo
+	if pdfaHandler != nil {
+		// PDF/A entries will be added after we generate metadata/outputintent objects
+		// For now, skip MarkInfo as it will be added via pdfaHandler
+	} else {
+		// Add MarkInfo to indicate this is a tagged PDF (even if minimal)
+		pdfBuffer.WriteString(" /MarkInfo << /Marked false >>")
+	}
+
+	// Add outlines (bookmarks) if present
+	if outlineObjID > 0 {
+		pdfBuffer.WriteString(fmt.Sprintf(" /Outlines %d 0 R", outlineObjID))
+		pdfBuffer.WriteString(" /PageMode /UseOutlines") // Show bookmark panel by default
+	}
+	// Add named destinations if present
+	if hasNames {
+		pdfBuffer.WriteString(fmt.Sprintf(" /Names %d 0 R", namesObjID))
+	}
 	if len(allWidgetIDs) > 0 {
 		// Create AcroForm object
 		acroFormID := pageManager.NextObjectID
@@ -121,11 +169,28 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 		fieldsRef.WriteString("]")
 
-		// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
-		acroFormContent := fmt.Sprintf("<< /Fields %s /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
+		// Build AcroForm content - include SigFlags if signatures are present
+		var acroFormContent string
+		if sigIDs != nil {
+			// SigFlags 3 = SignaturesExist (1) + AppendOnly (2)
+			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (/Helv 0 Tf 0 g) /SigFlags %d >>", fieldsRef.String(), GetAcroFormSigFlags())
+		} else {
+			// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
+			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
+		}
 		pageManager.ExtraObjects[acroFormID] = acroFormContent
 
 		pdfBuffer.WriteString(fmt.Sprintf(" /AcroForm %d 0 R", acroFormID))
+	}
+
+	// Store position where we'll need to inject PDF/A references
+	// For now we close the catalog and will rebuild it if needed
+	catalogEndPlaceholder := ""
+	if pdfaHandler != nil {
+		// Reserve space for metadata and outputintent references
+		// These will be set after we generate those objects
+		catalogEndPlaceholder = " /Metadata %METADATA% /OutputIntents [%OUTPUTINTENT%]"
+		pdfBuffer.WriteString(catalogEndPlaceholder)
 	}
 	pdfBuffer.WriteString(" >>\nendobj\n")
 
@@ -328,6 +393,48 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", id, content))
 	}
 
+	// Generate PDF/A metadata objects if enabled
+	if pdfaHandler != nil {
+		// Generate XMP metadata
+		docIDForXMP := fmt.Sprintf("%x", time.Now().UnixNano())
+		metadataObjID, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
+		xrefOffsets[metadataObjID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", metadataObjID, metadataContent))
+
+		// Generate OutputIntent with ICC profile
+		outputIntentObjID, outputIntentObjs := pdfaHandler.GenerateOutputIntent()
+		iccObjID := pdfaHandler.GetICCProfileObjID()
+
+		// Write ICC profile object (with stream)
+		if len(outputIntentObjs) > 0 {
+			xrefOffsets[iccObjID] = pdfBuffer.Len()
+			// ICC profile needs raw data appended
+			iccData := getSRGBICCProfile()
+			pdfBuffer.WriteString(outputIntentObjs[0])
+			pdfBuffer.Write(iccData)
+			pdfBuffer.WriteString("\nendstream\nendobj\n")
+		}
+
+		// Write OutputIntent object
+		if len(outputIntentObjs) > 1 {
+			xrefOffsets[outputIntentObjID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(outputIntentObjs[1])
+			pdfBuffer.WriteString("\n")
+		}
+
+		// Update catalog with PDF/A references
+		// We need to rebuild the catalog object
+		catalogContent := pdfBuffer.String()
+
+		// Find and replace the placeholder in catalog
+		if strings.Contains(catalogContent, "%METADATA%") {
+			catalogContent = strings.Replace(catalogContent, "%METADATA%", fmt.Sprintf("%d 0 R", metadataObjID), 1)
+			catalogContent = strings.Replace(catalogContent, "%OUTPUTINTENT%", fmt.Sprintf("%d 0 R", outputIntentObjID), 1)
+			pdfBuffer.Reset()
+			pdfBuffer.WriteString(catalogContent)
+		}
+	}
+
 	// Generate Info dictionary - keeping minimal for PDF 2.0
 	// Note: Producer, Creator, Title are deprecated in PDF 2.0 but still widely used
 	// For full compliance, these should be in XMP metadata stream instead
@@ -341,12 +448,35 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
 	pdfBuffer.WriteString("endobj\n")
 
+	// Setup encryption if security config is provided
+	var encryption *PDFEncryption
+	var encryptObjID int
+	if template.Config.Security != nil && template.Config.Security.OwnerPassword != "" {
+		// Generate document ID first (needed for encryption)
+		docID := GenerateDocumentID(pdfBuffer.Bytes())
+
+		var err error
+		encryption, err = NewPDFEncryption(template.Config.Security, docID)
+		if err == nil {
+			// Create encryption dictionary object
+			encryptObjID = pageManager.NextObjectID
+			pageManager.NextObjectID++
+			xrefOffsets[encryptObjID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", encryptObjID, encryption.GetEncryptDictionary(encryptObjID)))
+		}
+	}
+
 	// Generate Document ID (two MD5 hashes - one based on content, one random)
-	contentHash := md5.Sum(pdfBuffer.Bytes())
-	randomBytes := make([]byte, 16)
-	rand.Read(randomBytes)
-	randomHash := md5.Sum(randomBytes)
-	documentID := fmt.Sprintf("[<%s> <%s>]", hex.EncodeToString(contentHash[:]), hex.EncodeToString(randomHash[:]))
+	var documentID string
+	if encryption != nil {
+		documentID = FormatDocumentID(encryption.DocumentID)
+	} else {
+		contentHash := md5.Sum(pdfBuffer.Bytes())
+		randomBytes := make([]byte, 16)
+		rand.Read(randomBytes)
+		randomHash := md5.Sum(randomBytes)
+		documentID = fmt.Sprintf("[<%s> <%s>]", hex.EncodeToString(contentHash[:]), hex.EncodeToString(randomHash[:]))
+	}
 
 	// Build compact XRef table - collect all used object IDs and sort them
 	usedObjects := make([]int, 0, len(xrefOffsets)+1)
@@ -405,17 +535,31 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
-	// Trailer with Info and ID
-	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s >>\n", totalObjects, infoObjectID, documentID))
+	// Trailer with Info, ID, and optional Encrypt reference
+	trailerExtra := ""
+	if encryptObjID > 0 {
+		trailerExtra = fmt.Sprintf(" /Encrypt %d 0 R", encryptObjID)
+	}
+	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s%s >>\n", totalObjects, infoObjectID, documentID, trailerExtra))
 	pdfBuffer.WriteString("startxref\n")
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
+
+	// Apply digital signature if configured
+	finalPDF := pdfBuffer.Bytes()
+	if pdfSigner != nil && sigIDs != nil {
+		signedPDF, err := UpdatePDFWithSignature(finalPDF, pdfSigner)
+		if err == nil {
+			finalPDF = signedPDF
+		}
+		// If signing fails, we still return the unsigned PDF
+	}
 
 	// HTTP Response
 	filename := fmt.Sprintf("template-pdf-%d.pdf", time.Now().Unix())
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "attachment; filename="+filename)
-	c.Data(http.StatusOK, "application/pdf", pdfBuffer.Bytes())
+	c.Data(http.StatusOK, "application/pdf", finalPDF)
 }
 
 // generateAllContentWithImages processes the template and generates content with image support

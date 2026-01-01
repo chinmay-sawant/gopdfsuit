@@ -23,11 +23,73 @@ type Element struct {
 }
 
 type Config struct {
-	PageBorder          string `json:"pageBorder"`
-	Page                string `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
-	PageAlignment       int    `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
-	Watermark           string `json:"watermark,omitempty"`           // Optional diagonal watermark text
-	ArlingtonCompatible bool   `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
+	PageBorder          string           `json:"pageBorder"`
+	Page                string           `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
+	PageAlignment       int              `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
+	Watermark           string           `json:"watermark,omitempty"`           // Optional diagonal watermark text
+	ArlingtonCompatible bool             `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
+	Bookmarks           []Bookmark       `json:"bookmarks,omitempty"`           // Document outline/bookmarks for navigation
+	Security            *SecurityConfig  `json:"security,omitempty"`            // Password protection and encryption settings
+	PDFA                *PDFAConfig      `json:"pdfa,omitempty"`                // PDF/A compliance settings
+	Signature           *SignatureConfig `json:"signature,omitempty"`           // Digital signature settings
+}
+
+// Bookmark represents a PDF outline entry for document navigation
+type Bookmark struct {
+	Title    string     `json:"title"`              // Display text in bookmark panel
+	Dest     string     `json:"dest,omitempty"`     // Named destination (matches cell link #dest)
+	Page     int        `json:"page,omitempty"`     // Target page number (1-based), used if Dest is empty
+	Y        float64    `json:"y,omitempty"`        // Y position on target page (from top)
+	Children []Bookmark `json:"children,omitempty"` // Nested bookmarks for hierarchical structure
+	Open     bool       `json:"open,omitempty"`     // Whether children are expanded by default
+}
+
+// SecurityConfig holds PDF encryption and permission settings
+type SecurityConfig struct {
+	UserPassword  string `json:"userPassword,omitempty"` // Password to open document (empty = no password to open)
+	OwnerPassword string `json:"ownerPassword"`          // Password for full access (required for encryption)
+	// Permissions control what users can do with the document
+	AllowPrinting         bool `json:"allowPrinting,omitempty"`         // Allow printing (default: true)
+	AllowModifying        bool `json:"allowModifying,omitempty"`        // Allow modifying content
+	AllowCopying          bool `json:"allowCopying,omitempty"`          // Allow copying text/images
+	AllowAnnotations      bool `json:"allowAnnotations,omitempty"`      // Allow adding annotations
+	AllowFormFilling      bool `json:"allowFormFilling,omitempty"`      // Allow filling form fields
+	AllowAccessibility    bool `json:"allowAccessibility,omitempty"`    // Allow accessibility features
+	AllowAssembly         bool `json:"allowAssembly,omitempty"`         // Allow document assembly
+	AllowHighQualityPrint bool `json:"allowHighQualityPrint,omitempty"` // Allow high quality printing
+}
+
+// PDFAConfig holds PDF/A compliance settings
+type PDFAConfig struct {
+	Enabled     bool   `json:"enabled"`               // Enable PDF/A compliance
+	Conformance string `json:"conformance,omitempty"` // PDF/A conformance level: "1b", "2b", "3b" (default: "3b")
+	Title       string `json:"title,omitempty"`       // Document title for XMP metadata
+	Author      string `json:"author,omitempty"`      // Document author for XMP metadata
+	Subject     string `json:"subject,omitempty"`     // Document subject for XMP metadata
+	Creator     string `json:"creator,omitempty"`     // Creating application name
+	Keywords    string `json:"keywords,omitempty"`    // Document keywords (comma-separated)
+}
+
+// SignatureConfig holds digital signature settings
+type SignatureConfig struct {
+	Enabled          bool     `json:"enabled"`                    // Enable digital signing
+	CertificatePEM   string   `json:"certificatePem"`             // PEM-encoded X.509 certificate
+	PrivateKeyPEM    string   `json:"privateKeyPem"`              // PEM-encoded private key (RSA or ECDSA)
+	CertificateChain []string `json:"certificateChain,omitempty"` // Optional intermediate certificates
+
+	// Signature appearance
+	Visible bool    `json:"visible,omitempty"` // Show visible signature stamp
+	Page    int     `json:"page,omitempty"`    // Page number for visible signature (1-based, default: 1)
+	X       float64 `json:"x,omitempty"`       // X position for visible signature
+	Y       float64 `json:"y,omitempty"`       // Y position for visible signature
+	Width   float64 `json:"width,omitempty"`   // Width of visible signature (default: 200)
+	Height  float64 `json:"height,omitempty"`  // Height of visible signature (default: 50)
+
+	// Signature info
+	Reason      string `json:"reason,omitempty"`      // Reason for signing
+	Location    string `json:"location,omitempty"`    // Location of signing
+	ContactInfo string `json:"contactInfo,omitempty"` // Contact information
+	Name        string `json:"name,omitempty"`        // Signer name (overrides certificate CN)
 }
 
 type Title struct {
@@ -93,6 +155,10 @@ type Cell struct {
 	// Format: hexadecimal color code (e.g., "#FF0000" for red). Default is black.
 	// Takes precedence over table-level TextColor.
 	TextColor string `json:"textcolor,omitempty"`
+	// Link is an optional hyperlink for this cell.
+	// External links: Use full URL (e.g., "https://example.com")
+	// Internal links: Use bookmark name prefixed with # (e.g., "#section1")
+	Link string `json:"link,omitempty"`
 }
 
 type FormField struct {

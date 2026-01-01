@@ -653,6 +653,11 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				}
 				contentStream.WriteString("Q\n")
 			}
+
+			// Create link annotation if cell has a link
+			if cell.Link != "" {
+				DrawCellLink(cell.Link, cellX, pageManager.CurrentYPos-cellHeight, cellWidth, cellHeight, pageManager)
+			}
 		}
 
 		pageManager.CurrentYPos -= rowHeight
