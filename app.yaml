@@ -1,0 +1,8 @@
+runtime: go123  # Specifically targets the Go 1.23 runtime
+instance_class: F1
+
+# Use this if your main package is not in the root directory
+main: ./cmd/gopdfsuit 
+
+env_variables:
+  APP_ENV: "production"
