@@ -42,5 +42,10 @@ WORKDIR /app
 COPY --from=builder /app/server .
 COPY --from=builder /app/docs ./docs
 
+# Set the project root explicitly for the application to find docs folder
+ENV GOPDFSUIT_ROOT="/app"
+# Expose port if the app serves on a port (assuming 8080, adjust if needed)
+EXPOSE 8080
+
 # Cloud Run expects the app to listen on $PORT
 CMD ["./server"]

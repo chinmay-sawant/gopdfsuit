@@ -44,7 +44,7 @@ gdocker:
 	docker build -t gopdfsuit . 
 
 gdocker-run:
-	docker run -p 8080:8080 --name gopdfsuit gopdfsuit 
-
+	docker run --rm -p 8080:8080 -d --name gopdfsuit gopdfsuit
+	
 .PHONY: build test clean run fmt vet mod
 
