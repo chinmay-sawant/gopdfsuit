@@ -10,6 +10,9 @@ RUN go mod download
 # (e.g., cmd/ for entrypoint, internal/ for logic)
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
+COPY docs/ ./docs/
+COPY README.md ./
+COPY LICENSE ./
 
 # Build statically linked binary
 RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/gopdfsuit/main.go
@@ -37,6 +40,7 @@ ENV CHROME_PATH="/usr/bin/google-chrome-stable"
 
 WORKDIR /app
 COPY --from=builder /app/server .
+COPY --from=builder /app/docs ./docs
 
 # Cloud Run expects the app to listen on $PORT
 CMD ["./server"]
