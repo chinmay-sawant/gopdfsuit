@@ -45,6 +45,18 @@ gdocker:
 
 gdocker-run:
 	docker run --rm -p 8080:8080 -d --name gopdfsuit gopdfsuit
-	
+
+gdocker-push:
+	gcloud builds submit --tag us-east1-docker.pkg.dev/gopdfsuit/gopdfsuit/gopdfsuit-app .	
+	gcloud run deploy gopdfsuit-service \
+    --image us-east1-docker.pkg.dev/gopdfsuit/gopdfsuit/gopdfsuit-app \
+    --region us-east1 \
+    --platform managed \
+    --allow-unauthenticated \
+    --max-instances 1 \
+    --concurrency 80 \
+    --cpu 1 \
+    --memory 512Mi
+
 .PHONY: build test clean run fmt vet mod
 
