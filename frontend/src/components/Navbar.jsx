@@ -40,7 +40,7 @@ const Navbar = () => {
       )}
       
       <nav className="navbar" style={{ padding: '0.75rem 0' }}>
-        <div className="container">
+        <div className="container-full">
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -66,7 +66,7 @@ const Navbar = () => {
           {/* Desktop Menu */}
           <div style={{
             display: 'flex',
-            gap: '1rem',
+            gap: '0.5rem',
             alignItems: 'center',
             '@media (max-width: 768px)': {
               display: 'none',
@@ -82,7 +82,7 @@ const Navbar = () => {
                   gap: '0.5rem',
                   color: location.pathname === path ? 'var(--secondary-color)' : 'hsl(var(--muted-foreground))',
                   textDecoration: 'none',
-                  padding: '0.5rem 1rem',
+                  padding: '0.5rem 0.75rem',
                   borderRadius: '6px',
                   transition: 'all 0.3s ease',
                   background: location.pathname === path ? 'color-mix(in hsl, var(--secondary-color) 15%, transparent)' : 'transparent',
@@ -133,15 +133,18 @@ const Navbar = () => {
             {/* User Profile and Sign Out - only show when authenticated and auth is required */}
             {authRequired && isAuthenticated && user && (
               <>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.75rem',
-                  padding: '0.4rem 0.8rem',
-                  borderRadius: '8px',
-                  border: '1px solid hsl(var(--border))',
-                  background: 'hsl(var(--card))'
-                }}>
+                <div 
+                  title={user.email}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.5rem',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '8px',
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--card))',
+                    maxWidth: '200px'
+                  }}>
                   {user.picture && (
                     <img 
                       src={user.picture} 
@@ -154,19 +157,25 @@ const Navbar = () => {
                       }}
                     />
                   )}
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <span style={{ 
                       fontSize: '0.8rem', 
                       fontWeight: '600',
                       color: 'hsl(var(--foreground))',
-                      lineHeight: '1.2'
+                      lineHeight: '1.2',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
                     }}>
                       {user.name}
                     </span>
                     <span style={{ 
                       fontSize: '0.7rem', 
                       color: 'hsl(var(--muted-foreground))',
-                      lineHeight: '1.2'
+                      lineHeight: '1.2',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
                     }}>
                       {user.email}
                     </span>
@@ -189,6 +198,7 @@ const Navbar = () => {
                     fontSize: '0.875rem',
                     fontWeight: '500',
                     transition: 'all 0.3s ease',
+                    whiteSpace: 'nowrap'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.opacity = '0.9'
