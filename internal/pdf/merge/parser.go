@@ -105,31 +105,18 @@ func FindEndObj(data []byte, pos int) int {
 			continue
 		}
 
-		// Check for string literal (...)
-		if data[i] == '(' {
+		switch {
+		case data[i] == '(':
 			i = SkipStringLiteral(data, i)
-			continue
-		}
-
-		// Check for hex string <...>
-		if data[i] == '<' && i+1 < n && data[i+1] != '<' {
+		case data[i] == '<' && i+1 < n && data[i+1] != '<':
 			i = SkipHexString(data, i)
-			continue
-		}
-
-		// Check for dictionary <<...>>
-		if data[i] == '<' && i+1 < n && data[i+1] == '<' {
+		case data[i] == '<' && i+1 < n && data[i+1] == '<':
 			i = SkipDictionary(data, i)
-			continue
-		}
-
-		// Check for array [...]
-		if data[i] == '[' {
+		case data[i] == '[':
 			i = SkipArray(data, i)
-			continue
+		default:
+			i++
 		}
-
-		i++
 	}
 
 	return -1
@@ -147,9 +134,10 @@ func SkipStringLiteral(data []byte, pos int) int {
 			i += 2 // skip escaped character
 			continue
 		}
-		if data[i] == '(' {
+		switch data[i] {
+		case '(':
 			depth++
-		} else if data[i] == ')' {
+		case ')':
 			depth--
 		}
 		i++
@@ -177,25 +165,22 @@ func SkipDictionary(data []byte, pos int) int {
 	i := pos + 2
 	depth := 1
 	for i < len(data) && depth > 0 {
-		if data[i] == '(' {
+		switch {
+		case data[i] == '(':
 			i = SkipStringLiteral(data, i)
-			continue
-		}
-		if data[i] == '<' {
+		case data[i] == '<':
 			if i+1 < len(data) && data[i+1] == '<' {
 				depth++
 				i += 2
-				continue
+			} else {
+				i = SkipHexString(data, i)
 			}
-			i = SkipHexString(data, i)
-			continue
-		}
-		if data[i] == '>' && i+1 < len(data) && data[i+1] == '>' {
+		case data[i] == '>' && i+1 < len(data) && data[i+1] == '>':
 			depth--
 			i += 2
-			continue
+		default:
+			i++
 		}
-		i++
 	}
 	return i
 }
@@ -220,9 +205,10 @@ func SkipArray(data []byte, pos int) int {
 			}
 			continue
 		}
-		if data[i] == '[' {
+		switch data[i] {
+		case '[':
 			depth++
-		} else if data[i] == ']' {
+		case ']':
 			depth--
 		}
 		i++
@@ -280,7 +266,7 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 
 // HasSubstring checks if data contains substring
 func HasSubstring(data, sub []byte) bool {
-	return bytes.Index(data, sub) >= 0
+	return bytes.Contains(data, sub)
 }
 
 // IsPageObject checks if the object body is a Page object

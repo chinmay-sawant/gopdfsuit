@@ -819,7 +819,8 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 	widgetDict.WriteString(fmt.Sprintf(" /T (%s)", escapeText(field.Name)))
 	widgetDict.WriteString(" /F 4") // Print flag
 
-	if field.Type == "checkbox" {
+	switch field.Type {
+	case "checkbox":
 		widgetDict.WriteString(" /FT /Btn")
 
 		onState := "/Yes"
@@ -843,7 +844,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 
 		widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /Yes %d 0 R /Off %d 0 R >> >>", onAPID, offAPID))
 
-	} else if field.Type == "radio" {
+	case "radio":
 		widgetDict.WriteString(" /FT /Btn /Ff 49152") // Radio button flag
 
 		onState := "/" + field.Value
@@ -908,7 +909,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 
 			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
 		}
-	} else if field.Type == "text" {
+	case "text":
 		widgetDict.WriteString(" /FT /Tx") // Text field
 		widgetDict.WriteString(fmt.Sprintf(" /V (%s)", escapeText(field.Value)))
 
