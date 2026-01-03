@@ -27,6 +27,9 @@ clean:
 	rm -rf bin/
 
 run:
+	export VITE_IS_CLOUD_RUN=false;\
+	export VITE_ENVIRONMENT=local;\
+	export VITE_API_URL=http://localhost:8080;\
 	cd frontend && npm run build && cd ..
 	go run cmd/gopdfsuit/main.go
 
@@ -40,13 +43,16 @@ mod:
 	go mod tidy
 
 gdocker:
+	cd frontend && npm run build && cd ..
 	docker rm -f gopdfsuit
 	docker build -t gopdfsuit . 
 
 gdocker-run:
-	docker run --rm -p 8080:8080 -d --name gopdfsuit gopdfsuit
+	docker run --rm -p 8081:8080 -d --name gopdfsuit gopdfsuit
 
 gdocker-push:
+	export VITE_IS_CLOUD_RUN=true;\
+	export VITE_ENVIRONMENT=cloudrun;\
 	gcloud builds submit --tag us-east1-docker.pkg.dev/gopdfsuit/gopdfsuit/gopdfsuit-app .	
 	gcloud run deploy gopdfsuit-service \
     --image us-east1-docker.pkg.dev/gopdfsuit/gopdfsuit/gopdfsuit-app \
@@ -56,7 +62,8 @@ gdocker-push:
     --max-instances 1 \
     --concurrency 80 \
     --cpu 1 \
-    --memory 512Mi
+    --memory 512Mi \
+	--env-vars-file .env
 
 .PHONY: build test clean run fmt vet mod
 

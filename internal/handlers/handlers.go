@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/chinmay-sawant/gopdfsuit/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/internal/pdf"
 	"github.com/gin-gonic/gin"
@@ -84,19 +85,22 @@ func RegisterRoutes(router *gin.Engine) {
 	router.Static("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
 	router.Static("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
 
-	// API endpoints
+	// API endpoints - protected with Google OAuth when running on Cloud Run
 	v1 := router.Group("/api/v1")
-	v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
-	v1.POST("/fill", handleFillPDF)
-	v1.POST("/merge", handleMergePDFs)
-	v1.GET("/template-data", handleGetTemplateData)
-	v1.GET("/fonts", handleGetFonts)
+	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run
+	{
+		v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
+		v1.POST("/fill", handleFillPDF)
+		v1.POST("/merge", handleMergePDFs)
+		v1.GET("/template-data", handleGetTemplateData)
+		v1.GET("/fonts", handleGetFonts)
 
-	// HTML to PDF/Image endpoints (powered by gochromedp)
-	v1.POST("/htmltopdf", handlehtmlToPDF)
-	v1.POST("/htmltoimage", handlehtmlToImage)
-	// v1.GET("/htmltopdf", handlehtmlToPDF)
-	// v1.GET("/htmltoimage", handlehtmlToImage)
+		// HTML to PDF/Image endpoints (powered by gochromedp)
+		v1.POST("/htmltopdf", handlehtmlToPDF)
+		v1.POST("/htmltoimage", handlehtmlToImage)
+		// v1.GET("/htmltopdf", handlehtmlToPDF)
+		// v1.GET("/htmltoimage", handlehtmlToImage)
+	}
 
 	// Redirect root path to /gopdfsuit
 	router.GET("/", func(c *gin.Context) {

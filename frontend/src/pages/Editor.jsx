@@ -1,6 +1,8 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check } from 'lucide-react'
 import { useTheme } from '../theme'
+import { useAuth } from '../contexts/AuthContext'
+import { makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
 import PdfPreview from '../components/PdfPreview'
 
 // Default fonts - Standard PDF Type 1 fonts (guaranteed to work in all PDF readers)
@@ -1656,6 +1658,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
 
 export default function Editor() {
   const { theme, setTheme } = useTheme()
+  const { getAuthHeaders } = useAuth()
   const [config, setConfig] = useState({ pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
   const [title, setTitle] = useState(null)
   const [components, setComponents] = useState([]) // Combined ordered array for tables and spacers
@@ -1676,7 +1679,11 @@ export default function Editor() {
     const fetchFonts = async () => {
       try {
         setFontsLoading(true)
-        const response = await fetch('/api/v1/fonts')
+        const response = await makeAuthenticatedRequest(
+          '/api/v1/fonts',
+          {},
+          isAuthRequired() ? getAuthHeaders : null
+        )
         if (response.ok) {
           const data = await response.json()
           if (data.fonts && Array.isArray(data.fonts)) {
@@ -1995,7 +2002,11 @@ export default function Editor() {
     if (!filename.trim()) return
     
     try {
-      const response = await fetch(`/api/v1/template-data?file=${encodeURIComponent(filename)}`)
+      const response = await makeAuthenticatedRequest(
+        `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
+        {},
+        isAuthRequired() ? getAuthHeaders : null
+      )
       if (response.ok) {
         const data = await response.json()
         
@@ -2052,11 +2063,15 @@ export default function Editor() {
     const templateData = getJsonOutput()
 
     try {
-      const response = await fetch('/api/v1/generate/template-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templateData)
-      })
+      const response = await makeAuthenticatedRequest(
+        '/api/v1/generate/template-pdf',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(templateData)
+        },
+        isAuthRequired() ? getAuthHeaders : null
+      )
       
       if (response.ok) {
         const blob = await response.blob()
@@ -2074,11 +2089,15 @@ export default function Editor() {
     const templateData = getJsonOutput()
 
     try {
-      const response = await fetch('/api/v1/generate/template-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templateData)
-      })
+      const response = await makeAuthenticatedRequest(
+        '/api/v1/generate/template-pdf',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(templateData)
+        },
+        isAuthRequired() ? getAuthHeaders : null
+      )
       
       if (response.ok) {
         const blob = await response.blob()
