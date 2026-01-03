@@ -48,7 +48,7 @@ gdocker:
 	docker build -t gopdfsuit . 
 
 gdocker-run:
-	docker run --rm -p 8081:8080 -d --name gopdfsuit gopdfsuit
+	docker run --rm -p 8080:8080 -d --name gopdfsuit gopdfsuit
 
 gdocker-push:
 	export VITE_IS_CLOUD_RUN=true;\

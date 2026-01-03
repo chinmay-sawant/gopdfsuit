@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { FileCheck, Upload, Download, RefreshCw, FileText } from 'lucide-react'
+import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { useAuth } from '../contexts/AuthContext'
 
 const Filler = () => {
   const [pdfFile, setPdfFile] = useState(null)
@@ -8,6 +10,7 @@ const Filler = () => {
   const [filledPdfUrl, setFilledPdfUrl] = useState('')
   const pdfInputRef = useRef(null)
   const xfdfInputRef = useRef(null)
+  const { getAuthHeaders } = useAuth()
 
   const handlePdfUpload = (event) => {
     const file = event.target.files[0]
@@ -32,24 +35,20 @@ const Filler = () => {
       formData.append('pdf', pdfFile)
       formData.append('xfdf', xfdfFile)
 
-      const response = await fetch('/api/v1/fill', {
+      const response = await makeAuthenticatedRequest('/api/v1/fill', {
         method: 'POST',
         body: formData,
-      })
+      }, getAuthHeaders)
       
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = URL.createObjectURL(blob)
-        setFilledPdfUrl(url)
-        
-        // Also trigger download
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `filled-${pdfFile.name}`
-        link.click()
-      } else {
-        alert('Failed to fill PDF')
-      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      setFilledPdfUrl(url)
+      
+      // Also trigger download
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `filled-${pdfFile.name}`
+      link.click()
     } catch (error) {
       alert('Error filling PDF: ' + error.message)
     } finally {

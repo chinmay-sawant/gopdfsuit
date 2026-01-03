@@ -1,5 +1,7 @@
 # --- Stage 1: Build the Go application ---
 FROM golang:1.24-bookworm AS builder
+RUN apt-get update && apt-get install -y ca-certificates
+
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -18,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/gopdfsuit
 # Uncompressed size is approx ~300-350MB
 FROM chromedp/headless-shell:latest
 RUN rm -rf /usr/share/doc /usr/share/man /usr/share/locale
-
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Install dumb-init to prevent zombie processes (common issue with Chrome in Docker)
 RUN apt-get update && apt-get install -y --no-install-recommends dumb-init \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

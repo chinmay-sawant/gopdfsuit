@@ -53,6 +53,10 @@ func GoogleAuthMiddleware() gin.HandlerFunc {
 		// This should be set as an environment variable
 		audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
 		if audience == "" {
+			// Try Client ID as audience (common for Google Sign-In)
+			audience = os.Getenv("GOOGLE_CLIENT_ID")
+		}
+		if audience == "" {
 			// If not set, try to get from Cloud Run metadata
 			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
 		}
@@ -104,6 +108,9 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 
 		token := parts[1]
 		audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
+		if audience == "" {
+			audience = os.Getenv("GOOGLE_CLIENT_ID")
+		}
 		if audience == "" {
 			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
 		}

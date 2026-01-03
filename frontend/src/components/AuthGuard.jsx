@@ -1,9 +1,8 @@
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../contexts/AuthContext'
-import { LogOut, User } from 'lucide-react'
 
 export default function AuthGuard({ children }) {
-  const { isAuthenticated, login, logout, user } = useAuth()
+  const { isAuthenticated, login } = useAuth()
 
   if (!isAuthenticated) {
     return (
@@ -67,73 +66,5 @@ export default function AuthGuard({ children }) {
       </div>
     )
   }
-
-  return (
-    <>
-      <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'hsl(var(--card))',
-        borderBottom: '1px solid hsl(var(--border))',
-        padding: '0.75rem 1.5rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {user?.picture && (
-            <img 
-              src={user.picture} 
-              alt={user.name}
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                border: '2px solid hsl(var(--border))'
-              }}
-            />
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ 
-              fontSize: '0.875rem', 
-              fontWeight: '600',
-              color: 'hsl(var(--foreground))' 
-            }}>
-              {user?.name || 'User'}
-            </span>
-            <span style={{ 
-              fontSize: '0.75rem', 
-              color: 'hsl(var(--muted-foreground))' 
-            }}>
-              {user?.email || ''}
-            </span>
-          </div>
-        </div>
-
-        <button
-          onClick={logout}
-          className="btn"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 1rem',
-            fontSize: '0.875rem',
-            background: 'hsl(var(--secondary))',
-            color: 'hsl(var(--secondary-foreground))',
-            border: '1px solid hsl(var(--border))',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <LogOut size={16} />
-          Sign Out
-        </button>
-      </div>
-      {children}
-    </>
-  )
+  return children
 }

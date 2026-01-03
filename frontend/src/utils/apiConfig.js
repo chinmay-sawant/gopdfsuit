@@ -51,11 +51,11 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
   }
   
   const baseUrl = getApiBaseUrl()
-  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`
-  
-  const response = await fetch(fullUrl, options)
-  
+  const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`  
+  const response = await fetch(fullUrl, options)  
   if (!response.ok) {
+    const errorText = await response.text()
+    console.log('Error response body:', errorText)
     if (response.status === 401 || response.status === 403) {
       throw new Error('Authentication failed. Please login again.')
     }

@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { Globe, FileText, Download, RefreshCw, Eye, Settings } from 'lucide-react'
+import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { useAuth } from '../contexts/AuthContext'
 
 const HtmlToPdf = () => {
   const [htmlContent, setHtmlContent] = useState('')
@@ -8,6 +10,7 @@ const HtmlToPdf = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [pdfUrl, setPdfUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
+  const { getAuthHeaders } = useAuth()
   
   // PDF Configuration
   const [config, setConfig] = useState({
@@ -32,27 +35,23 @@ const HtmlToPdf = () => {
         ...(inputType === 'html' ? { html: htmlContent } : { url: url })
       }
 
-      const response = await fetch('/api/v1/htmltopdf', {
+      const response = await makeAuthenticatedRequest('/api/v1/htmltopdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
-      })
+      }, getAuthHeaders)
       
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = URL.createObjectURL(blob)
-        setPdfUrl(url)
-        
-        // Also trigger download
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `html-to-pdf-${Date.now()}.pdf`
-        link.click()
-      } else {
-        alert('Failed to convert to PDF')
-      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      setPdfUrl(url)
+      
+      // Also trigger download
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `html-to-pdf-${Date.now()}.pdf`
+      link.click()
     } catch (error) {
       alert('Error converting to PDF: ' + error.message)
     } finally {

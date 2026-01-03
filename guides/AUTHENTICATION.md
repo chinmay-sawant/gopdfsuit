@@ -72,7 +72,13 @@ VITE_IS_CLOUD_RUN=false
 
 The backend automatically detects Cloud Run via the `K_SERVICE` environment variable. No configuration needed for local development.
 
-For Cloud Run, optionally set (Cloud Run auto-provides these):
+For Cloud Run, you should set the `GOOGLE_CLIENT_ID` environment variable to match your frontend Client ID. This ensures the backend validates tokens correctly.
+
+```bash
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+```
+
+Optionally, you can set (Cloud Run auto-provides these):
 ```bash
 GOOGLE_OAUTH_AUDIENCE=https://your-service-name.run.app
 CLOUD_RUN_SERVICE_URL=https://your-service-name.run.app
@@ -228,8 +234,9 @@ func YourHandler(c *gin.Context) {
 |----------|----------|-------------|
 | `K_SERVICE` | Auto | Set by Cloud Run, triggers auth |
 | `K_REVISION` | Auto | Set by Cloud Run (backup check) |
-| `GOOGLE_OAUTH_AUDIENCE` | Optional | Expected audience for tokens |
-| `CLOUD_RUN_SERVICE_URL` | Optional | Service URL for validation |
+| `GOOGLE_CLIENT_ID` | Yes | Expected audience (Client ID) for tokens |
+| `GOOGLE_OAUTH_AUDIENCE` | Optional | Custom expected audience |
+| `CLOUD_RUN_SERVICE_URL` | Optional | Service URL for validation (fallback) |
 
 ## Files Modified
 

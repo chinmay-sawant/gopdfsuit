@@ -14,35 +14,30 @@ import Screenshots from './pages/Screenshots'
 import Comparison from './pages/Comparison'
 
 function App() {
-  // If auth is required (Cloud Run deployment), wrap entire app with AuthGuard
-  // Otherwise, show pages directly
-  const AppContent = () => (
-    <>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/viewer" element={<Viewer />} />
-        <Route path="/editor" element={<Editor />} />
-        <Route path="/merge" element={<Merge />} />
-        <Route path="/filler" element={<Filler />} />
-        <Route path="/htmltopdf" element={<HtmlToPdf />} />
-        <Route path="/htmltoimage" element={<HtmlToImage />} />
-        <Route path="/screenshots" element={<Screenshots />} />
-        <Route path="/comparison" element={<Comparison />} />
-      </Routes>
-    </>
+  // Wrap only the Editor route with AuthGuard when auth is required
+  const EditorRoute = isAuthRequired() ? (
+    <AuthGuard>
+      <Editor />
+    </AuthGuard>
+  ) : (
+    <Editor />
   )
 
   return (
     <Router>
       <div className="App">
-        {isAuthRequired() ? (
-          <AuthGuard>
-            <AppContent />
-          </AuthGuard>
-        ) : (
-          <AppContent />
-        )}
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/viewer" element={<Viewer />} />
+          <Route path="/editor" element={EditorRoute} />
+          <Route path="/merge" element={<Merge />} />
+          <Route path="/filler" element={<Filler />} />
+          <Route path="/htmltopdf" element={<HtmlToPdf />} />
+          <Route path="/htmltoimage" element={<HtmlToImage />} />
+          <Route path="/screenshots" element={<Screenshots />} />
+          <Route path="/comparison" element={<Comparison />} />
+        </Routes>
       </div>
     </Router>
   )

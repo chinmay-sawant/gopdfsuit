@@ -1,11 +1,12 @@
 [
   {
-    "name": "delete-untagged",
+    "name": "delete-all-older-versions",
     "action": {
       "type": "Delete"
     },
     "condition": {
-      "tagState": "untagged"
+      "tagState": "any",
+      "olderThan": "0s"
     }
   },
   {
