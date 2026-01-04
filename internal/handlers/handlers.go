@@ -87,8 +87,14 @@ func RegisterRoutes(router *gin.Engine) {
 
 	// API endpoints - protected with Google OAuth when running on Cloud Run
 	v1 := router.Group("/api/v1")
+	v1.Use(middleware.CORSMiddleware())       // Add CORS middleware
 	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run
 	{
+		// Handle all OPTIONS requests for CORS
+		v1.OPTIONS("/*path", func(c *gin.Context) {
+			// Handled by CORSMiddleware
+		})
+
 		v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
 		v1.POST("/fill", handleFillPDF)
 		v1.POST("/merge", handleMergePDFs)
@@ -98,8 +104,6 @@ func RegisterRoutes(router *gin.Engine) {
 		// HTML to PDF/Image endpoints (powered by gochromedp)
 		v1.POST("/htmltopdf", handlehtmlToPDF)
 		v1.POST("/htmltoimage", handlehtmlToImage)
-		// v1.GET("/htmltopdf", handlehtmlToPDF)
-		// v1.GET("/htmltoimage", handlehtmlToImage)
 	}
 
 	// Redirect root path to /gopdfsuit

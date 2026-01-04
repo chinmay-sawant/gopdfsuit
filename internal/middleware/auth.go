@@ -27,6 +27,12 @@ func GoogleAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Skip authentication for OPTIONS requests (CORS preflight)
+		if c.Request.Method == "OPTIONS" {
+			c.Next()
+			return
+		}
+
 		// Get authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
