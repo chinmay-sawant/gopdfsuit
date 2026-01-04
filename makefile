@@ -65,5 +65,10 @@ gdocker-push:
     --memory 512Mi \
 	--env-vars-file .env
 
+gengine-deploy:
+	cd frontend && npm run build && cd ..
+	export VITE_IS_CLOUD_RUN=true;\
+	export VITE_ENVIRONMENT=cloudrun;\
+	gcloud app deploy
 .PHONY: build test clean run fmt vet mod
 
