@@ -11,6 +11,7 @@ import (
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 )
 
@@ -269,7 +270,7 @@ func handleMergePDFs(c *gin.Context) {
 		pdfBytesList = append(pdfBytesList, buf)
 	}
 
-	merged, err := pdf.MergePDFs(pdfBytesList)
+	merged, err := merge.MergePDFs(pdfBytesList)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
