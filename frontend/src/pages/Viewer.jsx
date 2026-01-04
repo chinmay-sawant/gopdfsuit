@@ -15,11 +15,7 @@ const Viewer = () => {
   const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')
 
   const showError = (message) => {
-    if (isGitHubPages) {
-      alert('Run the Application Locally To Generate The PDF')
-    } else {
       alert(message)
-    }
   }
 
   const loadTemplate = async () => {
