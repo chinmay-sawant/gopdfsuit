@@ -26,6 +26,11 @@ const HtmlToPdf = () => {
   })
 
   const convertToPdf = async () => {
+    if (window.location.href.includes('chinmay-sawant.github.io')) {
+      alert("due to restriction of gcp we can't generate ethis \n run the app locally using the dockerfile")
+      return
+    }
+
     if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
     
     setIsLoading(true)
@@ -44,12 +49,12 @@ const HtmlToPdf = () => {
       }, getAuthHeaders)
       
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      setPdfUrl(url)
+      const pdfBlobUrl = URL.createObjectURL(blob)
+      setPdfUrl(pdfBlobUrl)
       
       // Also trigger download
       const link = document.createElement('a')
-      link.href = url
+      link.href = pdfBlobUrl
       link.download = `html-to-pdf-${Date.now()}.pdf`
       link.click()
     } catch (error) {

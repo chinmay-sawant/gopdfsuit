@@ -26,6 +26,11 @@ const HtmlToImage = () => {
   })
 
   const convertToImage = async () => {
+    if (window.location.href.includes('chinmay-sawant.github.io')) {
+      alert("due to restriction of gcp we can't generate ethis \n run the app locally using the dockerfile")
+      return
+    }
+
     if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
     
     setIsLoading(true)
@@ -44,12 +49,12 @@ const HtmlToImage = () => {
       }, getAuthHeaders)
       
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      setImageUrl(url)
+      const imageBlobUrl = URL.createObjectURL(blob)
+      setImageUrl(imageBlobUrl)
       
       // Also trigger download
       const link = document.createElement('a')
-      link.href = url
+      link.href = imageBlobUrl
       link.download = `html-to-image-${Date.now()}.${config.format}`
       link.click()
     } catch (error) {

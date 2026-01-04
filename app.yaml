@@ -21,3 +21,4 @@ env_variables:
   VITE_CLOUD_RUN_URL: "https://gopdfsuit.ue.r.appspot.com"
   VITE_API_URL: "https://gopdfsuit.ue.r.appspot.com"
   CLOUD_RUN_SERVICE_URL: "https://gopdfsuit.ue.r.appspot.com"
+  K_SERVICE: "gopdfsuit" 
