@@ -135,13 +135,56 @@ func parseFile(data []byte) *FileContext {
 		}
 	}
 
+	// Extract objects from Object Streams (PDF 1.5+)
+	for objNum, body := range fc.Objects {
+		if IsObjectStream(body) {
+			extractedObjs := ParseObjectStream(body)
+			for extractedNum, extractedBody := range extractedObjs {
+				// Only add if not already present (top-level objects take precedence)
+				if _, exists := fc.Objects[extractedNum]; !exists {
+					fc.Objects[extractedNum] = extractedBody
+					if extractedNum > fc.MaxObj {
+						fc.MaxObj = extractedNum
+					}
+				}
+			}
+			// Mark original ObjStm for exclusion (we've expanded it)
+			fc.ObjectStreamNums = append(fc.ObjectStreamNums, objNum)
+		}
+	}
+
 	// Extract pages from Pages tree
 	fc.Pages = extractPagesFromTree(data, fc.Objects)
+
+	// Find the original catalog and pages tree to exclude them
+	fc.OriginalCatalog, fc.OriginalPagesTree = findCatalogAndPages(data, fc.Objects)
 
 	// Extract form fields and annotation dependencies
 	ExtractFormFields(fc)
 
 	return fc
+}
+
+// findCatalogAndPages finds the original Catalog and Pages tree object numbers
+func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pagesNum int) {
+	rootRef := findRootRef(data)
+	if rootRef == "" {
+		return 0, 0
+	}
+
+	fmt.Sscanf(rootRef, "%d", &catalogNum)
+
+	if catalogNum > 0 {
+		if body, exists := objMap[catalogNum]; exists {
+			pagesRe := regexp.MustCompile(`/Pages\s+(\d+)\s+\d+\s+R`)
+			match := pagesRe.FindSubmatch(body)
+			if match != nil {
+				pagesNum, _ = strconv.Atoi(string(match[1]))
+			}
+		}
+	}
+
+	return catalogNum, pagesNum
 }
 
 // extractPagesFromTree extracts page object numbers from the Pages tree
@@ -211,15 +254,34 @@ func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp
 }
 
 // collectObjectsWithDependencies returns all object numbers to process
-// ensuring annotation dependencies are included
+// ensuring annotation dependencies are included but excluding original catalog/pages/objstm
 func collectObjectsWithDependencies(fc *FileContext) []int {
 	included := make(map[int]bool)
+	excluded := make(map[int]bool)
 	var result []int
 
-	// Add all objects in numeric order
+	// Mark objects to exclude
+	if fc.OriginalCatalog > 0 {
+		excluded[fc.OriginalCatalog] = true
+	}
+	if fc.OriginalPagesTree > 0 {
+		excluded[fc.OriginalPagesTree] = true
+	}
+	for _, objStmNum := range fc.ObjectStreamNums {
+		excluded[objStmNum] = true
+	}
+
+	// Also exclude any intermediate Pages tree nodes
+	for num, body := range fc.Objects {
+		if IsPagesTreeObject(body) {
+			excluded[num] = true
+		}
+	}
+
+	// Add all objects in numeric order, excluding catalog/pages/objstm
 	for i := 1; i <= fc.MaxObj; i++ {
 		if _, exists := fc.Objects[i]; exists {
-			if !included[i] {
+			if !included[i] && !excluded[i] {
 				result = append(result, i)
 				included[i] = true
 			}
@@ -229,7 +291,7 @@ func collectObjectsWithDependencies(fc *FileContext) []int {
 	// Ensure all AP dependencies are included
 	for _, deps := range fc.APDeps {
 		for _, dep := range deps {
-			if !included[dep] {
+			if !included[dep] && !excluded[dep] {
 				result = append(result, dep)
 				included[dep] = true
 			}

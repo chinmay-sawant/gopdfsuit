@@ -68,6 +68,13 @@ type FileContext struct {
 	FormFields []int          // Form field object numbers
 	Annots     map[int][]int  // Page object -> annotation object numbers
 	APDeps     map[int][]int  // Widget -> appearance stream dependencies
+
+	// Object stream tracking
+	ObjectStreamNums []int // Object stream numbers (to exclude from output)
+
+	// Original catalog/pages (to exclude from output)
+	OriginalCatalog   int // Original Catalog object number
+	OriginalPagesTree int // Original Pages tree root object number
 }
 
 // NewFileContext creates a new file context
