@@ -1,6 +1,8 @@
 import React from 'react'
 import { HashRouter as Router, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
+import AuthGuard from './components/AuthGuard'
+import { isAuthRequired } from './utils/apiConfig'
 import Home from './pages/Home'
 import Editor from './pages/Editor'
 import Viewer from './pages/Viewer'
@@ -12,6 +14,15 @@ import Screenshots from './pages/Screenshots'
 import Comparison from './pages/Comparison'
 
 function App() {
+  // Wrap only the Editor route with AuthGuard when auth is required
+  const EditorRoute = isAuthRequired() ? (
+    <AuthGuard>
+      <Editor />
+    </AuthGuard>
+  ) : (
+    <Editor />
+  )
+
   return (
     <Router>
       <div className="App">
@@ -19,7 +30,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/viewer" element={<Viewer />} />
-          <Route path="/editor" element={<Editor />} />
+          <Route path="/editor" element={EditorRoute} />
           <Route path="/merge" element={<Merge />} />
           <Route path="/filler" element={<Filler />} />
           <Route path="/htmltopdf" element={<HtmlToPdf />} />

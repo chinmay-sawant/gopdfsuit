@@ -1,8 +1,24 @@
-runtime: go123  # Specifically targets the Go 1.23 runtime
+runtime: go124  # Or your specific runtime (python310, nodejs20, etc.)
 instance_class: F1
 
-# Use this if your main package is not in the root directory
+automatic_scaling:
+  max_instances: 1       # STRICT LIMIT: Never spin up a 2nd instance
+  min_instances: 1       # OPTIONAL: Keeps 1 instance alive 24x7 (prevents cold starts)
+  max_concurrent_requests: 80 # Tuning for single instance throughput
+
 main: ./cmd/gopdfsuit 
 
+# Optional: Environment variables
 env_variables:
-  APP_ENV: "production"
+  # Google OAuth Client ID
+  # Get this from Google Cloud Console: https://console.cloud.google.com/apis/credentials
+  VITE_GOOGLE_CLIENT_ID: "19813699538-fg04b6hm2s0tttjjkk7dkhhbi9acn7pk.apps.googleusercontent.com"
+  GOOGLE_CLIENT_ID: "19813699538-fg04b6hm2s0tttjjkk7dkhhbi9acn7pk.apps.googleusercontent.com"
+
+  # For Cloud Run deployment
+  VITE_IS_CLOUD_RUN: "true"
+  VITE_ENVIRONMENT: "cloudrun"
+  VITE_CLOUD_RUN_URL: "https://gopdfsuit.ue.r.appspot.com"
+  VITE_API_URL: "https://gopdfsuit.ue.r.appspot.com"
+  CLOUD_RUN_SERVICE_URL: "https://gopdfsuit.ue.r.appspot.com"
+  K_SERVICE: "gopdfsuit" 

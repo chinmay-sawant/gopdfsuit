@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { Image, Globe, Download, RefreshCw, Eye, Settings } from 'lucide-react'
+import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { useAuth } from '../contexts/AuthContext'
 
 const HtmlToImage = () => {
   const [htmlContent, setHtmlContent] = useState('')
@@ -8,6 +10,7 @@ const HtmlToImage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [imageUrl, setImageUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
+  const { getAuthHeaders } = useAuth()
   
   // Image Configuration
   const [config, setConfig] = useState({
@@ -23,6 +26,11 @@ const HtmlToImage = () => {
   })
 
   const convertToImage = async () => {
+    if (window.location.href.includes('chinmay-sawant.github.io')) {
+      alert("due to restriction of gcp we can't generate ethis \n run the app locally using the dockerfile")
+      return
+    }
+
     if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
     
     setIsLoading(true)
@@ -32,27 +40,23 @@ const HtmlToImage = () => {
         ...(inputType === 'html' ? { html: htmlContent } : { url: url })
       }
 
-      const response = await fetch('/api/v1/htmltoimage', {
+      const response = await makeAuthenticatedRequest('/api/v1/htmltoimage', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
-      })
+      }, getAuthHeaders)
       
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = URL.createObjectURL(blob)
-        setImageUrl(url)
-        
-        // Also trigger download
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `html-to-image-${Date.now()}.${config.format}`
-        link.click()
-      } else {
-        alert('Failed to convert to image')
-      }
+      const blob = await response.blob()
+      const imageBlobUrl = URL.createObjectURL(blob)
+      setImageUrl(imageBlobUrl)
+      
+      // Also trigger download
+      const link = document.createElement('a')
+      link.href = imageBlobUrl
+      link.download = `html-to-image-${Date.now()}.${config.format}`
+      link.click()
     } catch (error) {
       alert('Error converting to image: ' + error.message)
     } finally {
