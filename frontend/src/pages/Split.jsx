@@ -44,11 +44,6 @@ const SplitPage = () => {
       const url = URL.createObjectURL(blob)
       setSplitPdfUrl(url)
 
-      // Also trigger download
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `split-pdf-${Date.now()}.pdf`
-      link.click()
     } catch (error) {
       alert('Error splitting PDF: ' + error.message)
     } finally {
