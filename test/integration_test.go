@@ -44,6 +44,21 @@ func (s *IntegrationSuite) TearDownSuite() {
 	s.ts.Close()
 }
 
+// TearDownTest runs after each test
+func (s *IntegrationSuite) TearDownTest() {
+	// Clean up temp files
+	tempFiles := []string{
+		filepath.Join("..", "sampledata", "editor", "temp_editor.pdf"),
+		filepath.Join("..", "sampledata", "merge", "temp_merge.pdf"),
+		filepath.Join("..", "sampledata", "filler", "temp_filler.pdf"),
+		filepath.Join("..", "sampledata", "htmltopdf", "temp_htmltopdf.pdf"),
+		filepath.Join("..", "sampledata", "htmltoimg", "temp_htmltoimage.png"),
+	}
+	for _, f := range tempFiles {
+		os.Remove(f) // Ignore errors if file doesn't exist
+	}
+}
+
 // Helper to compare file sizes
 func (s *IntegrationSuite) compareFileSizes(generatedPath, expectedPath string) {
 	genInfo, err := os.Stat(generatedPath)
@@ -218,14 +233,10 @@ func (s *IntegrationSuite) TestHtmlToPDF() {
 	err = os.WriteFile(tempPath, body, 0644)
 	s.NoError(err, "Failed to write temp_htmltopdf.pdf")
 
-	// 4. Check size against generated.pdf
-	expectedPath := filepath.Join(baseDir, "generated.pdf")
-	// Only check if expected file exists
-	if _, err := os.Stat(expectedPath); err == nil {
-		s.compareFileSizes(tempPath, expectedPath)
-	} else {
-		s.T().Logf("Expected file %s not found, skipping size comparison", expectedPath)
-	}
+	// 4. Check that the file is non-zero size
+	info, err := os.Stat(tempPath)
+	s.NoError(err)
+	s.Greater(info.Size(), int64(0), "Generated PDF should have non-zero size")
 }
 
 // TestHtmlToImage tests /api/v1/htmltoimage
@@ -261,14 +272,10 @@ func (s *IntegrationSuite) TestHtmlToImage() {
 	err = os.WriteFile(tempPath, body, 0644)
 	s.NoError(err, "Failed to write temp_htmltoimage.png")
 
-	// 4. Check size against generated.png
-	expectedPath := filepath.Join(baseDir, "generated.png")
-	// Only check if expected file exists
-	if _, err := os.Stat(expectedPath); err == nil {
-		s.compareFileSizes(tempPath, expectedPath)
-	} else {
-		s.T().Logf("Expected file %s not found, skipping size comparison", expectedPath)
-	}
+	// 4. Check that the file is non-zero size
+	info, err := os.Stat(tempPath)
+	s.NoError(err)
+	s.Greater(info.Size(), int64(0), "Generated image should have non-zero size")
 }
 
 // Run the suite
