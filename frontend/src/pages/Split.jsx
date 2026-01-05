@@ -40,6 +40,8 @@ const SplitPage = () => {
         body: formData,
       }, getAuthHeaders)
 
+      //TODO: Output specific error messages from backend
+
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       setSplitPdfUrl(url)

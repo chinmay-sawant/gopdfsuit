@@ -66,6 +66,12 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 
 // SplitPDF splits a single PDF file into one or more PDFs according to spec.
 func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
+	/*
+		TODO: handle image XObjects (or other image data) in object streams that
+		are being left over after split. For now, we just exclude object streams.
+		I noticed this issue when tried splitting my lecture notes.
+	*/
+
 	if len(file) == 0 {
 		return nil, fmt.Errorf("empty file")
 	}
