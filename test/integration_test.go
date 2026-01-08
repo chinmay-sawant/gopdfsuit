@@ -53,6 +53,9 @@ func (s *IntegrationSuite) TearDownTest() {
 		filepath.Join("..", "sampledata", "filler", "temp_filler.pdf"),
 		filepath.Join("..", "sampledata", "htmltopdf", "temp_htmltopdf.pdf"),
 		filepath.Join("..", "sampledata", "htmltoimg", "temp_htmltoimage.png"),
+		filepath.Join("..", "sampledata", "split", "temp_split.pdf"),
+		filepath.Join("..", "sampledata", "split", "temp_split_range.pdf"),
+		filepath.Join("..", "sampledata", "split", "temp_maxperfile.zip"),
 	}
 	for _, f := range tempFiles {
 		os.Remove(f) // Ignore errors if file doesn't exist
@@ -276,6 +279,156 @@ func (s *IntegrationSuite) TestHtmlToImage() {
 	info, err := os.Stat(tempPath)
 	s.NoError(err)
 	s.Greater(info.Size(), int64(0), "Generated image should have non-zero size")
+}
+
+// TestSplitPDF tests /api/v1/split with single page
+func (s *IntegrationSuite) TestSplitPDF() {
+	baseDir := filepath.Join("..", "sampledata", "split")
+
+	// 1. Input PDF
+	pdfPath := filepath.Join(baseDir, "em.pdf")
+	pdfData, err := os.ReadFile(pdfPath)
+	if err != nil {
+		s.T().Skip("Skipping TestSplitPDF: sample PDF not found")
+		return
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Add PDF
+	pdfPart, err := writer.CreateFormFile("pdf", "em.pdf")
+	s.NoError(err)
+	_, err = pdfPart.Write(pdfData)
+	s.NoError(err)
+
+	// Add form fields
+	err = writer.WriteField("pages", "10")
+	s.NoError(err)
+	err = writer.WriteField("max_per_file", "")
+	s.NoError(err)
+
+	writer.Close()
+
+	// 2. Send to endpoint
+	resp, err := s.client.Post(s.ts.URL+"/api/v1/split", writer.FormDataContentType(), body)
+	s.NoError(err)
+	defer resp.Body.Close()
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
+
+	// 3. Create temp_split.pdf
+	respBody, err := io.ReadAll(resp.Body)
+	s.NoError(err)
+
+	tempPath := filepath.Join(baseDir, "temp_split.pdf")
+	err = os.WriteFile(tempPath, respBody, 0644)
+	s.NoError(err, "Failed to write temp_split.pdf")
+
+	// 4. Check size against split.pdf
+	expectedPath := filepath.Join(baseDir, "split.pdf")
+	s.compareFileSizes(tempPath, expectedPath)
+}
+
+// TestSplitPDFRange tests /api/v1/split with page range
+func (s *IntegrationSuite) TestSplitPDFRange() {
+	baseDir := filepath.Join("..", "sampledata", "split")
+
+	// 1. Input PDF
+	pdfPath := filepath.Join(baseDir, "em.pdf")
+	pdfData, err := os.ReadFile(pdfPath)
+	if err != nil {
+		s.T().Skip("Skipping TestSplitPDFRange: sample PDF not found")
+		return
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Add PDF
+	pdfPart, err := writer.CreateFormFile("pdf", "em.pdf")
+	s.NoError(err)
+	_, err = pdfPart.Write(pdfData)
+	s.NoError(err)
+
+	// Add form fields
+	err = writer.WriteField("pages", "10-12")
+	s.NoError(err)
+	err = writer.WriteField("max_per_file", "")
+	s.NoError(err)
+
+	writer.Close()
+
+	// 2. Send to endpoint
+	resp, err := s.client.Post(s.ts.URL+"/api/v1/split", writer.FormDataContentType(), body)
+	s.NoError(err)
+	defer resp.Body.Close()
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
+
+	// 3. Create temp_split_range.pdf
+	respBody, err := io.ReadAll(resp.Body)
+	s.NoError(err)
+
+	tempPath := filepath.Join(baseDir, "temp_split_range.pdf")
+	err = os.WriteFile(tempPath, respBody, 0644)
+	s.NoError(err, "Failed to write temp_split_range.pdf")
+
+	// 4. Check size against split_range.pdf
+	expectedPath := filepath.Join(baseDir, "split_range.pdf")
+	s.compareFileSizes(tempPath, expectedPath)
+}
+
+// TestSplitPDFMaxPerFile tests /api/v1/split with max per file
+func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
+	baseDir := filepath.Join("..", "sampledata", "split")
+
+	// 1. Input PDF
+	pdfPath := filepath.Join(baseDir, "em.pdf")
+	pdfData, err := os.ReadFile(pdfPath)
+	if err != nil {
+		s.T().Skip("Skipping TestSplitPDFMaxPerFile: sample PDF not found")
+		return
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Add PDF
+	pdfPart, err := writer.CreateFormFile("pdf", "em.pdf")
+	s.NoError(err)
+	_, err = pdfPart.Write(pdfData)
+	s.NoError(err)
+
+	// Add form fields
+	err = writer.WriteField("pages", "10-12")
+	s.NoError(err)
+	err = writer.WriteField("max_per_file", "1")
+	s.NoError(err)
+
+	writer.Close()
+
+	// 2. Send to endpoint
+	resp, err := s.client.Post(s.ts.URL+"/api/v1/split", writer.FormDataContentType(), body)
+	s.NoError(err)
+	defer resp.Body.Close()
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal("application/zip", resp.Header.Get("Content-Type"))
+
+	// 3. Create temp_maxperfile.zip
+	respBody, err := io.ReadAll(resp.Body)
+	s.NoError(err)
+
+	tempPath := filepath.Join(baseDir, "temp_maxperfile.zip")
+	err = os.WriteFile(tempPath, respBody, 0644)
+	s.NoError(err, "Failed to write temp_maxperfile.zip")
+
+	// 4. Check size against maxperfile.zip
+	expectedPath := filepath.Join(baseDir, "maxperfile.zip")
+	s.compareFileSizes(tempPath, expectedPath)
 }
 
 // Run the suite
