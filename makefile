@@ -16,17 +16,20 @@ pull:
 	docker pull $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
 	docker run -d -p 8080:8080 $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
 
-build:
+build: test-integration
 	mkdir -p bin
 	go build -o bin/app ./cmd/gopdfsuit
 
 test:
 	go test ./...
 
+test-integration:
+	go test -count=1 -v ./test
+
 clean:
 	rm -rf bin/
 
-run:
+run: test-integration
 	export VITE_IS_CLOUD_RUN=false;\
 	export VITE_ENVIRONMENT=local;\
 	export VITE_API_URL=http://localhost:8080;\
@@ -42,7 +45,7 @@ vet:
 mod:
 	go mod tidy
 
-gdocker:
+gdocker: test-integration
 	cd frontend && npm run build && cd ..
 	docker rm -f gopdfsuit
 	docker build -t gopdfsuit . 
@@ -65,7 +68,7 @@ gdocker-push:
     --memory 512Mi \
 	--env-vars-file .env
 
-gengine-deploy:
+gengine-deploy: test-integration
 	cd frontend && npm run build && cd ..
 	export VITE_IS_CLOUD_RUN=true;\
 	export VITE_ENVIRONMENT=cloudrun;\
