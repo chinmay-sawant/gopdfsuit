@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,10 +10,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 )
 
@@ -98,6 +102,7 @@ func RegisterRoutes(router *gin.Engine) {
 		v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
 		v1.POST("/fill", handleFillPDF)
 		v1.POST("/merge", handleMergePDFs)
+		v1.POST("/split", handlerSplitPDF)
 		v1.GET("/template-data", handleGetTemplateData)
 		v1.GET("/fonts", handleGetFonts)
 
@@ -277,7 +282,7 @@ func handleMergePDFs(c *gin.Context) {
 		pdfBytesList = append(pdfBytesList, buf)
 	}
 
-	merged, err := pdf.MergePDFs(pdfBytesList)
+	merged, err := merge.MergePDFs(pdfBytesList)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -286,6 +291,82 @@ func handleMergePDFs(c *gin.Context) {
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "attachment; filename=merged.pdf")
 	c.Data(http.StatusOK, "application/pdf", merged)
+}
+
+// handleSplitPDF accepts a 'pdf' file and splits it according to optional 'pages' and 'max_per_file' form fields,
+// and returns the resulting PDFs in a zip file as application/zip
+func handlerSplitPDF(c *gin.Context) {
+	// Read uploaded PDF file
+	pdfFile, _, err := c.Request.FormFile("pdf")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing pdf file: " + err.Error()})
+		return
+	}
+	defer pdfFile.Close()
+	pdfBytes, err := io.ReadAll(pdfFile)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read pdf: " + err.Error()})
+		return
+	}
+
+	// Optional page spec string and max per file
+	pagesSpec := c.PostForm("pages") // e.g. "1-3,5"
+	maxPerFile := 0
+	if v := c.PostForm("max_per_file"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			maxPerFile = n
+		}
+	}
+
+	// Parse pages into []int
+	pages, err := merge.ParsePageSpec(pagesSpec, 0)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pages spec: " + err.Error()})
+		return
+	}
+
+	spec := merge.SplitSpec{
+		Pages:      pages,
+		MaxPerFile: maxPerFile,
+	}
+
+	outs, err := merge.SplitPDF(pdfBytes, spec)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// If single output, return directly as PDF
+	if len(outs) == 1 {
+		c.Header("Content-Type", "application/pdf")
+		c.Header("Content-Disposition", "attachment; filename=split.pdf")
+		c.Data(http.StatusOK, "application/pdf", outs[0])
+		return
+	}
+
+	// Multiple outputs: return a zip archive
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for i, b := range outs {
+		name := fmt.Sprintf("originalfile-part%d.pdf", i+1)
+		fw, err := zw.Create(name)
+		if err != nil {
+			zw.Close()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip create failed: " + err.Error()})
+			return
+		}
+		if _, err := fw.Write(b); err != nil {
+			zw.Close()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip write failed: " + err.Error()})
+			return
+		}
+	}
+	zw.Close()
+
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", "attachment; filename=splits.zip")
+	c.Data(http.StatusOK, "application/zip", buf.Bytes())
+
 }
 
 // handlehtmlToPDF handles HTML to PDF conversion using htmltopdf
