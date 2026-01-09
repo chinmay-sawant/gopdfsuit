@@ -46,6 +46,7 @@ jobs:
           commit_message: "chore: automated build update [skip ci]"
           file_pattern: 'docs/*' # Only commit changes in the docs folder
           branch: build
+          create_branch: true
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
