@@ -88,6 +88,35 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
+	// Initialize Security Handler
+	securityHandler := NewSecurityHandler(
+		template.Config.Encryption.Enabled,
+		template.Config.Encryption.UserPassword,
+		template.Config.Encryption.OwnerPassword,
+	)
+	if err := securityHandler.Prepare(); err != nil {
+		// Fallback: disable encryption if preparation fails
+		securityHandler.Enabled = false
+	}
+
+	// Encrypt Images if enabled
+	if securityHandler.Enabled {
+		for _, imgObj := range imageObjects {
+			encData, err := securityHandler.EncryptBytes(imgObj.ImageData)
+			if err == nil {
+				imgObj.ImageData = encData
+				imgObj.ImageDataLen = len(encData)
+			}
+		}
+		for _, imgObj := range cellImageObjects {
+			encData, err := securityHandler.EncryptBytes(imgObj.ImageData)
+			if err == nil {
+				imgObj.ImageData = encData
+				imgObj.ImageDataLen = len(encData)
+			}
+		}
+	}
+
 	// PDF Header (PDF 2.0 for modern standards compliance)
 	pdfBuffer.WriteString("%PDF-2.0\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
@@ -234,6 +263,14 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		zlibWriter.Close()
 		compressedData := compressedBuf.Bytes()
 
+		// Encrypt content stream if enabled
+		if securityHandler.Enabled {
+			encData, err := securityHandler.EncryptBytes(compressedData)
+			if err == nil {
+				compressedData = encData
+			}
+		}
+
 		// Write stream - Length is exact byte count of compressed data
 		pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(compressedData)))
 		pdfBuffer.Write(compressedData)
@@ -328,6 +365,23 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", id, content))
 	}
 
+	// Generate Encryption Dictionary Object
+	encryptionObjID := 0
+	if securityHandler.Enabled {
+		encryptionObjID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+		xrefOffsets[encryptionObjID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", encryptionObjID))
+		pdfBuffer.WriteString("<< /Type /Encrypt /Filter /Standard /V 5 /Length 256 /R 6")
+		pdfBuffer.WriteString(fmt.Sprintf(" /O <%X>", securityHandler.O))
+		pdfBuffer.WriteString(fmt.Sprintf(" /U <%X>", securityHandler.U))
+		pdfBuffer.WriteString(fmt.Sprintf(" /OE <%X>", securityHandler.OE))
+		pdfBuffer.WriteString(fmt.Sprintf(" /UE <%X>", securityHandler.UE))
+		pdfBuffer.WriteString(fmt.Sprintf(" /Perms <%X>", securityHandler.Perms))
+		pdfBuffer.WriteString(fmt.Sprintf(" /P %d", securityHandler.Permissions))
+		pdfBuffer.WriteString(" >>\nendobj\n")
+	}
+
 	// Generate Info dictionary - keeping minimal for PDF 2.0
 	// Note: Producer, Creator, Title are deprecated in PDF 2.0 but still widely used
 	// For full compliance, these should be in XMP metadata stream instead
@@ -336,9 +390,19 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	xrefOffsets[infoObjectID] = pdfBuffer.Len()
 	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
 	creationDate := time.Now().Format("D:20060102150405-07'00'")
+	creationDateString := fmt.Sprintf("(%s)", creationDate)
+	modDateString := fmt.Sprintf("(%s)", creationDate)
+
+	if securityHandler.Enabled {
+		if enc, err := securityHandler.EncryptString(creationDate); err == nil {
+			creationDateString = enc
+			modDateString = enc
+		}
+	}
+
 	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
 	// Minimal Info dict with just dates (dates are not deprecated)
-	pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+	pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate %s /ModDate %s >>\n", creationDateString, modDateString))
 	pdfBuffer.WriteString("endobj\n")
 
 	// Generate Document ID (two MD5 hashes - one based on content, one random)
@@ -374,6 +438,9 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	if infoObjectID > maxObjID {
 		maxObjID = infoObjectID
 	}
+	if encryptionObjID > maxObjID {
+		maxObjID = encryptionObjID
+	}
 	totalObjects := maxObjID + 1
 
 	// Write compact XRef table using subsections
@@ -406,7 +473,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	}
 
 	// Trailer with Info and ID
-	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s >>\n", totalObjects, infoObjectID, documentID))
+	trailer := fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s", totalObjects, infoObjectID, documentID)
+	if securityHandler.Enabled {
+		trailer += fmt.Sprintf(" /Encrypt %d 0 R", encryptionObjID)
+	}
+	trailer += " >>\n"
+	pdfBuffer.WriteString(trailer)
 	pdfBuffer.WriteString("startxref\n")
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
