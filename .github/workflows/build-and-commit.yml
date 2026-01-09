@@ -45,4 +45,14 @@ jobs:
         with:
           commit_message: "chore: automated build update [skip ci]"
           file_pattern: 'docs/*' # Only commit changes in the docs folder
-          branch: master
+          branch: build
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: build
+          base: master
+          title: 'Automated build update'
+          body: 'This PR contains automated build artifacts from the latest commit.'
+          delete-branch: true
