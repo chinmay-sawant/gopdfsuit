@@ -548,7 +548,7 @@ func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int)
 // GetAvailableFonts returns the list of available fonts for PDF generation.
 // This includes the standard PDF Type 1 fonts and commonly used fonts.
 func GetAvailableFonts() []models.FontInfo {
-	return []models.FontInfo{
+	fonts := []models.FontInfo{
 		// Standard PDF Type 1 Fonts - Helvetica family (F1-F4)
 		{ID: "Helvetica", Name: "Helvetica", DisplayName: "Helvetica", Reference: "/F1"},
 		{ID: "Helvetica-Bold", Name: "Helvetica-Bold", DisplayName: "Helvetica Bold", Reference: "/F2"},
@@ -571,6 +571,20 @@ func GetAvailableFonts() []models.FontInfo {
 		{ID: "Symbol", Name: "Symbol", DisplayName: "Symbol", Reference: "/F13"},
 		{ID: "ZapfDingbats", Name: "ZapfDingbats", DisplayName: "Zapf Dingbats", Reference: "/F14"},
 	}
+
+	// Add registered custom fonts
+	registry := GetFontRegistry()
+	customFonts := registry.GetAllFonts()
+	for _, f := range customFonts {
+		fonts = append(fonts, models.FontInfo{
+			ID:          f.Name,
+			Name:        f.Name,
+			DisplayName: f.Name + " (Custom)",
+			Reference:   registry.GetFontReference(f.Name),
+		})
+	}
+
+	return fonts
 }
 
 // ========== TrueType/OpenType Font Support for Custom Font Embedding ==========

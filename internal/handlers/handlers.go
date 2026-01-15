@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/internal/pdf"
@@ -91,6 +92,7 @@ func RegisterRoutes(router *gin.Engine) {
 	v1.POST("/merge", handleMergePDFs)
 	v1.GET("/template-data", handleGetTemplateData)
 	v1.GET("/fonts", handleGetFonts)
+	v1.POST("/fonts/upload", handleUploadFont)
 
 	// HTML to PDF/Image endpoints (powered by gochromedp)
 	v1.POST("/htmltopdf", handlehtmlToPDF)
@@ -169,6 +171,49 @@ func handleGetFonts(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"fonts": fonts,
+	})
+}
+
+// handleUploadFont handles the upload of custom font files
+func handleUploadFont(c *gin.Context) {
+	file, err := c.FormFile("font")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No font file provided"})
+		return
+	}
+
+	// Validate file extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".ttf" && ext != ".otf" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .ttf and .otf files are supported"})
+		return
+	}
+
+	// Read file content
+	f, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file: " + err.Error()})
+		return
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file: " + err.Error()})
+		return
+	}
+
+	// Register font
+	fontName := strings.TrimSuffix(file.Filename, filepath.Ext(file.Filename))
+	err = pdf.GetFontRegistry().RegisterFontFromData(fontName, data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to register font: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Font uploaded successfully",
+		"name":    fontName,
 	})
 }
 

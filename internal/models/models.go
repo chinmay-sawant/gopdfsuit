@@ -28,6 +28,7 @@ type Config struct {
 	PageAlignment       int                `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
 	Watermark           string             `json:"watermark,omitempty"`           // Optional diagonal watermark text
 	ArlingtonCompatible bool               `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
+	EmbedFonts          *bool              `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
 	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`         // Custom TTF/OTF fonts to embed
 }
 

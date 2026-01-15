@@ -166,8 +166,16 @@ const getStyleFromProps = (propsString) => {
   return style
 }
 
-function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, onDownloadPDF }) {
+function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, onDownloadPDF, onUploadFont }) {
   const [templateInput, setTemplateInput] = useState('')
+  const fileInputRef = useRef(null)
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      onUploadFont(e.target.files[0])
+      e.target.value = null // Reset input
+    }
+  }
 
   return (
     <div className="card" style={{ 
@@ -208,6 +216,21 @@ function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, on
           >
             <Upload size={14} /> Load
           </button>
+           <button
+            onClick={() => fileInputRef.current?.click()}
+            className="btn"
+            style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}
+            title="Upload Custom Font (.ttf/.otf)"
+          >
+            <Type size={14} /> Upload Font
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".ttf,.otf"
+            style={{ display: 'none' }}
+          />
           <button
             onClick={onPreviewPDF}
             className="btn btn-secondary"
@@ -2107,6 +2130,52 @@ export default function Editor() {
     }
   }
 
+  const handleUploadFont = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('font', file)
+
+    try {
+      setFontsLoading(true)
+      const response = await fetch('/api/v1/fonts/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.font) {
+          setFonts(prev => {
+             // Avoid duplicates
+             if (prev.some(f => f.id === data.font.id)) return prev;
+             return [...prev, data.font]
+          })
+          alert(`Font ${data.font.displayName} uploaded successfully!`)
+        } else {
+             // Refresh list if no font object returned but success
+             const refresh = await fetch('/api/v1/fonts')
+             if (refresh.ok) {
+                 const refreshData = await refresh.json()
+                 if(refreshData.fonts) setFonts(refreshData.fonts)
+             }
+             alert('Font uploaded successfully!')
+        }
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to upload font: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error uploading font:', error)
+      alert('Error uploading font: ' + error.message)
+    } finally {
+      setFontsLoading(false)
+      // Reset input
+      e.target.value = null
+    }
+  }
+
   const getJsonOutput = () => {
     const output = { config }
     if (title) output.title = title
@@ -2353,6 +2422,25 @@ export default function Editor() {
               >
                 <Download size={14} /> Generate
               </button>
+
+              <input
+                type="file"
+                id="font-upload-input"
+                accept=".ttf,.otf"
+                style={{ display: 'none' }}
+                onChange={handleUploadFont}
+                disabled={fontsLoading}
+              />
+              <button
+                onClick={() => document.getElementById('font-upload-input').click()}
+                className="btn"
+                disabled={fontsLoading}
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                title="Upload Custom Font (.ttf, .otf)"
+              >
+                <Type size={14} /> Upload Font
+              </button>
+
               <button
                 onClick={copyJSON}
                 className="btn"
@@ -2573,6 +2661,74 @@ export default function Editor() {
                         height: '16px',
                         width: '16px',
                         left: config.arlingtonCompatible ? '21px' : '3px',
+                        bottom: '3px',
+                        backgroundColor: 'white',
+                        transition: '0.3s',
+                        borderRadius: '50%'
+                      }} />
+                    </span>
+                  </label>
+                </div>
+
+                {/* Embed Fonts Toggle */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  padding: '0.5rem',
+                  marginTop: '0.5rem',
+                  background: 'hsl(var(--muted))',
+                  borderRadius: '4px'
+                }}>
+                  <div>
+                    <label style={{ 
+                      display: 'block', 
+                      fontSize: '0.8rem', 
+                      fontWeight: '500',
+                      color: 'hsl(var(--foreground))'
+                    }}>
+                      Embed Standard Fonts
+                    </label>
+                    <span style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'hsl(var(--muted-foreground))'
+                    }}>
+                      Embed used standard fonts
+                    </span>
+                  </div>
+                  <label style={{ 
+                    position: 'relative', 
+                    display: 'inline-block', 
+                    width: '40px', 
+                    height: '22px' 
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={config.embedFonts !== false}
+                      onChange={(e) => setConfig(prev => ({ ...prev, embedFonts: e.target.checked }))}
+                      style={{ 
+                        opacity: 0, 
+                        width: 0, 
+                        height: 0 
+                      }}
+                    />
+                    <span style={{
+                      position: 'absolute',
+                      cursor: 'pointer',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: (config.embedFonts !== false) ? 'var(--secondary-color)' : 'hsl(var(--border))',
+                      transition: '0.3s',
+                      borderRadius: '22px'
+                    }}>
+                      <span style={{
+                        position: 'absolute',
+                        content: '""',
+                        height: '16px',
+                        width: '16px',
+                        left: (config.embedFonts !== false) ? '21px' : '3px',
                         bottom: '3px',
                         backgroundColor: 'white',
                         transition: '0.3s',
