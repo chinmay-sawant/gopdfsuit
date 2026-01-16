@@ -138,6 +138,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString("%PDF-2.0\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
+	// CRITICAL: Assign object IDs to custom fonts BEFORE generating content
+	// This ensures that when content streams are generated, custom font references
+	// (e.g., /CF2000) have valid object IDs. Custom fonts start at object ID 1000
+	// to avoid conflicts with standard font objects.
+	customFontObjectStart := 1000
+	fontRegistry.AssignObjectIDs(customFontObjectStart)
+
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs and cellImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs)
@@ -273,11 +280,9 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
-	// Assign object IDs to custom fonts (starts after all standard font objects)
-	customFontObjectStart := currentObjectID
-	customFontObjectStart = fontRegistry.AssignObjectIDs(customFontObjectStart)
-
-	// Build custom font resource references
+	// Assign object IDs to custom fonts (object IDs already assigned before content generation)
+	// customFontObjectStart is already calculated, no need to assign again
+	// Just build the custom font resource references
 	customFontRefs := fontRegistry.GeneratePDFFontResources()
 
 	// Build XObject references for page resources (standalone images + cell images)
@@ -850,6 +855,58 @@ func collectUsedStandardFonts(template models.PDFTemplate) map[string]bool {
 	// Scan footer
 	if template.Footer.Text != "" {
 		markFont(template.Footer.Font)
+	}
+
+	// Scan watermark (always uses Helvetica if present)
+	if template.Config.Watermark != "" {
+		// Watermark uses Helvetica
+		if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+			used["Helvetica"] = true
+		}
+	}
+
+	// Page numbers always use Helvetica
+	if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+		used["Helvetica"] = true
+	}
+
+	// Image placeholder names use Helvetica
+	hasImages := len(template.Image) > 0
+	for _, table := range template.Table {
+		for _, row := range table.Rows {
+			for _, cell := range row.Row {
+				if cell.Image != nil {
+					hasImages = true
+					break
+				}
+			}
+			if hasImages {
+				break
+			}
+		}
+		if hasImages {
+			break
+		}
+	}
+	// Check title table for images
+	if !hasImages && template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				if cell.Image != nil {
+					hasImages = true
+					break
+				}
+			}
+			if hasImages {
+				break
+			}
+		}
+	}
+	if hasImages {
+		// Image placeholders use Helvetica for displaying image names
+		if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+			used["Helvetica"] = true
+		}
 	}
 
 	return used

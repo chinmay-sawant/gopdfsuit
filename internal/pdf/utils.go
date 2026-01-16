@@ -266,6 +266,19 @@ func getWidgetFontName() string {
 	return "Helvetica" // Use inline Helvetica definition
 }
 
+// getWidgetFontObjectID returns the PDF object ID for the widget font.
+// In PDF/A mode, this returns the object ID of the Liberation font that replaces Helvetica.
+// Returns 0 if no custom font is registered (standard mode).
+func getWidgetFontObjectID() int {
+	registry := GetFontRegistry()
+	if registry.HasFont("Helvetica") {
+		if font, ok := registry.GetFont("Helvetica"); ok {
+			return font.ObjectID
+		}
+	}
+	return 0
+}
+
 // formatPageKids formats the page object IDs for the Pages object
 func formatPageKids(pageIDs []int) string {
 	var kids []string

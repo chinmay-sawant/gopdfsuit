@@ -958,13 +958,22 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		apContent := apStream.String()
 
 		// Create appearance XObject
-		// In PDF/A mode with custom fonts, we don't embed font in XObject Resources
-		// because the font reference (e.g., /CF2000) refers to page-level resources.
-		// For standard mode, we still embed Helvetica definition for compatibility.
+		// IMPORTANT: Form XObjects must declare all resources they use in their own Resources dictionary
+		// This is required for PDF/A-4 compliance - resources cannot be inherited from page level
 		var apObjContent string
 		if getWidgetFontName() == "" {
-			// PDF/A mode: No inline font resources, use page-level fonts
-			apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(apContent), apContent)
+			// PDF/A mode: Get the font object ID from the font registry
+			// The widgetFontRef (e.g., /CF2000) references a custom font that must be in Resources
+			fontObjID := getWidgetFontObjectID()
+			if fontObjID > 0 {
+				// Include the font reference in the XObject's Resources dictionary
+				apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << %s %d 0 R >> >> /Length %d >> stream\n%s\nendstream",
+					fmtNum(w), fmtNum(h), widgetFontRef, fontObjID, len(apContent), apContent)
+			} else {
+				// Fallback: empty resources (should not happen in PDF/A mode)
+				apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream",
+					fmtNum(w), fmtNum(h), len(apContent), apContent)
+			}
 		} else {
 			// Standard mode: Embed Helvetica definition in XObject resources
 			var helveticaFont string
