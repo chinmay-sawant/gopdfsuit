@@ -615,6 +615,9 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont) map[int]string {
 	widthsStr := generateCIDWidths(font)
 	objects[font.WidthsID] = widthsStr
 
+	// Generate CIDToGIDMap
+	objects[font.CIDToGIDMapID] = generateCIDToGIDMap(font)
+
 	// Generate FontDescriptor
 	objects[font.DescriptorID] = generateTrueTypeFontDescriptor(font)
 
@@ -657,8 +660,8 @@ func generateCIDFontDict(font *RegisteredFont) string {
 		_ = spaceGlyph // Use the glyph lookup
 	}
 
-	return fmt.Sprintf("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /%s /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor %d 0 R /DW %d /W %d 0 R /CIDToGIDMap /Identity >>",
-		psName, font.DescriptorID, defaultWidth, font.WidthsID)
+	return fmt.Sprintf("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /%s /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor %d 0 R /DW %d /W %d 0 R /CIDToGIDMap %d 0 R >>",
+		psName, font.DescriptorID, defaultWidth, font.WidthsID, font.CIDToGIDMapID)
 }
 
 // generateTrueTypeFontDescriptor generates the FontDescriptor for a TrueType font
@@ -753,6 +756,58 @@ func generateCIDWidths(font *RegisteredFont) string {
 
 	result.WriteString("]")
 	return result.String()
+}
+
+// generateCIDToGIDMap generates the CIDToGIDMap stream
+// This maps CIDs (treated as Unicode code points in our Identity-H output)
+// to the actual Glyph IDs in the embedded (potentially subsetted) font.
+func generateCIDToGIDMap(font *RegisteredFont) string {
+	f := font.Font
+
+	// Determine the maximum CID used
+	var maxCID uint16 = 0
+	for char := range font.UsedChars {
+		if uint16(char) > maxCID {
+			maxCID = uint16(char)
+		}
+	}
+
+	// CIDToGIDMap must cover range 0 to MaxCID
+	// Array of 2-byte GIDs
+	mapData := make([]byte, (int(maxCID)+1)*2)
+
+	// Fill the map
+	for char := range font.UsedChars {
+		cid := uint16(char)
+
+		// 1. Get Original GID from Font
+		oldGID := f.CharToGlyph[rune(cid)]
+
+		// 2. Determine Final GID
+		finalGID := oldGID
+		if len(font.SubsetData) > 0 {
+			// If subsetted, use the New GID
+			if newGID, ok := font.OldToNewGlyph[oldGID]; ok {
+				finalGID = newGID
+			} else {
+				finalGID = 0 // .notdef fallback
+			}
+		}
+
+		// Write 16-bit GID at offset CID*2
+		mapData[cid*2] = byte(finalGID >> 8)
+		mapData[cid*2+1] = byte(finalGID)
+	}
+
+	// Compress the stream
+	var compressedBuf bytes.Buffer
+	zlibWriter := zlib.NewWriter(&compressedBuf)
+	zlibWriter.Write(mapData)
+	zlibWriter.Close()
+	compressedData := compressedBuf.Bytes()
+
+	return fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
+		len(compressedData), string(compressedData))
 }
 
 // generateToUnicodeCMap generates the ToUnicode CMap stream for text extraction

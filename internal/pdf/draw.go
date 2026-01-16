@@ -117,8 +117,8 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 		contentStream.WriteString("0 0 0 rg\n")
 	}
 
-	// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
-	textWidth := float64(len(title.Text)) * float64(titleProps.FontSize) * 0.5
+	// Calculate approximate text width
+	textWidth := EstimateTextWidth(titleProps.FontName, title.Text, float64(titleProps.FontSize))
 
 	// Calculate available width (page width minus both margins)
 	availableWidth := pageManager.PageDimensions.Width - 2*margin
@@ -326,7 +326,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				}
 
 				// Calculate approximate text width
-				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
+				textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize))
 
 				var textX float64
 				switch cellProps.Alignment {
@@ -595,8 +595,8 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					contentStream.WriteString("0 0 0 rg\n")
 				}
 
-				// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
-				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
+				// Calculate approximate text width
+				textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize))
 
 				var textX float64
 				switch cellProps.Alignment {

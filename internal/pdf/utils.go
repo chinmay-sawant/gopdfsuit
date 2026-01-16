@@ -61,50 +61,66 @@ func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 
 func parseProps(props string) models.Props {
 	parts := strings.Split(props, ":")
-	if len(parts) < 5 {
-		return models.Props{
-			FontName:  "Helvetica",
-			FontSize:  12,
-			StyleCode: "000",
-			Bold:      false,
-			Italic:    false,
-			Underline: false,
-			Alignment: "left",
-			Borders:   [4]int{0, 0, 0, 0},
+
+	// Default values
+	fontName := "Helvetica"
+	fontSize := 12
+	styleCode := "000"
+	alignment := "left"
+	borders := [4]int{0, 0, 0, 0}
+
+	// Helper to safe index
+	getPart := func(idx int) string {
+		if idx < len(parts) {
+			return parts[idx]
+		}
+		return ""
+	}
+
+	// 1. Font Name
+	if name := strings.TrimSpace(getPart(0)); name != "" {
+		fontName = name
+	}
+
+	// 2. Font Size
+	if sizeStr := getPart(1); sizeStr != "" {
+		if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 {
+			fontSize = s
 		}
 	}
 
-	fontSize, _ := strconv.Atoi(parts[1])
-	if fontSize == 0 {
-		fontSize = 12
-	}
-
-	// Parse 3-digit style code (bold:italic:underline)
-	styleCode := parts[2]
-	if len(styleCode) != 3 {
-		styleCode = "000" // Default to normal text
+	// 3. Style Code
+	if sc := getPart(2); len(sc) == 3 {
+		styleCode = sc
 	}
 
 	bold := styleCode[0] == '1'
 	italic := styleCode[1] == '1'
 	underline := styleCode[2] == '1'
 
-	// Parse alignment (now at index 3)
-	alignment := "left"
-	if len(parts) > 3 {
-		alignment = parts[3]
+	// 4. Alignment
+	if align := getPart(3); align != "" {
+		alignment = align
 	}
 
-	// Parse borders (now starting at index 4)
-	borders := [4]int{0, 0, 0, 0}
+	// 5-8. Borders
 	if len(parts) >= 8 {
-		for i := 4; i < 8 && i < len(parts); i++ {
-			borders[i-4], _ = strconv.Atoi(parts[i])
+		for i := 4; i < 8; i++ {
+			if val, err := strconv.Atoi(parts[i]); err == nil {
+				borders[i-4] = val
+			}
+		}
+	} else if len(parts) >= 5 {
+		// Try to parse as many borders as available starting from index 4
+		for i := 4; i < len(parts) && i < 8; i++ {
+			if val, err := strconv.Atoi(parts[i]); err == nil {
+				borders[i-4] = val
+			}
 		}
 	}
 
 	return models.Props{
-		FontName:  parts[0],
+		FontName:  fontName,
 		FontSize:  fontSize,
 		StyleCode: styleCode,
 		Bold:      bold,

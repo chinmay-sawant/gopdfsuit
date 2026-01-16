@@ -26,6 +26,7 @@ type RegisteredFont struct {
 	DescriptorID  int               // PDF object ID for font descriptor
 	ToUnicodeID   int               // PDF object ID for ToUnicode CMap
 	CIDFontID     int               // PDF object ID for CIDFont
+	CIDToGIDMapID int               // PDF object ID for CIDToGIDMap
 	FontFileID    int               // PDF object ID for embedded font file
 	WidthsID      int               // PDF object ID for widths array
 }
@@ -199,6 +200,7 @@ func (r *CustomFontRegistry) ResetUsage() {
 		font.DescriptorID = 0
 		font.ToUnicodeID = 0
 		font.CIDFontID = 0
+		font.CIDToGIDMapID = 0
 		font.FontFileID = 0
 		font.WidthsID = 0
 	}
@@ -216,13 +218,14 @@ func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
 			continue
 		}
 
-		// Each custom font needs 6 objects:
+		// Each custom font needs 7 objects:
 		// 1. Type 0 font dictionary
 		// 2. CIDFont dictionary
 		// 3. FontDescriptor
-		// 4. CIDToGIDMap or Identity
-		// 5. ToUnicode CMap
-		// 6. FontFile2 stream
+		// 4. Widths array
+		// 5. CIDToGIDMap stream
+		// 6. ToUnicode CMap
+		// 7. FontFile2 stream
 		font.ObjectID = currentID
 		currentID++
 		font.CIDFontID = currentID
@@ -230,6 +233,8 @@ func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
 		font.DescriptorID = currentID
 		currentID++
 		font.WidthsID = currentID
+		currentID++
+		font.CIDToGIDMapID = currentID
 		currentID++
 		font.ToUnicodeID = currentID
 		currentID++

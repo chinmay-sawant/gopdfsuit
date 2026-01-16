@@ -730,12 +730,23 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 
 	// Scan elements (ordered)
 	for _, elem := range template.Elements {
-		if elem.Type == "table" && elem.Table != nil {
-			for _, row := range elem.Table.Rows {
-				for _, cell := range row.Row {
-					if cell.Text != "" {
-						props := parseProps(cell.Props)
-						markFontUsage(props, cell.Text)
+		if elem.Type == "table" {
+			if elem.Table != nil {
+				for _, row := range elem.Table.Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							props := parseProps(cell.Props)
+							markFontUsage(props, cell.Text)
+						}
+					}
+				}
+			} else if elem.Index >= 0 && elem.Index < len(template.Table) {
+				for _, row := range template.Table[elem.Index].Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							props := parseProps(cell.Props)
+							markFontUsage(props, cell.Text)
+						}
 					}
 				}
 			}
@@ -815,11 +826,21 @@ func collectUsedStandardFonts(template models.PDFTemplate) map[string]bool {
 
 	// Scan elements
 	for _, elem := range template.Elements {
-		if elem.Type == "table" && elem.Table != nil {
-			for _, row := range elem.Table.Rows {
-				for _, cell := range row.Row {
-					if cell.Text != "" {
-						markFont(cell.Props)
+		if elem.Type == "table" {
+			if elem.Table != nil {
+				for _, row := range elem.Table.Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							markFont(cell.Props)
+						}
+					}
+				}
+			} else if elem.Index >= 0 && elem.Index < len(template.Table) {
+				for _, row := range template.Table[elem.Index].Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							markFont(cell.Props)
+						}
 					}
 				}
 			}
@@ -878,11 +899,21 @@ func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]b
 
 	// Scan elements
 	for _, elem := range template.Elements {
-		if elem.Type == "table" && elem.Table != nil {
-			for _, row := range elem.Table.Rows {
-				for _, cell := range row.Row {
-					if cell.Text != "" {
-						markFont(cell.Props)
+		if elem.Type == "table" {
+			if elem.Table != nil {
+				for _, row := range elem.Table.Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							markFont(cell.Props)
+						}
+					}
+				}
+			} else if elem.Index >= 0 && elem.Index < len(template.Table) {
+				for _, row := range template.Table[elem.Index].Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							markFont(cell.Props)
+						}
 					}
 				}
 			}
