@@ -462,7 +462,6 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// For full compliance, these should be in XMP metadata stream instead
 	infoObjectID := pageManager.NextObjectID
 	pageManager.NextObjectID++
-	xrefOffsets[infoObjectID] = pdfBuffer.Len()
 	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
 	// Go's time format doesn't support the PDF timezone format directly, so we build it manually
 	now := time.Now()
@@ -475,17 +474,16 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	tzHours := tzOffset / 3600
 	tzMinutes := (tzOffset % 3600) / 60
 	creationDate := fmt.Sprintf("D:%s%s%02d'%02d'", now.Format("20060102150405"), tzSign, tzHours, tzMinutes)
-	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
-	// Minimal Info dict with just dates (dates are not deprecated)
-	// For PDF/A-4 compliance, if Info dict is present, it should only contain ModDate (if no PieceInfo)
-	// However, for strict PDF/A-4, Info dict is discouraged in favor of XMP.
-	// We will include ModDate only if PDF/A compliant, or both otherwise.
-	if template.Config.PDFACompliant {
-		pdfBuffer.WriteString(fmt.Sprintf("<< /ModDate (%s) >>\n", creationDate))
-	} else {
+
+	// For PDF/A-4: Skip Info object entirely (Clause 6.1.3, Test 4)
+	// Info key shall not be present in trailer unless PieceInfo exists in catalog
+	// All metadata should be in XMP stream instead
+	if !template.Config.PDFACompliant {
+		xrefOffsets[infoObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
 		pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+		pdfBuffer.WriteString("endobj\n")
 	}
-	pdfBuffer.WriteString("endobj\n")
 
 	// Generate Document ID (two MD5 hashes - one based on content, one random)
 	contentHash := md5.Sum(pdfBuffer.Bytes())
