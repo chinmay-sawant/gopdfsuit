@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -712,9 +713,15 @@ func generateCIDWidths(font *RegisteredFont) string {
 	var widths []cidWidth
 	for char := range font.UsedChars {
 		if glyphID, ok := f.CharToGlyph[char]; ok {
+			// Bounds check for glyph width array
+			if int(glyphID) >= len(f.GlyphWidths) {
+				// Skip glyphs without width information (shouldn't happen with valid fonts)
+				continue
+			}
 			// For Identity-H encoding, CID = Unicode code point
 			cid := uint16(char)
-			width := int(float64(f.GlyphWidths[glyphID]) * scale)
+			// Scale width to PDF units (1/1000 em) with proper rounding
+			width := int(math.Round(float64(f.GlyphWidths[glyphID]) * scale))
 			widths = append(widths, cidWidth{cid, width})
 		}
 	}
@@ -781,7 +788,11 @@ func generateCIDToGIDMap(font *RegisteredFont) string {
 		cid := uint16(char)
 
 		// 1. Get Original GID from Font
-		oldGID := f.CharToGlyph[rune(cid)]
+		oldGID, ok := f.CharToGlyph[rune(cid)]
+		if !ok {
+			// Character not in font - map to .notdef (GID 0)
+			oldGID = 0
+		}
 
 		// 2. Determine Final GID
 		finalGID := oldGID
@@ -888,12 +899,32 @@ func generateToUnicodeCMap(font *RegisteredFont) string {
 
 // EncodeTextForCustomFont encodes text for use with a custom font (Identity-H encoding)
 // Returns the encoded hex string suitable for use in PDF content stream with Tj operator
-func EncodeTextForCustomFont(text string) string {
+// Characters not in the font are replaced with a space to prevent .notdef references
+func EncodeTextForCustomFont(fontName string, text string) string {
+	registry := GetFontRegistry()
+	font, ok := registry.GetFont(fontName)
+	if !ok {
+		// Fallback: encode as-is if font not found
+		var hex strings.Builder
+		hex.WriteString("<")
+		for _, char := range text {
+			hex.WriteString(fmt.Sprintf("%04X", char))
+		}
+		hex.WriteString(">")
+		return hex.String()
+	}
+
 	var hex strings.Builder
 	hex.WriteString("<")
 	for _, char := range text {
-		// Identity-H encoding: 2-byte CID = Unicode code point
-		hex.WriteString(fmt.Sprintf("%04X", char))
+		// Check if character is in font's character map
+		if _, exists := font.Font.CharToGlyph[char]; exists {
+			// Identity-H encoding: 2-byte CID = Unicode code point
+			hex.WriteString(fmt.Sprintf("%04X", char))
+		} else {
+			// Character not in font - replace with space to avoid .notdef
+			hex.WriteString(fmt.Sprintf("%04X", ' '))
+		}
 	}
 	hex.WriteString(">")
 	return hex.String()

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"sort"
 )
@@ -607,7 +608,7 @@ func (f *TTFFont) GetCharWidth(char rune) uint16 {
 // GetCharWidthScaled returns the width of a character scaled to PDF units (1/1000 em)
 func (f *TTFFont) GetCharWidthScaled(char rune) int {
 	width := f.GetCharWidth(char)
-	return int(float64(width) * 1000.0 / float64(f.UnitsPerEm))
+	return int(math.Round(float64(width) * 1000.0 / float64(f.UnitsPerEm)))
 }
 
 // GetUsedGlyphs returns a sorted list of glyph IDs used by the given text

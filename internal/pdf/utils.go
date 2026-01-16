@@ -350,7 +350,7 @@ func formatTextForPDF(props models.Props, text string) string {
 	resolvedName := resolveFontName(props)
 
 	if isCustomFont(resolvedName) {
-		return EncodeTextForCustomFont(text)
+		return EncodeTextForCustomFont(resolvedName, text)
 	}
 	return "(" + escapePDFString(text) + ")"
 }

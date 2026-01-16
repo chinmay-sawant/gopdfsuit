@@ -28,19 +28,28 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	x := pageDims.Width * 0.20
 	y := pageDims.Height * 0.30
 
+	// Track characters for font subsetting
+	registry := GetFontRegistry()
+	if registry.HasFont("Helvetica") {
+		registry.MarkCharsUsed("Helvetica", text)
+	}
+
 	// 45 degree rotation matrix components
 	c := 0.7071
 	s := 0.7071
+
+	// Use props for proper font encoding
+	watermarkProps := models.Props{FontName: "Helvetica", FontSize: fontSize}
 
 	contentStream.WriteString("q\n")
 	// Light gray fill/stroke
 	contentStream.WriteString("0.85 0.85 0.85 rg 0.85 0.85 0.85 RG\n")
 	contentStream.WriteString("BT\n")
 	// Use getFontReference to handle PDF/A font substitution (Helvetica -> Liberation)
-	fontRef := getFontReference(models.Props{FontName: "Helvetica"})
+	fontRef := getFontReference(watermarkProps)
 	contentStream.WriteString(fmt.Sprintf("%s %d Tf\n", fontRef, fontSize))
 	contentStream.WriteString(fmt.Sprintf("%s %s %s %s %s %s Tm\n", fmtNum(c), fmtNum(s), fmtNum(-s), fmtNum(c), fmtNum(x), fmtNum(y)))
-	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(text)))
+	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(watermarkProps, text)))
 	contentStream.WriteString("ET\nQ\n")
 }
 
@@ -700,8 +709,17 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer) {
 func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions) {
 	pageText := fmt.Sprintf("Page %d of %d", currentPage, totalPages)
 
+	// Track characters for font subsetting
+	registry := GetFontRegistry()
+	if registry.HasFont("Helvetica") {
+		registry.MarkCharsUsed("Helvetica", pageText)
+	}
+
+	// Use props for proper font encoding
+	pageProps := models.Props{FontName: "Helvetica", FontSize: 10}
+
 	contentStream.WriteString("BT\n")
-	fontRef := getFontReference(models.Props{FontName: "Helvetica"})
+	fontRef := getFontReference(pageProps)
 	contentStream.WriteString(fmt.Sprintf("%s 10 Tf\n", fontRef)) // Use Helvetica, 10pt
 
 	// Calculate text width for proper right alignment
@@ -713,7 +731,7 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%s %d Td\n", fmtNum(pageNumberX), pageNumberY))
-	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", pageText))
+	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(pageProps, pageText)))
 	contentStream.WriteString("ET\n")
 }
 
@@ -933,6 +951,16 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			fontSize = 6
 		}
 
+		// Mark field value for font subsetting (critical for PDF/A compliance)
+		// Form field text is rendered in appearance streams using custom fonts
+		if field.Value != "" {
+			registry := GetFontRegistry()
+			if registry.HasFont("Helvetica") {
+				// PDF/A mode: Liberation font registered as Helvetica
+				registry.MarkCharsUsed("Helvetica", field.Value)
+			}
+		}
+
 		// Get the appropriate font reference for widgets (handles PDF/A mode)
 		widgetFontRef := getWidgetFontReference()
 
@@ -951,8 +979,11 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		if field.Value != "" {
 			textY := (h - fontSize) / 2
 			textX := 2.0
+			// Use proper encoding for field value
+			fieldProps := models.Props{FontName: "Helvetica", FontSize: int(fontSize)}
+			encodedValue := formatTextForPDF(fieldProps, field.Value)
 			// Use proper font reference in appearance stream
-			apStream.WriteString(fmt.Sprintf("q BT %s %s Tf 0 g %s %s Td (%s) Tj ET Q ", widgetFontRef, fmtNum(fontSize), fmtNum(textX), fmtNum(textY), escapeText(field.Value)))
+			apStream.WriteString(fmt.Sprintf("q BT %s %s Tf 0 g %s %s Td %s Tj ET Q ", widgetFontRef, fmtNum(fontSize), fmtNum(textX), fmtNum(textY), encodedValue))
 		}
 		apStream.WriteString("EMC")
 		apContent := apStream.String()
