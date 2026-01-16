@@ -1,11 +1,15 @@
 package pdf
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 )
 
@@ -100,17 +104,27 @@ func (m *PDFAFontManager) initialize(config PDFAFontConfig) error {
 	}
 
 	if config.FallbackFontsDirectory == "" {
-		// Try common system font locations
-		systemPaths := []string{
-			"/usr/share/fonts/liberation",
-			"/usr/share/fonts/truetype/liberation",
-			"/usr/share/fonts/liberation-sans",
-			"/usr/local/share/fonts/liberation",
-		}
-		for _, p := range systemPaths {
-			if _, err := os.Stat(p); err == nil {
-				config.FallbackFontsDirectory = p
-				break
+		// Detect OS and set fallback directories
+		switch runtime.GOOS {
+		case "windows":
+			// Typically fonts are in C:\Windows\Fonts, but we won't find Liberation there by default usually
+			// The user can set it manually, or we rely on the download.
+			config.FallbackFontsDirectory = `C:\Windows\Fonts`
+		case "darwin":
+			config.FallbackFontsDirectory = "/Library/Fonts"
+		default:
+			// Linux/Unix
+			systemPaths := []string{
+				"/usr/share/fonts/liberation",
+				"/usr/share/fonts/truetype/liberation",
+				"/usr/share/fonts/liberation-sans",
+				"/usr/local/share/fonts/liberation",
+			}
+			for _, p := range systemPaths {
+				if _, err := os.Stat(p); err == nil {
+					config.FallbackFontsDirectory = p
+					break
+				}
 			}
 		}
 	}
@@ -150,7 +164,7 @@ func (m *PDFAFontManager) EnsureFontsAvailable() error {
 		return fmt.Errorf("failed to create fonts directory: %w", err)
 	}
 
-	// Download individual font files
+	// Download fonts using the ZIP/Tarball to ensure all variants are present
 	return m.downloadFonts()
 }
 
@@ -186,41 +200,85 @@ func (m *PDFAFontManager) checkFontDir(dir string) bool {
 
 // downloadFonts downloads Liberation font files
 func (m *PDFAFontManager) downloadFonts() error {
-	// Direct download URLs for individual font files
-	// Using jsDelivr CDN which mirrors the GitHub releases
-	baseURL := "https://cdn.jsdelivr.net/gh/liberationfonts/liberation-fonts@2.1.5/liberation-fonts-ttf-2.1.5/"
+	fmt.Printf("Downloading Liberation fonts from %s...\n", liberationFontsZipURL)
 
-	for fontName, fileName := range LiberationFontFiles {
-		destPath := filepath.Join(m.config.FontsDirectory, fileName)
+	// Create temp file for the tar.gz
+	tmpFile, err := os.CreateTemp("", "liberation-fonts-*.tar.gz")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name()) // Clean up
+	defer tmpFile.Close()
 
-		// Skip if already exists
-		if _, err := os.Stat(destPath); err == nil {
-			continue
+	// Download the file
+	resp, err := http.Get(liberationFontsZipURL)
+	if err != nil {
+		return fmt.Errorf("failed to download fonts: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download fonts: HTTP %d", resp.StatusCode)
+	}
+
+	_, err = io.Copy(tmpFile, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to save fonts archive: %w", err)
+	}
+
+	// Seek back to start
+	tmpFile.Seek(0, 0)
+
+	// Extract the tar.gz
+	gzr, err := gzip.NewReader(tmpFile)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzr.Close()
+
+	tr := tar.NewReader(gzr)
+
+	fmt.Printf("Extracting fonts to %s...\n", m.config.FontsDirectory)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
 		}
-
-		url := baseURL + fileName
-		fmt.Printf("Downloading %s...\n", fontName)
-
-		resp, err := http.Get(url)
 		if err != nil {
-			return fmt.Errorf("failed to download %s: %w", fontName, err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("failed to download %s: HTTP %d", fontName, resp.StatusCode)
+			return fmt.Errorf("failed to read tar header: %w", err)
 		}
 
-		file, err := os.Create(destPath)
-		if err != nil {
-			return fmt.Errorf("failed to create %s: %w", destPath, err)
-		}
+		// Check if it's a TTF file
+		if header.Typeflag == tar.TypeReg && strings.HasSuffix(header.Name, ".ttf") {
+			// Extract just the filename (ignore directory structure in tar)
+			fileName := filepath.Base(header.Name)
 
-		_, err = io.Copy(file, resp.Body)
-		file.Close()
-		if err != nil {
-			os.Remove(destPath)
-			return fmt.Errorf("failed to write %s: %w", destPath, err)
+			// Only extract fonts we care about (optimization)
+			found := false
+			for _, knownFile := range LiberationFontFiles {
+				if fileName == knownFile {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				continue
+			}
+
+			destPath := filepath.Join(m.config.FontsDirectory, fileName)
+			outFile, err := os.Create(destPath)
+			if err != nil {
+				return fmt.Errorf("failed to create font file %s: %w", destPath, err)
+			}
+
+			if _, err := io.Copy(outFile, tr); err != nil {
+				outFile.Close()
+				return fmt.Errorf("failed to extract %s: %w", fileName, err)
+			}
+			outFile.Close()
+			fmt.Printf("Parsed: %s\n", fileName)
 		}
 	}
 

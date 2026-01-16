@@ -180,8 +180,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 		fieldsRef.WriteString("]")
 
+		// Get appropriate font reference for AcroForm DA (handles PDF/A mode)
+		widgetFontRef := getWidgetFontReference()
+
 		// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
-		acroFormContent := fmt.Sprintf("<< /Fields %s /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
+		acroFormContent := fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) >>", fieldsRef.String(), widgetFontRef)
 		pageManager.ExtraObjects[acroFormID] = acroFormContent
 
 		pdfBuffer.WriteString(fmt.Sprintf(" /AcroForm %d 0 R", acroFormID))
@@ -469,7 +472,14 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	creationDate := fmt.Sprintf("D:%s%s%02d'%02d'", now.Format("20060102150405"), tzSign, tzHours, tzMinutes)
 	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
 	// Minimal Info dict with just dates (dates are not deprecated)
-	pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+	// For PDF/A-4 compliance, if Info dict is present, it should only contain ModDate (if no PieceInfo)
+	// However, for strict PDF/A-4, Info dict is discouraged in favor of XMP.
+	// We will include ModDate only if PDF/A compliant, or both otherwise.
+	if template.Config.PDFACompliant {
+		pdfBuffer.WriteString(fmt.Sprintf("<< /ModDate (%s) >>\n", creationDate))
+	} else {
+		pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+	}
 	pdfBuffer.WriteString("endobj\n")
 
 	// Generate Document ID (two MD5 hashes - one based on content, one random)
@@ -547,7 +557,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	}
 
 	// Trailer with Info and ID
-	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s >>\n", totalObjects, infoObjectID, documentID))
+	// For PDF/A-4, The Info key shall not be present in the trailer dictionary unless there exists a PieceInfo entry
+	if template.Config.PDFACompliant {
+		pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /ID %s >>\n", totalObjects, documentID))
+	} else {
+		pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s >>\n", totalObjects, infoObjectID, documentID))
+	}
 	pdfBuffer.WriteString("startxref\n")
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
@@ -686,9 +701,7 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 	// Scan title
 	if template.Title.Text != "" {
 		props := parseProps(template.Title.Props)
-		if registry.HasFont(props.FontName) {
-			registry.MarkCharsUsed(props.FontName, template.Title.Text)
-		}
+		markFontUsage(props, template.Title.Text)
 	}
 
 	// Scan title table if present
@@ -697,9 +710,7 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 			for _, cell := range row.Row {
 				if cell.Text != "" {
 					props := parseProps(cell.Props)
-					if registry.HasFont(props.FontName) {
-						registry.MarkCharsUsed(props.FontName, cell.Text)
-					}
+					markFontUsage(props, cell.Text)
 				}
 			}
 		}
@@ -711,9 +722,7 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 			for _, cell := range row.Row {
 				if cell.Text != "" {
 					props := parseProps(cell.Props)
-					if registry.HasFont(props.FontName) {
-						registry.MarkCharsUsed(props.FontName, cell.Text)
-					}
+					markFontUsage(props, cell.Text)
 				}
 			}
 		}
@@ -726,9 +735,7 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 				for _, cell := range row.Row {
 					if cell.Text != "" {
 						props := parseProps(cell.Props)
-						if registry.HasFont(props.FontName) {
-							registry.MarkCharsUsed(props.FontName, cell.Text)
-						}
+						markFontUsage(props, cell.Text)
 					}
 				}
 			}
@@ -738,8 +745,22 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 	// Scan footer
 	if template.Footer.Text != "" {
 		props := parseProps(template.Footer.Font)
-		if registry.HasFont(props.FontName) {
-			registry.MarkCharsUsed(props.FontName, template.Footer.Text)
+		markFontUsage(props, template.Footer.Text)
+	}
+
+	// Scan Watermark (uses Helvetica)
+	if template.Config.Watermark != "" {
+		markFontUsage(models.Props{FontName: "Helvetica"}, template.Config.Watermark)
+	}
+
+	// Scan Page Numbers (uses Helvetica)
+	markFontUsage(models.Props{FontName: "Helvetica"}, "Page of 0123456789")
+
+	// Scan Image Names (uses Helvetica)
+	// Standalone images
+	for _, img := range template.Image {
+		if img.ImageName != "" {
+			markFontUsage(models.Props{FontName: "Helvetica"}, img.ImageName)
 		}
 	}
 }

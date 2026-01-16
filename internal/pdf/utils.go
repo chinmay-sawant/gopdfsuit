@@ -132,22 +132,59 @@ func escapeText(s string) string {
 	return escapePDFString(s)
 }
 
+// resolveFontName resolves the actual font name to use, handling fallbacks
+func resolveFontName(props models.Props) string {
+	registry := GetFontRegistry()
+
+	// 1. Check if the requested font is registered as a custom font
+	if registry.HasFont(props.FontName) {
+		return props.FontName
+	}
+
+	// 2. Check if it's a known standard font name
+	switch props.FontName {
+	case "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique",
+		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
+		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique",
+		"Symbol", "ZapfDingbats":
+		return props.FontName
+	}
+
+	// 3. Fallback logic: map unknown fonts to Helvetica family
+	var fallbackName string
+	if props.Bold && props.Italic {
+		fallbackName = "Helvetica-BoldOblique"
+	} else if props.Bold {
+		fallbackName = "Helvetica-Bold"
+	} else if props.Italic {
+		fallbackName = "Helvetica-Oblique"
+	} else {
+		fallbackName = "Helvetica"
+	}
+
+	return fallbackName
+}
+
 // getFontReference returns the appropriate font reference based on the font name
 // and style properties. If a specific font name is provided (e.g., "Helvetica-Bold"),
 // it takes precedence. Otherwise, falls back to using bold/italic style flags.
 // For custom fonts, checks the font registry and returns the custom font reference.
 func getFontReference(props models.Props) string {
-	// First, check if this is a custom font
 	registry := GetFontRegistry()
-	if registry.HasFont(props.FontName) {
-		ref := registry.GetFontReference(props.FontName)
+
+	// Resolve usage to actual font name (handling fallbacks)
+	actualFontName := resolveFontName(props)
+
+	// If resolved font is custom (including PDF/A substitution), use it
+	if registry.HasFont(actualFontName) {
+		ref := registry.GetFontReference(actualFontName)
 		if ref != "" {
 			return ref
 		}
 	}
 
-	// Check if FontName directly specifies a font variant
-	switch props.FontName {
+	// Otherwise, return standard font reference code
+	switch actualFontName {
 	// Helvetica family (F1-F4)
 	case "Helvetica":
 		return "/F1"
@@ -182,15 +219,35 @@ func getFontReference(props models.Props) string {
 		return "/F14"
 	}
 
-	// Fallback: use bold/italic flags (for legacy "font1", "font2" style IDs)
-	if props.Bold && props.Italic {
-		return "/F4" // Helvetica-BoldOblique
-	} else if props.Bold {
-		return "/F2" // Helvetica-Bold
-	} else if props.Italic {
-		return "/F3" // Helvetica-Oblique
+	return "/F1" // Ultimate fallback
+}
+
+// getWidgetFontReference returns the appropriate font reference for form field widgets.
+// In PDF/A mode (when Helvetica is registered as a custom Liberation font), this returns
+// the custom font reference. Otherwise, it returns /F1 for standard Helvetica.
+// This should be used in widget DA strings and appearance streams instead of hardcoded /Helv.
+func getWidgetFontReference() string {
+	registry := GetFontRegistry()
+	// Check if Helvetica is registered as custom font (PDF/A mode with Liberation)
+	if registry.HasFont("Helvetica") {
+		ref := registry.GetFontReference("Helvetica")
+		if ref != "" {
+			return ref
+		}
 	}
-	return "/F1" // Helvetica (normal)
+	return "/F1" // Standard Helvetica reference
+}
+
+// getWidgetFontName returns the font name to use in widget resource dictionaries.
+// In PDF/A mode, widgets should not embed their own font definitions - they should
+// reference fonts from the page resources. Returns empty string if using page fonts.
+func getWidgetFontName() string {
+	registry := GetFontRegistry()
+	// If Helvetica is a custom font, we use page-level font resources
+	if registry.HasFont("Helvetica") {
+		return "" // Signal to use page-level resources
+	}
+	return "Helvetica" // Use inline Helvetica definition
 }
 
 // formatPageKids formats the page object IDs for the Pages object
@@ -224,24 +281,31 @@ func isCustomFont(fontName string) bool {
 }
 
 // markFontUsage marks characters as used for font subsetting
-func markFontUsage(fontName string, text string) {
-	if isCustomFont(fontName) {
+// props is used to resolve the actual font (handling fallbacks)
+func markFontUsage(props models.Props, text string) {
+	resolvedName := resolveFontName(props)
+	if isCustomFont(resolvedName) {
 		registry := GetFontRegistry()
-		registry.MarkCharsUsed(fontName, text)
+		registry.MarkCharsUsed(resolvedName, text)
 	}
 }
 
 // EstimateTextWidth estimates the width of text in points for a given font and size
 // Uses actual glyph widths for custom fonts, approximation for standard fonts
 func EstimateTextWidth(fontName string, text string, fontSize float64) float64 {
+	// For width estimation, we create a dummy props with just the name
+	// This might be slightly inaccurate for bold/italic if falling back, but sufficient for layout
+	props := models.Props{FontName: fontName, FontSize: int(fontSize)}
+	resolvedName := resolveFontName(props)
+
 	registry := GetFontRegistry()
-	if registry.HasFont(fontName) {
-		return registry.GetScaledTextWidth(fontName, text, fontSize)
+	if registry.HasFont(resolvedName) {
+		return registry.GetScaledTextWidth(resolvedName, text, fontSize)
 	}
 
 	// Approximation for standard fonts (average character width ~0.5-0.6 em)
 	avgCharWidth := 0.5
-	switch fontName {
+	switch resolvedName {
 	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
 		avgCharWidth = 0.6 // Monospace is wider
 	case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
@@ -253,8 +317,10 @@ func EstimateTextWidth(fontName string, text string, fontSize float64) float64 {
 
 // formatTextForPDF formats text for use in a PDF content stream
 // For custom fonts, returns hex-encoded string; for standard fonts, returns escaped literal
-func formatTextForPDF(fontName string, text string) string {
-	if isCustomFont(fontName) {
+func formatTextForPDF(props models.Props, text string) string {
+	resolvedName := resolveFontName(props)
+
+	if isCustomFont(resolvedName) {
 		return EncodeTextForCustomFont(text)
 	}
 	return "(" + escapePDFString(text) + ")"

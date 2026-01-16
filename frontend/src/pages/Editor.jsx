@@ -1116,6 +1116,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           e.preventDefault()
           e.stopPropagation()
           const startX = e.clientX
+
           const cell = element.rows[rowIdx].row[colIdx]
           const startWidth = cell.width || (usableWidthForTable * getNormalizedColWeight(colIdx))
           
@@ -1170,6 +1171,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             
             onUpdate({ rows: newRows })
           }
+
           const onMouseUp = () => {
             window.removeEventListener('mousemove', onMouseMove)
             window.removeEventListener('mouseup', onMouseUp)
@@ -4333,11 +4335,16 @@ export default function Editor() {
                                   <PropsEditor 
                                     props={selectedCellElement.props} 
                                     onChange={(props) => {
-                                      const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                        ...selectedCellElement, 
-                                        props 
-                                      }
+                                      const newRows = selectedElement.rows.map((row, rIdx) => {
+                                        if (rIdx !== selectedCell.rowIdx) return row
+                                        return {
+                                          ...row,
+                                          row: row.row.map((cell, cIdx) => {
+                                            if (cIdx !== selectedCell.colIdx) return cell
+                                            return { ...cell, props }
+                                          })
+                                        }
+                                      })
                                       updateElement(selectedElement.id, { rows: newRows })
                                     }}
                                     fonts={fonts}
