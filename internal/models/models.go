@@ -30,6 +30,7 @@ type Config struct {
 	ArlingtonCompatible bool               `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
 	EmbedFonts          *bool              `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
 	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`         // Custom TTF/OTF fonts to embed
+	PDFACompliant       bool               `json:"pdfaCompliant,omitempty"`       // Enable PDF/A-4 compliance mode (PDF 2.0, requires all fonts to be embedded via Liberation fonts)
 }
 
 // CustomFontConfig specifies a custom font to embed in the PDF

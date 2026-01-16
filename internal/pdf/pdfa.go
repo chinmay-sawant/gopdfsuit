@@ -3,7 +3,9 @@ package pdf
 import (
 	"bytes"
 	"compress/zlib"
+	"encoding/binary"
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -39,12 +41,14 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 	return fmt.Sprintf("%s-%s-%sT%s:%s:%s%s", year, month, day, hour, min, sec, tz)
 }
 
-// GenerateXMPMetadata generates PDF/A-1b compliant XMP metadata
+// GenerateXMPMetadata generates PDF/A-4 compliant XMP metadata (PDF 2.0 based)
 // pdfDateStr should be in PDF format: D:YYYYMMDDHHmmSSOHH'mm'
 func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
 	// Convert PDF date to XMP date format for consistency
 	xmpDateStr := ConvertPDFDateToXMP(pdfDateStr)
 
+	// PDF/A-4 is the PDF/A standard based on PDF 2.0 (ISO 32000-2)
+	// pdfaid:part=4, no conformance level needed for PDF/A-4
 	xmp := `<?xpacket begin="` + "\xef\xbb\xbf" + `" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/">
   <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
@@ -52,7 +56,8 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
         xmlns:dc="http://purl.org/dc/elements/1.1/"
         xmlns:xmp="http://ns.adobe.com/xap/1.0/"
         xmlns:pdf="http://ns.adobe.com/pdf/1.3/"
-        xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/">
+        xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/"
+        xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/">
       <dc:format>application/pdf</dc:format>
       <dc:creator>
         <rdf:Seq>
@@ -68,8 +73,8 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
       <xmp:CreateDate>` + xmpDateStr + `</xmp:CreateDate>
       <xmp:ModifyDate>` + xmpDateStr + `</xmp:ModifyDate>
       <pdf:Producer>GoPDFSuit</pdf:Producer>
-      <pdfaid:part>1</pdfaid:part>
-      <pdfaid:conformance>B</pdfaid:conformance>
+      <pdfaid:part>4</pdfaid:part>
+      <pdfaid:rev>2020</pdfaid:rev>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>
@@ -87,60 +92,182 @@ func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr strin
 		objectID, len(xmpData), xmpData)
 }
 
-// sRGBICCProfile is a minimal sRGB ICC profile for PDF/A compliance
-// This is a simplified sRGB profile that meets PDF/A requirements
-var sRGBICCProfile = []byte{
-	0x00, 0x00, 0x02, 0x0c, 0x61, 0x72, 0x67, 0x6c, 0x02, 0x20, 0x00, 0x00,
-	0x6d, 0x6e, 0x74, 0x72, 0x52, 0x47, 0x42, 0x20, 0x58, 0x59, 0x5a, 0x20,
-	0x07, 0xde, 0x00, 0x01, 0x00, 0x06, 0x00, 0x16, 0x00, 0x0f, 0x00, 0x3a,
-	0x61, 0x63, 0x73, 0x70, 0x4d, 0x53, 0x46, 0x54, 0x00, 0x00, 0x00, 0x00,
-	0x49, 0x45, 0x43, 0x20, 0x73, 0x52, 0x47, 0x42, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf6, 0xd6,
-	0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0xd3, 0x2d, 0x48, 0x50, 0x20, 0x20,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09,
-	0x63, 0x70, 0x72, 0x74, 0x00, 0x00, 0x00, 0xf0, 0x00, 0x00, 0x00, 0x33,
-	0x64, 0x65, 0x73, 0x63, 0x00, 0x00, 0x01, 0x24, 0x00, 0x00, 0x00, 0x6c,
-	0x77, 0x74, 0x70, 0x74, 0x00, 0x00, 0x01, 0x90, 0x00, 0x00, 0x00, 0x14,
-	0x72, 0x58, 0x59, 0x5a, 0x00, 0x00, 0x01, 0xa4, 0x00, 0x00, 0x00, 0x14,
-	0x67, 0x58, 0x59, 0x5a, 0x00, 0x00, 0x01, 0xb8, 0x00, 0x00, 0x00, 0x14,
-	0x62, 0x58, 0x59, 0x5a, 0x00, 0x00, 0x01, 0xcc, 0x00, 0x00, 0x00, 0x14,
-	0x72, 0x54, 0x52, 0x43, 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x00, 0x10,
-	0x67, 0x54, 0x52, 0x43, 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x00, 0x10,
-	0x62, 0x54, 0x52, 0x43, 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x00, 0x10,
-	0x74, 0x65, 0x78, 0x74, 0x00, 0x00, 0x00, 0x00, 0x43, 0x6f, 0x70, 0x79,
-	0x72, 0x69, 0x67, 0x68, 0x74, 0x20, 0x28, 0x63, 0x29, 0x20, 0x31, 0x39,
-	0x39, 0x38, 0x20, 0x48, 0x65, 0x77, 0x6c, 0x65, 0x74, 0x74, 0x2d, 0x50,
-	0x61, 0x63, 0x6b, 0x61, 0x72, 0x64, 0x20, 0x43, 0x6f, 0x6d, 0x70, 0x61,
-	0x6e, 0x79, 0x00, 0x00, 0x64, 0x65, 0x73, 0x63, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x12, 0x73, 0x52, 0x47, 0x42, 0x20, 0x49, 0x45, 0x43,
-	0x36, 0x31, 0x39, 0x36, 0x36, 0x2d, 0x32, 0x2e, 0x31, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12, 0x73, 0x52, 0x47,
-	0x42, 0x20, 0x49, 0x45, 0x43, 0x36, 0x31, 0x39, 0x36, 0x36, 0x2d, 0x32,
-	0x2e, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x58, 0x59, 0x5a, 0x20, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0xf3, 0x51, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x16, 0xcc,
-	0x58, 0x59, 0x5a, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6f, 0xa2,
-	0x00, 0x00, 0x38, 0xf5, 0x00, 0x00, 0x03, 0x90, 0x58, 0x59, 0x5a, 0x20,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x62, 0x99, 0x00, 0x00, 0xb7, 0x85,
-	0x00, 0x00, 0x18, 0xda, 0x58, 0x59, 0x5a, 0x20, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x24, 0xa0, 0x00, 0x00, 0x0f, 0x84, 0x00, 0x00, 0xb6, 0xcf,
-	0x63, 0x75, 0x72, 0x76, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-	0x02, 0x33, 0x00, 0x00,
+// buildSRGBICCProfile builds a valid sRGB ICC profile from scratch
+// This creates a properly structured ICC v2.1 profile (more widely compatible)
+func buildSRGBICCProfile() []byte {
+	// Pre-calculate gamma table
+	gammaTable := make([]uint16, 1024)
+	for i := 0; i < 1024; i++ {
+		x := float64(i) / 1023.0
+		var y float64
+		if x <= 0.0031308 {
+			y = x * 12.92
+		} else {
+			y = 1.055*math.Pow(x, 1.0/2.4) - 0.055
+		}
+		gammaTable[i] = uint16(y * 65535.0)
+	}
+
+	// Calculate sizes
+	headerSize := 128
+	tagTableSize := 4 + 9*12 // count + 9 tags * 12 bytes each
+	cprtSize := 32           // text type: 4 + 4 + 24 (text)
+	descSize := 92           // mluc type
+	wtptSize := 20           // XYZ type
+	xyzSize := 20            // XYZ type (for rXYZ, gXYZ, bXYZ)
+	curvSize := 12 + 2048    // curv header (12 bytes) + 1024 * 2 bytes
+
+	// Calculate offsets (must be 4-byte aligned)
+	cprtOffset := headerSize + tagTableSize
+	descOffset := cprtOffset + cprtSize
+	wtptOffset := descOffset + descSize
+	rXYZOffset := wtptOffset + wtptSize
+	gXYZOffset := rXYZOffset + xyzSize
+	bXYZOffset := gXYZOffset + xyzSize
+	curvOffset := bXYZOffset + xyzSize
+
+	profileSize := curvOffset + curvSize
+
+	profile := make([]byte, profileSize)
+
+	// Write header (128 bytes)
+	binary.BigEndian.PutUint32(profile[0:4], uint32(profileSize)) // Profile size
+	copy(profile[4:8], []byte{0, 0, 0, 0})                        // CMM Type
+	binary.BigEndian.PutUint32(profile[8:12], 0x02100000)         // Version 2.1 (more compatible)
+	copy(profile[12:16], []byte("mntr"))                          // Device class: monitor
+	copy(profile[16:20], []byte("RGB "))                          // Color space: RGB
+	copy(profile[20:24], []byte("XYZ "))                          // PCS: XYZ
+	// Date/time: 2024-01-01 00:00:00
+	binary.BigEndian.PutUint16(profile[24:26], 2024) // Year
+	binary.BigEndian.PutUint16(profile[26:28], 1)    // Month
+	binary.BigEndian.PutUint16(profile[28:30], 1)    // Day
+	binary.BigEndian.PutUint16(profile[30:32], 0)    // Hour
+	binary.BigEndian.PutUint16(profile[32:34], 0)    // Minute
+	binary.BigEndian.PutUint16(profile[34:36], 0)    // Second
+	copy(profile[36:40], []byte("acsp"))             // Signature
+	copy(profile[40:44], []byte{0, 0, 0, 0})         // Platform
+	binary.BigEndian.PutUint32(profile[44:48], 0)    // Flags
+	binary.BigEndian.PutUint32(profile[48:52], 0)    // Device manufacturer
+	binary.BigEndian.PutUint32(profile[52:56], 0)    // Device model
+	binary.BigEndian.PutUint64(profile[56:64], 0)    // Device attributes
+	binary.BigEndian.PutUint32(profile[64:68], 0)    // Rendering intent (perceptual)
+	// PCS illuminant (D50): X=0.9642, Y=1.0, Z=0.8249
+	binary.BigEndian.PutUint32(profile[68:72], 0x0000F6D6) // X
+	binary.BigEndian.PutUint32(profile[72:76], 0x00010000) // Y
+	binary.BigEndian.PutUint32(profile[76:80], 0x0000D32D) // Z
+	binary.BigEndian.PutUint32(profile[80:84], 0)          // Profile creator
+	copy(profile[84:100], make([]byte, 16))                // Profile ID (zeros for now)
+	copy(profile[100:128], make([]byte, 28))               // Reserved
+
+	// Write tag table
+	offset := headerSize
+	binary.BigEndian.PutUint32(profile[offset:offset+4], 9) // Tag count
+	offset += 4
+
+	// Tag entries
+	tags := []struct {
+		sig    string
+		offset int
+		size   int
+	}{
+		{"cprt", cprtOffset, cprtSize},
+		{"desc", descOffset, descSize},
+		{"wtpt", wtptOffset, wtptSize},
+		{"rXYZ", rXYZOffset, xyzSize},
+		{"gXYZ", gXYZOffset, xyzSize},
+		{"bXYZ", bXYZOffset, xyzSize},
+		{"rTRC", curvOffset, curvSize},
+		{"gTRC", curvOffset, curvSize}, // Share with rTRC
+		{"bTRC", curvOffset, curvSize}, // Share with rTRC
+	}
+
+	for _, tag := range tags {
+		copy(profile[offset:offset+4], []byte(tag.sig))
+		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
+		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
+		offset += 12
+	}
+
+	// Write cprt (copyright) - textType
+	offset = cprtOffset
+	copy(profile[offset:offset+4], []byte("text"))
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
+	copy(profile[offset+8:offset+32], []byte("Public Domain\x00"))
+
+	// Write desc (description) - mluc type
+	offset = descOffset
+	copy(profile[offset:offset+4], []byte("mluc"))
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)    // Reserved
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1)   // Record count
+	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 12) // Record size
+	copy(profile[offset+16:offset+18], []byte("en"))             // Language
+	copy(profile[offset+18:offset+20], []byte("US"))             // Country
+	binary.BigEndian.PutUint32(profile[offset+20:offset+24], 34) // String length (bytes)
+	binary.BigEndian.PutUint32(profile[offset+24:offset+28], 28) // String offset
+	descText := []uint16{'s', 'R', 'G', 'B', ' ', 'I', 'E', 'C', '6', '1', '9', '6', '6', '-', '2', '.', '1'}
+	for i, c := range descText {
+		binary.BigEndian.PutUint16(profile[offset+28+i*2:offset+30+i*2], c)
+	}
+
+	// Write wtpt (white point) - XYZType (D50)
+	offset = wtptOffset
+	copy(profile[offset:offset+4], []byte("XYZ "))
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x0000F6D6)  // X: 0.9642
+	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x00010000) // Y: 1.0
+	binary.BigEndian.PutUint32(profile[offset+16:offset+20], 0x0000D32D) // Z: 0.8249
+
+	// Write rXYZ (red primary) - XYZType
+	offset = rXYZOffset
+	copy(profile[offset:offset+4], []byte("XYZ "))
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x00006FA2)  // X: 0.4361
+	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x000038F5) // Y: 0.2225
+	binary.BigEndian.PutUint32(profile[offset+16:offset+20], 0x00000390) // Z: 0.0139
+
+	// Write gXYZ (green primary) - XYZType
+	offset = gXYZOffset
+	copy(profile[offset:offset+4], []byte("XYZ "))
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x00006299)  // X: 0.3851
+	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x0000B785) // Y: 0.7169
+	binary.BigEndian.PutUint32(profile[offset+16:offset+20], 0x000018DA) // Z: 0.0971
+
+	// Write bXYZ (blue primary) - XYZType
+	offset = bXYZOffset
+	copy(profile[offset:offset+4], []byte("XYZ "))
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x000024A0)  // X: 0.1431
+	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x00000F84) // Y: 0.0606
+	binary.BigEndian.PutUint32(profile[offset+16:offset+20], 0x0000B6CF) // Z: 0.7139
+
+	// Write TRC (tone reproduction curve) - curvType
+	offset = curvOffset
+	copy(profile[offset:offset+4], []byte("curv"))
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1024) // Entry count
+	for i, v := range gammaTable {
+		binary.BigEndian.PutUint16(profile[offset+12+i*2:offset+14+i*2], v)
+	}
+
+	return profile
+}
+
+// GetSRGBICCProfile returns the complete sRGB ICC profile
+func GetSRGBICCProfile() []byte {
+	return buildSRGBICCProfile()
 }
 
 // GenerateICCProfileObject generates the ICC profile stream object for sRGB
 // Returns the bytes to write to the PDF buffer
 func GenerateICCProfileObject(objectID int) []byte {
+	// Get the complete sRGB ICC profile
+	iccProfile := GetSRGBICCProfile()
+
 	// Compress the ICC profile
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write(sRGBICCProfile)
+	zlibWriter.Write(iccProfile)
 	zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
@@ -154,8 +281,136 @@ func GenerateICCProfileObject(objectID int) []byte {
 	return result.Bytes()
 }
 
-// GenerateOutputIntentObject generates the OutputIntent object for PDF/A-1
+// GenerateGrayICCProfileObject generates the ICC profile stream object for DeviceGray
+// Returns the bytes to write to the PDF buffer
+func GenerateGrayICCProfileObject(objectID int) []byte {
+	// Build a simple Gray ICC profile
+	grayProfile := buildGrayICCProfile()
+
+	// Compress the ICC profile
+	var compressedBuf bytes.Buffer
+	zlibWriter := zlib.NewWriter(&compressedBuf)
+	zlibWriter.Write(grayProfile)
+	zlibWriter.Close()
+	compressedData := compressedBuf.Bytes()
+
+	// Build the object
+	var result bytes.Buffer
+	result.WriteString(fmt.Sprintf("%d 0 obj\n<< /Filter /FlateDecode /Length %d /N 1 /Alternate /DeviceGray >>\nstream\n",
+		objectID, len(compressedData)))
+	result.Write(compressedData)
+	result.WriteString("\nendstream\nendobj\n")
+
+	return result.Bytes()
+}
+
+// buildGrayICCProfile builds a valid Gray ICC profile
+func buildGrayICCProfile() []byte {
+	// Pre-calculate gamma table (same sRGB gamma for gray)
+	gammaTable := make([]uint16, 1024)
+	for i := 0; i < 1024; i++ {
+		x := float64(i) / 1023.0
+		var y float64
+		if x <= 0.0031308 {
+			y = x * 12.92
+		} else {
+			y = 1.055*math.Pow(x, 1.0/2.4) - 0.055
+		}
+		gammaTable[i] = uint16(y * 65535.0)
+	}
+
+	headerSize := 128
+	tagTableSize := 4 + 4*12 // count + 4 tags
+	cprtSize := 32
+	descSize := 92
+	wtptSize := 20
+	curvSize := 12 + 2048
+
+	cprtOffset := headerSize + tagTableSize
+	descOffset := cprtOffset + cprtSize
+	wtptOffset := descOffset + descSize
+	curvOffset := wtptOffset + wtptSize
+
+	profileSize := curvOffset + curvSize
+	profile := make([]byte, profileSize)
+
+	// Header
+	binary.BigEndian.PutUint32(profile[0:4], uint32(profileSize))
+	binary.BigEndian.PutUint32(profile[8:12], 0x02100000) // Version 2.1 (more compatible)
+	copy(profile[12:16], []byte("mntr"))                  // monitor
+	copy(profile[16:20], []byte("GRAY"))                  // Gray color space
+	copy(profile[20:24], []byte("XYZ "))                  // PCS
+	binary.BigEndian.PutUint16(profile[24:26], 2024)
+	binary.BigEndian.PutUint16(profile[26:28], 1)
+	binary.BigEndian.PutUint16(profile[28:30], 1)
+	copy(profile[36:40], []byte("acsp"))
+	binary.BigEndian.PutUint32(profile[68:72], 0x0000F6D6)
+	binary.BigEndian.PutUint32(profile[72:76], 0x00010000)
+	binary.BigEndian.PutUint32(profile[76:80], 0x0000D32D)
+
+	// Tag table
+	offset := headerSize
+	binary.BigEndian.PutUint32(profile[offset:offset+4], 4) // 4 tags
+	offset += 4
+
+	tags := []struct {
+		sig    string
+		offset int
+		size   int
+	}{
+		{"cprt", cprtOffset, cprtSize},
+		{"desc", descOffset, descSize},
+		{"wtpt", wtptOffset, wtptSize},
+		{"kTRC", curvOffset, curvSize},
+	}
+
+	for _, tag := range tags {
+		copy(profile[offset:offset+4], []byte(tag.sig))
+		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
+		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
+		offset += 12
+	}
+
+	// cprt
+	offset = cprtOffset
+	copy(profile[offset:offset+4], []byte("text"))
+	copy(profile[offset+8:offset+32], []byte("Public Domain\x00"))
+
+	// desc
+	offset = descOffset
+	copy(profile[offset:offset+4], []byte("mluc"))
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1)
+	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 12)
+	copy(profile[offset+16:offset+18], []byte("en"))
+	copy(profile[offset+18:offset+20], []byte("US"))
+	binary.BigEndian.PutUint32(profile[offset+20:offset+24], 20)
+	binary.BigEndian.PutUint32(profile[offset+24:offset+28], 28)
+	descText := []uint16{'s', 'R', 'G', 'B', ' ', 'G', 'r', 'a', 'y'}
+	for i, c := range descText {
+		binary.BigEndian.PutUint16(profile[offset+28+i*2:offset+30+i*2], c)
+	}
+
+	// wtpt
+	offset = wtptOffset
+	copy(profile[offset:offset+4], []byte("XYZ "))
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x0000F6D6)
+	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x00010000)
+	binary.BigEndian.PutUint32(profile[offset+16:offset+20], 0x0000D32D)
+
+	// kTRC (gray curve)
+	offset = curvOffset
+	copy(profile[offset:offset+4], []byte("curv"))
+	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1024)
+	for i, v := range gammaTable {
+		binary.BigEndian.PutUint16(profile[offset+12+i*2:offset+14+i*2], v)
+	}
+
+	return profile
+}
+
+// GenerateOutputIntentObject generates the OutputIntent object for PDF/A-4
 func GenerateOutputIntentObject(objectID int, iccProfileID int) string {
+	// For PDF/A-4 (PDF 2.0), use GTS_PDFA1 subtype (still valid)
 	return fmt.Sprintf("%d 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier (sRGB IEC61966-2.1) /RegistryName (http://www.color.org) /Info (sRGB IEC61966-2.1) /DestOutputProfile %d 0 R >>\nendobj\n",
 		objectID, iccProfileID)
 }

@@ -32,6 +32,21 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	fontRegistry := GetFontRegistry()
 	fontRegistry.ResetUsage()
 
+	// PDF/A mode: Register Liberation fonts for all used standard fonts
+	if template.Config.PDFACompliant {
+		usedStandardFonts := collectAllStandardFontsInTemplate(template)
+		usedFontsList := make([]string, 0, len(usedStandardFonts))
+		for fontName := range usedStandardFonts {
+			usedFontsList = append(usedFontsList, fontName)
+		}
+
+		pdfaManager := GetPDFAFontManager()
+		if err := pdfaManager.RegisterLiberationFontsForPDFA(fontRegistry, usedFontsList); err != nil {
+			fmt.Printf("Warning: Failed to load Liberation fonts for PDF/A: %v\n", err)
+			// Continue without PDF/A font compliance
+		}
+	}
+
 	// Load custom fonts from config
 	for _, fontConfig := range template.Config.CustomFonts {
 		if fontConfig.Name == "" {
@@ -120,9 +135,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
-	// PDF Header (PDF 1.4 for PDF/A-1 compliance)
 	pdfBuffer.WriteString("%PDF-2.0\n")
-	// pdfBuffer.WriteString("%PDF-1.4\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
 	// Generate all content first to know how many pages we need
@@ -733,9 +746,77 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 
 // collectUsedStandardFonts returns a set of standard font names used in the template
 // Always includes Helvetica as it's the default font and used for form fields
+// Excludes fonts that are registered as custom fonts (e.g., Liberation fonts in PDF/A mode)
 func collectUsedStandardFonts(template models.PDFTemplate) map[string]bool {
 	used := make(map[string]bool)
-	used["Helvetica"] = true // Default font, always required for AcroForm default appearance
+	registry := GetFontRegistry()
+
+	// Helper to mark font only if it's a true standard font (not overridden by custom)
+	markFont := func(propsStr string) {
+		props := parseProps(propsStr)
+		// Only mark as standard font if it's not registered as a custom font
+		if !IsCustomFont(props.FontName) && !registry.HasFont(props.FontName) {
+			used[props.FontName] = true
+		}
+	}
+
+	// Helvetica is default font - only add if not overridden by custom font
+	if !registry.HasFont("Helvetica") {
+		used["Helvetica"] = true // Default font, always required for AcroForm default appearance
+	}
+
+	// Scan title
+	if template.Title.Text != "" {
+		markFont(template.Title.Props)
+	}
+
+	// Scan title table
+	if template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					markFont(cell.Props)
+				}
+			}
+		}
+	}
+
+	// Scan tables
+	for _, table := range template.Table {
+		for _, row := range table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					markFont(cell.Props)
+				}
+			}
+		}
+	}
+
+	// Scan elements
+	for _, elem := range template.Elements {
+		if elem.Type == "table" && elem.Table != nil {
+			for _, row := range elem.Table.Rows {
+				for _, cell := range row.Row {
+					if cell.Text != "" {
+						markFont(cell.Props)
+					}
+				}
+			}
+		}
+	}
+
+	// Scan footer
+	if template.Footer.Text != "" {
+		markFont(template.Footer.Font)
+	}
+
+	return used
+}
+
+// collectAllStandardFontsInTemplate returns all standard font names used in the template
+// This does NOT check the font registry - used for determining which Liberation fonts to load
+func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]bool {
+	used := make(map[string]bool)
 
 	// Helper to mark font
 	markFont := func(propsStr string) {
@@ -744,6 +825,8 @@ func collectUsedStandardFonts(template models.PDFTemplate) map[string]bool {
 			used[props.FontName] = true
 		}
 	}
+
+	used["Helvetica"] = true // Default font, always required
 
 	// Scan title
 	if template.Title.Text != "" {
