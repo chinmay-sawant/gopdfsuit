@@ -73,7 +73,7 @@ func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
 
 	validUrl := escapePDFString(url)
 
-	content := fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /A << /Type /Action /S /URI /URI (%s) >> >>",
+	content := fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /A << /Type /Action /S /URI /URI (%s) >> >>",
 		rect, validUrl)
 
 	pm.ExtraObjects[annotID] = content
