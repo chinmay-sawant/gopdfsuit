@@ -135,19 +135,35 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
+	// Process inline images in elements array
+	// These are images specified directly in the elements array with type="image" and image:{...}
+	elemImageObjects := make(map[int]*ImageObject) // map element index to ImageObject
+	elemImageObjectIDs := make(map[int]int)        // map element index to PDF object ID
+	for elemIdx, elem := range template.Elements {
+		if elem.Type == "image" && elem.Image != nil && elem.Image.ImageData != "" {
+			imgObj, err := DecodeImageData(elem.Image.ImageData)
+			if err == nil {
+				imgObj.ObjectID = nextImageObjectID
+				elemImageObjects[elemIdx] = imgObj
+				elemImageObjectIDs[elemIdx] = nextImageObjectID
+				nextImageObjectID++
+			}
+		}
+	}
+
 	pdfBuffer.WriteString("%PDF-2.0\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
 	// CRITICAL: Assign object IDs to custom fonts BEFORE generating content
 	// This ensures that when content streams are generated, custom font references
-	// (e.g., /CF2000) have valid object IDs. Custom fonts start at object ID 1000
-	// to avoid conflicts with standard font objects.
-	customFontObjectStart := 1000
+	// (e.g., /CF2000) have valid object IDs. Custom fonts start AFTER image objects
+	// to avoid conflicts with image XObjects.
+	customFontObjectStart := nextImageObjectID
 	fontRegistry.AssignObjectIDs(customFontObjectStart)
 
 	// Generate all content first to know how many pages we need
-	// Pass imageObjects, imageObjectIDs and cellImageObjectIDs so content generation can reference them
-	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs)
+	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
+	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs, elemImageObjects, elemImageObjectIDs)
 
 	// Collect all widget IDs for AcroForm
 	var allWidgetIDs []int
@@ -159,22 +175,30 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// These need to be referenced in the Catalog
 	metadataObjectID := pageManager.NextObjectID
 	pageManager.NextObjectID++
-	iccProfileObjectID := pageManager.NextObjectID
-	pageManager.NextObjectID++
-	outputIntentObjectID := pageManager.NextObjectID
-	pageManager.NextObjectID++
+	
+	// Only reserve ICC profile and OutputIntent IDs for PDF/A mode
+	var iccProfileObjectID, outputIntentObjectID int
+	if template.Config.PDFACompliant {
+		iccProfileObjectID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+		outputIntentObjectID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+	}
 
-	// Object 1: Catalog with PDF/A-1 compliance
+	// Object 1: Catalog
 	xrefOffsets[1] = pdfBuffer.Len()
 	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
 	// Add language tag for accessibility (PDF/UA requirement)
 	pdfBuffer.WriteString(" /Lang (en-US)")
 	// Add MarkInfo to indicate this is a tagged PDF (even if minimal)
 	pdfBuffer.WriteString(" /MarkInfo << /Marked false >>")
-	// Add Metadata reference for PDF/A compliance
+	// Add Metadata reference (always include for document info)
 	pdfBuffer.WriteString(fmt.Sprintf(" /Metadata %d 0 R", metadataObjectID))
-	// Add OutputIntents for PDF/A compliance (required for color space validation)
-	pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
+	// Add OutputIntents ONLY for PDF/A compliance (required for color space validation)
+	// Without PDF/A, we do NOT embed the ICC profile, so Adobe Acrobat won't apply color management
+	if template.Config.PDFACompliant {
+		pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
+	}
 	if len(allWidgetIDs) > 0 {
 		// Create AcroForm object
 		acroFormID := pageManager.NextObjectID
@@ -285,10 +309,10 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Just build the custom font resource references
 	customFontRefs := fontRegistry.GeneratePDFFontResources()
 
-	// Build XObject references for page resources (standalone images + cell images)
-	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /X0 for appearance streams
+	// Build XObject references for page resources (standalone images + cell images + element images)
+	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /E0 for element images, /X0 for appearance streams
 	xobjectRefs := ""
-	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
+	if len(imageObjects) > 0 || len(cellImageObjects) > 0 || len(elemImageObjects) > 0 {
 		xobjectRefs = " /XObject <<"
 		// Add standalone images with short names
 		for i, objID := range imageObjectIDs {
@@ -299,6 +323,10 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			// Use short cellKey identifier (e.g., C0_1_2 instead of CellImg_0:1:2)
 			shortKey := strings.ReplaceAll(cellKey, ":", "_")
 			xobjectRefs += fmt.Sprintf(" /C%s %d 0 R", shortKey, objID)
+		}
+		// Add element images with /E prefix
+		for elemIdx, objID := range elemImageObjectIDs {
+			xobjectRefs += fmt.Sprintf(" /E%d %d 0 R", elemIdx, objID)
 		}
 		// Add extra objects (appearance streams) that are XObjects with short names
 		for id, content := range pageManager.ExtraObjects {
@@ -441,6 +469,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
 	}
 
+	// Generate image XObjects (element images)
+	for _, imgObj := range elemImageObjects {
+		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+	}
+
 	// Generate custom font objects (TrueType/OpenType embedded fonts)
 	usedFonts := fontRegistry.GetUsedFonts()
 	for _, font := range usedFonts {
@@ -493,14 +527,20 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	documentID := fmt.Sprintf("[<%s> <%s>]", hex.EncodeToString(contentHash[:]), hex.EncodeToString(randomHash[:]))
 
 	// Generate PDF/A-1b compliance objects
+	// Always generate metadata (for document info)
 	xrefOffsets[metadataObjectID] = pdfBuffer.Len()
 	pdfBuffer.WriteString(GenerateXMPMetadataObject(metadataObjectID, hex.EncodeToString(contentHash[:]), creationDate))
 
-	xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
-	pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID))
+	// Only generate ICC profile and OutputIntent for PDF/A mode
+	// This is the key fix: without these, Adobe Acrobat won't apply color management
+	// and colors will appear as intended (same as in Chrome/browser)
+	if template.Config.PDFACompliant {
+		xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
+		pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID))
 
-	xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
-	pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID))
+		xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID))
+	}
 
 	// Build compact XRef table - collect all used object IDs and sort them
 	usedObjects := make([]int, 0, len(xrefOffsets)+1)
@@ -578,7 +618,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 }
 
 // generateAllContentWithImages processes the template and generates content with image support
-func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int) {
+func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int, elemImageObjects map[int]*ImageObject, elemImageObjectIDs map[int]int) {
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
@@ -615,7 +655,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 	if len(template.Elements) > 0 {
 		// Process elements in order
 		tableIdx := 0
-		for _, elem := range template.Elements {
+		for elemIdx, elem := range template.Elements {
 			switch elem.Type {
 			case "table":
 				var table models.Table
@@ -640,25 +680,26 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 				drawSpacer(spacer, pageManager)
 			case "image":
 				var image models.Image
-				var imgIdx int
 				if elem.Image != nil {
+					// Inline image in elements array - use element index for XObject lookup
 					image = *elem.Image
-					imgIdx = -1 // No index for inline image
+					if imgObj, exists := elemImageObjects[elemIdx]; exists {
+						// Use element image XObject with /E prefix to distinguish from /I prefix
+						imageXObjectRef := fmt.Sprintf("/E%d", elemIdx)
+						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
+					} else {
+						// Fall back to placeholder if no XObject
+						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+					}
 				} else if elem.Index < len(template.Image) {
+					// Reference to template.Image array
 					image = template.Image[elem.Index]
-					imgIdx = elem.Index
-				} else {
-					continue
-				}
-				if imgIdx >= 0 {
-					if imgObj, exists := imageObjects[imgIdx]; exists {
-						imageXObjectRef := fmt.Sprintf("/I%d", imgIdx)
+					if imgObj, exists := imageObjects[elem.Index]; exists {
+						imageXObjectRef := fmt.Sprintf("/I%d", elem.Index)
 						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
 					}
-				} else {
-					drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
 				}
 			}
 		}
