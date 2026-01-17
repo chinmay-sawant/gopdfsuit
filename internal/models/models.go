@@ -6,8 +6,15 @@ type PDFTemplate struct {
 	Table    []Table   `json:"table"`
 	Spacer   []Spacer  `json:"spacer,omitempty"`
 	Image    []Image   `json:"image,omitempty"`
-	Elements []Element `json:"elements,omitempty"` // Ordered elements (tables, spacers, images)
-	Footer   Footer    `json:"footer"`
+	Elements  []Element  `json:"elements,omitempty"` // Ordered elements (tables, spacers, images)
+	Footer    Footer     `json:"footer"`
+	Bookmarks []Bookmark `json:"bookmarks,omitempty"` // Hierarchical bookmarks/outlines
+}
+
+type Bookmark struct {
+	Title    string     `json:"title"`
+	Page     int        `json:"page"` // 1-based page number
+	Children []Bookmark `json:"children,omitempty"`
 }
 
 type Spacer struct {
@@ -50,6 +57,8 @@ type Title struct {
 	BgColor string `json:"bgcolor,omitempty"`
 	// TextColor is the text color for the title text.
 	TextColor string `json:"textcolor,omitempty"`
+	// Link URL for the title text
+	Link string `json:"link,omitempty"`
 }
 
 // TitleTable represents an embedded table within the title section
@@ -103,6 +112,8 @@ type Cell struct {
 	// Format: hexadecimal color code (e.g., "#FF0000" for red). Default is black.
 	// Takes precedence over table-level TextColor.
 	TextColor string `json:"textcolor,omitempty"`
+	// Link URL for the cell content
+	Link string `json:"link,omitempty"`
 }
 
 type FormField struct {
@@ -119,11 +130,15 @@ type Image struct {
 	ImageData string  `json:"imagedata"` // Base64 encoded image data
 	Width     float64 `json:"width"`
 	Height    float64 `json:"height"`
+	// Link URL for the image
+	Link string `json:"link,omitempty"`
 }
 
 type Footer struct {
 	Font string `json:"font"`
 	Text string `json:"text"`
+	// Link URL for the footer text
+	Link string `json:"link,omitempty"`
 }
 
 type Props struct {

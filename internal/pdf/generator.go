@@ -175,7 +175,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// These need to be referenced in the Catalog
 	metadataObjectID := pageManager.NextObjectID
 	pageManager.NextObjectID++
-	
+
 	// Only reserve ICC profile and OutputIntent IDs for PDF/A mode
 	var iccProfileObjectID, outputIntentObjectID int
 	if template.Config.PDFACompliant {
@@ -184,6 +184,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		outputIntentObjectID = pageManager.NextObjectID
 		pageManager.NextObjectID++
 	}
+
+	// Calculate total pages for bookmarks
+	totalPages := len(pageManager.Pages)
+
+	// Generate Bookmarks (Outlines)
+	// This creates new objects and returns the Outline Root ID (if any)
+	outlineRootID := pageManager.GenerateBookmarks(template.Bookmarks, xrefOffsets, &pdfBuffer)
 
 	// Object 1: Catalog
 	xrefOffsets[1] = pdfBuffer.Len()
@@ -198,6 +205,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Without PDF/A, we do NOT embed the ICC profile, so Adobe Acrobat won't apply color management
 	if template.Config.PDFACompliant {
 		pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
+	}
+
+	// Add Outlines reference if we have bookmarks
+	if outlineRootID > 0 {
+		pdfBuffer.WriteString(fmt.Sprintf(" /Outlines %d 0 R", outlineRootID))
+		// Optional: /PageMode /UseOutlines to show bookmarks panel by default
+		pdfBuffer.WriteString(" /PageMode /UseOutlines")
 	}
 	if len(allWidgetIDs) > 0 {
 		// Create AcroForm object
@@ -230,7 +244,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pdfBuffer.WriteString("endobj\n")
 
 	// Calculate object IDs
-	totalPages := len(pageManager.Pages)
+	// totalPages is already calculated above
 	contentObjectStart := totalPages + 3               // Content objects start after pages
 	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
 
@@ -739,9 +753,12 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 	// Draw footer and page numbers on every page (footer first to avoid overlap)
 	totalPages := len(pageManager.Pages)
 	for i := 0; i < totalPages; i++ {
+		// Set CurrentPageIndex so that any annotations added (e.g. by drawFooter) go to the correct page
+		pageManager.CurrentPageIndex = i
+
 		// Draw footer on this page if footer text provided
 		if template.Footer.Text != "" {
-			drawFooter(&pageManager.ContentStreams[i], template.Footer)
+			drawFooter(&pageManager.ContentStreams[i], template.Footer, pageManager)
 		}
 		// Draw page number on this page
 		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions)

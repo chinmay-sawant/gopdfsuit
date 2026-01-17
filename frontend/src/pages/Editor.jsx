@@ -96,7 +96,7 @@ const formatPageBorder = (borders) => {
 const getFontFamily = (fontName) => {
   // Map PDF font names to CSS font families
   if (!fontName) return 'Helvetica, Arial, sans-serif'
-  
+
   // Standard PDF Type 1 fonts mapping to CSS
   const fontMap = {
     // Helvetica family
@@ -118,7 +118,7 @@ const getFontFamily = (fontName) => {
     'Symbol': 'Symbol, serif',
     'ZapfDingbats': 'ZapfDingbats, Wingdings, serif',
   }
-  
+
   // Return mapped font or the font name itself
   return fontMap[fontName] || `"${fontName}", sans-serif`
 }
@@ -137,7 +137,7 @@ const getFontStyleFromName = (fontName) => {
 const getStyleFromProps = (propsString) => {
   const parsed = parseProps(propsString)
   const fontStyles = getFontStyleFromName(parsed.font)
-  
+
   const style = {
     fontSize: `${parsed.size}px`,
     textAlign: parsed.align,
@@ -149,22 +149,22 @@ const getStyleFromProps = (propsString) => {
     borderStyle: 'solid',
     borderColor: '#333'
   }
-  
+
   // Apply font weight - from style code OR font name
   if (parsed.style[0] === '1' || fontStyles.isBold) {
     style.fontWeight = 'bold'
   }
-  
+
   // Apply italic - from style code OR font name
   if (parsed.style[1] === '1' || fontStyles.isItalic) {
     style.fontStyle = 'italic'
   }
-  
+
   // Apply underline
   if (parsed.style[2] === '1') {
     style.textDecoration = 'underline'
   }
-  
+
   return style
 }
 
@@ -172,8 +172,8 @@ function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, on
   const [templateInput, setTemplateInput] = useState('')
 
   return (
-    <div className="card" style={{ 
-      marginBottom: '1rem', 
+    <div className="card" style={{
+      marginBottom: '1rem',
       padding: '0.75rem 1rem',
       position: 'sticky',
       top: '74px', // Increased to ensure it clears the navbar
@@ -728,7 +728,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
         const MARGIN_TITLE = 72
         const getUsableWidthTitle = (pageWidth) => pageWidth - (2 * MARGIN_TITLE)
         const usableWidthForTitle = getUsableWidthTitle(currentPageSize.width)
-        
+
         // Get or create the title table structure
         const titleTable = element.table || {
           maxcolumns: 3,
@@ -741,7 +741,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             ]
           }]
         }
-        
+
         // Helper to get normalized column weight for title table
         const getNormalizedColWeightTitle = (colIdx) => {
           const rawWeights = titleTable.columnwidths && titleTable.columnwidths.length === titleTable.maxcolumns
@@ -750,7 +750,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           const total = rawWeights.reduce((sum, w) => sum + w, 0)
           return rawWeights[colIdx] / total
         }
-        
+
         // Per-cell width resize handler for title table
         const handleTitleCellWidthResizeStart = (e, rowIdx, colIdx) => {
           e.preventDefault()
@@ -758,20 +758,20 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           const startX = e.clientX
           const cell = titleTable.rows[rowIdx].row[colIdx]
           const startWidth = cell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
-          
+
           const onMouseMove = (me) => {
             const dx = me.clientX - startX
             let newWidth = Math.max(50, startWidth + dx)
             const widthChange = newWidth - startWidth
-            
+
             const newRows = [...titleTable.rows]
             newRows[rowIdx] = {
               ...newRows[rowIdx],
-              row: newRows[rowIdx].row.map((c, idx) => 
+              row: newRows[rowIdx].row.map((c, idx) =>
                 idx === colIdx ? { ...c, width: newWidth } : c
               )
             }
-            
+
             // Redistribute width to adjacent columns
             if (colIdx < titleTable.maxcolumns - 1) {
               const nextCell = newRows[rowIdx].row[colIdx + 1]
@@ -779,7 +779,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
               const newNextWidth = nextWidth - widthChange
               newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(50, newNextWidth) }
             }
-            
+
             onUpdate({ table: { ...titleTable, rows: newRows } })
           }
           const onMouseUp = () => {
@@ -789,7 +789,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           window.addEventListener('mousemove', onMouseMove)
           window.addEventListener('mouseup', onMouseUp)
         }
-        
+
         // Per-cell height resize handler for title table
         const handleTitleCellHeightResizeStart = (e, rowIdx, colIdx) => {
           e.preventDefault()
@@ -797,11 +797,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           const startY = e.clientY
           const cell = titleTable.rows[rowIdx].row[colIdx]
           const startHeight = cell.height || 50
-          
+
           const onMouseMove = (me) => {
             const dy = me.clientY - startY
             const newHeight = Math.max(30, startHeight + dy)
-            
+
             // Update all cells in this row to same height
             const newRows = [...titleTable.rows]
             newRows[rowIdx] = {
@@ -817,7 +817,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           window.addEventListener('mousemove', onMouseMove)
           window.addEventListener('mouseup', onMouseUp)
         }
-        
+
         // Handle image upload for title cells
         const handleTitleImageUpload = (rowIdx, colIdx, file) => {
           const reader = new FileReader()
@@ -826,11 +826,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
             const newRows = [...titleTable.rows]
             newRows[rowIdx] = {
               ...newRows[rowIdx],
-              row: newRows[rowIdx].row.map((c, idx) => 
-                idx === colIdx ? { 
-                  ...c, 
-                  image: { 
-                    imagename: file.name, 
+              row: newRows[rowIdx].row.map((c, idx) =>
+                idx === colIdx ? {
+                  ...c,
+                  image: {
+                    imagename: file.name,
                     imagedata: imageData,
                     width: 100,
                     height: 50
@@ -843,26 +843,26 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           }
           reader.readAsDataURL(file)
         }
-        
+
         // Helper to update a specific title table cell with proper immutable updates
         const updateTitleTableCell = (rowIdx, colIdx, cellUpdates) => {
-          const newRows = titleTable.rows.map((row, rIdx) => 
+          const newRows = titleTable.rows.map((row, rIdx) =>
             rIdx === rowIdx
               ? {
-                  ...row,
-                  row: row.row.map((c, cIdx) =>
-                    cIdx === colIdx
-                      ? { ...c, ...cellUpdates }
-                      : c
-                  )
-                }
+                ...row,
+                row: row.row.map((c, cIdx) =>
+                  cIdx === colIdx
+                    ? { ...c, ...cellUpdates }
+                    : c
+                )
+              }
               : row
           )
           onUpdate({ table: { ...titleTable, rows: newRows } })
         }
-        
+
         return (
-          <div style={{ 
+          <div style={{
             borderRadius: '4px',
             background: 'white',
             overflowX: 'auto'
@@ -874,16 +874,16 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                     {row.row?.map((cell, colIdx) => {
                       const cellStyle = getStyleFromProps(cell.props)
                       const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
-                      
+
                       const cellWidth = cell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
                       const cellHeight = cell.height || 50
-                      
-                      const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' || 
-                                        cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
-                      
+
+                      const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
+                        cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
+
                       // Determine background color for title cells
                       const titleCellBgColor = isCellSelected ? '#e3f2fd' : (cell.bgcolor || element.bgcolor || '#fff')
-                      
+
                       return (
                         <td
                           key={colIdx}
@@ -927,7 +927,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                         >
                           {/* Cell content: image or text */}
                           {cell.image && cell.image.imagedata ? (
-                            <div 
+                            <div
                               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%', justifyContent: 'center' }}
                               onClick={(e) => {
                                 e.stopPropagation()
@@ -935,11 +935,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                 onCellSelect({ rowIdx, colIdx })
                               }}
                             >
-                              <img 
+                              <img
                                 src={cell.image.imagedata.startsWith('data:') ? cell.image.imagedata : `data:image/png;base64,${cell.image.imagedata}`}
                                 alt={cell.image.imagename || 'Logo'}
-                                style={{ 
-                                  maxWidth: '100%', 
+                                style={{
+                                  maxWidth: '100%',
                                   maxHeight: cellHeight - 10,
                                   objectFit: 'contain'
                                 }}
@@ -1002,9 +1002,9 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                 }}
                               />
                               {colIdx === 0 && (
-                                <label 
-                                  style={{ 
-                                    fontSize: '9px', 
+                                <label
+                                  style={{
+                                    fontSize: '9px',
                                     color: 'hsl(var(--muted-foreground))',
                                     cursor: 'pointer',
                                     padding: '2px 4px',
@@ -1032,7 +1032,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                               )}
                             </div>
                           )}
-                          
+
                           {/* Width resize handle */}
                           {colIdx < titleTable.maxcolumns - 1 && (
                             <div
@@ -1049,7 +1049,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                               title="Drag to resize width"
                             />
                           )}
-                          
+
                           {/* Height resize handle */}
                           <div
                             onMouseDown={(e) => handleTitleCellHeightResizeStart(e, rowIdx, colIdx)}
@@ -1077,10 +1077,10 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
         // Get page dimensions for width calculations
         const MARGIN = 72
         const getUsableWidth = (pageWidth) => pageWidth - (2 * MARGIN)
-        
+
         // Use passed currentPageSize prop
         const usableWidthForTable = getUsableWidth(currentPageSize.width)
-        
+
         // Helper to get normalized column weight
         const getNormalizedColWeight = (colIdx) => {
           const rawWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
@@ -1089,7 +1089,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           const total = rawWeights.reduce((sum, w) => sum + w, 0)
           return rawWeights[colIdx] / total
         }
-        
+
         // Per-cell width resize handler
         const handleCellWidthResizeStart = (e, rowIdx, colIdx) => {
           e.preventDefault()
@@ -1097,26 +1097,26 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           const startX = e.clientX
           const cell = element.rows[rowIdx].row[colIdx]
           const startWidth = cell.width || (usableWidthForTable * getNormalizedColWeight(colIdx))
-          
+
           const onMouseMove = (me) => {
             const dx = me.clientX - startX
             let newWidth = Math.max(50, startWidth + dx)
             const widthChange = newWidth - startWidth
-            
+
             // Update only this specific cell's width
             const newRows = [...element.rows]
             newRows[rowIdx] = {
               ...newRows[rowIdx],
-              row: newRows[rowIdx].row.map((c, idx) => 
+              row: newRows[rowIdx].row.map((c, idx) =>
                 idx === colIdx ? { ...c, width: newWidth } : c
               )
             }
-            
+
             // If this is column 0, redistribute the change across columns 1 and 2+
             if (colIdx === 0) {
               const numOtherCols = element.maxcolumns - 1
               const redistributePerCol = widthChange / numOtherCols
-              
+
               newRows[rowIdx].row = newRows[rowIdx].row.map((c, idx) => {
                 if (idx === 0) return c
                 const currentWidth = c.width || (usableWidthForTable * getNormalizedColWeight(idx))
@@ -1135,7 +1135,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
               newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(0, newNextWidth) }
             }
             // Last column should not be resizable (handled in render)
-            
+
             // Final safety check: ensure total doesn't exceed usable width
             const totalWidth = newRows[rowIdx].row.reduce((sum, c) => sum + (c.width || 0), 0)
             if (totalWidth > usableWidthForTable + 1) { // +1 for rounding tolerance
@@ -1146,7 +1146,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                 width: (c.width || 0) * scale
               }))
             }
-            
+
             onUpdate({ rows: newRows })
           }
           const onMouseUp = () => {
@@ -1156,7 +1156,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           window.addEventListener('mousemove', onMouseMove)
           window.addEventListener('mouseup', onMouseUp)
         }
-        
+
         // Per-cell height resize handler
         const handleCellHeightResizeStart = (e, rowIdx, colIdx) => {
           e.preventDefault()
@@ -1164,16 +1164,16 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           const startY = e.clientY
           const cell = element.rows[rowIdx].row[colIdx]
           const startHeight = cell.height || 25
-          
+
           const onMouseMove = (me) => {
             const dy = me.clientY - startY
             const newHeight = Math.max(20, startHeight + dy)
-            
+
             // Update only this specific cell's height
             const newRows = [...element.rows]
             newRows[rowIdx] = {
               ...newRows[rowIdx],
-              row: newRows[rowIdx].row.map((c, idx) => 
+              row: newRows[rowIdx].row.map((c, idx) =>
                 idx === colIdx ? { ...c, height: newHeight } : c
               )
             }
@@ -1201,22 +1201,22 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                     {row.row?.map((cell, colIdx) => {
                       const cellStyle = getStyleFromProps(cell.props)
                       const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
-                      
+
                       // Use cell-specific width if available, otherwise fall back to column width
                       const cellWidth = cell.width || (usableWidthForTable * colWeights[colIdx])
                       const cellHeight = cell.height || 25
-                      
+
                       // Determine background color: selection > cell bgcolor > table bgcolor > default white
-                      const cellBgColor = isCellSelected 
-                        ? '#e3f2fd' 
+                      const cellBgColor = isCellSelected
+                        ? '#e3f2fd'
                         : (cell.bgcolor || element.bgcolor || '#fff')
-                      
+
                       // Determine text color: cell textcolor > table textcolor > default black
                       const cellTextColor = cell.textcolor || element.textcolor || '#000'
-                      
+
                       // Ensure borders are visible - use explicit border if cell has border props
-                      const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' || 
-                                        cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
+                      const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
+                        cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
                       const tdStyle = {
                         borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
                         borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
@@ -1266,7 +1266,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                             e.stopPropagation()
                             const draggedData = e.dataTransfer.getData('text/plain')
                             if (draggedData === 'checkbox' || draggedData === 'image' || draggedData === 'radio' || draggedData === 'text_input') {
-                            handleCellDrop(element, onUpdate, rowIdx, colIdx, draggedData)
+                              handleCellDrop(element, onUpdate, rowIdx, colIdx, draggedData)
                             }
                           }}
                           className={(draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input') ? 'drop-target' : ''}
@@ -1290,10 +1290,10 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                     onUpdate({ rows: newRows })
                                   }}
                                   placeholder={cell.form_field.name}
-                                  style={{ 
-                                    width: '100%', 
-                                    height: '100%', 
-                                    border: 'none', 
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none',
                                     borderRadius: '0',
                                     fontSize: '10px',
                                     padding: '4px',
@@ -1308,14 +1308,14 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                                 />
                               ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                                  <input 
+                                  <input
                                     type={cell.form_field.type === 'radio' ? 'radio' : 'checkbox'}
                                     checked={cell.form_field.checked}
                                     onChange={(e) => {
                                       e.stopPropagation()
                                       const newRows = [...element.rows]
-                                      newRows[rowIdx].row[colIdx] = { 
-                                        ...newRows[rowIdx].row[colIdx], 
+                                      newRows[rowIdx].row[colIdx] = {
+                                        ...newRows[rowIdx].row[colIdx],
                                         form_field: {
                                           ...cell.form_field,
                                           checked: e.target.checked
@@ -1335,15 +1335,15 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                               )}
                             </div>
                           ) : cell.chequebox !== undefined ? (
-                            <input 
-                              type="checkbox" 
-                              checked={cell.chequebox} 
+                            <input
+                              type="checkbox"
+                              checked={cell.chequebox}
                               onChange={(e) => {
                                 e.stopPropagation()
                                 const newRows = [...element.rows]
-                                newRows[rowIdx].row[colIdx] = { 
-                                  ...newRows[rowIdx].row[colIdx], 
-                                  chequebox: e.target.checked 
+                                newRows[rowIdx].row[colIdx] = {
+                                  ...newRows[rowIdx].row[colIdx],
+                                  chequebox: e.target.checked
                                 }
                                 onUpdate({ rows: newRows })
                               }}
@@ -1357,19 +1357,19 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                           ) : cell.image !== undefined ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px' }}>
                               {cell.image.imagedata ? (
-                                <img 
+                                <img
                                   src={cell.image.imagedata.startsWith('data:') ? cell.image.imagedata : `data:image/png;base64,${cell.image.imagedata}`}
                                   alt={cell.image.imagename || 'Cell Image'}
-                                  style={{ 
-                                    maxWidth: '100%', 
+                                  style={{
+                                    maxWidth: '100%',
                                     maxHeight: cell.image.height || 80,
                                     objectFit: 'contain'
                                   }}
                                 />
                               ) : (
-                                <div style={{ 
-                                  display: 'flex', 
-                                  flexDirection: 'column', 
+                                <div style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
                                   alignItems: 'center',
                                   padding: '8px',
                                   fontSize: '10px',
@@ -1387,9 +1387,9 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                               onChange={(e) => {
                                 e.stopPropagation()
                                 const newRows = [...element.rows]
-                                newRows[rowIdx].row[colIdx] = { 
-                                  ...newRows[rowIdx].row[colIdx], 
-                                  text: e.target.value 
+                                newRows[rowIdx].row[colIdx] = {
+                                  ...newRows[rowIdx].row[colIdx],
+                                  text: e.target.value
                                 }
                                 onUpdate({ rows: newRows })
                               }}
@@ -1404,7 +1404,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                           {/* Cell width resize handle (except last column) */}
                           {colIdx < (element.maxcolumns - 1) && (
                             <div
-                              onMouseDown={(e)=>handleCellWidthResizeStart(e, rowIdx, colIdx)}
+                              onMouseDown={(e) => handleCellWidthResizeStart(e, rowIdx, colIdx)}
                               style={{
                                 position: 'absolute',
                                 top: 0,
@@ -1423,7 +1423,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                           )}
                           {/* Cell height resize handle (all cells) */}
                           <div
-                            onMouseDown={(e)=>handleCellHeightResizeStart(e, rowIdx, colIdx)}
+                            onMouseDown={(e) => handleCellHeightResizeStart(e, rowIdx, colIdx)}
                             style={{
                               position: 'absolute',
                               bottom: '-3px',
@@ -1451,7 +1451,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
       case 'footer':
         const footerStyle = getStyleFromProps(element.props)
         return (
-          <div style={{ 
+          <div style={{
             padding: '10px',
             borderRadius: '4px',
             minHeight: '30px',
@@ -1486,9 +1486,9 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
         )
       case 'spacer':
         return (
-          <div style={{ 
-            height: element.height || 20, 
-            width: '100%', 
+          <div style={{
+            height: element.height || 20,
+            width: '100%',
             background: 'white',
             border: '2px dashed #bbb',
             borderRadius: '4px',
@@ -1504,7 +1504,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
         )
       case 'image':
         return (
-          <div style={{ 
+          <div style={{
             padding: '10px',
             borderRadius: '4px',
             minHeight: '100px',
@@ -1517,11 +1517,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           }}>
             {element.imagedata ? (
               <div style={{ width: '100%', textAlign: 'center' }}>
-                <img 
+                <img
                   src={`data:image/png;base64,${element.imagedata}`}
                   alt={element.imagename || 'Image'}
-                  style={{ 
-                    maxWidth: '100%', 
+                  style={{
+                    maxWidth: '100%',
                     maxHeight: element.height || 200,
                     objectFit: 'contain',
                     borderRadius: '4px'
@@ -1550,7 +1550,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
   }
 
   return (
-    <div 
+    <div
       onClick={handleClick}
       draggable
       onDragStart={handleDragStart}
@@ -1587,7 +1587,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           <button
             onClick={(e) => { e.stopPropagation(); onMove(index, 'up') }}
             disabled={!canMoveUp}
-            style={{ 
+            style={{
               padding: '6px',
               border: 'none',
               borderRadius: '6px',
@@ -1607,7 +1607,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           <button
             onClick={(e) => { e.stopPropagation(); onMove(index, 'down') }}
             disabled={!canMoveDown}
-            style={{ 
+            style={{
               padding: '6px',
               border: 'none',
               borderRadius: '6px',
@@ -1627,7 +1627,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
           <div style={{ width: '1px', background: 'hsl(var(--border))', margin: '4px 0' }}></div>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(element.id) }}
-            style={{ 
+            style={{
               padding: '6px',
               border: 'none',
               borderRadius: '6px',
@@ -1672,6 +1672,7 @@ export default function Editor() {
   const [fonts, setFonts] = useState(DEFAULT_FONTS)
   const [fontsLoading, setFontsLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(null)
+  const [bookmarks, setBookmarks] = useState(null)
   const canvasRef = useRef(null)
 
   // Fetch fonts from API on component mount
@@ -1719,8 +1720,8 @@ export default function Editor() {
   }, [title, components, footer])
 
   const selectedElement = allElements.find(el => el.id === selectedId) || null
-  const selectedCellElement = selectedElement && selectedCell && selectedElement.type === 'table' 
-    ? selectedElement.rows[selectedCell.rowIdx]?.row[selectedCell.colIdx] 
+  const selectedCellElement = selectedElement && selectedCell && selectedElement.type === 'table'
+    ? selectedElement.rows[selectedCell.rowIdx]?.row[selectedCell.colIdx]
     : null
   const currentPageSize = PAGE_SIZES[config.page] || PAGE_SIZES.A4
 
@@ -1735,7 +1736,7 @@ export default function Editor() {
             text: 'Document Title',
             table: {
               maxcolumns: 3,
-              columnwidths: [1/3, 1/3, 1/3],
+              columnwidths: [1 / 3, 1 / 3, 1 / 3],
               rows: [
                 {
                   row: [
@@ -1755,20 +1756,20 @@ export default function Editor() {
         const newTable = {
           type: 'table',
           maxcolumns: 3,
-          columnwidths: [1/3, 1/3, 1/3],
+          columnwidths: [1 / 3, 1 / 3, 1 / 3],
           rows: [
             {
               row: [
-                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
-                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
-                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) }
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1 / 3)) },
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1 / 3)) },
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1 / 3)) }
               ]
             },
             {
               row: [
-                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
-                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) },
-                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1/3)) }
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1 / 3)) },
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1 / 3)) },
+                { props: 'Helvetica:12:000:left:1:1:1:1', text: '', width: (usableWidth * (1 / 3)) }
               ]
             }
           ]
@@ -1898,7 +1899,7 @@ export default function Editor() {
     if (draggedType !== 'checkbox' && draggedType !== 'image' && draggedType !== 'radio' && draggedType !== 'text_input') return
 
     const newRows = [...element.rows]
-    
+
     if (draggedType === 'checkbox') {
       // Update the table cell to contain a checkbox form field
       newRows[rowIdx].row[colIdx] = {
@@ -1957,7 +1958,7 @@ export default function Editor() {
         form_field: undefined
       }
     }
-    
+
     onUpdate({ rows: newRows })
   }
 
@@ -2000,7 +2001,7 @@ export default function Editor() {
 
   const loadTemplate = async (filename) => {
     if (!filename.trim()) return
-    
+
     try {
       const response = await makeAuthenticatedRequest(
         `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
@@ -2009,17 +2010,17 @@ export default function Editor() {
       )
       if (response.ok) {
         const data = await response.json()
-        
+
         // Parse the JSON structure from the template
         setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
-        
+
         // Ensure title has table structure
         if (data.title) {
           const titleWithTable = {
             ...data.title,
             table: data.title.table || {
               maxcolumns: 3,
-              columnwidths: [1/3, 1/3, 1/3],
+              columnwidths: [1 / 3, 1 / 3, 1 / 3],
               rows: [{
                 row: [
                   { props: 'Helvetica:12:000:left:0:0:0:0', text: '' },
@@ -2064,9 +2065,10 @@ export default function Editor() {
         setComponents(combinedComponents)
 
         setFooter(data.footer || null)
+        setBookmarks(data.bookmarks || null)
         setSelectedId(null)
         setSelectedCell(null)
-        
+
       } else {
         alert('Failed to load template')
       }
@@ -2088,7 +2090,7 @@ export default function Editor() {
         },
         isAuthRequired() ? getAuthHeaders : null
       )
-      
+
       if (response.ok) {
         const blob = await response.blob()
         const url = URL.createObjectURL(blob)
@@ -2114,7 +2116,7 @@ export default function Editor() {
         },
         isAuthRequired() ? getAuthHeaders : null
       )
-      
+
       if (response.ok) {
         const blob = await response.blob()
         const url = URL.createObjectURL(blob)
@@ -2141,52 +2143,52 @@ export default function Editor() {
       console.error('Copy failed:', error)
     }
   }
-    
+
   const handleUploadFont = async (e) => {
-      const file = e.target.files[0]
-      if (!file) return
+    const file = e.target.files[0]
+    if (!file) return
 
-      const formData = new FormData()
-      formData.append('font', file)
+    const formData = new FormData()
+    formData.append('font', file)
 
-      try {
-        setFontsLoading(true)
-        const response = await fetch('/api/v1/fonts/upload', {
-          method: 'POST',
-          body: formData,
-        })
+    try {
+      setFontsLoading(true)
+      const response = await fetch('/api/v1/fonts/upload', {
+        method: 'POST',
+        body: formData,
+      })
 
-        if (response.ok) {
-          const data = await response.json()
-          if (data.font) {
-            setFonts(prev => {
-              // Avoid duplicates
-              if (prev.some(f => f.id === data.font.id)) return prev;
-              return [...prev, data.font]
-            })
-            alert(`Font ${data.font.displayName} uploaded successfully!`)
-          } else {
-            // Refresh list if no font object returned but success
-            const refresh = await fetch('/api/v1/fonts')
-            if (refresh.ok) {
-              const refreshData = await refresh.json()
-              if (refreshData.fonts) setFonts(refreshData.fonts)
-            }
-            alert('Font uploaded successfully!')
-          }
+      if (response.ok) {
+        const data = await response.json()
+        if (data.font) {
+          setFonts(prev => {
+            // Avoid duplicates
+            if (prev.some(f => f.id === data.font.id)) return prev;
+            return [...prev, data.font]
+          })
+          alert(`Font ${data.font.displayName} uploaded successfully!`)
         } else {
-          const errorData = await response.json()
-          alert(`Failed to upload font: ${errorData.error || 'Unknown error'}`)
+          // Refresh list if no font object returned but success
+          const refresh = await fetch('/api/v1/fonts')
+          if (refresh.ok) {
+            const refreshData = await refresh.json()
+            if (refreshData.fonts) setFonts(refreshData.fonts)
+          }
+          alert('Font uploaded successfully!')
         }
-      } catch (error) {
-        console.error('Error uploading font:', error)
-        alert('Error uploading font: ' + error.message)
-      } finally {
-        setFontsLoading(false)
-        // Reset input
-        e.target.value = null
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to upload font: ${errorData.error || 'Unknown error'}`)
       }
+    } catch (error) {
+      console.error('Error uploading font:', error)
+      alert('Error uploading font: ' + error.message)
+    } finally {
+      setFontsLoading(false)
+      // Reset input
+      e.target.value = null
     }
+  }
 
   const getJsonOutput = () => {
     const output = { config }
@@ -2219,10 +2221,11 @@ export default function Editor() {
     }
 
     if (footer) output.footer = footer
+    if (bookmarks) output.bookmarks = bookmarks
     return output
   }
 
-  const jsonOutput = useMemo(() => getJsonOutput(), [config, title, components, footer])
+  const jsonOutput = useMemo(() => getJsonOutput(), [config, title, components, footer, bookmarks])
 
   // Local state for JSON editing
   const [jsonText, setJsonText] = useState('')
@@ -2243,17 +2246,17 @@ export default function Editor() {
     setIsJsonEditing(false)
     try {
       const data = JSON.parse(jsonText)
-      
+
       // Parse the JSON structure from the pasted content
       setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
-      
+
       // Ensure title has table structure
       if (data.title) {
         const titleWithTable = {
           ...data.title,
           table: data.title.table || {
             maxcolumns: 3,
-            columnwidths: [1/3, 1/3, 1/3],
+            columnwidths: [1 / 3, 1 / 3, 1 / 3],
             rows: [{
               row: [
                 { props: 'Helvetica:12:000:left:0:0:0:0', text: '' },
@@ -2269,7 +2272,7 @@ export default function Editor() {
       }
 
       // Combine tables, spacers, and images into components array, preserving order
-       let combinedComponents = []
+      let combinedComponents = []
 
       if (data.elements && Array.isArray(data.elements)) {
         // Reconstruct using elements array which defines the correct order
@@ -2293,11 +2296,12 @@ export default function Editor() {
         }
         if (data.image) {
           data.image.forEach(image => combinedComponents.push({ ...image, type: 'image' }))
-      }
+        }
       }
       setComponents(combinedComponents)
 
       setFooter(data.footer || null)
+      setBookmarks(data.bookmarks || null)
       setSelectedId(null)
       setSelectedCell(null)
     } catch (err) {
@@ -2380,77 +2384,77 @@ export default function Editor() {
           }
         `}
       </style>
-      
+
       {/* Fixed Header Wrapper */}
       <div style={{ position: 'fixed', top: '58px', left: 0, right: 0, zIndex: 1000 }}>
-      {/* Sticky Header */}
-      <div className="sticky-header">
-        <div className="container-full">
-          {/* Compact Header */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            gap: '1rem',
-            flexWrap: 'wrap'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Edit size={24} style={{ color: 'var(--secondary-color)' }} />
-              <div>
-                <h1 style={{ fontSize: '1.25rem', margin: 0, color: 'hsl(var(--foreground))' }}>PDF Template Editor</h1>
-                <p style={{ fontSize: '0.75rem', margin: 0, color: 'hsl(var(--muted-foreground))' }}>
-                  {allElements.length} elements • {config.page} {config.pageAlignment === 1 ? 'Portrait' : 'Landscape'}
-                </p>
+        {/* Sticky Header */}
+        <div className="sticky-header">
+          <div className="container-full">
+            {/* Compact Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Edit size={24} style={{ color: 'var(--secondary-color)' }} />
+                <div>
+                  <h1 style={{ fontSize: '1.25rem', margin: 0, color: 'hsl(var(--foreground))' }}>PDF Template Editor</h1>
+                  <p style={{ fontSize: '0.75rem', margin: 0, color: 'hsl(var(--muted-foreground))' }}>
+                    {allElements.length} elements • {config.page} {config.pageAlignment === 1 ? 'Portrait' : 'Landscape'}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <input
-                id="template-file-input"
-                type="text"
-                placeholder="Load template file..."
-                style={{ 
-                  padding: '0.4rem 0.75rem', 
-                  fontSize: '0.85rem', 
-                  width: '200px',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '6px',
-                  background: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))'
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.target.value.trim()) {
-                    loadTemplate(e.target.value.trim())
-                  }
-                }}
-              />
-              <button
-                onClick={() => {
-                  const input = document.getElementById('template-file-input')
-                  if (input && input.value.trim()) {
-                    loadTemplate(input.value.trim())
-                  }
-                }}
-                className="btn"
-                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                <Upload size={14} /> Load
-              </button>
-              <button
-                onClick={previewPDF}
-                className="btn btn-secondary"
-                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                <Eye size={14} /> Preview
-              </button>
-              <button
-                onClick={downloadPDF}
-                className="btn"
-                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                <Download size={14} /> Generate
-              </button>
-              <input
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <input
+                  id="template-file-input"
+                  type="text"
+                  placeholder="Load template file..."
+                  style={{
+                    padding: '0.4rem 0.75rem',
+                    fontSize: '0.85rem',
+                    width: '200px',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px',
+                    background: 'hsl(var(--background))',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.target.value.trim()) {
+                      loadTemplate(e.target.value.trim())
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.getElementById('template-file-input')
+                    if (input && input.value.trim()) {
+                      loadTemplate(input.value.trim())
+                    }
+                  }}
+                  className="btn"
+                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Upload size={14} /> Load
+                </button>
+                <button
+                  onClick={previewPDF}
+                  className="btn btn-secondary"
+                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Eye size={14} /> Preview
+                </button>
+                <button
+                  onClick={downloadPDF}
+                  className="btn"
+                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Download size={14} /> Generate
+                </button>
+                <input
                   type="file"
                   id="font-upload-input"
                   accept=".ttf,.otf"
@@ -2467,114 +2471,158 @@ export default function Editor() {
                 >
                   <Type size={14} /> Upload Font
                 </button>
-              <button
-                onClick={copyJSON}
-                className="btn"
-                style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                {copiedId === 'toolbar' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-              </button>
-              
-              <div style={{ 
-                display: 'flex', 
-                border: '1px solid hsl(var(--border))', 
-                borderRadius: '6px',
-                marginLeft: '0.5rem'
-              }}>
                 <button
-                  onClick={() => setTheme('light')}
-                  style={{
-                    padding: '0.4rem 0.5rem',
-                    background: theme === 'light' ? 'hsl(var(--accent))' : 'transparent',
-                    color: 'hsl(var(--foreground))',
-                    border: 'none',
-                    borderRight: '1px solid hsl(var(--border))',
-                    cursor: 'pointer',
-                    borderRadius: '5px 0 0 5px'
-                  }}
+                  onClick={copyJSON}
+                  className="btn"
+                  style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                 >
-                  <Sun size={14} />
+                  {copiedId === 'toolbar' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
                 </button>
-                <button
-                  onClick={() => setTheme('dark')}
-                  style={{
-                    padding: '0.4rem 0.5rem',
-                    background: theme === 'dark' ? 'hsl(var(--accent))' : 'transparent',
-                    color: 'hsl(var(--foreground))',
-                    border: 'none',
-                    cursor: 'pointer',
-                    borderRadius: '0 5px 5px 0'
-                  }}
-                >
-                  <Moon size={14} />
-                </button>
+
+                <div style={{
+                  display: 'flex',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px',
+                  marginLeft: '0.5rem'
+                }}>
+                  <button
+                    onClick={() => setTheme('light')}
+                    style={{
+                      padding: '0.4rem 0.5rem',
+                      background: theme === 'light' ? 'hsl(var(--accent))' : 'transparent',
+                      color: 'hsl(var(--foreground))',
+                      border: 'none',
+                      borderRight: '1px solid hsl(var(--border))',
+                      cursor: 'pointer',
+                      borderRadius: '5px 0 0 5px'
+                    }}
+                  >
+                    <Sun size={14} />
+                  </button>
+                  <button
+                    onClick={() => setTheme('dark')}
+                    style={{
+                      padding: '0.4rem 0.5rem',
+                      background: theme === 'dark' ? 'hsl(var(--accent))' : 'transparent',
+                      color: 'hsl(var(--foreground))',
+                      border: 'none',
+                      cursor: 'pointer',
+                      borderRadius: '0 5px 5px 0'
+                    }}
+                  >
+                    <Moon size={14} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      </div>
 
       {/* Main Content Wrapper */}
       <div style={{ marginTop: '138px', minHeight: 'calc(100vh - 138px)', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Main Content */}
-      <div className="container-full" style={{ flex: 1, padding: '1rem' }}>
-        <div className="grid editor-main-grid" style={{ gridTemplateColumns: '280px 1fr 350px', gap: '1rem', alignItems: 'start' }}>
-          
-          {/* Left: Components & Settings */}
-          <div className="editor-sidebar">
-            {/* Components Section */}
-            <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-              <h3 style={{ 
-                margin: '0 0 0.75rem 0', 
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                color: 'hsl(var(--foreground))'
-              }}>
-                <Square size={16} /> Components
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                {Object.entries(COMPONENT_TYPES).map(([type, data]) => (
-                  <DraggableComponent
-                    key={type}
-                    type={type}
-                    componentData={data}
-                    isDragging={draggedType}
-                    onDragStart={setDraggedType}
-                    onDragEnd={() => setDraggedType(null)}
-                  />
-                ))}
-              </div>
-            </div>
+        {/* Main Content */}
+        <div className="container-full" style={{ flex: 1, padding: '1rem' }}>
+          <div className="grid editor-main-grid" style={{ gridTemplateColumns: '280px 1fr 350px', gap: '1rem', alignItems: 'start' }}>
 
-            {/* Document Settings */}
-            <div className="card" style={{ padding: '1rem' }}>
-              <h3 style={{ 
-                margin: '0 0 0.75rem 0', 
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                color: 'hsl(var(--foreground))'
-              }}>
-                <Settings size={16} /> Document Settings
-              </h3>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {/* Page Size & Orientation Row */}
+            {/* Left: Components & Settings */}
+            <div className="editor-sidebar">
+              {/* Components Section */}
+              <div className="card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+                <h3 style={{
+                  margin: '0 0 0.75rem 0',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: 'hsl(var(--foreground))'
+                }}>
+                  <Square size={16} /> Components
+                </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  {Object.entries(COMPONENT_TYPES).map(([type, data]) => (
+                    <DraggableComponent
+                      key={type}
+                      type={type}
+                      componentData={data}
+                      isDragging={draggedType}
+                      onDragStart={setDraggedType}
+                      onDragEnd={() => setDraggedType(null)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Document Settings */}
+              <div className="card" style={{ padding: '1rem' }}>
+                <h3 style={{
+                  margin: '0 0 0.75rem 0',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: 'hsl(var(--foreground))'
+                }}>
+                  <Settings size={16} /> Document Settings
+                </h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {/* Page Size & Orientation Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Page Size</label>
+                      <select
+                        value={config.page}
+                        onChange={(e) => setConfig(prev => ({ ...prev, page: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '0.4rem',
+                          fontSize: '0.85rem',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '4px',
+                          background: 'hsl(var(--background))',
+                          color: 'hsl(var(--foreground))'
+                        }}
+                      >
+                        {Object.entries(PAGE_SIZES).map(([key, size]) => (
+                          <option key={key} value={key}>{size.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Orientation</label>
+                      <select
+                        value={config.pageAlignment}
+                        onChange={(e) => setConfig(prev => ({ ...prev, pageAlignment: parseInt(e.target.value) }))}
+                        style={{
+                          width: '100%',
+                          padding: '0.4rem',
+                          fontSize: '0.85rem',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '4px',
+                          background: 'hsl(var(--background))',
+                          color: 'hsl(var(--foreground))'
+                        }}
+                      >
+                        <option value={1}>Portrait</option>
+                        <option value={2}>Landscape</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Watermark */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Page Size</label>
-                    <select
-                      value={config.page}
-                      onChange={(e) => setConfig(prev => ({ ...prev, page: e.target.value }))}
-                      style={{ 
-                        width: '100%', 
+                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Watermark</label>
+                    <input
+                      type="text"
+                      value={config.watermark || ''}
+                      onChange={(e) => setConfig(prev => ({ ...prev, watermark: e.target.value }))}
+                      placeholder="Optional watermark text"
+                      style={{
+                        width: '100%',
                         padding: '0.4rem',
                         fontSize: '0.85rem',
                         border: '1px solid hsl(var(--border))',
@@ -2582,54 +2630,10 @@ export default function Editor() {
                         background: 'hsl(var(--background))',
                         color: 'hsl(var(--foreground))'
                       }}
-                    >
-                      {Object.entries(PAGE_SIZES).map(([key, size]) => (
-                        <option key={key} value={key}>{size.name}</option>
-                      ))}
-                    </select>
+                    />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Orientation</label>
-                    <select
-                      value={config.pageAlignment}
-                      onChange={(e) => setConfig(prev => ({ ...prev, pageAlignment: parseInt(e.target.value) }))}
-                      style={{ 
-                        width: '100%', 
-                        padding: '0.4rem',
-                        fontSize: '0.85rem',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '4px',
-                        background: 'hsl(var(--background))',
-                        color: 'hsl(var(--foreground))'
-                      }}
-                    >
-                      <option value={1}>Portrait</option>
-                      <option value={2}>Landscape</option>
-                    </select>
-                  </div>
-                </div>
 
-                {/* Watermark */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Watermark</label>
-                  <input
-                    type="text"
-                    value={config.watermark || ''}
-                    onChange={(e) => setConfig(prev => ({ ...prev, watermark: e.target.value }))}
-                    placeholder="Optional watermark text"
-                    style={{ 
-                      width: '100%', 
-                      padding: '0.4rem',
-                      fontSize: '0.85rem',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '4px',
-                      background: 'hsl(var(--background))',
-                      color: 'hsl(var(--foreground))'
-                    }}
-                  />
-                </div>
-
-                {/* PDF/A Compliant Toggle */}
+                  {/* PDF/A Compliant Toggle */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -2696,72 +2700,72 @@ export default function Editor() {
                     </label>
                   </div>
 
-                {/* Arlington Compatible Toggle */}
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between',
-                  padding: '0.5rem',
-                  background: 'hsl(var(--muted))',
-                  borderRadius: '4px'
-                }}>
-                  <div>
-                    <label style={{ 
-                      display: 'block', 
-                      fontSize: '0.8rem', 
-                      fontWeight: '500',
-                      color: 'hsl(var(--foreground))'
-                    }}>
-                      Arlington Compatible
-                    </label>
-                    <span style={{ 
-                      fontSize: '0.7rem', 
-                      color: 'hsl(var(--muted-foreground))'
-                    }}>
-                      PDF 2.0 compliant fonts
-                    </span>
-                  </div>
-                  <label style={{ 
-                    position: 'relative', 
-                    display: 'inline-block', 
-                    width: '40px', 
-                    height: '22px' 
+                  {/* Arlington Compatible Toggle */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.5rem',
+                    background: 'hsl(var(--muted))',
+                    borderRadius: '4px'
                   }}>
-                    <input
-                      type="checkbox"
-                      checked={config.arlingtonCompatible || false}
-                      onChange={(e) => setConfig(prev => ({ ...prev, arlingtonCompatible: e.target.checked }))}
-                      style={{ 
-                        opacity: 0, 
-                        width: 0, 
-                        height: 0 
-                      }}
-                    />
-                    <span style={{
-                      position: 'absolute',
-                      cursor: 'pointer',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: config.arlingtonCompatible ? 'var(--secondary-color)' : 'hsl(var(--border))',
-                      transition: '0.3s',
-                      borderRadius: '22px'
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '0.8rem',
+                        fontWeight: '500',
+                        color: 'hsl(var(--foreground))'
+                      }}>
+                        Arlington Compatible
+                      </label>
+                      <span style={{
+                        fontSize: '0.7rem',
+                        color: 'hsl(var(--muted-foreground))'
+                      }}>
+                        PDF 2.0 compliant fonts
+                      </span>
+                    </div>
+                    <label style={{
+                      position: 'relative',
+                      display: 'inline-block',
+                      width: '40px',
+                      height: '22px'
                     }}>
+                      <input
+                        type="checkbox"
+                        checked={config.arlingtonCompatible || false}
+                        onChange={(e) => setConfig(prev => ({ ...prev, arlingtonCompatible: e.target.checked }))}
+                        style={{
+                          opacity: 0,
+                          width: 0,
+                          height: 0
+                        }}
+                      />
                       <span style={{
                         position: 'absolute',
-                        content: '""',
-                        height: '16px',
-                        width: '16px',
-                        left: config.arlingtonCompatible ? '21px' : '3px',
-                        bottom: '3px',
-                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: config.arlingtonCompatible ? 'var(--secondary-color)' : 'hsl(var(--border))',
                         transition: '0.3s',
-                        borderRadius: '50%'
-                      }} />
-                    </span>
-                  </label>
-                </div>
+                        borderRadius: '22px'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          content: '""',
+                          height: '16px',
+                          width: '16px',
+                          left: config.arlingtonCompatible ? '21px' : '3px',
+                          bottom: '3px',
+                          backgroundColor: 'white',
+                          transition: '0.3s',
+                          borderRadius: '50%'
+                        }} />
+                      </span>
+                    </label>
+                  </div>
 
                   {/* Embed Fonts Toggle */}
                   <div style={{
@@ -2831,630 +2835,630 @@ export default function Editor() {
                     </label>
                   </div>
 
-                {/* Page Borders */}
-                <div style={{ paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
-                  <PageBorderControls
-                    borders={parsePageBorder(config.pageBorder)}
-                    onChange={(borders) => setConfig(prev => ({ ...prev, pageBorder: formatPageBorder(borders) }))}
-                  />
-                </div>
-
-                {/* Page Info */}
-                <div style={{ 
-                  padding: '0.5rem', 
-                  background: 'hsl(var(--muted))', 
-                  borderRadius: '4px',
-                  fontSize: '0.75rem', 
-                  color: 'hsl(var(--muted-foreground))'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Dimensions:</span>
-                    <span>{currentPageSize.width} × {currentPageSize.height} pts</span>
+                  {/* Page Borders */}
+                  <div style={{ paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
+                    <PageBorderControls
+                      borders={parsePageBorder(config.pageBorder)}
+                      onChange={(borders) => setConfig(prev => ({ ...prev, pageBorder: formatPageBorder(borders) }))}
+                    />
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
-                    <span>Usable Width:</span>
-                    <span>{getUsableWidth(currentPageSize.width)} pts</span>
+
+                  {/* Page Info */}
+                  <div style={{
+                    padding: '0.5rem',
+                    background: 'hsl(var(--muted))',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    color: 'hsl(var(--muted-foreground))'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Dimensions:</span>
+                      <span>{currentPageSize.width} × {currentPageSize.height} pts</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                      <span>Usable Width:</span>
+                      <span>{getUsableWidth(currentPageSize.width)} pts</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Center: Canvas */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
-            {/* Page size indicator */}
-            <div style={{ 
-              fontSize: '0.75rem', 
-              color: '#666', 
-              textAlign: 'center',
-              padding: '0.25rem 0.5rem',
-              background: '#e9ecef',
-              borderRadius: '4px'
-            }}>
-              {currentPageSize.name} - {currentPageSize.width} × {currentPageSize.height} pts
-            </div>
-            <div className="card" style={{ 
-              padding: '1rem',
-              width: `${Math.min(currentPageSize.width, 650)}px`,
-              maxWidth: '100%',
-              transition: 'width 0.3s ease'
-            }}>
-              <div 
-                className="canvas-container"
-                ref={canvasRef}
-                onClick={handleCanvasClick}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                style={{
-                  background: isDragOver
-                    ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)'
-                    : '#fff',
-                  border: isDragOver ? '3px dashed var(--secondary-color)' : '1px solid #ddd',
-                  borderRadius: '4px',
-                  padding: '1rem',
-                  transition: 'all 0.2s ease',
-                  minHeight: `${Math.min(currentPageSize.height * 0.6, 600)}px`,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-start',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                }}
-              >
-                {allElements.length === 0 && (
-                  <div style={{
+            {/* Center: Canvas */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+              {/* Page size indicator */}
+              <div style={{
+                fontSize: '0.75rem',
+                color: '#666',
+                textAlign: 'center',
+                padding: '0.25rem 0.5rem',
+                background: '#e9ecef',
+                borderRadius: '4px'
+              }}>
+                {currentPageSize.name} - {currentPageSize.width} × {currentPageSize.height} pts
+              </div>
+              <div className="card" style={{
+                padding: '1rem',
+                width: `${Math.min(currentPageSize.width, 650)}px`,
+                maxWidth: '100%',
+                transition: 'width 0.3s ease'
+              }}>
+                <div
+                  className="canvas-container"
+                  ref={canvasRef}
+                  onClick={handleCanvasClick}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  style={{
+                    background: isDragOver
+                      ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)'
+                      : '#fff',
+                    border: isDragOver ? '3px dashed var(--secondary-color)' : '1px solid #ddd',
+                    borderRadius: '4px',
+                    padding: '1rem',
+                    transition: 'all 0.2s ease',
+                    minHeight: `${Math.min(currentPageSize.height * 0.6, 600)}px`,
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '300px',
-                    textAlign: 'center',
-                    color: '#999',
-                    pointerEvents: 'none',
-                  }}>
-                    <Square size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                    <p style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-                      {isDragOver ? 'Drop here to add component' : 'Drop components here'}
-                    </p>
-                    {!isDragOver && (
-                      <p style={{ fontSize: '0.85rem', opacity: 0.7 }}>Drag from the left panel or load a template</p>
+                    justifyContent: 'flex-start',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  {allElements.length === 0 && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: '300px',
+                      textAlign: 'center',
+                      color: '#999',
+                      pointerEvents: 'none',
+                    }}>
+                      <Square size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                      <p style={{ fontSize: '1rem', fontWeight: '500', marginBottom: '0.5rem' }}>
+                        {isDragOver ? 'Drop here to add component' : 'Drop components here'}
+                      </p>
+                      {!isDragOver && (
+                        <p style={{ fontSize: '0.85rem', opacity: 0.7 }}>Drag from the left panel or load a template</p>
+                      )}
+                    </div>
+                  )}
+                  {/* Elements container - align items at top */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0', alignItems: 'stretch' }}>
+                    {/* Drop zone at the beginning */}
+                    {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
+                      <DropZone
+                        index={title ? 1 : 0}
+                        onDrop={(draggedId) => handleComponentDrop(draggedId, title ? 1 : 0)}
+                        onAddComponent={(type, position) => addElementAtPosition(type, title ? 1 : 0)}
+                        isVisible={true}
+                        isToolboxDragging={draggedType !== null}
+                      />
+                    )}
+
+                    {allElements.map((element, index) => (
+                      <React.Fragment key={element.id}>
+                        <ComponentItem
+                          element={element}
+                          index={index}
+                          isSelected={element.id === selectedId}
+                          onSelect={setSelectedId}
+                          onUpdate={(updates) => updateElement(element.id, updates)}
+                          onMove={moveElement}
+                          onDelete={deleteElement}
+                          canMoveUp={index > (title ? 1 : 0)}
+                          canMoveDown={index < allElements.length - (footer ? 2 : 1)}
+                          selectedCell={selectedCell}
+                          onCellSelect={setSelectedCell}
+                          onDragStart={setDraggedComponentId}
+                          onDragEnd={() => setDraggedComponentId(null)}
+                          onDrop={handleComponentDrop}
+                          isDragging={draggedComponentId === element.id}
+                          draggedType={draggedType}
+                          handleCellDrop={handleCellDrop}
+                          currentPageSize={currentPageSize}
+                        />
+                        {index < allElements.length - 1 && (
+                          <DropZone
+                            index={index + 1}
+                            onDrop={(draggedId) => handleComponentDrop(draggedId, index + 1)}
+                            onAddComponent={(type, position) => addElementAtPosition(type, position)}
+                            isVisible={draggedComponentId !== null || draggedType !== null}
+                            isToolboxDragging={draggedType !== null}
+                          />
+                        )}
+                      </React.Fragment>
+                    ))}
+
+                    {/* Drop zone at the end */}
+                    {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
+                      <DropZone
+                        index={allElements.length}
+                        onDrop={(draggedId) => handleComponentDrop(draggedId, allElements.length)}
+                        onAddComponent={(type, position) => addElementAtPosition(type, position)}
+                        isVisible={true}
+                        isToolboxDragging={draggedType !== null}
+                      />
                     )}
                   </div>
-                )}
-                {/* Elements container - align items at top */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0', alignItems: 'stretch' }}>
-                  {/* Drop zone at the beginning */}
-                  {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
-                    <DropZone
-                      index={title ? 1 : 0}
-                      onDrop={(draggedId) => handleComponentDrop(draggedId, title ? 1 : 0)}
-                      onAddComponent={(type, position) => addElementAtPosition(type, title ? 1 : 0)}
-                      isVisible={true}
-                      isToolboxDragging={draggedType !== null}
-                    />
-                  )}
-
-                  {allElements.map((element, index) => (
-                    <React.Fragment key={element.id}>
-                      <ComponentItem
-                        element={element}
-                        index={index}
-                        isSelected={element.id === selectedId}
-                        onSelect={setSelectedId}
-                        onUpdate={(updates) => updateElement(element.id, updates)}
-                        onMove={moveElement}
-                        onDelete={deleteElement}
-                        canMoveUp={index > (title ? 1 : 0)}
-                        canMoveDown={index < allElements.length - (footer ? 2 : 1)}
-                        selectedCell={selectedCell}
-                        onCellSelect={setSelectedCell}
-                        onDragStart={setDraggedComponentId}
-                        onDragEnd={() => setDraggedComponentId(null)}
-                        onDrop={handleComponentDrop}
-                        isDragging={draggedComponentId === element.id}
-                        draggedType={draggedType}
-                        handleCellDrop={handleCellDrop}
-                        currentPageSize={currentPageSize}
-                      />
-                      {index < allElements.length - 1 && (
-                        <DropZone
-                          index={index + 1}
-                          onDrop={(draggedId) => handleComponentDrop(draggedId, index + 1)}
-                          onAddComponent={(type, position) => addElementAtPosition(type, position)}
-                          isVisible={draggedComponentId !== null || draggedType !== null}
-                          isToolboxDragging={draggedType !== null}
-                        />
-                      )}
-                    </React.Fragment>
-                  ))}
-
-                  {/* Drop zone at the end */}
-                  {allElements.length > 0 && (draggedComponentId !== null || draggedType !== null) && (
-                    <DropZone
-                      index={allElements.length}
-                      onDrop={(draggedId) => handleComponentDrop(draggedId, allElements.length)}
-                      onAddComponent={(type, position) => addElementAtPosition(type, position)}
-                      isVisible={true}
-                      isToolboxDragging={draggedType !== null}
-                    />
-                  )}
                 </div>
               </div>
+
+              {/* PDF Preview */}
+              {pdfUrl && (
+                <PdfPreview
+                  pdfUrl={pdfUrl}
+                  title="Template Preview"
+                  onClose={() => setPdfUrl(null)}
+                />
+              )}
             </div>
 
-            {/* PDF Preview */}
-            {pdfUrl && (
-              <PdfPreview 
-                pdfUrl={pdfUrl} 
-                title="Template Preview"
-                onClose={() => setPdfUrl(null)}
-              />
-            )}
-          </div>
-
-          {/* Right: Properties & JSON */}
-          <div className="editor-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Properties Panel */}
-            <div className="card" style={{ padding: '1rem' }}>
-              <h3 style={{ 
-                margin: '0 0 0.75rem 0', 
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                color: 'hsl(var(--foreground))'
-              }}>
-                <Edit size={16} /> Properties
-              </h3>
-              
-              {!selectedElement && (
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: '2rem 1rem',
-                  color: 'hsl(var(--muted-foreground))',
-                  background: 'hsl(var(--muted))',
-                  borderRadius: '6px'
+            {/* Right: Properties & JSON */}
+            <div className="editor-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Properties Panel */}
+              <div className="card" style={{ padding: '1rem' }}>
+                <h3 style={{
+                  margin: '0 0 0.75rem 0',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: 'hsl(var(--foreground))'
                 }}>
-                  <Settings size={24} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
-                  <p style={{ fontSize: '0.85rem', margin: 0 }}>Select a component to edit</p>
-                </div>
-              )}
-              
-              {selectedElement && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ 
-                    padding: '0.5rem 0.75rem', 
-                    background: 'hsl(var(--accent))', 
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
+                  <Edit size={16} /> Properties
+                </h3>
+
+                {!selectedElement && (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '2rem 1rem',
+                    color: 'hsl(var(--muted-foreground))',
+                    background: 'hsl(var(--muted))',
+                    borderRadius: '6px'
                   }}>
-                    <strong style={{ fontSize: '0.9rem' }}>
-                      {selectedElement.type.charAt(0).toUpperCase() + selectedElement.type.slice(1)}
-                    </strong>
-                    <button
-                      onClick={() => deleteElement(selectedElement.id)}
-                      style={{ 
-                        background: 'hsl(var(--destructive))', 
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '0.25rem 0.5rem',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem'
-                      }}
-                    >
-                      <Trash2 size={12} /> Delete
-                    </button>
+                    <Settings size={24} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                    <p style={{ fontSize: '0.85rem', margin: 0 }}>Select a component to edit</p>
                   </div>
+                )}
 
-                  {selectedElement.type === 'title' && (
-                    <>
-                      {/* Title Background Color */}
-                      <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Title Background Color</div>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <input
-                            type="color"
-                            value={selectedElement.bgcolor || '#ffffff'}
-                            onChange={(e) => {
-                              updateElement(selectedElement.id, { bgcolor: e.target.value })
-                            }}
-                            style={{ 
-                              width: '40px', 
-                              height: '40px', 
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              padding: '2px'
-                            }}
-                          />
-                          <input
-                            type="text"
-                            value={selectedElement.bgcolor || ''}
-                            onChange={(e) => {
-                              updateElement(selectedElement.id, { bgcolor: e.target.value })
-                            }}
-                            placeholder="#RRGGBB or transparent"
-                            style={{ 
-                              flex: 1, 
-                              padding: '0.4rem', 
-                              fontSize: '0.85rem',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px'
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              updateElement(selectedElement.id, { bgcolor: '' })
-                            }}
-                            style={{
-                              padding: '0.4rem 0.75rem',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px',
-                              background: 'hsl(var(--muted))',
-                              color: 'hsl(var(--muted-foreground))',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                          {[
-                            { label: 'White', color: '#FFFFFF' },
-                            { label: 'Light Gray', color: '#F0F0F0' },
-                            { label: 'Light Blue', color: '#E3F2FD' },
-                            { label: 'Light Green', color: '#E8F5E9' },
-                            { label: 'Light Yellow', color: '#FFFDE7' },
-                            { label: 'Light Red', color: '#FFEBEE' }
-                          ].map(({ label, color }) => (
-                            <button
-                              key={color}
-                              onClick={() => updateElement(selectedElement.id, { bgcolor: color })}
-                              title={label}
+                {selectedElement && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{
+                      padding: '0.5rem 0.75rem',
+                      background: 'hsl(var(--accent))',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <strong style={{ fontSize: '0.9rem' }}>
+                        {selectedElement.type.charAt(0).toUpperCase() + selectedElement.type.slice(1)}
+                      </strong>
+                      <button
+                        onClick={() => deleteElement(selectedElement.id)}
+                        style={{
+                          background: 'hsl(var(--destructive))',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '0.25rem 0.5rem',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem'
+                        }}
+                      >
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    </div>
+
+                    {selectedElement.type === 'title' && (
+                      <>
+                        {/* Title Background Color */}
+                        <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Title Background Color</div>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input
+                              type="color"
+                              value={selectedElement.bgcolor || '#ffffff'}
+                              onChange={(e) => {
+                                updateElement(selectedElement.id, { bgcolor: e.target.value })
+                              }}
                               style={{
-                                width: '24px',
-                                height: '24px',
-                                background: color,
-                                border: selectedElement.bgcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
+                                width: '40px',
+                                height: '40px',
+                                border: '1px solid hsl(var(--border))',
                                 borderRadius: '4px',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                padding: '2px'
                               }}
                             />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Title Text Color */}
-                      <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Title Text Color</div>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <input
-                            type="color"
-                            value={selectedElement.textcolor || '#000000'}
-                            onChange={(e) => {
-                              updateElement(selectedElement.id, { textcolor: e.target.value })
-                            }}
-                            style={{ 
-                              width: '40px', 
-                              height: '40px', 
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              padding: '2px'
-                            }}
-                          />
-                          <input
-                            type="text"
-                            value={selectedElement.textcolor || ''}
-                            onChange={(e) => {
-                              updateElement(selectedElement.id, { textcolor: e.target.value })
-                            }}
-                            placeholder="#RRGGBB (default: black)"
-                            style={{ 
-                              flex: 1, 
-                              padding: '0.4rem', 
-                              fontSize: '0.85rem',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px'
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              updateElement(selectedElement.id, { textcolor: '' })
-                            }}
-                            style={{
-                              padding: '0.4rem 0.75rem',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px',
-                              background: 'hsl(var(--muted))',
-                              color: 'hsl(var(--muted-foreground))',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                          {[
-                            { label: 'Black', color: '#000000' },
-                            { label: 'Dark Gray', color: '#333333' },
-                            { label: 'White', color: '#FFFFFF' },
-                            { label: 'Red', color: '#F44336' },
-                            { label: 'Blue', color: '#2196F3' },
-                            { label: 'Green', color: '#4CAF50' }
-                          ].map(({ label, color }) => (
-                            <button
-                              key={color}
-                              onClick={() => updateElement(selectedElement.id, { textcolor: color })}
-                              title={label}
+                            <input
+                              type="text"
+                              value={selectedElement.bgcolor || ''}
+                              onChange={(e) => {
+                                updateElement(selectedElement.id, { bgcolor: e.target.value })
+                              }}
+                              placeholder="#RRGGBB or transparent"
                               style={{
-                                width: '24px',
-                                height: '24px',
-                                background: color,
-                                border: selectedElement.textcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
+                                flex: 1,
+                                padding: '0.4rem',
+                                fontSize: '0.85rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px'
                               }}
                             />
-                          ))}
-                        </div>
-                      </div>
-                      <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
-                          Title Table Settings
-                        </div>
-                        
-                        {selectedElement.table && (
-                          <>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                              <label style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Columns:</label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="10"
-                                value={selectedElement.table.maxcolumns || 3}
-                                onChange={(e) => {
-                                  const newCols = parseInt(e.target.value)
-                                  if (isNaN(newCols) || newCols < 1 || newCols > 10) return
-
-                                  const table = selectedElement.table
-                                  let newWidths = []
-                                  const rawWidths = table.columnwidths || []
-                                  const rawSum = rawWidths.reduce((a, b) => a + b, 0) || 1
-                                  const currentWidths = rawWidths.map(w => w / rawSum)
-                                  
-                                  if (newCols === currentWidths.length) {
-                                    newWidths = currentWidths
-                                  } else if (newCols > currentWidths.length) {
-                                    const remain = newCols - currentWidths.length
-                                    const existingSum = currentWidths.reduce((a, b) => a + b, 0)
-                                    const newPartWidth = (1 - existingSum) / remain
-                                    newWidths = [...currentWidths, ...Array(remain).fill(Math.max(0.01, newPartWidth))]
-                                  } else {
-                                    newWidths = currentWidths.slice(0, newCols)
-                                  }
-                                  
-                                  const sum = newWidths.reduce((a, b) => a + b, 0) || 1
-                                  const normalizedWidths = newWidths.map(w => w / sum)
-
-                                  const updatedRows = table.rows?.map(row => {
-                                    const newRow = [...(row.row || [])]
-                                    while (newRow.length < newCols) {
-                                      newRow.push({ props: 'Helvetica:12:000:left:0:0:0:0', text: '' })
-                                    }
-                                    if (newRow.length > newCols) {
-                                      newRow.splice(newCols)
-                                    }
-                                    return { row: newRow }
-                                  })
-                                  
-                                  updateElement(selectedElement.id, { 
-                                    table: { 
-                                      ...table, 
-                                      maxcolumns: newCols, 
-                                      rows: updatedRows, 
-                                      columnwidths: normalizedWidths 
-                                    } 
-                                  })
-                                }}
-                                style={{ flex: 1, padding: '0.25rem' }}
-                              />
-                            </div>
-                            
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              onClick={() => {
+                                updateElement(selectedElement.id, { bgcolor: '' })
+                              }}
+                              style={{
+                                padding: '0.4rem 0.75rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                background: 'hsl(var(--muted))',
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                            {[
+                              { label: 'White', color: '#FFFFFF' },
+                              { label: 'Light Gray', color: '#F0F0F0' },
+                              { label: 'Light Blue', color: '#E3F2FD' },
+                              { label: 'Light Green', color: '#E8F5E9' },
+                              { label: 'Light Yellow', color: '#FFFDE7' },
+                              { label: 'Light Red', color: '#FFEBEE' }
+                            ].map(({ label, color }) => (
                               <button
-                                onClick={() => {
-                                  const table = selectedElement.table
-                                  const newRow = {
-                                    row: Array(table.maxcolumns).fill(null).map(() => ({
-                                      props: 'Helvetica:12:000:left:0:0:0:0',
-                                      text: ''
-                                    }))
-                                  }
-                                  updateElement(selectedElement.id, {
-                                    table: { ...table, rows: [...(table.rows || []), newRow] }
-                                  })
-                                }}
+                                key={color}
+                                onClick={() => updateElement(selectedElement.id, { bgcolor: color })}
+                                title={label}
                                 style={{
-                                  flex: 1,
-                                  padding: '0.4rem',
-                                  fontSize: '0.75rem',
-                                  border: '1px solid hsl(var(--border))',
+                                  width: '24px',
+                                  height: '24px',
+                                  background: color,
+                                  border: selectedElement.bgcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
                                   borderRadius: '4px',
-                                  background: 'hsl(var(--muted))',
                                   cursor: 'pointer'
                                 }}
-                              >
-                                Add Row
-                              </button>
-                              {selectedElement.table.rows?.length > 1 && (
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Title Text Color */}
+                        <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Title Text Color</div>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input
+                              type="color"
+                              value={selectedElement.textcolor || '#000000'}
+                              onChange={(e) => {
+                                updateElement(selectedElement.id, { textcolor: e.target.value })
+                              }}
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                padding: '2px'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={selectedElement.textcolor || ''}
+                              onChange={(e) => {
+                                updateElement(selectedElement.id, { textcolor: e.target.value })
+                              }}
+                              placeholder="#RRGGBB (default: black)"
+                              style={{
+                                flex: 1,
+                                padding: '0.4rem',
+                                fontSize: '0.85rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px'
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                updateElement(selectedElement.id, { textcolor: '' })
+                              }}
+                              style={{
+                                padding: '0.4rem 0.75rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                background: 'hsl(var(--muted))',
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                            {[
+                              { label: 'Black', color: '#000000' },
+                              { label: 'Dark Gray', color: '#333333' },
+                              { label: 'White', color: '#FFFFFF' },
+                              { label: 'Red', color: '#F44336' },
+                              { label: 'Blue', color: '#2196F3' },
+                              { label: 'Green', color: '#4CAF50' }
+                            ].map(({ label, color }) => (
+                              <button
+                                key={color}
+                                onClick={() => updateElement(selectedElement.id, { textcolor: color })}
+                                title={label}
+                                style={{
+                                  width: '24px',
+                                  height: '24px',
+                                  background: color,
+                                  border: selectedElement.textcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
+                            Title Table Settings
+                          </div>
+
+                          {selectedElement.table && (
+                            <>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <label style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Columns:</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="10"
+                                  value={selectedElement.table.maxcolumns || 3}
+                                  onChange={(e) => {
+                                    const newCols = parseInt(e.target.value)
+                                    if (isNaN(newCols) || newCols < 1 || newCols > 10) return
+
+                                    const table = selectedElement.table
+                                    let newWidths = []
+                                    const rawWidths = table.columnwidths || []
+                                    const rawSum = rawWidths.reduce((a, b) => a + b, 0) || 1
+                                    const currentWidths = rawWidths.map(w => w / rawSum)
+
+                                    if (newCols === currentWidths.length) {
+                                      newWidths = currentWidths
+                                    } else if (newCols > currentWidths.length) {
+                                      const remain = newCols - currentWidths.length
+                                      const existingSum = currentWidths.reduce((a, b) => a + b, 0)
+                                      const newPartWidth = (1 - existingSum) / remain
+                                      newWidths = [...currentWidths, ...Array(remain).fill(Math.max(0.01, newPartWidth))]
+                                    } else {
+                                      newWidths = currentWidths.slice(0, newCols)
+                                    }
+
+                                    const sum = newWidths.reduce((a, b) => a + b, 0) || 1
+                                    const normalizedWidths = newWidths.map(w => w / sum)
+
+                                    const updatedRows = table.rows?.map(row => {
+                                      const newRow = [...(row.row || [])]
+                                      while (newRow.length < newCols) {
+                                        newRow.push({ props: 'Helvetica:12:000:left:0:0:0:0', text: '' })
+                                      }
+                                      if (newRow.length > newCols) {
+                                        newRow.splice(newCols)
+                                      }
+                                      return { row: newRow }
+                                    })
+
+                                    updateElement(selectedElement.id, {
+                                      table: {
+                                        ...table,
+                                        maxcolumns: newCols,
+                                        rows: updatedRows,
+                                        columnwidths: normalizedWidths
+                                      }
+                                    })
+                                  }}
+                                  style={{ flex: 1, padding: '0.25rem' }}
+                                />
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <button
                                   onClick={() => {
                                     const table = selectedElement.table
-                                    // Remove selected row if a cell is selected, otherwise remove last row
-                                    const rowIdxToRemove = selectedCell ? selectedCell.rowIdx : table.rows.length - 1
-                                    const newRows = table.rows.filter((_, idx) => idx !== rowIdxToRemove)
-                                    updateElement(selectedElement.id, {
-                                      table: { ...table, rows: newRows }
-                                    })
-                                    // Clear cell selection if the selected row was removed
-                                    if (selectedCell && selectedCell.rowIdx === rowIdxToRemove) {
-                                      setSelectedCell(null)
-                                    } else if (selectedCell && selectedCell.rowIdx > rowIdxToRemove) {
-                                      // Adjust selected cell row index if it was after the removed row
-                                      setSelectedCell({ ...selectedCell, rowIdx: selectedCell.rowIdx - 1 })
+                                    const newRow = {
+                                      row: Array(table.maxcolumns).fill(null).map(() => ({
+                                        props: 'Helvetica:12:000:left:0:0:0:0',
+                                        text: ''
+                                      }))
                                     }
+                                    updateElement(selectedElement.id, {
+                                      table: { ...table, rows: [...(table.rows || []), newRow] }
+                                    })
                                   }}
                                   style={{
                                     flex: 1,
                                     padding: '0.4rem',
                                     fontSize: '0.75rem',
-                                    border: '1px solid hsl(var(--destructive))',
+                                    border: '1px solid hsl(var(--border))',
                                     borderRadius: '4px',
-                                    background: 'hsl(var(--destructive))',
-                                    color: 'white',
+                                    background: 'hsl(var(--muted))',
                                     cursor: 'pointer'
                                   }}
                                 >
-                                  Remove Row {selectedCell ? `(Row ${selectedCell.rowIdx + 1})` : '(Last)'}
+                                  Add Row
                                 </button>
-                              )}
-                            </div>
-                            
-                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                              <button
-                                onClick={() => {
-                                  const table = selectedElement.table
-                                  const currentCols = table.maxcolumns || 3
-                                  const newCols = currentCols + 1
-                                  
-                                  if (newCols > 10) {
-                                    alert('Maximum 10 columns allowed')
-                                    return
-                                  }
+                                {selectedElement.table.rows?.length > 1 && (
+                                  <button
+                                    onClick={() => {
+                                      const table = selectedElement.table
+                                      // Remove selected row if a cell is selected, otherwise remove last row
+                                      const rowIdxToRemove = selectedCell ? selectedCell.rowIdx : table.rows.length - 1
+                                      const newRows = table.rows.filter((_, idx) => idx !== rowIdxToRemove)
+                                      updateElement(selectedElement.id, {
+                                        table: { ...table, rows: newRows }
+                                      })
+                                      // Clear cell selection if the selected row was removed
+                                      if (selectedCell && selectedCell.rowIdx === rowIdxToRemove) {
+                                        setSelectedCell(null)
+                                      } else if (selectedCell && selectedCell.rowIdx > rowIdxToRemove) {
+                                        // Adjust selected cell row index if it was after the removed row
+                                        setSelectedCell({ ...selectedCell, rowIdx: selectedCell.rowIdx - 1 })
+                                      }
+                                    }}
+                                    style={{
+                                      flex: 1,
+                                      padding: '0.4rem',
+                                      fontSize: '0.75rem',
+                                      border: '1px solid hsl(var(--destructive))',
+                                      borderRadius: '4px',
+                                      background: 'hsl(var(--destructive))',
+                                      color: 'white',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Remove Row {selectedCell ? `(Row ${selectedCell.rowIdx + 1})` : '(Last)'}
+                                  </button>
+                                )}
+                              </div>
 
-                                  // Calculate new column widths
-                                  const rawWidths = table.columnwidths || Array(currentCols).fill(1)
-                                  const rawSum = rawWidths.reduce((a, b) => a + b, 0)
-                                  const currentWidths = rawWidths.map(w => w / rawSum)
-                                  
-                                  const newColumnWeight = 1 / newCols
-                                  const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
-                                  const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
-                                  
-                                  const sum = newWidths.reduce((a, b) => a + b, 0)
-                                  const normalizedWidths = newWidths.map(w => w / sum)
-
-                                  // Add new cell to all rows
-                                  const updatedRows = table.rows?.map(row => {
-                                    const newRow = [...(row.row || [])]
-                                    newRow.push({ props: 'Helvetica:12:000:left:0:0:0:0', text: '' })
-                                    return { row: newRow }
-                                  })
-
-                                  updateElement(selectedElement.id, {
-                                    table: { ...table, maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths }
-                                  })
-                                }}
-                                style={{
-                                  flex: 1,
-                                  padding: '0.4rem',
-                                  fontSize: '0.75rem',
-                                  border: '1px solid hsl(var(--border))',
-                                  borderRadius: '4px',
-                                  background: 'hsl(var(--muted))',
-                                  cursor: 'pointer'
-                                }}
-                                disabled={selectedElement.table.maxcolumns >= 10}
-                              >
-                                Add Column
-                              </button>
-                              {selectedElement.table.maxcolumns > 1 && (
+                              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                                 <button
                                   onClick={() => {
                                     const table = selectedElement.table
                                     const currentCols = table.maxcolumns || 3
-                                    
-                                    if (currentCols <= 1) {
-                                      alert('Cannot remove the last column')
+                                    const newCols = currentCols + 1
+
+                                    if (newCols > 10) {
+                                      alert('Maximum 10 columns allowed')
                                       return
                                     }
-
-                                    // Remove selected column if a cell is selected, otherwise remove last column
-                                    const colIdxToRemove = selectedCell ? selectedCell.colIdx : currentCols - 1
-                                    const newCols = currentCols - 1
 
                                     // Calculate new column widths
                                     const rawWidths = table.columnwidths || Array(currentCols).fill(1)
                                     const rawSum = rawWidths.reduce((a, b) => a + b, 0)
                                     const currentWidths = rawWidths.map(w => w / rawSum)
-                                    
-                                    const removedWeight = currentWidths[colIdxToRemove]
-                                    const newWidths = currentWidths.filter((_, idx) => idx !== colIdxToRemove)
-                                    
-                                    const currentSum = newWidths.reduce((a, b) => a + b, 0)
-                                    const normalizedWidths = newWidths.map(w => w / currentSum)
 
-                                    // Remove cell from all rows at the selected column
+                                    const newColumnWeight = 1 / newCols
+                                    const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
+                                    const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
+
+                                    const sum = newWidths.reduce((a, b) => a + b, 0)
+                                    const normalizedWidths = newWidths.map(w => w / sum)
+
+                                    // Add new cell to all rows
                                     const updatedRows = table.rows?.map(row => {
-                                      const newRow = row.row.filter((_, idx) => idx !== colIdxToRemove)
+                                      const newRow = [...(row.row || [])]
+                                      newRow.push({ props: 'Helvetica:12:000:left:0:0:0:0', text: '' })
                                       return { row: newRow }
                                     })
 
                                     updateElement(selectedElement.id, {
                                       table: { ...table, maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths }
                                     })
-                                    
-                                    // Clear or adjust cell selection
-                                    if (selectedCell && selectedCell.colIdx === colIdxToRemove) {
-                                      setSelectedCell(null)
-                                    } else if (selectedCell && selectedCell.colIdx > colIdxToRemove) {
-                                      setSelectedCell({ ...selectedCell, colIdx: selectedCell.colIdx - 1 })
-                                    }
                                   }}
                                   style={{
                                     flex: 1,
                                     padding: '0.4rem',
                                     fontSize: '0.75rem',
-                                    border: '1px solid hsl(var(--destructive))',
+                                    border: '1px solid hsl(var(--border))',
                                     borderRadius: '4px',
-                                    background: 'hsl(var(--destructive))',
-                                    color: 'white',
+                                    background: 'hsl(var(--muted))',
                                     cursor: 'pointer'
                                   }}
+                                  disabled={selectedElement.table.maxcolumns >= 10}
                                 >
-                                  Remove Column {selectedCell ? `(Col ${selectedCell.colIdx + 1})` : '(Last)'}
+                                  Add Column
                                 </button>
-                              )}
+                                {selectedElement.table.maxcolumns > 1 && (
+                                  <button
+                                    onClick={() => {
+                                      const table = selectedElement.table
+                                      const currentCols = table.maxcolumns || 3
+
+                                      if (currentCols <= 1) {
+                                        alert('Cannot remove the last column')
+                                        return
+                                      }
+
+                                      // Remove selected column if a cell is selected, otherwise remove last column
+                                      const colIdxToRemove = selectedCell ? selectedCell.colIdx : currentCols - 1
+                                      const newCols = currentCols - 1
+
+                                      // Calculate new column widths
+                                      const rawWidths = table.columnwidths || Array(currentCols).fill(1)
+                                      const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                                      const currentWidths = rawWidths.map(w => w / rawSum)
+
+                                      const removedWeight = currentWidths[colIdxToRemove]
+                                      const newWidths = currentWidths.filter((_, idx) => idx !== colIdxToRemove)
+
+                                      const currentSum = newWidths.reduce((a, b) => a + b, 0)
+                                      const normalizedWidths = newWidths.map(w => w / currentSum)
+
+                                      // Remove cell from all rows at the selected column
+                                      const updatedRows = table.rows?.map(row => {
+                                        const newRow = row.row.filter((_, idx) => idx !== colIdxToRemove)
+                                        return { row: newRow }
+                                      })
+
+                                      updateElement(selectedElement.id, {
+                                        table: { ...table, maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths }
+                                      })
+
+                                      // Clear or adjust cell selection
+                                      if (selectedCell && selectedCell.colIdx === colIdxToRemove) {
+                                        setSelectedCell(null)
+                                      } else if (selectedCell && selectedCell.colIdx > colIdxToRemove) {
+                                        setSelectedCell({ ...selectedCell, colIdx: selectedCell.colIdx - 1 })
+                                      }
+                                    }}
+                                    style={{
+                                      flex: 1,
+                                      padding: '0.4rem',
+                                      fontSize: '0.75rem',
+                                      border: '1px solid hsl(var(--destructive))',
+                                      borderRadius: '4px',
+                                      background: 'hsl(var(--destructive))',
+                                      color: 'white',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Remove Column {selectedCell ? `(Col ${selectedCell.colIdx + 1})` : '(Last)'}
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {selectedCell && selectedElement.table && selectedElement.table.rows?.[selectedCell.rowIdx]?.row?.[selectedCell.colIdx] && (
+                          <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
+                              Title Cell (Row {selectedCell.rowIdx + 1}, Col {selectedCell.colIdx + 1})
                             </div>
-                          </>
-                        )}
-                      </div>
-                      
-                      {selectedCell && selectedElement.table && selectedElement.table.rows?.[selectedCell.rowIdx]?.row?.[selectedCell.colIdx] && (
-                        <div style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid hsl(var(--border))' }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
-                            Title Cell (Row {selectedCell.rowIdx + 1}, Col {selectedCell.colIdx + 1})
-                          </div>
-                          
-                          {(() => {
-                            const cell = selectedElement.table.rows[selectedCell.rowIdx].row[selectedCell.colIdx]
-                            
-                            // Helper function to update title table cell with proper immutable updates
-                            const updateTitleCell = (cellUpdates) => {
-                              const table = selectedElement.table
-                              const newRows = table.rows.map((row, rIdx) => 
-                                rIdx === selectedCell.rowIdx
-                                  ? {
+
+                            {(() => {
+                              const cell = selectedElement.table.rows[selectedCell.rowIdx].row[selectedCell.colIdx]
+
+                              // Helper function to update title table cell with proper immutable updates
+                              const updateTitleCell = (cellUpdates) => {
+                                const table = selectedElement.table
+                                const newRows = table.rows.map((row, rIdx) =>
+                                  rIdx === selectedCell.rowIdx
+                                    ? {
                                       ...row,
                                       row: row.row.map((c, cIdx) =>
                                         cIdx === selectedCell.colIdx
@@ -3462,64 +3466,685 @@ export default function Editor() {
                                           : c
                                       )
                                     }
-                                  : row
-                              )
-                              updateElement(selectedElement.id, { table: { ...table, rows: newRows } })
-                            }
-                            
-                            return (
-                              <>
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
-                                  <input
-                                    type="text"
-                                    value={cell.text || ''}
-                                    onChange={(e) => updateTitleCell({ text: e.target.value })}
-                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
-                                  />
-                                </div>
-                                
-                                {cell.image ? (
+                                    : row
+                                )
+                                updateElement(selectedElement.id, { table: { ...table, rows: newRows } })
+                              }
+
+                              return (
+                                <>
                                   <div style={{ marginBottom: '0.5rem' }}>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Image:</label>
-                                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
+                                    <input
+                                      type="text"
+                                      value={cell.text || ''}
+                                      onChange={(e) => updateTitleCell({ text: e.target.value })}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
+                                    />
+                                  </div>
+
+                                  {cell.image ? (
+                                    <div style={{ marginBottom: '0.5rem' }}>
+                                      <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Image:</label>
+                                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                        <input
+                                          type="number"
+                                          value={cell.image.width || 100}
+                                          onChange={(e) => updateTitleCell({
+                                            image: { ...cell.image, width: parseFloat(e.target.value) || 100 }
+                                          })}
+                                          placeholder="Width"
+                                          style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem' }}
+                                        />
+                                        <input
+                                          type="number"
+                                          value={cell.image.height || 50}
+                                          onChange={(e) => updateTitleCell({
+                                            image: { ...cell.image, height: parseFloat(e.target.value) || 50 }
+                                          })}
+                                          placeholder="Height"
+                                          style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem' }}
+                                        />
+                                      </div>
+                                      <button
+                                        onClick={() => updateTitleCell({ image: null })}
+                                        style={{
+                                          padding: '0.25rem 0.5rem',
+                                          fontSize: '0.75rem',
+                                          border: '1px solid hsl(var(--destructive))',
+                                          borderRadius: '4px',
+                                          background: 'hsl(var(--destructive))',
+                                          color: 'white',
+                                          cursor: 'pointer'
+                                        }}
+                                      >
+                                        Remove Image
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div style={{ marginBottom: '0.5rem' }}>
+                                      <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Add Image:</label>
                                       <input
-                                        type="number"
-                                        value={cell.image.width || 100}
-                                        onChange={(e) => updateTitleCell({ 
-                                          image: { ...cell.image, width: parseFloat(e.target.value) || 100 } 
-                                        })}
-                                        placeholder="Width"
-                                        style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem' }}
-                                      />
-                                      <input
-                                        type="number"
-                                        value={cell.image.height || 50}
-                                        onChange={(e) => updateTitleCell({ 
-                                          image: { ...cell.image, height: parseFloat(e.target.value) || 50 } 
-                                        })}
-                                        placeholder="Height"
-                                        style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem' }}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                          const file = e.target.files[0]
+                                          if (file) {
+                                            const reader = new FileReader()
+                                            reader.onload = (event) => {
+                                              updateTitleCell({
+                                                image: {
+                                                  imagename: file.name,
+                                                  imagedata: event.target.result,
+                                                  width: 100,
+                                                  height: 50
+                                                }
+                                              })
+                                            }
+                                            reader.readAsDataURL(file)
+                                          }
+                                        }}
+                                        style={{ width: '100%', fontSize: '0.75rem' }}
                                       />
                                     </div>
-                                    <button
-                                      onClick={() => updateTitleCell({ image: null })}
-                                      style={{
-                                        padding: '0.25rem 0.5rem',
-                                        fontSize: '0.75rem',
-                                        border: '1px solid hsl(var(--destructive))',
-                                        borderRadius: '4px',
-                                        background: 'hsl(var(--destructive))',
-                                        color: 'white',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      Remove Image
-                                    </button>
+                                  )}
+
+                                  <div>
+                                    <PropsEditor
+                                      props={cell.props}
+                                      onChange={(props) => updateTitleCell({ props })}
+                                      fonts={fonts}
+                                    />
                                   </div>
-                                ) : (
+
+                                  <div style={{ marginTop: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Link URL:</label>
+                                    <input
+                                      type="text"
+                                      value={cell.link || ''}
+                                      onChange={(e) => updateTitleCell({ link: e.target.value })}
+                                      placeholder="https://..."
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                    />
+                                  </div>
+
+                                </>
+                              )
+                            })()}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {selectedElement.type === 'table' && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <label style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Columns:</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={selectedElement.maxcolumns || 3}
+                            onChange={(e) => {
+                              const newCols = parseInt(e.target.value)
+                              if (isNaN(newCols) || newCols < 1 || newCols > 10) return
+
+                              // Adjust column widths proportionally - normalize first
+                              let newWidths = []
+                              const rawWidths = selectedElement.columnwidths || []
+                              const rawSum = rawWidths.reduce((a, b) => a + b, 0) || 1
+                              const currentWidths = rawWidths.map(w => w / rawSum)
+
+                              if (newCols === currentWidths.length) {
+                                newWidths = currentWidths
+                              } else if (newCols > currentWidths.length) {
+                                const remain = newCols - currentWidths.length
+                                const existingSum = currentWidths.reduce((a, b) => a + b, 0)
+                                const newPartWidth = (1 - existingSum) / remain
+                                const extra = Array(remain).fill(Math.max(0.01, newPartWidth))
+                                newWidths = [...currentWidths, ...extra]
+                              } else {
+                                newWidths = currentWidths.slice(0, newCols)
+                              }
+
+                              // Normalize to sum 1
+                              const sum = newWidths.reduce((a, b) => a + b, 0) || 1
+                              const normalizedWidths = newWidths.map(w => w / sum)
+
+                              const updatedRows = selectedElement.rows?.map(row => {
+                                const newRow = [...(row.row || [])]
+                                while (newRow.length < newCols) {
+                                  newRow.push({ props: 'Helvetica:12:000:left:1:1:1:1', text: '' })
+                                }
+                                if (newRow.length > newCols) {
+                                  newRow.splice(newCols)
+                                }
+
+                                // Update widths for all cells in the row
+                                const usableWidth = getUsableWidth(currentPageSize.width)
+                                const updatedCells = newRow.map((cell, colIdx) => ({
+                                  ...cell,
+                                  width: usableWidth * normalizedWidths[colIdx]
+                                }))
+
+                                return { row: updatedCells }
+                              })
+
+                              updateElement(selectedElement.id, { maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths })
+                            }}
+                            style={{ flex: 1, padding: '0.25rem' }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => {
+                              const usableWidth = getUsableWidth(currentPageSize.width)
+                              // Normalize columnwidths for proper width calculation
+                              const rawWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
+                                ? selectedElement.columnwidths
+                                : Array(selectedElement.maxcolumns).fill(1)
+                              const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0)
+                              const normalizedWeights = rawWeights.map(w => w / totalWeight)
+
+                              const newRow = {
+                                row: Array(selectedElement.maxcolumns || 3).fill().map((_, i) => ({
+                                  props: 'Helvetica:12:000:left:1:1:1:1',
+                                  text: '',
+                                  width: usableWidth * normalizedWeights[i]
+                                }))
+                              }
+                              updateElement(selectedElement.id, {
+                                rows: [...(selectedElement.rows || []), newRow]
+                              })
+                            }}
+                            className="btn"
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
+                          >
+                            <Plus size={12} /> Add Row
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (selectedElement.rows?.length > 1) {
+                                // Remove selected row if a cell is selected, otherwise remove last row
+                                const rowIdxToRemove = selectedCell ? selectedCell.rowIdx : selectedElement.rows.length - 1
+                                const newRows = selectedElement.rows.filter((_, idx) => idx !== rowIdxToRemove)
+
+                                // Also update rowheights if they exist
+                                let newRowHeights = selectedElement.rowheights
+                                if (newRowHeights && newRowHeights.length > 0) {
+                                  newRowHeights = newRowHeights.filter((_, idx) => idx !== rowIdxToRemove)
+                                }
+
+                                updateElement(selectedElement.id, {
+                                  rows: newRows,
+                                  ...(newRowHeights ? { rowheights: newRowHeights } : {})
+                                })
+
+                                // Clear or adjust cell selection
+                                if (selectedCell && selectedCell.rowIdx === rowIdxToRemove) {
+                                  setSelectedCell(null)
+                                } else if (selectedCell && selectedCell.rowIdx > rowIdxToRemove) {
+                                  setSelectedCell({ ...selectedCell, rowIdx: selectedCell.rowIdx - 1 })
+                                }
+                              }
+                            }}
+                            className="btn"
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
+                            disabled={!selectedElement.rows || selectedElement.rows.length <= 1}
+                          >
+                            Remove Row {selectedCell ? `(Row ${selectedCell.rowIdx + 1})` : '(Last)'}
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <button
+                            onClick={() => {
+                              try {
+                                const currentCols = selectedElement.maxcolumns || 3
+                                const newCols = currentCols + 1
+
+                                if (newCols > 10) {
+                                  alert('Maximum 10 columns allowed')
+                                  return
+                                }
+
+                                // Calculate new column widths - normalize current weights first
+                                const rawWidths = selectedElement.columnwidths || Array(currentCols).fill(1)
+                                const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                                const currentWidths = rawWidths.map(w => w / rawSum)
+
+                                const newColumnWeight = 1 / newCols
+                                const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
+                                const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
+
+                                // Normalize to ensure sum is exactly 1
+                                const sum = newWidths.reduce((a, b) => a + b, 0)
+                                const normalizedWidths = newWidths.map(w => w / sum)
+
+                                // Get usable width for calculations
+                                const usableWidth = getUsableWidth(currentPageSize.width)
+
+                                // Add new cell to all rows with default borders (1:1:1:1)
+                                const updatedRows = selectedElement.rows?.map(row => {
+                                  const newRow = [...(row.row || [])]
+                                  // Add new cell with all borders enabled
+                                  newRow.push({
+                                    props: 'Helvetica:12:000:left:1:1:1:1',
+                                    text: '',
+                                    width: usableWidth * normalizedWidths[newCols - 1]
+                                  })
+
+                                  // Update widths for all cells including existing ones
+                                  const updatedCells = newRow.map((cell, colIdx) => ({
+                                    ...cell,
+                                    width: usableWidth * normalizedWidths[colIdx]
+                                  }))
+
+                                  return { row: updatedCells }
+                                })
+
+                                // Validate that all rows have the correct number of columns
+                                const allRowsValid = updatedRows.every(row => row.row.length === newCols)
+
+                                if (!allRowsValid) {
+                                  alert('Failed to update JSON: Row validation failed')
+                                  return
+                                }
+
+                                // Update the element
+                                updateElement(selectedElement.id, {
+                                  maxcolumns: newCols,
+                                  rows: updatedRows,
+                                  columnwidths: normalizedWidths
+                                })
+
+                                // Success - component will re-render automatically
+                                console.log('Column added successfully')
+                              } catch (error) {
+                                console.error('Failed to add column:', error)
+                                alert('Failed to update JSON: ' + error.message)
+                              }
+                            }}
+                            className="btn"
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
+                            disabled={selectedElement.maxcolumns >= 10}
+                          >
+                            <Plus size={12} /> Add Column
+                          </button>
+                          <button
+                            onClick={() => {
+                              try {
+                                const currentCols = selectedElement.maxcolumns || 3
+
+                                if (currentCols <= 1) {
+                                  alert('Cannot remove the last column')
+                                  return
+                                }
+
+                                // Remove selected column if a cell is selected, otherwise remove last column
+                                const colIdxToRemove = selectedCell ? selectedCell.colIdx : currentCols - 1
+                                const newCols = currentCols - 1
+
+                                // Calculate new column widths (redistribute the removed column's weight)
+                                // First normalize current weights
+                                const rawWidths = selectedElement.columnwidths || Array(currentCols).fill(1)
+                                const rawSum = rawWidths.reduce((a, b) => a + b, 0)
+                                const currentWidths = rawWidths.map(w => w / rawSum)
+
+                                const removedWeight = currentWidths[colIdxToRemove]
+                                const newWidths = currentWidths.filter((_, idx) => idx !== colIdxToRemove)
+
+                                // Distribute removed weight proportionally to remaining columns
+                                const currentSum = newWidths.reduce((a, b) => a + b, 0)
+                                const normalizedWidths = newWidths.map(w => w / currentSum)
+
+                                // Get usable width for calculations
+                                const usableWidth = getUsableWidth(currentPageSize.width)
+
+                                // Remove cell at selected column from all rows
+                                const updatedRows = selectedElement.rows?.map(row => {
+                                  const newRow = row.row.filter((_, idx) => idx !== colIdxToRemove)
+
+                                  // Update widths for remaining cells
+                                  const updatedCells = newRow.map((cell, colIdx) => ({
+                                    ...cell,
+                                    width: usableWidth * normalizedWidths[colIdx]
+                                  }))
+
+                                  return { row: updatedCells }
+                                })
+
+                                // Validate that all rows have the correct number of columns
+                                const allRowsValid = updatedRows.every(row => row.row.length === newCols)
+
+                                if (!allRowsValid) {
+                                  alert('Failed to update JSON: Row validation failed')
+                                  return
+                                }
+
+                                // Update the element
+                                updateElement(selectedElement.id, {
+                                  maxcolumns: newCols,
+                                  rows: updatedRows,
+                                  columnwidths: normalizedWidths
+                                })
+
+                                // Clear or adjust cell selection
+                                if (selectedCell && selectedCell.colIdx === colIdxToRemove) {
+                                  setSelectedCell(null)
+                                } else if (selectedCell && selectedCell.colIdx > colIdxToRemove) {
+                                  setSelectedCell({ ...selectedCell, colIdx: selectedCell.colIdx - 1 })
+                                }
+
+                                // Success - component will re-render automatically
+                                console.log('Column removed successfully')
+                              } catch (error) {
+                                console.error('Failed to remove column:', error)
+                                alert('Failed to update JSON: ' + error.message)
+                              }
+                            }}
+                            className="btn"
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
+                            disabled={!selectedElement.rows || selectedElement.maxcolumns <= 1}
+                          >
+                            Remove Column {selectedCell ? `(Col ${selectedCell.colIdx + 1})` : '(Last)'}
+                          </button>
+                        </div>
+
+                        <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))' }}>
+                          Rows: {selectedElement.rows?.length || 0}, Columns: {selectedElement.maxcolumns || 3}
+                        </div>
+
+                        {/* Column Widths Controls */}
+                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Column Widths (weights)</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '0.5rem' }}>
+                            {Array.from({ length: selectedElement.maxcolumns }).map((_, colIdx) => {
+                              // Normalize columnwidths for display
+                              const rawWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
+                                ? selectedElement.columnwidths
+                                : Array(selectedElement.maxcolumns).fill(1)
+                              const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0)
+                              const colWeights = rawWeights.map(w => w / totalWeight)
+                              return (
+                                <div key={colIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                  <label style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Col {colIdx + 1}</label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0.1"
+                                    value={(colWeights[colIdx] * 100).toFixed(1)}
+                                    onChange={(e) => {
+                                      const newWeights = [...colWeights]
+                                      newWeights[colIdx] = Math.max(0.1, parseFloat(e.target.value) || 0) / 100
+                                      const sum = newWeights.reduce((a, b) => a + b, 0) || 1
+                                      const normalized = newWeights.map(w => w / sum)
+
+                                      const usableWidth = getUsableWidth(currentPageSize.width)
+                                      const updatedRows = selectedElement.rows.map(row => ({
+                                        ...row,
+                                        row: row.row.map((cell, cIdx) => ({
+                                          ...cell,
+                                          width: usableWidth * normalized[cIdx]
+                                        }))
+                                      }))
+
+                                      updateElement(selectedElement.id, { columnwidths: normalized, rows: updatedRows })
+                                    }}
+                                    style={{ width: '100%', padding: '0.25rem', fontSize: '0.8rem' }}
+                                  />
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <button
+                            onClick={() => {
+                              const evenWeights = Array(selectedElement.maxcolumns).fill(1 / selectedElement.maxcolumns)
+                              const usableWidth = getUsableWidth(currentPageSize.width)
+                              const updatedRows = selectedElement.rows.map(row => ({
+                                ...row,
+                                row: row.row.map((cell, cIdx) => ({
+                                  ...cell,
+                                  width: usableWidth * evenWeights[cIdx]
+                                }))
+                              }))
+                              updateElement(selectedElement.id, { columnwidths: evenWeights, rows: updatedRows })
+                            }}
+                            style={{
+                              marginTop: '0.5rem',
+                              padding: '0.25rem 0.5rem',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px',
+                              background: 'hsl(var(--muted))',
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Reset to Equal
+                          </button>
+                        </div>
+
+                        {/* Row Heights Controls */}
+                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Row Heights (multipliers)</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '0.5rem' }}>
+                            {selectedElement.rows?.map((row, rowIdx) => {
+                              const rowScales = selectedElement.rowheights && selectedElement.rowheights.length === selectedElement.rows.length
+                                ? selectedElement.rowheights
+                                : Array(selectedElement.rows.length).fill(1)
+                              return (
+                                <div key={rowIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                  <label style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Row {rowIdx + 1}</label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    min="0.5"
+                                    max="5"
+                                    value={rowScales[rowIdx].toFixed(1)}
+                                    onChange={(e) => {
+                                      const newHeights = [...rowScales]
+                                      newHeights[rowIdx] = Math.max(0.5, Math.min(5, parseFloat(e.target.value) || 1))
+                                      updateElement(selectedElement.id, { rowheights: newHeights })
+                                    }}
+                                    style={{ width: '100%', padding: '0.25rem', fontSize: '0.8rem' }}
+                                  />
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <button
+                            onClick={() => {
+                              const evenHeights = Array(selectedElement.rows.length).fill(1)
+                              updateElement(selectedElement.id, { rowheights: evenHeights })
+                            }}
+                            style={{
+                              marginTop: '0.5rem',
+                              padding: '0.25rem 0.5rem',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px',
+                              background: 'hsl(var(--muted))',
+                              color: 'hsl(var(--muted-foreground))',
+                              fontSize: '0.75rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Reset to Default
+                          </button>
+                        </div>
+
+                        {/* Table Background Color */}
+                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Table Background Color</div>
+                          <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
+                            Sets the default background color for all cells. Individual cells can override this.
+                          </p>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input
+                              type="color"
+                              value={selectedElement.bgcolor || '#ffffff'}
+                              onChange={(e) => {
+                                updateElement(selectedElement.id, { bgcolor: e.target.value })
+                              }}
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                padding: '2px'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={selectedElement.bgcolor || ''}
+                              onChange={(e) => {
+                                updateElement(selectedElement.id, { bgcolor: e.target.value })
+                              }}
+                              placeholder="#RRGGBB or transparent"
+                              style={{
+                                flex: 1,
+                                padding: '0.4rem',
+                                fontSize: '0.85rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px'
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                updateElement(selectedElement.id, { bgcolor: '' })
+                              }}
+                              style={{
+                                padding: '0.4rem 0.75rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                background: 'hsl(var(--muted))',
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                            {[
+                              { label: 'White', color: '#FFFFFF' },
+                              { label: 'Light Gray', color: '#F0F0F0' },
+                              { label: 'Light Blue', color: '#E3F2FD' },
+                              { label: 'Light Green', color: '#E8F5E9' },
+                              { label: 'Light Yellow', color: '#FFFDE7' },
+                              { label: 'Light Red', color: '#FFEBEE' }
+                            ].map(({ label, color }) => (
+                              <button
+                                key={color}
+                                onClick={() => updateElement(selectedElement.id, { bgcolor: color })}
+                                title={label}
+                                style={{
+                                  width: '24px',
+                                  height: '24px',
+                                  background: color,
+                                  border: selectedElement.bgcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Table Text Color */}
+                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Table Text Color</div>
+                          <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
+                            Sets the default text color for all cells. Individual cells can override this.
+                          </p>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <input
+                              type="color"
+                              value={selectedElement.textcolor || '#000000'}
+                              onChange={(e) => {
+                                updateElement(selectedElement.id, { textcolor: e.target.value })
+                              }}
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                padding: '2px'
+                              }}
+                            />
+                            <input
+                              type="text"
+                              value={selectedElement.textcolor || ''}
+                              onChange={(e) => {
+                                updateElement(selectedElement.id, { textcolor: e.target.value })
+                              }}
+                              placeholder="#RRGGBB (default: black)"
+                              style={{
+                                flex: 1,
+                                padding: '0.4rem',
+                                fontSize: '0.85rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px'
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                updateElement(selectedElement.id, { textcolor: '' })
+                              }}
+                              style={{
+                                padding: '0.4rem 0.75rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                background: 'hsl(var(--muted))',
+                                color: 'hsl(var(--muted-foreground))',
+                                fontSize: '0.75rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                            {[
+                              { label: 'Black', color: '#000000' },
+                              { label: 'Dark Gray', color: '#333333' },
+                              { label: 'White', color: '#FFFFFF' },
+                              { label: 'Red', color: '#F44336' },
+                              { label: 'Blue', color: '#2196F3' },
+                              { label: 'Green', color: '#4CAF50' }
+                            ].map(({ label, color }) => (
+                              <button
+                                key={color}
+                                onClick={() => updateElement(selectedElement.id, { textcolor: color })}
+                                title={label}
+                                style={{
+                                  width: '24px',
+                                  height: '24px',
+                                  background: color,
+                                  border: selectedElement.textcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        {selectedCell && selectedCellElement && (
+                          <>
+                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.5rem' }}>
+                                Cell Properties (Row {selectedCell.rowIdx + 1}, Column {selectedCell.colIdx + 1})
+                              </div>
+
+                              {selectedCellElement.image !== undefined ? (
+                                <>
                                   <div style={{ marginBottom: '0.5rem' }}>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Add Image:</label>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image:</label>
                                     <input
                                       type="file"
                                       accept="image/*"
@@ -3528,1384 +4153,813 @@ export default function Editor() {
                                         if (file) {
                                           const reader = new FileReader()
                                           reader.onload = (event) => {
-                                            updateTitleCell({
+                                            const newRows = [...selectedElement.rows]
+                                            newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                              ...selectedCellElement,
                                               image: {
+                                                ...selectedCellElement.image,
                                                 imagename: file.name,
-                                                imagedata: event.target.result,
-                                                width: 100,
-                                                height: 50
+                                                imagedata: event.target.result
                                               }
-                                            })
+                                            }
+                                            updateElement(selectedElement.id, { rows: newRows })
                                           }
                                           reader.readAsDataURL(file)
                                         }
                                       }}
-                                      style={{ width: '100%', fontSize: '0.75rem' }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
                                     />
                                   </div>
-                                )}
-                                
-                                <div>
-                                  <PropsEditor 
-                                    props={cell.props} 
-                                    onChange={(props) => updateTitleCell({ props })}
-                                    fonts={fonts}
-                                  />
-                                </div>
-                              </>
-                            )
-                          })()}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {selectedElement.type === 'table' && (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <label style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>Columns:</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          value={selectedElement.maxcolumns || 3}
-                          onChange={(e) => {
-                            const newCols = parseInt(e.target.value)
-                            if (isNaN(newCols) || newCols < 1 || newCols > 10) return
-
-                            // Adjust column widths proportionally - normalize first
-                            let newWidths = []
-                            const rawWidths = selectedElement.columnwidths || []
-                            const rawSum = rawWidths.reduce((a, b) => a + b, 0) || 1
-                            const currentWidths = rawWidths.map(w => w / rawSum)
-                            
-                            if (newCols === currentWidths.length) {
-                              newWidths = currentWidths
-                            } else if (newCols > currentWidths.length) {
-                              const remain = newCols - currentWidths.length
-                              const existingSum = currentWidths.reduce((a, b) => a + b, 0)
-                              const newPartWidth = (1 - existingSum) / remain
-                              const extra = Array(remain).fill(Math.max(0.01, newPartWidth))
-                              newWidths = [...currentWidths, ...extra]
-                            } else {
-                              newWidths = currentWidths.slice(0, newCols)
-                            }
-                            
-                            // Normalize to sum 1
-                            const sum = newWidths.reduce((a,b)=>a+b,0) || 1
-                            const normalizedWidths = newWidths.map(w => w / sum)
-
-                            const updatedRows = selectedElement.rows?.map(row => {
-                              const newRow = [...(row.row || [])]
-                              while (newRow.length < newCols) {
-                                newRow.push({ props: 'Helvetica:12:000:left:1:1:1:1', text: '' })
-                              }
-                              if (newRow.length > newCols) {
-                                newRow.splice(newCols)
-                              }
-                              
-                              // Update widths for all cells in the row
-                              const usableWidth = getUsableWidth(currentPageSize.width)
-                              const updatedCells = newRow.map((cell, colIdx) => ({
-                                ...cell,
-                                width: usableWidth * normalizedWidths[colIdx]
-                              }))
-
-                              return { row: updatedCells }
-                            })
-                            
-                            updateElement(selectedElement.id, { maxcolumns: newCols, rows: updatedRows, columnwidths: normalizedWidths })
-                          }}
-                          style={{ flex: 1, padding: '0.25rem' }}
-                        />
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
-                          onClick={() => {
-                            const usableWidth = getUsableWidth(currentPageSize.width)
-                            // Normalize columnwidths for proper width calculation
-                            const rawWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
-                              ? selectedElement.columnwidths
-                              : Array(selectedElement.maxcolumns).fill(1)
-                            const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0)
-                            const normalizedWeights = rawWeights.map(w => w / totalWeight)
-                            
-                            const newRow = { 
-                              row: Array(selectedElement.maxcolumns || 3).fill().map((_, i) => ({
-                                props: 'Helvetica:12:000:left:1:1:1:1',
-                                text: '',
-                                width: usableWidth * normalizedWeights[i]
-                              }))
-                            }
-                            updateElement(selectedElement.id, { 
-                              rows: [...(selectedElement.rows || []), newRow] 
-                            })
-                          }}
-                          className="btn"
-                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
-                        >
-                          <Plus size={12} /> Add Row
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (selectedElement.rows?.length > 1) {
-                              // Remove selected row if a cell is selected, otherwise remove last row
-                              const rowIdxToRemove = selectedCell ? selectedCell.rowIdx : selectedElement.rows.length - 1
-                              const newRows = selectedElement.rows.filter((_, idx) => idx !== rowIdxToRemove)
-                              
-                              // Also update rowheights if they exist
-                              let newRowHeights = selectedElement.rowheights
-                              if (newRowHeights && newRowHeights.length > 0) {
-                                newRowHeights = newRowHeights.filter((_, idx) => idx !== rowIdxToRemove)
-                              }
-                              
-                              updateElement(selectedElement.id, { 
-                                rows: newRows,
-                                ...(newRowHeights ? { rowheights: newRowHeights } : {})
-                              })
-                              
-                              // Clear or adjust cell selection
-                              if (selectedCell && selectedCell.rowIdx === rowIdxToRemove) {
-                                setSelectedCell(null)
-                              } else if (selectedCell && selectedCell.rowIdx > rowIdxToRemove) {
-                                setSelectedCell({ ...selectedCell, rowIdx: selectedCell.rowIdx - 1 })
-                              }
-                            }
-                          }}
-                          className="btn"
-                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
-                          disabled={!selectedElement.rows || selectedElement.rows.length <= 1}
-                        >
-                          Remove Row {selectedCell ? `(Row ${selectedCell.rowIdx + 1})` : '(Last)'}
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                        <button
-                          onClick={() => {
-                            try {
-                              const currentCols = selectedElement.maxcolumns || 3
-                              const newCols = currentCols + 1
-                              
-                              if (newCols > 10) {
-                                alert('Maximum 10 columns allowed')
-                                return
-                              }
-
-                              // Calculate new column widths - normalize current weights first
-                              const rawWidths = selectedElement.columnwidths || Array(currentCols).fill(1)
-                              const rawSum = rawWidths.reduce((a, b) => a + b, 0)
-                              const currentWidths = rawWidths.map(w => w / rawSum)
-                              
-                              const newColumnWeight = 1 / newCols
-                              const scaleFactor = (1 - newColumnWeight) / currentWidths.reduce((a, b) => a + b, 0)
-                              const newWidths = [...currentWidths.map(w => w * scaleFactor), newColumnWeight]
-                              
-                              // Normalize to ensure sum is exactly 1
-                              const sum = newWidths.reduce((a, b) => a + b, 0)
-                              const normalizedWidths = newWidths.map(w => w / sum)
-
-                              // Get usable width for calculations
-                              const usableWidth = getUsableWidth(currentPageSize.width)
-
-                              // Add new cell to all rows with default borders (1:1:1:1)
-                              const updatedRows = selectedElement.rows?.map(row => {
-                                const newRow = [...(row.row || [])]
-                                // Add new cell with all borders enabled
-                                newRow.push({ 
-                                  props: 'Helvetica:12:000:left:1:1:1:1',
-                                  text: '',
-                                  width: usableWidth * normalizedWidths[newCols - 1]
-                                })
-                                
-                                // Update widths for all cells including existing ones
-                                const updatedCells = newRow.map((cell, colIdx) => ({
-                                  ...cell,
-                                  width: usableWidth * normalizedWidths[colIdx]
-                                }))
-
-                                return { row: updatedCells }
-                              })
-
-                              // Validate that all rows have the correct number of columns
-                              const allRowsValid = updatedRows.every(row => row.row.length === newCols)
-                              
-                              if (!allRowsValid) {
-                                alert('Failed to update JSON: Row validation failed')
-                                return
-                              }
-
-                              // Update the element
-                              updateElement(selectedElement.id, { 
-                                maxcolumns: newCols, 
-                                rows: updatedRows, 
-                                columnwidths: normalizedWidths 
-                              })
-
-                              // Success - component will re-render automatically
-                              console.log('Column added successfully')
-                            } catch (error) {
-                              console.error('Failed to add column:', error)
-                              alert('Failed to update JSON: ' + error.message)
-                            }
-                          }}
-                          className="btn"
-                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
-                          disabled={selectedElement.maxcolumns >= 10}
-                        >
-                          <Plus size={12} /> Add Column
-                        </button>
-                        <button
-                          onClick={() => {
-                            try {
-                              const currentCols = selectedElement.maxcolumns || 3
-                              
-                              if (currentCols <= 1) {
-                                alert('Cannot remove the last column')
-                                return
-                              }
-
-                              // Remove selected column if a cell is selected, otherwise remove last column
-                              const colIdxToRemove = selectedCell ? selectedCell.colIdx : currentCols - 1
-                              const newCols = currentCols - 1
-
-                              // Calculate new column widths (redistribute the removed column's weight)
-                              // First normalize current weights
-                              const rawWidths = selectedElement.columnwidths || Array(currentCols).fill(1)
-                              const rawSum = rawWidths.reduce((a, b) => a + b, 0)
-                              const currentWidths = rawWidths.map(w => w / rawSum)
-                              
-                              const removedWeight = currentWidths[colIdxToRemove]
-                              const newWidths = currentWidths.filter((_, idx) => idx !== colIdxToRemove)
-                              
-                              // Distribute removed weight proportionally to remaining columns
-                              const currentSum = newWidths.reduce((a, b) => a + b, 0)
-                              const normalizedWidths = newWidths.map(w => w / currentSum)
-
-                              // Get usable width for calculations
-                              const usableWidth = getUsableWidth(currentPageSize.width)
-
-                              // Remove cell at selected column from all rows
-                              const updatedRows = selectedElement.rows?.map(row => {
-                                const newRow = row.row.filter((_, idx) => idx !== colIdxToRemove)
-                                
-                                // Update widths for remaining cells
-                                const updatedCells = newRow.map((cell, colIdx) => ({
-                                  ...cell,
-                                  width: usableWidth * normalizedWidths[colIdx]
-                                }))
-
-                                return { row: updatedCells }
-                              })
-
-                              // Validate that all rows have the correct number of columns
-                              const allRowsValid = updatedRows.every(row => row.row.length === newCols)
-                              
-                              if (!allRowsValid) {
-                                alert('Failed to update JSON: Row validation failed')
-                                return
-                              }
-
-                              // Update the element
-                              updateElement(selectedElement.id, { 
-                                maxcolumns: newCols, 
-                                rows: updatedRows, 
-                                columnwidths: normalizedWidths 
-                              })
-                              
-                              // Clear or adjust cell selection
-                              if (selectedCell && selectedCell.colIdx === colIdxToRemove) {
-                                setSelectedCell(null)
-                              } else if (selectedCell && selectedCell.colIdx > colIdxToRemove) {
-                                setSelectedCell({ ...selectedCell, colIdx: selectedCell.colIdx - 1 })
-                              }
-
-                              // Success - component will re-render automatically
-                              console.log('Column removed successfully')
-                            } catch (error) {
-                              console.error('Failed to remove column:', error)
-                              alert('Failed to update JSON: ' + error.message)
-                            }
-                          }}
-                          className="btn"
-                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', flex: 1 }}
-                          disabled={!selectedElement.rows || selectedElement.maxcolumns <= 1}
-                        >
-                          Remove Column {selectedCell ? `(Col ${selectedCell.colIdx + 1})` : '(Last)'}
-                        </button>
-                      </div>
-
-                      <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))' }}>
-                        Rows: {selectedElement.rows?.length || 0}, Columns: {selectedElement.maxcolumns || 3}
-                      </div>
-
-                      {/* Column Widths Controls */}
-                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Column Widths (weights)</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '0.5rem' }}>
-                          {Array.from({ length: selectedElement.maxcolumns }).map((_, colIdx) => {
-                            // Normalize columnwidths for display
-                            const rawWeights = selectedElement.columnwidths && selectedElement.columnwidths.length === selectedElement.maxcolumns
-                              ? selectedElement.columnwidths
-                              : Array(selectedElement.maxcolumns).fill(1)
-                            const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0)
-                            const colWeights = rawWeights.map(w => w / totalWeight)
-                            return (
-                              <div key={colIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                <label style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Col {colIdx + 1}</label>
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0.1"
-                                  value={(colWeights[colIdx] * 100).toFixed(1)}
-                                  onChange={(e) => {
-                                    const newWeights = [...colWeights]
-                                    newWeights[colIdx] = Math.max(0.1, parseFloat(e.target.value) || 0) / 100
-                                    const sum = newWeights.reduce((a,b)=>a+b,0) || 1
-                                    const normalized = newWeights.map(w => w / sum)
-
-                                    const usableWidth = getUsableWidth(currentPageSize.width)
-                                    const updatedRows = selectedElement.rows.map(row => ({
-                                      ...row,
-                                      row: row.row.map((cell, cIdx) => ({
-                                        ...cell,
-                                        width: usableWidth * normalized[cIdx]
-                                      }))
-                                    }))
-
-                                    updateElement(selectedElement.id, { columnwidths: normalized, rows: updatedRows })
-                                  }}
-                                  style={{ width: '100%', padding: '0.25rem', fontSize: '0.8rem' }}
-                                />
-                              </div>
-                            )
-                          })}
-                        </div>
-                        <button
-                          onClick={() => {
-                            const evenWeights = Array(selectedElement.maxcolumns).fill(1 / selectedElement.maxcolumns)
-                            const usableWidth = getUsableWidth(currentPageSize.width)
-                            const updatedRows = selectedElement.rows.map(row => ({
-                              ...row,
-                              row: row.row.map((cell, cIdx) => ({
-                                ...cell,
-                                width: usableWidth * evenWeights[cIdx]
-                              }))
-                            }))
-                            updateElement(selectedElement.id, { columnwidths: evenWeights, rows: updatedRows })
-                          }}
-                          style={{
-                            marginTop: '0.5rem',
-                            padding: '0.25rem 0.5rem',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '4px',
-                            background: 'hsl(var(--muted))',
-                            color: 'hsl(var(--muted-foreground))',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Reset to Equal
-                        </button>
-                      </div>
-
-                      {/* Row Heights Controls */}
-                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Row Heights (multipliers)</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: '0.5rem' }}>
-                          {selectedElement.rows?.map((row, rowIdx) => {
-                            const rowScales = selectedElement.rowheights && selectedElement.rowheights.length === selectedElement.rows.length
-                              ? selectedElement.rowheights
-                              : Array(selectedElement.rows.length).fill(1)
-                            return (
-                              <div key={rowIdx} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                <label style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>Row {rowIdx + 1}</label>
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  min="0.5"
-                                  max="5"
-                                  value={rowScales[rowIdx].toFixed(1)}
-                                  onChange={(e) => {
-                                    const newHeights = [...rowScales]
-                                    newHeights[rowIdx] = Math.max(0.5, Math.min(5, parseFloat(e.target.value) || 1))
-                                    updateElement(selectedElement.id, { rowheights: newHeights })
-                                  }}
-                                  style={{ width: '100%', padding: '0.25rem', fontSize: '0.8rem' }}
-                                />
-                              </div>
-                            )
-                          })}
-                        </div>
-                        <button
-                          onClick={() => {
-                            const evenHeights = Array(selectedElement.rows.length).fill(1)
-                            updateElement(selectedElement.id, { rowheights: evenHeights })
-                          }}
-                          style={{
-                            marginTop: '0.5rem',
-                            padding: '0.25rem 0.5rem',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '4px',
-                            background: 'hsl(var(--muted))',
-                            color: 'hsl(var(--muted-foreground))',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Reset to Default
-                        </button>
-                      </div>
-
-                      {/* Table Background Color */}
-                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Table Background Color</div>
-                        <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
-                          Sets the default background color for all cells. Individual cells can override this.
-                        </p>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <input
-                            type="color"
-                            value={selectedElement.bgcolor || '#ffffff'}
-                            onChange={(e) => {
-                              updateElement(selectedElement.id, { bgcolor: e.target.value })
-                            }}
-                            style={{ 
-                              width: '40px', 
-                              height: '40px', 
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              padding: '2px'
-                            }}
-                          />
-                          <input
-                            type="text"
-                            value={selectedElement.bgcolor || ''}
-                            onChange={(e) => {
-                              updateElement(selectedElement.id, { bgcolor: e.target.value })
-                            }}
-                            placeholder="#RRGGBB or transparent"
-                            style={{ 
-                              flex: 1, 
-                              padding: '0.4rem', 
-                              fontSize: '0.85rem',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px'
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              updateElement(selectedElement.id, { bgcolor: '' })
-                            }}
-                            style={{
-                              padding: '0.4rem 0.75rem',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px',
-                              background: 'hsl(var(--muted))',
-                              color: 'hsl(var(--muted-foreground))',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                          {[
-                            { label: 'White', color: '#FFFFFF' },
-                            { label: 'Light Gray', color: '#F0F0F0' },
-                            { label: 'Light Blue', color: '#E3F2FD' },
-                            { label: 'Light Green', color: '#E8F5E9' },
-                            { label: 'Light Yellow', color: '#FFFDE7' },
-                            { label: 'Light Red', color: '#FFEBEE' }
-                          ].map(({ label, color }) => (
-                            <button
-                              key={color}
-                              onClick={() => updateElement(selectedElement.id, { bgcolor: color })}
-                              title={label}
-                              style={{
-                                width: '24px',
-                                height: '24px',
-                                background: color,
-                                border: selectedElement.bgcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Table Text Color */}
-                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Table Text Color</div>
-                        <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
-                          Sets the default text color for all cells. Individual cells can override this.
-                        </p>
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                          <input
-                            type="color"
-                            value={selectedElement.textcolor || '#000000'}
-                            onChange={(e) => {
-                              updateElement(selectedElement.id, { textcolor: e.target.value })
-                            }}
-                            style={{ 
-                              width: '40px', 
-                              height: '40px', 
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              padding: '2px'
-                            }}
-                          />
-                          <input
-                            type="text"
-                            value={selectedElement.textcolor || ''}
-                            onChange={(e) => {
-                              updateElement(selectedElement.id, { textcolor: e.target.value })
-                            }}
-                            placeholder="#RRGGBB (default: black)"
-                            style={{ 
-                              flex: 1, 
-                              padding: '0.4rem', 
-                              fontSize: '0.85rem',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px'
-                            }}
-                          />
-                          <button
-                            onClick={() => {
-                              updateElement(selectedElement.id, { textcolor: '' })
-                            }}
-                            style={{
-                              padding: '0.4rem 0.75rem',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '4px',
-                              background: 'hsl(var(--muted))',
-                              color: 'hsl(var(--muted-foreground))',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                          {[
-                            { label: 'Black', color: '#000000' },
-                            { label: 'Dark Gray', color: '#333333' },
-                            { label: 'White', color: '#FFFFFF' },
-                            { label: 'Red', color: '#F44336' },
-                            { label: 'Blue', color: '#2196F3' },
-                            { label: 'Green', color: '#4CAF50' }
-                          ].map(({ label, color }) => (
-                            <button
-                              key={color}
-                              onClick={() => updateElement(selectedElement.id, { textcolor: color })}
-                              title={label}
-                              style={{
-                                width: '24px',
-                                height: '24px',
-                                background: color,
-                                border: selectedElement.textcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
-                                borderRadius: '4px',
-                                cursor: 'pointer'
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {selectedCell && selectedCellElement && (
-                        <>
-                          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-                              Cell Properties (Row {selectedCell.rowIdx + 1}, Column {selectedCell.colIdx + 1})
-                            </div>
-                            
-                            {selectedCellElement.image !== undefined ? (
-                              <>
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image:</label>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                      const file = e.target.files[0]
-                                      if (file) {
-                                        const reader = new FileReader()
-                                        reader.onload = (event) => {
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image Name:</label>
+                                    <input
+                                      type="text"
+                                      value={selectedCellElement.image?.imagename || ''}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          image: {
+                                            ...selectedCellElement.image,
+                                            imagename: e.target.value
+                                          }
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                    />
+                                  </div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Width:</label>
+                                      <input
+                                        type="number"
+                                        value={selectedCellElement.image?.width || 100}
+                                        onChange={(e) => {
                                           const newRows = [...selectedElement.rows]
                                           newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
                                             ...selectedCellElement,
                                             image: {
                                               ...selectedCellElement.image,
-                                              imagename: file.name,
-                                              imagedata: event.target.result
-                                            }
-                                          }
-                                          updateElement(selectedElement.id, { rows: newRows })
-                                        }
-                                        reader.readAsDataURL(file)
-                                      }
-                                    }}
-                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                                  />
-                                </div>
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image Name:</label>
-                                  <input
-                                    type="text"
-                                    value={selectedCellElement.image?.imagename || ''}
-                                    onChange={(e) => {
-                                      const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                        ...selectedCellElement,
-                                        image: {
-                                          ...selectedCellElement.image,
-                                          imagename: e.target.value
-                                        }
-                                      }
-                                      updateElement(selectedElement.id, { rows: newRows })
-                                    }}
-                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                                  />
-                                </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Width:</label>
-                                    <input
-                                      type="number"
-                                      value={selectedCellElement.image?.width || 100}
-                                      onChange={(e) => {
-                                        const newRows = [...selectedElement.rows]
-                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                          ...selectedCellElement,
-                                          image: {
-                                            ...selectedCellElement.image,
-                                            width: parseFloat(e.target.value) || 100
-                                          }
-                                        }
-                                        updateElement(selectedElement.id, { rows: newRows })
-                                      }}
-                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Height:</label>
-                                    <input
-                                      type="number"
-                                      value={selectedCellElement.image?.height || 100}
-                                      onChange={(e) => {
-                                        const newRows = [...selectedElement.rows]
-                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                          ...selectedCellElement,
-                                          image: {
-                                            ...selectedCellElement.image,
-                                            height: parseFloat(e.target.value) || 100
-                                          }
-                                        }
-                                        updateElement(selectedElement.id, { rows: newRows })
-                                      }}
-                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                                    />
-                                  </div>
-                                </div>
-                                {selectedCellElement.image?.imagedata && (
-                                  <div style={{
-                                    padding: '0.5rem',
-                                    borderRadius: '4px',
-                                    background: 'hsl(var(--muted))',
-                                    fontSize: '0.85rem',
-                                    color: 'hsl(var(--muted-foreground))'
-                                  }}>
-                                    Image loaded: {selectedCellElement.image.imagename || 'Unnamed'}
-                                  </div>
-                                )}
-                              </>
-                            ) : selectedCellElement.form_field ? (
-                              <div style={{ marginBottom: '0.5rem' }}>
-                                <div style={{ padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '4px', marginBottom: '0.5rem' }}>
-                                  <strong>{selectedCellElement.form_field.type === 'radio' ? 'Radio Button' : selectedCellElement.form_field.type === 'text' ? 'Text Input' : 'Checkbox'} Field</strong>
-                                </div>
-                                
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Field Name:</label>
-                                  <input
-                                    type="text"
-                                    value={selectedCellElement.form_field.name}
-                                    onChange={(e) => {
-                                      const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                        ...selectedCellElement, 
-                                        form_field: {
-                                          ...selectedCellElement.form_field,
-                                          name: e.target.value
-                                        }
-                                      }
-                                      updateElement(selectedElement.id, { rows: newRows })
-                                    }}
-                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                                  />
-                                </div>
-
-                                {selectedCellElement.form_field.type === 'radio' && (
-                                  <div style={{ marginBottom: '0.5rem' }}>
-                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Shape:</label>
-                                    <select
-                                      value={selectedCellElement.form_field.shape || 'round'}
-                                      onChange={(e) => {
-                                        const newRows = [...selectedElement.rows]
-                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                          ...selectedCellElement, 
-                                          form_field: {
-                                            ...selectedCellElement.form_field,
-                                            shape: e.target.value
-                                          }
-                                        }
-                                        updateElement(selectedElement.id, { rows: newRows })
-                                      }}
-                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                                    >
-                                      <option value="round">Round</option>
-                                      <option value="square">Square</option>
-                                    </select>
-                                  </div>
-                                )}
-
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>{selectedCellElement.form_field.type === 'text' ? 'Default Value:' : 'Export Value:'}</label>
-                                  <input
-                                    type="text"
-                                    value={selectedCellElement.form_field.value}
-                                    onChange={(e) => {
-                                      const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                        ...selectedCellElement, 
-                                        form_field: {
-                                          ...selectedCellElement.form_field,
-                                          value: e.target.value
-                                        }
-                                      }
-                                      updateElement(selectedElement.id, { rows: newRows })
-                                    }}
-                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                                  />
-                                </div>
-
-                                {selectedCellElement.form_field.type !== 'text' && (
-                                  <div style={{ marginBottom: '0.5rem' }}>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedCellElement.form_field.checked}
-                                        onChange={(e) => {
-                                          const newRows = [...selectedElement.rows]
-                                          newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                            ...selectedCellElement, 
-                                            form_field: {
-                                              ...selectedCellElement.form_field,
-                                              checked: e.target.checked
+                                              width: parseFloat(e.target.value) || 100
                                             }
                                           }
                                           updateElement(selectedElement.id, { rows: newRows })
                                         }}
+                                        style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
                                       />
-                                      Default Checked
-                                    </label>
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Height:</label>
+                                      <input
+                                        type="number"
+                                        value={selectedCellElement.image?.height || 100}
+                                        onChange={(e) => {
+                                          const newRows = [...selectedElement.rows]
+                                          newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                            ...selectedCellElement,
+                                            image: {
+                                              ...selectedCellElement.image,
+                                              height: parseFloat(e.target.value) || 100
+                                            }
+                                          }
+                                          updateElement(selectedElement.id, { rows: newRows })
+                                        }}
+                                        style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                      />
+                                    </div>
+                                  </div>
+                                  {selectedCellElement.image?.imagedata && (
+                                    <div style={{
+                                      padding: '0.5rem',
+                                      borderRadius: '4px',
+                                      background: 'hsl(var(--muted))',
+                                      fontSize: '0.85rem',
+                                      color: 'hsl(var(--muted-foreground))'
+                                    }}>
+                                      Image loaded: {selectedCellElement.image.imagename || 'Unnamed'}
+                                    </div>
+                                  )}
+                                </>
+                              ) : selectedCellElement.form_field ? (
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <div style={{ padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '4px', marginBottom: '0.5rem' }}>
+                                    <strong>{selectedCellElement.form_field.type === 'radio' ? 'Radio Button' : selectedCellElement.form_field.type === 'text' ? 'Text Input' : 'Checkbox'} Field</strong>
+                                  </div>
+
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Field Name:</label>
+                                    <input
+                                      type="text"
+                                      value={selectedCellElement.form_field.name}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          form_field: {
+                                            ...selectedCellElement.form_field,
+                                            name: e.target.value
+                                          }
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                    />
+                                  </div>
+
+                                  {selectedCellElement.form_field.type === 'radio' && (
+                                    <div style={{ marginBottom: '0.5rem' }}>
+                                      <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Shape:</label>
+                                      <select
+                                        value={selectedCellElement.form_field.shape || 'round'}
+                                        onChange={(e) => {
+                                          const newRows = [...selectedElement.rows]
+                                          newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                            ...selectedCellElement,
+                                            form_field: {
+                                              ...selectedCellElement.form_field,
+                                              shape: e.target.value
+                                            }
+                                          }
+                                          updateElement(selectedElement.id, { rows: newRows })
+                                        }}
+                                        style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                      >
+                                        <option value="round">Round</option>
+                                        <option value="square">Square</option>
+                                      </select>
+                                    </div>
+                                  )}
+
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>{selectedCellElement.form_field.type === 'text' ? 'Default Value:' : 'Export Value:'}</label>
+                                    <input
+                                      type="text"
+                                      value={selectedCellElement.form_field.value}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          form_field: {
+                                            ...selectedCellElement.form_field,
+                                            value: e.target.value
+                                          }
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                    />
+                                  </div>
+
+                                  {selectedCellElement.form_field.type !== 'text' && (
+                                    <div style={{ marginBottom: '0.5rem' }}>
+                                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedCellElement.form_field.checked}
+                                          onChange={(e) => {
+                                            const newRows = [...selectedElement.rows]
+                                            newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                              ...selectedCellElement,
+                                              form_field: {
+                                                ...selectedCellElement.form_field,
+                                                checked: e.target.checked
+                                              }
+                                            }
+                                            updateElement(selectedElement.id, { rows: newRows })
+                                          }}
+                                        />
+                                        Default Checked
+                                      </label>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : selectedCellElement.chequebox !== undefined ? (
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedCellElement.chequebox}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          chequebox: e.target.checked
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                    />
+                                    Checked
+                                  </label>
+                                </div>
+                              ) : (
+                                <>
+                                  <div style={{ marginBottom: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
+                                    <input
+                                      type="text"
+                                      value={selectedCellElement.text || ''}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          text: e.target.value
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
+                                    <PropsEditor
+                                      props={selectedCellElement.props}
+                                      onChange={(props) => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          props
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      fonts={fonts}
+                                    />
+                                  </div>
+                                </>
+                              )}
+
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Link URL:</label>
+                                <input
+                                  type="text"
+                                  value={selectedCellElement.link || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...selectedElement.rows]
+                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                      ...selectedCellElement,
+                                      link: e.target.value
+                                    }
+                                    updateElement(selectedElement.id, { rows: newRows })
+                                  }}
+                                  placeholder="https://..."
+                                  style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                                />
+                              </div>
+
+                              {/* Cell Size Controls - applies to all cell types */}
+                              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                                <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Cell Size Override</div>
+                                <div style={{ fontSize: '0.75rem', marginBottom: '0.5rem', color: 'hsl(var(--muted-foreground))' }}>
+                                  💡 Drag the blue handle (right edge) to resize width, or green handle (bottom edge) to resize height
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width (pts)</label>
+                                    <input
+                                      type="number"
+                                      step="1"
+                                      min="0"
+                                      placeholder="Auto"
+                                      value={selectedCellElement.width || ''}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          width: value
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
+                                    />
+                                    {selectedCellElement.width && (
+                                      <div style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>
+                                        Custom: {selectedCellElement.width.toFixed(2)}pts
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Height (pts)</label>
+                                    <input
+                                      type="number"
+                                      step="1"
+                                      min="0"
+                                      placeholder="Auto"
+                                      value={selectedCellElement.height || ''}
+                                      onChange={(e) => {
+                                        const newRows = [...selectedElement.rows]
+                                        const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          height: value
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
+                                    />
+                                    {selectedCellElement.height && (
+                                      <div style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>
+                                        Custom: {selectedCellElement.height.toFixed(2)}pts
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Width Redistribution Info */}
+                                <div style={{
+                                  marginTop: '0.75rem',
+                                  padding: '0.5rem',
+                                  borderRadius: '4px',
+                                  background: 'hsl(var(--muted))',
+                                  fontSize: '0.7rem',
+                                  color: 'hsl(var(--muted-foreground))',
+                                  lineHeight: '1.4'
+                                }}>
+                                  <strong>Width Adjustment Rules:</strong><br />
+                                  • Column {selectedCell.colIdx + 1} of {selectedElement.maxcolumns}<br />
+                                  {selectedCell.colIdx === 0 ? (
+                                    "• First column: width distributed to all other columns"
+                                  ) : selectedCell.colIdx === selectedElement.maxcolumns - 1 ? (
+                                    "• Last column: resize disabled (cannot adjust)"
+                                  ) : (
+                                    `• Middle column: width only affects next column`
+                                  )}
+                                </div>
+
+                                <button
+                                  onClick={() => {
+                                    const newRows = [...selectedElement.rows]
+                                    const { width, height, ...rest } = selectedCellElement
+                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = rest
+                                    updateElement(selectedElement.id, { rows: newRows })
+                                  }}
+                                  style={{
+                                    marginTop: '0.5rem',
+                                    padding: '0.25rem 0.5rem',
+                                    border: '1px solid hsl(var(--border))',
+                                    borderRadius: '4px',
+                                    background: 'hsl(var(--muted))',
+                                    color: 'hsl(var(--muted-foreground))',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    width: '100%'
+                                  }}
+                                >
+                                  Reset to Column/Row Defaults
+                                </button>
+                                <p style={{
+                                  fontSize: '0.75rem',
+                                  color: 'hsl(var(--muted-foreground))',
+                                  marginTop: '0.5rem',
+                                  marginBottom: 0,
+                                  lineHeight: 1.4
+                                }}>
+                                  Leave empty to use table's column width and row height. Set values to override for this specific cell.
+                                </p>
+                              </div>
+
+                              {/* Cell Background Color */}
+                              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                                <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Cell Background Color</div>
+                                <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
+                                  {selectedElement.bgcolor ? `Inherits from table: ${selectedElement.bgcolor}` : 'No table background set.'}
+                                </p>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                  <input
+                                    type="color"
+                                    value={selectedCellElement.bgcolor || selectedElement.bgcolor || '#ffffff'}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                        ...selectedCellElement,
+                                        bgcolor: e.target.value
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    style={{
+                                      width: '40px',
+                                      height: '40px',
+                                      border: '1px solid hsl(var(--border))',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      padding: '2px'
+                                    }}
+                                  />
+                                  <input
+                                    type="text"
+                                    value={selectedCellElement.bgcolor || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...selectedElement.rows]
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                        ...selectedCellElement,
+                                        bgcolor: e.target.value
+                                      }
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    placeholder={selectedElement.bgcolor || '#RRGGBB'}
+                                    style={{
+                                      flex: 1,
+                                      padding: '0.4rem',
+                                      fontSize: '0.85rem',
+                                      border: '1px solid hsl(var(--border))',
+                                      borderRadius: '4px'
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const newRows = [...selectedElement.rows]
+                                      const { bgcolor, ...rest } = selectedCellElement
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = rest
+                                      updateElement(selectedElement.id, { rows: newRows })
+                                    }}
+                                    style={{
+                                      padding: '0.4rem 0.75rem',
+                                      border: '1px solid hsl(var(--border))',
+                                      borderRadius: '4px',
+                                      background: 'hsl(var(--muted))',
+                                      color: 'hsl(var(--muted-foreground))',
+                                      fontSize: '0.75rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Clear
+                                  </button>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                  {[
+                                    { label: 'White', color: '#FFFFFF' },
+                                    { label: 'Light Gray', color: '#F0F0F0' },
+                                    { label: 'Light Blue', color: '#E3F2FD' },
+                                    { label: 'Light Green', color: '#E8F5E9' },
+                                    { label: 'Light Yellow', color: '#FFFDE7' },
+                                    { label: 'Light Red', color: '#FFEBEE' },
+                                    { label: 'Blue', color: '#2196F3' },
+                                    { label: 'Green', color: '#4CAF50' },
+                                    { label: 'Orange', color: '#FF9800' },
+                                    { label: 'Red', color: '#F44336' }
+                                  ].map(({ label, color }) => (
+                                    <button
+                                      key={color}
+                                      onClick={() => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          bgcolor: color
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      title={label}
+                                      style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        background: color,
+                                        border: selectedCellElement.bgcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer'
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                                {selectedCellElement.bgcolor && (
+                                  <div style={{
+                                    marginTop: '0.5rem',
+                                    padding: '0.25rem 0.5rem',
+                                    background: selectedCellElement.bgcolor,
+                                    border: '1px solid hsl(var(--border))',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    color: parseInt(selectedCellElement.bgcolor.replace('#', ''), 16) > 0xffffff / 2 ? '#000' : '#fff'
+                                  }}>
+                                    Preview: {selectedCellElement.bgcolor}
                                   </div>
                                 )}
                               </div>
-                            ) : selectedCellElement.chequebox !== undefined ? (
-                              <div style={{ marginBottom: '0.5rem' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+
+                              {/* Cell Text Color */}
+                              <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
+                                <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Cell Text Color</div>
+                                <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
+                                  {selectedElement.textcolor ? `Inherits from table: ${selectedElement.textcolor}` : 'No table text color set (default: black).'}
+                                </p>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                   <input
-                                    type="checkbox"
-                                    checked={selectedCellElement.chequebox}
+                                    type="color"
+                                    value={selectedCellElement.textcolor || selectedElement.textcolor || '#000000'}
                                     onChange={(e) => {
                                       const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                        ...selectedCellElement, 
-                                        chequebox: e.target.checked 
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                        ...selectedCellElement,
+                                        textcolor: e.target.value
                                       }
                                       updateElement(selectedElement.id, { rows: newRows })
                                     }}
+                                    style={{
+                                      width: '40px',
+                                      height: '40px',
+                                      border: '1px solid hsl(var(--border))',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      padding: '2px'
+                                    }}
                                   />
-                                  Checked
-                                </label>
-                              </div>
-                            ) : (
-                              <>
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
                                   <input
                                     type="text"
-                                    value={selectedCellElement.text || ''}
+                                    value={selectedCellElement.textcolor || ''}
                                     onChange={(e) => {
                                       const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                        ...selectedCellElement, 
-                                        text: e.target.value 
-                                      }
-                                      updateElement(selectedElement.id, { rows: newRows })
-                                    }}
-                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                                  />
-                                </div>
-                                <div>
-                                  <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
-                                  <PropsEditor 
-                                    props={selectedCellElement.props} 
-                                    onChange={(props) => {
-                                      const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                        ...selectedCellElement, 
-                                        props 
-                                      }
-                                      updateElement(selectedElement.id, { rows: newRows })
-                                    }}
-                                    fonts={fonts}
-                                  />
-                                </div>
-                              </>
-                            )}
-
-                            {/* Cell Size Controls - applies to all cell types */}
-                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Cell Size Override</div>
-                              <div style={{ fontSize: '0.75rem', marginBottom: '0.5rem', color: 'hsl(var(--muted-foreground))' }}>
-                                💡 Drag the blue handle (right edge) to resize width, or green handle (bottom edge) to resize height
-                              </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                                <div>
-                                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width (pts)</label>
-                                  <input
-                                    type="number"
-                                    step="1"
-                                    min="0"
-                                    placeholder="Auto"
-                                    value={selectedCellElement.width || ''}
-                                    onChange={(e) => {
-                                      const newRows = [...selectedElement.rows]
-                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
                                       newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
                                         ...selectedCellElement,
-                                        width: value
+                                        textcolor: e.target.value
                                       }
                                       updateElement(selectedElement.id, { rows: newRows })
                                     }}
-                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
+                                    placeholder={selectedElement.textcolor || '#RRGGBB'}
+                                    style={{
+                                      flex: 1,
+                                      padding: '0.4rem',
+                                      fontSize: '0.85rem',
+                                      border: '1px solid hsl(var(--border))',
+                                      borderRadius: '4px'
+                                    }}
                                   />
-                                  {selectedCellElement.width && (
-                                    <div style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>
-                                      Custom: {selectedCellElement.width.toFixed(2)}pts
-                                    </div>
-                                  )}
-                                </div>
-                                <div>
-                                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Height (pts)</label>
-                                  <input
-                                    type="number"
-                                    step="1"
-                                    min="0"
-                                    placeholder="Auto"
-                                    value={selectedCellElement.height || ''}
-                                    onChange={(e) => {
+                                  <button
+                                    onClick={() => {
                                       const newRows = [...selectedElement.rows]
-                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value)
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                        ...selectedCellElement,
-                                        height: value
-                                      }
+                                      const { textcolor, ...rest } = selectedCellElement
+                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = rest
                                       updateElement(selectedElement.id, { rows: newRows })
                                     }}
-                                    style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem' }}
-                                  />
-                                  {selectedCellElement.height && (
-                                    <div style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>
-                                      Custom: {selectedCellElement.height.toFixed(2)}pts
-                                    </div>
-                                  )}
+                                    style={{
+                                      padding: '0.4rem 0.75rem',
+                                      border: '1px solid hsl(var(--border))',
+                                      borderRadius: '4px',
+                                      background: 'hsl(var(--muted))',
+                                      color: 'hsl(var(--muted-foreground))',
+                                      fontSize: '0.75rem',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Clear
+                                  </button>
                                 </div>
-                              </div>
-                              
-                              {/* Width Redistribution Info */}
-                              <div style={{ 
-                                marginTop: '0.75rem', 
-                                padding: '0.5rem', 
-                                borderRadius: '4px', 
-                                background: 'hsl(var(--muted))',
-                                fontSize: '0.7rem',
-                                color: 'hsl(var(--muted-foreground))',
-                                lineHeight: '1.4'
-                              }}>
-                                <strong>Width Adjustment Rules:</strong><br/>
-                                • Column {selectedCell.colIdx + 1} of {selectedElement.maxcolumns}<br/>
-                                {selectedCell.colIdx === 0 ? (
-                                  "• First column: width distributed to all other columns"
-                                ) : selectedCell.colIdx === selectedElement.maxcolumns - 1 ? (
-                                  "• Last column: resize disabled (cannot adjust)"
-                                ) : (
-                                  `• Middle column: width only affects next column`
+                                <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                                  {[
+                                    { label: 'Black', color: '#000000' },
+                                    { label: 'Dark Gray', color: '#333333' },
+                                    { label: 'Gray', color: '#666666' },
+                                    { label: 'White', color: '#FFFFFF' },
+                                    { label: 'Red', color: '#F44336' },
+                                    { label: 'Dark Red', color: '#B71C1C' },
+                                    { label: 'Blue', color: '#2196F3' },
+                                    { label: 'Dark Blue', color: '#1565C0' },
+                                    { label: 'Green', color: '#4CAF50' },
+                                    { label: 'Dark Green', color: '#2E7D32' }
+                                  ].map(({ label, color }) => (
+                                    <button
+                                      key={color}
+                                      onClick={() => {
+                                        const newRows = [...selectedElement.rows]
+                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                          ...selectedCellElement,
+                                          textcolor: color
+                                        }
+                                        updateElement(selectedElement.id, { rows: newRows })
+                                      }}
+                                      title={label}
+                                      style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        background: color,
+                                        border: selectedCellElement.textcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer'
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                                {selectedCellElement.textcolor && (
+                                  <div style={{
+                                    marginTop: '0.5rem',
+                                    padding: '0.25rem 0.5rem',
+                                    background: 'hsl(var(--muted))',
+                                    border: '1px solid hsl(var(--border))',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    color: selectedCellElement.textcolor
+                                  }}>
+                                    Sample Text: {selectedCellElement.textcolor}
+                                  </div>
                                 )}
                               </div>
-                              
-                              <button
-                                onClick={() => {
-                                  const newRows = [...selectedElement.rows]
-                                  const { width, height, ...rest } = selectedCellElement
-                                  newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = rest
-                                  updateElement(selectedElement.id, { rows: newRows })
-                                }}
-                                style={{
-                                  marginTop: '0.5rem',
-                                  padding: '0.25rem 0.5rem',
-                                  border: '1px solid hsl(var(--border))',
-                                  borderRadius: '4px',
-                                  background: 'hsl(var(--muted))',
-                                  color: 'hsl(var(--muted-foreground))',
-                                  fontSize: '0.75rem',
-                                  cursor: 'pointer',
-                                  width: '100%'
-                                }}
-                              >
-                                Reset to Column/Row Defaults
-                              </button>
-                              <p style={{ 
-                                fontSize: '0.75rem', 
-                                color: 'hsl(var(--muted-foreground))', 
-                                marginTop: '0.5rem',
-                                marginBottom: 0,
-                                lineHeight: 1.4
-                              }}>
-                                Leave empty to use table's column width and row height. Set values to override for this specific cell.
-                              </p>
                             </div>
+                          </>
+                        )}
+                      </>
+                    )}
 
-                            {/* Cell Background Color */}
-                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Cell Background Color</div>
-                              <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
-                                {selectedElement.bgcolor ? `Inherits from table: ${selectedElement.bgcolor}` : 'No table background set.'}
-                              </p>
-                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <input
-                                  type="color"
-                                  value={selectedCellElement.bgcolor || selectedElement.bgcolor || '#ffffff'}
-                                  onChange={(e) => {
-                                    const newRows = [...selectedElement.rows]
-                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                      ...selectedCellElement,
-                                      bgcolor: e.target.value
-                                    }
-                                    updateElement(selectedElement.id, { rows: newRows })
-                                  }}
-                                  style={{ 
-                                    width: '40px', 
-                                    height: '40px', 
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    padding: '2px'
-                                  }}
-                                />
-                                <input
-                                  type="text"
-                                  value={selectedCellElement.bgcolor || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...selectedElement.rows]
-                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                      ...selectedCellElement,
-                                      bgcolor: e.target.value
-                                    }
-                                    updateElement(selectedElement.id, { rows: newRows })
-                                  }}
-                                  placeholder={selectedElement.bgcolor || '#RRGGBB'}
-                                  style={{ 
-                                    flex: 1, 
-                                    padding: '0.4rem', 
-                                    fontSize: '0.85rem',
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '4px'
-                                  }}
-                                />
-                                <button
-                                  onClick={() => {
-                                    const newRows = [...selectedElement.rows]
-                                    const { bgcolor, ...rest } = selectedCellElement
-                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = rest
-                                    updateElement(selectedElement.id, { rows: newRows })
-                                  }}
-                                  style={{
-                                    padding: '0.4rem 0.75rem',
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '4px',
-                                    background: 'hsl(var(--muted))',
-                                    color: 'hsl(var(--muted-foreground))',
-                                    fontSize: '0.75rem',
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  Clear
-                                </button>
-                              </div>
-                              <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                {[
-                                  { label: 'White', color: '#FFFFFF' },
-                                  { label: 'Light Gray', color: '#F0F0F0' },
-                                  { label: 'Light Blue', color: '#E3F2FD' },
-                                  { label: 'Light Green', color: '#E8F5E9' },
-                                  { label: 'Light Yellow', color: '#FFFDE7' },
-                                  { label: 'Light Red', color: '#FFEBEE' },
-                                  { label: 'Blue', color: '#2196F3' },
-                                  { label: 'Green', color: '#4CAF50' },
-                                  { label: 'Orange', color: '#FF9800' },
-                                  { label: 'Red', color: '#F44336' }
-                                ].map(({ label, color }) => (
-                                  <button
-                                    key={color}
-                                    onClick={() => {
-                                      const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                        ...selectedCellElement,
-                                        bgcolor: color
-                                      }
-                                      updateElement(selectedElement.id, { rows: newRows })
-                                    }}
-                                    title={label}
-                                    style={{
-                                      width: '24px',
-                                      height: '24px',
-                                      background: color,
-                                      border: selectedCellElement.bgcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer'
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                              {selectedCellElement.bgcolor && (
-                                <div style={{ 
-                                  marginTop: '0.5rem',
-                                  padding: '0.25rem 0.5rem',
-                                  background: selectedCellElement.bgcolor,
-                                  border: '1px solid hsl(var(--border))',
-                                  borderRadius: '4px',
-                                  fontSize: '0.75rem',
-                                  color: parseInt(selectedCellElement.bgcolor.replace('#', ''), 16) > 0xffffff/2 ? '#000' : '#fff'
-                                }}>
-                                  Preview: {selectedCellElement.bgcolor}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Cell Text Color */}
-                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid hsl(var(--border))' }}>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: 'hsl(var(--foreground))' }}>Cell Text Color</div>
-                              <p style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
-                                {selectedElement.textcolor ? `Inherits from table: ${selectedElement.textcolor}` : 'No table text color set (default: black).'}
-                              </p>
-                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <input
-                                  type="color"
-                                  value={selectedCellElement.textcolor || selectedElement.textcolor || '#000000'}
-                                  onChange={(e) => {
-                                    const newRows = [...selectedElement.rows]
-                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                      ...selectedCellElement,
-                                      textcolor: e.target.value
-                                    }
-                                    updateElement(selectedElement.id, { rows: newRows })
-                                  }}
-                                  style={{ 
-                                    width: '40px', 
-                                    height: '40px', 
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    padding: '2px'
-                                  }}
-                                />
-                                <input
-                                  type="text"
-                                  value={selectedCellElement.textcolor || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...selectedElement.rows]
-                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                      ...selectedCellElement,
-                                      textcolor: e.target.value
-                                    }
-                                    updateElement(selectedElement.id, { rows: newRows })
-                                  }}
-                                  placeholder={selectedElement.textcolor || '#RRGGBB'}
-                                  style={{ 
-                                    flex: 1, 
-                                    padding: '0.4rem', 
-                                    fontSize: '0.85rem',
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '4px'
-                                  }}
-                                />
-                                <button
-                                  onClick={() => {
-                                    const newRows = [...selectedElement.rows]
-                                    const { textcolor, ...rest } = selectedCellElement
-                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = rest
-                                    updateElement(selectedElement.id, { rows: newRows })
-                                  }}
-                                  style={{
-                                    padding: '0.4rem 0.75rem',
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: '4px',
-                                    background: 'hsl(var(--muted))',
-                                    color: 'hsl(var(--muted-foreground))',
-                                    fontSize: '0.75rem',
-                                    cursor: 'pointer'
-                                  }}
-                                >
-                                  Clear
-                                </button>
-                              </div>
-                              <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                {[
-                                  { label: 'Black', color: '#000000' },
-                                  { label: 'Dark Gray', color: '#333333' },
-                                  { label: 'Gray', color: '#666666' },
-                                  { label: 'White', color: '#FFFFFF' },
-                                  { label: 'Red', color: '#F44336' },
-                                  { label: 'Dark Red', color: '#B71C1C' },
-                                  { label: 'Blue', color: '#2196F3' },
-                                  { label: 'Dark Blue', color: '#1565C0' },
-                                  { label: 'Green', color: '#4CAF50' },
-                                  { label: 'Dark Green', color: '#2E7D32' }
-                                ].map(({ label, color }) => (
-                                  <button
-                                    key={color}
-                                    onClick={() => {
-                                      const newRows = [...selectedElement.rows]
-                                      newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
-                                        ...selectedCellElement,
-                                        textcolor: color
-                                      }
-                                      updateElement(selectedElement.id, { rows: newRows })
-                                    }}
-                                    title={label}
-                                    style={{
-                                      width: '24px',
-                                      height: '24px',
-                                      background: color,
-                                      border: selectedCellElement.textcolor === color ? '2px solid var(--secondary-color)' : '1px solid hsl(var(--border))',
-                                      borderRadius: '4px',
-                                      cursor: 'pointer'
-                                    }}
-                                  />
-                                ))}
-                              </div>
-                              {selectedCellElement.textcolor && (
-                                <div style={{ 
-                                  marginTop: '0.5rem',
-                                  padding: '0.25rem 0.5rem',
-                                  background: 'hsl(var(--muted))',
-                                  border: '1px solid hsl(var(--border))',
-                                  borderRadius: '4px',
-                                  fontSize: '0.75rem',
-                                  color: selectedCellElement.textcolor
-                                }}>
-                                  Sample Text: {selectedCellElement.textcolor}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )}
-
-                  {selectedElement.type === 'footer' && (
-                    <>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
-                        <input
-                          type="text"
-                          value={selectedElement.text || ''}
-                          onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
-                        <PropsEditor 
-                          props={selectedElement.props} 
-                          onChange={(props) => updateElement(selectedElement.id, { props })}
-                          fonts={fonts}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {selectedElement.type === 'spacer' && (
-                    <>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Height (px):</label>
-                        <input
-                          type="number"
-                          value={selectedElement.height || 20}
-                          onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 20 })}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                          min="1"
-                          max="200"
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {selectedElement.type === 'image' && (
-                    <>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Select Image:</label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0]
-                            if (file) {
-                              const reader = new FileReader()
-                              reader.onloadend = () => {
-                                const base64String = reader.result.split(',')[1] // Remove data:image/...;base64, prefix
-                                updateElement(selectedElement.id, { 
-                                  imagename: file.name,
-                                  imagedata: base64String
-                                })
-                              }
-                              reader.readAsDataURL(file)
-                            }
-                          }}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image Name:</label>
-                        <input
-                          type="text"
-                          value={selectedElement.imagename || ''}
-                          onChange={(e) => updateElement(selectedElement.id, { imagename: e.target.value })}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                          placeholder="Image name"
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Width (px):</label>
-                        <input
-                          type="number"
-                          value={selectedElement.width || 300}
-                          onChange={(e) => updateElement(selectedElement.id, { width: parseInt(e.target.value) || 300 })}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                          min="50"
-                          max="800"
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Height (px):</label>
-                        <input
-                          type="number"
-                          value={selectedElement.height || 200}
-                          onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 200 })}
-                          style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
-                          min="50"
-                          max="800"
-                        />
-                      </div>
-                      {selectedElement.imagedata && (
-                        <div style={{ 
-                          padding: '0.5rem',
-                          background: 'hsl(var(--muted))',
-                          borderRadius: '4px',
-                          fontSize: '0.8rem',
-                          color: 'hsl(var(--muted-foreground))'
-                        }}>
-                          Image loaded: {selectedElement.imagename || 'Unnamed'}
+                    {selectedElement.type === 'footer' && (
+                      <>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Text:</label>
+                          <input
+                            type="text"
+                            value={selectedElement.text || ''}
+                            onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                          />
                         </div>
-                      )}
-                    </>
-                  )}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Font Properties:</label>
+                          <PropsEditor
+                            props={selectedElement.props}
+                            onChange={(props) => updateElement(selectedElement.id, { props })}
+                            fonts={fonts}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Link URL:</label>
+                          <input
+                            type="text"
+                            value={selectedElement.link || ''}
+                            onChange={(e) => updateElement(selectedElement.id, { link: e.target.value })}
+                            placeholder="https://..."
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                          />
+                        </div>
+                      </>
+                    )}
 
+                    {selectedElement.type === 'spacer' && (
+                      <>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Height (px):</label>
+                          <input
+                            type="number"
+                            value={selectedElement.height || 20}
+                            onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 20 })}
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                            min="1"
+                            max="200"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {selectedElement.type === 'image' && (
+                      <>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Select Image:</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) {
+                                const reader = new FileReader()
+                                reader.onloadend = () => {
+                                  const base64String = reader.result.split(',')[1] // Remove data:image/...;base64, prefix
+                                  updateElement(selectedElement.id, {
+                                    imagename: file.name,
+                                    imagedata: base64String
+                                  })
+                                }
+                                reader.readAsDataURL(file)
+                              }
+                            }}
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Image Name:</label>
+                          <input
+                            type="text"
+                            value={selectedElement.imagename || ''}
+                            onChange={(e) => updateElement(selectedElement.id, { imagename: e.target.value })}
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                            placeholder="Image name"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Width (px):</label>
+                          <input
+                            type="number"
+                            value={selectedElement.width || 300}
+                            onChange={(e) => updateElement(selectedElement.id, { width: parseInt(e.target.value) || 300 })}
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                            min="50"
+                            max="800"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Height (px):</label>
+                          <input
+                            type="number"
+                            value={selectedElement.height || 200}
+                            onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 200 })}
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                            min="50"
+                            max="800"
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.25rem' }}>Link URL:</label>
+                          <input
+                            type="text"
+                            value={selectedElement.link || ''}
+                            onChange={(e) => updateElement(selectedElement.id, { link: e.target.value })}
+                            placeholder="https://..."
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.9rem' }}
+                          />
+                        </div>
+                        {selectedElement.imagedata && (
+                          <div style={{
+                            padding: '0.5rem',
+                            background: 'hsl(var(--muted))',
+                            borderRadius: '4px',
+                            fontSize: '0.8rem',
+                            color: 'hsl(var(--muted-foreground))'
+                          }}>
+                            Image loaded: {selectedElement.imagename || 'Unnamed'}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    <button
+                      onClick={() => deleteElement(selectedElement.id)}
+                      className="btn"
+                      style={{
+                        background: 'hsl(var(--destructive))',
+                        color: 'hsl(var(--destructive-foreground))',
+                        padding: '0.5rem',
+                        marginTop: '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Trash2 size={16} /> Delete Component
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* JSON Output */}
+              <div className="card" style={{ padding: '1rem', flex: 1 }}>
+                <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                    <FileText size={16} /> JSON Template
+                  </h3>
                   <button
-                    onClick={() => deleteElement(selectedElement.id)}
-                    className="btn"
-                    style={{ 
-                      background: 'hsl(var(--destructive))', 
-                      color: 'hsl(var(--destructive-foreground))',
-                      padding: '0.5rem',
-                      marginTop: '1rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      justifyContent: 'center'
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(jsonText)
+                        setCopiedId('json')
+                        setTimeout(() => setCopiedId(null), 2000)
+                      } catch (error) {
+                        console.error('Copy failed:', error)
+                      }
                     }}
+                    className="btn"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                   >
-                    <Trash2 size={16} /> Delete Component
+                    {copiedId === 'json' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
                   </button>
                 </div>
-              )}
-            </div>
-
-            {/* JSON Output */}
-            <div className="card" style={{ padding: '1rem', flex: 1 }}>
-              <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                  <FileText size={16} /> JSON Template
-                </h3>
-                <button
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(jsonText)
-                      setCopiedId('json')
-                      setTimeout(() => setCopiedId(null), 2000)
-                    } catch (error) {
-                      console.error('Copy failed:', error)
-                    }
+                <textarea
+                  value={jsonText}
+                  onChange={handleJsonChange}
+                  onFocus={() => setIsJsonEditing(true)}
+                  onBlur={handleJsonBlur}
+                  style={{
+                    width: '100%',
+                    height: '250px',
+                    fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+                    fontSize: '0.7rem',
+                    padding: '0.75rem',
+                    resize: 'vertical',
+                    background: '#1e1e1e',
+                    color: '#d4d4d4',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '4px',
+                    lineHeight: '1.4'
                   }}
-                  className="btn"
-                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                >
-                  {copiedId === 'json' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
-                </button>
-              </div>
-              <textarea
-                value={jsonText}
-                onChange={handleJsonChange}
-                onFocus={() => setIsJsonEditing(true)}
-                onBlur={handleJsonBlur}
-                style={{
-                  width: '100%',
-                  height: '250px',
-                  fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace',
+                  spellCheck={false}
+                />
+                <p style={{
+                  marginTop: '0.5rem',
                   fontSize: '0.7rem',
-                  padding: '0.75rem',
-                  resize: 'vertical',
-                  background: '#1e1e1e',
-                  color: '#d4d4d4',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '4px',
-                  lineHeight: '1.4'
-                }}
-                spellCheck={false}
-              />
-              <p style={{ 
-                marginTop: '0.5rem', 
-                fontSize: '0.7rem', 
-                color: 'hsl(var(--muted-foreground))'
-              }}>
-                Edit JSON directly or paste to load template. Changes apply on blur.
-              </p>
+                  color: 'hsl(var(--muted-foreground))'
+                }}>
+                  Edit JSON directly or paste to load template. Changes apply on blur.
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      
-      <style jsx>{`
+
+        <style jsx>{`
         .dragging {
           transform: rotate(3deg) scale(0.95);
         }
@@ -4917,7 +4971,7 @@ export default function Editor() {
           }
         }
       `}</style>
-      </div>
+      </div >
     </>
   )
 }
