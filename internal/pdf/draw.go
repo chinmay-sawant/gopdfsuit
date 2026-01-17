@@ -149,6 +149,18 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(titleX), fmtNum(pageManager.CurrentYPos)))
 	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(titleProps, title.Text)))
 	contentStream.WriteString("ET\n")
+
+	// Add Link Annotation if provided
+	if title.Link != "" {
+		// Calculate approximate bounding box for the text
+		// BBox: [titleX, titleY, titleX+textWidth, titleY+fontSize]
+		// Use Y pos (baseline) + descent (approx)
+		rectX := titleX
+		rectY := pageManager.CurrentYPos - float64(titleProps.FontSize)*0.2 // Slightly below baseline
+		rectW := textWidth
+		rectH := float64(titleProps.FontSize) * 1.2
+		pageManager.AddLinkAnnotation(rectX, rectY, rectW, rectH, title.Link)
+	}
 }
 
 // drawTitleTable renders an embedded table within the title section (no borders by default)
@@ -237,6 +249,9 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			if colIdx >= table.MaxColumns {
 				break
 			}
+
+			// Capture cell coordinates for link
+			// Capture cell coordinates for link
 
 			var cellProps models.Props
 			if cell.Props == "" {
@@ -396,6 +411,13 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				}
 				contentStream.WriteString("Q\n")
 			}
+
+			// Add Link Annotation if provided
+			if cell.Link != "" {
+				// Use captured cellStartX
+				linkY := pageManager.CurrentYPos - cellHeight
+				pageManager.AddLinkAnnotation(cellX, linkY, cellWidth, cellHeight, cell.Link)
+			}
 		}
 
 		pageManager.CurrentYPos -= rowHeight
@@ -464,6 +486,9 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			if colIdx >= table.MaxColumns {
 				break
 			}
+
+			// Capture cell start X for link
+			cellStartX := currentX
 
 			cellProps := parseProps(cell.Props)
 			cellX := currentX
@@ -671,6 +696,13 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 				}
 				contentStream.WriteString("Q\n")
 			}
+
+			// Add Link Annotation if provided
+			if cell.Link != "" {
+				// Use captured cellStartX
+				linkY := pageManager.CurrentYPos - cellHeight
+				pageManager.AddLinkAnnotation(cellStartX, linkY, cellWidth, cellHeight, cell.Link)
+			}
 		}
 
 		pageManager.CurrentYPos -= rowHeight
@@ -687,7 +719,7 @@ func drawSpacer(spacer models.Spacer, pageManager *PageManager) {
 }
 
 // drawFooter renders the document footer
-func drawFooter(contentStream *bytes.Buffer, footer models.Footer) {
+func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *PageManager) {
 	footerProps := parseProps(footer.Font)
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(footerProps))
@@ -703,6 +735,20 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer) {
 	contentStream.WriteString(fmt.Sprintf("%d %d Td\n", footerX, footerY))
 	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(footerProps, footer.Text)))
 	contentStream.WriteString("ET\n")
+
+	// Add Link Annotation if provided
+	if footer.Link != "" {
+		// Calculate approximate text width
+		// Using standard estimation for width since we don't have exact calc here easily without refactoring
+		// But footer is likely simple text.
+		textWidth := EstimateTextWidth(footerProps.FontName, footer.Text, float64(footerProps.FontSize))
+
+		rectX := float64(footerX)
+		rectY := float64(footerY) - float64(footerProps.FontSize)*0.2
+		rectW := textWidth
+		rectH := float64(footerProps.FontSize) * 1.2
+		pageManager.AddLinkAnnotation(rectX, rectY, rectW, rectH, footer.Link)
+	}
 }
 
 // drawPageNumber renders page number in bottom right corner
@@ -796,6 +842,11 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 		contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
 		contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(image.ImageName)))
 		contentStream.WriteString("ET\n")
+	}
+
+	// Add Link Annotation if provided
+	if image.Link != "" {
+		pageManager.AddLinkAnnotation(imageX, imageY, imageWidth, imageHeight, image.Link)
 	}
 
 	pageManager.CurrentYPos -= (imageHeight + spacing)
