@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -16,13 +17,15 @@ type PDFAHandler struct {
 	metadataObjID     int
 	outputIntentObjID int
 	iccProfileObjID   int
+	encryptor         ObjectEncryptor
 }
 
 // NewPDFAHandler creates a new PDF/A handler
-func NewPDFAHandler(config *models.PDFAConfig, pm *PageManager) *PDFAHandler {
+func NewPDFAHandler(config *models.PDFAConfig, pm *PageManager, encryptor ObjectEncryptor) *PDFAHandler {
 	return &PDFAHandler{
 		config:      config,
 		pageManager: pm,
+		encryptor:   encryptor,
 	}
 }
 
@@ -194,8 +197,15 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	h.metadataObjID = h.pageManager.NextObjectID
 	h.pageManager.NextObjectID++
 
+	var streamContent []byte = []byte(xmpContent)
+
+	// Encrypt if needed
+	if h.encryptor != nil {
+		streamContent = h.encryptor.EncryptStream(streamContent, h.metadataObjID, 0)
+	}
+
 	metadataDict := fmt.Sprintf("<< /Type /Metadata /Subtype /XML /Length %d >>\nstream\n%s\nendstream",
-		len(xmpContent), xmpContent)
+		len(streamContent), string(streamContent))
 
 	return h.metadataObjID, metadataDict
 }
@@ -210,6 +220,11 @@ func (h *PDFAHandler) GenerateOutputIntent() (int, []string) {
 	h.pageManager.NextObjectID++
 
 	iccData := getSRGBICCProfile()
+	// Encrypt ICC profile stream if needed
+	if h.encryptor != nil {
+		iccData = h.encryptor.EncryptStream(iccData, h.iccProfileObjID, 0)
+	}
+
 	iccDict := fmt.Sprintf("<< /N 3 /Length %d /Filter /FlateDecode >>\nstream\n", len(iccData))
 	objects = append(objects, fmt.Sprintf("%d 0 obj\n%s", h.iccProfileObjID, iccDict))
 
@@ -217,7 +232,24 @@ func (h *PDFAHandler) GenerateOutputIntent() (int, []string) {
 	h.outputIntentObjID = h.pageManager.NextObjectID
 	h.pageManager.NextObjectID++
 
-	outputIntentDict := fmt.Sprintf(`<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier (sRGB IEC61966-2.1) /RegistryName (http://www.color.org) /Info (sRGB IEC61966-2.1) /DestOutputProfile %d 0 R >>`, h.iccProfileObjID)
+	// Encrypt string values in OutputIntent dictionary if needed
+	idStr := "(sRGB IEC61966-2.1)"
+	regStr := "(http://www.color.org)"
+	infoStr := "(sRGB IEC61966-2.1)"
+
+	if h.encryptor != nil {
+		idEnc := h.encryptor.EncryptString([]byte("sRGB IEC61966-2.1"), h.outputIntentObjID, 0)
+		idStr = fmt.Sprintf("<%s>", hex.EncodeToString(idEnc))
+
+		regEnc := h.encryptor.EncryptString([]byte("http://www.color.org"), h.outputIntentObjID, 0)
+		regStr = fmt.Sprintf("<%s>", hex.EncodeToString(regEnc))
+
+		infoEnc := h.encryptor.EncryptString([]byte("sRGB IEC61966-2.1"), h.outputIntentObjID, 0)
+		infoStr = fmt.Sprintf("<%s>", hex.EncodeToString(infoEnc))
+	}
+
+	outputIntentDict := fmt.Sprintf(`<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier %s /RegistryName %s /Info %s /DestOutputProfile %d 0 R >>`,
+		idStr, regStr, infoStr, h.iccProfileObjID)
 	objects = append(objects, fmt.Sprintf("%d 0 obj\n%s\nendobj", h.outputIntentObjID, outputIntentDict))
 
 	return h.outputIntentObjID, objects

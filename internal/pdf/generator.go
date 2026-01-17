@@ -165,9 +165,27 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs, elemImageObjects, elemImageObjectIDs)
 
+	// Setup encryption EARLY if security config is provided (before writing content)
+	// This is needed because content streams need to be encrypted
+	var encryption *PDFEncryption
+	if template.Config.Security != nil && template.Config.Security.Enabled && template.Config.Security.OwnerPassword != "" {
+		// Generate a preliminary document ID for encryption setup
+		preliminaryID := GenerateDocumentID([]byte(template.Title.Text + fmt.Sprintf("%d", len(pageManager.Pages))))
+		var err error
+		encryption, err = NewPDFEncryption(template.Config.Security, preliminaryID)
+		if err != nil {
+			encryption = nil // Fall back to no encryption on error
+		}
+	}
+
+	var encryptor ObjectEncryptor
+	if encryption != nil {
+		encryptor = encryption
+	}
+
 	// Build document outlines (bookmarks) if provided
 	// Check both top-level Bookmarks and Config.Bookmarks (top-level takes precedence)
-	outlineBuilder := NewOutlineBuilder(pageManager)
+	outlineBuilder := NewOutlineBuilder(pageManager, encryptor)
 	bookmarksToUse := template.Bookmarks
 	if len(bookmarksToUse) == 0 {
 		bookmarksToUse = template.Config.Bookmarks
@@ -180,7 +198,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Setup PDF/A handler if enabled
 	var pdfaHandler *PDFAHandler
 	if template.Config.PDFA != nil && template.Config.PDFA.Enabled {
-		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager)
+		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor)
 	}
 
 	// Setup digital signature if enabled
@@ -484,9 +502,19 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		zlibWriter.Close()
 		compressedData := compressedBuf.Bytes()
 
-		// Write stream - Length is exact byte count of compressed data
-		pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(compressedData)))
-		pdfBuffer.Write(compressedData)
+		// Encrypt content stream if encryption is enabled
+		if encryption != nil {
+			encryptedData := encryption.EncryptStream(compressedData, objectID, 0)
+			// For encrypted streams with AES, the filter is [/Crypt /FlateDecode]
+			// But actually, the standard approach is FlateDecode first (we compress), then Crypt is applied by reader
+			// So we just write the encrypted data with the same filter
+			pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(encryptedData)))
+			pdfBuffer.Write(encryptedData)
+		} else {
+			// Write stream without encryption
+			pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(compressedData)))
+			pdfBuffer.Write(compressedData)
+		}
 		pdfBuffer.WriteString("\nendstream\nendobj\n")
 	}
 
@@ -544,25 +572,37 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Generate image XObjects (standalone images)
 	for _, imgObj := range imageObjects {
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+		if encryption != nil {
+			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
+		} else {
+			pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+		}
 	}
 
 	// Generate image XObjects (cell images)
 	for _, imgObj := range cellImageObjects {
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+		if encryption != nil {
+			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
+		} else {
+			pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+		}
 	}
 
 	// Generate image XObjects (element images)
 	for _, imgObj := range elemImageObjects {
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+		if encryption != nil {
+			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
+		} else {
+			pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+		}
 	}
 
 	// Generate custom font objects (TrueType/OpenType embedded fonts)
 	usedFonts := fontRegistry.GetUsedFonts()
 	for _, font := range usedFonts {
-		fontObjects := GenerateTrueTypeFontObjects(font)
+		fontObjects := GenerateTrueTypeFontObjects(font, encryptor)
 		for objID, content := range fontObjects {
 			xrefOffsets[objID] = pdfBuffer.Len()
 			pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", objID, content))
@@ -645,22 +685,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString("endobj\n")
 	}
 
-	// Setup encryption if security config is provided
-	var encryption *PDFEncryption
+	// Write encryption dictionary object if encryption was set up
 	var encryptObjID int
-	if template.Config.Security != nil && template.Config.Security.Enabled && template.Config.Security.OwnerPassword != "" {
-		// Generate document ID first (needed for encryption)
-		docID := GenerateDocumentID(pdfBuffer.Bytes())
-
-		var err error
-		encryption, err = NewPDFEncryption(template.Config.Security, docID)
-		if err == nil {
-			// Create encryption dictionary object
-			encryptObjID = pageManager.NextObjectID
-			pageManager.NextObjectID++
-			xrefOffsets[encryptObjID] = pdfBuffer.Len()
-			pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", encryptObjID, encryption.GetEncryptDictionary(encryptObjID)))
-		}
+	if encryption != nil {
+		encryptObjID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+		xrefOffsets[encryptObjID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", encryptObjID, encryption.GetEncryptDictionary(encryptObjID)))
 	}
 
 	// Generate Document ID (two MD5 hashes - one based on content, one random)
@@ -678,18 +709,21 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Generate PDF/A-1b compliance objects
 	// Always generate metadata (for document info)
-	xrefOffsets[metadataObjectID] = pdfBuffer.Len()
-	pdfBuffer.WriteString(GenerateXMPMetadataObject(metadataObjectID, hex.EncodeToString(contentHash[:]), creationDate))
+	// Only generate if not already generated by pdfaHandler
+	if pdfaHandler == nil {
+		xrefOffsets[metadataObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(GenerateXMPMetadataObject(metadataObjectID, hex.EncodeToString(contentHash[:]), creationDate, encryptor))
 
-	// Only generate ICC profile and OutputIntent for PDF/A mode
-	// This is the key fix: without these, Adobe Acrobat won't apply color management
-	// and colors will appear as intended (same as in Chrome/browser)
-	if template.Config.PDFACompliant {
-		xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
-		pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID))
+		// Only generate ICC profile and OutputIntent for PDF/A mode
+		// This is the key fix: without these, Adobe Acrobat won't apply color management
+		// and colors will appear as intended (same as in Chrome/browser)
+		if template.Config.PDFACompliant {
+			xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
+			pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID, encryptor))
 
-		xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID))
+			xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID, encryptor))
+		}
 	}
 
 	// Build compact XRef table - collect all used object IDs and sort them

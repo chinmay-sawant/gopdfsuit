@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -13,6 +14,7 @@ type OutlineBuilder struct {
 	namedDests   map[string]NamedDest // Map of named destinations
 	outlineObjID int                  // Root outline object ID
 	outlineItems []OutlineItem        // Flat list of all outline items with their object IDs
+	encryptor    ObjectEncryptor      // Encryptor for strings
 }
 
 // NamedDest represents a named destination in the PDF
@@ -37,10 +39,11 @@ type OutlineItem struct {
 }
 
 // NewOutlineBuilder creates a new outline builder
-func NewOutlineBuilder(pm *PageManager) *OutlineBuilder {
+func NewOutlineBuilder(pm *PageManager, encryptor ObjectEncryptor) *OutlineBuilder {
 	return &OutlineBuilder{
 		pageManager: pm,
 		namedDests:  make(map[string]NamedDest),
+		encryptor:   encryptor,
 	}
 }
 
@@ -97,11 +100,17 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 		if bm.Dest != "" {
 			// Try to find named destination
 			if dest, exists := ob.namedDests[bm.Dest]; exists {
-				item.DestPageID = 3 + dest.PageIndex // Pages start at object 3
+				if dest.PageIndex < len(ob.pageManager.Pages) {
+					item.DestPageID = ob.pageManager.Pages[dest.PageIndex]
+				} else if len(ob.pageManager.Pages) > 0 {
+					item.DestPageID = ob.pageManager.Pages[0]
+				}
 				item.DestY = dest.Y
 			} else {
 				// Use page 1 as fallback
-				item.DestPageID = 3
+				if len(ob.pageManager.Pages) > 0 {
+					item.DestPageID = ob.pageManager.Pages[0]
+				}
 				item.DestY = ob.pageManager.PageDimensions.Height - margin
 			}
 		} else if bm.Page > 0 {
@@ -110,7 +119,12 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 			if pageIndex >= len(ob.pageManager.Pages) {
 				pageIndex = len(ob.pageManager.Pages) - 1
 			}
-			item.DestPageID = 3 + pageIndex
+			if pageIndex < 0 {
+				pageIndex = 0
+			}
+			if len(ob.pageManager.Pages) > 0 {
+				item.DestPageID = ob.pageManager.Pages[pageIndex]
+			}
 			if bm.Y > 0 {
 				item.DestY = ob.pageManager.PageDimensions.Height - bm.Y
 			} else {
@@ -118,7 +132,9 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 			}
 		} else {
 			// Default to first page
-			item.DestPageID = 3
+			if len(ob.pageManager.Pages) > 0 {
+				item.DestPageID = ob.pageManager.Pages[0]
+			}
 			item.DestY = ob.pageManager.PageDimensions.Height - margin
 		}
 
@@ -252,7 +268,43 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 	for _, item := range ob.outlineItems {
 		var itemDict strings.Builder
 		itemDict.WriteString("<<")
-		itemDict.WriteString(fmt.Sprintf(" /Title (%s)", escapeTextUnicode(item.Title)))
+
+		// Handle Title encryption
+		if ob.encryptor != nil {
+			// Encrypt title (handle UTF-16BE encoding if needed)
+			var titleBytes []byte
+			hasUnicode := false
+			for _, r := range item.Title {
+				if r > 127 {
+					hasUnicode = true
+					break
+				}
+			}
+
+			if hasUnicode {
+				// Create UTF-16BE bytes with BOM
+				titleBytes = append(titleBytes, 0xFE, 0xFF)
+				for _, r := range item.Title {
+					if r <= 0xFFFF {
+						titleBytes = append(titleBytes, byte(r>>8), byte(r))
+					} else {
+						r -= 0x10000
+						high := 0xD800 + ((r >> 10) & 0x3FF)
+						low := 0xDC00 + (r & 0x3FF)
+						titleBytes = append(titleBytes, byte(high>>8), byte(high), byte(low>>8), byte(low))
+					}
+				}
+			} else {
+				// ASCII bytes
+				titleBytes = []byte(item.Title)
+			}
+
+			encrypted := ob.encryptor.EncryptString(titleBytes, item.ObjectID, 0)
+			itemDict.WriteString(fmt.Sprintf(" /Title <%s>", hex.EncodeToString(encrypted)))
+		} else {
+			itemDict.WriteString(fmt.Sprintf(" /Title (%s)", escapeTextUnicode(item.Title)))
+		}
+
 		itemDict.WriteString(fmt.Sprintf(" /Parent %d 0 R", item.ParentID))
 
 		// Destination: [pageRef /XYZ left top zoom]
@@ -336,20 +388,37 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		}
 	}
 
+	// Create Dests name tree object ID upfront for encryption key generation
+	destsTreeID := ob.pageManager.NextObjectID
+	ob.pageManager.NextObjectID++
+
 	for i, name := range names {
 		dest := ob.namedDests[name]
-		pageObjID := 3 + dest.PageIndex
+		pageObjID := 0
+		if dest.PageIndex < len(ob.pageManager.Pages) {
+			pageObjID = ob.pageManager.Pages[dest.PageIndex]
+		} else if len(ob.pageManager.Pages) > 0 {
+			pageObjID = ob.pageManager.Pages[0]
+		}
 		if i > 0 {
 			namesArray.WriteString(" ")
 		}
-		namesArray.WriteString(fmt.Sprintf("(%s) [%d 0 R /XYZ null %s null]",
-			escapeText(name), pageObjID, fmtNum(dest.Y)))
+
+		// Handle Name encryption
+		nameStr := ""
+		if ob.encryptor != nil {
+			// Names in name tree are strings and must be encrypted
+			// Usually names are ASCII, but handle them as bytes
+			encrypted := ob.encryptor.EncryptString([]byte(name), destsTreeID, 0)
+			nameStr = fmt.Sprintf("<%s>", hex.EncodeToString(encrypted))
+		} else {
+			nameStr = fmt.Sprintf("(%s)", escapeText(name))
+		}
+
+		namesArray.WriteString(fmt.Sprintf("%s [%d 0 R /XYZ null %s null]",
+			nameStr, pageObjID, fmtNum(dest.Y)))
 	}
 	namesArray.WriteString("]")
-
-	// Create Dests name tree object
-	destsTreeID := ob.pageManager.NextObjectID
-	ob.pageManager.NextObjectID++
 
 	destsTreeContent := fmt.Sprintf("<< /Names %s >>", namesArray.String())
 	ob.pageManager.ExtraObjects[destsTreeID] = destsTreeContent
