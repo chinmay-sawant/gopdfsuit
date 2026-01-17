@@ -3,7 +3,10 @@
         "page": "A4",
         "pageAlignment": 1,
         "pageBorder": "0:0:0:0",
-        "watermark": "CONFIDENTIAL"
+        "watermark": "CONFIDENTIAL",
+        "pdfaCompliant": true,
+        "arlingtonCompatible": true,
+        "embedFonts": true
     },
     "title": {
         "props": "Helvetica:24:100:center:0:0:0:0",
