@@ -6,7 +6,7 @@
     "watermark": ""
   },
   "title": {
-    "props": "font1:18:100:center:0:0:1:0",
+    "props": "Helvetica:18:100:center:0:0:1:0",
     "text": "Document with Image"
   },
   "table": [
@@ -16,15 +16,15 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:1:1:1",
+              "props": "Helvetica:12:100:left:1:1:1:1",
               "text": "Name"
             },
             {
-              "props": "font1:12:100:left:1:1:1:1",
+              "props": "Helvetica:12:100:left:1:1:1:1",
               "text": "Age"
             },
             {
-              "props": "font1:12:100:left:1:1:1:1",
+              "props": "Helvetica:12:100:left:1:1:1:1",
               "text": "Email"
             }
           ]
@@ -32,15 +32,15 @@
         {
           "row": [
             {
-              "props": "font1:12:000:left:1:1:1:1",
+              "props": "Helvetica:12:000:left:1:1:1:1",
               "text": "John Doe"
             },
             {
-              "props": "font1:12:000:left:1:1:1:1",
+              "props": "Helvetica:12:000:left:1:1:1:1",
               "text": "30"
             },
             {
-              "props": "font1:12:000:left:1:1:1:1",
+              "props": "Helvetica:12:000:left:1:1:1:1",
               "text": "john@example.com"
             }
           ]
@@ -57,7 +57,7 @@
     }
   ],
   "footer": {
-    "font": "font1:10:001:center:0:0:0:0",
+    "font": "Helvetica:10:001:center:0:0:0:0",
     "text": "Footer with Image Example"
   }
 }

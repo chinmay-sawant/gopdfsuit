@@ -6,7 +6,7 @@
     "watermark": "CONFIDENTIAL"
   },
   "title": {
-    "props": "font1:18:100:center:0:0:1:0",
+    "props": "Helvetica:18:100:center:0:0:1:0",
     "text": "Patient Encounter Form"
   },
   "table": [
@@ -16,19 +16,19 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Patient Name:"
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": "Jane Doe"
             },
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "DOB:"
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": "05/20/1992"
             }
           ]
@@ -36,19 +36,19 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Gender: Male"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Female"
             },
             {
-              "props": "font1:12:000:center:0:1:1:1",
+              "props": "Helvetica:12:000:center:0:1:1:1",
               "chequebox": true
             }
           ]
@@ -56,19 +56,19 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:1:1:1",
+              "props": "Helvetica:12:100:left:1:1:1:1",
               "text": "Address:"
             },
             {
-              "props": "font1:12:000:left:1:0:1:1",
+              "props": "Helvetica:12:000:left:1:0:1:1",
               "text": "123 Main St, Anytown, USA 12345"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": ""
             }
           ]
@@ -76,19 +76,19 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:1:1:1",
+              "props": "Helvetica:12:100:left:1:1:1:1",
               "text": "Phone:"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "(555) 555-5555"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": ""
             }
           ]
@@ -96,19 +96,19 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Insurance Provider : "
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "  Generic Health Co."
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": ""
             }
           ]
@@ -121,19 +121,19 @@
         {
           "row": [
             {
-              "props": "font1:14:100:left:1:1:1:1",
+              "props": "Helvetica:14:100:left:1:1:1:1",
               "text": "Vitals"
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             }
           ]
@@ -141,19 +141,19 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Height:"
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": "5'7\""
             },
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Weight:"
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": "150 lbs"
             }
           ]
@@ -161,19 +161,19 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Blood Pressure:"
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": "120/80 mmHg"
             },
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Heart Rate:"
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": "72 bpm"
             }
           ]
@@ -181,19 +181,19 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Temperature:"
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": "98.6 °F"
             },
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:1:1:1",
+              "props": "Helvetica:12:000:left:0:1:1:1",
               "text": ""
             }
           ]
@@ -206,11 +206,11 @@
         {
           "row": [
             {
-              "props": "font1:14:100:left:1:0:1:1",
+              "props": "Helvetica:14:100:left:1:0:1:1",
               "text": "Chief Complaint"
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             }
           ]
@@ -218,11 +218,11 @@
         {
           "row": [
             {
-              "props": "font1:12:000:left:1:0:1:1",
+              "props": "Helvetica:12:000:left:1:0:1:1",
               "text": "Patient presents with a persistent cough and sore throat for 3 days."
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": ""
             }
           ]
@@ -235,11 +235,11 @@
         {
           "row": [
             {
-              "props": "font1:14:100:left:1:0:1:1",
+              "props": "Helvetica:14:100:left:1:0:1:1",
               "text": "Allergies"
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             }
           ]
@@ -247,11 +247,11 @@
         {
           "row": [
             {
-              "props": "font1:12:000:left:1:0:1:1",
+              "props": "Helvetica:12:000:left:1:0:1:1",
               "text": "Penicillin (rash)"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": ""
             }
           ]
@@ -264,24 +264,23 @@
         {
           "row": [
             {
-              "props": "font1:14:100:left:1:0:1:1",
+              "props": "Helvetica:14:100:left:1:0:1:1",
               "text": "Review of Systems"
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             },
-
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             }
           ]
@@ -289,23 +288,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Constitutional:"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Fever"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": true
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Fatigue"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": true
             }
           ]
@@ -313,23 +312,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Weight Loss"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Night Sweats"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -337,23 +336,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "EENT:"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Sore Throat"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": true
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Earache"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -361,23 +360,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Vision Changes"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Nasal Congestion"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -385,23 +384,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Respiratory:"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Cough"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": true
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Shortness of Breath"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -409,23 +408,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:0",
+              "props": "Helvetica:12:100:left:1:0:1:0",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:0:1:0",
+              "props": "Helvetica:12:000:left:0:0:1:0",
               "text": "Wheezing"
             },
             {
-              "props": "font1:12:000:center:0:0:1:0",
+              "props": "Helvetica:12:000:center:0:0:1:0",
               "chequebox": false
             },
             {
-              "props": "font1:12:000:left:0:0:1:0",
+              "props": "Helvetica:12:000:left:0:0:1:0",
               "text": "Sputum Production"
             },
             {
-              "props": "font1:12:000:center:0:0:1:0",
+              "props": "Helvetica:12:000:center:0:0:1:0",
               "chequebox": false
             }
           ]
@@ -438,7 +437,7 @@
         {
           "row": [
             {
-              "props": "font1:12:000:center:0:0:0:0",
+              "props": "Helvetica:12:000:center:0:0:0:0",
               "text": ""
             }
           ]
@@ -451,24 +450,23 @@
         {
           "row": [
             {
-              "props": "font1:14:100:left:1:0:1:1",
+              "props": "Helvetica:14:100:left:1:0:1:1",
               "text": "Review of Systems"
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             },
-
             {
-              "props": "font1:14:000:center:0:0:1:1",
+              "props": "Helvetica:14:000:center:0:0:1:1",
               "text": ""
             }
           ]
@@ -476,23 +474,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Constitutional:"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Fever"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": true
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Fatigue"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": true
             }
           ]
@@ -500,23 +498,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Weight Loss"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Night Sweats"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -524,23 +522,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "EENT:"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Sore Throat"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": true
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Earache"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -548,23 +546,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Vision Changes"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Nasal Congestion"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -572,23 +570,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": "Respiratory:"
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Cough"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": true
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Shortness of Breath"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -596,23 +594,23 @@
         {
           "row": [
             {
-              "props": "font1:12:100:left:1:0:1:1",
+              "props": "Helvetica:12:100:left:1:0:1:1",
               "text": ""
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Wheezing"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             },
             {
-              "props": "font1:12:000:left:0:0:1:1",
+              "props": "Helvetica:12:000:left:0:0:1:1",
               "text": "Sputum Production"
             },
             {
-              "props": "font1:12:000:center:0:0:1:1",
+              "props": "Helvetica:12:000:center:0:0:1:1",
               "chequebox": false
             }
           ]
@@ -621,7 +619,7 @@
     }
   ],
   "footer": {
-    "font": "font1:10:001:left",
+    "font": "Helvetica:10:001:left",
     "text": "Confidential Medical Document"
   }
 }

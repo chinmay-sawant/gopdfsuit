@@ -6,18 +6,20 @@
     "watermark": ""
   },
   "title": {
-    "props": "font1:16:100:left:0:0:0:1",
+    "props": "Helvetica:16:100:left:0:0:0:1",
     "text": "   PATIENT REGISTRATION FORM"
   },
   "table": [
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:10:100:left:1:1:1:1",
+              "props": "Helvetica:10:100:left:1:1:1:1",
               "text": "SECTION A: PATIENT INFORMATION"
             }
           ]
@@ -26,16 +28,21 @@
     },
     {
       "maxcolumns": 4,
-      "columnwidths": [1, 2, 1, 2],
+      "columnwidths": [
+        1,
+        2,
+        1,
+        2
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "First Name:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Michael",
               "form_field": {
                 "type": "text",
@@ -44,11 +51,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Last Name:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Thompson",
               "form_field": {
                 "type": "text",
@@ -61,11 +68,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Middle Name:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "James",
               "form_field": {
                 "type": "text",
@@ -74,11 +81,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Date of Birth:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "03/15/1985",
               "form_field": {
                 "type": "text",
@@ -91,11 +98,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "SSN:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "***-**-4589",
               "form_field": {
                 "type": "text",
@@ -104,11 +111,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Patient ID:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "PT-2024-78542",
               "form_field": {
                 "type": "text",
@@ -122,16 +129,23 @@
     },
     {
       "maxcolumns": 6,
-      "columnwidths": [1, 0.5, 1, 0.5, 1, 0.5],
+      "columnwidths": [
+        1,
+        0.5,
+        1,
+        0.5,
+        1,
+        0.5
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Gender:"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -143,11 +157,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Male"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -159,11 +173,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Female"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -180,16 +194,25 @@
     },
     {
       "maxcolumns": 8,
-      "columnwidths": [1.5, 0.5, 1, 0.5, 1, 0.5, 1, 0.5],
+      "columnwidths": [
+        1.5,
+        0.5,
+        1,
+        0.5,
+        1,
+        0.5,
+        1,
+        0.5
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Marital Status:"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -201,11 +224,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Single"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -217,11 +240,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Married"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -233,11 +256,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Divorced"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -254,12 +277,14 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:10:100:left:1:1:1:1",
+              "props": "Helvetica:10:100:left:1:1:1:1",
               "text": "SECTION B: CONTACT INFORMATION"
             }
           ]
@@ -268,16 +293,19 @@
     },
     {
       "maxcolumns": 2,
-      "columnwidths": [1, 3],
+      "columnwidths": [
+        1,
+        3
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Street Address:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "4521 Oak Ridge Boulevard, Apt 12B",
               "form_field": {
                 "type": "text",
@@ -291,16 +319,19 @@
     },
     {
       "maxcolumns": 2,
-      "columnwidths": [1, 3],
+      "columnwidths": [
+        1,
+        3
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "City:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Austin",
               "form_field": {
                 "type": "text",
@@ -313,11 +344,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "State:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Texas",
               "form_field": {
                 "type": "text",
@@ -330,11 +361,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "ZIP Code:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "78745",
               "form_field": {
                 "type": "text",
@@ -348,16 +379,21 @@
     },
     {
       "maxcolumns": 4,
-      "columnwidths": [1, 2, 1, 2],
+      "columnwidths": [
+        1,
+        2,
+        1,
+        2
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Home Phone:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "(512) 555-1234",
               "form_field": {
                 "type": "text",
@@ -366,11 +402,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Cell Phone:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "(512) 555-9876",
               "form_field": {
                 "type": "text",
@@ -383,11 +419,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Work Phone:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "(512) 555-4567",
               "form_field": {
                 "type": "text",
@@ -396,11 +432,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Email:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "m.thompson@email.com",
               "form_field": {
                 "type": "text",
@@ -414,12 +450,14 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:10:100:left:1:1:1:1",
+              "props": "Helvetica:10:100:left:1:1:1:1",
               "text": "SECTION C: EMERGENCY CONTACT"
             }
           ]
@@ -428,16 +466,21 @@
     },
     {
       "maxcolumns": 4,
-      "columnwidths": [1, 2, 1, 2],
+      "columnwidths": [
+        1,
+        2,
+        1,
+        2
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Contact Name:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Sarah Thompson",
               "form_field": {
                 "type": "text",
@@ -446,11 +489,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Relationship:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Spouse",
               "form_field": {
                 "type": "text",
@@ -463,11 +506,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Phone Number:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "(512) 555-2468",
               "form_field": {
                 "type": "text",
@@ -476,11 +519,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Alt. Phone:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "(512) 555-1357",
               "form_field": {
                 "type": "text",
@@ -494,13 +537,15 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "height": 25,
           "row": [
             {
-              "props": "font1:10:100:left:1:1:1:0",
+              "props": "Helvetica:10:100:left:1:1:1:0",
               "text": "SECTION D: INSURANCE INFORMATION"
             }
           ]
@@ -509,16 +554,21 @@
     },
     {
       "maxcolumns": 4,
-      "columnwidths": [1.5, 2, 1.5, 2],
+      "columnwidths": [
+        1.5,
+        2,
+        1.5,
+        2
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Insurance Company:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Blue Cross Blue Shield",
               "form_field": {
                 "type": "text",
@@ -527,11 +577,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Policy Number:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "BCB-78542136",
               "form_field": {
                 "type": "text",
@@ -544,11 +594,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Group Number:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "GRP-45892",
               "form_field": {
                 "type": "text",
@@ -557,11 +607,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Subscriber ID:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "SUB-123456789",
               "form_field": {
                 "type": "text",
@@ -574,11 +624,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Subscriber Name:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Michael J. Thompson",
               "form_field": {
                 "type": "text",
@@ -587,11 +637,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Subscriber DOB:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "03/15/1985",
               "form_field": {
                 "type": "text",
@@ -605,12 +655,14 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:10:100:left:1:1:1:1",
+              "props": "Helvetica:10:100:left:1:1:1:1",
               "text": "SECTION E: MEDICAL HISTORY"
             }
           ]
@@ -619,16 +671,21 @@
     },
     {
       "maxcolumns": 4,
-      "columnwidths": [1.5, 2, 1.5, 2],
+      "columnwidths": [
+        1.5,
+        2,
+        1.5,
+        2
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Primary Physician:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Dr. Robert Williams",
               "form_field": {
                 "type": "text",
@@ -637,11 +694,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Physician Phone:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "(512) 555-8900",
               "form_field": {
                 "type": "text",
@@ -654,11 +711,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Preferred Pharmacy:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "CVS Pharmacy #4521",
               "form_field": {
                 "type": "text",
@@ -667,11 +724,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Pharmacy Phone:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "(512) 555-7890",
               "form_field": {
                 "type": "text",
@@ -685,12 +742,14 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Do you have any of the following conditions? (Check all that apply)"
             }
           ]
@@ -699,12 +758,19 @@
     },
     {
       "maxcolumns": 6,
-      "columnwidths": [0.3, 1.2, 0.3, 1.2, 0.3, 1.2],
+      "columnwidths": [
+        0.3,
+        1.2,
+        0.3,
+        1.2,
+        0.3,
+        1.2
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -714,11 +780,11 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Diabetes"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -728,11 +794,11 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Hypertension"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -742,7 +808,7 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Heart Disease"
             }
           ]
@@ -750,7 +816,7 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -760,11 +826,11 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Asthma"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -774,11 +840,11 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Arthritis"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -788,7 +854,7 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Cancer"
             }
           ]
@@ -796,7 +862,7 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -806,11 +872,11 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Thyroid Disorder"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -820,11 +886,11 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Kidney Disease"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -834,7 +900,7 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Liver Disease"
             }
           ]
@@ -842,7 +908,7 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -852,11 +918,11 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Depression"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -866,11 +932,11 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Anxiety"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -880,7 +946,7 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Other"
             }
           ]
@@ -889,16 +955,19 @@
     },
     {
       "maxcolumns": 2,
-      "columnwidths": [1, 4],
+      "columnwidths": [
+        1,
+        4
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Current Medications:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Metformin 500mg, Lisinopril 10mg, Aspirin 81mg",
               "form_field": {
                 "type": "text",
@@ -911,11 +980,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Known Allergies:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Penicillin, Shellfish",
               "form_field": {
                 "type": "text",
@@ -929,12 +998,14 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:10:100:left:1:1:1:1",
+              "props": "Helvetica:10:100:left:1:1:1:1",
               "text": "SECTION F: LIFESTYLE INFORMATION"
             }
           ]
@@ -943,16 +1014,23 @@
     },
     {
       "maxcolumns": 6,
-      "columnwidths": [1.5, 0.5, 1, 0.5, 1, 0.5],
+      "columnwidths": [
+        1.5,
+        0.5,
+        1,
+        0.5,
+        1,
+        0.5
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Do you smoke?"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -964,11 +1042,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Yes"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -980,11 +1058,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "No"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -1001,16 +1079,23 @@
     },
     {
       "maxcolumns": 6,
-      "columnwidths": [1.5, 0.5, 1, 0.5, 1, 0.5],
+      "columnwidths": [
+        1.5,
+        0.5,
+        1,
+        0.5,
+        1,
+        0.5
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Do you drink alcohol?"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -1022,11 +1107,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Yes"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -1038,11 +1123,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "No"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -1059,16 +1144,23 @@
     },
     {
       "maxcolumns": 6,
-      "columnwidths": [1.5, 0.5, 1, 0.5, 1, 0.5],
+      "columnwidths": [
+        1.5,
+        0.5,
+        1,
+        0.5,
+        1,
+        0.5
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Do you exercise?"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -1080,11 +1172,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Regularly"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -1096,11 +1188,11 @@
               }
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Occasionally"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "radio",
@@ -1117,12 +1209,14 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:10:100:left:1:1:1:1",
+              "props": "Helvetica:10:100:left:1:1:1:1",
               "text": "SECTION G: REASON FOR VISIT"
             }
           ]
@@ -1131,16 +1225,19 @@
     },
     {
       "maxcolumns": 2,
-      "columnwidths": [1.5, 4],
+      "columnwidths": [
+        1.5,
+        4
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:0",
+              "props": "Helvetica:9:100:left:1:1:1:0",
               "text": "Reason for Visit:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:0",
+              "props": "Helvetica:9:000:left:1:1:1:0",
               "text": "Annual Physical Examination",
               "form_field": {
                 "type": "text",
@@ -1153,11 +1250,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Symptoms Description:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Occasional fatigue, routine checkup for diabetes management",
               "form_field": {
                 "type": "text",
@@ -1170,11 +1267,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Symptom Duration:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "2-3 weeks",
               "form_field": {
                 "type": "text",
@@ -1188,12 +1285,14 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:10:100:left:1:1:1:1",
+              "props": "Helvetica:10:100:left:1:1:1:1",
               "text": "SECTION H: CONSENT & AUTHORIZATION"
             }
           ]
@@ -1202,12 +1301,15 @@
     },
     {
       "maxcolumns": 2,
-      "columnwidths": [0.2, 5],
+      "columnwidths": [
+        0.2,
+        5
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -1217,7 +1319,7 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "I consent to receive medical treatment as deemed necessary by my healthcare provider."
             }
           ]
@@ -1225,7 +1327,7 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -1235,7 +1337,7 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "I acknowledge receipt of the Notice of Privacy Practices (HIPAA)."
             }
           ]
@@ -1243,7 +1345,7 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -1253,7 +1355,7 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "I authorize the release of medical information for billing and insurance purposes."
             }
           ]
@@ -1261,7 +1363,7 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": "",
               "form_field": {
                 "type": "checkbox",
@@ -1271,7 +1373,7 @@
               }
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "I accept financial responsibility for charges not covered by my insurance."
             }
           ]
@@ -1280,16 +1382,21 @@
     },
     {
       "maxcolumns": 4,
-      "columnwidths": [1.2, 2.5, 0.8, 1.5],
+      "columnwidths": [
+        1.2,
+        2.5,
+        0.8,
+        1.5
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Patient Signature:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Michael J. Thompson",
               "form_field": {
                 "type": "text",
@@ -1298,11 +1405,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Date:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "11/26/2025",
               "form_field": {
                 "type": "text",
@@ -1315,11 +1422,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Guardian Name:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "N/A",
               "form_field": {
                 "type": "text",
@@ -1328,11 +1435,11 @@
               }
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Relationship:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "N/A",
               "form_field": {
                 "type": "text",
@@ -1346,12 +1453,14 @@
     },
     {
       "maxcolumns": 1,
-      "columnwidths": [1],
+      "columnwidths": [
+        1
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:7:010:left:1:1:1:1",
+              "props": "Helvetica:7:010:left:1:1:1:1",
               "text": "FOR OFFICE USE ONLY"
             }
           ]
@@ -1360,16 +1469,21 @@
     },
     {
       "maxcolumns": 4,
-      "columnwidths": [1, 2, 1, 2],
+      "columnwidths": [
+        1,
+        2,
+        1,
+        2
+      ],
       "rows": [
         {
           "row": [
             {
-              "props": "font1:8:100:left:1:1:1:1",
+              "props": "Helvetica:8:100:left:1:1:1:1",
               "text": "Received By:"
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Jane Smith, RN",
               "form_field": {
                 "type": "text",
@@ -1378,11 +1492,11 @@
               }
             },
             {
-              "props": "font1:8:100:left:1:1:1:1",
+              "props": "Helvetica:8:100:left:1:1:1:1",
               "text": "Date/Time:"
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "11/26/2025 09:30 AM",
               "form_field": {
                 "type": "text",
@@ -1395,11 +1509,11 @@
         {
           "row": [
             {
-              "props": "font1:8:100:left:1:1:1:1",
+              "props": "Helvetica:8:100:left:1:1:1:1",
               "text": "Verified By:"
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Mary Johnson",
               "form_field": {
                 "type": "text",
@@ -1408,11 +1522,11 @@
               }
             },
             {
-              "props": "font1:8:100:left:1:1:1:1",
+              "props": "Helvetica:8:100:left:1:1:1:1",
               "text": "MRN:"
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "MRN-2024-785421",
               "form_field": {
                 "type": "text",
@@ -1427,7 +1541,7 @@
   ],
   "image": [],
   "footer": {
-    "font": "font1:7:000:center",
+    "font": "Helvetica:7:000:center",
     "text": "CONFIDENTIAL PATIENT INFORMATION - PROTECTED UNDER HIPAA"
   }
 }
