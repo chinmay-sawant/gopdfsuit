@@ -28,17 +28,28 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	x := pageDims.Width * 0.20
 	y := pageDims.Height * 0.30
 
+	// Track characters for font subsetting
+	registry := GetFontRegistry()
+	if registry.HasFont("Helvetica") {
+		registry.MarkCharsUsed("Helvetica", text)
+	}
+
 	// 45 degree rotation matrix components
 	c := 0.7071
 	s := 0.7071
+
+	// Use props for proper font encoding
+	watermarkProps := models.Props{FontName: "Helvetica", FontSize: fontSize}
 
 	contentStream.WriteString("q\n")
 	// Light gray fill/stroke
 	contentStream.WriteString("0.85 0.85 0.85 rg 0.85 0.85 0.85 RG\n")
 	contentStream.WriteString("BT\n")
-	contentStream.WriteString(fmt.Sprintf("/F1 %d Tf\n", fontSize))
+	// Use getFontReference to handle PDF/A font substitution (Helvetica -> Liberation)
+	fontRef := getFontReference(watermarkProps)
+	contentStream.WriteString(fmt.Sprintf("%s %d Tf\n", fontRef, fontSize))
 	contentStream.WriteString(fmt.Sprintf("%s %s %s %s %s %s Tm\n", fmtNum(c), fmtNum(s), fmtNum(-s), fmtNum(c), fmtNum(x), fmtNum(y)))
-	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(text)))
+	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(watermarkProps, text)))
 	contentStream.WriteString("ET\nQ\n")
 }
 
@@ -83,7 +94,7 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps models.Props, pageManager *PageManager, cellImageObjectIDs map[string]int) {
 	// Check if title has an embedded table
 	if title.Table != nil && len(title.Table.Rows) > 0 {
-		drawTitleTable(contentStream, title.Table, pageManager, cellImageObjectIDs, title.BgColor, title.TextColor)
+		drawTitleTable(contentStream, title.Table, pageManager, cellImageObjectIDs, title.BgColor, title.TextColor, titleProps)
 		return
 	}
 
@@ -115,8 +126,8 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 		contentStream.WriteString("0 0 0 rg\n")
 	}
 
-	// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
-	textWidth := float64(len(title.Text)) * float64(titleProps.FontSize) * 0.5
+	// Calculate approximate text width
+	textWidth := EstimateTextWidth(titleProps.FontName, title.Text, float64(titleProps.FontSize))
 
 	// Calculate available width (page width minus both margins)
 	availableWidth := pageManager.PageDimensions.Width - 2*margin
@@ -136,12 +147,24 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	pageManager.CurrentYPos -= float64(titleProps.FontSize)
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(titleX), fmtNum(pageManager.CurrentYPos)))
-	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", title.Text))
+	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(titleProps, title.Text)))
 	contentStream.WriteString("ET\n")
+
+	// Add Link Annotation if provided
+	if title.Link != "" {
+		// Calculate approximate bounding box for the text
+		// BBox: [titleX, titleY, titleX+textWidth, titleY+fontSize]
+		// Use Y pos (baseline) + descent (approx)
+		rectX := titleX
+		rectY := pageManager.CurrentYPos - float64(titleProps.FontSize)*0.2 // Slightly below baseline
+		rectW := textWidth
+		rectH := float64(titleProps.FontSize) * 1.2
+		pageManager.AddLinkAnnotation(rectX, rectY, rectW, rectH, title.Link)
+	}
 }
 
 // drawTitleTable renders an embedded table within the title section (no borders by default)
-func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageManager *PageManager, cellImageObjectIDs map[string]int, defaultBgColor, defaultTextColor string) {
+func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageManager *PageManager, cellImageObjectIDs map[string]int, defaultBgColor, defaultTextColor string, defaultProps models.Props) {
 	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
 	baseRowHeight := float64(25) // Standard row height
 
@@ -227,7 +250,15 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				break
 			}
 
-			cellProps := parseProps(cell.Props)
+			// Capture cell coordinates for link
+			// Capture cell coordinates for link
+
+			var cellProps models.Props
+			if cell.Props == "" {
+				cellProps = defaultProps
+			} else {
+				cellProps = parseProps(cell.Props)
+			}
 			cellX := currentX
 
 			// Use cell-specific width if provided, otherwise use column width
@@ -286,7 +317,8 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					// Draw image name
 					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
 						contentStream.WriteString("BT\n")
-						contentStream.WriteString("/F1 8 Tf\n")
+						fontRef := getFontReference(models.Props{FontName: "Helvetica"})
+						contentStream.WriteString(fmt.Sprintf("%s 8 Tf\n", fontRef))
 						contentStream.WriteString("0.5 0.5 0.5 rg\n")
 						textX := imgX + imgWidth/2 - float64(len(cell.Image.ImageName)*2)
 						textY := imgY + imgHeight/2
@@ -318,7 +350,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				}
 
 				// Calculate approximate text width
-				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
+				textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize))
 
 				var textX float64
 				switch cellProps.Alignment {
@@ -354,7 +386,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
 				}
 
-				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
+				contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(cellProps, cell.Text)))
 				contentStream.WriteString("ET\n")
 			}
 
@@ -378,6 +410,13 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 						cellProps.Borders[3], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight)))
 				}
 				contentStream.WriteString("Q\n")
+			}
+
+			// Add Link Annotation if provided
+			if cell.Link != "" {
+				// Use captured cellStartX
+				linkY := pageManager.CurrentYPos - cellHeight
+				pageManager.AddLinkAnnotation(cellX, linkY, cellWidth, cellHeight, cell.Link)
 			}
 		}
 
@@ -523,7 +562,8 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					// Draw image name
 					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
 						contentStream.WriteString("BT\n")
-						contentStream.WriteString("/F1 8 Tf\n")
+						fontRef := getFontReference(models.Props{FontName: "Helvetica"})
+						contentStream.WriteString(fmt.Sprintf("%s 8 Tf\n", fontRef))
 						contentStream.WriteString("0.5 0.5 0.5 rg\n")
 						textX := imgX + imgWidth/2 - float64(len(cell.Image.ImageName)*2)
 						textY := imgY + imgHeight/2
@@ -586,8 +626,8 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					contentStream.WriteString("0 0 0 rg\n")
 				}
 
-				// Calculate approximate text width (using average character width ratio of 0.5 for Helvetica)
-				textWidth := float64(len(cell.Text)) * float64(cellProps.FontSize) * 0.5
+				// Calculate approximate text width
+				textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize))
 
 				var textX float64
 				switch cellProps.Alignment {
@@ -628,7 +668,7 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 					contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
 				}
 
-				contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", cell.Text))
+				contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(cellProps, cell.Text)))
 				contentStream.WriteString("ET\n")
 			}
 
@@ -674,7 +714,7 @@ func drawSpacer(spacer models.Spacer, pageManager *PageManager) {
 }
 
 // drawFooter renders the document footer
-func drawFooter(contentStream *bytes.Buffer, footer models.Footer) {
+func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *PageManager) {
 	footerProps := parseProps(footer.Font)
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(footerProps))
@@ -688,16 +728,40 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer) {
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%d %d Td\n", footerX, footerY))
-	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", footer.Text))
+	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(footerProps, footer.Text)))
 	contentStream.WriteString("ET\n")
+
+	// Add Link Annotation if provided
+	if footer.Link != "" {
+		// Calculate approximate text width
+		// Using standard estimation for width since we don't have exact calc here easily without refactoring
+		// But footer is likely simple text.
+		textWidth := EstimateTextWidth(footerProps.FontName, footer.Text, float64(footerProps.FontSize))
+
+		rectX := float64(footerX)
+		rectY := float64(footerY) - float64(footerProps.FontSize)*0.2
+		rectW := textWidth
+		rectH := float64(footerProps.FontSize) * 1.2
+		pageManager.AddLinkAnnotation(rectX, rectY, rectW, rectH, footer.Link)
+	}
 }
 
 // drawPageNumber renders page number in bottom right corner
 func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions) {
 	pageText := fmt.Sprintf("Page %d of %d", currentPage, totalPages)
 
+	// Track characters for font subsetting
+	registry := GetFontRegistry()
+	if registry.HasFont("Helvetica") {
+		registry.MarkCharsUsed("Helvetica", pageText)
+	}
+
+	// Use props for proper font encoding
+	pageProps := models.Props{FontName: "Helvetica", FontSize: 10}
+
 	contentStream.WriteString("BT\n")
-	contentStream.WriteString("/F1 10 Tf\n") // Use Helvetica, 10pt
+	fontRef := getFontReference(pageProps)
+	contentStream.WriteString(fmt.Sprintf("%s 10 Tf\n", fontRef)) // Use Helvetica, 10pt
 
 	// Calculate text width for proper right alignment
 	textWidth := float64(len(pageText)) * 6 // Approximate character width for 10pt font
@@ -708,7 +772,7 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%s %d Td\n", fmtNum(pageNumberX), pageNumberY))
-	contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", pageText))
+	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(pageProps, pageText)))
 	contentStream.WriteString("ET\n")
 }
 
@@ -761,7 +825,8 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	// Add image name text in the center
 	if image.ImageName != "" {
 		contentStream.WriteString("BT\n")
-		contentStream.WriteString("/F1 10 Tf\n")
+		fontRef := getFontReference(models.Props{FontName: "Helvetica"})
+		contentStream.WriteString(fmt.Sprintf("%s 10 Tf\n", fontRef))
 		contentStream.WriteString("0.6 0.6 0.6 rg\n") // Gray text
 
 		// Center the text
@@ -772,6 +837,11 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 		contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
 		contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(image.ImageName)))
 		contentStream.WriteString("ET\n")
+	}
+
+	// Add Link Annotation if provided
+	if image.Link != "" {
+		pageManager.AddLinkAnnotation(imageX, imageY, imageWidth, imageHeight, image.Link)
 	}
 
 	pageManager.CurrentYPos -= (imageHeight + spacing)
@@ -824,7 +894,8 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 	widgetDict.WriteString(fmt.Sprintf(" /T (%s)", escapeText(field.Name)))
 	widgetDict.WriteString(" /F 4") // Print flag
 
-	if field.Type == "checkbox" {
+	switch field.Type {
+	case "checkbox":
 		widgetDict.WriteString(" /FT /Btn")
 
 		onState := "/Yes"
@@ -840,15 +911,15 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		// Checkbox Appearance Streams using 're' operator
 		// On Appearance (Box with X)
 		onAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S 2 2 m %s %s l 2 %s m %s 2 l S Q", fmtNum(w), fmtNum(h), fmtNum(w-2), fmtNum(h-2), fmtNum(h-2), fmtNum(w-2))
-		onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
+		onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
 
 		// Off Appearance (Empty Box)
 		offAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S Q", fmtNum(w), fmtNum(h))
-		offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
+		offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
 
 		widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /Yes %d 0 R /Off %d 0 R >> >>", onAPID, offAPID))
 
-	} else if field.Type == "radio" {
+	case "radio":
 		widgetDict.WriteString(" /FT /Btn /Ff 49152") // Radio button flag
 
 		onState := "/" + field.Value
@@ -864,10 +935,10 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		if field.Shape == "square" {
 			// Radio Appearance Streams (Square with dot) using 're' operator
 			onAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S 3 3 %s %s re f Q", fmtNum(w), fmtNum(h), fmtNum(w-6), fmtNum(h-6))
-			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
+			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
 
 			offAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S Q", fmtNum(w), fmtNum(h))
-			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
+			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
 
 			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
 		} else {
@@ -904,16 +975,16 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			onAP := fmt.Sprintf("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 %s %s cm\n%s\nB\nQ\nq\n0 0 0 rg\n1 0 0 1 %s %s cm\n%s\nf\nQ",
 				fmtNum(cx), fmtNum(cy), outerCirclePath,
 				fmtNum(cx), fmtNum(cy), innerCirclePath)
-			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
+			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
 
 			// OFF appearance: Light background fill + dark stroke (no inner dot)
 			offAP := fmt.Sprintf("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 %s %s cm\n%s\nB\nQ",
 				fmtNum(cx), fmtNum(cy), outerCirclePath)
-			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
+			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
 
 			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
 		}
-	} else if field.Type == "text" {
+	case "text":
 		widgetDict.WriteString(" /FT /Tx") // Text field
 		widgetDict.WriteString(fmt.Sprintf(" /V (%s)", escapeText(field.Value)))
 
@@ -926,8 +997,22 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			fontSize = 6
 		}
 
+		// Mark field value for font subsetting (critical for PDF/A compliance)
+		// Form field text is rendered in appearance streams using custom fonts
+		if field.Value != "" {
+			registry := GetFontRegistry()
+			if registry.HasFont("Helvetica") {
+				// PDF/A mode: Liberation font registered as Helvetica
+				registry.MarkCharsUsed("Helvetica", field.Value)
+			}
+		}
+
+		// Get the appropriate font reference for widgets (handles PDF/A mode)
+		widgetFontRef := getWidgetFontReference()
+
 		// Default Appearance string - used by viewer to render text
-		widgetDict.WriteString(fmt.Sprintf(" /DA (/Helv %s Tf 0 g)", fmtNum(fontSize)))
+		// Use proper font reference instead of hardcoded /Helv
+		widgetDict.WriteString(fmt.Sprintf(" /DA (%s %s Tf 0 g)", widgetFontRef, fmtNum(fontSize)))
 
 		// Build appearance stream: border + text properly structured
 		// Use /Tx BMC ... EMC to mark text content area (viewer replaces this when editing)
@@ -940,20 +1025,43 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		if field.Value != "" {
 			textY := (h - fontSize) / 2
 			textX := 2.0
-			apStream.WriteString(fmt.Sprintf("q BT /Helv %s Tf 0 g %s %s Td (%s) Tj ET Q ", fmtNum(fontSize), fmtNum(textX), fmtNum(textY), escapeText(field.Value)))
+			// Use proper encoding for field value
+			fieldProps := models.Props{FontName: "Helvetica", FontSize: int(fontSize)}
+			encodedValue := formatTextForPDF(fieldProps, field.Value)
+			// Use proper font reference in appearance stream
+			apStream.WriteString(fmt.Sprintf("q BT %s %s Tf 0 g %s %s Td %s Tj ET Q ", widgetFontRef, fmtNum(fontSize), fmtNum(textX), fmtNum(textY), encodedValue))
 		}
 		apStream.WriteString("EMC")
 		apContent := apStream.String()
 
-		// Create appearance XObject with font resources
-		// Use full metrics for Arlington compatibility, simple definition otherwise
-		var helveticaFont string
-		if pageManager.ArlingtonCompatible {
-			helveticaFont = GetHelveticaFontResourceString()
+		// Create appearance XObject
+		// IMPORTANT: Form XObjects must declare all resources they use in their own Resources dictionary
+		// This is required for PDF/A-4 compliance - resources cannot be inherited from page level
+		var apObjContent string
+		if getWidgetFontName() == "" {
+			// PDF/A mode: Get the font object ID from the font registry
+			// The widgetFontRef (e.g., /CF2000) references a custom font that must be in Resources
+			fontObjID := getWidgetFontObjectID()
+			if fontObjID > 0 {
+				// Include the font reference in the XObject's Resources dictionary
+				apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << %s %d 0 R >> >> /Length %d >> stream\n%s\nendstream",
+					fmtNum(w), fmtNum(h), widgetFontRef, fontObjID, len(apContent), apContent)
+			} else {
+				// Fallback: empty resources (should not happen in PDF/A mode)
+				apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream",
+					fmtNum(w), fmtNum(h), len(apContent), apContent)
+			}
 		} else {
-			helveticaFont = GetSimpleHelveticaFontResourceString()
+			// Standard mode: Embed Helvetica definition in XObject resources
+			var helveticaFont string
+			if pageManager.ArlingtonCompatible {
+				helveticaFont = GetHelveticaFontResourceString()
+			} else {
+				helveticaFont = GetSimpleHelveticaFontResourceString()
+			}
+			apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << /F1 %s >> >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), helveticaFont, len(apContent), apContent)
 		}
-		apID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << /Helv %s >> >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), helveticaFont, len(apContent), apContent))
+		apID := pageManager.AddExtraObject(apObjContent)
 
 		widgetDict.WriteString(fmt.Sprintf(" /AP << /N %d 0 R >>", apID))
 	}

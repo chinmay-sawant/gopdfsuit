@@ -3,10 +3,13 @@
     "pageBorder": "1:1:1:1",
     "page": "A4",
     "pageAlignment": 1,
-    "watermark": ""
+    "watermark": "",
+    "pdfaCompliant": true,
+    "arlingtonCompatible": true,
+    "embedFonts": true
   },
   "title": {
-    "props": "font1:18:100:center:0:0:0:1",
+    "props": "Helvetica:18:100:center:0:0:0:1",
     "text": "LIBRARY BOOK RECEIVING FORM",
     "table": {
       "maxcolumns": 3,
@@ -45,7 +48,7 @@
         {
           "row": [
             {
-              "props": "font1:11:100:left:1:1:1:1",
+              "props": "Helvetica:11:100:left:1:1:1:1",
               "text": "SECTION A: LIBRARY INFORMATION",
               "bgcolor": "#E8F4FD",
               "textcolor": "#1565C0"
@@ -66,19 +69,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Library Name:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Central City Public Library"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Branch Code:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "CCPL-MAIN-001"
             }
           ]
@@ -86,19 +89,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Receiving Date:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "12/31/2025"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Receipt Number:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "REC-2025-087542"
             }
           ]
@@ -114,7 +117,7 @@
         {
           "row": [
             {
-              "props": "font1:11:100:left:1:1:1:1",
+              "props": "Helvetica:11:100:left:1:1:1:1",
               "text": "SECTION B: BOOK DETAILS",
               "bgcolor": "#E8F4FD",
               "textcolor": "#1565C0"
@@ -135,19 +138,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Book Title:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "The Art of Programming"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "ISBN:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "978-3-16-148410-0"
             }
           ]
@@ -155,19 +158,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Author:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Dr. Jonathan Mitchell"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Publisher:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "TechBooks Publishing Inc."
             }
           ]
@@ -175,19 +178,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Edition:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "3rd Edition"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Publication Year:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "2024"
             }
           ]
@@ -195,19 +198,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Category:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Computer Science"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Call Number:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "005.133 MIT"
             }
           ]
@@ -215,19 +218,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Accession No:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "ACC-2025-004521"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Barcode ID:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "LIB-78542136987"
             }
           ]
@@ -243,7 +246,7 @@
         {
           "row": [
             {
-              "props": "font1:11:100:left:1:1:1:1",
+              "props": "Helvetica:11:100:left:1:1:1:1",
               "text": "SECTION C: ACQUISITION DETAILS",
               "bgcolor": "#E8F4FD",
               "textcolor": "#1565C0"
@@ -266,27 +269,27 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Acquisition Type:"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Purchase"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Donation"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": ""
             }
           ]
@@ -305,19 +308,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Vendor/Donor:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "BookWorld Distributors LLC"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Invoice Number:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "INV-BWD-2025-4521"
             }
           ]
@@ -325,19 +328,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Purchase Price:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "$45.99"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Order Date:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "12/15/2025"
             }
           ]
@@ -353,7 +356,7 @@
         {
           "row": [
             {
-              "props": "font1:11:100:left:1:1:1:1",
+              "props": "Helvetica:11:100:left:1:1:1:1",
               "text": "SECTION D: CONDITION ASSESSMENT",
               "bgcolor": "#E8F4FD",
               "textcolor": "#1565C0"
@@ -378,35 +381,35 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Book Condition:"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "New"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Good"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Fair"
             },
             {
-              "props": "font1:9:000:center:1:1:1:1",
+              "props": "Helvetica:9:000:center:1:1:1:1",
               "text": ""
             }
           ]
@@ -422,7 +425,7 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Inspection Checklist:"
             }
           ]
@@ -443,27 +446,27 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Cover Intact"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Spine Undamaged"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "All Pages Present"
             }
           ]
@@ -471,27 +474,27 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Binding Secure"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Dust Jacket Present"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "CD/Media Included"
             }
           ]
@@ -508,11 +511,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Condition Notes:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Book received in excellent condition. No visible damage or defects noted."
             }
           ]
@@ -528,7 +531,7 @@
         {
           "row": [
             {
-              "props": "font1:11:100:left:1:1:1:1",
+              "props": "Helvetica:11:100:left:1:1:1:1",
               "text": "SECTION E: PROCESSING INFORMATION",
               "bgcolor": "#E8F4FD",
               "textcolor": "#1565C0"
@@ -549,19 +552,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Received By:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Emily Rodriguez"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Employee ID:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "EMP-LIB-4521"
             }
           ]
@@ -569,19 +572,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Shelf Location:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Floor 2, Aisle C, Shelf 14"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Date Cataloged:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "12/31/2025"
             }
           ]
@@ -597,7 +600,7 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Processing Tasks Completed:"
             }
           ]
@@ -616,19 +619,19 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Library Stamp Applied"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Spine Label Attached"
             }
           ]
@@ -636,19 +639,19 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Barcode Label Applied"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Added to Catalog System"
             }
           ]
@@ -656,19 +659,19 @@
         {
           "row": [
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Security Strip Inserted"
             },
             {
-              "props": "font1:8:000:center:1:1:1:1",
+              "props": "Helvetica:8:000:center:1:1:1:1",
               "text": ""
             },
             {
-              "props": "font1:8:000:left:1:1:1:1",
+              "props": "Helvetica:8:000:left:1:1:1:1",
               "text": "Protective Cover Applied"
             }
           ]
@@ -684,7 +687,7 @@
         {
           "row": [
             {
-              "props": "font1:11:100:left:1:1:1:1",
+              "props": "Helvetica:11:100:left:1:1:1:1",
               "text": "SECTION F: AUTHORIZATION",
               "bgcolor": "#E8F4FD",
               "textcolor": "#1565C0"
@@ -705,19 +708,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Librarian Signature:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Emily Rodriguez"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Date:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "12/31/2025"
             }
           ]
@@ -725,19 +728,19 @@
         {
           "row": [
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Supervisor Approval:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "Dr. Margaret Chen"
             },
             {
-              "props": "font1:9:100:left:1:1:1:1",
+              "props": "Helvetica:9:100:left:1:1:1:1",
               "text": "Date:"
             },
             {
-              "props": "font1:9:000:left:1:1:1:1",
+              "props": "Helvetica:9:000:left:1:1:1:1",
               "text": "12/31/2025"
             }
           ]
@@ -753,7 +756,7 @@
         {
           "row": [
             {
-              "props": "font1:11:100:left:1:1:1:1",
+              "props": "Helvetica:11:100:left:1:1:1:1",
               "text": "SECTION G: IDENTIFICATION CODES",
               "bgcolor": "#FFF3E0",
               "textcolor": "#E65100"
@@ -772,11 +775,11 @@
         {
           "row": [
             {
-              "props": "font1:9:100:center:1:1:1:0",
+              "props": "Helvetica:9:100:center:1:1:1:0",
               "text": "QR CODE - CATALOG LINK"
             },
             {
-              "props": "font1:9:100:center:1:1:1:0",
+              "props": "Helvetica:9:100:center:1:1:1:0",
               "text": "BARCODE - BOOK ID"
             }
           ]
@@ -796,7 +799,7 @@
         {
           "row": [
             {
-              "props": "font1:9:000:center:1:1:0:1",
+              "props": "Helvetica:9:000:center:1:1:0:1",
               "height": 150,
               "image": {
                 "imagename": "qr_code",
@@ -806,7 +809,7 @@
               }
             },
             {
-              "props": "font1:9:000:center:1:1:0:1",
+              "props": "Helvetica:9:000:center:1:1:0:1",
               "height": 150,
               "image": {
                 "imagename": "barcode",
@@ -829,11 +832,11 @@
         {
           "row": [
             {
-              "props": "font1:7:000:center:1:1:1:1",
+              "props": "Helvetica:7:000:center:1:1:1:1",
               "text": "Scan for catalog entry"
             },
             {
-              "props": "font1:7:000:center:1:1:1:1",
+              "props": "Helvetica:7:000:center:1:1:1:1",
               "text": "LIB-78542136987"
             }
           ]
@@ -849,7 +852,7 @@
         {
           "row": [
             {
-              "props": "font1:7:010:center:1:1:1:1",
+              "props": "Helvetica:7:010:center:1:1:1:1",
               "text": "This document is property of Central City Public Library. For internal use only.",
               "bgcolor": "#F5F5F5"
             }
@@ -953,7 +956,7 @@
     }
   ],
   "footer": {
-    "font": "font1:7:000:center",
+    "font": "Helvetica:7:000:center",
     "text": "CENTRAL CITY PUBLIC LIBRARY - BOOK RECEIVING DEPARTMENT - Form LBR-2025"
   }
 }

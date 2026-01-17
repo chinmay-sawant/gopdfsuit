@@ -1,13 +1,24 @@
 package models
 
 type PDFTemplate struct {
-	Config   Config    `json:"config"`
-	Title    Title     `json:"title"`
-	Table    []Table   `json:"table"`
-	Spacer   []Spacer  `json:"spacer,omitempty"`
-	Image    []Image   `json:"image,omitempty"`
-	Elements []Element `json:"elements,omitempty"` // Ordered elements (tables, spacers, images)
-	Footer   Footer    `json:"footer"`
+	Config    Config     `json:"config"`
+	Title     Title      `json:"title"`
+	Table     []Table    `json:"table"`
+	Spacer    []Spacer   `json:"spacer,omitempty"`
+	Image     []Image    `json:"image,omitempty"`
+	Elements  []Element  `json:"elements,omitempty"` // Ordered elements (tables, spacers, images)
+	Footer    Footer     `json:"footer"`
+	Bookmarks []Bookmark `json:"bookmarks,omitempty"` // Hierarchical bookmarks/outlines
+}
+
+// Bookmark represents a PDF outline entry for document navigation
+type Bookmark struct {
+	Title    string     `json:"title"`              // Display text in bookmark panel
+	Dest     string     `json:"dest,omitempty"`     // Named destination (matches cell link #dest)
+	Page     int        `json:"page,omitempty"`     // Target page number (1-based), used if Dest is empty
+	Y        float64    `json:"y,omitempty"`        // Y position on target page (from top)
+	Children []Bookmark `json:"children,omitempty"` // Nested bookmarks for hierarchical structure
+	Open     bool       `json:"open,omitempty"`     // Whether children are expanded by default
 }
 
 type Spacer struct {
@@ -23,25 +34,18 @@ type Element struct {
 }
 
 type Config struct {
-	PageBorder          string           `json:"pageBorder"`
-	Page                string           `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
-	PageAlignment       int              `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
-	Watermark           string           `json:"watermark,omitempty"`           // Optional diagonal watermark text
-	ArlingtonCompatible bool             `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
-	Bookmarks           []Bookmark       `json:"bookmarks,omitempty"`           // Document outline/bookmarks for navigation
-	Security            *SecurityConfig  `json:"security,omitempty"`            // Password protection and encryption settings
-	PDFA                *PDFAConfig      `json:"pdfa,omitempty"`                // PDF/A compliance settings
-	Signature           *SignatureConfig `json:"signature,omitempty"`           // Digital signature settings
-}
-
-// Bookmark represents a PDF outline entry for document navigation
-type Bookmark struct {
-	Title    string     `json:"title"`              // Display text in bookmark panel
-	Dest     string     `json:"dest,omitempty"`     // Named destination (matches cell link #dest)
-	Page     int        `json:"page,omitempty"`     // Target page number (1-based), used if Dest is empty
-	Y        float64    `json:"y,omitempty"`        // Y position on target page (from top)
-	Children []Bookmark `json:"children,omitempty"` // Nested bookmarks for hierarchical structure
-	Open     bool       `json:"open,omitempty"`     // Whether children are expanded by default
+	PageBorder          string             `json:"pageBorder"`
+	Page                string             `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
+	PageAlignment       int                `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
+	Watermark           string             `json:"watermark,omitempty"`           // Optional diagonal watermark text
+	ArlingtonCompatible bool               `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
+	Bookmarks           []Bookmark         `json:"bookmarks,omitempty"`           // Document outline/bookmarks for navigation
+	Security            *SecurityConfig    `json:"security,omitempty"`            // Password protection and encryption settings
+	PDFA                *PDFAConfig        `json:"pdfa,omitempty"`                // PDF/A compliance settings
+	Signature           *SignatureConfig   `json:"signature,omitempty"`           // Digital signature settings
+	EmbedFonts          *bool              `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
+	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`         // Custom TTF/OTF fonts to embed
+	PDFACompliant       bool               `json:"pdfaCompliant,omitempty"`       // Enable PDF/A-4 compliance mode (PDF 2.0, requires all fonts to be embedded via Liberation fonts)
 }
 
 // SecurityConfig holds PDF encryption and permission settings
@@ -92,6 +96,13 @@ type SignatureConfig struct {
 	Name        string `json:"name,omitempty"`        // Signer name (overrides certificate CN)
 }
 
+// CustomFontConfig specifies a custom font to embed in the PDF
+type CustomFontConfig struct {
+	Name     string `json:"name"`               // Reference name used in props (e.g., "MyFont")
+	FilePath string `json:"filePath,omitempty"` // Path to TTF/OTF file (server-side)
+	FontData string `json:"fontData,omitempty"` // Base64-encoded font data (alternative to FilePath)
+}
+
 type Title struct {
 	Props string `json:"props"`
 	Text  string `json:"text"`
@@ -102,6 +113,8 @@ type Title struct {
 	BgColor string `json:"bgcolor,omitempty"`
 	// TextColor is the text color for the title text.
 	TextColor string `json:"textcolor,omitempty"`
+	// Link URL for the title text
+	Link string `json:"link,omitempty"`
 }
 
 // TitleTable represents an embedded table within the title section
@@ -175,11 +188,15 @@ type Image struct {
 	ImageData string  `json:"imagedata"` // Base64 encoded image data
 	Width     float64 `json:"width"`
 	Height    float64 `json:"height"`
+	// Link URL for the image
+	Link string `json:"link,omitempty"`
 }
 
 type Footer struct {
 	Font string `json:"font"`
 	Text string `json:"text"`
+	// Link URL for the footer text
+	Link string `json:"link,omitempty"`
 }
 
 type Props struct {

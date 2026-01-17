@@ -3,10 +3,13 @@
         "pageBorder": "0:0:0:0",
         "page": "A4",
         "pageAlignment": 1,
-        "watermark": ""
+        "watermark": "",
+        "pdfaCompliant": true,
+        "arlingtonCompatible": true,
+        "embedFonts": true
     },
     "title": {
-        "props": "font1:18:100:center:0:0:0:0",
+        "props": "Helvetica:18:100:center:0:0:0:0",
         "text": "FINANCIAL REPORT",
         "table": {
             "maxcolumns": 1,
@@ -38,7 +41,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:12:100:left:1:1:1:1",
+                            "props": "Helvetica:12:100:left:1:1:1:1",
                             "text": "SECTION A: COMPANY INFORMATION",
                             "bgcolor": "#21618C",
                             "textcolor": "#FFFFFF"
@@ -59,22 +62,22 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Company Name:",
                             "bgcolor": "#F4F6F7"
                         },
                         {
-                            "props": "font1:10:000:left:0:0:0:1",
+                            "props": "Helvetica:10:000:left:0:0:0:1",
                             "text": "TechCorp Industries Inc.",
                             "bgcolor": "#F4F6F7"
                         },
                         {
-                            "props": "font1:10:100:left:0:0:0:1",
+                            "props": "Helvetica:10:100:left:0:0:0:1",
                             "text": "Report Period:",
                             "bgcolor": "#F4F6F7"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "Q4 2025",
                             "bgcolor": "#F4F6F7"
                         }
@@ -83,21 +86,21 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:0",
+                            "props": "Helvetica:10:100:left:1:0:0:0",
                             "text": "Address:",
                             "height": 26
                         },
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "123 Business Ave, ",
                             "height": 24
                         },
                         {
-                            "props": "font1:10:100:left:0:0:0:0",
+                            "props": "Helvetica:10:100:left:0:0:0:0",
                             "text": "Fiscal Year:"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:0",
+                            "props": "Helvetica:10:000:left:0:1:0:0",
                             "text": "2025"
                         }
                     ]
@@ -137,7 +140,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:12:100:left:1:1:1:1",
+                            "props": "Helvetica:12:100:left:1:1:1:1",
                             "text": "SECTION B: FINANCIAL SUMMARY",
                             "bgcolor": "#21618C",
                             "textcolor": "#FFFFFF"
@@ -156,12 +159,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Total Revenue",
                             "bgcolor": "#FFFFFF"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$2,450,000",
                             "bgcolor": "#FFFFFF"
                         }
@@ -170,12 +173,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Cost of Goods Sold",
                             "bgcolor": "#F4F6F7"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$1,225,000",
                             "bgcolor": "#F4F6F7"
                         }
@@ -184,12 +187,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Gross Profit",
                             "bgcolor": "#D4E6F1"
                         },
                         {
-                            "props": "font1:10:100:right:0:1:0:1",
+                            "props": "Helvetica:10:100:right:0:1:0:1",
                             "text": "$1,225,000",
                             "bgcolor": "#D4E6F1"
                         }
@@ -198,12 +201,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Operating Expenses",
                             "bgcolor": "#FFFFFF"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$750,000",
                             "bgcolor": "#FFFFFF"
                         }
@@ -212,12 +215,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Research & Development",
                             "bgcolor": "#F4F6F7"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$200,000",
                             "bgcolor": "#F4F6F7"
                         }
@@ -226,12 +229,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Marketing & Sales",
                             "bgcolor": "#FFFFFF"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$150,000",
                             "bgcolor": "#FFFFFF"
                         }
@@ -240,12 +243,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Administrative Expenses",
                             "bgcolor": "#F4F6F7"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$100,000",
                             "bgcolor": "#F4F6F7"
                         }
@@ -254,12 +257,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Depreciation & Amortization",
                             "bgcolor": "#FFFFFF"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$50,000",
                             "bgcolor": "#FFFFFF"
                         }
@@ -268,12 +271,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Interest Expense",
                             "bgcolor": "#F4F6F7"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$25,000",
                             "bgcolor": "#F4F6F7"
                         }
@@ -282,12 +285,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Taxes",
                             "bgcolor": "#FFFFFF"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$75,000",
                             "bgcolor": "#FFFFFF"
                         }
@@ -296,12 +299,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:11:100:left:1:0:1:1",
+                            "props": "Helvetica:11:100:left:1:0:1:1",
                             "text": "Net Income",
                             "bgcolor": "#A9CCE3"
                         },
                         {
-                            "props": "font1:11:100:right:0:1:1:1",
+                            "props": "Helvetica:11:100:right:0:1:1:1",
                             "text": "$125,000",
                             "bgcolor": "#A9CCE3"
                         }
@@ -310,12 +313,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Earnings Per Share",
                             "bgcolor": "#FFFFFF"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$2.50",
                             "bgcolor": "#FFFFFF"
                         }
@@ -324,12 +327,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Total Assets",
                             "bgcolor": "#D4E6F1"
                         },
                         {
-                            "props": "font1:10:100:right:0:1:0:1",
+                            "props": "Helvetica:10:100:right:0:1:0:1",
                             "text": "$5,000,000",
                             "bgcolor": "#D4E6F1"
                         }
@@ -338,12 +341,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:0:0:1",
+                            "props": "Helvetica:10:000:left:1:0:0:1",
                             "text": "Total Liabilities",
                             "bgcolor": "#FFFFFF"
                         },
                         {
-                            "props": "font1:10:000:right:0:1:0:1",
+                            "props": "Helvetica:10:000:right:0:1:0:1",
                             "text": "$2,500,000",
                             "bgcolor": "#FFFFFF"
                         }
@@ -352,12 +355,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Shareholders' Equity",
                             "bgcolor": "#D4E6F1"
                         },
                         {
-                            "props": "font1:10:100:right:0:1:0:1",
+                            "props": "Helvetica:10:100:right:0:1:0:1",
                             "text": "$2,500,000",
                             "bgcolor": "#D4E6F1"
                         }
@@ -374,7 +377,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:12:100:left:1:1:1:1",
+                            "props": "Helvetica:12:100:left:1:1:1:1",
                             "text": "SECTION C: CHARTS",
                             "bgcolor": "#21618C",
                             "textcolor": "#FFFFFF"
@@ -393,12 +396,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:center:1:1:1:0",
+                            "props": "Helvetica:10:100:center:1:1:1:0",
                             "text": "REVENUE BREAKDOWN",
                             "bgcolor": "#F4F6F7"
                         },
                         {
-                            "props": "font1:10:100:center:1:1:1:0",
+                            "props": "Helvetica:10:100:center:1:1:1:0",
                             "text": "EXPENSE DISTRIBUTION",
                             "bgcolor": "#F4F6F7"
                         }
@@ -419,7 +422,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:9:000:center:1:1:0:1",
+                            "props": "Helvetica:9:000:center:1:1:0:1",
                             "height": 200,
                             "image": {
                                 "imagename": "bar_chart",
@@ -429,7 +432,7 @@
                             }
                         },
                         {
-                            "props": "font1:9:000:center:1:1:0:1",
+                            "props": "Helvetica:9:000:center:1:1:0:1",
                             "height": 200,
                             "image": {
                                 "imagename": "pie_chart",
@@ -452,12 +455,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:8:010:center:1:1:0:1",
+                            "props": "Helvetica:8:010:center:1:1:0:1",
                             "text": "Figure 1: Quarterly revenue comparison by region",
                             "textcolor": "#566573"
                         },
                         {
-                            "props": "font1:8:010:center:1:1:0:1",
+                            "props": "Helvetica:8:010:center:1:1:0:1",
                             "text": "Figure 2: Breakdown of operating expenses",
                             "textcolor": "#566573"
                         }
@@ -517,7 +520,7 @@
         }
     ],
     "footer": {
-        "font": "font1:8:000:center",
+        "font": "Helvetica:8:000:center",
         "text": "TECHCORP INDUSTRIES INC. | FINANCIAL REPORT Q4 2025 | CONFIDENTIAL"
     }
 }

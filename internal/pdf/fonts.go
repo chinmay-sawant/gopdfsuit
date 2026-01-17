@@ -1,7 +1,11 @@
 package pdf
 
 import (
+	"bytes"
+	"compress/zlib"
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
@@ -545,7 +549,7 @@ func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int)
 // GetAvailableFonts returns the list of available fonts for PDF generation.
 // This includes the standard PDF Type 1 fonts and commonly used fonts.
 func GetAvailableFonts() []models.FontInfo {
-	return []models.FontInfo{
+	fonts := []models.FontInfo{
 		// Standard PDF Type 1 Fonts - Helvetica family (F1-F4)
 		{ID: "Helvetica", Name: "Helvetica", DisplayName: "Helvetica", Reference: "/F1"},
 		{ID: "Helvetica-Bold", Name: "Helvetica-Bold", DisplayName: "Helvetica Bold", Reference: "/F2"},
@@ -568,4 +572,360 @@ func GetAvailableFonts() []models.FontInfo {
 		{ID: "Symbol", Name: "Symbol", DisplayName: "Symbol", Reference: "/F13"},
 		{ID: "ZapfDingbats", Name: "ZapfDingbats", DisplayName: "Zapf Dingbats", Reference: "/F14"},
 	}
+
+	// Add registered custom fonts
+	registry := GetFontRegistry()
+	customFonts := registry.GetAllFonts()
+	for _, f := range customFonts {
+		fonts = append(fonts, models.FontInfo{
+			ID:          f.Name,
+			Name:        f.Name,
+			DisplayName: f.Name + " (Custom)",
+			Reference:   registry.GetFontReference(f.Name),
+		})
+	}
+
+	return fonts
+}
+
+// ========== TrueType/OpenType Font Support for Custom Font Embedding ==========
+
+// GenerateTrueTypeFontObjects generates all PDF objects needed for a custom TrueType font
+// Returns map of object ID to object content
+func GenerateTrueTypeFontObjects(font *RegisteredFont) map[int]string {
+	objects := make(map[int]string)
+
+	// Get font data (subset if available, otherwise full font)
+	fontData := font.Font.RawData
+	if len(font.SubsetData) > 0 {
+		fontData = font.SubsetData
+	}
+
+	// Compress font data
+	var compressedBuf bytes.Buffer
+	zlibWriter := zlib.NewWriter(&compressedBuf)
+	zlibWriter.Write(fontData)
+	zlibWriter.Close()
+	compressedData := compressedBuf.Bytes()
+
+	// Generate font file stream (FontFile2 for TrueType)
+	objects[font.FontFileID] = fmt.Sprintf("<< /Filter /FlateDecode /Length %d /Length1 %d >>\nstream\n%s\nendstream",
+		len(compressedData), len(fontData), string(compressedData))
+
+	// Generate CID widths array
+	widthsStr := generateCIDWidths(font)
+	objects[font.WidthsID] = widthsStr
+
+	// Generate CIDToGIDMap
+	objects[font.CIDToGIDMapID] = generateCIDToGIDMap(font)
+
+	// Generate FontDescriptor
+	objects[font.DescriptorID] = generateTrueTypeFontDescriptor(font)
+
+	// Generate CIDFont dictionary
+	objects[font.CIDFontID] = generateCIDFontDict(font)
+
+	// Generate ToUnicode CMap
+	objects[font.ToUnicodeID] = generateToUnicodeCMap(font)
+
+	// Generate Type 0 font dictionary
+	objects[font.ObjectID] = generateType0FontDict(font)
+
+	return objects
+}
+
+// generateType0FontDict generates the Type 0 (composite) font dictionary
+func generateType0FontDict(font *RegisteredFont) string {
+	// PostScript name with subset prefix for PDF/A compliance
+	psName := font.Font.PostScriptName
+	if len(font.SubsetData) > 0 {
+		// Add subset tag (6 uppercase letters + '+')
+		psName = fmt.Sprintf("SUBSET+%s", font.Font.PostScriptName)
+	}
+
+	return fmt.Sprintf("<< /Type /Font /Subtype /Type0 /BaseFont /%s /Encoding /Identity-H /DescendantFonts [%d 0 R] /ToUnicode %d 0 R >>",
+		psName, font.CIDFontID, font.ToUnicodeID)
+}
+
+// generateCIDFontDict generates the CIDFont dictionary
+func generateCIDFontDict(font *RegisteredFont) string {
+	psName := font.Font.PostScriptName
+	if len(font.SubsetData) > 0 {
+		psName = fmt.Sprintf("SUBSET+%s", font.Font.PostScriptName)
+	}
+
+	// Default width (space character or average)
+	defaultWidth := 500
+	if spaceGlyph, ok := font.Font.CharToGlyph[' ']; ok {
+		defaultWidth = font.Font.GetCharWidthScaled(' ')
+		_ = spaceGlyph // Use the glyph lookup
+	}
+
+	return fmt.Sprintf("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /%s /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor %d 0 R /DW %d /W %d 0 R /CIDToGIDMap %d 0 R >>",
+		psName, font.DescriptorID, defaultWidth, font.WidthsID, font.CIDToGIDMapID)
+}
+
+// generateTrueTypeFontDescriptor generates the FontDescriptor for a TrueType font
+func generateTrueTypeFontDescriptor(font *RegisteredFont) string {
+	f := font.Font
+	psName := f.PostScriptName
+	if len(font.SubsetData) > 0 {
+		psName = fmt.Sprintf("SUBSET+%s", f.PostScriptName)
+	}
+
+	// Scale font metrics to PDF units (1/1000 em)
+	scale := 1000.0 / float64(f.UnitsPerEm)
+
+	ascent := int(float64(f.Ascender) * scale)
+	descent := int(float64(f.Descender) * scale)
+	capHeight := int(float64(f.CapHeight) * scale)
+	xHeight := int(float64(f.XHeight) * scale)
+	stemV := int(f.StemV)
+
+	// Scale bounding box
+	bbox := [4]int{
+		int(float64(f.BBox[0]) * scale),
+		int(float64(f.BBox[1]) * scale),
+		int(float64(f.BBox[2]) * scale),
+		int(float64(f.BBox[3]) * scale),
+	}
+
+	flags := f.GetPDFFlags()
+	italicAngle := int(f.ItalicAngle)
+
+	return fmt.Sprintf("<< /Type /FontDescriptor /FontName /%s /Flags %d /FontBBox [%d %d %d %d] /ItalicAngle %d /Ascent %d /Descent %d /CapHeight %d /StemV %d /XHeight %d /FontFile2 %d 0 R >>",
+		psName, flags, bbox[0], bbox[1], bbox[2], bbox[3],
+		italicAngle, ascent, descent, capHeight, stemV, xHeight, font.FontFileID)
+}
+
+// generateCIDWidths generates the /W array for CID font widths
+// Format: [ cid [w1 w2 ...] cid [w1 w2 ...] ... ]
+func generateCIDWidths(font *RegisteredFont) string {
+	f := font.Font
+	scale := 1000.0 / float64(f.UnitsPerEm)
+
+	// Collect all used character codes and their widths
+	type cidWidth struct {
+		cid   uint16
+		width int
+	}
+
+	var widths []cidWidth
+	for char := range font.UsedChars {
+		if glyphID, ok := f.CharToGlyph[char]; ok {
+			// Bounds check for glyph width array
+			if int(glyphID) >= len(f.GlyphWidths) {
+				// Skip glyphs without width information (shouldn't happen with valid fonts)
+				continue
+			}
+			// For Identity-H encoding, CID = Unicode code point
+			cid := uint16(char)
+			// Scale width to PDF units (1/1000 em) with proper rounding
+			width := int(math.Round(float64(f.GlyphWidths[glyphID]) * scale))
+			widths = append(widths, cidWidth{cid, width})
+		}
+	}
+
+	// Sort by CID
+	sort.Slice(widths, func(i, j int) bool {
+		return widths[i].cid < widths[j].cid
+	})
+
+	if len(widths) == 0 {
+		return "[]"
+	}
+
+	// Build width array using consecutive ranges for efficiency
+	var result strings.Builder
+	result.WriteString("[")
+
+	i := 0
+	for i < len(widths) {
+		// Find consecutive CIDs with same width difference pattern
+		startCID := widths[i].cid
+		startIdx := i
+
+		// Collect consecutive CIDs
+		for i < len(widths) && widths[i].cid == startCID+uint16(i-startIdx) {
+			i++
+		}
+
+		// Write this range
+		result.WriteString(fmt.Sprintf(" %d [", startCID))
+		for j := startIdx; j < i; j++ {
+			if j > startIdx {
+				result.WriteString(" ")
+			}
+			result.WriteString(fmt.Sprintf("%d", widths[j].width))
+		}
+		result.WriteString("]")
+	}
+
+	result.WriteString("]")
+	return result.String()
+}
+
+// generateCIDToGIDMap generates the CIDToGIDMap stream
+// This maps CIDs (treated as Unicode code points in our Identity-H output)
+// to the actual Glyph IDs in the embedded (potentially subsetted) font.
+func generateCIDToGIDMap(font *RegisteredFont) string {
+	f := font.Font
+
+	// Determine the maximum CID used
+	var maxCID uint16 = 0
+	for char := range font.UsedChars {
+		if uint16(char) > maxCID {
+			maxCID = uint16(char)
+		}
+	}
+
+	// CIDToGIDMap must cover range 0 to MaxCID
+	// Array of 2-byte GIDs
+	mapData := make([]byte, (int(maxCID)+1)*2)
+
+	// Fill the map
+	for char := range font.UsedChars {
+		cid := uint16(char)
+
+		// 1. Get Original GID from Font
+		oldGID, ok := f.CharToGlyph[rune(cid)]
+		if !ok {
+			// Character not in font - map to .notdef (GID 0)
+			oldGID = 0
+		}
+
+		// 2. Determine Final GID
+		finalGID := oldGID
+		if len(font.SubsetData) > 0 {
+			// If subsetted, use the New GID
+			if newGID, ok := font.OldToNewGlyph[oldGID]; ok {
+				finalGID = newGID
+			} else {
+				finalGID = 0 // .notdef fallback
+			}
+		}
+
+		// Write 16-bit GID at offset CID*2
+		mapData[cid*2] = byte(finalGID >> 8)
+		mapData[cid*2+1] = byte(finalGID)
+	}
+
+	// Compress the stream
+	var compressedBuf bytes.Buffer
+	zlibWriter := zlib.NewWriter(&compressedBuf)
+	zlibWriter.Write(mapData)
+	zlibWriter.Close()
+	compressedData := compressedBuf.Bytes()
+
+	return fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
+		len(compressedData), string(compressedData))
+}
+
+// generateToUnicodeCMap generates the ToUnicode CMap stream for text extraction
+func generateToUnicodeCMap(font *RegisteredFont) string {
+	f := font.Font
+
+	// Collect used characters
+	type mapping struct {
+		cid  uint16
+		char rune
+	}
+
+	var mappings []mapping
+	for char := range font.UsedChars {
+		if _, ok := f.CharToGlyph[char]; ok {
+			mappings = append(mappings, mapping{uint16(char), char})
+		}
+	}
+
+	// Sort by CID
+	sort.Slice(mappings, func(i, j int) bool {
+		return mappings[i].cid < mappings[j].cid
+	})
+
+	// Build CMap stream
+	var cmap strings.Builder
+	cmap.WriteString("/CIDInit /ProcSet findresource begin\n")
+	cmap.WriteString("12 dict begin\n")
+	cmap.WriteString("begincmap\n")
+	cmap.WriteString("/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n")
+	cmap.WriteString("/CMapName /Adobe-Identity-UCS def\n")
+	cmap.WriteString("/CMapType 2 def\n")
+	cmap.WriteString("1 begincodespacerange\n")
+	cmap.WriteString("<0000> <FFFF>\n")
+	cmap.WriteString("endcodespacerange\n")
+
+	// Write character mappings in chunks of 100 (PDF limit)
+	for i := 0; i < len(mappings); i += 100 {
+		end := i + 100
+		if end > len(mappings) {
+			end = len(mappings)
+		}
+		chunk := mappings[i:end]
+
+		cmap.WriteString(fmt.Sprintf("%d beginbfchar\n", len(chunk)))
+		for _, m := range chunk {
+			// CID as hex, Unicode code point as hex
+			if m.char <= 0xFFFF {
+				cmap.WriteString(fmt.Sprintf("<%04X> <%04X>\n", m.cid, m.char))
+			} else {
+				// Handle supplementary characters (surrogate pair)
+				r := m.char - 0x10000
+				high := 0xD800 + (r >> 10)
+				low := 0xDC00 + (r & 0x3FF)
+				cmap.WriteString(fmt.Sprintf("<%04X> <%04X%04X>\n", m.cid, high, low))
+			}
+		}
+		cmap.WriteString("endbfchar\n")
+	}
+
+	cmap.WriteString("endcmap\n")
+	cmap.WriteString("CMapName currentdict /CMap defineresource pop\n")
+	cmap.WriteString("end\n")
+	cmap.WriteString("end\n")
+
+	cmapData := cmap.String()
+
+	// Compress the CMap stream
+	var compressedBuf bytes.Buffer
+	zlibWriter := zlib.NewWriter(&compressedBuf)
+	zlibWriter.Write([]byte(cmapData))
+	zlibWriter.Close()
+	compressedData := compressedBuf.Bytes()
+
+	return fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
+		len(compressedData), string(compressedData))
+}
+
+// EncodeTextForCustomFont encodes text for use with a custom font (Identity-H encoding)
+// Returns the encoded hex string suitable for use in PDF content stream with Tj operator
+// Characters not in the font are replaced with a space to prevent .notdef references
+func EncodeTextForCustomFont(fontName string, text string) string {
+	registry := GetFontRegistry()
+	font, ok := registry.GetFont(fontName)
+	if !ok {
+		// Fallback: encode as-is if font not found
+		var hex strings.Builder
+		hex.WriteString("<")
+		for _, char := range text {
+			hex.WriteString(fmt.Sprintf("%04X", char))
+		}
+		hex.WriteString(">")
+		return hex.String()
+	}
+
+	var hex strings.Builder
+	hex.WriteString("<")
+	for _, char := range text {
+		// Check if character is in font's character map
+		if _, exists := font.Font.CharToGlyph[char]; exists {
+			// Identity-H encoding: 2-byte CID = Unicode code point
+			hex.WriteString(fmt.Sprintf("%04X", char))
+		} else {
+			// Character not in font - replace with space to avoid .notdef
+			hex.WriteString(fmt.Sprintf("%04X", ' '))
+		}
+	}
+	hex.WriteString(">")
+	return hex.String()
 }

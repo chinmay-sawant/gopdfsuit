@@ -1,6 +1,9 @@
 package pdf
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+)
 
 // PageManager handles multi-page document generation
 type PageManager struct {
@@ -53,6 +56,28 @@ func (pm *PageManager) AddExtraObject(content string) int {
 	pm.NextObjectID++
 	pm.ExtraObjects[id] = content
 	return id
+}
+
+// AddLinkAnnotation adds a link annotation to the current page
+func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
+	if url == "" {
+		return
+	}
+
+	// Create annotation object
+	annotID := pm.NextObjectID
+	pm.NextObjectID++
+
+	// PDF Rectangle: [LLx LLy URx URy]
+	rect := fmt.Sprintf("[%s %s %s %s]", fmtNum(x), fmtNum(y), fmtNum(x+w), fmtNum(y+h))
+
+	validUrl := escapePDFString(url)
+
+	content := fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /A << /Type /Action /S /URI /URI (%s) >> >>",
+		rect, validUrl)
+
+	pm.ExtraObjects[annotID] = content
+	pm.AddAnnotation(annotID)
 }
 
 // CheckPageBreak determines if a new page is needed based on required height
