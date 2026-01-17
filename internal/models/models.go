@@ -50,6 +50,7 @@ type Config struct {
 
 // SecurityConfig holds PDF encryption and permission settings
 type SecurityConfig struct {
+	Enabled       bool   `json:"enabled,omitempty"`      // Enable/disable encryption
 	UserPassword  string `json:"userPassword,omitempty"` // Password to open document (empty = no password to open)
 	OwnerPassword string `json:"ownerPassword"`          // Password for full access (required for encryption)
 	// Permissions control what users can do with the document

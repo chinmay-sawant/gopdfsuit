@@ -648,7 +648,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Setup encryption if security config is provided
 	var encryption *PDFEncryption
 	var encryptObjID int
-	if template.Config.Security != nil && template.Config.Security.OwnerPassword != "" {
+	if template.Config.Security != nil && template.Config.Security.Enabled && template.Config.Security.OwnerPassword != "" {
 		// Generate document ID first (needed for encryption)
 		docID := GenerateDocumentID(pdfBuffer.Bytes())
 
