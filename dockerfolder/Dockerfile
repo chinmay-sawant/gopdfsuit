@@ -1,7 +1,7 @@
 # Build from the root directory using: docker build -f dockerfolder/Dockerfile -t gopdfsuit .
 
 # --- Build stage ---
-FROM golang:1.24.0-alpine AS builder
+FROM golang:1.23.0-alpine AS builder
 
 WORKDIR /app
 

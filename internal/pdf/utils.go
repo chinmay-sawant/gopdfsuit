@@ -61,50 +61,66 @@ func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 
 func parseProps(props string) models.Props {
 	parts := strings.Split(props, ":")
-	if len(parts) < 5 {
-		return models.Props{
-			FontName:  "Helvetica",
-			FontSize:  12,
-			StyleCode: "000",
-			Bold:      false,
-			Italic:    false,
-			Underline: false,
-			Alignment: "left",
-			Borders:   [4]int{0, 0, 0, 0},
+
+	// Default values
+	fontName := "Helvetica"
+	fontSize := 12
+	styleCode := "000"
+	alignment := "left"
+	borders := [4]int{0, 0, 0, 0}
+
+	// Helper to safe index
+	getPart := func(idx int) string {
+		if idx < len(parts) {
+			return parts[idx]
+		}
+		return ""
+	}
+
+	// 1. Font Name
+	if name := strings.TrimSpace(getPart(0)); name != "" {
+		fontName = name
+	}
+
+	// 2. Font Size
+	if sizeStr := getPart(1); sizeStr != "" {
+		if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 {
+			fontSize = s
 		}
 	}
 
-	fontSize, _ := strconv.Atoi(parts[1])
-	if fontSize == 0 {
-		fontSize = 12
-	}
-
-	// Parse 3-digit style code (bold:italic:underline)
-	styleCode := parts[2]
-	if len(styleCode) != 3 {
-		styleCode = "000" // Default to normal text
+	// 3. Style Code
+	if sc := getPart(2); len(sc) == 3 {
+		styleCode = sc
 	}
 
 	bold := styleCode[0] == '1'
 	italic := styleCode[1] == '1'
 	underline := styleCode[2] == '1'
 
-	// Parse alignment (now at index 3)
-	alignment := "left"
-	if len(parts) > 3 {
-		alignment = parts[3]
+	// 4. Alignment
+	if align := getPart(3); align != "" {
+		alignment = align
 	}
 
-	// Parse borders (now starting at index 4)
-	borders := [4]int{0, 0, 0, 0}
+	// 5-8. Borders
 	if len(parts) >= 8 {
-		for i := 4; i < 8 && i < len(parts); i++ {
-			borders[i-4], _ = strconv.Atoi(parts[i])
+		for i := 4; i < 8; i++ {
+			if val, err := strconv.Atoi(parts[i]); err == nil {
+				borders[i-4] = val
+			}
+		}
+	} else if len(parts) >= 5 {
+		// Try to parse as many borders as available starting from index 4
+		for i := 4; i < len(parts) && i < 8; i++ {
+			if val, err := strconv.Atoi(parts[i]); err == nil {
+				borders[i-4] = val
+			}
 		}
 	}
 
 	return models.Props{
-		FontName:  parts[0],
+		FontName:  fontName,
 		FontSize:  fontSize,
 		StyleCode: styleCode,
 		Bold:      bold,
@@ -132,12 +148,59 @@ func escapeText(s string) string {
 	return escapePDFString(s)
 }
 
+// resolveFontName resolves the actual font name to use, handling fallbacks
+func resolveFontName(props models.Props) string {
+	registry := GetFontRegistry()
+
+	// 1. Check if the requested font is registered as a custom font
+	if registry.HasFont(props.FontName) {
+		return props.FontName
+	}
+
+	// 2. Check if it's a known standard font name
+	switch props.FontName {
+	case "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique",
+		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
+		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique",
+		"Symbol", "ZapfDingbats":
+		return props.FontName
+	}
+
+	// 3. Fallback logic: map unknown fonts to Helvetica family
+	var fallbackName string
+	if props.Bold && props.Italic {
+		fallbackName = "Helvetica-BoldOblique"
+	} else if props.Bold {
+		fallbackName = "Helvetica-Bold"
+	} else if props.Italic {
+		fallbackName = "Helvetica-Oblique"
+	} else {
+		fallbackName = "Helvetica"
+	}
+
+	return fallbackName
+}
+
 // getFontReference returns the appropriate font reference based on the font name
 // and style properties. If a specific font name is provided (e.g., "Helvetica-Bold"),
 // it takes precedence. Otherwise, falls back to using bold/italic style flags.
+// For custom fonts, checks the font registry and returns the custom font reference.
 func getFontReference(props models.Props) string {
-	// Check if FontName directly specifies a font variant
-	switch props.FontName {
+	registry := GetFontRegistry()
+
+	// Resolve usage to actual font name (handling fallbacks)
+	actualFontName := resolveFontName(props)
+
+	// If resolved font is custom (including PDF/A substitution), use it
+	if registry.HasFont(actualFontName) {
+		ref := registry.GetFontReference(actualFontName)
+		if ref != "" {
+			return ref
+		}
+	}
+
+	// Otherwise, return standard font reference code
+	switch actualFontName {
 	// Helvetica family (F1-F4)
 	case "Helvetica":
 		return "/F1"
@@ -172,15 +235,48 @@ func getFontReference(props models.Props) string {
 		return "/F14"
 	}
 
-	// Fallback: use bold/italic flags (for legacy "font1", "font2" style IDs)
-	if props.Bold && props.Italic {
-		return "/F4" // Helvetica-BoldOblique
-	} else if props.Bold {
-		return "/F2" // Helvetica-Bold
-	} else if props.Italic {
-		return "/F3" // Helvetica-Oblique
+	return "/F1" // Ultimate fallback
+}
+
+// getWidgetFontReference returns the appropriate font reference for form field widgets.
+// In PDF/A mode (when Helvetica is registered as a custom Liberation font), this returns
+// the custom font reference. Otherwise, it returns /F1 for standard Helvetica.
+// This should be used in widget DA strings and appearance streams instead of hardcoded /Helv.
+func getWidgetFontReference() string {
+	registry := GetFontRegistry()
+	// Check if Helvetica is registered as custom font (PDF/A mode with Liberation)
+	if registry.HasFont("Helvetica") {
+		ref := registry.GetFontReference("Helvetica")
+		if ref != "" {
+			return ref
+		}
 	}
-	return "/F1" // Helvetica (normal)
+	return "/F1" // Standard Helvetica reference
+}
+
+// getWidgetFontName returns the font name to use in widget resource dictionaries.
+// In PDF/A mode, widgets should not embed their own font definitions - they should
+// reference fonts from the page resources. Returns empty string if using page fonts.
+func getWidgetFontName() string {
+	registry := GetFontRegistry()
+	// If Helvetica is a custom font, we use page-level font resources
+	if registry.HasFont("Helvetica") {
+		return "" // Signal to use page-level resources
+	}
+	return "Helvetica" // Use inline Helvetica definition
+}
+
+// getWidgetFontObjectID returns the PDF object ID for the widget font.
+// In PDF/A mode, this returns the object ID of the Liberation font that replaces Helvetica.
+// Returns 0 if no custom font is registered (standard mode).
+func getWidgetFontObjectID() int {
+	registry := GetFontRegistry()
+	if registry.HasFont("Helvetica") {
+		if font, ok := registry.GetFont("Helvetica"); ok {
+			return font.ObjectID
+		}
+	}
+	return 0
 }
 
 // formatPageKids formats the page object IDs for the Pages object
@@ -205,4 +301,56 @@ func escapePDFString(s string) string {
 		}
 	}
 	return sb.String()
+}
+
+// isCustomFont checks if the font name refers to a registered custom font
+func isCustomFont(fontName string) bool {
+	registry := GetFontRegistry()
+	return registry.HasFont(fontName)
+}
+
+// markFontUsage marks characters as used for font subsetting
+// props is used to resolve the actual font (handling fallbacks)
+func markFontUsage(props models.Props, text string) {
+	resolvedName := resolveFontName(props)
+	if isCustomFont(resolvedName) {
+		registry := GetFontRegistry()
+		registry.MarkCharsUsed(resolvedName, text)
+	}
+}
+
+// EstimateTextWidth estimates the width of text in points for a given font and size
+// Uses actual glyph widths for custom fonts, approximation for standard fonts
+func EstimateTextWidth(fontName string, text string, fontSize float64) float64 {
+	// For width estimation, we create a dummy props with just the name
+	// This might be slightly inaccurate for bold/italic if falling back, but sufficient for layout
+	props := models.Props{FontName: fontName, FontSize: int(fontSize)}
+	resolvedName := resolveFontName(props)
+
+	registry := GetFontRegistry()
+	if registry.HasFont(resolvedName) {
+		return registry.GetScaledTextWidth(resolvedName, text, fontSize)
+	}
+
+	// Approximation for standard fonts (average character width ~0.5-0.6 em)
+	avgCharWidth := 0.5
+	switch resolvedName {
+	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
+		avgCharWidth = 0.6 // Monospace is wider
+	case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
+		avgCharWidth = 0.45 // Times is slightly narrower
+	}
+
+	return float64(len([]rune(text))) * fontSize * avgCharWidth
+}
+
+// formatTextForPDF formats text for use in a PDF content stream
+// For custom fonts, returns hex-encoded string; for standard fonts, returns escaped literal
+func formatTextForPDF(props models.Props, text string) string {
+	resolvedName := resolveFontName(props)
+
+	if isCustomFont(resolvedName) {
+		return EncodeTextForCustomFont(resolvedName, text)
+	}
+	return "(" + escapePDFString(text) + ")"
 }

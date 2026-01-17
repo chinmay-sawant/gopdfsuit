@@ -16,23 +16,17 @@ pull:
 	docker pull $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
 	docker run -d -p 8080:8080 $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
 
-build: test-integration
+build:
 	mkdir -p bin
 	go build -o bin/app ./cmd/gopdfsuit
 
 test:
 	go test ./...
 
-test-integration:
-	go test -count=1 -v ./test
-
 clean:
 	rm -rf bin/
 
-run: test-integration
-	export VITE_IS_CLOUD_RUN=false;\
-	export VITE_ENVIRONMENT=local;\
-	export VITE_API_URL=http://localhost:8080;\
+run:
 	cd frontend && npm run build && cd ..
 	go run cmd/gopdfsuit/main.go
 
@@ -45,33 +39,5 @@ vet:
 mod:
 	go mod tidy
 
-gdocker: test-integration
-	cd frontend && npm run build && cd ..
-	docker rm -f gopdfsuit
-	docker build -t gopdfsuit . 
-
-gdocker-run:
-	docker run --rm -p 8080:8080 -d --name gopdfsuit gopdfsuit
-
-gdocker-push:
-	export VITE_IS_CLOUD_RUN=true;\
-	export VITE_ENVIRONMENT=cloudrun;\
-	gcloud builds submit --tag us-east1-docker.pkg.dev/gopdfsuit/gopdfsuit/gopdfsuit-app .	
-	gcloud run deploy gopdfsuit-service \
-    --image us-east1-docker.pkg.dev/gopdfsuit/gopdfsuit/gopdfsuit-app \
-    --region us-east1 \
-    --platform managed \
-    --allow-unauthenticated \
-    --max-instances 1 \
-    --concurrency 80 \
-    --cpu 1 \
-    --memory 512Mi \
-	--env-vars-file .env
-
-gengine-deploy: test-integration
-	cd frontend && npm run build && cd ..
-	export VITE_IS_CLOUD_RUN=true;\
-	export VITE_ENVIRONMENT=cloudrun;\
-	gcloud app deploy
 .PHONY: build test clean run fmt vet mod
 

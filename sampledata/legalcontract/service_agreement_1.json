@@ -6,7 +6,7 @@
         "watermark": "CONFIDENTIAL"
     },
     "title": {
-        "props": "font1:24:100:center:0:0:0:0",
+        "props": "Helvetica:24:100:center:0:0:0:0",
         "text": "PROFESSIONAL SERVICES AGREEMENT",
         "bgcolor": "#2C3E50",
         "textcolor": "#FFFFFF",
@@ -46,7 +46,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:010:center:0:0:0:0",
+                            "props": "Helvetica:10:010:center:0:0:0:0",
                             "text": "This Professional Services Agreement (the \"Agreement\") is made and entered into "
                         }
                     ]
@@ -73,13 +73,13 @@
                 {
                     "row": [
                         {
-                            "props": "font1:12:100:center:1:1:1:1",
+                            "props": "Helvetica:12:100:center:1:1:1:1",
                             "text": "CLIENT INFORMATION",
                             "bgcolor": "#34495E",
                             "textcolor": "#FFFFFF"
                         },
                         {
-                            "props": "font1:12:100:center:1:1:1:1",
+                            "props": "Helvetica:12:100:center:1:1:1:1",
                             "text": "PROVIDER INFORMATION",
                             "bgcolor": "#34495E",
                             "textcolor": "#FFFFFF"
@@ -89,11 +89,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:1:0:0",
+                            "props": "Helvetica:10:100:left:1:1:0:0",
                             "text": "Global Tech Solutions Ltd."
                         },
                         {
-                            "props": "font1:10:100:left:1:1:0:0",
+                            "props": "Helvetica:10:100:left:1:1:0:0",
                             "text": "Apex Legal Consultants"
                         }
                     ]
@@ -101,11 +101,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:1:0:0",
+                            "props": "Helvetica:10:000:left:1:1:0:0",
                             "text": "100 Innovation Drive"
                         },
                         {
-                            "props": "font1:10:000:left:1:1:0:0",
+                            "props": "Helvetica:10:000:left:1:1:0:0",
                             "text": "500 Legal Plaza"
                         }
                     ]
@@ -113,11 +113,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:1:0:0",
+                            "props": "Helvetica:10:000:left:1:1:0:0",
                             "text": "Silicon Valley, CA 94025"
                         },
                         {
-                            "props": "font1:10:000:left:1:1:0:0",
+                            "props": "Helvetica:10:000:left:1:1:0:0",
                             "text": "New York, NY 10018"
                         }
                     ]
@@ -125,11 +125,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:1:1:1:1",
+                            "props": "Helvetica:10:000:left:1:1:1:1",
                             "text": "Attn: Michael Chen, CTO"
                         },
                         {
-                            "props": "font1:10:000:left:1:1:1:1",
+                            "props": "Helvetica:10:000:left:1:1:1:1",
                             "text": "Attn: Jessica Pearson, Partner"
                         }
                     ]
@@ -142,7 +142,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:14:100:left:0:0:0:0",
+                            "props": "Helvetica:14:100:left:0:0:0:0",
                             "text": "1. SERVICES AND TERM",
                             "textcolor": "#2980B9"
                         }
@@ -160,12 +160,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:1:1",
+                            "props": "Helvetica:10:100:left:1:0:1:1",
                             "text": "Project Name:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:1:1",
+                            "props": "Helvetica:10:000:left:0:1:1:1",
                             "text": "Enterprise Software Licensing Review"
                         }
                     ]
@@ -173,12 +173,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Scope of Services:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "Review of current software licenses, negotiation with vendors, and compliance audit."
                         }
                     ]
@@ -186,12 +186,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Start Date:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "November 1, 2023"
                         }
                     ]
@@ -199,12 +199,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "End Date:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "January 31, 2024"
                         }
                     ]
@@ -217,7 +217,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:14:100:left:0:0:0:0",
+                            "props": "Helvetica:14:100:left:0:0:0:0",
                             "text": "2. COMPENSATION",
                             "textcolor": "#2980B9"
                         }
@@ -235,12 +235,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:1:1",
+                            "props": "Helvetica:10:100:left:1:0:1:1",
                             "text": "Total Fee:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:1:1",
+                            "props": "Helvetica:10:000:left:0:1:1:1",
                             "text": "$15,000.00"
                         }
                     ]
@@ -248,12 +248,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Payment Terms:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "50% upfront, 50% upon completion"
                         }
                     ]
@@ -261,12 +261,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Late Penalty:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "1.5% per month on overdue amounts"
                         }
                     ]
@@ -279,7 +279,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:14:100:left:0:0:0:0",
+                            "props": "Helvetica:14:100:left:0:0:0:0",
                             "text": "3. LEGAL PROVISIONS",
                             "textcolor": "#2980B9"
                         }
@@ -297,12 +297,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:1:1",
+                            "props": "Helvetica:10:100:left:1:0:1:1",
                             "text": "Confidentiality:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:1:1",
+                            "props": "Helvetica:10:000:left:0:1:1:1",
                             "text": "5 years from termination of agreement"
                         }
                     ]
@@ -310,12 +310,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Governing Law:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "State of California"
                         }
                     ]
@@ -323,12 +323,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Dispute Resolution:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "Arbitration in San Francisco, CA"
                         }
                     ]
@@ -336,12 +336,12 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:1:0:0:1",
+                            "props": "Helvetica:10:100:left:1:0:0:1",
                             "text": "Termination Notice:",
                             "bgcolor": "#EBF5FB"
                         },
                         {
-                            "props": "font1:10:000:left:0:1:0:1",
+                            "props": "Helvetica:10:000:left:0:1:0:1",
                             "text": "30 days written notice"
                         }
                     ]
@@ -354,7 +354,7 @@
                 {
                     "row": [
                         {
-                            "props": "font1:12:100:left:0:0:0:0",
+                            "props": "Helvetica:12:100:left:0:0:0:0",
                             "text": "IN WITNESS WHEREOF, the parties have executed this Agreement."
                         }
                     ]
@@ -371,11 +371,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:100:left:0:0:0:0",
+                            "props": "Helvetica:10:100:left:0:0:0:0",
                             "text": "CLIENT:"
                         },
                         {
-                            "props": "font1:10:100:left:0:0:0:0",
+                            "props": "Helvetica:10:100:left:0:0:0:0",
                             "text": "PROVIDER:"
                         }
                     ]
@@ -383,11 +383,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "\n\n__________________________"
                         },
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "\n\n__________________________"
                         }
                     ]
@@ -395,11 +395,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "Name: Michael Chen"
                         },
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "Name: Jessica Pearson"
                         }
                     ]
@@ -407,11 +407,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "Title: Chief Technology Officer"
                         },
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "Title: Managing Partner"
                         }
                     ]
@@ -419,11 +419,11 @@
                 {
                     "row": [
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "Date: October 25, 2023"
                         },
                         {
-                            "props": "font1:10:000:left:0:0:0:0",
+                            "props": "Helvetica:10:000:left:0:0:0:0",
                             "text": "Date: October 26, 2023"
                         }
                     ]
@@ -483,7 +483,7 @@
         }
     ],
     "footer": {
-        "font": "font1:8:000:center",
+        "font": "Helvetica:8:000:center",
         "text": "Service Agreement - Page 1"
     }
 }

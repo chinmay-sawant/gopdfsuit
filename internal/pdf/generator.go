@@ -28,6 +28,53 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Initialize page manager with Arlington compatibility flag
 	pageManager := NewPageManager(pageDims, template.Config.ArlingtonCompatible)
 
+	// Reset font registry usage tracking for this PDF
+	fontRegistry := GetFontRegistry()
+	fontRegistry.ResetUsage()
+
+	// PDF/A mode: Register Liberation fonts for all used standard fonts
+	if template.Config.PDFACompliant {
+		usedStandardFonts := collectAllStandardFontsInTemplate(template)
+		usedFontsList := make([]string, 0, len(usedStandardFonts))
+		for fontName := range usedStandardFonts {
+			usedFontsList = append(usedFontsList, fontName)
+		}
+
+		pdfaManager := GetPDFAFontManager()
+		if err := pdfaManager.RegisterLiberationFontsForPDFA(fontRegistry, usedFontsList); err != nil {
+			fmt.Printf("Warning: Failed to load Liberation fonts for PDF/A: %v\n", err)
+			// Continue without PDF/A font compliance
+		}
+	}
+
+	// Load custom fonts from config
+	for _, fontConfig := range template.Config.CustomFonts {
+		if fontConfig.Name == "" {
+			continue
+		}
+		if fontConfig.FontData != "" {
+			// Load from base64 data
+			if err := fontRegistry.RegisterFontFromBase64(fontConfig.Name, fontConfig.FontData); err != nil {
+				// Log error but continue
+				fmt.Printf("Warning: failed to load custom font %s from data: %v\n", fontConfig.Name, err)
+			}
+		} else if fontConfig.FilePath != "" {
+			// Load from file path
+			if err := fontRegistry.RegisterFontFromFile(fontConfig.Name, fontConfig.FilePath); err != nil {
+				// Log error but continue
+				fmt.Printf("Warning: failed to load custom font %s from file: %v\n", fontConfig.Name, err)
+			}
+		}
+	}
+
+	// Pre-scan template to mark all font usage for subsetting
+	scanTemplateForFontUsage(template, fontRegistry)
+
+	// Generate font subsets
+	if err := fontRegistry.GenerateSubsets(); err != nil {
+		fmt.Printf("Warning: failed to generate font subsets: %v\n", err)
+	}
+
 	// Process images and create XObjects
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
 	imageObjectIDs := make(map[int]int)        // map imageIndex to PDF object ID
@@ -88,13 +135,35 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
-	// PDF Header (PDF 2.0 for modern standards compliance)
+	// Process inline images in elements array
+	// These are images specified directly in the elements array with type="image" and image:{...}
+	elemImageObjects := make(map[int]*ImageObject) // map element index to ImageObject
+	elemImageObjectIDs := make(map[int]int)        // map element index to PDF object ID
+	for elemIdx, elem := range template.Elements {
+		if elem.Type == "image" && elem.Image != nil && elem.Image.ImageData != "" {
+			imgObj, err := DecodeImageData(elem.Image.ImageData)
+			if err == nil {
+				imgObj.ObjectID = nextImageObjectID
+				elemImageObjects[elemIdx] = imgObj
+				elemImageObjectIDs[elemIdx] = nextImageObjectID
+				nextImageObjectID++
+			}
+		}
+	}
+
 	pdfBuffer.WriteString("%PDF-2.0\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
 
+	// CRITICAL: Assign object IDs to custom fonts BEFORE generating content
+	// This ensures that when content streams are generated, custom font references
+	// (e.g., /CF2000) have valid object IDs. Custom fonts start AFTER image objects
+	// to avoid conflicts with image XObjects.
+	customFontObjectStart := nextImageObjectID
+	fontRegistry.AssignObjectIDs(customFontObjectStart)
+
 	// Generate all content first to know how many pages we need
-	// Pass imageObjects, imageObjectIDs and cellImageObjectIDs so content generation can reference them
-	generateAllContentWithImages(template, pageManager, imageObjects, cellImageObjectIDs)
+	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
+	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs, elemImageObjects, elemImageObjectIDs)
 
 	// Collect all widget IDs for AcroForm
 	var allWidgetIDs []int
@@ -102,13 +171,34 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		allWidgetIDs = append(allWidgetIDs, annots...)
 	}
 
-	// Object 1: Catalog with accessibility and compliance improvements
+	// Reserve object IDs for PDF/A compliance objects (will be written at the end)
+	// These need to be referenced in the Catalog
+	metadataObjectID := pageManager.NextObjectID
+	pageManager.NextObjectID++
+	
+	// Only reserve ICC profile and OutputIntent IDs for PDF/A mode
+	var iccProfileObjectID, outputIntentObjectID int
+	if template.Config.PDFACompliant {
+		iccProfileObjectID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+		outputIntentObjectID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+	}
+
+	// Object 1: Catalog
 	xrefOffsets[1] = pdfBuffer.Len()
 	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
 	// Add language tag for accessibility (PDF/UA requirement)
 	pdfBuffer.WriteString(" /Lang (en-US)")
 	// Add MarkInfo to indicate this is a tagged PDF (even if minimal)
 	pdfBuffer.WriteString(" /MarkInfo << /Marked false >>")
+	// Add Metadata reference (always include for document info)
+	pdfBuffer.WriteString(fmt.Sprintf(" /Metadata %d 0 R", metadataObjectID))
+	// Add OutputIntents ONLY for PDF/A compliance (required for color space validation)
+	// Without PDF/A, we do NOT embed the ICC profile, so Adobe Acrobat won't apply color management
+	if template.Config.PDFACompliant {
+		pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
+	}
 	if len(allWidgetIDs) > 0 {
 		// Create AcroForm object
 		acroFormID := pageManager.NextObjectID
@@ -121,8 +211,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 		fieldsRef.WriteString("]")
 
+		// Get appropriate font reference for AcroForm DA (handles PDF/A mode)
+		widgetFontRef := getWidgetFontReference()
+
 		// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
-		acroFormContent := fmt.Sprintf("<< /Fields %s /DA (/Helv 0 Tf 0 g) >>", fieldsRef.String())
+		acroFormContent := fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) >>", fieldsRef.String(), widgetFontRef)
 		pageManager.ExtraObjects[acroFormID] = acroFormContent
 
 		pdfBuffer.WriteString(fmt.Sprintf(" /AcroForm %d 0 R", acroFormID))
@@ -141,21 +234,85 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	contentObjectStart := totalPages + 3               // Content objects start after pages
 	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
 
-	// Font object layout depends on Arlington compatibility mode:
-	// All 14 standard PDF fonts: F1-F4 (Helvetica), F5-F8 (Times), F9-F12 (Courier), F13 (Symbol), F14 (ZapfDingbats)
-	// - Arlington mode: 14 font dicts + 14 font descriptors + widths arrays = more objects
-	// - Simple mode: 14 font dicts only = 14 objects
-	numFonts := 14
-	var fontDescriptorStart, widthsArrayStart int
-	if template.Config.ArlingtonCompatible {
-		fontDescriptorStart = fontObjectStart + numFonts  // FontDescriptors start after font dicts
-		widthsArrayStart = fontDescriptorStart + numFonts // Widths arrays start after descriptors
+	// Standard fonts definition
+	fontNames := []string{
+		"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", // F1-F4
+		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic", // F5-F8
+		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", // F9-F12
+		"Symbol", "ZapfDingbats", // F13-F14
+	}
+	fontRefs := []string{"/F1", "/F2", "/F3", "/F4", "/F5", "/F6", "/F7", "/F8", "/F9", "/F10", "/F11", "/F12", "/F13", "/F14"}
+
+	// Identify used standard fonts
+	usedStandardFonts := collectUsedStandardFonts(template)
+	shouldEmbed := template.Config.EmbedFonts == nil || *template.Config.EmbedFonts
+
+	// Calculate Object IDs for standard fonts dynamically
+	// Only assign IDs for fonts that are used
+	fontObjectIDs := make(map[string]int)     // Font Name -> Font Dictionary Object ID
+	fontDescriptorIDs := make(map[string]int) // Font Name -> Font Descriptor Object ID
+	fontWidthsIDs := make(map[string]int)     // Font Name (group) -> Widths Array Object ID
+
+	currentObjectID := fontObjectStart
+
+	// Phase 1: Assign IDs for Font Dictionaries
+	for _, name := range fontNames {
+		if usedStandardFonts[name] {
+			fontObjectIDs[name] = currentObjectID
+			currentObjectID++
+		}
 	}
 
-	// Build XObject references for page resources (standalone images + cell images)
-	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /X0 for appearance streams
+	// Phase 2: Assign IDs for Descriptors and Widths (Arlington mode only)
+	widthGroups := map[string]string{
+		"Helvetica":             "helvetica-regular",
+		"Helvetica-Oblique":     "helvetica-regular",
+		"Helvetica-Bold":        "helvetica-bold",
+		"Helvetica-BoldOblique": "helvetica-bold",
+		"Times-Roman":           "times-roman",
+		"Times-Bold":            "times-bold",
+		"Times-Italic":          "times-italic",
+		"Times-BoldItalic":      "times-bolditalic",
+		"Courier":               "courier",
+		"Courier-Bold":          "courier",
+		"Courier-Oblique":       "courier",
+		"Courier-BoldOblique":   "courier",
+		"Symbol":                "symbol",
+		"ZapfDingbats":          "zapfdingbats",
+	}
+
+	if template.Config.ArlingtonCompatible && shouldEmbed {
+		// Assign Descriptor IDs
+		for _, name := range fontNames {
+			if usedStandardFonts[name] {
+				fontDescriptorIDs[name] = currentObjectID
+				currentObjectID++
+			}
+		}
+
+		// Assign Widths IDs (deduplicated by group)
+		assignedGroups := make(map[string]bool)
+		for _, name := range fontNames {
+			if usedStandardFonts[name] {
+				group := widthGroups[name]
+				if !assignedGroups[group] {
+					fontWidthsIDs[group] = currentObjectID
+					currentObjectID++
+					assignedGroups[group] = true
+				}
+			}
+		}
+	}
+
+	// Assign object IDs to custom fonts (object IDs already assigned before content generation)
+	// customFontObjectStart is already calculated, no need to assign again
+	// Just build the custom font resource references
+	customFontRefs := fontRegistry.GeneratePDFFontResources()
+
+	// Build XObject references for page resources (standalone images + cell images + element images)
+	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /E0 for element images, /X0 for appearance streams
 	xobjectRefs := ""
-	if len(imageObjects) > 0 || len(cellImageObjects) > 0 {
+	if len(imageObjects) > 0 || len(cellImageObjects) > 0 || len(elemImageObjects) > 0 {
 		xobjectRefs = " /XObject <<"
 		// Add standalone images with short names
 		for i, objID := range imageObjectIDs {
@@ -166,6 +323,10 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			// Use short cellKey identifier (e.g., C0_1_2 instead of CellImg_0:1:2)
 			shortKey := strings.ReplaceAll(cellKey, ":", "_")
 			xobjectRefs += fmt.Sprintf(" /C%s %d 0 R", shortKey, objID)
+		}
+		// Add element images with /E prefix
+		for elemIdx, objID := range elemImageObjectIDs {
+			xobjectRefs += fmt.Sprintf(" /E%d %d 0 R", elemIdx, objID)
 		}
 		// Add extra objects (appearance streams) that are XObjects with short names
 		for id, content := range pageManager.ExtraObjects {
@@ -193,6 +354,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			xobjectRefs += " >>"
 		}
 	}
+	// Build ColorSpace resources for PDF/A mode
+	// Using DefaultRGB tells Adobe Acrobat that DeviceRGB colors are already in sRGB
+	// This prevents the double color conversion that makes colors appear pale
+	colorSpaceRefs := ""
+	if template.Config.PDFACompliant && iccProfileObjectID > 0 {
+		colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] >>", iccProfileObjectID)
+	}
 
 	// Generate page objects
 	for i, pageID := range pageManager.Pages {
@@ -212,12 +380,18 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] ",
 			pageDims.Width, pageDims.Height))
 		pdfBuffer.WriteString(fmt.Sprintf("/Contents %d 0 R ", contentObjectStart+i))
-		// Include all 14 standard PDF fonts: Helvetica (F1-F4), Times (F5-F8), Courier (F9-F12), Symbol (F13), ZapfDingbats (F14)
-		pdfBuffer.WriteString(fmt.Sprintf("/Resources << /Font << /F1 %d 0 R /F2 %d 0 R /F3 %d 0 R /F4 %d 0 R /F5 %d 0 R /F6 %d 0 R /F7 %d 0 R /F8 %d 0 R /F9 %d 0 R /F10 %d 0 R /F11 %d 0 R /F12 %d 0 R /F13 %d 0 R /F14 %d 0 R >>%s >>%s >>\n",
-			fontObjectStart, fontObjectStart+1, fontObjectStart+2, fontObjectStart+3,
-			fontObjectStart+4, fontObjectStart+5, fontObjectStart+6, fontObjectStart+7,
-			fontObjectStart+8, fontObjectStart+9, fontObjectStart+10, fontObjectStart+11,
-			fontObjectStart+12, fontObjectStart+13, xobjectRefs, annotsStr))
+
+		// Build standard font resources string dynamically
+		var stdFontRefs strings.Builder
+		for i, name := range fontNames {
+			if id, ok := fontObjectIDs[name]; ok {
+				stdFontRefs.WriteString(fmt.Sprintf(" %s %d 0 R", fontRefs[i], id))
+			}
+		}
+
+		// Include ColorSpace resource for PDF/A mode
+		pdfBuffer.WriteString(fmt.Sprintf("/Resources <<%s /Font <<%s%s >>%s >>%s >>\n",
+			colorSpaceRefs, stdFontRefs.String(), customFontRefs, xobjectRefs, annotsStr))
 		pdfBuffer.WriteString("endobj\n")
 	}
 
@@ -240,73 +414,54 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString("\nendstream\nendobj\n")
 	}
 
-	// Generate font objects - conditional based on Arlington compatibility
-	// All 14 standard PDF Type 1 fonts
-	fontNames := []string{
-		"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", // F1-F4
-		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic", // F5-F8
-		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", // F9-F12
-		"Symbol", "ZapfDingbats", // F13-F14
-	}
-	fontRefs := []string{"/F1", "/F2", "/F3", "/F4", "/F5", "/F6", "/F7", "/F8", "/F9", "/F10", "/F11", "/F12", "/F13", "/F14"}
-
-	if template.Config.ArlingtonCompatible {
+	// Generate font objects (Standard Fonts)
+	if template.Config.ArlingtonCompatible && shouldEmbed {
 		// Arlington mode: Generate PDF 2.0 compliant font objects with full metrics
-		// Generate widths arrays for each unique set of widths
-		widthsObjIDs := make(map[string]int)
-		currentWidthsID := widthsArrayStart
 
-		// Pre-generate widths arrays (some fonts share the same widths)
-		widthGroups := map[string]string{
-			"Helvetica":             "helvetica-regular",
-			"Helvetica-Oblique":     "helvetica-regular",
-			"Helvetica-Bold":        "helvetica-bold",
-			"Helvetica-BoldOblique": "helvetica-bold",
-			"Times-Roman":           "times-roman",
-			"Times-Bold":            "times-bold",
-			"Times-Italic":          "times-italic",
-			"Times-BoldItalic":      "times-bolditalic",
-			"Courier":               "courier",
-			"Courier-Bold":          "courier",
-			"Courier-Oblique":       "courier",
-			"Courier-BoldOblique":   "courier",
-			"Symbol":                "symbol",
-			"ZapfDingbats":          "zapfdingbats",
-		}
+		// 1. Generate Widths Arrays (shared)
+		generatedGroupWidths := make(map[string]bool)
+		for _, name := range fontNames {
+			if !usedStandardFonts[name] {
+				continue
+			}
 
-		// Create unique widths arrays
-		widthsGenerated := make(map[string]bool)
-		for _, fontName := range fontNames {
-			group := widthGroups[fontName]
-			if !widthsGenerated[group] {
-				widthsObjIDs[group] = currentWidthsID
-				xrefOffsets[currentWidthsID] = pdfBuffer.Len()
-				pdfBuffer.WriteString(GenerateWidthsArrayObject(fontName, currentWidthsID))
-				currentWidthsID++
-				widthsGenerated[group] = true
+			group := widthGroups[name]
+			if !generatedGroupWidths[group] {
+				widthsID := fontWidthsIDs[group]
+				xrefOffsets[widthsID] = pdfBuffer.Len()
+				pdfBuffer.WriteString(GenerateWidthsArrayObject(name, widthsID))
+				generatedGroupWidths[group] = true
 			}
 		}
 
-		// Generate font objects and descriptors
-		for i, fontName := range fontNames {
-			fontObjID := fontObjectStart + i
-			fdObjID := fontDescriptorStart + i
-			widthsObjID := widthsObjIDs[widthGroups[fontName]]
+		// 2. Generate Font Dictionaries and Descriptors
+		for _, name := range fontNames {
+			if !usedStandardFonts[name] {
+				continue
+			}
 
-			// Generate Font dictionary
+			fontObjID := fontObjectIDs[name]
+			fdObjID := fontDescriptorIDs[name]
+			widthsObjID := fontWidthsIDs[widthGroups[name]]
+
+			// Generate Font Dictionary
 			xrefOffsets[fontObjID] = pdfBuffer.Len()
-			pdfBuffer.WriteString(GenerateFontObject(fontName, fontObjID, fdObjID, widthsObjID))
+			pdfBuffer.WriteString(GenerateFontObject(name, fontObjID, fdObjID, widthsObjID))
 
-			// Generate FontDescriptor
+			// Generate Font Descriptor
 			xrefOffsets[fdObjID] = pdfBuffer.Len()
-			pdfBuffer.WriteString(GenerateFontDescriptorObject(fontName, fdObjID))
+			pdfBuffer.WriteString(GenerateFontDescriptorObject(name, fdObjID))
 		}
 	} else {
-		// Simple mode: Generate basic font objects without full metrics (smaller file size)
-		for i, fontName := range fontNames {
-			fontObjID := fontObjectStart + i
+		// Simple mode: Generate basic font objects without full metrics
+		for i, name := range fontNames {
+			if !usedStandardFonts[name] {
+				continue
+			}
+
+			fontObjID := fontObjectIDs[name]
 			xrefOffsets[fontObjID] = pdfBuffer.Len()
-			pdfBuffer.WriteString(GenerateSimpleFontObject(fontName, fontRefs[i], fontObjID))
+			pdfBuffer.WriteString(GenerateSimpleFontObject(name, fontRefs[i], fontObjID))
 		}
 	}
 
@@ -322,6 +477,22 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
 	}
 
+	// Generate image XObjects (element images)
+	for _, imgObj := range elemImageObjects {
+		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(CreateImageXObject(imgObj, imgObj.ObjectID))
+	}
+
+	// Generate custom font objects (TrueType/OpenType embedded fonts)
+	usedFonts := fontRegistry.GetUsedFonts()
+	for _, font := range usedFonts {
+		fontObjects := GenerateTrueTypeFontObjects(font)
+		for objID, content := range fontObjects {
+			xrefOffsets[objID] = pdfBuffer.Len()
+			pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", objID, content))
+		}
+	}
+
 	// Generate Extra Objects (Widgets, Appearance Streams, AcroForm)
 	for id, content := range pageManager.ExtraObjects {
 		xrefOffsets[id] = pdfBuffer.Len()
@@ -333,13 +504,28 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// For full compliance, these should be in XMP metadata stream instead
 	infoObjectID := pageManager.NextObjectID
 	pageManager.NextObjectID++
-	xrefOffsets[infoObjectID] = pdfBuffer.Len()
 	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
-	creationDate := time.Now().Format("D:20060102150405-07'00'")
-	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
-	// Minimal Info dict with just dates (dates are not deprecated)
-	pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
-	pdfBuffer.WriteString("endobj\n")
+	// Go's time format doesn't support the PDF timezone format directly, so we build it manually
+	now := time.Now()
+	_, tzOffset := now.Zone()
+	tzSign := "+"
+	if tzOffset < 0 {
+		tzSign = "-"
+		tzOffset = -tzOffset
+	}
+	tzHours := tzOffset / 3600
+	tzMinutes := (tzOffset % 3600) / 60
+	creationDate := fmt.Sprintf("D:%s%s%02d'%02d'", now.Format("20060102150405"), tzSign, tzHours, tzMinutes)
+
+	// For PDF/A-4: Skip Info object entirely (Clause 6.1.3, Test 4)
+	// Info key shall not be present in trailer unless PieceInfo exists in catalog
+	// All metadata should be in XMP stream instead
+	if !template.Config.PDFACompliant {
+		xrefOffsets[infoObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
+		pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+		pdfBuffer.WriteString("endobj\n")
+	}
 
 	// Generate Document ID (two MD5 hashes - one based on content, one random)
 	contentHash := md5.Sum(pdfBuffer.Bytes())
@@ -347,6 +533,22 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	rand.Read(randomBytes)
 	randomHash := md5.Sum(randomBytes)
 	documentID := fmt.Sprintf("[<%s> <%s>]", hex.EncodeToString(contentHash[:]), hex.EncodeToString(randomHash[:]))
+
+	// Generate PDF/A-1b compliance objects
+	// Always generate metadata (for document info)
+	xrefOffsets[metadataObjectID] = pdfBuffer.Len()
+	pdfBuffer.WriteString(GenerateXMPMetadataObject(metadataObjectID, hex.EncodeToString(contentHash[:]), creationDate))
+
+	// Only generate ICC profile and OutputIntent for PDF/A mode
+	// This is the key fix: without these, Adobe Acrobat won't apply color management
+	// and colors will appear as intended (same as in Chrome/browser)
+	if template.Config.PDFACompliant {
+		xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
+		pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID))
+
+		xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID))
+	}
 
 	// Build compact XRef table - collect all used object IDs and sort them
 	usedObjects := make([]int, 0, len(xrefOffsets)+1)
@@ -406,7 +608,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	}
 
 	// Trailer with Info and ID
-	pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s >>\n", totalObjects, infoObjectID, documentID))
+	// For PDF/A-4, The Info key shall not be present in the trailer dictionary unless there exists a PieceInfo entry
+	if template.Config.PDFACompliant {
+		pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /ID %s >>\n", totalObjects, documentID))
+	} else {
+		pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s >>\n", totalObjects, infoObjectID, documentID))
+	}
 	pdfBuffer.WriteString("startxref\n")
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
@@ -419,7 +626,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 }
 
 // generateAllContentWithImages processes the template and generates content with image support
-func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, cellImageObjectIDs map[string]int) {
+func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int, elemImageObjects map[int]*ImageObject, elemImageObjectIDs map[int]int) {
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
@@ -456,7 +663,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 	if len(template.Elements) > 0 {
 		// Process elements in order
 		tableIdx := 0
-		for _, elem := range template.Elements {
+		for elemIdx, elem := range template.Elements {
 			switch elem.Type {
 			case "table":
 				var table models.Table
@@ -481,25 +688,26 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 				drawSpacer(spacer, pageManager)
 			case "image":
 				var image models.Image
-				var imgIdx int
 				if elem.Image != nil {
+					// Inline image in elements array - use element index for XObject lookup
 					image = *elem.Image
-					imgIdx = -1 // No index for inline image
+					if imgObj, exists := elemImageObjects[elemIdx]; exists {
+						// Use element image XObject with /E prefix to distinguish from /I prefix
+						imageXObjectRef := fmt.Sprintf("/E%d", elemIdx)
+						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
+					} else {
+						// Fall back to placeholder if no XObject
+						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
+					}
 				} else if elem.Index < len(template.Image) {
+					// Reference to template.Image array
 					image = template.Image[elem.Index]
-					imgIdx = elem.Index
-				} else {
-					continue
-				}
-				if imgIdx >= 0 {
-					if imgObj, exists := imageObjects[imgIdx]; exists {
-						imageXObjectRef := fmt.Sprintf("/I%d", imgIdx)
+					if imgObj, exists := imageObjects[elem.Index]; exists {
+						imageXObjectRef := fmt.Sprintf("/I%d", elem.Index)
 						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
 					}
-				} else {
-					drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
 				}
 			}
 		}
@@ -538,4 +746,288 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		// Draw page number on this page
 		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions)
 	}
+}
+
+// scanTemplateForFontUsage scans all text in template and marks font usage for subsetting
+func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontRegistry) {
+	// Scan title
+	if template.Title.Text != "" {
+		props := parseProps(template.Title.Props)
+		markFontUsage(props, template.Title.Text)
+	}
+
+	// Scan title table if present
+	if template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					props := parseProps(cell.Props)
+					markFontUsage(props, cell.Text)
+				}
+			}
+		}
+	}
+
+	// Scan tables
+	for _, table := range template.Table {
+		for _, row := range table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					props := parseProps(cell.Props)
+					markFontUsage(props, cell.Text)
+				}
+			}
+		}
+	}
+
+	// Scan elements (ordered)
+	for _, elem := range template.Elements {
+		if elem.Type == "table" {
+			if elem.Table != nil {
+				for _, row := range elem.Table.Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							props := parseProps(cell.Props)
+							markFontUsage(props, cell.Text)
+						}
+					}
+				}
+			} else if elem.Index >= 0 && elem.Index < len(template.Table) {
+				for _, row := range template.Table[elem.Index].Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							props := parseProps(cell.Props)
+							markFontUsage(props, cell.Text)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Scan footer
+	if template.Footer.Text != "" {
+		props := parseProps(template.Footer.Font)
+		markFontUsage(props, template.Footer.Text)
+	}
+
+	// Scan Watermark (uses Helvetica)
+	if template.Config.Watermark != "" {
+		markFontUsage(models.Props{FontName: "Helvetica"}, template.Config.Watermark)
+	}
+
+	// Scan Page Numbers (uses Helvetica)
+	markFontUsage(models.Props{FontName: "Helvetica"}, "Page of 0123456789")
+
+	// Scan Image Names (uses Helvetica)
+	// Standalone images
+	for _, img := range template.Image {
+		if img.ImageName != "" {
+			markFontUsage(models.Props{FontName: "Helvetica"}, img.ImageName)
+		}
+	}
+}
+
+// collectUsedStandardFonts returns a set of standard font names used in the template
+// Always includes Helvetica as it's the default font and used for form fields
+// Excludes fonts that are registered as custom fonts (e.g., Liberation fonts in PDF/A mode)
+func collectUsedStandardFonts(template models.PDFTemplate) map[string]bool {
+	used := make(map[string]bool)
+	registry := GetFontRegistry()
+
+	// Helper to mark font only if it's a true standard font (not overridden by custom)
+	markFont := func(propsStr string) {
+		props := parseProps(propsStr)
+		// Only mark as standard font if it's not registered as a custom font
+		if !IsCustomFont(props.FontName) && !registry.HasFont(props.FontName) {
+			used[props.FontName] = true
+		}
+	}
+
+	// Helvetica is default font - only add if not overridden by custom font
+	if !registry.HasFont("Helvetica") {
+		used["Helvetica"] = true // Default font, always required for AcroForm default appearance
+	}
+
+	// Scan title
+	if template.Title.Text != "" {
+		markFont(template.Title.Props)
+	}
+
+	// Scan title table
+	if template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					markFont(cell.Props)
+				}
+			}
+		}
+	}
+
+	// Scan tables
+	for _, table := range template.Table {
+		for _, row := range table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					markFont(cell.Props)
+				}
+			}
+		}
+	}
+
+	// Scan elements
+	for _, elem := range template.Elements {
+		if elem.Type == "table" {
+			if elem.Table != nil {
+				for _, row := range elem.Table.Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							markFont(cell.Props)
+						}
+					}
+				}
+			} else if elem.Index >= 0 && elem.Index < len(template.Table) {
+				for _, row := range template.Table[elem.Index].Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							markFont(cell.Props)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Scan footer
+	if template.Footer.Text != "" {
+		markFont(template.Footer.Font)
+	}
+
+	// Scan watermark (always uses Helvetica if present)
+	if template.Config.Watermark != "" {
+		// Watermark uses Helvetica
+		if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+			used["Helvetica"] = true
+		}
+	}
+
+	// Page numbers always use Helvetica
+	if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+		used["Helvetica"] = true
+	}
+
+	// Image placeholder names use Helvetica
+	hasImages := len(template.Image) > 0
+	for _, table := range template.Table {
+		for _, row := range table.Rows {
+			for _, cell := range row.Row {
+				if cell.Image != nil {
+					hasImages = true
+					break
+				}
+			}
+			if hasImages {
+				break
+			}
+		}
+		if hasImages {
+			break
+		}
+	}
+	// Check title table for images
+	if !hasImages && template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				if cell.Image != nil {
+					hasImages = true
+					break
+				}
+			}
+			if hasImages {
+				break
+			}
+		}
+	}
+	if hasImages {
+		// Image placeholders use Helvetica for displaying image names
+		if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+			used["Helvetica"] = true
+		}
+	}
+
+	return used
+}
+
+// collectAllStandardFontsInTemplate returns all standard font names used in the template
+// This does NOT check the font registry - used for determining which Liberation fonts to load
+func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]bool {
+	used := make(map[string]bool)
+
+	// Helper to mark font
+	markFont := func(propsStr string) {
+		props := parseProps(propsStr)
+		if !IsCustomFont(props.FontName) {
+			used[props.FontName] = true
+		}
+	}
+
+	used["Helvetica"] = true // Default font, always required
+
+	// Scan title
+	if template.Title.Text != "" {
+		markFont(template.Title.Props)
+	}
+
+	// Scan title table
+	if template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					markFont(cell.Props)
+				}
+			}
+		}
+	}
+
+	// Scan tables
+	for _, table := range template.Table {
+		for _, row := range table.Rows {
+			for _, cell := range row.Row {
+				if cell.Text != "" {
+					markFont(cell.Props)
+				}
+			}
+		}
+	}
+
+	// Scan elements
+	for _, elem := range template.Elements {
+		if elem.Type == "table" {
+			if elem.Table != nil {
+				for _, row := range elem.Table.Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							markFont(cell.Props)
+						}
+					}
+				}
+			} else if elem.Index >= 0 && elem.Index < len(template.Table) {
+				for _, row := range template.Table[elem.Index].Rows {
+					for _, cell := range row.Row {
+						if cell.Text != "" {
+							markFont(cell.Props)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Scan footer
+	if template.Footer.Text != "" {
+		markFont(template.Footer.Font)
+	}
+
+	return used
 }

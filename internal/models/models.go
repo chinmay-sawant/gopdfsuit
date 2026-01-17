@@ -23,11 +23,21 @@ type Element struct {
 }
 
 type Config struct {
-	PageBorder          string `json:"pageBorder"`
-	Page                string `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
-	PageAlignment       int    `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
-	Watermark           string `json:"watermark,omitempty"`           // Optional diagonal watermark text
-	ArlingtonCompatible bool   `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
+	PageBorder          string             `json:"pageBorder"`
+	Page                string             `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
+	PageAlignment       int                `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
+	Watermark           string             `json:"watermark,omitempty"`           // Optional diagonal watermark text
+	ArlingtonCompatible bool               `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
+	EmbedFonts          *bool              `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
+	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`         // Custom TTF/OTF fonts to embed
+	PDFACompliant       bool               `json:"pdfaCompliant,omitempty"`       // Enable PDF/A-4 compliance mode (PDF 2.0, requires all fonts to be embedded via Liberation fonts)
+}
+
+// CustomFontConfig specifies a custom font to embed in the PDF
+type CustomFontConfig struct {
+	Name     string `json:"name"`               // Reference name used in props (e.g., "MyFont")
+	FilePath string `json:"filePath,omitempty"` // Path to TTF/OTF file (server-side)
+	FontData string `json:"fontData,omitempty"` // Base64-encoded font data (alternative to FilePath)
 }
 
 type Title struct {

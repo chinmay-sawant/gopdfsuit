@@ -1,14 +1,11 @@
 import React, { useState, useRef } from 'react'
 import { Merge, Upload, Download, RefreshCw, FileText, X } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
-import { useAuth } from '../contexts/AuthContext'
 
 const MergePage = () => {
   const [files, setFiles] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [mergedPdfUrl, setMergedPdfUrl] = useState('')
   const fileInputRef = useRef(null)
-  const { getAuthHeaders } = useAuth()
 
   const handleFileUpload = (event) => {
     const newFiles = Array.from(event.target.files).filter(file => file.type === 'application/pdf')
@@ -40,20 +37,24 @@ const MergePage = () => {
         formData.append('pdf', file)
       })
 
-      const response = await makeAuthenticatedRequest('/api/v1/merge', {
+      const response = await fetch('/api/v1/merge', {
         method: 'POST',
         body: formData,
-      }, getAuthHeaders)
+      })
       
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      setMergedPdfUrl(url)
-      
-      // Also trigger download
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `merged-pdf-${Date.now()}.pdf`
-      link.click()
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        setMergedPdfUrl(url)
+        
+        // Also trigger download
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `merged-pdf-${Date.now()}.pdf`
+        link.click()
+      } else {
+        alert('Failed to merge PDFs')
+      }
     } catch (error) {
       alert('Error merging PDFs: ' + error.message)
     } finally {

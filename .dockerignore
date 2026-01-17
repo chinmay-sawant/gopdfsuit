@@ -1,18 +1,6 @@
-frontend
-bkp
-dockerfolder
-guides
-node_modules
-test
-venv
-.venv
-*.env*
-.git
-.gitignore
-.gcloudignore
-.dockerignore
-
-sampledata
+frontend/node_modules/
+frontend/docs/
+frontend/.vite/
 
 *.exe
 *.log

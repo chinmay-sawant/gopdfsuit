@@ -1,7 +1,5 @@
 import React, { useState, useRef } from 'react'
 import { FileText, Download, Upload, Play, RefreshCw } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
-import { useAuth } from '../contexts/AuthContext'
 
 const Viewer = () => {
   const [templateData, setTemplateData] = useState('')
@@ -9,13 +7,16 @@ const Viewer = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [pdfUrl, setPdfUrl] = useState('')
   const fileInputRef = useRef(null)
-  const { getAuthHeaders } = useAuth()
 
   // Check if running on GitHub Pages
   const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')
 
   const showError = (message) => {
+    if (isGitHubPages) {
+      alert('Run the Application Locally To Generate The PDF')
+    } else {
       alert(message)
+    }
   }
 
   const loadTemplate = async () => {
@@ -23,22 +24,30 @@ const Viewer = () => {
 
     setIsLoading(true)
     try {
-      const response = await makeAuthenticatedRequest(`/api/v1/template-data?file=${encodeURIComponent(fileName)}`, {}, getAuthHeaders)
-      const data = await response.json()
-      setTemplateData(JSON.stringify(data, null, 2))
+      const response = await fetch(`/api/v1/template-data?file=${encodeURIComponent(fileName)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setTemplateData(JSON.stringify(data, null, 2))
 
-      // Directly call the generate PDF API
-      const pdfResponse = await makeAuthenticatedRequest('/api/v1/generate/template-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }, getAuthHeaders)
+        // Directly call the generate PDF API
+        const pdfResponse = await fetch('/api/v1/generate/template-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        })
 
-      const blob = await pdfResponse.blob()
-      const url = URL.createObjectURL(blob)
-      setPdfUrl(url)
+        if (pdfResponse.ok) {
+          const blob = await pdfResponse.blob()
+          const url = URL.createObjectURL(blob)
+          setPdfUrl(url)
+        } else {
+          showError('Failed to generate PDF')
+        }
+      } else {
+        showError('Failed to load template')
+      }
     } catch (error) {
       showError('Error loading template: ' + error.message)
     } finally {
@@ -52,17 +61,21 @@ const Viewer = () => {
     setIsLoading(true)
     try {
       const data = JSON.parse(templateData)
-      const response = await makeAuthenticatedRequest('/api/v1/generate/template-pdf', {
+      const response = await fetch('/api/v1/generate/template-pdf', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
-      }, getAuthHeaders)
+      })
       
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      setPdfUrl(url)
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        setPdfUrl(url)
+      } else {
+        showError('Failed to generate PDF')
+      }
     } catch (error) {
       showError('Error generating PDF: ' + error.message)
     } finally {
