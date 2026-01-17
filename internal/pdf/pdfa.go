@@ -94,21 +94,29 @@ func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr strin
 
 // buildSRGBICCProfile builds a valid sRGB ICC profile from scratch
 // This creates a properly structured ICC v2.1 profile (more widely compatible)
+// We use the INVERSE sRGB gamma (linearization curve) as the TRC because:
+// 1. Hex colors like #154360 are already gamma-encoded (sRGB)
+// 2. When Adobe applies this profile, it applies the TRC to "linearize" the input
+// 3. If we don't compensate, colors appear washed out due to matrix transformation
+// 4. By using the linearization curve, we tell Adobe to treat these as already-linear
+//    which means the matrix conversion produces correct output
 func buildSRGBICCProfile() []byte {
-	// Pre-calculate gamma table
+	// Use inverse sRGB gamma curve (linearization) to compensate for matrix conversion
+	// This curve converts sRGB-encoded values to linear, which is what Adobe expects
 	gammaTable := make([]uint16, 1024)
 	for i := 0; i < 1024; i++ {
 		x := float64(i) / 1023.0
 		var y float64
-		if x <= 0.0031308 {
-			y = x * 12.92
+		// sRGB to linear (inverse gamma)
+		if x <= 0.04045 {
+			y = x / 12.92
 		} else {
-			y = 1.055*math.Pow(x, 1.0/2.4) - 0.055
+			y = math.Pow((x+0.055)/1.055, 2.4)
 		}
 		gammaTable[i] = uint16(y * 65535.0)
 	}
 
-	// Calculate sizes
+	// Calculate sizes - full 1024-entry curve
 	headerSize := 128
 	tagTableSize := 4 + 9*12 // count + 9 tags * 12 bytes each
 	cprtSize := 32           // text type: 4 + 4 + 24 (text)
@@ -241,10 +249,11 @@ func buildSRGBICCProfile() []byte {
 	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x00000F84) // Y: 0.0606
 	binary.BigEndian.PutUint32(profile[offset+16:offset+20], 0x0000B6CF) // Z: 0.7139
 
-	// Write TRC (tone reproduction curve) - curvType
+	// Write TRC (tone reproduction curve) - curvType with inverse sRGB gamma
+	// This linearization curve tells Adobe our input values are sRGB-encoded
 	offset = curvOffset
 	copy(profile[offset:offset+4], []byte("curv"))
-	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)    // Reserved
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1024) // Entry count
 	for i, v := range gammaTable {
 		binary.BigEndian.PutUint16(profile[offset+12+i*2:offset+14+i*2], v)

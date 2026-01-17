@@ -354,6 +354,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			xobjectRefs += " >>"
 		}
 	}
+	// Build ColorSpace resources for PDF/A mode
+	// Using DefaultRGB tells Adobe Acrobat that DeviceRGB colors are already in sRGB
+	// This prevents the double color conversion that makes colors appear pale
+	colorSpaceRefs := ""
+	if template.Config.PDFACompliant && iccProfileObjectID > 0 {
+		colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] >>", iccProfileObjectID)
+	}
 
 	// Generate page objects
 	for i, pageID := range pageManager.Pages {
@@ -382,8 +389,9 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			}
 		}
 
-		pdfBuffer.WriteString(fmt.Sprintf("/Resources << /Font <<%s%s >>%s >>%s >>\n",
-			stdFontRefs.String(), customFontRefs, xobjectRefs, annotsStr))
+		// Include ColorSpace resource for PDF/A mode
+		pdfBuffer.WriteString(fmt.Sprintf("/Resources <<%s /Font <<%s%s >>%s >>%s >>\n",
+			colorSpaceRefs, stdFontRefs.String(), customFontRefs, xobjectRefs, annotsStr))
 		pdfBuffer.WriteString("endobj\n")
 	}
 
