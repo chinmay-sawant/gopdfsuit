@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
-import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check } from 'lucide-react'
+import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check, HelpCircle, PenTool } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
@@ -462,6 +462,207 @@ function PageBorderControls({ borders, onChange }) {
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+function SignatureSettings({ config, onChange }) {
+  const [chainText, setChainText] = useState('')
+
+  useEffect(() => {
+    const backendChain = config.certificateChain || []
+    const currentParse = (chainText.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) || [])
+    if (JSON.stringify(backendChain) !== JSON.stringify(currentParse)) {
+      setChainText(backendChain.join('\n\n'))
+    }
+  }, [config.certificateChain])
+
+  const handleChange = (key, value) => {
+    onChange({ ...config, [key]: value })
+  }
+
+  if (!config.enabled) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <h5 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'hsl(var(--foreground))' }}>
+          <PenTool size={14} /> Digital Signature
+        </h5>
+        <button
+          onClick={() => onChange({ ...config, enabled: true, visible: true })}
+          className="btn"
+          style={{ width: '100%', fontSize: '0.85rem' }}
+        >
+          Enable Signature
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h5 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'hsl(var(--foreground))' }}>
+          <PenTool size={14} /> Digital Signature
+        </h5>
+        <button
+          onClick={() => onChange({ ...config, enabled: false })}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'hsl(var(--destructive))',
+            cursor: 'pointer',
+            fontSize: '0.8rem'
+          }}
+        >
+          Disable
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Name</label>
+          <input
+            type="text"
+            value={config.name || ''}
+            onChange={(e) => handleChange('name', e.target.value)}
+            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Reason</label>
+          <input
+            type="text"
+            value={config.reason || ''}
+            onChange={(e) => handleChange('reason', e.target.value)}
+            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Location</label>
+          <input
+            type="text"
+            value={config.location || ''}
+            onChange={(e) => handleChange('location', e.target.value)}
+            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Contact Info</label>
+          <input
+            type="text"
+            value={config.contactInfo || ''}
+            onChange={(e) => handleChange('contactInfo', e.target.value)}
+            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input
+          type="checkbox"
+          checked={!!config.visible}
+          onChange={(e) => handleChange('visible', e.target.checked)}
+          id="sig-visible"
+        />
+        <label htmlFor="sig-visible" style={{ fontSize: '0.85rem', color: 'hsl(var(--foreground))' }}>Visible Signature</label>
+      </div>
+
+      {!!config.visible && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Page</label>
+              <input
+                type="number"
+                value={config.page || 1}
+                onChange={(e) => handleChange('page', parseInt(e.target.value))}
+                min={1}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width</label>
+              <input
+                type="number"
+                value={config.width || 200}
+                onChange={(e) => handleChange('width', parseFloat(e.target.value))}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>X</label>
+              <input
+                type="number"
+                value={config.x || 0}
+                onChange={(e) => handleChange('x', parseFloat(e.target.value))}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Y</label>
+              <input
+                type="number"
+                value={config.y || 0}
+                onChange={(e) => handleChange('y', parseFloat(e.target.value))}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Height</label>
+              <input
+                type="number"
+                value={config.height || 50}
+                onChange={(e) => handleChange('height', parseFloat(e.target.value))}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <div>
+        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Certificate (PEM)</label>
+        <textarea
+          value={config.certificatePem || ''}
+          onChange={(e) => handleChange('certificatePem', e.target.value)}
+          placeholder="-----BEGIN CERTIFICATE-----..."
+          rows={3}
+          style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', fontFamily: 'monospace' }}
+        />
+      </div>
+
+      <div>
+        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Private Key (PEM)</label>
+        <textarea
+          value={config.privateKeyPem || ''}
+          onChange={(e) => handleChange('privateKeyPem', e.target.value)}
+          placeholder="-----BEGIN PRIVATE KEY-----..."
+          rows={3}
+          style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', fontFamily: 'monospace' }}
+        />
+      </div>
+
+      <div>
+        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Intermediate Certificates (Optional)</label>
+        <textarea
+          value={chainText}
+          onChange={(e) => {
+            const val = e.target.value
+            setChainText(val)
+            const matches = val.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g)
+            handleChange('certificateChain', matches || [])
+          }}
+          placeholder="Paste intermediate certificates here..."
+          rows={3}
+          style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', fontFamily: 'monospace' }}
+        />
+      </div>
+
     </div>
   )
 }
@@ -1673,6 +1874,7 @@ export default function Editor() {
   const [fontsLoading, setFontsLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(null)
   const [bookmarks, setBookmarks] = useState(null)
+  const [showPdfTooltip, setShowPdfTooltip] = useState(false)
   const canvasRef = useRef(null)
 
   // Fetch fonts from API on component mount
@@ -2012,7 +2214,11 @@ export default function Editor() {
         const data = await response.json()
 
         // Parse the JSON structure from the template
-        setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
+        let newConfig = data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' }
+        if (newConfig.security?.enabled) {
+          newConfig = { ...newConfig, pdfaCompliant: false }
+        }
+        setConfig(newConfig)
 
         // Ensure title has table structure
         if (data.title) {
@@ -2248,7 +2454,11 @@ export default function Editor() {
       const data = JSON.parse(jsonText)
 
       // Parse the JSON structure from the pasted content
-      setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
+      let newConfig = data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' }
+      if (newConfig.security?.enabled) {
+        newConfig = { ...newConfig, pdfaCompliant: false }
+      }
+      setConfig(newConfig)
 
       // Ensure title has table structure
       if (data.title) {
@@ -2640,17 +2850,63 @@ export default function Editor() {
                     justifyContent: 'space-between',
                     padding: '0.5rem',
                     background: 'hsl(var(--muted))',
-                    borderRadius: '4px'
+                    borderRadius: '4px',
+                    position: 'relative'
                   }}>
-                    <div>
-                      <label style={{
-                        display: 'block',
-                        fontSize: '0.8rem',
-                        fontWeight: '500',
-                        color: 'hsl(var(--foreground))'
+                    {/* Tooltip */}
+                    {showPdfTooltip && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-60px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'black',
+                        color: 'white',
+                        padding: '8px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        width: '200px',
+                        textAlign: 'center',
+                        zIndex: 100,
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        pointerEvents: 'none'
                       }}>
-                        PDF/A Compliant
-                      </label>
+                        If the file is encrypted, it violates PDF/A compliance. You must generate a version without a password.
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '-4px',
+                          left: '50%',
+                          transform: 'translateX(-50%) rotate(45deg)',
+                          width: '8px',
+                          height: '8px',
+                          background: 'inherit'
+                        }} />
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '0.8rem',
+                          fontWeight: '500',
+                          color: 'hsl(var(--foreground))'
+                        }}>
+                          PDF/A Compliant
+                        </label>
+                        <div
+                          onMouseEnter={() => setShowPdfTooltip(true)}
+                          onMouseLeave={() => setShowPdfTooltip(false)}
+                          style={{
+                            cursor: 'help',
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'hsl(var(--muted-foreground))'
+                          }}
+                        >
+                          <HelpCircle size={14} />
+                        </div>
+                      </div>
                       <span style={{
                         fontSize: '0.7rem',
                         color: 'hsl(var(--muted-foreground))'
@@ -2667,7 +2923,13 @@ export default function Editor() {
                       <input
                         type="checkbox"
                         checked={config.pdfaCompliant !== false}
-                        onChange={(e) => setConfig(prev => ({ ...prev, pdfaCompliant: e.target.checked }))}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          pdfaCompliant: e.target.checked,
+                          security: e.target.checked && prev.security?.enabled
+                            ? { ...prev.security, enabled: false }
+                            : prev.security
+                        }))}
                         style={{
                           opacity: 0,
                           width: 0,
@@ -2835,6 +3097,202 @@ export default function Editor() {
                     </label>
                   </div>
 
+                  {/* Security/Encryption Settings */}
+                  <div style={{
+                    paddingTop: '0.75rem',
+                    borderTop: '1px solid hsl(var(--border))',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '0.9rem',
+                          fontWeight: '600',
+                          color: 'hsl(var(--foreground))'
+                        }}>
+                          🔒 PDF Security
+                        </label>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          color: 'hsl(var(--muted-foreground))'
+                        }}>
+                          Password protection & permissions
+                        </span>
+                      </div>
+                      <label style={{
+                        position: 'relative',
+                        display: 'inline-block',
+                        width: '40px',
+                        height: '22px'
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={config.security?.enabled || false}
+                          onChange={(e) => setConfig(prev => ({
+                            ...prev,
+                            pdfaCompliant: e.target.checked ? false : prev.pdfaCompliant,
+                            security: e.target.checked
+                              ? { ...prev.security, enabled: true, ownerPassword: prev.security?.ownerPassword || '' }
+                              : { ...prev.security, enabled: false }
+                          }))}
+                          style={{
+                            opacity: 0,
+                            width: 0,
+                            height: 0
+                          }}
+                        />
+                        <span style={{
+                          position: 'absolute',
+                          cursor: 'pointer',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: config.security?.enabled ? 'var(--secondary-color)' : 'hsl(var(--border))',
+                          transition: '0.3s',
+                          borderRadius: '22px'
+                        }}>
+                          <span style={{
+                            position: 'absolute',
+                            content: '""',
+                            height: '16px',
+                            width: '16px',
+                            left: config.security?.enabled ? '21px' : '3px',
+                            bottom: '3px',
+                            backgroundColor: 'white',
+                            transition: '0.3s',
+                            borderRadius: '50%'
+                          }} />
+                        </span>
+                      </label>
+                    </div>
+
+                    {config.security?.enabled && (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
+                        padding: '0.75rem',
+                        background: 'hsl(var(--muted))',
+                        borderRadius: '6px'
+                      }}>
+                        {/* Owner Password (Required) */}
+                        <div>
+                          <label style={{
+                            display: 'block',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            marginBottom: '0.25rem',
+                            color: 'hsl(var(--foreground))'
+                          }}>
+                            Owner Password <span style={{ color: 'red' }}>*</span>
+                          </label>
+                          <input
+                            type="password"
+                            placeholder="Required for encryption"
+                            value={config.security?.ownerPassword || ''}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              security: { ...prev.security, ownerPassword: e.target.value }
+                            }))}
+                            style={{
+                              width: '100%',
+                              padding: '0.4rem 0.5rem',
+                              fontSize: '0.8rem',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px',
+                              background: 'hsl(var(--background))',
+                              color: 'hsl(var(--foreground))'
+                            }}
+                          />
+                          <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                            Full access password
+                          </span>
+                        </div>
+
+                        {/* User Password (Optional) */}
+                        <div>
+                          <label style={{
+                            display: 'block',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            marginBottom: '0.25rem',
+                            color: 'hsl(var(--foreground))'
+                          }}>
+                            User Password (Optional)
+                          </label>
+                          <input
+                            type="password"
+                            placeholder="Password to open PDF"
+                            value={config.security?.userPassword || ''}
+                            onChange={(e) => setConfig(prev => ({
+                              ...prev,
+                              security: { ...prev.security, userPassword: e.target.value }
+                            }))}
+                            style={{
+                              width: '100%',
+                              padding: '0.4rem 0.5rem',
+                              fontSize: '0.8rem',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '4px',
+                              background: 'hsl(var(--background))',
+                              color: 'hsl(var(--foreground))'
+                            }}
+                          />
+                          <span style={{ fontSize: '0.65rem', color: 'hsl(var(--muted-foreground))' }}>
+                            Leave empty for no open password
+                          </span>
+                        </div>
+
+                        {/* Permissions */}
+                        <div style={{ paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
+                          <label style={{
+                            display: 'block',
+                            fontSize: '0.75rem',
+                            fontWeight: '500',
+                            marginBottom: '0.5rem',
+                            color: 'hsl(var(--foreground))'
+                          }}>
+                            Permissions
+                          </label>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                            {[
+                              { key: 'allowPrinting', label: 'Printing' },
+                              { key: 'allowCopying', label: 'Copying' },
+                              { key: 'allowModifying', label: 'Modifying' },
+                              { key: 'allowAnnotations', label: 'Annotations' },
+                              { key: 'allowFormFilling', label: 'Form Filling' },
+                              { key: 'allowAccessibility', label: 'Accessibility' }
+                            ].map(({ key, label }) => (
+                              <label key={key} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                fontSize: '0.7rem',
+                                color: 'hsl(var(--foreground))',
+                                cursor: 'pointer'
+                              }}>
+                                <input
+                                  type="checkbox"
+                                  checked={config.security?.[key] !== false}
+                                  onChange={(e) => setConfig(prev => ({
+                                    ...prev,
+                                    security: { ...prev.security, [key]: e.target.checked }
+                                  }))}
+                                  style={{ width: '14px', height: '14px' }}
+                                />
+                                {label}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Page Borders */}
                   <div style={{ paddingTop: '0.5rem', borderTop: '1px solid hsl(var(--border))' }}>
                     <PageBorderControls
@@ -2859,6 +3317,14 @@ export default function Editor() {
                       <span>Usable Width:</span>
                       <span>{getUsableWidth(currentPageSize.width)} pts</span>
                     </div>
+                  </div>
+
+                  {/* Digital Signature */}
+                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid hsl(var(--border))' }}>
+                    <SignatureSettings
+                      config={config.signature || {}}
+                      onChange={(newSig) => setConfig(prev => ({ ...prev, signature: newSig }))}
+                    />
                   </div>
                 </div>
               </div>

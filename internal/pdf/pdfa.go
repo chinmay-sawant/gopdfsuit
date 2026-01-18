@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"time"
@@ -41,17 +42,47 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 	return fmt.Sprintf("%s-%s-%sT%s:%s:%s%s", year, month, day, hour, min, sec, tz)
 }
 
-// GenerateXMPMetadata generates PDF/A-4 compliant XMP metadata (PDF 2.0 based)
+// GenerateXMPMetadata generates PDF/A-4 and PDF/UA-2 compliant XMP metadata (PDF 2.0 based)
 // pdfDateStr should be in PDF format: D:YYYYMMDDHHmmSSOHH'mm'
 func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
 	// Convert PDF date to XMP date format for consistency
 	xmpDateStr := ConvertPDFDateToXMP(pdfDateStr)
 
 	// PDF/A-4 is the PDF/A standard based on PDF 2.0 (ISO 32000-2)
-	// pdfaid:part=4, no conformance level needed for PDF/A-4
+	// PDF/UA-2 is the PDF/UA standard based on PDF 2.0 (ISO 14289-2:2024)
 	xmp := `<?xpacket begin="` + "\xef\xbb\xbf" + `" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/">
   <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about=""
+        xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/"
+        xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#"
+        xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">
+      <pdfaExtension:schemas>
+        <rdf:Bag>
+          <rdf:li rdf:parseType="Resource">
+            <pdfaSchema:schema>PDF/UA Universal Accessibility Schema</pdfaSchema:schema>
+            <pdfaSchema:namespaceURI>http://www.aiim.org/pdfua/ns/id/</pdfaSchema:namespaceURI>
+            <pdfaSchema:prefix>pdfuaid</pdfaSchema:prefix>
+            <pdfaSchema:property>
+              <rdf:Seq>
+                <rdf:li rdf:parseType="Resource">
+                  <pdfaProperty:name>part</pdfaProperty:name>
+                  <pdfaProperty:valueType>Integer</pdfaProperty:valueType>
+                  <pdfaProperty:category>internal</pdfaProperty:category>
+                  <pdfaProperty:description>Indicates which part of ISO 14289 the document conforms to.</pdfaProperty:description>
+                </rdf:li>
+                <rdf:li rdf:parseType="Resource">
+                  <pdfaProperty:name>rev</pdfaProperty:name>
+                  <pdfaProperty:valueType>Integer</pdfaProperty:valueType>
+                  <pdfaProperty:category>internal</pdfaProperty:category>
+                  <pdfaProperty:description>Indicates the revision year of ISO 14289 the document conforms to.</pdfaProperty:description>
+                </rdf:li>
+              </rdf:Seq>
+            </pdfaSchema:property>
+          </rdf:li>
+        </rdf:Bag>
+      </pdfaExtension:schemas>
+    </rdf:Description>
     <rdf:Description rdf:about=""
         xmlns:dc="http://purl.org/dc/elements/1.1/"
         xmlns:xmp="http://ns.adobe.com/xap/1.0/"
@@ -75,6 +106,8 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
       <pdf:Producer>GoPDFSuit</pdf:Producer>
       <pdfaid:part>4</pdfaid:part>
       <pdfaid:rev>2020</pdfaid:rev>
+      <pdfuaid:part>2</pdfuaid:part>
+      <pdfuaid:rev>2024</pdfuaid:rev>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>
@@ -85,21 +118,28 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
 
 // GenerateXMPMetadataObject generates the XMP metadata stream object
 // pdfDateStr should be in PDF format: D:YYYYMMDDHHmmSSOHH'mm'
-func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr string) string {
+func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr string, encryptor ObjectEncryptor) string {
 	xmpData := GenerateXMPMetadata(documentID, pdfDateStr)
 
+	var streamContent []byte = []byte(xmpData)
+
+	// Encrypt if needed
+	if encryptor != nil {
+		streamContent = encryptor.EncryptStream(streamContent, objectID, 0)
+	}
+
 	return fmt.Sprintf("%d 0 obj\n<< /Type /Metadata /Subtype /XML /Length %d >>\nstream\n%s\nendstream\nendobj\n",
-		objectID, len(xmpData), xmpData)
+		objectID, len(streamContent), string(streamContent))
 }
 
 // buildSRGBICCProfile builds a valid sRGB ICC profile from scratch
 // This creates a properly structured ICC v2.1 profile (more widely compatible)
 // We use the INVERSE sRGB gamma (linearization curve) as the TRC because:
-// 1. Hex colors like #154360 are already gamma-encoded (sRGB)
-// 2. When Adobe applies this profile, it applies the TRC to "linearize" the input
-// 3. If we don't compensate, colors appear washed out due to matrix transformation
-// 4. By using the linearization curve, we tell Adobe to treat these as already-linear
-//    which means the matrix conversion produces correct output
+//  1. Hex colors like #154360 are already gamma-encoded (sRGB)
+//  2. When Adobe applies this profile, it applies the TRC to "linearize" the input
+//  3. If we don't compensate, colors appear washed out due to matrix transformation
+//  4. By using the linearization curve, we tell Adobe to treat these as already-linear
+//     which means the matrix conversion produces correct output
 func buildSRGBICCProfile() []byte {
 	// Use inverse sRGB gamma curve (linearization) to compensate for matrix conversion
 	// This curve converts sRGB-encoded values to linear, which is what Adobe expects
@@ -253,7 +293,7 @@ func buildSRGBICCProfile() []byte {
 	// This linearization curve tells Adobe our input values are sRGB-encoded
 	offset = curvOffset
 	copy(profile[offset:offset+4], []byte("curv"))
-	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)    // Reserved
+	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)     // Reserved
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1024) // Entry count
 	for i, v := range gammaTable {
 		binary.BigEndian.PutUint16(profile[offset+12+i*2:offset+14+i*2], v)
@@ -269,7 +309,7 @@ func GetSRGBICCProfile() []byte {
 
 // GenerateICCProfileObject generates the ICC profile stream object for sRGB
 // Returns the bytes to write to the PDF buffer
-func GenerateICCProfileObject(objectID int) []byte {
+func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 	// Get the complete sRGB ICC profile
 	iccProfile := GetSRGBICCProfile()
 
@@ -279,6 +319,11 @@ func GenerateICCProfileObject(objectID int) []byte {
 	zlibWriter.Write(iccProfile)
 	zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
+
+	// Encrypt if needed
+	if encryptor != nil {
+		compressedData = encryptor.EncryptStream(compressedData, objectID, 0)
+	}
 
 	// Build the object with proper binary stream handling
 	var result bytes.Buffer
@@ -292,7 +337,7 @@ func GenerateICCProfileObject(objectID int) []byte {
 
 // GenerateGrayICCProfileObject generates the ICC profile stream object for DeviceGray
 // Returns the bytes to write to the PDF buffer
-func GenerateGrayICCProfileObject(objectID int) []byte {
+func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 	// Build a simple Gray ICC profile
 	grayProfile := buildGrayICCProfile()
 
@@ -302,6 +347,11 @@ func GenerateGrayICCProfileObject(objectID int) []byte {
 	zlibWriter.Write(grayProfile)
 	zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
+
+	// Encrypt if needed
+	if encryptor != nil {
+		compressedData = encryptor.EncryptStream(compressedData, objectID, 0)
+	}
 
 	// Build the object
 	var result bytes.Buffer
@@ -418,8 +468,24 @@ func buildGrayICCProfile() []byte {
 }
 
 // GenerateOutputIntentObject generates the OutputIntent object for PDF/A-4
-func GenerateOutputIntentObject(objectID int, iccProfileID int) string {
+func GenerateOutputIntentObject(objectID int, iccProfileID int, encryptor ObjectEncryptor) string {
+	// Encrypt string values if needed
+	idStr := "(sRGB IEC61966-2.1)"
+	regStr := "(http://www.color.org)"
+	infoStr := "(sRGB IEC61966-2.1)"
+
+	if encryptor != nil {
+		idEnc := encryptor.EncryptString([]byte("sRGB IEC61966-2.1"), objectID, 0)
+		idStr = fmt.Sprintf("<%s>", hex.EncodeToString(idEnc))
+
+		regEnc := encryptor.EncryptString([]byte("http://www.color.org"), objectID, 0)
+		regStr = fmt.Sprintf("<%s>", hex.EncodeToString(regEnc))
+
+		infoEnc := encryptor.EncryptString([]byte("sRGB IEC61966-2.1"), objectID, 0)
+		infoStr = fmt.Sprintf("<%s>", hex.EncodeToString(infoEnc))
+	}
+
 	// For PDF/A-4 (PDF 2.0), use GTS_PDFA1 subtype (still valid)
-	return fmt.Sprintf("%d 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier (sRGB IEC61966-2.1) /RegistryName (http://www.color.org) /Info (sRGB IEC61966-2.1) /DestOutputProfile %d 0 R >>\nendobj\n",
-		objectID, iccProfileID)
+	return fmt.Sprintf("%d 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier %s /RegistryName %s /Info %s /DestOutputProfile %d 0 R >>\nendobj\n",
+		objectID, idStr, regStr, infoStr, iccProfileID)
 }
