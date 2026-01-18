@@ -34,5 +34,6 @@ venv
 .venv
 *.env*
 
-
+verapdf
+temp_verapdf
 
