@@ -53,7 +53,15 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 		// Internal link - use named destination
 		// PDF/UA-2: Try to use structure destination if available
 		if dest, ok := pageManager.NamedDests[annot.Dest]; ok && dest.StructElemID > 0 {
-			annotDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /SD %d 0 R >>", dest.StructElemID))
+			// We need to construct the /D array for the fallback view
+			// Find object ID for the destination page
+			pageObjID := 3 // Default
+			if dest.PageIndex < len(pageManager.Pages) {
+				pageObjID = pageManager.Pages[dest.PageIndex]
+			}
+			// PDF 2.0 structure destination format: /SD [structElemRef destType params...]
+			annotDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /D [%d 0 R /XYZ null %s null] /SD [%d 0 R /XYZ null %s null] >>",
+				pageObjID, fmtNum(dest.Y), dest.StructElemID, fmtNum(dest.Y)))
 		} else {
 			annotDict.WriteString(fmt.Sprintf(" /Dest (%s)", escapeText(annot.Dest)))
 		}

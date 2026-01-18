@@ -311,10 +311,12 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 		itemDict.WriteString(fmt.Sprintf(" /Parent %d 0 R", item.ParentID))
 
 		// Destination: Use structure destination for PDF/UA-2 compliance
-		// Format: /A << /S /GoTo /SD structElemRef >>
-		// The structure element ID was created during allocateOutlineIDs
+		// /SD must be an array (structure destination): [structElemRef /XYZ left top zoom]
+		// We also provide /D for Arlington Model compatibility
 		if item.DestStructElemID > 0 {
-			itemDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /SD %d 0 R >>", item.DestStructElemID))
+			// PDF 2.0 structure destination format: /SD [structElemRef destType params...]
+			itemDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /D [%d 0 R /XYZ null %s null] /SD [%d 0 R /XYZ null %s null] >>",
+				item.DestPageID, fmtNum(item.DestY), item.DestStructElemID, fmtNum(item.DestY)))
 		} else {
 			// Fallback to page destination (not PDF/UA-2 compliant)
 			itemDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /D [%d 0 R /XYZ null %s null] >>",
