@@ -20,6 +20,7 @@ type OutlineBuilder struct {
 type OutlineItem struct {
 	ObjectID         int
 	Title            string
+	DestKey          string  // Named destination key for PDF/UA-2 compliance
 	DestPageID       int     // Page object ID for destination
 	DestY            float64 // Y position on destination page
 	DestStructElemID int     // PDF/UA-2: Structure element ID for structure destination
@@ -100,11 +101,34 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 				}
 				item.DestY = dest.Y
 			} else {
-				// Use page 1 as fallback
-				if len(ob.pageManager.Pages) > 0 {
-					item.DestPageID = ob.pageManager.Pages[0]
+				// Destination doesn't exist yet, so we treat this bookmark as the DEFINITION
+				// of the destination if it has a valid page.
+				if bm.Page > 0 {
+					pageIndex := bm.Page - 1
+					var yPos float64
+					if bm.Y > 0 {
+						yPos = ob.pageManager.PageDimensions.Height - bm.Y
+					} else {
+						yPos = ob.pageManager.PageDimensions.Height - margin
+					}
+
+					// Register the destination
+					ob.RegisterNamedDest(bm.Dest, pageIndex, yPos)
+
+					// Now use it for this bookmark item too
+					if pageIndex < len(ob.pageManager.Pages) {
+						item.DestPageID = ob.pageManager.Pages[pageIndex]
+					} else if len(ob.pageManager.Pages) > 0 {
+						item.DestPageID = ob.pageManager.Pages[0]
+					}
+					item.DestY = yPos
+				} else {
+					// Fallback if no page specified
+					if len(ob.pageManager.Pages) > 0 {
+						item.DestPageID = ob.pageManager.Pages[0]
+					}
+					item.DestY = ob.pageManager.PageDimensions.Height - margin
 				}
-				item.DestY = ob.pageManager.PageDimensions.Height - margin
 			}
 		} else if bm.Page > 0 {
 			// Use explicit page number
@@ -140,6 +164,38 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 		ob.pageManager.NextObjectID++
 
 		item.DestStructElemID = sectElem.ObjectID
+
+		// PDF/UA-2: Generate unique destination key and register named destination
+		// This allows using /Dest (name) instead of /A << /S /GoTo ... >>
+		destKey := fmt.Sprintf("_bm_%d", len(ob.outlineItems))
+		item.DestKey = destKey
+
+		// Register the named destination with structure element for PDF/UA-2
+		ob.pageManager.NamedDests[destKey] = NamedDest{
+			PageIndex:    0, // Will be determined from DestPageID
+			Y:            item.DestY,
+			StructElemID: item.DestStructElemID,
+		}
+		// Find the page index from DestPageID
+		for pageIdx, pageObjID := range ob.pageManager.Pages {
+			if pageObjID == item.DestPageID {
+				ob.pageManager.NamedDests[destKey] = NamedDest{
+					PageIndex:    pageIdx,
+					Y:            item.DestY,
+					StructElemID: item.DestStructElemID,
+				}
+				break
+			}
+		}
+
+		// PDF/UA-2: If this bookmark defines a user-specified destination (bm.Dest),
+		// update that destination with the structure element ID so internal links work
+		if bm.Dest != "" {
+			if existingDest, exists := ob.pageManager.NamedDests[bm.Dest]; exists {
+				existingDest.StructElemID = item.DestStructElemID
+				ob.pageManager.NamedDests[bm.Dest] = existingDest
+			}
+		}
 
 		ob.outlineItems = append(ob.outlineItems, item)
 
@@ -310,16 +366,13 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 
 		itemDict.WriteString(fmt.Sprintf(" /Parent %d 0 R", item.ParentID))
 
-		// Destination: Use structure destination for PDF/UA-2 compliance
-		// /SD must be an array (structure destination): [structElemRef /XYZ left top zoom]
-		// We also provide /D for Arlington Model compatibility
-		if item.DestStructElemID > 0 {
-			// PDF 2.0 structure destination format: /SD [structElemRef destType params...]
-			itemDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /D [%d 0 R /XYZ null %s null] /SD [%d 0 R /XYZ null %s null] >>",
-				item.DestPageID, fmtNum(item.DestY), item.DestStructElemID, fmtNum(item.DestY)))
-		} else {
-			// Fallback to page destination (not PDF/UA-2 compliant)
-			itemDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /D [%d 0 R /XYZ null %s null] >>",
+		// PDF/UA-2 Compliance: Use /Dest (name) instead of /A << /S /GoTo ... >>
+		// The named destination contains both /D and /SD entries
+		if item.DestKey != "" {
+			itemDict.WriteString(fmt.Sprintf(" /Dest (%s)", escapeText(item.DestKey)))
+		} else if item.DestPageID > 0 {
+			// Fallback for items without a destination key (shouldn't happen normally)
+			itemDict.WriteString(fmt.Sprintf(" /Dest [%d 0 R /XYZ null %s null]",
 				item.DestPageID, fmtNum(item.DestY)))
 		}
 
@@ -427,8 +480,17 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 			nameStr = fmt.Sprintf("(%s)", escapeText(name))
 		}
 
-		namesArray.WriteString(fmt.Sprintf("%s [%d 0 R /XYZ null %s null]",
-			nameStr, pageObjID, fmtNum(dest.Y)))
+		// PDF/UA-2: Output as dictionary with both /D and /SD keys
+		// /D is the page-based destination (for compatibility)
+		// /SD is the structure destination (required for PDF/UA-2)
+		if dest.StructElemID > 0 {
+			namesArray.WriteString(fmt.Sprintf("%s << /D [%d 0 R /XYZ null %s null] /SD [%d 0 R /XYZ null %s null] >>",
+				nameStr, pageObjID, fmtNum(dest.Y), dest.StructElemID, fmtNum(dest.Y)))
+		} else {
+			// Fallback for destinations without structure element (not fully PDF/UA-2 compliant)
+			namesArray.WriteString(fmt.Sprintf("%s [%d 0 R /XYZ null %s null]",
+				nameStr, pageObjID, fmtNum(dest.Y)))
+		}
 	}
 	namesArray.WriteString("]")
 
