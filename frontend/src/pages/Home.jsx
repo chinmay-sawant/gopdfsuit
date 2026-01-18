@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { 
-  FileText, 
-  Edit, 
-  Merge, 
-  FileCheck, 
-  Globe, 
-  Image, 
-  Zap, 
-  Shield, 
+import {
+  FileText,
+  Edit,
+  Merge,
+  FileCheck,
+  Globe,
+  Image,
+  Zap,
+  Shield,
   Download,
   CheckCircle,
   Star,
-  Github
+  Github,
+  ChevronDown,
+  ArrowRight,
+  Sparkles
 } from 'lucide-react'
 
 const Home = () => {
@@ -60,37 +63,49 @@ const Home = () => {
       icon: <FileText size={32} />,
       title: 'Template-based PDF Generation',
       description: 'JSON-driven PDF creation with multi-page support, automatic page breaks, and custom layouts.',
-      link: '/viewer'
+      link: '/viewer',
+      color: 'teal',
+      size: 'large'
     },
     {
       icon: <Edit size={32} />,
       title: 'Visual PDF Editor',
       description: 'Drag-and-drop interface for building PDF templates with live preview and real-time JSON generation.',
-      link: '/editor'
+      link: '/editor',
+      color: 'blue',
+      size: 'normal'
     },
     {
       icon: <Merge size={32} />,
       title: 'PDF Merge',
       description: 'Combine multiple PDF files with intuitive drag-and-drop reordering and live preview.',
-      link: '/merge'
+      link: '/merge',
+      color: 'purple',
+      size: 'normal'
     },
     {
       icon: <FileCheck size={32} />,
       title: 'Form Filling',
       description: 'AcroForm and XFDF support for filling PDF forms programmatically.',
-      link: '/filler'
+      link: '/filler',
+      color: 'yellow',
+      size: 'normal'
     },
     {
       icon: <Globe size={32} />,
       title: 'HTML to PDF',
       description: 'Convert HTML content or web pages to PDF using Chromium with full control over page settings.',
-      link: '/htmltopdf'
+      link: '/htmltopdf',
+      color: 'green',
+      size: 'normal'
     },
     {
       icon: <Image size={32} />,
       title: 'HTML to Image',
       description: 'Convert HTML content to PNG, JPG, or SVG images with custom dimensions and quality settings.',
-      link: '/htmltoimage'
+      link: '/htmltoimage',
+      color: 'blue',
+      size: 'wide'
     }
   ]
 
@@ -128,7 +143,7 @@ const Home = () => {
             }}
           />
         ))}
-        
+
         {/* Geometric shapes */}
         {[...Array(8)].map((_, i) => (
           <div
@@ -145,7 +160,7 @@ const Home = () => {
             }}
           />
         ))}
-        
+
         <style>
           {`
             @keyframes float-0 {
@@ -394,68 +409,66 @@ const Home = () => {
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
       <BackgroundAnimation />
-      
+
       {/* Hero Section */}
-      <section 
+      <section
         id="section-hero"
-        style={{ 
-          padding: '4rem 0',
+        className="hero-section"
+        style={{
+          padding: '6rem 0 4rem',
           textAlign: 'center',
         }}
       >
         <div className="container">
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '1rem',
-            marginBottom: '2rem',
-          }}>
-            <div 
-              className="animate-bounce"
-              style={{ 
-                fontSize: '4rem',
-                animationDelay: '0.5s',
-              }}
-            >
-              📄
-            </div>
-            <h1 
-              className="animate-fadeInUp"
-              style={{ 
-                fontSize: '3.5rem',
-                fontWeight: '800',
-                color: 'hsl(var(--foreground))',
-                marginBottom: 0,
-                animationDelay: '0.2s',
-              }}
-            >
-              GoPdfSuit
-            </h1>
-          </div>
-          
-          <div 
+          {/* Sparkle badge */}
+          <div
             className="animate-fadeInUp"
-            style={{ 
-              fontSize: '1.5rem',
-              marginBottom: '2rem',
-              color: 'hsl(var(--muted-foreground))',
-              maxWidth: '800px',
-              margin: '0 auto 2rem',
-              animationDelay: '0.4s',
-              minHeight: '3rem',
-              display: 'flex',
+            style={{
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: 'rgba(78, 205, 196, 0.1)',
+              border: '1px solid rgba(78, 205, 196, 0.3)',
+              borderRadius: '50px',
+              marginBottom: '2rem',
+              color: '#4ecdc4',
+              fontSize: '0.9rem',
+              fontWeight: '500',
+            }}
+          >
+            <Sparkles size={16} />
+            Open Source PDF Generation Engine
+          </div>
+
+          {/* Main Title */}
+          <h1
+            className="hero-title gradient-text animate-fadeInUp"
+            style={{
+              animationDelay: '0.1s',
+            }}
+          >
+            GoPdfSuit
+          </h1>
+
+          {/* Typewriter subtitle */}
+          <div
+            className="hero-subtitle animate-fadeInUp"
+            style={{
+              marginBottom: '3rem',
+              color: 'hsl(var(--muted-foreground))',
+              animationDelay: '0.2s',
+              minHeight: '4rem',
             }}
           >
             <span style={{ position: 'relative' }}>
               {typewriterText}
-              <span 
+              <span
                 style={{
                   opacity: typewriterText.length < fullText.length ? 1 : 0,
                   animation: 'blink 1s infinite',
                   marginLeft: '2px',
+                  color: '#4ecdc4',
                 }}
               >
                 |
@@ -463,306 +476,395 @@ const Home = () => {
             </span>
           </div>
 
-          <div 
+          {/* CTA Buttons */}
+          <div
             className="animate-fadeInUp"
             style={{
               display: 'flex',
-              gap: '1rem',
+              gap: '1.5rem',
               justifyContent: 'center',
               flexWrap: 'wrap',
-              marginBottom: '3rem',
-              animationDelay: '0.6s',
+              marginBottom: '4rem',
+              animationDelay: '0.3s',
             }}
           >
-            <Link 
-              to="/viewer" 
-              className="btn btn btn-hover animate-pulse" 
-              style={{ 
-                fontSize: '1.1rem', 
-                padding: '1rem 2rem',
-                animationDelay: '2s',
+            <Link
+              to="/viewer"
+              className="btn-glow glow-on-hover"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                textDecoration: 'none',
               }}
             >
               <FileText size={20} />
               Try PDF Generator
+              <ArrowRight size={18} />
             </Link>
-            <a 
-              href="https://github.com/chinmay-sawant/gopdfsuit" 
-              target="_blank" 
+            <a
+              href="https://github.com/chinmay-sawant/gopdfsuit"
+              target="_blank"
               rel="noopener noreferrer"
-              className="btn btn-secondary btn-hover"
-              style={{ fontSize: '1.1rem', padding: '1rem 2rem' }}
+              className="btn-outline-glow"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                textDecoration: 'none',
+              }}
             >
               <Github size={20} />
               View on GitHub
+              <Star size={16} />
             </a>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-3" style={{ marginTop: '3rem' }}>
+          {/* Quick Stats - Glass Cards */}
+          <div
+            className="grid grid-3"
+            style={{ marginTop: '2rem' }}
+          >
             {highlights.map((highlight, index) => (
-              <div 
-                key={index} 
-                className={`card card-hover animate-fadeInScale stagger-animation ${isVisible['section-hero'] ? 'visible' : ''}`}
-                style={{ 
-                  textAlign: 'center', 
-                  padding: '1.5rem',
-                  animationDelay: `${0.8 + index * 0.2}s`,
+              <div
+                key={index}
+                className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-hero'] ? 'visible' : ''}`}
+                style={{
+                  textAlign: 'center',
+                  padding: '2rem 1.5rem',
+                  animationDelay: `${0.4 + index * 0.15}s`,
                 }}
               >
-                <div style={{ 
-                  color: '#4ecdc4', 
-                  marginBottom: '1rem', 
-                  display: 'flex', 
-                  justifyContent: 'center',
-                  transition: 'transform 0.3s ease',
-                }}>
-                  {React.cloneElement(highlight.icon, { 
-                    size: 24,
-                    style: { transition: 'transform 0.3s ease' }
+                <div
+                  className={`feature-icon-box ${index === 0 ? 'teal' : index === 1 ? 'blue' : 'purple'}`}
+                  style={{
+                    margin: '0 auto 1rem',
+                  }}
+                >
+                  {React.cloneElement(highlight.icon, {
+                    size: 28,
                   })}
                 </div>
-                <h3 style={{ marginBottom: '0.5rem', fontSize: '1.2rem' }}>{highlight.title}</h3>
-                <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: 0, fontSize: '0.9rem' }}>
+                <h3 style={{
+                  marginBottom: '0.5rem',
+                  fontSize: '1.3rem',
+                  fontWeight: '700',
+                }}>
+                  {highlight.title}
+                </h3>
+                <p style={{
+                  color: 'hsl(var(--muted-foreground))',
+                  marginBottom: 0,
+                  fontSize: '0.95rem',
+                  lineHeight: '1.6',
+                }}>
                   {highlight.desc}
                 </p>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Scroll indicator */}
+        <div
+          className="scroll-indicator"
+          onClick={() => document.getElementById('section-features')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <ChevronDown size={32} color="#4ecdc4" />
+        </div>
       </section>
 
       {/* Features Section */}
-      <section 
+      <section
         id="section-features"
-        style={{ padding: '4rem 0' }}
+        style={{ padding: '5rem 0' }}
       >
         <div className="container">
-          <h2 
-            className={`text-center mb-8 animate-fadeInUp stagger-animation ${isVisible['section-features'] ? 'visible' : ''}`}
-            style={{ 
-              color: 'hsl(var(--foreground))',
-              animationDelay: '0.2s',
-            }}
+          <div
+            className={`text-center animate-fadeInUp stagger-animation ${isVisible['section-features'] ? 'visible' : ''}`}
+            style={{ marginBottom: '3rem' }}
           >
-            ✨ Features
-          </h2>
-          
-          <div className="grid grid-2">
-            {features.map((feature, index) => (
-              <Link 
-                key={index}
-                to={feature.link}
-                style={{ textDecoration: 'none', color: 'inherit' }}
-              >
-                <div 
-                  className={`card card-hover animate-fadeInScale stagger-animation ${isVisible['section-features'] ? 'visible' : ''}`}
-                  style={{ 
-                    height: '100%',
-                    cursor: 'pointer',
-                    animationDelay: `${0.4 + index * 0.1}s`,
-                  }}
+            <h2
+              className="gradient-text"
+              style={{
+                fontSize: '2.5rem',
+                marginBottom: '1rem',
+              }}
+            >
+              Powerful Features
+            </h2>
+            <p style={{
+              color: 'hsl(var(--muted-foreground))',
+              fontSize: '1.1rem',
+              maxWidth: '600px',
+              margin: '0 auto',
+            }}>
+              Everything you need for professional PDF workflows
+            </p>
+          </div>
+
+          <div className="bento-grid">
+            {features.map((feature, index) => {
+              const sizeClass = feature.size === 'large' ? 'bento-item-large' :
+                feature.size === 'wide' ? 'bento-item-wide' : '';
+              return (
+                <Link
+                  key={index}
+                  to={feature.link}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                  className={sizeClass}
                 >
-                  <div style={{ 
-                    color: '#4ecdc4', 
-                    marginBottom: '1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    transition: 'all 0.3s ease',
-                  }}>
-                    <div style={{ 
-                      transition: 'transform 0.3s ease',
-                    }}>
+                  <div
+                    className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-features'] ? 'visible' : ''}`}
+                    style={{
+                      height: '100%',
+                      padding: feature.size === 'large' ? '2.5rem' : '2rem',
+                      cursor: 'pointer',
+                      animationDelay: `${0.2 + index * 0.1}s`,
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <div
+                      className={`feature-icon-box ${feature.color}`}
+                      style={{ marginBottom: '1.5rem' }}
+                    >
                       {feature.icon}
                     </div>
-                    <h3 style={{ 
-                      marginBottom: 0, 
+                    <h3 style={{
+                      marginBottom: '0.75rem',
                       color: 'hsl(var(--foreground))',
-                      transition: 'color 0.3s ease',
+                      fontSize: feature.size === 'large' ? '1.5rem' : '1.25rem',
+                      fontWeight: '700',
                     }}>
                       {feature.title}
                     </h3>
+                    <p style={{
+                      color: 'hsl(var(--muted-foreground))',
+                      marginBottom: '1rem',
+                      lineHeight: 1.7,
+                      flex: 1,
+                      fontSize: feature.size === 'large' ? '1.05rem' : '0.95rem',
+                    }}>
+                      {feature.description}
+                    </p>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      color: '#4ecdc4',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                    }}>
+                      Try it now
+                      <ArrowRight size={16} />
+                    </div>
                   </div>
-                  <p style={{ 
-                    color: 'hsl(var(--muted-foreground))',
-                    marginBottom: 0,
-                    lineHeight: 1.6,
-                    transition: 'color 0.3s ease',
-                  }}>
-                    {feature.description}
-                  </p>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
+
+      <div className="section-divider container" />
 
       {/* Quick Start Section */}
-      <section 
+      <section
         id="section-quickstart"
-        style={{ padding: '4rem 0' }}
+        style={{ padding: '5rem 0' }}
       >
         <div className="container">
-          <h2 
-            className={`text-center mb-4 animate-fadeInUp stagger-animation ${isVisible['section-quickstart'] ? 'visible' : ''}`}
-            style={{ 
-              color: 'hsl(var(--foreground))',
-              animationDelay: '0.2s',
-            }}
-          >
-            ⚡ Quick Start
-          </h2>
-          
-          <div 
-            className={`card card-hover animate-fadeInScale stagger-animation ${isVisible['section-quickstart'] ? 'visible' : ''}`}
-            style={{ 
-              maxWidth: '800px', 
-              margin: '0 auto',
-              animationDelay: '0.4s',
-            }}
-          >
-            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🚀 Get Started in 3 Steps</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {[
-                {
-                  title: 'Clone & Run',
-                  content: (
-                    <code style={{ 
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      padding: '0.5rem',
-                      borderRadius: '4px',
-                      color: '#4ecdc4',
-                      display: 'block',
-                      fontSize: '0.9rem',
-                    }}>
-                      git clone https://github.com/chinmay-sawant/gopdfsuit.git<br/>
-                      cd gopdfsuit<br/>
-                      go run ./cmd/gopdfsuit
-                    </code>
-                  )
-                },
-                {
-                  title: 'Server Ready',
-                  content: (
-                    <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: 0 }}>
-                      🌐 Server listening on: <code style={{ color: '#4ecdc4' }}>http://localhost:8080</code>
-                    </p>
-                  )
-                },
-                {
-                  title: 'Start Creating',
-                  content: (
-                    <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: 0 }}>
-                      Navigate to any tool above to start generating PDFs, merging documents, or converting HTML!
-                    </p>
-                  )
-                }
-              ].map((step, index) => (
-                <div 
-                  key={index}
-                  className={`animate-slideInLeft stagger-animation ${isVisible['section-quickstart'] ? 'visible' : ''}`}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: '1rem',
-                    animationDelay: `${0.6 + index * 0.2}s`,
-                  }}
-                >
-                  <div style={{ 
-                    background: '#007acc',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '32px',
-                    height: '32px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    flexShrink: 0,
-                    transition: 'all 0.3s ease',
-                  }}>
-                    {index + 1}
-                  </div>
-                  <div>
-                    <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem' }}>{step.title}</h4>
-                    {step.content}
-                  </div>
+          <div className="split-layout">
+            {/* Left side - Text content */}
+            <div
+              className={`animate-slideInLeft stagger-animation ${isVisible['section-quickstart'] ? 'visible' : ''}`}
+            >
+              <h2
+                className="gradient-text"
+                style={{
+                  fontSize: '2.5rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                Get Started in Seconds
+              </h2>
+              <p style={{
+                color: 'hsl(var(--muted-foreground))',
+                fontSize: '1.1rem',
+                marginBottom: '2rem',
+                lineHeight: '1.7',
+              }}>
+                Clone the repository and start generating PDFs immediately.
+                No complex setup required.
+              </p>
+
+              <ul className="check-list">
+                <li>Zero external dependencies</li>
+                <li>Single binary deployment</li>
+                <li>Docker ready out of the box</li>
+                <li>Cross-platform support</li>
+              </ul>
+
+              <Link
+                to="/editor"
+                className="btn-glow"
+                style={{
+                  marginTop: '2rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  textDecoration: 'none',
+                }}
+              >
+                <Edit size={20} />
+                Open Editor
+              </Link>
+            </div>
+
+            {/* Right side - Terminal mockup */}
+            <div
+              className={`terminal-window animate-slideInRight stagger-animation ${isVisible['section-quickstart'] ? 'visible' : ''}`}
+              style={{ animationDelay: '0.2s' }}
+            >
+              <div className="terminal-header">
+                <span className="terminal-dot red"></span>
+                <span className="terminal-dot yellow"></span>
+                <span className="terminal-dot green"></span>
+                <span style={{ color: '#888', marginLeft: '1rem', fontSize: '0.85rem' }}>Terminal</span>
+              </div>
+              <div className="terminal-body">
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <span className="terminal-prompt">$ </span>
+                  <span className="terminal-command">git clone https://github.com/chinmay-sawant/gopdfsuit.git</span>
                 </div>
-              ))}
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <span className="terminal-prompt">$ </span>
+                  <span className="terminal-command">cd gopdfsuit</span>
+                </div>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <span className="terminal-prompt">$ </span>
+                  <span className="terminal-command">go run ./cmd/gopdfsuit</span>
+                </div>
+                <div style={{ marginTop: '1rem' }}>
+                  <span className="terminal-success">✓ Server listening on http://localhost:8080</span>
+                </div>
+                <div style={{ marginTop: '0.5rem' }}>
+                  <span className="terminal-success">✓ Ready for PDF generation!</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
+
+      <div className="section-divider container" />
 
       {/* API Overview */}
-      <section 
+      <section
         id="section-api"
-        style={{ padding: '4rem 0' }}
+        style={{ padding: '5rem 0' }}
       >
         <div className="container">
-          <h2 
-            className={`text-center mb-4 animate-fadeInUp stagger-animation ${isVisible['section-api'] ? 'visible' : ''}`}
-            style={{ 
-              color: 'hsl(var(--foreground))',
-              animationDelay: '0.2s',
-            }}
+          <div
+            className={`text-center animate-fadeInUp stagger-animation ${isVisible['section-api'] ? 'visible' : ''}`}
+            style={{ marginBottom: '3rem' }}
           >
-            📡 API Endpoints
-          </h2>
-          
-          <div className="grid grid-2">
-            <div 
-              className={`card card-hover animate-slideInLeft stagger-animation ${isVisible['section-api'] ? 'visible' : ''}`}
-              style={{ animationDelay: '0.4s' }}
+            <h2
+              className="gradient-text"
+              style={{ fontSize: '2.5rem', marginBottom: '1rem' }}
             >
-              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🔧 REST API</h3>
-              <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem' }}>
+              API Endpoints
+            </h2>
+            <p style={{
+              color: 'hsl(var(--muted-foreground))',
+              fontSize: '1.1rem',
+            }}>
+              RESTful API for seamless integration
+            </p>
+          </div>
+
+          <div className="grid grid-2">
+            <div
+              className={`glass-card animate-slideInLeft stagger-animation ${isVisible['section-api'] ? 'visible' : ''}`}
+              style={{ padding: '2rem' }}
+            >
+              <div className="feature-icon-box blue" style={{ marginBottom: '1.5rem' }}>
+                <Zap size={28} />
+              </div>
+              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', fontSize: '1.4rem' }}>REST API</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {[
-                  'POST /api/v1/generate/template-pdf - Generate PDF from JSON template',
-                  'POST /api/v1/merge - Merge multiple PDF files',
-                  'POST /api/v1/fill - Fill PDF forms with XFDF data',
-                  'POST /api/v1/htmltopdf - Convert HTML to PDF',
-                  'POST /api/v1/htmltoimage - Convert HTML to Image'
+                  { method: 'POST', path: '/api/v1/generate/template-pdf', desc: 'Generate PDF' },
+                  { method: 'POST', path: '/api/v1/merge', desc: 'Merge PDFs' },
+                  { method: 'POST', path: '/api/v1/fill', desc: 'Fill forms' },
+                  { method: 'POST', path: '/api/v1/htmltopdf', desc: 'HTML to PDF' },
+                  { method: 'POST', path: '/api/v1/htmltoimage', desc: 'HTML to Image' }
                 ].map((api, index) => (
-                  <div 
+                  <div
                     key={index}
-                    className={`animate-fadeInUp stagger-animation ${isVisible['section-api'] ? 'visible' : ''}`}
-                    style={{ 
-                      marginBottom: index < 4 ? '0.5rem' : '0',
-                      animationDelay: `${0.6 + index * 0.1}s`,
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.5rem 0',
+                      borderBottom: index < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     }}
                   >
-                    <code style={{ color: '#4ecdc4' }}>{api.split(' - ')[0]}</code> - {api.split(' - ')[1]}
+                    <span style={{
+                      background: 'rgba(0, 122, 204, 0.2)',
+                      color: '#007acc',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: '700',
+                    }}>
+                      {api.method}
+                    </span>
+                    <code style={{ color: '#4ecdc4', fontSize: '0.85rem', flex: 1 }}>{api.path}</code>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div 
-              className={`card card-hover animate-slideInRight stagger-animation ${isVisible['section-api'] ? 'visible' : ''}`}
-              style={{ animationDelay: '0.4s' }}
+            <div
+              className={`glass-card animate-slideInRight stagger-animation ${isVisible['section-api'] ? 'visible' : ''}`}
+              style={{ padding: '2rem', animationDelay: '0.2s' }}
             >
-              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>🌐 Web Interfaces</h3>
-              <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem' }}>
+              <div className="feature-icon-box purple" style={{ marginBottom: '1.5rem' }}>
+                <Globe size={28} />
+              </div>
+              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', fontSize: '1.4rem' }}>Web Interfaces</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {[
-                  'GET / - PDF Viewer & Template Processor',
-                  'GET /editor - Drag-and-drop Template Editor',
-                  'GET /merge - PDF Merge Interface',
-                  'GET /filler - PDF Form Filler',
-                  'GET /htmltopdf - HTML to PDF Converter'
-                ].map((api, index) => (
-                  <div 
+                  { path: '/', desc: 'PDF Viewer & Template Processor' },
+                  { path: '/editor', desc: 'Drag-and-drop Template Editor' },
+                  { path: '/merge', desc: 'PDF Merge Interface' },
+                  { path: '/filler', desc: 'PDF Form Filler' },
+                  { path: '/htmltopdf', desc: 'HTML to PDF Converter' }
+                ].map((route, index) => (
+                  <div
                     key={index}
-                    className={`animate-fadeInUp stagger-animation ${isVisible['section-api'] ? 'visible' : ''}`}
-                    style={{ 
-                      marginBottom: index < 4 ? '0.5rem' : '0',
-                      animationDelay: `${0.6 + index * 0.1}s`,
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.5rem 0',
+                      borderBottom: index < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     }}
                   >
-                    <code style={{ color: '#4ecdc4' }}>{api.split(' - ')[0]}</code> - {api.split(' - ')[1]}
+                    <span style={{
+                      background: 'rgba(240, 147, 251, 0.2)',
+                      color: '#f093fb',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: '700',
+                    }}>
+                      GET
+                    </span>
+                    <code style={{ color: '#4ecdc4', fontSize: '0.85rem' }}>{route.path}</code>
+                    <span style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.85rem' }}>- {route.desc}</span>
                   </div>
                 ))}
               </div>
@@ -771,42 +873,44 @@ const Home = () => {
         </div>
       </section>
 
+      <div className="section-divider container" />
+
       {/* Performance Section */}
-      <section 
+      <section
         id="section-performance"
         style={{ padding: '4rem 0' }}
       >
         <div className="container">
-          <div 
+          <div
             className={`card card-hover animate-fadeInScale stagger-animation ${isVisible['section-performance'] ? 'visible' : ''}`}
-            style={{ 
-              textAlign: 'center', 
-              maxWidth: '800px', 
+            style={{
+              textAlign: 'center',
+              maxWidth: '800px',
               margin: '0 auto',
               animationDelay: '0.2s',
             }}
           >
-            <h2 
+            <h2
               className={`animate-fadeInUp stagger-animation ${isVisible['section-performance'] ? 'visible' : ''}`}
-              style={{ 
-                color: 'hsl(var(--foreground))', 
+              style={{
+                color: 'hsl(var(--foreground))',
                 marginBottom: '1rem',
                 animationDelay: '0.4s',
               }}
             >
               🏃‍♂️ Performance
             </h2>
-            <p 
+            <p
               className={`animate-fadeInUp stagger-animation ${isVisible['section-performance'] ? 'visible' : ''}`}
-              style={{ 
-                color: 'hsl(var(--muted-foreground))', 
+              style={{
+                color: 'hsl(var(--muted-foreground))',
                 marginBottom: '2rem',
                 animationDelay: '0.6s',
               }}
             >
               Ultra-fast PDF generation with in-memory processing
             </p>
-            
+
             {/* Performance Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
               {[
@@ -814,23 +918,23 @@ const Home = () => {
                 { value: '417 µs', label: 'Min Response', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
                 { value: '2.05 ms', label: 'Max Response', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' }
               ].map((stat, index) => (
-                <div 
+                <div
                   key={index}
                   className={`animate-fadeInScale stagger-animation ${isVisible['section-performance'] ? 'visible' : ''}`}
-                  style={{ 
+                  style={{
                     background: stat.bg,
-                    padding: '1rem', 
+                    padding: '1rem',
                     borderRadius: '8px',
                     border: `1px solid ${stat.border}`,
                     transition: 'all 0.3s ease',
                     animationDelay: `${0.8 + index * 0.2}s`,
                   }}
                 >
-                  <div 
+                  <div
                     className="animate-pulse"
-                    style={{ 
-                      fontSize: '1.5rem', 
-                      fontWeight: 'bold', 
+                    style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 'bold',
                       color: stat.color,
                       animationDelay: `${2 + index * 0.5}s`,
                     }}
@@ -843,7 +947,7 @@ const Home = () => {
                 </div>
               ))}
             </div>
-            
+
             {/* Sample Logs */}
             <div style={{
               background: 'rgba(0, 0, 0, 0.3)',
@@ -858,27 +962,27 @@ const Home = () => {
               scrollbarWidth: 'thin',
               scrollbarColor: 'rgba(78, 205, 196, 0.5) rgba(0, 0, 0, 0.3)',
             }}
-            className="custom-scrollbar"
+              className="custom-scrollbar"
             >
               <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Recent Performance Logs:</div>
-              [GIN] 2025/09/16 - 01:25:53 | 200 |       417.4µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:56 | 200 |       505.1µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:57 | 200 |      1.1047ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:57 | 200 |       515.1µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:58 | 200 |      2.0475ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:58 | 200 |       850.4µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:59 | 200 |       503.6µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:59 | 200 |       503.8µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:59 | 200 |       681.8µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:25:59 | 200 |      1.0021ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:26:10 | 200 |       504.3µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:26:10 | 200 |       504.5µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
-              [GIN] 2025/09/16 - 01:26:10 | 200 |      1.5052ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br/>
+              [GIN] 2025/09/16 - 01:25:53 | 200 |       417.4µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:56 | 200 |       505.1µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:57 | 200 |      1.1047ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:57 | 200 |       515.1µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:58 | 200 |      2.0475ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:58 | 200 |       850.4µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:59 | 200 |       503.6µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:59 | 200 |       503.8µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:59 | 200 |       681.8µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:25:59 | 200 |      1.0021ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:26:10 | 200 |       504.3µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:26:10 | 200 |       504.5µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2025/09/16 - 01:26:10 | 200 |      1.5052ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
               [GIN] 2025/09/16 - 01:26:10 | 200 |         652µs |             ::1 | POST     "/api/v1/generate/template-pdf"
             </div>
-            <p style={{ 
-              color: 'hsl(var(--muted-foreground))', 
-              marginTop: '1rem', 
+            <p style={{
+              color: 'hsl(var(--muted-foreground))',
+              marginTop: '1rem',
               fontSize: '0.9rem',
               marginBottom: 0,
             }}>
@@ -889,166 +993,180 @@ const Home = () => {
       </section>
 
       {/* Comparison Preview Section */}
-      <section 
+      <section
         id="section-comparison-preview"
-        style={{ padding: '4rem 0' }}
+        style={{ padding: '5rem 0' }}
       >
         <div className="container">
-          <h2 
-            className={`text-center mb-4 animate-fadeInUp stagger-animation ${isVisible['section-comparison-preview'] ? 'visible' : ''}`}
-            style={{ 
-              color: 'hsl(var(--foreground))',
-              animationDelay: '0.2s',
-            }}
+          <div
+            className={`text-center animate-fadeInUp stagger-animation ${isVisible['section-comparison-preview'] ? 'visible' : ''}`}
+            style={{ marginBottom: '3rem' }}
           >
-            🆚 How We Compare
-          </h2>
-          
-          <div 
-            className={`card card-hover animate-fadeInScale stagger-animation ${isVisible['section-comparison-preview'] ? 'visible' : ''}`}
-            style={{ 
-              maxWidth: '900px', 
-              margin: '0 auto',
-              padding: '2rem',
-              textAlign: 'center',
-              animationDelay: '0.4s',
-            }}
-          >
-            <p style={{ 
-              color: 'hsl(var(--muted-foreground))', 
-              fontSize: '1.1rem',
-              marginBottom: '2rem',
-            }}>
-              See how GoPdfSuit stacks up against industry-leading PDF libraries and commercial solutions
-            </p>
-            
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-              gap: '1.5rem',
-              marginBottom: '2rem',
-            }}>
-              <div style={{ 
-                background: 'rgba(78, 205, 196, 0.1)',
-                padding: '1.5rem', 
-                borderRadius: '8px',
-                border: '1px solid rgba(78, 205, 196, 0.3)',
-              }}>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#4ecdc4', marginBottom: '0.5rem' }}>
-                  Free
-                </div>
-                <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>
-                  vs $2K-4K/dev/year
-                </div>
-              </div>
-              
-              <div style={{ 
-                background: 'rgba(0, 122, 204, 0.1)',
-                padding: '1.5rem', 
-                borderRadius: '8px',
-                border: '1px solid rgba(0, 122, 204, 0.3)',
-              }}>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#007acc', marginBottom: '0.5rem' }}>
-                  179µs-1.7ms
-                </div>
-                <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>
-                  Ultra-fast response
-                </div>
-              </div>
-              
-              <div style={{ 
-                background: 'rgba(255, 193, 7, 0.1)',
-                padding: '1.5rem', 
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 193, 7, 0.3)',
-              }}>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#ffc107', marginBottom: '0.5rem' }}>
-                  REST API
-                </div>
-                <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>
-                  Language agnostic
-                </div>
-              </div>
-            </div>
-            
-            <Link 
-              to="/comparison"
-              className="btn btn-primary btn-hover"
-              style={{ 
-                fontSize: '1.1rem', 
-                padding: '1rem 2rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
+            <h2
+              className="gradient-text"
+              style={{ fontSize: '2.5rem', marginBottom: '1rem' }}
             >
-              📊 View Full Comparison
-            </Link>
+              Why Choose GoPdfSuit?
+            </h2>
+            <p style={{
+              color: 'hsl(var(--muted-foreground))',
+              fontSize: '1.1rem',
+              maxWidth: '600px',
+              margin: '0 auto',
+            }}>
+              See how we compare to other PDF solutions
+            </p>
+          </div>
+
+          <div
+            className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-comparison-preview'] ? 'visible' : ''}`}
+            style={{
+              maxWidth: '1000px',
+              margin: '0 auto',
+              padding: '3rem',
+            }}
+          >
+            <div
+              className="grid grid-3"
+              style={{ marginBottom: '2.5rem' }}
+            >
+              {[
+                { value: 'Free', label: 'vs $2K-4K/dev/year', color: '#4ecdc4', icon: <CheckCircle size={24} /> },
+                { value: '< 1ms', label: 'Ultra-fast response', color: '#007acc', icon: <Zap size={24} /> },
+                { value: '100% Go', label: 'Single binary deploy', color: '#f093fb', icon: <Download size={24} /> }
+              ].map((stat, index) => (
+                <div
+                  key={index}
+                  className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-comparison-preview'] ? 'visible' : ''}`}
+                  style={{
+                    textAlign: 'center',
+                    padding: '2rem',
+                    animationDelay: `${0.2 + index * 0.1}s`,
+                  }}
+                >
+                  <div style={{
+                    color: stat.color,
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    justifyContent: 'center',
+                  }}>
+                    {stat.icon}
+                  </div>
+                  <div className="stat-value" style={{ color: stat.color, marginBottom: '0.5rem' }}>
+                    {stat.value}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>
+                    {stat.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ textAlign: 'center' }}>
+              <Link
+                to="/comparison"
+                className="btn-glow"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  textDecoration: 'none',
+                }}
+              >
+                View Full Comparison
+                <ArrowRight size={18} />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer 
+      <footer
         id="section-footer"
-        style={{ 
-          padding: '2rem 0',
-          borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+        style={{
+          padding: '4rem 0 2rem',
           marginTop: '2rem',
+          background: 'linear-gradient(0deg, rgba(78,205,196,0.03) 0%, transparent 100%)',
         }}
       >
         <div className="container">
-          <div 
+          <div className="section-divider" style={{ margin: '0 0 3rem' }} />
+
+          <div
             className={`animate-fadeInUp stagger-animation ${isVisible['section-footer'] ? 'visible' : ''}`}
-            style={{ 
+            style={{
               textAlign: 'center',
-              color: 'hsl(var(--muted-foreground))',
-              animationDelay: '0.2s',
             }}
           >
-            <p 
-              className={`animate-fadeInUp stagger-animation ${isVisible['section-footer'] ? 'visible' : ''}`}
-              style={{ 
-                marginBottom: '1rem',
-                animationDelay: '0.4s',
-              }}
-            >
-              Made with ❤️ and ☕ by{' '}
-              <a 
-                href="https://github.com/chinmay-sawant" 
-                target="_blank" 
+            {/* Quick Links */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '2rem',
+              marginBottom: '2rem',
+              flexWrap: 'wrap',
+            }}>
+              <a
+                href="https://github.com/chinmay-sawant/gopdfsuit"
+                target="_blank"
                 rel="noopener noreferrer"
-                style={{ 
-                  color: '#4ecdc4', 
+                className="btn-outline-glow"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
                   textDecoration: 'none',
-                  transition: 'all 0.3s ease',
+                  padding: '0.75rem 1.5rem',
                 }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'scale(1.1)'
-                  e.target.style.textShadow = '0 0 10px rgba(78, 205, 196, 0.5)'
+              >
+                <Github size={18} />
+                GitHub
+              </a>
+              <Link
+                to="/viewer"
+                className="btn-outline-glow"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  textDecoration: 'none',
+                  padding: '0.75rem 1.5rem',
                 }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'scale(1)'
-                  e.target.style.textShadow = 'none'
+              >
+                <FileText size={18} />
+                Documentation
+              </Link>
+            </div>
+
+            {/* Credits */}
+            <p style={{
+              color: 'hsl(var(--muted-foreground))',
+              fontSize: '1rem',
+              marginBottom: '0.5rem',
+            }}>
+              Made with ❤️ and ☕ by{' '}
+              <a
+                href="https://github.com/chinmay-sawant"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: '#4ecdc4',
+                  textDecoration: 'none',
+                  fontWeight: '600',
                 }}
               >
                 Chinmay Sawant
               </a>
             </p>
-            <p 
-              className={`animate-fadeInUp stagger-animation ${isVisible['section-footer'] ? 'visible' : ''}`}
-              style={{ 
-                marginBottom: 0, 
-                fontSize: '0.9rem',
-                animationDelay: '0.6s',
-              }}
-            >
-              <span 
-                className="animate-pulse"
-                style={{ animationDelay: '3s' }}
-              >
-                ⭐
-              </span>{' '}
+
+            <p style={{
+              color: 'hsl(var(--muted-foreground))',
+              fontSize: '0.9rem',
+              marginBottom: 0,
+              opacity: 0.7,
+            }}>
+              <Star size={14} style={{ display: 'inline', marginRight: '0.5rem', color: '#ffc107' }} />
               Star this repo if you find it helpful!
             </p>
           </div>
