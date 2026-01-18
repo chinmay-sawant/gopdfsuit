@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
-import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check, HelpCircle } from 'lucide-react'
+import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check, HelpCircle, PenTool } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
@@ -462,6 +462,207 @@ function PageBorderControls({ borders, onChange }) {
           ))}
         </div>
       </div>
+    </div>
+  )
+}
+
+function SignatureSettings({ config, onChange }) {
+  const [chainText, setChainText] = useState('')
+
+  useEffect(() => {
+    const backendChain = config.certificateChain || []
+    const currentParse = (chainText.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) || [])
+    if (JSON.stringify(backendChain) !== JSON.stringify(currentParse)) {
+      setChainText(backendChain.join('\n\n'))
+    }
+  }, [config.certificateChain])
+
+  const handleChange = (key, value) => {
+    onChange({ ...config, [key]: value })
+  }
+
+  if (!config.enabled) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <h5 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'hsl(var(--foreground))' }}>
+          <PenTool size={14} /> Digital Signature
+        </h5>
+        <button
+          onClick={() => onChange({ ...config, enabled: true, visible: true })}
+          className="btn"
+          style={{ width: '100%', fontSize: '0.85rem' }}
+        >
+          Enable Signature
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h5 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'hsl(var(--foreground))' }}>
+          <PenTool size={14} /> Digital Signature
+        </h5>
+        <button
+          onClick={() => onChange({ ...config, enabled: false })}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'hsl(var(--destructive))',
+            cursor: 'pointer',
+            fontSize: '0.8rem'
+          }}
+        >
+          Disable
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Name</label>
+          <input
+            type="text"
+            value={config.name || ''}
+            onChange={(e) => handleChange('name', e.target.value)}
+            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Reason</label>
+          <input
+            type="text"
+            value={config.reason || ''}
+            onChange={(e) => handleChange('reason', e.target.value)}
+            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Location</label>
+          <input
+            type="text"
+            value={config.location || ''}
+            onChange={(e) => handleChange('location', e.target.value)}
+            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Contact Info</label>
+          <input
+            type="text"
+            value={config.contactInfo || ''}
+            onChange={(e) => handleChange('contactInfo', e.target.value)}
+            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <input
+          type="checkbox"
+          checked={!!config.visible}
+          onChange={(e) => handleChange('visible', e.target.checked)}
+          id="sig-visible"
+        />
+        <label htmlFor="sig-visible" style={{ fontSize: '0.85rem', color: 'hsl(var(--foreground))' }}>Visible Signature</label>
+      </div>
+
+      {!!config.visible && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Page</label>
+              <input
+                type="number"
+                value={config.page || 1}
+                onChange={(e) => handleChange('page', parseInt(e.target.value))}
+                min={1}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width</label>
+              <input
+                type="number"
+                value={config.width || 200}
+                onChange={(e) => handleChange('width', parseFloat(e.target.value))}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>X</label>
+              <input
+                type="number"
+                value={config.x || 0}
+                onChange={(e) => handleChange('x', parseFloat(e.target.value))}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Y</label>
+              <input
+                type="number"
+                value={config.y || 0}
+                onChange={(e) => handleChange('y', parseFloat(e.target.value))}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Height</label>
+              <input
+                type="number"
+                value={config.height || 50}
+                onChange={(e) => handleChange('height', parseFloat(e.target.value))}
+                style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <div>
+        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Certificate (PEM)</label>
+        <textarea
+          value={config.certificatePem || ''}
+          onChange={(e) => handleChange('certificatePem', e.target.value)}
+          placeholder="-----BEGIN CERTIFICATE-----..."
+          rows={3}
+          style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', fontFamily: 'monospace' }}
+        />
+      </div>
+
+      <div>
+        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Private Key (PEM)</label>
+        <textarea
+          value={config.privateKeyPem || ''}
+          onChange={(e) => handleChange('privateKeyPem', e.target.value)}
+          placeholder="-----BEGIN PRIVATE KEY-----..."
+          rows={3}
+          style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', fontFamily: 'monospace' }}
+        />
+      </div>
+
+      <div>
+        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Intermediate Certificates (Optional)</label>
+        <textarea
+          value={chainText}
+          onChange={(e) => {
+            const val = e.target.value
+            setChainText(val)
+            const matches = val.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g)
+            handleChange('certificateChain', matches || [])
+          }}
+          placeholder="Paste intermediate certificates here..."
+          rows={3}
+          style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', fontFamily: 'monospace' }}
+        />
+      </div>
+
     </div>
   )
 }
@@ -3116,6 +3317,14 @@ export default function Editor() {
                       <span>Usable Width:</span>
                       <span>{getUsableWidth(currentPageSize.width)} pts</span>
                     </div>
+                  </div>
+
+                  {/* Digital Signature */}
+                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid hsl(var(--border))' }}>
+                    <SignatureSettings
+                      config={config.signature || {}}
+                      onChange={(newSig) => setConfig(prev => ({ ...prev, signature: newSig }))}
+                    />
                   </div>
                 </div>
               </div>

@@ -201,14 +201,105 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor)
 	}
 
+	// Calculate object IDs for fonts early (needed for signature font embedding)
+	// Calculate total pages first
+	totalPages := len(pageManager.Pages)
+	contentObjectStart := totalPages + 3               // Content objects start after pages
+	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
+
+	// Standard fonts definition
+	fontNames := []string{
+		"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", // F1-F4
+		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic", // F5-F8
+		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", // F9-F12
+		"Symbol", "ZapfDingbats", // F13-F14
+	}
+	fontRefs := []string{"/F1", "/F2", "/F3", "/F4", "/F5", "/F6", "/F7", "/F8", "/F9", "/F10", "/F11", "/F12", "/F13", "/F14"}
+
+	// Identify used standard fonts
+	usedStandardFonts := collectUsedStandardFonts(template)
+
+	// If signature is enabled and visible, force usage of Helvetica
+	signatureEnabled := template.Config.Signature != nil && template.Config.Signature.Enabled
+	if signatureEnabled && template.Config.Signature.Visible {
+		usedStandardFonts["Helvetica"] = true
+	}
+
+	shouldEmbed := template.Config.EmbedFonts == nil || *template.Config.EmbedFonts
+
+	// Calculate Object IDs for standard fonts dynamically
+	// Only assign IDs for fonts that are used
+	fontObjectIDs := make(map[string]int)     // Font Name -> Font Dictionary Object ID
+	fontDescriptorIDs := make(map[string]int) // Font Name -> Font Descriptor Object ID
+	fontWidthsIDs := make(map[string]int)     // Font Name (group) -> Widths Array Object ID
+
+	currentObjectID := fontObjectStart
+
+	// Phase 1: Assign IDs for Font Dictionaries
+	for _, name := range fontNames {
+		if usedStandardFonts[name] {
+			fontObjectIDs[name] = currentObjectID
+			currentObjectID++
+		}
+	}
+
+	// Phase 2: Assign IDs for Descriptors and Widths (Arlington mode only)
+	widthGroups := map[string]string{
+		"Helvetica":             "helvetica-regular",
+		"Helvetica-Oblique":     "helvetica-regular",
+		"Helvetica-Bold":        "helvetica-bold",
+		"Helvetica-BoldOblique": "helvetica-bold",
+		"Times-Roman":           "times-roman",
+		"Times-Bold":            "times-bold",
+		"Times-Italic":          "times-italic",
+		"Times-BoldItalic":      "times-bolditalic",
+		"Courier":               "courier",
+		"Courier-Bold":          "courier",
+		"Courier-Oblique":       "courier",
+		"Courier-BoldOblique":   "courier",
+		"Symbol":                "symbol",
+		"ZapfDingbats":          "zapfdingbats",
+	}
+
+	if template.Config.ArlingtonCompatible && shouldEmbed {
+		// Assign Descriptor IDs
+		for _, name := range fontNames {
+			if usedStandardFonts[name] {
+				fontDescriptorIDs[name] = currentObjectID
+				currentObjectID++
+			}
+		}
+
+		// Assign Widths IDs (deduplicated by group)
+		assignedGroups := make(map[string]bool)
+		for _, name := range fontNames {
+			if usedStandardFonts[name] {
+				group := widthGroups[name]
+				if !assignedGroups[group] {
+					fontWidthsIDs[group] = currentObjectID
+					currentObjectID++
+					assignedGroups[group] = true
+				}
+			}
+		}
+	}
+
 	// Setup digital signature if enabled
 	var pdfSigner *PDFSigner
 	var sigIDs *SignatureIDs
-	if template.Config.Signature != nil && template.Config.Signature.Enabled {
+	if signatureEnabled {
 		var err error
 		pdfSigner, err = NewPDFSigner(template.Config.Signature)
 		if err == nil && pdfSigner != nil {
-			sigIDs = pdfSigner.CreateSignatureField(pageManager, pageDims)
+			// Get the font ID for signature appearance
+			// In PDF/A mode, this returns the Liberation font ID that replaces Helvetica
+			// In standard mode, this returns the standard Helvetica font ID
+			signatureFontID := getWidgetFontObjectID()
+			if signatureFontID == 0 {
+				// Fallback to standard font object ID if no custom font
+				signatureFontID = fontObjectIDs["Helvetica"]
+			}
+			sigIDs = pdfSigner.CreateSignatureField(pageManager, pageDims, signatureFontID)
 		}
 	}
 
@@ -240,7 +331,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	}
 
 	// Calculate total pages for bookmarks
-	totalPages := len(pageManager.Pages)
+	// totalPages is already calculated above
 
 	// Bookmarks are generated using outlineBuilder earlier (lines 168-171)
 	// outlineRootID := pageManager.GenerateBookmarks(template.Bookmarks, xrefOffsets, &pdfBuffer)
@@ -323,80 +414,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		formatPageKids(pageManager.Pages), len(pageManager.Pages)))
 	pdfBuffer.WriteString("endobj\n")
 
-	// Calculate object IDs
-	// totalPages is already calculated above
-	contentObjectStart := totalPages + 3               // Content objects start after pages
-	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
-
-	// Standard fonts definition
-	fontNames := []string{
-		"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", // F1-F4
-		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic", // F5-F8
-		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", // F9-F12
-		"Symbol", "ZapfDingbats", // F13-F14
-	}
-	fontRefs := []string{"/F1", "/F2", "/F3", "/F4", "/F5", "/F6", "/F7", "/F8", "/F9", "/F10", "/F11", "/F12", "/F13", "/F14"}
-
-	// Identify used standard fonts
-	usedStandardFonts := collectUsedStandardFonts(template)
-	shouldEmbed := template.Config.EmbedFonts == nil || *template.Config.EmbedFonts
-
-	// Calculate Object IDs for standard fonts dynamically
-	// Only assign IDs for fonts that are used
-	fontObjectIDs := make(map[string]int)     // Font Name -> Font Dictionary Object ID
-	fontDescriptorIDs := make(map[string]int) // Font Name -> Font Descriptor Object ID
-	fontWidthsIDs := make(map[string]int)     // Font Name (group) -> Widths Array Object ID
-
-	currentObjectID := fontObjectStart
-
-	// Phase 1: Assign IDs for Font Dictionaries
-	for _, name := range fontNames {
-		if usedStandardFonts[name] {
-			fontObjectIDs[name] = currentObjectID
-			currentObjectID++
-		}
-	}
-
-	// Phase 2: Assign IDs for Descriptors and Widths (Arlington mode only)
-	widthGroups := map[string]string{
-		"Helvetica":             "helvetica-regular",
-		"Helvetica-Oblique":     "helvetica-regular",
-		"Helvetica-Bold":        "helvetica-bold",
-		"Helvetica-BoldOblique": "helvetica-bold",
-		"Times-Roman":           "times-roman",
-		"Times-Bold":            "times-bold",
-		"Times-Italic":          "times-italic",
-		"Times-BoldItalic":      "times-bolditalic",
-		"Courier":               "courier",
-		"Courier-Bold":          "courier",
-		"Courier-Oblique":       "courier",
-		"Courier-BoldOblique":   "courier",
-		"Symbol":                "symbol",
-		"ZapfDingbats":          "zapfdingbats",
-	}
-
-	if template.Config.ArlingtonCompatible && shouldEmbed {
-		// Assign Descriptor IDs
-		for _, name := range fontNames {
-			if usedStandardFonts[name] {
-				fontDescriptorIDs[name] = currentObjectID
-				currentObjectID++
-			}
-		}
-
-		// Assign Widths IDs (deduplicated by group)
-		assignedGroups := make(map[string]bool)
-		for _, name := range fontNames {
-			if usedStandardFonts[name] {
-				group := widthGroups[name]
-				if !assignedGroups[group] {
-					fontWidthsIDs[group] = currentObjectID
-					currentObjectID++
-					assignedGroups[group] = true
-				}
-			}
-		}
-	}
+	// NOTE: Font ID calculation has been moved up to before signature generation
+	// variables fontObjectIDs, fontDescriptorIDs, fontWidthsIDs, usedStandardFonts are already populated
 
 	// Assign object IDs to custom fonts (object IDs already assigned before content generation)
 	// customFontObjectStart is already calculated, no need to assign again
@@ -1018,6 +1037,31 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 	for _, img := range template.Image {
 		if img.ImageName != "" {
 			markFontUsage(models.Props{FontName: "Helvetica"}, img.ImageName)
+		}
+	}
+
+	// Scan Digital Signature text (uses Helvetica)
+	if template.Config.Signature != nil && template.Config.Signature.Enabled && template.Config.Signature.Visible {
+		// Used in signature appearance (created in signature.go)
+		markFontUsage(models.Props{FontName: "Helvetica"}, "Digitally signed by:")
+
+		signerName := template.Config.Signature.Name
+		if signerName != "" {
+			markFontUsage(models.Props{FontName: "Helvetica"}, signerName)
+		} else {
+			// If name not provided, it uses CommonName from certificate - reasonable fallback prediction
+			markFontUsage(models.Props{FontName: "Helvetica"}, "Common Name")
+		}
+
+		// Date format used: 2006-01-02 15:04:05
+		markFontUsage(models.Props{FontName: "Helvetica"}, "Date: 0123456789-:")
+
+		if template.Config.Signature.Reason != "" {
+			markFontUsage(models.Props{FontName: "Helvetica"}, "Reason: "+template.Config.Signature.Reason)
+		}
+
+		if template.Config.Signature.Location != "" {
+			markFontUsage(models.Props{FontName: "Helvetica"}, "Location: "+template.Config.Signature.Location)
 		}
 	}
 }
