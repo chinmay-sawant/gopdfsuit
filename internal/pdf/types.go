@@ -37,3 +37,10 @@ func getPageDimensions(pageSize string, orientation int) PageDimensions {
 
 	return PageDimensions{Width: width, Height: height}
 }
+
+// ObjectEncryptor defines the interface for encrypting PDF objects
+type ObjectEncryptor interface {
+	EncryptString(data []byte, objNum, genNum int) []byte
+	EncryptStream(data []byte, objNum, genNum int) []byte
+	GetEncryptDictionary(encryptObjID int) string
+}

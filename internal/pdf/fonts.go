@@ -592,7 +592,7 @@ func GetAvailableFonts() []models.FontInfo {
 
 // GenerateTrueTypeFontObjects generates all PDF objects needed for a custom TrueType font
 // Returns map of object ID to object content
-func GenerateTrueTypeFontObjects(font *RegisteredFont) map[int]string {
+func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor) map[int]string {
 	objects := make(map[int]string)
 
 	// Get font data (subset if available, otherwise full font)
@@ -608,6 +608,11 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont) map[int]string {
 	zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
+	// Encrypt if needed
+	if encryptor != nil {
+		compressedData = encryptor.EncryptStream(compressedData, font.FontFileID, 0)
+	}
+
 	// Generate font file stream (FontFile2 for TrueType)
 	objects[font.FontFileID] = fmt.Sprintf("<< /Filter /FlateDecode /Length %d /Length1 %d >>\nstream\n%s\nendstream",
 		len(compressedData), len(fontData), string(compressedData))
@@ -617,7 +622,7 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont) map[int]string {
 	objects[font.WidthsID] = widthsStr
 
 	// Generate CIDToGIDMap
-	objects[font.CIDToGIDMapID] = generateCIDToGIDMap(font)
+	objects[font.CIDToGIDMapID] = generateCIDToGIDMap(font, encryptor)
 
 	// Generate FontDescriptor
 	objects[font.DescriptorID] = generateTrueTypeFontDescriptor(font)
@@ -626,7 +631,7 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont) map[int]string {
 	objects[font.CIDFontID] = generateCIDFontDict(font)
 
 	// Generate ToUnicode CMap
-	objects[font.ToUnicodeID] = generateToUnicodeCMap(font)
+	objects[font.ToUnicodeID] = generateToUnicodeCMap(font, encryptor)
 
 	// Generate Type 0 font dictionary
 	objects[font.ObjectID] = generateType0FontDict(font)
@@ -768,7 +773,7 @@ func generateCIDWidths(font *RegisteredFont) string {
 // generateCIDToGIDMap generates the CIDToGIDMap stream
 // This maps CIDs (treated as Unicode code points in our Identity-H output)
 // to the actual Glyph IDs in the embedded (potentially subsetted) font.
-func generateCIDToGIDMap(font *RegisteredFont) string {
+func generateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string {
 	f := font.Font
 
 	// Determine the maximum CID used
@@ -817,12 +822,17 @@ func generateCIDToGIDMap(font *RegisteredFont) string {
 	zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
+	// Encrypt if needed
+	if encryptor != nil {
+		compressedData = encryptor.EncryptStream(compressedData, font.CIDToGIDMapID, 0)
+	}
+
 	return fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
 		len(compressedData), string(compressedData))
 }
 
 // generateToUnicodeCMap generates the ToUnicode CMap stream for text extraction
-func generateToUnicodeCMap(font *RegisteredFont) string {
+func generateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) string {
 	f := font.Font
 
 	// Collect used characters
@@ -892,6 +902,11 @@ func generateToUnicodeCMap(font *RegisteredFont) string {
 	zlibWriter.Write([]byte(cmapData))
 	zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
+
+	// Encrypt if needed
+	if encryptor != nil {
+		compressedData = encryptor.EncryptStream(compressedData, font.ToUnicodeID, 0)
+	}
 
 	return fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
 		len(compressedData), string(compressedData))

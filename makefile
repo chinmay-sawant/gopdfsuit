@@ -73,5 +73,6 @@ gengine-deploy: test-integration
 	export VITE_IS_CLOUD_RUN=true;\
 	export VITE_ENVIRONMENT=cloudrun;\
 	gcloud app deploy
+
 .PHONY: build test clean run fmt vet mod
 

@@ -79,7 +79,7 @@ func (s *IntegrationSuite) compareFileSizes(generatedPath, expectedPath string) 
 // TestGenerateTemplatePDF tests /api/v1/generate/template-pdf
 func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 	// 1. Input JSON from sampledata/editor/financial_report.json
-	jsonPath := filepath.Join("..", "sampledata", "editor", "financial_report.json")
+	jsonPath := filepath.Join("..", "sampledata", "editor", "financial_digitalsignature.json")
 	jsonData, err := os.ReadFile(jsonPath)
 	s.NoError(err, "Failed to read sample JSON file")
 
