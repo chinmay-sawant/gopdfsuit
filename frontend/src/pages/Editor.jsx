@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
-import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check, HelpCircle, PenTool } from 'lucide-react'
+import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check, HelpCircle, PenTool, Link } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
@@ -51,7 +51,8 @@ const COMPONENT_TYPES = {
   checkbox: { icon: CheckSquare, label: 'Checkbox' },
   radio: { icon: Circle, label: 'Radio Button' },
   text_input: { icon: Type, label: 'Text Input' },
-  image: { icon: ImageIcon, label: 'Image' }
+  image: { icon: ImageIcon, label: 'Image' },
+  hyperlink: { icon: Link, label: 'Hyperlink' }
 }
 
 // Font style helpers
@@ -1457,7 +1458,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                           style={tdStyle}
                           onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
                           onDragOver={(e) => {
-                            if (draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input') {
+                            if (draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') {
                               e.preventDefault()
                               e.stopPropagation()
                             }
@@ -1466,11 +1467,11 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
                             e.preventDefault()
                             e.stopPropagation()
                             const draggedData = e.dataTransfer.getData('text/plain')
-                            if (draggedData === 'checkbox' || draggedData === 'image' || draggedData === 'radio' || draggedData === 'text_input') {
+                            if (draggedData === 'checkbox' || draggedData === 'image' || draggedData === 'radio' || draggedData === 'text_input' || draggedData === 'hyperlink') {
                               handleCellDrop(element, onUpdate, rowIdx, colIdx, draggedData)
                             }
                           }}
-                          className={(draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input') ? 'drop-target' : ''}
+                          className={(draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') ? 'drop-target' : ''}
                         >
                           {cell.form_field ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '2px', width: '100%' }}>
@@ -2022,6 +2023,33 @@ export default function Editor() {
           setSelectedId('footer')
         }
         break
+      case 'hyperlink':
+        const newHyperlink = {
+          type: 'table',
+          maxcolumns: 1,
+          columnwidths: [1],
+          rows: [
+            {
+              row: [
+                {
+                  props: 'Helvetica:12:000:left:0:0:0:0',
+                  text: 'Link',
+                  textcolor: '#0000FF',
+                  link: '#',
+                  width: 100
+                }
+              ]
+            }
+          ]
+        }
+        setComponents(prev => {
+          const newComponents = [...prev]
+          const insertIndex = title ? position - 1 : position
+          newComponents.splice(insertIndex, 0, newHyperlink)
+          return newComponents
+        })
+        setSelectedId(`table-${title ? position - 1 : position}`)
+        break
     }
   }
 
@@ -2098,7 +2126,7 @@ export default function Editor() {
   }
 
   const handleCellDrop = (element, onUpdate, rowIdx, colIdx, draggedType) => {
-    if (draggedType !== 'checkbox' && draggedType !== 'image' && draggedType !== 'radio' && draggedType !== 'text_input') return
+    if (draggedType !== 'checkbox' && draggedType !== 'image' && draggedType !== 'radio' && draggedType !== 'text_input' && draggedType !== 'hyperlink') return
 
     const newRows = [...element.rows]
 
@@ -2158,6 +2186,18 @@ export default function Editor() {
         text: undefined, // Remove any existing text
         chequebox: undefined, // Remove any existing checkbox
         form_field: undefined
+      }
+    } else if (draggedType === 'hyperlink') {
+      // Update the table cell to contain a hyperlink
+      const currentCell = newRows[rowIdx].row[colIdx]
+      newRows[rowIdx].row[colIdx] = {
+        ...currentCell,
+        text: currentCell.text || 'Link',
+        textcolor: '#0000FF',
+        link: '#',
+        form_field: undefined,
+        chequebox: undefined,
+        image: undefined
       }
     }
 
