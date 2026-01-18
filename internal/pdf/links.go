@@ -31,6 +31,11 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 	// Highlight mode - invert when clicked
 	annotDict.WriteString(" /H /I")
 
+	// PDF/A-4 compliance: F key is required
+	// Flag 4 = Print. This ensures the annotation is considered printable,
+	// satisfying the requirement that all non-popup annotations must have an F key.
+	annotDict.WriteString(" /F 4")
+
 	// Add action based on link type
 	if annot.URI != "" {
 		// External URL - use URI action

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
-import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check } from 'lucide-react'
+import { Edit, Table, Type, Square, Minus, CheckSquare, FileText, Upload, Play, Copy, Sun, Moon, Trash2, Plus, GripVertical, Settings, Eye, Download, ChevronUp, ChevronDown, X, Image as ImageIcon, Circle, Check, HelpCircle } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
@@ -1673,6 +1673,7 @@ export default function Editor() {
   const [fontsLoading, setFontsLoading] = useState(true)
   const [copiedId, setCopiedId] = useState(null)
   const [bookmarks, setBookmarks] = useState(null)
+  const [showPdfTooltip, setShowPdfTooltip] = useState(false)
   const canvasRef = useRef(null)
 
   // Fetch fonts from API on component mount
@@ -2012,7 +2013,11 @@ export default function Editor() {
         const data = await response.json()
 
         // Parse the JSON structure from the template
-        setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
+        let newConfig = data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' }
+        if (newConfig.security?.enabled) {
+          newConfig = { ...newConfig, pdfaCompliant: false }
+        }
+        setConfig(newConfig)
 
         // Ensure title has table structure
         if (data.title) {
@@ -2248,7 +2253,11 @@ export default function Editor() {
       const data = JSON.parse(jsonText)
 
       // Parse the JSON structure from the pasted content
-      setConfig(data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
+      let newConfig = data.config || { pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' }
+      if (newConfig.security?.enabled) {
+        newConfig = { ...newConfig, pdfaCompliant: false }
+      }
+      setConfig(newConfig)
 
       // Ensure title has table structure
       if (data.title) {
@@ -2640,17 +2649,63 @@ export default function Editor() {
                     justifyContent: 'space-between',
                     padding: '0.5rem',
                     background: 'hsl(var(--muted))',
-                    borderRadius: '4px'
+                    borderRadius: '4px',
+                    position: 'relative'
                   }}>
-                    <div>
-                      <label style={{
-                        display: 'block',
-                        fontSize: '0.8rem',
-                        fontWeight: '500',
-                        color: 'hsl(var(--foreground))'
+                    {/* Tooltip */}
+                    {showPdfTooltip && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-60px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'black',
+                        color: 'white',
+                        padding: '8px',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        width: '200px',
+                        textAlign: 'center',
+                        zIndex: 100,
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                        pointerEvents: 'none'
                       }}>
-                        PDF/A Compliant
-                      </label>
+                        If the file is encrypted, it violates PDF/A compliance. You must generate a version without a password.
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '-4px',
+                          left: '50%',
+                          transform: 'translateX(-50%) rotate(45deg)',
+                          width: '8px',
+                          height: '8px',
+                          background: 'inherit'
+                        }} />
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '0.8rem',
+                          fontWeight: '500',
+                          color: 'hsl(var(--foreground))'
+                        }}>
+                          PDF/A Compliant
+                        </label>
+                        <div
+                          onMouseEnter={() => setShowPdfTooltip(true)}
+                          onMouseLeave={() => setShowPdfTooltip(false)}
+                          style={{
+                            cursor: 'help',
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'hsl(var(--muted-foreground))'
+                          }}
+                        >
+                          <HelpCircle size={14} />
+                        </div>
+                      </div>
                       <span style={{
                         fontSize: '0.7rem',
                         color: 'hsl(var(--muted-foreground))'
@@ -2667,7 +2722,13 @@ export default function Editor() {
                       <input
                         type="checkbox"
                         checked={config.pdfaCompliant !== false}
-                        onChange={(e) => setConfig(prev => ({ ...prev, pdfaCompliant: e.target.checked }))}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          pdfaCompliant: e.target.checked,
+                          security: e.target.checked && prev.security?.enabled
+                            ? { ...prev.security, enabled: false }
+                            : prev.security
+                        }))}
                         style={{
                           opacity: 0,
                           width: 0,
@@ -2871,6 +2932,7 @@ export default function Editor() {
                           checked={config.security?.enabled || false}
                           onChange={(e) => setConfig(prev => ({
                             ...prev,
+                            pdfaCompliant: e.target.checked ? false : prev.pdfaCompliant,
                             security: e.target.checked
                               ? { ...prev.security, enabled: true, ownerPassword: prev.security?.ownerPassword || '' }
                               : { ...prev.security, enabled: false }
