@@ -42,17 +42,47 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 	return fmt.Sprintf("%s-%s-%sT%s:%s:%s%s", year, month, day, hour, min, sec, tz)
 }
 
-// GenerateXMPMetadata generates PDF/A-4 compliant XMP metadata (PDF 2.0 based)
+// GenerateXMPMetadata generates PDF/A-4 and PDF/UA-2 compliant XMP metadata (PDF 2.0 based)
 // pdfDateStr should be in PDF format: D:YYYYMMDDHHmmSSOHH'mm'
 func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
 	// Convert PDF date to XMP date format for consistency
 	xmpDateStr := ConvertPDFDateToXMP(pdfDateStr)
 
 	// PDF/A-4 is the PDF/A standard based on PDF 2.0 (ISO 32000-2)
-	// pdfaid:part=4, no conformance level needed for PDF/A-4
+	// PDF/UA-2 is the PDF/UA standard based on PDF 2.0 (ISO 14289-2:2024)
 	xmp := `<?xpacket begin="` + "\xef\xbb\xbf" + `" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/">
   <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about=""
+        xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/"
+        xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#"
+        xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">
+      <pdfaExtension:schemas>
+        <rdf:Bag>
+          <rdf:li rdf:parseType="Resource">
+            <pdfaSchema:schema>PDF/UA Universal Accessibility Schema</pdfaSchema:schema>
+            <pdfaSchema:namespaceURI>http://www.aiim.org/pdfua/ns/id/</pdfaSchema:namespaceURI>
+            <pdfaSchema:prefix>pdfuaid</pdfaSchema:prefix>
+            <pdfaSchema:property>
+              <rdf:Seq>
+                <rdf:li rdf:parseType="Resource">
+                  <pdfaProperty:name>part</pdfaProperty:name>
+                  <pdfaProperty:valueType>Integer</pdfaProperty:valueType>
+                  <pdfaProperty:category>internal</pdfaProperty:category>
+                  <pdfaProperty:description>Indicates which part of ISO 14289 the document conforms to.</pdfaProperty:description>
+                </rdf:li>
+                <rdf:li rdf:parseType="Resource">
+                  <pdfaProperty:name>rev</pdfaProperty:name>
+                  <pdfaProperty:valueType>Integer</pdfaProperty:valueType>
+                  <pdfaProperty:category>internal</pdfaProperty:category>
+                  <pdfaProperty:description>Indicates the revision year of ISO 14289 the document conforms to.</pdfaProperty:description>
+                </rdf:li>
+              </rdf:Seq>
+            </pdfaSchema:property>
+          </rdf:li>
+        </rdf:Bag>
+      </pdfaExtension:schemas>
+    </rdf:Description>
     <rdf:Description rdf:about=""
         xmlns:dc="http://purl.org/dc/elements/1.1/"
         xmlns:xmp="http://ns.adobe.com/xap/1.0/"
@@ -76,6 +106,8 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
       <pdf:Producer>GoPDFSuit</pdf:Producer>
       <pdfaid:part>4</pdfaid:part>
       <pdfaid:rev>2020</pdfaid:rev>
+      <pdfuaid:part>2</pdfuaid:part>
+      <pdfuaid:rev>2024</pdfuaid:rev>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>

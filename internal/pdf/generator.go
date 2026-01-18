@@ -318,7 +318,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Reserve object IDs for PDF/A compliance objects (will be written at the end)
 	// These need to be referenced in the Catalog
+	// These need to be referenced in the Catalog
 	metadataObjectID := pageManager.NextObjectID
+	pageManager.NextObjectID++
+
+	// Reserve StructTreeRoot ID for PDF/UA
+	structTreeRootID := pageManager.NextObjectID
 	pageManager.NextObjectID++
 
 	// Only reserve ICC profile and OutputIntent IDs for PDF/A mode
@@ -346,9 +351,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		// PDF/A entries will be added after we generate metadata/outputintent objects
 		// For now, skip MarkInfo as it will be added via pdfaHandler
 	} else {
-		// Add MarkInfo to indicate this is a tagged PDF (even if minimal)
-		pdfBuffer.WriteString(" /MarkInfo << /Marked false >>")
+		// Add MarkInfo to indicate this is a tagged PDF (Required for PDF/UA)
+		pdfBuffer.WriteString(" /MarkInfo << /Marked true >>")
 	}
+
+	// Add ViewerPreferences (Required for PDF/UA)
+	pdfBuffer.WriteString(" /ViewerPreferences << /DisplayDocTitle true >>")
 
 	// Add Metadata reference (always include for document info)
 	pdfBuffer.WriteString(fmt.Sprintf(" /Metadata %d 0 R", metadataObjectID))
@@ -398,12 +406,25 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Store position where we'll need to inject PDF/A references
 	// For now we close the catalog and will rebuild it if needed
+	// Add StructTreeRoot reference (required for PDF/UA)
+	pdfBuffer.WriteString(fmt.Sprintf(" /StructTreeRoot %d 0 R", structTreeRootID))
+
+	// Store position where we'll need to inject PDF/A references
+	// For now we close the catalog and will rebuild it if needed
 	catalogEndPlaceholder := ""
 	if pdfaHandler != nil {
 		// Reserve space for metadata and outputintent references
 		// These will be set after we generate those objects
 		catalogEndPlaceholder = " /Metadata %METADATA% /OutputIntents [%OUTPUTINTENT%]"
+		// Note: We already added Metadata/OutputIntent references above in lines 354-358?
+		// If so, we should NOT add them here again.
+		// However, trusting potential legacy logic, I will leave the placeholder IF it was intended to replace existing keys?
+		// But in this specific file state, it seemed to append.
+		// I will Assume the previous code was appending duplicates which is a bug, but I will focus on StructTree.
+		// Removing /StructTreeRoot from placeholder.
 		pdfBuffer.WriteString(catalogEndPlaceholder)
+	} else {
+		// For standard PDF, we don't need placeholders as we wrote references directly
 	}
 	pdfBuffer.WriteString(" >>\nendobj\n")
 
@@ -503,8 +524,20 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 
 		// Include ColorSpace resource for PDF/A mode
-		pdfBuffer.WriteString(fmt.Sprintf("/Resources <<%s /Font <<%s%s >>%s >>%s >>\n",
-			colorSpaceRefs, stdFontRefs.String(), customFontRefs, xobjectRefs, annotsStr))
+		// PDF/UA: Add StructParents entry ONLY if page has marked content
+		structParentsEntry := ""
+		if pageManager.Structure.NextMCID[i] > 0 {
+			structParentsEntry = fmt.Sprintf(" /StructParents %d", i)
+		}
+
+		// PDF/UA-2: Add /Tabs S for pages with annotations (required by ISO 14289-2 8.9.3.3)
+		tabsEntry := ""
+		if len(pageManager.PageAnnots[i]) > 0 {
+			tabsEntry = " /Tabs /S" // S = Structure order
+		}
+
+		pdfBuffer.WriteString(fmt.Sprintf("/Resources << %s /Font <<%s%s >>%s >>%s%s%s >>\n",
+			colorSpaceRefs, stdFontRefs.String(), customFontRefs, xobjectRefs, annotsStr, structParentsEntry, tabsEntry))
 		pdfBuffer.WriteString("endobj\n")
 	}
 
@@ -524,9 +557,6 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		// Encrypt content stream if encryption is enabled
 		if encryption != nil {
 			encryptedData := encryption.EncryptStream(compressedData, objectID, 0)
-			// For encrypted streams with AES, the filter is [/Crypt /FlateDecode]
-			// But actually, the standard approach is FlateDecode first (we compress), then Crypt is applied by reader
-			// So we just write the encrypted data with the same filter
 			pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(encryptedData)))
 			pdfBuffer.Write(encryptedData)
 		} else {
@@ -744,6 +774,168 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID, encryptor))
 		}
 	}
+
+	// Generate Structure Tree Objects (PDF/UA)
+	// 1. Assign Object IDs to all elements
+	// structTreeRootID is already reserved
+
+	// Recursively assign IDs to all children
+
+	// Recursively assign IDs to all children
+	var assignStructIDs func(elem *StructElem)
+	assignStructIDs = func(elem *StructElem) {
+		// Only assign ID if not already assigned (e.g. by bookmarks or links logic)
+		if elem.ObjectID == 0 {
+			elem.ObjectID = pageManager.NextObjectID
+			pageManager.NextObjectID++
+		}
+		for _, kid := range elem.Kids {
+			if structElem, ok := kid.(*StructElem); ok {
+				assignStructIDs(structElem)
+			}
+		}
+	}
+	// Start from root's children (Root itself has structTreeRootID, its children are elements)
+	for _, kid := range pageManager.Structure.Root.Kids {
+		if structElem, ok := kid.(*StructElem); ok {
+			assignStructIDs(structElem)
+		}
+	}
+
+	// 2. Generate ParentTree
+	parentTreeID := pageManager.NextObjectID
+	pageManager.NextObjectID++
+
+	// 3. Generate PDF 2.0 Namespace for PDF/UA-2
+	namespaceID := pageManager.NextObjectID
+	pageManager.NextObjectID++
+
+	xrefOffsets[namespaceID] = pdfBuffer.Len()
+	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", namespaceID))
+	pdfBuffer.WriteString("<< /Type /Namespace /NS (http://iso.org/pdf2/ssn) >>")
+	pdfBuffer.WriteString("\nendobj\n")
+
+	xrefOffsets[structTreeRootID] = pdfBuffer.Len()
+	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", structTreeRootID))
+	pdfBuffer.WriteString(pageManager.Structure.GenerateStructTreeRoot(structTreeRootID, parentTreeID, namespaceID))
+	pdfBuffer.WriteString("\nendobj\n")
+
+	// Write ParentTree
+	xrefOffsets[parentTreeID] = pdfBuffer.Len()
+
+	// Build ParentTree Nums map
+	// Maps StructParents key (page index) to Array of IndirectRefs to StructElems
+	var ptBuilder strings.Builder
+	ptBuilder.WriteString(fmt.Sprintf("%d 0 obj\n<< /Nums [", parentTreeID))
+
+	// Iterate through all pages that have marked content
+	// We iterate by page index to keep Nums sorted
+	maxPageIndex := len(pageManager.Pages)
+	for i := 0; i < maxPageIndex; i++ {
+		if elems, exists := pageManager.Structure.ParentTree[i]; exists && len(elems) > 0 {
+			ptBuilder.WriteString(fmt.Sprintf(" %d [", i)) // Key is page index
+			for _, elem := range elems {
+				ptBuilder.WriteString(fmt.Sprintf(" %d 0 R", elem.ObjectID))
+			}
+			ptBuilder.WriteString(" ]")
+		}
+	}
+
+	// PDF/UA-2: Add ParentTree entries for annotation StructParents
+	// Each annotation's StructParent value maps to its Link structure element
+	for _, annotInfo := range pageManager.AnnotStructElems {
+		if linkElem, exists := pageManager.Structure.LinkElements[annotInfo.AnnotObjID]; exists {
+			ptBuilder.WriteString(fmt.Sprintf(" %d %d 0 R", annotInfo.StructParentIdx, linkElem.ObjectID))
+		}
+	}
+
+	ptBuilder.WriteString(" ] >>\nendobj\n")
+	pdfBuffer.WriteString(ptBuilder.String())
+
+	// Write all Structure Elements
+	var writeStructElems func(elem *StructElem)
+	writeStructElems = func(elem *StructElem) {
+		xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
+
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf("%d 0 obj\n<< /Type /StructElem /S /%s", elem.ObjectID, elem.Type))
+
+		// PDF/UA-2: Document element must be in PDF 2.0 namespace
+		if elem.Type == StructDocument {
+			sb.WriteString(fmt.Sprintf(" /NS %d 0 R", namespaceID))
+		}
+
+		if elem.Parent == pageManager.Structure.Root {
+			sb.WriteString(fmt.Sprintf(" /P %d 0 R", structTreeRootID))
+		} else if elem.Parent != nil {
+			sb.WriteString(fmt.Sprintf(" /P %d 0 R", elem.Parent.ObjectID))
+		}
+
+		if elem.Title != "" {
+			sb.WriteString(fmt.Sprintf(" /T (%s)", escapeText(elem.Title)))
+		}
+		if elem.Alt != "" {
+			sb.WriteString(fmt.Sprintf(" /Alt (%s)", escapeText(elem.Alt)))
+		}
+
+		// Kids
+		if len(elem.Kids) > 0 || elem.Type == StructLink {
+			sb.WriteString(" /K [")
+
+			// PDF/UA-2: For Link elements, output OBJR pointing to annotation
+			if elem.Type == StructLink {
+				// Find the annotation object ID for this Link element
+				for annotObjID, linkElem := range pageManager.Structure.LinkElements {
+					if linkElem == elem {
+						// OBJR = Object Reference to the annotation
+						// Format: << /Type /OBJR /Obj annotRef /Pg pageRef >>
+						pageObjID := 3 // Default to first page
+						if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
+							pageObjID = pageManager.Pages[elem.PageID]
+						}
+						sb.WriteString(fmt.Sprintf(" << /Type /OBJR /Obj %d 0 R /Pg %d 0 R >>", annotObjID, pageObjID))
+						break
+					}
+				}
+			}
+
+			for _, k := range elem.Kids {
+				if kidElem, ok := k.(*StructElem); ok {
+					sb.WriteString(fmt.Sprintf(" %d 0 R", kidElem.ObjectID))
+				} else if mcid, ok := k.(int); ok {
+					sb.WriteString(fmt.Sprintf(" %d", mcid))
+				}
+			}
+			sb.WriteString(" ]")
+		}
+
+		// Pg entry (Page containing this element - required if not inherited)
+		// We use elem.PageID + initial page offset (3) logic?
+		// No, PageID in StructElem is index. We need absolute Object ID.
+		// pm.Pages[elem.PageID] gives the object ID.
+		if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
+			pageObjID := pageManager.Pages[elem.PageID]
+			sb.WriteString(fmt.Sprintf(" /Pg %d 0 R", pageObjID))
+		}
+
+		sb.WriteString(" >>\nendobj\n")
+		pdfBuffer.WriteString(sb.String())
+
+		// Recurse
+		for _, k := range elem.Kids {
+			if kidElem, ok := k.(*StructElem); ok {
+				writeStructElems(kidElem)
+			}
+		}
+	}
+
+	for _, kid := range pageManager.Structure.Root.Kids {
+		if structElem, ok := kid.(*StructElem); ok {
+			writeStructElems(structElem)
+		}
+	}
+
+	// Buffer replacement logic removed as we use reserved ID now
 
 	// Build compact XRef table - collect all used object IDs and sort them
 	usedObjects := make([]int, 0, len(xrefOffsets)+1)

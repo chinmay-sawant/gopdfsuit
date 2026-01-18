@@ -14,11 +14,16 @@ type LinkAnnotation struct {
 	DestY     float64    // Y coordinate on target page
 }
 
-// CreateLinkAnnotation creates a PDF link annotation object
+// CreateLinkAnnotation creates a PDF link annotation object with PDF/UA-2 structure
 // For external links (URLs), it creates a /URI action
 // For internal links (bookmarks), it creates a /GoTo action with named destination
+// Returns the annotation object ID
 func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 	var annotDict strings.Builder
+
+	// Get the StructParent index for this annotation
+	// This links the annotation to the ParentTree for PDF/UA-2
+	structParentIdx := pageManager.GetNextAnnotStructParent()
 
 	annotDict.WriteString("<< /Type /Annot /Subtype /Link")
 	annotDict.WriteString(fmt.Sprintf(" /Rect [%s %s %s %s]",
@@ -36,6 +41,9 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 	// satisfying the requirement that all non-popup annotations must have an F key.
 	annotDict.WriteString(" /F 4")
 
+	// PDF/UA-2: StructParent links annotation to structure tree
+	annotDict.WriteString(fmt.Sprintf(" /StructParent %d", structParentIdx))
+
 	// Add action based on link type
 	if annot.URI != "" {
 		// External URL - use URI action
@@ -43,7 +51,12 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 			escapeText(annot.URI)))
 	} else if annot.Dest != "" {
 		// Internal link - use named destination
-		annotDict.WriteString(fmt.Sprintf(" /Dest (%s)", escapeText(annot.Dest)))
+		// PDF/UA-2: Try to use structure destination if available
+		if dest, ok := pageManager.NamedDests[annot.Dest]; ok && dest.StructElemID > 0 {
+			annotDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /SD %d 0 R >>", dest.StructElemID))
+		} else {
+			annotDict.WriteString(fmt.Sprintf(" /Dest (%s)", escapeText(annot.Dest)))
+		}
 	} else if annot.PageIndex >= 0 {
 		// Internal link with explicit page destination
 		// Format: [pageRef /XYZ left top zoom]
@@ -56,6 +69,11 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 	annotDict.WriteString(" >>")
 
 	objID := pageManager.AddExtraObject(annotDict.String())
+
+	// PDF/UA-2: Create Link structure element that references this annotation
+	// The Link element contains an OBJR (object reference) kid pointing to the annotation
+	pageManager.AddLinkStructureElement(objID, structParentIdx)
+
 	return objID
 }
 

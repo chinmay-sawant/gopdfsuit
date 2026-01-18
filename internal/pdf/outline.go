@@ -11,45 +11,38 @@ import (
 // OutlineBuilder builds the PDF outline (bookmarks) tree structure
 type OutlineBuilder struct {
 	pageManager  *PageManager
-	namedDests   map[string]NamedDest // Map of named destinations
-	outlineObjID int                  // Root outline object ID
-	outlineItems []OutlineItem        // Flat list of all outline items with their object IDs
-	encryptor    ObjectEncryptor      // Encryptor for strings
-}
-
-// NamedDest represents a named destination in the PDF
-type NamedDest struct {
-	PageIndex int     // 0-based page index
-	Y         float64 // Y position on page
+	outlineObjID int             // Root outline object ID
+	outlineItems []OutlineItem   // Flat list of all outline items with their object IDs
+	encryptor    ObjectEncryptor // Encryptor for strings
 }
 
 // OutlineItem represents a single outline entry with its object ID
 type OutlineItem struct {
-	ObjectID   int
-	Title      string
-	DestPageID int     // Page object ID for destination
-	DestY      float64 // Y position on destination page
-	ParentID   int     // Parent outline item object ID
-	PrevID     int     // Previous sibling object ID (0 if first)
-	NextID     int     // Next sibling object ID (0 if last)
-	FirstID    int     // First child object ID (0 if no children)
-	LastID     int     // Last child object ID (0 if no children)
-	Count      int     // Number of visible descendants (negative if closed)
-	Open       bool    // Whether item is open (children visible)
+	ObjectID         int
+	Title            string
+	DestPageID       int     // Page object ID for destination
+	DestY            float64 // Y position on destination page
+	DestStructElemID int     // PDF/UA-2: Structure element ID for structure destination
+	ParentID         int     // Parent outline item object ID
+	PrevID           int     // Previous sibling object ID (0 if first)
+	NextID           int     // Next sibling object ID (0 if last)
+	FirstID          int     // First child object ID (0 if no children)
+	LastID           int     // Last child object ID (0 if no children)
+	Count            int     // Number of visible descendants (negative if closed)
+	Open             bool    // Whether item is open (children visible)
 }
 
 // NewOutlineBuilder creates a new outline builder
 func NewOutlineBuilder(pm *PageManager, encryptor ObjectEncryptor) *OutlineBuilder {
 	return &OutlineBuilder{
 		pageManager: pm,
-		namedDests:  make(map[string]NamedDest),
 		encryptor:   encryptor,
 	}
 }
 
 // RegisterNamedDest registers a named destination for internal linking
 func (ob *OutlineBuilder) RegisterNamedDest(name string, pageIndex int, y float64) {
-	ob.namedDests[name] = NamedDest{
+	ob.pageManager.NamedDests[name] = NamedDest{
 		PageIndex: pageIndex,
 		Y:         y,
 	}
@@ -99,7 +92,7 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 		// Resolve destination
 		if bm.Dest != "" {
 			// Try to find named destination
-			if dest, exists := ob.namedDests[bm.Dest]; exists {
+			if dest, exists := ob.pageManager.NamedDests[bm.Dest]; exists {
 				if dest.PageIndex < len(ob.pageManager.Pages) {
 					item.DestPageID = ob.pageManager.Pages[dest.PageIndex]
 				} else if len(ob.pageManager.Pages) > 0 {
@@ -137,6 +130,16 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 			}
 			item.DestY = ob.pageManager.PageDimensions.Height - margin
 		}
+
+		// PDF/UA-2: Create a Sect (Section) structure element for this bookmark target
+		// This enables using /SD (structure destination) in the GoTo action
+		sectElem := ob.pageManager.Structure.CreateBookmarkSect(bm.Title)
+
+		// Assign Object ID immediately so we can reference it in the outline dictionary
+		sectElem.ObjectID = ob.pageManager.NextObjectID
+		ob.pageManager.NextObjectID++
+
+		item.DestStructElemID = sectElem.ObjectID
 
 		ob.outlineItems = append(ob.outlineItems, item)
 
@@ -307,9 +310,16 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 
 		itemDict.WriteString(fmt.Sprintf(" /Parent %d 0 R", item.ParentID))
 
-		// Destination: [pageRef /XYZ left top zoom]
-		itemDict.WriteString(fmt.Sprintf(" /Dest [%d 0 R /XYZ null %s null]",
-			item.DestPageID, fmtNum(item.DestY)))
+		// Destination: Use structure destination for PDF/UA-2 compliance
+		// Format: /A << /S /GoTo /SD structElemRef >>
+		// The structure element ID was created during allocateOutlineIDs
+		if item.DestStructElemID > 0 {
+			itemDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /SD %d 0 R >>", item.DestStructElemID))
+		} else {
+			// Fallback to page destination (not PDF/UA-2 compliant)
+			itemDict.WriteString(fmt.Sprintf(" /A << /S /GoTo /D [%d 0 R /XYZ null %s null] >>",
+				item.DestPageID, fmtNum(item.DestY)))
+		}
 
 		if item.PrevID > 0 {
 			itemDict.WriteString(fmt.Sprintf(" /Prev %d 0 R", item.PrevID))
@@ -366,7 +376,7 @@ func escapeTextUnicode(s string) string {
 // GetNamedDestinations returns the names dictionary object content for catalog
 // This enables internal links to work with named destinations
 func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
-	if len(ob.namedDests) == 0 {
+	if len(ob.pageManager.NamedDests) == 0 {
 		return 0, false
 	}
 
@@ -375,8 +385,8 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	namesArray.WriteString("[")
 
 	// Sort names for binary search tree compliance
-	names := make([]string, 0, len(ob.namedDests))
-	for name := range ob.namedDests {
+	names := make([]string, 0, len(ob.pageManager.NamedDests))
+	for name := range ob.pageManager.NamedDests {
 		names = append(names, name)
 	}
 	// Simple sort
@@ -393,7 +403,7 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	ob.pageManager.NextObjectID++
 
 	for i, name := range names {
-		dest := ob.namedDests[name]
+		dest := ob.pageManager.NamedDests[name]
 		pageObjID := 0
 		if dest.PageIndex < len(ob.pageManager.Pages) {
 			pageObjID = ob.pageManager.Pages[dest.PageIndex]

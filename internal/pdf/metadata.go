@@ -71,12 +71,49 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	xmp.WriteString(`  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">`)
 	xmp.WriteString("\n")
 
-	// PDF/A identification
-	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/">`)
+	// PDF/UA Extension Schema definition
+	xmp.WriteString(`    <rdf:Description rdf:about=""
+		xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/"
+		xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#"
+		xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">
+	  <pdfaExtension:schemas>
+		<rdf:Bag>
+		  <rdf:li rdf:parseType="Resource">
+			<pdfaSchema:schema>PDF/UA Universal Accessibility Schema</pdfaSchema:schema>
+			<pdfaSchema:namespaceURI>http://www.aiim.org/pdfua/ns/id/</pdfaSchema:namespaceURI>
+			<pdfaSchema:prefix>pdfuaid</pdfaSchema:prefix>
+			<pdfaSchema:property>
+			  <rdf:Seq>
+				<rdf:li rdf:parseType="Resource">
+				  <pdfaProperty:name>part</pdfaProperty:name>
+				  <pdfaProperty:valueType>Integer</pdfaProperty:valueType>
+				  <pdfaProperty:category>internal</pdfaProperty:category>
+				  <pdfaProperty:description>Indicates, which part of ISO 14289 standards the document adheres to.</pdfaProperty:description>
+				</rdf:li>
+				<rdf:li rdf:parseType="Resource">
+				  <pdfaProperty:name>rev</pdfaProperty:name>
+				  <pdfaProperty:valueType>Integer</pdfaProperty:valueType>
+				  <pdfaProperty:category>internal</pdfaProperty:category>
+				  <pdfaProperty:description>Indicates the year of the revision of ISO 14289 standards the document adheres to.</pdfaProperty:description>
+				</rdf:li>
+			  </rdf:Seq>
+			</pdfaSchema:property>
+		  </rdf:li>
+		</rdf:Bag>
+	  </pdfaExtension:schemas>
+	</rdf:Description>`)
+	xmp.WriteString("\n")
+
+	// PDF/A and PDF/UA identification
+	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/">`)
 	xmp.WriteString("\n")
 	xmp.WriteString(fmt.Sprintf(`      <pdfaid:part>%d</pdfaid:part>`, part))
 	xmp.WriteString("\n")
 	xmp.WriteString(fmt.Sprintf(`      <pdfaid:conformance>%s</pdfaid:conformance>`, conformance))
+	xmp.WriteString("\n")
+	xmp.WriteString(`      <pdfuaid:part>2</pdfuaid:part>`)
+	xmp.WriteString("\n")
+	xmp.WriteString(`      <pdfuaid:rev>2024</pdfuaid:rev>`)
 	xmp.WriteString("\n")
 	xmp.WriteString(`    </rdf:Description>`)
 	xmp.WriteString("\n")
@@ -310,14 +347,7 @@ func (h *PDFAHandler) GenerateCatalogExtras() string {
 	}
 
 	// PDF/A requires MarkInfo with Marked = true for tagged PDF
-	// For PDF/A-1b we can use Marked = false as we're not providing full structure tags
-	part, _ := h.GetConformanceLevel()
-	if part == 1 {
-		extras.WriteString(" /MarkInfo << /Marked false >>")
-	} else {
-		// PDF/A-2 and 3 are more lenient
-		extras.WriteString(" /MarkInfo << /Marked false >>")
-	}
+	extras.WriteString(" /MarkInfo << /Marked true >>")
 
 	return extras.String()
 }

@@ -197,6 +197,8 @@ func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims Page
 	fmt.Fprintf(&annotDict, "<< /Type /Annot /Subtype /Widget")
 	fmt.Fprintf(&annotDict, " /FT /Sig")
 	fmt.Fprintf(&annotDict, " /T (Signature1)")
+	// PDF/UA-2 compliance: Widget annotations must have a label or Contents entry
+	fmt.Fprintf(&annotDict, " /Contents (Digital Signature)")
 	fmt.Fprintf(&annotDict, " /V %d 0 R", sigValueID)
 	fmt.Fprintf(&annotDict, " /F 132") // Print + Locked
 

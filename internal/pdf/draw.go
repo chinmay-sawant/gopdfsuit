@@ -41,6 +41,9 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	// Use props for proper font encoding
 	watermarkProps := models.Props{FontName: "Helvetica", FontSize: fontSize}
 
+	// Begin Artifact mark
+	contentStream.WriteString("/Artifact <</Attached [/Top] /Type /Pagination >> BDC\n")
+
 	contentStream.WriteString("q\n")
 	// Light gray fill/stroke
 	contentStream.WriteString("0.85 0.85 0.85 rg 0.85 0.85 0.85 RG\n")
@@ -51,6 +54,9 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	contentStream.WriteString(fmt.Sprintf("%s %s %s %s %s %s Tm\n", fmtNum(c), fmtNum(s), fmtNum(-s), fmtNum(c), fmtNum(x), fmtNum(y)))
 	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(watermarkProps, text)))
 	contentStream.WriteString("ET\nQ\n")
+
+	// End Artifact mark
+	contentStream.WriteString("EMC\n")
 }
 
 // --- new page initializer (border + watermark) ---
@@ -65,6 +71,9 @@ func initializePage(contentStream *bytes.Buffer, borderConfig, watermark string,
 func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims PageDimensions) {
 	pageBorders := parseBorders(borderConfig)
 	if pageBorders[0] > 0 || pageBorders[1] > 0 || pageBorders[2] > 0 || pageBorders[3] > 0 {
+		// Begin Artifact mark
+		contentStream.WriteString("/Artifact <</Attached [/Top] /Type /Pagination >> BDC\n")
+
 		contentStream.WriteString("q\n")
 		if pageBorders[0] > 0 { // left border
 			contentStream.WriteString(fmt.Sprintf("%d w\n", pageBorders[0]))
@@ -87,6 +96,9 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 				margin, margin, fmtNum(pageDims.Width-margin), margin))
 		}
 		contentStream.WriteString("Q\n")
+
+		// End Artifact mark
+		contentStream.WriteString("EMC\n")
 	}
 }
 
@@ -99,6 +111,11 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	}
 
 	// Simple text title
+	// PDF/UA: Start Heading Structure Element wrapping EVERYTHING (Background + Text)
+	var sb strings.Builder
+	pageManager.Structure.BeginMarkedContent(&sb, pageManager.CurrentPageIndex, StructH1, map[string]string{"Title": title.Text})
+	contentStream.WriteString(sb.String())
+
 	// Draw background color if specified
 	if r, g, b, _, valid := parseHexColor(title.BgColor); valid {
 		rectX := float64(margin)
@@ -145,10 +162,16 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	}
 
 	pageManager.CurrentYPos -= float64(titleProps.FontSize)
+
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(titleX), fmtNum(pageManager.CurrentYPos)))
 	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(titleProps, title.Text)))
 	contentStream.WriteString("ET\n")
+
+	// PDF/UA: End Structure Element
+	var sbEnd strings.Builder
+	pageManager.Structure.EndMarkedContent(&sbEnd)
+	contentStream.WriteString(sbEnd.String())
 
 	// Add Link Annotation if provided
 	if title.Link != "" {
@@ -196,6 +219,9 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 		}
 	}
 
+	// PDF/UA: Start Table Structure Element (Logical grouping)
+	pageManager.Structure.BeginStructureElement(StructTable)
+
 	for rowIdx, row := range table.Rows {
 		// Determine this row's height
 		rowHeight := baseRowHeight
@@ -206,8 +232,8 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 		}
 
 		// Draw row cells - Pass 1: Backgrounds
-		// We draw all backgrounds first so that if text from one cell overflows into another,
-		// it isn't covered by the next cell's background.
+		// PDF/UA: Mark backgrounds as Artifacts
+		contentStream.WriteString("/Artifact BMC\n")
 		bgX := float64(margin)
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
@@ -227,7 +253,6 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			}
 
 			// Draw cell background color
-			// Use cell-specific color if available, otherwise use default (title-level) color
 			bgColor := cell.BgColor
 			if bgColor == "" {
 				bgColor = defaultBgColor
@@ -242,13 +267,22 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 
 			bgX += cellWidth
 		}
+		contentStream.WriteString("EMC\n")
 
 		// Draw row cells - Pass 2: Content and Borders
+		// PDF/UA: Start TR Structure Element
+		pageManager.Structure.BeginStructureElement(StructTR)
+
 		currentX := float64(margin)
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
 				break
 			}
+
+			// PDF/UA: Start TD Structure Element
+			var sb strings.Builder
+			pageManager.Structure.BeginMarkedContent(&sb, pageManager.CurrentPageIndex, StructTD, nil)
+			contentStream.WriteString(sb.String())
 
 			// Capture cell coordinates for link
 			// Capture cell coordinates for link
@@ -418,16 +452,30 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				linkY := pageManager.CurrentYPos - cellHeight
 				pageManager.AddLinkAnnotation(cellX, linkY, cellWidth, cellHeight, cell.Link)
 			}
+			// PDF/UA: End TD Structure Element
+			var sbEnd strings.Builder
+			pageManager.Structure.EndMarkedContent(&sbEnd)
+			contentStream.WriteString(sbEnd.String())
 		}
+
+		// PDF/UA: End TR Structure Element
+		pageManager.Structure.EndStructureElement()
 
 		pageManager.CurrentYPos -= rowHeight
 	}
+
+	// PDF/UA: End Table Structure Element
+	pageManager.Structure.EndStructureElement()
 }
 
 // drawTable renders a table with automatic page breaks
 func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
 	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
 	baseRowHeight := float64(25) // Standard row height
+
+	// PDF/UA: Start Table Structure
+	pageManager.Structure.BeginStructureElement(StructTable)
+	defer pageManager.Structure.EndStructureElement()
 
 	// Compute column widths in points using weights if provided
 	colWidths := make([]float64, table.MaxColumns)
@@ -458,6 +506,9 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 	}
 
 	for rowIdx, row := range table.Rows {
+		// PDF/UA: Start Row Structure
+		pageManager.Structure.BeginStructureElement(StructTR)
+
 		// Determine this row's height - check if any cell in row has custom height
 		rowHeight := baseRowHeight
 		if rowIdx < len(table.RowHeights) && table.RowHeights[rowIdx] > 0 {
@@ -486,6 +537,18 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			if colIdx >= table.MaxColumns {
 				break
 			}
+
+			// PDF/UA: Start Cell Structure (TH for header if first row, else TD)
+			// Assuming first row is header if Table has explicit header concept, but for now just use TD
+			// Could be enhanced to detect header rows
+			cellType := StructTD
+			if rowIdx == 0 {
+				// Simple heuristic: Treat first row as header if styling is different?
+				// For now, let's keep it TD unless explicitly requested, or if we had a Header property in table model.
+			}
+			var sbStart strings.Builder
+			pageManager.Structure.BeginMarkedContent(&sbStart, pageManager.CurrentPageIndex, cellType, nil)
+			contentStream.WriteString(sbStart.String())
 
 			cellProps := parseProps(cell.Props)
 			cellX := currentX
@@ -698,7 +761,15 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			if cell.Link != "" {
 				DrawCellLink(cell.Link, cellX, pageManager.CurrentYPos-cellHeight, cellWidth, cellHeight, pageManager)
 			}
+
+			// PDF/UA: End Cell Structure
+			var sbEnd strings.Builder
+			pageManager.Structure.EndMarkedContent(&sbEnd)
+			contentStream.WriteString(sbEnd.String())
 		}
+
+		// PDF/UA: End Row Structure
+		pageManager.Structure.EndStructureElement()
 
 		pageManager.CurrentYPos -= rowHeight
 	}
@@ -716,6 +787,9 @@ func drawSpacer(spacer models.Spacer, pageManager *PageManager) {
 // drawFooter renders the document footer
 func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *PageManager) {
 	footerProps := parseProps(footer.Font)
+	// PDF/UA: Start Artifact mark (Footer)
+	contentStream.WriteString("/Artifact <</Attached [/Bottom] /Type /Pagination >> BDC\n")
+
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(footerProps))
 	contentStream.WriteString(" ")
@@ -730,6 +804,9 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 	contentStream.WriteString(fmt.Sprintf("%d %d Td\n", footerX, footerY))
 	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(footerProps, footer.Text)))
 	contentStream.WriteString("ET\n")
+
+	// PDF/UA: End Artifact mark
+	contentStream.WriteString("EMC\n")
 
 	// Add Link Annotation if provided
 	if footer.Link != "" {
@@ -759,6 +836,9 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 	// Use props for proper font encoding
 	pageProps := models.Props{FontName: "Helvetica", FontSize: 10}
 
+	// PDF/UA: Start Artifact mark (PageNum)
+	contentStream.WriteString("/Artifact <</Attached [/Bottom] /Type /Pagination >> BDC\n")
+
 	contentStream.WriteString("BT\n")
 	fontRef := getFontReference(pageProps)
 	contentStream.WriteString(fmt.Sprintf("%s 10 Tf\n", fontRef)) // Use Helvetica, 10pt
@@ -774,6 +854,9 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 	contentStream.WriteString(fmt.Sprintf("%s %d Td\n", fmtNum(pageNumberX), pageNumberY))
 	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(pageProps, pageText)))
 	contentStream.WriteString("ET\n")
+
+	// PDF/UA: End Artifact mark
+	contentStream.WriteString("EMC\n")
 }
 
 // drawImage renders an image in the PDF with automatic page breaks
@@ -800,6 +883,17 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 
 	// Get current content stream for this page
 	contentStream := pageManager.GetCurrentContentStream()
+
+	// PDF/UA: Start Figure structure
+	var sb strings.Builder
+	props := map[string]string{}
+	if image.ImageName != "" {
+		props["Alt"] = image.ImageName
+	} else {
+		props["Alt"] = "Image"
+	}
+	pageManager.Structure.BeginMarkedContent(&sb, pageManager.CurrentPageIndex, StructFigure, props)
+	contentStream.WriteString(sb.String())
 
 	// For now, we'll draw a placeholder rectangle for the image
 	// Full PDF image embedding would require creating XObject image streams
@@ -844,6 +938,11 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 		pageManager.AddLinkAnnotation(imageX, imageY, imageWidth, imageHeight, image.Link)
 	}
 
+	// PDF/UA: End Figure structure
+	var sbEnd strings.Builder
+	pageManager.Structure.EndMarkedContent(&sbEnd)
+	contentStream.WriteString(sbEnd.String())
+
 	pageManager.CurrentYPos -= (imageHeight + spacing)
 }
 
@@ -874,8 +973,24 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 	// Get current content stream for this page
 	contentStream := pageManager.GetCurrentContentStream()
 
+	// PDF/UA: Start Figure structure
+	var sb strings.Builder
+	props := map[string]string{}
+	if image.ImageName != "" {
+		props["Alt"] = image.ImageName
+	} else {
+		props["Alt"] = "Image"
+	}
+	pageManager.Structure.BeginMarkedContent(&sb, pageManager.CurrentPageIndex, StructFigure, props)
+	contentStream.WriteString(sb.String())
+
 	// Draw the image using XObject
 	drawImageWithXObject(contentStream, image, imageXObjectRef, pageManager, originalImgWidth, originalImgHeight)
+
+	// PDF/UA: End Figure structure
+	var sbEnd strings.Builder
+	pageManager.Structure.EndMarkedContent(&sbEnd)
+	contentStream.WriteString(sbEnd.String())
 }
 
 // drawWidget creates a widget annotation for a form field
