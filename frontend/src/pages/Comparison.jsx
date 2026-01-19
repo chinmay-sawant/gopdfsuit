@@ -876,7 +876,7 @@ const Comparison = () => {
           
           .comparison-cards-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
             gap: 1.5rem;
           }
           
