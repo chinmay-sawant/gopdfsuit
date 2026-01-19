@@ -21,23 +21,20 @@ import PerformanceSection from '../components/PerformanceSection'
 
 const Home = () => {
   const [isVisible, setIsVisible] = useState({})
-  const [typewriterText, setTypewriterText] = useState('')
+  const [starCount, setStarCount] = useState(null)
 
-  const fullText = "  A powerful Go web service that generates template-based PDF documents on-the-fly with multi-page support, PDF merge capabilities, and HTML to PDF/Image conversion."
+  const fullText = "A powerful Go web service that generates template-based PDF documents on-the-fly with multi-page support, PDF merge capabilities, and HTML to PDF/Image conversion."
 
-  // Typewriter effect
+  // Fetch GitHub stars
   useEffect(() => {
-    let i = 0
-    const timer = setInterval(() => {
-      if (i < fullText.length) {
-        setTypewriterText(prev => prev + fullText.charAt(i))
-        i++
-      } else {
-        clearInterval(timer)
-      }
-    }, 30)
-
-    return () => clearInterval(timer)
+    fetch('https://api.github.com/repos/chinmay-sawant/gopdfsuit')
+      .then(res => res.json())
+      .then(data => {
+        if (data.stargazers_count !== undefined) {
+          setStarCount(data.stargazers_count)
+        }
+      })
+      .catch(err => console.error('Error fetching stars:', err))
   }, [])
 
   // Intersection Observer for scroll animations
@@ -61,59 +58,47 @@ const Home = () => {
   }, [])
   const features = [
     {
-      icon: <FileText size={32} />,
-      title: 'Template-based PDF Generation',
-      description: 'JSON-driven PDF creation with multi-page support, automatic page breaks, and custom layouts.',
+      icon: <FileText size={24} />,
+      title: 'Template-based PDF',
+      description: 'JSON-driven PDF creation with multi-page support and automatic page breaks.',
       link: '/viewer',
-      color: 'teal',
-      size: 'large'
+      color: 'teal'
     },
     {
-      icon: <Edit size={32} />,
+      icon: <Edit size={24} />,
       title: 'Visual PDF Editor',
-      description: 'Drag-and-drop interface for building PDF templates with live preview and real-time JSON generation.',
+      description: 'Drag-and-drop interface for building PDF templates with live preview.',
       link: '/editor',
-      color: 'blue',
-      size: 'normal'
+      color: 'blue'
     },
     {
-      icon: <Merge size={32} />,
+      icon: <Merge size={24} />,
       title: 'PDF Merge',
-      description: 'Combine multiple PDF files with intuitive drag-and-drop reordering and live preview.',
+      description: 'Combine multiple PDFs with drag-and-drop reordering and live preview.',
       link: '/merge',
-      color: 'purple',
-      size: 'normal'
+      color: 'purple'
     },
     {
-      icon: <FileCheck size={32} />,
+      icon: <FileCheck size={24} />,
       title: 'Form Filling',
       description: 'AcroForm and XFDF support for filling PDF forms programmatically.',
       link: '/filler',
-      color: 'yellow',
-      size: 'normal'
+      color: 'yellow'
     },
     {
-      icon: <Globe size={32} />,
+      icon: <Globe size={24} />,
       title: 'HTML to PDF',
-      description: 'Convert HTML content or web pages to PDF using Chromium with full control over page settings.',
+      description: 'Convert HTML content or web pages to PDF using Chromium.',
       link: '/htmltopdf',
-      color: 'green',
-      size: 'normal'
+      color: 'green'
     },
     {
-      icon: <Image size={32} />,
+      icon: <Image size={24} />,
       title: 'HTML to Image',
-      description: 'Convert HTML content to PNG, JPG, or SVG images with custom dimensions and quality settings.',
+      description: 'Convert HTML to PNG, JPG, or SVG with custom dimensions.',
       link: '/htmltoimage',
-      color: 'blue',
-      size: 'wide'
+      color: 'blue'
     }
-  ]
-
-  const highlights = [
-    { icon: <Zap />, title: 'Ultra Fast', desc: 'Average 0.8ms response time for PDF generation' },
-    { icon: <Shield />, title: 'Secure', desc: 'Path traversal protection and input validation' },
-    { icon: <Download />, title: 'Self-contained', desc: 'Single binary deployment with zero dependencies' },
   ]
 
   // Interactive dots canvas background (Antigravity-style)
@@ -433,29 +418,21 @@ const Home = () => {
             GoPdfSuit
           </h1>
 
-          {/* Typewriter subtitle */}
+          {/* Subtitle */}
           <div
             className="hero-subtitle animate-fadeInUp"
             style={{
               marginBottom: '3rem',
               color: 'hsl(var(--muted-foreground))',
               animationDelay: '0.2s',
-              minHeight: '4rem',
+              maxWidth: '800px',
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              fontSize: '1.2rem',
+              lineHeight: '1.6'
             }}
           >
-            <span style={{ position: 'relative' }}>
-              {typewriterText}
-              <span
-                style={{
-                  opacity: typewriterText.length < fullText.length ? 1 : 0,
-                  animation: 'blink 1s infinite',
-                  marginLeft: '2px',
-                  color: '#4ecdc4',
-                }}
-              >
-                |
-              </span>
-            </span>
+            {fullText}
           </div>
 
           {/* CTA Buttons */}
@@ -498,7 +475,18 @@ const Home = () => {
             >
               <Github size={20} />
               View on GitHub
-              <Star size={16} />
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                background: 'rgba(255,255,255,0.1)',
+                padding: '0.2rem 0.6rem',
+                borderRadius: '20px',
+                marginLeft: '0.25rem'
+              }}>
+                <Star size={14} fill={starCount ? "currentColor" : "none"} />
+                <span style={{ fontSize: '0.9rem' }}>{starCount !== null ? starCount : 'Star'}</span>
+              </div>
             </a>
           </div>
 
@@ -507,43 +495,7 @@ const Home = () => {
             className="grid grid-3"
             style={{ marginTop: '2rem' }}
           >
-            {highlights.map((highlight, index) => (
-              <div
-                key={index}
-                className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-hero'] ? 'visible' : ''}`}
-                style={{
-                  textAlign: 'center',
-                  padding: '2rem 1.5rem',
-                  animationDelay: `${0.4 + index * 0.15}s`,
-                }}
-              >
-                <div
-                  className={`feature-icon-box ${index === 0 ? 'teal' : index === 1 ? 'blue' : 'purple'}`}
-                  style={{
-                    margin: '0 auto 1rem',
-                  }}
-                >
-                  {React.cloneElement(highlight.icon, {
-                    size: 28,
-                  })}
-                </div>
-                <h3 style={{
-                  marginBottom: '0.5rem',
-                  fontSize: '1.3rem',
-                  fontWeight: '700',
-                }}>
-                  {highlight.title}
-                </h3>
-                <p style={{
-                  color: 'hsl(var(--muted-foreground))',
-                  marginBottom: 0,
-                  fontSize: '0.95rem',
-                  lineHeight: '1.6',
-                }}>
-                  {highlight.desc}
-                </p>
-              </div>
-            ))}
+
           </div>
         </div>
 
@@ -585,66 +537,63 @@ const Home = () => {
             </p>
           </div>
 
-          <div className="bento-grid">
-            {features.map((feature, index) => {
-              const sizeClass = feature.size === 'large' ? 'bento-item-large' :
-                feature.size === 'wide' ? 'bento-item-wide' : '';
-              return (
-                <Link
-                  key={index}
-                  to={feature.link}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                  className={sizeClass}
+          <div className="grid grid-3">
+            {features.map((feature, index) => (
+              <Link
+                key={index}
+                to={feature.link}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <div
+                  className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-features'] ? 'visible' : ''}`}
+                  style={{
+                    height: '100%',
+                    padding: '1.5rem',
+                    cursor: 'pointer',
+                    animationDelay: `${0.1 + index * 0.08}s`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
                 >
-                  <div
-                    className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-features'] ? 'visible' : ''}`}
-                    style={{
-                      height: '100%',
-                      padding: feature.size === 'large' ? '2.5rem' : '2rem',
-                      cursor: 'pointer',
-                      animationDelay: `${0.2 + index * 0.1}s`,
-                      display: 'flex',
-                      flexDirection: 'column',
-                    }}
-                  >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
                     <div
                       className={`feature-icon-box ${feature.color}`}
-                      style={{ marginBottom: '1.5rem' }}
+                      style={{ width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       {feature.icon}
                     </div>
                     <h3 style={{
-                      marginBottom: '0.75rem',
+                      marginBottom: 0,
                       color: 'hsl(var(--foreground))',
-                      fontSize: feature.size === 'large' ? '1.5rem' : '1.25rem',
+                      fontSize: '1.1rem',
                       fontWeight: '700',
                     }}>
                       {feature.title}
                     </h3>
-                    <p style={{
-                      color: 'hsl(var(--muted-foreground))',
-                      marginBottom: '1rem',
-                      lineHeight: 1.7,
-                      flex: 1,
-                      fontSize: feature.size === 'large' ? '1.05rem' : '0.95rem',
-                    }}>
-                      {feature.description}
-                    </p>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      color: '#4ecdc4',
-                      fontSize: '0.9rem',
-                      fontWeight: '600',
-                    }}>
-                      Try it now
-                      <ArrowRight size={16} />
-                    </div>
                   </div>
-                </Link>
-              );
-            })}
+                  <p style={{
+                    color: 'hsl(var(--muted-foreground))',
+                    marginBottom: '0.75rem',
+                    lineHeight: 1.6,
+                    flex: 1,
+                    fontSize: '0.9rem',
+                  }}>
+                    {feature.description}
+                  </p>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: '#4ecdc4',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                  }}>
+                    Try it now
+                    <ArrowRight size={14} />
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
@@ -1059,20 +1008,6 @@ const Home = () => {
                 <Github size={18} />
                 GitHub
               </a>
-              <Link
-                to="/viewer"
-                className="btn-outline-glow"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  textDecoration: 'none',
-                  padding: '0.75rem 1.5rem',
-                }}
-              >
-                <FileText size={18} />
-                Documentation
-              </Link>
             </div>
 
             {/* Credits */}
