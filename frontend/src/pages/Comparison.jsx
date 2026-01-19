@@ -12,6 +12,7 @@ import {
   Star,
   ArrowLeft
 } from 'lucide-react'
+import PerformanceSection from '../components/PerformanceSection'
 
 const Comparison = () => {
   const [isVisible, setIsVisible] = useState({})
@@ -520,86 +521,16 @@ const Comparison = () => {
         style={{ padding: '2rem 0' }}
       >
         <div className="container">
-          <h2
-            className={`text-center mb-4 animate-fadeInUp stagger-animation ${isVisible['section-benchmarks'] ? 'visible' : ''}`}
+          <div
+            className={`card card-hover animate-fadeInScale stagger-animation ${isVisible['section-benchmarks'] ? 'visible' : ''}`}
             style={{
-              color: 'hsl(var(--foreground))',
+              textAlign: 'center',
+              maxWidth: '800px',
+              margin: '0 auto',
               animationDelay: '0.2s',
             }}
           >
-            🏃‍♂️ Performance Benchmarks
-          </h2>
-
-          <div
-            className={`card comparison-card animate-fadeInUp stagger-animation ${isVisible['section-benchmarks'] ? 'visible' : ''}`}
-            style={{
-              maxWidth: '800px',
-              margin: '0 auto',
-              textAlign: 'center',
-              animationDelay: '0.4s',
-            }}
-          >
-            <div style={{ marginBottom: '2rem' }}>
-              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>
-                GoPdfSuit Performance (temp_multiplepage.json - 2 pages)
-              </h3>
-
-              <div style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                padding: '1rem',
-                borderRadius: '8px',
-                fontFamily: 'monospace',
-                color: '#4ecdc4',
-                fontSize: '0.8rem',
-                textAlign: 'left',
-                maxHeight: '200px',
-                overflowY: 'auto',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(78, 205, 196, 0.5) rgba(0, 0, 0, 0.3)',
-              }}
-                className="custom-scrollbar"
-              >
-                <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Recent Benchmark Results:</div>
-                [GIN] 2025/08/28 - 00:40:18 | 200 |       697.8µs | POST "/api/v1/generate/template-pdf"<br />
-                [GIN] 2025/08/28 - 00:40:55 | 200 |      1.7542ms | POST "/api/v1/generate/template-pdf"<br />
-                [GIN] 2025/08/28 - 00:40:57 | 200 |       179.6µs | POST "/api/v1/generate/template-pdf"<br />
-                [GIN] 2025/08/28 - 00:40:58 | 200 |       573.7µs | POST "/api/v1/generate/template-pdf"<br />
-                [GIN] 2025/08/28 - 00:41:02 | 200 |       445.2µs | POST "/api/v1/generate/template-pdf"<br />
-                [GIN] 2025/08/28 - 00:41:05 | 200 |      1.2341ms | POST "/api/v1/generate/template-pdf"<br />
-                [GIN] 2025/08/28 - 00:41:08 | 200 |       892.1µs | POST "/api/v1/generate/template-pdf"<br />
-                [GIN] 2025/08/28 - 00:41:12 | 200 |       634.7µs | POST "/api/v1/generate/template-pdf"
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              <div style={{
-                background: 'rgba(78, 205, 196, 0.1)',
-                padding: '1.5rem',
-                borderRadius: '8px',
-                border: '1px solid rgba(78, 205, 196, 0.3)',
-              }}>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#4ecdc4' }}>179µs - 1.7ms</div>
-                <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>Response Time Range</div>
-              </div>
-              <div style={{
-                background: 'rgba(0, 122, 204, 0.1)',
-                padding: '1.5rem',
-                borderRadius: '8px',
-                border: '1px solid rgba(0, 122, 204, 0.3)',
-              }}>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#007acc' }}>In-Memory</div>
-                <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>Processing Method</div>
-              </div>
-              <div style={{
-                background: 'rgba(255, 193, 7, 0.1)',
-                padding: '1.5rem',
-                borderRadius: '8px',
-                border: '1px solid rgba(255, 193, 7, 0.3)',
-              }}>
-                <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#ffc107' }}>Zero</div>
-                <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>Dependencies</div>
-              </div>
-            </div>
+            <PerformanceSection isVisible={isVisible['section-benchmarks']} />
           </div>
         </div>
       </section>

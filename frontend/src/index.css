@@ -1028,4 +1028,30 @@ select:focus {
   color: var(--accent-primary);
   font-weight: bold;
   font-size: 1.2rem;
+
+}
+
+/* Animation utilities */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeInScale {
+  animation: fadeInScale 0.6s ease-out forwards;
+}
+
+.stagger-animation {
+  opacity: 0;
+}
+
+.stagger-animation.visible {
+  opacity: 1;
 }
