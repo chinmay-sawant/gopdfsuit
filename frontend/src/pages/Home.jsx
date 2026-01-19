@@ -23,7 +23,7 @@ const Home = () => {
   const [isVisible, setIsVisible] = useState({})
   const [starCount, setStarCount] = useState(null)
 
-  const fullText = "A powerful Go web service that generates template-based PDF documents on-the-fly with multi-page support, PDF merge capabilities, and HTML to PDF/Image conversion."
+
 
   // Fetch GitHub stars
   useEffect(() => {
@@ -423,16 +423,51 @@ const Home = () => {
             className="hero-subtitle animate-fadeInUp"
             style={{
               marginBottom: '3rem',
-              color: 'hsl(var(--muted-foreground))',
               animationDelay: '0.2s',
               maxWidth: '800px',
               marginLeft: 'auto',
               marginRight: 'auto',
-              fontSize: '1.2rem',
-              lineHeight: '1.6'
             }}
           >
-            {fullText}
+            <p style={{
+              color: 'hsl(var(--muted-foreground))',
+              fontSize: '1.2rem',
+              lineHeight: '1.6',
+              marginBottom: '1.5rem'
+            }}>
+              A powerful MIT-licensed Go web service for generating secure, compliant PDFs on-the-fly.
+            </p>
+
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '0.8rem',
+            }}>
+              {[
+                "PDF/A-4 & PDF/UA-2 Compliant",
+                "AES-128 Encryption",
+                "Multi-page Support", "Split PDFs",
+                "HTML To Image", "HTML To PDF"
+              ].map((feature, i) => (
+                <span key={i} style={{
+                  background: 'rgba(78, 205, 196, 0.08)',
+                  border: '1px solid rgba(78, 205, 196, 0.2)',
+                  color: '#4ecdc4',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '20px',
+                  fontSize: '0.95rem',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 2px 10px rgba(78, 205, 196, 0.05)'
+                }}>
+                  <CheckCircle size={15} />
+                  {feature}
+                </span>
+              ))}
+            </div>
           </div>
 
           {/* CTA Buttons */}
