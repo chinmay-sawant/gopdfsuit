@@ -115,90 +115,177 @@ const Home = () => {
     { icon: <Download />, title: 'Self-contained', desc: 'Single binary deployment with zero dependencies' },
   ]
 
-  // Animated background particles
+  // Interactive dots canvas background (Antigravity-style)
   const BackgroundAnimation = () => {
+    const canvasRef = React.useRef(null);
+
+    React.useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      let animationFrameId;
+      let mouse = { x: null, y: null, radius: 150 };
+      let opacity = 0; // Start with 0 opacity for fade-in
+      let frameCount = 0; // Track frames for smooth startup
+
+      // Set canvas size
+      const resize = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      };
+      resize();
+      window.addEventListener('resize', resize);
+
+      // Track mouse
+      const handleMouseMove = (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+      };
+      const handleMouseLeave = () => {
+        mouse.x = null;
+        mouse.y = null;
+      };
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseleave', handleMouseLeave);
+
+      // Particle class
+      class Particle {
+        constructor() {
+          this.x = Math.random() * canvas.width;
+          this.y = Math.random() * canvas.height;
+          this.baseX = this.x;
+          this.baseY = this.y;
+          this.size = Math.random() * 3 + 1;
+          this.speedX = (Math.random() - 0.5) * 0.3; // Reduced initial speed
+          this.speedY = (Math.random() - 0.5) * 0.3; // Reduced initial speed
+          this.density = Math.random() * 30 + 1;
+          // Color palette: teal, blue, purple variations
+          const colors = [
+            `rgba(78, 205, 196, ${Math.random() * 0.5 + 0.3})`,
+            `rgba(0, 122, 204, ${Math.random() * 0.4 + 0.2})`,
+            `rgba(240, 147, 251, ${Math.random() * 0.3 + 0.2})`,
+          ];
+          this.color = colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        update() {
+          // Gradually increase movement speed over first 60 frames
+          const speedMultiplier = Math.min(1, frameCount / 60);
+
+          // Move particles with wave motion (gentler)
+          this.x += (this.speedX + Math.sin(Date.now() * 0.001 + this.baseY * 0.01) * 0.2) * speedMultiplier;
+          this.y += (this.speedY + Math.cos(Date.now() * 0.001 + this.baseX * 0.01) * 0.15) * speedMultiplier;
+
+          // Wrap around screen
+          if (this.x > canvas.width + 50) this.x = -50;
+          if (this.x < -50) this.x = canvas.width + 50;
+          if (this.y > canvas.height + 50) this.y = -50;
+          if (this.y < -50) this.y = canvas.height + 50;
+
+          // Mouse interaction - repel particles
+          if (mouse.x !== null && mouse.y !== null) {
+            const dx = mouse.x - this.x;
+            const dy = mouse.y - this.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < mouse.radius) {
+              const force = (mouse.radius - distance) / mouse.radius;
+              const angle = Math.atan2(dy, dx);
+              this.x -= Math.cos(angle) * force * 3;
+              this.y -= Math.sin(angle) * force * 3;
+            }
+          }
+        }
+
+        draw(globalOpacity) {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fillStyle = this.color.replace(/[\d.]+\)$/, `${parseFloat(this.color.match(/[\d.]+\)$/)[0]) * globalOpacity})`);
+          ctx.fill();
+        }
+      }
+
+      // Create particles
+      const particleCount = Math.min(100, Math.floor((canvas.width * canvas.height) / 15000));
+      const particles = [];
+      for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
+
+      // Draw connections between nearby particles
+      const connectParticles = (globalOpacity) => {
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 120) {
+              ctx.beginPath();
+              ctx.strokeStyle = `rgba(78, 205, 196, ${0.15 * (1 - distance / 120) * globalOpacity})`;
+              ctx.lineWidth = 0.5;
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.stroke();
+            }
+          }
+        }
+      };
+
+      // Animation loop
+      const animate = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Smoothly fade in over first 30 frames
+        if (opacity < 1) {
+          opacity = Math.min(1, opacity + 0.033);
+        }
+        frameCount++;
+
+        // Draw and update particles with current opacity
+        for (const particle of particles) {
+          particle.update();
+          particle.draw(opacity);
+        }
+
+        // Draw connections with current opacity
+        connectParticles(opacity);
+
+        animationFrameId = requestAnimationFrame(animate);
+      };
+
+      // Start animation after a small delay for smoother initial load
+      const startTimeout = setTimeout(() => {
+        animate();
+      }, 50);
+
+      // Cleanup
+      return () => {
+        clearTimeout(startTimeout);
+        cancelAnimationFrame(animationFrameId);
+        window.removeEventListener('resize', resize);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseleave', handleMouseLeave);
+      };
+    }, []);
+
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: -1,
-        overflow: 'hidden',
-      }}>
-        {[...Array(15)].map((_, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              width: Math.random() * 6 + 4 + 'px',
-              height: Math.random() * 6 + 4 + 'px',
-              backgroundColor: `rgba(78, 205, 196, ${Math.random() * 0.3 + 0.1})`,
-              borderRadius: '50%',
-              left: Math.random() * 100 + '%',
-              animation: `float-${i % 3} ${Math.random() * 10 + 15}s infinite linear`,
-              animationDelay: Math.random() * 10 + 's',
-            }}
-          />
-        ))}
-
-        {/* Geometric shapes */}
-        {[...Array(8)].map((_, i) => (
-          <div
-            key={`geo-${i}`}
-            style={{
-              position: 'absolute',
-              width: Math.random() * 30 + 20 + 'px',
-              height: Math.random() * 30 + 20 + 'px',
-              border: `1px solid rgba(0, 122, 204, ${Math.random() * 0.2 + 0.1})`,
-              left: Math.random() * 100 + '%',
-              top: Math.random() * 100 + '%',
-              animation: `rotate-float-${i % 2} ${Math.random() * 20 + 20}s infinite linear`,
-              animationDelay: Math.random() * 5 + 's',
-            }}
-          />
-        ))}
-
+      <>
+        <canvas
+          ref={canvasRef}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: -1,
+          }}
+        />
         <style>
           {`
-            @keyframes float-0 {
-              0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
-              10% { opacity: 1; }
-              90% { opacity: 1; }
-              100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
-            }
-            
-            @keyframes float-1 {
-              0% { transform: translateY(100vh) translateX(0px); opacity: 0; }
-              10% { opacity: 1; }
-              50% { transform: translateY(50vh) translateX(50px); }
-              90% { opacity: 1; }
-              100% { transform: translateY(-100px) translateX(0px); opacity: 0; }
-            }
-            
-            @keyframes float-2 {
-              0% { transform: translateY(100vh) translateX(0px) scale(0.5); opacity: 0; }
-              10% { opacity: 1; }
-              50% { transform: translateY(50vh) translateX(-30px) scale(1); }
-              90% { opacity: 1; }
-              100% { transform: translateY(-100px) translateX(0px) scale(0.5); opacity: 0; }
-            }
-            
-            @keyframes rotate-float-0 {
-              0% { transform: rotate(0deg) translateY(0px); }
-              50% { transform: rotate(180deg) translateY(-20px); }
-              100% { transform: rotate(360deg) translateY(0px); }
-            }
-            
-            @keyframes rotate-float-1 {
-              0% { transform: rotate(0deg) scale(1) translateX(0px); }
-              33% { transform: rotate(120deg) scale(1.1) translateX(10px); }
-              66% { transform: rotate(240deg) scale(0.9) translateX(-10px); }
-              100% { transform: rotate(360deg) scale(1) translateX(0px); }
-            }
-            
             @keyframes fadeInUp {
               from {
                 opacity: 0;
@@ -243,36 +330,6 @@ const Home = () => {
               }
             }
             
-            @keyframes bounce {
-              0%, 20%, 53%, 80%, 100% {
-                animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
-                transform: translate3d(0, 0, 0);
-              }
-              40%, 43% {
-                animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
-                transform: translate3d(0, -10px, 0);
-              }
-              70% {
-                animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
-                transform: translate3d(0, -5px, 0);
-              }
-              90% {
-                transform: translate3d(0, -2px, 0);
-              }
-            }
-            
-            @keyframes pulse {
-              0% {
-                transform: scale(1);
-              }
-              50% {
-                transform: scale(1.05);
-              }
-              100% {
-                transform: scale(1);
-              }
-            }
-            
             @keyframes blink {
               0%, 50% {
                 opacity: 1;
@@ -298,77 +355,6 @@ const Home = () => {
               animation: slideInRight 0.8s ease-out forwards;
             }
             
-            .animate-bounce {
-              animation: bounce 2s infinite;
-            }
-            
-            .animate-pulse {
-              animation: pulse 2s infinite;
-            }
-            
-            .card-hover {
-              transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-              position: relative;
-              overflow: hidden;
-            }
-            
-            .card-hover::before {
-              content: '';
-              position: absolute;
-              top: 0;
-              left: -100%;
-              width: 100%;
-              height: 100%;
-              background: linear-gradient(90deg, transparent, rgba(78, 205, 196, 0.1), transparent);
-              transition: left 0.6s;
-            }
-            
-            .card-hover:hover::before {
-              left: 100%;
-            }
-            
-            .card-hover:hover {
-              transform: translateY(-12px) scale(1.03);
-              box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
-            }
-            
-            .card-hover:hover svg {
-              transform: scale(1.2) rotate(5deg);
-            }
-            
-            .btn-hover {
-              transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-              position: relative;
-              overflow: hidden;
-            }
-            
-            .btn-hover::before {
-              content: '';
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              width: 0;
-              height: 0;
-              background: rgba(255, 255, 255, 0.1);
-              border-radius: 50%;
-              transform: translate(-50%, -50%);
-              transition: width 0.6s, height 0.6s;
-            }
-            
-            .btn-hover:hover::before {
-              width: 300px;
-              height: 300px;
-            }
-            
-            .btn-hover:hover {
-              transform: translateY(-3px) scale(1.05);
-              box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-            }
-            
-            .btn-hover:active {
-              transform: translateY(-1px) scale(1.02);
-            }
-            
             .stagger-animation {
               opacity: 0;
             }
@@ -390,19 +376,14 @@ const Home = () => {
             .custom-scrollbar::-webkit-scrollbar-thumb {
               background: rgba(78, 205, 196, 0.5);
               border-radius: 4px;
-              transition: background 0.3s ease;
             }
             
             .custom-scrollbar::-webkit-scrollbar-thumb:hover {
               background: rgba(78, 205, 196, 0.8);
             }
-            
-            .custom-scrollbar::-webkit-scrollbar-corner {
-              background: rgba(0, 0, 0, 0.3);
-            }
           `}
         </style>
-      </div>
+      </>
     )
   }
 
@@ -744,7 +725,7 @@ const Home = () => {
                 </div>
                 <div style={{ marginBottom: '0.5rem' }}>
                   <span className="terminal-prompt">$ </span>
-                  <span className="terminal-command">go run ./cmd/gopdfsuit</span>
+                  <span className="terminal-command">make run</span>
                 </div>
                 <div style={{ marginTop: '1rem' }}>
                   <span className="terminal-success">✓ Server listening on http://localhost:8080</span>
@@ -797,7 +778,10 @@ const Home = () => {
                 {[
                   { method: 'POST', path: '/api/v1/generate/template-pdf', desc: 'Generate PDF' },
                   { method: 'POST', path: '/api/v1/merge', desc: 'Merge PDFs' },
+                  { method: 'POST', path: '/api/v1/split', desc: 'Split PDFs' },
                   { method: 'POST', path: '/api/v1/fill', desc: 'Fill forms' },
+                  { method: 'GET', path: '/api/v1/template-data', desc: 'Get template data' },
+                  { method: 'GET', path: '/api/v1/fonts', desc: 'List fonts' },
                   { method: 'POST', path: '/api/v1/htmltopdf', desc: 'HTML to PDF' },
                   { method: 'POST', path: '/api/v1/htmltoimage', desc: 'HTML to Image' }
                 ].map((api, index) => (
@@ -808,7 +792,7 @@ const Home = () => {
                       alignItems: 'center',
                       gap: '0.75rem',
                       padding: '0.5rem 0',
-                      borderBottom: index < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                      borderBottom: index < 7 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     }}
                   >
                     <span style={{
@@ -837,11 +821,15 @@ const Home = () => {
               <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', fontSize: '1.4rem' }}>Web Interfaces</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {[
-                  { path: '/', desc: 'PDF Viewer & Template Processor' },
+                  { path: '/viewer', desc: 'PDF Viewer & Template Processor' },
                   { path: '/editor', desc: 'Drag-and-drop Template Editor' },
                   { path: '/merge', desc: 'PDF Merge Interface' },
+                  { path: '/split', desc: 'PDF Split Interface' },
                   { path: '/filler', desc: 'PDF Form Filler' },
-                  { path: '/htmltopdf', desc: 'HTML to PDF Converter' }
+                  { path: '/htmltopdf', desc: 'HTML to PDF Converter' },
+                  { path: '/htmltoimage', desc: 'HTML to Image Converter' },
+                  { path: '/screenshots', desc: 'Screenshots Page' },
+                  { path: '/comparison', desc: 'Feature Comparison' }
                 ].map((route, index) => (
                   <div
                     key={index}
@@ -850,7 +838,7 @@ const Home = () => {
                       alignItems: 'center',
                       gap: '0.75rem',
                       padding: '0.5rem 0',
-                      borderBottom: index < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                      borderBottom: index < 8 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                     }}
                   >
                     <span style={{
@@ -914,9 +902,9 @@ const Home = () => {
             {/* Performance Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
               {[
-                { value: '806 µs', label: 'Average Response', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
-                { value: '417 µs', label: 'Min Response', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-                { value: '2.05 ms', label: 'Max Response', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' }
+                { value: '42.3 ms', label: 'Average Response', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
+                { value: '39.0 ms', label: 'Min Response', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+                { value: '66.8 ms', label: 'Max Response', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' }
               ].map((stat, index) => (
                 <div
                   key={index}
@@ -950,7 +938,8 @@ const Home = () => {
 
             {/* Sample Logs */}
             <div style={{
-              background: 'rgba(0, 0, 0, 0.3)',
+              background: 'hsl(var(--card))',
+              border: '1px solid hsl(var(--border))',
               padding: '1rem',
               borderRadius: '8px',
               fontFamily: 'monospace',
@@ -960,33 +949,37 @@ const Home = () => {
               maxHeight: '200px',
               overflowY: 'auto',
               scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(78, 205, 196, 0.5) rgba(0, 0, 0, 0.3)',
+              scrollbarColor: 'rgba(78, 205, 196, 0.5) hsl(var(--card))',
             }}
               className="custom-scrollbar"
             >
               <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Recent Performance Logs:</div>
-              [GIN] 2025/09/16 - 01:25:53 | 200 |       417.4µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:56 | 200 |       505.1µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:57 | 200 |      1.1047ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:57 | 200 |       515.1µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:58 | 200 |      2.0475ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:58 | 200 |       850.4µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:59 | 200 |       503.6µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:59 | 200 |       503.8µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:59 | 200 |       681.8µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:25:59 | 200 |      1.0021ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:26:10 | 200 |       504.3µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:26:10 | 200 |       504.5µs |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:26:10 | 200 |      1.5052ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-              [GIN] 2025/09/16 - 01:26:10 | 200 |         652µs |             ::1 | POST     "/api/v1/generate/template-pdf"
+              [GIN] 2026/01/19 - 22:45:10 | 200 |      41.25ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:11 | 200 |      43.82ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:12 | 200 |      45.12ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:13 | 200 |      66.79ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:13 | 200 |      42.05ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:14 | 200 |      39.56ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:14 | 200 |      40.11ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:15 | 200 |      44.30ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:15 | 200 |      42.98ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:16 | 200 |      41.77ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:16 | 200 |      48.55ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:17 | 200 |      52.12ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
+              [GIN] 2026/01/19 - 22:45:17 | 200 |      40.88ms |             ::1 | POST     "/api/v1/generate/template-pdf"
             </div>
             <p style={{
               color: 'hsl(var(--muted-foreground))',
               marginTop: '1rem',
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
               marginBottom: 0,
+              lineHeight: 1.6,
             }}>
-              Performance benchmarks for multi-page PDF generation (14 samples - temp_multiplepage.json)
+              Benchmarks for PDF generation with PDF/A compliance, font embedding, digital signatures, bookmarks, and internal links.
+              <br />
+              <span style={{ fontSize: '0.75rem', fontStyle: 'italic', opacity: 0.8 }}>
+                * Results may vary based on selected options, hardware configuration, data complexity, and network conditions.
+              </span>
             </p>
           </div>
         </div>
@@ -1011,52 +1004,95 @@ const Home = () => {
             <p style={{
               color: 'hsl(var(--muted-foreground))',
               fontSize: '1.1rem',
-              maxWidth: '600px',
+              maxWidth: '700px',
               margin: '0 auto',
             }}>
-              See how we compare to other PDF solutions
+              Enterprise features at zero cost — compare with iTextPDF, PDFLib, and commercial solutions
             </p>
           </div>
 
+          {/* Quick Stats */}
+          <div
+            className="grid grid-3"
+            style={{ marginBottom: '2.5rem', maxWidth: '900px', margin: '0 auto 2.5rem' }}
+          >
+            {[
+              { value: 'Free', label: 'vs $2K-4K/dev/year', color: '#4ecdc4', icon: <CheckCircle size={28} /> },
+              { value: '< 100ms', label: 'Response time', color: '#007acc', icon: <Zap size={28} /> },
+              { value: '0 deps', label: 'Pure Go binary', color: '#f093fb', icon: <Download size={28} /> }
+            ].map((stat, index) => (
+              <div
+                key={index}
+                className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-comparison-preview'] ? 'visible' : ''}`}
+                style={{
+                  textAlign: 'center',
+                  padding: '1.5rem',
+                  animationDelay: `${0.2 + index * 0.1}s`,
+                }}
+              >
+                <div style={{ color: stat.color, marginBottom: '0.75rem', display: 'flex', justifyContent: 'center' }}>
+                  {stat.icon}
+                </div>
+                <div className="stat-value" style={{ color: stat.color, marginBottom: '0.25rem', fontSize: '1.8rem' }}>
+                  {stat.value}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))' }}>
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Feature Comparison */}
           <div
             className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-comparison-preview'] ? 'visible' : ''}`}
-            style={{
-              maxWidth: '1000px',
-              margin: '0 auto',
-              padding: '3rem',
-            }}
+            style={{ width: '100%', padding: '2.5rem' }}
           >
-            <div
-              className="grid grid-3"
-              style={{ marginBottom: '2.5rem' }}
-            >
+            <h3 style={{
+              color: 'hsl(var(--foreground))',
+              marginBottom: '1.5rem',
+              fontSize: '1.3rem',
+              textAlign: 'center',
+            }}>
+              Built-in Enterprise Features
+            </h3>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '1rem',
+              marginBottom: '2rem',
+            }}>
               {[
-                { value: 'Free', label: 'vs $2K-4K/dev/year', color: '#4ecdc4', icon: <CheckCircle size={24} /> },
-                { value: '< 1ms', label: 'Ultra-fast response', color: '#007acc', icon: <Zap size={24} /> },
-                { value: '100% Go', label: 'Single binary deploy', color: '#f093fb', icon: <Download size={24} /> }
-              ].map((stat, index) => (
+                { name: 'PDF/A-4 Compliance', desc: 'Archival standard with sRGB ICC profiles', color: '#4ecdc4' },
+                { name: 'PDF/UA-2 Accessibility', desc: 'Universal accessibility compliance', color: '#007acc' },
+                { name: 'AES-128 Encryption', desc: 'Password protection with permissions', color: '#f093fb' },
+                { name: 'Digital Signatures', desc: 'PKCS#7 certificates with visual appearance', color: '#ffc107' },
+                { name: 'Font Subsetting', desc: 'TrueType embedding with glyph optimization', color: '#4ecdc4' },
+                { name: 'PDF Merge', desc: 'Combine multiple PDFs, preserve forms', color: '#007acc' },
+                { name: 'XFDF Form Filling', desc: 'Advanced field detection and population', color: '#f093fb' },
+                { name: 'Bookmarks & Links', desc: 'Outlines with internal/external hyperlinks', color: '#ffc107' },
+              ].map((feature, index) => (
                 <div
                   key={index}
-                  className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-comparison-preview'] ? 'visible' : ''}`}
                   style={{
-                    textAlign: 'center',
-                    padding: '2rem',
-                    animationDelay: `${0.2 + index * 0.1}s`,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.75rem',
+                    padding: '0.75rem',
+                    background: 'rgba(255,255,255,0.02)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.05)',
                   }}
                 >
-                  <div style={{
-                    color: stat.color,
-                    marginBottom: '1rem',
-                    display: 'flex',
-                    justifyContent: 'center',
-                  }}>
-                    {stat.icon}
-                  </div>
-                  <div className="stat-value" style={{ color: stat.color, marginBottom: '0.5rem' }}>
-                    {stat.value}
-                  </div>
-                  <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>
-                    {stat.label}
+                  <CheckCircle size={18} style={{ color: feature.color, flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <div style={{ color: 'hsl(var(--foreground))', fontWeight: '600', fontSize: '0.9rem' }}>
+                      {feature.name}
+                    </div>
+                    <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem' }}>
+                      {feature.desc}
+                    </div>
                   </div>
                 </div>
               ))}

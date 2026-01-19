@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { 
-  CheckCircle, 
-  X, 
-  TrendingUp, 
-  Zap, 
-  DollarSign, 
-  Box, 
+import {
+  CheckCircle,
+  X,
+  TrendingUp,
+  Zap,
+  DollarSign,
+  Box,
   Code,
   Globe,
   Star,
@@ -41,82 +41,140 @@ const Comparison = () => {
       name: 'GoPdfSuit',
       isOurs: true,
       pricing: '✅ Free (MIT License)',
-      performance: '✅ Ultra Fast (179µs-1.7ms)',
+      performance: '✅ Ultra Fast (1.9ms - 42ms)',
       deployment: '✅ Microservice/Sidecar/Docker',
       memory: '✅ In-Memory Processing',
       integration: '✅ REST API (Language Agnostic)',
       template: '✅ JSON-based Templates',
       webInterface: '✅ Built-in Viewer/Editor',
-      formFilling: '✅ XFDF Support',
-      pdfMerge: '✅ Drag & Drop UI',
+      formFilling: '✅ XFDF Advanced Detection',
+      pdfMerge: '✅ Drag & Drop + Form Preservation',
       htmlConversion: '✅ gochromedp (Chromium)',
-      multipage: 'Auto Page Breaks',
-      styling: 'Font Styles + Borders',
-      interactive: 'Checkboxes',
-      pageFormats: 'A3, A4, A5, Letter, Legal',
-      security: 'Basic Validation',
-      dockerSupport: '✅ Built-in (Multi-stage, Alpine-based)',
+      multipage: '✅ Auto Page Breaks',
+      styling: '✅ Font Styles + Borders + Images',
+      pdfaCompliance: '✅ PDF/A-4 with ICC Profiles',
+      pdfuaCompliance: '✅ PDF/UA-2 Accessibility',
+      encryption: '✅ AES-128 with Permissions',
+      digitalSignatures: '✅ PKCS#7 + Visual Appearance',
+      fontEmbedding: '✅ TrueType Subsetting',
+      bookmarks: '✅ Outlines + Hyperlinks',
+      dockerSupport: '✅ Multi-stage Alpine Image',
       maintenance: '✅ Single Binary'
     },
     {
       name: 'UniPDF',
-      pricing: '$3,990/dev/year',
-      performance: 'Moderate',
+      pricing: '$3,000+/year',
+      performance: 'High (Go)',
       deployment: 'Library Integration',
-      memory: 'File-based',
-      integration: 'Go Library Only',
+      memory: 'Efficient',
+      integration: 'Go',
       template: 'Code-based',
       webInterface: 'None',
       formFilling: '✅ Full Support',
-      pdfMerge: '✅ Programmatic',
-      htmlConversion: 'Requires UniHTML product',
+      pdfMerge: '✅ Supported',
+      htmlConversion: 'Limited',
       multipage: '✅ Manual Control',
-      styling: '✅ Advanced',
-      interactive: '✅ Full Support',
-      pageFormats: '✅ All Formats',
-      security: '✅ Advanced',
-      dockerSupport: '❌ Not Applicable (Library)',
-      maintenance: 'Library Updates'
+      styling: '✅ Code-based',
+      pdfaCompliance: '✅ PDF/A',
+      pdfuaCompliance: '✅ PDF/UA',
+      encryption: '✅ Supported',
+      digitalSignatures: '✅ Supported',
+      fontEmbedding: '✅ Supported',
+      bookmarks: '✅ Supported',
+      dockerSupport: '❌ N/A (Library)',
+      maintenance: 'Commercial Support'
     },
     {
       name: 'Aspose.PDF',
-      pricing: '$1,999/dev/year',
+      pricing: '$1,199+/year',
+      performance: 'High (C++)',
+      deployment: 'Library Integration',
+      memory: 'High',
+      integration: '.NET/Java/C++/Go',
+      template: 'XML/Code',
+      webInterface: 'Cloud Only',
+      formFilling: '✅ Full Support',
+      pdfMerge: '✅ Supported',
+      htmlConversion: '✅ Strong Support',
+      multipage: '✅ Supported',
+      styling: '✅ Comprehensive',
+      pdfaCompliance: '✅ PDF/A-1 to A-3',
+      pdfuaCompliance: '✅ PDF/UA',
+      encryption: '✅ AES-256',
+      digitalSignatures: '✅ Supported',
+      fontEmbedding: '✅ Supported',
+      bookmarks: '✅ Supported',
+      dockerSupport: '❌ N/A (Library)',
+      maintenance: 'Commercial Support'
+    },
+    {
+      name: 'iText 7',
+      pricing: '$3,500/dev/year (AGPL free)',
       performance: 'Moderate',
       deployment: 'Library Integration',
       memory: 'Mixed',
-      integration: '.NET/Java/C++',
+      integration: 'Java/.NET',
       template: 'Code-based',
       webInterface: 'None',
       formFilling: '✅ Full Support',
       pdfMerge: '✅ Programmatic',
-      htmlConversion: 'Requires Aspose.HTML product',
+      htmlConversion: 'pdfHTML add-on ($)',
       multipage: '✅ Manual Control',
       styling: '✅ Advanced',
-      interactive: '✅ Full Support',
-      pageFormats: '✅ All Formats',
-      security: '✅ Enterprise',
-      dockerSupport: '❌ Not Applicable (Library)',
+      pdfaCompliance: '✅ PDF/A-1 to PDF/A-3',
+      pdfuaCompliance: '✅ PDF/UA-1',
+      encryption: '✅ AES-256',
+      digitalSignatures: '✅ Full PKI Support',
+      fontEmbedding: '✅ Full Embedding',
+      bookmarks: '✅ Full Support',
+      dockerSupport: '❌ N/A (Library)',
       maintenance: 'Library Updates'
     },
     {
-      name: 'iText',
-      pricing: '$3,800/dev/year',
-      performance: 'Moderate',
+      name: 'PDFLib',
+      pricing: '$2,750/dev/year',
+      performance: 'Fast (C-based)',
       deployment: 'Library Integration',
-      memory: 'Mixed',
-      integration: 'Java/.NET/Python',
+      memory: 'Streaming',
+      integration: 'C/C++/Java/.NET/PHP',
       template: 'Code-based',
       webInterface: 'None',
-      formFilling: '✅ Full Support',
-      pdfMerge: '✅ Programmatic',
-      htmlConversion: 'Requires custom integration',
+      formFilling: 'Limited',
+      pdfMerge: '✅ pCOS Required',
+      htmlConversion: '❌ Not Supported',
       multipage: '✅ Manual Control',
       styling: '✅ Advanced',
-      interactive: '✅ Full Support',
-      pageFormats: '✅ All Formats',
-      security: '✅ Enterprise',
-      dockerSupport: '❌ Not Applicable (Library)',
+      pdfaCompliance: '✅ PDF/A-1 to PDF/A-3',
+      pdfuaCompliance: '✅ PDF/UA-1',
+      encryption: '✅ AES-256',
+      digitalSignatures: '✅ Add-on Available',
+      fontEmbedding: '✅ Full Embedding',
+      bookmarks: '✅ Full Support',
+      dockerSupport: '❌ N/A (Library)',
       maintenance: 'Library Updates'
+    },
+    {
+      name: 'wkhtmltopdf',
+      pricing: '✅ Free (LGPL)',
+      performance: 'Slow (Process spawn)',
+      deployment: 'Binary + WebKit',
+      memory: 'High (WebKit)',
+      integration: 'Command Line',
+      template: 'HTML/CSS',
+      webInterface: 'None',
+      formFilling: '❌ Not Supported',
+      pdfMerge: '❌ Not Supported',
+      htmlConversion: '✅ Native (Outdated WebKit)',
+      multipage: '✅ CSS Page Breaks',
+      styling: '✅ CSS-based',
+      pdfaCompliance: '❌ Not Supported',
+      pdfuaCompliance: '❌ Not Supported',
+      encryption: '❌ Not Supported',
+      digitalSignatures: '❌ Not Supported',
+      fontEmbedding: '✅ Automatic',
+      bookmarks: 'Limited (TOC)',
+      dockerSupport: 'Manual Setup',
+      maintenance: '❌ Deprecated'
     }
   ]
 
@@ -128,14 +186,17 @@ const Comparison = () => {
     { key: 'integration', label: '🔧 Integration', icon: <Code size={20} /> },
     { key: 'template', label: '📄 Template Engine', icon: <CheckCircle size={20} /> },
     { key: 'webInterface', label: '🌐 Web Interface', icon: <Globe size={20} /> },
-    { key: 'formFilling', label: '📋 Form Filling', icon: <CheckCircle size={20} /> },
+    { key: 'formFilling', label: '📋 Form Filling (XFDF)', icon: <CheckCircle size={20} /> },
     { key: 'pdfMerge', label: '🔗 PDF Merge', icon: <CheckCircle size={20} /> },
-    { key: 'htmlConversion', label: '🌐 HTML to PDF/Image', icon: <Globe size={20} /> },
+    { key: 'htmlConversion', label: '🌐 HTML to PDF', icon: <Globe size={20} /> },
     { key: 'multipage', label: '📱 Multi-page Support', icon: <CheckCircle size={20} /> },
-    { key: 'styling', label: '🎨 Styling', icon: <Star size={20} /> },
-    { key: 'interactive', label: '☑️ Interactive Elements', icon: <CheckCircle size={20} /> },
-    { key: 'pageFormats', label: '📏 Page Formats', icon: <CheckCircle size={20} /> },
-    { key: 'security', label: '🔒 Security', icon: <CheckCircle size={20} /> },
+    { key: 'styling', label: '🎨 Styling & Images', icon: <Star size={20} /> },
+    { key: 'pdfaCompliance', label: '📜 PDF/A Compliance', icon: <CheckCircle size={20} /> },
+    { key: 'pdfuaCompliance', label: '♿ PDF/UA Accessibility', icon: <CheckCircle size={20} /> },
+    { key: 'encryption', label: '🔒 Encryption', icon: <CheckCircle size={20} /> },
+    { key: 'digitalSignatures', label: '✍️ Digital Signatures', icon: <CheckCircle size={20} /> },
+    { key: 'fontEmbedding', label: '🔤 Font Embedding', icon: <CheckCircle size={20} /> },
+    { key: 'bookmarks', label: '📑 Bookmarks & Links', icon: <CheckCircle size={20} /> },
     { key: 'dockerSupport', label: '🐳 Docker Support', icon: <Box size={20} /> },
     { key: 'maintenance', label: '🛠️ Maintenance', icon: <CheckCircle size={20} /> }
   ]
@@ -220,7 +281,7 @@ const Comparison = () => {
             }}
           />
         ))}
-        
+
         <style>
           {`
             @keyframes float-0 {
@@ -293,17 +354,17 @@ const Comparison = () => {
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
       {backgroundAnimation()}
-      
+
       {/* Header */}
-      <section 
+      <section
         id="section-header"
         style={{ padding: '2rem 0 1rem', textAlign: 'center' }}
       >
         <div className="container">
-          <Link 
+          <Link
             to="/"
             className="btn"
-            style={{ 
+            style={{
               marginBottom: '2rem',
               display: 'inline-flex',
               alignItems: 'center',
@@ -313,10 +374,10 @@ const Comparison = () => {
             <ArrowLeft size={18} />
             Back to Home
           </Link>
-          
-          <h1 
+
+          <h1
             className={`animate-fadeInUp stagger-animation ${isVisible['section-header'] ? 'visible' : ''}`}
-            style={{ 
+            style={{
               fontSize: '3rem',
               fontWeight: '800',
               color: 'hsl(var(--foreground))',
@@ -326,10 +387,10 @@ const Comparison = () => {
           >
             🆚 Feature Comparison
           </h1>
-          
-          <p 
+
+          <p
             className={`animate-fadeInUp stagger-animation ${isVisible['section-header'] ? 'visible' : ''}`}
-            style={{ 
+            style={{
               fontSize: '1.2rem',
               color: 'hsl(var(--muted-foreground))',
               maxWidth: '800px',
@@ -343,14 +404,14 @@ const Comparison = () => {
       </section>
 
       {/* Comparison Table */}
-      <section 
+      <section
         id="section-comparison"
         style={{ padding: '2rem 0' }}
       >
         <div className="container">
-          <div 
+          <div
             className={`card comparison-card animate-slideInLeft stagger-animation ${isVisible['section-comparison'] ? 'visible' : ''}`}
-            style={{ 
+            style={{
               padding: '2rem',
               overflow: 'auto',
               animationDelay: '0.2s',
@@ -360,9 +421,9 @@ const Comparison = () => {
           >
             <div style={{ width: '100%', minWidth: '100%' }}>
               {/* Header Row */}
-              <div style={{ 
+              <div style={{
                 display: 'grid',
-                gridTemplateColumns: '2fr repeat(4, 1fr)',
+                gridTemplateColumns: '2fr repeat(6, 1fr)',
                 gap: '1rem',
                 marginBottom: '1rem',
                 paddingBottom: '1rem',
@@ -373,9 +434,9 @@ const Comparison = () => {
                   Feature
                 </div>
                 {competitors.map((competitor, index) => (
-                  <div 
+                  <div
                     key={competitor.name}
-                    style={{ 
+                    style={{
                       textAlign: 'center',
                       fontWeight: 'bold',
                       fontSize: '1.1rem',
@@ -393,8 +454,8 @@ const Comparison = () => {
                   >
                     <div>{competitor.name}</div>
                     {competitor.isOurs && (
-                      <div style={{ 
-                        fontSize: '0.8rem', 
+                      <div style={{
+                        fontSize: '0.8rem',
                         color: '#4ecdc4',
                         marginTop: '0.25rem',
                       }}>
@@ -407,12 +468,12 @@ const Comparison = () => {
 
               {/* Feature Rows */}
               {features.map((feature, featureIndex) => (
-                <div 
+                <div
                   key={feature.key}
                   className={`animate-fadeInUp stagger-animation ${isVisible['section-comparison'] ? 'visible' : ''}`}
-                  style={{ 
+                  style={{
                     display: 'grid',
-                    gridTemplateColumns: '2fr repeat(4, 1fr)',
+                    gridTemplateColumns: '2fr repeat(6, 1fr)',
                     gap: '1rem',
                     marginBottom: '0.75rem',
                     padding: '1rem',
@@ -423,9 +484,9 @@ const Comparison = () => {
                     minHeight: '80px',
                   }}
                 >
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
                     justifyContent: 'flex-start',
                     gap: '0.75rem',
                     fontWeight: '500',
@@ -437,9 +498,9 @@ const Comparison = () => {
                     </div>
                     <span>{feature.label}</span>
                   </div>
-                  
+
                   {competitors.map((competitor) => (
-                    <div 
+                    <div
                       key={`${competitor.name}-${feature.key}`}
                       style={getValueStyle(competitor[feature.key], competitor.isOurs)}
                     >
@@ -454,24 +515,24 @@ const Comparison = () => {
       </section>
 
       {/* Performance Benchmarks */}
-      <section 
+      <section
         id="section-benchmarks"
         style={{ padding: '2rem 0' }}
       >
         <div className="container">
-          <h2 
+          <h2
             className={`text-center mb-4 animate-fadeInUp stagger-animation ${isVisible['section-benchmarks'] ? 'visible' : ''}`}
-            style={{ 
+            style={{
               color: 'hsl(var(--foreground))',
               animationDelay: '0.2s',
             }}
           >
             🏃‍♂️ Performance Benchmarks
           </h2>
-          
-          <div 
+
+          <div
             className={`card comparison-card animate-fadeInUp stagger-animation ${isVisible['section-benchmarks'] ? 'visible' : ''}`}
-            style={{ 
+            style={{
               maxWidth: '800px',
               margin: '0 auto',
               textAlign: 'center',
@@ -482,7 +543,7 @@ const Comparison = () => {
               <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>
                 GoPdfSuit Performance (temp_multiplepage.json - 2 pages)
               </h3>
-              
+
               <div style={{
                 background: 'rgba(0, 0, 0, 0.3)',
                 padding: '1rem',
@@ -496,42 +557,42 @@ const Comparison = () => {
                 scrollbarWidth: 'thin',
                 scrollbarColor: 'rgba(78, 205, 196, 0.5) rgba(0, 0, 0, 0.3)',
               }}
-              className="custom-scrollbar"
+                className="custom-scrollbar"
               >
                 <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Recent Benchmark Results:</div>
-                [GIN] 2025/08/28 - 00:40:18 | 200 |       697.8µs | POST "/api/v1/generate/template-pdf"<br/>
-                [GIN] 2025/08/28 - 00:40:55 | 200 |      1.7542ms | POST "/api/v1/generate/template-pdf"<br/>
-                [GIN] 2025/08/28 - 00:40:57 | 200 |       179.6µs | POST "/api/v1/generate/template-pdf"<br/>
-                [GIN] 2025/08/28 - 00:40:58 | 200 |       573.7µs | POST "/api/v1/generate/template-pdf"<br/>
-                [GIN] 2025/08/28 - 00:41:02 | 200 |       445.2µs | POST "/api/v1/generate/template-pdf"<br/>
-                [GIN] 2025/08/28 - 00:41:05 | 200 |      1.2341ms | POST "/api/v1/generate/template-pdf"<br/>
-                [GIN] 2025/08/28 - 00:41:08 | 200 |       892.1µs | POST "/api/v1/generate/template-pdf"<br/>
+                [GIN] 2025/08/28 - 00:40:18 | 200 |       697.8µs | POST "/api/v1/generate/template-pdf"<br />
+                [GIN] 2025/08/28 - 00:40:55 | 200 |      1.7542ms | POST "/api/v1/generate/template-pdf"<br />
+                [GIN] 2025/08/28 - 00:40:57 | 200 |       179.6µs | POST "/api/v1/generate/template-pdf"<br />
+                [GIN] 2025/08/28 - 00:40:58 | 200 |       573.7µs | POST "/api/v1/generate/template-pdf"<br />
+                [GIN] 2025/08/28 - 00:41:02 | 200 |       445.2µs | POST "/api/v1/generate/template-pdf"<br />
+                [GIN] 2025/08/28 - 00:41:05 | 200 |      1.2341ms | POST "/api/v1/generate/template-pdf"<br />
+                [GIN] 2025/08/28 - 00:41:08 | 200 |       892.1µs | POST "/api/v1/generate/template-pdf"<br />
                 [GIN] 2025/08/28 - 00:41:12 | 200 |       634.7µs | POST "/api/v1/generate/template-pdf"
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              <div style={{ 
+              <div style={{
                 background: 'rgba(78, 205, 196, 0.1)',
-                padding: '1.5rem', 
+                padding: '1.5rem',
                 borderRadius: '8px',
                 border: '1px solid rgba(78, 205, 196, 0.3)',
               }}>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#4ecdc4' }}>179µs - 1.7ms</div>
                 <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>Response Time Range</div>
               </div>
-              <div style={{ 
+              <div style={{
                 background: 'rgba(0, 122, 204, 0.1)',
-                padding: '1.5rem', 
+                padding: '1.5rem',
                 borderRadius: '8px',
                 border: '1px solid rgba(0, 122, 204, 0.3)',
               }}>
                 <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#007acc' }}>In-Memory</div>
                 <div style={{ fontSize: '0.9rem', color: 'hsl(var(--muted-foreground))' }}>Processing Method</div>
               </div>
-              <div style={{ 
+              <div style={{
                 background: 'rgba(255, 193, 7, 0.1)',
-                padding: '1.5rem', 
+                padding: '1.5rem',
                 borderRadius: '8px',
                 border: '1px solid rgba(255, 193, 7, 0.3)',
               }}>
@@ -544,77 +605,87 @@ const Comparison = () => {
       </section>
 
       {/* Key Advantages */}
-      <section 
+      <section
         id="section-advantages"
         style={{ padding: '2rem 0' }}
       >
         <div className="container">
-          <h2 
+          <h2
             className={`text-center mb-4 animate-fadeInUp stagger-animation ${isVisible['section-advantages'] ? 'visible' : ''}`}
-            style={{ 
+            style={{
               color: 'hsl(var(--foreground))',
               animationDelay: '0.2s',
             }}
           >
             ⭐ Key Advantages
           </h2>
-          
+
           <div className="grid grid-2">
             {[
               {
                 icon: '🚀',
                 title: 'Ultra Fast Performance',
-                description: 'Sub-millisecond to low-millisecond response times vs moderate performance of competitors',
+                description: 'Sub-millisecond response times (179µs-1.7ms) vs moderate performance of commercial libraries',
               },
               {
                 icon: '💰',
-                title: 'Cost Effective',
-                description: 'MIT license vs $2k-$4k/developer/year licensing costs',
+                title: 'Zero Licensing Cost',
+                description: 'MIT license vs $2,750-$3,500/dev/year for commercial solutions',
               },
               {
-                icon: '🔧',
-                title: 'Easy Deployment',
-                description: 'Microservice architecture vs complex library integration requirements',
+                icon: '📜',
+                title: 'PDF/A-4 & PDF/UA-2',
+                description: 'Full archival and accessibility compliance with sRGB ICC profiles built-in',
+              },
+              {
+                icon: '🔒',
+                title: 'Enterprise Security',
+                description: 'AES-128 encryption with permissions + PKCS#7 digital signatures',
               },
               {
                 icon: '🌐',
                 title: 'Language Agnostic',
-                description: 'REST API accessible from any programming language vs library-specific constraints',
+                description: 'REST API works with any programming language vs library-specific constraints',
               },
               {
                 icon: '📦',
-                title: 'Zero Dependencies',
-                description: 'Single binary deployment vs managing multiple library dependencies',
+                title: 'Single Binary Deploy',
+                description: 'Zero dependencies with Docker-ready Alpine image vs complex library management',
+              },
+              {
+                icon: '🔤',
+                title: 'Font Subsetting',
+                description: 'TrueType embedding with glyph optimization for smaller file sizes',
               },
               {
                 icon: '🎨',
                 title: 'Built-in Web Interface',
-                description: 'Ready-to-use viewer/editor vs no web interface in competitors',
+                description: 'Ready-to-use PDF viewer, template editor, and merge UI included',
               },
             ].map((advantage, index) => (
-              <div 
+              <div
                 key={index}
                 className={`card comparison-card animate-fadeInUp stagger-animation ${isVisible['section-advantages'] ? 'visible' : ''}`}
-                style={{ 
+                style={{
                   padding: '1.5rem',
                   animationDelay: `${0.4 + index * 0.1}s`,
                 }}
               >
-                <div style={{ 
+                <div style={{
                   fontSize: '3rem',
                   marginBottom: '1rem',
                   textAlign: 'center',
                 }}>
                   {advantage.icon}
                 </div>
-                <h3 style={{ 
+                <h3 style={{
                   color: 'hsl(var(--foreground))',
                   marginBottom: '0.5rem',
                   textAlign: 'center',
                 }}>
                   {advantage.title}
                 </h3>
-                <p style={{ 
+                <p style={{
                   color: 'hsl(var(--muted-foreground))',
                   marginBottom: 0,
                   textAlign: 'center',
@@ -629,14 +700,14 @@ const Comparison = () => {
       </section>
 
       {/* CTA Section */}
-      <section 
+      <section
         id="section-cta"
         style={{ padding: '2rem 0 4rem' }}
       >
         <div className="container">
-          <div 
+          <div
             className={`card comparison-card animate-fadeInUp stagger-animation ${isVisible['section-cta'] ? 'visible' : ''}`}
-            style={{ 
+            style={{
               textAlign: 'center',
               maxWidth: '600px',
               margin: '0 auto',
@@ -644,33 +715,33 @@ const Comparison = () => {
               animationDelay: '0.2s',
             }}
           >
-            <h2 style={{ 
+            <h2 style={{
               color: 'hsl(var(--foreground))',
               marginBottom: '1rem',
             }}>
               Ready to Try GoPdfSuit?
             </h2>
-            <p style={{ 
+            <p style={{
               color: 'hsl(var(--muted-foreground))',
               marginBottom: '2rem',
               fontSize: '1.1rem',
             }}>
               Experience the power of fast, free, and flexible PDF generation
             </p>
-            <div style={{ 
+            <div style={{
               display: 'flex',
               gap: '1rem',
               justifyContent: 'center',
               flexWrap: 'wrap',
             }}>
-              <Link 
+              <Link
                 to="/"
                 className="btn"
                 style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
               >
                 Try Demo
               </Link>
-              <a 
+              <a
                 href="https://github.com/chinmay-sawant/gopdfsuit"
                 target="_blank"
                 rel="noopener noreferrer"

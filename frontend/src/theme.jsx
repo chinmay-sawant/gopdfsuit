@@ -2,12 +2,12 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 
 const ThemeContext = createContext({
   theme: 'light',
-  setTheme: () => {},
-  toggle: () => {},
+  setTheme: () => { },
+  toggle: () => { },
 })
 
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState('light')
+  const [theme, setThemeState] = useState('dark')
 
   // Initialize from localStorage or system preference
   useEffect(() => {
@@ -17,9 +17,9 @@ export function ThemeProvider({ children }) {
         setThemeState(saved)
         return
       }
-    } catch {}
-    const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-    setThemeState(preferDark ? 'dark' : 'light')
+    } catch { }
+    // Default to dark theme if no preference is saved
+    setThemeState('dark')
   }, [])
 
   // Apply to document
@@ -27,7 +27,7 @@ export function ThemeProvider({ children }) {
     const root = document.documentElement
     if (theme === 'dark') root.classList.add('dark')
     else root.classList.remove('dark')
-    try { localStorage.setItem('theme', theme) } catch {}
+    try { localStorage.setItem('theme', theme) } catch { }
   }, [theme])
 
   const api = useMemo(() => ({
