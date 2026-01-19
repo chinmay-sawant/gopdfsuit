@@ -371,19 +371,6 @@ const Comparison = () => {
         style={{ padding: '3rem 0 2rem', textAlign: 'center' }}
       >
         <div className="container">
-          <Link
-            to="/"
-            className="btn"
-            style={{
-              marginBottom: '2rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            <ArrowLeft size={18} />
-            Back to Home
-          </Link>
 
           {/* Sparkle badge */}
           <div
@@ -482,13 +469,7 @@ const Comparison = () => {
         style={{ padding: '1rem 0 3rem' }}
       >
         <div className="container">
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '1.5rem',
-            }}
-          >
+          <div className="comparison-cards-grid">
             {competitors.map((competitor, compIndex) => (
               <div
                 key={competitor.name}
@@ -602,11 +583,15 @@ const Comparison = () => {
                             {feature.label}
                           </div>
                           <div
+                            className="feature-value"
                             style={{
-                              fontSize: '0.85rem',
+                              fontSize: '0.8rem',
                               color: 'hsl(var(--foreground))',
                               fontWeight: '500',
                               lineHeight: '1.4',
+                              wordWrap: 'break-word',
+                              overflowWrap: 'break-word',
+                              wordBreak: 'break-word',
                             }}
                           >
                             {value}
@@ -887,6 +872,51 @@ const Comparison = () => {
           
           .stagger-animation.visible {
             opacity: 1;
+          }
+          
+          .comparison-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1.5rem;
+          }
+          
+          .comparison-cards-grid .glass-card {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            hyphens: auto;
+          }
+          
+          .comparison-cards-grid .feature-value {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+          }
+          
+          @media (max-width: 1600px) {
+            .comparison-cards-grid {
+              grid-template-columns: repeat(5, 1fr);
+              gap: 1rem;
+            }
+          }
+          
+          @media (max-width: 1400px) {
+            .comparison-cards-grid {
+              grid-template-columns: repeat(3, 1fr);
+            }
+          }
+          
+          @media (max-width: 900px) {
+            .comparison-cards-grid {
+              grid-template-columns: repeat(2, 1fr);
+            }
+          }
+          
+          @media (max-width: 600px) {
+            .comparison-cards-grid {
+              grid-template-columns: 1fr;
+            }
           }
         `}
       </style>
