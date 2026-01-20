@@ -142,15 +142,15 @@ const Home = () => {
           this.y = Math.random() * canvas.height;
           this.baseX = this.x;
           this.baseY = this.y;
-          this.size = Math.random() * 3 + 1;
-          this.speedX = (Math.random() - 0.5) * 0.3; // Reduced initial speed
-          this.speedY = (Math.random() - 0.5) * 0.3; // Reduced initial speed
+          this.size = Math.random() * 2 + 1; // Smaller particles
+          this.speedX = (Math.random() - 0.5) * 0.2; // Slower speed
+          this.speedY = (Math.random() - 0.5) * 0.2; // Slower speed
           this.density = Math.random() * 30 + 1;
-          // Color palette: teal, blue, purple variations
+          // Color palette: Subtle professional colors (slate/blueish)
           const colors = [
-            `rgba(78, 205, 196, ${Math.random() * 0.5 + 0.3})`,
-            `rgba(0, 122, 204, ${Math.random() * 0.4 + 0.2})`,
-            `rgba(240, 147, 251, ${Math.random() * 0.3 + 0.2})`,
+            `rgba(78, 205, 196, ${Math.random() * 0.3 + 0.1})`, // Reduced opacity
+            `rgba(0, 122, 204, ${Math.random() * 0.2 + 0.1})`, // Reduced opacity
+            `rgba(150, 150, 200, ${Math.random() * 0.2 + 0.1})`, // More neutral
           ];
           this.color = colors[Math.floor(Math.random() * colors.length)];
         }
@@ -160,8 +160,8 @@ const Home = () => {
           const speedMultiplier = Math.min(1, frameCount / 60);
 
           // Move particles with wave motion (gentler)
-          this.x += (this.speedX + Math.sin(Date.now() * 0.001 + this.baseY * 0.01) * 0.2) * speedMultiplier;
-          this.y += (this.speedY + Math.cos(Date.now() * 0.001 + this.baseX * 0.01) * 0.15) * speedMultiplier;
+          this.x += (this.speedX + Math.sin(Date.now() * 0.001 + this.baseY * 0.01) * 0.1) * speedMultiplier;
+          this.y += (this.speedY + Math.cos(Date.now() * 0.001 + this.baseX * 0.01) * 0.1) * speedMultiplier;
 
           // Wrap around screen
           if (this.x > canvas.width + 50) this.x = -50;
@@ -178,8 +178,8 @@ const Home = () => {
             if (distance < mouse.radius) {
               const force = (mouse.radius - distance) / mouse.radius;
               const angle = Math.atan2(dy, dx);
-              this.x -= Math.cos(angle) * force * 3;
-              this.y -= Math.sin(angle) * force * 3;
+              this.x -= Math.cos(angle) * force * 2; // Gentler repel
+              this.y -= Math.sin(angle) * force * 2;
             }
           }
         }
@@ -187,13 +187,14 @@ const Home = () => {
         draw(globalOpacity) {
           ctx.beginPath();
           ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-          ctx.fillStyle = this.color.replace(/[\d.]+\)$/, `${parseFloat(this.color.match(/[\d.]+\)$/)[0]) * globalOpacity})`);
+          // Further reduce global opacity for a very subtle texture
+          ctx.fillStyle = this.color.replace(/[\d.]+\)$/, `${parseFloat(this.color.match(/[\d.]+\)$/)[0]) * globalOpacity * 0.6})`);
           ctx.fill();
         }
       }
 
       // Create particles
-      const particleCount = Math.min(100, Math.floor((canvas.width * canvas.height) / 15000));
+      const particleCount = Math.min(80, Math.floor((canvas.width * canvas.height) / 15000)); // Fewer particles
       const particles = [];
       for (let i = 0; i < particleCount; i++) {
         particles.push(new Particle());
@@ -209,7 +210,8 @@ const Home = () => {
 
             if (distance < 120) {
               ctx.beginPath();
-              ctx.strokeStyle = `rgba(78, 205, 196, ${0.15 * (1 - distance / 120) * globalOpacity})`;
+              // Very faint lines
+              ctx.strokeStyle = `rgba(150, 160, 180, ${0.08 * (1 - distance / 120) * globalOpacity})`;
               ctx.lineWidth = 0.5;
               ctx.moveTo(particles[i].x, particles[i].y);
               ctx.lineTo(particles[j].x, particles[j].y);
@@ -448,7 +450,8 @@ const Home = () => {
                 "PDF/A-4 & PDF/UA-2 Compliant",
                 "AES-128 Encryption",
                 "Multi-page Support", "Split PDFs",
-                "HTML To Image", "HTML To PDF"
+                "HTML To Image", "HTML To PDF",
+                "Private", "In-Memory"
               ].map((feature, i) => (
                 <span key={i} style={{
                   background: 'rgba(78, 205, 196, 0.08)',

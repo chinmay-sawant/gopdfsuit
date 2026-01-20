@@ -638,24 +638,11 @@ select:focus {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: gradient-shift 4s ease infinite;
-}
-
-/* Glow pulse effect */
-@keyframes glow-pulse {
-
-  0%,
-  100% {
-    box-shadow: 0 0 20px rgba(78, 205, 196, 0.3), 0 0 40px rgba(78, 205, 196, 0.1);
-  }
-
-  50% {
-    box-shadow: 0 0 30px rgba(78, 205, 196, 0.5), 0 0 60px rgba(78, 205, 196, 0.2);
-  }
+  animation: gradient-shift 8s ease infinite;
 }
 
 .glow-on-hover:hover {
-  animation: glow-pulse 2s ease-in-out infinite;
+  transform: translateY(-2px);
 }
 
 /* Glassmorphism card */
@@ -844,54 +831,44 @@ select:focus {
 /* Enhanced CTA buttons */
 .btn-glow {
   position: relative;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  background: var(--primary);
   border: none;
   padding: 1rem 2.5rem;
   font-size: 1.1rem;
-  font-weight: 700;
-  border-radius: 12px;
-  color: white;
+  font-weight: 600;
+  border-radius: 8px;
+  /* Sharper corners for modern look */
+  color: var(--primary-foreground);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   overflow: hidden;
-}
-
-.btn-glow::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s;
-}
-
-.btn-glow:hover::before {
-  left: 100%;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .btn-glow:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 15px 40px rgba(78, 205, 196, 0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  filter: brightness(1.1);
 }
 
 .btn-outline-glow {
   background: transparent;
-  border: 2px solid var(--accent-primary);
+  border: 1px solid var(--border);
   padding: 1rem 2.5rem;
   font-size: 1.1rem;
-  font-weight: 700;
-  border-radius: 12px;
-  color: var(--accent-primary);
+  font-weight: 600;
+  border-radius: 8px;
+  color: hsl(var(--foreground));
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .btn-outline-glow:hover {
-  background: rgba(78, 205, 196, 0.1);
-  transform: translateY(-3px);
-  box-shadow: 0 10px 30px rgba(78, 205, 196, 0.2);
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  border-color: hsl(var(--accent));
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
 }
 
 /* Feature card enhancements */
