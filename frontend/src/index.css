@@ -990,3 +990,14 @@ select:focus {
 .stagger-animation.visible {
   opacity: 1;
 }
+
+/* Fix for select dropdown options in dark mode */
+select option {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.dark select option {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}

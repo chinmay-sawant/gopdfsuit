@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { FileText, Download, Upload, Play, RefreshCw } from 'lucide-react'
+import { FileText, Download, Upload, Play, RefreshCw, Sparkles } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
 import BackgroundAnimation from '../components/BackgroundAnimation'
@@ -92,242 +92,243 @@ const Viewer = () => {
   }
 
   return (
-    <div style={{ padding: '2rem 0', minHeight: '100vh', position: 'relative' }}>
+    <div style={{ minHeight: '100vh', position: 'relative' }}>
       <BackgroundAnimation />
-      <div className="container-full">
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '1rem',
-            marginBottom: '1rem',
-            color: 'hsl(var(--foreground))',
-          }}>
-            <FileText size={40} />
-            PDF Viewer & Template Processor
+
+      {/* Hero Header */}
+      <section style={{ padding: '4rem 0 2rem', textAlign: 'center' }}>
+        <div className="container">
+          {/* Badge */}
+          <div
+            className="animate-fadeInUp"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: 'rgba(78, 205, 196, 0.1)',
+              border: '1px solid rgba(78, 205, 196, 0.3)',
+              borderRadius: '50px',
+              marginBottom: '1.5rem',
+              color: '#4ecdc4',
+              fontSize: '0.9rem',
+              fontWeight: '500',
+            }}
+          >
+            <Sparkles size={16} />
+            Template-based PDF Generation
+          </div>
+
+          <h1
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1rem',
+              marginBottom: '1rem',
+              fontSize: 'clamp(2rem, 5vw, 3rem)',
+              fontWeight: '800',
+              color: 'hsl(var(--foreground))',
+            }}
+          >
+            <div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}>
+              <FileText size={28} />
+            </div>
+            PDF Viewer
           </h1>
-          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem' }}>
+          <p style={{
+            color: 'hsl(var(--muted-foreground))',
+            fontSize: '1.1rem',
+            maxWidth: '600px',
+            margin: '0 auto',
+          }}>
             Load JSON templates and generate PDFs with live preview
           </p>
         </div>
+      </section>
 
-        <div className="grid grid-2" style={{ gap: '2rem' }}>
-          {/* Template Input Section */}
-          <div className="card">
-            <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Upload size={20} />
-              Template Input
-            </h3>
+      {/* Main Content */}
+      <section style={{ padding: '2rem 0 4rem' }}>
+        <div className="container-full">
+          <div className="grid grid-2" style={{ gap: '2rem' }}>
+            {/* Template Input Section */}
+            <div className="glass-card" style={{ padding: '2rem' }}>
+              <h3 style={{
+                color: 'hsl(var(--foreground))',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                fontSize: '1.2rem',
+                fontWeight: '700',
+              }}>
+                <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}>
+                  <Upload size={18} />
+                </div>
+                Template Input
+              </h3>
 
-            <div style={{ marginBottom: '1rem' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
+                  color: 'hsl(var(--foreground))',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                }}>
+                  Load from file:
+                </label>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <input
+                    type="text"
+                    value={fileName}
+                    onChange={(e) => setFileName(e.target.value)}
+                    placeholder="Enter filename (e.g., temp.json)"
+                    style={{
+                      flex: 1,
+                      padding: '0.75rem 1rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      color: 'hsl(var(--foreground))',
+                      fontSize: '0.95rem',
+                      transition: 'all 0.2s ease',
+                    }}
+                  />
+                  <button
+                    onClick={loadTemplate}
+                    disabled={isLoading || !fileName.trim()}
+                    className="btn-glow"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.75rem 1.25rem',
+                    }}
+                  >
+                    {isLoading ? <RefreshCw size={16} className="spin" /> : <Download size={16} />}
+                    Load
+                  </button>
+                </div>
+
+                <div style={{
+                  textAlign: 'center',
+                  margin: '1.25rem 0',
+                  color: 'hsl(var(--muted-foreground))',
+                  fontSize: '0.9rem',
+                  position: 'relative',
+                }}>
+                  <span style={{
+                    background: 'hsl(var(--background))',
+                    padding: '0 1rem',
+                    position: 'relative',
+                    zIndex: 1,
+                  }}>or</span>
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: 0,
+                    right: 0,
+                    height: '1px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                  }} />
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileUpload}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-outline-glow"
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <Upload size={16} />
+                  Upload JSON File
+                </button>
+              </div>
+
               <label style={{
                 display: 'block',
                 marginBottom: '0.5rem',
                 color: 'hsl(var(--foreground))',
-                fontWeight: '500',
+                fontWeight: '600',
+                fontSize: '0.9rem',
               }}>
-                Load from file:
+                JSON Template:
               </label>
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                <input
-                  type="text"
-                  value={fileName}
-                  onChange={(e) => setFileName(e.target.value)}
-                  placeholder="Enter filename (e.g., temp.json)"
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    borderRadius: '6px',
-                    border: '1px solid hsl(var(--border))',
-                    background: 'hsl(var(--background))',
-                    color: 'hsl(var(--foreground))',
-                    fontSize: '1rem',
-                  }}
-                />
-                <button
-                  onClick={loadTemplate}
-                  disabled={isLoading || !fileName.trim()}
-                  className="btn btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                >
-                  {isLoading ? <RefreshCw size={16} className="spin" /> : <Download size={16} />}
-                  Load
-                </button>
-              </div>
-
-              <div style={{ textAlign: 'center', margin: '1rem 0', color: 'hsl(var(--muted-foreground))' }}>
-                or
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleFileUpload}
-                style={{ display: 'none' }}
+              <textarea
+                value={templateData}
+                onChange={(e) => setTemplateData(e.target.value)}
+                placeholder="Enter or paste your JSON template here..."
+                style={{
+                  width: '100%',
+                  height: '350px',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  color: 'hsl(var(--foreground))',
+                  fontSize: '0.9rem',
+                  fontFamily: "'SF Mono', 'Monaco', 'Cascadia Code', 'Consolas', monospace",
+                  resize: 'vertical',
+                  transition: 'all 0.2s ease',
+                }}
               />
+
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="btn btn-secondary"
-                style={{ width: '100%' }}
+                onClick={generatePDF}
+                disabled={isLoading || !templateData.trim()}
+                className="btn-glow"
+                style={{
+                  width: '100%',
+                  marginTop: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  padding: '1rem 2rem',
+                }}
               >
-                <Upload size={16} />
-                Upload JSON File
+                {isLoading ? <RefreshCw size={18} className="spin" /> : <Play size={18} />}
+                Generate PDF
               </button>
             </div>
 
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              color: 'hsl(var(--foreground))',
-              fontWeight: '500',
-            }}>
-              JSON Template:
-            </label>
-            <textarea
-              value={templateData}
-              onChange={(e) => setTemplateData(e.target.value)}
-              placeholder="Enter or paste your JSON template here..."
-              style={{
-                width: '100%',
-                height: '400px',
-                padding: '1rem',
-                borderRadius: '6px',
-                border: '1px solid hsl(var(--border))',
-                background: 'hsl(var(--background))',
-                color: 'hsl(var(--foreground))',
-                fontSize: '0.9rem',
-                fontFamily: 'monospace',
-                resize: 'vertical',
-              }}
-            />
-
-            <button
-              onClick={generatePDF}
-              disabled={isLoading || !templateData.trim()}
-              className="btn"
-              style={{
-                width: '100%',
-                marginTop: '1rem',
+            {/* PDF Preview Section */}
+            <div className="glass-card" style={{ padding: '2rem' }}>
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              {isLoading ? <RefreshCw size={16} className="spin" /> : <Play size={16} />}
-              Generate PDF
-            </button>
-          </div>
-
-          {/* PDF Preview Section */}
-          <div className="card">
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '1.5rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem'
-            }}>
-              <h3 style={{ color: 'hsl(var(--foreground))', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                <FileText size={20} />
-                PDF Preview
-              </h3>
-              {pdfUrl && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <button
-                    onClick={() => {
-                      const link = document.createElement('a')
-                      link.href = pdfUrl
-                      link.download = `template-pdf-${Date.now()}.pdf`
-                      document.body.appendChild(link)
-                      link.click()
-                      document.body.removeChild(link)
-                    }}
-                    className="btn"
-                    style={{
-                      padding: '0.5rem 0.75rem',
-                      fontSize: '0.9rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                    }}
-                  >
-                    <Download size={14} />
-                    Download Again
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {pdfUrl ? (
-              <div>
-                <div style={{ position: 'relative', marginBottom: '1rem' }}>
-                  <iframe
-                    src={pdfUrl}
-                    style={{
-                      width: '100%',
-                      height: '600px',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
-                      background: 'white',
-                    }}
-                    title="PDF Preview"
-                  />
-                  {isLoading && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '0',
-                      left: '0',
-                      right: '0',
-                      bottom: '0',
-                      background: 'rgba(0,0,0,0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: '6px',
-                    }}>
-                      <div style={{
-                        background: 'hsl(var(--card))',
-                        padding: '1rem 2rem',
-                        borderRadius: '8px',
-                        border: '1px solid hsl(var(--border))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                      }}>
-                        <RefreshCw size={16} className="spin" />
-                        Generating PDF...
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{
+                justifyContent: 'space-between',
+                marginBottom: '1.5rem',
+                flexWrap: 'wrap',
+                gap: '0.5rem'
+              }}>
+                <h3 style={{
+                  color: 'hsl(var(--foreground))',
                   display: 'flex',
-                  justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '0.75rem',
-                  background: 'hsl(var(--muted))',
-                  borderRadius: '6px',
-                  fontSize: '0.9rem',
+                  gap: '0.75rem',
+                  margin: 0,
+                  fontSize: '1.2rem',
+                  fontWeight: '700',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ color: 'hsl(var(--muted-foreground))' }}>
-                      PDF generated successfully
-                    </span>
-                    <span style={{
-                      background: 'hsl(var(--accent))',
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '4px',
-                      fontSize: '0.8rem',
-                      fontWeight: '500'
-                    }}>
-                      Preview Ready
-                    </span>
+                  <div className="feature-icon-box purple" style={{ width: '40px', height: '40px', marginBottom: 0 }}>
+                    <FileText size={18} />
                   </div>
+                  PDF Preview
+                </h3>
+                {pdfUrl && (
                   <button
                     onClick={() => {
                       const link = document.createElement('a')
@@ -337,7 +338,7 @@ const Viewer = () => {
                       link.click()
                       document.body.removeChild(link)
                     }}
-                    className="btn"
+                    className="btn-glow"
                     style={{
                       padding: '0.5rem 1rem',
                       fontSize: '0.9rem',
@@ -347,56 +348,174 @@ const Viewer = () => {
                     }}
                   >
                     <Download size={14} />
-                    Download PDF
+                    Download
                   </button>
-                </div>
+                )}
               </div>
-            ) : (
-              <div style={{
-                height: '600px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'hsl(var(--muted))',
-                borderRadius: '6px',
-                border: '2px dashed hsl(var(--border))',
-                color: 'hsl(var(--muted-foreground))',
-                textAlign: 'center',
-              }}>
-                <div>
-                  <FileText size={48} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-                  <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>
-                    Load a JSON template to start generating PDFs
-                  </p>
-                  <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>
-                    Enter template data above and click "Generate PDF" to see the preview
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Sample Templates */}
-        <div className="card" style={{ marginTop: '2rem' }}>
-          <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>📋 Sample Templates</h3>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            {['temp_multiplepage.json', 'temp.json', 'temp_og.json'].map((sample) => (
-              <button
-                key={sample}
-                onClick={() => {
-                  setFileName(sample)
-                  loadTemplate()
-                }}
-                className="btn btn-secondary"
-                style={{ fontSize: '0.9rem' }}
-              >
-                {sample}
-              </button>
-            ))}
+              {pdfUrl ? (
+                <div>
+                  <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                    <iframe
+                      src={pdfUrl}
+                      style={{
+                        width: '100%',
+                        height: '550px',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '8px',
+                        background: 'white',
+                      }}
+                      title="PDF Preview"
+                    />
+                    {isLoading && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '0',
+                        left: '0',
+                        right: '0',
+                        bottom: '0',
+                        background: 'rgba(0,0,0,0.4)',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '8px',
+                      }}>
+                        <div style={{
+                          background: 'rgba(30, 30, 30, 0.9)',
+                          padding: '1rem 2rem',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          color: '#4ecdc4',
+                        }}>
+                          <RefreshCw size={18} className="spin" />
+                          Generating PDF...
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '1rem',
+                    background: 'rgba(78, 205, 196, 0.08)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(78, 205, 196, 0.2)',
+                    fontSize: '0.9rem',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <span style={{ color: 'hsl(var(--muted-foreground))' }}>
+                        PDF generated successfully
+                      </span>
+                      <span style={{
+                        background: 'rgba(78, 205, 196, 0.2)',
+                        color: '#4ecdc4',
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '20px',
+                        fontSize: '0.8rem',
+                        fontWeight: '600'
+                      }}>
+                        Preview Ready
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const link = document.createElement('a')
+                        link.href = pdfUrl
+                        link.download = `template-pdf-${Date.now()}.pdf`
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                      }}
+                      className="btn-glow"
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <Download size={14} />
+                      Download PDF
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  height: '550px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  borderRadius: '8px',
+                  border: '2px dashed rgba(255, 255, 255, 0.1)',
+                  color: 'hsl(var(--muted-foreground))',
+                  textAlign: 'center',
+                }}>
+                  <div>
+                    <div className="feature-icon-box teal" style={{
+                      width: '64px',
+                      height: '64px',
+                      margin: '0 auto 1rem',
+                      opacity: 0.5,
+                    }}>
+                      <FileText size={32} />
+                    </div>
+                    <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>
+                      Load a JSON template to start
+                    </p>
+                    <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>
+                      Enter template data above and click "Generate PDF" to see the preview
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sample Templates */}
+          <div className="glass-card" style={{ marginTop: '2rem', padding: '2rem' }}>
+            <h3 style={{
+              color: 'hsl(var(--foreground))',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              fontSize: '1.1rem',
+              fontWeight: '700',
+            }}>
+              <div className="feature-icon-box yellow" style={{ width: '40px', height: '40px', marginBottom: 0 }}>
+                <span style={{ fontSize: '1.2rem' }}>📋</span>
+              </div>
+              Sample Templates
+            </h3>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+              {['temp_multiplepage.json', 'temp.json', 'temp_og.json'].map((sample) => (
+                <button
+                  key={sample}
+                  onClick={() => {
+                    setFileName(sample)
+                    loadTemplate()
+                  }}
+                  className="btn-outline-glow"
+                  style={{
+                    fontSize: '0.9rem',
+                    padding: '0.75rem 1.25rem',
+                  }}
+                >
+                  {sample}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <style jsx>{`
         @keyframes spin {
