@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Camera, Loader, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
+import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const Screenshots = () => {
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -110,26 +111,7 @@ const Screenshots = () => {
       overflow: 'hidden'
     }}>
       {/* Animated background elements */}
-      <div style={{
-        position: 'absolute',
-        top: '10%',
-        left: '10%',
-        width: '200px',
-        height: '200px',
-        background: 'radial-gradient(circle, rgba(78, 205, 196, 0.1) 0%, transparent 70%)',
-        borderRadius: '50%',
-        animation: 'pulse 4s ease-in-out infinite'
-      }} />
-      <div style={{
-        position: 'absolute',
-        top: '60%',
-        right: '15%',
-        width: '150px',
-        height: '150px',
-        background: 'radial-gradient(circle, rgba(0, 122, 204, 0.1) 0%, transparent 70%)',
-        borderRadius: '50%',
-        animation: 'pulse 6s ease-in-out infinite reverse'
-      }} />
+      <BackgroundAnimation />
 
       <div className="container" style={{ position: 'relative', zIndex: 1 }}>
         <div style={{

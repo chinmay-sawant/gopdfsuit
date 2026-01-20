@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 import { FileCheck, Upload, Download, RefreshCw, FileText } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
+import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const Filler = () => {
   const [pdfFile, setPdfFile] = useState(null)
@@ -10,7 +11,7 @@ const Filler = () => {
   const [filledPdfUrl, setFilledPdfUrl] = useState('')
   const pdfInputRef = useRef(null)
   const xfdfInputRef = useRef(null)
-  const { getAuthHeaders } = useAuth()
+  const { getAuthHeaders, triggerLogin } = useAuth()
 
   const handlePdfUpload = (event) => {
     const file = event.target.files[0]
@@ -28,7 +29,7 @@ const Filler = () => {
 
   const fillPDF = async () => {
     if (!pdfFile || !xfdfFile) return
-    
+
     setIsLoading(true)
     try {
       const formData = new FormData()
@@ -39,18 +40,22 @@ const Filler = () => {
         method: 'POST',
         body: formData,
       }, getAuthHeaders)
-      
+
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       setFilledPdfUrl(url)
-      
+
       // Also trigger download
       const link = document.createElement('a')
       link.href = url
       link.download = `filled-${pdfFile.name}`
       link.click()
     } catch (error) {
-      alert('Error filling PDF: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        alert('Error filling PDF: ' + error.message)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -65,12 +70,13 @@ const Filler = () => {
   }
 
   return (
-    <div style={{ padding: '2rem 0', minHeight: '100vh' }}>
+    <div style={{ padding: '2rem 0', minHeight: '100vh', position: 'relative' }}>
+      <BackgroundAnimation />
       <div className="container">
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <h1 style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             gap: '1rem',
             marginBottom: '1rem',
@@ -91,12 +97,12 @@ const Filler = () => {
               <Upload size={20} />
               Upload Files
             </h3>
-            
+
             {/* PDF Upload */}
             <div style={{ marginBottom: '2rem' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '0.5rem', 
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
                 color: 'hsl(var(--foreground))',
                 fontWeight: '500',
               }}>
@@ -135,9 +141,9 @@ const Filler = () => {
 
             {/* XFDF Upload */}
             <div>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '0.5rem', 
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
                 color: 'hsl(var(--foreground))',
                 fontWeight: '500',
               }}>
@@ -174,12 +180,12 @@ const Filler = () => {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={fillPDF}
               disabled={isLoading || !pdfFile || !xfdfFile}
               className="btn"
-              style={{ 
-                width: '100%', 
+              style={{
+                width: '100%',
                 marginTop: '1.5rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -198,7 +204,7 @@ const Filler = () => {
               <FileText size={20} />
               Filled PDF Preview
             </h3>
-            
+
             {filledPdfUrl ? (
               <div>
                 <iframe
@@ -211,7 +217,7 @@ const Filler = () => {
                   }}
                   title="Filled PDF Preview"
                 />
-                <button 
+                <button
                   onClick={() => {
                     const link = document.createElement('a')
                     link.href = filledPdfUrl
@@ -219,8 +225,8 @@ const Filler = () => {
                     link.click()
                   }}
                   className="btn btn-primary"
-                  style={{ 
-                    width: '100%', 
+                  style={{
+                    width: '100%',
                     marginTop: '1rem',
                     display: 'flex',
                     alignItems: 'center',
@@ -259,7 +265,7 @@ const Filler = () => {
         {/* Instructions */}
         <div className="card" style={{ marginTop: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>📋 How to Use PDF Form Filler</h3>
-          
+
           <div className="grid grid-2" style={{ gap: '2rem', marginBottom: '2rem' }}>
             <div>
               <h4 style={{ color: '#4ecdc4', marginBottom: '1rem' }}>Steps:</h4>
@@ -270,7 +276,7 @@ const Filler = () => {
                 <li>Preview and download the filled PDF</li>
               </ol>
             </div>
-            
+
             <div>
               <h4 style={{ color: '#4ecdc4', marginBottom: '1rem' }}>File Requirements:</h4>
               <ul style={{ color: 'hsl(var(--muted-foreground))', lineHeight: 1.8, paddingLeft: '1.5rem' }}>
@@ -282,7 +288,7 @@ const Filler = () => {
             </div>
           </div>
 
-          <div style={{ 
+          <div style={{
             padding: '1rem',
             background: 'color-mix(in hsl, var(--primary-color) 10%, transparent)',
             borderRadius: '6px',

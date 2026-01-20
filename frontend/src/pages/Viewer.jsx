@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react'
 import { FileText, Download, Upload, Play, RefreshCw } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
+import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const Viewer = () => {
   const [templateData, setTemplateData] = useState('')
@@ -9,13 +10,13 @@ const Viewer = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [pdfUrl, setPdfUrl] = useState('')
   const fileInputRef = useRef(null)
-  const { getAuthHeaders } = useAuth()
+  const { getAuthHeaders, triggerLogin } = useAuth()
 
   // Check if running on GitHub Pages
   const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')
 
   const showError = (message) => {
-      alert(message)
+    alert(message)
   }
 
   const loadTemplate = async () => {
@@ -40,7 +41,11 @@ const Viewer = () => {
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (error) {
-      showError('Error loading template: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        showError('Error loading template: ' + error.message)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -48,7 +53,7 @@ const Viewer = () => {
 
   const generatePDF = async () => {
     if (!templateData.trim()) return
-    
+
     setIsLoading(true)
     try {
       const data = JSON.parse(templateData)
@@ -59,12 +64,16 @@ const Viewer = () => {
         },
         body: JSON.stringify(data),
       }, getAuthHeaders)
-      
+
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (error) {
-      showError('Error generating PDF: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        showError('Error generating PDF: ' + error.message)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -83,12 +92,13 @@ const Viewer = () => {
   }
 
   return (
-    <div style={{ padding: '2rem 0', minHeight: '100vh' }}>
+    <div style={{ padding: '2rem 0', minHeight: '100vh', position: 'relative' }}>
+      <BackgroundAnimation />
       <div className="container-full">
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <h1 style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             gap: '1rem',
             marginBottom: '1rem',
@@ -109,11 +119,11 @@ const Viewer = () => {
               <Upload size={20} />
               Template Input
             </h3>
-            
+
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '0.5rem', 
+              <label style={{
+                display: 'block',
+                marginBottom: '0.5rem',
                 color: 'hsl(var(--foreground))',
                 fontWeight: '500',
               }}>
@@ -135,7 +145,7 @@ const Viewer = () => {
                     fontSize: '1rem',
                   }}
                 />
-                <button 
+                <button
                   onClick={loadTemplate}
                   disabled={isLoading || !fileName.trim()}
                   className="btn btn-secondary"
@@ -145,11 +155,11 @@ const Viewer = () => {
                   Load
                 </button>
               </div>
-              
+
               <div style={{ textAlign: 'center', margin: '1rem 0', color: 'hsl(var(--muted-foreground))' }}>
                 or
               </div>
-              
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -157,7 +167,7 @@ const Viewer = () => {
                 onChange={handleFileUpload}
                 style={{ display: 'none' }}
               />
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="btn btn-secondary"
                 style={{ width: '100%' }}
@@ -167,9 +177,9 @@ const Viewer = () => {
               </button>
             </div>
 
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '0.5rem', 
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
               color: 'hsl(var(--foreground))',
               fontWeight: '500',
             }}>
@@ -192,13 +202,13 @@ const Viewer = () => {
                 resize: 'vertical',
               }}
             />
-            
-            <button 
+
+            <button
               onClick={generatePDF}
               disabled={isLoading || !templateData.trim()}
               className="btn"
-              style={{ 
-                width: '100%', 
+              style={{
+                width: '100%',
                 marginTop: '1rem',
                 display: 'flex',
                 alignItems: 'center',
@@ -213,9 +223,9 @@ const Viewer = () => {
 
           {/* PDF Preview Section */}
           <div className="card">
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'space-between',
               marginBottom: '1.5rem',
               flexWrap: 'wrap',
@@ -227,7 +237,7 @@ const Viewer = () => {
               </h3>
               {pdfUrl && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <button 
+                  <button
                     onClick={() => {
                       const link = document.createElement('a')
                       link.href = pdfUrl
@@ -237,7 +247,7 @@ const Viewer = () => {
                       document.body.removeChild(link)
                     }}
                     className="btn"
-                    style={{ 
+                    style={{
                       padding: '0.5rem 0.75rem',
                       fontSize: '0.9rem',
                       display: 'flex',
@@ -251,7 +261,7 @@ const Viewer = () => {
                 </div>
               )}
             </div>
-            
+
             {pdfUrl ? (
               <div>
                 <div style={{ position: 'relative', marginBottom: '1rem' }}>
@@ -294,7 +304,7 @@ const Viewer = () => {
                     </div>
                   )}
                 </div>
-                
+
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -308,9 +318,9 @@ const Viewer = () => {
                     <span style={{ color: 'hsl(var(--muted-foreground))' }}>
                       PDF generated successfully
                     </span>
-                    <span style={{ 
-                      background: 'hsl(var(--accent))', 
-                      padding: '0.25rem 0.5rem', 
+                    <span style={{
+                      background: 'hsl(var(--accent))',
+                      padding: '0.25rem 0.5rem',
                       borderRadius: '4px',
                       fontSize: '0.8rem',
                       fontWeight: '500'
@@ -318,7 +328,7 @@ const Viewer = () => {
                       Preview Ready
                     </span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => {
                       const link = document.createElement('a')
                       link.href = pdfUrl
@@ -328,7 +338,7 @@ const Viewer = () => {
                       document.body.removeChild(link)
                     }}
                     className="btn"
-                    style={{ 
+                    style={{
                       padding: '0.5rem 1rem',
                       fontSize: '0.9rem',
                       display: 'flex',

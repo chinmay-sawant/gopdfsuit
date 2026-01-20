@@ -3,6 +3,8 @@ import { Scissors, Upload, Download, RefreshCw, FileText, X } from 'lucide-react
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
 
+import BackgroundAnimation from '../components/BackgroundAnimation'
+
 const SplitPage = () => {
   const [file, setFile] = useState(null)
   const [pages, setPages] = useState('')
@@ -10,7 +12,7 @@ const SplitPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [splitPdfUrl, setSplitPdfUrl] = useState('')
   const fileInputRef = useRef(null)
-  const { getAuthHeaders } = useAuth()
+  const { getAuthHeaders, triggerLogin } = useAuth()
 
   const handleFileUpload = (event) => {
     const selectedFile = Array.from(event.target.files).find(file => file.type === 'application/pdf')
@@ -47,7 +49,11 @@ const SplitPage = () => {
       setSplitPdfUrl(url)
 
     } catch (error) {
-      alert('Error splitting PDF: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        alert('Error splitting PDF: ' + error.message)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -62,7 +68,8 @@ const SplitPage = () => {
   }
 
   return (
-    <div style={{ padding: '2rem 0', minHeight: '100vh' }}>
+    <div style={{ padding: '2rem 0', minHeight: '100vh', position: 'relative' }}>
+      <BackgroundAnimation />
       <div className="container">
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <h1 style={{

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Globe, FileText, Download, RefreshCw, Eye, Settings } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
+import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const HtmlToPdf = () => {
   const [htmlContent, setHtmlContent] = useState('')
@@ -10,8 +11,8 @@ const HtmlToPdf = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [pdfUrl, setPdfUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
-  const { getAuthHeaders } = useAuth()
-  
+  const { getAuthHeaders, triggerLogin } = useAuth()
+
   // PDF Configuration
   const [config, setConfig] = useState({
     page_size: 'A4',
@@ -32,7 +33,7 @@ const HtmlToPdf = () => {
     }
 
     if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
-    
+
     setIsLoading(true)
     try {
       const requestBody = {
@@ -47,18 +48,22 @@ const HtmlToPdf = () => {
         },
         body: JSON.stringify(requestBody),
       }, getAuthHeaders)
-      
+
       const blob = await response.blob()
       const pdfBlobUrl = URL.createObjectURL(blob)
       setPdfUrl(pdfBlobUrl)
-      
+
       // Also trigger download
       const link = document.createElement('a')
       link.href = pdfBlobUrl
       link.download = `html-to-pdf-${Date.now()}.pdf`
       link.click()
     } catch (error) {
-      alert('Error converting to PDF: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        alert('Error converting to PDF: ' + error.message)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -113,12 +118,13 @@ const HtmlToPdf = () => {
 </html>`
 
   return (
-    <div style={{ padding: '2rem 0', minHeight: '100vh' }}>
+    <div style={{ padding: '2rem 0', minHeight: '100vh', position: 'relative' }}>
+      <BackgroundAnimation />
       <div className="container">
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <h1 style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             gap: '1rem',
             marginBottom: '1rem',
@@ -139,7 +145,7 @@ const HtmlToPdf = () => {
               <FileText size={20} />
               HTML Input
             </h3>
-            
+
             {/* Input Type Toggle */}
             <div style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
@@ -162,9 +168,9 @@ const HtmlToPdf = () => {
 
             {inputType === 'html' ? (
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '0.5rem', 
+                <label style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
                   color: 'hsl(var(--foreground))',
                   fontWeight: '500',
                 }}>
@@ -207,9 +213,9 @@ const HtmlToPdf = () => {
               </div>
             ) : (
               <div>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '0.5rem', 
+                <label style={{
+                  display: 'block',
+                  marginBottom: '0.5rem',
                   color: 'hsl(var(--foreground))',
                   fontWeight: '500',
                 }}>
@@ -275,7 +281,7 @@ const HtmlToPdf = () => {
               <Settings size={20} />
               PDF Configuration
             </h3>
-            
+
             <div style={{ marginBottom: '2rem' }}>
               <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                 <div>
@@ -406,11 +412,11 @@ const HtmlToPdf = () => {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={convertToPdf}
               disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())}
               className="btn"
-              style={{ 
+              style={{
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
@@ -437,7 +443,7 @@ const HtmlToPdf = () => {
                   }}
                   title="PDF Preview"
                 />
-                <button 
+                <button
                   onClick={() => {
                     const link = document.createElement('a')
                     link.href = pdfUrl
@@ -445,8 +451,8 @@ const HtmlToPdf = () => {
                     link.click()
                   }}
                   className="btn"
-                  style={{ 
-                    width: '100%', 
+                  style={{
+                    width: '100%',
                     marginTop: '1rem',
                     display: 'flex',
                     alignItems: 'center',

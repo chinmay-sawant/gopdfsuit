@@ -1860,7 +1860,7 @@ function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove,
 
 export default function Editor() {
   const { theme, setTheme } = useTheme()
-  const { getAuthHeaders } = useAuth()
+  const { getAuthHeaders, triggerLogin } = useAuth()
   const [config, setConfig] = useState({ pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '' })
   const [title, setTitle] = useState(null)
   const [components, setComponents] = useState([]) // Combined ordered array for tables and spacers
@@ -2319,7 +2319,11 @@ export default function Editor() {
         alert('Failed to load template')
       }
     } catch (error) {
-      alert('Error loading template: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        alert('Error loading template: ' + error.message)
+      }
     }
   }
 
@@ -2345,7 +2349,11 @@ export default function Editor() {
         alert('Failed to generate PDF')
       }
     } catch (error) {
-      alert('Error generating PDF: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        alert('Error generating PDF: ' + error.message)
+      }
     }
   }
 
@@ -2375,7 +2383,11 @@ export default function Editor() {
         alert('Failed to generate PDF')
       }
     } catch (error) {
-      alert('Error generating PDF: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        alert('Error generating PDF: ' + error.message)
+      }
     }
   }
 

@@ -3,12 +3,14 @@ import { Merge, Upload, Download, RefreshCw, FileText, X } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
 
+import BackgroundAnimation from '../components/BackgroundAnimation'
+
 const MergePage = () => {
   const [files, setFiles] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [mergedPdfUrl, setMergedPdfUrl] = useState('')
   const fileInputRef = useRef(null)
-  const { getAuthHeaders } = useAuth()
+  const { getAuthHeaders, triggerLogin } = useAuth()
 
   const handleFileUpload = (event) => {
     const newFiles = Array.from(event.target.files).filter(file => file.type === 'application/pdf')
@@ -23,7 +25,7 @@ const MergePage = () => {
   const moveFile = (index, direction) => {
     const newFiles = [...files]
     const targetIndex = direction === 'up' ? index - 1 : index + 1
-    
+
     if (targetIndex >= 0 && targetIndex < files.length) {
       [newFiles[index], newFiles[targetIndex]] = [newFiles[targetIndex], newFiles[index]]
       setFiles(newFiles)
@@ -32,7 +34,7 @@ const MergePage = () => {
 
   const mergePDFs = async () => {
     if (files.length < 2) return
-    
+
     setIsLoading(true)
     try {
       const formData = new FormData()
@@ -44,18 +46,22 @@ const MergePage = () => {
         method: 'POST',
         body: formData,
       }, getAuthHeaders)
-      
+
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       setMergedPdfUrl(url)
-      
+
       // Also trigger download
       const link = document.createElement('a')
       link.href = url
       link.download = `merged-pdf-${Date.now()}.pdf`
       link.click()
     } catch (error) {
-      alert('Error merging PDFs: ' + error.message)
+      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+        triggerLogin()
+      } else {
+        alert('Error merging PDFs: ' + error.message)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -70,12 +76,13 @@ const MergePage = () => {
   }
 
   return (
-    <div style={{ padding: '2rem 0', minHeight: '100vh' }}>
+    <div style={{ padding: '2rem 0', minHeight: '100vh', position: 'relative' }}>
+      <BackgroundAnimation />
       <div className="container">
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h1 style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <h1 style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             gap: '1rem',
             marginBottom: '1rem',
@@ -96,7 +103,7 @@ const MergePage = () => {
               <Upload size={20} />
               Upload PDF Files
             </h3>
-            
+
             <input
               ref={fileInputRef}
               type="file"
@@ -105,7 +112,7 @@ const MergePage = () => {
               onChange={handleFileUpload}
               style={{ display: 'none' }}
             />
-            
+
             <div
               onClick={() => fileInputRef.current?.click()}
               style={{
@@ -165,8 +172,8 @@ const MergePage = () => {
                     >
                       <FileText size={16} style={{ color: '#4ecdc4' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ 
-                          color: 'hsl(var(--foreground))', 
+                        <div style={{
+                          color: 'hsl(var(--foreground))',
                           fontSize: '0.9rem',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -226,13 +233,13 @@ const MergePage = () => {
                     </div>
                   ))}
                 </div>
-                
-                <button 
+
+                <button
                   onClick={mergePDFs}
                   disabled={isLoading || files.length < 2}
                   className="btn"
-                  style={{ 
-                    width: '100%', 
+                  style={{
+                    width: '100%',
                     marginTop: '1rem',
                     display: 'flex',
                     alignItems: 'center',
@@ -253,7 +260,7 @@ const MergePage = () => {
               <FileText size={20} />
               Merged PDF Preview
             </h3>
-            
+
             {mergedPdfUrl ? (
               <div>
                 <iframe
@@ -266,7 +273,7 @@ const MergePage = () => {
                   }}
                   title="Merged PDF Preview"
                 />
-                <button 
+                <button
                   onClick={() => {
                     const link = document.createElement('a')
                     link.href = mergedPdfUrl
@@ -274,8 +281,8 @@ const MergePage = () => {
                     link.click()
                   }}
                   className="btn btn-primary"
-                  style={{ 
-                    width: '100%', 
+                  style={{
+                    width: '100%',
                     marginTop: '1rem',
                     display: 'flex',
                     alignItems: 'center',
