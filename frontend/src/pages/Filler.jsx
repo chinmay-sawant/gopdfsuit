@@ -69,7 +69,7 @@ const Filler = () => {
 
       <section style={{ padding: '2rem 0 4rem' }}>
         <div className="container">
-          <div className="grid grid-2" style={{ gap: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
             <div className="glass-card" style={{ padding: '2rem' }}>
               <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
                 <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload Files
@@ -95,13 +95,13 @@ const Filler = () => {
               </h3>
               {filledPdfUrl ? (
                 <div>
-                  <iframe src={filledPdfUrl} style={{ width: '100%', height: '480px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px' }} title="Filled PDF" />
+                  <iframe src={filledPdfUrl} style={{ width: '100%', height: '550px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', overflow: 'hidden' }} title="Filled PDF" />
                   <button onClick={() => { const link = document.createElement('a'); link.href = filledPdfUrl; link.download = `filled-${pdfFile?.name || 'form.pdf'}`; link.click() }} className="btn-glow" style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
                     <Download size={16} />Download Filled PDF
                   </button>
                 </div>
               ) : (
-                <div style={{ height: '480px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
+                <div style={{ height: '550px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
                   <div>
                     <div className="feature-icon-box green" style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }}><FileCheck size={32} /></div>
                     <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>Filled PDF preview will appear here</p>
