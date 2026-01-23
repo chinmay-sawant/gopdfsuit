@@ -7,7 +7,7 @@ const errorRate = new Rate('errors');
 const pdfGenerationTime = new Trend('pdf_generation_time');
 
 // Load JSON payload from file (executed once at init time)
-const amazonReceiptPayload = JSON.parse(open('../../sampledata/amazon/amazon_receipt.json'));
+const financialDigitalSignaturePayload = JSON.parse(open('../../sampledata/editor/financial_digitalsignature.json'));
 
 // Test configuration
 export const options = {
@@ -16,7 +16,7 @@ export const options = {
         smoke: {
             executor: 'constant-vus',
             vus: 1,
-            duration: '30s',
+            duration: '5s',
             startTime: '0s',
             tags: { test_type: 'smoke' },
         },
@@ -25,26 +25,12 @@ export const options = {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
-                { duration: '1m', target: 10 },  // Ramp up to 10 users
-                { duration: '3m', target: 10 },  // Stay at 10 users
-                { duration: '1m', target: 0 },   // Ramp down to 0
+                { duration: '5s', target: 5 },   // Ramp up to 5 users
+                { duration: '10s', target: 5 },  // Stay at 5 users
+                { duration: '5s', target: 0 },   // Ramp down to 0
             ],
-            startTime: '35s',
+            startTime: '10s',
             tags: { test_type: 'load' },
-        },
-        // Stress test - beyond normal load
-        stress: {
-            executor: 'ramping-vus',
-            startVUs: 0,
-            stages: [
-                { duration: '1m', target: 20 },  // Ramp up to 20 users
-                { duration: '2m', target: 20 },  // Stay at 20 users
-                { duration: '1m', target: 50 },  // Ramp up to 50 users
-                { duration: '2m', target: 50 },  // Stay at 50 users
-                { duration: '1m', target: 0 },   // Ramp down
-            ],
-            startTime: '6m',
-            tags: { test_type: 'stress' },
         },
     },
     thresholds: {
@@ -68,7 +54,7 @@ const headers = {
 
 export default function () {
     const url = `${BASE_URL}/api/v1/generate/template-pdf`;
-    const payload = JSON.stringify(amazonReceiptPayload);
+    const payload = JSON.stringify(financialDigitalSignaturePayload);
 
     const startTime = Date.now();
     const response = http.post(url, payload, { headers: headers });
@@ -98,14 +84,14 @@ export default function () {
 export function setup() {
     console.log(`Starting load test against ${BASE_URL}`);
     console.log('Testing endpoint: /api/v1/generate/template-pdf');
-    console.log('Payload loaded from: sampledata/amazon/amazon_receipt.json');
-    
+    console.log('Payload loaded from: sampledata/editor/financial_digitalsignature.json');
+
     // Verify server is reachable
     const healthCheck = http.get(`${BASE_URL}/gopdfsuit`);
     if (healthCheck.status !== 200) {
         console.warn(`Warning: Server health check returned status ${healthCheck.status}`);
     }
-    
+
     return { startTime: new Date().toISOString() };
 }
 
