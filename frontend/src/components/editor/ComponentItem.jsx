@@ -413,59 +413,31 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     e.preventDefault()
                     e.stopPropagation()
                     const startX = e.clientX
-                    const cell = element.rows[rowIdx].row[colIdx]
-                    const startWidth = cell.width || (usableWidthForTable * getNormalizedColWeight(colIdx))
+
+                    // Current widths from config
+                    const currentWidths = [...(element.columnwidths || Array(element.maxcolumns).fill(1))]
+                    const totalRatio = currentWidths.reduce((sum, w) => sum + w, 0)
+
+                    // Calculate pixel mapping
+                    const pixelsPerUnit = usableWidthForTable / totalRatio
 
                     const onMouseMove = (me) => {
                         const dx = me.clientX - startX
-                        let newWidth = Math.max(50, startWidth + dx)
-                        const widthChange = newWidth - startWidth
+                        const dxUnits = dx / pixelsPerUnit // Convert pixels to ratio units
 
-                        // Update only this specific cell's width
-                        const newRows = [...element.rows]
-                        newRows[rowIdx] = {
-                            ...newRows[rowIdx],
-                            row: newRows[rowIdx].row.map((c, idx) =>
-                                idx === colIdx ? { ...c, width: newWidth } : c
-                            )
+                        // Update current and next column
+                        if (colIdx < element.maxcolumns - 1) {
+                            const newCurrent = Math.max(0.1, currentWidths[colIdx] + dxUnits)
+                            const newNext = Math.max(0.1, currentWidths[colIdx + 1] - dxUnits)
+
+                            // Only apply if change is valid (next column doesn't vanish)
+                            if (newNext >= 0.1) {
+                                const newWidths = [...currentWidths]
+                                newWidths[colIdx] = newCurrent
+                                newWidths[colIdx + 1] = newNext
+                                onUpdate({ columnwidths: newWidths })
+                            }
                         }
-
-                        // If this is column 0, redistribute the change across columns 1 and 2+
-                        if (colIdx === 0) {
-                            const numOtherCols = element.maxcolumns - 1
-                            const redistributePerCol = widthChange / numOtherCols
-
-                            newRows[rowIdx].row = newRows[rowIdx].row.map((c, idx) => {
-                                if (idx === 0) return c
-                                const currentWidth = c.width || (usableWidthForTable * getNormalizedColWeight(idx))
-                                const newColWidth = currentWidth - redistributePerCol
-                                return { ...c, width: Math.max(0, newColWidth) }
-                            })
-                        }
-                        // If this is a middle column (not first, not last), only subtract from next column
-                        // When expanding (positive widthChange), subtract from next column
-                        // When shrinking (negative widthChange), add space back to next column
-                        else if (colIdx > 0 && colIdx < element.maxcolumns - 1) {
-                            const nextCell = newRows[rowIdx].row[colIdx + 1]
-                            const nextWidth = nextCell.width || (usableWidthForTable * getNormalizedColWeight(colIdx + 1))
-                            const newNextWidth = nextWidth - widthChange
-                            // Always subtract the change from the next column (if expanding this column, next shrinks; if shrinking, next expands)
-                            newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(0, newNextWidth) }
-                        }
-                        // Last column should not be resizable (handled in render)
-
-                        // Final safety check: ensure total doesn't exceed usable width
-                        const totalWidth = newRows[rowIdx].row.reduce((sum, c) => sum + (c.width || 0), 0)
-                        if (totalWidth > usableWidthForTable + 1) { // +1 for rounding tolerance
-                            // Proportionally scale down all cells to fit
-                            const scale = usableWidthForTable / totalWidth
-                            newRows[rowIdx].row = newRows[rowIdx].row.map(c => ({
-                                ...c,
-                                width: (c.width || 0) * scale
-                            }))
-                        }
-
-                        onUpdate({ rows: newRows })
                     }
                     const onMouseUp = () => {
                         window.removeEventListener('mousemove', onMouseMove)
@@ -520,8 +492,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             const cellStyle = getStyleFromProps(cell.props)
                                             const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
-                                            // Use cell-specific width if available, otherwise fall back to column width
-                                            const cellWidth = cell.width || (usableWidthForTable * colWeights[colIdx])
+                                            // Use column width exclusively to ensure sync with columnwidths
+                                            const cellWidth = usableWidthForTable * colWeights[colIdx]
                                             const cellHeight = cell.height || 25
 
                                             // Determine background color: selection > cell bgcolor > table bgcolor > default white

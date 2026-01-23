@@ -20,7 +20,8 @@ function DraggableComponent({ type, componentData, isDragging, onDragStart, onDr
                 alignItems: 'center', // Align horizontally
                 justifyContent: 'flex-start',
                 gap: '0.5rem',
-                padding: '0.6rem 0.8rem', // Reduced padding
+                padding: '0.4rem 0.6rem', // Reduced padding
+                paddingRight: '0.2rem', // Ensure right padding
                 background: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '6px', // Smaller radius
@@ -28,9 +29,9 @@ function DraggableComponent({ type, componentData, isDragging, onDragStart, onDr
                 userSelect: 'none',
                 transition: 'all 0.1s ease',
                 opacity: isDragging === type ? 0.5 : 1,
-                height: '42px', // Fixed smaller height
+                height: '36px', // Fixed smaller height
                 color: 'hsl(var(--foreground))',
-                fontSize: '0.85rem' // Smaller font
+                fontSize: '0.8rem' // Smaller font
             }}
         >
             <IconComponent size={16} style={{ opacity: 0.9 }} />

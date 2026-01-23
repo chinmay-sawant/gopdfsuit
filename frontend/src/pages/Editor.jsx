@@ -277,21 +277,33 @@ export default function Editor() {
       if (!footer) delete template.footer
 
       const response = await makeAuthenticatedRequest(
-        '/api/v1/generate',
+        '/api/v1/generate/template-pdf',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/pdf'
+          },
           body: JSON.stringify(template)
         },
         isAuthRequired() ? getAuthHeaders : null
       )
+
+      console.log('PDF Generation Response Status:', response.status)
 
       if (!response.ok) {
         if (response.status === 401) { triggerLogin(); return }
         const errorText = await response.text()
         throw new Error(`Failed to generate PDF: ${response.status} - ${errorText}`)
       }
+
       const blob = await response.blob()
+      console.log('PDF Blob:', { size: blob.size, type: blob.type })
+
+      if (blob.size === 0) {
+        throw new Error('Received empty PDF document')
+      }
+
       const url = URL.createObjectURL(blob)
 
       if (isPreview) {
