@@ -248,6 +248,14 @@ export default function Editor() {
         if (c.table) return { ...c.table, type: 'table' }
         if (c.spacer) return { ...c.spacer, type: 'spacer' }
         if (c.image) return { ...c.image, type: 'image' }
+        
+        // Auto-detect component type if not specified
+        if (!c.type) {
+          if (c.maxcolumns && c.rows) return { ...c, type: 'table' }
+          if (c.height && !c.width) return { ...c, type: 'spacer' }
+          if (c.imagedata || c.imagename) return { ...c, type: 'image' }
+        }
+        
         return c
       })
 
@@ -381,6 +389,14 @@ export default function Editor() {
         if (c.table) return { ...c.table, type: 'table' }
         if (c.spacer) return { ...c.spacer, type: 'spacer' }
         if (c.image) return { ...c.image, type: 'image' }
+        
+        // Auto-detect component type if not specified
+        if (!c.type) {
+          if (c.maxcolumns && c.rows) return { ...c, type: 'table' }
+          if (c.height && !c.width) return { ...c, type: 'spacer' }
+          if (c.imagedata || c.imagename) return { ...c, type: 'image' }
+        }
+        
         return c
       })
 
@@ -394,7 +410,6 @@ export default function Editor() {
       setSelectedId(null)
       setSelectedCell(null)
 
-      alert(`Template "${filename}" loaded successfully!`)
     } catch (error) {
       console.error('Error loading template:', error)
       alert(error.message || 'Failed to load template')
