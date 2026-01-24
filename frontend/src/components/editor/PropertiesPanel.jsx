@@ -208,7 +208,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     type="color"
                                     value={selectedElement.bgcolor || '#ffffff'}
                                     onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })}
-                                    style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
+                                    style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer', padding: '2px', WebkitAppearance: 'none', background: 'transparent' }}
                                 />
                                 <input
                                     type="text"
@@ -244,7 +244,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     type="color"
                                     value={selectedElement.textcolor || '#000000'}
                                     onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })}
-                                    style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
+                                    style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer', padding: '2px', WebkitAppearance: 'none', background: 'transparent' }}
                                 />
                                 <input
                                     type="text"
@@ -661,7 +661,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     type="color"
                                     value={selectedElement.bgcolor || '#ffffff'}
                                     onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })}
-                                    style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
+                                    style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer', padding: '2px', WebkitAppearance: 'none', background: 'transparent' }}
                                 />
                                 <input
                                     type="text"
@@ -700,7 +700,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     type="color"
                                     value={selectedElement.textcolor || '#000000'}
                                     onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })}
-                                    style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
+                                    style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer', padding: '2px', WebkitAppearance: 'none', background: 'transparent' }}
                                 />
                                 <input
                                     type="text"
@@ -858,7 +858,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], bgcolor: e.target.value }
                                                 updateElement(selectedElement.id, { rows: newRows })
                                             }}
-                                            style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
+                                            style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer', padding: '2px', WebkitAppearance: 'none', background: 'transparent' }}
                                         />
                                         <input
                                             type="text"
@@ -913,7 +913,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], textcolor: e.target.value }
                                                 updateElement(selectedElement.id, { rows: newRows })
                                             }}
-                                            style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
+                                            style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer', padding: '2px', WebkitAppearance: 'none', background: 'transparent' }}
                                         />
                                         <input
                                             type="text"
@@ -974,6 +974,80 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                             onChange={(newProps) => updateElement(selectedElement.id, { props: newProps })}
                             fonts={fonts}
                         />
+                    </>
+                )}
+
+                {/* IMAGE Properties */}
+                {selectedElement.type === 'image' && (
+                    <>
+                        {/* Image Upload/Change */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>Image Source</label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files[0]
+                                    if (file) {
+                                        const reader = new FileReader()
+                                        reader.onload = (event) => {
+                                            updateElement(selectedElement.id, {
+                                                imagename: file.name,
+                                                imagedata: event.target.result
+                                            })
+                                        }
+                                        reader.readAsDataURL(file)
+                                    }
+                                }}
+                                style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                            />
+                            {selectedElement.imagename && (
+                                <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.5rem', wordBreak: 'break-all' }}>
+                                    Current: {selectedElement.imagename}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Image Dimensions */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>Dimensions</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width (px)</label>
+                                    <input
+                                        type="number"
+                                        min="10"
+                                        max="1000"
+                                        value={selectedElement.width || 200}
+                                        onChange={(e) => updateElement(selectedElement.id, { width: parseInt(e.target.value) || 200 })}
+                                        style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                                    />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Height (px)</label>
+                                    <input
+                                        type="number"
+                                        min="10"
+                                        max="1000"
+                                        value={selectedElement.height || 150}
+                                        onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 150 })}
+                                        style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Link URL */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>Link URL</label>
+                            <input
+                                type="text"
+                                value={selectedElement.link || ''}
+                                onChange={(e) => updateElement(selectedElement.id, { link: e.target.value })}
+                                placeholder="https://..."
+                                style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                            />
+                        </div>
                     </>
                 )}
 

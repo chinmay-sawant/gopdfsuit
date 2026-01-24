@@ -85,6 +85,12 @@ function PageBorderControls({ borders, onChange }) {
     )
 }
 
+// Helper to separate string by newlines for array
+const stringToArray = (str) => str.split('\n').filter(line => line.trim() !== '')
+
+// Helper to join array by newlines for string
+const arrayToString = (arr) => Array.isArray(arr) ? arr.join('\n') : (arr || '')
+
 function SignatureSettings({ config, onChange }) {
     const handleChange = (key, value) => {
         onChange({ ...config, [key]: value })
@@ -241,8 +247,8 @@ function SignatureSettings({ config, onChange }) {
             <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Certificate (PEM)</label>
                 <textarea
-                    value={config.certPEM || ''}
-                    onChange={(e) => handleChange('certPEM', e.target.value)}
+                    value={config.certificatePem || ''}
+                    onChange={(e) => handleChange('certificatePem', e.target.value)}
                     placeholder="-----BEGIN CERTIFICATE-----..."
                     rows={3}
                     style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', fontFamily: 'monospace', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', resize: 'vertical' }}
@@ -252,8 +258,8 @@ function SignatureSettings({ config, onChange }) {
             <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Private Key (PEM)</label>
                 <textarea
-                    value={config.keyPEM || ''}
-                    onChange={(e) => handleChange('keyPEM', e.target.value)}
+                    value={config.privateKeyPem || ''}
+                    onChange={(e) => handleChange('privateKeyPem', e.target.value)}
                     placeholder="-----BEGIN PRIVATE KEY-----..."
                     rows={3}
                     style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', fontFamily: 'monospace', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', resize: 'vertical' }}
@@ -263,8 +269,8 @@ function SignatureSettings({ config, onChange }) {
             <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Intermediate Certificates (Optional)</label>
                 <textarea
-                    value={config.chainPEM || ''}
-                    onChange={(e) => handleChange('chainPEM', e.target.value)}
+                    value={arrayToString(config.certificateChain)}
+                    onChange={(e) => handleChange('certificateChain', stringToArray(e.target.value))}
                     placeholder="Paste intermediate certificates here..."
                     rows={3}
                     style={{ width: '100%', padding: '0.4rem', fontSize: '0.75rem', fontFamily: 'monospace', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))', resize: 'vertical' }}
@@ -326,6 +332,18 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                     </div>
                 </div>
 
+                {/* PDF Title */}
+                <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Document Title</label>
+                    <input
+                        type="text"
+                        value={config.pdfTitle || ''}
+                        onChange={(e) => setConfig(prev => ({ ...prev, pdfTitle: e.target.value }))}
+                        placeholder="PDF document title (metadata)"
+                        style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                    />
+                </div>
+
                 {/* Watermark */}
                 <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Watermark</label>
@@ -350,7 +368,7 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'hsl(var(--foreground))' }}>PDF/A Compliant</label>
                             <HelpCircle size={14} onMouseEnter={() => setShowPdfTooltip(true)} onMouseLeave={() => setShowPdfTooltip(false)} style={{ cursor: 'help', color: 'hsl(var(--muted-foreground))' }} />
                         </div>
-                        <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>PDF/A-4 Standard</span>
+                        <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>PDF/UA-2 Standard</span>
                     </div>
                     <label style={{
                         position: 'relative',

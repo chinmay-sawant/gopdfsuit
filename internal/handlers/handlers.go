@@ -106,6 +106,7 @@ func RegisterRoutes(router *gin.Engine) {
 		v1.POST("/split", handlerSplitPDF)
 		v1.GET("/template-data", handleGetTemplateData)
 		v1.GET("/fonts", handleGetFonts)
+		v1.POST("/fonts", handleUploadFont)
 
 		// HTML to PDF/Image endpoints (powered by gochromedp)
 		v1.POST("/htmltopdf", handlehtmlToPDF)

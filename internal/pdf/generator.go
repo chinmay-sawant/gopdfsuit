@@ -117,7 +117,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
-	// Process cell images in tables
+	// Process cell images in tables (indexed tables from top-level Table array)
 	for tableIdx, table := range template.Table {
 		for rowIdx, row := range table.Rows {
 			for colIdx, cell := range row.Row {
@@ -125,10 +125,32 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 					imgObj, err := DecodeImageData(cell.Image.ImageData)
 					if err == nil {
 						imgObj.ObjectID = nextImageObjectID
+						// Key for indexed tables: "0:0:0" (tableIdx:rowIdx:colIdx)
 						cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
 						cellImageObjects[cellKey] = imgObj
 						cellImageObjectIDs[cellKey] = nextImageObjectID
 						nextImageObjectID++
+					}
+				}
+			}
+		}
+	}
+
+	// Process inline table images in Elements array
+	for elemIdx, elem := range template.Elements {
+		if elem.Type == "table" && elem.Table != nil {
+			for rowIdx, row := range elem.Table.Rows {
+				for colIdx, cell := range row.Row {
+					if cell.Image != nil && cell.Image.ImageData != "" {
+						imgObj, err := DecodeImageData(cell.Image.ImageData)
+						if err == nil {
+							imgObj.ObjectID = nextImageObjectID
+							// Key for inline tables: "elem_inline:5:0:0" (elem_inline:elemIdx:rowIdx:colIdx)
+							cellKey := fmt.Sprintf("elem_inline:%d:%d:%d", elemIdx, rowIdx, colIdx)
+							cellImageObjects[cellKey] = imgObj
+							cellImageObjectIDs[cellKey] = nextImageObjectID
+							nextImageObjectID++
+						}
 					}
 				}
 			}
@@ -198,7 +220,19 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Setup PDF/A handler if enabled
 	var pdfaHandler *PDFAHandler
 	if template.Config.PDFA != nil && template.Config.PDFA.Enabled {
+		// If main PdfTitle is set but PDFA Title isn't, copy it over
+		if template.Config.PdfTitle != "" && template.Config.PDFA.Title == "" {
+			template.Config.PDFA.Title = template.Config.PdfTitle
+		}
 		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor)
+	} else if template.Config.PDFACompliant {
+		// If using valid PDF/A mode but no explicit PDFA config, create one to ensure metadata
+		pdfaConfig := &models.PDFAConfig{
+			Enabled:     true,
+			Conformance: "4", // Default for PDF/A-4
+			Title:       template.Config.PdfTitle,
+		}
+		pdfaHandler = NewPDFAHandler(pdfaConfig, pageManager, encryptor)
 	}
 
 	// Calculate object IDs for fonts early (needed for signature font embedding)
@@ -347,13 +381,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Add language tag for accessibility (PDF/UA requirement)
 	pdfBuffer.WriteString(" /Lang (en-US)")
 	// Add PDF/A specific entries or default MarkInfo
-	if pdfaHandler != nil {
-		// PDF/A entries will be added after we generate metadata/outputintent objects
-		// For now, skip MarkInfo as it will be added via pdfaHandler
-	} else {
-		// Add MarkInfo to indicate this is a tagged PDF (Required for PDF/UA)
-		pdfBuffer.WriteString(" /MarkInfo << /Marked true >>")
-	}
+	// Add MarkInfo to indicate this is a tagged PDF (Required for PDF/UA)
+	pdfBuffer.WriteString(" /MarkInfo << /Marked true >>")
 
 	// Add ViewerPreferences (Required for PDF/UA)
 	pdfBuffer.WriteString(" /ViewerPreferences << /DisplayDocTitle true >>")
@@ -491,9 +520,16 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Build ColorSpace resources for PDF/A mode
 	// Using DefaultRGB tells Adobe Acrobat that DeviceRGB colors are already in sRGB
 	// This prevents the double color conversion that makes colors appear pale
+	// IMPORTANT: Use pdfaHandler's ICC profile ID when available, as it creates its own objects
 	colorSpaceRefs := ""
-	if template.Config.PDFACompliant && iccProfileObjectID > 0 {
-		colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] >>", iccProfileObjectID)
+	if template.Config.PDFACompliant {
+		actualICCObjID := iccProfileObjectID
+		if pdfaHandler != nil {
+			actualICCObjID = pdfaHandler.GetICCProfileObjID()
+		}
+		if actualICCObjID > 0 {
+			colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] >>", actualICCObjID)
+		}
 	}
 
 	// Generate page objects
@@ -618,8 +654,20 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
+	// Get the correct ICC profile object ID for images (if PDF/A compliance is enabled)
+	// pdfaHandler creates its own ICC profile object IDs, so we must use those when available
+	actualICCProfileObjID := iccProfileObjectID
+	if pdfaHandler != nil {
+		actualICCProfileObjID = pdfaHandler.GetICCProfileObjID()
+	}
+
 	// Generate image XObjects (standalone images)
 	for _, imgObj := range imageObjects {
+		// PDF/UA-2: Ensure images use the ICC profile for color space
+		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
+			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		}
+
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
 		if encryption != nil {
 			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
@@ -630,6 +678,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Generate image XObjects (cell images)
 	for _, imgObj := range cellImageObjects {
+		// PDF/UA-2: Ensure images use the ICC profile for color space
+		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
+			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		}
+
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
 		if encryption != nil {
 			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
@@ -640,6 +693,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Generate image XObjects (element images)
 	for _, imgObj := range elemImageObjects {
+		// PDF/UA-2: Ensure images use the ICC profile for color space
+		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
+			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		}
+
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
 		if encryption != nil {
 			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
@@ -730,7 +788,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	if !template.Config.PDFACompliant {
 		xrefOffsets[infoObjectID] = pdfBuffer.Len()
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
-		pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+		// Include Title in Info dictionary if provided
+		titleEntry := ""
+		if template.Config.PdfTitle != "" {
+			titleEntry = fmt.Sprintf(" /Title (%s)", escapeText(template.Config.PdfTitle))
+		}
+		pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s)%s >>\n", creationDate, creationDate, titleEntry))
 		pdfBuffer.WriteString("endobj\n")
 	}
 
@@ -1069,14 +1132,17 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 			switch elem.Type {
 			case "table":
 				var table models.Table
+				var imageKeyPrefix string
 				if elem.Table != nil {
 					table = *elem.Table
+					imageKeyPrefix = fmt.Sprintf("elem_inline:%d", elemIdx) // Use elem_inline prefix for inline tables
 				} else if elem.Index < len(template.Table) {
 					table = template.Table[elem.Index]
+					imageKeyPrefix = fmt.Sprintf("%d", elem.Index) // Use index as key for indexed tables
 				} else {
 					continue
 				}
-				drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
+				drawTable(table, imageKeyPrefix, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 				tableIdx++
 			case "spacer":
 				var spacer models.Spacer
@@ -1117,7 +1183,9 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		// Legacy mode: process tables, then spacers, then images (spacers at end)
 		// Tables - Process each table with automatic page breaks
 		for tableIdx, table := range template.Table {
-			drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
+			// For legacy table array, use simple index as key
+			imageKeyPrefix := fmt.Sprintf("%d", tableIdx)
+			drawTable(table, imageKeyPrefix, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 		}
 
 		// Spacers - Process each spacer (added after tables in legacy mode)

@@ -20,7 +20,7 @@ import Toolbar from '../components/editor/Toolbar'
 export default function Editor() {
   const { theme, setTheme } = useTheme()
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const [config, setConfig] = useState({ pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '', pdfaCompliant: true, signature: { enabled: false } })
+  const [config, setConfig] = useState({ pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '', pdfTitle: '', pdfaCompliant: true, signature: { enabled: false } })
   const [title, setTitle] = useState(null)
   const [components, setComponents] = useState([]) // Combined ordered array for tables and spacers
   const [footer, setFooter] = useState(null)
@@ -583,9 +583,17 @@ export default function Editor() {
               style={{
                 width: `${currentPageSize.width + 40}px`,
                 minHeight: `${currentPageSize.height}px`,
+                // Auto height allows content to push it down, min-height ensures at least one page
+                height: 'auto',
+                // Flex shrink 0 prevents it from shrinking inside the scrollable container
+                flexShrink: 0,
+                // Flex grow ensures it fills the available vertical space if the container is taller
+                flexGrow: 1,
                 background: isDragOver ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)' : 'white',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                 padding: `${MARGIN}px`,
+                // Ensure there is space at bottom for comfortable editing
+                paddingBottom: `${MARGIN + 50}px`,
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
@@ -599,6 +607,7 @@ export default function Editor() {
               onDrop={(e) => {
                 e.preventDefault(); setIsDragOver(false)
                 const type = e.dataTransfer.getData('text/plain')
+                // Basic drop on canvas background works, but we also handle drop on items for insertion
                 if (COMPONENT_TYPES[type]) handleDropElement(type)
               }}
               onClick={() => { setSelectedId(null); setSelectedCell(null) }}
@@ -607,36 +616,7 @@ export default function Editor() {
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '20px', background: 'repeating-linear-gradient(90deg, transparent, transparent 49px, #f0f0f0 50px)', pointerEvents: 'none', opacity: 0.5 }} />
               <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '20px', background: 'repeating-linear-gradient(0deg, transparent, transparent 49px, #f0f0f0 50px)', pointerEvents: 'none', opacity: 0.5 }} />
 
-              {/* Page Break Indicators (every page height) */}
-              {Array.from({ length: Math.floor((canvasRef.current?.scrollHeight || currentPageSize.height) / currentPageSize.height) }).map((_, i) => i > 0 && (
-                <div
-                  key={`page-break-${i}`}
-                  style={{
-                    position: 'absolute',
-                    top: `${i * currentPageSize.height}px`,
-                    left: 0,
-                    right: 0,
-                    height: '2px',
-                    background: 'repeating-linear-gradient(90deg, #e74c3c 0px, #e74c3c 10px, transparent 10px, transparent 20px)',
-                    pointerEvents: 'none',
-                    zIndex: 5,
-                    opacity: 0.5
-                  }}
-                >
-                  <span style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '-10px',
-                    fontSize: '10px',
-                    background: '#e74c3c',
-                    color: 'white',
-                    padding: '2px 6px',
-                    borderRadius: '3px'
-                  }}>
-                    Page {i + 1}
-                  </span>
-                </div>
-              ))}
+
 
               {/* Page Border (only for first page to avoid complexity) */}
               {config.pageBorder && config.pageBorder !== '0:0:0:0' && (
@@ -687,7 +667,8 @@ export default function Editor() {
                     onCellSelect={setSelectedCell}
                     onDragStart={setDraggedComponentId}
                     onDragEnd={() => setDraggedComponentId(null)}
-                    onDrop={handleDropElement}
+                    // Pass targetId to handle insertion before this item
+                    onDrop={(type) => handleDropElement(type, element.id)}
                     isDragging={draggedComponentId === element.id}
                     draggedType={draggedType}
                     handleCellDrop={handleCellDrop}
