@@ -387,13 +387,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Add ViewerPreferences (Required for PDF/UA)
 	pdfBuffer.WriteString(" /ViewerPreferences << /DisplayDocTitle true >>")
 
-	// Add Metadata reference (always include for document info)
-	pdfBuffer.WriteString(fmt.Sprintf(" /Metadata %d 0 R", metadataObjectID))
-
-	// Add OutputIntents ONLY for PDF/A compliance (required for color space validation)
-	if template.Config.PDFACompliant {
-		pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
-	}
+	// Note: Metadata and OutputIntents are only added when pdfaHandler != nil (PDF/A mode)
+	// because that's when we actually create those objects (see lines ~730-745)
 
 	// Add outlines (bookmarks) if present
 	if outlineObjID > 0 {
@@ -438,22 +433,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Add StructTreeRoot reference (required for PDF/UA)
 	pdfBuffer.WriteString(fmt.Sprintf(" /StructTreeRoot %d 0 R", structTreeRootID))
 
-	// Store position where we'll need to inject PDF/A references
-	// For now we close the catalog and will rebuild it if needed
-	catalogEndPlaceholder := ""
+	// For PDF/A, add Metadata and OutputIntent references using pre-reserved object IDs
+	// Note: We use the pre-reserved IDs directly here to avoid placeholder replacement
+	// which would invalidate all xref offsets after the Catalog
+	// PDF/UA-2 requires XMP metadata for ALL PDFs (ISO 14289-2:2024, Clause 8.11.1)
+	pdfBuffer.WriteString(fmt.Sprintf(" /Metadata %d 0 R", metadataObjectID))
 	if pdfaHandler != nil {
-		// Reserve space for metadata and outputintent references
-		// These will be set after we generate those objects
-		catalogEndPlaceholder = " /Metadata %METADATA% /OutputIntents [%OUTPUTINTENT%]"
-		// Note: We already added Metadata/OutputIntent references above in lines 354-358?
-		// If so, we should NOT add them here again.
-		// However, trusting potential legacy logic, I will leave the placeholder IF it was intended to replace existing keys?
-		// But in this specific file state, it seemed to append.
-		// I will Assume the previous code was appending duplicates which is a bug, but I will focus on StructTree.
-		// Removing /StructTreeRoot from placeholder.
-		pdfBuffer.WriteString(catalogEndPlaceholder)
-	} else {
-		// For standard PDF, we don't need placeholders as we wrote references directly
+		pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
 	}
 	pdfBuffer.WriteString(" >>\nendobj\n")
 
@@ -724,11 +710,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Generate PDF/A metadata objects if enabled
 	if pdfaHandler != nil {
-		// Generate XMP metadata
+		// Generate XMP metadata content (but use our pre-reserved metadataObjectID for consistency with Catalog)
 		docIDForXMP := fmt.Sprintf("%x", time.Now().UnixNano())
-		metadataObjID, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
-		xrefOffsets[metadataObjID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", metadataObjID, metadataContent))
+		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
+		// Write metadata object using the pre-reserved ID that's already in the Catalog
+		xrefOffsets[metadataObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", metadataObjectID, metadataContent))
 
 		// Generate OutputIntent with ICC profile
 		outputIntentObjID, outputIntentObjs := pdfaHandler.GenerateOutputIntent()
@@ -750,19 +737,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			pdfBuffer.WriteString(outputIntentObjs[1])
 			pdfBuffer.WriteString("\n")
 		}
-
-		// Update catalog with PDF/A references
-		// We need to rebuild the catalog object
-		catalogContent := pdfBuffer.String()
-
-		// Find and replace the placeholder in catalog
-		if strings.Contains(catalogContent, "%METADATA%") {
-			catalogContent = strings.Replace(catalogContent, "%METADATA%", fmt.Sprintf("%d 0 R", metadataObjID), 1)
-			catalogContent = strings.Replace(catalogContent, "%OUTPUTINTENT%", fmt.Sprintf("%d 0 R", outputIntentObjID), 1)
-			pdfBuffer.Reset()
-			pdfBuffer.WriteString(catalogContent)
-		}
 	}
+	// Note: For non-PDF/A, metadata is generated later (see pdfaHandler == nil block around line 804)
 
 	// Generate Info dictionary - keeping minimal for PDF 2.0
 	// Note: Producer, Creator, Title are deprecated in PDF 2.0 but still widely used
