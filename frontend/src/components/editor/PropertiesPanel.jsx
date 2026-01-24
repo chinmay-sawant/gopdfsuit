@@ -130,12 +130,26 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
 
     const handleDelete = () => deleteElement(selectedElement.id)
 
-    // Color preset swatches
-    const tableBackgroundPresets = ['#FFFFFF', '#000000', '#E0E0E0', '#BDBDBD', '#9E9E9E', '#757575', '#424242', '#212121']
-    const cellBackgroundPresets = ['#FFFFFF', '#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF6600', '#FF00FF', '#00FFFF', '#FFA500']
+    // Color preset swatches - using light pastel colors for table backgrounds
+    const tableBackgroundPresets = [
+        { label: 'White', color: '#FFFFFF' },
+        { label: 'Light Gray', color: '#F0F0F0' },
+        { label: 'Light Blue', color: '#E3F2FD' },
+        { label: 'Light Green', color: '#E8F5E9' },
+        { label: 'Light Yellow', color: '#FFFDE7' },
+        { label: 'Light Red', color: '#FFEBEE' }
+    ]
+    const cellBackgroundPresets = [
+        { label: 'White', color: '#FFFFFF' },
+        { label: 'Light Gray', color: '#F0F0F0' },
+        { label: 'Light Blue', color: '#E3F2FD' },
+        { label: 'Light Green', color: '#E8F5E9' },
+        { label: 'Light Yellow', color: '#FFFDE7' },
+        { label: 'Light Red', color: '#FFEBEE' }
+    ]
     const cellTextPresets = ['#1E1E1E', '#2D2D2D', '#424242', '#FFFFFF', '#FF0000', '#0000FF', '#00FF00']
 
-    
+
 
     return (
         <div className="card" style={{ padding: '1rem', flexShrink: 0 }}>
@@ -160,7 +174,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                     }}>
                         {selectedElement.type}
                     </div>
-                    <button 
+                    <button
                         onClick={handleDelete}
                         style={{
                             padding: '0.35rem 0.65rem',
@@ -190,20 +204,20 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                         <div>
                             <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>Title Background Color</label>
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <input 
-                                    type="color" 
-                                    value={selectedElement.bgcolor || '#ffffff'} 
-                                    onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })} 
+                                <input
+                                    type="color"
+                                    value={selectedElement.bgcolor || '#ffffff'}
+                                    onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })}
                                     style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
                                 />
-                                <input 
-                                    type="text" 
-                                    value={selectedElement.bgcolor || '#ffffff'} 
-                                    onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })} 
+                                <input
+                                    type="text"
+                                    value={selectedElement.bgcolor || '#ffffff'}
+                                    onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })}
                                     placeholder="#RRGGBB or transparent"
                                     style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                 />
-                                <button 
+                                <button
                                     onClick={() => updateElement(selectedElement.id, { bgcolor: '' })}
                                     style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--muted))', cursor: 'pointer' }}
                                 >
@@ -211,12 +225,12 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 </button>
                             </div>
                             <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                {tableBackgroundPresets.map(color => (
+                                {tableBackgroundPresets.map(({ label, color }) => (
                                     <button
                                         key={color}
                                         onClick={() => updateElement(selectedElement.id, { bgcolor: color })}
-                                        style={{ width: '24px', height: '24px', border: '2px solid hsl(var(--border))', borderRadius: '4px', background: color, cursor: 'pointer' }}
-                                        title={color}
+                                        style={{ width: '24px', height: '24px', border: '1px solid #999', borderRadius: '4px', background: color, cursor: 'pointer', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}
+                                        title={label}
                                     />
                                 ))}
                             </div>
@@ -226,20 +240,20 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                         <div>
                             <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>Title Text Color</label>
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <input 
-                                    type="color" 
-                                    value={selectedElement.textcolor || '#000000'} 
-                                    onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })} 
+                                <input
+                                    type="color"
+                                    value={selectedElement.textcolor || '#000000'}
+                                    onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })}
                                     style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
                                 />
-                                <input 
-                                    type="text" 
-                                    value={selectedElement.textcolor || '#000000'} 
-                                    onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })} 
+                                <input
+                                    type="text"
+                                    value={selectedElement.textcolor || '#000000'}
+                                    onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })}
                                     placeholder="#RRGGBB (default: black)"
                                     style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                 />
-                                <button 
+                                <button
                                     onClick={() => updateElement(selectedElement.id, { textcolor: '' })}
                                     style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--muted))', cursor: 'pointer' }}
                                 >
@@ -270,7 +284,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     value={selectedElement.table?.maxcolumns || 3}
                                     onChange={(e) => {
                                         const newCols = parseInt(e.target.value) || 3
-                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1,2,1], rows: [{ row: [{props: 'Helvetica:12:000:left:1:1:1:1', text: ''}, {props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title'}, {props: 'Helvetica:12:000:right:1:1:1:1', text: ''}] }] }
+                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1, 2, 1], rows: [{ row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' }, { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }] }] }
                                         const oldCols = currentTable.maxcolumns
                                         if (newCols !== oldCols) {
                                             const newRows = currentTable.rows.map(row => {
@@ -291,9 +305,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 />
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                                <button 
+                                <button
                                     onClick={() => {
-                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1,2,1], rows: [{ row: [{props: 'Helvetica:12:000:left:1:1:1:1', text: ''}, {props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title'}, {props: 'Helvetica:12:000:right:1:1:1:1', text: ''}] }] }
+                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1, 2, 1], rows: [{ row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' }, { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }] }] }
                                         const newRow = { row: Array(currentTable.maxcolumns).fill(null).map(() => ({ props: 'Helvetica:12:000:left:1:1:1:1', text: '' })) }
                                         updateElement(selectedElement.id, { table: { ...currentTable, rows: [...currentTable.rows, newRow] } })
                                     }}
@@ -301,9 +315,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 >
                                     Add Row
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => {
-                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1,2,1], rows: [{ row: [{props: 'Helvetica:12:000:left:1:1:1:1', text: ''}, {props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title'}, {props: 'Helvetica:12:000:right:1:1:1:1', text: ''}] }] }
+                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1, 2, 1], rows: [{ row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' }, { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }] }] }
                                         const newCols = currentTable.maxcolumns + 1
                                         if (newCols > 5) return
                                         const newRows = currentTable.rows.map(row => ({ row: [...row.row, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] }))
@@ -315,9 +329,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     Add Column
                                 </button>
                                 {selectedCell && (
-                                    <button 
+                                    <button
                                         onClick={() => {
-                                            const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1,2,1], rows: [{ row: [{props: 'Helvetica:12:000:left:1:1:1:1', text: ''}, {props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title'}, {props: 'Helvetica:12:000:right:1:1:1:1', text: ''}] }] }
+                                            const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1, 2, 1], rows: [{ row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' }, { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }] }] }
                                             if (currentTable.maxcolumns <= 1) return
                                             const colToRemove = selectedCell.colIdx
                                             const newRows = currentTable.rows.map(row => ({ row: row.row.filter((_, idx) => idx !== colToRemove) }))
@@ -340,7 +354,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 <button
                                     onClick={() => {
                                         // Toggle all borders to 1:1:1:1
-                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1,2,1], rows: [{ row: [{props: 'Helvetica:12:000:left:1:1:1:1', text: ''}, {props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title'}, {props: 'Helvetica:12:000:right:1:1:1:1', text: ''}] }] }
+                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1, 2, 1], rows: [{ row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' }, { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }] }] }
                                         const updatedRows = currentTable.rows.map(row => ({
                                             ...row,
                                             row: row.row.map(cell => {
@@ -357,7 +371,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 <button
                                     onClick={() => {
                                         // Toggle all borders to 0:0:0:0
-                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1,2,1], rows: [{ row: [{props: 'Helvetica:12:000:left:1:1:1:1', text: ''}, {props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title'}, {props: 'Helvetica:12:000:right:1:1:1:1', text: ''}] }] }
+                                        const currentTable = selectedElement.table || { maxcolumns: 3, columnwidths: [1, 2, 1], rows: [{ row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' }, { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }] }] }
                                         const updatedRows = currentTable.rows.map(row => ({
                                             ...row,
                                             row: row.row.map(cell => {
@@ -380,7 +394,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>
                                     Title Cell (Row {selectedCell.rowIdx + 1}, Col {selectedCell.colIdx + 1})
                                 </h4>
-                                
+
                                 {/* Cell Text */}
                                 <div style={{ marginBottom: '0.75rem' }}>
                                     <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
@@ -643,20 +657,20 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 Sets the default background color for all cells. Individual cells can override this.
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <input 
-                                    type="color" 
-                                    value={selectedElement.bgcolor || '#ffffff'} 
-                                    onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })} 
+                                <input
+                                    type="color"
+                                    value={selectedElement.bgcolor || '#ffffff'}
+                                    onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })}
                                     style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
                                 />
-                                <input 
-                                    type="text" 
-                                    value={selectedElement.bgcolor || '#ffffff'} 
-                                    onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })} 
+                                <input
+                                    type="text"
+                                    value={selectedElement.bgcolor || '#ffffff'}
+                                    onChange={(e) => updateElement(selectedElement.id, { bgcolor: e.target.value })}
                                     placeholder="#RRGGBB or transparent"
                                     style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                 />
-                                <button 
+                                <button
                                     onClick={() => updateElement(selectedElement.id, { bgcolor: '' })}
                                     style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--muted))', cursor: 'pointer' }}
                                 >
@@ -664,12 +678,12 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 </button>
                             </div>
                             <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                {tableBackgroundPresets.map(color => (
+                                {tableBackgroundPresets.map(({ label, color }) => (
                                     <button
                                         key={color}
                                         onClick={() => updateElement(selectedElement.id, { bgcolor: color })}
-                                        style={{ width: '24px', height: '24px', border: '2px solid hsl(var(--border))', borderRadius: '4px', background: color, cursor: 'pointer' }}
-                                        title={color}
+                                        style={{ width: '24px', height: '24px', border: '1px solid #999', borderRadius: '4px', background: color, cursor: 'pointer', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}
+                                        title={label}
                                     />
                                 ))}
                             </div>
@@ -682,20 +696,20 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 Sets the default text color for all cells. Individual cells can override this.
                             </div>
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <input 
-                                    type="color" 
-                                    value={selectedElement.textcolor || '#000000'} 
-                                    onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })} 
+                                <input
+                                    type="color"
+                                    value={selectedElement.textcolor || '#000000'}
+                                    onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })}
                                     style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
                                 />
-                                <input 
-                                    type="text" 
-                                    value={selectedElement.textcolor || '#000000'} 
-                                    onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })} 
+                                <input
+                                    type="text"
+                                    value={selectedElement.textcolor || '#000000'}
+                                    onChange={(e) => updateElement(selectedElement.id, { textcolor: e.target.value })}
                                     placeholder="#RRGGBB (default: black)"
                                     style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                 />
-                                <button 
+                                <button
                                     onClick={() => updateElement(selectedElement.id, { textcolor: '' })}
                                     style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--muted))', cursor: 'pointer' }}
                                 >
@@ -720,7 +734,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>
                                     Cell (Row {selectedCell.rowIdx + 1}, Col {selectedCell.colIdx + 1})
                                 </h4>
-                                
+
                                 {/* Cell Text */}
                                 <div style={{ marginBottom: '0.75rem' }}>
                                     <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
@@ -759,9 +773,32 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                             newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], link: e.target.value }
                                             updateElement(selectedElement.id, { rows: newRows })
                                         }}
-                                        placeholder="https://..."
+                                        placeholder="https://... or #bookmark-id"
                                         style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                     />
+                                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
+                                        Use # prefix for internal links (e.g., #section-id)
+                                    </div>
+                                </div>
+
+                                {/* Destination ID (dest) for bookmark target */}
+                                <div style={{ marginTop: '0.5rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Destination ID (dest):</label>
+                                    <input
+                                        type="text"
+                                        value={selectedCellElement.dest || ''}
+                                        onChange={(e) => {
+                                            const newRows = [...selectedElement.rows]
+                                            const val = e.target.value || undefined
+                                            newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], dest: val }
+                                            updateElement(selectedElement.id, { rows: newRows })
+                                        }}
+                                        placeholder="e.g., financial-summary"
+                                        style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                                    />
+                                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
+                                        ID used as bookmark target for internal links
+                                    </div>
                                 </div>
 
                                 {/* Cell Size Override */}
@@ -813,9 +850,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                         Overrides (from bgcolor #FFFFFF)
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                        <input 
-                                            type="color" 
-                                            value={selectedCellElement.bgcolor || '#ffffff'} 
+                                        <input
+                                            type="color"
+                                            value={selectedCellElement.bgcolor || '#ffffff'}
                                             onChange={(e) => {
                                                 const newRows = [...selectedElement.rows]
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], bgcolor: e.target.value }
@@ -823,9 +860,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                             }}
                                             style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
                                         />
-                                        <input 
-                                            type="text" 
-                                            value={selectedCellElement.bgcolor || ''} 
+                                        <input
+                                            type="text"
+                                            value={selectedCellElement.bgcolor || ''}
                                             onChange={(e) => {
                                                 const newRows = [...selectedElement.rows]
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], bgcolor: e.target.value }
@@ -834,7 +871,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                             placeholder="#RRGGBB"
                                             style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                         />
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 const newRows = [...selectedElement.rows]
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], bgcolor: undefined }
@@ -846,7 +883,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                         </button>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                                        {cellBackgroundPresets.map(color => (
+                                        {cellBackgroundPresets.map(({ label, color }) => (
                                             <button
                                                 key={color}
                                                 onClick={() => {
@@ -854,8 +891,8 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                                     newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], bgcolor: color }
                                                     updateElement(selectedElement.id, { rows: newRows })
                                                 }}
-                                                style={{ width: '24px', height: '24px', border: '2px solid hsl(var(--border))', borderRadius: '4px', background: color, cursor: 'pointer' }}
-                                                title={color}
+                                                style={{ width: '24px', height: '24px', border: '1px solid #999', borderRadius: '4px', background: color, cursor: 'pointer', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}
+                                                title={label}
                                             />
                                         ))}
                                     </div>
@@ -868,9 +905,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                         Sets the text color (default: black)
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                        <input 
-                                            type="color" 
-                                            value={selectedCellElement.textcolor || '#000000'} 
+                                        <input
+                                            type="color"
+                                            value={selectedCellElement.textcolor || '#000000'}
                                             onChange={(e) => {
                                                 const newRows = [...selectedElement.rows]
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], textcolor: e.target.value }
@@ -878,9 +915,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                             }}
                                             style={{ width: '48px', height: '32px', border: '1px solid hsl(var(--border))', borderRadius: '4px', cursor: 'pointer' }}
                                         />
-                                        <input 
-                                            type="text" 
-                                            value={selectedCellElement.textcolor || ''} 
+                                        <input
+                                            type="text"
+                                            value={selectedCellElement.textcolor || ''}
                                             onChange={(e) => {
                                                 const newRows = [...selectedElement.rows]
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], textcolor: e.target.value }
@@ -889,7 +926,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                             placeholder="#RRGGBB"
                                             style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                         />
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 const newRows = [...selectedElement.rows]
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], textcolor: undefined }
@@ -925,10 +962,10 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                     <>
                         <div>
                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Text:</label>
-                            <input 
-                                type="text" 
-                                value={selectedElement.text || ''} 
-                                onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })} 
+                            <input
+                                type="text"
+                                value={selectedElement.text || ''}
+                                onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
                                 style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                             />
                         </div>
@@ -944,12 +981,12 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                 {selectedElement.type === 'spacer' && (
                     <div>
                         <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Height (px):</label>
-                        <input 
-                            type="number" 
-                            min="1" 
-                            max="200" 
-                            value={selectedElement.height || 20} 
-                            onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 20 })} 
+                        <input
+                            type="number"
+                            min="1"
+                            max="200"
+                            value={selectedElement.height || 20}
+                            onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 20 })}
                             style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                         />
                     </div>
@@ -968,9 +1005,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     if (file) {
                                         const reader = new FileReader()
                                         reader.onload = (event) => {
-                                            updateElement(selectedElement.id, { 
+                                            updateElement(selectedElement.id, {
                                                 imagedata: event.target.result.split(',')[1],
-                                                imagename: file.name 
+                                                imagename: file.name
                                             })
                                         }
                                         reader.readAsDataURL(file)
@@ -981,10 +1018,10 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                         </div>
                         <div>
                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Image Name:</label>
-                            <input 
-                                type="text" 
-                                value={selectedElement.imagename || ''} 
-                                onChange={(e) => updateElement(selectedElement.id, { imagename: e.target.value })} 
+                            <input
+                                type="text"
+                                value={selectedElement.imagename || ''}
+                                onChange={(e) => updateElement(selectedElement.id, { imagename: e.target.value })}
                                 placeholder="Image name"
                                 style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                             />
@@ -992,33 +1029,33 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Width (px):</label>
-                                <input 
-                                    type="number" 
-                                    min="10" 
-                                    max="800" 
-                                    value={selectedElement.width || 200} 
-                                    onChange={(e) => updateElement(selectedElement.id, { width: parseInt(e.target.value) || 200 })} 
+                                <input
+                                    type="number"
+                                    min="10"
+                                    max="800"
+                                    value={selectedElement.width || 200}
+                                    onChange={(e) => updateElement(selectedElement.id, { width: parseInt(e.target.value) || 200 })}
                                     style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                 />
                             </div>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Height (px):</label>
-                                <input 
-                                    type="number" 
-                                    min="10" 
-                                    max="800" 
-                                    value={selectedElement.height || 150} 
-                                    onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 150 })} 
+                                <input
+                                    type="number"
+                                    min="10"
+                                    max="800"
+                                    value={selectedElement.height || 150}
+                                    onChange={(e) => updateElement(selectedElement.id, { height: parseInt(e.target.value) || 150 })}
                                     style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                                 />
                             </div>
                         </div>
                         <div>
                             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>Link URL:</label>
-                            <input 
-                                type="text" 
-                                value={selectedElement.link || ''} 
-                                onChange={(e) => updateElement(selectedElement.id, { link: e.target.value })} 
+                            <input
+                                type="text"
+                                value={selectedElement.link || ''}
+                                onChange={(e) => updateElement(selectedElement.id, { link: e.target.value })}
                                 placeholder="https://..."
                                 style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
                             />

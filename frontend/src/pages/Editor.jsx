@@ -24,6 +24,7 @@ export default function Editor() {
   const [title, setTitle] = useState(null)
   const [components, setComponents] = useState([]) // Combined ordered array for tables and spacers
   const [footer, setFooter] = useState(null)
+  const [bookmarks, setBookmarks] = useState(null) // PDF outlines/bookmarks
   const [selectedId, setSelectedId] = useState(null)
   const [selectedCell, setSelectedCell] = useState(null)
   const [draggedType, setDraggedType] = useState(null)
@@ -223,12 +224,14 @@ export default function Editor() {
         if (c.type === 'image') return { type: 'image', image: c }
         return c
       }),
-      footer: footer
+      footer: footer,
+      bookmarks: bookmarks
     }
     if (!title) delete template.title
     if (!footer) delete template.footer
+    if (!bookmarks || bookmarks.length === 0) delete template.bookmarks
     setJsonText(JSON.stringify(template, null, 2))
-  }, [config, title, components, footer, isJsonEditing])
+  }, [config, title, components, footer, bookmarks, isJsonEditing])
 
   const handleJsonChange = (e) => setJsonText(e.target.value)
 
@@ -236,31 +239,60 @@ export default function Editor() {
     setIsJsonEditing(false)
     try {
       const parsed = JSON.parse(jsonText)
-      const { config: newConfig, title: newTitle, elements, table, content, footer: newFooter } = parsed
+      const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = parsed
 
       setConfig(prev => ({ ...prev, ...(newConfig || {}) }))
       setTitle(newTitle || null)
 
       // Handle various input formats (legacy content, table, or new elements)
-      const rawComponents = elements || table || content || []
+      let rawComponents = elements || content || []
+
+      // If there's a separate table array (raw tables format), process it
+      if (table && Array.isArray(table)) {
+        rawComponents = table.map(t => ({ ...t, type: 'table' }))
+      }
+
+      // If there's a separate spacer array, add those too
+      if (spacer && Array.isArray(spacer)) {
+        const spacerComponents = spacer.map(s => ({ ...s, type: 'spacer' }))
+        rawComponents = [...rawComponents, ...spacerComponents]
+      }
+
+      // If we have an "elements" array that references indices, process that
+      if (parsed.elements && Array.isArray(parsed.elements) && parsed.elements[0]?.index !== undefined) {
+        // This is the reference format: elements: [{type: 'table', index: 0}, ...]
+        const orderedComponents = []
+        for (const ref of parsed.elements) {
+          if (ref.type === 'table' && table && table[ref.index]) {
+            orderedComponents.push({ ...table[ref.index], type: 'table' })
+          } else if (ref.type === 'spacer' && spacer && spacer[ref.index]) {
+            orderedComponents.push({ ...spacer[ref.index], type: 'spacer' })
+          }
+        }
+        if (orderedComponents.length > 0) {
+          rawComponents = orderedComponents
+        }
+      }
+
       const processedComponents = rawComponents.map(c => {
         // If it's the wrapped format (element.table), unwrap it
         if (c.table) return { ...c.table, type: 'table' }
         if (c.spacer) return { ...c.spacer, type: 'spacer' }
         if (c.image) return { ...c.image, type: 'image' }
-        
+
         // Auto-detect component type if not specified
         if (!c.type) {
           if (c.maxcolumns && c.rows) return { ...c, type: 'table' }
           if (c.height && !c.width) return { ...c, type: 'spacer' }
           if (c.imagedata || c.imagename) return { ...c, type: 'image' }
         }
-        
+
         return c
       })
 
       setComponents(Array.isArray(processedComponents) ? processedComponents : [])
       setFooter(newFooter || null)
+      setBookmarks(newBookmarks || null)
     } catch (e) {
       console.error('Invalid JSON', e)
     }
@@ -279,10 +311,12 @@ export default function Editor() {
           if (c.type === 'image') return { type: 'image', image: c }
           return c
         }),
-        footer: footer
+        footer: footer,
+        bookmarks: bookmarks
       }
       if (!title) delete template.title
       if (!footer) delete template.footer
+      if (!bookmarks || bookmarks.length === 0) delete template.bookmarks
 
       const response = await makeAuthenticatedRequest(
         '/api/v1/generate/template-pdf',
@@ -375,37 +409,66 @@ export default function Editor() {
       }
 
       const templateData = await response.json()
-      
+
       // Parse and load the template data
-      const { config: newConfig, title: newTitle, elements, table, content, footer: newFooter } = templateData
+      const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = templateData
 
       setConfig(prev => ({ ...prev, ...(newConfig || {}) }))
       setTitle(newTitle || null)
 
       // Handle various input formats (legacy content, table, or new elements)
-      const rawComponents = elements || table || content || []
+      let rawComponents = elements || content || []
+
+      // If there's a separate table array (raw tables format), process it
+      if (table && Array.isArray(table)) {
+        rawComponents = table.map(t => ({ ...t, type: 'table' }))
+      }
+
+      // If there's a separate spacer array, add those too
+      if (spacer && Array.isArray(spacer)) {
+        const spacerComponents = spacer.map(s => ({ ...s, type: 'spacer' }))
+        rawComponents = [...rawComponents, ...spacerComponents]
+      }
+
+      // If we have an "elements" array that references indices, process that
+      if (templateData.elements && Array.isArray(templateData.elements) && templateData.elements[0]?.index !== undefined) {
+        // This is the reference format: elements: [{type: 'table', index: 0}, ...]
+        const orderedComponents = []
+        for (const ref of templateData.elements) {
+          if (ref.type === 'table' && table && table[ref.index]) {
+            orderedComponents.push({ ...table[ref.index], type: 'table' })
+          } else if (ref.type === 'spacer' && spacer && spacer[ref.index]) {
+            orderedComponents.push({ ...spacer[ref.index], type: 'spacer' })
+          }
+        }
+        if (orderedComponents.length > 0) {
+          rawComponents = orderedComponents
+        }
+      }
+
       const processedComponents = rawComponents.map(c => {
         // If it's the wrapped format (element.table), unwrap it
         if (c.table) return { ...c.table, type: 'table' }
         if (c.spacer) return { ...c.spacer, type: 'spacer' }
         if (c.image) return { ...c.image, type: 'image' }
-        
+
         // Auto-detect component type if not specified
         if (!c.type) {
           if (c.maxcolumns && c.rows) return { ...c, type: 'table' }
           if (c.height && !c.width) return { ...c, type: 'spacer' }
           if (c.imagedata || c.imagename) return { ...c, type: 'image' }
         }
-        
+
         return c
       })
 
       setComponents(Array.isArray(processedComponents) ? processedComponents : [])
       setFooter(newFooter || null)
+      setBookmarks(newBookmarks || null)
 
       // Update JSON display
       setIsJsonEditing(false)
-      
+
       // Clear selection
       setSelectedId(null)
       setSelectedCell(null)
@@ -511,7 +574,8 @@ export default function Editor() {
               overflow: 'auto',
               display: 'flex',
               justifyContent: 'center',
-              padding: '0.5rem'
+              padding: '2rem 0.5rem',
+              background: 'hsl(var(--muted) / 0.3)'
             }}
           >
             <div
@@ -539,13 +603,56 @@ export default function Editor() {
               }}
               onClick={() => { setSelectedId(null); setSelectedCell(null) }}
             >
-              {/* Background Grid */}
+              {/* Background Grid - only at top and left edge */}
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '20px', background: 'repeating-linear-gradient(90deg, transparent, transparent 49px, #f0f0f0 50px)', pointerEvents: 'none', opacity: 0.5 }} />
-              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '20px', background: 'repeating-linear-gradient(0deg, transparent, transparent 49px, #f0f0f0 50px)', pointerEvents: 'none', opacity: 0.5 }} />
+              <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '20px', background: 'repeating-linear-gradient(0deg, transparent, transparent 49px, #f0f0f0 50px)', pointerEvents: 'none', opacity: 0.5 }} />
 
-              {/* Page Border */}
+              {/* Page Break Indicators (every page height) */}
+              {Array.from({ length: Math.floor((canvasRef.current?.scrollHeight || currentPageSize.height) / currentPageSize.height) }).map((_, i) => i > 0 && (
+                <div
+                  key={`page-break-${i}`}
+                  style={{
+                    position: 'absolute',
+                    top: `${i * currentPageSize.height}px`,
+                    left: 0,
+                    right: 0,
+                    height: '2px',
+                    background: 'repeating-linear-gradient(90deg, #e74c3c 0px, #e74c3c 10px, transparent 10px, transparent 20px)',
+                    pointerEvents: 'none',
+                    zIndex: 5,
+                    opacity: 0.5
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '-10px',
+                    fontSize: '10px',
+                    background: '#e74c3c',
+                    color: 'white',
+                    padding: '2px 6px',
+                    borderRadius: '3px'
+                  }}>
+                    Page {i + 1}
+                  </span>
+                </div>
+              ))}
+
+              {/* Page Border (only for first page to avoid complexity) */}
               {config.pageBorder && config.pageBorder !== '0:0:0:0' && (
-                <div style={{ position: 'absolute', top: MARGIN, left: MARGIN, right: MARGIN, bottom: MARGIN, pointerEvents: 'none', borderLeft: `${config.pageBorder.split(':')[0]}px solid #000`, borderRight: `${config.pageBorder.split(':')[1]}px solid #000`, borderTop: `${config.pageBorder.split(':')[2]}px solid #000`, borderBottom: `${config.pageBorder.split(':')[3]}px solid #000`, zIndex: 0 }} />
+                <div style={{
+                  position: 'absolute',
+                  top: MARGIN,
+                  left: MARGIN,
+                  width: `calc(100% - ${2 * MARGIN}px)`,
+                  height: `${currentPageSize.height - 2 * MARGIN}px`,
+                  pointerEvents: 'none',
+                  borderLeft: `${config.pageBorder.split(':')[0]}px solid #000`,
+                  borderRight: `${config.pageBorder.split(':')[1]}px solid #000`,
+                  borderTop: `${config.pageBorder.split(':')[2]}px solid #000`,
+                  borderBottom: `${config.pageBorder.split(':')[3]}px solid #000`,
+                  zIndex: 0
+                }} />
               )}
               {/* Watermark */}
               {config.watermark && (
@@ -563,7 +670,7 @@ export default function Editor() {
                 }
                 const canMoveUp = componentIndex > 0
                 const canMoveDown = componentIndex >= 0 && componentIndex < components.length - 1
-                
+
                 return (
                   <ComponentItem
                     key={element.id}
