@@ -494,21 +494,21 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                 {/* PDF Security Card */}
                 <div style={{
                     background: config.security?.enabled ? 'hsl(217.2 32.6% 17.5%)' : 'hsl(var(--muted))',
-                    borderRadius: '12px',
-                    padding: '1.25rem',
+                    borderRadius: '8px',
+                    padding: '0.75rem',
                     border: '1px solid hsl(var(--border))',
                     transition: 'all 0.3s ease'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: config.security?.enabled ? '0.75rem' : '0' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Lock size={18} style={{ color: config.security?.enabled ? '#4ecdc4' : 'hsl(var(--foreground))' }} />
+                            <Lock size={16} style={{ color: config.security?.enabled ? '#4ecdc4' : 'hsl(var(--foreground))' }} />
                             <div>
-                                <div style={{ fontSize: '0.95rem', fontWeight: '600', color: config.security?.enabled ? '#fff' : 'hsl(var(--foreground))' }}>
+                                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: config.security?.enabled ? '#fff' : 'hsl(var(--foreground))' }}>
                                     PDF Security
                                 </div>
                                 {config.security?.enabled && (
-                                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '2px' }}>
-                                        Password protection & permissions
+                                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', marginTop: '1px' }}>
+                                        Encryption & permissions
                                     </div>
                                 )}
                             </div>
@@ -575,63 +575,57 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                     </div>
 
                     {config.security?.enabled && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                             {/* Owner Password */}
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#fff', marginBottom: '0.5rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#fff', marginBottom: '0.35rem' }}>
                                     Owner Password <span style={{ color: '#ff5f56' }}>*</span>
                                 </label>
                                 <input
                                     type="password"
                                     value={config.security?.ownerPassword || ''}
                                     onChange={(e) => setConfig(prev => ({ ...prev, security: { ...prev.security, ownerPassword: e.target.value } }))}
-                                    placeholder="Required for encryption"
+                                    placeholder="Full access password"
                                     style={{
                                         width: '100%',
-                                        padding: '0.65rem',
-                                        fontSize: '0.85rem',
+                                        padding: '0.5rem',
+                                        fontSize: '0.8rem',
                                         border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '6px',
+                                        borderRadius: '4px',
                                         background: 'rgba(0,0,0,0.3)',
                                         color: '#fff',
                                         outline: 'none'
                                     }}
                                 />
-                                <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.35rem' }}>
-                                    Full access password
-                                </div>
                             </div>
 
                             {/* User Password */}
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#fff', marginBottom: '0.5rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '600', color: '#fff', marginBottom: '0.35rem' }}>
                                     User Password (Optional)
                                 </label>
                                 <input
                                     type="password"
                                     value={config.security?.userPassword || ''}
                                     onChange={(e) => setConfig(prev => ({ ...prev, security: { ...prev.security, userPassword: e.target.value } }))}
-                                    placeholder="Password to open PDF"
+                                    placeholder="To open PDF (leave empty for none)"
                                     style={{
                                         width: '100%',
-                                        padding: '0.65rem',
-                                        fontSize: '0.85rem',
+                                        padding: '0.5rem',
+                                        fontSize: '0.8rem',
                                         border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '6px',
+                                        borderRadius: '4px',
                                         background: 'rgba(0,0,0,0.3)',
                                         color: '#fff',
                                         outline: 'none'
                                     }}
                                 />
-                                <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.35rem' }}>
-                                    Leave empty for no open password
-                                </div>
                             </div>
 
                             {/* Permissions */}
-                            <div style={{ marginTop: '0.5rem' }}>
-                                <h5 style={{ fontSize: '0.9rem', fontWeight: '600', color: '#fff', marginBottom: '0.75rem' }}>Permissions</h5>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                            <div>
+                                <h5 style={{ fontSize: '0.85rem', fontWeight: '600', color: '#fff', marginBottom: '0.5rem' }}>Permissions</h5>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                                     {[
                                         { key: 'allowPrinting', label: 'Printing' },
                                         { key: 'allowCopying', label: 'Copying' },
@@ -645,9 +639,9 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                                             style={{
                                                 display: 'flex',
                                                 alignItems: 'center',
-                                                gap: '0.5rem',
+                                                gap: '0.4rem',
                                                 cursor: 'pointer',
-                                                padding: '0.4rem',
+                                                padding: '0.35rem',
                                                 borderRadius: '4px',
                                                 transition: 'background 0.2s',
                                                 background: 'transparent'
@@ -660,13 +654,13 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                                                 checked={config.security?.[key] !== false}
                                                 onChange={(e) => setConfig(prev => ({ ...prev, security: { ...prev.security, [key]: e.target.checked } }))}
                                                 style={{
-                                                    width: '18px',
-                                                    height: '18px',
+                                                    width: '16px',
+                                                    height: '16px',
                                                     cursor: 'pointer',
                                                     accentColor: '#4ecdc4'
                                                 }}
                                             />
-                                            <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '500' }}>{label}</span>
+                                            <span style={{ fontSize: '0.8rem', color: '#fff', fontWeight: '500' }}>{label}</span>
                                         </label>
                                     ))}
                                 </div>

@@ -92,17 +92,17 @@ export default function Editor() {
   const handleDropElement = (type, targetId = null) => {
     if (type === 'title') {
       if (!title) setTitle({
-        props: 'Helvetica:12:000:left:0:0:0:0',
+        props: 'Helvetica:12:000:left:1:1:1:1',
         text: 'Document Title',
-        textprops: 'Helvetica:18:100:center:0:0:0:0',
+        textprops: 'Helvetica:18:100:center:1:1:1:1',
         table: {
           maxcolumns: 3,
           columnwidths: [1, 2, 1],
           rows: [{
             row: [
-              { props: 'Helvetica:12:000:left:0:0:0:0', text: '', image: null },
-              { props: 'Helvetica:18:100:center:0:0:0:0', text: 'Document Title' },
-              { props: 'Helvetica:12:000:right:0:0:0:0', text: '' }
+              { props: 'Helvetica:12:000:left:1:1:1:1', text: '', image: null },
+              { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' },
+              { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }
             ]
           }]
         }
@@ -115,9 +115,9 @@ export default function Editor() {
           type: 'table',
           maxcolumns: 3,
           rows: [
-            { row: [{ props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 1' }, { props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 2' }, { props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 3' }] },
-            { row: [{ props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 4' }, { props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 5' }, { props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 6' }] },
-            { row: [{ props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 7' }, { props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 8' }, { props: 'Helvetica:12:000:left:0:0:0:0', text: 'Cell 9' }] }
+            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] },
+            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] },
+            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] }
           ]
         }
         : type === 'image'
@@ -336,13 +336,69 @@ export default function Editor() {
   }
 
   // --- File Upload ---
-  const onLoadTemplate = (filename) => {
-    // This looks like it was intended to load from server or just parse input?
-    // Based on user request, it might just be the upload functionality or local load simulation.
-    // For now, I will assume the filename input was for server loading, but original code used file upload.
-    // Let's implement a pseudo-load or keep the file input for "Import JSON" in case.
-    // Actually the user wants "Load" button next to filename input.
-    alert(`Loading template: ${filename} (Functionality depends on backend implementation)`)
+  const onLoadTemplate = async (filename) => {
+    if (!filename || !filename.trim()) {
+      alert('Please enter a template filename')
+      return
+    }
+
+    try {
+      // Make GET request to fetch the template
+      const response = await makeAuthenticatedRequest(
+        `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        },
+        isAuthRequired() ? getAuthHeaders : null
+      )
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          triggerLogin()
+          return
+        }
+        if (response.status === 404) {
+          throw new Error(`Template "${filename}" not found`)
+        }
+        throw new Error(`Failed to load template: ${response.status}`)
+      }
+
+      const templateData = await response.json()
+      
+      // Parse and load the template data
+      const { config: newConfig, title: newTitle, elements, table, content, footer: newFooter } = templateData
+
+      setConfig(prev => ({ ...prev, ...(newConfig || {}) }))
+      setTitle(newTitle || null)
+
+      // Handle various input formats (legacy content, table, or new elements)
+      const rawComponents = elements || table || content || []
+      const processedComponents = rawComponents.map(c => {
+        // If it's the wrapped format (element.table), unwrap it
+        if (c.table) return { ...c.table, type: 'table' }
+        if (c.spacer) return { ...c.spacer, type: 'spacer' }
+        if (c.image) return { ...c.image, type: 'image' }
+        return c
+      })
+
+      setComponents(Array.isArray(processedComponents) ? processedComponents : [])
+      setFooter(newFooter || null)
+
+      // Update JSON display
+      setIsJsonEditing(false)
+      
+      // Clear selection
+      setSelectedId(null)
+      setSelectedCell(null)
+
+      alert(`Template "${filename}" loaded successfully!`)
+    } catch (error) {
+      console.error('Error loading template:', error)
+      alert(error.message || 'Failed to load template')
+    }
   }
 
   // --- Keyboard Shortcuts ---
@@ -484,29 +540,39 @@ export default function Editor() {
               )}
 
               {/* Render Elements */}
-              {allElements.map((element, index) => (
-                <ComponentItem
-                  key={element.id}
-                  element={element}
-                  index={index}
-                  isSelected={selectedId === element.id}
-                  onSelect={setSelectedId}
-                  onUpdate={(updates) => handleUpdate(element.id, updates)}
-                  onMove={handleMove}
-                  onDelete={handleDelete}
-                  canMoveUp={index > 0}
-                  canMoveDown={index < components.length - 1}
-                  selectedCell={selectedCell}
-                  onCellSelect={setSelectedCell}
-                  onDragStart={setDraggedComponentId}
-                  onDragEnd={() => setDraggedComponentId(null)}
-                  onDrop={handleDropElement}
-                  isDragging={draggedComponentId === element.id}
-                  draggedType={draggedType}
-                  handleCellDrop={handleCellDrop}
-                  currentPageSize={currentPageSize}
-                />
-              ))}
+              {allElements.map((element, index) => {
+                // Calculate the actual component index for move operations
+                let componentIndex = -1
+                if (element.type !== 'title' && element.type !== 'footer') {
+                  componentIndex = parseInt(element.id.split('-')[1])
+                }
+                const canMoveUp = componentIndex > 0
+                const canMoveDown = componentIndex >= 0 && componentIndex < components.length - 1
+                
+                return (
+                  <ComponentItem
+                    key={element.id}
+                    element={element}
+                    index={componentIndex >= 0 ? componentIndex : index}
+                    isSelected={selectedId === element.id}
+                    onSelect={setSelectedId}
+                    onUpdate={(updates) => handleUpdate(element.id, updates)}
+                    onMove={handleMove}
+                    onDelete={handleDelete}
+                    canMoveUp={canMoveUp}
+                    canMoveDown={canMoveDown}
+                    selectedCell={selectedCell}
+                    onCellSelect={setSelectedCell}
+                    onDragStart={setDraggedComponentId}
+                    onDragEnd={() => setDraggedComponentId(null)}
+                    onDrop={handleDropElement}
+                    isDragging={draggedComponentId === element.id}
+                    draggedType={draggedType}
+                    handleCellDrop={handleCellDrop}
+                    currentPageSize={currentPageSize}
+                  />
+                )
+              })}
 
               {allElements.length === 0 && (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', border: '2px dashed #eee', borderRadius: '8px', margin: '2rem' }}>
