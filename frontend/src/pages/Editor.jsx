@@ -392,7 +392,7 @@ export default function Editor() {
       <div style={{
         flex: 1,
         display: 'grid',
-        gridTemplateColumns: '300px minmax(500px, 1fr) 300px',
+        gridTemplateColumns: '280px minmax(600px, 1fr) 320px',
         gap: '1.5rem',
         padding: '0 1.5rem 1.5rem 1.5rem',
         overflow: 'hidden',
@@ -410,11 +410,11 @@ export default function Editor() {
         <div style={{
           background: 'hsl(var(--muted))',
           borderRadius: '8px',
-          padding: '2rem',
-          overflow: 'hidden', // Changed from auto to hidden to manage scroll in inner container if needed
+          padding: '1.5rem',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center', // Center horizontally
+          alignItems: 'center',
           position: 'relative',
           boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
         }}>
@@ -437,15 +437,16 @@ export default function Editor() {
             style={{
               flex: 1,
               width: '100%',
-              overflow: 'auto', // Scroll here
+              overflow: 'auto',
               display: 'flex',
               justifyContent: 'center',
+              padding: '0.5rem'
             }}
           >
             <div
               ref={canvasRef}
               style={{
-                width: `${currentPageSize.width}px`,
+                width: `${currentPageSize.width + 40}px`,
                 minHeight: `${currentPageSize.height}px`,
                 background: isDragOver ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)' : 'white',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
@@ -551,12 +552,44 @@ export default function Editor() {
           justifyContent: 'center',
           padding: '2rem'
         }} onClick={() => setShowPreviewModal(false)}>
-          <div style={{ width: '80%', height: '90%', background: 'white', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <h3>PDF Preview</h3>
-              <button onClick={() => setShowPreviewModal(false)} className="btn">Close</button>
+          <div style={{
+            width: '80%',
+            height: '90%',
+            background: 'hsl(var(--card))',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            border: '1px solid hsl(var(--border))'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, color: 'hsl(var(--foreground))' }}>PDF Preview</h3>
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: 'hsl(var(--muted))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '6px',
+                  color: 'hsl(var(--foreground))',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'hsl(var(--accent))'
+                  e.currentTarget.style.borderColor = 'hsl(var(--accent-foreground))'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'hsl(var(--muted))'
+                  e.currentTarget.style.borderColor = 'hsl(var(--border))'
+                }}
+              >
+                Close
+              </button>
             </div>
-            <div style={{ flex: 1, background: '#525659', overflow: 'hidden' }}>
+            <div style={{ flex: 1, background: '#525659', overflow: 'hidden', borderRadius: '8px' }}>
               <PdfPreview pdfUrl={pdfUrl} />
             </div>
           </div>

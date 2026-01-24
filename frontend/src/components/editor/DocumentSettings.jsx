@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react'
-import { Settings, HelpCircle, PenTool, CheckSquare, Square } from 'lucide-react'
+import { Settings, HelpCircle, PenTool, CheckSquare, Square, Lock } from 'lucide-react'
 import { PAGE_SIZES } from './constants'
 
 function PageBorderControls({ borders, onChange }) {
@@ -338,7 +338,7 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                     />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '4px', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '8px', position: 'relative' }}>
                     {showPdfTooltip && (
                         <div style={{ position: 'absolute', top: '-65px', left: '50%', transform: 'translateX(-50%)', background: 'black', color: 'white', padding: '8px', borderRadius: '6px', fontSize: '0.75rem', width: '200px', textAlign: 'center', zIndex: 100, pointerEvents: 'none' }}>
                             If the file is encrypted, it violates PDF/A compliance.
@@ -352,75 +352,328 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                         </div>
                         <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>PDF/A-4 Standard</span>
                     </div>
-                    <input
-                        type="checkbox"
-                        checked={config.pdfaCompliant !== false}
-                        onChange={(e) => setConfig(prev => ({ ...prev, pdfaCompliant: e.target.checked }))}
-                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
+                    <label style={{
+                        position: 'relative',
+                        display: 'inline-block',
+                        width: '52px',
+                        height: '28px',
+                        cursor: 'pointer'
+                    }}>
+                        <input
+                            type="checkbox"
+                            checked={config.pdfaCompliant !== false}
+                            onChange={(e) => {
+                                const isEnabled = e.target.checked
+                                if (isEnabled) {
+                                    setConfig(prev => ({ ...prev, pdfaCompliant: true, security: { ...(prev.security || {}), enabled: false } }))
+                                } else {
+                                    setConfig(prev => ({ ...prev, pdfaCompliant: false }))
+                                }
+                            }}
+                            style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+                        />
+                        <span style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: config.pdfaCompliant !== false ? '#4ecdc4' : 'hsl(var(--border))',
+                            borderRadius: '28px',
+                            transition: '0.3s',
+                            cursor: 'pointer'
+                        }}>
+                            <span style={{
+                                position: 'absolute',
+                                content: '',
+                                height: '20px',
+                                width: '20px',
+                                left: config.pdfaCompliant !== false ? '28px' : '4px',
+                                bottom: '4px',
+                                background: 'white',
+                                borderRadius: '50%',
+                                transition: '0.3s',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }} />
+                        </span>
+                    </label>
                 </div>
 
                 {/* Arlington Compatible */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'hsl(var(--foreground))' }}>Arlington Compatible</label>
                         <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>PDF 2.0 compliant fonts</span>
                     </div>
-                    <input
-                        type="checkbox"
-                        checked={config.arlingtonCompatible || false}
-                        onChange={(e) => setConfig(prev => ({ ...prev, arlingtonCompatible: e.target.checked }))}
-                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
+                    <label style={{
+                        position: 'relative',
+                        display: 'inline-block',
+                        width: '52px',
+                        height: '28px',
+                        cursor: 'pointer'
+                    }}>
+                        <input
+                            type="checkbox"
+                            checked={config.arlingtonCompatible || false}
+                            onChange={(e) => setConfig(prev => ({ ...prev, arlingtonCompatible: e.target.checked }))}
+                            style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+                        />
+                        <span style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: config.arlingtonCompatible ? '#4ecdc4' : 'hsl(var(--border))',
+                            borderRadius: '28px',
+                            transition: '0.3s',
+                            cursor: 'pointer'
+                        }}>
+                            <span style={{
+                                position: 'absolute',
+                                content: '',
+                                height: '20px',
+                                width: '20px',
+                                left: config.arlingtonCompatible ? '28px' : '4px',
+                                bottom: '4px',
+                                background: 'white',
+                                borderRadius: '50%',
+                                transition: '0.3s',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }} />
+                        </span>
+                    </label>
                 </div>
 
                 {/* Embed Standard Fonts */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'hsl(var(--foreground))' }}>Embed Standard Fonts</label>
                         <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>Embed used standard fonts</span>
                     </div>
-                    <input
-                        type="checkbox"
-                        checked={config.embedStandardFonts || false}
-                        onChange={(e) => setConfig(prev => ({ ...prev, embedStandardFonts: e.target.checked }))}
-                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
+                    <label style={{
+                        position: 'relative',
+                        display: 'inline-block',
+                        width: '52px',
+                        height: '28px',
+                        cursor: 'pointer'
+                    }}>
+                        <input
+                            type="checkbox"
+                            checked={config.embedStandardFonts || false}
+                            onChange={(e) => setConfig(prev => ({ ...prev, embedStandardFonts: e.target.checked }))}
+                            style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+                        />
+                        <span style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: config.embedStandardFonts ? '#4ecdc4' : 'hsl(var(--border))',
+                            borderRadius: '28px',
+                            transition: '0.3s',
+                            cursor: 'pointer'
+                        }}>
+                            <span style={{
+                                position: 'absolute',
+                                content: '',
+                                height: '20px',
+                                width: '20px',
+                                left: config.embedStandardFonts ? '28px' : '4px',
+                                bottom: '4px',
+                                background: 'white',
+                                borderRadius: '50%',
+                                transition: '0.3s',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }} />
+                        </span>
+                    </label>
                 </div>
 
-                {/* PDF Security */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', background: 'hsl(var(--muted))', borderRadius: '4px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'hsl(var(--foreground))' }}>
-                            <div style={{ color: 'hsl(var(--warning))' }}></div> PDF Security
+                {/* PDF Security Card */}
+                <div style={{
+                    background: config.security?.enabled ? 'hsl(217.2 32.6% 17.5%)' : 'hsl(var(--muted))',
+                    borderRadius: '12px',
+                    padding: '1.25rem',
+                    border: '1px solid hsl(var(--border))',
+                    transition: 'all 0.3s ease'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: config.security?.enabled ? '0.75rem' : '0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Lock size={18} style={{ color: config.security?.enabled ? '#4ecdc4' : 'hsl(var(--foreground))' }} />
+                            <div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: '600', color: config.security?.enabled ? '#fff' : 'hsl(var(--foreground))' }}>
+                                    PDF Security
+                                </div>
+                                {config.security?.enabled && (
+                                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '2px' }}>
+                                        Password protection & permissions
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <label style={{
+                            position: 'relative',
+                            display: 'inline-block',
+                            width: '52px',
+                            height: '28px',
+                            cursor: 'pointer'
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={config.security?.enabled || false}
+                                onChange={(e) => {
+                                    const isEnabled = e.target.checked
+                                    if (isEnabled) {
+                                        setConfig(prev => ({
+                                            ...prev,
+                                            security: {
+                                                enabled: true,
+                                                ownerPassword: '',
+                                                userPassword: '',
+                                                allowPrinting: true,
+                                                allowCopying: true,
+                                                allowModifying: true,
+                                                allowAnnotations: true,
+                                                allowFormFilling: true,
+                                                allowAccessibility: true
+                                            },
+                                            pdfaCompliant: false
+                                        }))
+                                    } else {
+                                        setConfig(prev => ({ ...prev, security: { ...prev.security, enabled: false } }))
+                                    }
+                                }}
+                                style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+                            />
+                            <span style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background: config.security?.enabled ? '#4ecdc4' : 'hsl(var(--border))',
+                                borderRadius: '28px',
+                                transition: '0.3s',
+                                cursor: 'pointer'
+                            }}>
+                                <span style={{
+                                    position: 'absolute',
+                                    content: '',
+                                    height: '20px',
+                                    width: '20px',
+                                    left: config.security?.enabled ? '28px' : '4px',
+                                    bottom: '4px',
+                                    background: 'white',
+                                    borderRadius: '50%',
+                                    transition: '0.3s',
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                }} />
+                            </span>
                         </label>
-                        <span style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>Password protection</span>
                     </div>
-                    <input
-                        type="checkbox"
-                        checked={config.security?.enabled || false}
-                        onChange={(e) => setConfig(prev => ({ ...prev, security: { ...(prev.security || {}), enabled: e.target.checked } }))}
-                        style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
+
+                    {config.security?.enabled && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+                            {/* Owner Password */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#fff', marginBottom: '0.5rem' }}>
+                                    Owner Password <span style={{ color: '#ff5f56' }}>*</span>
+                                </label>
+                                <input
+                                    type="password"
+                                    value={config.security?.ownerPassword || ''}
+                                    onChange={(e) => setConfig(prev => ({ ...prev, security: { ...prev.security, ownerPassword: e.target.value } }))}
+                                    placeholder="Required for encryption"
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.65rem',
+                                        fontSize: '0.85rem',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '6px',
+                                        background: 'rgba(0,0,0,0.3)',
+                                        color: '#fff',
+                                        outline: 'none'
+                                    }}
+                                />
+                                <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.35rem' }}>
+                                    Full access password
+                                </div>
+                            </div>
+
+                            {/* User Password */}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#fff', marginBottom: '0.5rem' }}>
+                                    User Password (Optional)
+                                </label>
+                                <input
+                                    type="password"
+                                    value={config.security?.userPassword || ''}
+                                    onChange={(e) => setConfig(prev => ({ ...prev, security: { ...prev.security, userPassword: e.target.value } }))}
+                                    placeholder="Password to open PDF"
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.65rem',
+                                        fontSize: '0.85rem',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '6px',
+                                        background: 'rgba(0,0,0,0.3)',
+                                        color: '#fff',
+                                        outline: 'none'
+                                    }}
+                                />
+                                <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.35rem' }}>
+                                    Leave empty for no open password
+                                </div>
+                            </div>
+
+                            {/* Permissions */}
+                            <div style={{ marginTop: '0.5rem' }}>
+                                <h5 style={{ fontSize: '0.9rem', fontWeight: '600', color: '#fff', marginBottom: '0.75rem' }}>Permissions</h5>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    {[
+                                        { key: 'allowPrinting', label: 'Printing' },
+                                        { key: 'allowCopying', label: 'Copying' },
+                                        { key: 'allowModifying', label: 'Modifying' },
+                                        { key: 'allowAnnotations', label: 'Annotations' },
+                                        { key: 'allowFormFilling', label: 'Form Filling' },
+                                        { key: 'allowAccessibility', label: 'Accessibility' }
+                                    ].map(({ key, label }) => (
+                                        <label
+                                            key={key}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                cursor: 'pointer',
+                                                padding: '0.4rem',
+                                                borderRadius: '4px',
+                                                transition: 'background 0.2s',
+                                                background: 'transparent'
+                                            }}
+                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={config.security?.[key] !== false}
+                                                onChange={(e) => setConfig(prev => ({ ...prev, security: { ...prev.security, [key]: e.target.checked } }))}
+                                                style={{
+                                                    width: '18px',
+                                                    height: '18px',
+                                                    cursor: 'pointer',
+                                                    accentColor: '#4ecdc4'
+                                                }}
+                                            />
+                                            <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '500' }}>{label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
-                {config.security?.enabled && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingLeft: '0.5rem', borderLeft: '2px solid hsl(var(--border))' }}>
-                        <input
-                            type="password"
-                            placeholder="Owner Password"
-                            value={config.security?.ownerPassword || ''}
-                            onChange={(e) => setConfig(prev => ({ ...prev, security: { ...prev.security, ownerPassword: e.target.value } }))}
-                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
-                        />
-                        <input
-                            type="password"
-                            placeholder="User Password"
-                            value={config.security?.userPassword || ''}
-                            onChange={(e) => setConfig(prev => ({ ...prev, security: { ...prev.security, userPassword: e.target.value } }))}
-                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
-                        />
-                    </div>
-                )}
 
                 <hr style={{ border: 'none', borderTop: '1px solid hsl(var(--border))', margin: '0' }} />
 

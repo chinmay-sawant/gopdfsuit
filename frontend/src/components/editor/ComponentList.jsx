@@ -17,21 +17,20 @@ function DraggableComponent({ type, componentData, isDragging, onDragStart, onDr
             className={`draggable-item ${isDragging === type ? 'dragging' : ''}`}
             style={{
                 display: 'flex',
-                alignItems: 'center', // Align horizontally
+                alignItems: 'center',
                 justifyContent: 'flex-start',
-                gap: '0.5rem',
-                padding: '0.4rem 0.6rem', // Reduced padding
-                paddingRight: '0.2rem', // Ensure right padding
+                gap: '0.4rem',
+                padding: '0.5rem 0.6rem',
                 background: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
-                borderRadius: '6px', // Smaller radius
+                borderRadius: '6px',
                 cursor: 'grab',
                 userSelect: 'none',
                 transition: 'all 0.1s ease',
                 opacity: isDragging === type ? 0.5 : 1,
-                height: '36px', // Fixed smaller height
+                height: '38px',
                 color: 'hsl(var(--foreground))',
-                fontSize: '0.8rem' // Smaller font
+                fontSize: '0.8rem'
             }}
         >
             <IconComponent size={16} style={{ opacity: 0.9 }} />
@@ -42,7 +41,7 @@ function DraggableComponent({ type, componentData, isDragging, onDragStart, onDr
 
 export default function ComponentList({ draggedType, setDraggedType }) {
     return (
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ flexShrink: 0, paddingRight: '0.5rem' }}>
             <h3 style={{
                 margin: '0 0 0.5rem 0',
                 fontSize: '0.85rem',
@@ -58,7 +57,7 @@ export default function ComponentList({ draggedType, setDraggedType }) {
             <div style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                gap: '0.5rem' // Reduced gap
+                gap: '0.6rem'
             }}>
                 {Object.entries(COMPONENT_TYPES).map(([type, data]) => (
                     <DraggableComponent

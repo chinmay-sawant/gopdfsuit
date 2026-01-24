@@ -141,7 +141,7 @@ body {
 }
 
 .btn:hover {
-  background: hsl(var(--accent)) brightness(0.95);
+  background: hsl(var(--muted));
   transform: translateY(-1px);
   border-color: hsl(var(--ring));
 }

@@ -77,12 +77,11 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     e.stopPropagation()
                     const startX = e.clientX
                     const cell = titleTable.rows[rowIdx].row[colIdx]
-                    const startWidth = cell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+                    const startWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
 
                     const onMouseMove = (me) => {
                         const dx = me.clientX - startX
-                        let newWidth = Math.max(50, startWidth + dx)
-                        const widthChange = newWidth - startWidth
+                        let newWidth = Math.max(30, startWidth + dx)
 
                         const newRows = [...titleTable.rows]
                         newRows[rowIdx] = {
@@ -90,14 +89,6 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                             row: newRows[rowIdx].row.map((c, idx) =>
                                 idx === colIdx ? { ...c, width: newWidth } : c
                             )
-                        }
-
-                        // Redistribute width to adjacent columns
-                        if (colIdx < titleTable.maxcolumns - 1) {
-                            const nextCell = newRows[rowIdx].row[colIdx + 1]
-                            const nextWidth = nextCell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx + 1))
-                            const newNextWidth = nextWidth - widthChange
-                            newRows[rowIdx].row[colIdx + 1] = { ...nextCell, width: Math.max(50, newNextWidth) }
                         }
 
                         onUpdate({ table: { ...titleTable, rows: newRows } })
@@ -187,7 +178,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         background: 'white',
                         overflowX: 'auto'
                     }}>
-                        <table style={{ borderCollapse: 'collapse', borderSpacing: '0', tableLayout: 'fixed', width: '100%' }}>
+                        <table style={{ borderCollapse: 'collapse', borderSpacing: '0', width: '100%' }}>
                             <tbody>
                                 {titleTable.rows?.map((row, rowIdx) => (
                                     <tr key={rowIdx} style={{ position: 'relative' }}>
@@ -195,7 +186,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             const cellStyle = getStyleFromProps(cell.props)
                                             const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
-                                            const cellWidth = cell.width || (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+                                            // Use individual cell width if set, otherwise use column-based width
+                                            const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
                                             const cellHeight = cell.height || 50
 
                                             const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
@@ -215,8 +207,6 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         padding: '4px 8px',
                                                         width: `${cellWidth}px`,
                                                         height: `${cellHeight}px`,
-                                                        minWidth: `${cellWidth}px`,
-                                                        maxWidth: `${cellWidth}px`,
                                                         minHeight: '30px',
                                                         verticalAlign: 'middle',
                                                         overflow: 'hidden',
@@ -353,22 +343,23 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         </div>
                                                     )}
 
-                                                    {/* Width resize handle */}
-                                                    {colIdx < titleTable.maxcolumns - 1 && (
-                                                        <div
-                                                            onMouseDown={(e) => handleTitleCellWidthResizeStart(e, rowIdx, colIdx)}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                right: 0,
-                                                                top: 0,
-                                                                bottom: 0,
-                                                                width: '4px',
-                                                                cursor: 'col-resize',
-                                                                background: isCellSelected ? 'rgba(25, 118, 210, 0.3)' : 'transparent'
-                                                            }}
-                                                            title="Drag to resize width"
-                                                        />
-                                                    )}
+                                                    {/* Width resize handle - show on all cells */}
+                                                    <div
+                                                        onMouseDown={(e) => handleTitleCellWidthResizeStart(e, rowIdx, colIdx)}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            right: '-2px',
+                                                            top: 0,
+                                                            bottom: 0,
+                                                            width: '6px',
+                                                            cursor: 'col-resize',
+                                                            background: isCellSelected ? 'rgba(25, 118, 210, 0.5)' : 'transparent',
+                                                            zIndex: 5
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.5)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = isCellSelected ? 'rgba(25, 118, 210, 0.5)' : 'transparent'}
+                                                        title="Drag to resize this cell width"
+                                                    />
 
                                                     {/* Height resize handle */}
                                                     <div
@@ -408,36 +399,26 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     return rawWeights[colIdx] / total
                 }
 
-                // Per-cell width resize handler
+                // Per-cell width resize handler - affects only individual cell
                 const handleCellWidthResizeStart = (e, rowIdx, colIdx) => {
                     e.preventDefault()
                     e.stopPropagation()
                     const startX = e.clientX
-
-                    // Current widths from config
-                    const currentWidths = [...(element.columnwidths || Array(element.maxcolumns).fill(1))]
-                    const totalRatio = currentWidths.reduce((sum, w) => sum + w, 0)
-
-                    // Calculate pixel mapping
-                    const pixelsPerUnit = usableWidthForTable / totalRatio
+                    const cell = element.rows[rowIdx].row[colIdx]
+                    const startWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
 
                     const onMouseMove = (me) => {
                         const dx = me.clientX - startX
-                        const dxUnits = dx / pixelsPerUnit // Convert pixels to ratio units
+                        const newWidth = Math.max(30, startWidth + dx)
 
-                        // Update current and next column
-                        if (colIdx < element.maxcolumns - 1) {
-                            const newCurrent = Math.max(0.1, currentWidths[colIdx] + dxUnits)
-                            const newNext = Math.max(0.1, currentWidths[colIdx + 1] - dxUnits)
-
-                            // Only apply if change is valid (next column doesn't vanish)
-                            if (newNext >= 0.1) {
-                                const newWidths = [...currentWidths]
-                                newWidths[colIdx] = newCurrent
-                                newWidths[colIdx + 1] = newNext
-                                onUpdate({ columnwidths: newWidths })
-                            }
+                        const newRows = [...element.rows]
+                        newRows[rowIdx] = {
+                            ...newRows[rowIdx],
+                            row: newRows[rowIdx].row.map((c, idx) =>
+                                idx === colIdx ? { ...c, width: newWidth } : c
+                            )
                         }
+                        onUpdate({ rows: newRows })
                     }
                     const onMouseUp = () => {
                         window.removeEventListener('mousemove', onMouseMove)
@@ -484,7 +465,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                 const colWeights = rawColWidths.map(w => w / totalWeight)
                 return (
                     <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto', background: 'white' }}>
-                        <table style={{ borderCollapse: 'collapse', borderSpacing: '0', tableLayout: 'fixed', width: '100%' }}>
+                        <table style={{ borderCollapse: 'collapse', borderSpacing: '0', width: '100%' }}>
                             <tbody>
                                 {element.rows?.map((row, rowIdx) => (
                                     <tr key={rowIdx} style={{ position: 'relative' }}>
@@ -492,8 +473,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             const cellStyle = getStyleFromProps(cell.props)
                                             const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
-                                            // Use column width exclusively to ensure sync with columnwidths
-                                            const cellWidth = usableWidthForTable * colWeights[colIdx]
+                                            // Use individual cell width if set, otherwise use column-based width
+                                            const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
                                             const cellHeight = cell.height || 25
 
                                             // Determine background color: selection > cell bgcolor > table bgcolor > default white
@@ -515,16 +496,13 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                 padding: '4px 8px',
                                                 width: `${cellWidth}px`,
                                                 height: `${cellHeight}px`,
-                                                minWidth: `${cellWidth}px`,
-                                                maxWidth: `${cellWidth}px`,
                                                 minHeight: '20px',
                                                 verticalAlign: 'middle',
                                                 overflow: 'hidden',
                                                 backgroundColor: cellBgColor,
                                                 cursor: 'pointer',
                                                 position: 'relative',
-                                                boxSizing: 'border-box',
-                                                flexShrink: 0
+                                                boxSizing: 'border-box'
                                             }
                                             const inputStyle = {
                                                 fontSize: cellStyle.fontSize,
@@ -691,26 +669,24 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                             style={inputStyle}
                                                         />
                                                     )}
-                                                    {/* Cell width resize handle (except last column) */}
-                                                    {colIdx < (element.maxcolumns - 1) && (
-                                                        <div
-                                                            onMouseDown={(e) => handleCellWidthResizeStart(e, rowIdx, colIdx)}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: 0,
-                                                                right: '-3px',
-                                                                width: '6px',
-                                                                height: '100%',
-                                                                cursor: 'col-resize',
-                                                                zIndex: 5,
-                                                                userSelect: 'none',
-                                                                background: 'transparent'
-                                                            }}
-                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.5)'}
-                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                            title="Drag to resize cell width"
-                                                        />
-                                                    )}
+                                                    {/* Cell width resize handle - show on all cells */}
+                                                    <div
+                                                        onMouseDown={(e) => handleCellWidthResizeStart(e, rowIdx, colIdx)}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            top: 0,
+                                                            right: '-3px',
+                                                            width: '6px',
+                                                            height: '100%',
+                                                            cursor: 'col-resize',
+                                                            zIndex: 5,
+                                                            userSelect: 'none',
+                                                            background: isCellSelected ? 'rgba(59, 130, 246, 0.3)' : 'transparent'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.5)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = isCellSelected ? 'rgba(59, 130, 246, 0.3)' : 'transparent'}
+                                                        title="Drag to resize this cell width"
+                                                    />
                                                     {/* Cell height resize handle (all cells) */}
                                                     <div
                                                         onMouseDown={(e) => handleCellHeightResizeStart(e, rowIdx, colIdx)}
