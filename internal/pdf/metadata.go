@@ -1,7 +1,6 @@
 package pdf
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -48,8 +47,14 @@ func (h *PDFAHandler) GetConformanceLevel() (part int, conformance string) {
 		return 3, "A"
 	case "3u":
 		return 3, "U"
+	case "4":
+		return 4, ""
+	case "4f":
+		return 4, "F"
+	case "4e":
+		return 4, "E"
 	default:
-		return 3, "B" // Default to PDF/A-3b
+		return 4, "" // Default to PDF/A-4
 	}
 }
 
@@ -109,7 +114,13 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	xmp.WriteString("\n")
 	xmp.WriteString(fmt.Sprintf(`      <pdfaid:part>%d</pdfaid:part>`, part))
 	xmp.WriteString("\n")
-	xmp.WriteString(fmt.Sprintf(`      <pdfaid:conformance>%s</pdfaid:conformance>`, conformance))
+	if part == 4 {
+		xmp.WriteString(`      <pdfaid:rev>2020</pdfaid:rev>`)
+		xmp.WriteString("\n")
+	} else if conformance != "" {
+		xmp.WriteString(fmt.Sprintf(`      <pdfaid:conformance>%s</pdfaid:conformance>`, conformance))
+		xmp.WriteString("\n")
+	}
 	xmp.WriteString("\n")
 	xmp.WriteString(`      <pdfuaid:part>2</pdfuaid:part>`)
 	xmp.WriteString("\n")
@@ -248,13 +259,17 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 }
 
 // GenerateOutputIntent generates the OutputIntent for PDF/A with embedded sRGB ICC profile
-func (h *PDFAHandler) GenerateOutputIntent() (int, []string) {
+func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []string) {
 	objects := make([]string, 0, 2)
 
 	// Create ICC profile object (sRGB)
 	// This is a minimal sRGB ICC profile for PDF/A compliance
-	h.iccProfileObjID = h.pageManager.NextObjectID
-	h.pageManager.NextObjectID++
+	if iccID > 0 {
+		h.iccProfileObjID = iccID
+	} else {
+		h.iccProfileObjID = h.pageManager.NextObjectID
+		h.pageManager.NextObjectID++
+	}
 
 	iccData := getSRGBICCProfile()
 	// Encrypt ICC profile stream if needed
@@ -266,8 +281,12 @@ func (h *PDFAHandler) GenerateOutputIntent() (int, []string) {
 	objects = append(objects, fmt.Sprintf("%d 0 obj\n%s", h.iccProfileObjID, iccDict))
 
 	// Create OutputIntent object
-	h.outputIntentObjID = h.pageManager.NextObjectID
-	h.pageManager.NextObjectID++
+	if outputIntentID > 0 {
+		h.outputIntentObjID = outputIntentID
+	} else {
+		h.outputIntentObjID = h.pageManager.NextObjectID
+		h.pageManager.NextObjectID++
+	}
 
 	// Encrypt string values in OutputIntent dictionary if needed
 	idStr := "(sRGB IEC61966-2.1)"
@@ -317,21 +336,10 @@ func escapeXML(s string) string {
 	return s
 }
 
-// getSRGBICCProfile returns a minimal sRGB ICC profile
-// This is a compressed minimal sRGB profile that satisfies PDF/A requirements
+// getSRGBICCProfile returns the complete sRGB ICC profile for PDF/A compliance
+// Uses the properly built profile from pdfa.go to ensure validity
 func getSRGBICCProfile() []byte {
-	// Minimal sRGB ICC profile (compressed with zlib)
-	// This is a standard sRGB color profile compressed for embedding
-	// The uncompressed size is ~3144 bytes, compressed ~2100 bytes
-	profileBase64 := `eJztlndQVFcUxt/bXVZYkN67goD0IiAgKEVRREBBBVFEqYpiIYIUJRbEQuw1llhjTex9YglqYu+xxph
-ezURjYqxJTDSZ8Sd3WTbjJGZm/nAmc+e++93z3bn3nHNvgABASIBOICIiIKAsEKCXl5dLWC8/P7+QkJCKikpgYGBAQEBAQEBgYGBQUFBISEhYWFh4eHhERERkZGR0dHRMTExsbGxcXFx8fHxCQkJiYmJSUlJycnJKSkpqampaWlp6enpGRkZmZmZWVlZ2dnZOTk5ubm5eXl5+fn5BQUFhYWFRUVFxcXFJSUlpaWlZWVl5eXlFRUVlZWVVVVV1dXVNTU1tbW1dXV19fX1DQ0NjY2NTU1Nzc3NLS0tra2tbW1t7e3tHR0dnZ2dXV1d3d3dPT09vb29fX19/fPzAwMDg4ODQ0NDw8PDIyMjo6OjY2Nj4+PjExMTk5OTU1NT09PTMzMzs7Ozc3Nz8/P7CwsKioqLi4uKSkpLS0tKysrLy8vKKiorKysqqqqra2trq6ur6+vqGhobGxsampqbm5uaWlpbW1ta2trb29vaOjo7Ozs6urq7u7u6enp7e3t6+vr7+/f2BgYHBwcGhoaHh4eGRkZHR0dGxsbHx8fGJiYnJycmpqanp6emZmZnZ2dm5ubn5+fmFhYXFxcWlpaXl5eWVlZXV1dW1tbX19fWNjY3Nzc2tra3t7e2dnZ3d3d29vb39/f0FBQVFRUXFNTU1tbW1RUVFVVVVNTU1PT09XV1dfX19TU1NXV1dbW1tfX19SUlJWVlZaWlpeXl5RUVFVVVVZWVldXV1QUFBUVFRTU1NXV1dQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFD/8B+AA2BgYGBggNFgYGFhYWFlZWVjY2NnZ+fg4ODk5OTi4uLm5ubh4eHl5eXj4+Pn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+f/k/8HfgfE`
-
-	decoded, err := base64.StdEncoding.DecodeString(profileBase64)
-	if err != nil {
-		// Return empty if decode fails
-		return []byte{}
-	}
-	return decoded
+	return GetSRGBICCProfile()
 }
 
 // GenerateCatalogExtras returns additional catalog entries for PDF/A

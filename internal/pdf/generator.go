@@ -361,11 +361,14 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pageManager.NextObjectID++
 
 	// Only reserve ICC profile and OutputIntent IDs for PDF/A mode
-	var iccProfileObjectID, outputIntentObjectID int
+	var iccProfileObjectID, outputIntentObjectID, grayICCProfileObjID int
 	if template.Config.PDFACompliant {
 		iccProfileObjectID = pageManager.NextObjectID
 		pageManager.NextObjectID++
 		outputIntentObjectID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+		// Reserve Gray ICC profile object ID for DeviceGray color space
+		grayICCProfileObjID = pageManager.NextObjectID
 		pageManager.NextObjectID++
 	}
 
@@ -507,6 +510,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Using DefaultRGB tells Adobe Acrobat that DeviceRGB colors are already in sRGB
 	// This prevents the double color conversion that makes colors appear pale
 	// IMPORTANT: Use pdfaHandler's ICC profile ID when available, as it creates its own objects
+	// PDF/A-4 requires both DefaultRGB and DefaultGray ICC-based color spaces
 	colorSpaceRefs := ""
 	if template.Config.PDFACompliant {
 		actualICCObjID := iccProfileObjectID
@@ -514,7 +518,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			actualICCObjID = pdfaHandler.GetICCProfileObjID()
 		}
 		if actualICCObjID > 0 {
-			colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] >>", actualICCObjID)
+			// Include both DefaultRGB and DefaultGray for full PDF/A-4 compliance
+			colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] /DefaultGray [/ICCBased %d 0 R] >>", actualICCObjID, grayICCProfileObjID)
 		}
 	}
 
@@ -718,12 +723,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", metadataObjectID, metadataContent))
 
 		// Generate OutputIntent with ICC profile
-		outputIntentObjID, outputIntentObjs := pdfaHandler.GenerateOutputIntent()
-		iccObjID := pdfaHandler.GetICCProfileObjID()
+		// Use pre-reserved IDs to ensure consistency with Catalog/References
+		_, outputIntentObjs := pdfaHandler.GenerateOutputIntent(iccProfileObjectID, outputIntentObjectID)
 
 		// Write ICC profile object (with stream)
 		if len(outputIntentObjs) > 0 {
-			xrefOffsets[iccObjID] = pdfBuffer.Len()
+			xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
 			// ICC profile needs raw data appended
 			iccData := getSRGBICCProfile()
 			pdfBuffer.WriteString(outputIntentObjs[0])
@@ -731,9 +736,15 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			pdfBuffer.WriteString("\nendstream\nendobj\n")
 		}
 
+		// Write Gray ICC profile object for DeviceGray color space compliance
+		if grayICCProfileObjID > 0 {
+			xrefOffsets[grayICCProfileObjID] = pdfBuffer.Len()
+			pdfBuffer.Write(GenerateGrayICCProfileObject(grayICCProfileObjID, encryptor))
+		}
+
 		// Write OutputIntent object
 		if len(outputIntentObjs) > 1 {
-			xrefOffsets[outputIntentObjID] = pdfBuffer.Len()
+			xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
 			pdfBuffer.WriteString(outputIntentObjs[1])
 			pdfBuffer.WriteString("\n")
 		}
@@ -808,6 +819,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		if template.Config.PDFACompliant {
 			xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
 			pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID, encryptor))
+
+			// Write Gray ICC profile object for DeviceGray color space compliance
+			if grayICCProfileObjID > 0 {
+				xrefOffsets[grayICCProfileObjID] = pdfBuffer.Len()
+				pdfBuffer.Write(GenerateGrayICCProfileObject(grayICCProfileObjID, encryptor))
+			}
 
 			xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
 			pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID, encryptor))
