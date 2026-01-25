@@ -569,6 +569,18 @@ select:focus {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Pulse border for drop zones */
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: hsl(var(--accent));
+    box-shadow: 0 0 0 0 hsl(var(--accent) / 0.4);
+  }
+  50% {
+    border-color: hsl(var(--accent) / 0.7);
+    box-shadow: 0 0 0 4px hsl(var(--accent) / 0);
+  }
+}
+
 /* Bounce animation */
 @keyframes bounce {
 
@@ -985,6 +997,23 @@ select:focus {
 
 .stagger-animation {
   opacity: 0;
+}
+
+/* Smooth component reordering */
+.component-item-wrapper {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.component-item-wrapper.dragging {
+  opacity: 0.4;
+  transform: scale(0.98) rotate(1deg);
+  filter: blur(1px);
+}
+
+/* Enhanced drop target highlighting */
+.drop-zone-active {
+  animation: pulse-border 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .stagger-animation.visible {

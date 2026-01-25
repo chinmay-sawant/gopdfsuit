@@ -829,42 +829,57 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                 cursor: 'pointer',
                 background: isSelected && element.type !== 'table' ? 'hsl(var(--accent) / 0.15)' : 'transparent',
                 boxShadow: isSelected && element.type === 'table' ? '0 0 0 2px dashed hsl(var(--ring))' : 'none',
-                transition: 'all 0.2s ease',
-                opacity: isDragging ? 0.5 : 1
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                opacity: isDragging ? 0.4 : 1,
+                transform: isDragging ? 'scale(0.98) rotate(1deg)' : 'scale(1) rotate(0deg)',
+                filter: isDragging ? 'blur(1px)' : 'none'
             }}
         >
             {/* Drag Handle - Only this should be draggable */}
             {isSelected && (
                 <div style={{
                     position: 'absolute',
-                    left: '-25px',
+                    left: '-50px',
                     top: '50%',
-                    transform: 'translateY(-50%)',
+                    transform: isDragging ? 'translateY(-50%) scale(1.1)' : 'translateY(-50%) scale(1)',
                     cursor: isDragging ? 'grabbing' : 'grab',
-                    padding: '4px',
+                    padding: '6px',
                     background: isDragging ? 'hsl(var(--accent))' : 'hsl(var(--muted))',
-                    borderRadius: '4px',
-                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px',
+                    border: isDragging ? '2px solid hsl(var(--accent))' : '1px solid hsl(var(--border))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     zIndex: 5,
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    boxShadow: isDragging ? '0 4px 12px rgba(0, 0, 0, 0.15)' : '0 2px 4px rgba(0, 0, 0, 0.05)'
                 }}
                     draggable
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
+                    onMouseEnter={(e) => {
+                        if (!isDragging) {
+                            e.currentTarget.style.background = 'hsl(var(--accent) / 0.3)'
+                            e.currentTarget.style.transform = 'translateY(-50%) scale(1.05)'
+                        }
+                    }}
+                    onMouseLeave={(e) => {
+                        if (!isDragging) {
+                            e.currentTarget.style.background = 'hsl(var(--muted))'
+                            e.currentTarget.style.transform = 'translateY(-50%) scale(1)'
+                        }
+                    }}
                     title="Drag to reorder"
                 >
-                    <GripVertical size={16} style={{ color: 'hsl(var(--foreground))' }} />
+                    <GripVertical size={16} style={{ color: isDragging ? 'hsl(var(--accent-foreground))' : 'hsl(var(--foreground))', transition: 'color 0.2s ease' }} />
                 </div>
             )}
             {isSelected && (
                 <div style={{
                     position: 'absolute',
-                    top: '-35px',
+                    top: '-40px',
                     right: '0',
                     display: 'flex',
                     gap: '4px',

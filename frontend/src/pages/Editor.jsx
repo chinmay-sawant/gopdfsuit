@@ -626,7 +626,7 @@ export default function Editor() {
           borderRadius: '8px',
           padding: '1.5rem',
           overflowY: 'auto',
-          overflowX: 'hidden',
+          overflowX: 'visible',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -653,30 +653,28 @@ export default function Editor() {
               width: '100%',
               display: 'flex',
               justifyContent: 'center',
-              padding: '2rem 0.5rem',
+              padding: '2rem 0.5rem 2rem 70px',
               background: 'hsl(var(--muted) / 0.3)'
             }}
           >
             <div
               ref={canvasRef}
               style={{
-                width: `${currentPageSize.width + 40}px`,
+                width: `${currentPageSize.width}px`,
                 minHeight: `${currentPageSize.height}px`,
                 // Auto height allows content to push it down, min-height ensures at least one page
                 height: 'auto',
                 background: isDragOver ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)' : 'white',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                 padding: `${MARGIN}px`,
-                // Add left padding for drag handles
-                paddingLeft: `${MARGIN + 30}px`,
                 // Ensure there is space at bottom for comfortable editing
                 paddingBottom: `${MARGIN + 50}px`,
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0px',
-                border: isDragOver ? '2px dashed var(--secondary-color)' : '1px solid #e5e5e5',
-                transition: 'all 0.2s ease',
+                border: isDragOver ? '2px dashed hsl(var(--accent))' : '1px solid #e5e5e5',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 color: '#000'
               }}
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
@@ -745,24 +743,33 @@ export default function Editor() {
                               margin: '2px 0',
                               background: 'transparent',
                               position: 'relative',
-                              transition: 'all 0.2s ease'
+                              transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                              overflow: 'hidden'
                             }}
                             onDragOver={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
-                              e.currentTarget.style.height = '40px'
-                              e.currentTarget.style.background = 'hsl(var(--accent) / 0.2)'
+                              e.currentTarget.style.height = '48px'
+                              e.currentTarget.style.background = 'linear-gradient(90deg, hsl(var(--accent) / 0.1) 0%, hsl(var(--accent) / 0.25) 50%, hsl(var(--accent) / 0.1) 100%)'
                               e.currentTarget.style.border = '2px dashed hsl(var(--accent))'
-                              e.currentTarget.style.borderRadius = '4px'
+                              e.currentTarget.style.borderRadius = '8px'
+                              e.currentTarget.style.boxShadow = '0 4px 12px hsl(var(--accent) / 0.2)'
                               const textEl = e.currentTarget.querySelector('div')
-                              if (textEl) textEl.style.opacity = '1'
+                              if (textEl) {
+                                textEl.style.opacity = '1'
+                                textEl.style.transform = 'translate(-50%, -50%) scale(1)'
+                              }
                             }}
                             onDragLeave={(e) => {
                               e.currentTarget.style.height = '4px'
                               e.currentTarget.style.background = 'transparent'
                               e.currentTarget.style.border = 'none'
+                              e.currentTarget.style.boxShadow = 'none'
                               const textEl = e.currentTarget.querySelector('div')
-                              if (textEl) textEl.style.opacity = '0'
+                              if (textEl) {
+                                textEl.style.opacity = '0'
+                                textEl.style.transform = 'translate(-50%, -50%) scale(0.9)'
+                              }
                             }}
                             onDrop={(e) => {
                               e.preventDefault()
@@ -786,14 +793,17 @@ export default function Editor() {
                               position: 'absolute',
                               top: '50%',
                               left: '50%',
-                              transform: 'translate(-50%, -50%)',
-                              fontSize: '11px',
-                              color: 'hsl(var(--muted-foreground))',
+                              transform: 'translate(-50%, -50%) scale(0.9)',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: 'hsl(var(--accent))',
                               opacity: 0,
                               pointerEvents: 'none',
-                              whiteSpace: 'nowrap'
+                              whiteSpace: 'nowrap',
+                              transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                              textShadow: '0 1px 2px rgba(0,0,0,0.1)'
                             }}>
-                              Drop here to insert
+                              📍 Drop here to insert
                             </div>
                           </div>
                         )}
@@ -828,24 +838,33 @@ export default function Editor() {
                               margin: '2px 0',
                               background: 'transparent',
                               position: 'relative',
-                              transition: 'all 0.2s ease'
+                              transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                              overflow: 'hidden'
                             }}
                             onDragOver={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
-                              e.currentTarget.style.height = '40px'
-                              e.currentTarget.style.background = 'hsl(var(--accent) / 0.2)'
+                              e.currentTarget.style.height = '48px'
+                              e.currentTarget.style.background = 'linear-gradient(90deg, hsl(var(--accent) / 0.1) 0%, hsl(var(--accent) / 0.25) 50%, hsl(var(--accent) / 0.1) 100%)'
                               e.currentTarget.style.border = '2px dashed hsl(var(--accent))'
-                              e.currentTarget.style.borderRadius = '4px'
+                              e.currentTarget.style.borderRadius = '8px'
+                              e.currentTarget.style.boxShadow = '0 4px 12px hsl(var(--accent) / 0.2)'
                               const textEl = e.currentTarget.querySelector('div')
-                              if (textEl) textEl.style.opacity = '1'
+                              if (textEl) {
+                                textEl.style.opacity = '1'
+                                textEl.style.transform = 'translate(-50%, -50%) scale(1)'
+                              }
                             }}
                             onDragLeave={(e) => {
                               e.currentTarget.style.height = '4px'
                               e.currentTarget.style.background = 'transparent'
                               e.currentTarget.style.border = 'none'
+                              e.currentTarget.style.boxShadow = 'none'
                               const textEl = e.currentTarget.querySelector('div')
-                              if (textEl) textEl.style.opacity = '0'
+                              if (textEl) {
+                                textEl.style.opacity = '0'
+                                textEl.style.transform = 'translate(-50%, -50%) scale(0.9)'
+                              }
                             }}
                             onDrop={(e) => {
                               e.preventDefault()
@@ -877,14 +896,17 @@ export default function Editor() {
                               position: 'absolute',
                               top: '50%',
                               left: '50%',
-                              transform: 'translate(-50%, -50%)',
-                              fontSize: '11px',
-                              color: 'hsl(var(--muted-foreground))',
+                              transform: 'translate(-50%, -50%) scale(0.9)',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: 'hsl(var(--accent))',
                               opacity: 0,
                               pointerEvents: 'none',
-                              whiteSpace: 'nowrap'
+                              whiteSpace: 'nowrap',
+                              transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                              textShadow: '0 1px 2px rgba(0,0,0,0.1)'
                             }}>
-                              Drop here to add at end
+                              📍 Drop here to add at end
                             </div>
                           </div>
                         )}
