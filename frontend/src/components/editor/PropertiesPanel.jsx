@@ -159,8 +159,43 @@ function PropsEditor({ props, onChange, fonts = DEFAULT_FONTS, showAlignment = t
     )
 }
 
-export default function PropertiesPanel({ selectedElement, selectedCell, selectedCellElement, updateElement, deleteElement, setSelectedCell, fonts }) {
+export default function PropertiesPanel({ selectedElement, selectedCell, selectedCellElement, updateElement, deleteElement, setSelectedCell, fonts, bookmarks, setBookmarks }) {
     const [showColorPicker, setShowColorPicker] = useState(null)
+
+    // Helper function to find and update bookmark dest recursively
+    const updateBookmarkDest = (bookmarkList, oldDest, newDest) => {
+        if (!bookmarkList) return null
+        return bookmarkList.map(bookmark => {
+            const updated = { ...bookmark }
+            if (bookmark.dest === oldDest) {
+                if (newDest) {
+                    updated.dest = newDest
+                } else {
+                    delete updated.dest
+                }
+            }
+            if (bookmark.children) {
+                updated.children = updateBookmarkDest(bookmark.children, oldDest, newDest)
+            }
+            return updated
+        })
+    }
+
+    // Helper to get all destinations from bookmarks (including children)
+    const getAllDestinations = (bookmarkList, result = []) => {
+        if (!bookmarkList) return result
+        bookmarkList.forEach(bookmark => {
+            if (bookmark.dest) {
+                result.push({ dest: bookmark.dest, title: bookmark.title })
+            }
+            if (bookmark.children) {
+                getAllDestinations(bookmark.children, result)
+            }
+        })
+        return result
+    }
+
+    const existingDestinations = getAllDestinations(bookmarks)
 
     if (!selectedElement) {
         return (
@@ -950,18 +985,50 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 {/* Destination ID (dest) for bookmark target */}
                                 <div style={{ marginTop: '0.5rem' }}>
                                     <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Destination ID (dest):</label>
-                                    <input
-                                        type="text"
-                                        value={selectedCellElement.dest || ''}
-                                        onChange={(e) => {
-                                            const newRows = [...selectedElement.rows]
-                                            const val = e.target.value || undefined
-                                            newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], dest: val }
-                                            updateElement(selectedElement.id, { rows: newRows })
-                                        }}
-                                        placeholder="e.g., financial-summary"
-                                        style={{ width: '100%', padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
-                                    />
+                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                        <input
+                                            type="text"
+                                            value={selectedCellElement.dest || ''}
+                                            onChange={(e) => {
+                                                const oldDest = selectedCellElement.dest
+                                                const newDest = e.target.value || undefined
+                                                const newRows = [...selectedElement.rows]
+                                                newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], dest: newDest }
+                                                updateElement(selectedElement.id, { rows: newRows })
+                                                
+                                                // Sync with bookmarks if the old dest was referenced
+                                                if (oldDest && setBookmarks && bookmarks) {
+                                                    const updatedBookmarks = updateBookmarkDest(bookmarks, oldDest, newDest)
+                                                    setBookmarks(updatedBookmarks)
+                                                }
+                                            }}
+                                            placeholder="e.g., financial-summary"
+                                            style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                                        />
+                                        {existingDestinations.length > 0 && !selectedCellElement.dest && (
+                                            <select
+                                                value=""
+                                                onChange={(e) => {
+                                                    if (e.target.value) {
+                                                        const newRows = [...selectedElement.rows]
+                                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], dest: e.target.value }
+                                                        updateElement(selectedElement.id, { rows: newRows })
+                                                    }
+                                                }}
+                                                style={{ padding: '0.4rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                                            >
+                                                <option value="">Select...</option>
+                                                {existingDestinations.map(({ dest, title }) => (
+                                                    <option key={dest} value={dest}>📑 {title} → {dest}</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                    {selectedCellElement.dest && existingDestinations.find(d => d.dest === selectedCellElement.dest) && (
+                                        <div style={{ fontSize: '0.7rem', color: '#22c55e', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            ✓ Linked to bookmark: "{existingDestinations.find(d => d.dest === selectedCellElement.dest)?.title}"
+                                        </div>
+                                    )}
                                     <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
                                         ID used as bookmark target for internal links
                                     </div>
@@ -1325,6 +1392,212 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                     </>
                 )}
             </div>
+
+            {/* Bookmark Editor Section */}
+            {setBookmarks && (
+                <div className="card" style={{
+                    marginTop: '1rem',
+                    padding: '0.75rem',
+                    background: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                }}>
+                    <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: '600', color: 'hsl(var(--foreground))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        📑 Bookmarks ({bookmarks?.length || 0})
+                    </h4>
+                    
+                    {(!bookmarks || bookmarks.length === 0) ? (
+                        <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', textAlign: 'center', padding: '1rem 0' }}>
+                            No bookmarks defined
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {bookmarks.map((bookmark, idx) => (
+                                <BookmarkItem
+                                    key={idx}
+                                    bookmark={bookmark}
+                                    index={idx}
+                                    depth={0}
+                                    bookmarks={bookmarks}
+                                    setBookmarks={setBookmarks}
+                                />
+                            ))}
+                        </div>
+                    )}
+                    
+                    <button
+                        onClick={() => {
+                            const newBookmark = { title: 'New Bookmark', page: 1 }
+                            setBookmarks([...(bookmarks || []), newBookmark])
+                        }}
+                        style={{
+                            marginTop: '0.75rem',
+                            width: '100%',
+                            padding: '0.5rem',
+                            fontSize: '0.8rem',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '4px',
+                            background: 'hsl(var(--secondary))',
+                            color: 'hsl(var(--foreground))',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        + Add Bookmark
+                    </button>
+                </div>
+            )}
+        </div>
+    )
+}
+
+// BookmarkItem component for recursive bookmark tree rendering
+function BookmarkItem({ bookmark, index, depth, bookmarks, setBookmarks, parentPath = [] }) {
+    const [isExpanded, setIsExpanded] = useState(true)
+    const [isEditing, setIsEditing] = useState(false)
+    
+    const path = [...parentPath, index]
+    
+    const updateBookmark = (updates) => {
+        const newBookmarks = JSON.parse(JSON.stringify(bookmarks))
+        let target = newBookmarks
+        for (let i = 0; i < path.length - 1; i++) {
+            target = target[path[i]].children
+        }
+        target[path[path.length - 1]] = { ...target[path[path.length - 1]], ...updates }
+        setBookmarks(newBookmarks)
+    }
+    
+    const deleteBookmark = () => {
+        const newBookmarks = JSON.parse(JSON.stringify(bookmarks))
+        let target = newBookmarks
+        let parent = null
+        for (let i = 0; i < path.length - 1; i++) {
+            parent = target[path[i]]
+            target = target[path[i]].children
+        }
+        target.splice(path[path.length - 1], 1)
+        // Clean up empty children arrays
+        if (parent && target.length === 0) {
+            delete parent.children
+        }
+        setBookmarks(newBookmarks)
+    }
+    
+    const addChild = () => {
+        const newBookmarks = JSON.parse(JSON.stringify(bookmarks))
+        let target = newBookmarks
+        for (let i = 0; i < path.length - 1; i++) {
+            target = target[path[i]].children
+        }
+        const currentBookmark = target[path[path.length - 1]]
+        if (!currentBookmark.children) {
+            currentBookmark.children = []
+        }
+        currentBookmark.children.push({ title: 'New Child', page: bookmark.page || 1 })
+        setBookmarks(newBookmarks)
+    }
+    
+    return (
+        <div style={{ marginLeft: depth * 16 }}>
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.4rem',
+                background: 'hsl(var(--muted))',
+                borderRadius: '4px',
+                fontSize: '0.8rem'
+            }}>
+                {bookmark.children && bookmark.children.length > 0 && (
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'hsl(var(--foreground))' }}
+                    >
+                        {isExpanded ? '▼' : '▶'}
+                    </button>
+                )}
+                
+                {isEditing ? (
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        <input
+                            type="text"
+                            value={bookmark.title}
+                            onChange={(e) => updateBookmark({ title: e.target.value })}
+                            placeholder="Title"
+                            style={{ padding: '0.25rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '3px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                        />
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                            <input
+                                type="number"
+                                value={bookmark.page || 1}
+                                onChange={(e) => updateBookmark({ page: parseInt(e.target.value) || 1 })}
+                                placeholder="Page"
+                                min="1"
+                                style={{ width: '60px', padding: '0.25rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '3px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                            />
+                            <input
+                                type="text"
+                                value={bookmark.dest || ''}
+                                onChange={(e) => updateBookmark({ dest: e.target.value || undefined })}
+                                placeholder="Dest ID"
+                                style={{ flex: 1, padding: '0.25rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '3px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                            />
+                        </div>
+                        <button
+                            onClick={() => setIsEditing(false)}
+                            style={{ padding: '0.25rem', fontSize: '0.7rem', background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                        >
+                            Done
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <span style={{ flex: 1, color: 'hsl(var(--foreground))' }}>
+                            {bookmark.title}
+                            <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>
+                                (p.{bookmark.page}{bookmark.dest ? ` → #${bookmark.dest}` : ''})
+                            </span>
+                        </span>
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem', fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}
+                            title="Edit"
+                        >
+                            ✏️
+                        </button>
+                        <button
+                            onClick={addChild}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem', fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}
+                            title="Add child"
+                        >
+                            +
+                        </button>
+                        <button
+                            onClick={deleteBookmark}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.15rem', fontSize: '0.7rem', color: 'hsl(var(--destructive))' }}
+                            title="Delete"
+                        >
+                            ✕
+                        </button>
+                    </>
+                )}
+            </div>
+            
+            {isExpanded && bookmark.children && bookmark.children.length > 0 && (
+                <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    {bookmark.children.map((child, childIdx) => (
+                        <BookmarkItem
+                            key={childIdx}
+                            bookmark={child}
+                            index={childIdx}
+                            depth={depth + 1}
+                            bookmarks={bookmarks}
+                            setBookmarks={setBookmarks}
+                            parentPath={path}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     )
 }

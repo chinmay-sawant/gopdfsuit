@@ -961,6 +961,8 @@ export default function Editor() {
             setSelectedCell={setSelectedCell}
             currentPageSize={currentPageSize}
             fonts={fonts}
+            bookmarks={bookmarks}
+            setBookmarks={setBookmarks}
           />
           <JsonTemplate
             jsonText={jsonText}

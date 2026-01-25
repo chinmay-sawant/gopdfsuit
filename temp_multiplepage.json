@@ -203,7 +203,8 @@
                 "props": "Helvetica:12:100:left:1:1:1:1",
                 "text": "SECTION B: FINANCIAL SUMMARY",
                 "bgcolor": "#21618C",
-                "textcolor": "#FFFFFF"
+                "textcolor": "#FFFFFF",
+                "dest": "financial-summary"
               }
             ]
           }
@@ -455,7 +456,8 @@
                 "props": "Helvetica:12:100:left:1:1:1:1",
                 "text": "SECTION C: CHARTS",
                 "bgcolor": "#21618C",
-                "textcolor": "#FFFFFF"
+                "textcolor": "#FFFFFF",
+                "dest": "charts-section"
               }
             ]
           }
