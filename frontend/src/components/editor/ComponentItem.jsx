@@ -37,6 +37,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
         e.preventDefault()
         const draggedId = e.dataTransfer.getData('text/plain')
         if (draggedId !== element.id) {
+            // Pass both draggedId and targetId for reordering logic
             onDrop(draggedId, element.id)
         }
     }
@@ -184,7 +185,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                     <tr key={rowIdx} style={{ position: 'relative' }}>
                                         {row.row?.map((cell, colIdx) => {
                                             const cellStyle = getStyleFromProps(cell.props)
-                                            const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
+                                            // Fix: Check elementId to prevent highlighting title when other tables are selected
+                                            const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
                                             // Use individual cell width if set, otherwise use column-based width
                                             const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
@@ -838,15 +840,16 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     left: '-25px',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    cursor: 'grab',
+                    cursor: isDragging ? 'grabbing' : 'grab',
                     padding: '4px',
-                    background: 'hsl(var(--muted))',
+                    background: isDragging ? 'hsl(var(--accent))' : 'hsl(var(--muted))',
                     borderRadius: '4px',
                     border: '1px solid hsl(var(--border))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    zIndex: 5
+                    zIndex: 5,
+                    transition: 'all 0.2s ease'
                 }}
                     draggable
                     onDragStart={handleDragStart}

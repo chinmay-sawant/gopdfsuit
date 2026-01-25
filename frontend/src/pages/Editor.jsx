@@ -209,6 +209,40 @@ export default function Editor() {
     setComponents(newComponents)
   }
 
+  // Handle drag and drop reordering of components
+  const handleReorder = (draggedId, targetId) => {
+    // Check if draggedId is an existing component (not a new component type)
+    if (COMPONENT_TYPES[draggedId]) {
+      // This is a new component being dropped, use existing handleDropElement
+      handleDropElement(draggedId, targetId)
+      return
+    }
+
+    // This is an existing component being reordered
+    if (draggedId === 'title' || draggedId === 'footer' || targetId === 'title' || targetId === 'footer') {
+      // Don't allow reordering title/footer for now
+      return
+    }
+
+    // Get indices from IDs
+    const draggedIndex = parseInt(draggedId.split('-')[1])
+    const targetIndex = parseInt(targetId.split('-')[1])
+
+    if (isNaN(draggedIndex) || isNaN(targetIndex) || draggedIndex === targetIndex) {
+      return
+    }
+
+    // Reorder the components array
+    const newComponents = [...components]
+    const [draggedComponent] = newComponents.splice(draggedIndex, 1)
+    newComponents.splice(targetIndex, 0, draggedComponent)
+    setComponents(newComponents)
+
+    // Update selection to follow the dragged component
+    const newId = `${draggedComponent.type}-${targetIndex}`
+    setSelectedId(newId)
+  }
+
   // --- JSON Handling ---
   const [jsonText, setJsonText] = useState('')
   const [isJsonEditing, setIsJsonEditing] = useState(false)
@@ -739,8 +773,12 @@ export default function Editor() {
                               const textEl = e.currentTarget.querySelector('div')
                               if (textEl) textEl.style.opacity = '0'
                               const type = e.dataTransfer.getData('text/plain')
+                              // Check if it's a new component or existing component being reordered
                               if (COMPONENT_TYPES[type]) {
                                 handleDropElement(type, element.id)
+                              } else {
+                                // It's an existing component ID, handle reordering
+                                handleReorder(type, element.id)
                               }
                             }}
                           >
@@ -774,7 +812,7 @@ export default function Editor() {
                           onCellSelect={setSelectedCell}
                           onDragStart={setDraggedComponentId}
                           onDragEnd={() => setDraggedComponentId(null)}
-                          onDrop={(type) => handleDropElement(type, element.id)}
+                          onDrop={(draggedId, targetId) => handleReorder(draggedId, targetId)}
                           isDragging={draggedComponentId === element.id}
                           draggedType={draggedType}
                           handleCellDrop={handleCellDrop}
@@ -818,8 +856,20 @@ export default function Editor() {
                               const textEl = e.currentTarget.querySelector('div')
                               if (textEl) textEl.style.opacity = '0'
                               const type = e.dataTransfer.getData('text/plain')
+                              // Check if it's a new component or existing component being reordered
                               if (COMPONENT_TYPES[type]) {
                                 handleDropElement(type, null) // null means append at end
+                              } else {
+                                // It's an existing component ID, move it to the end
+                                const draggedIndex = parseInt(type.split('-')[1])
+                                if (!isNaN(draggedIndex)) {
+                                  const newComponents = [...components]
+                                  const [draggedComponent] = newComponents.splice(draggedIndex, 1)
+                                  newComponents.push(draggedComponent)
+                                  setComponents(newComponents)
+                                  const newId = `${draggedComponent.type}-${newComponents.length - 1}`
+                                  setSelectedId(newId)
+                                }
                               }
                             }}
                           >
