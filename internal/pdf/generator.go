@@ -724,15 +724,14 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 		// Generate OutputIntent with ICC profile
 		// Use pre-reserved IDs to ensure consistency with Catalog/References
-		_, outputIntentObjs := pdfaHandler.GenerateOutputIntent(iccProfileObjectID, outputIntentObjectID)
+		_, outputIntentObjs, compressedICCData := pdfaHandler.GenerateOutputIntent(iccProfileObjectID, outputIntentObjectID)
 
 		// Write ICC profile object (with stream)
 		if len(outputIntentObjs) > 0 {
 			xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
-			// ICC profile needs raw data appended
-			iccData := getSRGBICCProfile()
+			// Write ICC profile dictionary header and compressed data
 			pdfBuffer.WriteString(outputIntentObjs[0])
-			pdfBuffer.Write(iccData)
+			pdfBuffer.Write(compressedICCData)
 			pdfBuffer.WriteString("\nendstream\nendobj\n")
 		}
 

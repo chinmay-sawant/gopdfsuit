@@ -1,6 +1,8 @@
 package pdf
 
 import (
+	"bytes"
+	"compress/zlib"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -259,7 +261,8 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 }
 
 // GenerateOutputIntent generates the OutputIntent for PDF/A with embedded sRGB ICC profile
-func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []string) {
+// Returns (outputIntentObjID, []strings of objects, compressedICCData)
+func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []string, []byte) {
 	objects := make([]string, 0, 2)
 
 	// Create ICC profile object (sRGB)
@@ -272,12 +275,20 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	}
 
 	iccData := getSRGBICCProfile()
-	// Encrypt ICC profile stream if needed
+
+	// Compress the ICC profile with zlib (FlateDecode)
+	var compressedBuf bytes.Buffer
+	zlibWriter := zlib.NewWriter(&compressedBuf)
+	zlibWriter.Write(iccData)
+	zlibWriter.Close()
+	compressedData := compressedBuf.Bytes()
+
+	// Encrypt compressed ICC profile stream if needed
 	if h.encryptor != nil {
-		iccData = h.encryptor.EncryptStream(iccData, h.iccProfileObjID, 0)
+		compressedData = h.encryptor.EncryptStream(compressedData, h.iccProfileObjID, 0)
 	}
 
-	iccDict := fmt.Sprintf("<< /N 3 /Length %d /Filter /FlateDecode >>\nstream\n", len(iccData))
+	iccDict := fmt.Sprintf("<< /N 3 /Length %d /Filter /FlateDecode /Alternate /DeviceRGB >>\nstream\n", len(compressedData))
 	objects = append(objects, fmt.Sprintf("%d 0 obj\n%s", h.iccProfileObjID, iccDict))
 
 	// Create OutputIntent object
@@ -308,7 +319,7 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 		idStr, regStr, infoStr, h.iccProfileObjID)
 	objects = append(objects, fmt.Sprintf("%d 0 obj\n%s\nendobj", h.outputIntentObjID, outputIntentDict))
 
-	return h.outputIntentObjID, objects
+	return h.outputIntentObjID, objects, compressedData
 }
 
 // GetMetadataObjID returns the metadata object ID
