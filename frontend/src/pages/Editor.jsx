@@ -83,7 +83,7 @@ export default function Editor() {
   }, [title, components, footer])
 
   const selectedElement = allElements.find(el => el.id === selectedId) || null
-  const selectedCellElement = selectedElement && selectedCell && selectedElement.type === 'table'
+  const selectedCellElement = selectedElement && selectedCell && selectedElement.type === 'table' && selectedCell.elementId === selectedId
     ? selectedElement.rows[selectedCell.rowIdx].row[selectedCell.colIdx]
     : null
 
@@ -166,7 +166,7 @@ export default function Editor() {
     }
   }
 
-  const handleCellDrop = (element, onUpdate, rowIdx, colIdx, type) => {
+  const handleCellDrop = (element, elementId, onUpdate, rowIdx, colIdx, type) => {
     const defaultProps = 'Helvetica:12:000:left:0:0:0:0'
     const newRows = [...element.rows]
     const currentCell = newRows[rowIdx].row[colIdx]
@@ -507,8 +507,16 @@ export default function Editor() {
       fontFamily: getFontFamily('Helvetica'),
       overflow: 'hidden'
     }}>
-      {/* Header / Toolbar */}
-      <div style={{ padding: '0 1.5rem', paddingTop: '1rem' }}>
+      {/* Header / Toolbar - Fixed Position */}
+      <div className="sticky-header" style={{ 
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        background: 'hsl(var(--background))',
+        borderBottom: '1px solid hsl(var(--border))',
+        padding: '0.75rem 1rem',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
         <Toolbar
           theme={theme}
           setTheme={setTheme}
@@ -519,18 +527,56 @@ export default function Editor() {
           templateInput={templateInput}
           setTemplateInput={setTemplateInput}
           copiedId={copiedId}
+          elementCount={allElements.length}
+          pageSize={config.page}
+          onUploadFont={async (file) => {
+            try {
+              const formData = new FormData()
+              formData.append('font', file)
+              const response = await makeAuthenticatedRequest(
+                '/api/v1/fonts',
+                {
+                  method: 'POST',
+                  body: formData
+                },
+                isAuthRequired() ? getAuthHeaders : null
+              )
+              if (response.ok) {
+                const data = await response.json()
+                alert(`Font "${data.name}" uploaded successfully!`)
+                // Refresh fonts list
+                const fontsResponse = await makeAuthenticatedRequest(
+                  '/api/v1/fonts',
+                  {},
+                  isAuthRequired() ? getAuthHeaders : null
+                )
+                if (fontsResponse.ok) {
+                  const fontsData = await fontsResponse.json()
+                  if (fontsData.fonts && Array.isArray(fontsData.fonts)) {
+                    setFonts(fontsData.fonts)
+                  }
+                }
+              } else {
+                const error = await response.json()
+                alert(`Failed to upload font: ${error.error || 'Unknown error'}`)
+              }
+            } catch (error) {
+              console.error('Error uploading font:', error)
+              alert(`Error uploading font: ${error.message}`)
+            }
+          }}
         />
       </div>
 
       {/* Main Content using CSS Grid */}
-      <div style={{
+      <div className="editor-main-grid" style={{
         flex: 1,
         display: 'grid',
         gridTemplateColumns: '280px minmax(600px, 1fr) 320px',
         gap: '1.5rem',
-        padding: '0 1.5rem 1.5rem 1.5rem',
+        padding: '1.5rem',
         overflow: 'hidden',
-        height: 'calc(100vh - 84px)' // Approximate header height
+        height: 'calc(100vh - 88px)' // Adjusted for fixed header
       }}>
 
         {/* Left Column: Settings and Components */}
@@ -541,11 +587,12 @@ export default function Editor() {
         </div>
 
         {/* Center Column: Canvas */}
-        <div style={{
+        <div className="canvas-container" style={{
           background: 'hsl(var(--muted))',
           borderRadius: '8px',
           padding: '1.5rem',
-          overflow: 'hidden',
+          overflowY: 'auto',
+          overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -569,9 +616,7 @@ export default function Editor() {
 
           <div
             style={{
-              flex: 1,
               width: '100%',
-              overflow: 'auto',
               display: 'flex',
               justifyContent: 'center',
               padding: '2rem 0.5rem',
@@ -585,13 +630,11 @@ export default function Editor() {
                 minHeight: `${currentPageSize.height}px`,
                 // Auto height allows content to push it down, min-height ensures at least one page
                 height: 'auto',
-                // Flex shrink 0 prevents it from shrinking inside the scrollable container
-                flexShrink: 0,
-                // Flex grow ensures it fills the available vertical space if the container is taller
-                flexGrow: 1,
                 background: isDragOver ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)' : 'white',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                 padding: `${MARGIN}px`,
+                // Add left padding for drag handles
+                paddingLeft: `${MARGIN + 30}px`,
                 // Ensure there is space at bottom for comfortable editing
                 paddingBottom: `${MARGIN + 50}px`,
                 position: 'relative',
@@ -641,46 +684,164 @@ export default function Editor() {
                 </div>
               )}
 
-              {/* Render Elements */}
-              {allElements.map((element, index) => {
-                // Calculate the actual component index for move operations
-                let componentIndex = -1
-                if (element.type !== 'title' && element.type !== 'footer') {
-                  componentIndex = parseInt(element.id.split('-')[1])
-                }
-                const canMoveUp = componentIndex > 0
-                const canMoveDown = componentIndex >= 0 && componentIndex < components.length - 1
-
-                return (
-                  <ComponentItem
-                    key={element.id}
-                    element={element}
-                    index={componentIndex >= 0 ? componentIndex : index}
-                    isSelected={selectedId === element.id}
-                    onSelect={setSelectedId}
-                    onUpdate={(updates) => handleUpdate(element.id, updates)}
-                    onMove={handleMove}
-                    onDelete={handleDelete}
-                    canMoveUp={canMoveUp}
-                    canMoveDown={canMoveDown}
-                    selectedCell={selectedCell}
-                    onCellSelect={setSelectedCell}
-                    onDragStart={setDraggedComponentId}
-                    onDragEnd={() => setDraggedComponentId(null)}
-                    // Pass targetId to handle insertion before this item
-                    onDrop={(type) => handleDropElement(type, element.id)}
-                    isDragging={draggedComponentId === element.id}
-                    draggedType={draggedType}
-                    handleCellDrop={handleCellDrop}
-                    currentPageSize={currentPageSize}
-                  />
-                )
-              })}
-
-              {allElements.length === 0 && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', border: '2px dashed #eee', borderRadius: '8px', margin: '2rem' }}>
-                  <p>Drop components here</p>
+              {/* Render Elements with Drop Zones */}
+              {allElements.length === 0 ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#999', border: '2px dashed #eee', borderRadius: '8px', margin: '2rem', padding: '3rem' }}>
+                  <p style={{ margin: 0, fontSize: '14px' }}>Drop components here to start</p>
                 </div>
+              ) : (
+                <>
+                  {allElements.map((element, index) => {
+                    // Calculate the actual component index for move operations
+                    let componentIndex = -1
+                    if (element.type !== 'title' && element.type !== 'footer') {
+                      componentIndex = parseInt(element.id.split('-')[1])
+                    }
+                    const canMoveUp = componentIndex > 0
+                    const canMoveDown = componentIndex >= 0 && componentIndex < components.length - 1
+
+                    return (
+                      <React.Fragment key={element.id}>
+                        {/* Drop Zone Before Element */}
+                        {(draggedType || draggedComponentId) && (
+                          <div
+                            style={{
+                              height: '4px',
+                              width: '100%',
+                              margin: '2px 0',
+                              background: 'transparent',
+                              position: 'relative',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              e.currentTarget.style.height = '40px'
+                              e.currentTarget.style.background = 'hsl(var(--accent) / 0.2)'
+                              e.currentTarget.style.border = '2px dashed hsl(var(--accent))'
+                              e.currentTarget.style.borderRadius = '4px'
+                              const textEl = e.currentTarget.querySelector('div')
+                              if (textEl) textEl.style.opacity = '1'
+                            }}
+                            onDragLeave={(e) => {
+                              e.currentTarget.style.height = '4px'
+                              e.currentTarget.style.background = 'transparent'
+                              e.currentTarget.style.border = 'none'
+                              const textEl = e.currentTarget.querySelector('div')
+                              if (textEl) textEl.style.opacity = '0'
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              e.currentTarget.style.height = '4px'
+                              e.currentTarget.style.background = 'transparent'
+                              e.currentTarget.style.border = 'none'
+                              const textEl = e.currentTarget.querySelector('div')
+                              if (textEl) textEl.style.opacity = '0'
+                              const type = e.dataTransfer.getData('text/plain')
+                              if (COMPONENT_TYPES[type]) {
+                                handleDropElement(type, element.id)
+                              }
+                            }}
+                          >
+                            <div style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              fontSize: '11px',
+                              color: 'hsl(var(--muted-foreground))',
+                              opacity: 0,
+                              pointerEvents: 'none',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              Drop here to insert
+                            </div>
+                          </div>
+                        )}
+                        
+                        <ComponentItem
+                          element={element}
+                          index={componentIndex >= 0 ? componentIndex : index}
+                          isSelected={selectedId === element.id}
+                          onSelect={setSelectedId}
+                          onUpdate={(updates) => handleUpdate(element.id, updates)}
+                          onMove={handleMove}
+                          onDelete={handleDelete}
+                          canMoveUp={canMoveUp}
+                          canMoveDown={canMoveDown}
+                          selectedCell={selectedCell}
+                          onCellSelect={setSelectedCell}
+                          onDragStart={setDraggedComponentId}
+                          onDragEnd={() => setDraggedComponentId(null)}
+                          onDrop={(type) => handleDropElement(type, element.id)}
+                          isDragging={draggedComponentId === element.id}
+                          draggedType={draggedType}
+                          handleCellDrop={handleCellDrop}
+                          currentPageSize={currentPageSize}
+                        />
+                        
+                        {/* Drop Zone After Last Element */}
+                        {index === allElements.length - 1 && (draggedType || draggedComponentId) && (
+                          <div
+                            style={{
+                              height: '4px',
+                              width: '100%',
+                              margin: '2px 0',
+                              background: 'transparent',
+                              position: 'relative',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              e.currentTarget.style.height = '40px'
+                              e.currentTarget.style.background = 'hsl(var(--accent) / 0.2)'
+                              e.currentTarget.style.border = '2px dashed hsl(var(--accent))'
+                              e.currentTarget.style.borderRadius = '4px'
+                              const textEl = e.currentTarget.querySelector('div')
+                              if (textEl) textEl.style.opacity = '1'
+                            }}
+                            onDragLeave={(e) => {
+                              e.currentTarget.style.height = '4px'
+                              e.currentTarget.style.background = 'transparent'
+                              e.currentTarget.style.border = 'none'
+                              const textEl = e.currentTarget.querySelector('div')
+                              if (textEl) textEl.style.opacity = '0'
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              e.currentTarget.style.height = '4px'
+                              e.currentTarget.style.background = 'transparent'
+                              e.currentTarget.style.border = 'none'
+                              const textEl = e.currentTarget.querySelector('div')
+                              if (textEl) textEl.style.opacity = '0'
+                              const type = e.dataTransfer.getData('text/plain')
+                              if (COMPONENT_TYPES[type]) {
+                                handleDropElement(type, null) // null means append at end
+                              }
+                            }}
+                          >
+                            <div style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              fontSize: '11px',
+                              color: 'hsl(var(--muted-foreground))',
+                              opacity: 0,
+                              pointerEvents: 'none',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              Drop here to add at end
+                            </div>
+                          </div>
+                        )}
+                      </React.Fragment>
+                    )
+                  })}
+                </>
               )}
             </div>
           </div>
@@ -770,6 +931,22 @@ export default function Editor() {
           transform: rotate(3deg) scale(0.95);
         }
         
+        .canvas-container {
+          min-height: 500px;
+          max-height: calc(100vh - 200px);
+          overflow-y: auto !important;
+          overflow-x: hidden;
+        }
+        
+        .sticky-header {
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          background: hsl(var(--background));
+          border-bottom: 1px solid hsl(var(--border));
+          padding: 0.75rem 1rem;
+        }
+        
         /* Custom Scrollbar Styles */
         ::-webkit-scrollbar {
           width: 6px;
@@ -786,8 +963,25 @@ export default function Editor() {
           background: hsl(var(--muted-foreground)); 
         }
 
-        @media (max-width: 1200px) {
-           /* Responsive adjustments if needed */
+        @media (max-width: 1400px) {
+          .editor-main-grid {
+            grid-template-columns: 240px 1fr 300px !important;
+          }
+        }
+        
+        @media (max-width: 1100px) {
+          .editor-main-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .editor-sidebar {
+            height: auto;
+            position: relative;
+            top: 0;
+          }
+          .canvas-container {
+            min-height: 400px;
+            max-height: none;
+          }
         }
       `}</style>
     </div>

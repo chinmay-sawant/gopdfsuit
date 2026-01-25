@@ -1,8 +1,19 @@
 
-import React from 'react'
+import React, { useRef } from 'react'
 import { Upload, Moon, Sun, Eye, Download, Copy, Check, Edit } from 'lucide-react'
 
-export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, onDownloadPDF, templateInput, setTemplateInput, copiedId }) {
+export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, onDownloadPDF, templateInput, setTemplateInput, copiedId, elementCount = 0, pageSize = 'A4', onUploadFont }) {
+    const fileInputRef = useRef(null)
+
+    const handleFontUpload = (e) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            onUploadFont?.(file)
+            // Reset input so same file can be uploaded again if needed
+            e.target.value = ''
+        }
+    }
+
     return (
         <div className="card" style={{
             marginBottom: '1rem',
@@ -24,7 +35,7 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                     <Edit size={20} />
                     <div>
                         <strong style={{ display: 'block', lineHeight: 1 }}>PDF Template Editor</strong>
-                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>0 elements • A4 Portrait</span>
+                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>{elementCount} elements • {pageSize} Portrait</span>
                     </div>
                 </div>
 
@@ -45,9 +56,21 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                     <button onClick={onDownloadPDF} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         <Download size={14} /> Generate
                     </button>
-                    <button className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        T Upload Font
+                    <button 
+                        onClick={() => fileInputRef.current?.click()} 
+                        className="btn" 
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                        title="Upload custom font (.ttf or .otf)"
+                    >
+                        <Upload size={14} /> Upload Font
                     </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".ttf,.otf"
+                        style={{ display: 'none' }}
+                        onChange={handleFontUpload}
+                    />
                     <button onClick={onCopyJSON} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         {copiedId === 'json' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
                     </button>

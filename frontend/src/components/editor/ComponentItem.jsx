@@ -15,7 +15,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
     const handleCellClick = (rowIdx, colIdx, e) => {
         if (e) e.stopPropagation()
         onSelect(element.id)
-        onCellSelect({ rowIdx, colIdx })
+        onCellSelect({ elementId: element.id, rowIdx, colIdx })
     }
 
     const handleDragStart = (e) => {
@@ -193,8 +193,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
                                                 cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
 
-                                            // Determine background color for title cells
-                                            const titleCellBgColor = isCellSelected ? '#e3f2fd' : (cell.bgcolor || element.bgcolor || '#fff')
+                                            // Determine background color for title cells - theme aware with lighter accent
+                                            const titleCellBgColor = isCellSelected ? 'hsl(var(--accent) / 0.2)' : (cell.bgcolor || element.bgcolor || '#fff')
 
                                             return (
                                                 <td
@@ -218,7 +218,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                     onClick={(e) => {
                                                         e.stopPropagation()
                                                         onSelect(element.id)
-                                                        onCellSelect({ rowIdx, colIdx })
+                                                        onCellSelect({ elementId: element.id, rowIdx, colIdx })
                                                     }}
                                                     onDragOver={(e) => {
                                                         if (draggedType === 'image') {
@@ -242,7 +242,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
                                                                 onSelect(element.id)
-                                                                onCellSelect({ rowIdx, colIdx })
+                                                                onCellSelect({ elementId: element.id, rowIdx, colIdx })
                                                             }}
                                                         >
                                                             <img
@@ -258,7 +258,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
                                                                     onSelect(element.id)
-                                                                    onCellSelect({ rowIdx, colIdx })
+                                                                    onCellSelect({ elementId: element.id, rowIdx, colIdx })
                                                                     updateTitleTableCell(rowIdx, colIdx, { image: null })
                                                                 }}
                                                                 style={{
@@ -308,7 +308,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
                                                                     onSelect(element.id)
-                                                                    onCellSelect({ rowIdx, colIdx })
+                                                                    onCellSelect({ elementId: element.id, rowIdx, colIdx })
                                                                 }}
                                                             />
                                                             {colIdx === 0 && (
@@ -324,7 +324,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                                     onClick={(e) => {
                                                                         e.stopPropagation()
                                                                         onSelect(element.id)
-                                                                        onCellSelect({ rowIdx, colIdx })
+                                                                        onCellSelect({ elementId: element.id, rowIdx, colIdx })
                                                                     }}
                                                                 >
                                                                     <input
@@ -471,15 +471,15 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                     <tr key={rowIdx} style={{ position: 'relative' }}>
                                         {row.row?.map((cell, colIdx) => {
                                             const cellStyle = getStyleFromProps(cell.props)
-                                            const isCellSelected = selectedCell && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
+                                            const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
                                             // Use individual cell width if set, otherwise use column-based width
                                             const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
                                             const cellHeight = cell.height || 25
 
-                                            // Determine background color: selection > cell bgcolor > table bgcolor > default white
+                                            // Determine background color: selection > cell bgcolor > table bgcolor > default white (lighter highlight)
                                             const cellBgColor = isCellSelected
-                                                ? '#e3f2fd'
+                                                ? 'hsl(var(--accent) / 0.2)'
                                                 : (cell.bgcolor || element.bgcolor || '#fff')
 
                                             // Determine text color: cell textcolor > table textcolor > default black
@@ -534,7 +534,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         e.stopPropagation()
                                                         const draggedData = e.dataTransfer.getData('text/plain')
                                                         if (draggedData === 'checkbox' || draggedData === 'image' || draggedData === 'radio' || draggedData === 'text_input' || draggedData === 'hyperlink') {
-                                                            handleCellDrop(element, onUpdate, rowIdx, colIdx, draggedData)
+                                                            handleCellDrop(element, element.id, onUpdate, rowIdx, colIdx, draggedData)
                                                         }
                                                     }}
                                                     className={(draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') ? 'drop-target' : ''}
@@ -818,24 +818,46 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
     return (
         <div
             onClick={handleClick}
-            draggable
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
             style={{
                 position: 'relative',
                 margin: '4px 0',
                 padding: isSelected && element.type !== 'table' ? '8px' : '0',
-                border: isSelected && element.type !== 'table' ? '2px solid var(--secondary-color)' : '2px solid transparent',
+                border: isSelected && element.type !== 'table' ? '2px dashed hsl(var(--ring))' : '2px solid transparent',
                 borderRadius: element.type === 'table' ? '0' : '6px',
-                cursor: isDragging ? 'grabbing' : 'grab',
-                background: isSelected && element.type !== 'table' ? '#e3f2fd' : 'transparent',
-                boxShadow: isSelected && element.type === 'table' ? '0 0 0 2px var(--secondary-color)' : 'none',
+                cursor: 'pointer',
+                background: isSelected && element.type !== 'table' ? 'hsl(var(--accent) / 0.15)' : 'transparent',
+                boxShadow: isSelected && element.type === 'table' ? '0 0 0 2px dashed hsl(var(--ring))' : 'none',
                 transition: 'all 0.2s ease',
                 opacity: isDragging ? 0.5 : 1
             }}
         >
+            {/* Drag Handle - Only this should be draggable */}
+            {isSelected && (
+                <div style={{
+                    position: 'absolute',
+                    left: '-25px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    cursor: 'grab',
+                    padding: '4px',
+                    background: 'hsl(var(--muted))',
+                    borderRadius: '4px',
+                    border: '1px solid hsl(var(--border))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 5
+                }}
+                    draggable
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    title="Drag to reorder"
+                >
+                    <GripVertical size={16} style={{ color: 'hsl(var(--foreground))' }} />
+                </div>
+            )}
             {isSelected && (
                 <div style={{
                     position: 'absolute',
@@ -911,12 +933,6 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     </button>
                 </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <GripVertical size={14} style={{ color: '#888' }} />
-                <span style={{ fontSize: '11px', fontWeight: '500', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {element.type.charAt(0).toUpperCase() + element.type.slice(1)}
-                </span>
-            </div>
             {renderContent()}
         </div>
     )

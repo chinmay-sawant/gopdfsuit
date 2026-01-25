@@ -29,8 +29,7 @@ test-integration:
 clean:
 	rm -rf bin/
 
-run: 
-# test-integration
+run: test-integration
 	export VITE_IS_CLOUD_RUN=false;\
 	export VITE_ENVIRONMENT=local;\
 	export VITE_API_URL=http://localhost:8080;\
