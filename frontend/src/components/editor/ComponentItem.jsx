@@ -195,8 +195,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
                                                 cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
 
-                                            // Determine background color for title cells - theme aware with lighter accent
-                                            const titleCellBgColor = isCellSelected ? 'hsl(var(--accent) / 0.2)' : (cell.bgcolor || element.bgcolor || '#fff')
+                                            // Determine background color for title cells
+                                            const titleCellBgColor = cell.bgcolor || element.bgcolor || '#fff'
 
                                             return (
                                                 <td
@@ -215,7 +215,9 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         backgroundColor: titleCellBgColor,
                                                         cursor: 'pointer',
                                                         position: 'relative',
-                                                        boxSizing: 'border-box'
+                                                        boxSizing: 'border-box',
+                                                        outline: isCellSelected ? '2px solid #3b82f6' : 'none',
+                                                        outlineOffset: '-2px'
                                                     }}
                                                     onClick={(e) => {
                                                         e.stopPropagation()
@@ -479,10 +481,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
                                             const cellHeight = cell.height || 25
 
-                                            // Determine background color: selection > cell bgcolor > table bgcolor > default white (lighter highlight)
-                                            const cellBgColor = isCellSelected
-                                                ? 'hsl(var(--accent) / 0.2)'
-                                                : (cell.bgcolor || element.bgcolor || '#fff')
+                                            // Determine background color: use cell's or table's bg color, or default white
+                                            const cellBgColor = cell.bgcolor || element.bgcolor || '#fff'
 
                                             // Determine text color: cell textcolor > table textcolor > default black
                                             const cellTextColor = cell.textcolor || element.textcolor || '#000'
@@ -490,6 +490,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             // Ensure borders are visible - use explicit border if cell has border props
                                             const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
                                                 cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
+                                            
                                             const tdStyle = {
                                                 borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
                                                 borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
@@ -504,7 +505,9 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                 backgroundColor: cellBgColor,
                                                 cursor: 'pointer',
                                                 position: 'relative',
-                                                boxSizing: 'border-box'
+                                                boxSizing: 'border-box',
+                                                outline: isCellSelected ? '2px solid #3b82f6' : 'none',
+                                                outlineOffset: '-2px'
                                             }
                                             const inputStyle = {
                                                 fontSize: cellStyle.fontSize,
@@ -683,10 +686,10 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                             cursor: 'col-resize',
                                                             zIndex: 5,
                                                             userSelect: 'none',
-                                                            background: isCellSelected ? 'rgba(59, 130, 246, 0.3)' : 'transparent'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.5)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = isCellSelected ? 'rgba(59, 130, 246, 0.3)' : 'transparent'}
+                                                        background: isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(199 89% 48% / 0.5)'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'}
                                                         title="Drag to resize this cell width"
                                                     />
                                                     {/* Cell height resize handle (all cells) */}
@@ -703,7 +706,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                             userSelect: 'none',
                                                             background: 'transparent'
                                                         }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34, 197, 94, 0.5)'}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(142 71% 45% / 0.5)'}
                                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                                         title="Drag to resize cell height"
                                                     />

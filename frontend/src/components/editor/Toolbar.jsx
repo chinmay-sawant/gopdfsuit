@@ -15,32 +15,23 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
     }
 
     return (
-        <div className="card" style={{
-            marginBottom: '1rem',
-            padding: '0.75rem 1rem',
-            position: 'sticky',
-            top: '74px',
-            zIndex: 40,
-            borderRadius: '0',
-            borderLeft: 'none',
-            borderRight: 'none',
-            marginLeft: '-1rem',
-            marginRight: '-1rem',
-            width: 'calc(100% + 2rem)',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            background: 'hsl(var(--card))'
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem'
         }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Edit size={20} />
-                    <div>
-                        <strong style={{ display: 'block', lineHeight: 1 }}>PDF Template Editor</strong>
-                        <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>{elementCount} elements • {pageSize} Portrait</span>
-                    </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'hsl(var(--foreground))' }}>
+                <Edit size={20} />
+                <div>
+                    <strong style={{ display: 'block', lineHeight: 1, color: 'hsl(var(--foreground))' }}>PDF Template Editor</strong>
+                    <span style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>{elementCount} elements • {pageSize} Portrait</span>
                 </div>
+            </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <input
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <input
                         type="text"
                         value={templateInput}
                         onChange={(e) => setTemplateInput(e.target.value)}
@@ -81,7 +72,6 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                         {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
                     </button>
                 </div>
-            </div>
         </div>
     )
 }

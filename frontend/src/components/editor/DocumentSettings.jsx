@@ -17,7 +17,23 @@ function PageBorderControls({ borders, onChange }) {
                 <button
                     onClick={() => updateBorder(index, borders[index] - 1)}
                     disabled={borders[index] <= 0}
-                    className="btn-border"
+                    style={{
+                        padding: '0.25rem 0.5rem',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '4px',
+                        background: 'hsl(var(--secondary))',
+                        color: 'hsl(var(--foreground))',
+                        cursor: borders[index] <= 0 ? 'not-allowed' : 'pointer',
+                        opacity: borders[index] <= 0 ? 0.5 : 1,
+                        fontSize: '0.8rem',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                        if (borders[index] > 0) e.currentTarget.style.background = 'hsl(var(--accent))'
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'hsl(var(--secondary))'
+                    }}
                 >
                     −
                 </button>
@@ -34,7 +50,23 @@ function PageBorderControls({ borders, onChange }) {
                 <button
                     onClick={() => updateBorder(index, borders[index] + 1)}
                     disabled={borders[index] >= 10}
-                    className="btn-border"
+                    style={{
+                        padding: '0.25rem 0.5rem',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '4px',
+                        background: 'hsl(var(--secondary))',
+                        color: 'hsl(var(--foreground))',
+                        cursor: borders[index] >= 10 ? 'not-allowed' : 'pointer',
+                        opacity: borders[index] >= 10 ? 0.5 : 1,
+                        fontSize: '0.8rem',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                        if (borders[index] < 10) e.currentTarget.style.background = 'hsl(var(--accent))'
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'hsl(var(--secondary))'
+                    }}
                 >
                     +
                 </button>
@@ -183,11 +215,11 @@ function SignatureSettings({ config, onChange }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <button
                     onClick={() => handleChange('visible', !config.visible)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'hsl(var(--foreground))' }}
                 >
                     {config.visible ? <CheckSquare size={16} /> : <Square size={16} />}
                 </button>
-                <label style={{ fontSize: '0.85rem', fontWeight: '500' }}>Visible Signature</label>
+                <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'hsl(var(--foreground))' }}>Visible Signature</label>
             </div>
 
             {config.visible && (
@@ -291,7 +323,13 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
     const [showPdfTooltip, setShowPdfTooltip] = useState(false)
 
     return (
-        <div className="card" style={{ padding: '1rem', flexShrink: 0 }}>
+        <div style={{ 
+            flexShrink: 0, 
+            background: 'hsl(var(--card))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '8px',
+            padding: '1rem'
+        }}>
             <h3 style={{
                 margin: '0 0 0.75rem 0',
                 fontSize: '0.9rem',
@@ -312,7 +350,16 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                         <select
                             value={config.page}
                             onChange={(e) => setConfig(prev => ({ ...prev, page: e.target.value }))}
-                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                            style={{ 
+                                width: '100%', 
+                                padding: '0.4rem', 
+                                fontSize: '0.85rem', 
+                                border: '1px solid hsl(var(--border))', 
+                                borderRadius: '4px', 
+                                background: 'hsl(var(--background))', 
+                                color: 'hsl(var(--foreground))',
+                                cursor: 'pointer'
+                            }}
                         >
                             {Object.entries(PAGE_SIZES).map(([key, size]) => (
                                 <option key={key} value={key}>{size.name}</option>
@@ -324,7 +371,16 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                         <select
                             value={config.pageAlignment}
                             onChange={(e) => setConfig(prev => ({ ...prev, pageAlignment: parseInt(e.target.value) }))}
-                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                            style={{ 
+                                width: '100%', 
+                                padding: '0.4rem', 
+                                fontSize: '0.85rem', 
+                                border: '1px solid hsl(var(--border))', 
+                                borderRadius: '4px', 
+                                background: 'hsl(var(--background))', 
+                                color: 'hsl(var(--foreground))',
+                                cursor: 'pointer'
+                            }}
                         >
                             <option value={1}>Portrait</option>
                             <option value={2}>Landscape</option>
@@ -705,10 +761,6 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
 
             </div>
 
-            <style jsx>{`
-        .btn-border { padding: 0.25rem 0.5rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); border-radius: 4px; cursor: pointer; }
-        .btn-border:disabled { opacity: 0.5; cursor: not-allowed; }
-      `}</style>
         </div>
     )
 }

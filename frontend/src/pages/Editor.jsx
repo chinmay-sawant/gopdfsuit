@@ -5,6 +5,7 @@ import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
 import PdfPreview from '../components/PdfPreview'
+import Toast from '../components/Toast'
 
 // Imported Components
 import ComponentList from '../components/editor/ComponentList'
@@ -37,6 +38,16 @@ export default function Editor() {
   const [copiedId, setCopiedId] = useState(null)
   const [templateInput, setTemplateInput] = useState('')
   const canvasRef = useRef(null)
+  const [toasts, setToasts] = useState([])
+
+  const showToast = (message, type = 'success', duration = 3000) => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type, duration }])
+  }
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
 
   // Fetch fonts from API on component mount
   useEffect(() => {
@@ -275,7 +286,18 @@ export default function Editor() {
       const parsed = JSON.parse(jsonText)
       const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = parsed
 
-      setConfig(prev => ({ ...prev, ...(newConfig || {}) }))
+      // Fix embedStandardFonts loading - check both key names since templates may use either
+      const embedValue = newConfig?.embedStandardFonts !== undefined 
+        ? newConfig.embedStandardFonts 
+        : (newConfig?.embedFonts !== undefined ? newConfig.embedFonts : undefined)
+      
+      setConfig(prev => ({
+        ...prev,
+        ...(newConfig || {}),
+        embedStandardFonts: embedValue !== undefined ? embedValue : prev.embedStandardFonts,
+        arlingtonCompatible: newConfig?.arlingtonCompatible !== undefined ? newConfig.arlingtonCompatible : prev.arlingtonCompatible,
+        pdfaCompliant: newConfig?.pdfaCompliant !== undefined ? newConfig.pdfaCompliant : prev.pdfaCompliant
+      }))
       setTitle(newTitle || null)
 
       // Handle various input formats (legacy content, table, or new elements)
@@ -447,7 +469,18 @@ export default function Editor() {
       // Parse and load the template data
       const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = templateData
 
-      setConfig(prev => ({ ...prev, ...(newConfig || {}) }))
+      // Fix embedStandardFonts loading - check both key names since templates may use either
+      const embedValue = newConfig?.embedStandardFonts !== undefined 
+        ? newConfig.embedStandardFonts 
+        : (newConfig?.embedFonts !== undefined ? newConfig.embedFonts : undefined)
+      
+      setConfig(prev => ({
+        ...prev,
+        ...(newConfig || {}),
+        embedStandardFonts: embedValue !== undefined ? embedValue : prev.embedStandardFonts,
+        arlingtonCompatible: newConfig?.arlingtonCompatible !== undefined ? newConfig.arlingtonCompatible : prev.arlingtonCompatible,
+        pdfaCompliant: newConfig?.pdfaCompliant !== undefined ? newConfig.pdfaCompliant : prev.pdfaCompliant
+      }))
       setTitle(newTitle || null)
 
       // Handle various input formats (legacy content, table, or new elements)
@@ -535,21 +568,20 @@ export default function Editor() {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      height: '100vh',
+      minHeight: '100vh',
       background: 'hsl(var(--background))',
       color: 'hsl(var(--foreground))',
-      fontFamily: getFontFamily('Helvetica'),
-      overflow: 'hidden'
+      fontFamily: getFontFamily('Helvetica')
     }}>
-      {/* Header / Toolbar - Fixed Position */}
+      {/* Header / Toolbar - Sticky Position */}
       <div className="sticky-header" style={{ 
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: 'hsl(var(--background))',
+        background: 'hsl(var(--card))',
         borderBottom: '1px solid hsl(var(--border))',
         padding: '0.75rem 1rem',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
         <Toolbar
           theme={theme}
@@ -577,7 +609,7 @@ export default function Editor() {
               )
               if (response.ok) {
                 const data = await response.json()
-                alert(`Font "${data.name}" uploaded successfully!`)
+                showToast(`Font "${data.name}" uploaded successfully!`, 'success')
                 // Refresh fonts list
                 const fontsResponse = await makeAuthenticatedRequest(
                   '/api/v1/fonts',
@@ -592,11 +624,11 @@ export default function Editor() {
                 }
               } else {
                 const error = await response.json()
-                alert(`Failed to upload font: ${error.error || 'Unknown error'}`)
+                showToast(`Failed to upload font: ${error.error || 'Unknown error'}`, 'error')
               }
             } catch (error) {
               console.error('Error uploading font:', error)
-              alert(`Error uploading font: ${error.message}`)
+              showToast(`Error uploading font: ${error.message}`, 'error')
             }
           }}
         />
@@ -609,8 +641,7 @@ export default function Editor() {
         gridTemplateColumns: '280px minmax(600px, 1fr) 320px',
         gap: '1.5rem',
         padding: '1.5rem',
-        overflow: 'hidden',
-        height: 'calc(100vh - 88px)' // Adjusted for fixed header
+        minHeight: 0
       }}>
 
         {/* Left Column: Settings and Components */}
@@ -942,6 +973,18 @@ export default function Editor() {
         </div>
       </div>
 
+      {/* Toast Notifications */}
+      {toasts.map((toast, index) => (
+        <div key={toast.id} style={{ top: `${80 + index * 100}px` }}>
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={toast.duration}
+            onClose={() => removeToast(toast.id)}
+          />
+        </div>
+      ))}
+
       {/* Preview Modal */}
       {showPreviewModal && (
         <div style={{
@@ -997,6 +1040,18 @@ export default function Editor() {
           </div>
         </div>
       )}
+
+      {/* Toast Notifications */}
+      {toasts.map((toast, index) => (
+        <div key={toast.id} style={{ top: `${80 + index * 100}px` }}>
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            duration={toast.duration}
+            onClose={() => removeToast(toast.id)}
+          />
+        </div>
+      ))}
 
       <style jsx>{`
         .dragging {
