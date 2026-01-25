@@ -469,7 +469,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 }
 
 // drawTable renders a table with automatic page breaks
-func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
+func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
 	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
 	baseRowHeight := float64(25) // Standard row height
 
@@ -585,7 +585,7 @@ func drawTable(table models.Table, tableIdx int, pageManager *PageManager, borde
 			// Draw content (so borders are drawn on top of images)
 			if cell.Image != nil {
 				// Check if we have an XObject for this cell image
-				cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
+				cellKey := fmt.Sprintf("%s:%d:%d", imageKeyPrefix, rowIdx, colIdx)
 				if _, exists := cellImageObjectIDs[cellKey]; exists && cell.Image.ImageData != "" {
 					// Render actual image using XObject - fit inside cell with small padding for border
 					borderPadding := 1.0 // Small padding to keep image inside borders

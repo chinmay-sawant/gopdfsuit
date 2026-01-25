@@ -38,6 +38,7 @@ type Config struct {
 	Page                string             `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
 	PageAlignment       int                `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
 	Watermark           string             `json:"watermark,omitempty"`           // Optional diagonal watermark text
+	PdfTitle            string             `json:"pdfTitle,omitempty"`            // Document title for PDF metadata
 	ArlingtonCompatible bool               `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
 	Bookmarks           []Bookmark         `json:"bookmarks,omitempty"`           // Document outline/bookmarks for navigation
 	Security            *SecurityConfig    `json:"security,omitempty"`            // Password protection and encryption settings
@@ -67,7 +68,7 @@ type SecurityConfig struct {
 // PDFAConfig holds PDF/A compliance settings
 type PDFAConfig struct {
 	Enabled     bool   `json:"enabled"`               // Enable PDF/A compliance
-	Conformance string `json:"conformance,omitempty"` // PDF/A conformance level: "1b", "2b", "3b" (default: "3b")
+	Conformance string `json:"conformance,omitempty"` // PDF/A conformance level: "1b", "2b", "3b", "4", "4f", "4e" (default: "4")
 	Title       string `json:"title,omitempty"`       // Document title for XMP metadata
 	Author      string `json:"author,omitempty"`      // Document author for XMP metadata
 	Subject     string `json:"subject,omitempty"`     // Document subject for XMP metadata

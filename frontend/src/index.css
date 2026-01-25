@@ -30,6 +30,9 @@
 
   --accent: 210 40% 96.1%;
   --accent-foreground: 222.2 47.4% 11.2%;
+  
+  /* Light selection color */
+  --selection-bg: 210 40% 94%;
 
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
@@ -88,6 +91,9 @@
 
   --accent: 217.2 32.6% 17.5%;
   --accent-foreground: 210 40% 98%;
+  
+  /* Dark selection color */
+  --selection-bg: 217.2 32.6% 20%;
 
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
@@ -141,7 +147,7 @@ body {
 }
 
 .btn:hover {
-  background: hsl(var(--accent)) brightness(0.95);
+  background: hsl(var(--muted));
   transform: translateY(-1px);
   border-color: hsl(var(--ring));
 }
@@ -569,6 +575,18 @@ select:focus {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Pulse border for drop zones */
+@keyframes pulse-border {
+  0%, 100% {
+    border-color: hsl(var(--accent));
+    box-shadow: 0 0 0 0 hsl(var(--accent) / 0.4);
+  }
+  50% {
+    border-color: hsl(var(--accent) / 0.7);
+    box-shadow: 0 0 0 4px hsl(var(--accent) / 0);
+  }
+}
+
 /* Bounce animation */
 @keyframes bounce {
 
@@ -985,6 +1003,23 @@ select:focus {
 
 .stagger-animation {
   opacity: 0;
+}
+
+/* Smooth component reordering */
+.component-item-wrapper {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.component-item-wrapper.dragging {
+  opacity: 0.4;
+  transform: scale(0.98) rotate(1deg);
+  filter: blur(1px);
+}
+
+/* Enhanced drop target highlighting */
+.drop-zone-active {
+  animation: pulse-border 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .stagger-animation.visible {

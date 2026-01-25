@@ -117,7 +117,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
-	// Process cell images in tables
+	// Process cell images in tables (indexed tables from top-level Table array)
 	for tableIdx, table := range template.Table {
 		for rowIdx, row := range table.Rows {
 			for colIdx, cell := range row.Row {
@@ -125,10 +125,32 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 					imgObj, err := DecodeImageData(cell.Image.ImageData)
 					if err == nil {
 						imgObj.ObjectID = nextImageObjectID
+						// Key for indexed tables: "0:0:0" (tableIdx:rowIdx:colIdx)
 						cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
 						cellImageObjects[cellKey] = imgObj
 						cellImageObjectIDs[cellKey] = nextImageObjectID
 						nextImageObjectID++
+					}
+				}
+			}
+		}
+	}
+
+	// Process inline table images in Elements array
+	for elemIdx, elem := range template.Elements {
+		if elem.Type == "table" && elem.Table != nil {
+			for rowIdx, row := range elem.Table.Rows {
+				for colIdx, cell := range row.Row {
+					if cell.Image != nil && cell.Image.ImageData != "" {
+						imgObj, err := DecodeImageData(cell.Image.ImageData)
+						if err == nil {
+							imgObj.ObjectID = nextImageObjectID
+							// Key for inline tables: "elem_inline:5:0:0" (elem_inline:elemIdx:rowIdx:colIdx)
+							cellKey := fmt.Sprintf("elem_inline:%d:%d:%d", elemIdx, rowIdx, colIdx)
+							cellImageObjects[cellKey] = imgObj
+							cellImageObjectIDs[cellKey] = nextImageObjectID
+							nextImageObjectID++
+						}
 					}
 				}
 			}
@@ -198,7 +220,19 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Setup PDF/A handler if enabled
 	var pdfaHandler *PDFAHandler
 	if template.Config.PDFA != nil && template.Config.PDFA.Enabled {
+		// If main PdfTitle is set but PDFA Title isn't, copy it over
+		if template.Config.PdfTitle != "" && template.Config.PDFA.Title == "" {
+			template.Config.PDFA.Title = template.Config.PdfTitle
+		}
 		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor)
+	} else if template.Config.PDFACompliant {
+		// If using valid PDF/A mode but no explicit PDFA config, create one to ensure metadata
+		pdfaConfig := &models.PDFAConfig{
+			Enabled:     true,
+			Conformance: "4", // Default for PDF/A-4
+			Title:       template.Config.PdfTitle,
+		}
+		pdfaHandler = NewPDFAHandler(pdfaConfig, pageManager, encryptor)
 	}
 
 	// Calculate object IDs for fonts early (needed for signature font embedding)
@@ -327,11 +361,14 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pageManager.NextObjectID++
 
 	// Only reserve ICC profile and OutputIntent IDs for PDF/A mode
-	var iccProfileObjectID, outputIntentObjectID int
+	var iccProfileObjectID, outputIntentObjectID, grayICCProfileObjID int
 	if template.Config.PDFACompliant {
 		iccProfileObjectID = pageManager.NextObjectID
 		pageManager.NextObjectID++
 		outputIntentObjectID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+		// Reserve Gray ICC profile object ID for DeviceGray color space
+		grayICCProfileObjID = pageManager.NextObjectID
 		pageManager.NextObjectID++
 	}
 
@@ -347,24 +384,14 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Add language tag for accessibility (PDF/UA requirement)
 	pdfBuffer.WriteString(" /Lang (en-US)")
 	// Add PDF/A specific entries or default MarkInfo
-	if pdfaHandler != nil {
-		// PDF/A entries will be added after we generate metadata/outputintent objects
-		// For now, skip MarkInfo as it will be added via pdfaHandler
-	} else {
-		// Add MarkInfo to indicate this is a tagged PDF (Required for PDF/UA)
-		pdfBuffer.WriteString(" /MarkInfo << /Marked true >>")
-	}
+	// Add MarkInfo to indicate this is a tagged PDF (Required for PDF/UA)
+	pdfBuffer.WriteString(" /MarkInfo << /Marked true >>")
 
 	// Add ViewerPreferences (Required for PDF/UA)
 	pdfBuffer.WriteString(" /ViewerPreferences << /DisplayDocTitle true >>")
 
-	// Add Metadata reference (always include for document info)
-	pdfBuffer.WriteString(fmt.Sprintf(" /Metadata %d 0 R", metadataObjectID))
-
-	// Add OutputIntents ONLY for PDF/A compliance (required for color space validation)
-	if template.Config.PDFACompliant {
-		pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
-	}
+	// Note: Metadata and OutputIntents are only added when pdfaHandler != nil (PDF/A mode)
+	// because that's when we actually create those objects (see lines ~730-745)
 
 	// Add outlines (bookmarks) if present
 	if outlineObjID > 0 {
@@ -409,22 +436,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Add StructTreeRoot reference (required for PDF/UA)
 	pdfBuffer.WriteString(fmt.Sprintf(" /StructTreeRoot %d 0 R", structTreeRootID))
 
-	// Store position where we'll need to inject PDF/A references
-	// For now we close the catalog and will rebuild it if needed
-	catalogEndPlaceholder := ""
+	// For PDF/A, add Metadata and OutputIntent references using pre-reserved object IDs
+	// Note: We use the pre-reserved IDs directly here to avoid placeholder replacement
+	// which would invalidate all xref offsets after the Catalog
+	// PDF/UA-2 requires XMP metadata for ALL PDFs (ISO 14289-2:2024, Clause 8.11.1)
+	pdfBuffer.WriteString(fmt.Sprintf(" /Metadata %d 0 R", metadataObjectID))
 	if pdfaHandler != nil {
-		// Reserve space for metadata and outputintent references
-		// These will be set after we generate those objects
-		catalogEndPlaceholder = " /Metadata %METADATA% /OutputIntents [%OUTPUTINTENT%]"
-		// Note: We already added Metadata/OutputIntent references above in lines 354-358?
-		// If so, we should NOT add them here again.
-		// However, trusting potential legacy logic, I will leave the placeholder IF it was intended to replace existing keys?
-		// But in this specific file state, it seemed to append.
-		// I will Assume the previous code was appending duplicates which is a bug, but I will focus on StructTree.
-		// Removing /StructTreeRoot from placeholder.
-		pdfBuffer.WriteString(catalogEndPlaceholder)
-	} else {
-		// For standard PDF, we don't need placeholders as we wrote references directly
+		pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
 	}
 	pdfBuffer.WriteString(" >>\nendobj\n")
 
@@ -491,9 +509,18 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Build ColorSpace resources for PDF/A mode
 	// Using DefaultRGB tells Adobe Acrobat that DeviceRGB colors are already in sRGB
 	// This prevents the double color conversion that makes colors appear pale
+	// IMPORTANT: Use pdfaHandler's ICC profile ID when available, as it creates its own objects
+	// PDF/A-4 requires both DefaultRGB and DefaultGray ICC-based color spaces
 	colorSpaceRefs := ""
-	if template.Config.PDFACompliant && iccProfileObjectID > 0 {
-		colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] >>", iccProfileObjectID)
+	if template.Config.PDFACompliant {
+		actualICCObjID := iccProfileObjectID
+		if pdfaHandler != nil {
+			actualICCObjID = pdfaHandler.GetICCProfileObjID()
+		}
+		if actualICCObjID > 0 {
+			// Include both DefaultRGB and DefaultGray for full PDF/A-4 compliance
+			colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] /DefaultGray [/ICCBased %d 0 R] >>", actualICCObjID, grayICCProfileObjID)
+		}
 	}
 
 	// Generate page objects
@@ -618,8 +645,20 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		}
 	}
 
+	// Get the correct ICC profile object ID for images (if PDF/A compliance is enabled)
+	// pdfaHandler creates its own ICC profile object IDs, so we must use those when available
+	actualICCProfileObjID := iccProfileObjectID
+	if pdfaHandler != nil {
+		actualICCProfileObjID = pdfaHandler.GetICCProfileObjID()
+	}
+
 	// Generate image XObjects (standalone images)
 	for _, imgObj := range imageObjects {
+		// PDF/UA-2: Ensure images use the ICC profile for color space
+		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
+			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		}
+
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
 		if encryption != nil {
 			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
@@ -630,6 +669,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Generate image XObjects (cell images)
 	for _, imgObj := range cellImageObjects {
+		// PDF/UA-2: Ensure images use the ICC profile for color space
+		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
+			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		}
+
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
 		if encryption != nil {
 			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
@@ -640,6 +684,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Generate image XObjects (element images)
 	for _, imgObj := range elemImageObjects {
+		// PDF/UA-2: Ensure images use the ICC profile for color space
+		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
+			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		}
+
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
 		if encryption != nil {
 			pdfBuffer.WriteString(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, encryption))
@@ -666,45 +715,40 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Generate PDF/A metadata objects if enabled
 	if pdfaHandler != nil {
-		// Generate XMP metadata
+		// Generate XMP metadata content (but use our pre-reserved metadataObjectID for consistency with Catalog)
 		docIDForXMP := fmt.Sprintf("%x", time.Now().UnixNano())
-		metadataObjID, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
-		xrefOffsets[metadataObjID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", metadataObjID, metadataContent))
+		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
+		// Write metadata object using the pre-reserved ID that's already in the Catalog
+		xrefOffsets[metadataObjectID] = pdfBuffer.Len()
+		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", metadataObjectID, metadataContent))
 
 		// Generate OutputIntent with ICC profile
-		outputIntentObjID, outputIntentObjs := pdfaHandler.GenerateOutputIntent()
-		iccObjID := pdfaHandler.GetICCProfileObjID()
+		// Use pre-reserved IDs to ensure consistency with Catalog/References
+		_, outputIntentObjs, compressedICCData := pdfaHandler.GenerateOutputIntent(iccProfileObjectID, outputIntentObjectID)
 
 		// Write ICC profile object (with stream)
 		if len(outputIntentObjs) > 0 {
-			xrefOffsets[iccObjID] = pdfBuffer.Len()
-			// ICC profile needs raw data appended
-			iccData := getSRGBICCProfile()
+			xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
+			// Write ICC profile dictionary header and compressed data
 			pdfBuffer.WriteString(outputIntentObjs[0])
-			pdfBuffer.Write(iccData)
+			pdfBuffer.Write(compressedICCData)
 			pdfBuffer.WriteString("\nendstream\nendobj\n")
+		}
+
+		// Write Gray ICC profile object for DeviceGray color space compliance
+		if grayICCProfileObjID > 0 {
+			xrefOffsets[grayICCProfileObjID] = pdfBuffer.Len()
+			pdfBuffer.Write(GenerateGrayICCProfileObject(grayICCProfileObjID, encryptor))
 		}
 
 		// Write OutputIntent object
 		if len(outputIntentObjs) > 1 {
-			xrefOffsets[outputIntentObjID] = pdfBuffer.Len()
+			xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
 			pdfBuffer.WriteString(outputIntentObjs[1])
 			pdfBuffer.WriteString("\n")
 		}
-
-		// Update catalog with PDF/A references
-		// We need to rebuild the catalog object
-		catalogContent := pdfBuffer.String()
-
-		// Find and replace the placeholder in catalog
-		if strings.Contains(catalogContent, "%METADATA%") {
-			catalogContent = strings.Replace(catalogContent, "%METADATA%", fmt.Sprintf("%d 0 R", metadataObjID), 1)
-			catalogContent = strings.Replace(catalogContent, "%OUTPUTINTENT%", fmt.Sprintf("%d 0 R", outputIntentObjID), 1)
-			pdfBuffer.Reset()
-			pdfBuffer.WriteString(catalogContent)
-		}
 	}
+	// Note: For non-PDF/A, metadata is generated later (see pdfaHandler == nil block around line 804)
 
 	// Generate Info dictionary - keeping minimal for PDF 2.0
 	// Note: Producer, Creator, Title are deprecated in PDF 2.0 but still widely used
@@ -730,7 +774,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	if !template.Config.PDFACompliant {
 		xrefOffsets[infoObjectID] = pdfBuffer.Len()
 		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
-		pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s) >>\n", creationDate, creationDate))
+		// Include Title in Info dictionary if provided
+		titleEntry := ""
+		if template.Config.PdfTitle != "" {
+			titleEntry = fmt.Sprintf(" /Title (%s)", escapeText(template.Config.PdfTitle))
+		}
+		pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s)%s >>\n", creationDate, creationDate, titleEntry))
 		pdfBuffer.WriteString("endobj\n")
 	}
 
@@ -769,6 +818,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		if template.Config.PDFACompliant {
 			xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
 			pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID, encryptor))
+
+			// Write Gray ICC profile object for DeviceGray color space compliance
+			if grayICCProfileObjID > 0 {
+				xrefOffsets[grayICCProfileObjID] = pdfBuffer.Len()
+				pdfBuffer.Write(GenerateGrayICCProfileObject(grayICCProfileObjID, encryptor))
+			}
 
 			xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
 			pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID, encryptor))
@@ -1069,14 +1124,17 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 			switch elem.Type {
 			case "table":
 				var table models.Table
+				var imageKeyPrefix string
 				if elem.Table != nil {
 					table = *elem.Table
+					imageKeyPrefix = fmt.Sprintf("elem_inline:%d", elemIdx) // Use elem_inline prefix for inline tables
 				} else if elem.Index < len(template.Table) {
 					table = template.Table[elem.Index]
+					imageKeyPrefix = fmt.Sprintf("%d", elem.Index) // Use index as key for indexed tables
 				} else {
 					continue
 				}
-				drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
+				drawTable(table, imageKeyPrefix, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 				tableIdx++
 			case "spacer":
 				var spacer models.Spacer
@@ -1117,7 +1175,9 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		// Legacy mode: process tables, then spacers, then images (spacers at end)
 		// Tables - Process each table with automatic page breaks
 		for tableIdx, table := range template.Table {
-			drawTable(table, tableIdx, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
+			// For legacy table array, use simple index as key
+			imageKeyPrefix := fmt.Sprintf("%d", tableIdx)
+			drawTable(table, imageKeyPrefix, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 		}
 
 		// Spacers - Process each spacer (added after tables in legacy mode)
