@@ -41,3 +41,5 @@ Styled_Report_v2.pdf
 temp_verapdf
 verapdf
 reports.xml
+__pycache__
+*venv*
