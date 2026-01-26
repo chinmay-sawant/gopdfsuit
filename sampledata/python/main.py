@@ -5,7 +5,7 @@ import logging
 import json
 import re
 from pathlib import Path
-from time import time
+import time
 from gopdf import PdfClient
 
 # Configure logging
@@ -130,4 +130,5 @@ if __name__ == "__main__":
     now = time.time()
     main()
     end = time.time()
-    logging.info(f"Execution time: {end - now:.2f} seconds")
+    execution_time_ms = (end - now) * 1000
+    logging.info(f"Execution time: {execution_time_ms:.2f} milliseconds")
