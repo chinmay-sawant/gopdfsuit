@@ -1035,11 +1035,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	}
 	xrefStart := len(out)
 	var xrefBuf bytes.Buffer
-	xrefBuf.WriteString(fmt.Sprintf("xref\n0 %d\n", maxObj+1))
+	fmt.Fprintf(&xrefBuf, "xref\n0 %d\n", maxObj+1)
 	xrefBuf.WriteString("0000000000 65535 f \r\n")
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			xrefBuf.WriteString(fmt.Sprintf("%010d 00000 n \r\n", off))
+			fmt.Fprintf(&xrefBuf, "%010d 00000 n \r\n", off)
 		} else {
 			xrefBuf.WriteString("0000000000 65535 f \r\n")
 		}

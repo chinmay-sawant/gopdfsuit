@@ -1,7 +1,7 @@
 package pdf
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -130,13 +130,26 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 
 	// Write BMC/BDC operator
 	if len(props) == 0 {
-		fmt.Fprintf(streamBuilder, "/%s <</MCID %d>> BDC\n", tag, mcid)
+		var mcBuf []byte
+		mcBuf = append(mcBuf, '/')
+		mcBuf = append(mcBuf, string(tag)...)
+		mcBuf = append(mcBuf, " <</MCID "...)
+		mcBuf = strconv.AppendInt(mcBuf, int64(mcid), 10)
+		mcBuf = append(mcBuf, ">> BDC\n"...)
+		streamBuilder.Write(mcBuf)
 	} else {
 		// Just handle Alt text for now in properties list if strictly needed,
 		// but standard practice is BDC with property dictionary
-		fmt.Fprintf(streamBuilder, "/%s <</MCID %d", tag, mcid)
+		var mcBuf []byte
+		mcBuf = append(mcBuf, '/')
+		mcBuf = append(mcBuf, string(tag)...)
+		mcBuf = append(mcBuf, " <</MCID "...)
+		mcBuf = strconv.AppendInt(mcBuf, int64(mcid), 10)
+		streamBuilder.Write(mcBuf)
 		if alt, ok := props["Alt"]; ok {
-			fmt.Fprintf(streamBuilder, " /Alt (%s)", escapeText(alt))
+			streamBuilder.WriteString(" /Alt (")
+			streamBuilder.WriteString(escapeText(alt))
+			streamBuilder.WriteString(")")
 		}
 		streamBuilder.WriteString(">> BDC\n")
 	}
@@ -185,18 +198,30 @@ func (sm *StructureManager) RegisterPageStructParents(pageObjectID int, pageInde
 // namespaceObjID is the object ID of the PDF 2.0 namespace dictionary (0 to skip)
 func (sm *StructureManager) GenerateStructTreeRoot(rootObjID int, parentTreeObjID int, namespaceObjID int) string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "<< /Type /StructTreeRoot /ParentTree %d 0 R", parentTreeObjID)
+	var structBuf []byte
+	structBuf = append(structBuf, "<< /Type /StructTreeRoot /ParentTree "...)
+	structBuf = strconv.AppendInt(structBuf, int64(parentTreeObjID), 10)
+	structBuf = append(structBuf, " 0 R"...)
+	sb.Write(structBuf)
 
 	// PDF 2.0: Add Namespaces array for PDF/UA-2
 	if namespaceObjID > 0 {
-		fmt.Fprintf(&sb, " /Namespaces [ %d 0 R ]", namespaceObjID)
+		structBuf = structBuf[:0]
+		structBuf = append(structBuf, " /Namespaces [ "...)
+		structBuf = strconv.AppendInt(structBuf, int64(namespaceObjID), 10)
+		structBuf = append(structBuf, " 0 R ]"...)
+		sb.Write(structBuf)
 	}
 
 	// Point to the first child (Document)
 	if len(sm.Root.Kids) > 0 {
 		// Assuming the first kid is the Document element
 		if firstKid, ok := sm.Root.Kids[0].(*StructElem); ok {
-			fmt.Fprintf(&sb, " /K %d 0 R", firstKid.ObjectID)
+			structBuf = structBuf[:0]
+			structBuf = append(structBuf, " /K "...)
+			structBuf = strconv.AppendInt(structBuf, int64(firstKid.ObjectID), 10)
+			structBuf = append(structBuf, " 0 R"...)
+			sb.Write(structBuf)
 		}
 	}
 

@@ -199,16 +199,40 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	buf.Write(b)
 	buf.WriteString("<< /Type /XObject\n")
 	buf.WriteString("   /Subtype /Image\n")
-	fmt.Fprintf(&buf, "   /Width %d\n", imgObj.Width)
-	fmt.Fprintf(&buf, "   /Height %d\n", imgObj.Height)
-	fmt.Fprintf(&buf, "   /ColorSpace %s\n", imgObj.ColorSpace)
-	fmt.Fprintf(&buf, "   /BitsPerComponent %d\n", imgObj.BitsPerComp)
+
+	var intBuf []byte
+	intBuf = append(intBuf, "   /Width "...)
+	intBuf = strconv.AppendInt(intBuf, int64(imgObj.Width), 10)
+	intBuf = append(intBuf, "\n"...)
+	buf.Write(intBuf)
+
+	intBuf = intBuf[:0]
+	intBuf = append(intBuf, "   /Height "...)
+	intBuf = strconv.AppendInt(intBuf, int64(imgObj.Height), 10)
+	intBuf = append(intBuf, "\n"...)
+	buf.Write(intBuf)
+
+	buf.WriteString("   /ColorSpace ")
+	buf.WriteString(imgObj.ColorSpace)
+	buf.WriteString("\n")
+
+	intBuf = intBuf[:0]
+	intBuf = append(intBuf, "   /BitsPerComponent "...)
+	intBuf = strconv.AppendInt(intBuf, int64(imgObj.BitsPerComp), 10)
+	intBuf = append(intBuf, "\n"...)
+	buf.Write(intBuf)
 
 	if imgObj.Filter != "" {
-		fmt.Fprintf(&buf, "   /Filter %s\n", imgObj.Filter)
+		buf.WriteString("   /Filter ")
+		buf.WriteString(imgObj.Filter)
+		buf.WriteString("\n")
 	}
 
-	fmt.Fprintf(&buf, "   /Length %d\n", imgObj.ImageDataLen)
+	intBuf = intBuf[:0]
+	intBuf = append(intBuf, "   /Length "...)
+	intBuf = strconv.AppendInt(intBuf, int64(imgObj.ImageDataLen), 10)
+	intBuf = append(intBuf, "\n"...)
+	buf.Write(intBuf)
 	buf.WriteString(">>\n")
 	buf.WriteString("stream\n")
 	buf.Write(imgObj.ImageData)
@@ -236,16 +260,16 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	buf.Write(b)
 	buf.WriteString("<< /Type /XObject\n")
 	buf.WriteString("   /Subtype /Image\n")
-	buf.WriteString(fmt.Sprintf("   /Width %d\n", imgObj.Width))
-	buf.WriteString(fmt.Sprintf("   /Height %d\n", imgObj.Height))
-	buf.WriteString(fmt.Sprintf("   /ColorSpace %s\n", imgObj.ColorSpace))
-	buf.WriteString(fmt.Sprintf("   /BitsPerComponent %d\n", imgObj.BitsPerComp))
+	fmt.Fprintf(&buf, "   /Width %d\n", imgObj.Width)
+	fmt.Fprintf(&buf, "   /Height %d\n", imgObj.Height)
+	fmt.Fprintf(&buf, "   /ColorSpace %s\n", imgObj.ColorSpace)
+	fmt.Fprintf(&buf, "   /BitsPerComponent %d\n", imgObj.BitsPerComp)
 
 	if imgObj.Filter != "" {
-		buf.WriteString(fmt.Sprintf("   /Filter %s\n", imgObj.Filter))
+		fmt.Fprintf(&buf, "   /Filter %s\n", imgObj.Filter)
 	}
 
-	buf.WriteString(fmt.Sprintf("   /Length %d\n", len(encryptedData)))
+	fmt.Fprintf(&buf, "   /Length %d\n", len(encryptedData))
 	buf.WriteString(">>\n")
 	buf.WriteString("stream\n")
 	buf.Write(encryptedData)
@@ -289,11 +313,22 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 	// Set up transformation matrix to position and scale the image
 	// PDF images are drawn in a 1x1 unit square by default
 	// We need to scale and translate to our desired size and position
-	fmt.Fprintf(contentStream, "%s 0 0 %s %s %s cm\n",
-		fmtNumImg(imageWidth), fmtNumImg(imageHeight), fmtNumImg(imageX), fmtNumImg(imageY))
+	var imgBuf []byte
+	imgBuf = append(imgBuf, fmtNumImg(imageWidth)...)
+	imgBuf = append(imgBuf, " 0 0 "...)
+	imgBuf = append(imgBuf, fmtNumImg(imageHeight)...)
+	imgBuf = append(imgBuf, ' ')
+	imgBuf = append(imgBuf, fmtNumImg(imageX)...)
+	imgBuf = append(imgBuf, ' ')
+	imgBuf = append(imgBuf, fmtNumImg(imageY)...)
+	imgBuf = append(imgBuf, " cm\n"...)
+	contentStream.Write(imgBuf)
 
 	// Draw the image using the XObject reference
-	fmt.Fprintf(contentStream, "%s Do\n", imageXObjectRef)
+	imgBuf = imgBuf[:0]
+	imgBuf = append(imgBuf, imageXObjectRef...)
+	imgBuf = append(imgBuf, " Do\n"...)
+	contentStream.Write(imgBuf)
 
 	// Restore graphics state
 	contentStream.WriteString("Q\n")

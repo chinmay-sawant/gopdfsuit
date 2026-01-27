@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -111,6 +112,26 @@ func RegisterRoutes(router *gin.Engine) {
 		// HTML to PDF/Image endpoints (powered by gochromedp)
 		v1.POST("/htmltopdf", handlehtmlToPDF)
 		v1.POST("/htmltoimage", handlehtmlToImage)
+	}
+
+	// Add pprof routes for profiling
+	pprofGroup := router.Group("/debug/pprof")
+	// Restrict pprof access to localhost only
+	pprofGroup.Use(func(c *gin.Context) {
+		clientIP := c.ClientIP()
+		if clientIP != "127.0.0.1" && clientIP != "::1" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden: Pprof is only accessible from localhost"})
+			return
+		}
+		c.Next()
+	})
+	{
+		pprofGroup.GET("/", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/cmdline", gin.WrapF(http.HandlerFunc(pprof.Cmdline)))
+		pprofGroup.GET("/profile", gin.WrapF(http.HandlerFunc(pprof.Profile)))
+		pprofGroup.GET("/symbol", gin.WrapF(http.HandlerFunc(pprof.Symbol)))
+		pprofGroup.POST("/symbol", gin.WrapF(http.HandlerFunc(pprof.Symbol)))
+		pprofGroup.GET("/trace", gin.WrapF(http.HandlerFunc(pprof.Trace)))
 	}
 
 	// Redirect root path to /gopdfsuit

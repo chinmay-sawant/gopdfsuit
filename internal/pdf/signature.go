@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -193,13 +194,19 @@ func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims Page
 	ids.SigAnnotID = sigAnnotID
 
 	var annotDict strings.Builder
-	fmt.Fprintf(&annotDict, "<< /Type /Annot /Subtype /Widget")
-	fmt.Fprintf(&annotDict, " /FT /Sig")
-	fmt.Fprintf(&annotDict, " /T (Signature1)")
+	annotDict.WriteString("<< /Type /Annot /Subtype /Widget")
+	annotDict.WriteString(" /FT /Sig")
+	annotDict.WriteString(" /T (Signature1)")
 	// PDF/UA-2 compliance: Widget annotations must have a label or Contents entry
-	fmt.Fprintf(&annotDict, " /Contents (Digital Signature)")
-	fmt.Fprintf(&annotDict, " /V %d 0 R", sigValueID)
-	fmt.Fprintf(&annotDict, " /F 132") // Print + Locked
+	annotDict.WriteString(" /Contents (Digital Signature)")
+
+	var annotBuf []byte
+	annotBuf = append(annotBuf, " /V "...)
+	annotBuf = strconv.AppendInt(annotBuf, int64(sigValueID), 10)
+	annotBuf = append(annotBuf, " 0 R"...)
+	annotDict.Write(annotBuf)
+
+	annotDict.WriteString(" /F 132") // Print + Locked
 
 	// Rectangle for visible/invisible signature
 	if s.config.Visible {

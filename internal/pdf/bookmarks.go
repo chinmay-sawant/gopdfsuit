@@ -2,7 +2,7 @@ package pdf
 
 import (
 	"bytes"
-	"fmt"
+
 	"strconv"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
@@ -31,12 +31,24 @@ func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffset
 	pdfBuffer.Write(b)
 	pdfBuffer.WriteString("<< /Type /Outlines")
 	if firstID > 0 {
-		fmt.Fprintf(pdfBuffer, " /First %d 0 R", firstID)
+		b = b[:0]
+		b = append(b, " /First "...)
+		b = strconv.AppendInt(b, int64(firstID), 10)
+		b = append(b, " 0 R"...)
+		pdfBuffer.Write(b)
 	}
 	if lastID > 0 {
-		fmt.Fprintf(pdfBuffer, " /Last %d 0 R", lastID)
+		b = b[:0]
+		b = append(b, " /Last "...)
+		b = strconv.AppendInt(b, int64(lastID), 10)
+		b = append(b, " 0 R"...)
+		pdfBuffer.Write(b)
 	}
-	fmt.Fprintf(pdfBuffer, " /Count %d >>\nendobj\n", count) // Count includes all visible descendants
+	b = b[:0]
+	b = append(b, " /Count "...)
+	b = strconv.AppendInt(b, int64(count), 10)
+	b = append(b, " >>\nendobj\n"...)
+	pdfBuffer.Write(b) // Count includes all visible descendants
 
 	return outlinesID
 }
@@ -77,16 +89,35 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 		pdfBuffer.WriteString("<< /Title (")
 		pdfBuffer.WriteString(escapePDFString(item.Title))
 		pdfBuffer.WriteString(")")
-		fmt.Fprintf(pdfBuffer, " /Parent %d 0 R", parentID)
+		b = b[:0]
+		b = append(b, " /Parent "...)
+		b = strconv.AppendInt(b, int64(parentID), 10)
+		b = append(b, " 0 R"...)
+		pdfBuffer.Write(b)
 
 		if i > 0 {
-			fmt.Fprintf(pdfBuffer, " /Prev %d 0 R", itemIDs[i-1])
+			b = b[:0]
+			b = append(b, " /Prev "...)
+			b = strconv.AppendInt(b, int64(itemIDs[i-1]), 10)
+			b = append(b, " 0 R"...)
+			pdfBuffer.Write(b)
 		}
 		if i < len(items)-1 {
-			fmt.Fprintf(pdfBuffer, " /Next %d 0 R", itemIDs[i+1])
+			b = b[:0]
+			b = append(b, " /Next "...)
+			b = strconv.AppendInt(b, int64(itemIDs[i+1]), 10)
+			b = append(b, " 0 R"...)
+			pdfBuffer.Write(b)
 		}
 		if childFirst > 0 {
-			fmt.Fprintf(pdfBuffer, " /First %d 0 R /Last %d 0 R /Count %d", childFirst, childLast, childCount)
+			b = b[:0]
+			b = append(b, " /First "...)
+			b = strconv.AppendInt(b, int64(childFirst), 10)
+			b = append(b, " 0 R /Last "...)
+			b = strconv.AppendInt(b, int64(childLast), 10)
+			b = append(b, " 0 R /Count "...)
+			b = strconv.AppendInt(b, int64(childCount), 10)
+			pdfBuffer.Write(b)
 		}
 
 		// Link to page (Dest)
@@ -108,7 +139,11 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 		if pageIdx >= 0 && pageIdx < len(pm.Pages) {
 			pageID := pm.Pages[pageIdx]
-			fmt.Fprintf(pdfBuffer, " /Dest [%d 0 R /Fit]", pageID)
+			b = b[:0]
+			b = append(b, " /Dest ["...)
+			b = strconv.AppendInt(b, int64(pageID), 10)
+			b = append(b, " 0 R /Fit]"...)
+			pdfBuffer.Write(b)
 		}
 
 		pdfBuffer.WriteString(" >>\nendobj\n")
