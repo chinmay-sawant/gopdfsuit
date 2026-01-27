@@ -3,6 +3,7 @@ package pdf
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 )
@@ -22,8 +23,12 @@ func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffset
 	firstID, lastID, count := pm.generateBookmarkItems(bookmarks, outlinesID, xrefOffsets, pdfBuffer)
 
 	// Write Outlines dictionary
+	// Write Outlines dictionary
 	xrefOffsets[outlinesID] = pdfBuffer.Len()
-	fmt.Fprintf(pdfBuffer, "%d 0 obj\n", outlinesID)
+	var b []byte
+	b = strconv.AppendInt(b, int64(outlinesID), 10)
+	b = append(b, " 0 obj\n"...)
+	pdfBuffer.Write(b)
 	pdfBuffer.WriteString("<< /Type /Outlines")
 	if firstID > 0 {
 		fmt.Fprintf(pdfBuffer, " /First %d 0 R", firstID)
@@ -44,6 +49,7 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 	var itemIDs []int
 	var totalCount int
+	var b []byte
 
 	// First pass: Allocate IDs for all items at this level
 	startID := pm.NextObjectID
@@ -64,7 +70,10 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 		childFirst, childLast, childCount := pm.generateBookmarkItems(item.Children, currentID, xrefOffsets, pdfBuffer)
 
 		xrefOffsets[currentID] = pdfBuffer.Len()
-		fmt.Fprintf(pdfBuffer, "%d 0 obj\n", currentID)
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(currentID), 10)
+		b = append(b, " 0 obj\n"...)
+		pdfBuffer.Write(b)
 		pdfBuffer.WriteString("<< /Title (")
 		pdfBuffer.WriteString(escapePDFString(item.Title))
 		pdfBuffer.WriteString(")")
@@ -120,6 +129,3 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 	return firstID, lastID, totalCount
 }
-
-// Helper interface since we can't use bytes.Buffer directly with custom methods in the same package cleanly
-// without type alias, or we just pass the buffer from generator.

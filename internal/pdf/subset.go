@@ -83,7 +83,7 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 	tables["hmtx"] = subsetHmtx(font, glyphs)
 
 	// Generate cmap table with new glyph IDs
-	tables["cmap"] = subsetCmap(font, glyphs, oldToNew)
+	tables["cmap"] = subsetCmap(font, oldToNew)
 
 	// Generate post table (minimal version)
 	tables["post"] = subsetPost(font)
@@ -329,7 +329,7 @@ func subsetHmtx(font *TTFFont, glyphs []uint16) []byte {
 }
 
 // subsetCmap generates a format 4 cmap table with remapped glyph IDs
-func subsetCmap(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16) []byte {
+func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 	var buf bytes.Buffer
 
 	// Build character to new glyph ID mapping

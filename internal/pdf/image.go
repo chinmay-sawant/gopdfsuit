@@ -8,6 +8,7 @@ import (
 	"image"
 	_ "image/jpeg" // Register JPEG decoder
 	_ "image/png"  // Register PNG decoder
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
@@ -191,20 +192,23 @@ func convertToRGBWithAlpha(img image.Image) ([]byte, error) {
 // CreateImageXObject creates a PDF XObject for an image
 func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	var buf bytes.Buffer
+	var b []byte
 
-	buf.WriteString(fmt.Sprintf("%d 0 obj\n", objectID))
+	b = strconv.AppendInt(b, int64(objectID), 10)
+	b = append(b, " 0 obj\n"...)
+	buf.Write(b)
 	buf.WriteString("<< /Type /XObject\n")
 	buf.WriteString("   /Subtype /Image\n")
-	buf.WriteString(fmt.Sprintf("   /Width %d\n", imgObj.Width))
-	buf.WriteString(fmt.Sprintf("   /Height %d\n", imgObj.Height))
-	buf.WriteString(fmt.Sprintf("   /ColorSpace %s\n", imgObj.ColorSpace))
-	buf.WriteString(fmt.Sprintf("   /BitsPerComponent %d\n", imgObj.BitsPerComp))
+	fmt.Fprintf(&buf, "   /Width %d\n", imgObj.Width)
+	fmt.Fprintf(&buf, "   /Height %d\n", imgObj.Height)
+	fmt.Fprintf(&buf, "   /ColorSpace %s\n", imgObj.ColorSpace)
+	fmt.Fprintf(&buf, "   /BitsPerComponent %d\n", imgObj.BitsPerComp)
 
 	if imgObj.Filter != "" {
-		buf.WriteString(fmt.Sprintf("   /Filter %s\n", imgObj.Filter))
+		fmt.Fprintf(&buf, "   /Filter %s\n", imgObj.Filter)
 	}
 
-	buf.WriteString(fmt.Sprintf("   /Length %d\n", imgObj.ImageDataLen))
+	fmt.Fprintf(&buf, "   /Length %d\n", imgObj.ImageDataLen)
 	buf.WriteString(">>\n")
 	buf.WriteString("stream\n")
 	buf.Write(imgObj.ImageData)
@@ -226,7 +230,10 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	// Encrypt the image data
 	encryptedData := encryptor.EncryptStream(imgObj.ImageData, objectID, 0)
 
-	buf.WriteString(fmt.Sprintf("%d 0 obj\n", objectID))
+	var b []byte
+	b = strconv.AppendInt(b, int64(objectID), 10)
+	b = append(b, " 0 obj\n"...)
+	buf.Write(b)
 	buf.WriteString("<< /Type /XObject\n")
 	buf.WriteString("   /Subtype /Image\n")
 	buf.WriteString(fmt.Sprintf("   /Width %d\n", imgObj.Width))

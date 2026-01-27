@@ -20,6 +20,7 @@ import (
 // GenerateTemplatePDF generates a PDF document with multi-page support and embedded images
 func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	var pdfBuffer bytes.Buffer
+	var b []byte
 	xrefOffsets := make(map[int]int)
 
 	// Get page dimensions from config
@@ -69,7 +70,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	}
 
 	// Pre-scan template to mark all font usage for subsetting
-	scanTemplateForFontUsage(template, fontRegistry)
+	scanTemplateForFontUsage(template)
 
 	// Generate font subsets
 	if err := fontRegistry.GenerateSubsets(); err != nil {
@@ -186,7 +187,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
-	generateAllContentWithImages(template, pageManager, imageObjects, imageObjectIDs, cellImageObjectIDs, elemImageObjects, elemImageObjectIDs)
+	generateAllContentWithImages(template, pageManager, imageObjects, cellImageObjectIDs, elemImageObjects)
 
 	// Setup encryption EARLY if security config is provided (before writing content)
 	// This is needed because content streams need to be encrypted
@@ -527,7 +528,10 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Generate page objects
 	for i, pageID := range pageManager.Pages {
 		xrefOffsets[pageID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", pageID))
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(pageID), 10)
+		b = append(b, " 0 obj\n"...)
+		pdfBuffer.Write(b)
 
 		// Add Annots if present
 		annotsStr := ""
@@ -573,7 +577,10 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	for i, contentStream := range pageManager.ContentStreams {
 		objectID := contentObjectStart + i
 		xrefOffsets[objectID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", objectID))
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(objectID), 10)
+		b = append(b, " 0 obj\n"...)
+		pdfBuffer.Write(b)
 
 		// Compress content stream with zlib (PDF FlateDecode expects zlib format, not raw deflate)
 		var compressedBuf bytes.Buffer
@@ -707,14 +714,24 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		fontObjects := GenerateTrueTypeFontObjects(font, encryptor)
 		for objID, content := range fontObjects {
 			xrefOffsets[objID] = pdfBuffer.Len()
-			pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", objID, content))
+			b = b[:0]
+			b = strconv.AppendInt(b, int64(objID), 10)
+			b = append(b, " 0 obj\n"...)
+			pdfBuffer.Write(b)
+			pdfBuffer.WriteString(content)
+			pdfBuffer.WriteString("\nendobj\n")
 		}
 	}
 
 	// Generate Extra Objects (Widgets, Appearance Streams, AcroForm)
 	for id, content := range pageManager.ExtraObjects {
 		xrefOffsets[id] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", id, content))
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(id), 10)
+		b = append(b, " 0 obj\n"...)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(content)
+		pdfBuffer.WriteString("\nendobj\n")
 	}
 
 	// Generate PDF/A metadata objects if enabled
@@ -724,7 +741,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
 		// Write metadata object using the pre-reserved ID that's already in the Catalog
 		xrefOffsets[metadataObjectID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", metadataObjectID, metadataContent))
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(metadataObjectID), 10)
+		b = append(b, " 0 obj\n"...)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(metadataContent)
+		pdfBuffer.WriteString("\nendobj\n")
 
 		// Generate OutputIntent with ICC profile
 		// Use pre-reserved IDs to ensure consistency with Catalog/References
@@ -777,7 +799,10 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// All metadata should be in XMP stream instead
 	if !template.Config.PDFACompliant {
 		xrefOffsets[infoObjectID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", infoObjectID))
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(infoObjectID), 10)
+		b = append(b, " 0 obj\n"...)
+		pdfBuffer.Write(b)
 		// Include Title in Info dictionary if provided
 		titleEntry := ""
 		if template.Config.PdfTitle != "" {
@@ -793,7 +818,12 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		encryptObjID = pageManager.NextObjectID
 		pageManager.NextObjectID++
 		xrefOffsets[encryptObjID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n%s\nendobj\n", encryptObjID, encryption.GetEncryptDictionary(encryptObjID)))
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(encryptObjID), 10)
+		b = append(b, " 0 obj\n"...)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(encryption.GetEncryptDictionary(encryptObjID))
+		pdfBuffer.WriteString("\nendobj\n")
 	}
 
 	// Generate Document ID (two MD5 hashes - one based on content, one random)
@@ -873,12 +903,18 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	pageManager.NextObjectID++
 
 	xrefOffsets[namespaceID] = pdfBuffer.Len()
-	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", namespaceID))
+	b = b[:0]
+	b = strconv.AppendInt(b, int64(namespaceID), 10)
+	b = append(b, " 0 obj\n"...)
+	pdfBuffer.Write(b)
 	pdfBuffer.WriteString("<< /Type /Namespace /NS (http://iso.org/pdf2/ssn) >>")
 	pdfBuffer.WriteString("\nendobj\n")
 
 	xrefOffsets[structTreeRootID] = pdfBuffer.Len()
-	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", structTreeRootID))
+	b = b[:0]
+	b = strconv.AppendInt(b, int64(structTreeRootID), 10)
+	b = append(b, " 0 obj\n"...)
+	pdfBuffer.Write(b)
 	pdfBuffer.WriteString(pageManager.Structure.GenerateStructTreeRoot(structTreeRootID, parentTreeID, namespaceID))
 	pdfBuffer.WriteString("\nendobj\n")
 
@@ -888,7 +924,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	// Build ParentTree Nums map
 	// Maps StructParents key (page index) to Array of IndirectRefs to StructElems
 	var ptBuilder strings.Builder
-	ptBuilder.WriteString(fmt.Sprintf("%d 0 obj\n<< /Nums [", parentTreeID))
+	ptBuilder.WriteString(strconv.Itoa(parentTreeID))
+	ptBuilder.WriteString(" 0 obj\n<< /Nums [")
 
 	// Iterate through all pages that have marked content
 	// We iterate by page index to keep Nums sorted
@@ -920,7 +957,9 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
 
 		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("%d 0 obj\n<< /Type /StructElem /S /%s", elem.ObjectID, elem.Type))
+		sb.WriteString(strconv.Itoa(elem.ObjectID))
+		sb.WriteString(" 0 obj\n<< /Type /StructElem /S /")
+		sb.WriteString(string(elem.Type))
 
 		// PDF/UA-2: Document element must be in PDF 2.0 namespace
 		if elem.Type == StructDocument {
@@ -1090,7 +1129,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 }
 
 // generateAllContentWithImages processes the template and generates content with image support
-func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, imageObjectIDs map[int]int, cellImageObjectIDs map[string]int, elemImageObjects map[int]*ImageObject, elemImageObjectIDs map[int]int) {
+func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, cellImageObjectIDs map[string]int, elemImageObjects map[int]*ImageObject) {
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
 
@@ -1221,7 +1260,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 }
 
 // scanTemplateForFontUsage scans all text in template and marks font usage for subsetting
-func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontRegistry) {
+func scanTemplateForFontUsage(template models.PDFTemplate) {
 	// Scan title
 	if template.Title.Text != "" {
 		props := parseProps(template.Title.Props)

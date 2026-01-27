@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -264,6 +265,7 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 // Returns (outputIntentObjID, []strings of objects, compressedICCData)
 func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []string, []byte) {
 	objects := make([]string, 0, 2)
+	var sb strings.Builder
 
 	// Create ICC profile object (sRGB)
 	// This is a minimal sRGB ICC profile for PDF/A compliance
@@ -292,7 +294,11 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	}
 
 	iccDict := fmt.Sprintf("<< /N 3 /Length %d /Filter /FlateDecode /Alternate /DeviceRGB >>\nstream\n", len(compressedData))
-	objects = append(objects, fmt.Sprintf("%d 0 obj\n%s", h.iccProfileObjID, iccDict))
+	sb.Reset()
+	sb.WriteString(strconv.Itoa(h.iccProfileObjID))
+	sb.WriteString(" 0 obj\n")
+	sb.WriteString(iccDict)
+	objects = append(objects, sb.String())
 
 	// Create OutputIntent object
 	if outputIntentID > 0 {
@@ -320,7 +326,12 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 
 	outputIntentDict := fmt.Sprintf(`<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier %s /RegistryName %s /Info %s /DestOutputProfile %d 0 R >>`,
 		idStr, regStr, infoStr, h.iccProfileObjID)
-	objects = append(objects, fmt.Sprintf("%d 0 obj\n%s\nendobj", h.outputIntentObjID, outputIntentDict))
+	sb.Reset()
+	sb.WriteString(strconv.Itoa(h.outputIntentObjID))
+	sb.WriteString(" 0 obj\n")
+	sb.WriteString(outputIntentDict)
+	sb.WriteString("\nendobj")
+	objects = append(objects, sb.String())
 
 	return h.outputIntentObjID, objects, compressedData
 }
