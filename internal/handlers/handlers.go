@@ -132,6 +132,12 @@ func RegisterRoutes(router *gin.Engine) {
 		pprofGroup.GET("/symbol", gin.WrapF(http.HandlerFunc(pprof.Symbol)))
 		pprofGroup.POST("/symbol", gin.WrapF(http.HandlerFunc(pprof.Symbol)))
 		pprofGroup.GET("/trace", gin.WrapF(http.HandlerFunc(pprof.Trace)))
+		pprofGroup.GET("/heap", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/goroutine", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/allocs", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/block", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/mutex", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/threadcreate", gin.WrapF(http.HandlerFunc(pprof.Index)))
 	}
 
 	// Redirect root path to /gopdfsuit
