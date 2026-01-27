@@ -2,7 +2,6 @@ package pdf
 
 import (
 	"bytes"
-	"compress/zlib"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/binary"
@@ -583,14 +582,17 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		b = append(b, " 0 obj\n"...)
 		pdfBuffer.Write(b)
 
-		// Compress content stream with zlib (PDF FlateDecode expects zlib format, not raw deflate)
-		var compressedBuf bytes.Buffer
-		zlibWriter := zlib.NewWriter(&compressedBuf)
+		// Compress content stream with pooled zlib writer (avoids allocation overhead)
+		compressedBuf := getCompressBuffer()
+		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(contentStream.Bytes()); err != nil {
 			_ = zlibWriter.Close()
+			putZlibWriter(zlibWriter)
+			compressBufPool.Put(compressedBuf)
 			continue // Skip encryption if compression fails
 		}
 		_ = zlibWriter.Close()
+		putZlibWriter(zlibWriter)
 		compressedData := compressedBuf.Bytes()
 
 		// Encrypt content stream if encryption is enabled
@@ -603,6 +605,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 			pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(compressedData)))
 			pdfBuffer.Write(compressedData)
 		}
+		compressBufPool.Put(compressedBuf)
 		pdfBuffer.WriteString("\nendstream\nendobj\n")
 	}
 

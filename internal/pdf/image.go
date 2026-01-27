@@ -8,6 +8,7 @@ import (
 	"image"
 	_ "image/jpeg" // Register JPEG decoder
 	_ "image/png"  // Register PNG decoder
+	"io"
 	"strconv"
 	"strings"
 
@@ -27,6 +28,74 @@ var rgbDataPool = sync.Pool{
 		buf := make([]byte, 1024*1024) // Start with 1MB
 		return &buf
 	},
+}
+
+// zlibWriterPool recycles zlib writers to avoid allocation overhead
+// Each zlib.NewWriter allocates ~256KB for compression tables
+var zlibWriterPool = sync.Pool{
+	New: func() interface{} {
+		// Create writer that will be reset with actual buffer later
+		w, _ := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed)
+		return w
+	},
+}
+
+// compressBufPool recycles bytes.Buffer for compression output
+var compressBufPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
+
+// getZlibWriter returns a pooled zlib writer reset to write to the given buffer
+func getZlibWriter(buf *bytes.Buffer) *zlib.Writer {
+	w := zlibWriterPool.Get().(*zlib.Writer)
+	w.Reset(buf)
+	return w
+}
+
+// putZlibWriter returns a zlib writer to the pool
+func putZlibWriter(w *zlib.Writer) {
+	zlibWriterPool.Put(w)
+}
+
+// getCompressBuffer returns a pooled compression buffer
+func getCompressBuffer() *bytes.Buffer {
+	buf := compressBufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	return buf
+}
+
+// imageCache stores decoded images keyed by a hash of their base64 data
+// This avoids re-decoding the same image when it appears multiple times
+type imageCache struct {
+	mu    sync.RWMutex
+	cache map[uint64]*ImageObject // FNV-1a hash -> decoded image
+}
+
+var imgCache = &imageCache{
+	cache: make(map[uint64]*ImageObject),
+}
+
+// fnv1aHash computes FNV-1a hash for quick image deduplication
+func fnv1aHash(data string) uint64 {
+	const (
+		offset64 = 14695981039346656037
+		prime64  = 1099511628211
+	)
+	hash := uint64(offset64)
+	for i := 0; i < len(data); i++ {
+		hash ^= uint64(data[i])
+		hash *= prime64
+	}
+	return hash
+}
+
+// ResetImageCache clears the image cache (call between PDF generations if needed)
+func ResetImageCache() {
+	imgCache.mu.Lock()
+	imgCache.cache = make(map[uint64]*ImageObject)
+	imgCache.mu.Unlock()
 }
 
 // getRGBDataBuffer returns a buffer with at least the requested length
@@ -58,17 +127,37 @@ type ImageObject struct {
 }
 
 // DecodeImageData decodes base64 image data and returns image information
+// Uses caching to avoid re-decoding duplicate images
 func DecodeImageData(base64Data string) (*ImageObject, error) {
 	// Remove any data URL prefix if present
-	if strings.Contains(base64Data, ",") {
-		parts := strings.Split(base64Data, ",")
+	cleanData := base64Data
+	if strings.Contains(cleanData, ",") {
+		parts := strings.Split(cleanData, ",")
 		if len(parts) > 1 {
-			base64Data = parts[1]
+			cleanData = parts[1]
 		}
 	}
 
+	// Check cache first (fast path for duplicate images)
+	hash := fnv1aHash(cleanData)
+	imgCache.mu.RLock()
+	if cached, ok := imgCache.cache[hash]; ok {
+		imgCache.mu.RUnlock()
+		// Return a copy with a new ObjectID (will be set by caller)
+		return &ImageObject{
+			Width:        cached.Width,
+			Height:       cached.Height,
+			ColorSpace:   cached.ColorSpace,
+			BitsPerComp:  cached.BitsPerComp,
+			Filter:       cached.Filter,
+			ImageData:    cached.ImageData,
+			ImageDataLen: cached.ImageDataLen,
+		}, nil
+	}
+	imgCache.mu.RUnlock()
+
 	// Decode base64 to bytes
-	imageBytes, err := base64.StdEncoding.DecodeString(base64Data)
+	imageBytes, err := base64.StdEncoding.DecodeString(cleanData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64: %v", err)
 	}
@@ -116,20 +205,22 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 			return nil, err
 		}
 
-		// Compress with zlib (PDF FlateDecode expects zlib format)
-		var compressedBuf bytes.Buffer
-		zlibWriter, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestSpeed)
-		if err != nil {
-			return nil, err
-		}
+		// Compress with pooled zlib writer (avoids 256KB allocation per compression)
+		compressedBuf := getCompressBuffer()
+		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
 			_ = zlibWriter.Close()
+			putZlibWriter(zlibWriter)
 			return nil, err
 		}
 		_ = zlibWriter.Close()
+		putZlibWriter(zlibWriter)
+
 		imgObj.Filter = "/FlateDecode"
-		imgObj.ImageData = compressedBuf.Bytes()
+		// Copy compressed data since buffer will be reused
+		imgObj.ImageData = append([]byte(nil), compressedBuf.Bytes()...)
 		imgObj.ImageDataLen = len(imgObj.ImageData)
+		compressBufPool.Put(compressedBuf)
 
 	case "jpeg", "jpg":
 		// For JPEG, use original bytes directly to preserve quality
@@ -148,21 +239,27 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Compress with zlib (PDF FlateDecode expects zlib format)
-		var compressedBuf bytes.Buffer
-		zlibWriter, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestSpeed)
-		if err != nil {
-			return nil, err
-		}
+		// Compress with pooled zlib writer
+		compressedBuf := getCompressBuffer()
+		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
 			_ = zlibWriter.Close()
+			putZlibWriter(zlibWriter)
 			return nil, err
 		}
 		_ = zlibWriter.Close()
+		putZlibWriter(zlibWriter)
+
 		imgObj.Filter = "/FlateDecode"
-		imgObj.ImageData = compressedBuf.Bytes()
+		imgObj.ImageData = append([]byte(nil), compressedBuf.Bytes()...)
 		imgObj.ImageDataLen = len(imgObj.ImageData)
+		compressBufPool.Put(compressedBuf)
 	}
+
+	// Store in cache for future lookups of same image data
+	imgCache.mu.Lock()
+	imgCache.cache[hash] = imgObj
+	imgCache.mu.Unlock()
 
 	return imgObj, nil
 }
@@ -230,6 +327,7 @@ func convertToRGB(img image.Image, rgbData []byte) error {
 
 // convertToRGBWithAlpha converts an image with alpha channel to RGB
 // Blends transparent pixels with white background
+// Optimized with fast integer division approximation
 func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 	bounds := img.Bounds()
 	width := bounds.Dx()
@@ -244,14 +342,18 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 
 	// Optimize for NRGBA (common for PNG) which has straight alpha
 	if nrgba, ok := img.(*image.NRGBA); ok {
-		for y := range height {
-			rowStart := (y + bounds.Min.Y - nrgba.Rect.Min.Y) * nrgba.Stride
-			for x := range width {
-				pixOffset := rowStart + (x+bounds.Min.X-nrgba.Rect.Min.X)*4
-				r := int(nrgba.Pix[pixOffset])
-				g := int(nrgba.Pix[pixOffset+1])
-				b := int(nrgba.Pix[pixOffset+2])
-				a := int(nrgba.Pix[pixOffset+3])
+		pix := nrgba.Pix
+		stride := nrgba.Stride
+		minX := bounds.Min.X - nrgba.Rect.Min.X
+		minY := bounds.Min.Y - nrgba.Rect.Min.Y
+		for y := 0; y < height; y++ {
+			rowStart := (y + minY) * stride
+			for x := 0; x < width; x++ {
+				pixOffset := rowStart + (x+minX)*4
+				r := uint32(pix[pixOffset])
+				g := uint32(pix[pixOffset+1])
+				b := uint32(pix[pixOffset+2])
+				a := uint32(pix[pixOffset+3])
 
 				switch a {
 				case 255:
@@ -263,12 +365,15 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 					rgbData[idx+1] = 255
 					rgbData[idx+2] = 255
 				default:
-					// Blend with white background: Result = C*alpha + 255*(1-alpha)
-					// using integer math: (C*a + 255*(255-a))/255
+					// Blend with white: Result = C*alpha + 255*(255-alpha)
+					// Fast divide by 255: (x * 257 + 256) >> 16 ≈ x / 255
+					// For better accuracy: (x + 127) / 255 ≈ (x * 0x8081) >> 23
 					invA := 255 - a
-					rgbData[idx] = byte((r*a + 255*invA) / 255)
-					rgbData[idx+1] = byte((g*a + 255*invA) / 255)
-					rgbData[idx+2] = byte((b*a + 255*invA) / 255)
+					white := 255 * invA
+					// Using: ((n * 0x8081) >> 23) approximates n/255 with high accuracy
+					rgbData[idx] = byte(((r*a + white) * 0x8081) >> 23)
+					rgbData[idx+1] = byte(((g*a + white) * 0x8081) >> 23)
+					rgbData[idx+2] = byte(((b*a + white) * 0x8081) >> 23)
 				}
 				idx += 3
 			}
@@ -278,15 +383,19 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 
 	// Optimize for RGBA which has pre-multiplied alpha
 	if rgba, ok := img.(*image.RGBA); ok {
+		pix := rgba.Pix
+		stride := rgba.Stride
+		minX := bounds.Min.X - rgba.Rect.Min.X
+		minY := bounds.Min.Y - rgba.Rect.Min.Y
 		for y := range height {
-			rowStart := (y + bounds.Min.Y - rgba.Rect.Min.Y) * rgba.Stride
+			rowStart := (y + minY) * stride
 			for x := range width {
-				pixOffset := rowStart + (x+bounds.Min.X-rgba.Rect.Min.X)*4
+				pixOffset := rowStart + (x+minX)*4
 				// Values are already premultiplied by alpha: C_pre = C_straight * alpha
-				rPre := int(rgba.Pix[pixOffset])
-				gPre := int(rgba.Pix[pixOffset+1])
-				bPre := int(rgba.Pix[pixOffset+2])
-				a := int(rgba.Pix[pixOffset+3])
+				rPre := uint32(pix[pixOffset])
+				gPre := uint32(pix[pixOffset+1])
+				bPre := uint32(pix[pixOffset+2])
+				a := uint32(pix[pixOffset+3])
 
 				switch a {
 				case 255:
@@ -298,9 +407,9 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 					rgbData[idx+1] = 255
 					rgbData[idx+2] = 255
 				default:
-					// Blend with white: Result = C_pre + 255*(1-alpha)
-					// (Assuming 0-255 range for all)
-					bgPart := (255 * (255 - a)) / 255
+					// Blend with white: Result = C_pre + 255*(1-alpha/255)
+					// Fast divide by 255
+					bgPart := ((255 * (255 - a)) * 0x8081) >> 23
 					rgbData[idx] = byte(rPre + bgPart)
 					rgbData[idx+1] = byte(gPre + bgPart)
 					rgbData[idx+2] = byte(bPre + bgPart)
@@ -318,16 +427,28 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 			r, g, b, a := img.At(x, y).RGBA()
 
 			// Convert from 16-bit to 8-bit
-			r8 := byte(r >> 8)
-			g8 := byte(g >> 8)
-			b8 := byte(b >> 8)
-			a8 := float64(a) / 65535.0
+			r8 := uint32(r >> 8)
+			g8 := uint32(g >> 8)
+			b8 := uint32(b >> 8)
+			a8 := uint32(a >> 8)
 
-			// Blend with white background (255, 255, 255)
-			// Formula: result = foreground * alpha + background * (1 - alpha)
-			rgbData[idx] = byte(float64(r8)*a8 + 255*(1-a8))
-			rgbData[idx+1] = byte(float64(g8)*a8 + 255*(1-a8))
-			rgbData[idx+2] = byte(float64(b8)*a8 + 255*(1-a8))
+			switch a8 {
+			case 255:
+				rgbData[idx] = byte(r8)
+				rgbData[idx+1] = byte(g8)
+				rgbData[idx+2] = byte(b8)
+			case 0:
+				rgbData[idx] = 255
+				rgbData[idx+1] = 255
+				rgbData[idx+2] = 255
+			default:
+				// Blend with white background using fast integer math
+				invA := 255 - a8
+				white := 255 * invA
+				rgbData[idx] = byte(((r8*a8 + white) * 0x8081) >> 23)
+				rgbData[idx+1] = byte(((g8*a8 + white) * 0x8081) >> 23)
+				rgbData[idx+2] = byte(((b8*a8 + white) * 0x8081) >> 23)
+			}
 			idx += 3
 		}
 	}
