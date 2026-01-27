@@ -11,12 +11,38 @@ import (
 	"strconv"
 	"strings"
 
+	"sync"
+
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 )
 
 // fmtNumImg formats a float with 2 decimal places for image dimensions
 func fmtNumImg(f float64) string {
 	return fmt.Sprintf("%.2f", f)
+}
+
+// rgbDataPool recycles byte slices for RGB conversion
+var rgbDataPool = sync.Pool{
+	New: func() interface{} {
+		buf := make([]byte, 1024*1024) // Start with 1MB
+		return &buf
+	},
+}
+
+// getRGBDataBuffer returns a buffer with at least the requested length
+func getRGBDataBuffer(length int) []byte {
+	bufPtr := rgbDataPool.Get().(*[]byte)
+	buf := *bufPtr
+	if cap(buf) < length {
+		// If capacity is insufficient, allocate a new one (old one is discarded from pool)
+		return make([]byte, length)
+	}
+	return buf[:length]
+}
+
+// putRGBDataBuffer returns a buffer to the pool
+func putRGBDataBuffer(buf []byte) {
+	rgbDataPool.Put(&buf)
 }
 
 // ImageObject represents a PDF image XObject
@@ -75,23 +101,27 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 			hasAlpha = true
 		}
 
-		var rawRGB []byte
+		rgbSize := width * height * 3
+		rawRGB := getRGBDataBuffer(rgbSize)
+		defer putRGBDataBuffer(rawRGB)
+
 		if hasAlpha {
 			// For images with transparency, convert to RGBA with white background
-			rawRGB, err = convertToRGBWithAlpha(img)
-			if err != nil {
-				return nil, err
-			}
+			err = convertToRGBWithAlpha(img, rawRGB)
 		} else {
 			// For opaque images, convert to RGB
-			rawRGB, err = convertToRGB(img)
-			if err != nil {
-				return nil, err
-			}
+			err = convertToRGB(img, rawRGB)
 		}
+		if err != nil {
+			return nil, err
+		}
+
 		// Compress with zlib (PDF FlateDecode expects zlib format)
 		var compressedBuf bytes.Buffer
-		zlibWriter := zlib.NewWriter(&compressedBuf)
+		zlibWriter, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestSpeed)
+		if err != nil {
+			return nil, err
+		}
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
 			_ = zlibWriter.Close()
 			return nil, err
@@ -110,13 +140,20 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 
 	default:
 		// For other formats, convert to RGB and compress with zlib
-		rawRGB, err := convertToRGB(img)
+		rgbSize := width * height * 3
+		rawRGB := getRGBDataBuffer(rgbSize)
+		defer putRGBDataBuffer(rawRGB)
+
+		err = convertToRGB(img, rawRGB)
 		if err != nil {
 			return nil, err
 		}
 		// Compress with zlib (PDF FlateDecode expects zlib format)
 		var compressedBuf bytes.Buffer
-		zlibWriter := zlib.NewWriter(&compressedBuf)
+		zlibWriter, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestSpeed)
+		if err != nil {
+			return nil, err
+		}
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
 			_ = zlibWriter.Close()
 			return nil, err
@@ -131,16 +168,52 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 }
 
 // convertToRGB converts an image to raw RGB bytes
-func convertToRGB(img image.Image) ([]byte, error) {
+func convertToRGB(img image.Image, rgbData []byte) error {
 	bounds := img.Bounds()
 	width := bounds.Dx()
 	height := bounds.Dy()
+	expectedLen := width * height * 3
 
-	// Create RGB buffer
-	rgbData := make([]byte, width*height*3)
+	if len(rgbData) < expectedLen {
+		return fmt.Errorf("rgbData buffer too small: got %d, want %d", len(rgbData), expectedLen)
+	}
 
-	// Read image top-to-bottom (normal order)
 	idx := 0
+
+	// Fast path for NRGBA (common for PNGs)
+	if nrgba, ok := img.(*image.NRGBA); ok {
+		for y := 0; y < height; y++ {
+			// Calculate starting offset for this row in the source image
+			rowStart := (y + bounds.Min.Y - nrgba.Rect.Min.Y) * nrgba.Stride
+			for x := 0; x < width; x++ {
+				pixOffset := rowStart + (x+bounds.Min.X-nrgba.Rect.Min.X)*4
+				// Just take R, G, B, ignore Alpha
+				rgbData[idx] = nrgba.Pix[pixOffset]
+				rgbData[idx+1] = nrgba.Pix[pixOffset+1]
+				rgbData[idx+2] = nrgba.Pix[pixOffset+2]
+				idx += 3
+			}
+		}
+		return nil
+	}
+
+	// Fast path for RGBA
+	if rgba, ok := img.(*image.RGBA); ok {
+		for y := 0; y < height; y++ {
+			rowStart := (y + bounds.Min.Y - rgba.Rect.Min.Y) * rgba.Stride
+			for x := 0; x < width; x++ {
+				pixOffset := rowStart + (x+bounds.Min.X-rgba.Rect.Min.X)*4
+				// RGBA uses premultiplied alpha
+				rgbData[idx] = rgba.Pix[pixOffset]
+				rgbData[idx+1] = rgba.Pix[pixOffset+1]
+				rgbData[idx+2] = rgba.Pix[pixOffset+2]
+				idx += 3
+			}
+		}
+		return nil
+	}
+
+	// Read image top-to-bottom (normal order) - Slow path
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			r, g, b, _ := img.At(x, y).RGBA()
@@ -152,21 +225,94 @@ func convertToRGB(img image.Image) ([]byte, error) {
 		}
 	}
 
-	return rgbData, nil
+	return nil
 }
 
 // convertToRGBWithAlpha converts an image with alpha channel to RGB
 // Blends transparent pixels with white background
-func convertToRGBWithAlpha(img image.Image) ([]byte, error) {
+func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 	bounds := img.Bounds()
 	width := bounds.Dx()
 	height := bounds.Dy()
+	expectedLen := width * height * 3
 
-	// Create RGB buffer
-	rgbData := make([]byte, width*height*3)
+	if len(rgbData) < expectedLen {
+		return fmt.Errorf("rgbData buffer too small: got %d, want %d", len(rgbData), expectedLen)
+	}
 
-	// Read image top-to-bottom (normal order)
 	idx := 0
+
+	// Optimize for NRGBA (common for PNG) which has straight alpha
+	if nrgba, ok := img.(*image.NRGBA); ok {
+		for y := range height {
+			rowStart := (y + bounds.Min.Y - nrgba.Rect.Min.Y) * nrgba.Stride
+			for x := range width {
+				pixOffset := rowStart + (x+bounds.Min.X-nrgba.Rect.Min.X)*4
+				r := int(nrgba.Pix[pixOffset])
+				g := int(nrgba.Pix[pixOffset+1])
+				b := int(nrgba.Pix[pixOffset+2])
+				a := int(nrgba.Pix[pixOffset+3])
+
+				switch a {
+				case 255:
+					rgbData[idx] = byte(r)
+					rgbData[idx+1] = byte(g)
+					rgbData[idx+2] = byte(b)
+				case 0:
+					rgbData[idx] = 255
+					rgbData[idx+1] = 255
+					rgbData[idx+2] = 255
+				default:
+					// Blend with white background: Result = C*alpha + 255*(1-alpha)
+					// using integer math: (C*a + 255*(255-a))/255
+					invA := 255 - a
+					rgbData[idx] = byte((r*a + 255*invA) / 255)
+					rgbData[idx+1] = byte((g*a + 255*invA) / 255)
+					rgbData[idx+2] = byte((b*a + 255*invA) / 255)
+				}
+				idx += 3
+			}
+		}
+		return nil
+	}
+
+	// Optimize for RGBA which has pre-multiplied alpha
+	if rgba, ok := img.(*image.RGBA); ok {
+		for y := range height {
+			rowStart := (y + bounds.Min.Y - rgba.Rect.Min.Y) * rgba.Stride
+			for x := range width {
+				pixOffset := rowStart + (x+bounds.Min.X-rgba.Rect.Min.X)*4
+				// Values are already premultiplied by alpha: C_pre = C_straight * alpha
+				rPre := int(rgba.Pix[pixOffset])
+				gPre := int(rgba.Pix[pixOffset+1])
+				bPre := int(rgba.Pix[pixOffset+2])
+				a := int(rgba.Pix[pixOffset+3])
+
+				switch a {
+				case 255:
+					rgbData[idx] = byte(rPre)
+					rgbData[idx+1] = byte(gPre)
+					rgbData[idx+2] = byte(bPre)
+				case 0:
+					rgbData[idx] = 255
+					rgbData[idx+1] = 255
+					rgbData[idx+2] = 255
+				default:
+					// Blend with white: Result = C_pre + 255*(1-alpha)
+					// (Assuming 0-255 range for all)
+					bgPart := (255 * (255 - a)) / 255
+					rgbData[idx] = byte(rPre + bgPart)
+					rgbData[idx+1] = byte(gPre + bgPart)
+					rgbData[idx+2] = byte(bPre + bgPart)
+				}
+				idx += 3
+			}
+		}
+		return nil
+	}
+
+	// Slow path for other image types
+	// Read image top-to-bottom (normal order)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			r, g, b, a := img.At(x, y).RGBA()
@@ -186,7 +332,7 @@ func convertToRGBWithAlpha(img image.Image) ([]byte, error) {
 		}
 	}
 
-	return rgbData, nil
+	return nil
 }
 
 // CreateImageXObject creates a PDF XObject for an image
