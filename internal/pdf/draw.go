@@ -50,14 +50,13 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	contentStream.WriteString("BT\n")
 	// Use getFontReference to handle PDF/A font substitution (Helvetica -> Liberation)
 	fontRef := getFontReference(watermarkProps)
-	var wmBuf []byte
+
+	// Pre-allocate buffer and build complete watermark command sequence
+	wmBuf := make([]byte, 0, 256)
 	wmBuf = append(wmBuf, fontRef...)
 	wmBuf = append(wmBuf, ' ')
 	wmBuf = strconv.AppendInt(wmBuf, int64(fontSize), 10)
 	wmBuf = append(wmBuf, " Tf\n"...)
-	contentStream.Write(wmBuf)
-
-	wmBuf = wmBuf[:0]
 	wmBuf = append(wmBuf, fmtNum(c)...)
 	wmBuf = append(wmBuf, ' ')
 	wmBuf = append(wmBuf, fmtNum(s)...)
@@ -70,11 +69,10 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	wmBuf = append(wmBuf, ' ')
 	wmBuf = append(wmBuf, fmtNum(y)...)
 	wmBuf = append(wmBuf, " Tm\n"...)
-	contentStream.Write(wmBuf)
-
-	wmBuf = wmBuf[:0]
 	wmBuf = append(wmBuf, formatTextForPDF(watermarkProps, text)...)
 	wmBuf = append(wmBuf, " Tj\n"...)
+
+	// Single write for entire watermark command sequence
 	contentStream.Write(wmBuf)
 	contentStream.WriteString("ET\nQ\n")
 
@@ -98,13 +96,13 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 		contentStream.WriteString("/Artifact <</Attached [/Top] /Type /Pagination >> BDC\n")
 
 		contentStream.WriteString("q\n")
+		// Pre-allocate buffer for border drawing commands
+		borderBuf := make([]byte, 0, 128)
+
 		if pageBorders[0] > 0 { // left border
-			var borderBuf []byte
+			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(pageBorders[0]), 10)
 			borderBuf = append(borderBuf, " w\n"...)
-			contentStream.Write(borderBuf)
-
-			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
 			borderBuf = append(borderBuf, ' ')
 			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
@@ -116,12 +114,9 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 			contentStream.Write(borderBuf)
 		}
 		if pageBorders[1] > 0 { // right border
-			var borderBuf []byte
+			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(pageBorders[1]), 10)
 			borderBuf = append(borderBuf, " w\n"...)
-			contentStream.Write(borderBuf)
-
-			borderBuf = borderBuf[:0]
 			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margin)...)
 			borderBuf = append(borderBuf, ' ')
 			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
@@ -133,12 +128,9 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 			contentStream.Write(borderBuf)
 		}
 		if pageBorders[2] > 0 { // top border
-			var borderBuf []byte
+			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(pageBorders[2]), 10)
 			borderBuf = append(borderBuf, " w\n"...)
-			contentStream.Write(borderBuf)
-
-			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
 			borderBuf = append(borderBuf, ' ')
 			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margin)...)
@@ -150,12 +142,9 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 			contentStream.Write(borderBuf)
 		}
 		if pageBorders[3] > 0 { // bottom border
-			var borderBuf []byte
+			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(pageBorders[3]), 10)
 			borderBuf = append(borderBuf, " w\n"...)
-			contentStream.Write(borderBuf)
-
-			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
 			borderBuf = append(borderBuf, ' ')
 			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)

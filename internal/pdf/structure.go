@@ -130,7 +130,8 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 
 	// Write BMC/BDC operator
 	if len(props) == 0 {
-		var mcBuf []byte
+		// Pre-allocate buffer for marked content command
+		mcBuf := make([]byte, 0, 64)
 		mcBuf = append(mcBuf, '/')
 		mcBuf = append(mcBuf, string(tag)...)
 		mcBuf = append(mcBuf, " <</MCID "...)

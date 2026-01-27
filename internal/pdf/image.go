@@ -338,52 +338,34 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 // CreateImageXObject creates a PDF XObject for an image
 func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	var buf bytes.Buffer
-	var b []byte
+	// Pre-allocate buffer with capacity for typical image XObject header
+	b := make([]byte, 0, 256)
 
 	b = strconv.AppendInt(b, int64(objectID), 10)
-	b = append(b, " 0 obj\n"...)
-	buf.Write(b)
-	buf.WriteString("<< /Type /XObject\n")
-	buf.WriteString("   /Subtype /Image\n")
-
-	var intBuf []byte
-	intBuf = append(intBuf, "   /Width "...)
-	intBuf = strconv.AppendInt(intBuf, int64(imgObj.Width), 10)
-	intBuf = append(intBuf, "\n"...)
-	buf.Write(intBuf)
-
-	intBuf = intBuf[:0]
-	intBuf = append(intBuf, "   /Height "...)
-	intBuf = strconv.AppendInt(intBuf, int64(imgObj.Height), 10)
-	intBuf = append(intBuf, "\n"...)
-	buf.Write(intBuf)
-
-	buf.WriteString("   /ColorSpace ")
-	buf.WriteString(imgObj.ColorSpace)
-	buf.WriteString("\n")
-
-	intBuf = intBuf[:0]
-	intBuf = append(intBuf, "   /BitsPerComponent "...)
-	intBuf = strconv.AppendInt(intBuf, int64(imgObj.BitsPerComp), 10)
-	intBuf = append(intBuf, "\n"...)
-	buf.Write(intBuf)
+	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
+	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
+	b = append(b, "\n   /Height "...)
+	b = strconv.AppendInt(b, int64(imgObj.Height), 10)
+	b = append(b, "\n   /ColorSpace "...)
+	b = append(b, imgObj.ColorSpace...)
+	b = append(b, "\n   /BitsPerComponent "...)
+	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
+	b = append(b, "\n"...)
 
 	if imgObj.Filter != "" {
-		buf.WriteString("   /Filter ")
-		buf.WriteString(imgObj.Filter)
-		buf.WriteString("\n")
+		b = append(b, "   /Filter "...)
+		b = append(b, imgObj.Filter...)
+		b = append(b, "\n"...)
 	}
 
-	intBuf = intBuf[:0]
-	intBuf = append(intBuf, "   /Length "...)
-	intBuf = strconv.AppendInt(intBuf, int64(imgObj.ImageDataLen), 10)
-	intBuf = append(intBuf, "\n"...)
-	buf.Write(intBuf)
-	buf.WriteString(">>\n")
-	buf.WriteString("stream\n")
+	b = append(b, "   /Length "...)
+	b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
+	b = append(b, "\n>>\nstream\n"...)
+
+	// Write header and image data in two operations
+	buf.Write(b)
 	buf.Write(imgObj.ImageData)
-	buf.WriteString("\nendstream\n")
-	buf.WriteString("endobj\n")
+	buf.WriteString("\nendstream\nendobj\n")
 
 	return buf.String()
 }
@@ -400,24 +382,31 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	// Encrypt the image data
 	encryptedData := encryptor.EncryptStream(imgObj.ImageData, objectID, 0)
 
-	var b []byte
+	// Pre-allocate buffer with capacity for typical image XObject header
+	b := make([]byte, 0, 256)
 	b = strconv.AppendInt(b, int64(objectID), 10)
-	b = append(b, " 0 obj\n"...)
-	buf.Write(b)
-	buf.WriteString("<< /Type /XObject\n")
-	buf.WriteString("   /Subtype /Image\n")
-	fmt.Fprintf(&buf, "   /Width %d\n", imgObj.Width)
-	fmt.Fprintf(&buf, "   /Height %d\n", imgObj.Height)
-	fmt.Fprintf(&buf, "   /ColorSpace %s\n", imgObj.ColorSpace)
-	fmt.Fprintf(&buf, "   /BitsPerComponent %d\n", imgObj.BitsPerComp)
+	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
+	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
+	b = append(b, "\n   /Height "...)
+	b = strconv.AppendInt(b, int64(imgObj.Height), 10)
+	b = append(b, "\n   /ColorSpace "...)
+	b = append(b, imgObj.ColorSpace...)
+	b = append(b, "\n   /BitsPerComponent "...)
+	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
+	b = append(b, "\n"...)
 
 	if imgObj.Filter != "" {
-		fmt.Fprintf(&buf, "   /Filter %s\n", imgObj.Filter)
+		b = append(b, "   /Filter "...)
+		b = append(b, imgObj.Filter...)
+		b = append(b, "\n"...)
 	}
 
-	fmt.Fprintf(&buf, "   /Length %d\n", len(encryptedData))
-	buf.WriteString(">>\n")
-	buf.WriteString("stream\n")
+	b = append(b, "   /Length "...)
+	b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
+	b = append(b, "\n>>\nstream\n"...)
+
+	// Write header and encrypted data in two operations
+	buf.Write(b)
 	buf.Write(encryptedData)
 	buf.WriteString("\nendstream\n")
 	buf.WriteString("endobj\n")

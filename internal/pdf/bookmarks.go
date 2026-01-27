@@ -23,32 +23,31 @@ func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffset
 	firstID, lastID, count := pm.generateBookmarkItems(bookmarks, outlinesID, xrefOffsets, pdfBuffer)
 
 	// Write Outlines dictionary
-	// Write Outlines dictionary
+	// Pre-allocate capacity to prevent mid-flight resizing
+	// 64 bytes is plenty for these small PDF lines
 	xrefOffsets[outlinesID] = pdfBuffer.Len()
-	var b []byte
+	b := make([]byte, 0, 64)
 	b = strconv.AppendInt(b, int64(outlinesID), 10)
-	b = append(b, " 0 obj\n"...)
-	pdfBuffer.Write(b)
-	pdfBuffer.WriteString("<< /Type /Outlines")
+	b = append(b, " 0 obj\n<< /Type /Outlines"...)
+
 	if firstID > 0 {
-		b = b[:0]
 		b = append(b, " /First "...)
 		b = strconv.AppendInt(b, int64(firstID), 10)
 		b = append(b, " 0 R"...)
-		pdfBuffer.Write(b)
 	}
+
 	if lastID > 0 {
-		b = b[:0]
 		b = append(b, " /Last "...)
 		b = strconv.AppendInt(b, int64(lastID), 10)
 		b = append(b, " 0 R"...)
-		pdfBuffer.Write(b)
 	}
-	b = b[:0]
+
 	b = append(b, " /Count "...)
 	b = strconv.AppendInt(b, int64(count), 10)
 	b = append(b, " >>\nendobj\n"...)
-	pdfBuffer.Write(b) // Count includes all visible descendants
+
+	// Single Write call is more efficient than multiple small writes
+	pdfBuffer.Write(b)
 
 	return outlinesID
 }
@@ -61,7 +60,8 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 	var itemIDs []int
 	var totalCount int
-	var b []byte
+	// Pre-allocate buffer with capacity for typical bookmark entry
+	b := make([]byte, 0, 128)
 
 	// First pass: Allocate IDs for all items at this level
 	startID := pm.NextObjectID
@@ -82,42 +82,35 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 		childFirst, childLast, childCount := pm.generateBookmarkItems(item.Children, currentID, xrefOffsets, pdfBuffer)
 
 		xrefOffsets[currentID] = pdfBuffer.Len()
-		b = b[:0]
+
+		// Build complete bookmark entry in buffer before writing
+		b = b[:0] // Reuse buffer
 		b = strconv.AppendInt(b, int64(currentID), 10)
-		b = append(b, " 0 obj\n"...)
-		pdfBuffer.Write(b)
-		pdfBuffer.WriteString("<< /Title (")
-		pdfBuffer.WriteString(escapePDFString(item.Title))
-		pdfBuffer.WriteString(")")
-		b = b[:0]
-		b = append(b, " /Parent "...)
+		b = append(b, " 0 obj\n<< /Title ("...)
+		b = append(b, escapePDFString(item.Title)...)
+		b = append(b, ") /Parent "...)
 		b = strconv.AppendInt(b, int64(parentID), 10)
 		b = append(b, " 0 R"...)
-		pdfBuffer.Write(b)
 
 		if i > 0 {
-			b = b[:0]
 			b = append(b, " /Prev "...)
 			b = strconv.AppendInt(b, int64(itemIDs[i-1]), 10)
 			b = append(b, " 0 R"...)
-			pdfBuffer.Write(b)
 		}
+
 		if i < len(items)-1 {
-			b = b[:0]
 			b = append(b, " /Next "...)
 			b = strconv.AppendInt(b, int64(itemIDs[i+1]), 10)
 			b = append(b, " 0 R"...)
-			pdfBuffer.Write(b)
 		}
+
 		if childFirst > 0 {
-			b = b[:0]
 			b = append(b, " /First "...)
 			b = strconv.AppendInt(b, int64(childFirst), 10)
 			b = append(b, " 0 R /Last "...)
 			b = strconv.AppendInt(b, int64(childLast), 10)
 			b = append(b, " 0 R /Count "...)
 			b = strconv.AppendInt(b, int64(childCount), 10)
-			pdfBuffer.Write(b)
 		}
 
 		// Link to page (Dest)
@@ -139,14 +132,15 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 		if pageIdx >= 0 && pageIdx < len(pm.Pages) {
 			pageID := pm.Pages[pageIdx]
-			b = b[:0]
 			b = append(b, " /Dest ["...)
 			b = strconv.AppendInt(b, int64(pageID), 10)
 			b = append(b, " 0 R /Fit]"...)
-			pdfBuffer.Write(b)
 		}
 
-		pdfBuffer.WriteString(" >>\nendobj\n")
+		b = append(b, " >>\nendobj\n"...)
+
+		// Single write per bookmark entry
+		pdfBuffer.Write(b)
 
 		// Count: 1 (self) + visible children.
 		// Actually, /Outlines Count is "Total number of visible open outline items at all levels".

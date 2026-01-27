@@ -20,7 +20,8 @@ import (
 // GenerateTemplatePDF generates a PDF document with multi-page support and embedded images
 func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	var pdfBuffer bytes.Buffer
-	var b []byte
+	// Pre-allocate buffer with capacity for typical PDF object lines
+	b := make([]byte, 0, 128)
 	xrefOffsets := make(map[int]int)
 
 	// Get page dimensions from config
@@ -802,14 +803,13 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(infoObjectID), 10)
 		b = append(b, " 0 obj\n"...)
-		pdfBuffer.Write(b)
 		// Include Title in Info dictionary if provided
 		titleEntry := ""
 		if template.Config.PdfTitle != "" {
 			titleEntry = fmt.Sprintf(" /Title (%s)", escapeText(template.Config.PdfTitle))
 		}
-		pdfBuffer.WriteString(fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s)%s >>\n", creationDate, creationDate, titleEntry))
-		pdfBuffer.WriteString("endobj\n")
+		b = append(b, fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s)%s >>\nendobj\n", creationDate, creationDate, titleEntry)...)
+		pdfBuffer.Write(b)
 	}
 
 	// Write encryption dictionary object if encryption was set up
@@ -905,10 +905,8 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 	xrefOffsets[namespaceID] = pdfBuffer.Len()
 	b = b[:0]
 	b = strconv.AppendInt(b, int64(namespaceID), 10)
-	b = append(b, " 0 obj\n"...)
+	b = append(b, " 0 obj\n<< /Type /Namespace /NS (http://iso.org/pdf2/ssn) >>\nendobj\n"...)
 	pdfBuffer.Write(b)
-	pdfBuffer.WriteString("<< /Type /Namespace /NS (http://iso.org/pdf2/ssn) >>")
-	pdfBuffer.WriteString("\nendobj\n")
 
 	xrefOffsets[structTreeRootID] = pdfBuffer.Len()
 	b = b[:0]
