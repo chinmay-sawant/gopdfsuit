@@ -37,6 +37,10 @@ GoPdfSuit is a Go + Gin web service that generates professional PDF documents fr
 
 **Key Capabilities:**
 - 📄 Template-based PDF generation with auto page breaks
+- 🔐 Digital signatures (PKCS#7) with X.509 certificate chains
+- 🔒 PDF encryption with password protection & permissions
+- 📑 Bookmarks, internal links, and named destinations
+- ✅ PDF/A-4 compliance for archival standards
 - 🔗 PDF merging with drag-and-drop UI
 - 🖊️ AcroForm/XFDF form filling
 - 🌐 HTML to PDF/Image conversion (via gochromedp)
@@ -154,13 +158,40 @@ docker run -d -p 8080:8080 chinmaysawant/gopdfsuit:latest
 curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
   -H "Content-Type: application/json" \
   -d '{
-    "config": {"page": "A4", "pageAlignment": 1, "pageBorder": "1:1:1:1"},
-    "title": {"props": "font1:24:100:center:0:0:1:0", "text": "Document Title"},
-    "table": [{"maxcolumns": 2, "rows": [{"row": [
-      {"props": "font1:12:100:left:1:1:1:1", "text": "Field:"},
-      {"props": "font1:12:000:left:1:1:1:1", "text": "Value"}
-    ]}]}],
-    "footer": {"font": "font1:10:000:center", "text": "Footer"}
+    "config": {
+      "page": "A4",
+      "pageAlignment": 1,
+      "pageBorder": "0:0:0:0",
+      "pdfTitle": "Financial Report",
+      "pdfaCompliant": true
+    },
+    "title": {
+      "props": "Helvetica:24:100:center:0:0:0:0",
+      "text": "FINANCIAL REPORT",
+      "bgcolor": "#154360",
+      "textcolor": "#FFFFFF"
+    },
+    "elements": [
+      {
+        "type": "table",
+        "table": {
+          "maxcolumns": 2,
+          "columnwidths": [1, 2],
+          "rows": [
+            {"row": [
+              {"props": "Helvetica:10:100:left:1:1:1:1", "text": "Company:"},
+              {"props": "Helvetica:10:000:left:1:1:1:1", "text": "TechCorp Inc.", "link": "https://example.com"}
+            ]},
+            {"row": [
+              {"props": "Helvetica:10:100:left:1:1:1:1", "text": "Summary:", "dest": "summary"},
+              {"props": "Helvetica:10:000:left:1:1:1:1", "text": "Q4 2025"}
+            ]}
+          ]
+        }
+      }
+    ],
+    "footer": {"font": "Helvetica:8:000:center", "text": "Confidential"},
+    "bookmarks": [{"title": "Summary", "dest": "summary"}]
   }' --output document.pdf
 ```
 </details>
@@ -205,13 +236,15 @@ curl -X POST "http://localhost:8080/api/v1/fill" \
 
 | Component | Values |
 |-----------|--------|
-| **fontname** | font1, font2, etc. |
+| **fontname** | Helvetica, Times-Roman, Courier, etc. |
 | **fontsize** | Size in points |
 | **style** | 3-digit code: `[bold][italic][underline]` (0 or 1 each) |
 | **alignment** | left, center, right |
-| **borders** | Border widths (left:right:top:bottom) |
+| **borders** | Border flags (0=none, 1=draw) |
 
 **Style Examples:** `000`=normal, `100`=bold, `010`=italic, `001`=underline, `111`=all
+
+**Props Example:** `"Helvetica:12:100:left:1:1:1:1"` = Helvetica 12pt bold, left-aligned, all borders
 
 ### Page Sizes
 
@@ -228,13 +261,123 @@ curl -X POST "http://localhost:8080/api/v1/fill" \
 ```json
 {
   "config": {
-    "page": "A4",           // Page size
-    "pageAlignment": 1,     // 1=Portrait, 2=Landscape
-    "pageBorder": "1:1:1:1", // Border widths
-    "watermark": "DRAFT"    // Optional diagonal watermark
+    "page": "A4",              // Page size
+    "pageAlignment": 1,        // 1=Portrait, 2=Landscape
+    "pageBorder": "0:0:0:0",   // Border widths (left:right:top:bottom)
+    "watermark": "DRAFT",      // Optional diagonal watermark
+    "pdfTitle": "Document",    // PDF metadata title
+    "pdfaCompliant": true,     // Enable PDF/A-4 compliance
+    "arlingtonCompatible": true, // Enable PDF 2.0 Arlington Model
+    "embedFonts": true,        // Embed fonts for portability
+    "signature": { },          // Digital signature settings
+    "security": { }            // Encryption settings
   }
 }
 ```
+
+<details>
+<summary><b>🔐 Digital Signatures</b></summary>
+
+Add legally-binding digital signatures with X.509 certificates:
+
+```json
+{
+  "config": {
+    "signature": {
+      "enabled": true,
+      "visible": true,
+      "name": "John Doe",
+      "reason": "Document Approval",
+      "location": "New York, US",
+      "contactInfo": "john@example.com",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\n...",
+      "certificatePem": "-----BEGIN CERTIFICATE-----\n...",
+      "certificateChain": ["-----BEGIN CERTIFICATE-----\n..."]
+    }
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `enabled` | Enable digital signing |
+| `visible` | Show signature stamp on document |
+| `name` | Signer name (overrides certificate CN) |
+| `reason` | Signing reason |
+| `location` | Signing location |
+| `privateKeyPem` | PEM-encoded private key (RSA/ECDSA) |
+| `certificatePem` | PEM-encoded X.509 certificate |
+| `certificateChain` | Intermediate certificates (optional) |
+</details>
+
+<details>
+<summary><b>🔒 PDF Encryption</b></summary>
+
+Password-protect documents with permission controls:
+
+```json
+{
+  "config": {
+    "security": {
+      "enabled": true,
+      "ownerPassword": "admin123",
+      "userPassword": "view123",
+      "allowPrinting": true,
+      "allowCopying": false,
+      "allowModifying": false
+    }
+  }
+}
+```
+
+| Permission | Description |
+|------------|-------------|
+| `allowPrinting` | Allow document printing |
+| `allowCopying` | Allow copying text/images |
+| `allowModifying` | Allow content modification |
+| `allowAnnotations` | Allow adding annotations |
+| `allowFormFilling` | Allow filling form fields |
+</details>
+
+<details>
+<summary><b>📑 Bookmarks & Navigation</b></summary>
+
+Create document outlines with internal links:
+
+```json
+{
+  "bookmarks": [
+    {
+      "title": "Chapter 1",
+      "page": 1,
+      "children": [
+        { "title": "Section 1.1", "dest": "section-1-1" },
+        { "title": "Section 1.2", "page": 2 }
+      ]
+    }
+  ]
+}
+```
+
+**Internal Links in Cells:**
+```json
+{
+  "props": "Helvetica:10:000:left:1:1:1:1",
+  "text": "Go to Summary",
+  "link": "#financial-summary",
+  "textcolor": "#0000FF"
+}
+```
+
+**Named Destinations:**
+```json
+{
+  "props": "Helvetica:12:100:left:1:1:1:1",
+  "text": "FINANCIAL SUMMARY",
+  "dest": "financial-summary"
+}
+```
+</details>
 
 ---
 
@@ -244,8 +387,11 @@ curl -X POST "http://localhost:8080/api/v1/fill" \
 |----------|----------|
 | **PDF Generation** | JSON templates, auto page breaks, multi-page, page numbering |
 | **Styling** | Bold/italic/underline, borders, custom fonts, alignments |
-| **Elements** | Tables, checkboxes, radio buttons, fillable form fields |
+| **Elements** | Tables, checkboxes, radio buttons, fillable form fields, images |
 | **Page Options** | A3/A4/A5/Letter/Legal, portrait/landscape, watermarks |
+| **Security** | Digital signatures (PKCS#7), PDF encryption, password protection |
+| **Compliance** | PDF/A-4, PDF 2.0 Arlington Model, PDF/UA accessibility |
+| **Navigation** | Bookmarks/outlines, internal links, external hyperlinks, named destinations |
 | **Tools** | PDF merge, form filling (XFDF), HTML to PDF/Image |
 | **Deployment** | Single binary, Docker, REST API, React web UI |
 
@@ -266,6 +412,39 @@ sudo apt install -y google-chrome-stable
 <summary><b>How do auto page breaks work?</b></summary>
 
 The system tracks Y position and creates new pages when content exceeds boundaries. Page borders and numbering are preserved across pages.
+</details>
+
+<details>
+<summary><b>How do I create a digitally signed PDF?</b></summary>
+
+Include the signature config with your PEM-encoded certificate and private key:
+```json
+{
+  "config": {
+    "signature": {
+      "enabled": true,
+      "visible": true,
+      "certificatePem": "-----BEGIN CERTIFICATE-----\n...",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\n..."
+    }
+  }
+}
+```
+Supports RSA and ECDSA keys with optional certificate chains.
+</details>
+
+<details>
+<summary><b>What is PDF/A-4 compliance?</b></summary>
+
+PDF/A-4 is the archival standard based on PDF 2.0. Enable it with `"pdfaCompliant": true`. This embeds all fonts (via Liberation fonts), adds XMP metadata, and follows strict structure requirements for long-term preservation.
+</details>
+
+<details>
+<summary><b>How do internal links work?</b></summary>
+
+1. Add a destination anchor to a cell: `"dest": "my-section"`
+2. Link to it from another cell: `"link": "#my-section"`
+3. Optionally add a bookmark: `{"title": "My Section", "dest": "my-section"}`
 </details>
 
 <details>
