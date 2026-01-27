@@ -1,0 +1,598 @@
+{
+  "config": {
+    "pageBorder": "0:0:0:0",
+    "page": "A4",
+    "pageAlignment": 1,
+    "watermark": "",
+    "pdfTitle": "Test2",
+    "pdfaCompliant": true,
+    "signature": {
+      "enabled": true,
+      "visible": true,
+      "name": "Chinmay Sawant",
+      "reason": "AFK",
+      "location": "US",
+      "contactInfo": "893249234234",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDFR55rSZyF0oGt\nJhn7kHXowBy+FhZLl7zJhMp7tCJy5rl6yh3xaf0BwNp/j0WDToTayLimpfCWtGrZ\nV5VEjzGMdtD3RvmHWZKMk5SHot80k+FtWVof3M8H5LpLf8Ye7CgfTMk6lsH7uLHI\nresZXF2Vle3KYDCcj/ZtOlamv+5SGOVGOyIXSaamerArUpHkHkirokr1sq8bSWFv\nYyxyzrLJIZ1jqqwNBBMdtQP7MZnDMekveQU5XEWFJz2n7/PmhJu/c+aw2uVAGZ4l\nsDIq99CejE2vmdcTiAZsKY0INfik/2cpwOiKL4AQuNVD0cbwH2paZjTdk5CTimqI\nviCEsQzVAgMBAAECggEAAsYKzFfAzQGnpxQl216T+c2LQE6CyiJ8M5noit9+eH6v\nIhkDXY7vt32YCAd71hvD5gH0CD74m49pZsLcRPywzD72mY0BTYDZ4zYT9lA45fFX\nHJ8PLR5N0guW/u0kXCNWPd82sqctKDY+WAolIW2MantgJRWmUun6cF1/AfspOGg9\npzEroFMILwVaN+yib5MPZxOWG2qxf9jZAJEgn0W5isgOWyL347tgBQHLbqxTm5FF\nh6bz8nqRUwBLYbmcOswSpJZEm3kQGiTyznGiC1NDZMzLHWwZj1Dc/NCR9wVLXROh\nHx4muAq/Zry8mBdED08OIkqoFIKaFCBQRiGLYX+mYQKBgQDNgnailOR8vDXU9qPA\nXhe/Azn2NkLnJqV7wk5WI4aJaf1Ff8ebeZHHTJIvcA93sOAyCxi7pRz3gEUYjKVi\nzoBZHu+3LtHMje8dSjoKEUI7dLZuXCZ9hhoFQGr8nLuxZRCVB5/NPDrjWlJEnqpJ\npQccmxGCoEKyLMEr79DmtRGheQKBgQD1v4mz0+WM7AJi76c3fNSIgi4Zyik7xmw0\naU72wuCUXYfwF4fCh/tIp5FJqUMsYYld+i1jPhXn8zUq74/RDNGuvrbdZTtkYIXs\n/nVMdAhKL2VQ5t4La4bs+ml+6yfSApaUd8tbCt3ttNyqT0kfHP9XisQ6cepnuqPK\nufv5yQBrPQKBgC7jqn/T6wIOy1WI5Lnafh6F9O6ZWNB2v+Ep50e+GU83EKOP0RJH\nPZy0etI6Bj1v7OdeIsmFlcNez+UXChEuPpiW92jbVOEQLVOIgQ+U+oCoU4uAmQOg\n2kUCeqaieCy0e4EVWT+xk1oWXJjtfrsI3UOImgks2arfjT+iGw7Yl2o5AoGAS5pL\ngNlVq48IBOv5o6ZxtDVofWKmYM9ghpdHRb8aXEqSAZkbmQtAkU+L8P9zvPmcyx6m\nS/vTvXIjDzx4IDYzY/EkTORR60WOriRybbzcuAXww3zjHtxLvCglwHgT3hYRwUdB\ndpbXQ8P6hyKxOjMvkv0L9XcKSDMxJLMnA+eEi3kCgYAJB6nr6W6KQRyotXM1gWP+\n9Ff2Zd5figCt/zD61gw5SAhMLMaR+dj/mfSrDu20jXKr4f/WYuQSRZXxSDHk/pDs\nIXdKNOFnoX+EyvIniTXzQsUWdJVdmZdXseclVfKepUCcQZReYLaesQxdDovlFWjC\nEdvw5H4P31EKT6I5hL6jrA==\n-----END PRIVATE KEY-----",
+      "certificatePem": "-----BEGIN CERTIFICATE-----\nMIIDaTCCAlECFDkGiITntD1ddujydCgb/KNltr4wMA0GCSqGSIb3DQEBCwUAMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMB4XDTI2MDExODA4MDIwOVoXDTI3MDEx\nODA4MDIwOVowaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQH\nDARDaXR5MRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBExlYWYxGDAWBgNV\nBAMMD0dvUERGU3VpdFNpZ25lcjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC\nggEBAMVHnmtJnIXSga0mGfuQdejAHL4WFkuXvMmEynu0InLmuXrKHfFp/QHA2n+P\nRYNOhNrIuKal8Ja0atlXlUSPMYx20PdG+YdZkoyTlIei3zST4W1ZWh/czwfkukt/\nxh7sKB9MyTqWwfu4scit6xlcXZWV7cpgMJyP9m06Vqa/7lIY5UY7IhdJpqZ6sCtS\nkeQeSKuiSvWyrxtJYW9jLHLOsskhnWOqrA0EEx21A/sxmcMx6S95BTlcRYUnPafv\n8+aEm79z5rDa5UAZniWwMir30J6MTa+Z1xOIBmwpjQg1+KT/ZynA6IovgBC41UPR\nxvAfalpmNN2TkJOKaoi+IISxDNUCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAh4d+\n3PV4bnOsGQIxSupZMIq+qXf1wcB8dLQWX9ILZz9uXho0E1nhDPHZXRvy/mWG3tZD\nedO8vzMhBY5sD2O8O7K7M+khajfG4gfwhCi3H1dTdze4Wq85K2/kNPqQ/d6qmnS4\nDbxIHWrm8p/wU1p4SYfWFijad9UVutaJixCI9FtCPfRYq5+s0c4cRSyKhjfZp6ic\nhQB01AsgOk1iDgQnSvvjwsz0n1BY/+Apnto3k42PYQx+FNIDIeRvtckVoHxWfmMl\ncWsY6Seqg6V41Yuts78fTKlfjhzI7gKdujl7JMtuyLrL3JVP1rZoMXnjf8SK4QAk\nPkJ5eGE0Ht4i9WkakA==\n-----END CERTIFICATE-----",
+      "certificateChain": [
+        "-----BEGIN CERTIFICATE-----\nMIID0DCCArigAwIBAgIUAO/6vdyeXlJjNCQMAaYSpzVnufkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yNzA2MDIwODAyMDhaMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\nMIIBCgKCAQEAo1lU1M6OuA2KMYe2sXMBrv8LTxEFG7T18qgCnUj7cf0snyTHF/Ws\n07TOYzYchdeKNCrbG0C0ZBhg3f+kGMexYf3CA3Dh1S+k6xbGeEf/LsVBSv8pU4XS\ntXps5/29bdiYWqhMc8Wp7NGbpOAT/PUgLG/xXQiWakYhowLose20d73Kp6PZsPHv\nD9E2IQzDiA/AWtCO+G5NWqagiz0R2fNfuJDPCZQFfURbtrdnEdEs+sAIqw0fzjPg\noSTGed+PcWSil/p/8ZKecKg0WWE7xzcdWdclsUOCh9hJplSyTG7aBssT3ebLYZjX\n4dPx84Lxmhzu+OW68791l1Jt1hCvO0BT2QIDAQABo2AwXjAMBgNVHRMEBTADAQH/\nMA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUp81rlG9kaj7TgQJuKEBJzBbifbIw\nHwYDVR0jBBgwFoAUB/CjFA0QwEkFtNTYsUgutKPWOIEwDQYJKoZIhvcNAQELBQAD\nggEBAMkZEEwxvO7p/TOO97eA/VbXCUwXsU+2990HuWg9MgpBTXiaD61m7w/sD2Gu\nwV2Fvv8rW9GTBhCJ60zV6/HjBBvfGO0ci9xPAHmECVk8Z000vg2tqAHL8HXVJdFF\nYqaLXewHVHUBol2GlSk8sSSss3UNC/wUMBq+Xq0aP/Q2ueidsZhf8DT9aLYCLkdT\nOFp4HI4qJYfpU6h9kLiOcGhc6q/7ToLX8fXXwRrzj9BIQHGPkYQAFg99DYiauBY7\n+bzKhtzxy2ykOvGe7WEzXhKdWEQGkTJSZ8lvsSCafYwuSJ1RW4Hi6TQeP6Rr9qvn\nPYQ/v/v0IZ8qDtBCGTWHz7pNDPQ=\n-----END CERTIFICATE-----",
+        "-----BEGIN CERTIFICATE-----\nMIIDszCCApugAwIBAgIUGPNNf0kWGKV8Tg0Kvlqt67kM2OkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yODExMDcwODAyMDhaMGkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MQ0wCwYDVQQLDARSb290MRgwFgYDVQQDDA9Hb1BERlN1\naXRSb290Q0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDt+fuF/xXq\n1eZtUjL5PbMGgFatVpE2FAB5upEwehmGRhWo+AMhAXQtCBUsSHMcuCkB+5IQpDPT\nAdZZqni0nnKeKbSL76ryn0EjQHrWVsGa6nddPz1480ZRUXjNbSpmikT5uVc5j1ec\nR3tPw1jtP9B3xjvebEokSLX7Y0nrTPwCQeLIDzpKh80bshvRJ28vmnT38ha4UMOs\nyGV0A70J9ZzUGN9lHM68zDbsbt1ckP9EZRGWRFqjN06vXJpZkLqk/T4LcU+agwK4\n41/fhpMAy3QpYpgC9BNUWAdRzLx/Xl5F8IjGR6vV1dP7O3yKznNEth0ZMSDOsC+n\nX+67D0NLqifLAgMBAAGjUzBRMB0GA1UdDgQWBBQH8KMUDRDASQW01NixSC60o9Y4\ngTAfBgNVHSMEGDAWgBQH8KMUDRDASQW01NixSC60o9Y4gTAPBgNVHRMBAf8EBTAD\nAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQA/ntzzVNBa8bgWO8VigxTsNntGIwn/HR45\n4Og600Ynx+cLQuqIcVwT/stgjg+RO1jBSRSTCtqzbM4/LTgGTbRj4yvgluO6RDdE\n0EsLIioob97jkbLGcMRNGbI4svSBSUytDjhuvmwxz2wBJYGpxZIm6pkgtMeBHrXp\n4750iSj0ORy9TDUUkUdEXfeDBqbjeQ4M1+OaJ5LP3ze09mb1UDGnNKP2nM9m76Pt\ndT/rN+KQKFN48hLnIHMZykEVIoONEzMh3KkfJKhOdTsZrgvwyoLf56qVDCeuADfN\nztHHMRGR4xXSwWkDU/+F00oYhLi63RsFeL4IdGnXb1Tx8VbaPJVm\n-----END CERTIFICATE-----"
+      ]
+    },
+    "arlingtonCompatible": true,
+    "embedFonts": true,
+    "security": {
+      "enabled": false,
+      "ownerPassword": "aaaa",
+      "userPassword": "aaaa"
+    }
+  },
+  "title": {
+    "props": "Helvetica:18:100:center:0:0:0:0",
+    "text": "FINANCIAL REPORT",
+    "table": {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:24:100:center:0:0:0:0",
+              "text": "FINANCIAL REPORT",
+              "bgcolor": "#154360",
+              "textcolor": "#FFFFFF",
+              "height": 50,
+              "link": "https://example.com/report"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "elements": [
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:12:100:left:1:1:1:1",
+                "text": "SECTION A: COMPANY INFORMATION",
+                "bgcolor": "#21618C",
+                "textcolor": "#FFFFFF"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 4,
+        "columnwidths": [
+          1.2,
+          2,
+          1.2,
+          2
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:100:left:1:0:0:1",
+                "text": "Company Name:",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:0:0:1",
+                "text": "TechCorp Industries Inc.",
+                "link": "https://techcorp.example.com",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:100:left:0:0:0:1",
+                "text": "Report Period:",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:0:1",
+                "text": "Q4 2025",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:100:left:1:0:0:0",
+                "text": "Address:",
+                "height": 26
+              },
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "123 Business Ave, ",
+                "height": 24
+              },
+              {
+                "props": "Helvetica:10:100:left:0:0:0:0",
+                "text": "Fiscal Year:"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:0:0",
+                "text": "2025"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Suite 456, City, State 12345",
+                "width": 84.56249999999999
+              },
+              {
+                "props": "Helvetica:12:000:left:0:0:0:1",
+                "text": "",
+                "width": 140.9375
+              },
+              {
+                "props": "Helvetica:12:000:left:0:0:0:1",
+                "text": "",
+                "width": 84.56249999999999
+              },
+              {
+                "props": "Helvetica:12:000:left:0:1:0:1",
+                "text": "",
+                "width": 140.9375
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:12:000:left:1:0:0:1",
+                "text": "",
+                "width": 84.56249999999999
+              },
+              {
+                "props": "Helvetica:10:000:left:0:0:0:1",
+                "text": "Go to Financial Summary",
+                "textcolor": "#0000FF",
+                "link": "#financial-summary",
+                "width": 140.9375
+              },
+              {
+                "props": "Helvetica:10:000:left:0:0:0:1",
+                "text": "Go to Charts",
+                "textcolor": "#0000FF",
+                "link": "#charts-section",
+                "width": 84.56249999999999
+              },
+              {
+                "props": "Helvetica:12:000:left:0:1:0:1",
+                "text": "",
+                "width": 140.9375
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:12:100:left:1:1:1:1",
+                "text": "SECTION B: FINANCIAL SUMMARY",
+                "bgcolor": "#21618C",
+                "textcolor": "#FFFFFF",
+                "dest": "financial-summary"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [
+          2,
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Total Revenue",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$2,450,000",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Cost of Goods Sold",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$1,225,000",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:100:left:1:0:0:1",
+                "text": "Gross Profit",
+                "bgcolor": "#D4E6F1"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:1:0:1",
+                "text": "$1,225,000",
+                "bgcolor": "#D4E6F1"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Operating Expenses",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$750,000",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Research & Development",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$200,000",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Marketing & Sales",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$150,000",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Administrative Expenses",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$100,000",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Depreciation & Amortization",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$50,000",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Interest Expense",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$25,000",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Taxes",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$75,000",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:0:1:1",
+                "text": "Net Income",
+                "bgcolor": "#A9CCE3"
+              },
+              {
+                "props": "Helvetica:11:100:right:0:1:1:1",
+                "text": "$125,000",
+                "bgcolor": "#A9CCE3"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Earnings Per Share",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$2.50",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:100:left:1:0:0:1",
+                "text": "Total Assets",
+                "bgcolor": "#D4E6F1"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:1:0:1",
+                "text": "$5,000,000",
+                "bgcolor": "#D4E6F1"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Total Liabilities",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:1:0:1",
+                "text": "$2,500,000",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:100:left:1:0:0:1",
+                "text": "Shareholders' Equity",
+                "bgcolor": "#D4E6F1"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:1:0:1",
+                "text": "$2,500,000",
+                "bgcolor": "#D4E6F1"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 160,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:12:100:left:1:1:1:1",
+                "text": "SECTION C: CHARTS",
+                "bgcolor": "#21618C",
+                "textcolor": "#FFFFFF",
+                "dest": "charts-section"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [
+          1,
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:100:center:1:1:1:0",
+                "text": "REVENUE BREAKDOWN",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:100:center:1:1:1:0",
+                "text": "EXPENSE DISTRIBUTION",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [
+          1,
+          1
+        ],
+        "rowheights": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:000:center:1:1:0:1",
+                "height": 200,
+                "link": "https://example.com/charts/bar",
+                "image": {
+                  "imagename": "bar_chart",
+                  "imagedata": "base64data",
+                  "width": 200,
+                  "height": 200
+                }
+              },
+              {
+                "props": "Helvetica:9:000:center:1:1:0:1",
+                "height": 200,
+                "image": {
+                  "imagename": "pie_chart",
+                  "imagedata": "base64data",
+                  "width": 200,
+                  "height": 200
+                }
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [
+          1,
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:010:center:1:1:0:1",
+                "text": "Figure 1: Quarterly revenue comparison by region",
+                "textcolor": "#566573"
+              },
+              {
+                "props": "Helvetica:8:010:center:1:1:0:1",
+                "text": "Figure 2: Breakdown of operating expenses",
+                "textcolor": "#566573"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 50,
+        "type": "spacer"
+      }
+    }
+  ],
+  "footer": {
+    "font": "Helvetica:8:000:center",
+    "text": "TECHCORP INDUSTRIES INC. | FINANCIAL REPORT Q4 2025 | CONFIDENTIAL",
+    "link": "https://example.com/legal"
+  },
+  "bookmarks": [
+    {
+      "title": "Financial Report",
+      "page": 1,
+      "children": [
+        {
+          "title": "Company Information",
+          "page": 1
+        },
+        {
+          "title": "Financial Summary",
+          "page": 1,
+          "dest": "financial-summary"
+        }
+      ]
+    },
+    {
+      "title": "Charts",
+      "page": 2,
+      "dest": "charts-section"
+    }
+  ]
+}
