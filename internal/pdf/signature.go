@@ -44,7 +44,6 @@ var (
 	oidContentType   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
 	oidMessageDigest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
 	oidSigningTime   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 5}
-	oidRSAWithSHA256 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
 )
 
 // NewPDFSigner creates a new PDF signer from config
@@ -581,7 +580,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	byteRangeMarker := []byte("/ByteRange [0 0000000000 0000000000 0000000000]")
 	byteRangePos := bytes.Index(pdfData, byteRangeMarker)
 	if byteRangePos < 0 {
-		return pdfData, fmt.Errorf("ByteRange placeholder not found")
+		return pdfData, fmt.Errorf("byteRange placeholder not found")
 	}
 
 	// Find Contents placeholder in signature dictionary
@@ -593,7 +592,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 		contentsMarker = []byte("/Contents <")
 		contentsPos = bytes.Index(pdfData, contentsMarker)
 		if contentsPos < 0 {
-			return pdfData, fmt.Errorf("Contents placeholder not found")
+			return pdfData, fmt.Errorf("contents placeholder not found")
 		}
 	}
 
@@ -601,14 +600,14 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	contentsStart := contentsPos + len("/Contents <")
 	contentsEnd := bytes.Index(pdfData[contentsStart:], []byte(">"))
 	if contentsEnd < 0 {
-		return pdfData, fmt.Errorf("Contents end not found")
+		return pdfData, fmt.Errorf("contents end not found")
 	}
 	contentsEnd += contentsStart
 
 	// Validate the placeholder size
 	placeholderSize := contentsEnd - contentsStart
 	if placeholderSize != 16384 {
-		return pdfData, fmt.Errorf("Contents placeholder has unexpected size: %d (expected 16384)", placeholderSize)
+		return pdfData, fmt.Errorf("contents placeholder has unexpected size: %d (expected 16384)", placeholderSize)
 	}
 
 	// Calculate byte ranges

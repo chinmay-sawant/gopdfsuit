@@ -91,8 +91,11 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		// Compress with zlib (PDF FlateDecode expects zlib format)
 		var compressedBuf bytes.Buffer
 		zlibWriter := zlib.NewWriter(&compressedBuf)
-		zlibWriter.Write(rawRGB)
-		zlibWriter.Close()
+		if _, err := zlibWriter.Write(rawRGB); err != nil {
+			_ = zlibWriter.Close()
+			return nil, err
+		}
+		_ = zlibWriter.Close()
 		imgObj.Filter = "/FlateDecode"
 		imgObj.ImageData = compressedBuf.Bytes()
 		imgObj.ImageDataLen = len(imgObj.ImageData)
@@ -113,8 +116,11 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		// Compress with zlib (PDF FlateDecode expects zlib format)
 		var compressedBuf bytes.Buffer
 		zlibWriter := zlib.NewWriter(&compressedBuf)
-		zlibWriter.Write(rawRGB)
-		zlibWriter.Close()
+		if _, err := zlibWriter.Write(rawRGB); err != nil {
+			_ = zlibWriter.Close()
+			return nil, err
+		}
+		_ = zlibWriter.Close()
 		imgObj.Filter = "/FlateDecode"
 		imgObj.ImageData = compressedBuf.Bytes()
 		imgObj.ImageDataLen = len(imgObj.ImageData)
@@ -276,11 +282,11 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 	// Set up transformation matrix to position and scale the image
 	// PDF images are drawn in a 1x1 unit square by default
 	// We need to scale and translate to our desired size and position
-	contentStream.WriteString(fmt.Sprintf("%s 0 0 %s %s %s cm\n",
-		fmtNumImg(imageWidth), fmtNumImg(imageHeight), fmtNumImg(imageX), fmtNumImg(imageY)))
+	fmt.Fprintf(contentStream, "%s 0 0 %s %s %s cm\n",
+		fmtNumImg(imageWidth), fmtNumImg(imageHeight), fmtNumImg(imageX), fmtNumImg(imageY))
 
 	// Draw the image using the XObject reference
-	contentStream.WriteString(fmt.Sprintf("%s Do\n", imageXObjectRef))
+	fmt.Fprintf(contentStream, "%s Do\n", imageXObjectRef)
 
 	// Restore graphics state
 	contentStream.WriteString("Q\n")

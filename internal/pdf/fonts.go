@@ -604,8 +604,11 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	// Compress font data
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write(fontData)
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write(fontData); err != nil {
+		_ = zlibWriter.Close()
+		return objects
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -818,8 +821,11 @@ func generateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 	// Compress the stream
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write(mapData)
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write(mapData); err != nil {
+		_ = zlibWriter.Close()
+		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -899,8 +905,11 @@ func generateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	// Compress the CMap stream
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write([]byte(cmapData))
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write([]byte(cmapData)); err != nil {
+		_ = zlibWriter.Close()
+		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed

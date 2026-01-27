@@ -247,7 +247,7 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	h.metadataObjID = h.pageManager.NextObjectID
 	h.pageManager.NextObjectID++
 
-	var streamContent []byte = []byte(xmpContent)
+	streamContent := []byte(xmpContent)
 
 	// Encrypt if needed
 	if h.encryptor != nil {
@@ -279,8 +279,11 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	// Compress the ICC profile with zlib (FlateDecode)
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write(iccData)
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write(iccData); err != nil {
+		_ = zlibWriter.Close()
+		return 0, nil, nil
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt compressed ICC profile stream if needed

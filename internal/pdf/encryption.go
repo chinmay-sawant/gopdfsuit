@@ -242,7 +242,9 @@ func (enc *PDFEncryption) EncryptStream(data []byte, objNum, genNum int) []byte 
 
 	// Generate random IV
 	iv := make([]byte, aes.BlockSize)
-	rand.Read(iv)
+	if _, err := rand.Read(iv); err != nil {
+		return data
+	}
 
 	// Pad data
 	padded := pkcs7Pad(data, aes.BlockSize)
@@ -337,8 +339,9 @@ func GenerateDocumentID(data []byte) []byte {
 
 	// Add some randomness
 	randomBytes := make([]byte, 16)
-	rand.Read(randomBytes)
-	hasher.Write(randomBytes)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return hasher.Sum(nil) // Fallback to partial hash
+	}
 
 	return hasher.Sum(nil)
 }

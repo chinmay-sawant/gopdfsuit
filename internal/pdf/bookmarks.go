@@ -23,15 +23,15 @@ func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffset
 
 	// Write Outlines dictionary
 	xrefOffsets[outlinesID] = pdfBuffer.Len()
-	pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", outlinesID))
+	fmt.Fprintf(pdfBuffer, "%d 0 obj\n", outlinesID)
 	pdfBuffer.WriteString("<< /Type /Outlines")
 	if firstID > 0 {
-		pdfBuffer.WriteString(fmt.Sprintf(" /First %d 0 R", firstID))
+		fmt.Fprintf(pdfBuffer, " /First %d 0 R", firstID)
 	}
 	if lastID > 0 {
-		pdfBuffer.WriteString(fmt.Sprintf(" /Last %d 0 R", lastID))
+		fmt.Fprintf(pdfBuffer, " /Last %d 0 R", lastID)
 	}
-	pdfBuffer.WriteString(fmt.Sprintf(" /Count %d >>\nendobj\n", count)) // Count includes all visible descendants
+	fmt.Fprintf(pdfBuffer, " /Count %d >>\nendobj\n", count) // Count includes all visible descendants
 
 	return outlinesID
 }
@@ -64,20 +64,20 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 		childFirst, childLast, childCount := pm.generateBookmarkItems(item.Children, currentID, xrefOffsets, pdfBuffer)
 
 		xrefOffsets[currentID] = pdfBuffer.Len()
-		pdfBuffer.WriteString(fmt.Sprintf("%d 0 obj\n", currentID))
+		fmt.Fprintf(pdfBuffer, "%d 0 obj\n", currentID)
 		pdfBuffer.WriteString("<< /Title (")
 		pdfBuffer.WriteString(escapePDFString(item.Title))
 		pdfBuffer.WriteString(")")
-		pdfBuffer.WriteString(fmt.Sprintf(" /Parent %d 0 R", parentID))
+		fmt.Fprintf(pdfBuffer, " /Parent %d 0 R", parentID)
 
 		if i > 0 {
-			pdfBuffer.WriteString(fmt.Sprintf(" /Prev %d 0 R", itemIDs[i-1]))
+			fmt.Fprintf(pdfBuffer, " /Prev %d 0 R", itemIDs[i-1])
 		}
 		if i < len(items)-1 {
-			pdfBuffer.WriteString(fmt.Sprintf(" /Next %d 0 R", itemIDs[i+1]))
+			fmt.Fprintf(pdfBuffer, " /Next %d 0 R", itemIDs[i+1])
 		}
 		if childFirst > 0 {
-			pdfBuffer.WriteString(fmt.Sprintf(" /First %d 0 R /Last %d 0 R /Count %d", childFirst, childLast, childCount))
+			fmt.Fprintf(pdfBuffer, " /First %d 0 R /Last %d 0 R /Count %d", childFirst, childLast, childCount)
 		}
 
 		// Link to page (Dest)
@@ -99,7 +99,7 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 		if pageIdx >= 0 && pageIdx < len(pm.Pages) {
 			pageID := pm.Pages[pageIdx]
-			pdfBuffer.WriteString(fmt.Sprintf(" /Dest [%d 0 R /Fit]", pageID))
+			fmt.Fprintf(pdfBuffer, " /Dest [%d 0 R /Fit]", pageID)
 		}
 
 		pdfBuffer.WriteString(" >>\nendobj\n")
@@ -123,7 +123,3 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 // Helper interface since we can't use bytes.Buffer directly with custom methods in the same package cleanly
 // without type alias, or we just pass the buffer from generator.
-type bytesBufferAdapter interface {
-	WriteString(s string) (n int, err error)
-	Len() int
-}

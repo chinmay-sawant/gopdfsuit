@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"time"
 
@@ -108,14 +108,17 @@ func main() {
 	data := make(map[string]string)
 	jsonData, _ := json.Marshal(patient)
 	var tempMap map[string]interface{}
-	json.Unmarshal(jsonData, &tempMap)
+	if err := json.Unmarshal(jsonData, &tempMap); err != nil {
+		fmt.Printf("Error unmarshaling patient data: %v\n", err)
+		return
+	}
 	for k, v := range tempMap {
 		data["{"+k+"}"] = fmt.Sprint(v)
 	}
 
 	// 2. Read the template file
 	templatePath := "./us_patient_healthcare_form_template.json"
-	templateBytes, err := ioutil.ReadFile(templatePath)
+	templateBytes, err := os.ReadFile(templatePath)
 	if err != nil {
 		fmt.Printf("Error reading template file: %v\n", err)
 		return
@@ -140,7 +143,7 @@ func main() {
 
 	// 6. Write to output file
 	outputPath := "./us_patient_healthcare_form_filled.pdf"
-	if err := ioutil.WriteFile(outputPath, outputBytes, 0644); err != nil {
+	if err := os.WriteFile(outputPath, outputBytes, 0644); err != nil {
 		fmt.Printf("Error writing output file: %v\n", err)
 		return
 	}

@@ -208,7 +208,9 @@ func handleUploadFont(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file: " + err.Error()})
 		return
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	data, err := io.ReadAll(f)
 	if err != nil {
@@ -246,7 +248,9 @@ func handleFillPDF(c *gin.Context) {
 	pdfFile, pdfHeader, _ := c.Request.FormFile("pdf")
 	var pdfBytes []byte
 	if pdfFile != nil {
-		defer pdfFile.Close()
+		defer func() {
+			_ = pdfFile.Close()
+		}()
 		buf := make([]byte, pdfHeader.Size)
 		_, err := pdfFile.Read(buf)
 		if err == nil {
@@ -257,7 +261,9 @@ func handleFillPDF(c *gin.Context) {
 	xfdfFile, xfdfHeader, _ := c.Request.FormFile("xfdf")
 	var xfdfBytes []byte
 	if xfdfFile != nil {
-		defer xfdfFile.Close()
+		defer func() {
+			_ = xfdfFile.Close()
+		}()
 		buf := make([]byte, xfdfHeader.Size)
 		_, err := xfdfFile.Read(buf)
 		if err == nil {
@@ -319,7 +325,7 @@ func handleMergePDFs(c *gin.Context) {
 			return
 		}
 		buf, err := io.ReadAll(f)
-		f.Close()
+		_ = f.Close()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
 			return
@@ -347,7 +353,9 @@ func handlerSplitPDF(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing pdf file: " + err.Error()})
 		return
 	}
-	defer pdfFile.Close()
+	defer func() {
+		_ = pdfFile.Close()
+	}()
 	pdfBytes, err := io.ReadAll(pdfFile)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read pdf: " + err.Error()})
@@ -396,17 +404,17 @@ func handlerSplitPDF(c *gin.Context) {
 		name := fmt.Sprintf("originalfile-part%d.pdf", i+1)
 		fw, err := zw.Create(name)
 		if err != nil {
-			zw.Close()
+			_ = zw.Close()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip create failed: " + err.Error()})
 			return
 		}
 		if _, err := fw.Write(b); err != nil {
-			zw.Close()
+			_ = zw.Close()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip write failed: " + err.Error()})
 			return
 		}
 	}
-	zw.Close()
+	_ = zw.Close()
 
 	c.Header("Content-Type", "application/zip")
 	c.Header("Content-Disposition", "attachment; filename=splits.zip")

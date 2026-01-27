@@ -58,7 +58,7 @@ func (s *IntegrationSuite) TearDownTest() {
 		filepath.Join("..", "sampledata", "split", "temp_maxperfile.zip"),
 	}
 	for _, f := range tempFiles {
-		os.Remove(f) // Ignore errors if file doesn't exist
+		_ = os.Remove(f) // Ignore errors if file doesn't exist
 	}
 }
 
@@ -86,7 +86,9 @@ func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 	// 2. Send to endpoint
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBuffer(jsonData))
 	s.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	s.Equal(http.StatusOK, resp.StatusCode)
 	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
@@ -125,12 +127,14 @@ func (s *IntegrationSuite) TestMergePDFs() {
 		_, err = part.Write(data)
 		s.NoError(err)
 	}
-	writer.Close()
+	s.NoError(writer.Close())
 
 	// 2. Send to endpoint
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/merge", writer.FormDataContentType(), body)
 	s.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	s.Equal(http.StatusOK, resp.StatusCode)
 	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
@@ -181,12 +185,14 @@ func (s *IntegrationSuite) TestFillPDF() {
 	_, err = xfdfPart.Write(xfdfData)
 	s.NoError(err)
 
-	writer.Close()
+	s.NoError(writer.Close())
 
 	// 2. Send to endpoint
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/fill", writer.FormDataContentType(), body)
 	s.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	s.Equal(http.StatusOK, resp.StatusCode)
 	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
@@ -215,7 +221,9 @@ func (s *IntegrationSuite) TestHtmlToPDF() {
 	// 2. Send to endpoint
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/htmltopdf", "application/json", bytes.NewBuffer(reqBody))
 	s.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		s.T().Logf("HtmlToPDF failed with status: %d. Skipping size check.", resp.StatusCode)
@@ -230,7 +238,7 @@ func (s *IntegrationSuite) TestHtmlToPDF() {
 
 	baseDir := filepath.Join("..", "sampledata", "htmltopdf")
 	// Ensure directory exists
-	os.MkdirAll(baseDir, 0755)
+	s.NoError(os.MkdirAll(baseDir, 0755))
 
 	tempPath := filepath.Join(baseDir, "temp_htmltopdf.pdf")
 	err = os.WriteFile(tempPath, body, 0644)
@@ -254,7 +262,9 @@ func (s *IntegrationSuite) TestHtmlToImage() {
 	// 2. Send to endpoint
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/htmltoimage", "application/json", bytes.NewBuffer(reqBody))
 	s.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		s.T().Logf("HtmlToImage failed with status: %d. Skipping size check.", resp.StatusCode)
@@ -269,7 +279,7 @@ func (s *IntegrationSuite) TestHtmlToImage() {
 
 	baseDir := filepath.Join("..", "sampledata", "htmltoimg")
 	// Ensure directory exists
-	os.MkdirAll(baseDir, 0755)
+	s.NoError(os.MkdirAll(baseDir, 0755))
 
 	tempPath := filepath.Join(baseDir, "temp_htmltoimage.png")
 	err = os.WriteFile(tempPath, body, 0644)
@@ -308,12 +318,14 @@ func (s *IntegrationSuite) TestSplitPDF() {
 	err = writer.WriteField("max_per_file", "")
 	s.NoError(err)
 
-	writer.Close()
+	s.NoError(writer.Close())
 
 	// 2. Send to endpoint
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/split", writer.FormDataContentType(), body)
 	s.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	s.Equal(http.StatusOK, resp.StatusCode)
 	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
@@ -358,12 +370,14 @@ func (s *IntegrationSuite) TestSplitPDFRange() {
 	err = writer.WriteField("max_per_file", "")
 	s.NoError(err)
 
-	writer.Close()
+	s.NoError(writer.Close())
 
 	// 2. Send to endpoint
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/split", writer.FormDataContentType(), body)
 	s.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	s.Equal(http.StatusOK, resp.StatusCode)
 	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
@@ -408,12 +422,14 @@ func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
 	err = writer.WriteField("max_per_file", "1")
 	s.NoError(err)
 
-	writer.Close()
+	s.NoError(writer.Close())
 
 	// 2. Send to endpoint
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/split", writer.FormDataContentType(), body)
 	s.NoError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	s.Equal(http.StatusOK, resp.StatusCode)
 	s.Equal("application/zip", resp.Header.Get("Content-Type"))

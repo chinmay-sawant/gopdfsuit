@@ -172,7 +172,9 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 		return 0, 0
 	}
 
-	fmt.Sscanf(rootRef, "%d", &catalogNum)
+	if _, err := fmt.Sscanf(rootRef, "%d", &catalogNum); err != nil {
+		return 0, 0
+	}
 
 	if catalogNum > 0 {
 		if body, exists := objMap[catalogNum]; exists {
@@ -199,7 +201,9 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 
 	// Parse root object number
 	var rootNum int
-	fmt.Sscanf(rootRef, "%d", &rootNum)
+	if _, err := fmt.Sscanf(rootRef, "%d", &rootNum); err != nil {
+		return pages
+	}
 
 	rootBody, exists := objMap[rootNum]
 	if !exists {
@@ -311,7 +315,7 @@ func writeCatalog(out *bytes.Buffer, fields []int) {
 			if i > 0 {
 				out.WriteString(" ")
 			}
-			out.WriteString(fmt.Sprintf("%d 0 R", f))
+			fmt.Fprintf(out, "%d 0 R", f)
 		}
 		out.WriteString("] /NeedAppearances true >>")
 	}
@@ -326,14 +330,14 @@ func writePages(out *bytes.Buffer, pages []int) {
 		if i > 0 {
 			out.WriteString(" ")
 		}
-		out.WriteString(fmt.Sprintf("%d 0 R", p))
+		fmt.Fprintf(out, "%d 0 R", p)
 	}
-	out.WriteString(fmt.Sprintf("] /Count %d >>\nendobj\n", len(pages)))
+	fmt.Fprintf(out, "] /Count %d >>\nendobj\n", len(pages))
 }
 
 // writeObject writes a single PDF object
 func writeObject(out *bytes.Buffer, num int, body []byte) {
-	out.WriteString(fmt.Sprintf("%d 0 obj", num))
+	fmt.Fprintf(out, "%d 0 obj", num)
 
 	// Handle Page objects - ensure /Parent points to our Pages object
 	if IsPageObject(body) && !IsPagesTreeObject(body) {
@@ -378,7 +382,7 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	}
 
 	xrefStart := out.Len()
-	out.WriteString(fmt.Sprintf("xref\n0 %d\n", maxObj+1))
+	fmt.Fprintf(out, "xref\n0 %d\n", maxObj+1)
 
 	// Object 0 is always free
 	out.WriteString("0000000000 65535 f\r\n")
@@ -386,15 +390,15 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	// Write entries for objects 1 to maxObj
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			out.WriteString(fmt.Sprintf("%010d 00000 n\r\n", off))
+			fmt.Fprintf(out, "%010d 00000 n\r\n", off)
 		} else {
 			out.WriteString("0000000000 65535 f\r\n")
 		}
 	}
 
 	// Trailer
-	out.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n",
-		maxObj+1, xrefStart))
+	fmt.Fprintf(out, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n",
+		maxObj+1, xrefStart)
 }
 
 // hasEncrypt checks if PDF is encrypted

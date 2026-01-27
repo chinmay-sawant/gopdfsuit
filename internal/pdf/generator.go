@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"crypto/md5"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -577,8 +578,11 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		// Compress content stream with zlib (PDF FlateDecode expects zlib format, not raw deflate)
 		var compressedBuf bytes.Buffer
 		zlibWriter := zlib.NewWriter(&compressedBuf)
-		zlibWriter.Write(contentStream.Bytes())
-		zlibWriter.Close()
+		if _, err := zlibWriter.Write(contentStream.Bytes()); err != nil {
+			_ = zlibWriter.Close()
+			continue // Skip encryption if compression fails
+		}
+		_ = zlibWriter.Close()
 		compressedData := compressedBuf.Bytes()
 
 		// Encrypt content stream if encryption is enabled
@@ -800,7 +804,10 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		documentID = FormatDocumentID(encryption.DocumentID)
 	} else {
 		randomBytes := make([]byte, 16)
-		rand.Read(randomBytes)
+		if _, err := rand.Read(randomBytes); err != nil {
+			// Fallback to time-based randomness if rand fails
+			binary.BigEndian.PutUint64(randomBytes, uint64(time.Now().UnixNano()))
+		}
 		randomHash := md5.Sum(randomBytes)
 		documentID = fmt.Sprintf("[<%s> <%s>]", hex.EncodeToString(contentHash[:]), hex.EncodeToString(randomHash[:]))
 	}

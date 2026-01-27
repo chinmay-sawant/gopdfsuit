@@ -50,9 +50,9 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	contentStream.WriteString("BT\n")
 	// Use getFontReference to handle PDF/A font substitution (Helvetica -> Liberation)
 	fontRef := getFontReference(watermarkProps)
-	contentStream.WriteString(fmt.Sprintf("%s %d Tf\n", fontRef, fontSize))
-	contentStream.WriteString(fmt.Sprintf("%s %s %s %s %s %s Tm\n", fmtNum(c), fmtNum(s), fmtNum(-s), fmtNum(c), fmtNum(x), fmtNum(y)))
-	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(watermarkProps, text)))
+	fmt.Fprintf(contentStream, "%s %d Tf\n", fontRef, fontSize)
+	fmt.Fprintf(contentStream, "%s %s %s %s %s %s Tm\n", fmtNum(c), fmtNum(s), fmtNum(-s), fmtNum(c), fmtNum(x), fmtNum(y))
+	fmt.Fprintf(contentStream, "%s Tj\n", formatTextForPDF(watermarkProps, text))
 	contentStream.WriteString("ET\nQ\n")
 
 	// End Artifact mark
@@ -76,24 +76,24 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 
 		contentStream.WriteString("q\n")
 		if pageBorders[0] > 0 { // left border
-			contentStream.WriteString(fmt.Sprintf("%d w\n", pageBorders[0]))
-			contentStream.WriteString(fmt.Sprintf("%d %d m %d %s l S\n",
-				margin, margin, margin, fmtNum(pageDims.Height-margin)))
+			fmt.Fprintf(contentStream, "%d w\n", pageBorders[0])
+			fmt.Fprintf(contentStream, "%d %d m %d %s l S\n",
+				margin, margin, margin, fmtNum(pageDims.Height-margin))
 		}
 		if pageBorders[1] > 0 { // right border
-			contentStream.WriteString(fmt.Sprintf("%d w\n", pageBorders[1]))
-			contentStream.WriteString(fmt.Sprintf("%s %d m %s %s l S\n",
-				fmtNum(pageDims.Width-margin), margin, fmtNum(pageDims.Width-margin), fmtNum(pageDims.Height-margin)))
+			fmt.Fprintf(contentStream, "%d w\n", pageBorders[1])
+			fmt.Fprintf(contentStream, "%s %d m %s %s l S\n",
+				fmtNum(pageDims.Width-margin), margin, fmtNum(pageDims.Width-margin), fmtNum(pageDims.Height-margin))
 		}
 		if pageBorders[2] > 0 { // top border
-			contentStream.WriteString(fmt.Sprintf("%d w\n", pageBorders[2]))
-			contentStream.WriteString(fmt.Sprintf("%d %s m %s %s l S\n",
-				margin, fmtNum(pageDims.Height-margin), fmtNum(pageDims.Width-margin), fmtNum(pageDims.Height-margin)))
+			fmt.Fprintf(contentStream, "%d w\n", pageBorders[2])
+			fmt.Fprintf(contentStream, "%d %s m %s %s l S\n",
+				margin, fmtNum(pageDims.Height-margin), fmtNum(pageDims.Width-margin), fmtNum(pageDims.Height-margin))
 		}
 		if pageBorders[3] > 0 { // bottom border
-			contentStream.WriteString(fmt.Sprintf("%d w\n", pageBorders[3]))
-			contentStream.WriteString(fmt.Sprintf("%d %d m %s %d l S\n",
-				margin, margin, fmtNum(pageDims.Width-margin), margin))
+			fmt.Fprintf(contentStream, "%d w\n", pageBorders[3])
+			fmt.Fprintf(contentStream, "%d %d m %s %d l S\n",
+				margin, margin, fmtNum(pageDims.Width-margin), margin)
 		}
 		contentStream.WriteString("Q\n")
 
@@ -124,9 +124,9 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 		rectH := float64(titleProps.FontSize)
 
 		contentStream.WriteString("q\n")
-		contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
-		contentStream.WriteString(fmt.Sprintf("%s %s %s %s re f\n",
-			fmtNum(rectX), fmtNum(rectY), fmtNum(rectW), fmtNum(rectH)))
+		fmt.Fprintf(contentStream, "%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b))
+		fmt.Fprintf(contentStream, "%s %s %s %s re f\n",
+			fmtNum(rectX), fmtNum(rectY), fmtNum(rectW), fmtNum(rectH))
 		contentStream.WriteString("Q\n")
 	}
 
@@ -138,7 +138,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 	// Set text color
 	if r, g, b, _, valid := parseHexColor(title.TextColor); valid {
-		contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+		fmt.Fprintf(contentStream, "%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b))
 	} else {
 		contentStream.WriteString("0 0 0 rg\n")
 	}
@@ -164,8 +164,8 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	pageManager.CurrentYPos -= float64(titleProps.FontSize)
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
-	contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(titleX), fmtNum(pageManager.CurrentYPos)))
-	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(titleProps, title.Text)))
+	fmt.Fprintf(contentStream, "%s %s Td\n", fmtNum(titleX), fmtNum(pageManager.CurrentYPos))
+	fmt.Fprintf(contentStream, "%s Tj\n", formatTextForPDF(titleProps, title.Text))
 	contentStream.WriteString("ET\n")
 
 	// PDF/UA: End Structure Element
@@ -259,9 +259,9 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			}
 			if r, g, b, _, valid := parseHexColor(bgColor); valid {
 				contentStream.WriteString("q\n")
-				contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
-				contentStream.WriteString(fmt.Sprintf("%s %s %s %s re f\n",
-					fmtNum(bgX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellWidth), fmtNum(cellHeight)))
+				fmt.Fprintf(contentStream, "%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b))
+				fmt.Fprintf(contentStream, "%s %s %s %s re f\n",
+					fmtNum(bgX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellWidth), fmtNum(cellHeight))
 				contentStream.WriteString("Q\n")
 			}
 
@@ -327,11 +327,11 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString("q\n")
 					// Set up clipping rectangle to confine image within cell bounds (with padding) - using 're' operator
 					shortKey := strings.ReplaceAll(cellKey, ":", "_")
-					contentStream.WriteString(fmt.Sprintf("%s %s %s %s re W n\n",
-						fmtNum(imgX), fmtNum(imgY), fmtNum(imgWidth), fmtNum(imgHeight)))
-					contentStream.WriteString(fmt.Sprintf("%s 0 0 %s %s %s cm\n",
-						fmtNum(imgWidth), fmtNum(imgHeight), fmtNum(imgX), fmtNum(imgY)))
-					contentStream.WriteString(fmt.Sprintf("/C%s Do\n", shortKey))
+					fmt.Fprintf(contentStream, "%s %s %s %s re W n\n",
+						fmtNum(imgX), fmtNum(imgY), fmtNum(imgWidth), fmtNum(imgHeight))
+					fmt.Fprintf(contentStream, "%s 0 0 %s %s %s cm\n",
+						fmtNum(imgWidth), fmtNum(imgHeight), fmtNum(imgX), fmtNum(imgY))
+					fmt.Fprintf(contentStream, "/C%s Do\n", shortKey)
 					contentStream.WriteString("Q\n")
 				} else {
 					// Fall back to placeholder
@@ -344,21 +344,21 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString("q\n")
 					contentStream.WriteString("0.5 w\n")
 					contentStream.WriteString("0.7 0.7 0.7 RG\n")
-					contentStream.WriteString(fmt.Sprintf("%s %s %s %s re S\n",
-						fmtNum(imgX), fmtNum(imgY), fmtNum(imgWidth), fmtNum(imgHeight)))
+					fmt.Fprintf(contentStream, "%s %s %s %s re S\n",
+						fmtNum(imgX), fmtNum(imgY), fmtNum(imgWidth), fmtNum(imgHeight))
 					contentStream.WriteString("Q\n")
 
 					// Draw image name
 					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
 						contentStream.WriteString("BT\n")
 						fontRef := getFontReference(models.Props{FontName: "Helvetica"})
-						contentStream.WriteString(fmt.Sprintf("%s 8 Tf\n", fontRef))
+						fmt.Fprintf(contentStream, "%s 8 Tf\n", fontRef)
 						contentStream.WriteString("0.5 0.5 0.5 rg\n")
 						textX := imgX + imgWidth/2 - float64(len(cell.Image.ImageName)*2)
 						textY := imgY + imgHeight/2
 						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-						contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
-						contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(cell.Image.ImageName)))
+						fmt.Fprintf(contentStream, "%s %s Td\n", fmtNum(textX), fmtNum(textY))
+						fmt.Fprintf(contentStream, "(%s) Tj\n", escapeText(cell.Image.ImageName))
 						contentStream.WriteString("ET\n")
 					}
 				}
@@ -377,7 +377,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					textColor = defaultTextColor
 				}
 				if r, g, b, _, valid := parseHexColor(textColor); valid {
-					contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+					fmt.Fprintf(contentStream, "%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b))
 				} else {
 					// Default to black if no valid color specified
 					contentStream.WriteString("0 0 0 rg\n")
@@ -399,7 +399,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				textY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
 
 				contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-				contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
+				fmt.Fprintf(contentStream, "%s %s Td\n", fmtNum(textX), fmtNum(textY))
 
 				// Add underline support
 				if cellProps.Underline {
@@ -408,8 +408,8 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString("0.5 w\n")
 					underlineY := textY - 2
 					textWidth := float64(len(cell.Text) * cellProps.FontSize / 2)
-					contentStream.WriteString(fmt.Sprintf("%s %s m %s %s l S\n",
-						fmtNum(textX), fmtNum(underlineY), fmtNum(textX+textWidth), fmtNum(underlineY)))
+					fmt.Fprintf(contentStream, "%s %s m %s %s l S\n",
+						fmtNum(textX), fmtNum(underlineY), fmtNum(textX+textWidth), fmtNum(underlineY))
 					contentStream.WriteString("Q\n")
 					contentStream.WriteString("BT\n")
 					contentStream.WriteString(getFontReference(cellProps))
@@ -417,10 +417,10 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 					contentStream.WriteString(" Tf\n")
 					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-					contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
+					fmt.Fprintf(contentStream, "%s %s Td\n", fmtNum(textX), fmtNum(textY))
 				}
 
-				contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(cellProps, cell.Text)))
+				fmt.Fprintf(contentStream, "%s Tj\n", formatTextForPDF(cellProps, cell.Text))
 				contentStream.WriteString("ET\n")
 			}
 
@@ -428,20 +428,20 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
 				contentStream.WriteString("q\n")
 				if cellProps.Borders[0] > 0 { // left
-					contentStream.WriteString(fmt.Sprintf("%d w %s %s m %s %s l S\n",
-						cellProps.Borders[0], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX), fmtNum(pageManager.CurrentYPos)))
+					fmt.Fprintf(contentStream, "%d w %s %s m %s %s l S\n",
+						cellProps.Borders[0], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX), fmtNum(pageManager.CurrentYPos))
 				}
 				if cellProps.Borders[1] > 0 { // right
-					contentStream.WriteString(fmt.Sprintf("%d w %s %s m %s %s l S\n",
-						cellProps.Borders[1], fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos)))
+					fmt.Fprintf(contentStream, "%d w %s %s m %s %s l S\n",
+						cellProps.Borders[1], fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos))
 				}
 				if cellProps.Borders[2] > 0 { // top
-					contentStream.WriteString(fmt.Sprintf("%d w %s %s m %s %s l S\n",
-						cellProps.Borders[2], fmtNum(cellX), fmtNum(pageManager.CurrentYPos), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos)))
+					fmt.Fprintf(contentStream, "%d w %s %s m %s %s l S\n",
+						cellProps.Borders[2], fmtNum(cellX), fmtNum(pageManager.CurrentYPos), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos))
 				}
 				if cellProps.Borders[3] > 0 { // bottom
-					contentStream.WriteString(fmt.Sprintf("%d w %s %s m %s %s l S\n",
-						cellProps.Borders[3], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight)))
+					fmt.Fprintf(contentStream, "%d w %s %s m %s %s l S\n",
+						cellProps.Borders[3], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight))
 				}
 				contentStream.WriteString("Q\n")
 			}
@@ -542,10 +542,6 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// Assuming first row is header if Table has explicit header concept, but for now just use TD
 			// Could be enhanced to detect header rows
 			cellType := StructTD
-			if rowIdx == 0 {
-				// Simple heuristic: Treat first row as header if styling is different?
-				// For now, let's keep it TD unless explicitly requested, or if we had a Header property in table model.
-			}
 			var sbStart strings.Builder
 			pageManager.Structure.BeginMarkedContent(&sbStart, pageManager.CurrentPageIndex, cellType, nil)
 			contentStream.WriteString(sbStart.String())
@@ -576,9 +572,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 			if r, g, b, _, valid := parseHexColor(bgColor); valid {
 				contentStream.WriteString("q\n")
-				contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
-				contentStream.WriteString(fmt.Sprintf("%s %s %s %s re f\n",
-					fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellWidth), fmtNum(cellHeight)))
+				fmt.Fprintf(contentStream, "%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b))
+				fmt.Fprintf(contentStream, "%s %s %s %s re f\n",
+					fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellWidth), fmtNum(cellHeight))
 				contentStream.WriteString("Q\n")
 			}
 
@@ -600,11 +596,11 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					shortKey := strings.ReplaceAll(cellKey, ":", "_")
 					contentStream.WriteString("q\n")
 					// Set up clipping rectangle to confine image within cell bounds (with padding)
-					contentStream.WriteString(fmt.Sprintf("%s %s %s %s re W n\n",
-						fmtNum(imgX), fmtNum(imgY), fmtNum(imgWidth), fmtNum(imgHeight)))
-					contentStream.WriteString(fmt.Sprintf("%s 0 0 %s %s %s cm\n",
-						fmtNum(imgWidth), fmtNum(imgHeight), fmtNum(imgX), fmtNum(imgY)))
-					contentStream.WriteString(fmt.Sprintf("/C%s Do\n", shortKey))
+					fmt.Fprintf(contentStream, "%s %s %s %s re W n\n",
+						fmtNum(imgX), fmtNum(imgY), fmtNum(imgWidth), fmtNum(imgHeight))
+					fmt.Fprintf(contentStream, "%s 0 0 %s %s %s cm\n",
+						fmtNum(imgWidth), fmtNum(imgHeight), fmtNum(imgX), fmtNum(imgY))
+					fmt.Fprintf(contentStream, "/C%s Do\n", shortKey)
 					contentStream.WriteString("Q\n")
 				} else {
 					// Fall back to placeholder if no XObject - fit 100% to cell
@@ -618,21 +614,21 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.WriteString("q\n")
 					contentStream.WriteString("0.5 w\n")
 					contentStream.WriteString("0.7 0.7 0.7 RG\n")
-					contentStream.WriteString(fmt.Sprintf("%s %s %s %s re S\n",
-						fmtNum(imgX), fmtNum(imgY), fmtNum(imgWidth), fmtNum(imgHeight)))
+					fmt.Fprintf(contentStream, "%s %s %s %s re S\n",
+						fmtNum(imgX), fmtNum(imgY), fmtNum(imgWidth), fmtNum(imgHeight))
 					contentStream.WriteString("Q\n")
 
 					// Draw image name
 					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
 						contentStream.WriteString("BT\n")
 						fontRef := getFontReference(models.Props{FontName: "Helvetica"})
-						contentStream.WriteString(fmt.Sprintf("%s 8 Tf\n", fontRef))
+						fmt.Fprintf(contentStream, "%s 8 Tf\n", fontRef)
 						contentStream.WriteString("0.5 0.5 0.5 rg\n")
 						textX := imgX + imgWidth/2 - float64(len(cell.Image.ImageName)*2)
 						textY := imgY + imgHeight/2
 						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-						contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
-						contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(cell.Image.ImageName)))
+						fmt.Fprintf(contentStream, "%s %s Td\n", fmtNum(textX), fmtNum(textY))
+						fmt.Fprintf(contentStream, "(%s) Tj\n", escapeText(cell.Image.ImageName))
 						contentStream.WriteString("ET\n")
 					}
 				}
@@ -659,13 +655,13 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 				contentStream.WriteString("q\n")
 				contentStream.WriteString("1 w\n")
-				contentStream.WriteString(fmt.Sprintf("%s %s %s %s re S\n",
-					fmtNum(checkboxX), fmtNum(checkboxY), fmtNum(checkboxSize), fmtNum(checkboxSize)))
+				fmt.Fprintf(contentStream, "%s %s %s %s re S\n",
+					fmtNum(checkboxX), fmtNum(checkboxY), fmtNum(checkboxSize), fmtNum(checkboxSize))
 
 				if *cell.Checkbox {
-					contentStream.WriteString(fmt.Sprintf("%s %s m %s %s l %s %s m %s %s l S\n",
+					fmt.Fprintf(contentStream, "%s %s m %s %s l %s %s m %s %s l S\n",
 						fmtNum(checkboxX+2), fmtNum(checkboxY+2), fmtNum(checkboxX+checkboxSize-2), fmtNum(checkboxY+checkboxSize-2),
-						fmtNum(checkboxX+checkboxSize-2), fmtNum(checkboxY+2), fmtNum(checkboxX+2), fmtNum(checkboxY+checkboxSize-2)))
+						fmtNum(checkboxX+checkboxSize-2), fmtNum(checkboxY+2), fmtNum(checkboxX+2), fmtNum(checkboxY+checkboxSize-2))
 				}
 				contentStream.WriteString("Q\n")
 			} else if cell.Text != "" {
@@ -683,7 +679,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					textColor = table.TextColor
 				}
 				if r, g, b, _, valid := parseHexColor(textColor); valid {
-					contentStream.WriteString(fmt.Sprintf("%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b)))
+					fmt.Fprintf(contentStream, "%s %s %s rg\n", fmtNum(r), fmtNum(g), fmtNum(b))
 				} else {
 					// Default to black if no valid color specified
 					contentStream.WriteString("0 0 0 rg\n")
@@ -708,7 +704,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 				// Reset text matrix and position absolutely
 				contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-				contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
+				fmt.Fprintf(contentStream, "%s %s Td\n", fmtNum(textX), fmtNum(textY))
 
 				// Add underline support
 				if cellProps.Underline {
@@ -718,8 +714,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.WriteString("0.5 w\n")
 					underlineY := textY - 2
 					textWidth := float64(len(cell.Text) * cellProps.FontSize / 2)
-					contentStream.WriteString(fmt.Sprintf("%s %s m %s %s l S\n",
-						fmtNum(textX), fmtNum(underlineY), fmtNum(textX+textWidth), fmtNum(underlineY)))
+					fmt.Fprintf(contentStream, "%s %s m %s %s l S\n",
+						fmtNum(textX), fmtNum(underlineY), fmtNum(textX+textWidth), fmtNum(underlineY))
 					contentStream.WriteString("Q\n")
 					// Start text object again
 					contentStream.WriteString("BT\n")
@@ -728,10 +724,10 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 					contentStream.WriteString(" Tf\n")
 					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-					contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
+					fmt.Fprintf(contentStream, "%s %s Td\n", fmtNum(textX), fmtNum(textY))
 				}
 
-				contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(cellProps, cell.Text)))
+				fmt.Fprintf(contentStream, "%s Tj\n", formatTextForPDF(cellProps, cell.Text))
 				contentStream.WriteString("ET\n")
 			}
 
@@ -739,20 +735,20 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
 				contentStream.WriteString("q\n")
 				if cellProps.Borders[0] > 0 { // left
-					contentStream.WriteString(fmt.Sprintf("%d w %s %s m %s %s l S\n",
-						cellProps.Borders[0], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX), fmtNum(pageManager.CurrentYPos)))
+					fmt.Fprintf(contentStream, "%d w %s %s m %s %s l S\n",
+						cellProps.Borders[0], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX), fmtNum(pageManager.CurrentYPos))
 				}
 				if cellProps.Borders[1] > 0 { // right
-					contentStream.WriteString(fmt.Sprintf("%d w %s %s m %s %s l S\n",
-						cellProps.Borders[1], fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos)))
+					fmt.Fprintf(contentStream, "%d w %s %s m %s %s l S\n",
+						cellProps.Borders[1], fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos))
 				}
 				if cellProps.Borders[2] > 0 { // top
-					contentStream.WriteString(fmt.Sprintf("%d w %s %s m %s %s l S\n",
-						cellProps.Borders[2], fmtNum(cellX), fmtNum(pageManager.CurrentYPos), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos)))
+					fmt.Fprintf(contentStream, "%d w %s %s m %s %s l S\n",
+						cellProps.Borders[2], fmtNum(cellX), fmtNum(pageManager.CurrentYPos), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos))
 				}
 				if cellProps.Borders[3] > 0 { // bottom
-					contentStream.WriteString(fmt.Sprintf("%d w %s %s m %s %s l S\n",
-						cellProps.Borders[3], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight)))
+					fmt.Fprintf(contentStream, "%d w %s %s m %s %s l S\n",
+						cellProps.Borders[3], fmtNum(cellX), fmtNum(pageManager.CurrentYPos-cellHeight), fmtNum(cellX+cellWidth), fmtNum(pageManager.CurrentYPos-cellHeight))
 				}
 				contentStream.WriteString("Q\n")
 			}
@@ -801,8 +797,8 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 	footerY := 20 // 20pt from bottom edge (outside margin)
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
-	contentStream.WriteString(fmt.Sprintf("%d %d Td\n", footerX, footerY))
-	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(footerProps, footer.Text)))
+	fmt.Fprintf(contentStream, "%d %d Td\n", footerX, footerY)
+	fmt.Fprintf(contentStream, "%s Tj\n", formatTextForPDF(footerProps, footer.Text))
 	contentStream.WriteString("ET\n")
 
 	// PDF/UA: End Artifact mark
@@ -841,7 +837,7 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 
 	contentStream.WriteString("BT\n")
 	fontRef := getFontReference(pageProps)
-	contentStream.WriteString(fmt.Sprintf("%s 10 Tf\n", fontRef)) // Use Helvetica, 10pt
+	fmt.Fprintf(contentStream, "%s 10 Tf\n", fontRef) // Use Helvetica, 10pt
 
 	// Calculate text width for proper right alignment
 	textWidth := float64(len(pageText)) * 6 // Approximate character width for 10pt font
@@ -851,8 +847,8 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 	pageNumberY := 20                              // 20pt from bottom edge (outside margin)
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
-	contentStream.WriteString(fmt.Sprintf("%s %d Td\n", fmtNum(pageNumberX), pageNumberY))
-	contentStream.WriteString(fmt.Sprintf("%s Tj\n", formatTextForPDF(pageProps, pageText)))
+	fmt.Fprintf(contentStream, "%s %d Td\n", fmtNum(pageNumberX), pageNumberY)
+	fmt.Fprintf(contentStream, "%s Tj\n", formatTextForPDF(pageProps, pageText))
 	contentStream.WriteString("ET\n")
 
 	// PDF/UA: End Artifact mark
@@ -912,15 +908,15 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	contentStream.WriteString("q\n")
 	contentStream.WriteString("0.5 w\n")
 	contentStream.WriteString("0.8 0.8 0.8 RG\n") // Light gray border
-	contentStream.WriteString(fmt.Sprintf("%s %s %s %s re S\n",
-		fmtNum(imageX), fmtNum(imageY), fmtNum(imageWidth), fmtNum(imageHeight)))
+	fmt.Fprintf(contentStream, "%s %s %s %s re S\n",
+		fmtNum(imageX), fmtNum(imageY), fmtNum(imageWidth), fmtNum(imageHeight))
 	contentStream.WriteString("Q\n")
 
 	// Add image name text in the center
 	if image.ImageName != "" {
 		contentStream.WriteString("BT\n")
 		fontRef := getFontReference(models.Props{FontName: "Helvetica"})
-		contentStream.WriteString(fmt.Sprintf("%s 10 Tf\n", fontRef))
+		fmt.Fprintf(contentStream, "%s 10 Tf\n", fontRef)
 		contentStream.WriteString("0.6 0.6 0.6 rg\n") // Gray text
 
 		// Center the text
@@ -928,8 +924,8 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 		textY := imageY + imageHeight/2
 
 		contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-		contentStream.WriteString(fmt.Sprintf("%s %s Td\n", fmtNum(textX), fmtNum(textY)))
-		contentStream.WriteString(fmt.Sprintf("(%s) Tj\n", escapeText(image.ImageName)))
+		fmt.Fprintf(contentStream, "%s %s Td\n", fmtNum(textX), fmtNum(textY))
+		fmt.Fprintf(contentStream, "(%s) Tj\n", escapeText(image.ImageName))
 		contentStream.WriteString("ET\n")
 	}
 

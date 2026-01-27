@@ -8,5 +8,7 @@ import (
 func main() {
 	router := gin.Default()
 	handlers.RegisterRoutes(router)
-	router.Run()
+	if err := router.Run(); err != nil {
+		panic(err)
+	}
 }

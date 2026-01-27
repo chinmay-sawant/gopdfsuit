@@ -130,9 +130,8 @@ func FindEndObj(data []byte, pos int) int {
 						// Check if preceded by EOL
 						validEnd := false
 						if matchPos > 0 {
-							if data[matchPos-1] == '\n' {
-								validEnd = true
-							} else if data[matchPos-1] == '\r' {
+							switch data[matchPos-1] {
+							case '\n', '\r':
 								validEnd = true
 							}
 						}
@@ -558,7 +557,9 @@ func decompressFlate(data []byte) []byte {
 	if err != nil {
 		return nil
 	}
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 
 	var out bytes.Buffer
 	_, err = io.Copy(&out, reader)

@@ -130,13 +130,13 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 
 	// Write BMC/BDC operator
 	if len(props) == 0 {
-		streamBuilder.WriteString(fmt.Sprintf("/%s <</MCID %d>> BDC\n", tag, mcid))
+		fmt.Fprintf(streamBuilder, "/%s <</MCID %d>> BDC\n", tag, mcid)
 	} else {
 		// Just handle Alt text for now in properties list if strictly needed,
 		// but standard practice is BDC with property dictionary
-		streamBuilder.WriteString(fmt.Sprintf("/%s <</MCID %d", tag, mcid))
+		fmt.Fprintf(streamBuilder, "/%s <</MCID %d", tag, mcid)
 		if alt, ok := props["Alt"]; ok {
-			streamBuilder.WriteString(fmt.Sprintf(" /Alt (%s)", escapeText(alt)))
+			fmt.Fprintf(streamBuilder, " /Alt (%s)", escapeText(alt))
 		}
 		streamBuilder.WriteString(">> BDC\n")
 	}
@@ -185,18 +185,18 @@ func (sm *StructureManager) RegisterPageStructParents(pageObjectID int, pageInde
 // namespaceObjID is the object ID of the PDF 2.0 namespace dictionary (0 to skip)
 func (sm *StructureManager) GenerateStructTreeRoot(rootObjID int, parentTreeObjID int, namespaceObjID int) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("<< /Type /StructTreeRoot /ParentTree %d 0 R", parentTreeObjID))
+	fmt.Fprintf(&sb, "<< /Type /StructTreeRoot /ParentTree %d 0 R", parentTreeObjID)
 
 	// PDF 2.0: Add Namespaces array for PDF/UA-2
 	if namespaceObjID > 0 {
-		sb.WriteString(fmt.Sprintf(" /Namespaces [ %d 0 R ]", namespaceObjID))
+		fmt.Fprintf(&sb, " /Namespaces [ %d 0 R ]", namespaceObjID)
 	}
 
 	// Point to the first child (Document)
 	if len(sm.Root.Kids) > 0 {
 		// Assuming the first kid is the Document element
 		if firstKid, ok := sm.Root.Kids[0].(*StructElem); ok {
-			sb.WriteString(fmt.Sprintf(" /K %d 0 R", firstKid.ObjectID))
+			fmt.Fprintf(&sb, " /K %d 0 R", firstKid.ObjectID)
 		}
 	}
 
