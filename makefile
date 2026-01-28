@@ -79,3 +79,5 @@ gengine-deploy: test-integration
 
 .PHONY: build test clean run fmt vet mod lint
 
+# go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/profile?seconds=30"
+# go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/heap"
