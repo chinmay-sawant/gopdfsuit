@@ -87,7 +87,9 @@ func ParseTTF(data []byte) (*TTFFont, error) {
 
 	// Read offset table
 	var sfntVersion uint32
-	binary.Read(r, binary.BigEndian, &sfntVersion)
+	if err := binary.Read(r, binary.BigEndian, &sfntVersion); err != nil {
+		return nil, fmt.Errorf("failed to read sfntVersion: %w", err)
+	}
 
 	// Check for valid font format
 	// 0x00010000 = TrueType, 0x4F54544F = 'OTTO' (OpenType/CFF)
@@ -96,17 +98,29 @@ func ParseTTF(data []byte) (*TTFFont, error) {
 	}
 
 	var numTables uint16
-	binary.Read(r, binary.BigEndian, &numTables)
-	r.Seek(6, io.SeekCurrent) // Skip searchRange, entrySelector, rangeShift
+	if err := binary.Read(r, binary.BigEndian, &numTables); err != nil {
+		return nil, fmt.Errorf("failed to read numTables: %w", err)
+	}
+	if _, err := r.Seek(6, io.SeekCurrent); err != nil { // Skip searchRange, entrySelector, rangeShift
+		return nil, fmt.Errorf("failed to seek: %w", err)
+	}
 
 	// Read table directory
 	for i := uint16(0); i < numTables; i++ {
 		var tag [4]byte
 		var entry TableEntry
-		r.Read(tag[:])
-		binary.Read(r, binary.BigEndian, &entry.Checksum)
-		binary.Read(r, binary.BigEndian, &entry.Offset)
-		binary.Read(r, binary.BigEndian, &entry.Length)
+		if _, err := r.Read(tag[:]); err != nil {
+			return nil, fmt.Errorf("failed to read tag: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &entry.Checksum); err != nil {
+			return nil, fmt.Errorf("failed to read checksum: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &entry.Offset); err != nil {
+			return nil, fmt.Errorf("failed to read offset: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &entry.Length); err != nil {
+			return nil, fmt.Errorf("failed to read length: %w", err)
+		}
 		entry.Tag = string(tag[:])
 		font.Tables[entry.Tag] = entry
 	}
@@ -167,16 +181,30 @@ func (f *TTFFont) parseHead(data []byte) error {
 	}
 
 	r := bytes.NewReader(data[table.Offset:])
-	r.Seek(18, io.SeekCurrent) // Skip version, fontRevision, checksumAdjustment, magicNumber, flags
+	if _, err := r.Seek(18, io.SeekCurrent); err != nil { // Skip version, fontRevision, checksumAdjustment, magicNumber, flags
+		return errors.New("failed to seek in head table")
+	}
 
-	binary.Read(r, binary.BigEndian, &f.UnitsPerEm)
+	if err := binary.Read(r, binary.BigEndian, &f.UnitsPerEm); err != nil {
+		return fmt.Errorf("failed to read UnitsPerEm: %w", err)
+	}
 
-	r.Seek(16, io.SeekCurrent) // Skip created, modified dates
+	if _, err := r.Seek(16, io.SeekCurrent); err != nil { // Skip created, modified dates
+		return errors.New("failed to seek in head table")
+	}
 
-	binary.Read(r, binary.BigEndian, &f.BBox[0]) // xMin
-	binary.Read(r, binary.BigEndian, &f.BBox[1]) // yMin
-	binary.Read(r, binary.BigEndian, &f.BBox[2]) // xMax
-	binary.Read(r, binary.BigEndian, &f.BBox[3]) // yMax
+	if err := binary.Read(r, binary.BigEndian, &f.BBox[0]); err != nil {
+		return fmt.Errorf("failed to read xMin: %w", err)
+	}
+	if err := binary.Read(r, binary.BigEndian, &f.BBox[1]); err != nil {
+		return fmt.Errorf("failed to read yMin: %w", err)
+	}
+	if err := binary.Read(r, binary.BigEndian, &f.BBox[2]); err != nil {
+		return fmt.Errorf("failed to read xMax: %w", err)
+	}
+	if err := binary.Read(r, binary.BigEndian, &f.BBox[3]); err != nil {
+		return fmt.Errorf("failed to read yMax: %w", err)
+	}
 
 	return nil
 }
@@ -193,11 +221,19 @@ func (f *TTFFont) parseHhea(data []byte) error {
 	}
 
 	r := bytes.NewReader(data[table.Offset:])
-	r.Seek(4, io.SeekCurrent) // Skip version
+	if _, err := r.Seek(4, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
-	binary.Read(r, binary.BigEndian, &f.Ascender)
-	binary.Read(r, binary.BigEndian, &f.Descender)
-	binary.Read(r, binary.BigEndian, &f.LineGap)
+	if err := binary.Read(r, binary.BigEndian, &f.Ascender); err != nil {
+		return fmt.Errorf("failed to read Ascender: %w", err)
+	}
+	if err := binary.Read(r, binary.BigEndian, &f.Descender); err != nil {
+		return fmt.Errorf("failed to read Descender: %w", err)
+	}
+	if err := binary.Read(r, binary.BigEndian, &f.LineGap); err != nil {
+		return fmt.Errorf("failed to read LineGap: %w", err)
+	}
 
 	return nil
 }
@@ -214,9 +250,13 @@ func (f *TTFFont) parseMaxp(data []byte) error {
 	}
 
 	r := bytes.NewReader(data[table.Offset:])
-	r.Seek(4, io.SeekCurrent) // Skip version
+	if _, err := r.Seek(4, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
-	binary.Read(r, binary.BigEndian, &f.NumGlyphs)
+	if err := binary.Read(r, binary.BigEndian, &f.NumGlyphs); err != nil {
+		return fmt.Errorf("failed to read NumGlyphs: %w", err)
+	}
 
 	return nil
 }
@@ -236,7 +276,9 @@ func (f *TTFFont) parseHmtx(data []byte) error {
 
 	var numberOfHMetrics uint16
 	r := bytes.NewReader(data[hheaTable.Offset+34:])
-	binary.Read(r, binary.BigEndian, &numberOfHMetrics)
+	if err := binary.Read(r, binary.BigEndian, &numberOfHMetrics); err != nil {
+		return fmt.Errorf("failed to read numberOfHMetrics: %w", err)
+	}
 
 	// Parse hmtx table
 	f.GlyphWidths = make([]uint16, f.NumGlyphs)
@@ -244,8 +286,12 @@ func (f *TTFFont) parseHmtx(data []byte) error {
 
 	var lastWidth uint16
 	for i := uint16(0); i < numberOfHMetrics; i++ {
-		binary.Read(r, binary.BigEndian, &f.GlyphWidths[i])
-		r.Seek(2, io.SeekCurrent) // Skip lsb
+		if err := binary.Read(r, binary.BigEndian, &f.GlyphWidths[i]); err != nil {
+			return fmt.Errorf("failed to read GlyphWidths[%d]: %w", i, err)
+		}
+		if _, err := r.Seek(2, io.SeekCurrent); err != nil {
+			return fmt.Errorf("failed to seek: %w", err)
+		}
 		lastWidth = f.GlyphWidths[i]
 	}
 
@@ -265,10 +311,14 @@ func (f *TTFFont) parseCmap(data []byte) error {
 	}
 
 	r := bytes.NewReader(data[table.Offset:])
-	r.Seek(2, io.SeekCurrent) // Skip version
+	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	var numTables uint16
-	binary.Read(r, binary.BigEndian, &numTables)
+	if err := binary.Read(r, binary.BigEndian, &numTables); err != nil {
+		return fmt.Errorf("failed to read numTables: %w", err)
+	}
 
 	// Find best cmap subtable (prefer format 4 for BMP, format 12 for full Unicode)
 	var bestOffset uint32
@@ -277,16 +327,24 @@ func (f *TTFFont) parseCmap(data []byte) error {
 	for i := uint16(0); i < numTables; i++ {
 		var platformID, encodingID uint16
 		var offset uint32
-		binary.Read(r, binary.BigEndian, &platformID)
-		binary.Read(r, binary.BigEndian, &encodingID)
-		binary.Read(r, binary.BigEndian, &offset)
+		if err := binary.Read(r, binary.BigEndian, &platformID); err != nil {
+			return fmt.Errorf("failed to read platformID: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &encodingID); err != nil {
+			return fmt.Errorf("failed to read encodingID: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &offset); err != nil {
+			return fmt.Errorf("failed to read offset: %w", err)
+		}
 
 		// Windows Unicode BMP (format 4) or Full Unicode (format 12)
 		if platformID == 3 && (encodingID == 1 || encodingID == 10) {
 			// Check format
 			formatReader := bytes.NewReader(data[table.Offset+offset:])
 			var format uint16
-			binary.Read(formatReader, binary.BigEndian, &format)
+			if err := binary.Read(formatReader, binary.BigEndian, &format); err != nil {
+				return fmt.Errorf("failed to read format: %w", err)
+			}
 
 			// Prefer format 12 over format 4
 			if format == 12 || (format == 4 && bestFormat != 12) {
@@ -299,7 +357,9 @@ func (f *TTFFont) parseCmap(data []byte) error {
 		if platformID == 0 {
 			formatReader := bytes.NewReader(data[table.Offset+offset:])
 			var format uint16
-			binary.Read(formatReader, binary.BigEndian, &format)
+			if err := binary.Read(formatReader, binary.BigEndian, &format); err != nil {
+				return fmt.Errorf("failed to read format: %w", err)
+			}
 
 			if format == 12 || (format == 4 && bestFormat != 12) {
 				bestOffset = offset
@@ -326,43 +386,63 @@ func (f *TTFFont) parseCmap(data []byte) error {
 // parseCmapFormat4 parses a format 4 cmap subtable (BMP characters)
 func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 	r := bytes.NewReader(data[offset:])
-	r.Seek(2, io.SeekCurrent) // Skip format
+	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	var length uint16
-	binary.Read(r, binary.BigEndian, &length)
-	r.Seek(2, io.SeekCurrent) // Skip language
+	if err := binary.Read(r, binary.BigEndian, &length); err != nil {
+		return fmt.Errorf("failed to read length: %w", err)
+	}
+	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	var segCountX2 uint16
-	binary.Read(r, binary.BigEndian, &segCountX2)
+	if err := binary.Read(r, binary.BigEndian, &segCountX2); err != nil {
+		return fmt.Errorf("failed to read segCountX2: %w", err)
+	}
 	segCount := segCountX2 / 2
 
-	r.Seek(6, io.SeekCurrent) // Skip searchRange, entrySelector, rangeShift
+	if _, err := r.Seek(6, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	// Read endCode array
 	endCodes := make([]uint16, segCount)
 	for i := uint16(0); i < segCount; i++ {
-		binary.Read(r, binary.BigEndian, &endCodes[i])
+		if err := binary.Read(r, binary.BigEndian, &endCodes[i]); err != nil {
+			return fmt.Errorf("failed to read endCodes: %w", err)
+		}
 	}
 
-	r.Seek(2, io.SeekCurrent) // Skip reservedPad
+	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	// Read startCode array
 	startCodes := make([]uint16, segCount)
 	for i := uint16(0); i < segCount; i++ {
-		binary.Read(r, binary.BigEndian, &startCodes[i])
+		if err := binary.Read(r, binary.BigEndian, &startCodes[i]); err != nil {
+			return fmt.Errorf("failed to read startCodes: %w", err)
+		}
 	}
 
 	// Read idDelta array
 	idDeltas := make([]int16, segCount)
 	for i := uint16(0); i < segCount; i++ {
-		binary.Read(r, binary.BigEndian, &idDeltas[i])
+		if err := binary.Read(r, binary.BigEndian, &idDeltas[i]); err != nil {
+			return fmt.Errorf("failed to read idDeltas: %w", err)
+		}
 	}
 
 	// Read idRangeOffset array
 	idRangeOffsetPos, _ := r.Seek(0, io.SeekCurrent)
 	idRangeOffsets := make([]uint16, segCount)
 	for i := uint16(0); i < segCount; i++ {
-		binary.Read(r, binary.BigEndian, &idRangeOffsets[i])
+		if err := binary.Read(r, binary.BigEndian, &idRangeOffsets[i]); err != nil {
+			return fmt.Errorf("failed to read idRangeOffsets: %w", err)
+		}
 	}
 
 	// Build character to glyph mapping
@@ -381,7 +461,10 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 				glyphIndexOffset := idRangeOffsetPos + int64(i)*2 + int64(idRangeOffsets[i]) + int64(c-startCodes[i])*2
 				if glyphIndexOffset+2 <= int64(len(data[offset:])) {
 					glyphReader := bytes.NewReader(data[offset+uint32(glyphIndexOffset):])
-					binary.Read(glyphReader, binary.BigEndian, &glyphID)
+					if err := binary.Read(glyphReader, binary.BigEndian, &glyphID); err != nil {
+						// Should probably handle error, but nested loop context, maybe break
+						break
+					}
 					if glyphID != 0 {
 						glyphID = uint16(int32(glyphID) + int32(idDeltas[i]))
 					}
@@ -401,16 +484,26 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 // parseCmapFormat12 parses a format 12 cmap subtable (full Unicode)
 func (f *TTFFont) parseCmapFormat12(data []byte, offset uint32) error {
 	r := bytes.NewReader(data[offset:])
-	r.Seek(12, io.SeekCurrent) // Skip format(2), reserved(2), length(4), language(4)
+	if _, err := r.Seek(12, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	var numGroups uint32
-	binary.Read(r, binary.BigEndian, &numGroups)
+	if err := binary.Read(r, binary.BigEndian, &numGroups); err != nil {
+		return fmt.Errorf("failed to read numGroups: %w", err)
+	}
 
 	for i := uint32(0); i < numGroups; i++ {
 		var startCharCode, endCharCode, startGlyphID uint32
-		binary.Read(r, binary.BigEndian, &startCharCode)
-		binary.Read(r, binary.BigEndian, &endCharCode)
-		binary.Read(r, binary.BigEndian, &startGlyphID)
+		if err := binary.Read(r, binary.BigEndian, &startCharCode); err != nil {
+			return fmt.Errorf("failed to read startCharCode: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &endCharCode); err != nil {
+			return fmt.Errorf("failed to read endCharCode: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &startGlyphID); err != nil {
+			return fmt.Errorf("failed to read startGlyphID: %w", err)
+		}
 
 		for c := startCharCode; c <= endCharCode; c++ {
 			glyphID := uint16(startGlyphID + (c - startCharCode))
@@ -432,22 +525,40 @@ func (f *TTFFont) parseName(data []byte) error {
 	}
 
 	r := bytes.NewReader(data[table.Offset:])
-	r.Seek(2, io.SeekCurrent) // Skip format
+	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	var count, stringOffset uint16
-	binary.Read(r, binary.BigEndian, &count)
-	binary.Read(r, binary.BigEndian, &stringOffset)
+	if err := binary.Read(r, binary.BigEndian, &count); err != nil {
+		return fmt.Errorf("failed to read count: %w", err)
+	}
+	if err := binary.Read(r, binary.BigEndian, &stringOffset); err != nil {
+		return fmt.Errorf("failed to read stringOffset: %w", err)
+	}
 
 	storageOffset := table.Offset + uint32(stringOffset)
 
 	for i := uint16(0); i < count; i++ {
 		var platformID, encodingID, languageID, nameID, length, offset uint16
-		binary.Read(r, binary.BigEndian, &platformID)
-		binary.Read(r, binary.BigEndian, &encodingID)
-		binary.Read(r, binary.BigEndian, &languageID)
-		binary.Read(r, binary.BigEndian, &nameID)
-		binary.Read(r, binary.BigEndian, &length)
-		binary.Read(r, binary.BigEndian, &offset)
+		if err := binary.Read(r, binary.BigEndian, &platformID); err != nil {
+			return fmt.Errorf("failed to read platformID: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &encodingID); err != nil {
+			return fmt.Errorf("failed to read encodingID: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &languageID); err != nil {
+			return fmt.Errorf("failed to read languageID: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &nameID); err != nil {
+			return fmt.Errorf("failed to read nameID: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &length); err != nil {
+			return fmt.Errorf("failed to read length: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &offset); err != nil {
+			return fmt.Errorf("failed to read offset: %w", err)
+		}
 
 		// Extract string (prefer platform 3 = Windows, encoding 1 = Unicode BMP)
 		if platformID == 3 && encodingID == 1 {
@@ -519,29 +630,49 @@ func (f *TTFFont) parseOS2(data []byte) error {
 	r := bytes.NewReader(data[table.Offset:])
 
 	var version uint16
-	binary.Read(r, binary.BigEndian, &version)
+	if err := binary.Read(r, binary.BigEndian, &version); err != nil {
+		return fmt.Errorf("failed to read version: %w", err)
+	}
 
-	r.Seek(2, io.SeekCurrent) // Skip xAvgCharWidth
+	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	var usWeightClass uint16
-	binary.Read(r, binary.BigEndian, &usWeightClass)
+	if err := binary.Read(r, binary.BigEndian, &usWeightClass); err != nil {
+		return fmt.Errorf("failed to read usWeightClass: %w", err)
+	}
 	f.IsBold = usWeightClass >= 700
 
-	r.Seek(60, io.SeekCurrent) // Skip to fsSelection
+	if _, err := r.Seek(60, io.SeekCurrent); err != nil { // Skip to fsSelection
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	var fsSelection uint16
-	binary.Read(r, binary.BigEndian, &fsSelection)
+	if err := binary.Read(r, binary.BigEndian, &fsSelection); err != nil {
+		return fmt.Errorf("failed to read fsSelection: %w", err)
+	}
 	f.IsItalic = (fsSelection & 0x0001) != 0
 
-	r.Seek(4, io.SeekCurrent) // Skip sTypoAscender, sTypoDescender
+	if _, err := r.Seek(4, io.SeekCurrent); err != nil { // Skip sTypoAscender, sTypoDescender
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	if version >= 2 && table.Length >= 96 {
-		r.Seek(16, io.SeekCurrent) // Skip to sCapHeight (at offset 88)
+		if _, err := r.Seek(16, io.SeekCurrent); err != nil { // Skip to sCapHeight (at offset 88)
+			return fmt.Errorf("failed to seek: %w", err)
+		}
 
 		// sxHeight is at offset 86 in version 2+
-		r.Seek(-2, io.SeekCurrent)
-		binary.Read(r, binary.BigEndian, &f.XHeight)
-		binary.Read(r, binary.BigEndian, &f.CapHeight)
+		if _, err := r.Seek(-2, io.SeekCurrent); err != nil {
+			return fmt.Errorf("failed to seek: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &f.XHeight); err != nil {
+			return fmt.Errorf("failed to read XHeight: %w", err)
+		}
+		if err := binary.Read(r, binary.BigEndian, &f.CapHeight); err != nil {
+			return fmt.Errorf("failed to read CapHeight: %w", err)
+		}
 	} else {
 		// Estimate from ascender
 		f.CapHeight = int16(float64(f.Ascender) * 0.7)
@@ -572,17 +703,25 @@ func (f *TTFFont) parsePost(data []byte) error {
 	}
 
 	r := bytes.NewReader(data[table.Offset:])
-	r.Seek(4, io.SeekCurrent) // Skip version
+	if _, err := r.Seek(4, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	// Read italic angle as fixed-point (16.16)
 	var italicAngleFixed int32
-	binary.Read(r, binary.BigEndian, &italicAngleFixed)
+	if err := binary.Read(r, binary.BigEndian, &italicAngleFixed); err != nil {
+		return fmt.Errorf("failed to read italicAngleFixed: %w", err)
+	}
 	f.ItalicAngle = float64(italicAngleFixed) / 65536.0
 
-	r.Seek(4, io.SeekCurrent) // Skip underlinePosition, underlineThickness
+	if _, err := r.Seek(4, io.SeekCurrent); err != nil {
+		return fmt.Errorf("failed to seek: %w", err)
+	}
 
 	var isFixedPitch uint32
-	binary.Read(r, binary.BigEndian, &isFixedPitch)
+	if err := binary.Read(r, binary.BigEndian, &isFixedPitch); err != nil {
+		return fmt.Errorf("failed to read isFixedPitch: %w", err)
+	}
 	f.IsFixedPitch = isFixedPitch != 0
 
 	return nil

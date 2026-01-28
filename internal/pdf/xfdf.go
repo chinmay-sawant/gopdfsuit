@@ -94,7 +94,9 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer func() {
+		_ = r.Close()
+	}()
 	var out bytes.Buffer
 	if _, err := io.Copy(&out, r); err != nil {
 		return nil, err
@@ -105,7 +107,9 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 // tryFlateDecompress attempts to decompress raw flate data
 func tryFlateDecompress(b []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewReader(b))
-	defer r.Close()
+	defer func() {
+		_ = r.Close()
+	}()
 	var out bytes.Buffer
 	if _, err := io.Copy(&out, r); err != nil {
 		return nil, err
@@ -497,7 +501,9 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 					firstRe := regexp.MustCompile(`/First\s+(\d+)`)
 					first := 0
 					if fm := firstRe.FindSubmatch(body); fm != nil {
-						fmt.Sscanf(string(fm[1]), "%d", &first)
+						if _, err := fmt.Sscanf(string(fm[1]), "%d", &first); err != nil {
+							first = 0
+						}
 					}
 					if first > 0 && first < len(dec) {
 						// parse header portion up to first
@@ -1005,8 +1011,12 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 
 		var compBuf bytes.Buffer
 		zw, _ := zlib.NewWriterLevel(&compBuf, zlib.BestCompression)
-		zw.Write([]byte(streamBody))
-		zw.Close()
+		if _, err := zw.Write([]byte(streamBody)); err != nil {
+			return nil, fmt.Errorf("compression write failed: %w", err)
+		}
+		if err := zw.Close(); err != nil {
+			return nil, fmt.Errorf("compression close failed: %w", err)
+		}
 		comp := compBuf.Bytes()
 		apObj := fmt.Sprintf("\n%d 0 obj\n<</Type/XObject/Subtype/Form/FormType 1/BBox[0 0 %.2f %.2f]/Resources<</Font<</F1 %d 0 R>>/ProcSet[/PDF/Text]>>/Filter/FlateDecode/Length %d>>\nstream\n%s\nendstream\nendobj\n",
 			job.apObjNum, job.width, job.height, job.fontObjNum, len(comp), string(comp))
@@ -1025,11 +1035,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	}
 	xrefStart := len(out)
 	var xrefBuf bytes.Buffer
-	xrefBuf.WriteString(fmt.Sprintf("xref\n0 %d\n", maxObj+1))
+	fmt.Fprintf(&xrefBuf, "xref\n0 %d\n", maxObj+1)
 	xrefBuf.WriteString("0000000000 65535 f \r\n")
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			xrefBuf.WriteString(fmt.Sprintf("%010d 00000 n \r\n", off))
+			fmt.Fprintf(&xrefBuf, "%010d 00000 n \r\n", off)
 		} else {
 			xrefBuf.WriteString("0000000000 65535 f \r\n")
 		}

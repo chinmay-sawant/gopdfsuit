@@ -121,7 +121,7 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
 func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr string, encryptor ObjectEncryptor) string {
 	xmpData := GenerateXMPMetadata(documentID, pdfDateStr)
 
-	var streamContent []byte = []byte(xmpData)
+	streamContent := []byte(xmpData)
 
 	// Encrypt if needed
 	if encryptor != nil {
@@ -316,8 +316,11 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 	// Compress the ICC profile
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write(iccProfile)
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write(iccProfile); err != nil {
+		_ = zlibWriter.Close()
+		return nil
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -344,8 +347,11 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 	// Compress the ICC profile
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write(grayProfile)
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write(grayProfile); err != nil {
+		_ = zlibWriter.Close()
+		return nil
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed

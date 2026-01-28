@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"strconv"
+
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
 )
 
@@ -476,8 +478,20 @@ func GenerateFontObject(fontName string, fontObjectID, fontDescriptorID, widthsA
 	metrics := GetFontMetrics(fontName)
 
 	// Build compact font dictionary without deprecated /Name field for PDF 2.0
-	return fmt.Sprintf("%d 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/%s/Encoding/WinAnsiEncoding/FirstChar %d/LastChar %d/Widths %d 0 R/FontDescriptor %d 0 R>>\nendobj\n",
-		fontObjectID, metrics.BaseFont, metrics.FirstChar, metrics.LastChar, widthsArrayID, fontDescriptorID)
+	var sb strings.Builder
+	sb.WriteString(strconv.Itoa(fontObjectID))
+	sb.WriteString(" 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/")
+	sb.WriteString(metrics.BaseFont)
+	sb.WriteString("/Encoding/WinAnsiEncoding/FirstChar ")
+	sb.WriteString(strconv.Itoa(metrics.FirstChar))
+	sb.WriteString("/LastChar ")
+	sb.WriteString(strconv.Itoa(metrics.LastChar))
+	sb.WriteString("/Widths ")
+	sb.WriteString(strconv.Itoa(widthsArrayID))
+	sb.WriteString(" 0 R/FontDescriptor ")
+	sb.WriteString(strconv.Itoa(fontDescriptorID))
+	sb.WriteString(" 0 R>>\nendobj\n")
+	return sb.String()
 }
 
 // GenerateFontDescriptorObject creates a FontDescriptor object
@@ -486,9 +500,35 @@ func GenerateFontDescriptorObject(fontName string, objectID int) string {
 	fd := metrics.FontDescriptor
 
 	// Compact format - single line
-	return fmt.Sprintf("%d 0 obj\n<</Type/FontDescriptor/FontName/%s/Flags %d/FontBBox[%d %d %d %d]/ItalicAngle %d/Ascent %d/Descent %d/CapHeight %d/StemV %d/XHeight %d>>\nendobj\n",
-		objectID, fd.FontName, fd.Flags, fd.FontBBox[0], fd.FontBBox[1], fd.FontBBox[2], fd.FontBBox[3],
-		fd.ItalicAngle, fd.Ascent, fd.Descent, fd.CapHeight, fd.StemV, fd.XHeight)
+	// Compact format - single line
+	var sb strings.Builder
+	sb.WriteString(strconv.Itoa(objectID))
+	sb.WriteString(" 0 obj\n<</Type/FontDescriptor/FontName/")
+	sb.WriteString(fd.FontName)
+	sb.WriteString("/Flags ")
+	sb.WriteString(strconv.Itoa(fd.Flags))
+	sb.WriteString("/FontBBox[")
+	sb.WriteString(strconv.Itoa(fd.FontBBox[0]))
+	sb.WriteString(" ")
+	sb.WriteString(strconv.Itoa(fd.FontBBox[1]))
+	sb.WriteString(" ")
+	sb.WriteString(strconv.Itoa(fd.FontBBox[2]))
+	sb.WriteString(" ")
+	sb.WriteString(strconv.Itoa(fd.FontBBox[3]))
+	sb.WriteString("]/ItalicAngle ")
+	sb.WriteString(strconv.Itoa(fd.ItalicAngle))
+	sb.WriteString("/Ascent ")
+	sb.WriteString(strconv.Itoa(fd.Ascent))
+	sb.WriteString("/Descent ")
+	sb.WriteString(strconv.Itoa(fd.Descent))
+	sb.WriteString("/CapHeight ")
+	sb.WriteString(strconv.Itoa(fd.CapHeight))
+	sb.WriteString("/StemV ")
+	sb.WriteString(strconv.Itoa(fd.StemV))
+	sb.WriteString("/XHeight ")
+	sb.WriteString(strconv.Itoa(fd.XHeight))
+	sb.WriteString(">>\nendobj\n")
+	return sb.String()
 }
 
 // GenerateWidthsArrayObject creates a Widths array object
@@ -496,7 +536,8 @@ func GenerateWidthsArrayObject(fontName string, objectID int) string {
 	metrics := GetFontMetrics(fontName)
 
 	var widthsArray strings.Builder
-	widthsArray.WriteString(fmt.Sprintf("%d 0 obj\n[", objectID))
+	widthsArray.WriteString(strconv.Itoa(objectID))
+	widthsArray.WriteString(" 0 obj\n[")
 
 	// Compact format - no newlines, minimal spacing
 	for i, w := range metrics.Widths {
@@ -542,8 +583,14 @@ func GetSimpleHelveticaFontResourceString() string {
 // GenerateSimpleFontObject creates a simple font object (non-Arlington mode)
 // This is the legacy format without FirstChar, LastChar, Widths, and FontDescriptor
 func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int) string {
-	return fmt.Sprintf("%d 0 obj\n<< /Type /Font /Subtype /Type1 /Name %s /BaseFont /%s >>\nendobj\n",
-		fontObjectID, fontRef, fontName)
+	var sb strings.Builder
+	sb.WriteString(strconv.Itoa(fontObjectID))
+	sb.WriteString(" 0 obj\n<< /Type /Font /Subtype /Type1 /Name ")
+	sb.WriteString(fontRef)
+	sb.WriteString(" /BaseFont /")
+	sb.WriteString(fontName)
+	sb.WriteString(" >>\nendobj\n")
+	return sb.String()
 }
 
 // GetAvailableFonts returns the list of available fonts for PDF generation.
@@ -604,8 +651,11 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	// Compress font data
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write(fontData)
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write(fontData); err != nil {
+		_ = zlibWriter.Close()
+		return objects
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -818,8 +868,11 @@ func generateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 	// Compress the stream
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write(mapData)
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write(mapData); err != nil {
+		_ = zlibWriter.Close()
+		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -899,8 +952,11 @@ func generateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	// Compress the CMap stream
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
-	zlibWriter.Write([]byte(cmapData))
-	zlibWriter.Close()
+	if _, err := zlibWriter.Write([]byte(cmapData)); err != nil {
+		_ = zlibWriter.Close()
+		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
+	}
+	_ = zlibWriter.Close()
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed

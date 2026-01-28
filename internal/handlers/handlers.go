@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -113,6 +114,32 @@ func RegisterRoutes(router *gin.Engine) {
 		v1.POST("/htmltoimage", handlehtmlToImage)
 	}
 
+	// Add pprof routes for profiling
+	pprofGroup := router.Group("/debug/pprof")
+	// Restrict pprof access to localhost only
+	pprofGroup.Use(func(c *gin.Context) {
+		clientIP := c.ClientIP()
+		if clientIP != "127.0.0.1" && clientIP != "::1" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden: Pprof is only accessible from localhost"})
+			return
+		}
+		c.Next()
+	})
+	{
+		pprofGroup.GET("/", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/cmdline", gin.WrapF(http.HandlerFunc(pprof.Cmdline)))
+		pprofGroup.GET("/profile", gin.WrapF(http.HandlerFunc(pprof.Profile)))
+		pprofGroup.GET("/symbol", gin.WrapF(http.HandlerFunc(pprof.Symbol)))
+		pprofGroup.POST("/symbol", gin.WrapF(http.HandlerFunc(pprof.Symbol)))
+		pprofGroup.GET("/trace", gin.WrapF(http.HandlerFunc(pprof.Trace)))
+		pprofGroup.GET("/heap", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/goroutine", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/allocs", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/block", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/mutex", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/threadcreate", gin.WrapF(http.HandlerFunc(pprof.Index)))
+	}
+
 	// Redirect root path to /gopdfsuit
 	router.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "/gopdfsuit")
@@ -208,7 +235,9 @@ func handleUploadFont(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file: " + err.Error()})
 		return
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	data, err := io.ReadAll(f)
 	if err != nil {
@@ -246,7 +275,9 @@ func handleFillPDF(c *gin.Context) {
 	pdfFile, pdfHeader, _ := c.Request.FormFile("pdf")
 	var pdfBytes []byte
 	if pdfFile != nil {
-		defer pdfFile.Close()
+		defer func() {
+			_ = pdfFile.Close()
+		}()
 		buf := make([]byte, pdfHeader.Size)
 		_, err := pdfFile.Read(buf)
 		if err == nil {
@@ -257,7 +288,9 @@ func handleFillPDF(c *gin.Context) {
 	xfdfFile, xfdfHeader, _ := c.Request.FormFile("xfdf")
 	var xfdfBytes []byte
 	if xfdfFile != nil {
-		defer xfdfFile.Close()
+		defer func() {
+			_ = xfdfFile.Close()
+		}()
 		buf := make([]byte, xfdfHeader.Size)
 		_, err := xfdfFile.Read(buf)
 		if err == nil {
@@ -319,7 +352,7 @@ func handleMergePDFs(c *gin.Context) {
 			return
 		}
 		buf, err := io.ReadAll(f)
-		f.Close()
+		_ = f.Close()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
 			return
@@ -347,7 +380,9 @@ func handlerSplitPDF(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing pdf file: " + err.Error()})
 		return
 	}
-	defer pdfFile.Close()
+	defer func() {
+		_ = pdfFile.Close()
+	}()
 	pdfBytes, err := io.ReadAll(pdfFile)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read pdf: " + err.Error()})
@@ -396,17 +431,17 @@ func handlerSplitPDF(c *gin.Context) {
 		name := fmt.Sprintf("originalfile-part%d.pdf", i+1)
 		fw, err := zw.Create(name)
 		if err != nil {
-			zw.Close()
+			_ = zw.Close()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip create failed: " + err.Error()})
 			return
 		}
 		if _, err := fw.Write(b); err != nil {
-			zw.Close()
+			_ = zw.Close()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip write failed: " + err.Error()})
 			return
 		}
 	}
-	zw.Close()
+	_ = zw.Close()
 
 	c.Header("Content-Type", "application/zip")
 	c.Header("Content-Disposition", "attachment; filename=splits.zip")

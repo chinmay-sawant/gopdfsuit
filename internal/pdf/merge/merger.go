@@ -172,7 +172,9 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 		return 0, 0
 	}
 
-	fmt.Sscanf(rootRef, "%d", &catalogNum)
+	if _, err := fmt.Sscanf(rootRef, "%d", &catalogNum); err != nil {
+		return 0, 0
+	}
 
 	if catalogNum > 0 {
 		if body, exists := objMap[catalogNum]; exists {
@@ -199,7 +201,9 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 
 	// Parse root object number
 	var rootNum int
-	fmt.Sscanf(rootRef, "%d", &rootNum)
+	if _, err := fmt.Sscanf(rootRef, "%d", &rootNum); err != nil {
+		return pages
+	}
 
 	rootBody, exists := objMap[rootNum]
 	if !exists {
@@ -307,11 +311,15 @@ func writeCatalog(out *bytes.Buffer, fields []int) {
 
 	if len(fields) > 0 {
 		out.WriteString(" /AcroForm << /Fields [")
+		var fieldBuf []byte
 		for i, f := range fields {
 			if i > 0 {
 				out.WriteString(" ")
 			}
-			out.WriteString(fmt.Sprintf("%d 0 R", f))
+			fieldBuf = fieldBuf[:0]
+			fieldBuf = strconv.AppendInt(fieldBuf, int64(f), 10)
+			fieldBuf = append(fieldBuf, " 0 R"...)
+			out.Write(fieldBuf)
 		}
 		out.WriteString("] /NeedAppearances true >>")
 	}
@@ -322,18 +330,29 @@ func writeCatalog(out *bytes.Buffer, fields []int) {
 // writePages writes the Pages object
 func writePages(out *bytes.Buffer, pages []int) {
 	out.WriteString("2 0 obj\n<< /Type /Pages /Kids [")
+	var pageBuf []byte
 	for i, p := range pages {
 		if i > 0 {
 			out.WriteString(" ")
 		}
-		out.WriteString(fmt.Sprintf("%d 0 R", p))
+		pageBuf = pageBuf[:0]
+		pageBuf = strconv.AppendInt(pageBuf, int64(p), 10)
+		pageBuf = append(pageBuf, " 0 R"...)
+		out.Write(pageBuf)
 	}
-	out.WriteString(fmt.Sprintf("] /Count %d >>\nendobj\n", len(pages)))
+	pageBuf = pageBuf[:0]
+	pageBuf = append(pageBuf, "] /Count "...)
+	pageBuf = strconv.AppendInt(pageBuf, int64(len(pages)), 10)
+	pageBuf = append(pageBuf, " >>\nendobj\n"...)
+	out.Write(pageBuf)
 }
 
 // writeObject writes a single PDF object
 func writeObject(out *bytes.Buffer, num int, body []byte) {
-	out.WriteString(fmt.Sprintf("%d 0 obj", num))
+	var objBuf []byte
+	objBuf = strconv.AppendInt(objBuf, int64(num), 10)
+	objBuf = append(objBuf, " 0 obj"...)
+	out.Write(objBuf)
 
 	// Handle Page objects - ensure /Parent points to our Pages object
 	if IsPageObject(body) && !IsPagesTreeObject(body) {
@@ -378,7 +397,11 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	}
 
 	xrefStart := out.Len()
-	out.WriteString(fmt.Sprintf("xref\n0 %d\n", maxObj+1))
+	var xrefBuf []byte
+	xrefBuf = append(xrefBuf, "xref\n0 "...)
+	xrefBuf = strconv.AppendInt(xrefBuf, int64(maxObj+1), 10)
+	xrefBuf = append(xrefBuf, '\n')
+	out.Write(xrefBuf)
 
 	// Object 0 is always free
 	out.WriteString("0000000000 65535 f\r\n")
@@ -386,15 +409,28 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	// Write entries for objects 1 to maxObj
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			out.WriteString(fmt.Sprintf("%010d 00000 n\r\n", off))
+			xrefBuf = xrefBuf[:0]
+			// Format as 10-digit zero-padded number
+			offStr := strconv.FormatInt(int64(off), 10)
+			for j := 0; j < 10-len(offStr); j++ {
+				xrefBuf = append(xrefBuf, '0')
+			}
+			xrefBuf = append(xrefBuf, offStr...)
+			xrefBuf = append(xrefBuf, " 00000 n\r\n"...)
+			out.Write(xrefBuf)
 		} else {
 			out.WriteString("0000000000 65535 f\r\n")
 		}
 	}
 
 	// Trailer
-	out.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n",
-		maxObj+1, xrefStart))
+	xrefBuf = xrefBuf[:0]
+	xrefBuf = append(xrefBuf, "trailer\n<< /Size "...)
+	xrefBuf = strconv.AppendInt(xrefBuf, int64(maxObj+1), 10)
+	xrefBuf = append(xrefBuf, " /Root 1 0 R >>\nstartxref\n"...)
+	xrefBuf = strconv.AppendInt(xrefBuf, int64(xrefStart), 10)
+	xrefBuf = append(xrefBuf, "\n%%%%EOF\n"...)
+	out.Write(xrefBuf)
 }
 
 // hasEncrypt checks if PDF is encrypted

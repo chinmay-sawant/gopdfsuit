@@ -152,7 +152,7 @@ func (m *PDFAFontManager) EnsureFontsAvailable() error {
 	}
 
 	if !m.config.AutoDownload {
-		return fmt.Errorf("Liberation fonts not found. Please install them or enable auto-download.\n"+
+		return fmt.Errorf("liberation fonts not found. Please install them or enable auto-download.\n"+
 			"On Ubuntu/Debian: sudo apt-get install fonts-liberation\n"+
 			"On Fedora: sudo dnf install liberation-fonts\n"+
 			"On macOS: brew install font-liberation\n"+
@@ -207,15 +207,21 @@ func (m *PDFAFontManager) downloadFonts() error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name()) // Clean up
-	defer tmpFile.Close()
+	defer func() {
+		_ = os.Remove(tmpFile.Name()) // Clean up
+	}()
+	defer func() {
+		_ = tmpFile.Close()
+	}()
 
 	// Download the file
 	resp, err := http.Get(liberationFontsZipURL)
 	if err != nil {
 		return fmt.Errorf("failed to download fonts: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to download fonts: HTTP %d", resp.StatusCode)
@@ -227,14 +233,18 @@ func (m *PDFAFontManager) downloadFonts() error {
 	}
 
 	// Seek back to start
-	tmpFile.Seek(0, 0)
+	if _, err := tmpFile.Seek(0, 0); err != nil {
+		return fmt.Errorf("failed to seek temp file: %w", err)
+	}
 
 	// Extract the tar.gz
 	gzr, err := gzip.NewReader(tmpFile)
 	if err != nil {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gzr.Close()
+	defer func() {
+		_ = gzr.Close()
+	}()
 
 	tr := tar.NewReader(gzr)
 
@@ -274,10 +284,12 @@ func (m *PDFAFontManager) downloadFonts() error {
 			}
 
 			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
+				_ = outFile.Close()
 				return fmt.Errorf("failed to extract %s: %w", fileName, err)
 			}
-			outFile.Close()
+			if err := outFile.Close(); err != nil {
+				return fmt.Errorf("failed to close file %s: %w", fileName, err)
+			}
 			fmt.Printf("Parsed: %s\n", fileName)
 		}
 	}
@@ -305,7 +317,7 @@ func (m *PDFAFontManager) GetLiberationFont(standardFontName string) (*TTFFont, 
 	// Find fonts directory
 	fontsDir := m.findFontsDirectory()
 	if fontsDir == "" {
-		return nil, fmt.Errorf("Liberation fonts not found. Run EnsureFontsAvailable() first")
+		return nil, fmt.Errorf("liberation fonts not found. Run EnsureFontsAvailable() first")
 	}
 
 	// Load the font

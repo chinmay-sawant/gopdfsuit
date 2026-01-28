@@ -29,7 +29,7 @@ test-integration:
 clean:
 	rm -rf bin/
 
-run: test-integration
+run: test-integration lint
 	export VITE_IS_CLOUD_RUN=false;\
 	export VITE_ENVIRONMENT=local;\
 	export VITE_API_URL=http://localhost:8080;\
@@ -44,6 +44,9 @@ vet:
 
 mod:
 	go mod tidy
+
+lint:
+	golangci-lint run ./...
 
 gdocker: test-integration
 	cd frontend && npm run build && cd ..
@@ -74,5 +77,7 @@ gengine-deploy: test-integration
 	export VITE_ENVIRONMENT=cloudrun;\
 	gcloud app deploy
 
-.PHONY: build test clean run fmt vet mod
+.PHONY: build test clean run fmt vet mod lint
 
+# go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/profile?seconds=30"
+# go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/heap"

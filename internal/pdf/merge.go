@@ -191,7 +191,10 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	// Append all remapped objects in the order they were processed
 	for _, a := range appended {
 		offsets[a.num] = out.Len()
-		out.WriteString(fmt.Sprintf("%d 0 obj\n", a.num))
+		var b []byte
+		b = strconv.AppendInt(b, int64(a.num), 10)
+		b = append(b, " 0 obj\n"...)
+		out.Write(b)
 
 		// If this is a page object, ensure it has a parent reference
 		body := a.body
