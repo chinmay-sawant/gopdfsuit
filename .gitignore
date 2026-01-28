@@ -43,3 +43,4 @@ verapdf
 reports.xml
 __pycache__
 *venv*
+mem.prof
