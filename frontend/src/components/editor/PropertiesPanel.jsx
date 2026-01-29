@@ -17,7 +17,7 @@ function PropsEditor({ props, onChange, fonts = DEFAULT_FONTS, showAlignment = t
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label style={{ fontSize: '0.75rem', fontWeight: '500', color: 'hsl(var(--muted-foreground))' }}>{label}</label>
             <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                <button 
+                <button
                     style={{
                         padding: '0.25rem 0.5rem',
                         border: '1px solid hsl(var(--border))',
@@ -29,7 +29,7 @@ function PropsEditor({ props, onChange, fonts = DEFAULT_FONTS, showAlignment = t
                         fontSize: '0.8rem',
                         transition: 'all 0.2s ease'
                     }}
-                    onClick={() => updateBorder(index, parsed.borders[index] - 1)} 
+                    onClick={() => updateBorder(index, parsed.borders[index] - 1)}
                     disabled={parsed.borders[index] <= 0}
                     onMouseEnter={(e) => {
                         if (parsed.borders[index] > 0) e.currentTarget.style.background = 'hsl(var(--accent))'
@@ -39,7 +39,7 @@ function PropsEditor({ props, onChange, fonts = DEFAULT_FONTS, showAlignment = t
                     }}
                 >−</button>
                 <span style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem', minWidth: '2.5rem', textAlign: 'center', background: 'hsl(var(--muted))', borderRadius: '4px' }}>{parsed.borders[index]}px</span>
-                <button 
+                <button
                     style={{
                         padding: '0.25rem 0.5rem',
                         border: '1px solid hsl(var(--border))',
@@ -51,7 +51,7 @@ function PropsEditor({ props, onChange, fonts = DEFAULT_FONTS, showAlignment = t
                         fontSize: '0.8rem',
                         transition: 'all 0.2s ease'
                     }}
-                    onClick={() => updateBorder(index, parsed.borders[index] + 1)} 
+                    onClick={() => updateBorder(index, parsed.borders[index] + 1)}
                     disabled={parsed.borders[index] >= 10}
                     onMouseEnter={(e) => {
                         if (parsed.borders[index] < 10) e.currentTarget.style.background = 'hsl(var(--accent))'
@@ -199,10 +199,10 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
 
     if (!selectedElement) {
         return (
-            <div style={{ 
-                padding: '2rem 1rem', 
-                textAlign: 'center', 
-                color: 'hsl(var(--muted-foreground))', 
+            <div style={{
+                padding: '2rem 1rem',
+                textAlign: 'center',
+                color: 'hsl(var(--muted-foreground))',
                 background: 'hsl(var(--card))',
                 border: '1px solid hsl(var(--border))',
                 borderRadius: '8px',
@@ -241,8 +241,8 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
 
 
     return (
-        <div style={{ 
-            padding: '1rem', 
+        <div style={{
+            padding: '1rem',
             flexShrink: 0,
             background: 'hsl(var(--card))',
             border: '1px solid hsl(var(--border))',
@@ -777,13 +777,13 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     <button
                                         key={color}
                                         onClick={() => updateElement(selectedElement.id, { bgcolor: color })}
-                                        style={{ 
-                                            width: '28px', 
-                                            height: '28px', 
-                                            border: selectedElement.bgcolor === color ? '2px solid #3b82f6' : '2px solid hsl(var(--border))', 
-                                            borderRadius: '6px', 
-                                            background: color, 
-                                            cursor: 'pointer', 
+                                        style={{
+                                            width: '28px',
+                                            height: '28px',
+                                            border: selectedElement.bgcolor === color ? '2px solid #3b82f6' : '2px solid hsl(var(--border))',
+                                            borderRadius: '6px',
+                                            background: color,
+                                            cursor: 'pointer',
                                             boxShadow: '0 1px 3px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(0,0,0,0.1)',
                                             transition: 'all 0.2s ease'
                                         }}
@@ -825,12 +825,12 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     <button
                                         key={color}
                                         onClick={() => updateElement(selectedElement.id, { textcolor: color })}
-                                        style={{ 
-                                            width: '28px', 
-                                            height: '28px', 
-                                            border: selectedElement.textcolor === color ? '2px solid #3b82f6' : '2px solid hsl(var(--border))', 
-                                            borderRadius: '6px', 
-                                            background: color, 
+                                        style={{
+                                            width: '28px',
+                                            height: '28px',
+                                            border: selectedElement.textcolor === color ? '2px solid #3b82f6' : '2px solid hsl(var(--border))',
+                                            borderRadius: '6px',
+                                            background: color,
                                             cursor: 'pointer',
                                             boxShadow: '0 1px 3px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(0,0,0,0.1)',
                                             transition: 'all 0.2s ease'
@@ -934,8 +934,110 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     </div>
                                 )}
 
-                                {/* Cell Text - hide if form_field exists */}
-                                {!selectedCellElement.form_field && (
+                                {/* Image Properties - show if cell has image */}
+                                {selectedCellElement.image && (
+                                    <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'hsl(var(--muted))', borderRadius: '6px', border: '1px solid hsl(var(--border))' }}>
+                                        <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>Image Properties</label>
+
+                                        {/* Image Source */}
+                                        <div style={{ marginBottom: '0.5rem' }}>
+                                            <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Source:</label>
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={(e) => {
+                                                    const file = e.target.files[0]
+                                                    if (file) {
+                                                        const reader = new FileReader()
+                                                        reader.onload = (event) => {
+                                                            const newRows = [...selectedElement.rows]
+                                                            newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                                ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                                image: {
+                                                                    ...selectedCellElement.image,
+                                                                    imagename: file.name,
+                                                                    imagedata: event.target.result
+                                                                }
+                                                            }
+                                                            updateElement(selectedElement.id, { rows: newRows })
+                                                        }
+                                                        reader.readAsDataURL(file)
+                                                    }
+                                                }}
+                                                style={{ width: '100%', fontSize: '0.75rem', padding: '0.4rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                                            />
+                                            {selectedCellElement.image.imagename && (
+                                                <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem', wordBreak: 'break-all' }}>
+                                                    Current: {selectedCellElement.image.imagename}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Dimensions */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: '0.7rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Width (px)</label>
+                                                <input
+                                                    type="number"
+                                                    min="10"
+                                                    max="800"
+                                                    value={selectedCellElement.image.width || 100}
+                                                    onChange={(e) => {
+                                                        const newRows = [...selectedElement.rows]
+                                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                            ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                            image: {
+                                                                ...selectedCellElement.image,
+                                                                width: parseInt(e.target.value) || 100
+                                                            }
+                                                        }
+                                                        updateElement(selectedElement.id, { rows: newRows })
+                                                    }}
+                                                    style={{ width: '100%', padding: '0.35rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={{ display: 'block', fontSize: '0.7rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Height (px)</label>
+                                                <input
+                                                    type="number"
+                                                    min="10"
+                                                    max="800"
+                                                    value={selectedCellElement.image.height || 80}
+                                                    onChange={(e) => {
+                                                        const newRows = [...selectedElement.rows]
+                                                        newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                            ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                            image: {
+                                                                ...selectedCellElement.image,
+                                                                height: parseInt(e.target.value) || 80
+                                                            }
+                                                        }
+                                                        updateElement(selectedElement.id, { rows: newRows })
+                                                    }}
+                                                    style={{ width: '100%', padding: '0.35rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => {
+                                                const newRows = [...selectedElement.rows]
+                                                newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                    ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                    image: undefined,
+                                                    text: ''
+                                                }
+                                                updateElement(selectedElement.id, { rows: newRows })
+                                            }}
+                                            style={{ marginTop: '0.5rem', width: '100%', padding: '0.35rem', fontSize: '0.75rem', border: '1px solid hsl(var(--destructive))', borderRadius: '4px', background: 'transparent', color: 'hsl(var(--destructive))', cursor: 'pointer' }}
+                                        >
+                                            Remove Image
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Cell Text - hide if form_field or image exists */}
+                                {!selectedCellElement.form_field && !selectedCellElement.image && (
                                     <div style={{ marginBottom: '0.75rem' }}>
                                         <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>Text:</label>
                                         <input
@@ -995,7 +1097,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                                 const newRows = [...selectedElement.rows]
                                                 newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], dest: newDest }
                                                 updateElement(selectedElement.id, { rows: newRows })
-                                                
+
                                                 // Sync with bookmarks if the old dest was referenced
                                                 if (oldDest && setBookmarks && bookmarks) {
                                                     const updatedBookmarks = updateBookmarkDest(bookmarks, oldDest, newDest)
@@ -1126,13 +1228,13 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                                     newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], bgcolor: color }
                                                     updateElement(selectedElement.id, { rows: newRows })
                                                 }}
-                                                style={{ 
-                                                    width: '28px', 
-                                                    height: '28px', 
-                                                    border: selectedCellElement.bgcolor === color ? '2px solid #3b82f6' : '2px solid hsl(var(--border))', 
-                                                    borderRadius: '6px', 
-                                                    background: color, 
-                                                    cursor: 'pointer', 
+                                                style={{
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    border: selectedCellElement.bgcolor === color ? '2px solid #3b82f6' : '2px solid hsl(var(--border))',
+                                                    borderRadius: '6px',
+                                                    background: color,
+                                                    cursor: 'pointer',
                                                     boxShadow: '0 1px 3px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(0,0,0,0.1)',
                                                     transition: 'all 0.2s ease'
                                                 }}
@@ -1192,12 +1294,12 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                                     newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], textcolor: color }
                                                     updateElement(selectedElement.id, { rows: newRows })
                                                 }}
-                                                style={{ 
-                                                    width: '28px', 
-                                                    height: '28px', 
-                                                    border: selectedCellElement.textcolor === color ? '2px solid #3b82f6' : '2px solid hsl(var(--border))', 
-                                                    borderRadius: '6px', 
-                                                    background: color, 
+                                                style={{
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    border: selectedCellElement.textcolor === color ? '2px solid #3b82f6' : '2px solid hsl(var(--border))',
+                                                    borderRadius: '6px',
+                                                    background: color,
                                                     cursor: 'pointer',
                                                     boxShadow: '0 1px 3px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(0,0,0,0.1)',
                                                     transition: 'all 0.2s ease'
@@ -1405,7 +1507,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                     <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.9rem', fontWeight: '600', color: 'hsl(var(--foreground))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         📑 Bookmarks ({bookmarks?.length || 0})
                     </h4>
-                    
+
                     {(!bookmarks || bookmarks.length === 0) ? (
                         <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', textAlign: 'center', padding: '1rem 0' }}>
                             No bookmarks defined
@@ -1424,7 +1526,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                             ))}
                         </div>
                     )}
-                    
+
                     <button
                         onClick={() => {
                             const newBookmark = { title: 'New Bookmark', page: 1 }
@@ -1454,9 +1556,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
 function BookmarkItem({ bookmark, index, depth, bookmarks, setBookmarks, parentPath = [] }) {
     const [isExpanded, setIsExpanded] = useState(true)
     const [isEditing, setIsEditing] = useState(false)
-    
+
     const path = [...parentPath, index]
-    
+
     const updateBookmark = (updates) => {
         const newBookmarks = JSON.parse(JSON.stringify(bookmarks))
         let target = newBookmarks
@@ -1466,7 +1568,7 @@ function BookmarkItem({ bookmark, index, depth, bookmarks, setBookmarks, parentP
         target[path[path.length - 1]] = { ...target[path[path.length - 1]], ...updates }
         setBookmarks(newBookmarks)
     }
-    
+
     const deleteBookmark = () => {
         const newBookmarks = JSON.parse(JSON.stringify(bookmarks))
         let target = newBookmarks
@@ -1482,7 +1584,7 @@ function BookmarkItem({ bookmark, index, depth, bookmarks, setBookmarks, parentP
         }
         setBookmarks(newBookmarks)
     }
-    
+
     const addChild = () => {
         const newBookmarks = JSON.parse(JSON.stringify(bookmarks))
         let target = newBookmarks
@@ -1496,7 +1598,7 @@ function BookmarkItem({ bookmark, index, depth, bookmarks, setBookmarks, parentP
         currentBookmark.children.push({ title: 'New Child', page: bookmark.page || 1 })
         setBookmarks(newBookmarks)
     }
-    
+
     return (
         <div style={{ marginLeft: depth * 16 }}>
             <div style={{
@@ -1516,7 +1618,7 @@ function BookmarkItem({ bookmark, index, depth, bookmarks, setBookmarks, parentP
                         {isExpanded ? '▼' : '▶'}
                     </button>
                 )}
-                
+
                 {isEditing ? (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         <input
@@ -1582,7 +1684,7 @@ function BookmarkItem({ bookmark, index, depth, bookmarks, setBookmarks, parentP
                     </>
                 )}
             </div>
-            
+
             {isExpanded && bookmark.children && bookmark.children.length > 0 && (
                 <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     {bookmark.children.map((child, childIdx) => (

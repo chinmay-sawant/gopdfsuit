@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react'
 import { Table, FileText, Minus, Image as ImageIcon, ChevronUp, ChevronDown, X, GripVertical } from 'lucide-react'
-import { getStyleFromProps, getUsableWidth } from './utils'
+import { getStyleFromProps, getUsableWidth, getImageSrc } from './utils'
 
 export default function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop, currentPageSize }) {
     const [isResizing, setIsResizing] = useState(false)
@@ -250,7 +250,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                             }}
                                                         >
                                                             <img
-                                                                src={cell.image.imagedata.startsWith('data:') ? cell.image.imagedata : `data:image/png;base64,${cell.image.imagedata}`}
+                                                                src={getImageSrc(cell.image.imagedata, cell.image.imagename)}
                                                                 alt={cell.image.imagename || 'Logo'}
                                                                 style={{
                                                                     maxWidth: '100%',
@@ -490,7 +490,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             // Ensure borders are visible - use explicit border if cell has border props
                                             const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
                                                 cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
-                                            
+
                                             const tdStyle = {
                                                 borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
                                                 borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
@@ -631,7 +631,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px' }}>
                                                             {cell.image.imagedata ? (
                                                                 <img
-                                                                    src={cell.image.imagedata.startsWith('data:') ? cell.image.imagedata : `data:image/png;base64,${cell.image.imagedata}`}
+                                                                    src={getImageSrc(cell.image.imagedata, cell.image.imagename)}
                                                                     alt={cell.image.imagename || 'Cell Image'}
                                                                     style={{
                                                                         maxWidth: '100%',
@@ -686,10 +686,10 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                             cursor: 'col-resize',
                                                             zIndex: 5,
                                                             userSelect: 'none',
-                                                        background: isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'
-                                                    }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(199 89% 48% / 0.5)'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.background = isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'}
+                                                            background: isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(199 89% 48% / 0.5)'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'}
                                                         title="Drag to resize this cell width"
                                                     />
                                                     {/* Cell height resize handle (all cells) */}
@@ -706,7 +706,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                             userSelect: 'none',
                                                             background: 'transparent'
                                                         }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(142 71% 45% / 0.5)'}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(142 71% 45% / 0.5)'}
                                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                                         title="Drag to resize cell height"
                                                     />
@@ -789,7 +789,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         {element.imagedata ? (
                             <div style={{ width: '100%', textAlign: 'center' }}>
                                 <img
-                                    src={`data:image/png;base64,${element.imagedata}`}
+                                    src={getImageSrc(element.imagedata, element.imagename)}
                                     alt={element.imagename || 'Image'}
                                     style={{
                                         maxWidth: '100%',

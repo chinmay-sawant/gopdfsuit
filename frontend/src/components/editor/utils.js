@@ -110,3 +110,17 @@ export const getStyleFromProps = (propsString) => {
 
     return style
 }
+
+// Helper to get image source with correct MIME type
+export const getImageSrc = (imagedata, imagename) => {
+    if (!imagedata) return ''
+    if (imagedata.startsWith('data:')) return imagedata
+
+    // Check for SVG extension or content signature
+    const isSvg = (imagename && imagename.toLowerCase().endsWith('.svg')) ||
+        imagedata.trim().startsWith('PHN2Zy') || // <svg (base64)
+        imagedata.trim().startsWith('PD94bW')    // <?xm (base64)
+
+    const mime = isSvg ? 'image/svg+xml' : 'image/png'
+    return `data:${mime};base64,${imagedata}`
+}

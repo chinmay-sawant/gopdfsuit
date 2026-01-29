@@ -124,6 +124,7 @@ type ImageObject struct {
 	Filter       string
 	ImageData    []byte
 	ImageDataLen int
+	IsForm       bool
 }
 
 // DecodeImageData decodes base64 image data and returns image information
@@ -162,7 +163,25 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		return nil, fmt.Errorf("failed to decode base64: %v", err)
 	}
 
-	// Try to decode as PNG first
+	// Check if data is SVG (simple check)
+	if bytes.Contains(imageBytes, []byte("<svg")) || bytes.Contains(imageBytes, []byte("<SVG")) {
+		pdfCmds, w, h, err := ConvertSVGToPDFCommands(imageBytes)
+		if err == nil {
+			// Successfully converted SVG to PDF commands
+			// We return a Form XObject structure
+			return &ImageObject{
+				Width:        w,
+				Height:       h,
+				ImageData:    pdfCmds,
+				ImageDataLen: len(pdfCmds),
+				IsForm:       true,
+			}, nil
+		}
+		// If SVG conversion fails, try to proceed as raster image (might fail too) or return error?
+		// Let's try to proceed, maybe it's not really SVG
+	}
+
+	// Try to decode as PNG/JPEG
 	img, format, err := image.Decode(bytes.NewReader(imageBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %v", err)
@@ -459,6 +478,23 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 // CreateImageXObject creates a PDF XObject for an image
 func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	var buf bytes.Buffer
+
+	// Handle Form XObject (Vectors/SVG)
+	if imgObj.IsForm {
+		b := make([]byte, 0, 256)
+		b = strconv.AppendInt(b, int64(objectID), 10)
+		b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Form\n   /BBox [0 0 1 1]\n"...)
+		b = append(b, "   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n"...) // Basic resources
+		b = append(b, "   /Length "...)
+		b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
+		b = append(b, "\n>>\nstream\n"...)
+
+		buf.Write(b)
+		buf.Write(imgObj.ImageData)
+		buf.WriteString("\nendstream\nendobj\n")
+		return buf.String()
+	}
+
 	// Pre-allocate buffer with capacity for typical image XObject header
 	b := make([]byte, 0, 256)
 
@@ -500,8 +536,24 @@ type ImageEncryptor interface {
 func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor ImageEncryptor) string {
 	var buf bytes.Buffer
 
-	// Encrypt the image data
+	// Encrypt the image data (or form stream commands)
 	encryptedData := encryptor.EncryptStream(imgObj.ImageData, objectID, 0)
+
+	// Handle Form XObject (Vectors/SVG)
+	if imgObj.IsForm {
+		b := make([]byte, 0, 256)
+		b = strconv.AppendInt(b, int64(objectID), 10)
+		b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Form\n   /BBox [0 0 1 1]\n"...)
+		b = append(b, "   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n"...)
+		b = append(b, "   /Length "...)
+		b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
+		b = append(b, "\n>>\nstream\n"...)
+
+		buf.Write(b)
+		buf.Write(encryptedData)
+		buf.WriteString("\nendstream\nendobj\n")
+		return buf.String()
+	}
 
 	// Pre-allocate buffer with capacity for typical image XObject header
 	b := make([]byte, 0, 256)
