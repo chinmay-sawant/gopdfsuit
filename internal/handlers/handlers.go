@@ -265,7 +265,16 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
 		return
 	}
-	pdf.GenerateTemplatePDF(c, template)
+
+	pdfBytes, err := pdf.GenerateTemplatePDF(template)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF generation failed: " + err.Error()})
+		return
+	}
+
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", "attachment; filename=generated.pdf")
+	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
 // handleFillPDF accepts multipart form data with fields 'pdf' and 'xfdf' (files or raw bytes)

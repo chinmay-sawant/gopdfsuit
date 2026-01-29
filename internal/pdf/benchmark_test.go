@@ -3,14 +3,12 @@ package pdf
 import (
 	"encoding/json"
 	"fmt"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
-	"github.com/gin-gonic/gin"
 )
 
 type BenchmarkRecord struct {
@@ -79,17 +77,17 @@ func getGoPdfSuitTemplate(records []BenchmarkRecord) models.PDFTemplate {
 }
 
 func BenchmarkGoPdfSuit(b *testing.B) {
-	gin.SetMode(gin.ReleaseMode)
 	records := loadBenchmarkData()
 	template := getGoPdfSuitTemplate(records)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-		GenerateTemplatePDF(c, template)
-		if w.Code != 200 {
-			b.Fatalf("Failed to generate PDF")
+		pdfBytes, err := GenerateTemplatePDF(template)
+		if err != nil {
+			b.Fatalf("Failed to generate PDF: %v", err)
+		}
+		if len(pdfBytes) == 0 {
+			b.Fatalf("Generated empty PDF")
 		}
 	}
 }
