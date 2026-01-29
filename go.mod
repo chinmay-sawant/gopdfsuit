@@ -8,7 +8,6 @@ require github.com/gin-gonic/gin v1.10.1
 
 require (
 	github.com/chinmay-sawant/gochromedp v1.0.2
-	github.com/chinmay-sawant/gopdfsuit-client v1.0.1
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/api v0.239.0
 )
