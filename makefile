@@ -72,9 +72,10 @@ gdocker-push:
 	--env-vars-file .env
 
 gengine-deploy: test-integration
-	cd frontend && npm run build && cd ..
 	export VITE_IS_CLOUD_RUN=true;\
 	export VITE_ENVIRONMENT=cloudrun;\
+	export DISABLE_PROFILING=true;\
+	cd frontend && npm run build && cd ..
 	gcloud app deploy
 
 .PHONY: build test clean run fmt vet mod lint

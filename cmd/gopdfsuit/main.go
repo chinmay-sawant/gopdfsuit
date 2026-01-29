@@ -13,22 +13,25 @@ import (
 )
 
 func main() {
-	f, err := os.Create("mem.prof")
-	if err != nil {
-		panic(err)
+	if os.Getenv("DISABLE_PROFILING") == "" {
+		f, err := os.Create("/tmp/mem.prof")
+		if err != nil {
+			log.Printf("could not create memory profile: %v", err)
+		} else {
+			defer func() {
+				if err := f.Close(); err != nil {
+					log.Printf("could not close memory profile: %v", err)
+				}
+			}()
+			defer func() {
+				log.Println("Writing memory profile...")
+				if err := pprof.WriteHeapProfile(f); err != nil {
+					log.Printf("could not write memory profile: %v", err)
+				}
+				log.Println("Memory profile written")
+			}()
+		}
 	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Printf("could not close memory profile: %v", err)
-		}
-	}()
-	defer func() {
-		log.Println("Writing memory profile...")
-		if err := pprof.WriteHeapProfile(f); err != nil {
-			log.Printf("could not write memory profile: %v", err)
-		}
-		log.Println("Memory profile written")
-	}()
 
 	router := gin.Default()
 	handlers.RegisterRoutes(router)
