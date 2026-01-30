@@ -81,6 +81,8 @@ export const CodeBlock = ({ code }) => {
                     padding: '1rem',
                     margin: 0,
                     overflowX: 'auto',
+                    overflowY: 'auto',
+                    maxHeight: language === 'go' ? '400px' : 'none',
                     color: '#e2e8f0',
                     fontSize: '0.85rem',
                     fontFamily: "'Fira Code', 'Roboto Mono', monospace",

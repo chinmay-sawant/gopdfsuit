@@ -104,7 +104,7 @@ export const DocContent = ({ item }) => {
                 overflowY: 'auto'
             }}>
                 <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                    <h3 style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>Example Request</h3>
+                    <h3 style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>Example Code</h3>
                 </div>
 
                 {item.code ? (
@@ -114,15 +114,6 @@ export const DocContent = ({ item }) => {
                         No usage example available for this item.
                     </div>
                 )}
-
-                <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(30, 41, 59, 0.5)', borderRadius: '8px', border: '1px solid #334155' }}>
-                    <div style={{ fontSize: '0.95rem', fontWeight: '600', color: '#e2e8f0', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>⚡</span> Try it out
-                    </div>
-                    <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.6', margin: 0 }}>
-                        This is a documentation preview. Actual request execution is not connected in this demo environment.
-                    </p>
-                </div>
             </div>
         </div>
     )

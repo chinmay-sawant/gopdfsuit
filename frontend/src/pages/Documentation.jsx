@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Sidebar } from '../components/documentation/Sidebar'
 import { DocContent } from '../components/documentation/DocContent'
-import { docSections } from '../components/documentation/constants'
+import { docSections } from '../components/documentation/content'
 
 const Documentation = () => {
     const [activeItem, setActiveItem] = useState(docSections[0].items[0])
