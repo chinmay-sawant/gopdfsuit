@@ -7,17 +7,16 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/internal/models"
-	"github.com/gin-gonic/gin"
 )
 
-// GenerateTemplatePDF generates a PDF document with multi-page support and embedded images
-func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
+// GenerateTemplatePDF generates a PDF document with multi-page support and embedded images.
+// Returns the PDF bytes and any error encountered during generation.
+func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	var pdfBuffer bytes.Buffer
 	// Pre-allocate buffer with capacity for typical PDF object lines
 	b := make([]byte, 0, 128)
@@ -1122,11 +1121,7 @@ func GenerateTemplatePDF(c *gin.Context, template models.PDFTemplate) {
 		// If signing fails, we still return the unsigned PDF
 	}
 
-	// HTTP Response
-	filename := fmt.Sprintf("template-pdf-%d.pdf", time.Now().Unix())
-	c.Header("Content-Type", "application/pdf")
-	c.Header("Content-Disposition", "attachment; filename="+filename)
-	c.Data(http.StatusOK, "application/pdf", finalPDF)
+	return finalPDF, nil
 }
 
 // generateAllContentWithImages processes the template and generates content with image support
