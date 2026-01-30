@@ -174,6 +174,10 @@ type Cell struct {
 	// External links: Use full URL (e.g., "https://example.com")
 	// Internal links: Use bookmark name prefixed with # (e.g., "#section1")
 	Link string `json:"link,omitempty"`
+	// Wrap enables automatic text wrapping within the cell.
+	// When true, text will wrap to multiple lines and row height will auto-adjust.
+	// Default is false (text will be clipped if it exceeds cell width).
+	Wrap *bool `json:"wrap,omitempty"`
 }
 
 type FormField struct {

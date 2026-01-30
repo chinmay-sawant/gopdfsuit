@@ -354,3 +354,119 @@ func formatTextForPDF(props models.Props, text string) string {
 	}
 	return "(" + escapePDFString(text) + ")"
 }
+
+// WrapText splits text into multiple lines that fit within the specified maxWidth.
+// It wraps on word boundaries when possible, and handles long words that exceed maxWidth.
+// Returns a slice of strings, each representing one line of text.
+func WrapText(text string, fontName string, fontSize float64, maxWidth float64) []string {
+	if text == "" {
+		return []string{""}
+	}
+
+	// Handle edge case where maxWidth is too small
+	if maxWidth <= 0 {
+		return []string{text}
+	}
+
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{""}
+	}
+
+	var lines []string
+	var currentLine string
+
+	for _, word := range words {
+		// Check if word alone exceeds maxWidth (need to break it up)
+		wordWidth := EstimateTextWidth(fontName, word, fontSize)
+		if wordWidth > maxWidth {
+			// Flush current line first
+			if currentLine != "" {
+				lines = append(lines, currentLine)
+				currentLine = ""
+			}
+			// Break long word into chunks that fit
+			lines = append(lines, wrapLongWord(word, fontName, fontSize, maxWidth)...)
+			continue
+		}
+
+		// Try adding word to current line
+		testLine := currentLine
+		if testLine != "" {
+			testLine += " "
+		}
+		testLine += word
+
+		testWidth := EstimateTextWidth(fontName, testLine, fontSize)
+		if testWidth <= maxWidth {
+			// Fits - add to current line
+			currentLine = testLine
+		} else {
+			// Doesn't fit - start new line
+			if currentLine != "" {
+				lines = append(lines, currentLine)
+			}
+			currentLine = word
+		}
+	}
+
+	// Don't forget the last line
+	if currentLine != "" {
+		lines = append(lines, currentLine)
+	}
+
+	// Ensure at least one line is returned
+	if len(lines) == 0 {
+		return []string{""}
+	}
+
+	return lines
+}
+
+// wrapLongWord breaks a single word that's too long into multiple lines
+func wrapLongWord(word string, fontName string, fontSize float64, maxWidth float64) []string {
+	var lines []string
+	runes := []rune(word)
+	start := 0
+
+	for start < len(runes) {
+		// Binary search for the maximum number of characters that fit
+		end := start + 1
+		for end <= len(runes) {
+			substr := string(runes[start:end])
+			if EstimateTextWidth(fontName, substr, fontSize) > maxWidth {
+				break
+			}
+			end++
+		}
+
+		// Back up one character (the one that caused overflow)
+		if end > start+1 {
+			end--
+		}
+
+		// Ensure we make progress (at least one character per line)
+		if end == start {
+			end = start + 1
+		}
+
+		lines = append(lines, string(runes[start:end]))
+		start = end
+	}
+
+	return lines
+}
+
+// CalculateWrappedTextHeight calculates the total height needed for wrapped text
+// lineCount: number of lines of text
+// fontSize: font size in points
+// lineSpacing: multiplier for line height (e.g., 1.2 for 120% line height)
+// Returns the total height in points
+func CalculateWrappedTextHeight(lineCount int, fontSize float64, lineSpacing float64) float64 {
+	if lineCount <= 0 {
+		return 0
+	}
+	// Height = (number of lines * font size * line spacing)
+	// We use (lineCount) because each line takes fontSize * lineSpacing vertical space
+	return float64(lineCount) * fontSize * lineSpacing
+}
