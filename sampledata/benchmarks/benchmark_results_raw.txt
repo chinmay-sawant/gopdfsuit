@@ -1,0 +1,77 @@
+--- gopdfsuit & Typst (Go Test) ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGoPdfSuit
+BenchmarkGoPdfSuit-24    	       8	 139959150 ns/op	48124286 B/op	  862884 allocs/op
+BenchmarkGoPdfSuit-24    	       8	 129259300 ns/op	47665002 B/op	  862866 allocs/op
+BenchmarkGoPdfSuit-24    	       8	 136961553 ns/op	47361486 B/op	  862862 allocs/op
+BenchmarkGoPdfSuit-24    	       8	 138946515 ns/op	47360647 B/op	  862862 allocs/op
+BenchmarkGoPdfSuit-24    	       8	 143528889 ns/op	47510228 B/op	  862862 allocs/op
+BenchmarkGoPdfSuit-24    	       8	 125787757 ns/op	47362689 B/op	  862862 allocs/op
+BenchmarkGoPdfSuit-24    	       9	 130015082 ns/op	47632348 B/op	  862870 allocs/op
+BenchmarkGoPdfSuit-24    	       8	 127742461 ns/op	47513644 B/op	  862865 allocs/op
+BenchmarkGoPdfSuit-24    	       8	 136059724 ns/op	47816593 B/op	  862872 allocs/op
+BenchmarkGoPdfSuit-24    	       8	 147306012 ns/op	47664032 B/op	  862868 allocs/op
+BenchmarkTypst
+    benchmark_test.go:113: Typst failed: fork/exec /home/chinmay/ChinmayPersonalProjects/gopdfsuit/sampledata/benchmarks/typst-x86_64-unknown-linux-musl/typst: no such file or directory, Output: 
+--- FAIL: BenchmarkTypst
+FAIL
+exit status 1
+FAIL	github.com/chinmay-sawant/gopdfsuit/internal/pdf	13.401s
+FAIL
+--- jsPDF ---
+autoTable is not a function, falling back to text
+jsPDF Time: 81.91 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 62.69 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 74.24 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 74.20 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 74.61 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 75.23 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 96.02 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 70.72 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 74.42 ms
+autoTable is not a function, falling back to text
+jsPDF Time: 75.31 ms
+--- pdf-lib ---
+pdf-lib Time: 143.42 ms
+pdf-lib Time: 132.93 ms
+pdf-lib Time: 127.43 ms
+pdf-lib Time: 152.82 ms
+pdf-lib Time: 138.50 ms
+pdf-lib Time: 155.72 ms
+pdf-lib Time: 132.56 ms
+pdf-lib Time: 146.55 ms
+pdf-lib Time: 115.89 ms
+pdf-lib Time: 118.66 ms
+--- PDFKit ---
+PDFKit Time: 321.89 ms
+PDFKit Time: 316.31 ms
+PDFKit Time: 375.86 ms
+PDFKit Time: 299.29 ms
+PDFKit Time: 315.67 ms
+PDFKit Time: 347.80 ms
+PDFKit Time: 357.44 ms
+PDFKit Time: 368.05 ms
+PDFKit Time: 380.58 ms
+PDFKit Time: 365.99 ms
+--- FPDF ---
+FPDF Time: 2989.39 ms
+FPDF Time: 2841.39 ms
+FPDF Time: 3036.48 ms
+FPDF Time: 2991.01 ms
+FPDF Time: 2882.20 ms
+FPDF Time: 3247.20 ms
+FPDF Time: 3488.21 ms
+FPDF Time: 3894.78 ms
+FPDF Time: 4068.13 ms
+FPDF Time: 3739.02 ms
