@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { Merge, Upload, Download, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { FileCheck, Upload, Download, RefreshCw, FileText, Sparkles } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
@@ -40,7 +40,7 @@ const Filler = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const FileUploadBox = ({ inputRef, file, label, accept, onClick }) => (
+  const FileUploadBox = ({ file, label, onClick }) => (
     <div>
       <label style={{ display: 'block', marginBottom: '0.5rem', color: 'hsl(var(--foreground))', fontWeight: '600', fontSize: '0.9rem' }}>{label}</label>
       <div onClick={onClick} style={{ border: '2px dashed rgba(255,255,255,0.15)', borderRadius: '8px', padding: '2rem', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s ease', background: 'rgba(255,255,255,0.02)' }}>
@@ -78,10 +78,10 @@ const Filler = () => {
               <input ref={xfdfInputRef} type="file" accept=".xfdf,.xml" onChange={handleXfdfUpload} style={{ display: 'none' }} />
 
               <div style={{ marginBottom: '1.5rem' }}>
-                <FileUploadBox inputRef={pdfInputRef} file={pdfFile} label="PDF File (AcroForm):" accept=".pdf" onClick={() => pdfInputRef.current?.click()} />
+                <FileUploadBox file={pdfFile} label="PDF File (AcroForm):" onClick={() => pdfInputRef.current?.click()} />
               </div>
               <div style={{ marginBottom: '1.5rem' }}>
-                <FileUploadBox inputRef={xfdfInputRef} file={xfdfFile} label="XFDF File (Form Data):" accept=".xfdf,.xml" onClick={() => xfdfInputRef.current?.click()} />
+                <FileUploadBox file={xfdfFile} label="XFDF File (Form Data):" onClick={() => xfdfInputRef.current?.click()} />
               </div>
 
               <button onClick={fillPDF} disabled={isLoading || !pdfFile || !xfdfFile} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '1rem 2rem' }}>
@@ -122,7 +122,7 @@ const Filler = () => {
                 <ol style={{ color: 'hsl(var(--muted-foreground))', lineHeight: 2, paddingLeft: '1.5rem', marginBottom: 0 }}>
                   <li>Upload a PDF file with AcroForm fields</li>
                   <li>Upload an XFDF file containing form data</li>
-                  <li>Click "Fill PDF Form" to process</li>
+                  <li>Click &quot;Fill PDF Form&quot; to process</li>
                   <li>Preview and download the filled PDF</li>
                 </ol>
               </div>

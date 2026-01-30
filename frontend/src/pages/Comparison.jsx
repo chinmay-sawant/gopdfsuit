@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CheckCircle,
@@ -10,7 +10,6 @@ import {
   Code,
   Globe,
   Star,
-  ArrowLeft,
   Shield,
   FileText,
   Sparkles,
@@ -198,7 +197,7 @@ const Comparison = () => {
     ? features
     : features.filter(f => f.category === activeCategory)
 
-  const getFeatureStatus = (value, isOurs) => {
+  const getFeatureStatus = (value) => {
     const lowerValue = value.toLowerCase()
     if (lowerValue.includes('not supported') || lowerValue === 'none' || lowerValue.includes('deprecated') || lowerValue.includes('n/a')) {
       return 'negative'
@@ -387,7 +386,7 @@ const Comparison = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {filteredFeatures.filter(f => f.key !== 'pricing').map((feature) => {
                     const value = competitor[feature.key]
-                    const status = getFeatureStatus(value, competitor.isOurs)
+                    const status = getFeatureStatus(value)
 
                     return (
                       <div
