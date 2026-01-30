@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Settings, HelpCircle, PenTool, CheckSquare, Square, Lock } from 'lucide-react'
 import { PAGE_SIZES } from './constants'
 
@@ -319,12 +318,12 @@ const parsePageBorder = (str) => {
     return str.split(':').map(Number)
 }
 
-export default function DocumentSettings({ config, setConfig, currentPageSize }) {
+export default function DocumentSettings({ config, setConfig }) {
     const [showPdfTooltip, setShowPdfTooltip] = useState(false)
 
     return (
-        <div style={{ 
-            flexShrink: 0, 
+        <div style={{
+            flexShrink: 0,
             background: 'hsl(var(--card))',
             border: '1px solid hsl(var(--border))',
             borderRadius: '8px',
@@ -350,13 +349,13 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                         <select
                             value={config.page}
                             onChange={(e) => setConfig(prev => ({ ...prev, page: e.target.value }))}
-                            style={{ 
-                                width: '100%', 
-                                padding: '0.4rem', 
-                                fontSize: '0.85rem', 
-                                border: '1px solid hsl(var(--border))', 
-                                borderRadius: '4px', 
-                                background: 'hsl(var(--background))', 
+                            style={{
+                                width: '100%',
+                                padding: '0.4rem',
+                                fontSize: '0.85rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                background: 'hsl(var(--background))',
                                 color: 'hsl(var(--foreground))',
                                 cursor: 'pointer'
                             }}
@@ -371,13 +370,13 @@ export default function DocumentSettings({ config, setConfig, currentPageSize })
                         <select
                             value={config.pageAlignment}
                             onChange={(e) => setConfig(prev => ({ ...prev, pageAlignment: parseInt(e.target.value) }))}
-                            style={{ 
-                                width: '100%', 
-                                padding: '0.4rem', 
-                                fontSize: '0.85rem', 
-                                border: '1px solid hsl(var(--border))', 
-                                borderRadius: '4px', 
-                                background: 'hsl(var(--background))', 
+                            style={{
+                                width: '100%',
+                                padding: '0.4rem',
+                                fontSize: '0.85rem',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '4px',
+                                background: 'hsl(var(--background))',
                                 color: 'hsl(var(--foreground))',
                                 cursor: 'pointer'
                             }}

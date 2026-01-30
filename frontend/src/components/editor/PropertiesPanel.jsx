@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react'
-import { Edit, Settings, Trash2, ArrowLeft, ArrowRight, ArrowDown, ArrowUp } from 'lucide-react'
+import { useState } from 'react'
+import { Edit, Settings, Trash2, ArrowLeft, ArrowRight, ArrowDown } from 'lucide-react'
 import { formatProps, parseProps } from './utils'
 import { DEFAULT_FONTS } from './constants'
 
@@ -160,7 +160,6 @@ function PropsEditor({ props, onChange, fonts = DEFAULT_FONTS, showAlignment = t
 }
 
 export default function PropertiesPanel({ selectedElement, selectedCell, selectedCellElement, updateElement, deleteElement, setSelectedCell, fonts, bookmarks, setBookmarks }) {
-    const [showColorPicker, setShowColorPicker] = useState(null)
 
     // Helper function to find and update bookmark dest recursively
     const updateBookmarkDest = (bookmarkList, oldDest, newDest) => {
@@ -1128,7 +1127,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     </div>
                                     {selectedCellElement.dest && existingDestinations.find(d => d.dest === selectedCellElement.dest) && (
                                         <div style={{ fontSize: '0.7rem', color: '#22c55e', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            ✓ Linked to bookmark: "{existingDestinations.find(d => d.dest === selectedCellElement.dest)?.title}"
+                                            ✓ Linked to bookmark: &quot;{existingDestinations.find(d => d.dest === selectedCellElement.dest)?.title}&quot;
                                         </div>
                                     )}
                                     <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>

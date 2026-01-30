@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors } from 'lucide-react'
 import { useTheme } from '../theme'
@@ -10,7 +10,8 @@ const Navbar = () => {
   const { theme, toggle } = useTheme()
   const location = useLocation()
   const authRequired = isAuthRequired()
-  const { isAuthenticated, user, logout } = authRequired ? useAuth() : { isAuthenticated: false, user: null, logout: null }
+  const auth = useAuth()
+  const { isAuthenticated, user, logout } = authRequired ? auth : { isAuthenticated: false, user: null, logout: () => { } }
 
   // Check if running on GitHub Pages
   const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')

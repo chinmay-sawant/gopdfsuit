@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { Camera, Loader, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Camera, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const Screenshots = () => {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [loadingImages, setLoadingImages] = useState(new Set([1, 2, 3, 4, 5, 6, 7, 8]))
   const [autoPlay, setAutoPlay] = useState(true)
-  const [slideDirection, setSlideDirection] = useState('right')
+
   const [isTransitioning, setIsTransitioning] = useState(false)
   const progressRef = useRef(null)
   const autoPlayRef = useRef(null)
@@ -21,30 +21,27 @@ const Screenshots = () => {
     })
   }
 
-  const nextSlide = () => {
+  const nextSlide = useCallback(() => {
     if (isTransitioning) return
     setIsTransitioning(true)
-    setSlideDirection('right')
     setTimeout(() => {
       setCurrentSlide((prev) => (prev + 1) % screenshots.length)
       setIsTransitioning(false)
     }, 250)
-  }
+  }, [isTransitioning, screenshots.length])
 
-  const prevSlide = () => {
+  const prevSlide = useCallback(() => {
     if (isTransitioning) return
     setIsTransitioning(true)
-    setSlideDirection('left')
     setTimeout(() => {
       setCurrentSlide((prev) => (prev - 1 + screenshots.length) % screenshots.length)
       setIsTransitioning(false)
     }, 250)
-  }
+  }, [isTransitioning, screenshots.length])
 
   const goToSlide = (index) => {
     if (isTransitioning || index === currentSlide) return
     setIsTransitioning(true)
-    setSlideDirection(index > currentSlide ? 'right' : 'left')
     setTimeout(() => {
       setCurrentSlide(index)
       setIsTransitioning(false)
@@ -73,7 +70,7 @@ const Screenshots = () => {
         clearInterval(autoPlayRef.current)
       }
     }
-  }, [autoPlay, currentSlide, isTransitioning])
+  }, [autoPlay, currentSlide, nextSlide])
 
   // Reset progress bar animation when slide changes
   useEffect(() => {
@@ -100,7 +97,7 @@ const Screenshots = () => {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isTransitioning])
+  }, [prevSlide, nextSlide])
 
   return (
     <div style={{

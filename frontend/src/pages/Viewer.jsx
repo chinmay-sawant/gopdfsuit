@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { FileText, Download, Upload, Play, RefreshCw, Sparkles } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
@@ -13,7 +13,7 @@ const Viewer = () => {
   const { getAuthHeaders, triggerLogin } = useAuth()
 
   // Check if running on GitHub Pages
-  const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')
+  // Check if running on GitHub Pages
 
   const showError = (message) => {
     alert(message)
@@ -471,7 +471,7 @@ const Viewer = () => {
                       Load a JSON template to start
                     </p>
                     <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>
-                      Enter template data above and click "Generate PDF" to see the preview
+                      Enter template data above and click &quot;Generate PDF&quot; to see the preview
                     </p>
                   </div>
                 </div>

@@ -1,11 +1,10 @@
 
-import React from 'react'
 import { FileText, Check, Copy } from 'lucide-react'
 
 export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEditing, handleJsonBlur, copiedId, setCopiedId }) {
     return (
-        <div style={{ 
-            padding: '1rem', 
+        <div style={{
+            padding: '1rem',
             flex: 1,
             background: 'hsl(var(--card))',
             border: '1px solid hsl(var(--border))',
@@ -25,11 +24,11 @@ export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEdit
                             console.error('Copy failed:', error)
                         }
                     }}
-                    style={{ 
-                        padding: '0.25rem 0.5rem', 
-                        fontSize: '0.75rem', 
-                        display: 'flex', 
-                        alignItems: 'center', 
+                    style={{
+                        padding: '0.25rem 0.5rem',
+                        fontSize: '0.75rem',
+                        display: 'flex',
+                        alignItems: 'center',
                         gap: '0.25rem',
                         background: 'hsl(var(--secondary))',
                         color: 'hsl(var(--foreground))',
