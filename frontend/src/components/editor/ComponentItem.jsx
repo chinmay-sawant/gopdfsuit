@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react'
-import { Table, FileText, Minus, Image as ImageIcon, ChevronUp, ChevronDown, X, GripVertical } from 'lucide-react'
+import { useState } from 'react'
+import { Image as ImageIcon, ChevronUp, ChevronDown, X, GripVertical } from 'lucide-react'
 import { getStyleFromProps, getUsableWidth, getImageSrc } from './utils'
 
 export default function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop, currentPageSize }) {
-    const [isResizing, setIsResizing] = useState(false)
+    const [, setIsResizing] = useState(false)
 
     const handleClick = (e) => {
         e.stopPropagation()
@@ -44,7 +44,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
 
     const renderContent = () => {
         switch (element.type) {
-            case 'title':
+            case 'title': {
                 // Title now uses an embedded table structure for logo + text support
                 const MARGIN_TITLE = 72
                 const getUsableWidthTitle = (pageWidth) => pageWidth - (2 * MARGIN_TITLE)
@@ -417,9 +417,9 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         }
                     </div>
                 )
-            case 'table':
+            }
+            case 'table': {
                 // Get page dimensions for width calculations
-                const MARGIN = 72
                 // Use passed currentPageSize prop
                 const usableWidthForTable = getUsableWidth(currentPageSize.width)
 
@@ -530,7 +530,6 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                             <div style={{ width: `${totalTableWidth}px` }}>
                                 {element.rows?.map((row, rowIdx) => {
                                     // Get row height (max of all cells in row, or default)
-                                    const rowHeight = Math.max(...row.row.map(cell => cell.height || 25))
 
                                     return (
                                         <div key={rowIdx} style={{ display: 'flex', position: 'relative' }}>
@@ -783,7 +782,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         }
                     </div>
                 )
-            case 'footer':
+            }
+            case 'footer': {
                 const footerStyle = getStyleFromProps(element.props)
                 return (
                     <div style={{
@@ -819,6 +819,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         />
                     </div>
                 )
+            }
             case 'spacer':
                 return (
                     <div style={{

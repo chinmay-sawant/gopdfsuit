@@ -1,4 +1,4 @@
-import React from 'react'
+
 
 const PerformanceSection = ({ isVisible }) => {
     return (
@@ -79,19 +79,19 @@ const PerformanceSection = ({ isVisible }) => {
                 className="custom-scrollbar"
             >
                 <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Recent Performance Logs:</div>
-                [GIN] 2026/01/19 - 22:45:10 | 200 |      41.25ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:11 | 200 |      43.82ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:12 | 200 |      45.12ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:13 | 200 |      66.79ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:13 | 200 |      42.05ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:14 | 200 |      39.56ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:14 | 200 |      40.11ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:15 | 200 |      44.30ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:15 | 200 |      42.98ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:16 | 200 |      41.77ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:16 | 200 |      48.55ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:17 | 200 |      52.12ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:17 | 200 |      40.88ms |             ::1 | POST     "/api/v1/generate/template-pdf"
+                [GIN] 2026/01/19 - 22:45:10 | 200 |      41.25ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:11 | 200 |      43.82ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:12 | 200 |      45.12ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:13 | 200 |      66.79ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:13 | 200 |      42.05ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:14 | 200 |      39.56ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:14 | 200 |      40.11ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:15 | 200 |      44.30ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:15 | 200 |      42.98ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:16 | 200 |      41.77ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:16 | 200 |      48.55ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:17 | 200 |      52.12ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/19 - 22:45:17 | 200 |      40.88ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;
             </div>
             <p style={{
                 color: 'hsl(var(--muted-foreground))',

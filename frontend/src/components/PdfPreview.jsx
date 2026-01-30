@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Eye,
   ZoomIn,
@@ -54,6 +54,7 @@ export default function PdfPreview({ pdfUrl, onClose, title = "PDF Preview" }) {
     setIsLoading(true)
     setHasError(false)
     if (iframeRef.current) {
+      // eslint-disable-next-line no-self-assign
       iframeRef.current.src = iframeRef.current.src
     }
   }
