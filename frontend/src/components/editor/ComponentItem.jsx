@@ -63,35 +63,62 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     }]
                 }
 
-                // Helper to get normalized column weight for title table
-                const getNormalizedColWeightTitle = (colIdx) => {
-                    const rawWeights = titleTable.columnwidths && titleTable.columnwidths.length === titleTable.maxcolumns
-                        ? titleTable.columnwidths
-                        : Array(titleTable.maxcolumns).fill(1)
-                    const total = rawWeights.reduce((sum, w) => sum + w, 0)
-                    return rawWeights[colIdx] / total
-                }
+                // Normalize column weights for title table
+                const rawWeightsTitle = titleTable.columnwidths && titleTable.columnwidths.length === titleTable.maxcolumns
+                    ? titleTable.columnwidths
+                    : Array(titleTable.maxcolumns).fill(1)
+                const totalWeightTitle = rawWeightsTitle.reduce((sum, w) => sum + w, 0)
+                const colWeightsTitle = rawWeightsTitle.map(w => w / totalWeightTitle)
 
-                // Per-cell width resize handler for title table
+                // Column width resize handler for title table - per-cell width adjustment
                 const handleTitleCellWidthResizeStart = (e, rowIdx, colIdx) => {
                     e.preventDefault()
                     e.stopPropagation()
                     const startX = e.clientX
-                    const cell = titleTable.rows[rowIdx].row[colIdx]
-                    const startWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+                    const numCols = titleTable.maxcolumns || 3
+                    const row = titleTable.rows[rowIdx]
+                    
+                    // Get current widths for this specific row (use cell.width if set, otherwise column default)
+                    const currentRowWidths = row.row.map((cell, idx) => 
+                        cell.width !== undefined ? cell.width : (usableWidthForTitle * colWeightsTitle[idx])
+                    )
+                    const startWidth = currentRowWidths[colIdx]
+                    
+                    // Determine which adjacent column will compensate
+                    const adjacentColIdx = colIdx < numCols - 1 ? colIdx + 1 : colIdx - 1
+                    const adjacentStartWidth = currentRowWidths[adjacentColIdx]
+                    const minCellWidth = 30
 
                     const onMouseMove = (me) => {
                         const dx = me.clientX - startX
-                        let newWidth = Math.max(30, startWidth + dx)
-
+                        
+                        let newWidth = startWidth + dx
+                        let adjacentNewWidth = adjacentStartWidth - dx
+                        
+                        // Enforce minimum widths
+                        if (newWidth < minCellWidth) {
+                            newWidth = minCellWidth
+                            adjacentNewWidth = startWidth + adjacentStartWidth - minCellWidth
+                        }
+                        if (adjacentNewWidth < minCellWidth) {
+                            adjacentNewWidth = minCellWidth
+                            newWidth = startWidth + adjacentStartWidth - minCellWidth
+                        }
+                        
+                        // Update only this specific row's cell widths
                         const newRows = [...titleTable.rows]
                         newRows[rowIdx] = {
                             ...newRows[rowIdx],
-                            row: newRows[rowIdx].row.map((c, idx) =>
-                                idx === colIdx ? { ...c, width: newWidth } : c
-                            )
+                            row: newRows[rowIdx].row.map((c, idx) => {
+                                if (idx === colIdx) {
+                                    return { ...c, width: newWidth }
+                                } else if (idx === adjacentColIdx) {
+                                    return { ...c, width: adjacentNewWidth }
+                                }
+                                // Preserve existing width or set default for other cells
+                                return c.width !== undefined ? c : { ...c, width: currentRowWidths[idx] }
+                            })
                         }
-
                         onUpdate({ table: { ...titleTable, rows: newRows } })
                     }
                     const onMouseUp = () => {
@@ -179,66 +206,68 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         background: 'white',
                         overflowX: 'auto'
                     }}>
-                        <table style={{ borderCollapse: 'collapse', borderSpacing: '0', width: '100%' }}>
-                            <tbody>
-                                {titleTable.rows?.map((row, rowIdx) => (
-                                    <tr key={rowIdx} style={{ position: 'relative' }}>
-                                        {row.row?.map((cell, colIdx) => {
-                                            const cellStyle = getStyleFromProps(cell.props)
-                                            // Fix: Check elementId to prevent highlighting title when other tables are selected
-                                            const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
+                        {/* Use div-based layout for per-cell width control */}
+                        <div style={{ width: `${usableWidthForTitle}px` }}>
+                            {titleTable.rows?.map((row, rowIdx) => (
+                                <div key={rowIdx} style={{ display: 'flex', position: 'relative' }}>
+                                    {row.row?.map((cell, colIdx) => {
+                                        const cellStyle = getStyleFromProps(cell.props)
+                                        // Fix: Check elementId to prevent highlighting title when other tables are selected
+                                        const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
-                                            // Use individual cell width if set, otherwise use column-based width
-                                            const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
-                                            const cellHeight = cell.height || 50
+                                        // Use individual cell width if set, otherwise use column-based width
+                                        const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * colWeightsTitle[colIdx])
+                                        const cellHeight = cell.height || 50
 
-                                            const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
-                                                cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
+                                        const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
+                                            cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
 
-                                            // Determine background color for title cells
-                                            const titleCellBgColor = cell.bgcolor || element.bgcolor || '#fff'
+                                        // Determine background color for title cells
+                                        const titleCellBgColor = cell.bgcolor || element.bgcolor || '#fff'
 
-                                            return (
-                                                <td
-                                                    key={colIdx}
-                                                    style={{
-                                                        borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
-                                                        borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
-                                                        borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
-                                                        borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
-                                                        padding: '4px 8px',
-                                                        width: `${cellWidth}px`,
-                                                        height: `${cellHeight}px`,
-                                                        minHeight: '30px',
-                                                        verticalAlign: 'middle',
-                                                        overflow: 'hidden',
-                                                        backgroundColor: titleCellBgColor,
-                                                        cursor: 'pointer',
-                                                        position: 'relative',
-                                                        boxSizing: 'border-box',
-                                                        outline: isCellSelected ? '2px solid #3b82f6' : 'none',
-                                                        outlineOffset: '-2px'
-                                                    }}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        onSelect(element.id)
-                                                        onCellSelect({ elementId: element.id, rowIdx, colIdx })
-                                                    }}
-                                                    onDragOver={(e) => {
-                                                        if (draggedType === 'image') {
-                                                            e.preventDefault()
-                                                            e.stopPropagation()
-                                                        }
-                                                    }}
-                                                    onDrop={(e) => {
+                                        return (
+                                            <div
+                                                key={colIdx}
+                                                style={{
+                                                    borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
+                                                    borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
+                                                    borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
+                                                    borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
+                                                    padding: '4px 8px',
+                                                    width: `${cellWidth}px`,
+                                                    height: `${cellHeight}px`,
+                                                    minHeight: '30px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    overflow: 'hidden',
+                                                    backgroundColor: titleCellBgColor,
+                                                    cursor: 'pointer',
+                                                    position: 'relative',
+                                                    boxSizing: 'border-box',
+                                                    outline: isCellSelected ? '2px solid #3b82f6' : 'none',
+                                                    outlineOffset: '-2px',
+                                                    flexShrink: 0
+                                                }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    onSelect(element.id)
+                                                    onCellSelect({ elementId: element.id, rowIdx, colIdx })
+                                                }}
+                                                onDragOver={(e) => {
+                                                    if (draggedType === 'image') {
                                                         e.preventDefault()
                                                         e.stopPropagation()
-                                                        const files = e.dataTransfer.files
-                                                        if (files.length > 0 && files[0].type.startsWith('image/')) {
-                                                            handleTitleImageUpload(rowIdx, colIdx, files[0])
-                                                        }
-                                                    }}
-                                                >
+                                                    }
+                                                }}
+                                                onDrop={(e) => {
+                                                    e.preventDefault()
+                                                    e.stopPropagation()
+                                                    const files = e.dataTransfer.files
+                                                    if (files.length > 0 && files[0].type.startsWith('image/')) {
+                                                        handleTitleImageUpload(rowIdx, colIdx, files[0])
+                                                    }
+                                                }}
+                                            >
                                                     {/* Cell content: image or text */}
                                                     {cell.image && cell.image.imagedata ? (
                                                         <div
@@ -379,13 +408,12 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         }}
                                                         title="Drag to resize height"
                                                     />
-                                                </td>
+                                                </div>
                                             )
                                         })}
-                                    </tr>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                        </div>
                     </div>
                 )
             case 'table':
@@ -394,37 +422,69 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                 // Use passed currentPageSize prop
                 const usableWidthForTable = getUsableWidth(currentPageSize.width)
 
-                // Helper to get normalized column weight
-                const getNormalizedColWeight = (colIdx) => {
-                    const rawWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
-                        ? element.columnwidths
-                        : Array(element.maxcolumns).fill(1)
-                    const total = rawWeights.reduce((sum, w) => sum + w, 0)
-                    return rawWeights[colIdx] / total
-                }
+                // Normalize columnwidths so they represent fractions that sum to 1
+                const rawColWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
+                    ? element.columnwidths
+                    : Array(element.maxcolumns).fill(1)
+                const totalWeight = rawColWidths.reduce((sum, w) => sum + w, 0)
+                const colWeights = rawColWidths.map(w => w / totalWeight)
 
-                // Per-cell width resize handler - affects only individual cell
+                // Per-cell width resize handler - affects only individual cell in that specific row
+                // Adjusts the cell width and the adjacent cell compensates to maintain row total
                 const handleCellWidthResizeStart = (e, rowIdx, colIdx) => {
                     e.preventDefault()
                     e.stopPropagation()
+                    setIsResizing(true)
                     const startX = e.clientX
-                    const cell = element.rows[rowIdx].row[colIdx]
-                    const startWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
+                    const numCols = element.maxcolumns || 3
+                    const row = element.rows[rowIdx]
+                    
+                    // Get current widths for this specific row (use cell.width if set, otherwise column default)
+                    const currentRowWidths = row.row.map((cell, idx) => 
+                        cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[idx])
+                    )
+                    const startWidth = currentRowWidths[colIdx]
+                    
+                    // Determine which adjacent column will compensate
+                    const adjacentColIdx = colIdx < numCols - 1 ? colIdx + 1 : colIdx - 1
+                    const adjacentStartWidth = currentRowWidths[adjacentColIdx]
+                    const minCellWidth = 30 // Minimum cell width in pixels
 
                     const onMouseMove = (me) => {
                         const dx = me.clientX - startX
-                        const newWidth = Math.max(30, startWidth + dx)
-
+                        
+                        // Calculate new widths ensuring minimums are respected
+                        let newWidth = startWidth + dx
+                        let adjacentNewWidth = adjacentStartWidth - dx
+                        
+                        // Enforce minimum widths
+                        if (newWidth < minCellWidth) {
+                            newWidth = minCellWidth
+                            adjacentNewWidth = startWidth + adjacentStartWidth - minCellWidth
+                        }
+                        if (adjacentNewWidth < minCellWidth) {
+                            adjacentNewWidth = minCellWidth
+                            newWidth = startWidth + adjacentStartWidth - minCellWidth
+                        }
+                        
+                        // Update only this specific row's cell widths
                         const newRows = [...element.rows]
                         newRows[rowIdx] = {
                             ...newRows[rowIdx],
-                            row: newRows[rowIdx].row.map((c, idx) =>
-                                idx === colIdx ? { ...c, width: newWidth } : c
-                            )
+                            row: newRows[rowIdx].row.map((c, idx) => {
+                                if (idx === colIdx) {
+                                    return { ...c, width: newWidth }
+                                } else if (idx === adjacentColIdx) {
+                                    return { ...c, width: adjacentNewWidth }
+                                }
+                                // Preserve existing width or set default for other cells in this row
+                                return c.width !== undefined ? c : { ...c, width: currentRowWidths[idx] }
+                            })
                         }
                         onUpdate({ rows: newRows })
                     }
                     const onMouseUp = () => {
+                        setIsResizing(false)
                         window.removeEventListener('mousemove', onMouseMove)
                         window.removeEventListener('mouseup', onMouseUp)
                     }
@@ -432,7 +492,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     window.addEventListener('mouseup', onMouseUp)
                 }
 
-                // Per-cell height resize handler
+                // Per-cell height resize handler - updates all cells in the row
                 const handleCellHeightResizeStart = (e, rowIdx, colIdx) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -444,13 +504,11 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         const dy = me.clientY - startY
                         const newHeight = Math.max(20, startHeight + dy)
 
-                        // Update only this specific cell's height
+                        // Update all cells in this row to have the same height
                         const newRows = [...element.rows]
                         newRows[rowIdx] = {
                             ...newRows[rowIdx],
-                            row: newRows[rowIdx].row.map((c, idx) =>
-                                idx === colIdx ? { ...c, height: newHeight } : c
-                            )
+                            row: newRows[rowIdx].row.map(c => ({ ...c, height: newHeight }))
                         }
                         onUpdate({ rows: newRows })
                     }
@@ -461,18 +519,20 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     window.addEventListener('mousemove', onMouseMove)
                     window.addEventListener('mouseup', onMouseUp)
                 }
-                // Normalize columnwidths so they represent fractions that sum to 1
-                const rawColWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
-                    ? element.columnwidths
-                    : Array(element.maxcolumns).fill(1)
-                const totalWeight = rawColWidths.reduce((sum, w) => sum + w, 0)
-                const colWeights = rawColWidths.map(w => w / totalWeight)
+
+                // Calculate total table width (sum of all column default widths)
+                const totalTableWidth = usableWidthForTable
+
                 return (
                     <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto', background: 'white' }}>
-                        <table style={{ borderCollapse: 'collapse', borderSpacing: '0', width: '100%' }}>
-                            <tbody>
-                                {element.rows?.map((row, rowIdx) => (
-                                    <tr key={rowIdx} style={{ position: 'relative' }}>
+                        {/* Use div-based layout for per-cell width control */}
+                        <div style={{ width: `${totalTableWidth}px` }}>
+                            {element.rows?.map((row, rowIdx) => {
+                                // Get row height (max of all cells in row, or default)
+                                const rowHeight = Math.max(...row.row.map(cell => cell.height || 25))
+                                
+                                return (
+                                    <div key={rowIdx} style={{ display: 'flex', position: 'relative' }}>
                                         {row.row?.map((cell, colIdx) => {
                                             const cellStyle = getStyleFromProps(cell.props)
                                             const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
@@ -491,7 +551,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
                                                 cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
 
-                                            const tdStyle = {
+                                            const cellContainerStyle = {
                                                 borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
                                                 borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
                                                 borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
@@ -500,14 +560,16 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                 width: `${cellWidth}px`,
                                                 height: `${cellHeight}px`,
                                                 minHeight: '20px',
-                                                verticalAlign: 'middle',
+                                                display: 'flex',
+                                                alignItems: 'center',
                                                 overflow: 'hidden',
                                                 backgroundColor: cellBgColor,
                                                 cursor: 'pointer',
                                                 position: 'relative',
                                                 boxSizing: 'border-box',
                                                 outline: isCellSelected ? '2px solid #3b82f6' : 'none',
-                                                outlineOffset: '-2px'
+                                                outlineOffset: '-2px',
+                                                flexShrink: 0
                                             }
                                             const inputStyle = {
                                                 fontSize: cellStyle.fontSize,
@@ -524,9 +586,9 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                 outline: 'none'
                                             }
                                             return (
-                                                <td
+                                                <div
                                                     key={colIdx}
-                                                    style={tdStyle}
+                                                    style={cellContainerStyle}
                                                     onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
                                                     onDragOver={(e) => {
                                                         if (draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') {
@@ -710,13 +772,13 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                                                         title="Drag to resize cell height"
                                                     />
-                                                </td>
+                                                </div>
                                             )
                                         })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </div>
                 )
             case 'footer':
