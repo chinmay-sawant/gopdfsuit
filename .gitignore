@@ -49,3 +49,5 @@ mem.prof
 sampledata/benchmarks/typst-*/
 sampledata/benchmarks/data.json
 sampledata/benchmarks/typst.tar.xz
+
+*node_modules* 
