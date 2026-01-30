@@ -529,17 +529,20 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         {/* Use div-based layout for per-cell width control */
                             <div style={{ width: `${totalTableWidth}px` }}>
                                 {element.rows?.map((row, rowIdx) => {
-                                    // Get row height (max of all cells in row, or default)
+                                    // Check if any cell in this row has wrap enabled (default: true)
+                                    const hasWrappedCell = row.row?.some(cell => cell.wrap !== false)
 
                                     return (
-                                        <div key={rowIdx} style={{ display: 'flex', position: 'relative' }}>
+                                        <div key={rowIdx} style={{ display: 'flex', position: 'relative', alignItems: hasWrappedCell ? 'stretch' : 'stretch' }}>
                                             {row.row?.map((cell, colIdx) => {
                                                 const cellStyle = getStyleFromProps(cell.props)
                                                 const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
                                                 // Use individual cell width if set, otherwise use column-based width
                                                 const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
-                                                const cellHeight = cell.height || 25
+                                                const baseHeight = cell.height || 25
+                                                // Wrap is enabled by default (cell.wrap !== false means wrap is on)
+                                                const isWrapEnabled = cell.wrap !== false
 
                                                 // Determine background color: use cell's or table's bg color, or default white
                                                 const cellBgColor = cell.bgcolor || element.bgcolor || '#fff'
@@ -558,11 +561,10 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                     borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
                                                     padding: '4px 8px',
                                                     width: `${cellWidth}px`,
-                                                    height: `${cellHeight}px`,
-                                                    minHeight: '20px',
+                                                    minHeight: `${baseHeight}px`,
                                                     display: 'flex',
-                                                    alignItems: 'center',
-                                                    overflow: 'hidden',
+                                                    alignItems: isWrapEnabled ? 'flex-start' : 'center',
+                                                    overflow: isWrapEnabled ? 'visible' : 'hidden',
                                                     backgroundColor: cellBgColor,
                                                     cursor: 'pointer',
                                                     position: 'relative',
@@ -578,12 +580,18 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                     fontStyle: cellStyle.fontStyle,
                                                     textDecoration: cellStyle.textDecoration,
                                                     width: '100%',
-                                                    height: '100%',
+                                                    height: isWrapEnabled ? 'auto' : '100%',
+                                                    minHeight: isWrapEnabled ? `${baseHeight - 8}px` : 'auto',
                                                     border: 'none',
                                                     background: 'transparent',
                                                     padding: '2px',
                                                     color: cellTextColor,
-                                                    outline: 'none'
+                                                    outline: 'none',
+                                                    resize: 'none',
+                                                    // Wrap-related styles
+                                                    whiteSpace: isWrapEnabled ? 'pre-wrap' : 'nowrap',
+                                                    wordWrap: isWrapEnabled ? 'break-word' : 'normal',
+                                                    overflowWrap: isWrapEnabled ? 'break-word' : 'normal'
                                                 }
                                                 return (
                                                     <div
@@ -715,6 +723,26 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                                     </div>
                                                                 )}
                                                             </div>
+                                                        ) : isWrapEnabled ? (
+                                                            <textarea
+                                                                value={cell.text || ''}
+                                                                onChange={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const newRows = [...element.rows]
+                                                                    newRows[rowIdx].row[colIdx] = {
+                                                                        ...newRows[rowIdx].row[colIdx],
+                                                                        text: e.target.value
+                                                                    }
+                                                                    onUpdate({ rows: newRows })
+                                                                }}
+                                                                onFocus={() => handleCellClick(rowIdx, colIdx)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleCellClick(rowIdx, colIdx)
+                                                                }}
+                                                                style={inputStyle}
+                                                                rows={Math.max(1, Math.ceil((cell.text || '').length / 20))}
+                                                            />
                                                         ) : (
                                                             <input
                                                                 type="text"
