@@ -529,8 +529,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         {/* Use div-based layout for per-cell width control */
                             <div style={{ width: `${totalTableWidth}px` }}>
                                 {element.rows?.map((row, rowIdx) => {
-                                    // Check if any cell in this row has wrap enabled (default: true)
-                                    const hasWrappedCell = row.row?.some(cell => cell.wrap !== false)
+                                    // Check if any cell in this row has wrap explicitly enabled
+                                    const hasWrappedCell = row.row?.some(cell => cell.wrap === true)
 
                                     return (
                                         <div key={rowIdx} style={{ display: 'flex', position: 'relative', alignItems: hasWrappedCell ? 'stretch' : 'stretch' }}>
@@ -541,8 +541,8 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                 // Use individual cell width if set, otherwise use column-based width
                                                 const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
                                                 const baseHeight = cell.height || 25
-                                                // Wrap is enabled by default (cell.wrap !== false means wrap is on)
-                                                const isWrapEnabled = cell.wrap !== false
+                                                // Wrap is opt-in (only enabled when explicitly set to true)
+                                                const isWrapEnabled = cell.wrap === true
 
                                                 // Determine background color: use cell's or table's bg color, or default white
                                                 const cellBgColor = cell.bgcolor || element.bgcolor || '#fff'

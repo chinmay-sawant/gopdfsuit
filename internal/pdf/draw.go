@@ -244,8 +244,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 		titleX = margin
 	}
 
-	// Move cursor down: Font Size + Spacing (10pt padding)
-	pageManager.CurrentYPos -= (float64(titleProps.FontSize) + 10)
+	pageManager.CurrentYPos -= float64(titleProps.FontSize)
 
 	contentStream.WriteString("1 0 0 1 0 0 Tm\n") // Reset text matrix
 	var titleBuf []byte
@@ -690,7 +689,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 // drawTable renders a table with automatic page breaks
 func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
 	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
-	baseRowHeight := float64(30) // Increased row height for better spacing
+	baseRowHeight := float64(25) // Standard row height
 
 	// PDF/UA: Start Table Structure
 	pageManager.Structure.BeginStructureElement(StructTable)
@@ -748,8 +747,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			if colIdx >= table.MaxColumns {
 				break
 			}
-			// Wrap is enabled by default (nil means true, only false disables it)
-			isWrapEnabled := cell.Wrap == nil || *cell.Wrap
+			// Wrap is opt-in (only enabled when explicitly set to true)
+			isWrapEnabled := cell.Wrap != nil && *cell.Wrap
 			if isWrapEnabled && cell.Text != "" {
 				cellProps := parseProps(cell.Props)
 				// Account for cell padding (5pt on each side)
@@ -771,8 +770,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			if cell.Height != nil && *cell.Height > rowHeight {
 				rowHeight = *cell.Height
 			}
-			// Calculate height needed for wrapped text (wrap enabled by default)
-			isWrapEnabled := cell.Wrap == nil || *cell.Wrap
+			// Calculate height needed for wrapped text (opt-in)
+			isWrapEnabled := cell.Wrap != nil && *cell.Wrap
 			if isWrapEnabled && len(wrappedTextLines[colIdx]) > 0 {
 				cellProps := parseProps(cell.Props)
 				lineSpacing := 1.3 // 130% line height for readability
@@ -1036,8 +1035,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.WriteString("0 0 0 rg\n")
 				}
 
-				// Check if this cell has wrapped text (wrap enabled by default)
-				isWrapEnabled := cell.Wrap == nil || *cell.Wrap
+				// Check if this cell has wrapped text (opt-in)
+				isWrapEnabled := cell.Wrap != nil && *cell.Wrap
 				if isWrapEnabled && len(wrappedTextLines[colIdx]) > 0 {
 					// Multi-line text rendering for wrapped cells
 					lines := wrappedTextLines[colIdx]
