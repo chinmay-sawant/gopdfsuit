@@ -20,7 +20,7 @@ type BenchmarkRecord struct {
 }
 
 func loadBenchmarkData() []BenchmarkRecord {
-	file, err := os.Open("../../benchmarks/data.json")
+	file, err := os.Open("../../sampledata/benchmarks/data.json")
 	if err != nil {
 		panic(err)
 	}
@@ -89,20 +89,23 @@ func BenchmarkGoPdfSuit(b *testing.B) {
 		if len(pdfBytes) == 0 {
 			b.Fatalf("Generated empty PDF")
 		}
+		if i == 0 {
+			_ = os.WriteFile("../../sampledata/benchmarks/gopdfsuit/output.pdf", pdfBytes, 0644)
+		}
 	}
 }
 
 func BenchmarkTypst(b *testing.B) {
-	absPath, _ := filepath.Abs("../../benchmarks/typst-x86_64-unknown-linux-musl/typst")
-	typFilePath, _ := filepath.Abs("../../benchmarks/benchmark.typ")
+	absPath, _ := filepath.Abs("../../sampledata/benchmarks/typst-x86_64-unknown-linux-musl/typst")
+	typFilePath, _ := filepath.Abs("../../sampledata/benchmarks/typst/benchmark.typ")
 
-	// Create common output directory
-	outDir, _ := filepath.Abs("/tmp")
+	// Output to typst folder
+	outPath, _ := filepath.Abs("../../sampledata/benchmarks/typst/output.pdf")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		// Output to /dev/null or overwrite same file
-		cmd := exec.Command(absPath, "compile", typFilePath, filepath.Join(outDir, "typst_out.pdf"))
+		// Output to file
+		cmd := exec.Command(absPath, "compile", typFilePath, outPath)
 		// Set Cwd so Typst can find data.json
 		cmd.Dir = filepath.Dir(typFilePath)
 

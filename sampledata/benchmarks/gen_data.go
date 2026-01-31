@@ -28,7 +28,7 @@ func main() {
 		})
 	}
 
-	file, err := os.Create("benchmarks/data.json")
+	file, err := os.Create("data.json")
 	if err != nil {
 		fmt.Printf("Error creating file: %v\n", err)
 		return

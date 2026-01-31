@@ -33,7 +33,6 @@ patientreg/
 patient2/
 presentation.html
 
-frontend/node_modules/
 .venv
 t.py
 Styled_Report_v2.pdf
@@ -49,5 +48,4 @@ mem.prof
 sampledata/benchmarks/typst-*/
 sampledata/benchmarks/data.json
 sampledata/benchmarks/typst.tar.xz
-
-*node_modules* 
+*node_modules*
