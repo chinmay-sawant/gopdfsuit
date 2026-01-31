@@ -1,0 +1,142 @@
+.code-block-wrapper {
+    display: flex;
+    flex-direction: column;
+    background: #1e293b;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    overflow: hidden;
+    margin-top: 1rem;
+    height: 100%;
+    min-height: 400px;
+}
+
+/* Sidebar & General Scrollbar theming */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+}
+
+.code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: #0f172a;
+    border-bottom: 1px solid #334155;
+}
+
+.code-language-tabs {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.code-tab {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.code-tab:hover {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.code-tab.active {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+}
+
+.copy-button {
+    background: transparent;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.4rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.copy-button:hover {
+    background: #334155;
+    color: white;
+}
+
+/* Light theme overrides */
+.code-tab.light {
+    color: #475569;
+}
+
+.code-tab.light:hover {
+    color: #0f172a;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.code-tab.light.active {
+    color: #0284c7;
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.copy-button.light {
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+}
+
+.copy-button.light:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+/* Syntax Highlighter Overrides */
+.syntax-highlighter-scrollable {
+    flex: 1;
+    overflow: auto !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: #1e293b !important;
+    padding: 1.5rem !important;
+    font-family: 'Fira Code', 'Roboto Mono', monospace !important;
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Scrollbar styling for code block */
+.syntax-highlighter-scrollable::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.syntax-highlighter-scrollable::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+.syntax-highlighter-scrollable::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+.syntax-highlighter-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}

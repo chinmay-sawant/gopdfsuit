@@ -6,9 +6,29 @@ export const Sidebar = ({ sections, activeId, onItemClick }) => {
         sections.reduce((acc, section) => ({ ...acc, [section.title]: true }), {})
     )
 
+    const [searchQuery, setSearchQuery] = useState('')
+
     const toggleSection = (title) => {
         setExpanded(prev => ({ ...prev, [title]: !prev[title] }))
     }
+
+    // Filter sections based on search query
+    const filteredSections = sections.map(section => {
+        // If search is empty, return section as is
+        if (!searchQuery.trim()) return section;
+
+        // Filter items match title or description
+        const filteredItems = section.items.filter(item =>
+            item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+
+        // Return section only if it has matching items
+        if (filteredItems.length > 0) {
+            return { ...section, items: filteredItems };
+        }
+        return null;
+    }).filter(Boolean);
 
     return (
         <div style={{
@@ -25,6 +45,8 @@ export const Sidebar = ({ sections, activeId, onItemClick }) => {
             <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
                 <input
                     placeholder="Jump to..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     style={{
                         width: '100%',
                         padding: '0.5rem 0.5rem 0.5rem 2.2rem',
@@ -40,7 +62,7 @@ export const Sidebar = ({ sections, activeId, onItemClick }) => {
             </div>
 
             <div style={{ flex: 1 }}>
-                {sections.map(section => (
+                {filteredSections.map(section => (
                     <div key={section.title} style={{ marginBottom: '1.5rem' }}>
                         <div
                             onClick={() => toggleSection(section.title)}
@@ -62,7 +84,7 @@ export const Sidebar = ({ sections, activeId, onItemClick }) => {
                             {expanded[section.title] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </div>
 
-                        {expanded[section.title] && (
+                        {(expanded[section.title] || searchQuery) && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                 {section.items.map(item => (
                                     <div
