@@ -228,3 +228,85 @@
     font-weight: 700;
     margin-left: 0.5rem;
 }
+
+/* Feature List Styling */
+.features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    /* Single column for better fit in side panel */
+    gap: 1rem;
+    padding-bottom: 2rem;
+}
+
+@media (min-width: 1400px) {
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.feature-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.feature-icon-wrapper {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+}
+
+.feature-content {
+    flex: 1;
+}
+
+.feature-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    margin-bottom: 0.25rem;
+}
+
+.feature-description {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #94a3b8;
+}
+
+/* Light Mode Overrides for Features */
+.feature-card.light {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+.feature-card.light:hover {
+    background: #f8fafc;
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.feature-card.light .feature-title {
+    color: #0f172a;
+}
+
+.feature-card.light .feature-description {
+    color: #64748b;
+}

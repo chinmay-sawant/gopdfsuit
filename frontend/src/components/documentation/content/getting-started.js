@@ -16,7 +16,17 @@ export const gettingStartedSection = {
 • AcroForm/XFDF form filling
 • HTML to PDF/Image conversion
 
-Requirements: Go 1.20+, Google Chrome (for HTML conversion)`
+Requirements: Go 1.20+, Google Chrome (for HTML conversion)`,
+            features: [
+                { title: 'Template Generation', description: 'JSON-based PDF generation with auto page breaks', icon: 'FileText' },
+                { title: 'Digital Signatures', description: 'PKCS#7 signing with X.509 certificate chains', icon: 'PenTool' },
+                { title: 'PDF Encryption', description: 'AES-256 encryption with granular permissions', icon: 'Lock' },
+                { title: 'Smart Navigation', description: 'Bookmarks, internal links, and named destinations', icon: 'BookOpen' },
+                { title: 'Archival Standards', description: 'PDF/A-4 compliance for long-term preservation', icon: 'Archive' },
+                { title: 'PDF Merging', description: 'Combine multiple documents with drag-and-drop', icon: 'Layers' },
+                { title: 'Form Filling', description: 'Populate AcroForms and XFDF data automatically', icon: 'Edit3' },
+                { title: 'HTML Conversion', description: 'High-fidelity HTML to PDF and Image rendering', icon: 'Globe' }
+            ]
         },
         {
             id: 'quick-start',

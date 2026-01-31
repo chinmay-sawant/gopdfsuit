@@ -1,5 +1,6 @@
 import { CodeBlock } from './CodeBlock'
 import { useTheme } from '../../theme'
+import * as Icons from 'lucide-react'
 
 // Helper to simple render markdown-like tables and text
 const renderMarkdownContent = (content) => {
@@ -195,10 +196,29 @@ export const DocContent = ({ item }) => {
                 overflowY: 'auto'
             }}>
                 <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                    <h3 style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>Example Code</h3>
+                    <h3 style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>
+                        {item.features ? 'Key Capabilities' : 'Example Code'}
+                    </h3>
                 </div>
 
-                {item.code ? (
+                {item.features ? (
+                    <div className="features-grid">
+                        {item.features.map((feature, i) => {
+                            const Icon = Icons[feature.icon] || Icons.Circle;
+                            return (
+                                <div key={i} className={`feature-card ${isLight ? 'light' : ''}`}>
+                                    <div className="feature-icon-wrapper">
+                                        <Icon size={18} />
+                                    </div>
+                                    <div className="feature-content">
+                                        <div className="feature-title">{feature.title}</div>
+                                        <div className="feature-description">{feature.description}</div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                ) : item.code ? (
                     <CodeBlock code={item.code} />
                 ) : (
                     <div style={{ padding: '2rem', textAlign: 'center', color: isLight ? '#94a3b8' : '#64748b', border: isLight ? '2px dashed #cbd5e1' : '2px dashed #334155', borderRadius: '8px' }}>
