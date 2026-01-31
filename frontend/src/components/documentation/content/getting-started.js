@@ -11,18 +11,20 @@ export const gettingStartedSection = {
 • Digital signatures (PKCS#7) with X.509 certificate chains
 • PDF encryption with password protection & permissions
 • Bookmarks, internal links, and named destinations
-• PDF/A-4 compliance for archival standards
+• PDF/A-4 and PDF/UA-2 compliance for archival standards
 • PDF merging with drag-and-drop UI
 • AcroForm/XFDF form filling
 • HTML to PDF/Image conversion
 
-Requirements: Go 1.20+, Google Chrome (for HTML conversion)`,
+**Python Support via PdfClient**: official Python client examples are available [here](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/python).
+
+Requirements: Go 1.24+, Google Chrome (for HTML conversion)`,
             features: [
                 { title: 'Template Generation', description: 'JSON-based PDF generation with auto page breaks', icon: 'FileText' },
                 { title: 'Digital Signatures', description: 'PKCS#7 signing with X.509 certificate chains', icon: 'PenTool' },
                 { title: 'PDF Encryption', description: 'AES-256 encryption with granular permissions', icon: 'Lock' },
                 { title: 'Smart Navigation', description: 'Bookmarks, internal links, and named destinations', icon: 'BookOpen' },
-                { title: 'Archival Standards', description: 'PDF/A-4 compliance for long-term preservation', icon: 'Archive' },
+                { title: 'Archival Standards', description: 'PDF/A-4 & PDF/UA-2 compliance for long-term preservation', icon: 'Archive' },
                 { title: 'PDF Merging', description: 'Combine multiple documents with drag-and-drop', icon: 'Layers' },
                 { title: 'Form Filling', description: 'Populate AcroForms and XFDF data automatically', icon: 'Edit3' },
                 { title: 'HTML Conversion', description: 'High-fidelity HTML to PDF and Image rendering', icon: 'Globe' }
@@ -60,7 +62,7 @@ go run ./cmd/gopdfsuit`
             id: 'gopdflib-install',
             title: 'Install gopdflib Package',
             description: 'Use gopdflib as a standalone Go library in your own projects.',
-            content: `The gopdflib package allows you to generate PDFs programmatically without running the web server.
+            content: `The [gopdflib](https://github.com/chinmay-sawant/gopdfsuit/tree/master/pkg/gopdflib) package allows you to generate PDFs programmatically without running the web server.
 
 Import the package in your Go code to access all PDF generation features.`,
             code: {

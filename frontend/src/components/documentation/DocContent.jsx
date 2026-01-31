@@ -44,9 +44,40 @@ const renderMarkdownContent = (content) => {
 
     const flushText = (key) => {
         if (textBuffer.length > 0) {
+            const text = textBuffer.join('\n');
+            const parts = [];
+            let lastIndex = 0;
+            const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+            let match;
+
+            while ((match = linkRegex.exec(text)) !== null) {
+                // Add text before the link
+                if (match.index > lastIndex) {
+                    parts.push(text.substring(lastIndex, match.index));
+                }
+                // Add the link component
+                parts.push(
+                    <a
+                        key={`${key}-link-${match.index}`}
+                        href={match[2]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'hsl(var(--primary))', textDecoration: 'underline' }}
+                    >
+                        {match[1]}
+                    </a>
+                );
+                lastIndex = linkRegex.lastIndex;
+            }
+
+            // Add remaining text
+            if (lastIndex < text.length) {
+                parts.push(text.substring(lastIndex));
+            }
+
             elements.push(
                 <div key={key} className="doc-content-text" style={{ whiteSpace: 'pre-wrap', marginBottom: '1.5rem', lineHeight: '1.7' }}>
-                    {textBuffer.join('\n')}
+                    {parts.length > 0 ? parts : text}
                 </div>
             );
             textBuffer = [];
