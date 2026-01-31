@@ -18,10 +18,10 @@
   ],
 )
 
-#set text(font: "Helvetica", size: 10pt)
+#set text(font: "Libertinus Serif", size: 10pt)
 
 // Load data from JSON
-#let records = json("../data.json")
+#let records = json("data.json")
 
 // Title centered
 #align(center)[
