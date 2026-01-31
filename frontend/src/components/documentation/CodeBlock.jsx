@@ -93,7 +93,7 @@ export const CodeBlock = ({ code }) => {
                         fontSize: '0.9rem',
                         lineHeight: '1.5'
                     }}
-                    className="syntax-highlighter-scrollable"
+                    className={`syntax-highlighter-scrollable ${isLight ? 'light' : ''}`}
                     showLineNumbers={false}
                     wrapLines={false}
                 >

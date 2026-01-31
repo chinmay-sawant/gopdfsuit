@@ -115,7 +115,7 @@
     overflow: auto !important;
     margin: 0 !important;
     border-radius: 0 !important;
-    background: #1e293b !important;
+    /* background: #1e293b !important; - REMOVED to allow inline style override */
     padding: 1.5rem !important;
     font-family: 'Fira Code', 'Roboto Mono', monospace !important;
     font-size: 0.9rem !important;
@@ -139,4 +139,17 @@
 
 .syntax-highlighter-scrollable::-webkit-scrollbar-thumb:hover {
     background: #475569;
+}
+
+/* Light Theme Scrollbar Overrides */
+.syntax-highlighter-scrollable.light::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.syntax-highlighter-scrollable.light::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+}
+
+.syntax-highlighter-scrollable.light::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }

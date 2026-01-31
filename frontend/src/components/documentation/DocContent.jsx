@@ -1,6 +1,10 @@
 import { CodeBlock } from './CodeBlock'
+import { useTheme } from '../../theme'
 
 export const DocContent = ({ item }) => {
+    const { theme } = useTheme()
+    const isLight = theme === 'light'
+
     if (!item) return (
         <div style={{
             flex: 1,
@@ -95,7 +99,7 @@ export const DocContent = ({ item }) => {
             <div style={{
                 width: '45%',
                 minWidth: '400px',
-                background: '#0f172a', /* Dark background for code area */
+                background: isLight ? '#f8fafc' : '#0f172a',
                 borderLeft: '1px solid hsl(var(--border))',
                 padding: '2rem',
                 display: 'flex',
@@ -104,13 +108,13 @@ export const DocContent = ({ item }) => {
                 overflowY: 'auto'
             }}>
                 <div style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                    <h3 style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>Example Code</h3>
+                    <h3 style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>Example Code</h3>
                 </div>
 
                 {item.code ? (
                     <CodeBlock code={item.code} />
                 ) : (
-                    <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b', border: '2px dashed #334155', borderRadius: '8px' }}>
+                    <div style={{ padding: '2rem', textAlign: 'center', color: isLight ? '#94a3b8' : '#64748b', border: isLight ? '2px dashed #cbd5e1' : '2px dashed #334155', borderRadius: '8px' }}>
                         No usage example available for this item.
                     </div>
                 )}
