@@ -48,6 +48,7 @@ func main() {
 	}
 
 	// Data rows with alternating colors
+	wrapTrue := true
 	for i, record := range data {
 		bgColor := "#FFFFFF"
 		if i%2 == 1 {
@@ -55,11 +56,11 @@ func main() {
 		}
 		tableRows[i+1] = gopdflib.Row{
 			Row: []gopdflib.Cell{
-				{Props: "Helvetica:10:000:left:0:0:0:1", Text: fmt.Sprintf("%d", record.ID), BgColor: bgColor},
-				{Props: "Helvetica:10:000:left:0:0:0:1", Text: record.Name, BgColor: bgColor},
-				{Props: "Helvetica:10:000:left:0:0:0:1", Text: record.Email, BgColor: bgColor},
-				{Props: "Helvetica:10:000:left:0:0:0:1", Text: record.Role, BgColor: bgColor},
-				{Props: "Helvetica:10:000:left:0:0:0:1", Text: record.Desc, BgColor: bgColor},
+				{Props: "Helvetica:10:000:left:0:0:0:1", Text: fmt.Sprintf("%d", record.ID), BgColor: bgColor, Wrap: &wrapTrue},
+				{Props: "Helvetica:10:000:left:0:0:0:1", Text: record.Name, BgColor: bgColor, Wrap: &wrapTrue},
+				{Props: "Helvetica:10:000:left:0:0:0:1", Text: record.Email, BgColor: bgColor, Wrap: &wrapTrue},
+				{Props: "Helvetica:10:000:left:0:0:0:1", Text: record.Role, BgColor: bgColor, Wrap: &wrapTrue},
+				{Props: "Helvetica:10:000:left:0:0:0:1", Text: record.Desc, BgColor: bgColor, Wrap: &wrapTrue},
 			},
 		}
 	}
