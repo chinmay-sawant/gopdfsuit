@@ -1,4 +1,4 @@
-import React from 'react'
+
 
 const PerformanceSection = ({ isVisible }) => {
     return (
@@ -27,9 +27,9 @@ const PerformanceSection = ({ isVisible }) => {
             {/* Performance Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
                 {[
-                    { value: '42.3 ms', label: 'Average Response', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
-                    { value: '39.0 ms', label: 'Min Response', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-                    { value: '66.8 ms', label: 'Max Response', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' }
+                    { value: '~6.64 ms', label: 'Average Response', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
+                    { value: '5.79 ms', label: 'Min Response', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+                    { value: '7.33 ms', label: 'Max Response', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' }
                 ].map((stat, index) => (
                     <div
                         key={index}
@@ -79,19 +79,19 @@ const PerformanceSection = ({ isVisible }) => {
                 className="custom-scrollbar"
             >
                 <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Recent Performance Logs:</div>
-                [GIN] 2026/01/19 - 22:45:10 | 200 |      41.25ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:11 | 200 |      43.82ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:12 | 200 |      45.12ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:13 | 200 |      66.79ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:13 | 200 |      42.05ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:14 | 200 |      39.56ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:14 | 200 |      40.11ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:15 | 200 |      44.30ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:15 | 200 |      42.98ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:16 | 200 |      41.77ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:16 | 200 |      48.55ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:17 | 200 |      52.12ms |             ::1 | POST     "/api/v1/generate/template-pdf"<br />
-                [GIN] 2026/01/19 - 22:45:17 | 200 |      40.88ms |             ::1 | POST     "/api/v1/generate/template-pdf"
+                [GIN] 2026/01/31 - 22:45:10 | 200 |       7.18ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:11 | 200 |       6.47ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:12 | 200 |       6.62ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:13 | 200 |       6.66ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:13 | 200 |       6.57ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:14 | 200 |       6.11ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:14 | 200 |       5.79ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:15 | 200 |       7.31ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:15 | 200 |       7.33ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:16 | 200 |       6.39ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:16 | 200 |       6.25ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:17 | 200 |       6.88ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
+                [GIN] 2026/01/31 - 22:45:17 | 200 |       6.42ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;
             </div>
             <p style={{
                 color: 'hsl(var(--muted-foreground))',

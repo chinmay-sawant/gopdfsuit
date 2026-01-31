@@ -47,6 +47,8 @@ mod:
 
 lint:
 	golangci-lint run ./...
+	cd frontend && npm run lint
+	cd .. 
 
 gdocker: test-integration
 	cd frontend && npm run build && cd ..

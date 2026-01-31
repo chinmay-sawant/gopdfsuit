@@ -1,6 +1,3 @@
-
-import React, { useState } from 'react'
-import { Plus, GripVertical } from 'lucide-react'
 import { COMPONENT_TYPES } from './constants'
 
 function DraggableComponent({ type, componentData, isDragging, onDragStart, onDragEnd }) {
@@ -54,8 +51,8 @@ function DraggableComponent({ type, componentData, isDragging, onDragStart, onDr
 
 export default function ComponentList({ draggedType, setDraggedType }) {
     return (
-        <div style={{ 
-            flexShrink: 0, 
+        <div style={{
+            flexShrink: 0,
             background: 'hsl(var(--card))',
             border: '1px solid hsl(var(--border))',
             borderRadius: '8px',
@@ -70,10 +67,10 @@ export default function ComponentList({ draggedType, setDraggedType }) {
                 gap: '0.5rem',
                 color: 'hsl(var(--foreground))'
             }}>
-                <div style={{ 
-                    border: '2px solid hsl(var(--foreground))', 
-                    width: '14px', 
-                    height: '14px', 
+                <div style={{
+                    border: '2px solid hsl(var(--foreground))',
+                    width: '14px',
+                    height: '14px',
                     borderRadius: '2px'
                 }}></div>
                 Components

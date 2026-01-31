@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Image, Globe, Download, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'

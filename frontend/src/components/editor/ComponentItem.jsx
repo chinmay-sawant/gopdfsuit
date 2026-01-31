@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react'
-import { Table, FileText, Minus, Image as ImageIcon, ChevronUp, ChevronDown, X, GripVertical } from 'lucide-react'
+import { useState } from 'react'
+import { Image as ImageIcon, ChevronUp, ChevronDown, X, GripVertical } from 'lucide-react'
 import { getStyleFromProps, getUsableWidth, getImageSrc } from './utils'
 
 export default function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop, currentPageSize }) {
-    const [isResizing, setIsResizing] = useState(false)
+    const [, setIsResizing] = useState(false)
 
     const handleClick = (e) => {
         e.stopPropagation()
@@ -44,7 +44,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
 
     const renderContent = () => {
         switch (element.type) {
-            case 'title':
+            case 'title': {
                 // Title now uses an embedded table structure for logo + text support
                 const MARGIN_TITLE = 72
                 const getUsableWidthTitle = (pageWidth) => pageWidth - (2 * MARGIN_TITLE)
@@ -63,35 +63,62 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     }]
                 }
 
-                // Helper to get normalized column weight for title table
-                const getNormalizedColWeightTitle = (colIdx) => {
-                    const rawWeights = titleTable.columnwidths && titleTable.columnwidths.length === titleTable.maxcolumns
-                        ? titleTable.columnwidths
-                        : Array(titleTable.maxcolumns).fill(1)
-                    const total = rawWeights.reduce((sum, w) => sum + w, 0)
-                    return rawWeights[colIdx] / total
-                }
+                // Normalize column weights for title table
+                const rawWeightsTitle = titleTable.columnwidths && titleTable.columnwidths.length === titleTable.maxcolumns
+                    ? titleTable.columnwidths
+                    : Array(titleTable.maxcolumns).fill(1)
+                const totalWeightTitle = rawWeightsTitle.reduce((sum, w) => sum + w, 0)
+                const colWeightsTitle = rawWeightsTitle.map(w => w / totalWeightTitle)
 
-                // Per-cell width resize handler for title table
+                // Column width resize handler for title table - per-cell width adjustment
                 const handleTitleCellWidthResizeStart = (e, rowIdx, colIdx) => {
                     e.preventDefault()
                     e.stopPropagation()
                     const startX = e.clientX
-                    const cell = titleTable.rows[rowIdx].row[colIdx]
-                    const startWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+                    const numCols = titleTable.maxcolumns || 3
+                    const row = titleTable.rows[rowIdx]
+
+                    // Get current widths for this specific row (use cell.width if set, otherwise column default)
+                    const currentRowWidths = row.row.map((cell, idx) =>
+                        cell.width !== undefined ? cell.width : (usableWidthForTitle * colWeightsTitle[idx])
+                    )
+                    const startWidth = currentRowWidths[colIdx]
+
+                    // Determine which adjacent column will compensate
+                    const adjacentColIdx = colIdx < numCols - 1 ? colIdx + 1 : colIdx - 1
+                    const adjacentStartWidth = currentRowWidths[adjacentColIdx]
+                    const minCellWidth = 30
 
                     const onMouseMove = (me) => {
                         const dx = me.clientX - startX
-                        let newWidth = Math.max(30, startWidth + dx)
 
+                        let newWidth = startWidth + dx
+                        let adjacentNewWidth = adjacentStartWidth - dx
+
+                        // Enforce minimum widths
+                        if (newWidth < minCellWidth) {
+                            newWidth = minCellWidth
+                            adjacentNewWidth = startWidth + adjacentStartWidth - minCellWidth
+                        }
+                        if (adjacentNewWidth < minCellWidth) {
+                            adjacentNewWidth = minCellWidth
+                            newWidth = startWidth + adjacentStartWidth - minCellWidth
+                        }
+
+                        // Update only this specific row's cell widths
                         const newRows = [...titleTable.rows]
                         newRows[rowIdx] = {
                             ...newRows[rowIdx],
-                            row: newRows[rowIdx].row.map((c, idx) =>
-                                idx === colIdx ? { ...c, width: newWidth } : c
-                            )
+                            row: newRows[rowIdx].row.map((c, idx) => {
+                                if (idx === colIdx) {
+                                    return { ...c, width: newWidth }
+                                } else if (idx === adjacentColIdx) {
+                                    return { ...c, width: adjacentNewWidth }
+                                }
+                                // Preserve existing width or set default for other cells
+                                return c.width !== undefined ? c : { ...c, width: currentRowWidths[idx] }
+                            })
                         }
-
                         onUpdate({ table: { ...titleTable, rows: newRows } })
                     }
                     const onMouseUp = () => {
@@ -177,19 +204,19 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     <div style={{
                         borderRadius: '4px',
                         background: 'white',
-                        overflowX: 'auto'
+                        overflow: 'hidden'
                     }}>
-                        <table style={{ borderCollapse: 'collapse', borderSpacing: '0', width: '100%' }}>
-                            <tbody>
+                        {/* Use div-based layout for per-cell width control */
+                            <div style={{ width: `${usableWidthForTitle}px` }}>
                                 {titleTable.rows?.map((row, rowIdx) => (
-                                    <tr key={rowIdx} style={{ position: 'relative' }}>
+                                    <div key={rowIdx} style={{ display: 'flex', position: 'relative' }}>
                                         {row.row?.map((cell, colIdx) => {
                                             const cellStyle = getStyleFromProps(cell.props)
                                             // Fix: Check elementId to prevent highlighting title when other tables are selected
                                             const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
                                             // Use individual cell width if set, otherwise use column-based width
-                                            const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * getNormalizedColWeightTitle(colIdx))
+                                            const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTitle * colWeightsTitle[colIdx])
                                             const cellHeight = cell.height || 50
 
                                             const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
@@ -199,7 +226,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                             const titleCellBgColor = cell.bgcolor || element.bgcolor || '#fff'
 
                                             return (
-                                                <td
+                                                <div
                                                     key={colIdx}
                                                     style={{
                                                         borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
@@ -210,14 +237,16 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         width: `${cellWidth}px`,
                                                         height: `${cellHeight}px`,
                                                         minHeight: '30px',
-                                                        verticalAlign: 'middle',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
                                                         overflow: 'hidden',
                                                         backgroundColor: titleCellBgColor,
                                                         cursor: 'pointer',
                                                         position: 'relative',
                                                         boxSizing: 'border-box',
                                                         outline: isCellSelected ? '2px solid #3b82f6' : 'none',
-                                                        outlineOffset: '-2px'
+                                                        outlineOffset: '-2px',
+                                                        flexShrink: 0
                                                     }}
                                                     onClick={(e) => {
                                                         e.stopPropagation()
@@ -379,52 +408,84 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         }}
                                                         title="Drag to resize height"
                                                     />
-                                                </td>
+                                                </div>
                                             )
                                         })}
-                                    </tr>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+                        }
                     </div>
                 )
-            case 'table':
+            }
+            case 'table': {
                 // Get page dimensions for width calculations
-                const MARGIN = 72
                 // Use passed currentPageSize prop
                 const usableWidthForTable = getUsableWidth(currentPageSize.width)
 
-                // Helper to get normalized column weight
-                const getNormalizedColWeight = (colIdx) => {
-                    const rawWeights = element.columnwidths && element.columnwidths.length === element.maxcolumns
-                        ? element.columnwidths
-                        : Array(element.maxcolumns).fill(1)
-                    const total = rawWeights.reduce((sum, w) => sum + w, 0)
-                    return rawWeights[colIdx] / total
-                }
+                // Normalize columnwidths so they represent fractions that sum to 1
+                const rawColWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
+                    ? element.columnwidths
+                    : Array(element.maxcolumns).fill(1)
+                const totalWeight = rawColWidths.reduce((sum, w) => sum + w, 0)
+                const colWeights = rawColWidths.map(w => w / totalWeight)
 
-                // Per-cell width resize handler - affects only individual cell
+                // Per-cell width resize handler - affects only individual cell in that specific row
+                // Adjusts the cell width and the adjacent cell compensates to maintain row total
                 const handleCellWidthResizeStart = (e, rowIdx, colIdx) => {
                     e.preventDefault()
                     e.stopPropagation()
+                    setIsResizing(true)
                     const startX = e.clientX
-                    const cell = element.rows[rowIdx].row[colIdx]
-                    const startWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
+                    const numCols = element.maxcolumns || 3
+                    const row = element.rows[rowIdx]
+
+                    // Get current widths for this specific row (use cell.width if set, otherwise column default)
+                    const currentRowWidths = row.row.map((cell, idx) =>
+                        cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[idx])
+                    )
+                    const startWidth = currentRowWidths[colIdx]
+
+                    // Determine which adjacent column will compensate
+                    const adjacentColIdx = colIdx < numCols - 1 ? colIdx + 1 : colIdx - 1
+                    const adjacentStartWidth = currentRowWidths[adjacentColIdx]
+                    const minCellWidth = 30 // Minimum cell width in pixels
 
                     const onMouseMove = (me) => {
                         const dx = me.clientX - startX
-                        const newWidth = Math.max(30, startWidth + dx)
 
+                        // Calculate new widths ensuring minimums are respected
+                        let newWidth = startWidth + dx
+                        let adjacentNewWidth = adjacentStartWidth - dx
+
+                        // Enforce minimum widths
+                        if (newWidth < minCellWidth) {
+                            newWidth = minCellWidth
+                            adjacentNewWidth = startWidth + adjacentStartWidth - minCellWidth
+                        }
+                        if (adjacentNewWidth < minCellWidth) {
+                            adjacentNewWidth = minCellWidth
+                            newWidth = startWidth + adjacentStartWidth - minCellWidth
+                        }
+
+                        // Update only this specific row's cell widths
                         const newRows = [...element.rows]
                         newRows[rowIdx] = {
                             ...newRows[rowIdx],
-                            row: newRows[rowIdx].row.map((c, idx) =>
-                                idx === colIdx ? { ...c, width: newWidth } : c
-                            )
+                            row: newRows[rowIdx].row.map((c, idx) => {
+                                if (idx === colIdx) {
+                                    return { ...c, width: newWidth }
+                                } else if (idx === adjacentColIdx) {
+                                    return { ...c, width: adjacentNewWidth }
+                                }
+                                // Preserve existing width or set default for other cells in this row
+                                return c.width !== undefined ? c : { ...c, width: currentRowWidths[idx] }
+                            })
                         }
                         onUpdate({ rows: newRows })
                     }
                     const onMouseUp = () => {
+                        setIsResizing(false)
                         window.removeEventListener('mousemove', onMouseMove)
                         window.removeEventListener('mouseup', onMouseUp)
                     }
@@ -432,7 +493,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     window.addEventListener('mouseup', onMouseUp)
                 }
 
-                // Per-cell height resize handler
+                // Per-cell height resize handler - updates all cells in the row
                 const handleCellHeightResizeStart = (e, rowIdx, colIdx) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -444,13 +505,11 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         const dy = me.clientY - startY
                         const newHeight = Math.max(20, startHeight + dy)
 
-                        // Update only this specific cell's height
+                        // Update all cells in this row to have the same height
                         const newRows = [...element.rows]
                         newRows[rowIdx] = {
                             ...newRows[rowIdx],
-                            row: newRows[rowIdx].row.map((c, idx) =>
-                                idx === colIdx ? { ...c, height: newHeight } : c
-                            )
+                            row: newRows[rowIdx].row.map(c => ({ ...c, height: newHeight }))
                         }
                         onUpdate({ rows: newRows })
                     }
@@ -461,129 +520,106 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                     window.addEventListener('mousemove', onMouseMove)
                     window.addEventListener('mouseup', onMouseUp)
                 }
-                // Normalize columnwidths so they represent fractions that sum to 1
-                const rawColWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
-                    ? element.columnwidths
-                    : Array(element.maxcolumns).fill(1)
-                const totalWeight = rawColWidths.reduce((sum, w) => sum + w, 0)
-                const colWeights = rawColWidths.map(w => w / totalWeight)
+
+                // Calculate total table width (sum of all column default widths)
+                const totalTableWidth = usableWidthForTable
+
                 return (
-                    <div style={{ borderRadius: '4px', padding: '10px', overflowX: 'auto', background: 'white' }}>
-                        <table style={{ borderCollapse: 'collapse', borderSpacing: '0', width: '100%' }}>
-                            <tbody>
-                                {element.rows?.map((row, rowIdx) => (
-                                    <tr key={rowIdx} style={{ position: 'relative' }}>
-                                        {row.row?.map((cell, colIdx) => {
-                                            const cellStyle = getStyleFromProps(cell.props)
-                                            const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
+                    <div style={{ borderRadius: '4px', padding: '10px', overflow: 'hidden', background: 'white' }}>
+                        {/* Use div-based layout for per-cell width control */
+                            <div style={{ width: `${totalTableWidth}px` }}>
+                                {element.rows?.map((row, rowIdx) => {
+                                    // Check if any cell in this row has wrap explicitly enabled
+                                    const hasWrappedCell = row.row?.some(cell => cell.wrap === true)
 
-                                            // Use individual cell width if set, otherwise use column-based width
-                                            const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
-                                            const cellHeight = cell.height || 25
+                                    return (
+                                        <div key={rowIdx} style={{ display: 'flex', position: 'relative', alignItems: hasWrappedCell ? 'stretch' : 'stretch' }}>
+                                            {row.row?.map((cell, colIdx) => {
+                                                const cellStyle = getStyleFromProps(cell.props)
+                                                const isCellSelected = selectedCell && selectedCell.elementId === element.id && selectedCell.rowIdx === rowIdx && selectedCell.colIdx === colIdx
 
-                                            // Determine background color: use cell's or table's bg color, or default white
-                                            const cellBgColor = cell.bgcolor || element.bgcolor || '#fff'
+                                                // Use individual cell width if set, otherwise use column-based width
+                                                const cellWidth = cell.width !== undefined ? cell.width : (usableWidthForTable * colWeights[colIdx])
+                                                const baseHeight = cell.height || 25
+                                                // Wrap is opt-in (only enabled when explicitly set to true)
+                                                const isWrapEnabled = cell.wrap === true
 
-                                            // Determine text color: cell textcolor > table textcolor > default black
-                                            const cellTextColor = cell.textcolor || element.textcolor || '#000'
+                                                // Determine background color: use cell's or table's bg color, or default white
+                                                const cellBgColor = cell.bgcolor || element.bgcolor || '#fff'
 
-                                            // Ensure borders are visible - use explicit border if cell has border props
-                                            const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
-                                                cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
+                                                // Determine text color: cell textcolor > table textcolor > default black
+                                                const cellTextColor = cell.textcolor || element.textcolor || '#000'
 
-                                            const tdStyle = {
-                                                borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
-                                                borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
-                                                borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
-                                                borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
-                                                padding: '4px 8px',
-                                                width: `${cellWidth}px`,
-                                                height: `${cellHeight}px`,
-                                                minHeight: '20px',
-                                                verticalAlign: 'middle',
-                                                overflow: 'hidden',
-                                                backgroundColor: cellBgColor,
-                                                cursor: 'pointer',
-                                                position: 'relative',
-                                                boxSizing: 'border-box',
-                                                outline: isCellSelected ? '2px solid #3b82f6' : 'none',
-                                                outlineOffset: '-2px'
-                                            }
-                                            const inputStyle = {
-                                                fontSize: cellStyle.fontSize,
-                                                textAlign: cellStyle.textAlign,
-                                                fontWeight: cellStyle.fontWeight,
-                                                fontStyle: cellStyle.fontStyle,
-                                                textDecoration: cellStyle.textDecoration,
-                                                width: '100%',
-                                                height: '100%',
-                                                border: 'none',
-                                                background: 'transparent',
-                                                padding: '2px',
-                                                color: cellTextColor,
-                                                outline: 'none'
-                                            }
-                                            return (
-                                                <td
-                                                    key={colIdx}
-                                                    style={tdStyle}
-                                                    onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
-                                                    onDragOver={(e) => {
-                                                        if (draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') {
+                                                // Ensure borders are visible - use explicit border if cell has border props
+                                                const hasBorder = cellStyle.borderLeftWidth !== '0px' || cellStyle.borderRightWidth !== '0px' ||
+                                                    cellStyle.borderTopWidth !== '0px' || cellStyle.borderBottomWidth !== '0px'
+
+                                                const cellContainerStyle = {
+                                                    borderLeft: hasBorder ? `${cellStyle.borderLeftWidth} solid #333` : 'none',
+                                                    borderRight: hasBorder ? `${cellStyle.borderRightWidth} solid #333` : 'none',
+                                                    borderTop: hasBorder ? `${cellStyle.borderTopWidth} solid #333` : 'none',
+                                                    borderBottom: hasBorder ? `${cellStyle.borderBottomWidth} solid #333` : 'none',
+                                                    padding: '4px 8px',
+                                                    width: `${cellWidth}px`,
+                                                    minHeight: `${baseHeight}px`,
+                                                    display: 'flex',
+                                                    alignItems: isWrapEnabled ? 'flex-start' : 'center',
+                                                    overflow: isWrapEnabled ? 'visible' : 'hidden',
+                                                    backgroundColor: cellBgColor,
+                                                    cursor: 'pointer',
+                                                    position: 'relative',
+                                                    boxSizing: 'border-box',
+                                                    outline: isCellSelected ? '2px solid #3b82f6' : 'none',
+                                                    outlineOffset: '-2px',
+                                                    flexShrink: 0
+                                                }
+                                                const inputStyle = {
+                                                    fontSize: cellStyle.fontSize,
+                                                    textAlign: cellStyle.textAlign,
+                                                    fontWeight: cellStyle.fontWeight,
+                                                    fontStyle: cellStyle.fontStyle,
+                                                    textDecoration: cellStyle.textDecoration,
+                                                    width: '100%',
+                                                    height: isWrapEnabled ? 'auto' : '100%',
+                                                    minHeight: isWrapEnabled ? `${baseHeight - 8}px` : 'auto',
+                                                    border: 'none',
+                                                    background: 'transparent',
+                                                    padding: '2px',
+                                                    color: cellTextColor,
+                                                    outline: 'none',
+                                                    resize: 'none',
+                                                    // Wrap-related styles
+                                                    whiteSpace: isWrapEnabled ? 'pre-wrap' : 'nowrap',
+                                                    wordWrap: isWrapEnabled ? 'break-word' : 'normal',
+                                                    overflowWrap: isWrapEnabled ? 'break-word' : 'normal'
+                                                }
+                                                return (
+                                                    <div
+                                                        key={colIdx}
+                                                        style={cellContainerStyle}
+                                                        onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
+                                                        onDragOver={(e) => {
+                                                            if (draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') {
+                                                                e.preventDefault()
+                                                                e.stopPropagation()
+                                                            }
+                                                        }}
+                                                        onDrop={(e) => {
                                                             e.preventDefault()
                                                             e.stopPropagation()
-                                                        }
-                                                    }}
-                                                    onDrop={(e) => {
-                                                        e.preventDefault()
-                                                        e.stopPropagation()
-                                                        const draggedData = e.dataTransfer.getData('text/plain')
-                                                        if (draggedData === 'checkbox' || draggedData === 'image' || draggedData === 'radio' || draggedData === 'text_input' || draggedData === 'hyperlink') {
-                                                            handleCellDrop(element, element.id, onUpdate, rowIdx, colIdx, draggedData)
-                                                        }
-                                                    }}
-                                                    className={(draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') ? 'drop-target' : ''}
-                                                >
-                                                    {cell.form_field ? (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '2px', width: '100%' }}>
-                                                            {cell.form_field.type === 'text' ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={cell.form_field.value || ''}
-                                                                    onChange={(e) => {
-                                                                        e.stopPropagation()
-                                                                        const newRows = [...element.rows]
-                                                                        newRows[rowIdx].row[colIdx] = {
-                                                                            ...newRows[rowIdx].row[colIdx],
-                                                                            form_field: {
-                                                                                ...cell.form_field,
-                                                                                value: e.target.value
-                                                                            }
-                                                                        }
-                                                                        onUpdate({ rows: newRows })
-                                                                    }}
-                                                                    placeholder={cell.form_field.name}
-                                                                    style={{
-                                                                        width: '100%',
-                                                                        height: '100%',
-                                                                        border: 'none',
-                                                                        borderRadius: '0',
-                                                                        fontSize: '10px',
-                                                                        padding: '4px',
-                                                                        background: 'transparent',
-                                                                        color: '#000'
-                                                                    }}
-                                                                    onFocus={() => handleCellClick(rowIdx, colIdx)}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        handleCellClick(rowIdx, colIdx)
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                            const draggedData = e.dataTransfer.getData('text/plain')
+                                                            if (draggedData === 'checkbox' || draggedData === 'image' || draggedData === 'radio' || draggedData === 'text_input' || draggedData === 'hyperlink') {
+                                                                handleCellDrop(element, element.id, onUpdate, rowIdx, colIdx, draggedData)
+                                                            }
+                                                        }}
+                                                        className={(draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') ? 'drop-target' : ''}
+                                                    >
+                                                        {cell.form_field ? (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '2px', width: '100%' }}>
+                                                                {cell.form_field.type === 'text' ? (
                                                                     <input
-                                                                        type={cell.form_field.type === 'radio' ? 'radio' : 'checkbox'}
-                                                                        checked={cell.form_field.checked}
+                                                                        type="text"
+                                                                        value={cell.form_field.value || ''}
                                                                         onChange={(e) => {
                                                                             e.stopPropagation()
                                                                             const newRows = [...element.rows]
@@ -591,135 +627,191 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                                                 ...newRows[rowIdx].row[colIdx],
                                                                                 form_field: {
                                                                                     ...cell.form_field,
-                                                                                    checked: e.target.checked
+                                                                                    value: e.target.value
                                                                                 }
                                                                             }
                                                                             onUpdate({ rows: newRows })
+                                                                        }}
+                                                                        placeholder={cell.form_field.name}
+                                                                        style={{
+                                                                            width: '100%',
+                                                                            height: '100%',
+                                                                            border: 'none',
+                                                                            borderRadius: '0',
+                                                                            fontSize: '10px',
+                                                                            padding: '4px',
+                                                                            background: 'transparent',
+                                                                            color: '#000'
                                                                         }}
                                                                         onFocus={() => handleCellClick(rowIdx, colIdx)}
                                                                         onClick={(e) => {
                                                                             e.stopPropagation()
                                                                             handleCellClick(rowIdx, colIdx)
                                                                         }}
-                                                                        style={{ cursor: 'pointer' }}
                                                                     />
-                                                                    <span style={{ fontSize: '9px', color: 'hsl(var(--muted-foreground))' }}>{cell.form_field.name}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : cell.chequebox !== undefined ? (
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={cell.chequebox}
-                                                            onChange={(e) => {
-                                                                e.stopPropagation()
-                                                                const newRows = [...element.rows]
-                                                                newRows[rowIdx].row[colIdx] = {
-                                                                    ...newRows[rowIdx].row[colIdx],
-                                                                    chequebox: e.target.checked
-                                                                }
-                                                                onUpdate({ rows: newRows })
+                                                                ) : (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                                        <input
+                                                                            type={cell.form_field.type === 'radio' ? 'radio' : 'checkbox'}
+                                                                            checked={cell.form_field.checked}
+                                                                            onChange={(e) => {
+                                                                                e.stopPropagation()
+                                                                                const newRows = [...element.rows]
+                                                                                newRows[rowIdx].row[colIdx] = {
+                                                                                    ...newRows[rowIdx].row[colIdx],
+                                                                                    form_field: {
+                                                                                        ...cell.form_field,
+                                                                                        checked: e.target.checked
+                                                                                    }
+                                                                                }
+                                                                                onUpdate({ rows: newRows })
+                                                                            }}
+                                                                            onFocus={() => handleCellClick(rowIdx, colIdx)}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                handleCellClick(rowIdx, colIdx)
+                                                                            }}
+                                                                            style={{ cursor: 'pointer' }}
+                                                                        />
+                                                                        <span style={{ fontSize: '9px', color: 'hsl(var(--muted-foreground))' }}>{cell.form_field.name}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : cell.chequebox !== undefined ? (
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={cell.chequebox}
+                                                                onChange={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const newRows = [...element.rows]
+                                                                    newRows[rowIdx].row[colIdx] = {
+                                                                        ...newRows[rowIdx].row[colIdx],
+                                                                        chequebox: e.target.checked
+                                                                    }
+                                                                    onUpdate({ rows: newRows })
+                                                                }}
+                                                                onFocus={() => handleCellClick(rowIdx, colIdx)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleCellClick(rowIdx, colIdx)
+                                                                }}
+                                                                style={inputStyle}
+                                                            />
+                                                        ) : cell.image !== undefined ? (
+                                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px' }}>
+                                                                {cell.image.imagedata ? (
+                                                                    <img
+                                                                        src={getImageSrc(cell.image.imagedata, cell.image.imagename)}
+                                                                        alt={cell.image.imagename || 'Cell Image'}
+                                                                        style={{
+                                                                            maxWidth: '100%',
+                                                                            maxHeight: cell.image.height || 80,
+                                                                            objectFit: 'contain'
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <div style={{
+                                                                        display: 'flex',
+                                                                        flexDirection: 'column',
+                                                                        alignItems: 'center',
+                                                                        padding: '8px',
+                                                                        fontSize: '10px',
+                                                                        color: 'hsl(var(--muted-foreground))'
+                                                                    }}>
+                                                                        <ImageIcon size={16} />
+                                                                        <span>No image</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : isWrapEnabled ? (
+                                                            <textarea
+                                                                value={cell.text || ''}
+                                                                onChange={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const newRows = [...element.rows]
+                                                                    newRows[rowIdx].row[colIdx] = {
+                                                                        ...newRows[rowIdx].row[colIdx],
+                                                                        text: e.target.value
+                                                                    }
+                                                                    onUpdate({ rows: newRows })
+                                                                }}
+                                                                onFocus={() => handleCellClick(rowIdx, colIdx)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleCellClick(rowIdx, colIdx)
+                                                                }}
+                                                                style={inputStyle}
+                                                                rows={Math.max(1, Math.ceil((cell.text || '').length / 20))}
+                                                            />
+                                                        ) : (
+                                                            <input
+                                                                type="text"
+                                                                value={cell.text || ''}
+                                                                onChange={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const newRows = [...element.rows]
+                                                                    newRows[rowIdx].row[colIdx] = {
+                                                                        ...newRows[rowIdx].row[colIdx],
+                                                                        text: e.target.value
+                                                                    }
+                                                                    onUpdate({ rows: newRows })
+                                                                }}
+                                                                onFocus={() => handleCellClick(rowIdx, colIdx)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleCellClick(rowIdx, colIdx)
+                                                                }}
+                                                                style={inputStyle}
+                                                            />
+                                                        )}
+                                                        {/* Cell width resize handle - show on all cells */}
+                                                        <div
+                                                            onMouseDown={(e) => handleCellWidthResizeStart(e, rowIdx, colIdx)}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: 0,
+                                                                right: '-3px',
+                                                                width: '6px',
+                                                                height: '100%',
+                                                                cursor: 'col-resize',
+                                                                zIndex: 5,
+                                                                userSelect: 'none',
+                                                                background: isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'
                                                             }}
-                                                            onFocus={() => handleCellClick(rowIdx, colIdx)}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                handleCellClick(rowIdx, colIdx)
-                                                            }}
-                                                            style={inputStyle}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(199 89% 48% / 0.5)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'}
+                                                            title="Drag to resize this cell width"
                                                         />
-                                                    ) : cell.image !== undefined ? (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px' }}>
-                                                            {cell.image.imagedata ? (
-                                                                <img
-                                                                    src={getImageSrc(cell.image.imagedata, cell.image.imagename)}
-                                                                    alt={cell.image.imagename || 'Cell Image'}
-                                                                    style={{
-                                                                        maxWidth: '100%',
-                                                                        maxHeight: cell.image.height || 80,
-                                                                        objectFit: 'contain'
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <div style={{
-                                                                    display: 'flex',
-                                                                    flexDirection: 'column',
-                                                                    alignItems: 'center',
-                                                                    padding: '8px',
-                                                                    fontSize: '10px',
-                                                                    color: 'hsl(var(--muted-foreground))'
-                                                                }}>
-                                                                    <ImageIcon size={16} />
-                                                                    <span>No image</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <input
-                                                            type="text"
-                                                            value={cell.text || ''}
-                                                            onChange={(e) => {
-                                                                e.stopPropagation()
-                                                                const newRows = [...element.rows]
-                                                                newRows[rowIdx].row[colIdx] = {
-                                                                    ...newRows[rowIdx].row[colIdx],
-                                                                    text: e.target.value
-                                                                }
-                                                                onUpdate({ rows: newRows })
+                                                        {/* Cell height resize handle (all cells) */}
+                                                        <div
+                                                            onMouseDown={(e) => handleCellHeightResizeStart(e, rowIdx, colIdx)}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                bottom: '-3px',
+                                                                left: 0,
+                                                                width: '100%',
+                                                                height: '6px',
+                                                                cursor: 'row-resize',
+                                                                zIndex: 4,
+                                                                userSelect: 'none',
+                                                                background: 'transparent'
                                                             }}
-                                                            onFocus={() => handleCellClick(rowIdx, colIdx)}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                handleCellClick(rowIdx, colIdx)
-                                                            }}
-                                                            style={inputStyle}
+                                                            onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(142 71% 45% / 0.5)'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                                            title="Drag to resize cell height"
                                                         />
-                                                    )}
-                                                    {/* Cell width resize handle - show on all cells */}
-                                                    <div
-                                                        onMouseDown={(e) => handleCellWidthResizeStart(e, rowIdx, colIdx)}
-                                                        style={{
-                                                            position: 'absolute',
-                                                            top: 0,
-                                                            right: '-3px',
-                                                            width: '6px',
-                                                            height: '100%',
-                                                            cursor: 'col-resize',
-                                                            zIndex: 5,
-                                                            userSelect: 'none',
-                                                            background: isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(199 89% 48% / 0.5)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = isCellSelected ? 'hsl(199 89% 48% / 0.3)' : 'transparent'}
-                                                        title="Drag to resize this cell width"
-                                                    />
-                                                    {/* Cell height resize handle (all cells) */}
-                                                    <div
-                                                        onMouseDown={(e) => handleCellHeightResizeStart(e, rowIdx, colIdx)}
-                                                        style={{
-                                                            position: 'absolute',
-                                                            bottom: '-3px',
-                                                            left: 0,
-                                                            width: '100%',
-                                                            height: '6px',
-                                                            cursor: 'row-resize',
-                                                            zIndex: 4,
-                                                            userSelect: 'none',
-                                                            background: 'transparent'
-                                                        }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'hsl(142 71% 45% / 0.5)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                                        title="Drag to resize cell height"
-                                                    />
-                                                </td>
-                                            )
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        }
                     </div>
                 )
-            case 'footer':
+            }
+            case 'footer': {
                 const footerStyle = getStyleFromProps(element.props)
                 return (
                     <div style={{
@@ -755,6 +847,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                         />
                     </div>
                 )
+            }
             case 'spacer':
                 return (
                     <div style={{

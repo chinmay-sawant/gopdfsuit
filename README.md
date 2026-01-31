@@ -5,6 +5,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=flat&logo=docker)](https://hub.docker.com/)
 [![gochromedp](https://img.shields.io/badge/gochromedp-1.0+-00ADD8?style=flat)](https://github.com/chinmay-sawant/gochromedp)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/chinmay-sawant/gopdfsuit)
 
 > 🚀 A powerful Go web service for template-based PDF generation with multi-page support, PDF merging, form filling, and HTML to PDF/Image conversion.
 
@@ -456,7 +457,7 @@ Uses byte-oriented approach with `/NeedAppearances true`. Works for most AcroFor
 <details>
 <summary><b>Performance benchmarks?</b></summary>
 
-Sub-millisecond to 1.7ms response times for 2-page documents. In-memory processing with zero external dependencies.
+Sub-millisecond to ~7ms response times for complex 2-page financial reports. In-memory processing with zero external dependencies.
 </details>
 
 ---

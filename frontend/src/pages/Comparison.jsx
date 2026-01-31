@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CheckCircle,
@@ -10,7 +10,6 @@ import {
   Code,
   Globe,
   Star,
-  ArrowLeft,
   Shield,
   FileText,
   Sparkles,
@@ -22,6 +21,11 @@ import BackgroundAnimation from '../components/BackgroundAnimation'
 const Comparison = () => {
   const [isVisible, setIsVisible] = useState({})
   const [activeCategory, setActiveCategory] = useState('all')
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
 
   // Intersection Observer for scroll animations
   useEffect(() => {
@@ -48,7 +52,7 @@ const Comparison = () => {
       name: 'GoPdfSuit',
       isOurs: true,
       pricing: 'Free (MIT License)',
-      performance: 'Ultra Fast (1.9ms - 42ms)',
+      performance: 'Ultra Fast (Sub-ms - ~7ms)',
       deployment: 'Microservice/Sidecar/Docker',
       memory: 'In-Memory Processing',
       integration: 'REST API (Language Agnostic)',
@@ -198,7 +202,7 @@ const Comparison = () => {
     ? features
     : features.filter(f => f.category === activeCategory)
 
-  const getFeatureStatus = (value, isOurs) => {
+  const getFeatureStatus = (value) => {
     const lowerValue = value.toLowerCase()
     if (lowerValue.includes('not supported') || lowerValue === 'none' || lowerValue.includes('deprecated') || lowerValue.includes('n/a')) {
       return 'negative'
@@ -387,7 +391,7 @@ const Comparison = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {filteredFeatures.filter(f => f.key !== 'pricing').map((feature) => {
                     const value = competitor[feature.key]
-                    const status = getFeatureStatus(value, competitor.isOurs)
+                    const status = getFeatureStatus(value)
 
                     return (
                       <div
@@ -512,7 +516,7 @@ const Comparison = () => {
               {
                 icon: <Zap size={28} />,
                 title: 'Ultra Fast Performance',
-                description: 'Sub-millisecond response times (179µs-1.7ms) vs moderate performance of commercial libraries',
+                description: 'Sub-millisecond to ~7ms response times vs moderate performance of commercial libraries',
                 color: 'teal',
                 size: 'large'
               },
@@ -650,7 +654,7 @@ const Comparison = () => {
               flexWrap: 'wrap',
             }}>
               <Link
-                to="/viewer"
+                to="/editor"
                 className="btn-glow glow-on-hover"
                 style={{
                   display: 'inline-flex',

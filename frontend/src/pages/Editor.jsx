@@ -1,6 +1,5 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react'
-import { Upload, Play, Sun, Moon, Eye, Download, Info, Copy, Check, Edit } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
@@ -14,7 +13,7 @@ import PropertiesPanel from '../components/editor/PropertiesPanel'
 import JsonTemplate from '../components/editor/JsonTemplate'
 import ComponentItem from '../components/editor/ComponentItem'
 import { PAGE_SIZES, DEFAULT_FONTS, COMPONENT_TYPES } from '../components/editor/constants'
-import { getUsableWidth, getFontFamily, MARGIN } from '../components/editor/utils'
+import { getFontFamily, MARGIN } from '../components/editor/utils'
 
 import Toolbar from '../components/editor/Toolbar'
 
@@ -34,7 +33,7 @@ export default function Editor() {
   const [pdfUrl, setPdfUrl] = useState(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [fonts, setFonts] = useState(DEFAULT_FONTS)
-  const [fontsLoading, setFontsLoading] = useState(true)
+
   const [copiedId, setCopiedId] = useState(null)
   const [templateInput, setTemplateInput] = useState('')
   const canvasRef = useRef(null)
@@ -53,7 +52,6 @@ export default function Editor() {
   useEffect(() => {
     const fetchFonts = async () => {
       try {
-        setFontsLoading(true)
         const response = await makeAuthenticatedRequest(
           '/api/v1/fonts',
           {},
@@ -69,12 +67,10 @@ export default function Editor() {
         }
       } catch (error) {
         console.error('Error fetching fonts:', error)
-      } finally {
-        setFontsLoading(false)
       }
     }
     fetchFonts()
-  }, [])
+  }, [getAuthHeaders])
 
   // Get all elements in order for display
   const allElements = useMemo(() => {
@@ -287,10 +283,10 @@ export default function Editor() {
       const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = parsed
 
       // Fix embedStandardFonts loading - check both key names since templates may use either
-      const embedValue = newConfig?.embedStandardFonts !== undefined 
-        ? newConfig.embedStandardFonts 
+      const embedValue = newConfig?.embedStandardFonts !== undefined
+        ? newConfig.embedStandardFonts
         : (newConfig?.embedFonts !== undefined ? newConfig.embedFonts : undefined)
-      
+
       setConfig(prev => ({
         ...prev,
         ...(newConfig || {}),
@@ -470,10 +466,10 @@ export default function Editor() {
       const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = templateData
 
       // Fix embedStandardFonts loading - check both key names since templates may use either
-      const embedValue = newConfig?.embedStandardFonts !== undefined 
-        ? newConfig.embedStandardFonts 
+      const embedValue = newConfig?.embedStandardFonts !== undefined
+        ? newConfig.embedStandardFonts
         : (newConfig?.embedFonts !== undefined ? newConfig.embedFonts : undefined)
-      
+
       setConfig(prev => ({
         ...prev,
         ...(newConfig || {}),
@@ -574,7 +570,7 @@ export default function Editor() {
       fontFamily: getFontFamily('Helvetica')
     }}>
       {/* Header / Toolbar - Sticky Position */}
-      <div className="sticky-header" style={{ 
+      <div className="sticky-header" style={{
         position: 'sticky',
         top: 0,
         zIndex: 100,
@@ -838,7 +834,7 @@ export default function Editor() {
                             </div>
                           </div>
                         )}
-                        
+
                         <ComponentItem
                           element={element}
                           index={componentIndex >= 0 ? componentIndex : index}
@@ -859,7 +855,7 @@ export default function Editor() {
                           handleCellDrop={handleCellDrop}
                           currentPageSize={currentPageSize}
                         />
-                        
+
                         {/* Drop Zone After Last Element */}
                         {index === allElements.length - 1 && (draggedType || draggedComponentId) && (
                           <div

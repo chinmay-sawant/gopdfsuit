@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react'
-import { Edit, Settings, Trash2, ArrowLeft, ArrowRight, ArrowDown, ArrowUp } from 'lucide-react'
+import { useState } from 'react'
+import { Edit, Settings, Trash2, ArrowLeft, ArrowRight, ArrowDown } from 'lucide-react'
 import { formatProps, parseProps } from './utils'
 import { DEFAULT_FONTS } from './constants'
 
@@ -160,7 +160,6 @@ function PropsEditor({ props, onChange, fonts = DEFAULT_FONTS, showAlignment = t
 }
 
 export default function PropertiesPanel({ selectedElement, selectedCell, selectedCellElement, updateElement, deleteElement, setSelectedCell, fonts, bookmarks, setBookmarks }) {
-    const [showColorPicker, setShowColorPicker] = useState(null)
 
     // Helper function to find and update bookmark dest recursively
     const updateBookmarkDest = (bookmarkList, oldDest, newDest) => {
@@ -1128,7 +1127,7 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                     </div>
                                     {selectedCellElement.dest && existingDestinations.find(d => d.dest === selectedCellElement.dest) && (
                                         <div style={{ fontSize: '0.7rem', color: '#22c55e', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                            ✓ Linked to bookmark: "{existingDestinations.find(d => d.dest === selectedCellElement.dest)?.title}"
+                                            ✓ Linked to bookmark: &quot;{existingDestinations.find(d => d.dest === selectedCellElement.dest)?.title}&quot;
                                         </div>
                                     )}
                                     <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.25rem' }}>
@@ -1308,6 +1307,32 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                             />
                                         ))}
                                     </div>
+                                </div>
+
+                                {/* Text Wrap Toggle */}
+                                <div style={{ marginTop: '0.75rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>Text Wrap</label>
+                                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
+                                        Enable to wrap text and automatically adjust row height
+                                    </div>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCellElement.wrap === true}
+                                            onChange={(e) => {
+                                                const newRows = [...selectedElement.rows]
+                                                newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                                    ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], 
+                                                    wrap: e.target.checked ? true : undefined 
+                                                }
+                                                updateElement(selectedElement.id, { rows: newRows })
+                                            }}
+                                            style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                                        />
+                                        <span style={{ fontSize: '0.85rem', color: 'hsl(var(--foreground))' }}>
+                                            Enable auto text wrapping
+                                        </span>
+                                    </label>
                                 </div>
                             </div>
                         )}
