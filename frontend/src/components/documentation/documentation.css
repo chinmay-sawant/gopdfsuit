@@ -153,3 +153,78 @@
 .syntax-highlighter-scrollable.light::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* Documentation Content Styling */
+.doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 1rem 0;
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.doc-table th,
+.doc-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.doc-table th {
+    background: hsl(var(--muted) / 0.5);
+    font-weight: 600;
+    color: hsl(var(--foreground));
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.doc-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Compact Table Variant */
+.doc-table.compact th,
+.doc-table.compact td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.doc-content p {
+    margin-bottom: 1rem;
+    line-height: 1.7;
+}
+
+.doc-content code {
+    background: hsl(var(--muted));
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85em;
+    color: hsl(var(--primary));
+}
+
+/* Params Table Specifics */
+.param-name {
+    font-family: 'Fira Code', monospace;
+    font-weight: 600;
+    color: hsl(var(--primary));
+}
+
+.param-type {
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--muted));
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.param-required {
+    color: #ef4444;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 0.5rem;
+}

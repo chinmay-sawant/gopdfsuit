@@ -1,6 +1,80 @@
 import { CodeBlock } from './CodeBlock'
 import { useTheme } from '../../theme'
 
+// Helper to simple render markdown-like tables and text
+const renderMarkdownContent = (content) => {
+    if (!content) return null;
+
+    const lines = content.split('\n');
+    const elements = [];
+    let tableBuffer = [];
+    let textBuffer = [];
+    let inTable = false;
+
+    const flushTable = (key) => {
+        if (tableBuffer.length > 0) {
+            const headerRow = tableBuffer[0].replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+            // index 1 is usually the separator row |---|---|
+            const bodyRows = tableBuffer.slice(2).map(row =>
+                row.replace(/^\||\|$/g, '').split('|').map(c => c.trim())
+            );
+
+            elements.push(
+                <div key={key} style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
+                    <table className="doc-table compact">
+                        <thead>
+                            <tr>
+                                {headerRow.map((h, i) => <th key={i}>{h}</th>)}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {bodyRows.map((row, r_i) => (
+                                <tr key={r_i}>
+                                    {row.map((cell, c_i) => <td key={c_i}>{cell}</td>)}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+            tableBuffer = [];
+        }
+    }
+
+    const flushText = (key) => {
+        if (textBuffer.length > 0) {
+            elements.push(
+                <div key={key} className="doc-content-text" style={{ whiteSpace: 'pre-wrap', marginBottom: '1.5rem', lineHeight: '1.7' }}>
+                    {textBuffer.join('\n')}
+                </div>
+            );
+            textBuffer = [];
+        }
+    }
+
+    lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('|')) {
+            if (!inTable) {
+                flushText(`text-${index}`);
+                inTable = true;
+            }
+            tableBuffer.push(trimmed);
+        } else {
+            if (inTable) {
+                flushTable(`table-${index}`);
+                inTable = false;
+            }
+            textBuffer.push(line);
+        }
+    });
+
+    if (inTable) flushTable('table-end');
+    else flushText('text-end');
+
+    return <div className="doc-content">{elements}</div>;
+};
+
 export const DocContent = ({ item }) => {
     const { theme } = useTheme()
     const isLight = theme === 'light'
@@ -30,7 +104,7 @@ export const DocContent = ({ item }) => {
                 maxWidth: '900px'
             }}>
                 <div style={{ marginBottom: '2rem' }}>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1.5rem', lineHeight: 1.2, letterSpacing: '-0.02em' }}>{item.title}</h1>
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem', lineHeight: 1.2, letterSpacing: '-0.02em' }}>{item.title}</h1>
 
                     {item.method && (
                         <div style={{
@@ -58,38 +132,51 @@ export const DocContent = ({ item }) => {
                         </div>
                     )}
 
-                    <div style={{ fontSize: '1.05rem', lineHeight: '1.7', color: 'hsl(var(--foreground))', whiteSpace: 'pre-wrap' }}>
+                    <div style={{ fontSize: '1.1rem', lineHeight: '1.7', color: 'hsl(var(--foreground))', marginBottom: '1.5rem' }}>
                         {item.description}
                     </div>
 
-                    {item.content && (
-                        <div style={{ marginTop: '1.5rem', fontSize: '1rem', lineHeight: '1.7', color: 'hsl(var(--muted-foreground))', whiteSpace: 'pre-wrap' }}>
-                            {item.content}
-                        </div>
-                    )}
+                    {renderMarkdownContent(item.content)}
                 </div>
 
                 {item.params && item.params.length > 0 && (
                     <div style={{ marginTop: '3rem' }}>
                         <h3 style={{ fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', color: 'hsl(var(--muted-foreground))', marginBottom: '1rem', letterSpacing: '0.05em' }}>Body Parameters</h3>
-                        <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                            {item.params.map((param, index) => (
-                                <div key={index} style={{
-                                    padding: '1.25rem',
-                                    borderBottom: index < item.params.length - 1 ? '1px solid hsl(var(--border))' : 'none',
-                                    background: 'hsl(var(--card))'
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                                        <span style={{ fontWeight: '700', fontFamily: "'Fira Code', monospace", fontSize: '0.95rem' }}>{param.name}</span>
-                                        <span style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))', background: 'hsl(var(--muted))', padding: '2px 6px', borderRadius: '4px' }}>{param.type}</span>
-                                        {param.required && <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 'bold', border: '1px solid #ef4444', padding: '1px 4px', borderRadius: '3px' }}>REQUIRED</span>}
-                                    </div>
-                                    <div style={{ fontSize: '0.95rem', color: 'hsl(var(--foreground))', lineHeight: '1.5' }}>{param.description}</div>
-                                    {param.default && <div style={{ fontSize: '0.85rem', color: 'hsl(var(--muted-foreground))', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        Default: <code style={{ background: 'hsl(var(--muted))', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{param.default}</code>
-                                    </div>}
-                                </div>
-                            ))}
+                        <div style={{ overflowX: 'auto' }}>
+                            <table className="doc-table compact">
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '30%' }}>Parameter</th>
+                                        <th style={{ width: '15%' }}>Type</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {item.params.map((param, index) => (
+                                        <tr key={index}>
+                                            <td style={{ verticalAlign: 'top' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                    <span className="param-name">{param.name}</span>
+                                                    {param.required && <span className="param-required">REQUIRED</span>}
+                                                </div>
+                                            </td>
+                                            <td style={{ verticalAlign: 'top' }}>
+                                                <span className="param-type">{param.type}</span>
+                                            </td>
+                                            <td style={{ verticalAlign: 'top' }}>
+                                                <div style={{ color: 'hsl(var(--foreground))', lineHeight: '1.5' }}>
+                                                    {param.description}
+                                                </div>
+                                                {param.default && (
+                                                    <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>
+                                                        Default: <code>{param.default}</code>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 )}
