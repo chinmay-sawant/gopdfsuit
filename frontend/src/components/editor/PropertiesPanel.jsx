@@ -1308,6 +1308,32 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                         ))}
                                     </div>
                                 </div>
+
+                                {/* Text Wrap Toggle */}
+                                <div style={{ marginTop: '0.75rem' }}>
+                                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: '600', color: 'hsl(var(--foreground))' }}>Text Wrap</label>
+                                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.5rem' }}>
+                                        Enable to wrap text and automatically adjust row height
+                                    </div>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCellElement.wrap === true}
+                                            onChange={(e) => {
+                                                const newRows = [...selectedElement.rows]
+                                                newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
+                                                    ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], 
+                                                    wrap: e.target.checked ? true : undefined 
+                                                }
+                                                updateElement(selectedElement.id, { rows: newRows })
+                                            }}
+                                            style={{ width: '18px', height: '18px', accentColor: '#3b82f6', cursor: 'pointer' }}
+                                        />
+                                        <span style={{ fontSize: '0.85rem', color: 'hsl(var(--foreground))' }}>
+                                            Enable auto text wrapping
+                                        </span>
+                                    </label>
+                                </div>
                             </div>
                         )}
                     </>

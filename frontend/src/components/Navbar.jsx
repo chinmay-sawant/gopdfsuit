@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors } from 'lucide-react'
+import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors, Book } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { isAuthRequired } from '../utils/apiConfig'
@@ -27,6 +27,7 @@ const Navbar = () => {
     { path: '/htmltoimage', label: 'HTML→Image', icon: Image },
     { path: '/comparison', label: 'Comparison', icon: FileCheck },
     { path: '/screenshots', label: 'Screenshots', icon: Camera },
+    { path: '/documentation', label: 'Documentation', icon: Book },
   ]
 
   return (
@@ -53,22 +54,22 @@ const Navbar = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
+                gap: '0.4rem',
                 color: 'hsl(var(--foreground))',
                 textDecoration: 'none',
-                fontSize: '2rem',
+                fontSize: '1.5rem', /* Reduced from 2rem */
                 fontWeight: '700',
                 lineHeight: '1',
-                marginRight: '2rem',
+                marginRight: '1rem', /* Reduced from 2rem */
               }}
             >
-              <span style={{ verticalAlign: 'middle' }}>📄</span> GoPdfSuit
+              <span style={{ verticalAlign: 'middle', fontSize: '1.5rem' }}>📄</span> GoPdfSuit
             </Link>
 
             {/* Desktop Menu */}
             <div style={{
               display: 'flex',
-              gap: '0.5rem',
+              gap: '0.25rem', // Reduced gap from 0.5rem
               alignItems: 'center',
               '@media (max-width: 768px)': {
                 display: 'none',
@@ -81,12 +82,13 @@ const Navbar = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
+                    gap: '0.35rem', // Reduced from 0.5rem
                     color: location.pathname === path ? 'var(--secondary-color)' : 'hsl(var(--muted-foreground))',
                     textDecoration: 'none',
-                    padding: '0.5rem 0.75rem',
+                    padding: '0.4rem 0.5rem', // Reduced padding from 0.5rem 0.75rem
                     borderRadius: '6px',
                     transition: 'all 0.3s ease',
+                    fontSize: '0.85rem', // Reduced font size
                     background: location.pathname === path ? 'color-mix(in hsl, var(--secondary-color) 15%, transparent)' : 'transparent',
                   }}
                   onMouseEnter={(e) => {
@@ -102,7 +104,7 @@ const Navbar = () => {
                     }
                   }}
                 >
-                  <Icon size={16} />
+                  <Icon size={14} /> {/* Reduced icon size from 16 */}
                   {label}
                 </Link>
               ))}
@@ -114,11 +116,12 @@ const Navbar = () => {
                 style={{
                   background: 'transparent',
                   border: '1px solid hsl(var(--border))',
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: '8px',
+                  padding: '0.3rem 0.5rem', // Reduced padding
+                  borderRadius: '6px', // Slightly smaller radius
                   cursor: 'pointer',
                   color: 'hsl(var(--foreground))',
                   transition: 'all 0.3s ease',
+                  marginLeft: '0.25rem'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = 'hsl(var(--accent))'
@@ -129,7 +132,7 @@ const Navbar = () => {
                   e.currentTarget.style.color = 'hsl(var(--foreground))'
                 }}
               >
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} {/* Reduced icon size */}
               </button>
 
               {/* User Profile and Sign Out - only show when authenticated and auth is required */}
@@ -140,20 +143,21 @@ const Navbar = () => {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.4rem 0.6rem',
-                      borderRadius: '8px',
+                      gap: '0.4rem',
+                      padding: '0.3rem 0.5rem',
+                      borderRadius: '6px',
                       border: '1px solid hsl(var(--border))',
                       background: 'hsl(var(--card))',
-                      maxWidth: '200px'
+                      maxWidth: '160px', /* Reduced max-width */
+                      marginLeft: '0.25rem'
                     }}>
                     {user.picture && (
                       <img
                         src={user.picture}
                         alt={user.name}
                         style={{
-                          width: '28px',
-                          height: '28px',
+                          width: '24px', /* Reduced size */
+                          height: '24px',
                           borderRadius: '50%',
                           border: '1px solid hsl(var(--border))'
                         }}
@@ -161,7 +165,7 @@ const Navbar = () => {
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                       <span style={{
-                        fontSize: '0.8rem',
+                        fontSize: '0.75rem', /* Reduced font size */
                         fontWeight: '600',
                         color: 'hsl(var(--foreground))',
                         lineHeight: '1.2',
@@ -171,16 +175,7 @@ const Navbar = () => {
                       }}>
                         {user.name}
                       </span>
-                      <span style={{
-                        fontSize: '0.7rem',
-                        color: 'hsl(var(--muted-foreground))',
-                        lineHeight: '1.2',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {user.email}
-                      </span>
+                      {/* Hidden email for compactness */}
                     </div>
                   </div>
 
@@ -190,14 +185,14 @@ const Navbar = () => {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.5rem',
+                      gap: '0.4rem',
                       background: 'hsl(var(--destructive))',
                       color: 'hsl(var(--destructive-foreground))',
                       border: '1px solid hsl(var(--border))',
-                      padding: '0.4rem 0.8rem',
-                      borderRadius: '8px',
+                      padding: '0.3rem 0.6rem', /* Reduced padding */
+                      borderRadius: '6px',
                       cursor: 'pointer',
-                      fontSize: '0.875rem',
+                      fontSize: '0.75rem', /* Reduced font size */
                       fontWeight: '500',
                       transition: 'all 0.3s ease',
                       whiteSpace: 'nowrap'
@@ -209,7 +204,7 @@ const Navbar = () => {
                       e.currentTarget.style.opacity = '1'
                     }}
                   >
-                    <LogOut size={16} />
+                    <LogOut size={14} />
                     Sign Out
                   </button>
                 </>

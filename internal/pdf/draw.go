@@ -727,15 +727,59 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		// PDF/UA: Start Row Structure
 		pageManager.Structure.BeginStructureElement(StructTR)
 
+		// Pre-calculate column widths for wrapped text calculation
+		// We need to know each cell's width before calculating wrapped text height
+		cellWidthsForRow := make([]float64, len(row.Row))
+		for colIdx, cell := range row.Row {
+			if colIdx >= table.MaxColumns {
+				break
+			}
+			cellWidthsForRow[colIdx] = colWidths[colIdx]
+			if cell.Width != nil && *cell.Width > 0 {
+				cellWidthsForRow[colIdx] = *cell.Width
+			}
+		}
+
+		// Pre-calculate wrapped text lines for cells that have wrap enabled (default: enabled)
+		// This is used both for height calculation and later for rendering
+		wrappedTextLines := make([][]string, len(row.Row))
+		for colIdx, cell := range row.Row {
+			if colIdx >= table.MaxColumns {
+				break
+			}
+			// Wrap is opt-in (only enabled when explicitly set to true)
+			isWrapEnabled := cell.Wrap != nil && *cell.Wrap
+			if isWrapEnabled && cell.Text != "" {
+				cellProps := parseProps(cell.Props)
+				// Account for cell padding (5pt on each side)
+				maxTextWidth := cellWidthsForRow[colIdx] - 10
+				if maxTextWidth < 10 {
+					maxTextWidth = 10 // Minimum width to avoid issues
+				}
+				wrappedTextLines[colIdx] = WrapText(cell.Text, cellProps.FontName, float64(cellProps.FontSize), maxTextWidth)
+			}
+		}
+
 		// Determine this row's height - check if any cell in row has custom height
 		rowHeight := baseRowHeight
 		if rowIdx < len(table.RowHeights) && table.RowHeights[rowIdx] > 0 {
 			rowHeight = baseRowHeight * table.RowHeights[rowIdx]
 		}
 		// Override with max cell height if any cell specifies it
-		for _, cell := range row.Row {
+		for colIdx, cell := range row.Row {
 			if cell.Height != nil && *cell.Height > rowHeight {
 				rowHeight = *cell.Height
+			}
+			// Calculate height needed for wrapped text (opt-in)
+			isWrapEnabled := cell.Wrap != nil && *cell.Wrap
+			if isWrapEnabled && len(wrappedTextLines[colIdx]) > 0 {
+				cellProps := parseProps(cell.Props)
+				lineSpacing := 1.3 // 130% line height for readability
+				padding := 12.0    // Top + bottom padding
+				wrappedHeight := CalculateWrappedTextHeight(len(wrappedTextLines[colIdx]), float64(cellProps.FontSize), lineSpacing) + padding
+				if wrappedHeight > rowHeight {
+					rowHeight = wrappedHeight
+				}
 			}
 		}
 
@@ -991,71 +1035,125 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.WriteString("0 0 0 rg\n")
 				}
 
-				// Calculate approximate text width
-				textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize))
+				// Check if this cell has wrapped text (opt-in)
+				isWrapEnabled := cell.Wrap != nil && *cell.Wrap
+				if isWrapEnabled && len(wrappedTextLines[colIdx]) > 0 {
+					// Multi-line text rendering for wrapped cells
+					lines := wrappedTextLines[colIdx]
+					lineSpacing := 1.3
+					fontSize := float64(cellProps.FontSize)
+					lineHeight := fontSize * lineSpacing
 
-				var textX float64
-				switch cellProps.Alignment {
-				case "center":
-					// Center the text within the cell
-					textX = cellX + (cellWidth-textWidth)/2
-				case "right":
-					// Right align: position text so it ends near the right edge of cell
-					textX = cellX + cellWidth - textWidth - 5
-				default:
-					textX = cellX + 5
-				}
+					// Calculate starting Y position (top-aligned with padding)
+					topPadding := 4.0
+					startY := pageManager.CurrentYPos - topPadding - fontSize
 
-				textY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
+					for lineIdx, line := range lines {
+						if line == "" {
+							continue
+						}
 
-				// Reset text matrix and position absolutely
-				contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-				var textPosBuf []byte
-				textPosBuf = append(textPosBuf, fmtNum(textX)...)
-				textPosBuf = append(textPosBuf, ' ')
-				textPosBuf = append(textPosBuf, fmtNum(textY)...)
-				textPosBuf = append(textPosBuf, " Td\n"...)
-				contentStream.Write(textPosBuf)
+						// Calculate text width for this line
+						lineWidth := EstimateTextWidth(cellProps.FontName, line, fontSize)
 
-				// Add underline support
-				if cellProps.Underline {
-					// End text object before drawing underline
+						// Calculate X position based on alignment
+						var textX float64
+						switch cellProps.Alignment {
+						case "center":
+							textX = cellX + (cellWidth-lineWidth)/2
+						case "right":
+							textX = cellX + cellWidth - lineWidth - 5
+						default:
+							textX = cellX + 5
+						}
+
+						// Calculate Y position for this line
+						textY := startY - float64(lineIdx)*lineHeight
+
+						// Reset text matrix and position
+						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+						var textPosBuf []byte
+						textPosBuf = append(textPosBuf, fmtNum(textX)...)
+						textPosBuf = append(textPosBuf, ' ')
+						textPosBuf = append(textPosBuf, fmtNum(textY)...)
+						textPosBuf = append(textPosBuf, " Td\n"...)
+						contentStream.Write(textPosBuf)
+
+						// Render the line
+						textPosBuf = textPosBuf[:0]
+						textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, line)...)
+						textPosBuf = append(textPosBuf, " Tj\n"...)
+						contentStream.Write(textPosBuf)
+					}
 					contentStream.WriteString("ET\n")
-					contentStream.WriteString("q\n")
-					contentStream.WriteString("0.5 w\n")
-					underlineY := textY - 2
-					textWidth := float64(len(cell.Text) * cellProps.FontSize / 2)
-					var underlineBuf []byte
-					underlineBuf = append(underlineBuf, fmtNum(textX)...)
-					underlineBuf = append(underlineBuf, ' ')
-					underlineBuf = append(underlineBuf, fmtNum(underlineY)...)
-					underlineBuf = append(underlineBuf, " m "...)
-					underlineBuf = append(underlineBuf, fmtNum(textX+textWidth)...)
-					underlineBuf = append(underlineBuf, ' ')
-					underlineBuf = append(underlineBuf, fmtNum(underlineY)...)
-					underlineBuf = append(underlineBuf, " l S\n"...)
-					contentStream.Write(underlineBuf)
-					contentStream.WriteString("Q\n")
-					// Start text object again
-					contentStream.WriteString("BT\n")
-					contentStream.WriteString(getFontReference(cellProps))
-					contentStream.WriteString(" ")
-					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
-					contentStream.WriteString(" Tf\n")
+				} else {
+					// Single-line text rendering (original behavior)
+					// Calculate approximate text width
+					textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize))
+
+					var textX float64
+					switch cellProps.Alignment {
+					case "center":
+						// Center the text within the cell
+						textX = cellX + (cellWidth-textWidth)/2
+					case "right":
+						// Right align: position text so it ends near the right edge of cell
+						textX = cellX + cellWidth - textWidth - 5
+					default:
+						textX = cellX + 5
+					}
+
+					textY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
+
+					// Reset text matrix and position absolutely
 					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-					textPosBuf = textPosBuf[:0]
+					var textPosBuf []byte
 					textPosBuf = append(textPosBuf, fmtNum(textX)...)
 					textPosBuf = append(textPosBuf, ' ')
 					textPosBuf = append(textPosBuf, fmtNum(textY)...)
 					textPosBuf = append(textPosBuf, " Td\n"...)
 					contentStream.Write(textPosBuf)
-				}
 
-				textPosBuf = textPosBuf[:0]
-				textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, cell.Text)...)
-				textPosBuf = append(textPosBuf, " Tj\n"...)
-				contentStream.Write(textPosBuf)
-				contentStream.WriteString("ET\n")
+					// Add underline support
+					if cellProps.Underline {
+						// End text object before drawing underline
+						contentStream.WriteString("ET\n")
+						contentStream.WriteString("q\n")
+						contentStream.WriteString("0.5 w\n")
+						underlineY := textY - 2
+						textWidth := float64(len(cell.Text) * cellProps.FontSize / 2)
+						var underlineBuf []byte
+						underlineBuf = append(underlineBuf, fmtNum(textX)...)
+						underlineBuf = append(underlineBuf, ' ')
+						underlineBuf = append(underlineBuf, fmtNum(underlineY)...)
+						underlineBuf = append(underlineBuf, " m "...)
+						underlineBuf = append(underlineBuf, fmtNum(textX+textWidth)...)
+						underlineBuf = append(underlineBuf, ' ')
+						underlineBuf = append(underlineBuf, fmtNum(underlineY)...)
+						underlineBuf = append(underlineBuf, " l S\n"...)
+						contentStream.Write(underlineBuf)
+						contentStream.WriteString("Q\n")
+						// Start text object again
+						contentStream.WriteString("BT\n")
+						contentStream.WriteString(getFontReference(cellProps))
+						contentStream.WriteString(" ")
+						contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+						contentStream.WriteString(" Tf\n")
+						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+						textPosBuf = textPosBuf[:0]
+						textPosBuf = append(textPosBuf, fmtNum(textX)...)
+						textPosBuf = append(textPosBuf, ' ')
+						textPosBuf = append(textPosBuf, fmtNum(textY)...)
+						textPosBuf = append(textPosBuf, " Td\n"...)
+						contentStream.Write(textPosBuf)
+					}
+
+					textPosBuf = textPosBuf[:0]
+					textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, cell.Text)...)
+					textPosBuf = append(textPosBuf, " Tj\n"...)
+					contentStream.Write(textPosBuf)
+					contentStream.WriteString("ET\n")
+				}
 			}
 
 			// Draw cell borders AFTER content (so they appear on top of images)

@@ -178,7 +178,7 @@ const Home = () => {
                 "AES-128 Encryption",
                 "Multi-page Support", "Split PDFs",
                 "HTML To Image", "HTML To PDF",
-                "Private", "In-Memory"
+                "Private", "In-Memory", "Python Support via PdfClient"
               ].map((feature, i) => (
                 <span key={i} style={{
                   background: 'rgba(78, 205, 196, 0.08)',
@@ -213,7 +213,7 @@ const Home = () => {
             }}
           >
             <Link
-              to="/viewer"
+              to="/editor"
               className="btn-glow glow-on-hover"
               style={{
                 display: 'inline-flex',

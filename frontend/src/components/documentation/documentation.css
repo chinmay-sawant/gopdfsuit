@@ -1,0 +1,312 @@
+.code-block-wrapper {
+    display: flex;
+    flex-direction: column;
+    background: #1e293b;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    overflow: hidden;
+    margin-top: 1rem;
+    height: 100%;
+    min-height: 400px;
+}
+
+/* Sidebar & General Scrollbar theming */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+}
+
+.code-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: #0f172a;
+    border-bottom: 1px solid #334155;
+}
+
+.code-language-tabs {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.code-tab {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.code-tab:hover {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.code-tab.active {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+}
+
+.copy-button {
+    background: transparent;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.4rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.copy-button:hover {
+    background: #334155;
+    color: white;
+}
+
+/* Light theme overrides */
+.code-tab.light {
+    color: #475569;
+}
+
+.code-tab.light:hover {
+    color: #0f172a;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.code-tab.light.active {
+    color: #0284c7;
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.copy-button.light {
+    border: 1px solid #cbd5e1;
+    color: #64748b;
+}
+
+.copy-button.light:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+/* Syntax Highlighter Overrides */
+.syntax-highlighter-scrollable {
+    flex: 1;
+    overflow: auto !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    /* background: #1e293b !important; - REMOVED to allow inline style override */
+    padding: 1.5rem !important;
+    font-family: 'Fira Code', 'Roboto Mono', monospace !important;
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Scrollbar styling for code block */
+.syntax-highlighter-scrollable::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.syntax-highlighter-scrollable::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+.syntax-highlighter-scrollable::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+.syntax-highlighter-scrollable::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* Light Theme Scrollbar Overrides */
+.syntax-highlighter-scrollable.light::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+.syntax-highlighter-scrollable.light::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+}
+
+.syntax-highlighter-scrollable.light::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Documentation Content Styling */
+.doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin: 1rem 0;
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.doc-table th,
+.doc-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid hsl(var(--border));
+}
+
+.doc-table th {
+    background: hsl(var(--muted) / 0.5);
+    font-weight: 600;
+    color: hsl(var(--foreground));
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.doc-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Compact Table Variant */
+.doc-table.compact th,
+.doc-table.compact td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.doc-content p {
+    margin-bottom: 1rem;
+    line-height: 1.7;
+}
+
+.doc-content code {
+    background: hsl(var(--muted));
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85em;
+    color: hsl(var(--primary));
+}
+
+/* Params Table Specifics */
+.param-name {
+    font-family: 'Fira Code', monospace;
+    font-weight: 600;
+    color: hsl(var(--primary));
+}
+
+.param-type {
+    font-size: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    background: hsl(var(--muted));
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.param-required {
+    color: #ef4444;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 0.5rem;
+}
+
+/* Feature List Styling */
+.features-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    /* Single column for better fit in side panel */
+    gap: 1rem;
+    padding-bottom: 2rem;
+}
+
+@media (min-width: 1400px) {
+    .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.feature-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.feature-card:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.feature-icon-wrapper {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+}
+
+.feature-content {
+    flex: 1;
+}
+
+.feature-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    margin-bottom: 0.25rem;
+}
+
+.feature-description {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #94a3b8;
+}
+
+/* Light Mode Overrides for Features */
+.feature-card.light {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+.feature-card.light:hover {
+    background: #f8fafc;
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+}
+
+.feature-card.light .feature-title {
+    color: #0f172a;
+}
+
+.feature-card.light .feature-description {
+    color: #64748b;
+}
