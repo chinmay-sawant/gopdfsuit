@@ -213,7 +213,7 @@ const Home = () => {
             }}
           >
             <Link
-              to="/viewer"
+              to="/editor"
               className="btn-glow glow-on-hover"
               style={{
                 display: 'inline-flex',

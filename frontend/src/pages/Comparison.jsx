@@ -22,6 +22,11 @@ const Comparison = () => {
   const [isVisible, setIsVisible] = useState({})
   const [activeCategory, setActiveCategory] = useState('all')
 
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   // Intersection Observer for scroll animations
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -47,7 +52,7 @@ const Comparison = () => {
       name: 'GoPdfSuit',
       isOurs: true,
       pricing: 'Free (MIT License)',
-      performance: 'Ultra Fast (1.9ms - 42ms)',
+      performance: 'Ultra Fast (Sub-ms - ~7ms)',
       deployment: 'Microservice/Sidecar/Docker',
       memory: 'In-Memory Processing',
       integration: 'REST API (Language Agnostic)',
@@ -511,7 +516,7 @@ const Comparison = () => {
               {
                 icon: <Zap size={28} />,
                 title: 'Ultra Fast Performance',
-                description: 'Sub-millisecond response times (179µs-1.7ms) vs moderate performance of commercial libraries',
+                description: 'Sub-millisecond to ~7ms response times vs moderate performance of commercial libraries',
                 color: 'teal',
                 size: 'large'
               },
@@ -649,7 +654,7 @@ const Comparison = () => {
               flexWrap: 'wrap',
             }}>
               <Link
-                to="/viewer"
+                to="/editor"
                 className="btn-glow glow-on-hover"
                 style={{
                   display: 'inline-flex',

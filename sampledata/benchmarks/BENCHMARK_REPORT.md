@@ -37,9 +37,43 @@
 
 ## 4. Analysis
 
+
 **gopdfsuit is statistically ~5.46x faster than Typst on average.**
 
 The variance in `gopdfsuit` is low (approx ±6%), indicating stable performance suitable for high-throughput APIS. Typst shows slightly higher variance (approx ±10%), likely due to process startup and OS scheduling variability.
 
-### Conclusion
+## 5. Scenario: Financial Report (Complex Layout)
+
+*   **Description**: Generates a 2-page report with tables, charts, styling, and bookmarks using the `gopdflib` public API.
+*   **Command**: `go run sampledata/gopdflib/financial_report/main.go`
+*   **Iterations**: 10 runs
+
+### Raw Results
+
+| Run # | Time (ms) | PDF Size (Bytes) |
+| :--- | :--- | :--- |
+| 1 | 7.18 | 135,116 |
+| 2 | 6.47 | 135,116 |
+| 3 | 6.62 | 135,116 |
+| 4 | 6.66 | 135,116 |
+| 5 | 6.57 | 135,116 |
+| 6 | 6.11 | 135,116 |
+| 7 | 5.79 | 135,116 |
+| 8 | 7.31 | 135,116 |
+| 9 | 7.33 | 135,116 |
+| 10 | 6.39 | 135,116 |
+
+### Statistics
+
+| Metric | Result |
+| :--- | :--- |
+| **Minimum** | 5.79 ms |
+| **Maximum** | 7.33 ms |
+| **Average (Mean)** | ~6.64 ms |
+| **Total Time (10 runs)** | 66.43 ms |
+
+### Analysis
+The financial report generation is extremely fast (~6.6ms per document), demonstrating the efficiency of the `gopdflib` API for complex layouts involving tables and embedded images.
+
+## 6. Conclusion
 For applications requiring high-frequency document generation, `gopdfsuit` provides a massive throughput advantage. Typst remains a viable option for lower-volume, high-design requirements where a ~740ms generation time is acceptable.
