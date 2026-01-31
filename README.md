@@ -457,7 +457,7 @@ Uses byte-oriented approach with `/NeedAppearances true`. Works for most AcroFor
 <details>
 <summary><b>Performance benchmarks?</b></summary>
 
-Sub-millisecond to 1.7ms response times for 2-page documents. In-memory processing with zero external dependencies.
+Sub-millisecond to ~7ms response times for complex 2-page financial reports. In-memory processing with zero external dependencies.
 </details>
 
 ---
