@@ -9,25 +9,23 @@
 
 | Library | Language | Time (ms) | File Size | PDF Standard | Table Support |
 |---------|----------|-----------|-----------|--------------|---------------|
-| **GoPDFSuit** | Go | **152.20** | 1.7 MB | PDF/A-4 (PDF 2.0) | Full tables with styling + wrap |
-| jsPDF | JavaScript | 76.76 | 279 KB | PDF 1.3 | Text fallback (no autotable) |
-| PDFKit | JavaScript | 399.95 | 205 KB | PDF 1.3 | Full tables with styling |
-| Typst | Typst | 849.00 | 221 KB | PDF/A-2b | Full tables with styling |
-| pdf-lib | JavaScript | 857.32 | 313 KB | PDF 1.7 | Manual table drawing |
-| FPDF2 | Python | 3,387.39 | 203 KB | PDF/A-1b compatible | Full tables with styling |
+| **GoPDFSuit** | Go | **126.99** | 1.7 MB | PDF/A-4 (PDF 2.0) | Full tables with styling + wrap |
+| jsPDF | JavaScript | 56.20 | 279 KB | PDF 1.3 | Text fallback (no autotable) |
+| PDFKit | JavaScript | 305.71 | 205 KB | PDF 1.3 | Full tables with styling |
+| Typst | Typst | 774.58 | 221 KB | PDF/A-2b | Full tables with styling |
+| pdf-lib | JavaScript | 674.16 | 313 KB | PDF 1.7 | Manual table drawing |
+| FPDF2 | Python | 2,834.42 | 203 KB | PDF/A-1b compatible | Full tables with styling |
 
-## 3. Statistical Summary
+## GoPDFSuit Statistical Summary (10 runs)
 
-| Metric | gopdfsuit (Library) | Typst (CLI) |
-| :--- | :--- | :--- |
-| **Minimum** | **139.98 ms** | 697.15 ms |
-| **Maximum** | 186.22 ms | 768.91 ms |
-| **Average (Mean)** | **~152.20 ms** | **~739.00 ms** |
-| **Throughput** | ~6.6 docs/sec | ~1.35 docs/sec |
-| **Memory/Op** | ~49 MB | ~17 KB (allocs only)* |
+| Metric | Value |
+| :--- | :--- |
+| **Minimum** | **122.97 ms** |
+| **Maximum** | 131.39 ms |
+| **Average (Mean)** | **126.99 ms** |
+| **Throughput** | ~7.9 docs/sec |
 
-*\*Typst results from previous successful run overlay.*
-*\*\*jsPDF running in text-only fallback mode (simpler workload).*
+*\*jsPDF running in text-only fallback mode (simpler workload).*
 
 ## Test Environment
 
