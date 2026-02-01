@@ -17,8 +17,8 @@ export const gettingStartedSection = {
 • HTML to PDF/Image conversion
 
 **Python Support**: 
-• **Native Python Bindings**: Direct CGO integration via [pypdfsuit](https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/bindings/python).
-• **Python Web Client**: Lightweight REST API client available [here](https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/sampledata/python/gopdf).
+• **Native Python Bindings**: Direct CGO integration via [pypdfsuit](https://github.com/chinmay-sawant/gopdfsuit/tree/master/bindings/python).
+• **Python Web Client**: Lightweight REST API client available [here](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/python/gopdf).
 
 Requirements: Go 1.24+, Google Chrome (for HTML conversion)`,
             features: [
@@ -44,6 +44,7 @@ Web interfaces available:
 • / - PDF Viewer & Generator
 • /editor - Drag-and-drop Template Builder
 • /merge - PDF Merger
+• /split - PDF Splitter
 • /filler - Form Filler
 • /htmltopdf - HTML to PDF Converter
 • /htmltoimage - HTML to Image Converter`,
@@ -53,19 +54,16 @@ git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit
 go mod download
 
-# Build frontend
-cd frontend && npm install && npm run build && cd ..
-
 # Run server
-go run ./cmd/gopdfsuit`
+make run`
             }
         },
         {
             id: 'gopdflib-install',
             title: 'Install gopdflib Package',
             description: 'Use gopdflib as a standalone Go library in your own projects.',
-            content: `The [gopdflib](https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/pkg/gopdflib) package allows you to generate PDFs programmatically without running the web server.
-View detailed sample data and examples [here](https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/sampledata/gopdflib).
+            content: `The [gopdflib](https://github.com/chinmay-sawant/gopdfsuit/tree/master/pkg/gopdflib) package allows you to generate PDFs programmatically without running the web server.
+View detailed sample data and examples [here](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/gopdflib).
 
 Import the package in your Go code to access all PDF generation features.`,
             code: {

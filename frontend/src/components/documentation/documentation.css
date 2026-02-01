@@ -16,6 +16,51 @@
     height: 6px;
 }
 
+.doc-strong {
+    color: #4ecdc4;
+    font-weight: 700;
+}
+
+.doc-link {
+    color: #38bdf8;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.doc-link:hover {
+    color: #4ecdc4;
+}
+
+.doc-list {
+    margin-bottom: 1.5rem;
+    padding-left: 1.5rem;
+    list-style-type: none;
+}
+
+.doc-list li {
+    position: relative;
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+    color: hsl(var(--foreground));
+}
+
+.doc-list li::before {
+    content: "•";
+    color: #4ecdc4;
+    font-weight: bold;
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+}
+
+.doc-content-text {
+    white-space: pre-wrap;
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+    color: hsl(var(--muted-foreground));
+    font-size: 1.05rem;
+}
+
 ::-webkit-scrollbar-track {
     background: transparent;
 }

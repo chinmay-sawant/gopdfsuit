@@ -59,9 +59,9 @@ const Home = () => {
   const features = [
     {
       icon: <FileText size={24} />,
-      title: 'Go Support',
+      title: 'Native Go Support',
       description: 'Use as a standalone library (gopdflib) or via HTTP API.',
-      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/pkg/gopdflib',
+      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/master/pkg/gopdflib',
       color: 'blue',
       external: true
     },
@@ -69,7 +69,7 @@ const Home = () => {
       icon: <Globe size={24} />,
       title: 'Python Web Client',
       description: 'Lightweight API client for interacting with the GoPdfSuit server.',
-      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/sampledata/python/gopdf',
+      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/python/gopdf',
       color: 'teal',
       external: true
     },
@@ -77,7 +77,7 @@ const Home = () => {
       icon: <Zap size={24} />,
       title: 'Native Python Support',
       description: 'High-performance CGO bindings for direct PDF generation from Python.',
-      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/bindings/python',
+      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/master/bindings/python',
       color: 'yellow',
       external: true
     },
@@ -200,7 +200,7 @@ const Home = () => {
               marginLeft: 'auto',
               marginRight: 'auto'
             }}>
-              An exceptional, <span style={{ color: 'hsl(var(--foreground))', fontWeight: '600' }}>MIT-licensed</span> Go engine that <span style={{ color: '#4ecdc4', fontWeight: '600' }}>saves enterprise costs</span> and solves critical <span style={{ color: 'hsl(var(--foreground))', fontWeight: '600' }}>compliance challenges</span> for Fintechs & Enterprises by generating secure, <span style={{ color: '#007acc', fontWeight: '600' }}>PDF/UA-2 & PDF/A-4</span> compliant documents in <span style={{ color: '#ffc107', fontWeight: '600' }}>under 10ms*</span>.
+              An high-performance, <span style={{ color: 'hsl(var(--foreground))', fontWeight: '600' }}>MIT-licensed</span> Go engine that <span style={{ color: '#4ecdc4', fontWeight: '600' }}>saves enterprise costs</span> and solves critical <span style={{ color: 'hsl(var(--foreground))', fontWeight: '600' }}>compliance challenges</span> for Fintechs & Enterprises by generating secure, <span style={{ color: '#007acc', fontWeight: '600' }}>PDF/UA-2 & PDF/A-4</span> compliant documents in <span style={{ color: '#ffc107', fontWeight: '600' }}>under 10ms*</span>.
             </p>
 
             <div style={{

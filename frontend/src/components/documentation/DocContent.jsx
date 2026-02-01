@@ -3,6 +3,39 @@ import { useTheme } from '../../theme'
 import * as Icons from 'lucide-react'
 
 // Helper to simple render markdown-like tables and text
+const parseInlineStyles = (text) => {
+    const parts = [];
+    const boldSplit = text.split(/(\*\*[^*]+\*\*)/g);
+
+    boldSplit.forEach((segment, i) => {
+        if (segment.startsWith('**') && segment.endsWith('**')) {
+            parts.push(<strong key={i} className="doc-strong">{segment.slice(2, -2)}</strong>);
+        } else {
+            const linkSplit = segment.split(/(\[[^\]]+\]\([^)]+\))/g);
+            linkSplit.forEach((subSegment, j) => {
+                const linkMatch = subSegment.match(/\[([^\]]+)\]\(([^)]+)\)/);
+                if (linkMatch) {
+                    parts.push(
+                        <a
+                            key={`${i}-${j}`}
+                            href={linkMatch[2]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="doc-link"
+                        >
+                            {linkMatch[1]}
+                        </a>
+                    );
+                } else if (subSegment) {
+                    parts.push(subSegment);
+                }
+            });
+        }
+    });
+    return parts;
+};
+
+// Helper to simple render markdown-like tables and text
 const renderMarkdownContent = (content) => {
     if (!content) return null;
 
@@ -10,12 +43,13 @@ const renderMarkdownContent = (content) => {
     const elements = [];
     let tableBuffer = [];
     let textBuffer = [];
+    let listBuffer = [];
     let inTable = false;
+    let inList = false;
 
     const flushTable = (key) => {
         if (tableBuffer.length > 0) {
             const headerRow = tableBuffer[0].replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-            // index 1 is usually the separator row |---|---|
             const bodyRows = tableBuffer.slice(2).map(row =>
                 row.replace(/^\||\|$/g, '').split('|').map(c => c.trim())
             );
@@ -25,13 +59,13 @@ const renderMarkdownContent = (content) => {
                     <table className="doc-table compact">
                         <thead>
                             <tr>
-                                {headerRow.map((h, i) => <th key={i}>{h}</th>)}
+                                {headerRow.map((h, i) => <th key={i}>{parseInlineStyles(h)}</th>)}
                             </tr>
                         </thead>
                         <tbody>
                             {bodyRows.map((row, r_i) => (
                                 <tr key={r_i}>
-                                    {row.map((cell, c_i) => <td key={c_i}>{cell}</td>)}
+                                    {row.map((cell, c_i) => <td key={c_i}>{parseInlineStyles(cell)}</td>)}
                                 </tr>
                             ))}
                         </tbody>
@@ -45,64 +79,73 @@ const renderMarkdownContent = (content) => {
     const flushText = (key) => {
         if (textBuffer.length > 0) {
             const text = textBuffer.join('\n');
-            const parts = [];
-            let lastIndex = 0;
-            const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-            let match;
-
-            while ((match = linkRegex.exec(text)) !== null) {
-                // Add text before the link
-                if (match.index > lastIndex) {
-                    parts.push(text.substring(lastIndex, match.index));
-                }
-                // Add the link component
-                parts.push(
-                    <a
-                        key={`${key}-link-${match.index}`}
-                        href={match[2]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: 'hsl(var(--primary))', textDecoration: 'underline' }}
-                    >
-                        {match[1]}
-                    </a>
-                );
-                lastIndex = linkRegex.lastIndex;
-            }
-
-            // Add remaining text
-            if (lastIndex < text.length) {
-                parts.push(text.substring(lastIndex));
-            }
-
             elements.push(
-                <div key={key} className="doc-content-text" style={{ whiteSpace: 'pre-wrap', marginBottom: '1.5rem', lineHeight: '1.7' }}>
-                    {parts.length > 0 ? parts : text}
+                <div key={key} className="doc-content-text">
+                    {parseInlineStyles(text)}
                 </div>
             );
             textBuffer = [];
         }
     }
 
+    const flushList = (key) => {
+        if (listBuffer.length > 0) {
+            elements.push(
+                <ul key={key} className="doc-list">
+                    {listBuffer.map((item, i) => (
+                        <li key={i}>{parseInlineStyles(item)}</li>
+                    ))}
+                </ul>
+            );
+            listBuffer = [];
+        }
+    }
+
     lines.forEach((line, index) => {
         const trimmed = line.trim();
+
+        // Handle Tables
         if (trimmed.startsWith('|')) {
             if (!inTable) {
-                flushText(`text-${index}`);
+                flushText(`text-before-table-${index}`);
+                flushList(`list-before-table-${index}`);
                 inTable = true;
             }
             tableBuffer.push(trimmed);
-        } else {
-            if (inTable) {
-                flushTable(`table-${index}`);
-                inTable = false;
+            return; // Skip other checks
+        } else if (inTable) {
+            flushTable(`table-${index}`);
+            inTable = false;
+        }
+
+        // Handle Lists
+        if (trimmed.match(/^[•-]\s/)) {
+            if (!inList) {
+                flushText(`text-before-list-${index}`);
+                // No need to flush table as it's handled above
+                inList = true;
             }
-            textBuffer.push(line);
+            // Remove bullet point
+            listBuffer.push(trimmed.replace(/^[•-]\s/, ''));
+        } else {
+            if (inList) {
+                flushList(`list-${index}`);
+                inList = false;
+            }
+            if (trimmed) {
+                textBuffer.push(line);
+            } else if (textBuffer.length > 0) {
+                // If empty line, flush text to create paragraph separation if desired, 
+                // or just append empty line to buffer to preserve spacing.
+                // For better styling, better to flush paragraphs.
+                flushText(`text-para-${index}`);
+            }
         }
     });
 
     if (inTable) flushTable('table-end');
-    else flushText('text-end');
+    if (inList) flushList('list-end');
+    flushText('text-end'); // Flush remaining text
 
     return <div className="doc-content">{elements}</div>;
 };
