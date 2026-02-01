@@ -28,4 +28,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lib-${{ matrix.os }}
-          path: bindings/python/pypdfsuit/pypdfsuit/lib/
+          path: bindings/python/pypdfsuit/lib/
