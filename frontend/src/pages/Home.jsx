@@ -98,6 +98,30 @@ const Home = () => {
       description: 'Convert HTML to PNG, JPG, or SVG with custom dimensions.',
       link: '/htmltoimage',
       color: 'blue'
+    },
+    {
+      icon: <Zap size={24} />,
+      title: 'Native Python Support',
+      description: 'High-performance CGO bindings for direct PDF generation from Python.',
+      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/bindings/python',
+      color: 'yellow',
+      external: true
+    },
+    {
+      icon: <Globe size={24} />,
+      title: 'Python Web Client',
+      description: 'Lightweight API client for interacting with the GoPdfSuit server.',
+      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/sampledata/python/gopdf',
+      color: 'teal',
+      external: true
+    },
+    {
+      icon: <Globe size={24} />,
+      title: 'Language Agnostic',
+      description: 'REST API works with any programming language.',
+      link: '#section-api',
+      color: 'purple',
+      external: false
     }
   ]
 
@@ -178,7 +202,8 @@ const Home = () => {
                 "AES-128 Encryption",
                 "Multi-page Support", "Split PDFs",
                 "HTML To Image", "HTML To PDF",
-                "Private", "In-Memory", "Python Support via PdfClient"
+                "Private", "In-Memory", "Native Python Support",
+                "Send Data via API", "Docker Support"
               ].map((feature, i) => (
                 <span key={i} style={{
                   background: 'rgba(78, 205, 196, 0.08)',
@@ -303,12 +328,8 @@ const Home = () => {
           </div>
 
           <div className="grid grid-3">
-            {features.map((feature, index) => (
-              <Link
-                key={index}
-                to={feature.link}
-                style={{ textDecoration: 'none', color: 'inherit' }}
-              >
+            {features.map((feature, index) => {
+              const CardContent = () => (
                 <div
                   className={`glass-card animate-fadeInScale stagger-animation ${isVisible['section-features'] ? 'visible' : ''}`}
                   style={{
@@ -353,12 +374,47 @@ const Home = () => {
                     fontSize: '0.85rem',
                     fontWeight: '600',
                   }}>
-                    Try it now
+                    {feature.external ? 'View on GitHub' : 'Try it now'}
                     <ArrowRight size={14} />
                   </div>
                 </div>
-              </Link>
-            ))}
+              )
+
+              if (feature.link.startsWith('#')) {
+                return (
+                  <div
+                    key={index}
+                    onClick={() => {
+                      const element = document.getElementById(feature.link.substring(1));
+                      if (element) element.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <CardContent />
+                  </div>
+                )
+              }
+
+              return feature.external ? (
+                <a
+                  key={index}
+                  href={feature.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <CardContent />
+                </a>
+              ) : (
+                <Link
+                  key={index}
+                  to={feature.link}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <CardContent />
+                </Link>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -686,6 +742,8 @@ const Home = () => {
                 { name: 'PDF Merge', desc: 'Combine multiple PDFs, preserve forms', color: '#007acc' },
                 { name: 'XFDF Form Filling', desc: 'Advanced field detection and population', color: '#f093fb' },
                 { name: 'Bookmarks & Links', desc: 'Outlines with internal/external hyperlinks', color: '#ffc107' },
+                { name: 'Native Python Bindings', desc: 'CGO + ctypes wrapper via pypdfsuit', color: '#4ecdc4' },
+                { name: 'Python Web Client', desc: 'Lightweight REST API client', color: '#007acc' },
               ].map((feature, index) => (
                 <div
                   key={index}
