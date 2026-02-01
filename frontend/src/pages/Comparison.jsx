@@ -55,7 +55,7 @@ const Comparison = () => {
       performance: 'Ultra Fast (Sub-ms - ~7ms)',
       deployment: 'Microservice/Sidecar/Docker',
       memory: 'In-Memory Processing',
-      integration: 'REST API + Native Python',
+      integration: 'REST API + Native Python + gopdflib',
       template: 'JSON-based Templates',
       webInterface: 'Built-in Viewer/Editor',
       formFilling: 'XFDF Advanced Detection',

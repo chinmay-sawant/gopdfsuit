@@ -59,6 +59,38 @@ const Home = () => {
   const features = [
     {
       icon: <FileText size={24} />,
+      title: 'Go Support',
+      description: 'Use as a standalone library (gopdflib) or via HTTP API.',
+      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/pkg/gopdflib',
+      color: 'blue',
+      external: true
+    },
+    {
+      icon: <Globe size={24} />,
+      title: 'Python Web Client',
+      description: 'Lightweight API client for interacting with the GoPdfSuit server.',
+      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/sampledata/python/gopdf',
+      color: 'teal',
+      external: true
+    },
+    {
+      icon: <Zap size={24} />,
+      title: 'Native Python Support',
+      description: 'High-performance CGO bindings for direct PDF generation from Python.',
+      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/bindings/python',
+      color: 'yellow',
+      external: true
+    },
+    {
+      icon: <Globe size={24} />,
+      title: 'Language Agnostic',
+      description: 'REST API works with any programming language.',
+      link: '#section-api',
+      color: 'purple',
+      external: false
+    },
+    {
+      icon: <FileText size={24} />,
       title: 'Template-based PDF',
       description: 'JSON-driven PDF creation with multi-page support and automatic page breaks.',
       link: '/viewer',
@@ -98,30 +130,6 @@ const Home = () => {
       description: 'Convert HTML to PNG, JPG, or SVG with custom dimensions.',
       link: '/htmltoimage',
       color: 'blue'
-    },
-    {
-      icon: <Zap size={24} />,
-      title: 'Native Python Support',
-      description: 'High-performance CGO bindings for direct PDF generation from Python.',
-      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/bindings/python',
-      color: 'yellow',
-      external: true
-    },
-    {
-      icon: <Globe size={24} />,
-      title: 'Python Web Client',
-      description: 'Lightweight API client for interacting with the GoPdfSuit server.',
-      link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/feature/python-binary/sampledata/python/gopdf',
-      color: 'teal',
-      external: true
-    },
-    {
-      icon: <Globe size={24} />,
-      title: 'Language Agnostic',
-      description: 'REST API works with any programming language.',
-      link: '#section-api',
-      color: 'purple',
-      external: false
     }
   ]
 
@@ -734,6 +742,9 @@ const Home = () => {
               marginBottom: '2rem',
             }}>
               {[
+                { name: 'Go Support (gopdflib)', desc: 'Direct Struct Access & HTTP API', color: '#ffc107' },
+                { name: 'Native Python Bindings', desc: 'CGO + ctypes wrapper via pypdfsuit', color: '#4ecdc4' },
+                { name: 'Python Web Client', desc: 'Lightweight REST API client', color: '#007acc' },
                 { name: 'PDF/A-4 Compliance', desc: 'Archival standard with sRGB ICC profiles', color: '#4ecdc4' },
                 { name: 'PDF/UA-2 Accessibility', desc: 'Universal accessibility compliance', color: '#007acc' },
                 { name: 'AES-128 Encryption', desc: 'Password protection with permissions', color: '#f093fb' },
@@ -742,8 +753,7 @@ const Home = () => {
                 { name: 'PDF Merge', desc: 'Combine multiple PDFs, preserve forms', color: '#007acc' },
                 { name: 'XFDF Form Filling', desc: 'Advanced field detection and population', color: '#f093fb' },
                 { name: 'Bookmarks & Links', desc: 'Outlines with internal/external hyperlinks', color: '#ffc107' },
-                { name: 'Native Python Bindings', desc: 'CGO + ctypes wrapper via pypdfsuit', color: '#4ecdc4' },
-                { name: 'Python Web Client', desc: 'Lightweight REST API client', color: '#007acc' },
+                { name: 'Language Agnostic', desc: 'REST API works with any programming language', color: '#f093fb' },
               ].map((feature, index) => (
                 <div
                   key={index}
