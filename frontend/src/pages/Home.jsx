@@ -192,11 +192,15 @@ const Home = () => {
           >
             <p style={{
               color: 'hsl(var(--muted-foreground))',
-              fontSize: '1.2rem',
-              lineHeight: '1.6',
-              marginBottom: '1.5rem'
+              fontSize: '1.25rem',
+              lineHeight: '1.8',
+              marginBottom: '2rem',
+              fontWeight: '400',
+              maxWidth: '850px',
+              marginLeft: 'auto',
+              marginRight: 'auto'
             }}>
-              A powerful MIT-licensed Go web service for generating secure, compliant PDFs on-the-fly.
+              An exceptional, <span style={{ color: 'hsl(var(--foreground))', fontWeight: '600' }}>MIT-licensed</span> Go engine that <span style={{ color: '#4ecdc4', fontWeight: '600' }}>saves enterprise costs</span> and solves critical <span style={{ color: 'hsl(var(--foreground))', fontWeight: '600' }}>compliance challenges</span> for Fintechs & Enterprises by generating secure, <span style={{ color: '#007acc', fontWeight: '600' }}>PDF/UA-2 & PDF/A-4</span> compliant documents in <span style={{ color: '#ffc107', fontWeight: '600' }}>under 10ms*</span>.
             </p>
 
             <div style={{
