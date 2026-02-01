@@ -67,7 +67,7 @@ View detailed sample data and examples [here](https://github.com/chinmay-sawant/
 
 Import the package in your Go code to access all PDF generation features.`,
             code: {
-                bash: `go get github.com/chinmay-sawant/gopdfsuit@v4.0.0`,
+                bash: `go get github.com/chinmay-sawant/gopdfsuit@v4.2.0`,
                 go: `package main
 
 import (
