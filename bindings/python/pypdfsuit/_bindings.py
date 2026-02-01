@@ -5,17 +5,22 @@ This module handles loading the shared library and defining C function signature
 """
 
 import ctypes
-from ctypes import c_char_p, c_int, POINTER, Structure
+from ctypes import c_char, c_char_p, c_int, c_void_p, POINTER, Structure, cast
 import platform
 import os
 from pathlib import Path
 
 
 class ByteResult(Structure):
-    """Result structure for functions returning bytes."""
+    """Result structure for functions returning bytes.
+    
+    Note: We use c_void_p for data instead of c_char_p because c_char_p
+    treats data as null-terminated strings, which truncates binary data
+    (like PDFs) that contain null bytes.
+    """
 
     _fields_ = [
-        ("data", c_char_p),
+        ("data", c_void_p),  # Use void* to avoid null-termination issues
         ("length", c_int),
         ("error", c_char_p),
     ]
@@ -25,7 +30,7 @@ class ByteArrayResult(Structure):
     """Result structure for functions returning multiple byte arrays."""
 
     _fields_ = [
-        ("data", POINTER(c_char_p)),
+        ("data", POINTER(c_void_p)),  # Array of void* pointers
         ("lengths", POINTER(c_int)),
         ("count", c_int),
         ("error", c_char_p),
@@ -158,10 +163,11 @@ def call_bytes_result(func, *args) -> bytes:
             error_msg = result.error.decode("utf-8")
             raise GoPDFSuitError(error_msg)
 
-        if result.data is None or result.length <= 0:
+        if result.data is None or result.data == 0 or result.length <= 0:
             return b""
 
-        # Copy the data before freeing
+        # Cast void* to char* and read the exact number of bytes
+        # This avoids null-termination issues with binary data
         data = ctypes.string_at(result.data, result.length)
         return data
     finally:
@@ -197,8 +203,10 @@ def call_bytes_array_result(func, *args) -> list:
         parts = []
         for i in range(result.count):
             length = result.lengths[i]
-            data = ctypes.string_at(result.data[i], length)
-            parts.append(data)
+            ptr = result.data[i]
+            if ptr and length > 0:
+                data = ctypes.string_at(ptr, length)
+                parts.append(data)
 
         return parts
     finally:
