@@ -120,6 +120,16 @@
     font-family: 'Fira Code', 'Roboto Mono', monospace !important;
     font-size: 0.9rem !important;
     line-height: 1.5 !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+}
+
+.syntax-highlighter-scrollable code,
+.syntax-highlighter-scrollable pre {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
 }
 
 /* Scrollbar styling for code block */
