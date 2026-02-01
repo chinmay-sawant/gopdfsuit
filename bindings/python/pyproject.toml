@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pypdfsuit"
+version = "1.0.0"
+description = "Python bindings for gopdfsuit - PDF generation, merging, splitting, and more"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Chinmay Sawant"}
+]
+keywords = ["pdf", "generation", "merge", "split", "html", "form filling", "gopdfsuit"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Printing",
+]
+
+[project.urls]
+Homepage = "https://github.com/chinmay-sawant/gopdfsuit"
+Documentation = "https://github.com/chinmay-sawant/gopdfsuit/tree/main/bindings/python"
+Repository = "https://github.com/chinmay-sawant/gopdfsuit"
+Issues = "https://github.com/chinmay-sawant/gopdfsuit/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pypdfsuit*"]
+
+[tool.setuptools.package-data]
+pypdfsuit = ["lib/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 88

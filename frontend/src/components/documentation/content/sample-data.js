@@ -5,69 +5,48 @@ export const sampleDataSection = {
             id: 'sampledata-overview',
             title: 'Sample Templates',
             description: 'Ready-to-use JSON templates and examples available in the repository.',
-            content: `Complete sample templates and data files are available at:
+            content: `Complete sample templates and data files are available at [sampledata](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata).
 
-https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata
+**Available Sample Data Folders**:
 
-Available sample data folders:
-
-• acroform/ - AcroForm templates with interactive form fields
-• benchmarks/ - Performance benchmark data and reports
-• editor/ - Templates designed for the visual editor
-• filler/ - XFDF data files for form filling
-• financialreport/ - Financial report templates
-• gopdflib/ - Go library usage examples
-  - financial_report/ - Building reports programmatically
-  - load_from_json/ - Loading templates from JSON files
-  - text_wrapping/ - Text wrapping demonstrations
-• htmltoimg/ - HTML to image conversion samples
-• htmltopdf/ - HTML to PDF conversion samples
-• legalcontract/ - Legal document templates
-• librarybook/ - Library management forms
-• merge/ - PDF merging examples
-• python/ - Python client examples and templates
-• samplecode/ - Code snippets and usage examples
-• split/ - PDF splitting samples
-• svg/ - SVG vector graphics examples`
+• [acroform](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/acroform) - AcroForm templates with interactive form fields
+• [benchmarks](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/benchmarks) - Performance benchmark data and reports
+• [editor](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/editor) - Templates designed for the visual editor
+• [filler](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/filler) - XFDF data files for form filling
+• [financialreport](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/financialreport) - Financial report templates
+• [gopdflib](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/gopdflib) - Go library usage examples
+• [htmltoimg](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/htmltoimg) - HTML to image conversion samples
+• [htmltopdf](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/htmltopdf) - HTML to PDF conversion samples
+• [legalcontract](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/legalcontract) - Legal document templates
+• [librarybook](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/librarybook) - Library management forms
+• [merge](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/merge) - PDF merging examples
+• [oldata](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/oldata) - Old Data
+• [python](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/python) - Python client examples and templates
+• [samplecode](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/samplecode) - Code snippets and usage examples
+• [split](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/split) - PDF splitting samples
+• [svg](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/svg) - SVG vector graphics examples`
         },
         {
             id: 'sampledata-gopdflib',
             title: 'gopdflib Examples',
             description: 'Go library examples for programmatic PDF generation.',
-            content: `The gopdflib examples demonstrate how to use the Go library directly:
+            content: `**gopdflib Usage**:
+The gopdflib examples demonstrate how to use the Go library directly:
 
-sampledata/gopdflib/financial_report/
-Complete financial report with digital signatures, benchmarking, and performance metrics.
-
-sampledata/gopdflib/load_from_json/
-Loading templates from JSON files and generating PDFs.
-
-sampledata/gopdflib/text_wrapping/
-Demonstrating auto text wrapping with dynamic row heights.
+• [financial_report](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/gopdflib/financial_report) - Complete financial report with digital signatures, benchmarking, and performance metrics.
+• [load_from_json](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/gopdflib/load_from_json) - Loading templates from JSON files and generating PDFs.
+• [text_wrapping](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/gopdflib/text_wrapping) - Demonstrating auto text wrapping with dynamic row heights.
 
 Run examples:
 go run sampledata/gopdflib/financial_report/main.go
-go run sampledata/gopdflib/text_wrapping/main.go`,
-            code: {
-                bash: `# Clone and run examples
-git clone https://github.com/chinmay-sawant/gopdfsuit.git
-cd gopdfsuit
-
-# Run financial report example
-go run sampledata/gopdflib/financial_report/main.go
-
-# Run text wrapping example  
-go run sampledata/gopdflib/text_wrapping/main.go
-
-# Run JSON loading example
-go run sampledata/gopdflib/load_from_json/main.go`
-            }
+go run sampledata/gopdflib/text_wrapping/main.go`
         },
         {
             id: 'sampledata-python',
             title: 'Python Examples',
             description: 'Python client examples for API-based PDF generation.',
-            content: `The Python examples demonstrate using the GoPdfSuit API from Python:
+            content: `**Python Client Usage**:
+The Python examples demonstrate using the GoPdfSuit API from Python:
 
 sampledata/python/
 • main.py - Main example with template filling
@@ -115,7 +94,8 @@ with open("output.pdf", "wb") as f:
             id: 'sampledata-editor',
             title: 'Editor Templates',
             description: 'Pre-built templates for the visual drag-and-drop editor.',
-            content: `The editor templates are designed to work with the /editor visual interface:
+            content: `**Editor Templates Overview**:
+The editor templates are designed to work with the /editor visual interface:
 
 sampledata/editor/
 • financial_digitalsignature.json - Financial report with digital signature

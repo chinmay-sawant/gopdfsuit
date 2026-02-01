@@ -92,12 +92,9 @@ export const CodeBlock = ({ code }) => {
                         height: '100%',
                         fontSize: '0.9rem',
                         lineHeight: '1.5',
-                        whiteSpace: 'pre-wrap',       // Enable text wrapping
-                        wordBreak: 'break-word'       // Break long words if necessary
                     }}
                     className={`syntax-highlighter-scrollable ${isLight ? 'light' : ''}`}
                     showLineNumbers={false}
-                    wrapLines={true}
                 >
                     {codeContent}
                 </SyntaxHighlighter>

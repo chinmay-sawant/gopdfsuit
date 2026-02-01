@@ -627,6 +627,31 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                 >
                                     Remove Column (Last)
                                 </button>
+                                {selectedCell && (
+                                    <button
+                                        onClick={() => {
+                                            if ((selectedElement.maxcolumns || 3) <= 1) return
+                                            const colToRemove = selectedCell.colIdx
+                                            const newCols = (selectedElement.maxcolumns || 3) - 1
+
+                                            // Update rows by removing the cell at the selected column index
+                                            const updatedRows = selectedElement.rows.map(r => ({
+                                                row: r.row.filter((_, idx) => idx !== colToRemove)
+                                            }))
+
+                                            // Update column widths by removing the width at the selected column index
+                                            const newWidths = selectedElement.columnwidths
+                                                ? selectedElement.columnwidths.filter((_, idx) => idx !== colToRemove)
+                                                : undefined
+
+                                            updateElement(selectedElement.id, { maxcolumns: newCols, rows: updatedRows, columnwidths: newWidths })
+                                            setSelectedCell(null)
+                                        }}
+                                        style={{ padding: '0.4rem', fontSize: '0.75rem', border: '1px solid hsl(var(--destructive))', borderRadius: '4px', background: 'hsl(var(--destructive))', color: 'white', cursor: 'pointer', gridColumn: 'span 2' }}
+                                    >
+                                        Remove Column (Col {selectedCell.colIdx + 1})
+                                    </button>
+                                )}
                             </div>
                             <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))' }}>
                                 Rows: {selectedElement.rows?.length || 0}, Columns: {selectedElement.maxcolumns || 3}
@@ -1321,9 +1346,9 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                             checked={selectedCellElement.wrap === true}
                                             onChange={(e) => {
                                                 const newRows = [...selectedElement.rows]
-                                                newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = { 
-                                                    ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx], 
-                                                    wrap: e.target.checked ? true : undefined 
+                                                newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                    ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                    wrap: e.target.checked ? true : undefined
                                                 }
                                                 updateElement(selectedElement.id, { rows: newRows })
                                             }}

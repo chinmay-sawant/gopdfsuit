@@ -55,7 +55,7 @@ const Comparison = () => {
       performance: 'Ultra Fast (Sub-ms - ~7ms)',
       deployment: 'Microservice/Sidecar/Docker',
       memory: 'In-Memory Processing',
-      integration: 'REST API (Language Agnostic)',
+      integration: 'REST API + Native Python + gopdflib',
       template: 'JSON-based Templates',
       webInterface: 'Built-in Viewer/Editor',
       formFilling: 'XFDF Advanced Detection',
@@ -70,6 +70,7 @@ const Comparison = () => {
       fontEmbedding: 'TrueType Subsetting',
       bookmarks: 'Outlines + Hyperlinks',
       dockerSupport: 'Multi-stage Alpine Image',
+      pythonSupport: 'Native CGO + API Client',
       maintenance: 'Single Binary'
     },
     {
@@ -93,6 +94,7 @@ const Comparison = () => {
       fontEmbedding: 'Supported',
       bookmarks: 'Supported',
       dockerSupport: 'N/A (Library)',
+      pythonSupport: 'Not Supported',
       maintenance: 'Commercial Support'
     },
     {
@@ -116,6 +118,7 @@ const Comparison = () => {
       fontEmbedding: 'Supported',
       bookmarks: 'Supported',
       dockerSupport: 'N/A (Library)',
+      pythonSupport: 'Via .NET Wrapper',
       maintenance: 'Commercial Support'
     },
     {
@@ -139,6 +142,7 @@ const Comparison = () => {
       fontEmbedding: 'Full Embedding',
       bookmarks: 'Full Support',
       dockerSupport: 'N/A (Library)',
+      pythonSupport: 'Via Wrapper',
       maintenance: 'Library Updates'
     },
     {
@@ -162,6 +166,7 @@ const Comparison = () => {
       fontEmbedding: 'Automatic',
       bookmarks: 'Limited (TOC)',
       dockerSupport: 'Manual Setup',
+      pythonSupport: 'Wrapper (pdfkit)',
       maintenance: 'Deprecated'
     }
   ]
@@ -195,6 +200,7 @@ const Comparison = () => {
     { key: 'fontEmbedding', label: 'Font Embedding', icon: <CheckCircle size={18} />, category: 'features' },
     { key: 'bookmarks', label: 'Bookmarks & Links', icon: <CheckCircle size={18} />, category: 'features' },
     { key: 'dockerSupport', label: 'Docker Support', icon: <Box size={18} />, category: 'integration' },
+    { key: 'pythonSupport', label: 'Python Support', icon: <Code size={18} />, category: 'integration' },
     { key: 'maintenance', label: 'Maintenance', icon: <CheckCircle size={18} />, category: 'integration' }
   ]
 
@@ -546,6 +552,13 @@ const Comparison = () => {
                 title: 'Language Agnostic',
                 description: 'REST API works with any programming language',
                 color: 'teal',
+                size: 'normal'
+              },
+              {
+                icon: <Code size={28} />,
+                title: 'Native Python Support',
+                description: 'Direct CGO bindings for high-performance Python integration + Web Client',
+                color: 'purple',
                 size: 'normal'
               },
               {

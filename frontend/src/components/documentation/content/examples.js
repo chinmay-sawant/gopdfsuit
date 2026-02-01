@@ -1,18 +1,21 @@
 export const examplesSection = {
-    title: 'Examples',
-    items: [
-        {
-            id: 'example-financial-report',
-            title: 'Financial Report',
-            description: 'Complete financial report with sections, tables, and styling.',
-            content: `This example demonstrates a professional financial report with:
+  title: 'Examples',
+  items: [
+    {
+      id: 'example-financial-report',
+      title: 'Financial Report',
+      description: 'Complete financial report with sections, tables, and styling.',
+      content: `**Feature Overview**:
+This example demonstrates a professional financial report with:
 • Colored section headers
 • Multi-column data tables
 • Internal navigation links
 • Bookmarks for quick navigation
-• Footer with company information`,
-            code: {
-                json: `{
+• Footer with company information
+
+[View Source](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/financialreport)`,
+      code: {
+        json: `{
   "config": {
     "page": "A4",
     "pageAlignment": 1,
@@ -90,19 +93,22 @@ export const examplesSection = {
     {"title": "Financial Summary", "dest": "financial-summary"}
   ]
 }`
-            }
-        },
-        {
-            id: 'example-legal-contract',
-            title: 'Legal Contract',
-            description: 'Professional services agreement with watermark and signature blocks.',
-            content: `This example demonstrates a legal contract with:
+      }
+    },
+    {
+      id: 'example-legal-contract',
+      title: 'Legal Contract',
+      description: 'Professional services agreement with watermark and signature blocks.',
+      content: `**Contract Features**:
+This example demonstrates a legal contract with:
 • CONFIDENTIAL watermark
 • Dual-column party information
 • Numbered sections with styling
-• Signature blocks`,
-            code: {
-                json: `{
+• Signature blocks
+
+[View Source](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/legalcontract)`,
+      code: {
+        json: `{
   "config": {
     "page": "A4",
     "pageAlignment": 1,
@@ -170,19 +176,22 @@ export const examplesSection = {
     "text": "Service Agreement - Confidential"
   }
 }`
-            }
-        },
-        {
-            id: 'example-form',
-            title: 'Interactive Form',
-            description: 'Library form with text inputs, checkboxes, and radio buttons.',
-            content: `This example demonstrates an interactive form with:
+      }
+    },
+    {
+      id: 'example-form',
+      title: 'Interactive Form',
+      description: 'Library form with text inputs, checkboxes, and radio buttons.',
+      content: `**Interactive Elements**:
+This example demonstrates an interactive form with:
 • Text input fields with default values
 • Radio button groups for selections
 • Checkboxes for multi-select options
-• Color-coded sections`,
-            code: {
-                json: `{
+• Color-coded sections
+
+[View Source](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/acroform)`,
+      code: {
+        json: `{
   "config": {
     "page": "A4",
     "pageAlignment": 1,
@@ -285,7 +294,7 @@ export const examplesSection = {
     "text": "CENTRAL CITY PUBLIC LIBRARY - BOOK RECEIVING DEPARTMENT"
   }
 }`
-            }
-        }
-    ]
+      }
+    }
+  ]
 };
