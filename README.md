@@ -29,21 +29,23 @@
 
 ## 📖 Overview
 
-GoPdfSuit is a Go + Gin web service that generates professional PDF documents from JSON templates. 
+GoPdfSuit is a powerful Go web service for template-based PDF generation.
 
-**Key Capabilities:**
-- 📄 Template-based PDF generation with auto page breaks
-- 🔐 Digital signatures (PKCS#7) with X.509 certificate chains
-- 🔒 PDF encryption with password protection & permissions
-- 📑 Bookmarks, internal links, and named destinations
-- ✅ PDF/A-4 compliance for archival standards
-- 🔗 PDF merging with drag-and-drop UI
-- 🖊️ AcroForm/XFDF form filling
-- 🌐 HTML to PDF/Image conversion (via gochromedp)
-- 🎨 Font styling (bold, italic, underline), tables, checkboxes, radio buttons
-- 📏 Multiple page sizes (A3, A4, A5, Letter, Legal) & orientations
+**Key Features:**
 
-**Requirements:** Go 1.20+, Google Chrome (for HTML conversion)
+*   **Template-Based Generation**: Create PDFs from JSON templates with auto page breaks and flow control.
+*   **Security & Compliance**: Digital signatures (PKCS#7, X.509), AES-256 encryption, granular permissions, and PDF/A-4 & PDF/UA-2 compliance.
+*   **Advanced Elements**: Rich text styling, tables, barcodes, QR codes, SVG vector graphics, and interactive forms (checkboxes, radio buttons).
+*   **Navigation**: Auto-generated bookmarks, internal links, and named destinations for easy document navigation.
+*   **Form Filling**: Fill generic AcroForms and XFDF data.
+*   **Merge & Split**: Combine multiple PDFs or split them.
+*   **HTML Conversion**: High-fidelity HTML to PDF/Image conversion using headless Chrome.
+*   **Native Bindings**: 
+    *   **Python**: Direct CGO bindings for high-performance integration.
+    *   **Go**: Usable as a standalone Go library (`gopdflib`).
+*   **Web Interfaces**: Built-in React UI for viewer, editor, merger, filler, and converters.
+
+**Requirements**: Go 1.24+, Google Chrome (for HTML conversion)
 
 ---
 ## ❓ FAQ
@@ -127,14 +129,20 @@ go test -cover ./...
 
 ```
 gopdfsuit/
+├── bindings/           # Native language bindings (Python CGO)
 ├── cmd/gopdfsuit/      # Application entrypoint
+├── docs/               # Built frontend assets
 ├── frontend/           # React frontend (Vite)
+├── guides/             # Documentation guides
 ├── internal/
 │   ├── handlers/       # HTTP handlers
+│   ├── middleware/     # Gin middleware
 │   ├── models/         # Template models
 │   └── pdf/            # PDF generation & processing
-├── docs/               # Built frontend assets
-└── sampledata/         # Sample templates & data
+├── pkg/
+│   └── gopdflib/       # Standalone Go library
+├── sampledata/         # Sample templates & data
+└── test/               # Integration tests
 ```
 
 ---
