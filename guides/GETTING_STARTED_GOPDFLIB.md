@@ -20,13 +20,13 @@ This section explains how to download and install the `gopdflib` package using t
 ### Steps to Download
 
 1.  **Identify the Latest Tag**
-    The latest release tag for the repository is **v4.0.0**.
+    The latest release tag for the repository is **v4.2.0**.
 
 2.  **Get the Package**
     Run the following command in your terminal to download the package at the specific version:
 
     ```bash
-    go get github.com/chinmay-sawant/gopdfsuit@v4.0.0
+    go get github.com/chinmay-sawant/gopdfsuit@v4.2.0
     ```
 
     This command will download the source code and add the dependency to your `go.mod` file.

@@ -1,5 +1,6 @@
 README.md
 pyproject.toml
+setup.py
 pypdfsuit/__init__.py
 pypdfsuit/_bindings.py
 pypdfsuit/fill.py
