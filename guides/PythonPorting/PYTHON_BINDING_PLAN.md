@@ -127,7 +127,7 @@ import "C"
 import (
     "unsafe"
     "encoding/json"
-    "github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
 
 //export GeneratePDF
@@ -753,7 +753,7 @@ If manual CGO is too complex, consider using **gopy** which auto-generates Pytho
 
 ```bash
 go install github.com/go-python/gopy@latest
-gopy build -output=pypdfsuit -vm=python3 github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib
+gopy build -output=pypdfsuit -vm=python3 github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib
 ```
 
 **Pros:** Less manual work
