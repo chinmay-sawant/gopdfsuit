@@ -80,6 +80,7 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 							Text:      "1. Auto Text Wrapping (Default Behavior)",
 							BgColor:   "#E8F4F8",
 							TextColor: "#1A5276",
+							Wrap:      boolPtr(true),
 						}}},
 					},
 				},
@@ -100,13 +101,13 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 						// Data row with long text - wrap is enabled by default
 						{Row: []gopdflib.Cell{
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Short"},
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This is a very long piece of text that demonstrates the automatic text wrapping feature. The cell height will automatically adjust to fit all the content, and all cells in the same row will stretch to match the tallest cell."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This is a very long piece of text that demonstrates the automatic text wrapping feature. The cell height will automatically adjust to fit all the content, and all cells in the same row will stretch to match the tallest cell.", Wrap: boolPtr(true)},
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Also short"},
 						}},
 						// Another row
 						{Row: []gopdflib.Cell{
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Item 2"},
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Medium length text that wraps to two lines for demonstration purposes."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Medium length text that wraps to two lines for demonstration purposes.", Wrap: boolPtr(true)},
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Value"},
 						}},
 					},
@@ -144,11 +145,11 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 						}},
 						{Row: []gopdflib.Cell{
 							// Default: wrap is on
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This long text will wrap automatically because wrap is enabled by default. Notice how the row height adjusts."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This long text will wrap automatically because wrap is enabled by default. Notice how the row height adjusts.", Wrap: boolPtr(true)},
 							// Explicitly disable wrap
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This text has wrap disabled so it will be clipped if too long for the cell width.", Wrap: boolPtr(false)},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This text has wrap disabled so it will be clipped if too long for the cell width.", Wrap: boolPtr(true)},
 							// Default: wrap is on
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Another cell with wrapping enabled by default showing multiline content."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Another cell with wrapping enabled by default showing multiline content.", Wrap: boolPtr(true)},
 						}},
 					},
 				},
@@ -186,19 +187,19 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 						}},
 						{Row: []gopdflib.Cell{
 							{Props: "Helvetica:10:000:center:1:1:0:1", Text: "001"},
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Implement automatic text wrapping feature for PDF table cells with dynamic row height calculation based on content length."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Implement automatic text wrapping feature for PDF table cells with dynamic row height calculation based on content length.", Wrap: boolPtr(true)},
 							{Props: "Helvetica:10:000:center:1:1:0:1", Text: "Complete", BgColor: "#D5F5E3"},
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Released in v2.0"},
 						}},
 						{Row: []gopdflib.Cell{
 							{Props: "Helvetica:10:000:center:1:1:0:1", Text: "002"},
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Add frontend preview support for wrapped text in the visual editor."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Add frontend preview support for wrapped text in the visual editor.", Wrap: boolPtr(true)},
 							{Props: "Helvetica:10:000:center:1:1:0:1", Text: "Complete", BgColor: "#D5F5E3"},
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Editor shows live preview"},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Editor shows live preview", Wrap: boolPtr(true)},
 						}},
 						{Row: []gopdflib.Cell{
 							{Props: "Helvetica:10:000:center:1:1:0:1", Text: "003"},
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Performance optimization for large tables with many wrapped cells."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Performance optimization for large tables with many wrapped cells.", Wrap: boolPtr(true)},
 							{Props: "Helvetica:10:000:center:1:1:0:1", Text: "In Progress", BgColor: "#FCF3CF"},
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Benchmarking required"},
 						}},
@@ -206,7 +207,7 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 				},
 			},
 			// Spacer
-			{Type: "spacer", Spacer: &gopdflib.Spacer{Height: 20}},
+			{Type: "spacer", Spacer: &gopdflib.Spacer{Height: 100}},
 			// Section header 4
 			{
 				Type: "table",
@@ -236,9 +237,9 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 							{Props: "Helvetica:10:100:center:1:1:1:1", Text: "Right Aligned", BgColor: "#D5DBDB"},
 						}},
 						{Row: []gopdflib.Cell{
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This is left-aligned wrapped text. Each line starts from the left edge of the cell."},
-							{Props: "Helvetica:10:000:center:1:1:0:1", Text: "This is center-aligned wrapped text. Each line is centered within the cell."},
-							{Props: "Helvetica:10:000:right:1:1:0:1", Text: "This is right-aligned wrapped text. Each line ends at the right edge."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This is left-aligned wrapped text. Each line starts from the left edge of the cell.", Wrap: boolPtr(true)},
+							{Props: "Helvetica:10:000:center:1:1:0:1", Text: "This is center-aligned wrapped text. Each line is centered within the cell.", Wrap: boolPtr(true)},
+							{Props: "Helvetica:10:000:right:1:1:0:1", Text: "This is right-aligned wrapped text. Each line ends at the right edge.", Wrap: boolPtr(true)},
 						}},
 					},
 				},
