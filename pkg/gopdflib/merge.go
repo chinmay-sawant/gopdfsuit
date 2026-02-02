@@ -2,7 +2,7 @@
 package gopdflib
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/merge"
 )
 
 // MergePDFs combines multiple PDF files into a single PDF document.

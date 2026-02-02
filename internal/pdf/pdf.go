@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/chinmay-sawant/gochromedp/pkg/gochromedp"
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 // The original `pdf.go` was large. It has been split into smaller files by responsibility:

@@ -2,7 +2,7 @@
 package gopdflib
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
 )
 
 // FillPDFWithXFDF fills a PDF form with data from an XFDF file.

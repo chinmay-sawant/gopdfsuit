@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
 
 // TestGeneratePDFFromJSON demonstrates loading a JSON template and generating a PDF.
