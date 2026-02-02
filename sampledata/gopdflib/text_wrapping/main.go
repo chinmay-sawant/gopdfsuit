@@ -80,6 +80,7 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 							Text:      "1. Auto Text Wrapping (Default Behavior)",
 							BgColor:   "#E8F4F8",
 							TextColor: "#1A5276",
+							Wrap:      boolPtr(true),
 						}}},
 					},
 				},
@@ -100,13 +101,13 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 						// Data row with long text - wrap is enabled by default
 						{Row: []gopdflib.Cell{
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Short"},
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This is a very long piece of text that demonstrates the automatic text wrapping feature. The cell height will automatically adjust to fit all the content, and all cells in the same row will stretch to match the tallest cell."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This is a very long piece of text that demonstrates the automatic text wrapping feature. The cell height will automatically adjust to fit all the content, and all cells in the same row will stretch to match the tallest cell.", Wrap: boolPtr(true)},
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Also short"},
 						}},
 						// Another row
 						{Row: []gopdflib.Cell{
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Item 2"},
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Medium length text that wraps to two lines for demonstration purposes."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Medium length text that wraps to two lines for demonstration purposes.", Wrap: boolPtr(true)},
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Value"},
 						}},
 					},
@@ -144,11 +145,11 @@ func buildTextWrappingTemplate() gopdflib.PDFTemplate {
 						}},
 						{Row: []gopdflib.Cell{
 							// Default: wrap is on
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This long text will wrap automatically because wrap is enabled by default. Notice how the row height adjusts."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This long text will wrap automatically because wrap is enabled by default. Notice how the row height adjusts.", Wrap: boolPtr(true)},
 							// Explicitly disable wrap
 							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "This text has wrap disabled so it will be clipped if too long for the cell width.", Wrap: boolPtr(false)},
 							// Default: wrap is on
-							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Another cell with wrapping enabled by default showing multiline content."},
+							{Props: "Helvetica:10:000:left:1:1:0:1", Text: "Another cell with wrapping enabled by default showing multiline content.", Wrap: boolPtr(true)},
 						}},
 					},
 				},
