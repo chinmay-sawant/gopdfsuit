@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 type BenchmarkRecord struct {

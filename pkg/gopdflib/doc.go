@@ -7,7 +7,7 @@
 //
 // To generate a PDF from a template:
 //
-//	import "github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"
+//	import "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 //
 //	template := gopdflib.PDFTemplate{
 //	    Config: gopdflib.Config{

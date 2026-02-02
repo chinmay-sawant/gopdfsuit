@@ -14,7 +14,7 @@ import (
 
 	"sync"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 // fmtNumImg formats a float with 2 decimal places for image dimensions

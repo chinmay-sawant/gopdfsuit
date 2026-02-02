@@ -2,7 +2,7 @@
 package gopdflib
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/merge"
 )
 
 // SplitSpec defines split criteria for splitting PDFs.

@@ -1,4 +1,4 @@
-module github.com/chinmay-sawant/gopdfsuit
+module github.com/chinmay-sawant/gopdfsuit/v4
 
 go 1.24.0
 

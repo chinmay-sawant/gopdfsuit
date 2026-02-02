@@ -14,10 +14,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/middleware"
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/internal/pdf"
-	"github.com/chinmay-sawant/gopdfsuit/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/middleware"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 )
 

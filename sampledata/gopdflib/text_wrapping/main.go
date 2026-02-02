@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
 
 func main() {

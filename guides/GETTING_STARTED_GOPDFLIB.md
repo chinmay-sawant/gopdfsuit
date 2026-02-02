@@ -19,14 +19,12 @@ This section explains how to download and install the `gopdflib` package using t
 
 ### Steps to Download
 
-1.  **Identify the Latest Tag**
-    The latest release tag for the repository is **v4.2.0**.
 
-2.  **Get the Package**
-    Run the following command in your terminal to download the package at the specific version:
+1.  **Get the Package**
+    Run the following command in your terminal to download the package:
 
     ```bash
-    go get github.com/chinmay-sawant/gopdfsuit@v4.2.0
+    go get github.com/chinmay-sawant/gopdfsuit/v4@latest
     ```
 
     This command will download the source code and add the dependency to your `go.mod` file.
@@ -37,7 +35,7 @@ To use the library in your Go code, import the `gopdflib` package:
 
 ```go
 import (
-    "github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
 ```
 
@@ -50,7 +48,7 @@ package main
 
 import (
     "fmt"
-    "github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
 
 func main() {
@@ -99,7 +97,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
 
 func main() {

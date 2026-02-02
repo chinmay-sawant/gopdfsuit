@@ -3,7 +3,7 @@
 package gopdflib
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 // PDFTemplate is the main input structure for PDF generation.

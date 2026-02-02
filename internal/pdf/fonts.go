@@ -10,7 +10,7 @@ import (
 
 	"strconv"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 // PDF 2.0 compliant font definitions for the standard 14 fonts

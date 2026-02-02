@@ -8,7 +8,7 @@ import (
 	"runtime/pprof"
 	"syscall"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/handlers"
 	"github.com/gin-gonic/gin"
 )
 

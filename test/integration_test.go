@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/handlers"
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )

@@ -5,7 +5,7 @@ import (
 
 	"strconv"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 // GenerateBookmarks generates the outline hierarchy for the PDF

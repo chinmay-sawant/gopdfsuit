@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 // GenerateTemplatePDF generates a PDF document with multi-page support and embedded images.

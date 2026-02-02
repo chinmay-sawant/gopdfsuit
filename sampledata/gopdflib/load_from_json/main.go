@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
 
 func main() {
