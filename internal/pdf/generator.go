@@ -29,9 +29,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Initialize page manager with Arlington compatibility flag
 	pageManager := NewPageManager(pageDims, template.Config.ArlingtonCompatible)
 
-	// Reset font registry usage tracking for this PDF
-	fontRegistry := GetFontRegistry()
-	fontRegistry.ResetUsage()
+	// Create a local clone of the font registry for this PDF generation session
+	// This ensures thread safety by isolating usage tracking (UsedChars) per generation
+	globalRegistry := GetFontRegistry()
+	fontRegistry := globalRegistry.CloneForGeneration()
 
 	// PDF/A mode: Register Liberation fonts for all used standard fonts
 	if template.Config.PDFACompliant {
@@ -69,7 +70,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 
 	// Pre-scan template to mark all font usage for subsetting
-	scanTemplateForFontUsage(template)
+	scanTemplateForFontUsage(template, fontRegistry)
 
 	// Generate font subsets
 	if err := fontRegistry.GenerateSubsets(); err != nil {
@@ -1256,7 +1257,15 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 }
 
 // scanTemplateForFontUsage scans all text in template and marks font usage for subsetting
-func scanTemplateForFontUsage(template models.PDFTemplate) {
+// scanTemplateForFontUsage scans all text in template and marks font usage for subsetting
+func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontRegistry) {
+	// Helper to mark font usage on the specific registry
+	markFontUsage := func(props models.Props, text string) {
+		resolvedName := registry.ResolveFontName(props)
+		if registry.IsCustomFont(resolvedName) {
+			registry.MarkCharsUsed(resolvedName, text)
+		}
+	}
 	// Scan title
 	if template.Title.Text != "" {
 		props := parseProps(template.Title.Props)
