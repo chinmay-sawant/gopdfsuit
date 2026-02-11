@@ -8,22 +8,54 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
 
+func getSystemInfo() string {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return fmt.Sprintf("OS: %s, Arch: %s, NumCPU: %d, GoVersion: %s",
+		runtime.GOOS, runtime.GOARCH, runtime.NumCPU(), runtime.Version())
+}
+
+func monitorMemory(done chan bool, wg *sync.WaitGroup) {
+	defer wg.Done()
+	var maxAlloc uint64
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			fmt.Printf("Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
+			return
+		case <-ticker.C:
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			if m.Alloc > maxAlloc {
+				maxAlloc = m.Alloc
+			}
+		}
+	}
+}
+
 func main() {
 	fmt.Println("=== gopdflib Financial Report Example ===")
 	fmt.Println()
 
 	// Number of iterations for benchmarking
+	// Number of iterations for benchmarking
 	iterations := 100000
 	// Determine concurrency
 	// numWorkers := runtime.NumCPU()
 	numWorkers := 48
-	fmt.Printf("\nRunning %d iterations using %d workers...\n\n", iterations, numWorkers)
+
+	fmt.Println(getSystemInfo())
+	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)
 
 	// Build the template
 	template := buildFinancialReportTemplate()
@@ -42,6 +74,12 @@ func main() {
 	errors := make(chan error, iterations)
 
 	var wg sync.WaitGroup
+
+	// Start memory monitor
+	memDone := make(chan bool)
+	var memWg sync.WaitGroup
+	memWg.Add(1)
+	go monitorMemory(memDone, &memWg)
 
 	// Start workers
 	for range numWorkers {
@@ -74,6 +112,11 @@ func main() {
 	// Wait for all workers to finish
 	wg.Wait()
 	totalTime := time.Since(totalStart)
+
+	// Stop memory monitor
+	memDone <- true
+	memWg.Wait()
+
 	close(results)
 	close(errors)
 
