@@ -6,13 +6,13 @@ This document describes performance optimizations made based on pprof profiling 
 
 The pprof report identified these hotspots:
 
-| Function | CPU% | Issue |
-|----------|------|-------|
-| runtime.memclrNoHeapPointers | 13% | Memory allocations |
-| runtime.memmove | 8.7% | Memory copying |
-| image/png.readImagePass | 21.7% | PNG decoding |
-| compress/flate.* | ~20% | Compression overhead |
-| convertToRGBWithAlpha | 2.2% | Alpha blending math |
+| Function                     | CPU%  | Issue                |
+| ---------------------------- | ----- | -------------------- |
+| runtime.memclrNoHeapPointers | 13%   | Memory allocations   |
+| runtime.memmove              | 8.7%  | Memory copying       |
+| image/png.readImagePass      | 21.7% | PNG decoding         |
+| compress/flate.\*            | ~20%  | Compression overhead |
+| convertToRGBWithAlpha        | 2.2%  | Alpha blending math  |
 
 ## Optimizations Implemented
 
@@ -80,20 +80,39 @@ type imageCache struct {
 ```
 
 **Benefits**:
+
 - Skips PNG decoding for duplicate images (21.7% hotspot)
 - Skips compression for duplicate images
 - Thread-safe with read-write mutex
 
 **Files Changed**: [image.go](../internal/pdf/image.go)
 
+### 5. Thread-Safe Concurrency (Cloned Registries)
+
+**Problem**: Generating PDFs concurrently in goroutines caused race conditions and panics in the `CustomFontRegistry` because `UsedChars` and other font metadata were shared and reset globally.
+
+**Solution**: Added `CloneForGeneration()` to the font registry. Each PDF generation session now gets a shallow clone of the registry with isolated usage tracking, allowing unlimited parallel generations.
+
+**Files Changed**: [fontregistry.go](../internal/pdf/fontregistry.go), [generator.go](../internal/pdf/generator.go)
+
+## 🏁 High-Scale Benchmarks
+
+Based on these optimizations, `gopdflib` achieves extreme throughput on multi-core systems.
+
+| Machine                | Throughput           | Case Study                              |
+| ---------------------- | -------------------- | --------------------------------------- |
+| Intel i7-13700HX (24T) | **1,113.90 ops/sec** | Equal to Zerodha's distributed cluster. |
+
+For a detailed breakdown of the 1.5 million PDF generation comparison, see [BENCHMARK_ZERODHA.md](./BENCHMARK_ZERODHA.md).
+
 ## Expected Improvements
 
-| Optimization | Target Hotspot | Est. Improvement |
-|-------------|----------------|------------------|
-| Zlib pooling | compress/flate (~20%) | 10-15% faster |
-| Buffer pooling | runtime.memclr (13%) | 5-10% less GC |
-| Fast division | convertToRGBWithAlpha | 2-3x faster |
-| Image cache | PNG decoding (21.7%) | Varies by duplication |
+| Optimization   | Target Hotspot        | Est. Improvement      |
+| -------------- | --------------------- | --------------------- |
+| Zlib pooling   | compress/flate (~20%) | 10-15% faster         |
+| Buffer pooling | runtime.memclr (13%)  | 5-10% less GC         |
+| Fast division  | convertToRGBWithAlpha | 2-3x faster           |
+| Image cache    | PNG decoding (21.7%)  | Varies by duplication |
 
 ## API Changes
 
