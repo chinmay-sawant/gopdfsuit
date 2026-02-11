@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -564,7 +565,7 @@ func main() {
 	fmt.Println("Workload Mix: 80% Retail | 15% Active | 5% HFT")
 	fmt.Println()
 
-	iterations := 100000
+	iterations := 5000
 	numWorkers := 48
 
 	fmt.Println(getSystemInfo())
@@ -721,16 +722,21 @@ func main() {
 	fmt.Printf("  HFT      (5%%):   %d iterations\n", atomic.LoadInt64(&hftCount))
 	fmt.Println()
 
-	// Save sample PDFs
+	// Save sample PDFs into ./zerodha output directory (relative to working directory)
+	outputDir := "sampledata/gopdflib/zerodha"
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		fmt.Printf("Error creating output directory: %v\n", err)
+	}
 	for name, data := range map[string][]byte{
 		"zerodha_retail_output.pdf": retailPDF,
 		"zerodha_active_output.pdf": activePDF,
 		"zerodha_hft_output.pdf":    hftPDF,
 	} {
-		if err := os.WriteFile(name, data, 0644); err != nil {
-			fmt.Printf("Error saving %s: %v\n", name, err)
+		outPath := filepath.Join(outputDir, name)
+		if err := os.WriteFile(outPath, data, 0644); err != nil {
+			fmt.Printf("Error saving %s: %v\n", outPath, err)
 		} else {
-			fmt.Printf("Saved: %s (%d bytes)\n", name, len(data))
+			fmt.Printf("Saved: %s (%d bytes)\n", outPath, len(data))
 		}
 	}
 

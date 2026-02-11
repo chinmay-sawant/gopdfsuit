@@ -15,7 +15,7 @@ func fmtNum(f float64) string {
 }
 
 // --- new watermark drawer (diagonal bottom-left to top-right) ---
-func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimensions) {
+func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimensions, registry *CustomFontRegistry) {
 	if strings.TrimSpace(text) == "" {
 		return
 	}
@@ -29,7 +29,6 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	y := pageDims.Height * 0.30
 
 	// Track characters for font subsetting
-	registry := GetFontRegistry()
 	if registry.HasFont("Helvetica") {
 		registry.MarkCharsUsed("Helvetica", text)
 	}
@@ -49,7 +48,7 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	contentStream.WriteString("0.85 0.85 0.85 rg 0.85 0.85 0.85 RG\n")
 	contentStream.WriteString("BT\n")
 	// Use getFontReference to handle PDF/A font substitution (Helvetica -> Liberation)
-	fontRef := getFontReference(watermarkProps)
+	fontRef := getFontReference(watermarkProps, registry)
 
 	// Pre-allocate buffer and build complete watermark command sequence
 	wmBuf := make([]byte, 0, 256)
@@ -69,7 +68,7 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	wmBuf = append(wmBuf, ' ')
 	wmBuf = append(wmBuf, fmtNum(y)...)
 	wmBuf = append(wmBuf, " Tm\n"...)
-	wmBuf = append(wmBuf, formatTextForPDF(watermarkProps, text)...)
+	wmBuf = append(wmBuf, formatTextForPDF(watermarkProps, text, registry)...)
 	wmBuf = append(wmBuf, " Tj\n"...)
 
 	// Single write for entire watermark command sequence
@@ -81,10 +80,10 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 }
 
 // --- new page initializer (border + watermark) ---
-func initializePage(contentStream *bytes.Buffer, borderConfig, watermark string, pageDims PageDimensions) {
+func initializePage(contentStream *bytes.Buffer, borderConfig, watermark string, pageDims PageDimensions, registry *CustomFontRegistry) {
 	drawPageBorder(contentStream, borderConfig, pageDims)
 	if watermark != "" {
-		drawWatermark(contentStream, watermark, pageDims)
+		drawWatermark(contentStream, watermark, pageDims, registry)
 	}
 }
 
@@ -207,7 +206,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	}
 
 	contentStream.WriteString("BT\n")
-	contentStream.WriteString(getFontReference(titleProps))
+	contentStream.WriteString(getFontReference(titleProps, pageManager.FontRegistry))
 	contentStream.WriteString(" ")
 	contentStream.WriteString(strconv.Itoa(titleProps.FontSize))
 	contentStream.WriteString(" Tf\n")
@@ -227,7 +226,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	}
 
 	// Calculate approximate text width
-	textWidth := EstimateTextWidth(titleProps.FontName, title.Text, float64(titleProps.FontSize))
+	textWidth := EstimateTextWidth(titleProps.FontName, title.Text, float64(titleProps.FontSize), pageManager.FontRegistry)
 
 	// Calculate available width (page width minus both margins)
 	availableWidth := pageManager.PageDimensions.Width - 2*margin
@@ -255,7 +254,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	contentStream.Write(titleBuf)
 
 	titleBuf = titleBuf[:0]
-	titleBuf = append(titleBuf, formatTextForPDF(titleProps, title.Text)...)
+	titleBuf = append(titleBuf, formatTextForPDF(titleProps, title.Text, pageManager.FontRegistry)...)
 	titleBuf = append(titleBuf, " Tj\n"...)
 	contentStream.Write(titleBuf)
 	contentStream.WriteString("ET\n")
@@ -489,7 +488,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					// Draw image name
 					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
 						contentStream.WriteString("BT\n")
-						fontRef := getFontReference(models.Props{FontName: "Helvetica"})
+						fontRef := getFontReference(models.Props{FontName: "Helvetica"}, pageManager.FontRegistry)
 						var imgNameBuf []byte
 						imgNameBuf = append(imgNameBuf, fontRef...)
 						imgNameBuf = append(imgNameBuf, " 8 Tf\n"...)
@@ -515,7 +514,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			} else if cell.Text != "" {
 				// Draw text with font styling
 				contentStream.WriteString("BT\n")
-				contentStream.WriteString(getFontReference(cellProps))
+				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 				contentStream.WriteString(" ")
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
@@ -541,7 +540,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				}
 
 				// Calculate approximate text width
-				textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize))
+				textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 
 				var textX float64
 				switch cellProps.Alignment {
@@ -582,7 +581,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.Write(underlineBuf)
 					contentStream.WriteString("Q\n")
 					contentStream.WriteString("BT\n")
-					contentStream.WriteString(getFontReference(cellProps))
+					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 					contentStream.WriteString(" ")
 					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 					contentStream.WriteString(" Tf\n")
@@ -596,7 +595,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				}
 
 				textPosBuf = textPosBuf[:0]
-				textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, cell.Text)...)
+				textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, cell.Text, pageManager.FontRegistry)...)
 				textPosBuf = append(textPosBuf, " Tj\n"...)
 				contentStream.Write(textPosBuf)
 				contentStream.WriteString("ET\n")
@@ -756,7 +755,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				if maxTextWidth < 10 {
 					maxTextWidth = 10 // Minimum width to avoid issues
 				}
-				wrappedTextLines[colIdx] = WrapText(cell.Text, cellProps.FontName, float64(cellProps.FontSize), maxTextWidth)
+				wrappedTextLines[colIdx] = WrapText(cell.Text, cellProps.FontName, float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
 			}
 		}
 
@@ -787,7 +786,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		if pageManager.CheckPageBreak(rowHeight) {
 			// Create new page and initialize it
 			pageManager.AddNewPage()
-			initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions)
+			initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.FontRegistry)
 		}
 
 		// Get current content stream for this page
@@ -929,7 +928,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					// Draw image name
 					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
 						contentStream.WriteString("BT\n")
-						fontRef := getFontReference(models.Props{FontName: "Helvetica"})
+						fontRef := getFontReference(models.Props{FontName: "Helvetica"}, pageManager.FontRegistry)
 						var imgNameBuf []byte
 						imgNameBuf = append(imgNameBuf, fontRef...)
 						imgNameBuf = append(imgNameBuf, " 8 Tf\n"...)
@@ -1010,7 +1009,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			} else if cell.Text != "" {
 				// Draw text with font styling
 				contentStream.WriteString("BT\n")
-				contentStream.WriteString(getFontReference(cellProps))
+				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 				contentStream.WriteString(" ")
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
@@ -1054,7 +1053,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						}
 
 						// Calculate text width for this line
-						lineWidth := EstimateTextWidth(cellProps.FontName, line, fontSize)
+						lineWidth := EstimateTextWidth(cellProps.FontName, line, fontSize, pageManager.FontRegistry)
 
 						// Calculate X position based on alignment
 						var textX float64
@@ -1081,7 +1080,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 						// Render the line
 						textPosBuf = textPosBuf[:0]
-						textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, line)...)
+						textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, line, pageManager.FontRegistry)...)
 						textPosBuf = append(textPosBuf, " Tj\n"...)
 						contentStream.Write(textPosBuf)
 					}
@@ -1089,7 +1088,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				} else {
 					// Single-line text rendering (original behavior)
 					// Calculate approximate text width
-					textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize))
+					textWidth := EstimateTextWidth(cellProps.FontName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 
 					var textX float64
 					switch cellProps.Alignment {
@@ -1135,7 +1134,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.WriteString("Q\n")
 						// Start text object again
 						contentStream.WriteString("BT\n")
-						contentStream.WriteString(getFontReference(cellProps))
+						contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 						contentStream.WriteString(" ")
 						contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 						contentStream.WriteString(" Tf\n")
@@ -1149,7 +1148,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					}
 
 					textPosBuf = textPosBuf[:0]
-					textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, cell.Text)...)
+					textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, cell.Text, pageManager.FontRegistry)...)
 					textPosBuf = append(textPosBuf, " Tj\n"...)
 					contentStream.Write(textPosBuf)
 					contentStream.WriteString("ET\n")
@@ -1252,7 +1251,7 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 	contentStream.WriteString("/Artifact <</Attached [/Bottom] /Type /Pagination >> BDC\n")
 
 	contentStream.WriteString("BT\n")
-	contentStream.WriteString(getFontReference(footerProps))
+	contentStream.WriteString(getFontReference(footerProps, pageManager.FontRegistry))
 	contentStream.WriteString(" ")
 	contentStream.WriteString(strconv.Itoa(footerProps.FontSize))
 	contentStream.WriteString(" Tf\n")
@@ -1270,7 +1269,7 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 	contentStream.Write(footerBuf)
 
 	footerBuf = footerBuf[:0]
-	footerBuf = append(footerBuf, formatTextForPDF(footerProps, footer.Text)...)
+	footerBuf = append(footerBuf, formatTextForPDF(footerProps, footer.Text, pageManager.FontRegistry)...)
 	footerBuf = append(footerBuf, " Tj\n"...)
 	contentStream.Write(footerBuf)
 	contentStream.WriteString("ET\n")
@@ -1283,7 +1282,7 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 		// Calculate approximate text width
 		// Using standard estimation for width since we don't have exact calc here easily without refactoring
 		// But footer is likely simple text.
-		textWidth := EstimateTextWidth(footerProps.FontName, footer.Text, float64(footerProps.FontSize))
+		textWidth := EstimateTextWidth(footerProps.FontName, footer.Text, float64(footerProps.FontSize), pageManager.FontRegistry)
 
 		rectX := float64(footerX)
 		rectY := float64(footerY) - float64(footerProps.FontSize)*0.2
@@ -1294,11 +1293,11 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 }
 
 // drawPageNumber renders page number in bottom right corner
-func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions) {
+func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions, pageManager *PageManager) {
 	pageText := fmt.Sprintf("Page %d of %d", currentPage, totalPages)
 
 	// Track characters for font subsetting
-	registry := GetFontRegistry()
+	registry := pageManager.FontRegistry
 	if registry.HasFont("Helvetica") {
 		registry.MarkCharsUsed("Helvetica", pageText)
 	}
@@ -1310,7 +1309,7 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 	contentStream.WriteString("/Artifact <</Attached [/Bottom] /Type /Pagination >> BDC\n")
 
 	contentStream.WriteString("BT\n")
-	fontRef := getFontReference(pageProps)
+	fontRef := getFontReference(pageProps, pageManager.FontRegistry)
 	var pageNumBuf []byte
 	pageNumBuf = append(pageNumBuf, fontRef...)
 	pageNumBuf = append(pageNumBuf, " 10 Tf\n"...)
@@ -1332,7 +1331,7 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 	contentStream.Write(pageNumBuf)
 
 	pageNumBuf = pageNumBuf[:0]
-	pageNumBuf = append(pageNumBuf, formatTextForPDF(pageProps, pageText)...)
+	pageNumBuf = append(pageNumBuf, formatTextForPDF(pageProps, pageText, pageManager.FontRegistry)...)
 	pageNumBuf = append(pageNumBuf, " Tj\n"...)
 	contentStream.Write(pageNumBuf)
 	contentStream.WriteString("ET\n")
@@ -1360,7 +1359,7 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	if pageManager.CheckPageBreak(imageHeight + spacing) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions)
+		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.FontRegistry)
 	}
 
 	// Get current content stream for this page
@@ -1409,7 +1408,7 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	// Add image name text in the center
 	if image.ImageName != "" {
 		contentStream.WriteString("BT\n")
-		fontRef := getFontReference(models.Props{FontName: "Helvetica"})
+		fontRef := getFontReference(models.Props{FontName: "Helvetica"}, pageManager.FontRegistry)
 		var imgTextBuf []byte
 		imgTextBuf = append(imgTextBuf, fontRef...)
 		imgTextBuf = append(imgTextBuf, " 10 Tf\n"...)
@@ -1470,7 +1469,7 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 	if pageManager.CheckPageBreak(imageHeight) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions)
+		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.FontRegistry)
 	}
 
 	// Get current content stream for this page
@@ -1618,7 +1617,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		// Mark field value for font subsetting (critical for PDF/A compliance)
 		// Form field text is rendered in appearance streams using custom fonts
 		if field.Value != "" {
-			registry := GetFontRegistry()
+			registry := pageManager.FontRegistry
 			if registry.HasFont("Helvetica") {
 				// PDF/A mode: Liberation font registered as Helvetica
 				registry.MarkCharsUsed("Helvetica", field.Value)
@@ -1626,7 +1625,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		}
 
 		// Get the appropriate font reference for widgets (handles PDF/A mode)
-		widgetFontRef := getWidgetFontReference()
+		widgetFontRef := getWidgetFontReference(pageManager.FontRegistry)
 
 		// Default Appearance string - used by viewer to render text
 		// Use proper font reference instead of hardcoded /Helv
@@ -1645,7 +1644,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			textX := 2.0
 			// Use proper encoding for field value
 			fieldProps := models.Props{FontName: "Helvetica", FontSize: int(fontSize)}
-			encodedValue := formatTextForPDF(fieldProps, field.Value)
+			encodedValue := formatTextForPDF(fieldProps, field.Value, pageManager.FontRegistry)
 			// Use proper font reference in appearance stream
 			apStream.WriteString(fmt.Sprintf("q BT %s %s Tf 0 g %s %s Td %s Tj ET Q ", widgetFontRef, fmtNum(fontSize), fmtNum(textX), fmtNum(textY), encodedValue))
 		}
@@ -1656,10 +1655,10 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		// IMPORTANT: Form XObjects must declare all resources they use in their own Resources dictionary
 		// This is required for PDF/A-4 compliance - resources cannot be inherited from page level
 		var apObjContent string
-		if getWidgetFontName() == "" {
+		if getWidgetFontName(pageManager.FontRegistry) == "" {
 			// PDF/A mode: Get the font object ID from the font registry
 			// The widgetFontRef (e.g., /CF2000) references a custom font that must be in Resources
-			fontObjID := getWidgetFontObjectID()
+			fontObjID := getWidgetFontObjectID(pageManager.FontRegistry)
 			if fontObjID > 0 {
 				// Include the font reference in the XObject's Resources dictionary
 				apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << %s %d 0 R >> >> /Length %d >> stream\n%s\nendstream",

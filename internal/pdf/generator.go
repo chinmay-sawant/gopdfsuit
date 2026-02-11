@@ -26,9 +26,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pageConfig := template.Config
 	pageDims := getPageDimensions(pageConfig.Page, pageConfig.PageAlignment)
 
-	// Initialize page manager with Arlington compatibility flag
-	pageManager := NewPageManager(pageDims, template.Config.ArlingtonCompatible)
-
 	// Create a local clone of the font registry for this PDF generation session
 	// This ensures thread safety by isolating usage tracking (UsedChars) per generation
 	globalRegistry := GetFontRegistry()
@@ -68,6 +65,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			}
 		}
 	}
+
+	// Initialize page manager with Arlington compatibility flag and per-generation font registry
+	pageManager := NewPageManager(pageDims, template.Config.ArlingtonCompatible, fontRegistry)
 
 	// Pre-scan template to mark all font usage for subsetting
 	scanTemplateForFontUsage(template, fontRegistry)
@@ -253,7 +253,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	fontRefs := []string{"/F1", "/F2", "/F3", "/F4", "/F5", "/F6", "/F7", "/F8", "/F9", "/F10", "/F11", "/F12", "/F13", "/F14"}
 
 	// Identify used standard fonts
-	usedStandardFonts := collectUsedStandardFonts(template)
+	usedStandardFonts := collectUsedStandardFonts(template, fontRegistry)
 
 	// If signature is enabled and visible, force usage of Helvetica
 	signatureEnabled := template.Config.Signature != nil && template.Config.Signature.Enabled
@@ -330,7 +330,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			// Get the font ID for signature appearance
 			// In PDF/A mode, this returns the Liberation font ID that replaces Helvetica
 			// In standard mode, this returns the standard Helvetica font ID
-			signatureFontID := getWidgetFontObjectID()
+			signatureFontID := getWidgetFontObjectID(pageManager.FontRegistry)
 			if signatureFontID == 0 {
 				// Fallback to standard font object ID if no custom font
 				signatureFontID = fontObjectIDs["Helvetica"]
@@ -417,7 +417,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		fieldsRef.WriteString("]")
 
 		// Get appropriate font reference for AcroForm DA (handles PDF/A mode)
-		widgetFontRef := getWidgetFontReference()
+		widgetFontRef := getWidgetFontReference(fontRegistry)
 
 		// Build AcroForm content - include SigFlags if signatures are present
 		var acroFormContent string
@@ -1128,7 +1128,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 // generateAllContentWithImages processes the template and generates content with image support
 func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, cellImageObjectIDs map[string]int, elemImageObjects map[int]*ImageObject) {
 	// Initialize first page
-	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
+	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions, pageManager.FontRegistry)
 
 	// Title - Process if title text is provided OR if title has a table
 	if template.Title.Text != "" || template.Title.Table != nil {
@@ -1153,7 +1153,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 
 		if pageManager.CheckPageBreak(titleHeight) {
 			pageManager.AddNewPage()
-			initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions)
+			initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions, pageManager.FontRegistry)
 		}
 
 		drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager, cellImageObjectIDs)
@@ -1252,7 +1252,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 			drawFooter(&pageManager.ContentStreams[i], template.Footer, pageManager)
 		}
 		// Draw page number on this page
-		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions)
+		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions, pageManager)
 	}
 }
 
@@ -1372,9 +1372,8 @@ func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontR
 // collectUsedStandardFonts returns a set of standard font names used in the template
 // Always includes Helvetica as it's the default font and used for form fields
 // Excludes fonts that are registered as custom fonts (e.g., Liberation fonts in PDF/A mode)
-func collectUsedStandardFonts(template models.PDFTemplate) map[string]bool {
+func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontRegistry) map[string]bool {
 	used := make(map[string]bool)
-	registry := GetFontRegistry()
 
 	// Helper to mark font only if it's a true standard font (not overridden by custom)
 	markFont := func(propsStr string) {

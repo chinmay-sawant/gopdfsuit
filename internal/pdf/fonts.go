@@ -971,8 +971,7 @@ func generateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 // EncodeTextForCustomFont encodes text for use with a custom font (Identity-H encoding)
 // Returns the encoded hex string suitable for use in PDF content stream with Tj operator
 // Characters not in the font are replaced with a space to prevent .notdef references
-func EncodeTextForCustomFont(fontName string, text string) string {
-	registry := GetFontRegistry()
+func EncodeTextForCustomFont(fontName string, text string, registry *CustomFontRegistry) string {
 	font, ok := registry.GetFont(fontName)
 	if !ok {
 		// Fallback: encode as-is if font not found

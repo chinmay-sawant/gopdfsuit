@@ -266,7 +266,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 	}
 
 	// Check if we're using a custom font (Liberation) that needs hex encoding
-	registry := GetFontRegistry()
+	registry := pageManager.FontRegistry
 	useHexEncoding := fontID > 0 && registry.HasFont("Helvetica")
 
 	appearance.WriteString("BT\n")
@@ -277,7 +277,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 	formatText := func(text string) string {
 		if useHexEncoding {
 			// For Liberation fonts, use hex encoding
-			return EncodeTextForCustomFont("Helvetica", text)
+			return EncodeTextForCustomFont("Helvetica", text, registry)
 		}
 		// For standard fonts, use ASCII encoding
 		return "(" + escapeText(text) + ")"

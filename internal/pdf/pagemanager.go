@@ -20,6 +20,7 @@ type PageManager struct {
 	NextAnnotStructParent int                  // PDF/UA-2: Counter for annotation StructParent values
 	AnnotStructElems      []AnnotStructElem    // PDF/UA-2: Annotation to structure element mapping
 	NamedDests            map[string]NamedDest // Map of named destinations for internal linking
+	FontRegistry          *CustomFontRegistry  // Per-generation font registry for thread-safe font access
 }
 
 // AnnotStructElem tracks the relationship between an annotation and its structure element
@@ -37,7 +38,7 @@ type NamedDest struct {
 }
 
 // NewPageManager creates a new page manager with initial page
-func NewPageManager(pageDims PageDimensions, arlingtonCompatible bool) *PageManager {
+func NewPageManager(pageDims PageDimensions, arlingtonCompatible bool, fontRegistry *CustomFontRegistry) *PageManager {
 	pm := &PageManager{
 		Pages:                 []int{3}, // First page starts at object 3
 		CurrentPageIndex:      0,        // Start with first page
@@ -52,6 +53,7 @@ func NewPageManager(pageDims PageDimensions, arlingtonCompatible bool) *PageMana
 		NextAnnotStructParent: 1000, // Start annotation StructParents at 1000 to avoid conflicts with page StructParents
 		AnnotStructElems:      make([]AnnotStructElem, 0),
 		NamedDests:            make(map[string]NamedDest),
+		FontRegistry:          fontRegistry,
 	}
 	return pm
 }
