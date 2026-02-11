@@ -309,16 +309,6 @@ func isCustomFont(fontName string) bool {
 	return registry.HasFont(fontName)
 }
 
-// markFontUsage marks characters as used for font subsetting
-// props is used to resolve the actual font (handling fallbacks)
-func markFontUsage(props models.Props, text string) {
-	resolvedName := resolveFontName(props)
-	if isCustomFont(resolvedName) {
-		registry := GetFontRegistry()
-		registry.MarkCharsUsed(resolvedName, text)
-	}
-}
-
 // EstimateTextWidth estimates the width of text in points for a given font and size
 // Uses actual glyph widths for custom fonts, approximation for standard fonts
 func EstimateTextWidth(fontName string, text string, fontSize float64) float64 {
