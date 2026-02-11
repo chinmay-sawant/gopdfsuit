@@ -1,0 +1,43 @@
+{
+  "document_type": "contract_note_hft",
+  "performance_mode": "batch_processing",
+  "client": {
+    "name": "Algo Capital LLP",
+    "code": "HFT001",
+    "pan": "ZZZZZ9999Z"
+  },
+  "trades": [
+    {
+      "id": 1,
+      "time": "09:15:01",
+      "symbol": "RELIANCE",
+      "action": "BUY",
+      "qty": 500,
+      "price": 2400.05,
+      "total": 1200025.0
+    },
+    {
+      "id": 2,
+      "time": "09:15:01",
+      "symbol": "RELIANCE",
+      "action": "SELL",
+      "qty": 500,
+      "price": 2401.1,
+      "total": 1200550.0
+    },
+    {
+      "id": 2000,
+      "time": "15:29:59",
+      "symbol": "TCS",
+      "action": "BUY",
+      "qty": 100,
+      "price": 3500.0,
+      "total": 350000.0
+    }
+  ],
+  "_note": "The Go program generates 2000 trades at runtime for the full stress test.",
+  "compliance_audit": {
+    "timestamp": "2024-02-12T17:00:00Z",
+    "auditor_signature_placeholder": true
+  }
+}

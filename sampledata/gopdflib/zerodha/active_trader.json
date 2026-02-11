@@ -1,0 +1,49 @@
+{
+  "document_type": "contract_note_active",
+  "features": {
+    "bookmarks": true,
+    "internal_links": true,
+    "watermark": "CONFIDENTIAL"
+  },
+  "client": {
+    "name": "Priya Venkatesh",
+    "code": "PV5544",
+    "pan": "FGHIJ5678K"
+  },
+  "trades": [
+    {
+      "symbol": "NIFTY24FEB22000CE",
+      "action": "BUY",
+      "qty": 50,
+      "price": 120.5,
+      "total": 6025.0
+    },
+    {
+      "symbol": "NIFTY24FEB22000CE",
+      "action": "SELL",
+      "qty": 50,
+      "price": 135.0,
+      "total": 6750.0
+    },
+    {
+      "symbol": "BANKNIFTY24FEB46000PE",
+      "action": "BUY",
+      "qty": 15,
+      "price": 340.0,
+      "total": 5100.0
+    },
+    {
+      "symbol": "HDFCBANK",
+      "action": "BUY",
+      "qty": 100,
+      "price": 1450.0,
+      "total": 145000.0
+    }
+  ],
+  "_note": "The Go program generates 40 trades at runtime for the full benchmark.",
+  "summary": {
+    "total_turnover": 4500200.0,
+    "brokerage": 20.0,
+    "regulatory_charges": 150.0
+  }
+}
