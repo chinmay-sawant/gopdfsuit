@@ -178,6 +178,10 @@ type Cell struct {
 	// When true, text will wrap to multiple lines and row height will auto-adjust.
 	// Default is false (text will be clipped if it exceeds cell width).
 	Wrap *bool `json:"wrap,omitempty"`
+	// Dest is an optional named destination anchor for this cell.
+	// Other cells can link to it using Link: "#dest-name".
+	// Bookmarks can also reference it via the Dest field.
+	Dest string `json:"dest,omitempty"`
 }
 
 type FormField struct {

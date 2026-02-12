@@ -144,18 +144,25 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 			},
 		},
 		Title: gopdflib.Title{
-			Props: "Helvetica:18:100:center:0:0:0:0",
+			Props: "Helvetica:24:100:center:0:0:0:0",
 			Text:  "CONTRACT NOTE",
 			Table: &gopdflib.TitleTable{
-				MaxColumns:   1,
-				ColumnWidths: []float64{1},
+				MaxColumns:   2,
+				ColumnWidths: []float64{1.5, 2.5},
 				Rows: []gopdflib.Row{
 					{Row: []gopdflib.Cell{
 						{
 							Props:     "Helvetica:20:100:center:0:0:0:0",
-							Text:      "CONTRACT NOTE - CN2024001",
-							BgColor:   "#1B4F72",
+							Text:      "CONTRACT NOTE",
+							BgColor:   "#154360",
 							TextColor: "#FFFFFF",
+							Height:    floatPtr(45),
+						},
+						{
+							Props:     "Helvetica:11:000:right:0:0:0:0",
+							Text:      "CN2024001 | 2024-02-12",
+							BgColor:   "#154360",
+							TextColor: "#AED6F1",
 							Height:    floatPtr(45),
 						},
 					}},
@@ -163,11 +170,21 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 			},
 		},
 		Elements: []gopdflib.Element{
-			// Client Information Header
+			// Navigation row
+			{Type: "table", Table: &gopdflib.Table{
+				MaxColumns: 4, ColumnWidths: []float64{1, 1, 1, 1},
+				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
+					{Props: "Helvetica:8:000:center:0:0:0:1", Text: "Go to Client Info", TextColor: "#2E86C1", Link: "#client-info"},
+					{Props: "Helvetica:8:000:center:0:0:0:1", Text: "Go to Trades", TextColor: "#2E86C1", Link: "#trade-details"},
+					{Props: "Helvetica:8:000:center:0:0:0:1", Text: "Go to Financials", TextColor: "#2E86C1", Link: "#financial-summary"},
+					{Props: "Helvetica:8:000:center:0:0:0:1", Text: ""},
+				}}},
+			}},
+			// Client Information Header with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "CLIENT INFORMATION", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "SECTION A: CLIENT INFORMATION", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "client-info"},
 				}}},
 			}},
 			// Client Details
@@ -188,11 +205,11 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 					}},
 				},
 			}},
-			// Trades Header
+			// Trades Header with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "TRADE DETAILS", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "SECTION B: TRADE DETAILS", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "trade-details"},
 				}}},
 			}},
 			// Trade Table Header
@@ -227,11 +244,11 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 					}},
 				},
 			}},
-			// Financials
+			// Financials Header with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "FINANCIAL SUMMARY", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "SECTION C: FINANCIAL SUMMARY", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "financial-summary"},
 				}}},
 			}},
 			{Type: "table", Table: &gopdflib.Table{
@@ -246,8 +263,8 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 						{Props: "Helvetica:9:000:right:0:1:0:1", Text: "₹12.50", BgColor: "#F8F9F9"},
 					}},
 					{Row: []gopdflib.Cell{
-						{Props: "Helvetica:10:100:left:1:0:1:1", Text: "Total Payable", BgColor: "#D4E6F1"},
-						{Props: "Helvetica:10:100:right:0:1:1:1", Text: "₹6,807.50", BgColor: "#D4E6F1"},
+						{Props: "Helvetica:10:100:left:1:0:1:1", Text: "Total Payable", BgColor: "#A9CCE3"},
+						{Props: "Helvetica:10:100:right:0:1:1:1", Text: "₹6,807.50", BgColor: "#A9CCE3"},
 					}},
 				},
 			}},
@@ -255,6 +272,17 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 		Footer: gopdflib.Footer{
 			Font: "Helvetica:7:000:center",
 			Text: "ZERODHA BROKING LTD | CONTRACT NOTE | CONFIDENTIAL",
+		},
+		Bookmarks: []gopdflib.Bookmark{
+			{
+				Title: "Contract Note - CN2024001",
+				Page:  1,
+				Children: []gopdflib.Bookmark{
+					{Title: "Client Information", Page: 1, Dest: "client-info"},
+					{Title: "Trade Details", Page: 1, Dest: "trade-details"},
+					{Title: "Financial Summary", Page: 1, Dest: "financial-summary"},
+				},
+			},
 		},
 	}
 }
@@ -312,18 +340,25 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 			EmbedFonts:          boolPtr(true),
 		},
 		Title: gopdflib.Title{
-			Props: "Helvetica:18:100:center:0:0:0:0",
+			Props: "Helvetica:24:100:center:0:0:0:0",
 			Text:  "ACTIVE TRADER CONTRACT NOTE",
 			Table: &gopdflib.TitleTable{
-				MaxColumns:   1,
-				ColumnWidths: []float64{1},
+				MaxColumns:   2,
+				ColumnWidths: []float64{1.5, 2.5},
 				Rows: []gopdflib.Row{
 					{Row: []gopdflib.Cell{
 						{
 							Props:     "Helvetica:18:100:center:0:0:0:0",
-							Text:      "CONTRACT NOTE - ACTIVE TRADER",
-							BgColor:   "#1B4F72",
+							Text:      "ACTIVE TRADER CONTRACT NOTE",
+							BgColor:   "#154360",
 							TextColor: "#FFFFFF",
+							Height:    floatPtr(45),
+						},
+						{
+							Props:     "Helvetica:11:000:right:0:0:0:0",
+							Text:      "40 Trades | 2024-02-12",
+							BgColor:   "#154360",
+							TextColor: "#AED6F1",
 							Height:    floatPtr(45),
 						},
 					}},
@@ -331,14 +366,14 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 			},
 		},
 		Elements: []gopdflib.Element{
-			// Client Info Header
+			// Client Info Header with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "CLIENT INFORMATION", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "SECTION A: CLIENT INFORMATION", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "active-client-info"},
 				}}},
 			}},
-			// Client Details
+			// Client Details with navigation links
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 4, ColumnWidths: []float64{1.2, 2, 1.2, 2},
 				Rows: []gopdflib.Row{
@@ -362,11 +397,11 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 					}},
 				},
 			}},
-			// Trade Table Header
+			// Trade Table Header with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "TRADE DETAILS (40 TRADES)", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "SECTION B: TRADE DETAILS (40 TRADES)", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "trades-section"},
 				}}},
 			}},
 			// Trade Table (40 rows + header)
@@ -375,11 +410,11 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 				ColumnWidths: []float64{2.5, 1, 1, 1.5, 1.5},
 				Rows:         tradeRows,
 			}},
-			// Summary Header
+			// Summary Header with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "SUMMARY", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:11:100:left:1:1:1:1", Text: "SECTION C: SUMMARY", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "summary-section"},
 				}}},
 			}},
 			// Summary
@@ -399,8 +434,8 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 						{Props: "Helvetica:9:000:right:0:1:0:1", Text: "₹150.00"},
 					}},
 					{Row: []gopdflib.Cell{
-						{Props: "Helvetica:10:100:left:1:0:1:1", Text: "Net Payable", BgColor: "#D4E6F1"},
-						{Props: "Helvetica:10:100:right:0:1:1:1", Text: fmt.Sprintf("₹%.2f", totalTurnover+20+150), BgColor: "#D4E6F1"},
+						{Props: "Helvetica:10:100:left:1:0:1:1", Text: "Net Payable", BgColor: "#A9CCE3"},
+						{Props: "Helvetica:10:100:right:0:1:1:1", Text: fmt.Sprintf("₹%.2f", totalTurnover+20+150), BgColor: "#A9CCE3"},
 					}},
 				},
 			}},
@@ -414,8 +449,8 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 				Title: "Active Trader Contract Note",
 				Page:  1,
 				Children: []gopdflib.Bookmark{
-					{Title: "Client Information", Page: 1},
-					{Title: "Trade Details", Page: 1, Dest: "trades-section"},
+					{Title: "Client Information", Page: 1, Dest: "active-client-info"},
+					{Title: "Trade Details (40 Trades)", Page: 1, Dest: "trades-section"},
 					{Title: "Summary", Page: 2, Dest: "summary-section"},
 				},
 			},
@@ -472,18 +507,25 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 			EmbedFonts:          boolPtr(true),
 		},
 		Title: gopdflib.Title{
-			Props: "Helvetica:18:100:center:0:0:0:0",
+			Props: "Helvetica:24:100:center:0:0:0:0",
 			Text:  "HFT CONTRACT NOTE",
 			Table: &gopdflib.TitleTable{
-				MaxColumns:   1,
-				ColumnWidths: []float64{1},
+				MaxColumns:   2,
+				ColumnWidths: []float64{1.5, 2.5},
 				Rows: []gopdflib.Row{
 					{Row: []gopdflib.Cell{
 						{
 							Props:     "Helvetica:16:100:center:0:0:0:0",
-							Text:      "CONTRACT NOTE - ALGO CAPITAL LLP (HFT)",
-							BgColor:   "#1B4F72",
+							Text:      "HFT CONTRACT NOTE",
+							BgColor:   "#154360",
 							TextColor: "#FFFFFF",
+							Height:    floatPtr(40),
+						},
+						{
+							Props:     "Helvetica:10:000:right:0:0:0:0",
+							Text:      "ALGO CAPITAL LLP | 2,000 Trades",
+							BgColor:   "#154360",
+							TextColor: "#AED6F1",
 							Height:    floatPtr(40),
 						},
 					}},
@@ -491,11 +533,21 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 			},
 		},
 		Elements: []gopdflib.Element{
-			// Client Info
+			// Navigation row
+			{Type: "table", Table: &gopdflib.Table{
+				MaxColumns: 4, ColumnWidths: []float64{1, 1, 1, 1},
+				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
+					{Props: "Helvetica:7:000:center:0:0:0:1", Text: "Go to Client Info", TextColor: "#2E86C1", Link: "#hft-client-info"},
+					{Props: "Helvetica:7:000:center:0:0:0:1", Text: "Go to Trades", TextColor: "#2E86C1", Link: "#hft-trades"},
+					{Props: "Helvetica:7:000:center:0:0:0:1", Text: "Go to Compliance", TextColor: "#2E86C1", Link: "#hft-compliance"},
+					{Props: "Helvetica:7:000:center:0:0:0:1", Text: ""},
+				}}},
+			}},
+			// Client Info with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:10:100:left:1:1:1:1", Text: "CLIENT INFORMATION", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:10:100:left:1:1:1:1", Text: "SECTION A: CLIENT INFORMATION", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "hft-client-info"},
 				}}},
 			}},
 			{Type: "table", Table: &gopdflib.Table{
@@ -515,11 +567,11 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 					}},
 				},
 			}},
-			// Trade Table Header
+			// Trade Table Header with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:10:100:left:1:1:1:1", Text: "TRADE DETAILS (2,000 TRADES)", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:10:100:left:1:1:1:1", Text: "SECTION B: TRADE DETAILS (2,000 TRADES)", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "hft-trades"},
 				}}},
 			}},
 			// 2000-row trade table
@@ -528,11 +580,11 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 				ColumnWidths: []float64{0.6, 1, 2, 0.8, 0.6, 1.5, 1.5},
 				Rows:         tradeRows,
 			}},
-			// Compliance audit
+			// Compliance audit with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
 				MaxColumns: 1, ColumnWidths: []float64{1},
 				Rows: []gopdflib.Row{{Row: []gopdflib.Cell{
-					{Props: "Helvetica:10:100:left:1:1:1:1", Text: "COMPLIANCE AUDIT", BgColor: "#2E86C1", TextColor: "#FFFFFF"},
+					{Props: "Helvetica:10:100:left:1:1:1:1", Text: "SECTION C: COMPLIANCE AUDIT", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "hft-compliance"},
 				}}},
 			}},
 			{Type: "table", Table: &gopdflib.Table{
@@ -552,6 +604,17 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 		Footer: gopdflib.Footer{
 			Font: "Helvetica:7:000:center",
 			Text: "ALGO CAPITAL LLP | HFT CONTRACT NOTE | STRICTLY CONFIDENTIAL",
+		},
+		Bookmarks: []gopdflib.Bookmark{
+			{
+				Title: "HFT Contract Note - Algo Capital LLP",
+				Page:  1,
+				Children: []gopdflib.Bookmark{
+					{Title: "Client Information", Page: 1, Dest: "hft-client-info"},
+					{Title: "Trade Details (2,000 Trades)", Page: 1, Dest: "hft-trades"},
+					{Title: "Compliance Audit", Dest: "hft-compliance"},
+				},
+			},
 		},
 	}
 }
@@ -723,7 +786,7 @@ func main() {
 	fmt.Println()
 
 	// Save sample PDFs into ./zerodha output directory (relative to working directory)
-	outputDir := "sampledata/gopdflib/zerodha"
+	outputDir := "./"
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		fmt.Printf("Error creating output directory: %v\n", err)
 	}

@@ -669,6 +669,13 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				linkY := pageManager.CurrentYPos - cellHeight
 				pageManager.AddLinkAnnotation(cellX, linkY, cellWidth, cellHeight, cell.Link)
 			}
+			// Register named destination anchor if provided
+			if cell.Dest != "" {
+				pageManager.NamedDests[cell.Dest] = NamedDest{
+					PageIndex: pageManager.CurrentPageIndex,
+					Y:         pageManager.CurrentYPos,
+				}
+			}
 			// PDF/UA: End TD Structure Element
 			var sbEnd strings.Builder
 			pageManager.Structure.EndMarkedContent(&sbEnd)
@@ -1220,6 +1227,13 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// Create link annotation if cell has a link
 			if cell.Link != "" {
 				DrawCellLink(cell.Link, cellX, pageManager.CurrentYPos-cellHeight, cellWidth, cellHeight, pageManager)
+			}
+			// Register named destination anchor if provided
+			if cell.Dest != "" {
+				pageManager.NamedDests[cell.Dest] = NamedDest{
+					PageIndex: pageManager.CurrentPageIndex,
+					Y:         pageManager.CurrentYPos,
+				}
 			}
 
 			// PDF/UA: End Cell Structure
