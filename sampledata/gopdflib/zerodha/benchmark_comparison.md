@@ -5,7 +5,7 @@
 This report compares the performance of **gopdflib (Go 1.24)** against **Zerodha's Typst-based architecture** for generating financial contract notes.
 The benchmark uses the same workload mix as Zerodha's production system (80% Retail, 15% Active Trader, 5% HFT/Algo).
 
-**Key Finding:** `gopdflib` running on a **single 24-core machine** achieves **~47% of the total throughput** of Zerodha's entire ~40-node production cluster.
+**Key Finding:** `gopdflib` running on a **single 24-core machine** achieves **over 57% of the total throughput** of Zerodha's entire ~40-node production cluster.
 
 ## 1. Test Environment
 
@@ -23,13 +23,13 @@ The benchmark uses the same workload mix as Zerodha's production system (80% Ret
 
 ## 2. Performance Results
 
-| Metric                 | GoPdfLib (Single Node) | Zerodha Cluster (Production) | Difference                          |
-| :--------------------- | :--------------------- | :--------------------------- | :---------------------------------- |
-| **Throughput (Mean)**  | **467.22 PDFs/sec**    | ~1,000 PDFs/sec              | Single node = ~47% of total cluster |
-| **Throughput (Max)**   | **564.35 PDFs/sec**    | N/A                          | Peak performance                    |
-| **Time for 1.5M PDFs** | **~54 minutes**        | ~25 minutes                  | One server vs Forty servers         |
-| **Avg Latency**        | **100.37 ms**          | N/A                          | End-to-end generation time          |
-| **Min Latency**        | **81.66 ms**           | N/A                          | Best case latency                   |
+| Metric                 | GoPdfLib (Single Node) | Zerodha Cluster (Production) | Difference                              |
+| :--------------------- | :--------------------- | :--------------------------- | :-------------------------------------- |
+| **Throughput (Mean)**  | **573.64 PDFs/sec**    | ~1,000 PDFs/sec              | Single node = **~57%** of total cluster |
+| **Throughput (Max)**   | **637.87 PDFs/sec**    | N/A                          | Peak performance                        |
+| **Time for 1.5M PDFs** | **~44 minutes**        | ~25 minutes                  | One server vs Forty servers             |
+| **Avg Latency**        | **80.67 ms**           | N/A                          | End-to-end generation time              |
+| **Min Latency**        | **71.88 ms**           | N/A                          | Best case latency                       |
 
 ## 3. Efficiency Analysis (Per Core)
 
@@ -39,10 +39,10 @@ To make a fair comparison, we normalize the throughput based on estimated comput
 | :------------------- | :------------------------ | :----------------------- |
 | **Total Nodes**      | ~40 Instances             | 1 Instance               |
 | **Total vCPUs**      | ~640 vCPUs (40 \* 16 avg) | 24 vCPUs                 |
-| **Total Throughput** | 1,000 PDFs/sec            | 467 PDFs/sec             |
-| **Efficiency**       | **~1.56 PDFs/sec/core**   | **~19.46 PDFs/sec/core** |
+| **Total Throughput** | 1,000 PDFs/sec            | 573 PDFs/sec             |
+| **Efficiency**       | **~1.56 PDFs/sec/core**   | **~23.90 PDFs/sec/core** |
 
-> **Result:** `gopdflib` is approximately **12.5x more efficient per CPU core** than the Typst-based solution.
+> **Result:** `gopdflib` is approximately **15x more efficient per CPU core** than the Typst-based solution.
 
 ## 4. Why GoPdfLib Wins?
 
