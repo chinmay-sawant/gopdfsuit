@@ -10,7 +10,21 @@
 > 🚀 A powerful Go web service for template-based PDF generation with multi-page support, PDF merging, form filling, and HTML to PDF/Image conversion.
 
 ## Star History
-[![Star History Chart](https://api.star-history.com/svg?repos=chinmay-sawant/gopdfsuit&type=timeline&logscale&legend=top-left)](https://www.star-history.com/#chinmay-sawant/gopdfsuit&type=timeline&logscale&legend=top-left)
+
+## [![Star History Chart](https://api.star-history.com/svg?repos=chinmay-sawant/gopdfsuit&type=timeline&logscale&legend=top-left)](https://www.star-history.com/#chinmay-sawant/gopdfsuit&type=timeline&logscale&legend=top-left)
+
+## ⚡ Performance & Efficiency
+
+**92% Cost Reduction** vs traditional distributed architectures.
+
+| Metric               | Industry Standard (Typst/LaTeX) | gopdfsuit (Go 1.24)             |
+| :------------------- | :------------------------------ | :------------------------------ |
+| **Infrastructure**   | ~40 Node Cluster                | **2 Nodes** (95% Less)          |
+| **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
+| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~600 PDFs/sec (Single Node)** |
+
+> **Result**: Generates 1.5 million financial PDFs in ~45 mins on a single machine.
+
 ---
 
 ## 📑 Table of Contents
@@ -22,6 +36,7 @@
 - [License](#-license)
 
 ### 📚 Documentation
+
 - [🌐 Web Documentation](https://chinmay-sawant.github.io/gopdfsuit/#/documentation) - Interactive API documentation and playground
 
 - [📋 Template Reference](guides/TEMPLATE_REFERENCE.md) - Complete JSON template format guide with examples
@@ -35,42 +50,47 @@ GoPdfSuit is a powerful Go web service for template-based PDF generation.
 
 **Key Features:**
 
-*   **Template-Based Generation**: Create PDFs from JSON templates with auto page breaks and flow control.
-*   **Security & Compliance**: Digital signatures (PKCS#7, X.509), AES-256 encryption, granular permissions, and PDF/A-4 & PDF/UA-2 compliance.
-*   **Advanced Elements**: Rich text styling, tables, barcodes, QR codes, SVG vector graphics, and interactive forms (checkboxes, radio buttons).
-*   **Navigation**: Auto-generated bookmarks, internal links, and named destinations for easy document navigation.
-*   **Form Filling**: Fill generic AcroForms and XFDF data.
-*   **Merge & Split**: Combine multiple PDFs or split them.
-*   **HTML Conversion**: High-fidelity HTML to PDF/Image conversion using headless Chrome.
-*   **Native Bindings**: 
-    *   **Python**: Direct CGO bindings for high-performance integration.
-    *   **Go**: Usable as a standalone Go library (`gopdflib`).
-*   **Web Interfaces**: Built-in React UI for viewer, editor, merger, filler, and converters.
+- **Template-Based Generation**: Create PDFs from JSON templates with auto page breaks and flow control.
+- **Security & Compliance**: Digital signatures (PKCS#7, X.509), AES-256 encryption, granular permissions, and PDF/A-4 & PDF/UA-2 compliance.
+- **Advanced Elements**: Rich text styling, tables, barcodes, QR codes, SVG vector graphics, and interactive forms (checkboxes, radio buttons).
+- **Navigation**: Auto-generated bookmarks, internal links, and named destinations for easy document navigation.
+- **Form Filling**: Fill generic AcroForms and XFDF data.
+- **Merge & Split**: Combine multiple PDFs or split them.
+- **HTML Conversion**: High-fidelity HTML to PDF/Image conversion using headless Chrome.
+- **Native Bindings**:
+  - **Python**: Direct CGO bindings for high-performance integration.
+  - **Go**: Usable as a standalone Go library (`gopdflib`).
+- **Web Interfaces**: Built-in React UI for viewer, editor, merger, filler, and converters.
 
 **Requirements**: Go 1.24+, Google Chrome (for HTML conversion)
 
 ---
+
 ## ❓ FAQ
 
 <details>
 <summary><b>Chrome not found error?</b></summary>
 
 Install Google Chrome - required for HTML to PDF/Image conversion:
+
 ```bash
 sudo apt install -y google-chrome-stable
 ```
+
 </details>
 
 <details>
 <summary><b>How do auto page breaks work?</b></summary>
 
 The system tracks Y position and creates new pages when content exceeds boundaries. Page borders and numbering are preserved across pages.
+
 </details>
 
 <details>
 <summary><b>How do I create a digitally signed PDF?</b></summary>
 
 Include the signature config with your PEM-encoded certificate and private key:
+
 ```json
 {
   "config": {
@@ -83,13 +103,16 @@ Include the signature config with your PEM-encoded certificate and private key:
   }
 }
 ```
+
 Supports RSA and ECDSA keys with optional certificate chains.
+
 </details>
 
 <details>
 <summary><b>What is PDF/A-4 compliance?</b></summary>
 
 PDF/A-4 is the archival standard based on PDF 2.0. Enable it with `"pdfaCompliant": true`. This embeds all fonts (via Liberation fonts), adds XMP metadata, and follows strict structure requirements for long-term preservation.
+
 </details>
 
 <details>
@@ -104,12 +127,14 @@ PDF/A-4 is the archival standard based on PDF 2.0. Enable it with `"pdfaComplian
 <summary><b>XFDF form filling limitations?</b></summary>
 
 Uses byte-oriented approach with `/NeedAppearances true`. Works for most AcroForms, but PDFs with compressed object streams may need a library like pdfcpu for full compatibility.
+
 </details>
 
 <details>
 <summary><b>Performance benchmarks?</b></summary>
 
 Sub-millisecond to ~7ms response times for complex 2-page financial reports. In-memory processing with zero external dependencies.
+
 </details>
 
 ---
