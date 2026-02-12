@@ -99,9 +99,9 @@ type imageCache struct {
 
 Based on these optimizations, `gopdflib` achieves extreme throughput on multi-core systems.
 
-| Machine                | Throughput           | Case Study                              |
-| ---------------------- | -------------------- | --------------------------------------- |
-| Intel i7-13700HX (24T) | **1,113.90 ops/sec** | Equal to Zerodha's distributed cluster. |
+| Machine                | Throughput            | Case Study                                                                           |
+| ---------------------- | --------------------- | ------------------------------------------------------------------------------------ |
+| Intel i7-13700HX (24T) | **~600-1000 ops/sec** | Single node matches 60-100% of Zerodha's entire cluster (depending on workload mix). |
 
 For a detailed breakdown of the 1.5 million PDF generation comparison, see [BENCHMARK_ZERODHA.md](./BENCHMARK_ZERODHA.md).
 

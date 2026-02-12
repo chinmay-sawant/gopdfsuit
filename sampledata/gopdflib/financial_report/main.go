@@ -49,7 +49,7 @@ func main() {
 
 	// Number of iterations for benchmarking
 	// Number of iterations for benchmarking
-	iterations := 100000
+	iterations := 50000
 	// Determine concurrency
 	// numWorkers := runtime.NumCPU()
 	numWorkers := 48
