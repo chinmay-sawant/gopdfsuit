@@ -11,6 +11,7 @@ type PageManager struct {
 	CurrentPageIndex      int     // Current page index (0-based)
 	CurrentYPos           float64 // Current Y position on page
 	PageDimensions        PageDimensions
+	Margins               PageMargins
 	ContentStreams        []bytes.Buffer       // Content for each page
 	PageAnnots            [][]int              // Annotation Object IDs per page
 	ExtraObjects          map[int]string       // Object ID -> Object Content
@@ -38,12 +39,13 @@ type NamedDest struct {
 }
 
 // NewPageManager creates a new page manager with initial page
-func NewPageManager(pageDims PageDimensions, arlingtonCompatible bool, fontRegistry *CustomFontRegistry) *PageManager {
+func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompatible bool, fontRegistry *CustomFontRegistry) *PageManager {
 	pm := &PageManager{
 		Pages:                 []int{3}, // First page starts at object 3
 		CurrentPageIndex:      0,        // Start with first page
-		CurrentYPos:           pageDims.Height - margin,
+		CurrentYPos:           pageDims.Height - margins.Top,
 		PageDimensions:        pageDims,
+		Margins:               margins,
 		ContentStreams:        make([]bytes.Buffer, 1),
 		PageAnnots:            make([][]int, 1),
 		ExtraObjects:          make(map[int]string),
@@ -64,7 +66,7 @@ func (pm *PageManager) AddNewPage() {
 	nextPageID := 3 + len(pm.Pages) // Sequential page IDs starting from 3
 	pm.Pages = append(pm.Pages, nextPageID)
 	pm.CurrentPageIndex = len(pm.Pages) - 1 // Move to new page
-	pm.CurrentYPos = pm.PageDimensions.Height - margin
+	pm.CurrentYPos = pm.PageDimensions.Height - pm.Margins.Top
 	pm.ContentStreams = append(pm.ContentStreams, bytes.Buffer{})
 	pm.PageAnnots = append(pm.PageAnnots, []int{})
 }
@@ -113,7 +115,11 @@ func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
 
 // CheckPageBreak determines if a new page is needed based on required height
 func (pm *PageManager) CheckPageBreak(requiredHeight float64) bool {
-	return pm.CurrentYPos-requiredHeight < margin
+	return pm.CurrentYPos-requiredHeight < pm.Margins.Bottom
+}
+
+func (pm *PageManager) ContentWidth() float64 {
+	return pm.PageDimensions.Width - pm.Margins.Left - pm.Margins.Right
 }
 
 // GetCurrentContentStream returns the current page's content stream

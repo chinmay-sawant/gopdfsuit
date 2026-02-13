@@ -35,6 +35,7 @@ type Element struct {
 
 type Config struct {
 	PageBorder          string             `json:"pageBorder"`
+	PageMargin          string             `json:"pageMargin,omitempty"`          // Page margins in points: "left:right:top:bottom" (default: "72:72:72:72")
 	Page                string             `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
 	PageAlignment       int                `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
 	Watermark           string             `json:"watermark,omitempty"`           // Optional diagonal watermark text

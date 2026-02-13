@@ -122,10 +122,10 @@ func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims Page
 
 	// Default position: bottom right of first page
 	if sigX <= 0 {
-		sigX = pageDims.Width - sigW - margin
+		sigX = pageDims.Width - sigW - pageManager.Margins.Right
 	}
 	if sigY <= 0 {
-		sigY = margin
+		sigY = pageManager.Margins.Bottom
 	}
 
 	// Create appearance stream for visible signature

@@ -109,7 +109,7 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 					if bm.Y > 0 {
 						yPos = ob.pageManager.PageDimensions.Height - bm.Y
 					} else {
-						yPos = ob.pageManager.PageDimensions.Height - margin
+						yPos = ob.pageManager.PageDimensions.Height - ob.pageManager.Margins.Top
 					}
 
 					// Register the destination
@@ -127,7 +127,7 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 					if len(ob.pageManager.Pages) > 0 {
 						item.DestPageID = ob.pageManager.Pages[0]
 					}
-					item.DestY = ob.pageManager.PageDimensions.Height - margin
+					item.DestY = ob.pageManager.PageDimensions.Height - ob.pageManager.Margins.Top
 				}
 			}
 		} else if bm.Page > 0 {
@@ -145,14 +145,14 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 			if bm.Y > 0 {
 				item.DestY = ob.pageManager.PageDimensions.Height - bm.Y
 			} else {
-				item.DestY = ob.pageManager.PageDimensions.Height - margin
+				item.DestY = ob.pageManager.PageDimensions.Height - ob.pageManager.Margins.Top
 			}
 		} else {
 			// Default to first page
 			if len(ob.pageManager.Pages) > 0 {
 				item.DestPageID = ob.pageManager.Pages[0]
 			}
-			item.DestY = ob.pageManager.PageDimensions.Height - margin
+			item.DestY = ob.pageManager.PageDimensions.Height - ob.pageManager.Margins.Top
 		}
 
 		// PDF/UA-2: Create a Sect (Section) structure element for this bookmark target

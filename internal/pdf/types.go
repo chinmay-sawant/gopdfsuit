@@ -1,6 +1,9 @@
 package pdf
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // Page size constants in points (1 inch = 72 points)
 var pageSizes = map[string][2]float64{
@@ -11,7 +14,51 @@ var pageSizes = map[string][2]float64{
 	"A5":     {420, 595},  // A5: 5.83 × 8.27 inches
 }
 
-const margin = 72 // Standard 1 inch margin
+const defaultMargin = 72.0 // Standard 1 inch margin
+
+type PageMargins struct {
+	Left   float64
+	Right  float64
+	Top    float64
+	Bottom float64
+}
+
+func DefaultPageMargins() PageMargins {
+	return PageMargins{Left: defaultMargin, Right: defaultMargin, Top: defaultMargin, Bottom: defaultMargin}
+}
+
+// ParsePageMargins parses margins in "left:right:top:bottom" points format.
+// Missing or invalid values gracefully fall back to defaults.
+func ParsePageMargins(margins string) PageMargins {
+	parsed := DefaultPageMargins()
+	if strings.TrimSpace(margins) == "" {
+		return parsed
+	}
+
+	parts := strings.Split(margins, ":")
+	if len(parts) > 0 {
+		if value, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64); err == nil && value >= 0 {
+			parsed.Left = value
+		}
+	}
+	if len(parts) > 1 {
+		if value, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64); err == nil && value >= 0 {
+			parsed.Right = value
+		}
+	}
+	if len(parts) > 2 {
+		if value, err := strconv.ParseFloat(strings.TrimSpace(parts[2]), 64); err == nil && value >= 0 {
+			parsed.Top = value
+		}
+	}
+	if len(parts) > 3 {
+		if value, err := strconv.ParseFloat(strings.TrimSpace(parts[3]), 64); err == nil && value >= 0 {
+			parsed.Bottom = value
+		}
+	}
+
+	return parsed
+}
 
 // PageDimensions holds the current page dimensions and orientation
 type PageDimensions struct {

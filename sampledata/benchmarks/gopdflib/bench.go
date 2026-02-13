@@ -18,7 +18,6 @@ type UserRecord struct {
 }
 
 func main() {
-	// Load data
 	dataFile, err := os.ReadFile("../data.json")
 	if err != nil {
 		fmt.Println("Error reading data.json:", err)
@@ -33,10 +32,7 @@ func main() {
 
 	start := time.Now()
 
-	// Create styled table rows
 	tableRows := make([]gopdflib.Row, len(data)+1)
-
-	// Header row with bold text and gray background
 	tableRows[0] = gopdflib.Row{
 		Row: []gopdflib.Cell{
 			{Props: "Helvetica:10:100:left:0:0:1:1", Text: "ID", BgColor: "#E0E0E0"},
@@ -47,7 +43,6 @@ func main() {
 		},
 	}
 
-	// Data rows with alternating colors
 	wrapTrue := true
 	for i, record := range data {
 		bgColor := "#FFFFFF"
@@ -65,23 +60,22 @@ func main() {
 		}
 	}
 
-	// Create PDF template with PDF/A-4 and PDF 2.0 compliance
 	template := gopdflib.PDFTemplate{
 		Config: gopdflib.Config{
-			Page:          "A4",
-			PageAlignment: 1, // Portrait
-			PdfTitle:      "User Report",
-			// Enable PDF/A-4 compliance (PDF 2.0 based)
+			Page:                "A4",
+			PageAlignment:       1,
+			PageMargin:          "0:0:72:72",
+			PdfTitle:            "User Report",
+			ArlingtonCompatible: true,
 			PDFA: &gopdflib.PDFAConfig{
 				Enabled:     true,
-				Conformance: "4", // PDF/A-4 (PDF 2.0 based, highest standard)
+				Conformance: "4",
 				Title:       "User Report",
 				Author:      "Benchmark System",
 				Subject:     "User data report for benchmarking",
 				Creator:     "GoPDFSuit Benchmark",
 				Keywords:    "users, report, benchmark, PDF/A-4, PDF 2.0",
 			},
-			ArlingtonCompatible: true, // Enable PDF 2.0 Arlington Model compliance
 		},
 		Title: gopdflib.Title{
 			Props: "Helvetica:18:100:center:0:0:0:0",
@@ -98,7 +92,7 @@ func main() {
 				Type: "table",
 				Table: &gopdflib.Table{
 					MaxColumns:   5,
-					ColumnWidths: []float64{0.5, 1.5, 2, 1.5, 3}, // ID, Name, Email, Role, Description
+					ColumnWidths: []float64{0.5, 1.5, 2, 1.5, 3},
 					Rows:         tableRows,
 				},
 			},
@@ -109,20 +103,19 @@ func main() {
 		},
 	}
 
-	// Generate PDF
 	pdfBytes, err := gopdflib.GeneratePDF(template)
 	if err != nil {
 		fmt.Println("Error generating PDF:", err)
 		os.Exit(1)
 	}
 
-	// Write output
 	if err := os.WriteFile("output.pdf", pdfBytes, 0644); err != nil {
 		fmt.Println("Error writing PDF:", err)
 		os.Exit(1)
 	}
 
 	elapsed := time.Since(start)
-	fmt.Printf("GoPDFSuit Time: %.2f ms\n", float64(elapsed.Nanoseconds())/1_000_000)
+	fmt.Printf("GoPDFLib Time: %.2f ms\n", float64(elapsed.Nanoseconds())/1_000_000)
 	fmt.Println("PDF Standard: PDF/A-4 (PDF 2.0 based)")
+	fmt.Println("Page margins: left=0, right=0, top=72, bottom=72")
 }

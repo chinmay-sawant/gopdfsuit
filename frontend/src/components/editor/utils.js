@@ -1,8 +1,32 @@
 
 // Standard margin in points (1 inch = 72 points)
-export const MARGIN = 72
+export const DEFAULT_MARGIN = 72
 
-export const getUsableWidth = (pageWidth) => pageWidth - (2 * MARGIN)
+export const parsePageMargins = (marginString) => {
+    const defaults = { left: DEFAULT_MARGIN, right: DEFAULT_MARGIN, top: DEFAULT_MARGIN, bottom: DEFAULT_MARGIN }
+    if (!marginString || typeof marginString !== 'string') return defaults
+
+    const [left, right, top, bottom] = marginString.split(':').map(v => Number.parseFloat(v))
+    return {
+        left: Number.isFinite(left) && left >= 0 ? left : defaults.left,
+        right: Number.isFinite(right) && right >= 0 ? right : defaults.right,
+        top: Number.isFinite(top) && top >= 0 ? top : defaults.top,
+        bottom: Number.isFinite(bottom) && bottom >= 0 ? bottom : defaults.bottom
+    }
+}
+
+export const formatPageMargins = (margins) => {
+    const safe = {
+        left: Math.max(0, Number.parseFloat(margins?.left ?? DEFAULT_MARGIN) || 0),
+        right: Math.max(0, Number.parseFloat(margins?.right ?? DEFAULT_MARGIN) || 0),
+        top: Math.max(0, Number.parseFloat(margins?.top ?? DEFAULT_MARGIN) || 0),
+        bottom: Math.max(0, Number.parseFloat(margins?.bottom ?? DEFAULT_MARGIN) || 0)
+    }
+
+    return `${safe.left}:${safe.right}:${safe.top}:${safe.bottom}`
+}
+
+export const getUsableWidth = (pageWidth, margins = parsePageMargins()) => pageWidth - margins.left - margins.right
 
 export const parseProps = (propsString) => {
     if (!propsString) return { font: 'Helvetica', size: 12, style: '000', align: 'left', borders: [0, 0, 0, 0] }

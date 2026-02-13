@@ -1,9 +1,9 @@
 
 import { useState } from 'react'
 import { Image as ImageIcon, ChevronUp, ChevronDown, X, GripVertical } from 'lucide-react'
-import { getStyleFromProps, getUsableWidth, getImageSrc } from './utils'
+import { getStyleFromProps, getImageSrc } from './utils'
 
-export default function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop, currentPageSize }) {
+export default function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop, currentPageSize, pageMargins }) {
     const [, setIsResizing] = useState(false)
 
     const handleClick = (e) => {
@@ -46,9 +46,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
         switch (element.type) {
             case 'title': {
                 // Title now uses an embedded table structure for logo + text support
-                const MARGIN_TITLE = 72
-                const getUsableWidthTitle = (pageWidth) => pageWidth - (2 * MARGIN_TITLE)
-                const usableWidthForTitle = getUsableWidthTitle(currentPageSize.width)
+                const usableWidthForTitle = currentPageSize.width - (pageMargins?.left || 0) - (pageMargins?.right || 0)
 
                 // Get or create the title table structure
                 const titleTable = element.table || {
@@ -420,8 +418,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
             }
             case 'table': {
                 // Get page dimensions for width calculations
-                // Use passed currentPageSize prop
-                const usableWidthForTable = getUsableWidth(currentPageSize.width)
+                const usableWidthForTable = currentPageSize.width - (pageMargins?.left || 0) - (pageMargins?.right || 0)
 
                 // Normalize columnwidths so they represent fractions that sum to 1
                 const rawColWidths = element.columnwidths && element.columnwidths.length === element.maxcolumns
