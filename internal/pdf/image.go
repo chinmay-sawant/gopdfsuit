@@ -591,7 +591,7 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 // For standalone images, it fits the image to the full usable width (between margins)
 func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, imageXObjectRef string, pageManager *PageManager, originalImgWidth, originalImgHeight int) {
 	// Calculate the usable width (page width minus margins on both sides)
-	usableWidth := pageManager.PageDimensions.Width - 2*margin
+	usableWidth := pageManager.ContentWidth()
 
 	// Use the full usable width for the image
 	imageWidth := usableWidth
@@ -612,7 +612,7 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 	}
 
 	// Position image at the left margin
-	imageX := float64(margin)
+	imageX := pageManager.Margins.Left
 	imageY := pageManager.CurrentYPos - imageHeight
 
 	// Save graphics state

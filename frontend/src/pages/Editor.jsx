@@ -13,14 +13,14 @@ import PropertiesPanel from '../components/editor/PropertiesPanel'
 import JsonTemplate from '../components/editor/JsonTemplate'
 import ComponentItem from '../components/editor/ComponentItem'
 import { PAGE_SIZES, DEFAULT_FONTS, COMPONENT_TYPES } from '../components/editor/constants'
-import { getFontFamily, MARGIN } from '../components/editor/utils'
+import { getFontFamily, parsePageMargins } from '../components/editor/utils'
 
 import Toolbar from '../components/editor/Toolbar'
 
 export default function Editor() {
   const { theme, setTheme } = useTheme()
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const [config, setConfig] = useState({ pageBorder: '1:1:1:1', page: 'A4', pageAlignment: 1, watermark: '', pdfTitle: '', pdfaCompliant: true, signature: { enabled: false } })
+  const [config, setConfig] = useState({ pageBorder: '1:1:1:1', pageMargin: '72:72:72:72', page: 'A4', pageAlignment: 1, watermark: '', pdfTitle: '', pdfaCompliant: true, signature: { enabled: false } })
   const [title, setTitle] = useState(null)
   const [components, setComponents] = useState([]) // Combined ordered array for tables and spacers
   const [footer, setFooter] = useState(null)
@@ -95,6 +95,7 @@ export default function Editor() {
     : null
 
   const currentPageSize = PAGE_SIZES[config.page] || PAGE_SIZES.A4
+  const pageMargins = parsePageMargins(config.pageMargin)
 
   // --- Handlers ---
   const handleDropElement = (type, targetId = null) => {
@@ -680,7 +681,7 @@ export default function Editor() {
               width: '100%',
               display: 'flex',
               justifyContent: 'center',
-              padding: '2rem 0.5rem 2rem 70px',
+              padding: '2rem 0.5rem',
               background: 'hsl(var(--muted) / 0.3)'
             }}
           >
@@ -693,9 +694,7 @@ export default function Editor() {
                 height: 'auto',
                 background: isDragOver ? 'repeating-linear-gradient(45deg, hsl(var(--accent)) 0px, hsl(var(--accent)) 2px, transparent 2px, transparent 20px)' : 'white',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                padding: `${MARGIN}px`,
-                // Ensure there is space at bottom for comfortable editing
-                paddingBottom: `${MARGIN + 50}px`,
+                padding: `${pageMargins.top}px ${pageMargins.right}px ${pageMargins.bottom + 50}px ${pageMargins.left}px`,
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
@@ -724,10 +723,10 @@ export default function Editor() {
               {config.pageBorder && config.pageBorder !== '0:0:0:0' && (
                 <div style={{
                   position: 'absolute',
-                  top: MARGIN,
-                  left: MARGIN,
-                  width: `calc(100% - ${2 * MARGIN}px)`,
-                  height: `${currentPageSize.height - 2 * MARGIN}px`,
+                  top: pageMargins.top,
+                  left: pageMargins.left,
+                  width: `${currentPageSize.width - pageMargins.left - pageMargins.right}px`,
+                  height: `${currentPageSize.height - pageMargins.top - pageMargins.bottom}px`,
                   pointerEvents: 'none',
                   borderLeft: `${config.pageBorder.split(':')[0]}px solid #000`,
                   borderRight: `${config.pageBorder.split(':')[1]}px solid #000`,
@@ -854,6 +853,7 @@ export default function Editor() {
                           draggedType={draggedType}
                           handleCellDrop={handleCellDrop}
                           currentPageSize={currentPageSize}
+                          pageMargins={pageMargins}
                         />
 
                         {/* Drop Zone After Last Element */}

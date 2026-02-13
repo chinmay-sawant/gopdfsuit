@@ -25,6 +25,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Get page dimensions from config
 	pageConfig := template.Config
 	pageDims := getPageDimensions(pageConfig.Page, pageConfig.PageAlignment)
+	pageMargins := ParsePageMargins(pageConfig.PageMargin)
 
 	// Create a local clone of the font registry for this PDF generation session
 	// This ensures thread safety by isolating usage tracking (UsedChars) per generation
@@ -67,7 +68,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 
 	// Initialize page manager with Arlington compatibility flag and per-generation font registry
-	pageManager := NewPageManager(pageDims, template.Config.ArlingtonCompatible, fontRegistry)
+	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry)
 
 	// Pre-scan template to mark all font usage for subsetting
 	scanTemplateForFontUsage(template, fontRegistry)
@@ -1128,7 +1129,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 // generateAllContentWithImages processes the template and generates content with image support
 func generateAllContentWithImages(template models.PDFTemplate, pageManager *PageManager, imageObjects map[int]*ImageObject, cellImageObjectIDs map[string]int, elemImageObjects map[int]*ImageObject) {
 	// Initialize first page
-	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions, pageManager.FontRegistry)
+	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
 
 	// Title - Process if title text is provided OR if title has a table
 	if template.Title.Text != "" || template.Title.Table != nil {
@@ -1153,7 +1154,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 
 		if pageManager.CheckPageBreak(titleHeight) {
 			pageManager.AddNewPage()
-			initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions, pageManager.FontRegistry)
+			initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
 		}
 
 		drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager, cellImageObjectIDs)

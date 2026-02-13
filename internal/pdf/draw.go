@@ -80,15 +80,15 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 }
 
 // --- new page initializer (border + watermark) ---
-func initializePage(contentStream *bytes.Buffer, borderConfig, watermark string, pageDims PageDimensions, registry *CustomFontRegistry) {
-	drawPageBorder(contentStream, borderConfig, pageDims)
+func initializePage(contentStream *bytes.Buffer, borderConfig, watermark string, pageDims PageDimensions, margins PageMargins, registry *CustomFontRegistry) {
+	drawPageBorder(contentStream, borderConfig, pageDims, margins)
 	if watermark != "" {
 		drawWatermark(contentStream, watermark, pageDims, registry)
 	}
 }
 
 // drawPageBorder draws the page border
-func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims PageDimensions) {
+func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims PageDimensions, margins PageMargins) {
 	pageBorders := parseBorders(borderConfig)
 	if pageBorders[0] > 0 || pageBorders[1] > 0 || pageBorders[2] > 0 || pageBorders[3] > 0 {
 		// Begin Artifact mark
@@ -102,13 +102,13 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(pageBorders[0]), 10)
 			borderBuf = append(borderBuf, " w\n"...)
-			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
+			borderBuf = append(borderBuf, fmtNum(margins.Left)...)
 			borderBuf = append(borderBuf, ' ')
-			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
+			borderBuf = append(borderBuf, fmtNum(margins.Bottom)...)
 			borderBuf = append(borderBuf, " m "...)
-			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
+			borderBuf = append(borderBuf, fmtNum(margins.Left)...)
 			borderBuf = append(borderBuf, ' ')
-			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margin)...)
+			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margins.Top)...)
 			borderBuf = append(borderBuf, " l S\n"...)
 			contentStream.Write(borderBuf)
 		}
@@ -116,13 +116,13 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(pageBorders[1]), 10)
 			borderBuf = append(borderBuf, " w\n"...)
-			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margin)...)
+			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margins.Right)...)
 			borderBuf = append(borderBuf, ' ')
-			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
+			borderBuf = append(borderBuf, fmtNum(margins.Bottom)...)
 			borderBuf = append(borderBuf, " m "...)
-			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margin)...)
+			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margins.Right)...)
 			borderBuf = append(borderBuf, ' ')
-			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margin)...)
+			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margins.Top)...)
 			borderBuf = append(borderBuf, " l S\n"...)
 			contentStream.Write(borderBuf)
 		}
@@ -130,13 +130,13 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(pageBorders[2]), 10)
 			borderBuf = append(borderBuf, " w\n"...)
-			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
+			borderBuf = append(borderBuf, fmtNum(margins.Left)...)
 			borderBuf = append(borderBuf, ' ')
-			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margin)...)
+			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margins.Top)...)
 			borderBuf = append(borderBuf, " m "...)
-			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margin)...)
+			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margins.Right)...)
 			borderBuf = append(borderBuf, ' ')
-			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margin)...)
+			borderBuf = append(borderBuf, fmtNum(pageDims.Height-margins.Top)...)
 			borderBuf = append(borderBuf, " l S\n"...)
 			contentStream.Write(borderBuf)
 		}
@@ -144,13 +144,13 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 			borderBuf = borderBuf[:0]
 			borderBuf = strconv.AppendInt(borderBuf, int64(pageBorders[3]), 10)
 			borderBuf = append(borderBuf, " w\n"...)
-			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
+			borderBuf = append(borderBuf, fmtNum(margins.Left)...)
 			borderBuf = append(borderBuf, ' ')
-			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
+			borderBuf = append(borderBuf, fmtNum(margins.Bottom)...)
 			borderBuf = append(borderBuf, " m "...)
-			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margin)...)
+			borderBuf = append(borderBuf, fmtNum(pageDims.Width-margins.Right)...)
 			borderBuf = append(borderBuf, ' ')
-			borderBuf = strconv.AppendInt(borderBuf, int64(margin), 10)
+			borderBuf = append(borderBuf, fmtNum(margins.Bottom)...)
 			borderBuf = append(borderBuf, " l S\n"...)
 			contentStream.Write(borderBuf)
 		}
@@ -177,9 +177,9 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 	// Draw background color if specified
 	if r, g, b, _, valid := parseHexColor(title.BgColor); valid {
-		rectX := float64(margin)
+		rectX := pageManager.Margins.Left
 		rectY := pageManager.CurrentYPos - float64(titleProps.FontSize)
-		rectW := pageManager.PageDimensions.Width - 2*float64(margin)
+		rectW := pageManager.ContentWidth()
 		rectH := float64(titleProps.FontSize)
 
 		contentStream.WriteString("q\n")
@@ -229,18 +229,18 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	textWidth := EstimateTextWidth(titleProps.FontName, title.Text, float64(titleProps.FontSize), pageManager.FontRegistry)
 
 	// Calculate available width (page width minus both margins)
-	availableWidth := pageManager.PageDimensions.Width - 2*margin
+	availableWidth := pageManager.ContentWidth()
 
 	var titleX float64
 	switch titleProps.Alignment {
 	case "center":
 		// Center the text within the available area (between margins)
-		titleX = margin + (availableWidth-textWidth)/2
+		titleX = pageManager.Margins.Left + (availableWidth-textWidth)/2
 	case "right":
 		// Right align: position text so it ends at the right margin
-		titleX = pageManager.PageDimensions.Width - margin - textWidth
+		titleX = pageManager.PageDimensions.Width - pageManager.Margins.Right - textWidth
 	default:
-		titleX = margin
+		titleX = pageManager.Margins.Left
 	}
 
 	pageManager.CurrentYPos -= float64(titleProps.FontSize)
@@ -279,7 +279,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 // drawTitleTable renders an embedded table within the title section (no borders by default)
 func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageManager *PageManager, cellImageObjectIDs map[string]int, defaultBgColor, defaultTextColor string, defaultProps models.Props) {
-	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
+	availableWidth := pageManager.ContentWidth()
 	baseRowHeight := float64(25) // Standard row height
 
 	// Compute column widths in points using weights if provided
@@ -325,7 +325,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 		// Draw row cells - Pass 1: Backgrounds
 		// PDF/UA: Mark backgrounds as Artifacts
 		contentStream.WriteString("/Artifact BMC\n")
-		bgX := float64(margin)
+		bgX := pageManager.Margins.Left
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
 				break
@@ -380,7 +380,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 		// PDF/UA: Start TR Structure Element
 		pageManager.Structure.BeginStructureElement(StructTR)
 
-		currentX := float64(margin)
+		currentX := pageManager.Margins.Left
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
 				break
@@ -694,7 +694,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 
 // drawTable renders a table with automatic page breaks
 func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
-	availableWidth := (pageManager.PageDimensions.Width - 2*margin)
+	availableWidth := pageManager.ContentWidth()
 	baseRowHeight := float64(25) // Standard row height
 
 	// PDF/UA: Start Table Structure
@@ -793,14 +793,14 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		if pageManager.CheckPageBreak(rowHeight) {
 			// Create new page and initialize it
 			pageManager.AddNewPage()
-			initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.FontRegistry)
+			initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
 		}
 
 		// Get current content stream for this page
 		contentStream := pageManager.GetCurrentContentStream()
 
 		// Draw row cells
-		currentX := float64(margin)
+		currentX := pageManager.Margins.Left
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
 				break
@@ -1373,7 +1373,7 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	if pageManager.CheckPageBreak(imageHeight + spacing) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.FontRegistry)
+		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
 	}
 
 	// Get current content stream for this page
@@ -1465,7 +1465,7 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 // drawImageWithXObjectInternal handles image drawing with XObject, including page breaks
 func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pageManager *PageManager, borderConfig, watermark string, originalImgWidth, originalImgHeight int) {
 	// Calculate usable width to estimate height for page break check
-	usableWidth := pageManager.PageDimensions.Width - 2*margin
+	usableWidth := pageManager.ContentWidth()
 
 	// Calculate height based on aspect ratio
 	var imageHeight float64
@@ -1483,7 +1483,7 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 	if pageManager.CheckPageBreak(imageHeight) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.FontRegistry)
+		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
 	}
 
 	// Get current content stream for this page

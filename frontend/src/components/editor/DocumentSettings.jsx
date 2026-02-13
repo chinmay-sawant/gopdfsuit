@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Settings, HelpCircle, PenTool, CheckSquare, Square, Lock } from 'lucide-react'
 import { PAGE_SIZES } from './constants'
+import { parsePageMargins, formatPageMargins } from './utils'
 
 function PageBorderControls({ borders, onChange }) {
     const updateBorder = (index, value) => {
@@ -308,6 +309,70 @@ function SignatureSettings({ config, onChange }) {
                 />
             </div>
 
+        </div>
+    )
+}
+
+function PageMarginControls({ pageMargin, onChange }) {
+    const margins = parsePageMargins(pageMargin)
+
+    const setMargin = (side, value) => {
+        const parsed = Number.parseFloat(value)
+        const safeValue = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
+        onChange(formatPageMargins({ ...margins, [side]: safeValue }))
+    }
+
+    const applyPreset = (value) => {
+        onChange(formatPageMargins({ left: value, right: value, top: value, bottom: value }))
+    }
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <h5 style={{ fontSize: '0.9rem', fontWeight: '600', margin: '0', color: 'hsl(var(--foreground))' }}>Page Margins (pt)</h5>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                {[
+                    { key: 'left', label: 'Left', value: margins.left },
+                    { key: 'right', label: 'Right', value: margins.right },
+                    { key: 'top', label: 'Top', value: margins.top },
+                    { key: 'bottom', label: 'Bottom', value: margins.bottom }
+                ].map(({ key, label, value }) => (
+                    <div key={key}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '0.25rem', color: 'hsl(var(--muted-foreground))' }}>{label}</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={value}
+                            onChange={(e) => setMargin(key, e.target.value)}
+                            style={{ width: '100%', padding: '0.4rem', fontSize: '0.85rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                        />
+                    </div>
+                ))}
+            </div>
+            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                {[
+                    { label: '0', value: 0 },
+                    { label: '36', value: 36 },
+                    { label: '72', value: 72 }
+                ].map(({ label, value }) => (
+                    <button
+                        key={label}
+                        onClick={() => applyPreset(value)}
+                        style={{
+                            padding: '0.25rem 0.5rem',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '4px',
+                            background: 'hsl(var(--muted))',
+                            color: 'hsl(var(--muted-foreground))',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        {label} pt all
+                    </button>
+                ))}
+            </div>
         </div>
     )
 }
@@ -741,6 +806,13 @@ export default function DocumentSettings({ config, setConfig }) {
                         </div>
                     )}
                 </div>
+
+                <hr style={{ border: 'none', borderTop: '1px solid hsl(var(--border))', margin: '0' }} />
+
+                <PageMarginControls
+                    pageMargin={config.pageMargin || '72:72:72:72'}
+                    onChange={(newMargins) => setConfig(prev => ({ ...prev, pageMargin: newMargins }))}
+                />
 
                 <hr style={{ border: 'none', borderTop: '1px solid hsl(var(--border))', margin: '0' }} />
 

@@ -4,8 +4,8 @@ module github.com/chinmay-sawant/gopdfsuit/v4/sampledata
 go 1.24.0
 
 require (
-	github.com/chinmay-sawant/gopdfsuit/v4 v4.0.0
 	github.com/chinmay-sawant/gopdfsuit-client v1.0.1
+	github.com/chinmay-sawant/gopdfsuit/v4 v4.2.0
 )
 
 require (
