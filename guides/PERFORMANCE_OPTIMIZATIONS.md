@@ -6,13 +6,13 @@ This document describes performance optimizations made based on pprof profiling 
 
 The pprof report identified these hotspots:
 
-| Function | CPU% | Issue |
-|----------|------|-------|
-| runtime.memclrNoHeapPointers | 13% | Memory allocations |
-| runtime.memmove | 8.7% | Memory copying |
-| image/png.readImagePass | 21.7% | PNG decoding |
-| compress/flate.* | ~20% | Compression overhead |
-| convertToRGBWithAlpha | 2.2% | Alpha blending math |
+| Function                     | CPU%  | Issue                |
+| ---------------------------- | ----- | -------------------- |
+| runtime.memclrNoHeapPointers | 13%   | Memory allocations   |
+| runtime.memmove              | 8.7%  | Memory copying       |
+| image/png.readImagePass      | 21.7% | PNG decoding         |
+| compress/flate.\*            | ~20%  | Compression overhead |
+| convertToRGBWithAlpha        | 2.2%  | Alpha blending math  |
 
 ## Optimizations Implemented
 
@@ -80,20 +80,64 @@ type imageCache struct {
 ```
 
 **Benefits**:
+
 - Skips PNG decoding for duplicate images (21.7% hotspot)
 - Skips compression for duplicate images
 - Thread-safe with read-write mutex
 
 **Files Changed**: [image.go](../internal/pdf/image.go)
 
+### 5. Thread-Safe Concurrency (Cloned Registries)
+
+**Problem**: Generating PDFs concurrently in goroutines caused race conditions and panics in the `CustomFontRegistry` because `UsedChars` and other font metadata were shared and reset globally.
+
+**Solution**: Added `CloneForGeneration()` to the font registry. Each PDF generation session now gets a shallow clone of the registry with isolated usage tracking, allowing unlimited parallel generations.
+
+**Files Changed**: [fontregistry.go](../internal/pdf/fontregistry.go), [generator.go](../internal/pdf/generator.go)
+
+## 🏁 High-Scale Benchmarks
+
+Based on these optimizations, `gopdflib` achieves extreme throughput on multi-core systems.
+
+| Machine                | Throughput            | Case Study                                                                           |
+| ---------------------- | --------------------- | ------------------------------------------------------------------------------------ |
+| Intel i7-13700HX (24T) | **~600-1000 ops/sec** | Single node matches 60-100% of Zerodha's entire cluster (depending on workload mix). |
+
+For a detailed breakdown of the 1.5 million PDF generation comparison, see [BENCHMARK_ZERODHA.md](./BENCHMARK_ZERODHA.md).
+
+## 💰 Cost Analysis
+
+By moving from a heavy distributed architecture (CLI-based Typst/LaTeX) to a pure-Go in-memory architecture, the infrastructure requirements drop drastically.
+
+### Scenario: Generating 1.5 million PDFs (Daily Batch)
+
+| Architecture           | Required Nodes | Est. Hourly Cost (AWS) | Batch Cost (Daily) | Monthly Cost       | Annual Cost          |
+| :--------------------- | :------------- | :--------------------- | :----------------- | :----------------- | :------------------- |
+| **Zerodha (Typst)**    | ~40 Instances  | ~$24.50 / hr           | ~$10.20            | ~$306.00           | ~$3,672.00           |
+| **gopdflib (Go 1.24)** | 2 Instances    | ~$1.84 / hr            | ~$0.77             | ~$23.00            | ~$276.00             |
+| **Savings**            | **-38 Nodes**  | **~92% Reduction**     | **~$9.43 Saved**   | **~$283.00 Saved** | **~$3,396.00 Saved** |
+
+### 📉 Detailed Savings Breakdown
+
+- **Instance Count Reduction**: Moving from **40 instances** to just **2 instances** reduces the operational overhead of managing a large fleet, simplifying deployment, monitoring, and error handling.
+- **Monthly Infrastructure Savings**:
+  - **Zerodha**: ~$306.00 / month
+  - **gopdflib**: ~$23.00 / month
+  - **Net Savings**: **~$283.00 / month**
+- **Annual Projection**:
+  - Over a year, this efficiency translates to **~$3,396.00** in direct infrastructure savings.
+  - This does not include the hidden costs of **DevOps time** required to maintain a 40-node distributed cluster versus a simple 2-node setup, nor the reduction in specialized knowledge required (no need for Rust/Typst maintainers).
+
+> **Note**: These estimates assume a similar batch processing window (~25 minutes) for both architectures. The core efficiency of Go 1.24 allows 2 nodes to match the throughput of 40 Typst nodes.
+
 ## Expected Improvements
 
-| Optimization | Target Hotspot | Est. Improvement |
-|-------------|----------------|------------------|
-| Zlib pooling | compress/flate (~20%) | 10-15% faster |
-| Buffer pooling | runtime.memclr (13%) | 5-10% less GC |
-| Fast division | convertToRGBWithAlpha | 2-3x faster |
-| Image cache | PNG decoding (21.7%) | Varies by duplication |
+| Optimization   | Target Hotspot        | Est. Improvement      |
+| -------------- | --------------------- | --------------------- |
+| Zlib pooling   | compress/flate (~20%) | 10-15% faster         |
+| Buffer pooling | runtime.memclr (13%)  | 5-10% less GC         |
+| Fast division  | convertToRGBWithAlpha | 2-3x faster           |
+| Image cache    | PNG decoding (21.7%)  | Varies by duplication |
 
 ## API Changes
 

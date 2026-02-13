@@ -149,9 +149,7 @@ func escapeText(s string) string {
 }
 
 // resolveFontName resolves the actual font name to use, handling fallbacks
-func resolveFontName(props models.Props) string {
-	registry := GetFontRegistry()
-
+func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
 	// 1. Check if the requested font is registered as a custom font
 	if registry.HasFont(props.FontName) {
 		return props.FontName
@@ -185,11 +183,9 @@ func resolveFontName(props models.Props) string {
 // and style properties. If a specific font name is provided (e.g., "Helvetica-Bold"),
 // it takes precedence. Otherwise, falls back to using bold/italic style flags.
 // For custom fonts, checks the font registry and returns the custom font reference.
-func getFontReference(props models.Props) string {
-	registry := GetFontRegistry()
-
+func getFontReference(props models.Props, registry *CustomFontRegistry) string {
 	// Resolve usage to actual font name (handling fallbacks)
-	actualFontName := resolveFontName(props)
+	actualFontName := resolveFontName(props, registry)
 
 	// If resolved font is custom (including PDF/A substitution), use it
 	if registry.HasFont(actualFontName) {
@@ -242,8 +238,7 @@ func getFontReference(props models.Props) string {
 // In PDF/A mode (when Helvetica is registered as a custom Liberation font), this returns
 // the custom font reference. Otherwise, it returns /F1 for standard Helvetica.
 // This should be used in widget DA strings and appearance streams instead of hardcoded /Helv.
-func getWidgetFontReference() string {
-	registry := GetFontRegistry()
+func getWidgetFontReference(registry *CustomFontRegistry) string {
 	// Check if Helvetica is registered as custom font (PDF/A mode with Liberation)
 	if registry.HasFont("Helvetica") {
 		ref := registry.GetFontReference("Helvetica")
@@ -257,8 +252,7 @@ func getWidgetFontReference() string {
 // getWidgetFontName returns the font name to use in widget resource dictionaries.
 // In PDF/A mode, widgets should not embed their own font definitions - they should
 // reference fonts from the page resources. Returns empty string if using page fonts.
-func getWidgetFontName() string {
-	registry := GetFontRegistry()
+func getWidgetFontName(registry *CustomFontRegistry) string {
 	// If Helvetica is a custom font, we use page-level font resources
 	if registry.HasFont("Helvetica") {
 		return "" // Signal to use page-level resources
@@ -269,8 +263,7 @@ func getWidgetFontName() string {
 // getWidgetFontObjectID returns the PDF object ID for the widget font.
 // In PDF/A mode, this returns the object ID of the Liberation font that replaces Helvetica.
 // Returns 0 if no custom font is registered (standard mode).
-func getWidgetFontObjectID() int {
-	registry := GetFontRegistry()
+func getWidgetFontObjectID(registry *CustomFontRegistry) int {
 	if registry.HasFont("Helvetica") {
 		if font, ok := registry.GetFont("Helvetica"); ok {
 			return font.ObjectID
@@ -303,31 +296,18 @@ func escapePDFString(s string) string {
 	return sb.String()
 }
 
-// isCustomFont checks if the font name refers to a registered custom font
-func isCustomFont(fontName string) bool {
-	registry := GetFontRegistry()
+// isCustomFontCheck checks if the font name refers to a registered custom font
+func isCustomFontCheck(fontName string, registry *CustomFontRegistry) bool {
 	return registry.HasFont(fontName)
-}
-
-// markFontUsage marks characters as used for font subsetting
-// props is used to resolve the actual font (handling fallbacks)
-func markFontUsage(props models.Props, text string) {
-	resolvedName := resolveFontName(props)
-	if isCustomFont(resolvedName) {
-		registry := GetFontRegistry()
-		registry.MarkCharsUsed(resolvedName, text)
-	}
 }
 
 // EstimateTextWidth estimates the width of text in points for a given font and size
 // Uses actual glyph widths for custom fonts, approximation for standard fonts
-func EstimateTextWidth(fontName string, text string, fontSize float64) float64 {
+func EstimateTextWidth(fontName string, text string, fontSize float64, registry *CustomFontRegistry) float64 {
 	// For width estimation, we create a dummy props with just the name
 	// This might be slightly inaccurate for bold/italic if falling back, but sufficient for layout
 	props := models.Props{FontName: fontName, FontSize: int(fontSize)}
-	resolvedName := resolveFontName(props)
-
-	registry := GetFontRegistry()
+	resolvedName := resolveFontName(props, registry)
 	if registry.HasFont(resolvedName) {
 		return registry.GetScaledTextWidth(resolvedName, text, fontSize)
 	}
@@ -346,11 +326,11 @@ func EstimateTextWidth(fontName string, text string, fontSize float64) float64 {
 
 // formatTextForPDF formats text for use in a PDF content stream
 // For custom fonts, returns hex-encoded string; for standard fonts, returns escaped literal
-func formatTextForPDF(props models.Props, text string) string {
-	resolvedName := resolveFontName(props)
+func formatTextForPDF(props models.Props, text string, registry *CustomFontRegistry) string {
+	resolvedName := resolveFontName(props, registry)
 
-	if isCustomFont(resolvedName) {
-		return EncodeTextForCustomFont(resolvedName, text)
+	if isCustomFontCheck(resolvedName, registry) {
+		return EncodeTextForCustomFont(resolvedName, text, registry)
 	}
 	return "(" + escapePDFString(text) + ")"
 }
@@ -358,7 +338,7 @@ func formatTextForPDF(props models.Props, text string) string {
 // WrapText splits text into multiple lines that fit within the specified maxWidth.
 // It wraps on word boundaries when possible, and handles long words that exceed maxWidth.
 // Returns a slice of strings, each representing one line of text.
-func WrapText(text string, fontName string, fontSize float64, maxWidth float64) []string {
+func WrapText(text string, fontName string, fontSize float64, maxWidth float64, registry *CustomFontRegistry) []string {
 	if text == "" {
 		return []string{""}
 	}
@@ -378,7 +358,7 @@ func WrapText(text string, fontName string, fontSize float64, maxWidth float64) 
 
 	for _, word := range words {
 		// Check if word alone exceeds maxWidth (need to break it up)
-		wordWidth := EstimateTextWidth(fontName, word, fontSize)
+		wordWidth := EstimateTextWidth(fontName, word, fontSize, registry)
 		if wordWidth > maxWidth {
 			// Flush current line first
 			if currentLine != "" {
@@ -386,7 +366,7 @@ func WrapText(text string, fontName string, fontSize float64, maxWidth float64) 
 				currentLine = ""
 			}
 			// Break long word into chunks that fit
-			lines = append(lines, wrapLongWord(word, fontName, fontSize, maxWidth)...)
+			lines = append(lines, wrapLongWord(word, fontName, fontSize, maxWidth, registry)...)
 			continue
 		}
 
@@ -397,7 +377,7 @@ func WrapText(text string, fontName string, fontSize float64, maxWidth float64) 
 		}
 		testLine += word
 
-		testWidth := EstimateTextWidth(fontName, testLine, fontSize)
+		testWidth := EstimateTextWidth(fontName, testLine, fontSize, registry)
 		if testWidth <= maxWidth {
 			// Fits - add to current line
 			currentLine = testLine
@@ -424,7 +404,7 @@ func WrapText(text string, fontName string, fontSize float64, maxWidth float64) 
 }
 
 // wrapLongWord breaks a single word that's too long into multiple lines
-func wrapLongWord(word string, fontName string, fontSize float64, maxWidth float64) []string {
+func wrapLongWord(word string, fontName string, fontSize float64, maxWidth float64, registry *CustomFontRegistry) []string {
 	var lines []string
 	runes := []rune(word)
 	start := 0
@@ -434,7 +414,7 @@ func wrapLongWord(word string, fontName string, fontSize float64, maxWidth float
 		end := start + 1
 		for end <= len(runes) {
 			substr := string(runes[start:end])
-			if EstimateTextWidth(fontName, substr, fontSize) > maxWidth {
+			if EstimateTextWidth(fontName, substr, fontSize, registry) > maxWidth {
 				break
 			}
 			end++

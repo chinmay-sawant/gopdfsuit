@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 // CustomFontRegistry manages loaded custom fonts for PDF generation
@@ -206,6 +208,30 @@ func (r *CustomFontRegistry) ResetUsage() {
 	}
 }
 
+// CloneForGeneration creates a shallow clone of the registry with reset usage data.
+// This allows concurrent PDF generation without race conditions on UsedChars.
+func (r *CustomFontRegistry) CloneForGeneration() *CustomFontRegistry {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	clone := &CustomFontRegistry{
+		fonts: make(map[string]*RegisteredFont),
+	}
+
+	for name, font := range r.fonts {
+		// Create a new RegisteredFont instance sharing the same static TTFFont data
+		// but with fresh usage maps and specific PDF object IDs
+		clone.fonts[name] = &RegisteredFont{
+			Name:      font.Name,
+			Font:      font.Font,
+			UsedChars: make(map[rune]bool),
+			// Other fields default to zero/nil
+		}
+	}
+
+	return clone
+}
+
 // AssignObjectIDs assigns PDF object IDs to font objects
 // Returns the next available object ID
 func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
@@ -336,4 +362,43 @@ func (r *CustomFontRegistry) GeneratePDFFontResources() string {
 	}
 
 	return resources.String()
+}
+
+// IsCustomFont checks if the font name refers to a registered custom font
+func (r *CustomFontRegistry) IsCustomFont(fontName string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	_, ok := r.fonts[fontName]
+	return ok
+}
+
+// ResolveFontName resolves the actual font name to use, handling fallbacks
+func (r *CustomFontRegistry) ResolveFontName(props models.Props) string {
+	// 1. Check if the requested font is registered as a custom font
+	if r.IsCustomFont(props.FontName) {
+		return props.FontName
+	}
+
+	// 2. Check if it's a known standard font name
+	switch props.FontName {
+	case "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique",
+		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
+		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique",
+		"Symbol", "ZapfDingbats":
+		return props.FontName
+	}
+
+	// 3. Fallback logic: map unknown fonts to Helvetica family
+	var fallbackName string
+	if props.Bold && props.Italic {
+		fallbackName = "Helvetica-BoldOblique"
+	} else if props.Bold {
+		fallbackName = "Helvetica-Bold"
+	} else if props.Italic {
+		fallbackName = "Helvetica-Oblique"
+	} else {
+		fallbackName = "Helvetica"
+	}
+
+	return fallbackName
 }

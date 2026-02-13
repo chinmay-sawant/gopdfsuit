@@ -22,8 +22,9 @@ build: test-integration
 
 test:
 	go test ./...
+	python3 -m pytest bindings/python/tests
 
-test-integration:
+test-integration: test
 	go test -count=1 -v ./test
 
 clean:

@@ -8,55 +8,138 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"sync"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
 )
+
+func getSystemInfo() string {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return fmt.Sprintf("OS: %s, Arch: %s, NumCPU: %d, GoVersion: %s",
+		runtime.GOOS, runtime.GOARCH, runtime.NumCPU(), runtime.Version())
+}
+
+func monitorMemory(done chan bool, wg *sync.WaitGroup) {
+	defer wg.Done()
+	var maxAlloc uint64
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			fmt.Printf("Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
+			return
+		case <-ticker.C:
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			if m.Alloc > maxAlloc {
+				maxAlloc = m.Alloc
+			}
+		}
+	}
+}
 
 func main() {
 	fmt.Println("=== gopdflib Financial Report Example ===")
 	fmt.Println()
 
 	// Number of iterations for benchmarking
-	iterations := 10
+	// Number of iterations for benchmarking
+	iterations := 50000
+	// Determine concurrency
+	// numWorkers := runtime.NumCPU()
+	numWorkers := 48
+
+	fmt.Println(getSystemInfo())
+	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)
 
 	// Build the template
 	template := buildFinancialReportTemplate()
 
 	// Warm-up run (not counted in metrics)
 	fmt.Println("Warm-up run...")
-	_, err := gopdflib.GeneratePDF(template)
+	warmUpPDF, err := gopdflib.GeneratePDF(template)
 	if err != nil {
 		fmt.Printf("Error during warm-up: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Run multiple iterations and collect timing
-	fmt.Printf("\nRunning %d iterations...\n\n", iterations)
+	// Channels for jobs and results
+	jobs := make(chan int, iterations)
+	results := make(chan time.Duration, iterations)
+	errors := make(chan error, iterations)
 
-	var totalDuration time.Duration
-	var durations []time.Duration
-	var lastPDF []byte
+	var wg sync.WaitGroup
 
+	// Start memory monitor
+	memDone := make(chan bool)
+	var memWg sync.WaitGroup
+	memWg.Add(1)
+	go monitorMemory(memDone, &memWg)
+
+	// Start workers
+	for range numWorkers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range jobs {
+				start := time.Now()
+				_, err := gopdflib.GeneratePDF(template)
+				elapsed := time.Since(start)
+
+				if err != nil {
+					errors <- err
+					continue
+				}
+				results <- elapsed
+			}
+		}()
+	}
+
+	// Start total timer
+	totalStart := time.Now()
+
+	// Send jobs
 	for i := 1; i <= iterations; i++ {
-		start := time.Now()
-		pdfBytes, err := gopdflib.GeneratePDF(template)
-		elapsed := time.Since(start)
+		jobs <- i
+	}
+	close(jobs)
 
-		if err != nil {
-			fmt.Printf("Iteration %d: ERROR - %v\n", i, err)
-			os.Exit(1)
-		}
+	// Wait for all workers to finish
+	wg.Wait()
+	totalTime := time.Since(totalStart)
 
-		durations = append(durations, elapsed)
-		totalDuration += elapsed
-		lastPDF = pdfBytes
+	// Stop memory monitor
+	memDone <- true
+	memWg.Wait()
 
-		fmt.Printf("  Iteration %2d: %8.3f ms  (%d bytes)\n", i, float64(elapsed.Microseconds())/1000.0, len(pdfBytes))
+	close(results)
+	close(errors)
+
+	// Check for errors
+	if len(errors) > 0 {
+		fmt.Printf("Encountered %d errors during execution.\n", len(errors))
+		os.Exit(1)
+	}
+
+	// Collect timing data
+	var durations []time.Duration
+	var sumDuration time.Duration
+	for d := range results {
+		durations = append(durations, d)
+		sumDuration += d
 	}
 
 	// Calculate statistics
-	avgDuration := totalDuration / time.Duration(iterations)
+	if len(durations) == 0 {
+		fmt.Println("No results collected.")
+		return
+	}
+
 	var minDuration, maxDuration time.Duration = durations[0], durations[0]
 	for _, d := range durations {
 		if d < minDuration {
@@ -66,20 +149,24 @@ func main() {
 			maxDuration = d
 		}
 	}
+	avgDuration := sumDuration / time.Duration(len(durations))
+	opsPerSec := float64(iterations) / totalTime.Seconds()
 
 	// Print summary
-	fmt.Println()
 	fmt.Println("=== Performance Summary ===")
 	fmt.Printf("  Iterations:    %d\n", iterations)
-	fmt.Printf("  Average time:  %.3f ms\n", float64(avgDuration.Microseconds())/1000.0)
-	fmt.Printf("  Min time:      %.3f ms\n", float64(minDuration.Microseconds())/1000.0)
-	fmt.Printf("  Max time:      %.3f ms\n", float64(maxDuration.Microseconds())/1000.0)
-	fmt.Printf("  Total time:    %.3f ms\n", float64(totalDuration.Microseconds())/1000.0)
-	fmt.Printf("  PDF size:      %d bytes (%.2f KB)\n", len(lastPDF), float64(len(lastPDF))/1024.0)
+	fmt.Printf("  Concurrency:   %d workers\n", numWorkers)
+	fmt.Printf("  Total time:    %.3f s\n", totalTime.Seconds())
+	fmt.Printf("  Throughput:    %.2f ops/sec\n", opsPerSec)
+	fmt.Println()
+	fmt.Printf("  Avg Latency:   %.3f ms\n", float64(avgDuration.Microseconds())/1000.0)
+	fmt.Printf("  Min Latency:   %.3f ms\n", float64(minDuration.Microseconds())/1000.0)
+	fmt.Printf("  Max Latency:   %.3f ms\n", float64(maxDuration.Microseconds())/1000.0)
+	fmt.Printf("  PDF size:      %d bytes (%.2f KB)\n", len(warmUpPDF), float64(len(warmUpPDF))/1024.0)
 
-	// Save the PDF
+	// Save the PDF (using the warm-up copy which is identical)
 	outputPath := "financial_report_output.pdf"
-	err = os.WriteFile(outputPath, lastPDF, 0644)
+	err = os.WriteFile(outputPath, warmUpPDF, 0644)
 	if err != nil {
 		fmt.Printf("\nError saving PDF: %v\n", err)
 		os.Exit(1)

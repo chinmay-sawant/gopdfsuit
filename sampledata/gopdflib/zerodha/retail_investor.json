@@ -1,0 +1,49 @@
+{
+  "document_type": "contract_note_retail",
+  "compliance": {
+    "pdf_standard": "PDF/A-4",
+    "accessibility": "PDF/UA-2",
+    "icc_profile": "sRGB_v4_ICC_preference.icc"
+  },
+  "metadata": {
+    "title": "Contract Note - CN2024001",
+    "author": "GoPDFSUIT Engine",
+    "subject": "Equity Trade Confirmation",
+    "keywords": ["finance", "contract", "equity", "legal"]
+  },
+  "client": {
+    "name": "Rahul Sharma",
+    "code": "RS9988",
+    "pan": "ABCDE1234F"
+  },
+  "digital_signature": {
+    "enable": true,
+    "reason": "I am the author of this document",
+    "location": "Mumbai, India",
+    "contact_info": "compliance@brokerage.com"
+  },
+  "trades": [
+    {
+      "symbol": "TATASTEEL",
+      "isin": "INE081A01012",
+      "action": "BUY",
+      "qty": 10,
+      "price": 145.5,
+      "total": 1455.0,
+      "currency": "₹"
+    },
+    {
+      "symbol": "INFY",
+      "isin": "INE009A01021",
+      "action": "SELL",
+      "qty": 5,
+      "price": 1650.0,
+      "total": 8250.0,
+      "currency": "₹"
+    }
+  ],
+  "financials": {
+    "net_obligation": 6795.0,
+    "stt_tax": 12.5
+  }
+}
