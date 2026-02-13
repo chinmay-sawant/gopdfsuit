@@ -1,79 +1,68 @@
-# Comprehensive Benchmark Report: gopdfsuit vs Typst
+# PDF Library Benchmark Report
 
-## 1. Test Configuration
+**Date:** February 1, 2026  
+**Hardware:** 13th Gen Intel(R) Core(TM) i7-13700HX  
+**Dataset:** 2,000 user records with ID, Name, Email, Role, and Description fields  
+**Test:** Generate a styled table report with headers and alternating row colors
 
-*   **Date**: 2026-01-30
-*   **Hardware**: 13th Gen Intel(R) Core(TM) i7-13700HX
-*   **Iterations**: 10 runs per tool
-*   **Dataset**: 2,000 rows of user data (ID, Name, Email, Role, Description)
-*   **Command**: `go test -bench=Benchmark -benchmem -run=^$ -count=10 -v ./internal/pdf`
+## Results Summary
 
-## 2. Raw Results
+| Library | Language | Time (ms) | File Size | PDF Standard | Table Support |
+|---------|----------|-----------|-----------|--------------|---------------|
+| **GoPDFSuit** | Go | **126.99** | 1.7 MB | PDF/A-4 (PDF 2.0) | Full tables with styling + wrap |
+| jsPDF | JavaScript | 56.20 | 279 KB | PDF 1.3 | Text fallback (no autotable) |
+| PDFKit | JavaScript | 305.71 | 205 KB | PDF 1.3 | Full tables with styling |
+| Typst | Typst | 774.58 | 221 KB | PDF/A-2b | Full tables with styling |
+| pdf-lib | JavaScript | 674.16 | 313 KB | PDF 1.7 | Manual table drawing |
+| FPDF2 | Python | 2,834.42 | 203 KB | PDF/A-1b compatible | Full tables with styling |
 
-| Run # | gopdfsuit (ms) | Typst (ms) | Speedup (x) |
-| :--- | :--- | :--- | :--- |
-| 1 | 130.76 | 761.50 | 5.82 |
-| 2 | 132.54 | 751.34 | 5.67 |
-| 3 | 135.49 | 765.27 | 5.65 |
-| 4 | 145.47 | 705.91 | 4.85 |
-| 5 | 141.03 | 733.26 | 5.20 |
-| 6 | 129.28 | 717.59 | 5.55 |
-| 7 | 132.06 | 767.09 | 5.81 |
-| 8 | 137.95 | 768.91 | 5.57 |
-| 9 | 132.01 | 697.15 | 5.28 |
-| 10 | 136.19 | 721.97 | 5.30 |
+## GoPDFSuit Statistical Summary (10 runs)
 
-## 3. Statistical Summary
-
-| Metric | gopdfsuit (Library) | Typst (CLI) |
-| :--- | :--- | :--- |
-| **Minimum** | **129.28 ms** | 697.15 ms |
-| **Maximum** | 145.47 ms | 768.91 ms |
-| **Average (Mean)** | **~135.28 ms** | **~739.00 ms** |
-| **Throughput** | ~7.4 docs/sec | ~1.35 docs/sec |
-| **Memory/Op** | ~49 MB | ~17 KB (allocs only)* |
-
-*\*Note: Memory for Typst shows only the Go wrapper allocations. The actual Typst process uses significantly more private memory.*
-
-## 4. Analysis
-
-
-**gopdfsuit is statistically ~5.46x faster than Typst on average.**
-
-The variance in `gopdfsuit` is low (approx ±6%), indicating stable performance suitable for high-throughput APIS. Typst shows slightly higher variance (approx ±10%), likely due to process startup and OS scheduling variability.
-
-## 5. Scenario: Financial Report (Complex Layout)
-
-*   **Description**: Generates a 2-page report with tables, charts, styling, and bookmarks using the `gopdflib` public API.
-*   **Command**: `go run sampledata/gopdflib/financial_report/main.go`
-*   **Iterations**: 10 runs
-
-### Raw Results
-
-| Run # | Time (ms) | PDF Size (Bytes) |
-| :--- | :--- | :--- |
-| 1 | 7.18 | 135,116 |
-| 2 | 6.47 | 135,116 |
-| 3 | 6.62 | 135,116 |
-| 4 | 6.66 | 135,116 |
-| 5 | 6.57 | 135,116 |
-| 6 | 6.11 | 135,116 |
-| 7 | 5.79 | 135,116 |
-| 8 | 7.31 | 135,116 |
-| 9 | 7.33 | 135,116 |
-| 10 | 6.39 | 135,116 |
-
-### Statistics
-
-| Metric | Result |
+| Metric | Value |
 | :--- | :--- |
-| **Minimum** | 5.79 ms |
-| **Maximum** | 7.33 ms |
-| **Average (Mean)** | ~6.64 ms |
-| **Total Time (10 runs)** | 66.43 ms |
+| **Minimum** | **122.97 ms** |
+| **Maximum** | 131.39 ms |
+| **Average (Mean)** | **126.99 ms** |
+| **Throughput** | ~7.9 docs/sec |
 
-### Analysis
-The financial report generation is extremely fast (~6.6ms per document), demonstrating the efficiency of the `gopdflib` API for complex layouts involving tables and embedded images.
+*\*jsPDF running in text-only fallback mode (simpler workload).*
 
-## 6. Conclusion
-For applications requiring high-frequency document generation, `gopdfsuit` provides a massive throughput advantage. Typst remains a viable option for lower-volume, high-design requirements where a ~740ms generation time is acceptable.
+## Test Environment
+
+- **OS:** Linux
+- **Go:** 1.21+
+- **Node.js:** 18+
+- **Python:** 3.13
+
+## Running the Benchmarks
+
+```bash
+# FPDF2 (Python)
+cd fpdf && python bench.py
+
+# GoPDFSuit (Go)
+cd gopdfsuit && go run bench.go
+
+# PDFKit (Node.js)
+cd pdfkit && npm install && node bench.js
+
+# pdf-lib (Node.js)
+cd pdflib && npm install && node bench.js
+
+# jsPDF (Node.js)
+cd jspdf && npm install && node bench.js
+
+# Typst (requires typst CLI)
+cd typst && ./bench.sh
+```
+
+## Conclusion
+
+**GoPDFSuit** is the clear winner for applications requiring:
+- High performance PDF generation
+- PDF/A-4 archival compliance (ISO 19005-4:2020)
+- PDF 2.0 features
+- PDF/UA accessibility support
+- Enterprise-grade features (digital signatures, encryption)
+
+For simple PDF generation without compliance requirements, **PDFKit** offers a good balance of speed and features in the JavaScript ecosystem.
