@@ -2959,6 +2959,9 @@ YI.¬*Œ4*óú	K•Å#Œd◊b;>—êè◊v◊B¬ÿIä*ÇR∞X¥≤◊ZrT•nÕ8E’’Ï≤NPÕπ¥‚|£hÉs≠£‰rYv∏5
 Ô€”ÔÕ”©y˙¯–¸  ˇˇé¬ó—
 endstream
 endobj
+1000 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /SUBSET+LiberationSans /Encoding /Identity-H /DescendantFonts [1001 0 R] /ToUnicode 1005 0 R >>
+endobj
 1006 0 obj
 << /Filter /FlateDecode /Length 16439 /Length1 22900 >>
 stream
@@ -3055,21 +3058,6 @@ hÌ°Ë#QŒ7sæôØ†¥Ü÷PÂê@)§êAy»CXÁXÁXÁXÁ;hóHp\¡Ep\¡Ep\¡Ep\¡Ep\y∏
 ÎJ	ïâî≠ï≠ï>•OÈS˙î>•OÈS˙î>•O)Räî"•H)Räî"•H)Räî•¡03Ã3√Ã03Ã3√Ã03ÃåÂçÂO√”4<O√”X◊X◊0≥áÎÎÎÎz÷ı¨Î±ˆX{¨=÷kèµ«⁄cÌqÒ∏x\|ëË„$ŒGuæQæÓÅÊ6é!NÈ⁄Ig>ı]_7”–Û[ÈÁO   ˇˇßMP
 endstream
 endobj
-1000 0 obj
-<< /Type /Font /Subtype /Type0 /BaseFont /SUBSET+LiberationSans /Encoding /Identity-H /DescendantFonts [1001 0 R] /ToUnicode 1005 0 R >>
-endobj
-2000 0 obj
-<< /Type /Annot /Subtype /Link /Rect [72.00 705.00 184.75 730.00] /Border [0 0 0] /H /I /F 4 /StructParent 1000 /Dest (hft-client-info) >>
-endobj
-2002 0 obj
-<< /Type /Annot /Subtype /Link /Rect [297.50 705.00 410.25 730.00] /Border [0 0 0] /H /I /F 4 /StructParent 1002 /Dest (hft-compliance) >>
-endobj
-2011 0 obj
-<< /Type /Outlines /First 2003 0 R /Last 2003 0 R /Count 1 >>
-endobj
-2003 0 obj
-<< /Title (HFT Contract Note - Algo Capital LLP) /Parent 2011 0 R /Dest (_bm_0) /First 2005 0 R /Last 2009 0 R /Count -3 >>
-endobj
 2007 0 obj
 << /Title (Trade Details \(2,000 Trades\)) /Parent 2003 0 R /Dest (_bm_2) /Prev 2005 0 R /Next 2009 0 R >>
 endobj
@@ -3079,14 +3067,26 @@ endobj
 2012 0 obj
 << /Names [(_bm_0) << /D [3 0 R /XYZ null 770.00 null] /SD [2004 0 R /XYZ null 770.00 null] >> (_bm_1) << /D [3 0 R /XYZ null 705.00 null] /SD [2006 0 R /XYZ null 705.00 null] >> (_bm_2) << /D [3 0 R /XYZ null 630.00 null] /SD [2008 0 R /XYZ null 630.00 null] >> (_bm_3) << /D [77 0 R /XYZ null 545.00 null] /SD [2010 0 R /XYZ null 545.00 null] >> (hft-client-info) << /D [3 0 R /XYZ null 705.00 null] /SD [2006 0 R /XYZ null 705.00 null] >> (hft-compliance) << /D [77 0 R /XYZ null 545.00 null] /SD [2010 0 R /XYZ null 545.00 null] >> (hft-trades) << /D [3 0 R /XYZ null 630.00 null] /SD [2008 0 R /XYZ null 630.00 null] >>] >>
 endobj
-2001 0 obj
-<< /Type /Annot /Subtype /Link /Rect [184.75 705.00 297.50 730.00] /Border [0 0 0] /H /I /F 4 /StructParent 1001 /Dest (hft-trades) >>
+2013 0 obj
+<< /Dests 2012 0 R >>
+endobj
+2011 0 obj
+<< /Type /Outlines /First 2003 0 R /Last 2003 0 R /Count 1 >>
 endobj
 2005 0 obj
 << /Title (Client Information) /Parent 2003 0 R /Dest (_bm_1) /Next 2007 0 R >>
 endobj
-2013 0 obj
-<< /Dests 2012 0 R >>
+2000 0 obj
+<< /Type /Annot /Subtype /Link /Rect [72.00 705.00 184.75 730.00] /Border [0 0 0] /H /I /F 4 /StructParent 1000 /Dest (hft-client-info) >>
+endobj
+2001 0 obj
+<< /Type /Annot /Subtype /Link /Rect [184.75 705.00 297.50 730.00] /Border [0 0 0] /H /I /F 4 /StructParent 1001 /Dest (hft-trades) >>
+endobj
+2002 0 obj
+<< /Type /Annot /Subtype /Link /Rect [297.50 705.00 410.25 730.00] /Border [0 0 0] /H /I /F 4 /StructParent 1002 /Dest (hft-compliance) >>
+endobj
+2003 0 obj
+<< /Title (HFT Contract Note - Algo Capital LLP) /Parent 2011 0 R /Dest (_bm_0) /First 2005 0 R /Last 2009 0 R /Count -3 >>
 endobj
 2014 0 obj
 << /Type /Metadata /Subtype /XML /Length 4913 >>
@@ -3132,9 +3132,9 @@ stream
       <pdfuaid:rev>2024</pdfuaid:rev>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/">
-      <xmp:CreateDate>2026-02-12T04:15:03Z</xmp:CreateDate>
-      <xmp:ModifyDate>2026-02-12T04:15:03Z</xmp:ModifyDate>
-      <xmp:MetadataDate>2026-02-12T04:15:03Z</xmp:MetadataDate>
+      <xmp:CreateDate>2026-02-14T10:37:49Z</xmp:CreateDate>
+      <xmp:ModifyDate>2026-02-14T10:37:49Z</xmp:ModifyDate>
+      <xmp:MetadataDate>2026-02-14T10:37:49Z</xmp:MetadataDate>
       <xmp:CreatorTool>GoPDFSuit</xmp:CreatorTool>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -3149,8 +3149,8 @@ stream
       <pdf:Producer>GoPDFSuit</pdf:Producer>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/">
-      <xmpMM:DocumentID>uuid:1893649cf54111e7</xmpMM:DocumentID>
-      <xmpMM:InstanceID>uuid:1893649cf54111e7</xmpMM:InstanceID>
+      <xmpMM:DocumentID>uuid:189416a93b1994de</xmpMM:DocumentID>
+      <xmpMM:InstanceID>uuid:189416a93b1994de</xmpMM:InstanceID>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>
@@ -51515,28 +51515,28 @@ xref
 0000465874 00000 n 
 0000472110 00000 n 
 1000 7
-0000493111 00000 n 
-0000492305 00000 n 
-0000492086 00000 n 
-0000491511 00000 n 
-0000491852 00000 n 
-0000492538 00000 n 
 0000474980 00000 n 
+0000492460 00000 n 
+0000492241 00000 n 
+0000491666 00000 n 
+0000492007 00000 n 
+0000492693 00000 n 
+0000475135 00000 n 
 2000 19
-0000493266 00000 n 
-0000494670 00000 n 
-0000493423 00000 n 
-0000493660 00000 n 
+0000494352 00000 n 
+0000494509 00000 n 
+0000494662 00000 n 
+0000494819 00000 n 
 0002119438 00000 n 
-0000494823 00000 n 
+0000494254 00000 n 
 0002119553 00000 n 
-0000493802 00000 n 
+0000493266 00000 n 
 0002119650 00000 n 
-0000493927 00000 n 
+0000493391 00000 n 
 0002119759 00000 n 
-0000493580 00000 n 
-0000494023 00000 n 
-0000494921 00000 n 
+0000494174 00000 n 
+0000493487 00000 n 
+0000494134 00000 n 
 0000494961 00000 n 
 0000505052 00000 n 
 0000499959 00000 n 
@@ -67596,7 +67596,7 @@ xref
 0000505158 00000 n 
 0000504980 00000 n 
 trailer
-<< /Size 18073 /Root 1 0 R /ID [<a9e8502787434cdd7c5d484dd984b7cb> <2366ae8fea28da52e48c017d66c8bc7e>] >>
+<< /Size 18073 /Root 1 0 R /ID [<349f7090485ebc03a1482be1deeb809a> <05f88aeb3a395a385666f39368820bc9>] >>
 startxref
 2119854
 %%EOF

@@ -8,8 +8,10 @@ const pdfGenerationTime = new Trend('pdf_generation_time');
 const successfulRequests = new Counter('successful_requests');
 const failedRequests = new Counter('failed_requests');
 
+import { getWeightedPayload } from './payload_generator.js';
+
 // Load JSON payload from file (executed once at init time)
-const amazonReceiptPayload = JSON.parse(open('../../sampledata/amazon/amazon_receipt.json'));
+// const financialDigitalSignaturePayload = JSON.parse(open('../../sampledata/editor/financial_digitalsignature.json'));
 
 // Spike test configuration - sudden increase in load
 export const options = {
@@ -29,9 +31,10 @@ export const options = {
         },
     },
     thresholds: {
-        http_req_duration: ['p(95)<10000'],  // More lenient during spike
+        http_req_duration: ['p(95)<10000', 'p(99)<15000'],  // More lenient during spike
         http_req_failed: ['rate<0.3'],        // Allow higher error rate during spike
     },
+    summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
 };
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
@@ -43,7 +46,7 @@ const headers = {
 
 export default function () {
     const url = `${BASE_URL}/api/v1/generate/template-pdf`;
-    const payload = JSON.stringify(amazonReceiptPayload);
+    const payload = JSON.stringify(getWeightedPayload());
 
     const startTime = Date.now();
     const response = http.post(url, payload, { headers });
@@ -73,6 +76,7 @@ export function handleSummary(data) {
     console.log(`Failed requests: ${data.metrics.http_req_failed.values.passes}`);
     console.log(`Average response time: ${data.metrics.http_req_duration.values.avg.toFixed(2)}ms`);
     console.log(`95th percentile: ${data.metrics.http_req_duration.values['p(95)'].toFixed(2)}ms`);
+    console.log(`99th percentile: ${data.metrics.http_req_duration.values['p(99)'].toFixed(2)}ms`);
     console.log(`Max response time: ${data.metrics.http_req_duration.values.max.toFixed(2)}ms`);
     console.log('==========================================\n');
     

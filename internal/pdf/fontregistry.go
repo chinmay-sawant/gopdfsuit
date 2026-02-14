@@ -215,16 +215,17 @@ func (r *CustomFontRegistry) CloneForGeneration() *CustomFontRegistry {
 	defer r.mu.RUnlock()
 
 	clone := &CustomFontRegistry{
-		fonts: make(map[string]*RegisteredFont),
+		fonts: make(map[string]*RegisteredFont, len(r.fonts)),
 	}
 
 	for name, font := range r.fonts {
 		// Create a new RegisteredFont instance sharing the same static TTFFont data
 		// but with fresh usage maps and specific PDF object IDs
+		// Pre-size UsedChars to 256 to avoid map rehashing during font scanning
 		clone.fonts[name] = &RegisteredFont{
 			Name:      font.Name,
 			Font:      font.Font,
-			UsedChars: make(map[rune]bool),
+			UsedChars: make(map[rune]bool, 256),
 			// Other fields default to zero/nil
 		}
 	}
