@@ -1239,11 +1239,24 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		trailerExtra = fmt.Sprintf(" /Encrypt %d 0 R", encryptObjID)
 	}
 
-	if template.Config.PDFACompliant {
-		pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /ID %s%s >>\n", totalObjects, documentID, trailerExtra))
-	} else {
-		pdfBuffer.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R /ID %s%s >>\n", totalObjects, infoObjectID, documentID, trailerExtra))
+	pdfBuffer.WriteString("trailer\n<< /Size ")
+	b = b[:0]
+	b = strconv.AppendInt(b, int64(totalObjects), 10)
+	pdfBuffer.Write(b)
+	pdfBuffer.WriteString(" /Root 1 0 R ")
+	if !template.Config.PDFACompliant {
+		pdfBuffer.WriteString("/Info ")
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(infoObjectID), 10)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(" 0 R ")
 	}
+	pdfBuffer.WriteString("/ID ")
+	pdfBuffer.WriteString(documentID)
+	if trailerExtra != "" {
+		pdfBuffer.WriteString(trailerExtra)
+	}
+	pdfBuffer.WriteString(" >>\n")
 	pdfBuffer.WriteString("startxref\n")
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
