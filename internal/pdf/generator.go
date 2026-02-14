@@ -561,22 +561,39 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Add Annots if present
 		annotsStr := ""
 		if i < len(pageManager.PageAnnots) && len(pageManager.PageAnnots[i]) > 0 {
-			annotsStr = " /Annots ["
+			var annotBuf []byte
+			annotBuf = append(annotBuf, " /Annots ["...)
 			for _, annotID := range pageManager.PageAnnots[i] {
-				annotsStr += fmt.Sprintf(" %d 0 R", annotID)
+				annotBuf = append(annotBuf, ' ')
+				annotBuf = strconv.AppendInt(annotBuf, int64(annotID), 10)
+				annotBuf = append(annotBuf, " 0 R"...)
 			}
-			annotsStr += "]"
+			annotBuf = append(annotBuf, ']')
+			annotsStr = string(annotBuf)
 		}
 
-		pdfBuffer.WriteString(fmt.Sprintf("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] ",
-			pageDims.Width, pageDims.Height))
-		pdfBuffer.WriteString(fmt.Sprintf("/Contents %d 0 R ", contentObjectStart+i))
+		pdfBuffer.WriteString("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ")
+		pdfBuffer.WriteString(fmtNum(pageDims.Width))
+		pdfBuffer.WriteByte(' ')
+		pdfBuffer.WriteString(fmtNum(pageDims.Height))
+		pdfBuffer.WriteString("] ")
+
+		pdfBuffer.WriteString("/Contents ")
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(contentObjectStart+i), 10)
+		b = append(b, " 0 R "...)
+		pdfBuffer.Write(b)
 
 		// Build standard font resources string dynamically
 		var stdFontRefs strings.Builder
 		for i, name := range fontNames {
 			if id, ok := fontObjectIDs[name]; ok {
-				stdFontRefs.WriteString(fmt.Sprintf(" %s %d 0 R", fontRefs[i], id))
+				stdFontRefs.WriteByte(' ')
+				stdFontRefs.WriteString(fontRefs[i])
+				stdFontRefs.WriteByte(' ')
+				var fontBuf [12]byte
+				stdFontRefs.Write(strconv.AppendInt(fontBuf[:0], int64(id), 10))
+				stdFontRefs.WriteString(" 0 R")
 			}
 		}
 
@@ -584,7 +601,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// PDF/UA: Add StructParents entry ONLY if page has marked content
 		structParentsEntry := ""
 		if pageManager.Structure.NextMCID[i] > 0 {
-			structParentsEntry = fmt.Sprintf(" /StructParents %d", i)
+			var spBuf [20]byte
+			sp := append(spBuf[:0], " /StructParents "...)
+			sp = strconv.AppendInt(sp, int64(i), 10)
+			structParentsEntry = string(sp)
 		}
 
 		// PDF/UA-2: Add /Tabs S for pages with annotations (required by ISO 14289-2 8.9.3.3)
@@ -593,8 +613,18 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			tabsEntry = " /Tabs /S" // S = Structure order
 		}
 
-		pdfBuffer.WriteString(fmt.Sprintf("/Resources << %s /Font <<%s%s >>%s >>%s%s%s >>\n",
-			colorSpaceRefs, stdFontRefs.String(), customFontRefs, xobjectRefs, annotsStr, structParentsEntry, tabsEntry))
+		pdfBuffer.WriteString("/Resources << ")
+		pdfBuffer.WriteString(colorSpaceRefs)
+		pdfBuffer.WriteString(" /Font <<")
+		pdfBuffer.WriteString(stdFontRefs.String())
+		pdfBuffer.WriteString(customFontRefs)
+		pdfBuffer.WriteString(" >>")
+		pdfBuffer.WriteString(xobjectRefs)
+		pdfBuffer.WriteString(" >>")
+		pdfBuffer.WriteString(annotsStr)
+		pdfBuffer.WriteString(structParentsEntry)
+		pdfBuffer.WriteString(tabsEntry)
+		pdfBuffer.WriteString(" >>\n")
 		pdfBuffer.WriteString("endobj\n")
 	}
 
@@ -623,11 +653,19 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Encrypt content stream if encryption is enabled
 		if encryption != nil {
 			encryptedData := encryption.EncryptStream(compressedData, objectID, 0)
-			pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(encryptedData)))
+			pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
+			b = b[:0]
+			b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
+			pdfBuffer.Write(b)
+			pdfBuffer.WriteString(" >>\nstream\n")
 			pdfBuffer.Write(encryptedData)
 		} else {
 			// Write stream without encryption
-			pdfBuffer.WriteString(fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n", len(compressedData)))
+			pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
+			b = b[:0]
+			b = strconv.AppendInt(b, int64(len(compressedData)), 10)
+			pdfBuffer.Write(b)
+			pdfBuffer.WriteString(" >>\nstream\n")
 			pdfBuffer.Write(compressedData)
 		}
 		compressBufPool.Put(compressedBuf)

@@ -283,17 +283,18 @@ func (r *CustomFontRegistry) GetFontReference(name string) string {
 	return ""
 }
 
+// standardFontSet is pre-allocated once to avoid per-call map allocation in IsCustomFont.
+var standardFontSet = map[string]bool{
+	"Helvetica": true, "Helvetica-Bold": true, "Helvetica-Oblique": true, "Helvetica-BoldOblique": true,
+	"Times-Roman": true, "Times-Bold": true, "Times-Italic": true, "Times-BoldItalic": true,
+	"Courier": true, "Courier-Bold": true, "Courier-Oblique": true, "Courier-BoldOblique": true,
+	"Symbol": true, "ZapfDingbats": true,
+	"font1": true, "font2": true, // Legacy font references
+}
+
 // IsCustomFont checks if a font name refers to a custom font (not a standard PDF font)
 func IsCustomFont(fontName string) bool {
-	standardFonts := map[string]bool{
-		"Helvetica": true, "Helvetica-Bold": true, "Helvetica-Oblique": true, "Helvetica-BoldOblique": true,
-		"Times-Roman": true, "Times-Bold": true, "Times-Italic": true, "Times-BoldItalic": true,
-		"Courier": true, "Courier-Bold": true, "Courier-Oblique": true, "Courier-BoldOblique": true,
-		"Symbol": true, "ZapfDingbats": true,
-		"font1": true, "font2": true, // Legacy font references
-	}
-
-	return !standardFonts[fontName]
+	return !standardFontSet[fontName]
 }
 
 // LoadFontsFromDirectory loads all TTF/OTF fonts from a directory

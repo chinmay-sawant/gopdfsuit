@@ -11,7 +11,9 @@ import (
 
 // fmtNum formats a float with 2 decimal places (standard PDF precision)
 func fmtNum(f float64) string {
-	return fmt.Sprintf("%.2f", f)
+	var buf [24]byte
+	b := strconv.AppendFloat(buf[:0], f, 'f', 2, 64)
+	return string(b)
 }
 
 // --- new watermark drawer (diagonal bottom-left to top-right) ---
