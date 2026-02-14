@@ -1,0 +1,306 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: spike_test.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 100 max VUs, 2m10s max duration (incl. graceful stop):
+              * spike: Up to 100 looping VUs for 1m40s over 7 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+running (0m01.0s), 000/100 VUs, 0 complete and 0 interrupted iterations
+spike   [   1% ] 000/100 VUs  0m01.0s/1m40.0s
+
+running (0m02.0s), 000/100 VUs, 0 complete and 0 interrupted iterations
+spike   [   2% ] 000/100 VUs  0m02.0s/1m40.0s
+
+running (0m03.0s), 001/100 VUs, 1 complete and 0 interrupted iterations
+spike   [   3% ] 001/100 VUs  0m03.0s/1m40.0s
+time="2026-02-14T18:38:30+05:30" level=info msg="\n========== SPIKE TEST SUMMARY ==========" source=console
+time="2026-02-14T18:38:30+05:30" level=info msg="Total requests: 4" source=console
+time="2026-02-14T18:38:30+05:30" level=info msg="Failed requests: 0" source=console
+time="2026-02-14T18:38:30+05:30" level=info msg="Average response time: 3.11ms" source=console
+time="2026-02-14T18:38:30+05:30" level=info msg="95th percentile: 3.25ms" source=console
+time="2026-02-14T18:38:30+05:30" level=info msg="99th percentile: 3.26ms" source=console
+time="2026-02-14T18:38:30+05:30" level=info msg="Max response time: 3.26ms" source=console
+time="2026-02-14T18:38:30+05:30" level=info msg="==========================================\n" source=console
+{
+  "state": {
+    "isStdOutTTY": false,
+    "isStdErrTTY": false,
+    "testRunDurationMs": 3568.231866
+  },
+  "metrics": {
+    "iterations": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 3,
+        "rate": 0.8407525386972708
+      }
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 100,
+        "min": 100,
+        "max": 100
+      }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 220704,
+        "rate": 61852.48276688082
+      }
+    },
+    "errors": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "passes": 0,
+        "fails": 4,
+        "rate": 0
+      }
+    },
+    "iteration_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 504.9470088,
+        "p(95)": 504.9516884,
+        "p(99)": 504.95543208,
+        "avg": 504.5032816666667,
+        "min": 503.643905,
+        "med": 504.909572,
+        "max": 504.956368
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "values": {
+        "avg": 3.1078382500000004,
+        "min": 2.833409,
+        "med": 3.167606,
+        "max": 3.262732,
+        "p(90)": 3.2425666000000004,
+        "p(95)": 3.2526493000000003,
+        "p(99)": 3.26071546
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "successful_requests": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 4,
+        "rate": 1.1210033849296945
+      }
+    },
+    "http_req_blocked": {
+      "contains": "time",
+      "values": {
+        "avg": 0.09570975,
+        "min": 0.004702,
+        "med": 0.0100365,
+        "max": 0.358064,
+        "p(90)": 0.25456580000000006,
+        "p(95)": 0.3063148999999999,
+        "p(99)": 0.34771417999999993
+      },
+      "type": "trend"
+    },
+    "http_req_sending": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 0.086933,
+        "med": 0.130183,
+        "max": 0.190137,
+        "p(90)": 0.1725699,
+        "p(95)": 0.18135344999999997,
+        "p(99)": 0.18838028999999998,
+        "avg": 0.134359
+      }
+    },
+    "pdf_generation_time": {
+      "type": "trend",
+      "contains": "default",
+      "values": {
+        "avg": 3.25,
+        "min": 3,
+        "med": 3,
+        "max": 4,
+        "p(90)": 3.7,
+        "p(95)": 3.8499999999999996,
+        "p(99)": 3.9699999999999998
+      }
+    },
+    "http_req_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 3.2526493000000003,
+        "p(99)": 3.26071546,
+        "avg": 3.1078382500000004,
+        "min": 2.833409,
+        "med": 3.167606,
+        "max": 3.262732,
+        "p(90)": 3.2425666000000004
+      },
+      "thresholds": {
+        "p(95)<10000": {
+          "ok": true
+        },
+        "p(99)<15000": {
+          "ok": true
+        }
+      }
+    },
+    "http_req_failed": {
+      "contains": "default",
+      "values": {
+        "rate": 0,
+        "passes": 0,
+        "fails": 4
+      },
+      "thresholds": {
+        "rate<0.3": {
+          "ok": true
+        }
+      },
+      "type": "rate"
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 2.9672006,
+        "p(95)": 3.0008453,
+        "p(99)": 3.02776106,
+        "avg": 2.75622275,
+        "min": 2.5896,
+        "med": 2.7004004999999998,
+        "max": 3.03449
+      }
+    },
+    "http_reqs": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 4,
+        "rate": 1.1210033849296945
+      }
+    },
+    "checks": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 1,
+        "passes": 8,
+        "fails": 0
+      }
+    },
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 31324,
+        "rate": 8778.577507384438
+      }
+    },
+    "vus": {
+      "values": {
+        "value": 1,
+        "min": 0,
+        "max": 1
+      },
+      "type": "gauge",
+      "contains": "default"
+    },
+    "http_req_connecting": {
+      "contains": "time",
+      "values": {
+        "min": 0,
+        "med": 0,
+        "max": 0.200751,
+        "p(90)": 0.14052570000000003,
+        "p(95)": 0.17063834999999994,
+        "p(99)": 0.19472846999999996,
+        "avg": 0.05018775
+      },
+      "type": "trend"
+    },
+    "http_req_tls_handshaking": {
+      "contains": "time",
+      "values": {
+        "avg": 0,
+        "min": 0,
+        "med": 0,
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0,
+        "p(99)": 0
+      },
+      "type": "trend"
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "med": 0.16824699999999998,
+        "max": 0.418518,
+        "p(90)": 0.35151810000000006,
+        "p(95)": 0.3850180499999999,
+        "p(99)": 0.41181800999999996,
+        "avg": 0.21725649999999996,
+        "min": 0.114014
+      }
+    }
+  },
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [],
+    "checks": [
+        {
+          "passes": 4,
+          "fails": 0,
+          "name": "status is 200",
+          "path": "::status is 200",
+          "id": "6210a8cd14cd70477eba5c5e4cb3fb5f"
+        },
+        {
+          "name": "response has content",
+          "path": "::response has content",
+          "id": "4914ddff68a8948cdf0ed9d3223b4351",
+          "passes": 4,
+          "fails": 0
+        }
+      ]
+  },
+  "options": {
+    "noColor": false,
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "max",
+      "p(90)",
+      "p(95)",
+      "p(99)"
+    ],
+    "summaryTimeUnit": ""
+  }
+}
+running (0m03.6s), 000/100 VUs, 3 complete and 1 interrupted iterations
+spike ✗ [   4% ] 001/100 VUs  0m03.6s/1m40.0s
+time="2026-02-14T18:38:30+05:30" level=error msg="test run was aborted because k6 received a 'interrupt' signal"

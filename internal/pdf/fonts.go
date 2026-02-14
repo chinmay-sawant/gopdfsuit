@@ -1,8 +1,6 @@
 package pdf
 
 import (
-	"bytes"
-	"compress/zlib"
 	"fmt"
 	"math"
 	"sort"
@@ -12,6 +10,9 @@ import (
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
+
+// hexDigits is a lookup table for fast hex encoding, avoiding fmt.Sprintf("%04X") per character.
+const hexDigits = "0123456789ABCDEF"
 
 // PDF 2.0 compliant font definitions for the standard 14 fonts
 // These include FirstChar, LastChar, Widths, and FontDescriptor as required by Arlington Model
@@ -544,7 +545,7 @@ func GenerateWidthsArrayObject(fontName string, objectID int) string {
 		if i > 0 {
 			widthsArray.WriteString(" ")
 		}
-		widthsArray.WriteString(fmt.Sprintf("%d", w))
+		widthsArray.WriteString(strconv.Itoa(w))
 	}
 
 	widthsArray.WriteString("]\nendobj\n")
@@ -565,7 +566,7 @@ func GetHelveticaFontResourceString() string {
 		if i > 0 {
 			widths.WriteString(" ")
 		}
-		widths.WriteString(fmt.Sprintf("%d", w))
+		widths.WriteString(strconv.Itoa(w))
 	}
 	widths.WriteString("]")
 
@@ -648,14 +649,17 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 		fontData = font.SubsetData
 	}
 
-	// Compress font data
-	var compressedBuf bytes.Buffer
-	zlibWriter := zlib.NewWriter(&compressedBuf)
+	// Compress font data using pooled zlib writer
+	compressedBuf := getCompressBuffer()
+	zlibWriter := getZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(fontData); err != nil {
 		_ = zlibWriter.Close()
+		putZlibWriter(zlibWriter)
+		compressBufPool.Put(compressedBuf)
 		return objects
 	}
 	_ = zlibWriter.Close()
+	putZlibWriter(zlibWriter)
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -664,8 +668,16 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	}
 
 	// Generate font file stream (FontFile2 for TrueType)
-	objects[font.FontFileID] = fmt.Sprintf("<< /Filter /FlateDecode /Length %d /Length1 %d >>\nstream\n%s\nendstream",
-		len(compressedData), len(fontData), string(compressedData))
+	var fontFileBuf strings.Builder
+	fontFileBuf.WriteString("<< /Filter /FlateDecode /Length ")
+	fontFileBuf.WriteString(strconv.Itoa(len(compressedData)))
+	fontFileBuf.WriteString(" /Length1 ")
+	fontFileBuf.WriteString(strconv.Itoa(len(fontData)))
+	fontFileBuf.WriteString(" >>\nstream\n")
+	fontFileBuf.Write(compressedData)
+	fontFileBuf.WriteString("\nendstream")
+	objects[font.FontFileID] = fontFileBuf.String()
+	compressBufPool.Put(compressedBuf)
 
 	// Generate CID widths array
 	widthsStr := generateCIDWidths(font)
@@ -806,12 +818,14 @@ func generateCIDWidths(font *RegisteredFont) string {
 		}
 
 		// Write this range
-		result.WriteString(fmt.Sprintf(" %d [", startCID))
+		result.WriteString(" ")
+		result.WriteString(strconv.Itoa(int(startCID)))
+		result.WriteString(" [")
 		for j := startIdx; j < i; j++ {
 			if j > startIdx {
 				result.WriteString(" ")
 			}
-			result.WriteString(fmt.Sprintf("%d", widths[j].width))
+			result.WriteString(strconv.Itoa(widths[j].width))
 		}
 		result.WriteString("]")
 	}
@@ -840,10 +854,15 @@ func generateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 
 	// Fill the map
 	for char := range font.UsedChars {
+		// PDF standard implies CIDs are valid up to 65535, but we only size up to maxCID
+		if uint16(char) > maxCID {
+			continue // Should not happen given maxCID calculation logic
+		}
 		cid := uint16(char)
 
 		// 1. Get Original GID from Font
-		oldGID, ok := f.CharToGlyph[rune(cid)]
+		// Note: CharToGlyph handles rune, so standard casting is fine
+		oldGID, ok := f.CharToGlyph[char]
 		if !ok {
 			// Character not in font - map to .notdef (GID 0)
 			oldGID = 0
@@ -852,27 +871,37 @@ func generateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 		// 2. Determine Final GID
 		finalGID := oldGID
 		if len(font.SubsetData) > 0 {
-			// If subsetted, use the New GID
+			// If subsetted, we MUST map to the New GID in the subset
 			if newGID, ok := font.OldToNewGlyph[oldGID]; ok {
 				finalGID = newGID
 			} else {
-				finalGID = 0 // .notdef fallback
+				// If oldGID (valid in original font) is missing from subset map,
+				// it implies it wasn't included in the subset generation.
+				// This shouldn't happen if UsedChars is consistent.
+				// Fallback to .notdef (0) to avoid invalid GID reference
+				finalGID = 0
 			}
 		}
 
-		// Write 16-bit GID at offset CID*2
-		mapData[cid*2] = byte(finalGID >> 8)
-		mapData[cid*2+1] = byte(finalGID)
+		// Write 16-bit GID at offset CID*2 (Big Endian)
+		offset := int(cid) * 2
+		if offset+1 < len(mapData) {
+			mapData[offset] = byte(finalGID >> 8)
+			mapData[offset+1] = byte(finalGID)
+		}
 	}
 
-	// Compress the stream
-	var compressedBuf bytes.Buffer
-	zlibWriter := zlib.NewWriter(&compressedBuf)
+	// Compress the stream using pooled zlib writer
+	compressedBuf := getCompressBuffer()
+	zlibWriter := getZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(mapData); err != nil {
 		_ = zlibWriter.Close()
+		putZlibWriter(zlibWriter)
+		compressBufPool.Put(compressedBuf)
 		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
 	}
 	_ = zlibWriter.Close()
+	putZlibWriter(zlibWriter)
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -880,8 +909,15 @@ func generateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 		compressedData = encryptor.EncryptStream(compressedData, font.CIDToGIDMapID, 0)
 	}
 
-	return fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
-		len(compressedData), string(compressedData))
+	var sb strings.Builder
+	sb.WriteString("<< /Filter /FlateDecode /Length ")
+	sb.WriteString(strconv.Itoa(len(compressedData)))
+	sb.WriteString(" >>\nstream\n")
+	sb.Write(compressedData)
+	sb.WriteString("\nendstream")
+	result := sb.String()
+	compressBufPool.Put(compressedBuf)
+	return result
 }
 
 // generateToUnicodeCMap generates the ToUnicode CMap stream for text extraction
@@ -926,17 +962,27 @@ func generateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 		}
 		chunk := mappings[i:end]
 
-		cmap.WriteString(fmt.Sprintf("%d beginbfchar\n", len(chunk)))
+		cmap.WriteString(strconv.Itoa(len(chunk)))
+		cmap.WriteString(" beginbfchar\n")
 		for _, m := range chunk {
-			// CID as hex, Unicode code point as hex
+			// CID as hex, Unicode code point as hex — using lookup table
 			if m.char <= 0xFFFF {
-				cmap.WriteString(fmt.Sprintf("<%04X> <%04X>\n", m.cid, m.char))
+				cmap.WriteByte('<')
+				writeHex4(&cmap, m.cid)
+				cmap.WriteString("> <")
+				writeHex4(&cmap, uint16(m.char))
+				cmap.WriteString(">\n")
 			} else {
 				// Handle supplementary characters (surrogate pair)
 				r := m.char - 0x10000
-				high := 0xD800 + (r >> 10)
-				low := 0xDC00 + (r & 0x3FF)
-				cmap.WriteString(fmt.Sprintf("<%04X> <%04X%04X>\n", m.cid, high, low))
+				high := uint16(0xD800 + (r >> 10))
+				low := uint16(0xDC00 + (r & 0x3FF))
+				cmap.WriteByte('<')
+				writeHex4(&cmap, m.cid)
+				cmap.WriteString("> <")
+				writeHex4(&cmap, high)
+				writeHex4(&cmap, low)
+				cmap.WriteString(">\n")
 			}
 		}
 		cmap.WriteString("endbfchar\n")
@@ -949,14 +995,17 @@ func generateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 
 	cmapData := cmap.String()
 
-	// Compress the CMap stream
-	var compressedBuf bytes.Buffer
-	zlibWriter := zlib.NewWriter(&compressedBuf)
+	// Compress the CMap stream using pooled zlib writer
+	compressedBuf := getCompressBuffer()
+	zlibWriter := getZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write([]byte(cmapData)); err != nil {
 		_ = zlibWriter.Close()
+		putZlibWriter(zlibWriter)
+		compressBufPool.Put(compressedBuf)
 		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
 	}
 	_ = zlibWriter.Close()
+	putZlibWriter(zlibWriter)
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -964,38 +1013,50 @@ func generateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 		compressedData = encryptor.EncryptStream(compressedData, font.ToUnicodeID, 0)
 	}
 
-	return fmt.Sprintf("<< /Filter /FlateDecode /Length %d >>\nstream\n%s\nendstream",
-		len(compressedData), string(compressedData))
+	var sb strings.Builder
+	sb.WriteString("<< /Filter /FlateDecode /Length ")
+	sb.WriteString(strconv.Itoa(len(compressedData)))
+	sb.WriteString(" >>\nstream\n")
+	sb.Write(compressedData)
+	sb.WriteString("\nendstream")
+	result := sb.String()
+	compressBufPool.Put(compressedBuf)
+	return result
 }
 
 // EncodeTextForCustomFont encodes text for use with a custom font (Identity-H encoding)
 // Returns the encoded hex string suitable for use in PDF content stream with Tj operator
 // Characters not in the font are replaced with a space to prevent .notdef references
+// Uses []byte append with inline hex encoding for minimal allocations.
 func EncodeTextForCustomFont(fontName string, text string, registry *CustomFontRegistry) string {
 	font, ok := registry.GetFont(fontName)
+	buf := make([]byte, 0, len(text)*4+2)
+	buf = append(buf, '<')
 	if !ok {
 		// Fallback: encode as-is if font not found
-		var hex strings.Builder
-		hex.WriteString("<")
 		for _, char := range text {
-			hex.WriteString(fmt.Sprintf("%04X", char))
+			v := uint16(char)
+			buf = append(buf, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
 		}
-		hex.WriteString(">")
-		return hex.String()
+	} else {
+		spaceHex := [4]byte{hexDigits[0], hexDigits[0], hexDigits[uint16(' ')>>4&0xF], hexDigits[uint16(' ')&0xF]}
+		for _, char := range text {
+			if _, exists := font.Font.CharToGlyph[char]; exists {
+				v := uint16(char)
+				buf = append(buf, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
+			} else {
+				buf = append(buf, spaceHex[0], spaceHex[1], spaceHex[2], spaceHex[3])
+			}
+		}
 	}
+	buf = append(buf, '>')
+	return string(buf)
+}
 
-	var hex strings.Builder
-	hex.WriteString("<")
-	for _, char := range text {
-		// Check if character is in font's character map
-		if _, exists := font.Font.CharToGlyph[char]; exists {
-			// Identity-H encoding: 2-byte CID = Unicode code point
-			hex.WriteString(fmt.Sprintf("%04X", char))
-		} else {
-			// Character not in font - replace with space to avoid .notdef
-			hex.WriteString(fmt.Sprintf("%04X", ' '))
-		}
-	}
-	hex.WriteString(">")
-	return hex.String()
+// writeHex4 writes a 4-digit uppercase hex value to a strings.Builder using a lookup table.
+func writeHex4(sb *strings.Builder, v uint16) {
+	sb.WriteByte(hexDigits[v>>12&0xF])
+	sb.WriteByte(hexDigits[v>>8&0xF])
+	sb.WriteByte(hexDigits[v>>4&0xF])
+	sb.WriteByte(hexDigits[v&0xF])
 }
