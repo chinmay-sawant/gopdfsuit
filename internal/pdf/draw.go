@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/typstsyntax"
 )
 
 // fmtNum formats a float with 2 decimal places (standard PDF precision)
@@ -1013,6 +1014,52 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.Write(checkboxBuf)
 				}
 				contentStream.WriteString("Q\n")
+			} else if cell.MathEnabled != nil && *cell.MathEnabled && cell.Text != "" && typstsyntax.IsMathExpression(cell.Text) {
+				// Draw math expression using Typst syntax parser + glyph-based rendering
+				textColor := cell.TextColor
+				if textColor == "" {
+					textColor = table.TextColor
+				}
+				colorStr := "0 0 0"
+				if r, g, b, _, valid := parseHexColor(textColor); valid {
+					colorStr = fmtNum(r) + " " + fmtNum(g) + " " + fmtNum(b)
+				}
+
+				// Set up render context with font callbacks
+				mathCtx := &typstsyntax.RenderContext{
+					FontSize:   float64(cellProps.FontSize),
+					FontRef:    getFontReference(cellProps, pageManager.FontRegistry),
+					CellWidth:  cellWidth,
+					CellHeight: cellHeight,
+					TextColor:  colorStr,
+					EstimateWidth: func(text string, fontSize float64) float64 {
+						return EstimateTextWidth(cellProps.FontName, text, fontSize, pageManager.FontRegistry)
+					},
+					FormatText: func(text string) string {
+						return formatTextForPDF(cellProps, text, pageManager.FontRegistry)
+					},
+				}
+
+				// Calculate layout
+				layout := typstsyntax.RenderMathToLayout(cell.Text, mathCtx)
+
+				// Center the math expression within the cell
+				var mathX float64
+				switch cellProps.Alignment {
+				case "center":
+					mathX = cellX + (cellWidth-layout.Width)/2
+				case "right":
+					mathX = cellX + cellWidth - layout.Width - 5
+				default:
+					mathX = cellX + 5
+				}
+				mathY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
+
+				// Set position in context and render
+				mathCtx.X = mathX
+				mathCtx.Y = mathY
+				typstsyntax.RenderToContentStream(contentStream, layout, mathCtx)
+
 			} else if cell.Text != "" {
 				// Draw text with font styling
 				contentStream.WriteString("BT\n")
