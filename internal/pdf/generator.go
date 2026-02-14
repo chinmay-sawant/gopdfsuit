@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -126,7 +127,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 					imgObj, err := DecodeImageData(cell.Image.ImageData)
 					if err == nil {
 						imgObj.ObjectID = nextImageObjectID
-						cellKey := fmt.Sprintf("title:%d:%d", rowIdx, colIdx)
+						cellKey := buildCellKey2("title", rowIdx, colIdx)
 						cellImageObjects[cellKey] = imgObj
 						cellImageObjectIDs[cellKey] = nextImageObjectID
 						nextImageObjectID++
@@ -145,7 +146,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 					if err == nil {
 						imgObj.ObjectID = nextImageObjectID
 						// Key for indexed tables: "0:0:0" (tableIdx:rowIdx:colIdx)
-						cellKey := fmt.Sprintf("%d:%d:%d", tableIdx, rowIdx, colIdx)
+						cellKey := buildCellKey3(tableIdx, rowIdx, colIdx)
 						cellImageObjects[cellKey] = imgObj
 						cellImageObjectIDs[cellKey] = nextImageObjectID
 						nextImageObjectID++
@@ -165,7 +166,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 						if err == nil {
 							imgObj.ObjectID = nextImageObjectID
 							// Key for inline tables: "elem_inline:5:0:0" (elem_inline:elemIdx:rowIdx:colIdx)
-							cellKey := fmt.Sprintf("elem_inline:%d:%d:%d", elemIdx, rowIdx, colIdx)
+							cellKey := buildCellKeyElemInline(elemIdx, rowIdx, colIdx)
 							cellImageObjects[cellKey] = imgObj
 							cellImageObjectIDs[cellKey] = nextImageObjectID
 							nextImageObjectID++
@@ -419,12 +420,20 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	// Add outlines (bookmarks) if present
 	if outlineObjID > 0 {
-		pdfBuffer.WriteString(fmt.Sprintf(" /Outlines %d 0 R", outlineObjID))
+		pdfBuffer.WriteString(" /Outlines ")
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(outlineObjID), 10)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(" 0 R")
 		pdfBuffer.WriteString(" /PageMode /UseOutlines") // Show bookmark panel by default
 	}
 	// Add named destinations if present
 	if hasNames {
-		pdfBuffer.WriteString(fmt.Sprintf(" /Names %d 0 R", namesObjID))
+		pdfBuffer.WriteString(" /Names ")
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(namesObjID), 10)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(" 0 R")
 	}
 	if len(allWidgetIDs) > 0 {
 		// Create AcroForm object
@@ -434,7 +443,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		var fieldsRef strings.Builder
 		fieldsRef.WriteString("[")
 		for _, id := range allWidgetIDs {
-			fieldsRef.WriteString(fmt.Sprintf(" %d 0 R", id))
+			fieldsRef.WriteByte(' ')
+			var widBuf [12]byte
+			fieldsRef.Write(strconv.AppendInt(widBuf[:0], int64(id), 10))
+			fieldsRef.WriteString(" 0 R")
 		}
 		fieldsRef.WriteString("]")
 
@@ -452,29 +464,50 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		}
 		pageManager.ExtraObjects[acroFormID] = acroFormContent
 
-		pdfBuffer.WriteString(fmt.Sprintf(" /AcroForm %d 0 R", acroFormID))
+		pdfBuffer.WriteString(" /AcroForm ")
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(acroFormID), 10)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(" 0 R")
 	}
 
 	// Store position where we'll need to inject PDF/A references
 	// For now we close the catalog and will rebuild it if needed
 	// Add StructTreeRoot reference (required for PDF/UA)
-	pdfBuffer.WriteString(fmt.Sprintf(" /StructTreeRoot %d 0 R", structTreeRootID))
+	pdfBuffer.WriteString(" /StructTreeRoot ")
+	b = b[:0]
+	b = strconv.AppendInt(b, int64(structTreeRootID), 10)
+	pdfBuffer.Write(b)
+	pdfBuffer.WriteString(" 0 R")
 
 	// For PDF/A, add Metadata and OutputIntent references using pre-reserved object IDs
 	// Note: We use the pre-reserved IDs directly here to avoid placeholder replacement
 	// which would invalidate all xref offsets after the Catalog
 	// PDF/UA-2 requires XMP metadata for ALL PDFs (ISO 14289-2:2024, Clause 8.11.1)
-	pdfBuffer.WriteString(fmt.Sprintf(" /Metadata %d 0 R", metadataObjectID))
+	pdfBuffer.WriteString(" /Metadata ")
+	b = b[:0]
+	b = strconv.AppendInt(b, int64(metadataObjectID), 10)
+	pdfBuffer.Write(b)
+	pdfBuffer.WriteString(" 0 R")
 	if pdfaHandler != nil {
-		pdfBuffer.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", outputIntentObjectID))
+		pdfBuffer.WriteString(" /OutputIntents [")
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(outputIntentObjectID), 10)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(" 0 R]")
 	}
 	pdfBuffer.WriteString(" >>\nendobj\n")
 
 	// Object 2: Pages (will be updated after we know total page count)
 	xrefOffsets[2] = pdfBuffer.Len()
 	pdfBuffer.WriteString("2 0 obj\n")
-	pdfBuffer.WriteString(fmt.Sprintf("<< /Type /Pages /Kids [%s] /Count %d >>\n",
-		formatPageKids(pageManager.Pages), len(pageManager.Pages)))
+	pdfBuffer.WriteString("<< /Type /Pages /Kids [")
+	pdfBuffer.WriteString(formatPageKids(pageManager.Pages))
+	pdfBuffer.WriteString("] /Count ")
+	b = b[:0]
+	b = strconv.AppendInt(b, int64(len(pageManager.Pages)), 10)
+	pdfBuffer.Write(b)
+	pdfBuffer.WriteString(" >>\n")
 	pdfBuffer.WriteString("endobj\n")
 
 	// NOTE: Font ID calculation has been moved up to before signature generation
@@ -1110,13 +1143,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 
 	// Sort the used objects
-	for i := 0; i < len(usedObjects)-1; i++ {
-		for j := i + 1; j < len(usedObjects); j++ {
-			if usedObjects[i] > usedObjects[j] {
-				usedObjects[i], usedObjects[j] = usedObjects[j], usedObjects[i]
-			}
-		}
-	}
+	slices.Sort(usedObjects)
 
 	// Find max object ID for Size field
 	maxObjID := 0
@@ -1654,4 +1681,57 @@ func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]b
 	}
 
 	return used
+}
+
+// buildCellKey2 builds a cell key with 2 integer components: "prefix:a:b"
+// Replaces fmt.Sprintf("%s:%d:%d", prefix, a, b)
+func buildCellKey2(prefix string, a, b int) string {
+	var buf [64]byte
+	n := copy(buf[:], prefix)
+	buf[n] = ':'
+	n++
+	bA := strconv.AppendInt(buf[n:n], int64(a), 10)
+	n += len(bA)
+	buf[n] = ':'
+	n++
+	bB := strconv.AppendInt(buf[n:n], int64(b), 10)
+	n += len(bB)
+	return string(buf[:n])
+}
+
+// buildCellKey3 builds a cell key with 3 integer components: "a:b:c"
+// Replaces fmt.Sprintf("%d:%d:%d", a, b, c) used for indexed tables
+func buildCellKey3(a, b, c int) string {
+	var buf [32]byte
+	bA := strconv.AppendInt(buf[:0], int64(a), 10)
+	n := len(bA)
+	buf[n] = ':'
+	n++
+	bB := strconv.AppendInt(buf[n:n], int64(b), 10)
+	n += len(bB)
+	buf[n] = ':'
+	n++
+	bC := strconv.AppendInt(buf[n:n], int64(c), 10)
+	n += len(bC)
+	return string(buf[:n])
+}
+
+// buildCellKeyElemInline builds a cell key for inline tables: "elem_inline:elemIdx:rowIdx:colIdx"
+// Replaces fmt.Sprintf("elem_inline:%d:%d:%d", elemIdx, rowIdx, colIdx)
+func buildCellKeyElemInline(elemIdx, rowIdx, colIdx int) string {
+	var buf [64]byte
+	n := copy(buf[:], "elem_inline")
+	buf[n] = ':'
+	n++
+	bElem := strconv.AppendInt(buf[n:n], int64(elemIdx), 10)
+	n += len(bElem)
+	buf[n] = ':'
+	n++
+	bRow := strconv.AppendInt(buf[n:n], int64(rowIdx), 10)
+	n += len(bRow)
+	buf[n] = ':'
+	n++
+	bCol := strconv.AppendInt(buf[n:n], int64(colIdx), 10)
+	n += len(bCol)
+	return string(buf[:n])
 }

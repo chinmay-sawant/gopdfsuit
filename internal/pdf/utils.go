@@ -304,16 +304,25 @@ func getWidgetFontObjectID(registry *CustomFontRegistry) int {
 
 // formatPageKids formats the page object IDs for the Pages object
 func formatPageKids(pageIDs []int) string {
-	var kids []string
-	for _, id := range pageIDs {
-		kids = append(kids, strconv.Itoa(id)+" 0 R")
+	var buf []byte
+	for i, id := range pageIDs {
+		if i > 0 {
+			buf = append(buf, ' ')
+		}
+		buf = strconv.AppendInt(buf, int64(id), 10)
+		buf = append(buf, " 0 R"...)
 	}
-	return strings.Join(kids, " ")
+	return string(buf)
 }
 
 // escapePDFString escapes characters as required for PDF literal strings.
 func escapePDFString(s string) string {
+	// Fast path: most text has no special characters
+	if !strings.ContainsAny(s, `()\`) {
+		return s
+	}
 	var sb strings.Builder
+	sb.Grow(len(s) + 4)
 	for _, r := range s {
 		switch r {
 		case '(', ')', '\\':
@@ -354,9 +363,8 @@ func EstimateTextWidth(resolvedName string, text string, fontSize float64, regis
 
 // formatTextForPDF formats text for use in a PDF content stream
 // For custom fonts, returns hex-encoded string; for standard fonts, returns escaped literal
-func formatTextForPDF(props models.Props, text string, registry *CustomFontRegistry) string {
-	resolvedName := resolveFontName(props, registry)
-
+// Accepts a pre-resolved font name to avoid redundant resolveFontName calls.
+func formatTextForPDF(resolvedName string, text string, registry *CustomFontRegistry) string {
 	if isCustomFontCheck(resolvedName, registry) {
 		return EncodeTextForCustomFont(resolvedName, text, registry)
 	}

@@ -76,7 +76,9 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	wmBuf = append(wmBuf, ' ')
 	wmBuf = appendFmtNum(wmBuf, y)
 	wmBuf = append(wmBuf, " Tm\n"...)
-	wmBuf = append(wmBuf, formatTextForPDF(watermarkProps, text, registry)...)
+	// Resolve font name first
+	resolvedName := resolveFontName(watermarkProps, registry)
+	wmBuf = append(wmBuf, formatTextForPDF(resolvedName, text, registry)...)
 	wmBuf = append(wmBuf, " Tj\n"...)
 
 	// Single write for entire watermark command sequence
@@ -266,7 +268,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	contentStream.Write(titleBuf)
 
 	titleBuf = titleBuf[:0]
-	titleBuf = append(titleBuf, formatTextForPDF(titleProps, title.Text, pageManager.FontRegistry)...)
+	titleBuf = append(titleBuf, formatTextForPDF(resolvedName, title.Text, pageManager.FontRegistry)...)
 	titleBuf = append(titleBuf, " Tj\n"...)
 	contentStream.Write(titleBuf)
 	contentStream.WriteString("ET\n")
@@ -428,7 +430,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			// Draw image first (so borders are drawn on top)
 			if cell.Image != nil && cell.Image.ImageData != "" {
 				// Check if we have an XObject for this title cell image
-				cellKey := fmt.Sprintf("title:%d:%d", rowIdx, colIdx)
+				cellKey := buildCellKey2("title", rowIdx, colIdx)
 				if _, exists := cellImageObjectIDs[cellKey]; exists {
 					// Render actual image using XObject - fit inside cell with small padding for border
 					borderPadding := 1.0 // Small padding to keep image inside borders
@@ -609,7 +611,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				pageManager.FontRegistry.MarkCharsUsed(cellProps.FontName, cell.Text)
 
 				textPosBuf = textPosBuf[:0]
-				textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, cell.Text, pageManager.FontRegistry)...)
+				textPosBuf = append(textPosBuf, formatTextForPDF(resolvedName, cell.Text, pageManager.FontRegistry)...)
 				textPosBuf = append(textPosBuf, " Tj\n"...)
 				contentStream.Write(textPosBuf)
 				contentStream.WriteString("ET\n")
@@ -891,7 +893,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// Draw content (so borders are drawn on top of images)
 			if cell.Image != nil {
 				// Check if we have an XObject for this cell image
-				cellKey := fmt.Sprintf("%s:%d:%d", imageKeyPrefix, rowIdx, colIdx)
+				cellKey := buildCellKey2(imageKeyPrefix, rowIdx, colIdx)
 				if _, exists := cellImageObjectIDs[cellKey]; exists && cell.Image.ImageData != "" {
 					// Render actual image using XObject - fit inside cell with small padding for border
 					borderPadding := 1.0 // Small padding to keep image inside borders
@@ -1114,7 +1116,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 						// Render the line
 						textPosBuf = textPosBuf[:0]
-						textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, line, pageManager.FontRegistry)...)
+						textPosBuf = append(textPosBuf, formatTextForPDF(resolvedName, line, pageManager.FontRegistry)...)
 						textPosBuf = append(textPosBuf, " Tj\n"...)
 						contentStream.Write(textPosBuf)
 					}
@@ -1183,7 +1185,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					}
 
 					textPosBuf = textPosBuf[:0]
-					textPosBuf = append(textPosBuf, formatTextForPDF(cellProps, cell.Text, pageManager.FontRegistry)...)
+					textPosBuf = append(textPosBuf, formatTextForPDF(resolvedName, cell.Text, pageManager.FontRegistry)...)
 					textPosBuf = append(textPosBuf, " Tj\n"...)
 					contentStream.Write(textPosBuf)
 					contentStream.WriteString("ET\n")
@@ -1312,7 +1314,9 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 	pageManager.FontRegistry.MarkCharsUsed(footerProps.FontName, footer.Text)
 
 	footerBuf = footerBuf[:0]
-	footerBuf = append(footerBuf, formatTextForPDF(footerProps, footer.Text, pageManager.FontRegistry)...)
+	// Resolve font name
+	resolvedName := resolveFontName(footerProps, pageManager.FontRegistry)
+	footerBuf = append(footerBuf, formatTextForPDF(resolvedName, footer.Text, pageManager.FontRegistry)...)
 	footerBuf = append(footerBuf, " Tj\n"...)
 	contentStream.Write(footerBuf)
 	contentStream.WriteString("ET\n")
@@ -1374,7 +1378,9 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 	contentStream.Write(pageNumBuf)
 
 	pageNumBuf = pageNumBuf[:0]
-	pageNumBuf = append(pageNumBuf, formatTextForPDF(pageProps, pageText, pageManager.FontRegistry)...)
+	// resolvedName not available here, need to resolve using pageProps
+	resolvedName := resolveFontName(pageProps, pageManager.FontRegistry)
+	pageNumBuf = append(pageNumBuf, formatTextForPDF(resolvedName, pageText, pageManager.FontRegistry)...)
 	pageNumBuf = append(pageNumBuf, " Tj\n"...)
 	contentStream.Write(pageNumBuf)
 	contentStream.WriteString("ET\n")
@@ -1683,7 +1689,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			textX := 2.0
 			// Use proper encoding for field value
 			fieldProps := models.Props{FontName: "Helvetica", FontSize: int(fontSize)}
-			encodedValue := formatTextForPDF(fieldProps, field.Value, pageManager.FontRegistry)
+			encodedValue := formatTextForPDF(resolveFontName(fieldProps, pageManager.FontRegistry), field.Value, pageManager.FontRegistry)
 			// Use proper font reference in appearance stream
 			apStream.WriteString(fmt.Sprintf("q BT %s %s Tf 0 g %s %s Td %s Tj ET Q ", widgetFontRef, fmtNum(fontSize), fmtNum(textX), fmtNum(textY), encodedValue))
 		}

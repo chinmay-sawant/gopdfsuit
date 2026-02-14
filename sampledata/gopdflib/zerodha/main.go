@@ -81,7 +81,7 @@ type trade struct {
 func generateTrades(n int, rng *rand.Rand) []trade {
 	trades := make([]trade, n)
 	hour, min, sec := 9, 15, 0
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sym := symbols[rng.Intn(len(symbols))]
 		action := actions[rng.Intn(2)]
 		qty := (rng.Intn(50) + 1) * 10 // 10..500
@@ -629,7 +629,7 @@ func main() {
 	fmt.Println()
 
 	iterations := 5000
-	numWorkers := 48
+	numWorkers := 28
 
 	fmt.Println(getSystemInfo())
 	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)

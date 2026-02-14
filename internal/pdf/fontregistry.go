@@ -13,8 +13,9 @@ import (
 
 // CustomFontRegistry manages loaded custom fonts for PDF generation
 type CustomFontRegistry struct {
-	mu    sync.RWMutex
-	fonts map[string]*RegisteredFont
+	mu     sync.RWMutex
+	fonts  map[string]*RegisteredFont
+	noLock bool
 }
 
 // RegisteredFont represents a custom font loaded and ready for PDF embedding
@@ -31,6 +32,7 @@ type RegisteredFont struct {
 	CIDToGIDMapID int               // PDF object ID for CIDToGIDMap
 	FontFileID    int               // PDF object ID for embedded font file
 	WidthsID      int               // PDF object ID for widths array
+	CachedRef     string            // Cached PDF reference string (e.g., "/CF1")
 }
 
 // Global font registry instance
@@ -82,8 +84,10 @@ func (r *CustomFontRegistry) RegisterFontFromBase64(name string, base64Data stri
 
 // RegisterFont registers a parsed TTFFont with a given name
 func (r *CustomFontRegistry) RegisterFont(name string, font *TTFFont) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	if !r.noLock {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+	}
 
 	r.fonts[name] = &RegisteredFont{
 		Name:      name,
@@ -96,8 +100,10 @@ func (r *CustomFontRegistry) RegisterFont(name string, font *TTFFont) error {
 
 // GetFont returns a registered font by name
 func (r *CustomFontRegistry) GetFont(name string) (*RegisteredFont, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	if !r.noLock {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+	}
 
 	font, ok := r.fonts[name]
 	return font, ok
@@ -105,8 +111,10 @@ func (r *CustomFontRegistry) GetFont(name string) (*RegisteredFont, bool) {
 
 // HasFont checks if a font is registered
 func (r *CustomFontRegistry) HasFont(name string) bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	if !r.noLock {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+	}
 
 	_, ok := r.fonts[name]
 	return ok
@@ -114,8 +122,10 @@ func (r *CustomFontRegistry) HasFont(name string) bool {
 
 // MarkCharsUsed marks characters as used for a font (for subsetting)
 func (r *CustomFontRegistry) MarkCharsUsed(name string, text string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	if !r.noLock {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+	}
 
 	if font, ok := r.fonts[name]; ok {
 		for _, char := range text {
@@ -215,7 +225,8 @@ func (r *CustomFontRegistry) CloneForGeneration() *CustomFontRegistry {
 	defer r.mu.RUnlock()
 
 	clone := &CustomFontRegistry{
-		fonts: make(map[string]*RegisteredFont, len(r.fonts)),
+		fonts:  make(map[string]*RegisteredFont, len(r.fonts)),
+		noLock: true, // Clone is used thread-locally
 	}
 
 	for name, font := range r.fonts {
@@ -241,9 +252,8 @@ func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
 
 	currentID := startID
 	for _, font := range r.fonts {
-		if len(font.UsedChars) == 0 {
-			continue
-		}
+		// Assign IDs to ALL fonts, even if unused (so GetFontReference works during generation)
+		// We will filter out unused fonts when generating resources and embedding.
 
 		// Each custom font needs 7 objects:
 		// 1. Type 0 font dictionary
@@ -267,6 +277,8 @@ func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
 		currentID++
 		font.FontFileID = currentID
 		currentID++
+		// Cache the reference string
+		font.CachedRef = fmt.Sprintf("/CF%d", font.ObjectID)
 	}
 
 	return currentID
@@ -274,11 +286,20 @@ func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
 
 // GetFontReference returns the PDF reference string for a custom font (e.g., "/CF1")
 func (r *CustomFontRegistry) GetFontReference(name string) string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	if !r.noLock {
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+	}
 
-	if font, ok := r.fonts[name]; ok && font.ObjectID > 0 {
-		return fmt.Sprintf("/CF%d", font.ObjectID)
+	if font, ok := r.fonts[name]; ok {
+		// Use cached reference if available (populated by AssignObjectIDs or JIT)
+		if font.CachedRef != "" {
+			return font.CachedRef
+		}
+		if font.ObjectID > 0 {
+			// Fallback (shouldn't happen if AssignObjectIDs called)
+			return fmt.Sprintf("/CF%d", font.ObjectID)
+		}
 	}
 	return ""
 }
@@ -358,8 +379,13 @@ func (r *CustomFontRegistry) GeneratePDFFontResources() string {
 
 	var resources strings.Builder
 	for _, font := range r.fonts {
-		if font.ObjectID > 0 {
-			resources.WriteString(fmt.Sprintf(" /CF%d %d 0 R", font.ObjectID, font.ObjectID))
+		// Only output resources for fonts that were actually used
+		if font.ObjectID > 0 && len(font.UsedChars) > 0 {
+			if font.CachedRef != "" {
+				resources.WriteString(fmt.Sprintf(" %s %d 0 R", font.CachedRef, font.ObjectID))
+			} else {
+				resources.WriteString(fmt.Sprintf(" /CF%d %d 0 R", font.ObjectID, font.ObjectID))
+			}
 		}
 	}
 
