@@ -12,14 +12,36 @@ import (
 // fmtNum formats a float with 2 decimal places (standard PDF precision)
 func fmtNum(f float64) string {
 	var buf [24]byte
-	b := strconv.AppendFloat(buf[:0], f, 'f', 2, 64)
+	b := appendFmtNum(buf[:0], f)
 	return string(b)
 }
 
 // appendFmtNum appends a float formatted to 2 decimal places directly to dst.
-// Zero allocation — used in hot loops to replace fmtNum(x)... pattern.
+// Uses integer math instead of strconv.AppendFloat to avoid the expensive
+// bigFtoa/genericFtoa code path (~10% CPU in profiling).
 func appendFmtNum(dst []byte, f float64) []byte {
-	return strconv.AppendFloat(dst, f, 'f', 2, 64)
+	if f < 0 {
+		dst = append(dst, '-')
+		f = -f
+	}
+	// Round to 2 decimal places using integer math
+	scaled := int64(f*100 + 0.5)
+	intPart := scaled / 100
+	fracPart := scaled % 100
+	dst = strconv.AppendInt(dst, intPart, 10)
+	if fracPart > 0 {
+		dst = append(dst, '.')
+		if fracPart < 10 {
+			dst = append(dst, '0')
+		}
+		// Trim trailing zero (e.g. 0.50 -> 0.5)
+		if fracPart%10 == 0 {
+			dst = strconv.AppendInt(dst, fracPart/10, 10)
+		} else {
+			dst = strconv.AppendInt(dst, fracPart, 10)
+		}
+	}
+	return dst
 }
 
 // --- new watermark drawer (diagonal bottom-left to top-right) ---
@@ -745,6 +767,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	cellWidthsForRow := make([]float64, table.MaxColumns)
 	wrappedTextLines := make([][]string, table.MaxColumns)
 	rowCellProps := make([]models.Props, table.MaxColumns)
+	rowResolvedFonts := make([]string, table.MaxColumns)
+	// Scratch buffer reused across all cells to avoid per-cell growslice allocations
+	scratchBuf := make([]byte, 0, 128)
 
 	for rowIdx, row := range table.Rows {
 		// PDF/UA: Start Row Structure
@@ -776,6 +801,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			cellProps := parseProps(cell.Props)
 			rowCellProps[colIdx] = cellProps
 
+			// Resolve font name once per cell — used for text width, wrapping, and rendering
+			rowResolvedFonts[colIdx] = resolveFontName(cellProps, pageManager.FontRegistry)
+
 			// Wrap is opt-in (only enabled when explicitly set to true)
 			isWrapEnabled := cell.Wrap != nil && *cell.Wrap
 			if isWrapEnabled && cell.Text != "" {
@@ -784,8 +812,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				if maxTextWidth < 10 {
 					maxTextWidth = 10 // Minimum width to avoid issues
 				}
-				resolvedName := resolveFontName(cellProps, pageManager.FontRegistry)
-				wrappedTextLines[colIdx] = WrapText(cell.Text, resolvedName, float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
+				wrappedTextLines[colIdx] = WrapText(cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
 			}
 
 			// Mark chars used for subsetting (once per cell)
@@ -866,8 +893,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 			if r, g, b, _, valid := parseHexColor(bgColor); valid {
 				contentStream.WriteString("q\n")
-				var bgColorBuf []byte
-				bgColorBuf = appendFmtNum(bgColorBuf, r)
+				bgColorBuf := appendFmtNum(scratchBuf[:0], r)
 				bgColorBuf = append(bgColorBuf, ' ')
 				bgColorBuf = appendFmtNum(bgColorBuf, g)
 				bgColorBuf = append(bgColorBuf, ' ')
@@ -1086,8 +1112,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						}
 
 						// Calculate text width for this line
-						resolvedName := resolveFontName(cellProps, pageManager.FontRegistry)
-						lineWidth := EstimateTextWidth(resolvedName, line, fontSize, pageManager.FontRegistry)
+						lineWidth := EstimateTextWidth(rowResolvedFonts[colIdx], line, fontSize, pageManager.FontRegistry)
 
 						// Calculate X position based on alignment
 						var textX float64
@@ -1105,16 +1130,14 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 						// Reset text matrix and position
 						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-						var textPosBuf []byte
-						textPosBuf = appendFmtNum(textPosBuf, textX)
+						textPosBuf := appendFmtNum(scratchBuf[:0], textX)
 						textPosBuf = append(textPosBuf, ' ')
 						textPosBuf = appendFmtNum(textPosBuf, textY)
 						textPosBuf = append(textPosBuf, " Td\n"...)
 						contentStream.Write(textPosBuf)
 
 						// Render the line
-						textPosBuf = textPosBuf[:0]
-						textPosBuf = append(textPosBuf, formatTextForPDF(resolvedName, line, pageManager.FontRegistry)...)
+						textPosBuf = append(textPosBuf[:0], formatTextForPDF(rowResolvedFonts[colIdx], line, pageManager.FontRegistry)...)
 						textPosBuf = append(textPosBuf, " Tj\n"...)
 						contentStream.Write(textPosBuf)
 					}
@@ -1122,7 +1145,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				} else {
 					// Single-line text rendering (original behavior)
 					// Calculate approximate text width
-					resolvedName := resolveFontName(cellProps, pageManager.FontRegistry)
+					resolvedName := rowResolvedFonts[colIdx]
 					textWidth := EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 
 					var textX float64
@@ -1141,8 +1164,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 					// Reset text matrix and position absolutely
 					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-					var textPosBuf []byte
-					textPosBuf = appendFmtNum(textPosBuf, textX)
+					textPosBuf := appendFmtNum(scratchBuf[:0], textX)
 					textPosBuf = append(textPosBuf, ' ')
 					textPosBuf = appendFmtNum(textPosBuf, textY)
 					textPosBuf = append(textPosBuf, " Td\n"...)
@@ -1156,8 +1178,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.WriteString("0.5 w\n")
 						underlineY := textY - 2
 						textWidth := float64(len(cell.Text) * cellProps.FontSize / 2)
-						var underlineBuf []byte
-						underlineBuf = appendFmtNum(underlineBuf, textX)
+						underlineBuf := appendFmtNum(scratchBuf[:0], textX)
 						underlineBuf = append(underlineBuf, ' ')
 						underlineBuf = appendFmtNum(underlineBuf, underlineY)
 						underlineBuf = append(underlineBuf, " m "...)

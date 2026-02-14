@@ -524,47 +524,64 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Build XObject references for page resources (standalone images + cell images + element images)
 	// Using short names: /I0, /I1 for images, /C0_1_2 for cell images, /E0 for element images, /X0 for appearance streams
 	xobjectRefs := ""
-	if len(imageObjects) > 0 || len(cellImageObjects) > 0 || len(elemImageObjects) > 0 {
-		xobjectRefs = " /XObject <<"
-		// Add standalone images with short names
-		for i, objID := range imageObjectIDs {
-			xobjectRefs += fmt.Sprintf(" /I%d %d 0 R", i, objID)
+	{
+		var xobjBuf [20]byte // scratch for strconv.AppendInt
+		var xobjBuilder strings.Builder
+
+		writeXObjRef := func(prefix string, key string, objID int) {
+			xobjBuilder.WriteString(" /")
+			xobjBuilder.WriteString(prefix)
+			xobjBuilder.WriteString(key)
+			xobjBuilder.WriteByte(' ')
+			xobjBuilder.Write(strconv.AppendInt(xobjBuf[:0], int64(objID), 10))
+			xobjBuilder.WriteString(" 0 R")
 		}
-		// Add cell images with short names
-		for cellKey, objID := range cellImageObjectIDs {
-			// Use short cellKey identifier (e.g., C0_1_2 instead of CellImg_0:1:2)
-			shortKey := strings.ReplaceAll(cellKey, ":", "_")
-			xobjectRefs += fmt.Sprintf(" /C%s %d 0 R", shortKey, objID)
+		writeXObjRefInt := func(prefix string, idx, objID int) {
+			xobjBuilder.WriteString(" /")
+			xobjBuilder.WriteString(prefix)
+			xobjBuilder.Write(strconv.AppendInt(xobjBuf[:0], int64(idx), 10))
+			xobjBuilder.WriteByte(' ')
+			xobjBuilder.Write(strconv.AppendInt(xobjBuf[:0], int64(objID), 10))
+			xobjBuilder.WriteString(" 0 R")
 		}
-		// Add element images with /E prefix
-		for elemIdx, objID := range elemImageObjectIDs {
-			xobjectRefs += fmt.Sprintf(" /E%d %d 0 R", elemIdx, objID)
-		}
-		// Add extra objects (appearance streams) that are XObjects with short names
-		for id, content := range pageManager.ExtraObjects {
-			if strings.Contains(content, "/Type /XObject") {
-				xobjectRefs += fmt.Sprintf(" /X%d %d 0 R", id, id)
+
+		if len(imageObjects) > 0 || len(cellImageObjects) > 0 || len(elemImageObjects) > 0 {
+			xobjBuilder.WriteString(" /XObject <<")
+			for i, objID := range imageObjectIDs {
+				writeXObjRefInt("I", i, objID)
 			}
-		}
-		xobjectRefs += " >>"
-	} else {
-		// Even if no images, we might have XObjects from form fields (appearance streams)
-		hasXObjects := false
-		for _, content := range pageManager.ExtraObjects {
-			if strings.Contains(content, "/Type /XObject") {
-				hasXObjects = true
-				break
+			for cellKey, objID := range cellImageObjectIDs {
+				shortKey := strings.ReplaceAll(cellKey, ":", "_")
+				writeXObjRef("C", shortKey, objID)
 			}
-		}
-		if hasXObjects {
-			xobjectRefs = " /XObject <<"
+			for elemIdx, objID := range elemImageObjectIDs {
+				writeXObjRefInt("E", elemIdx, objID)
+			}
 			for id, content := range pageManager.ExtraObjects {
 				if strings.Contains(content, "/Type /XObject") {
-					xobjectRefs += fmt.Sprintf(" /X%d %d 0 R", id, id)
+					writeXObjRefInt("X", id, id)
 				}
 			}
-			xobjectRefs += " >>"
+			xobjBuilder.WriteString(" >>")
+		} else {
+			hasXObjects := false
+			for _, content := range pageManager.ExtraObjects {
+				if strings.Contains(content, "/Type /XObject") {
+					hasXObjects = true
+					break
+				}
+			}
+			if hasXObjects {
+				xobjBuilder.WriteString(" /XObject <<")
+				for id, content := range pageManager.ExtraObjects {
+					if strings.Contains(content, "/Type /XObject") {
+						writeXObjRefInt("X", id, id)
+					}
+				}
+				xobjBuilder.WriteString(" >>")
+			}
 		}
+		xobjectRefs = xobjBuilder.String()
 	}
 	// Build ColorSpace resources for PDF/A mode
 	// Using DefaultRGB tells Adobe Acrobat that DeviceRGB colors are already in sRGB
@@ -579,7 +596,14 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		}
 		if actualICCObjID > 0 {
 			// Include both DefaultRGB and DefaultGray for full PDF/A-4 compliance
-			colorSpaceRefs = fmt.Sprintf(" /ColorSpace << /DefaultRGB [/ICCBased %d 0 R] /DefaultGray [/ICCBased %d 0 R] >>", actualICCObjID, grayICCProfileObjID)
+			var csBuf [20]byte
+			var csBuilder strings.Builder
+			csBuilder.WriteString(" /ColorSpace << /DefaultRGB [/ICCBased ")
+			csBuilder.Write(strconv.AppendInt(csBuf[:0], int64(actualICCObjID), 10))
+			csBuilder.WriteString(" 0 R] /DefaultGray [/ICCBased ")
+			csBuilder.Write(strconv.AppendInt(csBuf[:0], int64(grayICCProfileObjID), 10))
+			csBuilder.WriteString(" 0 R] >>")
+			colorSpaceRefs = csBuilder.String()
 		}
 	}
 

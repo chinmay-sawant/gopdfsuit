@@ -71,16 +71,22 @@ export default function () {
 }
 
 export function handleSummary(data) {
-    console.log('\n========== SPIKE TEST SUMMARY ==========');
-    console.log(`Total requests: ${data.metrics.http_reqs.values.count}`);
-    console.log(`Failed requests: ${data.metrics.http_req_failed.values.passes}`);
-    console.log(`Average response time: ${data.metrics.http_req_duration.values.avg.toFixed(2)}ms`);
-    console.log(`95th percentile: ${data.metrics.http_req_duration.values['p(95)'].toFixed(2)}ms`);
-    console.log(`99th percentile: ${data.metrics.http_req_duration.values['p(99)'].toFixed(2)}ms`);
-    console.log(`Max response time: ${data.metrics.http_req_duration.values.max.toFixed(2)}ms`);
-    console.log('==========================================\n');
+    const summary = `
+========== SPIKE TEST SUMMARY ==========
+Total requests: ${data.metrics.http_reqs.values.count}
+Throughput: ${(data.metrics.http_reqs.values.count / data.state.testRunDurationMs * 1000).toFixed(2)} req/s
+Failed requests: ${data.metrics.http_req_failed.values.passes}
+Average response time: ${data.metrics.http_req_duration.values.avg.toFixed(2)}ms
+95th percentile: ${data.metrics.http_req_duration.values['p(95)'].toFixed(2)}ms
+99th percentile: ${data.metrics.http_req_duration.values['p(99)'].toFixed(2)}ms
+Max response time: ${data.metrics.http_req_duration.values.max.toFixed(2)}ms
+==========================================
+`;
+    console.log(summary);
     
     return {
-        stdout: JSON.stringify(data, null, 2),
+        'stdout': summary,
+        'current_test_results.txt': summary,
+        'summary.json': JSON.stringify(data),
     };
 }

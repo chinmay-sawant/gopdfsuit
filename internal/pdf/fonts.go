@@ -1027,35 +1027,30 @@ func generateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 // EncodeTextForCustomFont encodes text for use with a custom font (Identity-H encoding)
 // Returns the encoded hex string suitable for use in PDF content stream with Tj operator
 // Characters not in the font are replaced with a space to prevent .notdef references
+// Uses []byte append with inline hex encoding for minimal allocations.
 func EncodeTextForCustomFont(fontName string, text string, registry *CustomFontRegistry) string {
 	font, ok := registry.GetFont(fontName)
+	buf := make([]byte, 0, len(text)*4+2)
+	buf = append(buf, '<')
 	if !ok {
 		// Fallback: encode as-is if font not found
-		var hex strings.Builder
-		hex.Grow(len(text)*4 + 2)
-		hex.WriteByte('<')
 		for _, char := range text {
-			writeHex4(&hex, uint16(char))
+			v := uint16(char)
+			buf = append(buf, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
 		}
-		hex.WriteByte('>')
-		return hex.String()
-	}
-
-	var hex strings.Builder
-	hex.Grow(len(text)*4 + 2)
-	hex.WriteByte('<')
-	for _, char := range text {
-		// Check if character is in font's character map
-		if _, exists := font.Font.CharToGlyph[char]; exists {
-			// Identity-H encoding: 2-byte CID = Unicode code point
-			writeHex4(&hex, uint16(char))
-		} else {
-			// Character not in font - replace with space to avoid .notdef
-			writeHex4(&hex, uint16(' '))
+	} else {
+		spaceHex := [4]byte{hexDigits[0], hexDigits[0], hexDigits[uint16(' ')>>4&0xF], hexDigits[uint16(' ')&0xF]}
+		for _, char := range text {
+			if _, exists := font.Font.CharToGlyph[char]; exists {
+				v := uint16(char)
+				buf = append(buf, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
+			} else {
+				buf = append(buf, spaceHex[0], spaceHex[1], spaceHex[2], spaceHex[3])
+			}
 		}
 	}
-	hex.WriteByte('>')
-	return hex.String()
+	buf = append(buf, '>')
+	return string(buf)
 }
 
 // writeHex4 writes a 4-digit uppercase hex value to a strings.Builder using a lookup table.
