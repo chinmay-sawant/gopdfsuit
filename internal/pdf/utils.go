@@ -3,52 +3,70 @@ package pdf
 import (
 	"strconv"
 	"strings"
+	"sync"
+
+	"unicode/utf8"
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
+// hexNibble maps ASCII byte to hex value (0-15). 0xFF = invalid.
+var hexNibble [256]byte
+
+func init() {
+	for i := range hexNibble {
+		hexNibble[i] = 0xFF
+	}
+	for i := byte('0'); i <= '9'; i++ {
+		hexNibble[i] = i - '0'
+	}
+	for i := byte('a'); i <= 'f'; i++ {
+		hexNibble[i] = i - 'a' + 10
+	}
+	for i := byte('A'); i <= 'F'; i++ {
+		hexNibble[i] = i - 'A' + 10
+	}
+}
+
 // parseHexColor parses a hexadecimal color string and returns RGB values (0.0-1.0)
 // Supports formats: "#RRGGBB", "#RRGGBBAA", "RRGGBB", "RRGGBBAA"
 // Returns r, g, b, a (alpha) and a boolean indicating if the color is valid and non-transparent
+// Uses inline hex nibble lookup instead of strconv.ParseInt for speed.
 func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 	if hexColor == "" {
 		return 0, 0, 0, 0, false
 	}
 
 	// Remove # prefix if present
-	hexColor = strings.TrimPrefix(hexColor, "#")
+	if hexColor[0] == '#' {
+		hexColor = hexColor[1:]
+	}
 
 	// Check length
 	if len(hexColor) != 6 && len(hexColor) != 8 {
 		return 0, 0, 0, 0, false
 	}
 
-	// Parse RGB values
-	rVal, err := strconv.ParseInt(hexColor[0:2], 16, 64)
-	if err != nil {
-		return 0, 0, 0, 0, false
-	}
-	gVal, err := strconv.ParseInt(hexColor[2:4], 16, 64)
-	if err != nil {
-		return 0, 0, 0, 0, false
-	}
-	bVal, err := strconv.ParseInt(hexColor[4:6], 16, 64)
-	if err != nil {
+	// Inline hex decode using lookup table (avoids strconv.ParseInt overhead)
+	h0, h1 := hexNibble[hexColor[0]], hexNibble[hexColor[1]]
+	h2, h3 := hexNibble[hexColor[2]], hexNibble[hexColor[3]]
+	h4, h5 := hexNibble[hexColor[4]], hexNibble[hexColor[5]]
+	if h0|h1|h2|h3|h4|h5 == 0xFF {
 		return 0, 0, 0, 0, false
 	}
 
-	r = float64(rVal) / 255.0
-	g = float64(gVal) / 255.0
-	b = float64(bVal) / 255.0
+	r = float64(h0<<4|h1) / 255.0
+	g = float64(h2<<4|h3) / 255.0
+	b = float64(h4<<4|h5) / 255.0
 	a = 1.0
 
 	// Parse alpha if present
 	if len(hexColor) == 8 {
-		aVal, err := strconv.ParseInt(hexColor[6:8], 16, 64)
-		if err != nil {
+		h6, h7 := hexNibble[hexColor[6]], hexNibble[hexColor[7]]
+		if h6|h7 == 0xFF {
 			return 0, 0, 0, 0, false
 		}
-		a = float64(aVal) / 255.0
+		a = float64(h6<<4|h7) / 255.0
 	}
 
 	// Consider fully transparent colors as "not valid" for rendering
@@ -59,7 +77,15 @@ func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 	return r, g, b, a, true
 }
 
+// propsCache memoizes parseProps results since the same prop strings are parsed repeatedly.
+var propsCache sync.Map // string -> models.Props
+
 func parseProps(props string) models.Props {
+	// Fast path: check cache
+	if cached, ok := propsCache.Load(props); ok {
+		return cached.(models.Props)
+	}
+
 	parts := strings.Split(props, ":")
 
 	// Default values
@@ -119,7 +145,7 @@ func parseProps(props string) models.Props {
 		}
 	}
 
-	return models.Props{
+	result := models.Props{
 		FontName:  fontName,
 		FontSize:  fontSize,
 		StyleCode: styleCode,
@@ -129,6 +155,10 @@ func parseProps(props string) models.Props {
 		Alignment: alignment,
 		Borders:   borders,
 	}
+
+	// Cache for future calls
+	propsCache.Store(props, result)
+	return result
 }
 
 func parseBorders(borderStr string) [4]int {
@@ -303,11 +333,8 @@ func isCustomFontCheck(fontName string, registry *CustomFontRegistry) bool {
 
 // EstimateTextWidth estimates the width of text in points for a given font and size
 // Uses actual glyph widths for custom fonts, approximation for standard fonts
-func EstimateTextWidth(fontName string, text string, fontSize float64, registry *CustomFontRegistry) float64 {
-	// For width estimation, we create a dummy props with just the name
-	// This might be slightly inaccurate for bold/italic if falling back, but sufficient for layout
-	props := models.Props{FontName: fontName, FontSize: int(fontSize)}
-	resolvedName := resolveFontName(props, registry)
+// Takes resolvedFontName to avoid repeated lookups
+func EstimateTextWidth(resolvedName string, text string, fontSize float64, registry *CustomFontRegistry) float64 {
 	if registry.HasFont(resolvedName) {
 		return registry.GetScaledTextWidth(resolvedName, text, fontSize)
 	}
@@ -321,7 +348,8 @@ func EstimateTextWidth(fontName string, text string, fontSize float64, registry 
 		avgCharWidth = 0.45 // Times is slightly narrower
 	}
 
-	return float64(len([]rune(text))) * fontSize * avgCharWidth
+	// Use utf8.RuneCountInString to avoid allocating rune slice
+	return float64(utf8.RuneCountInString(text)) * fontSize * avgCharWidth
 }
 
 // formatTextForPDF formats text for use in a PDF content stream
@@ -338,7 +366,7 @@ func formatTextForPDF(props models.Props, text string, registry *CustomFontRegis
 // WrapText splits text into multiple lines that fit within the specified maxWidth.
 // It wraps on word boundaries when possible, and handles long words that exceed maxWidth.
 // Returns a slice of strings, each representing one line of text.
-func WrapText(text string, fontName string, fontSize float64, maxWidth float64, registry *CustomFontRegistry) []string {
+func WrapText(text string, resolvedFontName string, fontSize float64, maxWidth float64, registry *CustomFontRegistry) []string {
 	if text == "" {
 		return []string{""}
 	}
@@ -358,7 +386,7 @@ func WrapText(text string, fontName string, fontSize float64, maxWidth float64, 
 
 	for _, word := range words {
 		// Check if word alone exceeds maxWidth (need to break it up)
-		wordWidth := EstimateTextWidth(fontName, word, fontSize, registry)
+		wordWidth := EstimateTextWidth(resolvedFontName, word, fontSize, registry)
 		if wordWidth > maxWidth {
 			// Flush current line first
 			if currentLine != "" {
@@ -366,7 +394,7 @@ func WrapText(text string, fontName string, fontSize float64, maxWidth float64, 
 				currentLine = ""
 			}
 			// Break long word into chunks that fit
-			lines = append(lines, wrapLongWord(word, fontName, fontSize, maxWidth, registry)...)
+			lines = append(lines, wrapLongWord(word, resolvedFontName, fontSize, maxWidth, registry)...)
 			continue
 		}
 
@@ -377,7 +405,7 @@ func WrapText(text string, fontName string, fontSize float64, maxWidth float64, 
 		}
 		testLine += word
 
-		testWidth := EstimateTextWidth(fontName, testLine, fontSize, registry)
+		testWidth := EstimateTextWidth(resolvedFontName, testLine, fontSize, registry)
 		if testWidth <= maxWidth {
 			// Fits - add to current line
 			currentLine = testLine
@@ -404,7 +432,7 @@ func WrapText(text string, fontName string, fontSize float64, maxWidth float64, 
 }
 
 // wrapLongWord breaks a single word that's too long into multiple lines
-func wrapLongWord(word string, fontName string, fontSize float64, maxWidth float64, registry *CustomFontRegistry) []string {
+func wrapLongWord(word string, resolvedFontName string, fontSize float64, maxWidth float64, registry *CustomFontRegistry) []string {
 	var lines []string
 	runes := []rune(word)
 	start := 0
@@ -414,7 +442,7 @@ func wrapLongWord(word string, fontName string, fontSize float64, maxWidth float
 		end := start + 1
 		for end <= len(runes) {
 			substr := string(runes[start:end])
-			if EstimateTextWidth(fontName, substr, fontSize, registry) > maxWidth {
+			if EstimateTextWidth(resolvedFontName, substr, fontSize, registry) > maxWidth {
 				break
 			}
 			end++

@@ -94,14 +94,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Initialize page manager with Arlington compatibility flag and per-generation font registry
 	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry)
 
-	// Pre-scan template to mark all font usage for subsetting
-	scanTemplateForFontUsage(template, fontRegistry)
-
-	// Generate font subsets
-	if err := fontRegistry.GenerateSubsets(); err != nil {
-		fmt.Printf("Warning: failed to generate font subsets: %v\n", err)
-	}
-
 	// Process images and create XObjects
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
 	imageObjectIDs := make(map[int]int)        // map imageIndex to PDF object ID
@@ -213,6 +205,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjects, cellImageObjectIDs, elemImageObjects)
+
+	// Generate font subsets after content generation (since we collected usage during drawing)
+	if err := fontRegistry.GenerateSubsets(); err != nil {
+		fmt.Printf("Warning: failed to generate font subsets: %v\n", err)
+	}
 
 	// Setup encryption EARLY if security config is provided (before writing content)
 	// This is needed because content streams need to be encrypted
