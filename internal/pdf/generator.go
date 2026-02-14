@@ -207,10 +207,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjects, cellImageObjectIDs, elemImageObjects)
 
-	// Generate font subsets after content generation (since we collected usage during drawing)
-	if err := fontRegistry.GenerateSubsets(); err != nil {
-		fmt.Printf("Warning: failed to generate font subsets: %v\n", err)
-	}
+	// Generate font subsets MOVED to after signature generation to ensure signature chars are included
 
 	// Setup encryption EARLY if security config is provided (before writing content)
 	// This is needed because content streams need to be encrypted
@@ -360,6 +357,12 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			}
 			sigIDs = pdfSigner.CreateSignatureField(pageManager, pageDims, signatureFontID)
 		}
+	}
+
+	// Generate font subsets after content generation AND signature creation
+	// This ensures characters used in signature appearance are included in the subset
+	if err := fontRegistry.GenerateSubsets(); err != nil {
+		fmt.Printf("Warning: failed to generate font subsets: %v\n", err)
 	}
 
 	// Collect all widget IDs for AcroForm (filter out link annotations)
@@ -1364,119 +1367,6 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		}
 		// Draw page number on this page
 		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions, pageManager)
-	}
-}
-
-// scanTemplateForFontUsage scans all text in template and marks font usage for subsetting
-// scanTemplateForFontUsage scans all text in template and marks font usage for subsetting
-func scanTemplateForFontUsage(template models.PDFTemplate, registry *CustomFontRegistry) {
-	// Helper to mark font usage on the specific registry
-	markFontUsage := func(props models.Props, text string) {
-		resolvedName := registry.ResolveFontName(props)
-		if registry.IsCustomFont(resolvedName) {
-			registry.MarkCharsUsed(resolvedName, text)
-		}
-	}
-	// Scan title
-	if template.Title.Text != "" {
-		props := parseProps(template.Title.Props)
-		markFontUsage(props, template.Title.Text)
-	}
-
-	// Scan title table if present
-	if template.Title.Table != nil {
-		for _, row := range template.Title.Table.Rows {
-			for _, cell := range row.Row {
-				if cell.Text != "" {
-					props := parseProps(cell.Props)
-					markFontUsage(props, cell.Text)
-				}
-			}
-		}
-	}
-
-	// Scan tables
-	for _, table := range template.Table {
-		for _, row := range table.Rows {
-			for _, cell := range row.Row {
-				if cell.Text != "" {
-					props := parseProps(cell.Props)
-					markFontUsage(props, cell.Text)
-				}
-			}
-		}
-	}
-
-	// Scan elements (ordered)
-	for _, elem := range template.Elements {
-		if elem.Type == "table" {
-			if elem.Table != nil {
-				for _, row := range elem.Table.Rows {
-					for _, cell := range row.Row {
-						if cell.Text != "" {
-							props := parseProps(cell.Props)
-							markFontUsage(props, cell.Text)
-						}
-					}
-				}
-			} else if elem.Index >= 0 && elem.Index < len(template.Table) {
-				for _, row := range template.Table[elem.Index].Rows {
-					for _, cell := range row.Row {
-						if cell.Text != "" {
-							props := parseProps(cell.Props)
-							markFontUsage(props, cell.Text)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Scan footer
-	if template.Footer.Text != "" {
-		props := parseProps(template.Footer.Font)
-		markFontUsage(props, template.Footer.Text)
-	}
-
-	// Scan Watermark (uses Helvetica)
-	if template.Config.Watermark != "" {
-		markFontUsage(models.Props{FontName: "Helvetica"}, template.Config.Watermark)
-	}
-
-	// Scan Page Numbers (uses Helvetica)
-	markFontUsage(models.Props{FontName: "Helvetica"}, "Page of 0123456789")
-
-	// Scan Image Names (uses Helvetica)
-	// Standalone images
-	for _, img := range template.Image {
-		if img.ImageName != "" {
-			markFontUsage(models.Props{FontName: "Helvetica"}, img.ImageName)
-		}
-	}
-
-	// Scan Digital Signature text (uses Helvetica)
-	if template.Config.Signature != nil && template.Config.Signature.Enabled && template.Config.Signature.Visible {
-		// Used in signature appearance (created in signature.go)
-		markFontUsage(models.Props{FontName: "Helvetica"}, "Digitally signed by:")
-
-		signerName := template.Config.Signature.Name
-		if signerName != "" {
-			markFontUsage(models.Props{FontName: "Helvetica"}, signerName)
-		} else {
-			// If name not provided, it uses CommonName from certificate - reasonable fallback prediction
-			markFontUsage(models.Props{FontName: "Helvetica"}, "Common Name")
-		}
-
-		// Date format used: 2006-01-02 15:04:05
-		markFontUsage(models.Props{FontName: "Helvetica"}, "Date: 0123456789-:")
-
-		if template.Config.Signature.Reason != "" {
-			markFontUsage(models.Props{FontName: "Helvetica"}, "Reason: "+template.Config.Signature.Reason)
-		}
-
-		if template.Config.Signature.Location != "" {
-			markFontUsage(models.Props{FontName: "Helvetica"}, "Location: "+template.Config.Signature.Location)
-		}
 	}
 }
 

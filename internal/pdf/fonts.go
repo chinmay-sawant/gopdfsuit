@@ -854,10 +854,15 @@ func generateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 
 	// Fill the map
 	for char := range font.UsedChars {
+		// PDF standard implies CIDs are valid up to 65535, but we only size up to maxCID
+		if uint16(char) > maxCID {
+			continue // Should not happen given maxCID calculation logic
+		}
 		cid := uint16(char)
 
 		// 1. Get Original GID from Font
-		oldGID, ok := f.CharToGlyph[rune(cid)]
+		// Note: CharToGlyph handles rune, so standard casting is fine
+		oldGID, ok := f.CharToGlyph[char]
 		if !ok {
 			// Character not in font - map to .notdef (GID 0)
 			oldGID = 0
@@ -866,17 +871,24 @@ func generateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 		// 2. Determine Final GID
 		finalGID := oldGID
 		if len(font.SubsetData) > 0 {
-			// If subsetted, use the New GID
+			// If subsetted, we MUST map to the New GID in the subset
 			if newGID, ok := font.OldToNewGlyph[oldGID]; ok {
 				finalGID = newGID
 			} else {
-				finalGID = 0 // .notdef fallback
+				// If oldGID (valid in original font) is missing from subset map,
+				// it implies it wasn't included in the subset generation.
+				// This shouldn't happen if UsedChars is consistent.
+				// Fallback to .notdef (0) to avoid invalid GID reference
+				finalGID = 0
 			}
 		}
 
-		// Write 16-bit GID at offset CID*2
-		mapData[cid*2] = byte(finalGID >> 8)
-		mapData[cid*2+1] = byte(finalGID)
+		// Write 16-bit GID at offset CID*2 (Big Endian)
+		offset := int(cid) * 2
+		if offset+1 < len(mapData) {
+			mapData[offset] = byte(finalGID >> 8)
+			mapData[offset+1] = byte(finalGID)
+		}
 	}
 
 	// Compress the stream using pooled zlib writer

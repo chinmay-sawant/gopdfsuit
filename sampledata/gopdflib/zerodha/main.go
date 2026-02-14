@@ -629,7 +629,7 @@ func main() {
 	fmt.Println()
 
 	iterations := 5000
-	numWorkers := 28
+	numWorkers := 48
 
 	fmt.Println(getSystemInfo())
 	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)

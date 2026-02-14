@@ -605,8 +605,6 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.Write(textPosBuf)
 				}
 
-				contentStream.Write(textPosBuf)
-
 				// Mark chars used for subsetting
 				pageManager.FontRegistry.MarkCharsUsed(cellProps.FontName, cell.Text)
 
