@@ -27,9 +27,9 @@ export const options = {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
-                { duration: '5s', target: 5 },   // Ramp up to 5 users
-                { duration: '10s', target: 5 },  // Stay at 5 users
-                { duration: '5s', target: 0 },   // Ramp down to 0
+                { duration: '5s', target: 48 },   // Ramp up to 48 users
+                { duration: '10s', target: 48 },  // Stay at 48 users
+                { duration: '5s', target: 0 },     // Ramp down to 0
             ],
             startTime: '10s',
             tags: { test_type: 'load' },
@@ -81,7 +81,7 @@ export default function () {
     errorRate.add(!checkResult);
 
     // Small sleep between requests to simulate realistic user behavior
-    sleep(1);
+    // sleep(1);
 }
 
 // Setup function - runs once before the test

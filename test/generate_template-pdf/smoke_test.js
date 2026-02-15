@@ -30,5 +30,5 @@ export default function () {
         'response has content': (r) => r.body && r.body.length > 0,
     });
 
-    sleep(0.5);
+    // sleep(0.5);
 }

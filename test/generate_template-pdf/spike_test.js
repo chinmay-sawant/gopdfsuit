@@ -20,19 +20,19 @@ export const options = {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
-                { duration: '10s', target: 5 },    // Warm up
-                { duration: '10s', target: 5 },    // Stay at normal load
-                { duration: '10s', target: 100 },  // Spike to 100 users
-                { duration: '30s', target: 100 },  // Stay at spike
-                { duration: '10s', target: 5 },    // Scale down quickly
-                { duration: '20s', target: 5 },    // Recovery period
+                { duration: '10s', target: 20 },   // Warm up
+                { duration: '10s', target: 20 },   // Stay at normal load
+                { duration: '15s', target: 100 },  // Spike to 100 users
+                { duration: '40s', target: 100 },  // Stay at spike
+                { duration: '10s', target: 20 },   // Scale down quickly
+                { duration: '15s', target: 20 },   // Recovery period
                 { duration: '10s', target: 0 },    // Ramp down to 0
             ],
         },
     },
     thresholds: {
-        http_req_duration: ['p(95)<10000', 'p(99)<15000'],  // More lenient during spike
-        http_req_failed: ['rate<0.3'],        // Allow higher error rate during spike
+        http_req_duration: ['p(95)<2000', 'p(99)<5000'],  // Tighter thresholds
+        http_req_failed: ['rate<0.05'],       // Expect higher reliability
     },
     summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
 };
@@ -67,7 +67,7 @@ export default function () {
     
     errorRate.add(!checkResult);
 
-    sleep(0.5);
+    // sleep(0.5); // REMOVED to allow maximum throughput
 }
 
 export function handleSummary(data) {

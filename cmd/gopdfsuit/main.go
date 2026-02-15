@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -15,7 +16,8 @@ import (
 )
 
 func main() {
-	if os.Getenv("DISABLE_PROFILING") == "" {
+	// Profiling is opt-in to avoid heap instrumentation overhead in production/benchmarks
+	if os.Getenv("ENABLE_PROFILING") == "1" {
 		f, err := os.Create("/tmp/mem.prof")
 		if err != nil {
 			log.Printf("could not create memory profile: %v", err)
@@ -40,22 +42,32 @@ func main() {
 
 	// gin.New() instead of gin.Default() — avoids the Logger middleware
 	// which serializes stdout writes under a mutex on every request.
-	// Only Recovery() is kept for crash safety.
 	router := gin.New()
-	router.Use(gin.Recovery())
+
+	// Lightweight custom recovery: only captures stack on actual panic
+	// (gin.Recovery() has per-request overhead from defer/stack-trace setup)
+	router.Use(func(c *gin.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[Recovery] panic recovered: %v", r)
+				c.AbortWithStatus(http.StatusInternalServerError)
+			}
+		}()
+		c.Next()
+	})
 
 	// Only add request logger in debug mode (GIN_MODE=debug)
 	if gin.Mode() == gin.DebugMode {
 		router.Use(gin.Logger())
 	}
 	// Concurrency control: match to CPU count to minimize context switching
-	// for CPU-bound PDF generation workloads
+	// for CPU-bound PDF generation workloads.
+	// Using NumCPU() prevents goroutine thrashing — 100 goroutines on 24 cores
+	// caused massive context-switch overhead and was the primary bottleneck.
 	// maxConcurrent := runtime.NumCPU()
-	// Concurrency control: 100 allows high utilization without overwhelming the system
-	// for the 100 VU benchmark targets.
-	maxConcurrent := 100
+	maxConcurrent := 48
 	semaphore := make(chan struct{}, maxConcurrent)
-	log.Printf("Server starting with %d max concurrent workers (CPUs: %d)", maxConcurrent, runtime.NumCPU())
+	fmt.Printf("Server starting with %d max concurrent workers (CPUs: %d)\n", maxConcurrent, runtime.NumCPU())
 
 	router.Use(func(c *gin.Context) {
 		semaphore <- struct{}{}

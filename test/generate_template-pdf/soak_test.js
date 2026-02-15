@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import { Rate, Trend, Counter } from 'k6/metrics';
 
 // Custom metrics
@@ -57,9 +57,6 @@ export default function () {
     }
     
     errorRate.add(!checkResult);
-
-    // Slightly longer sleep for soak test
-    sleep(2);
 }
 
 export function setup() {
