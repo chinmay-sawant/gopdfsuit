@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/utils"
 )
 
 // Standard Helvetica widths for characters 32-255 (WinAnsiEncoding)
@@ -729,14 +731,26 @@ func buildXFDF(fields map[string]string) []byte {
 }
 
 // FillPDFWithXFDF attempts a best-effort in-place fill of PDF form fields using XFDF data.
+// It first extracts form fields from the PDF using FlateDecode decompression, then merges with XFDF data.
 func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	if len(pdfBytes) == 0 {
 		return nil, errors.New("empty pdf bytes")
 	}
-	fields, err := ParseXFDF(xfdfBytes)
+
+	// Extract form fields from PDF using FlateDecode decompression
+	pdfFields, err := utils.ExtractPDFFormFields(pdfBytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to extract PDF form fields: %w", err)
 	}
+
+	// Parse XFDF data
+	xfdfFields, err := ParseXFDF(xfdfBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse XFDF: %w", err)
+	}
+
+	// Merge PDF fields with XFDF data
+	fields := utils.MergeFormFields(pdfFields, xfdfFields)
 
 	out := make([]byte, len(pdfBytes))
 	copy(out, pdfBytes)
