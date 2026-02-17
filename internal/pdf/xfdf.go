@@ -838,6 +838,17 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		allJobs = append(allJobs, jobs...)
 	}
 
+	if len(allJobs) == 0 {
+		if bytes.Contains(out, []byte("/ObjStm")) {
+			if filled, changed, err := fillXFDFInObjectStreams(out, fields); err != nil {
+				return nil, err
+			} else if changed {
+				return filled, nil
+			}
+		}
+		return out, nil
+	}
+
 	// --- PASS 2: MODIFICATION (WRITE-ONLY, IN REVERSE) ---
 	sort.Slice(allJobs, func(i, j int) bool { return allJobs[i].dictStart > allJobs[j].dictStart })
 
@@ -1065,4 +1076,241 @@ func FlattenPDFBytes(pdfBytes []byte) ([]byte, error) {
 	// For now, return the input bytes unchanged.
 	// return scripts.FlattenPDFBytes(pdfBytes)
 	return pdfBytes, nil
+}
+
+func fillXFDFInObjectStreams(pdfBytes []byte, fields map[string]string) ([]byte, bool, error) {
+	out := make([]byte, len(pdfBytes))
+	copy(out, pdfBytes)
+
+	objRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
+	matches := objRe.FindAllSubmatchIndex(out, -1)
+	if len(matches) == 0 {
+		return out, false, nil
+	}
+
+	changedAny := false
+	for i := len(matches) - 1; i >= 0; i-- {
+		m := matches[i]
+		bodyStart, bodyEnd := m[6], m[7]
+		body := out[bodyStart:bodyEnd]
+		if !bytes.Contains(body, []byte("/ObjStm")) {
+			continue
+		}
+
+		newBody, changed, err := fillXFDFInObjStmBody(body, fields)
+		if err != nil {
+			return nil, false, err
+		}
+		if !changed {
+			continue
+		}
+
+		changedAny = true
+		out = append(out[:bodyStart], append(newBody, out[bodyEnd:]...)...)
+	}
+
+	return out, changedAny, nil
+}
+
+func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, error) {
+	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	sm := streamRe.FindSubmatchIndex(body)
+	if sm == nil {
+		return body, false, nil
+	}
+
+	streamBytes := body[sm[2]:sm[3]]
+	var decoded []byte
+	if d, err := tryZlibDecompress(streamBytes); err == nil {
+		decoded = d
+	} else if d, err := tryFlateDecompress(streamBytes); err == nil {
+		decoded = d
+	} else {
+		return body, false, nil
+	}
+
+	firstRe := regexp.MustCompile(`/First\s+(\d+)`)
+	fm := firstRe.FindSubmatch(body)
+	if fm == nil {
+		return body, false, nil
+	}
+	first, err := strconv.Atoi(string(fm[1]))
+	if err != nil || first <= 0 || first > len(decoded) {
+		return body, false, nil
+	}
+
+	header := strings.TrimSpace(string(decoded[:first]))
+	parts := strings.Fields(header)
+	if len(parts) < 2 || len(parts)%2 != 0 {
+		return body, false, nil
+	}
+
+	type objMember struct {
+		objNum  int
+		offset  int
+		content []byte
+	}
+
+	content := decoded[first:]
+	members := make([]objMember, 0, len(parts)/2)
+	for i := 0; i < len(parts); i += 2 {
+		num, numErr := strconv.Atoi(parts[i])
+		off, offErr := strconv.Atoi(parts[i+1])
+		if numErr != nil || offErr != nil {
+			return body, false, nil
+		}
+		members = append(members, objMember{objNum: num, offset: off})
+	}
+
+	changedAny := false
+	for i := range members {
+		start := members[i].offset
+		end := len(content)
+		if i+1 < len(members) {
+			end = members[i+1].offset
+		}
+		if start < 0 || start > len(content) || end < start || end > len(content) {
+			return body, false, nil
+		}
+
+		objContent := bytes.TrimSpace(content[start:end])
+		updated, changed := updateObjStmFieldValue(objContent, fields)
+		if changed {
+			changedAny = true
+		}
+		members[i].content = updated
+	}
+
+	if !changedAny {
+		return body, false, nil
+	}
+
+	var headerBuilder strings.Builder
+	var contentBuilder strings.Builder
+	currentOffset := 0
+	for i, member := range members {
+		headerBuilder.WriteString(strconv.Itoa(member.objNum))
+		headerBuilder.WriteByte(' ')
+		headerBuilder.WriteString(strconv.Itoa(currentOffset))
+		if i != len(members)-1 {
+			headerBuilder.WriteByte(' ')
+		}
+
+		contentBuilder.Write(member.content)
+		if i != len(members)-1 {
+			contentBuilder.WriteByte(' ')
+			currentOffset += len(member.content) + 1
+		} else {
+			currentOffset += len(member.content)
+		}
+	}
+
+	newHeader := headerBuilder.String()
+	newFirst := len(newHeader) + 1
+	newDecoded := []byte(newHeader + " " + contentBuilder.String())
+
+	var compressedBuf bytes.Buffer
+	zw, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestCompression)
+	if err != nil {
+		return nil, false, err
+	}
+	if _, err := zw.Write(newDecoded); err != nil {
+		return nil, false, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, false, err
+	}
+	compressed := compressedBuf.Bytes()
+
+	dictPart := body[:sm[0]]
+	suffix := body[sm[1]:]
+	newDict := firstRe.ReplaceAll(dictPart, []byte(fmt.Sprintf("/First %d", newFirst)))
+	lengthRe := regexp.MustCompile(`/Length\s+\d+`)
+	if lengthRe.Match(newDict) {
+		newDict = lengthRe.ReplaceAll(newDict, []byte(fmt.Sprintf("/Length %d", len(compressed))))
+	}
+
+	var rebuilt bytes.Buffer
+	rebuilt.Write(newDict)
+	rebuilt.WriteString("stream\n")
+	rebuilt.Write(compressed)
+	rebuilt.WriteString("\nendstream")
+	rebuilt.Write(suffix)
+
+	return rebuilt.Bytes(), true, nil
+}
+
+func updateObjStmFieldValue(objContent []byte, fields map[string]string) ([]byte, bool) {
+	nameRe := regexp.MustCompile(`/T\s*\(([^)]*)\)`)
+	nameMatch := nameRe.FindSubmatch(objContent)
+	if nameMatch == nil {
+		return objContent, false
+	}
+
+	fieldName := strings.TrimSpace(string(nameMatch[1]))
+	value, ok := fields[fieldName]
+	if !ok {
+		return objContent, false
+	}
+
+	updated := make([]byte, len(objContent))
+	copy(updated, objContent)
+
+	if bytes.Contains(updated, []byte("/FT /Tx")) {
+		replacement := []byte("/V (" + escapePDFString(value) + ")")
+		newUpdated, changed := replaceOrInsertPDFEntry(updated, `/V\s*\((?:\\.|[^\\)])*\)|/V\s*/[^\s/>]+`, replacement)
+		return newUpdated, changed
+	}
+
+	if bytes.Contains(updated, []byte("/FT /Btn")) {
+		state := xfdfValueToPDFName(value)
+		newUpdated, changedV := replaceOrInsertPDFEntry(updated, `/V\s*/[^\s/>]+|/V\s*\((?:\\.|[^\\)])*\)`, []byte("/V /"+state))
+		newUpdated, changedAS := replaceOrInsertPDFEntry(newUpdated, `/AS\s*/[^\s/>]+|/AS\s*\((?:\\.|[^\\)])*\)`, []byte("/AS /"+state))
+		return newUpdated, changedV || changedAS
+	}
+
+	return objContent, false
+}
+
+func replaceOrInsertPDFEntry(dict []byte, pattern string, replacement []byte) ([]byte, bool) {
+	re := regexp.MustCompile(pattern)
+	if re.Match(dict) {
+		newDict := re.ReplaceAll(dict, replacement)
+		return newDict, !bytes.Equal(newDict, dict)
+	}
+
+	insertPos := bytes.LastIndex(dict, []byte(">>"))
+	if insertPos < 0 {
+		newDict := append(dict, append([]byte(" "), replacement...)...)
+		return newDict, true
+	}
+
+	var out bytes.Buffer
+	out.Write(dict[:insertPos])
+	out.WriteByte(' ')
+	out.Write(replacement)
+	out.Write(dict[insertPos:])
+	return out.Bytes(), true
+}
+
+func xfdfValueToPDFName(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "Off"
+	}
+	if strings.EqualFold(trimmed, "off") || strings.EqualFold(trimmed, "false") || strings.EqualFold(trimmed, "no") || trimmed == "0" {
+		return "Off"
+	}
+
+	var b strings.Builder
+	for _, r := range trimmed {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			b.WriteRune(r)
+		}
+	}
+	token := b.String()
+	if token == "" {
+		return "Yes"
+	}
+	return token
 }
