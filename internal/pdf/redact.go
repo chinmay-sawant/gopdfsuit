@@ -199,6 +199,38 @@ func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, e
 	return redactions, nil
 }
 
+// FindTextOccurrencesMulti searches for multiple terms and combines results.
+func FindTextOccurrencesMulti(pdfBytes []byte, searchTexts []string) ([]RedactionRect, error) {
+	if len(pdfBytes) == 0 {
+		return nil, errors.New("empty pdf bytes")
+	}
+	if len(searchTexts) == 0 {
+		return nil, nil
+	}
+
+	seenTerms := make(map[string]struct{}, len(searchTexts))
+	all := make([]RedactionRect, 0, len(searchTexts)*4)
+	for _, raw := range searchTexts {
+		term := strings.TrimSpace(raw)
+		if term == "" {
+			continue
+		}
+		key := strings.ToLower(term)
+		if _, ok := seenTerms[key]; ok {
+			continue
+		}
+		seenTerms[key] = struct{}{}
+
+		rects, err := FindTextOccurrences(pdfBytes, term)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, rects...)
+	}
+
+	return all, nil
+}
+
 func buildSubstringRects(pageNum int, pos TextPosition, loweredSearch string) []RedactionRect {
 	if loweredSearch == "" || strings.TrimSpace(pos.Text) == "" {
 		return nil
@@ -1529,72 +1561,171 @@ func appendStreamToPage(pageBody []byte, streamKey string) []byte {
 }
 
 func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) {
-	// Simple rebuild similar to xfdf.go's logic but stripped down
-	// 1. Write Header
-	// 2. Write Objects (sorted)
-	// 3. Write Xref
-	// 4. Write Trailer
+	originalMap, err := buildObjectMap(originalBytes)
+	if err != nil {
+		return nil, err
+	}
 
-	var out bytes.Buffer
-	out.WriteString("%PDF-1.7\n%\xe2\xe3\xcf\xd3\n")
-
-	// Collect keys and sort IDs
 	type objMeta struct {
 		id  int
 		gen int
 		key string
 	}
-	var objs []objMeta
+	changed := make([]objMeta, 0, 16)
 	maxID := 0
 
-	for k := range objMap {
+	for key, body := range objMap {
 		var id, gen int
-		_, _ = fmt.Sscanf(k, "%d %d", &id, &gen)
-		objs = append(objs, objMeta{id, gen, k})
+		if _, scanErr := fmt.Sscanf(key, "%d %d", &id, &gen); scanErr != nil {
+			continue
+		}
 		if id > maxID {
 			maxID = id
 		}
+
+		origBody, ok := originalMap[key]
+		if !ok || !bytes.Equal(origBody, body) {
+			changed = append(changed, objMeta{id: id, gen: gen, key: key})
+		}
 	}
-	sort.Slice(objs, func(i, j int) bool {
-		return objs[i].id < objs[j].id
+
+	if len(changed) == 0 {
+		return originalBytes, nil
+	}
+
+	sort.Slice(changed, func(i, j int) bool {
+		if changed[i].id == changed[j].id {
+			return changed[i].gen < changed[j].gen
+		}
+		return changed[i].id < changed[j].id
 	})
 
-	offsets := make(map[int]int)
+	prevStartXRef := extractLastStartXRef(originalBytes)
+	rootRef, ok := findRootRef(originalBytes)
+	if !ok {
+		return nil, errors.New("missing Root")
+	}
+	trailerID := extractPrimaryTrailerID(originalBytes)
 
-	for _, o := range objs {
-		offsets[o.id] = out.Len()
-		body := objMap[o.key]
+	var out bytes.Buffer
+	out.Write(originalBytes)
+	if len(originalBytes) > 0 {
+		last := originalBytes[len(originalBytes)-1]
+		if last != '\n' && last != '\r' {
+			out.WriteByte('\n')
+		}
+	}
 
-		out.WriteString(fmt.Sprintf("%d %d obj\n", o.id, o.gen))
+	offsetByObject := make(map[int]struct {
+		offset int
+		gen    int
+	}, len(changed))
+
+	for _, obj := range changed {
+		offsetByObject[obj.id] = struct {
+			offset int
+			gen    int
+		}{offset: out.Len(), gen: obj.gen}
+
+		body := objMap[obj.key]
+		fmt.Fprintf(&out, "%d %d obj\n", obj.id, obj.gen)
 		out.Write(body)
-		// Ensure line break
 		if !bytes.HasSuffix(body, []byte("\n")) {
-			out.WriteString("\n")
+			out.WriteByte('\n')
 		}
 		if !bytes.HasSuffix(body, []byte("endobj\n")) && !bytes.HasSuffix(body, []byte("endobj")) {
 			out.WriteString("endobj\n")
 		} else if bytes.HasSuffix(body, []byte("endobj")) {
-			out.WriteString("\n")
+			out.WriteByte('\n')
 		}
 	}
 
 	xrefStart := out.Len()
-	out.WriteString(fmt.Sprintf("xref\n0 %d\n", maxID+1))
-	out.WriteString("0000000000 65535 f \n")
-	for i := 1; i <= maxID; i++ {
-		if off, ok := offsets[i]; ok {
-			out.WriteString(fmt.Sprintf("%010d 00000 n \n", off))
-		} else {
-			out.WriteString("0000000000 65535 f \n")
+	out.WriteString("xref\n")
+
+	ids := make([]int, 0, len(offsetByObject))
+	for id := range offsetByObject {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+
+	start := ids[0]
+	block := []int{ids[0]}
+	flushBlock := func() {
+		if len(block) == 0 {
+			return
+		}
+		out.WriteString(fmt.Sprintf("%d %d\n", start, len(block)))
+		for _, id := range block {
+			entry := offsetByObject[id]
+			out.WriteString(fmt.Sprintf("%010d %05d n \n", entry.offset, entry.gen))
 		}
 	}
 
-	// Find Root ID
-	rootRef, _ := findRootRef(originalBytes)
-	rootID := 1
-	_, _ = fmt.Sscanf(rootRef, "%d", &rootID)
+	for i := 1; i < len(ids); i++ {
+		if ids[i] == ids[i-1]+1 {
+			block = append(block, ids[i])
+			continue
+		}
+		flushBlock()
+		start = ids[i]
+		block = []int{ids[i]}
+	}
+	flushBlock()
 
-	out.WriteString(fmt.Sprintf("trailer\n<< /Size %d /Root %d 0 R >>\nstartxref\n%d\n%%%%EOF\n", maxID+1, rootID, xrefStart))
+	trailerIDPart := ""
+	if trailerID != "" {
+		trailerIDPart = " /ID " + trailerID
+	}
+
+	fmt.Fprintf(&out, "trailer\n<< /Size %d /Root %s R /Prev %d%s >>\nstartxref\n%d\n%%%%EOF\n", maxID+1, rootRef, prevStartXRef, trailerIDPart, xrefStart)
 
 	return out.Bytes(), nil
+}
+
+func extractPrimaryTrailerID(pdfBytes []byte) string {
+	if len(pdfBytes) == 0 {
+		return ""
+	}
+	trailerRe := regexp.MustCompile(`(?s)trailer\s*<<(.*?)>>`)
+	idRe := regexp.MustCompile(`(?s)/ID\s*(\[(?:.|\n|\r)*?\])`)
+
+	if tm := trailerRe.FindSubmatch(pdfBytes); tm != nil {
+		if idm := idRe.FindSubmatch(tm[1]); idm != nil {
+			return strings.TrimSpace(string(idm[1]))
+		}
+	}
+
+	// Fallback for PDFs with non-standard trailer layout.
+	if idm := idRe.FindSubmatch(pdfBytes); idm != nil {
+		return strings.TrimSpace(string(idm[1]))
+	}
+
+	return ""
+}
+
+func extractLastStartXRef(pdfBytes []byte) int {
+	if len(pdfBytes) == 0 {
+		return 0
+	}
+	re := regexp.MustCompile(`(?s)startxref\s*(\d+)\s*%%EOF\s*$`)
+	if m := re.FindSubmatch(pdfBytes); m != nil {
+		if n, err := strconv.Atoi(string(m[1])); err == nil {
+			return n
+		}
+	}
+	reAny := regexp.MustCompile(`startxref\s*(\d+)`)
+	all := reAny.FindAllSubmatch(pdfBytes, -1)
+	if len(all) == 0 {
+		return 0
+	}
+	last := all[len(all)-1]
+	if len(last) < 2 {
+		return 0
+	}
+	n, err := strconv.Atoi(string(last[1]))
+	if err != nil {
+		return 0
+	}
+	return n
 }

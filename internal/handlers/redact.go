@@ -11,6 +11,47 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func parseCommaSeparatedTerms(raw string) []string {
+	parts := strings.Split(raw, ",")
+	if len(parts) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(parts))
+	terms := make([]string, 0, len(parts))
+	for _, p := range parts {
+		term := strings.TrimSpace(p)
+		if term == "" {
+			continue
+		}
+		key := strings.ToLower(term)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		terms = append(terms, term)
+	}
+	return terms
+}
+
+func normalizeTextSearchQueries(queries []pdf.RedactionTextQuery) []pdf.RedactionTextQuery {
+	if len(queries) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(queries))
+	normalized := make([]pdf.RedactionTextQuery, 0, len(queries))
+	for _, q := range queries {
+		for _, term := range parseCommaSeparatedTerms(q.Text) {
+			key := strings.ToLower(term)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			normalized = append(normalized, pdf.RedactionTextQuery{Text: term})
+		}
+	}
+	return normalized
+}
+
 // HandleRedactPageInfo handles requests to get PDF page dimensions
 func HandleRedactPageInfo(c *gin.Context) {
 	file, err := c.FormFile("pdf")
@@ -29,6 +70,10 @@ func HandleRedactPageInfo(c *gin.Context) {
 	pdfBytes, err := io.ReadAll(f)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read pdf file"})
+		return
+	}
+	if len(pdfBytes) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is empty"})
 		return
 	}
 
@@ -59,6 +104,10 @@ func HandleRedactCapabilities(c *gin.Context) {
 	pdfBytes, err := io.ReadAll(f)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read pdf file"})
+		return
+	}
+	if len(pdfBytes) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is empty"})
 		return
 	}
 
@@ -174,9 +223,17 @@ func HandleRedactApply(c *gin.Context) {
 	// Backward compatibility: allow plain text search field for one-shot apply.
 	if len(options.TextSearch) == 0 {
 		if searchText := strings.TrimSpace(c.PostForm("text")); searchText != "" {
-			options.TextSearch = []pdf.RedactionTextQuery{{Text: searchText}}
+			terms := parseCommaSeparatedTerms(searchText)
+			if len(terms) == 0 {
+				terms = []string{searchText}
+			}
+			options.TextSearch = make([]pdf.RedactionTextQuery, 0, len(terms))
+			for _, t := range terms {
+				options.TextSearch = append(options.TextSearch, pdf.RedactionTextQuery{Text: t})
+			}
 		}
 	}
+	options.TextSearch = normalizeTextSearchQueries(options.TextSearch)
 
 	f, err := file.Open()
 	if err != nil {
@@ -212,8 +269,24 @@ func HandleRedactSearch(c *gin.Context) {
 		return
 	}
 
-	searchText := c.PostForm("text")
-	if searchText == "" {
+	var terms []string
+	textsJSON := strings.TrimSpace(c.PostForm("texts"))
+	if textsJSON != "" {
+		if err := json.Unmarshal([]byte(textsJSON), &terms); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid texts json"})
+			return
+		}
+	}
+	if len(terms) == 0 {
+		searchText := strings.TrimSpace(c.PostForm("text"))
+		if searchText != "" {
+			terms = parseCommaSeparatedTerms(searchText)
+			if len(terms) == 0 {
+				terms = []string{searchText}
+			}
+		}
+	}
+	if len(terms) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "search text is required"})
 		return
 	}
@@ -231,7 +304,7 @@ func HandleRedactSearch(c *gin.Context) {
 		return
 	}
 
-	rects, err := pdf.FindTextOccurrences(pdfBytes, searchText)
+	rects, err := pdf.FindTextOccurrencesMulti(pdfBytes, terms)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

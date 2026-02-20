@@ -78,6 +78,36 @@ startxref
 %%EOF
 `)
 
+var minimalPDFWithIDAndVersion = []byte(`%PDF-2.0
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 21 >>
+stream
+BT /F1 12 Tf 100 700 Td (Hello World) Tj ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000060 00000 n 
+0000000117 00000 n 
+0000000222 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R /ID [<00112233445566778899AABBCCDDEEFF> <00112233445566778899AABBCCDDEEFF>] >>
+startxref
+293
+%%EOF
+`)
+
 func TestGetPageInfo(t *testing.T) {
 	info, err := GetPageInfo(minimalPDF)
 	if err != nil {
@@ -232,8 +262,12 @@ func TestApplyRedactionsAdvancedSecureRequired(t *testing.T) {
 		t.Fatalf("expected securityOutcome=secure, got %s", report.SecurityOutcome)
 	}
 
-	if bytes.Contains(bytes.ToLower(out), []byte("hello world")) {
-		t.Fatal("expected secure mode to remove matching text from content stream")
+	rects, err := FindTextOccurrences(out, "Hello")
+	if err != nil {
+		t.Fatalf("FindTextOccurrences on secure output failed: %v", err)
+	}
+	if len(rects) > 0 {
+		t.Fatalf("expected secure mode to remove active text matches, found %d", len(rects))
 	}
 }
 
@@ -247,6 +281,30 @@ func TestAnalyzePageCapabilities(t *testing.T) {
 	}
 	if caps[0].Type == "" {
 		t.Fatal("expected non-empty capability type")
+	}
+}
+
+func TestApplyRedactionsPreservesHeaderVersionAndTrailerID(t *testing.T) {
+	redactions := []RedactionRect{{
+		PageNum: 1,
+		X:       100,
+		Y:       690,
+		Width:   100,
+		Height:  20,
+	}}
+
+	out, err := ApplyRedactions(minimalPDFWithIDAndVersion, redactions)
+	if err != nil {
+		t.Fatalf("ApplyRedactions failed: %v", err)
+	}
+
+	if !bytes.HasPrefix(out, []byte("%PDF-2.0")) {
+		t.Fatalf("expected output to preserve PDF version 2.0 header")
+	}
+
+	expectedID := []byte("/ID [<00112233445566778899AABBCCDDEEFF> <00112233445566778899AABBCCDDEEFF>]")
+	if !bytes.Contains(out, expectedID) {
+		t.Fatalf("expected output trailer to preserve document ID")
 	}
 }
 

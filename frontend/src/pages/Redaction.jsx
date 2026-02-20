@@ -16,7 +16,8 @@ const Redaction = () => {
   const [numPages, setNumPages] = useState(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [pdfPageDims, setPdfPageDims] = useState({ width: 0, height: 0 }) // Authoritative dims from backend
-  const [renderedDims, setRenderedDims] = useState({ width: 0, height: 0 }) // Screen pixels
+    // const [renderedDims, setRenderedDims] = useState({ width: 0, height: 0 }) // Screen pixels
+    const [pageViewport, setPageViewport] = useState({ left: 0, top: 0, width: 0, height: 0 })
   
   // Redactions: Map<pageNum, Array<{x, y, w, h}>> (PDF coordinates)
   const [redactions, setRedactions] = useState({}) 
@@ -38,11 +39,45 @@ const Redaction = () => {
   const [error, setError] = useState(null)
   const [successMsg, setSuccessMsg] = useState(null)
 
+    const parseSearchTerms = (raw) => {
+        if (!raw) return []
+        const seen = new Set()
+        return raw
+            .split(',')
+            .map((term) => term.trim())
+            .filter((term) => {
+                if (!term) return false
+                const key = term.toLowerCase()
+                if (seen.has(key)) return false
+                seen.add(key)
+                return true
+            })
+    }
+
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages)
     setPageNumber(1)
     setError(null)
   }
+
+    const refreshPageViewport = () => {
+        if (!containerRef.current) return
+        const pageCanvas = containerRef.current.querySelector('canvas')
+        if (!pageCanvas) return
+
+        const containerBounds = containerRef.current.getBoundingClientRect()
+        const canvasBounds = pageCanvas.getBoundingClientRect()
+
+        if (canvasBounds.width <= 0 || canvasBounds.height <= 0) return
+
+        setPageViewport({
+            left: canvasBounds.left - containerBounds.left,
+            top: canvasBounds.top - containerBounds.top,
+            width: canvasBounds.width,
+            height: canvasBounds.height,
+        })
+            // Removed setRenderedDims call to fix ESLint no-undef error
+    }
 
   const handleFileUpload = async (event) => {
     const selectedFile = event.target.files[0]
@@ -94,11 +129,11 @@ const Redaction = () => {
         currentPageDim = pdfPageDims.allPages[pageNumber-1]
     }
 
-        if (!renderedDims.width || !renderedDims.height || !currentPageDim.width || !currentPageDim.height) {
+        if (!pageViewport.width || !pageViewport.height || !currentPageDim.width || !currentPageDim.height) {
             return null
         }
-    const sx = currentPageDim.width / renderedDims.width
-    const sy = currentPageDim.height / renderedDims.height
+    const sx = currentPageDim.width / pageViewport.width
+    const sy = currentPageDim.height / pageViewport.height
     
     return {
       x: pixelRect.x * sx,
@@ -115,11 +150,11 @@ const Redaction = () => {
         currentPageDim = pdfPageDims.allPages[pageNumber-1]
     }
 
-        if (!renderedDims.width || !renderedDims.height || !currentPageDim.width || !currentPageDim.height) {
+        if (!pageViewport.width || !pageViewport.height || !currentPageDim.width || !currentPageDim.height) {
             return pdfRect
         }
-    const sx = renderedDims.width / currentPageDim.width
-    const sy = renderedDims.height / currentPageDim.height
+    const sx = pageViewport.width / currentPageDim.width
+    const sy = pageViewport.height / currentPageDim.height
     
     return {
       x: pdfRect.x * sx,
@@ -131,9 +166,15 @@ const Redaction = () => {
 
   const handleMouseDown = (e) => {
     if (!file) return
-    const rect = canvasRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+        if (!containerRef.current) return
+        const rect = containerRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left - pageViewport.left
+        const y = e.clientY - rect.top - pageViewport.top
+
+        if (x < 0 || y < 0 || x > pageViewport.width || y > pageViewport.height) {
+            return
+        }
+
     setIsDrawing(true)
     setStartPos({ x, y })
     setCurrentRect({ x, y, width: 0, height: 0 })
@@ -141,9 +182,12 @@ const Redaction = () => {
 
   const handleMouseMove = (e) => {
     if (!isDrawing) return
-    const rect = canvasRef.current.getBoundingClientRect()
-    const currentX = e.clientX - rect.left
-    const currentY = e.clientY - rect.top
+        if (!containerRef.current) return
+        const rect = containerRef.current.getBoundingClientRect()
+        const rawX = e.clientX - rect.left - pageViewport.left
+        const rawY = e.clientY - rect.top - pageViewport.top
+        const currentX = Math.min(Math.max(rawX, 0), pageViewport.width)
+        const currentY = Math.min(Math.max(rawY, 0), pageViewport.height)
     
     const width = currentX - startPos.x
     const height = currentY - startPos.y
@@ -189,22 +233,32 @@ const Redaction = () => {
   }
 
   const handleSearch = async () => {
-    if (!file || !searchText.trim()) return
+        const terms = parseSearchTerms(searchText)
+        if (!file || terms.length === 0) return
     setIsSearching(true)
     setError(null)
+        setSuccessMsg(null)
     try {
         const formData = new FormData()
         formData.append('pdf', file)
-        formData.append('text', searchText)
+                formData.append('text', terms.join(','))
+                formData.append('texts', JSON.stringify(terms))
 
         const response = await makeAuthenticatedRequest('/api/v1/redact/search', {
             method: 'POST',
             body: formData,
         }, getAuthHeaders)
 
-        if (!response.ok) throw new Error('Search failed')
+                if (!response.ok) {
+                    const bodyText = await response.text()
+                    throw new Error(bodyText || 'Search failed')
+                }
 
-        const results = await response.json()
+                const payload = await response.json()
+                const results = Array.isArray(payload)
+                    ? payload
+                    : (Array.isArray(payload?.rects) ? payload.rects : [])
+
         if (results && results.length > 0) {
             // Merge new redactions
             setRedactions(prev => {
@@ -216,14 +270,15 @@ const Redaction = () => {
                 })
                 return next
             })
-            setSuccessMsg(`Found and marked ${results.length} occurrences of "${searchText}"`)
+            setSuccessMsg(`Found and marked ${results.length} occurrence(s) for ${terms.join(', ')}`)
         } else {
-            setSuccessMsg(`No occurrences found for "${searchText}"`)
+            setSuccessMsg(`No occurrences found for ${terms.join(', ')}`)
         }
         setSearchQueries(prev => {
-          const term = searchText.trim()
-          if (!term || prev.includes(term)) return prev
-          return [...prev, term]
+          const existing = new Set(prev.map((x) => x.toLowerCase()))
+          const additions = terms.filter((term) => !existing.has(term.toLowerCase()))
+          if (additions.length === 0) return prev
+          return [...prev, ...additions]
         })
     } catch (err) {
         setError(err.message)
@@ -234,8 +289,9 @@ const Redaction = () => {
 
   const applyRedactions = async () => {
     // Robust check for empty redactions
-    const hasAny = Object.values(redactions).some(arr => arr && arr.length > 0)
-    if (!file || !hasAny) return
+        const hasAny = Object.values(redactions).some(arr => arr && arr.length > 0)
+        const hasTextCriteria = searchQueries.length > 0 || parseSearchTerms(searchText).length > 0
+        if (!file || (!hasAny && !hasTextCriteria)) return
     
     setIsLoading(true)
     try {
@@ -250,11 +306,17 @@ const Redaction = () => {
                 formData.append('password', password)
             }
 
-            const uniqueSearches = [...searchQueries]
-            const inlineSearch = searchText.trim()
-            if (inlineSearch && !uniqueSearches.includes(inlineSearch)) {
-                uniqueSearches.push(inlineSearch)
-            }
+            const allSearches = [...searchQueries]
+            const inlineTerms = parseSearchTerms(searchText)
+            allSearches.push(...inlineTerms)
+            const seen = new Set()
+            const uniqueSearches = allSearches.filter((term) => {
+                const key = term.trim().toLowerCase()
+                if (!key || seen.has(key)) return false
+                seen.add(key)
+                return true
+            })
+
             if (uniqueSearches.length > 0) {
                 formData.append('textSearch', JSON.stringify(uniqueSearches.map((text) => ({ text }))))
             }
@@ -370,13 +432,8 @@ const Redaction = () => {
                                     onLoadSuccess={onPageLoadSuccess}
                                     width={Math.min(800, window.innerWidth - 100)} // Responsive width
                                                                         onRenderSuccess={() => {
-                                                                             // Read actual rendered dimensions from the overlay capture layer.
-                                                                             if (canvasRef.current) {
-                                                                                 const bounds = canvasRef.current.getBoundingClientRect()
-                                                                                 if (bounds.width > 0 && bounds.height > 0) {
-                                                                                     setRenderedDims({ width: bounds.width, height: bounds.height })
-                                                                                 }
-                                                                             }
+                                                                             // Measure against actual rendered PDF canvas bounds for precise coordinate transforms.
+                                                                             refreshPageViewport()
                                     }}
                                 />
                             </Document>
@@ -389,8 +446,8 @@ const Redaction = () => {
                                         key={idx}
                                         style={{
                                             position: 'absolute',
-                                            left: screenRect.x,
-                                            top: screenRect.y,
+                                            left: pageViewport.left + screenRect.x,
+                                            top: pageViewport.top + screenRect.y,
                                             width: screenRect.width,
                                             height: screenRect.height,
                                             backgroundColor: 'rgba(0, 0, 0, 0.7)',
@@ -405,8 +462,8 @@ const Redaction = () => {
                             {currentRect && (
                                 <div style={{
                                     position: 'absolute',
-                                    left: currentRect.x,
-                                    top: currentRect.y,
+                                    left: pageViewport.left + currentRect.x,
+                                    top: pageViewport.top + currentRect.y,
                                     width: currentRect.width,
                                     height: currentRect.height,
                                     backgroundColor: 'rgba(255, 0, 0, 0.3)',
@@ -415,7 +472,17 @@ const Redaction = () => {
                             )}
                             
                             {/* Invisible canvas capture layer - simplified: we draw using divs above */}
-                            <div ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }} />
+                                                        <div
+                                                            ref={canvasRef}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: pageViewport.top,
+                                                                left: pageViewport.left,
+                                                                width: pageViewport.width,
+                                                                height: pageViewport.height,
+                                                                zIndex: 10,
+                                                            }}
+                                                        />
                          </div>
                     </div>
 
@@ -426,7 +493,7 @@ const Redaction = () => {
                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                                 <input 
                                     type="text" 
-                                    placeholder="Search word..." 
+                                    placeholder="Search words (comma-separated)..." 
                                     value={searchText}
                                     onChange={(e) => setSearchText(e.target.value)}
                                     style={{ 

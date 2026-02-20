@@ -17,7 +17,8 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	opts := ApplyRedactionOptions{
 		Mode: "visual_allowed",
 		TextSearch: []RedactionTextQuery{
-			{Text: "A"},
+			{Text: "SEC"},
+			{Text: "COM"},
 		},
 	}
 
@@ -70,5 +71,32 @@ func TestFinancialReportPage2TextRedaction(t *testing.T) {
 	}
 	if !foundPage2 {
 		t.Fatalf("expected at least one page 2 match for 'SECTION C', got rects=%+v", rects)
+	}
+}
+
+func TestFinancialReportPage2TextRedactionMultiTerms(t *testing.T) {
+	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
+	pdfBytes, err := os.ReadFile(pdfPath)
+	if err != nil {
+		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
+	}
+
+	rects, err := FindTextOccurrencesMulti(pdfBytes, []string{"SEC", "COM"})
+	if err != nil {
+		t.Fatalf("FindTextOccurrencesMulti failed: %v", err)
+	}
+	if len(rects) == 0 {
+		t.Fatal("expected matches for SEC/COM in sample PDF")
+	}
+
+	foundPage2 := false
+	for _, r := range rects {
+		if r.PageNum == 2 {
+			foundPage2 = true
+			break
+		}
+	}
+	if !foundPage2 {
+		t.Fatalf("expected at least one page 2 match for SEC/COM, got rects=%+v", rects)
 	}
 }
