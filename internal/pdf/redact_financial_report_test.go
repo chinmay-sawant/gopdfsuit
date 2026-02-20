@@ -45,3 +45,30 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 		t.Fatal("expected redacted output to differ from input when matches were generated")
 	}
 }
+
+func TestFinancialReportPage2TextRedaction(t *testing.T) {
+	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
+	pdfBytes, err := os.ReadFile(pdfPath)
+	if err != nil {
+		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
+	}
+
+	rects, err := FindTextOccurrences(pdfBytes, "SECTION C")
+	if err != nil {
+		t.Fatalf("FindTextOccurrences failed: %v", err)
+	}
+	if len(rects) == 0 {
+		t.Fatal("expected matches for 'SECTION C' in sample PDF")
+	}
+
+	foundPage2 := false
+	for _, r := range rects {
+		if r.PageNum == 2 {
+			foundPage2 = true
+			break
+		}
+	}
+	if !foundPage2 {
+		t.Fatalf("expected at least one page 2 match for 'SECTION C', got rects=%+v", rects)
+	}
+}

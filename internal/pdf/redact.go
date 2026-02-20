@@ -547,12 +547,11 @@ func applySecureContentRedactions(pdfBytes []byte, redactions []RedactionRect, q
 }
 
 func inspectStream(streamObj []byte) ([]byte, []byte, bool) {
-	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-	loc := streamRe.FindSubmatchIndex(streamObj)
-	if loc == nil {
+	start, end, ok := locateStreamSegment(streamObj)
+	if !ok {
 		return nil, nil, false
 	}
-	raw := streamObj[loc[2]:loc[3]]
+	raw := streamObj[start:end]
 	if bytesIndex(streamObj, []byte("/FlateDecode")) >= 0 {
 		if d, err := tryFlateDecompress(raw); err == nil {
 			return raw, d, true
@@ -586,12 +585,11 @@ func extractContentKeys(pageBody []byte) []string {
 }
 
 func rewriteContentStreamSecure(streamObj []byte, rects []RedactionRect, queries []RedactionTextQuery) ([]byte, bool, error) {
-	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-	loc := streamRe.FindSubmatchIndex(streamObj)
-	if loc == nil {
+	start, end, ok := locateStreamSegment(streamObj)
+	if !ok {
 		return streamObj, false, nil
 	}
-	raw := streamObj[loc[2]:loc[3]]
+	raw := streamObj[start:end]
 
 	decoded := raw
 	compressed := false
@@ -626,9 +624,9 @@ func rewriteContentStreamSecure(streamObj []byte, rects []RedactionRect, queries
 	}
 
 	newObj := make([]byte, 0, len(streamObj)+64)
-	newObj = append(newObj, streamObj[:loc[2]]...)
+	newObj = append(newObj, streamObj[:start]...)
 	newObj = append(newObj, encoded...)
-	newObj = append(newObj, streamObj[loc[3]:]...)
+	newObj = append(newObj, streamObj[end:]...)
 
 	lenRe := regexp.MustCompile(`/Length\s+\d+`)
 	newObj = lenRe.ReplaceAll(newObj, []byte(fmt.Sprintf("/Length %d", len(encoded))))
@@ -1024,6 +1022,7 @@ func extractPageContent(pageBody []byte, objMap map[string][]byte) ([]byte, erro
 	if match == nil {
 		return nil, nil // Empty content
 	}
+	resources := findPageResources(pageBody, objMap)
 
 	var contentKeys []string
 	if len(match[1]) > 0 {
@@ -1039,16 +1038,15 @@ func extractPageContent(pageBody []byte, objMap map[string][]byte) ([]byte, erro
 	}
 
 	var fullContent bytes.Buffer
+	visitedXObjects := map[string]bool{}
 	for _, key := range contentKeys {
 		streamBody, ok := objMap[key]
 		if !ok {
 			continue
 		}
-		// Decompress stream
-		streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-		sm := streamRe.FindSubmatch(streamBody)
-		if sm != nil {
-			raw := sm[1]
+		start, end, ok := locateStreamSegment(streamBody)
+		if ok {
+			raw := streamBody[start:end]
 			dec, err := tryFlateDecompress(raw) // tryFlateDecompress from xfdf.go (shared package)
 			if err != nil {
 				dec, err = tryZlibDecompress(raw)
@@ -1058,9 +1056,171 @@ func extractPageContent(pageBody []byte, objMap map[string][]byte) ([]byte, erro
 			}
 			fullContent.Write(dec)
 			fullContent.WriteByte('\n') // Spacing
+
+			// Some PDFs place visible page text inside Form XObjects invoked via Do operators.
+			if len(resources) > 0 {
+				xobjRefs := resolveUsedXObjectRefs(dec, resources)
+				for _, xkey := range xobjRefs {
+					appendXObjectContentRecursive(&fullContent, xkey, objMap, visitedXObjects)
+				}
+			}
 		}
 	}
 	return fullContent.Bytes(), nil
+}
+
+func locateStreamSegment(obj []byte) (int, int, bool) {
+	streamIdx := bytes.Index(obj, []byte("stream"))
+	if streamIdx < 0 {
+		return 0, 0, false
+	}
+	start := streamIdx + len("stream")
+	if start < len(obj) && obj[start] == '\r' {
+		start++
+	}
+	if start < len(obj) && obj[start] == '\n' {
+		start++
+	}
+
+	if l := parseInlineLength(obj); l > 0 && start+l <= len(obj) {
+		endByLen := start + l
+		k := endByLen
+		for k < len(obj) && (obj[k] == '\r' || obj[k] == '\n' || obj[k] == ' ' || obj[k] == '\t') {
+			k++
+		}
+		if k < len(obj) && bytes.HasPrefix(obj[k:], []byte("endstream")) {
+			return start, endByLen, true
+		}
+	}
+
+	endstreamIdx := bytes.Index(obj[start:], []byte("endstream"))
+	if endstreamIdx < 0 {
+		return 0, 0, false
+	}
+	end := start + endstreamIdx
+	for end > start && (obj[end-1] == '\r' || obj[end-1] == '\n') {
+		end--
+	}
+	if end <= start {
+		return 0, 0, false
+	}
+	return start, end, true
+}
+
+func parseInlineLength(obj []byte) int {
+	re := regexp.MustCompile(`/Length\s+(\d+)`)
+	m := re.FindSubmatch(obj)
+	if m == nil {
+		return 0
+	}
+	n, err := strconv.Atoi(string(m[1]))
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return n
+}
+
+func findPageResources(pageBody []byte, objMap map[string][]byte) []byte {
+	if res := extractResourcesBody(pageBody, objMap); len(res) > 0 {
+		return res
+	}
+	parentRe := regexp.MustCompile(`/Parent\s+(\d+)\s+(\d+)\s+R`)
+	cur := pageBody
+	for depth := 0; depth < 16; depth++ {
+		m := parentRe.FindSubmatch(cur)
+		if m == nil {
+			break
+		}
+		pkey := string(m[1]) + " " + string(m[2])
+		next, ok := objMap[pkey]
+		if !ok {
+			break
+		}
+		if res := extractResourcesBody(next, objMap); len(res) > 0 {
+			return res
+		}
+		cur = next
+	}
+	return nil
+}
+
+func extractResourcesBody(body []byte, objMap map[string][]byte) []byte {
+	inlineRe := regexp.MustCompile(`(?s)/Resources\s*<<(.*?)>>`)
+	if m := inlineRe.FindSubmatch(body); m != nil {
+		return m[1]
+	}
+	refRe := regexp.MustCompile(`/Resources\s+(\d+)\s+(\d+)\s+R`)
+	if m := refRe.FindSubmatch(body); m != nil {
+		key := string(m[1]) + " " + string(m[2])
+		if rb, ok := objMap[key]; ok {
+			dictRe := regexp.MustCompile(`(?s)<<(.*?)>>`)
+			if dm := dictRe.FindSubmatch(rb); dm != nil {
+				return dm[1]
+			}
+			return rb
+		}
+	}
+	return nil
+}
+
+func resolveUsedXObjectRefs(content []byte, resources []byte) []string {
+	doRe := regexp.MustCompile(`/([A-Za-z0-9_.+-]+)\s+Do`)
+	xobjDictRe := regexp.MustCompile(`(?s)/XObject\s*<<(.*?)>>`)
+	m := xobjDictRe.FindSubmatch(resources)
+	if m == nil {
+		return nil
+	}
+	xobjDict := m[1]
+	nameToRef := map[string]string{}
+	refRe := regexp.MustCompile(`/([A-Za-z0-9_.+-]+)\s+(\d+)\s+(\d+)\s+R`)
+	for _, r := range refRe.FindAllSubmatch(xobjDict, -1) {
+		nameToRef[string(r[1])] = string(r[2]) + " " + string(r[3])
+	}
+	if len(nameToRef) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, 4)
+	for _, d := range doRe.FindAllSubmatch(content, -1) {
+		name := string(d[1])
+		if key, ok := nameToRef[name]; ok && !seen[key] {
+			seen[key] = true
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
+func appendXObjectContentRecursive(out *bytes.Buffer, key string, objMap map[string][]byte, visited map[string]bool) {
+	if visited[key] {
+		return
+	}
+	visited[key] = true
+
+	body, ok := objMap[key]
+	if !ok {
+		return
+	}
+	if !regexp.MustCompile(`/Subtype\s*/Form(\b|\s|/)`).Match(body) {
+		return
+	}
+	raw, dec, ok := inspectStream(body)
+	if !ok {
+		return
+	}
+	if len(dec) == 0 {
+		dec = raw
+	}
+	out.Write(dec)
+	out.WriteByte('\n')
+
+	res := extractResourcesBody(body, objMap)
+	if len(res) == 0 {
+		return
+	}
+	for _, child := range resolveUsedXObjectRefs(dec, res) {
+		appendXObjectContentRecursive(out, child, objMap, visited)
+	}
 }
 
 func isPDFTypePage(body []byte) bool {
