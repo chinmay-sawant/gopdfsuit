@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -185,26 +186,66 @@ func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, e
 		}
 
 		for _, pos := range positions {
-			// Case-insensitive match
-			if strings.Contains(strings.ToLower(pos.Text), searchText) {
-				redactions = append(redactions, RedactionRect{
-					PageNum: i,
-					X:       pos.X,
-					Y:       pos.Y,
-					Width:   pos.Width,
-					Height:  pos.Height,
-				})
-			}
+			redactions = append(redactions, buildSubstringRects(i, pos, searchText)...)
 		}
 
 		// Fallback for PDFs that split phrases across multiple text-show operators.
-		if len(positions) > 1 && normalizedQuery != "" {
+		if len(positions) > 1 && strings.Contains(normalizedQuery, " ") {
 			if rect, ok := findCombinedMatchRect(i, positions, normalizedQuery); ok {
 				redactions = append(redactions, rect)
 			}
 		}
 	}
 	return redactions, nil
+}
+
+func buildSubstringRects(pageNum int, pos TextPosition, loweredSearch string) []RedactionRect {
+	if loweredSearch == "" || strings.TrimSpace(pos.Text) == "" {
+		return nil
+	}
+	src := []rune(strings.ToLower(pos.Text))
+	needle := []rune(loweredSearch)
+	if len(src) == 0 || len(needle) == 0 || len(needle) > len(src) {
+		return nil
+	}
+
+	charW := 0.0
+	if pos.Width > 0 {
+		charW = pos.Width / float64(len(src))
+	}
+
+	rects := make([]RedactionRect, 0, 2)
+	for i := 0; i+len(needle) <= len(src); i++ {
+		if !runeSliceEqual(src[i:i+len(needle)], needle) {
+			continue
+		}
+		x := pos.X
+		w := pos.Width
+		if charW > 0 {
+			x = pos.X + (float64(i) * charW)
+			w = float64(len(needle)) * charW
+		}
+		rects = append(rects, RedactionRect{
+			PageNum: pageNum,
+			X:       x,
+			Y:       pos.Y,
+			Width:   w,
+			Height:  pos.Height,
+		})
+	}
+	return rects
+}
+
+func runeSliceEqual(a, b []rune) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func normalizeSearchText(s string) string {
@@ -597,18 +638,6 @@ func rewriteContentStreamSecure(streamObj []byte, rects []RedactionRect, queries
 
 func scrubDecodedContent(decoded []byte, rects []RedactionRect, queries []RedactionTextQuery) ([]byte, bool) {
 	positions := parseTextOperators(decoded)
-	removeFull := map[string]struct{}{}
-
-	for _, p := range positions {
-		for _, r := range rects {
-			if rectsIntersect(p.X, p.Y, p.Width, p.Height, r.X, r.Y, r.Width, r.Height) {
-				if strings.TrimSpace(p.Text) != "" {
-					removeFull[p.Text] = struct{}{}
-				}
-				break
-			}
-		}
-	}
 
 	opRe := regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
 	src := string(decoded)
@@ -620,6 +649,7 @@ func scrubDecodedContent(decoded []byte, rects []RedactionRect, queries []Redact
 	var out strings.Builder
 	last := 0
 	changed := false
+	posIdx := 0
 
 	for _, m := range matches {
 		out.WriteString(src[last:m[0]])
@@ -632,8 +662,19 @@ func scrubDecodedContent(decoded []byte, rects []RedactionRect, queries []Redact
 		}
 
 		newText := text
-		if _, ok := removeFull[text]; ok {
-			newText = strings.Repeat(" ", len([]rune(text)))
+		if posIdx < len(positions) {
+			p := positions[posIdx]
+			if strings.TrimSpace(p.Text) != text {
+				for lookahead := posIdx + 1; lookahead < len(positions) && lookahead < posIdx+6; lookahead++ {
+					if strings.TrimSpace(positions[lookahead].Text) == text {
+						p = positions[lookahead]
+						posIdx = lookahead
+						break
+					}
+				}
+			}
+			newText = applyRectMaskToText(newText, p, rects)
+			posIdx++
 		}
 
 		for _, q := range queries {
@@ -660,6 +701,41 @@ func scrubDecodedContent(decoded []byte, rects []RedactionRect, queries []Redact
 		return decoded, false
 	}
 	return []byte(out.String()), true
+}
+
+func applyRectMaskToText(text string, pos TextPosition, rects []RedactionRect) string {
+	runes := []rune(text)
+	if len(runes) == 0 || pos.Width <= 0 {
+		return text
+	}
+	charW := pos.Width / float64(len(runes))
+	if charW <= 0 {
+		return text
+	}
+	out := append([]rune(nil), runes...)
+	for _, r := range rects {
+		if !rectsIntersect(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height) {
+			continue
+		}
+		start := int(math.Round((r.X - pos.X) / charW))
+		end := int(math.Round((r.X + r.Width - pos.X) / charW))
+		if end <= start {
+			end = start + 1
+		}
+		if start < 0 {
+			start = 0
+		}
+		if end > len(out) {
+			end = len(out)
+		}
+		if start >= end {
+			continue
+		}
+		for i := start; i < end; i++ {
+			out[i] = ' '
+		}
+	}
+	return string(out)
 }
 
 func replaceCaseInsensitiveWithSpaces(s, term string) string {
@@ -836,16 +912,9 @@ func traversePages(key string, objMap map[string][]byte, dims *[]PageDetail) err
 	}
 
 	if isPDFTypePages(body) {
-		kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
-		km := kidsRe.FindSubmatch(body)
-		if km != nil {
-			refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-			refs := refRe.FindAllSubmatch(km[1], -1)
-			for _, r := range refs {
-				kidKey := string(r[1]) + " " + string(r[2])
-				if err := traversePages(kidKey, objMap, dims); err != nil {
-					return err
-				}
+		for _, kidKey := range extractKidsRefs(body) {
+			if err := traversePages(kidKey, objMap, dims); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -921,16 +990,9 @@ func findPageObject(objMap map[string][]byte, pdfBytes []byte, targetPage int) (
 		}
 
 		if isPDFTypePages(body) {
-			kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
-			km := kidsRe.FindSubmatch(body)
-			if km != nil {
-				refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-				refs := refRe.FindAllSubmatch(km[1], -1)
-				for _, r := range refs {
-					kidKey := string(r[1]) + " " + string(r[2])
-					if err := walk(kidKey); err != nil {
-						return err
-					}
+			for _, kidKey := range extractKidsRefs(body) {
+				if err := walk(kidKey); err != nil {
+					return err
 				}
 			}
 			return nil
@@ -1007,6 +1069,23 @@ func isPDFTypePage(body []byte) bool {
 
 func isPDFTypePages(body []byte) bool {
 	return regexp.MustCompile(`/Type\s*/Pages(\b|\s|/)`).FindIndex(body) != nil
+}
+
+func extractKidsRefs(body []byte) []string {
+	refs := make([]string, 0, 4)
+	kidsArrRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
+	if m := kidsArrRe.FindSubmatch(body); m != nil {
+		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
+		for _, r := range refRe.FindAllSubmatch(m[1], -1) {
+			refs = append(refs, string(r[1])+" "+string(r[2]))
+		}
+		return refs
+	}
+	singleKidRe := regexp.MustCompile(`/Kids\s+(\d+)\s+(\d+)\s+R`)
+	if m := singleKidRe.FindSubmatch(body); m != nil {
+		refs = append(refs, string(m[1])+" "+string(m[2]))
+	}
+	return refs
 }
 
 func parseTextOperators(content []byte) []TextPosition {
