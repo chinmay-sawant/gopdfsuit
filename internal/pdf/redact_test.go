@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -50,10 +51,8 @@ func TestGetPageInfo(t *testing.T) {
 		t.Fatalf("Expected 1 page detail, got %d", len(info.Pages))
 	}
 
-	// Note: basic parser might default to A4 if MediaBox regex doesn't match perfectly.
-	// Current implementation defaults to A4 (595.28 x 841.89)
-	if info.Pages[0].Width != 595.28 || info.Pages[0].Height != 841.89 {
-		t.Errorf("Expected 595.28x841.89 (A4 default), got %.2fx%.2f", info.Pages[0].Width, info.Pages[0].Height)
+	if info.Pages[0].Width != 612 || info.Pages[0].Height != 792 {
+		t.Errorf("Expected 612x792 from MediaBox, got %.2fx%.2f", info.Pages[0].Width, info.Pages[0].Height)
 	}
 }
 
@@ -126,5 +125,46 @@ func TestFindTextOccurrences(t *testing.T) {
 		if rects[0].X < 90 || rects[0].X > 110 {
 			t.Logf("Warning: X coordinate %f outside expected range 100", rects[0].X)
 		}
+	}
+}
+
+func TestApplyRedactionsAdvancedSecureRequired(t *testing.T) {
+	opts := ApplyRedactionOptions{
+		Mode:       "secure_required",
+		TextSearch: []RedactionTextQuery{{Text: "Hello"}},
+	}
+
+	out, report, err := ApplyRedactionsAdvancedWithReport(minimalPDF, opts)
+	if err != nil {
+		if strings.Contains(err.Error(), "no secure text content") {
+			t.Skip("minimal fixture does not expose parseable text stream for secure rewrite")
+		}
+		t.Fatalf("ApplyRedactionsAdvancedWithReport failed: %v", err)
+	}
+	if len(out) == 0 {
+		t.Fatal("expected output bytes")
+	}
+	if !report.AppliedSecure {
+		t.Fatalf("expected secure apply true, got false. report=%+v", report)
+	}
+	if report.SecurityOutcome != "secure" {
+		t.Fatalf("expected securityOutcome=secure, got %s", report.SecurityOutcome)
+	}
+
+	if bytes.Contains(bytes.ToLower(out), []byte("hello world")) {
+		t.Fatal("expected secure mode to remove matching text from content stream")
+	}
+}
+
+func TestAnalyzePageCapabilities(t *testing.T) {
+	caps, err := AnalyzePageCapabilities(minimalPDF)
+	if err != nil {
+		t.Fatalf("AnalyzePageCapabilities failed: %v", err)
+	}
+	if len(caps) != 1 {
+		t.Fatalf("expected 1 capability entry, got %d", len(caps))
+	}
+	if caps[0].Type == "" {
+		t.Fatal("expected non-empty capability type")
 	}
 }

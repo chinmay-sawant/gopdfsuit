@@ -116,6 +116,7 @@ func RegisterRoutes(router *gin.Engine) {
 		// Redaction endpoints
 		v1.POST("/redact/page-info", HandleRedactPageInfo)
 		v1.POST("/redact/text-positions", HandleRedactTextPositions)
+		v1.POST("/redact/capabilities", HandleRedactCapabilities)
 		v1.POST("/redact/apply", HandleRedactApply)
 		v1.POST("/redact/search", HandleRedactSearch)
 	}

@@ -26,7 +26,10 @@ const Redaction = () => {
   const [startPos, setStartPos] = useState({ x: 0, y: 0 })
   const [currentRect, setCurrentRect] = useState(null) // {x, y, w, h} in pixels
   const [searchText, setSearchText] = useState('')
+    const [searchQueries, setSearchQueries] = useState([])
   const [isSearching, setIsSearching] = useState(false)
+    const [password, setPassword] = useState('')
+    const [mode, setMode] = useState('visual_allowed')
 
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
@@ -91,7 +94,9 @@ const Redaction = () => {
         currentPageDim = pdfPageDims.allPages[pageNumber-1]
     }
 
-    if (!renderedDims.width || !currentPageDim.width) return pixelRect
+        if (!renderedDims.width || !renderedDims.height || !currentPageDim.width || !currentPageDim.height) {
+            return null
+        }
     const sx = currentPageDim.width / renderedDims.width
     const sy = currentPageDim.height / renderedDims.height
     
@@ -110,7 +115,9 @@ const Redaction = () => {
         currentPageDim = pdfPageDims.allPages[pageNumber-1]
     }
 
-    if (!renderedDims.width || !currentPageDim.width) return pdfRect
+        if (!renderedDims.width || !renderedDims.height || !currentPageDim.width || !currentPageDim.height) {
+            return pdfRect
+        }
     const sx = renderedDims.width / currentPageDim.width
     const sy = renderedDims.height / currentPageDim.height
     
@@ -158,7 +165,12 @@ const Redaction = () => {
       return // Ignore tiny clicks
     }
 
-    const pdfRect = toPDFCoords(currentRect)
+        const pdfRect = toPDFCoords(currentRect)
+        if (!pdfRect) {
+            setError('Unable to map coordinates. Wait for the page to fully render and try again.')
+            setCurrentRect(null)
+            return
+        }
     const newRedaction = { ...pdfRect, pageNum: pageNumber }
     
     setRedactions(prev => ({
@@ -208,6 +220,11 @@ const Redaction = () => {
         } else {
             setSuccessMsg(`No occurrences found for "${searchText}"`)
         }
+        setSearchQueries(prev => {
+          const term = searchText.trim()
+          if (!term || prev.includes(term)) return prev
+          return [...prev, term]
+        })
     } catch (err) {
         setError(err.message)
     } finally {
@@ -227,7 +244,20 @@ const Redaction = () => {
       
       const formData = new FormData()
       formData.append('pdf', file)
-      formData.append('redactions', JSON.stringify(allRedactions))
+            formData.append('blocks', JSON.stringify(allRedactions))
+            formData.append('mode', mode)
+            if (password.trim()) {
+                formData.append('password', password)
+            }
+
+            const uniqueSearches = [...searchQueries]
+            const inlineSearch = searchText.trim()
+            if (inlineSearch && !uniqueSearches.includes(inlineSearch)) {
+                uniqueSearches.push(inlineSearch)
+            }
+            if (uniqueSearches.length > 0) {
+                formData.append('textSearch', JSON.stringify(uniqueSearches.map((text) => ({ text }))))
+            }
 
       const response = await makeAuthenticatedRequest('/api/v1/redact/apply', {
         method: 'POST',
@@ -263,7 +293,9 @@ const Redaction = () => {
    }
   }
 
-  const hasRedactions = Object.values(redactions).some(arr => arr && arr.length > 0)
+    const hasBlockRedactions = Object.values(redactions).some(arr => arr && arr.length > 0)
+    const hasTextCriteria = searchQueries.length > 0 || !!searchText.trim()
+    const canApply = hasBlockRedactions || hasTextCriteria
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
@@ -337,13 +369,14 @@ const Redaction = () => {
                                     pageNumber={pageNumber} 
                                     onLoadSuccess={onPageLoadSuccess}
                                     width={Math.min(800, window.innerWidth - 100)} // Responsive width
-                                    onRenderSuccess={(page) => {
-                                      // Update rendered dimensions from the DOM element
-                                      // page.width is the rendered width
-                                       // We can capture the actual rendered dimensions via refs if needed
-                                       // But Page component has `width` prop which controls it.
-                                       // Wait, onRenderSuccess returns the page *viewport*.
-                                       setRenderedDims({ width: page.width, height: page.height })
+                                                                        onRenderSuccess={() => {
+                                                                             // Read actual rendered dimensions from the overlay capture layer.
+                                                                             if (canvasRef.current) {
+                                                                                 const bounds = canvasRef.current.getBoundingClientRect()
+                                                                                 if (bounds.width > 0 && bounds.height > 0) {
+                                                                                     setRenderedDims({ width: bounds.width, height: bounds.height })
+                                                                                 }
+                                                                             }
                                     }}
                                 />
                             </Document>
@@ -417,9 +450,30 @@ const Redaction = () => {
                             <hr style={{ opacity: 0.1, margin: '1rem 0' }} />
 
                             <h3 style={{ marginBottom: '1rem' }}>Actions</h3>
+                                                        <div style={{ marginBottom: '0.75rem' }}>
+                                                            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.35rem' }}>Mode</label>
+                                                            <select
+                                                                value={mode}
+                                                                onChange={(e) => setMode(e.target.value)}
+                                                                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd', background: 'rgba(255,255,255,0.1)', color: 'inherit' }}
+                                                            >
+                                                                <option value="visual_allowed">Visual Allowed (current engine)</option>
+                                                                <option value="secure_required">Secure Required</option>
+                                                            </select>
+                                                        </div>
+                                                        <div style={{ marginBottom: '0.75rem' }}>
+                                                            <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.35rem' }}>PDF Password (optional)</label>
+                                                            <input
+                                                                type="password"
+                                                                placeholder="Enter password for encrypted PDFs"
+                                                                value={password}
+                                                                onChange={(e) => setPassword(e.target.value)}
+                                                                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd', background: 'rgba(255,255,255,0.1)', color: 'inherit' }}
+                                                            />
+                                                        </div>
                             <button 
                                 onClick={applyRedactions}
-                                disabled={isLoading || !hasRedactions}
+                                disabled={isLoading || !canApply}
                                 className="btn-glow"
                                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem' }}
                             >
@@ -428,7 +482,14 @@ const Redaction = () => {
                             </button>
                             
                             <button 
-                                onClick={() => { setFile(null); setRedactions({}); }}
+                                                                onClick={() => {
+                                                                    setFile(null)
+                                                                    setRedactions({})
+                                                                    setSearchQueries([])
+                                                                    setSearchText('')
+                                                                    setPassword('')
+                                                                    setMode('visual_allowed')
+                                                                }}
                                 className="btn-outline-glow"
                                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                             >

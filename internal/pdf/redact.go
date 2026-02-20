@@ -2,12 +2,15 @@ package pdf
 
 import (
 	"bytes"
+	"compress/zlib"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 )
 
 // PageDetail represents the dimensions of a single PDF page with its number
@@ -39,6 +42,51 @@ type RedactionRect struct {
 	Y       float64 `json:"y"`
 	Width   float64 `json:"width"`
 	Height  float64 `json:"height"`
+}
+
+// RedactionTextQuery describes text-based redaction criteria.
+type RedactionTextQuery struct {
+	Text string `json:"text"`
+}
+
+// ApplyRedactionOptions represents a unified redaction request.
+type ApplyRedactionOptions struct {
+	Blocks     []RedactionRect      `json:"blocks,omitempty"`
+	TextSearch []RedactionTextQuery `json:"textSearch,omitempty"`
+	Mode       string               `json:"mode,omitempty"`     // secure_required | visual_allowed
+	Password   string               `json:"password,omitempty"` // reserved for encrypted inputs
+	OCR        *OCRSettings         `json:"ocr,omitempty"`
+}
+
+// OCRSettings is an extension point for OCR providers.
+type OCRSettings struct {
+	Enabled  bool   `json:"enabled"`
+	Provider string `json:"provider,omitempty"`
+	Language string `json:"language,omitempty"`
+}
+
+// PageCapability describes whether a page contains text or image-like content.
+type PageCapability struct {
+	PageNum   int    `json:"pageNum"`
+	Type      string `json:"type"` // text | image_only | mixed | unknown
+	HasText   bool   `json:"hasText"`
+	HasImage  bool   `json:"hasImage"`
+	OCREnable bool   `json:"ocrEnabled"`
+	Note      string `json:"note,omitempty"`
+}
+
+// RedactionApplyReport provides explicit safety/capability metadata.
+type RedactionApplyReport struct {
+	Mode              string           `json:"mode"`
+	SecurityOutcome   string           `json:"securityOutcome"` // secure|visual_only|failed
+	AppliedSecure     bool             `json:"appliedSecure"`
+	AppliedVisual     bool             `json:"appliedVisual"`
+	GeneratedRects    int              `json:"generatedRects"`
+	AppliedRectangles int              `json:"appliedRectangles"`
+	MatchedTextCount  int              `json:"matchedTextCount"`
+	Capabilities      []PageCapability `json:"capabilities,omitempty"`
+	UnsupportedPages  []int            `json:"unsupportedPages,omitempty"`
+	Warnings          []string         `json:"warnings,omitempty"`
 }
 
 // GetPageInfo extracts page count and dimensions from a PDF
@@ -126,6 +174,7 @@ func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, e
 	}
 
 	var redactions []RedactionRect
+	normalizedQuery := normalizeSearchText(searchText)
 	searchText = strings.ToLower(searchText)
 
 	for i := 1; i <= info.TotalPages; i++ {
@@ -147,8 +196,505 @@ func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, e
 				})
 			}
 		}
+
+		// Fallback for PDFs that split phrases across multiple text-show operators.
+		if len(positions) > 1 && normalizedQuery != "" {
+			if rect, ok := findCombinedMatchRect(i, positions, normalizedQuery); ok {
+				redactions = append(redactions, rect)
+			}
+		}
 	}
 	return redactions, nil
+}
+
+func normalizeSearchText(s string) string {
+	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), " ")
+}
+
+func findCombinedMatchRect(pageNum int, positions []TextPosition, normalizedQuery string) (RedactionRect, bool) {
+	ordered := append([]TextPosition(nil), positions...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if ordered[i].Y == ordered[j].Y {
+			return ordered[i].X < ordered[j].X
+		}
+		return ordered[i].Y > ordered[j].Y
+	})
+
+	for i := 0; i < len(ordered); i++ {
+		joined := ""
+		minX := ordered[i].X
+		minY := ordered[i].Y
+		maxX := ordered[i].X + ordered[i].Width
+		maxY := ordered[i].Y + ordered[i].Height
+
+		for j := i; j < len(ordered) && j < i+24; j++ {
+			part := strings.TrimSpace(ordered[j].Text)
+			if part == "" {
+				continue
+			}
+			if joined == "" {
+				joined = part
+			} else {
+				joined += " " + part
+			}
+
+			if ordered[j].X < minX {
+				minX = ordered[j].X
+			}
+			if ordered[j].Y < minY {
+				minY = ordered[j].Y
+			}
+			if x := ordered[j].X + ordered[j].Width; x > maxX {
+				maxX = x
+			}
+			if y := ordered[j].Y + ordered[j].Height; y > maxY {
+				maxY = y
+			}
+
+			if strings.Contains(normalizeSearchText(joined), normalizedQuery) {
+				return RedactionRect{
+					PageNum: pageNum,
+					X:       minX,
+					Y:       minY,
+					Width:   maxX - minX,
+					Height:  maxY - minY,
+				}, true
+			}
+		}
+	}
+
+	return RedactionRect{}, false
+}
+
+// ApplyRedactionsAdvanced applies a unified redaction request.
+// Current implementation supports visual overlay redactions only.
+func ApplyRedactionsAdvanced(pdfBytes []byte, opts ApplyRedactionOptions) ([]byte, error) {
+	out, _, err := ApplyRedactionsAdvancedWithReport(pdfBytes, opts)
+	return out, err
+}
+
+// ApplyRedactionsAdvancedWithReport applies redactions and returns an execution report.
+func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, opts ApplyRedactionOptions) ([]byte, RedactionApplyReport, error) {
+	if len(pdfBytes) == 0 {
+		return nil, RedactionApplyReport{}, errors.New("empty pdf bytes")
+	}
+
+	report := RedactionApplyReport{
+		Mode:            "visual_allowed",
+		SecurityOutcome: "visual_only",
+	}
+
+	mode := strings.TrimSpace(strings.ToLower(opts.Mode))
+	if mode == "" {
+		mode = "visual_allowed"
+	}
+	report.Mode = mode
+	if mode != "visual_allowed" && mode != "secure_required" {
+		return nil, report, errors.New("invalid mode: expected visual_allowed or secure_required")
+	}
+
+	if trailerHasEncrypt(pdfBytes) {
+		dec, err := decryptEncryptedPDFBytes(pdfBytes, opts.Password)
+		if err != nil {
+			return nil, report, err
+		}
+		pdfBytes = dec
+		report.Warnings = append(report.Warnings, "input PDF was decrypted using in-house pipeline and output is emitted decrypted")
+	}
+
+	caps, capErr := AnalyzePageCapabilities(pdfBytes)
+	if capErr == nil {
+		report.Capabilities = caps
+	}
+
+	if opts.OCR != nil && opts.OCR.Enabled {
+		report.Warnings = append(report.Warnings, "OCR requested but no OCR provider is configured; this is an extension hook")
+	}
+
+	all := make([]RedactionRect, 0, len(opts.Blocks)+8)
+	all = append(all, opts.Blocks...)
+
+	for _, q := range opts.TextSearch {
+		query := strings.TrimSpace(q.Text)
+		if query == "" {
+			continue
+		}
+		rects, err := FindTextOccurrences(pdfBytes, query)
+		if err != nil {
+			return nil, report, err
+		}
+		all = append(all, rects...)
+		report.MatchedTextCount += len(rects)
+	}
+
+	if opts.OCR != nil && opts.OCR.Enabled {
+		ocrRects, err := runOCRSearch(pdfBytes, opts.TextSearch, *opts.OCR)
+		if err != nil {
+			report.Warnings = append(report.Warnings, "OCR fallback error: "+err.Error())
+		} else {
+			all = append(all, ocrRects...)
+			report.MatchedTextCount += len(ocrRects)
+		}
+	}
+	report.GeneratedRects = len(all)
+	workingPDF := pdfBytes
+
+	// In visual mode, still attempt secure content rewriting as best-effort.
+	// If it works, we get both searchable-text removal and visual overlays.
+	if mode == "visual_allowed" && len(all) > 0 {
+		secureOut, secureChanged, secureWarns, err := applySecureContentRedactions(workingPDF, all, opts.TextSearch)
+		report.Warnings = append(report.Warnings, secureWarns...)
+		if err != nil {
+			report.Warnings = append(report.Warnings, "best-effort secure removal skipped: "+err.Error())
+		} else if secureChanged {
+			workingPDF = secureOut
+			report.AppliedSecure = true
+			report.SecurityOutcome = "secure"
+		}
+	}
+
+	if mode == "secure_required" {
+		secureOut, secureChanged, secureWarns, err := applySecureContentRedactions(workingPDF, all, opts.TextSearch)
+		report.Warnings = append(report.Warnings, secureWarns...)
+		if err != nil {
+			report.SecurityOutcome = "failed"
+			return nil, report, err
+		}
+		if !secureChanged {
+			report.SecurityOutcome = "failed"
+			return nil, report, errors.New("secure_required requested but no secure text content could be removed")
+		}
+		visualOut, err := ApplyRedactions(secureOut, all)
+		if err != nil {
+			report.SecurityOutcome = "failed"
+			return nil, report, err
+		}
+		report.AppliedSecure = true
+		report.AppliedVisual = true
+		report.SecurityOutcome = "secure"
+		report.AppliedRectangles = len(all)
+		return visualOut, report, nil
+	}
+
+	out, err := ApplyRedactions(workingPDF, all)
+	if err != nil {
+		report.SecurityOutcome = "failed"
+		return nil, report, err
+	}
+	report.AppliedVisual = true
+	report.AppliedRectangles = len(all)
+	return out, report, nil
+}
+
+// AnalyzePageCapabilities classifies each page for text/image redaction capability.
+func AnalyzePageCapabilities(pdfBytes []byte) ([]PageCapability, error) {
+	objMap, err := buildObjectMap(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	info, err := GetPageInfo(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	caps := make([]PageCapability, 0, info.TotalPages)
+	for i := 1; i <= info.TotalPages; i++ {
+		pageRef, err := findPageObject(objMap, pdfBytes, i)
+		if err != nil {
+			caps = append(caps, PageCapability{PageNum: i, Type: "unknown", Note: err.Error()})
+			continue
+		}
+		body := objMap[pageRef]
+		keys := extractContentKeys(body)
+		hasText := false
+		hasImage := false
+		for _, key := range keys {
+			objBody, ok := objMap[key]
+			if !ok {
+				continue
+			}
+			rawStream, decStream, _ := inspectStream(objBody)
+			combined := append(rawStream, decStream...)
+			s := string(combined)
+			if strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ")) {
+				hasText = true
+			}
+			if strings.Contains(s, " Do") || bytesIndex(objBody, []byte("/Image")) >= 0 {
+				hasImage = true
+			}
+		}
+		if len(keys) == 0 {
+			content, _ := extractPageContent(body, objMap)
+			s := string(content)
+			hasText = strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ"))
+			hasImage = strings.Contains(s, " Do") || bytesIndex(body, []byte("/Image")) >= 0
+		}
+		typeName := "unknown"
+		switch {
+		case hasText && hasImage:
+			typeName = "mixed"
+		case hasText:
+			typeName = "text"
+		case hasImage:
+			typeName = "image_only"
+		}
+		cap := PageCapability{PageNum: i, Type: typeName, HasText: hasText, HasImage: hasImage}
+		if typeName == "image_only" {
+			cap.Note = "text search requires OCR for image-only content"
+		}
+		caps = append(caps, cap)
+	}
+	return caps, nil
+}
+
+func applySecureContentRedactions(pdfBytes []byte, redactions []RedactionRect, queries []RedactionTextQuery) ([]byte, bool, []string, error) {
+	objMap, err := buildObjectMap(pdfBytes)
+	if err != nil {
+		return nil, false, nil, err
+	}
+
+	redactionsByPage := make(map[int][]RedactionRect)
+	for _, r := range redactions {
+		redactionsByPage[r.PageNum] = append(redactionsByPage[r.PageNum], r)
+	}
+	if len(redactionsByPage) == 0 && len(queries) > 0 {
+		if info, err := GetPageInfo(pdfBytes); err == nil {
+			for i := 1; i <= info.TotalPages; i++ {
+				redactionsByPage[i] = nil
+			}
+		}
+	}
+
+	var warnings []string
+	changedAny := false
+
+	for pageNum, rects := range redactionsByPage {
+		pageRef, err := findPageObject(objMap, pdfBytes, pageNum)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("page %d: %v", pageNum, err))
+			continue
+		}
+		pageBody := objMap[pageRef]
+		keys := extractContentKeys(pageBody)
+		if len(keys) == 0 {
+			warnings = append(warnings, fmt.Sprintf("page %d: no content streams", pageNum))
+			continue
+		}
+
+		for _, key := range keys {
+			objBody, ok := objMap[key]
+			if !ok {
+				continue
+			}
+			updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("stream %s: %v", key, err))
+				continue
+			}
+			if changed {
+				objMap[key] = updated
+				changedAny = true
+			}
+		}
+	}
+
+	out, err := rebuildPDF(objMap, pdfBytes)
+	if err != nil {
+		return nil, false, warnings, err
+	}
+
+	return out, changedAny, warnings, nil
+}
+
+func inspectStream(streamObj []byte) ([]byte, []byte, bool) {
+	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	loc := streamRe.FindSubmatchIndex(streamObj)
+	if loc == nil {
+		return nil, nil, false
+	}
+	raw := streamObj[loc[2]:loc[3]]
+	if bytesIndex(streamObj, []byte("/FlateDecode")) >= 0 {
+		if d, err := tryFlateDecompress(raw); err == nil {
+			return raw, d, true
+		}
+		if d, err := tryZlibDecompress(raw); err == nil {
+			return raw, d, true
+		}
+	}
+	return raw, raw, true
+}
+
+func extractContentKeys(pageBody []byte) []string {
+	contentsRe := regexp.MustCompile(`/Contents\s+(?:(\d+)\s+(\d+)\s+R|\[(.*?)\])`)
+	match := contentsRe.FindSubmatch(pageBody)
+	if match == nil {
+		return nil
+	}
+	var keys []string
+	if len(match[1]) > 0 {
+		keys = append(keys, string(match[1])+" "+string(match[2]))
+		return keys
+	}
+	if len(match[3]) > 0 {
+		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
+		refs := refRe.FindAllSubmatch(match[3], -1)
+		for _, r := range refs {
+			keys = append(keys, string(r[1])+" "+string(r[2]))
+		}
+	}
+	return keys
+}
+
+func rewriteContentStreamSecure(streamObj []byte, rects []RedactionRect, queries []RedactionTextQuery) ([]byte, bool, error) {
+	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	loc := streamRe.FindSubmatchIndex(streamObj)
+	if loc == nil {
+		return streamObj, false, nil
+	}
+	raw := streamObj[loc[2]:loc[3]]
+
+	decoded := raw
+	compressed := false
+	if bytesIndex(streamObj, []byte("/FlateDecode")) >= 0 {
+		if d, err := tryFlateDecompress(raw); err == nil {
+			decoded = d
+			compressed = true
+		} else if d, err := tryZlibDecompress(raw); err == nil {
+			decoded = d
+			compressed = true
+		} else {
+			return streamObj, false, errors.New("unable to decode flate stream")
+		}
+	}
+
+	newDecoded, changed := scrubDecodedContent(decoded, rects, queries)
+	if !changed {
+		return streamObj, false, nil
+	}
+
+	encoded := newDecoded
+	if compressed {
+		var buf bytes.Buffer
+		zw := zlib.NewWriter(&buf)
+		if _, err := zw.Write(newDecoded); err != nil {
+			return nil, false, err
+		}
+		if err := zw.Close(); err != nil {
+			return nil, false, err
+		}
+		encoded = buf.Bytes()
+	}
+
+	newObj := make([]byte, 0, len(streamObj)+64)
+	newObj = append(newObj, streamObj[:loc[2]]...)
+	newObj = append(newObj, encoded...)
+	newObj = append(newObj, streamObj[loc[3]:]...)
+
+	lenRe := regexp.MustCompile(`/Length\s+\d+`)
+	newObj = lenRe.ReplaceAll(newObj, []byte(fmt.Sprintf("/Length %d", len(encoded))))
+
+	return newObj, true, nil
+}
+
+func scrubDecodedContent(decoded []byte, rects []RedactionRect, queries []RedactionTextQuery) ([]byte, bool) {
+	positions := parseTextOperators(decoded)
+	removeFull := map[string]struct{}{}
+
+	for _, p := range positions {
+		for _, r := range rects {
+			if rectsIntersect(p.X, p.Y, p.Width, p.Height, r.X, r.Y, r.Width, r.Height) {
+				if strings.TrimSpace(p.Text) != "" {
+					removeFull[p.Text] = struct{}{}
+				}
+				break
+			}
+		}
+	}
+
+	opRe := regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
+	src := string(decoded)
+	matches := opRe.FindAllStringIndex(src, -1)
+	if len(matches) == 0 {
+		return decoded, false
+	}
+
+	var out strings.Builder
+	last := 0
+	changed := false
+
+	for _, m := range matches {
+		out.WriteString(src[last:m[0]])
+		op := src[m[0]:m[1]]
+		text := strings.TrimSpace(extractTextFromOperator(op))
+		if text == "" {
+			out.WriteString(op)
+			last = m[1]
+			continue
+		}
+
+		newText := text
+		if _, ok := removeFull[text]; ok {
+			newText = strings.Repeat(" ", len([]rune(text)))
+		}
+
+		for _, q := range queries {
+			term := strings.TrimSpace(q.Text)
+			if term == "" {
+				continue
+			}
+			newText = replaceCaseInsensitiveWithSpaces(newText, term)
+		}
+
+		if newText != text {
+			changed = true
+			out.WriteString("(")
+			out.WriteString(escapePDFTextLiteral(newText))
+			out.WriteString(") Tj")
+		} else {
+			out.WriteString(op)
+		}
+		last = m[1]
+	}
+
+	out.WriteString(src[last:])
+	if !changed {
+		return decoded, false
+	}
+	return []byte(out.String()), true
+}
+
+func replaceCaseInsensitiveWithSpaces(s, term string) string {
+	if term == "" {
+		return s
+	}
+	lower := strings.ToLower(s)
+	target := strings.ToLower(term)
+	if !strings.Contains(lower, target) {
+		return s
+	}
+	b := []rune(s)
+	lr := []rune(lower)
+	tr := []rune(target)
+	for i := 0; i+len(tr) <= len(lr); {
+		if string(lr[i:i+len(tr)]) == string(tr) {
+			for j := i; j < i+len(tr); j++ {
+				b[j] = ' '
+				lr[j] = ' '
+			}
+			i += len(tr)
+			continue
+		}
+		i++
+	}
+	return string(b)
+}
+
+func escapePDFTextLiteral(s string) string {
+	replacer := strings.NewReplacer("\\", "\\\\", "(", "\\(", ")", "\\)")
+	return replacer.Replace(s)
+}
+
+func rectsIntersect(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
+	return x1 < x2+w2 && x1+w1 > x2 && y1 < y2+h2 && y1+h1 > y2
 }
 
 // ApplyRedactions applies visual redaction rectangles to the PDF
@@ -222,8 +768,62 @@ func buildObjectMap(pdfBytes []byte) (map[string][]byte, error) {
 	matches := objRe.FindAllSubmatch(pdfBytes, -1)
 	for _, m := range matches {
 		key := string(m[1]) + " " + string(m[2])
-		objMap[key] = m[3]
+		body := m[3]
+
+		// Expand object streams so downstream page/content lookups work on modern PDFs.
+		if bytesIndex(body, []byte("/ObjStm")) >= 0 || bytesIndex(body, []byte("/Type/ObjStm")) >= 0 {
+			streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+			if sm := streamRe.FindSubmatch(body); sm != nil {
+				streamBytes := sm[1]
+				var dec []byte
+				if d, err := tryZlibDecompress(streamBytes); err == nil {
+					dec = d
+				} else if d, err := tryFlateDecompress(streamBytes); err == nil {
+					dec = d
+				}
+				if dec != nil {
+					firstRe := regexp.MustCompile(`/First\s+(\d+)`)
+					first := 0
+					if fm := firstRe.FindSubmatch(body); fm != nil {
+						if _, err := fmt.Sscanf(string(fm[1]), "%d", &first); err != nil {
+							first = 0
+						}
+					}
+					if first > 0 && first < len(dec) {
+						header := strings.TrimSpace(string(dec[:first]))
+						parts := strings.Fields(header)
+						content := dec[first:]
+						for i := 0; i+1 < len(parts); i += 2 {
+							var objNum, off int
+							if _, err := fmt.Sscanf(parts[i], "%d", &objNum); err != nil {
+								continue
+							}
+							if _, err := fmt.Sscanf(parts[i+1], "%d", &off); err != nil {
+								continue
+							}
+							end := len(content)
+							for j := i + 2; j+1 < len(parts); j += 2 {
+								var nextOff int
+								if _, err := fmt.Sscanf(parts[j+1], "%d", &nextOff); err == nil {
+									end = nextOff
+									break
+								}
+							}
+							if off < 0 || off >= len(content) || end <= off || end > len(content) {
+								continue
+							}
+							objMap[fmt.Sprintf("%d 0", objNum)] = content[off:end]
+						}
+						objMap[key] = body
+						continue
+					}
+				}
+			}
+		}
+
+		objMap[key] = body
 	}
+	parseXRefStreams(pdfBytes, objMap)
 	// TODO: Handle linearization/incremental updates or object streams if needed.
 	// For now, this assumes standard PDF structure.
 	return objMap, nil
@@ -235,19 +835,7 @@ func traversePages(key string, objMap map[string][]byte, dims *[]PageDetail) err
 		return nil
 	}
 
-	if bytesIndex(body, []byte("/Type /Page")) >= 0 || bytesIndex(body, []byte("/Type/Page")) >= 0 {
-		mediaBox := extractMediaBox(body, objMap)
-		width := mediaBox[2] - mediaBox[0]
-		height := mediaBox[3] - mediaBox[1]
-		*dims = append(*dims, PageDetail{
-			PageNum: len(*dims) + 1,
-			Width:   width,
-			Height:  height,
-		})
-		return nil
-	}
-
-	if bytesIndex(body, []byte("/Type /Pages")) >= 0 || bytesIndex(body, []byte("/Type/Pages")) >= 0 {
+	if isPDFTypePages(body) {
 		kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
 		km := kidsRe.FindSubmatch(body)
 		if km != nil {
@@ -262,6 +850,19 @@ func traversePages(key string, objMap map[string][]byte, dims *[]PageDetail) err
 		}
 		return nil
 	}
+
+	if isPDFTypePage(body) {
+		mediaBox := extractMediaBox(body, objMap)
+		width := mediaBox[2] - mediaBox[0]
+		height := mediaBox[3] - mediaBox[1]
+		*dims = append(*dims, PageDetail{
+			PageNum: len(*dims) + 1,
+			Width:   width,
+			Height:  height,
+		})
+		return nil
+	}
+
 	return nil
 }
 
@@ -319,15 +920,7 @@ func findPageObject(objMap map[string][]byte, pdfBytes []byte, targetPage int) (
 			return nil
 		}
 
-		if bytesIndex(body, []byte("/Type /Page")) >= 0 || bytesIndex(body, []byte("/Type/Page")) >= 0 {
-			currentPage++
-			if currentPage == targetPage {
-				foundKey = key
-			}
-			return nil
-		}
-
-		if bytesIndex(body, []byte("/Type /Pages")) >= 0 || bytesIndex(body, []byte("/Type/Pages")) >= 0 {
+		if isPDFTypePages(body) {
 			kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
 			km := kidsRe.FindSubmatch(body)
 			if km != nil {
@@ -340,6 +933,15 @@ func findPageObject(objMap map[string][]byte, pdfBytes []byte, targetPage int) (
 					}
 				}
 			}
+			return nil
+		}
+
+		if isPDFTypePage(body) {
+			currentPage++
+			if currentPage == targetPage {
+				foundKey = key
+			}
+			return nil
 		}
 		return nil
 	}
@@ -399,65 +1001,70 @@ func extractPageContent(pageBody []byte, objMap map[string][]byte) ([]byte, erro
 	return fullContent.Bytes(), nil
 }
 
+func isPDFTypePage(body []byte) bool {
+	return regexp.MustCompile(`/Type\s*/Page(\b|\s|/)`).FindIndex(body) != nil && !isPDFTypePages(body)
+}
+
+func isPDFTypePages(body []byte) bool {
+	return regexp.MustCompile(`/Type\s*/Pages(\b|\s|/)`).FindIndex(body) != nil
+}
+
 func parseTextOperators(content []byte) []TextPosition {
-	// Very basic parser.
-	// Iterate through content, find BT ... ET blocks.
-	// Inside block, track Tm, and text showing operators.
 	var positions []TextPosition
 
 	strContent := string(content)
-	// tokens := strings.Fields(strContent) // Unused
-	// Use slightly better tokenizer or regex?
-	// Regex is safer for "(...)" strings.
-
-	// Extract BT...ET blocks first
 	btEtRe := regexp.MustCompile(`(?s)BT(.*?)ET`)
 	blocks := btEtRe.FindAllStringSubmatch(strContent, -1)
+	tmRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+Tm`)
+	tdRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+Td`)
+	tfRe := regexp.MustCompile(`/[A-Za-z0-9_.+-]+\s+([\d.-]+)\s+Tf`)
+	opRe := regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
 
 	for _, block := range blocks {
 		inner := block[1]
-
-		// Regex to find text showing operators: (string) Tj or [(string) 10 (string)] TJ
-		// and positioning: Tx Ty Td or a b c d e f Tm
-		// Note: Text matrix Tm is [a b 0 0 e f]. (e, f) = (x, y).
-		// Td is relative move.
-
-		// Simplified scan: look for (text) Tj and try to find preceding Tm or Td
-		// This is heuristic and won't match complex layout perfectly.
-
-		// Find strings: \( ( [^)]* ) \) \s* Tj
-		tjRe := regexp.MustCompile(`\(([^)]*)\)\s*Tj`)
-		matches := tjRe.FindAllStringSubmatchIndex(inner, -1)
-
 		currentX, currentY := 0.0, 0.0
+		currentFontSize := 10.0
+		for _, m := range opRe.FindAllStringIndex(inner, -1) {
+			op := inner[m[0]:m[1]]
+			prefix := inner[:m[0]]
 
-		// Find last Tm or Td before this match
-		for _, m := range matches {
-			text := m[2] // index of text content
-			startPos := m[0]
-
-			// Look backwards for Tm or Td
-			preceding := inner[:startPos]
-
-			// Find last Tm: 6 numbers followed by Tm
-			tmRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+Tm`)
-			tmMatches := tmRe.FindAllStringSubmatch(preceding, -1)
+			tmMatches := tmRe.FindAllStringSubmatch(prefix, -1)
 			if len(tmMatches) > 0 {
 				lastTm := tmMatches[len(tmMatches)-1]
 				currentX, _ = strconv.ParseFloat(lastTm[5], 64)
 				currentY, _ = strconv.ParseFloat(lastTm[6], 64)
 			}
+			tdMatches := tdRe.FindAllStringSubmatch(prefix, -1)
+			if len(tdMatches) > 0 {
+				lastTd := tdMatches[len(tdMatches)-1]
+				dx, _ := strconv.ParseFloat(lastTd[1], 64)
+				dy, _ := strconv.ParseFloat(lastTd[2], 64)
+				currentX += dx
+				currentY += dy
+			}
+			tfMatches := tfRe.FindAllStringSubmatch(prefix, -1)
+			if len(tfMatches) > 0 {
+				if fs, err := strconv.ParseFloat(tfMatches[len(tfMatches)-1][1], 64); err == nil && fs > 0 {
+					currentFontSize = fs
+				}
+			}
 
-			textStr := inner[text:m[3]]
-
-			// Estimate width (heuristic: 5 points per char if font info missing)
-			width := float64(len(textStr)) * 5.0
-			height := 10.0 // heuristic
-
+			textStr := strings.TrimSpace(extractTextFromOperator(op))
+			if textStr == "" {
+				continue
+			}
+			height := currentFontSize
+			if height < 8 {
+				height = 8
+			}
+			width := float64(len([]rune(textStr))) * currentFontSize * 0.52
+			if width < currentFontSize {
+				width = currentFontSize
+			}
 			positions = append(positions, TextPosition{
 				Text:   textStr,
 				X:      currentX,
-				Y:      currentY,
+				Y:      currentY - (0.25 * height),
 				Width:  width,
 				Height: height,
 			})
@@ -465,6 +1072,175 @@ func parseTextOperators(content []byte) []TextPosition {
 	}
 
 	return positions
+}
+
+func extractTextFromOperator(op string) string {
+	op = strings.TrimSpace(op)
+	switch {
+	case strings.HasSuffix(op, "TJ"):
+		start := strings.Index(op, "[")
+		end := strings.LastIndex(op, "]")
+		if start == -1 || end == -1 || end <= start {
+			return ""
+		}
+		return decodeTJArray(op[start+1 : end])
+	case strings.HasSuffix(op, "\""):
+		idx := strings.Index(op, "(")
+		if idx == -1 {
+			return ""
+		}
+		if lit, ok := readPDFLiteral(op[idx:]); ok {
+			return decodePDFLiteral(lit)
+		}
+	case strings.HasSuffix(op, "Tj") || strings.HasSuffix(op, "'"):
+		op = strings.TrimSpace(strings.TrimSuffix(op, "Tj"))
+		op = strings.TrimSpace(strings.TrimSuffix(op, "'"))
+		if strings.HasPrefix(op, "(") {
+			if lit, ok := readPDFLiteral(op); ok {
+				return decodePDFLiteral(lit)
+			}
+		}
+		if strings.HasPrefix(op, "<") && strings.HasSuffix(op, ">") {
+			return decodePDFHexLiteral(strings.TrimSuffix(strings.TrimPrefix(op, "<"), ">"))
+		}
+	}
+	return ""
+}
+
+func decodeTJArray(arr string) string {
+	var out strings.Builder
+	for i := 0; i < len(arr); {
+		switch arr[i] {
+		case '(':
+			lit, next, ok := readPDFLiteralAt(arr, i)
+			if !ok {
+				i++
+				continue
+			}
+			out.WriteString(decodePDFLiteral(lit))
+			i = next
+		case '<':
+			j := i + 1
+			for j < len(arr) && arr[j] != '>' {
+				j++
+			}
+			if j < len(arr) {
+				out.WriteString(decodePDFHexLiteral(arr[i+1 : j]))
+				i = j + 1
+			} else {
+				i++
+			}
+		default:
+			i++
+		}
+	}
+	return out.String()
+}
+
+func readPDFLiteral(op string) (string, bool) {
+	lit, _, ok := readPDFLiteralAt(op, 0)
+	return lit, ok
+}
+
+func readPDFLiteralAt(s string, start int) (string, int, bool) {
+	if start >= len(s) || s[start] != '(' {
+		return "", start, false
+	}
+	depth := 1
+	esc := false
+	for i := start + 1; i < len(s); i++ {
+		ch := s[i]
+		if esc {
+			esc = false
+			continue
+		}
+		if ch == '\\' {
+			esc = true
+			continue
+		}
+		if ch == '(' {
+			depth++
+			continue
+		}
+		if ch == ')' {
+			depth--
+			if depth == 0 {
+				return s[start+1 : i], i + 1, true
+			}
+		}
+	}
+	return "", start, false
+}
+
+func decodePDFLiteral(s string) string {
+	var out bytes.Buffer
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' {
+			out.WriteByte(s[i])
+			continue
+		}
+		i++
+		if i >= len(s) {
+			break
+		}
+		switch s[i] {
+		case 'n':
+			out.WriteByte('\n')
+		case 'r':
+			out.WriteByte('\r')
+		case 't':
+			out.WriteByte('\t')
+		case 'b':
+			out.WriteByte('\b')
+		case 'f':
+			out.WriteByte('\f')
+		case '\\', '(', ')':
+			out.WriteByte(s[i])
+		case '\n', '\r':
+			// line continuation; skip
+		default:
+			if s[i] >= '0' && s[i] <= '7' {
+				val := int(s[i] - '0')
+				for k := 0; k < 2 && i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '7'; k++ {
+					i++
+					val = (val * 8) + int(s[i]-'0')
+				}
+				out.WriteByte(byte(val))
+			} else {
+				out.WriteByte(s[i])
+			}
+		}
+	}
+	return out.String()
+}
+
+func decodePDFHexLiteral(hexText string) string {
+	hexText = strings.TrimSpace(hexText)
+	if hexText == "" {
+		return ""
+	}
+	if len(hexText)%2 != 0 {
+		hexText += "0"
+	}
+	b, err := hex.DecodeString(hexText)
+	if err != nil || len(b) == 0 {
+		return ""
+	}
+	if len(b) >= 2 && b[0] == 0xFE && b[1] == 0xFF {
+		u16 := make([]uint16, 0, (len(b)-2)/2)
+		for i := 2; i+1 < len(b); i += 2 {
+			u16 = append(u16, (uint16(b[i])<<8)|uint16(b[i+1]))
+		}
+		return string(utf16.Decode(u16))
+	}
+	if len(b) >= 2 && b[0] == 0xFF && b[1] == 0xFE {
+		u16 := make([]uint16, 0, (len(b)-2)/2)
+		for i := 2; i+1 < len(b); i += 2 {
+			u16 = append(u16, (uint16(b[i+1])<<8)|uint16(b[i]))
+		}
+		return string(utf16.Decode(u16))
+	}
+	return string(b)
 }
 
 func appendStreamToPage(pageBody []byte, streamKey string) []byte {

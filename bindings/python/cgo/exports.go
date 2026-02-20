@@ -313,6 +313,34 @@ func ExtractTextPositions(pdfData *C.char, pdfLen C.int, pageNum C.int) C.ByteRe
 	return result
 }
 
+// FindTextOccurrences searches for text and returns redaction candidate rectangles.
+// The caller must free the result using FreeBytesResult.
+//
+//export FindTextOccurrences
+func FindTextOccurrences(pdfData *C.char, pdfLen C.int, searchText *C.char) C.ByteResult {
+	var result C.ByteResult
+
+	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
+	text := C.GoString(searchText)
+	rects, err := gopdflib.FindTextOccurrences(pdfBytes, text)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	rectsJSON, err := json.Marshal(rects)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	result.length = C.int(len(rectsJSON))
+	result.data = (*C.char)(C.malloc(C.size_t(len(rectsJSON))))
+	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&rectsJSON[0]), C.size_t(len(rectsJSON)))
+
+	return result
+}
+
 // ApplyRedactions applies redaction rectangles to the PDF.
 // The caller must free the result using FreeBytesResult.
 //
@@ -330,6 +358,35 @@ func ApplyRedactions(pdfData *C.char, pdfLen C.int, redactionsJSON *C.char) C.By
 	}
 
 	out, err := gopdflib.ApplyRedactions(pdfBytes, redactions)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	result.length = C.int(len(out))
+	result.data = (*C.char)(C.malloc(C.size_t(len(out))))
+	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&out[0]), C.size_t(len(out)))
+
+	return result
+}
+
+// ApplyRedactionsAdvanced applies a unified redaction request to the PDF.
+// The caller must free the result using FreeBytesResult.
+//
+//export ApplyRedactionsAdvanced
+func ApplyRedactionsAdvanced(pdfData *C.char, pdfLen C.int, optionsJSON *C.char) C.ByteResult {
+	var result C.ByteResult
+
+	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
+	optionsStr := C.GoString(optionsJSON)
+
+	var options gopdflib.ApplyRedactionOptions
+	if err := json.Unmarshal([]byte(optionsStr), &options); err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	out, err := gopdflib.ApplyRedactionsAdvanced(pdfBytes, options)
 	if err != nil {
 		result.error = C.CString(err.Error())
 		return result

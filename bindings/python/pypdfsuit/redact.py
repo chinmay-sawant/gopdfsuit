@@ -77,3 +77,55 @@ def apply_redactions(pdf_data: bytes, redactions: list[dict]) -> bytes:
         len(pdf_data),
         redactions_json
     )
+
+def find_text_occurrences(pdf_data: bytes, text: str) -> list[dict]:
+    """
+    Find text occurrences and return candidate redaction rectangles.
+
+    Args:
+        pdf_data: The PDF content as bytes
+        text: Search text
+
+    Returns:
+        list[dict]: Redaction rectangles (pageNum, x, y, width, height)
+    """
+    if not pdf_data:
+        raise ValueError("PDF data cannot be empty")
+
+    lib = get_lib()
+    result_bytes = call_bytes_result(
+        lib.FindTextOccurrences,
+        pdf_data,
+        len(pdf_data),
+        text.encode("utf-8"),
+    )
+
+    return json.loads(result_bytes)
+
+def apply_redactions_advanced(pdf_data: bytes, options: dict) -> bytes:
+    """
+    Apply a unified redaction request.
+
+    Args:
+        pdf_data: The PDF content as bytes
+        options: Dictionary with optional keys:
+            - blocks: list[dict]
+            - textSearch: list[dict] e.g. [{"text": "secret"}]
+            - mode: "visual_allowed" or "secure_required"
+            - password: string
+
+    Returns:
+        bytes: The redacted PDF content
+    """
+    if not pdf_data:
+        raise ValueError("PDF data cannot be empty")
+
+    options_json = json.dumps(options).encode("utf-8")
+
+    lib = get_lib()
+    return call_bytes_result(
+        lib.ApplyRedactionsAdvanced,
+        pdf_data,
+        len(pdf_data),
+        options_json,
+    )

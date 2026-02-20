@@ -126,9 +126,17 @@ def _load_library():
     lib.ExtractTextPositions.argtypes = [c_char_p, c_int, c_int]
     lib.ExtractTextPositions.restype = ByteResult
 
+    # FindTextOccurrences
+    lib.FindTextOccurrences.argtypes = [c_char_p, c_int, c_char_p]
+    lib.FindTextOccurrences.restype = ByteResult
+
     # ApplyRedactions
     lib.ApplyRedactions.argtypes = [c_char_p, c_int, c_char_p]
     lib.ApplyRedactions.restype = ByteResult
+
+    # ApplyRedactionsAdvanced
+    lib.ApplyRedactionsAdvanced.argtypes = [c_char_p, c_int, c_char_p]
+    lib.ApplyRedactionsAdvanced.restype = ByteResult
 
     # FreeBytesResult
     lib.FreeBytesResult.argtypes = [ByteResult]
