@@ -1,0 +1,490 @@
+
+import { useState, useRef } from 'react'
+import { Document, Page, pdfjs } from 'react-pdf'
+import { Upload, Download, Eraser, Trash2, ChevronLeft, ChevronRight, AlertCircle, Check, Search } from 'lucide-react'
+import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { useAuth } from '../contexts/AuthContext'
+import BackgroundAnimation from '../components/BackgroundAnimation'
+// import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
+// import 'react-pdf/dist/esm/Page/TextLayer.css'
+
+// Valid for React-PDF v7/v8/v9. Configure worker.
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+
+const Redaction = () => {
+  const [file, setFile] = useState(null)
+  const [numPages, setNumPages] = useState(null)
+  const [pageNumber, setPageNumber] = useState(1)
+  const [pdfPageDims, setPdfPageDims] = useState({ width: 0, height: 0 }) // Authoritative dims from backend
+  const [renderedDims, setRenderedDims] = useState({ width: 0, height: 0 }) // Screen pixels
+  
+  // Redactions: Map<pageNum, Array<{x, y, w, h}>> (PDF coordinates)
+  const [redactions, setRedactions] = useState({}) 
+  
+  // Drawing state
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 })
+  const [currentRect, setCurrentRect] = useState(null) // {x, y, w, h} in pixels
+  const [searchText, setSearchText] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+
+  const canvasRef = useRef(null)
+  const containerRef = useRef(null)
+  const { getAuthHeaders } = useAuth()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [successMsg, setSuccessMsg] = useState(null)
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages)
+    setPageNumber(1)
+    setError(null)
+  }
+
+  const handleFileUpload = async (event) => {
+    const selectedFile = event.target.files[0]
+    if (selectedFile && selectedFile.type === 'application/pdf') {
+      setFile(selectedFile)
+      setRedactions({})
+      setPageNumber(1)
+      setSuccessMsg(null)
+      setError(null)
+      setPdfPageDims({ width: 0, height: 0 }) // Reset
+      
+      // Fetch authoritative page info from backend
+      try {
+        const formData = new FormData()
+        formData.append('pdf', selectedFile)
+        const response = await makeAuthenticatedRequest('/api/v1/redact/page-info', {
+            method: 'POST',
+            body: formData
+        }, getAuthHeaders)
+        
+        if (response.ok) {
+            const info = await response.json()
+            if (info.pages && info.pages.length > 0) {
+                // Store all pages? For now just assume they are similar or store map?
+                // The current component assumes single page dim for conversion (simplification).
+                // Ideally, we should look up dim by pageNumber.
+                // Let's store the whole info.
+                setPdfPageDims({ 
+                    width: info.pages[0].width, 
+                    height: info.pages[0].height,
+                    allPages: info.pages 
+                })
+            }
+        }
+      } catch (e) {
+        console.error("Failed to fetch page info", e)
+      }
+
+    } else {
+      setError('Please select a valid PDF file')
+    }
+  }
+
+  // Convert screen coordinates (pixels) to PDF coordinates (points)
+  const toPDFCoords = (pixelRect) => {
+    // Use current page dims
+    let currentPageDim = pdfPageDims
+    if (pdfPageDims.allPages && pdfPageDims.allPages[pageNumber-1]) {
+        currentPageDim = pdfPageDims.allPages[pageNumber-1]
+    }
+
+    if (!renderedDims.width || !currentPageDim.width) return pixelRect
+    const sx = currentPageDim.width / renderedDims.width
+    const sy = currentPageDim.height / renderedDims.height
+    
+    return {
+      x: pixelRect.x * sx,
+      y: currentPageDim.height - ((pixelRect.y + pixelRect.height) * sy), // Flip Y
+      width: pixelRect.width * sx,
+      height: pixelRect.height * sy
+    }
+  }
+  
+  // Convert PDF coordinates to screen pixels for rendering existing redactions
+  const toScreenCoords = (pdfRect) => {
+    let currentPageDim = pdfPageDims
+    if (pdfPageDims.allPages && pdfPageDims.allPages[pageNumber-1]) {
+        currentPageDim = pdfPageDims.allPages[pageNumber-1]
+    }
+
+    if (!renderedDims.width || !currentPageDim.width) return pdfRect
+    const sx = renderedDims.width / currentPageDim.width
+    const sy = renderedDims.height / currentPageDim.height
+    
+    return {
+      x: pdfRect.x * sx,
+      y: (currentPageDim.height - (pdfRect.y + pdfRect.height)) * sy,
+      width: pdfRect.width * sx,
+      height: pdfRect.height * sy
+    }
+  }
+
+  const handleMouseDown = (e) => {
+    if (!file) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    setIsDrawing(true)
+    setStartPos({ x, y })
+    setCurrentRect({ x, y, width: 0, height: 0 })
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isDrawing) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    const currentX = e.clientX - rect.left
+    const currentY = e.clientY - rect.top
+    
+    const width = currentX - startPos.x
+    const height = currentY - startPos.y
+    
+    setCurrentRect({
+      x: width > 0 ? startPos.x : currentX,
+      y: height > 0 ? startPos.y : currentY,
+      width: Math.abs(width),
+      height: Math.abs(height)
+    })
+  }
+
+  const handleMouseUp = () => {
+    if (!isDrawing || !currentRect) return
+    setIsDrawing(false)
+    
+    if (currentRect.width < 5 || currentRect.height < 5) {
+      setCurrentRect(null)
+      return // Ignore tiny clicks
+    }
+
+    const pdfRect = toPDFCoords(currentRect)
+    const newRedaction = { ...pdfRect, pageNum: pageNumber }
+    
+    setRedactions(prev => ({
+      ...prev,
+      [pageNumber]: [...(prev[pageNumber] || []), newRedaction]
+    }))
+    setCurrentRect(null)
+  }
+
+  const removeRedaction = (pageNum, index) => {
+    setRedactions(prev => {
+      const newList = [...(prev[pageNum] || [])]
+      newList.splice(index, 1)
+      return { ...prev, [pageNum]: newList }
+    })
+  }
+
+  const handleSearch = async () => {
+    if (!file || !searchText.trim()) return
+    setIsSearching(true)
+    setError(null)
+    try {
+        const formData = new FormData()
+        formData.append('pdf', file)
+        formData.append('text', searchText)
+
+        const response = await makeAuthenticatedRequest('/api/v1/redact/search', {
+            method: 'POST',
+            body: formData,
+        }, getAuthHeaders)
+
+        if (!response.ok) throw new Error('Search failed')
+
+        const results = await response.json()
+        if (results && results.length > 0) {
+            // Merge new redactions
+            setRedactions(prev => {
+                const next = { ...prev }
+                results.forEach(r => {
+                    const p = r.pageNum
+                    if (!next[p]) next[p] = []
+                    next[p].push(r)
+                })
+                return next
+            })
+            setSuccessMsg(`Found and marked ${results.length} occurrences of "${searchText}"`)
+        } else {
+            setSuccessMsg(`No occurrences found for "${searchText}"`)
+        }
+    } catch (err) {
+        setError(err.message)
+    } finally {
+        setIsSearching(false)
+    }
+  }
+
+  const applyRedactions = async () => {
+    // Robust check for empty redactions
+    const hasAny = Object.values(redactions).some(arr => arr && arr.length > 0)
+    if (!file || !hasAny) return
+    
+    setIsLoading(true)
+    try {
+      // Flatten redactions map to array
+      const allRedactions = Object.values(redactions).flat()
+      
+      const formData = new FormData()
+      formData.append('pdf', file)
+      formData.append('redactions', JSON.stringify(allRedactions))
+
+      const response = await makeAuthenticatedRequest('/api/v1/redact/apply', {
+        method: 'POST',
+        body: formData,
+      }, getAuthHeaders)
+
+      if (!response.ok) throw new Error('Redaction failed')
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `redacted_${file.name}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setSuccessMsg("Redacted PDF downloaded successfully!")
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Handle page load to get dimensions
+  const onPageLoadSuccess = (page) => {
+   // We now rely on backend for "Logical PDF Dimensions" (pdfPageDims).
+   // renderedDims is set via onRenderSuccess or calculated here if React-PDF gives rendered size
+   // But we stick to setRenderedDims in onRenderSuccess for safety.
+   // Fallback if backend fetch failed:
+   if (pdfPageDims.width === 0) {
+      setPdfPageDims({ width: page.originalWidth, height: page.originalHeight })
+   }
+  }
+
+  const hasRedactions = Object.values(redactions).some(arr => arr && arr.length > 0)
+
+  return (
+    <div style={{ minHeight: '100vh', position: 'relative' }}>
+        <BackgroundAnimation />
+        
+        <div className="container" style={{ padding: '2rem 1rem', position: 'relative', zIndex: 1 }}>
+            <h1 style={{ fontSize: '2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Eraser size={32} /> PDF Redaction
+            </h1>
+
+            {!file ? (
+                <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <Upload size={48} className="text-muted" style={{ opacity: 0.5 }} />
+                    </div>
+                    <h3 style={{ marginBottom: '1rem' }}>Upload a PDF to redact</h3>
+                    <input 
+                        type="file" 
+                        accept="application/pdf" 
+                        onChange={handleFileUpload} 
+                        style={{ display: 'none' }} 
+                        id="pdf-upload"
+                    />
+                    <label 
+                        htmlFor="pdf-upload" 
+                        className="btn-glow"
+                        style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                        <Upload size={18} /> Choose File
+                    </label>
+                </div>
+            ) : (
+                <div className="grid" style={{ gridTemplateColumns: '1fr 300px', gap: '2rem', alignItems: 'start' }}>
+                    
+                    {/* Main Viewer Area */}
+                    <div className="glass-card" style={{ padding: '1rem', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                         <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <button 
+                                onClick={() => setPageNumber(p => Math.max(1, p - 1))} 
+                                disabled={pageNumber <= 1}
+                                className="btn-outline-glow"
+                                style={{ padding: '0.5rem' }}
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                            <span>Page {pageNumber} of {numPages || '--'}</span>
+                            <button 
+                                onClick={() => setPageNumber(p => Math.min(numPages || 1, p + 1))} 
+                                disabled={pageNumber >= numPages}
+                                className="btn-outline-glow"
+                                style={{ padding: '0.5rem' }}
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                         </div>
+
+                         <div 
+                            ref={containerRef}
+                            style={{ position: 'relative', border: '1px solid #ccc', cursor: 'crosshair' }}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
+                         >
+                            <Document
+                                file={file}
+                                onLoadSuccess={onDocumentLoadSuccess}
+                                loading={<div style={{padding: '2rem'}}>Loading PDF...</div>}
+                            >
+                                <Page 
+                                    pageNumber={pageNumber} 
+                                    onLoadSuccess={onPageLoadSuccess}
+                                    width={Math.min(800, window.innerWidth - 100)} // Responsive width
+                                    onRenderSuccess={(page) => {
+                                      // Update rendered dimensions from the DOM element
+                                      // page.width is the rendered width
+                                       // We can capture the actual rendered dimensions via refs if needed
+                                       // But Page component has `width` prop which controls it.
+                                       // Wait, onRenderSuccess returns the page *viewport*.
+                                       setRenderedDims({ width: page.width, height: page.height })
+                                    }}
+                                />
+                            </Document>
+                            
+                            {/* Overlay for existing redactions */}
+                            {redactions[pageNumber]?.map((rect, idx) => {
+                                const screenRect = toScreenCoords(rect)
+                                return (
+                                    <div 
+                                        key={idx}
+                                        style={{
+                                            position: 'absolute',
+                                            left: screenRect.x,
+                                            top: screenRect.y,
+                                            width: screenRect.width,
+                                            height: screenRect.height,
+                                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                            border: '1px solid red',
+                                            pointerEvents: 'none' // Click-through
+                                        }}
+                                    />
+                                )
+                            })}
+
+                            {/* Current drawing rect */}
+                            {currentRect && (
+                                <div style={{
+                                    position: 'absolute',
+                                    left: currentRect.x,
+                                    top: currentRect.y,
+                                    width: currentRect.width,
+                                    height: currentRect.height,
+                                    backgroundColor: 'rgba(255, 0, 0, 0.3)',
+                                    border: '1px solid red',
+                                }} />
+                            )}
+                            
+                            {/* Invisible canvas capture layer - simplified: we draw using divs above */}
+                            <div ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }} />
+                         </div>
+                    </div>
+
+                    {/* Sidebar */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div className="glass-card" style={{ padding: '1.5rem' }}>
+                            <h3 style={{ marginBottom: '1rem' }}>Redact by Text</h3>
+                             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                                <input 
+                                    type="text" 
+                                    placeholder="Search word..." 
+                                    value={searchText}
+                                    onChange={(e) => setSearchText(e.target.value)}
+                                    style={{ 
+                                        flex: 1, 
+                                        padding: '0.5rem', 
+                                        borderRadius: '4px', 
+                                        border: '1px solid #ddd',
+                                        background: 'rgba(255,255,255,0.1)',
+                                        color: 'inherit'
+                                    }}
+                                />
+                                <button 
+                                    onClick={handleSearch}
+                                    disabled={isSearching || !searchText.trim()}
+                                    className="btn-outline-glow"
+                                    style={{ padding: '0.5rem' }}
+                                >
+                                    <Search size={20} />
+                                </button>
+                            </div>
+                            <hr style={{ opacity: 0.1, margin: '1rem 0' }} />
+
+                            <h3 style={{ marginBottom: '1rem' }}>Actions</h3>
+                            <button 
+                                onClick={applyRedactions}
+                                disabled={isLoading || !hasRedactions}
+                                className="btn-glow"
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem' }}
+                            >
+                                <Download size={16} /> 
+                                {isLoading ? 'Processing...' : 'Apply & Download'}
+                            </button>
+                            
+                            <button 
+                                onClick={() => { setFile(null); setRedactions({}); }}
+                                className="btn-outline-glow"
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                            >
+                                <Trash2 size={16} /> Reset
+                            </button>
+                        </div>
+
+                        <div className="glass-card" style={{ padding: '1rem', flex: 1 }}>
+                             <h4 style={{ marginBottom: '0.5rem' }}>Redactions on Page {pageNumber}</h4>
+                             {(!redactions[pageNumber] || redactions[pageNumber].length === 0) ? (
+                                <p className="text-muted" style={{ fontSize: '0.9rem' }}>No redactions on this page.</p>
+                             ) : (
+                                <ul style={{ listStyle: 'none', padding: 0 }}>
+                                    {redactions[pageNumber].map((r, idx) => (
+                                        <li key={idx} style={{ 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between', 
+                                            alignItems: 'center',
+                                            padding: '0.5rem',
+                                            marginBottom: '0.5rem',
+                                            background: 'rgba(255,255,255,0.05)',
+                                            borderRadius: '4px'
+                                        }}>
+                                            <span style={{ fontSize: '0.8rem' }}>
+                                                Box {idx + 1}: {Math.round(r.width)}x{Math.round(r.height)}
+                                            </span>
+                                            <button 
+                                                onClick={() => removeRedaction(pageNumber, idx)}
+                                                style={{ background: 'none', border: 'none', color: '#ff6b6b', cursor: 'pointer' }}
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {error && (
+                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255, 0, 0, 0.1)', border: '1px solid red', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <AlertCircle size={20} className="text-danger" />
+                    <span>{error}</span>
+                </div>
+            )}
+             {successMsg && (
+                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0, 255, 0, 0.1)', border: '1px solid green', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Check size={20} className="text-success" />
+                    <span>{successMsg}</span>
+                </div>
+            )}
+        </div>
+    </div>
+  )
+}
+
+export default Redaction

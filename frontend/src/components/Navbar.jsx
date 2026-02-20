@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors, Book } from 'lucide-react'
+import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors, Book, Eraser } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { isAuthRequired } from '../utils/apiConfig'
@@ -27,6 +27,7 @@ const Navbar = () => {
     { path: '/htmltoimage', label: 'HTML→Image', icon: Image },
     { path: '/comparison', label: 'Comparison', icon: FileCheck },
     { path: '/screenshots', label: 'Screenshots', icon: Camera },
+    { path: '/redact', label: 'Redact', icon: Eraser },
     { path: '/documentation', label: 'Documentation', icon: Book },
   ]
 
