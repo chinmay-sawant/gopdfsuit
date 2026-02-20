@@ -134,10 +134,7 @@ func parseStandardEncryptDict(body []byte) (standardEncryptDict, error) {
 		return standardEncryptDict{}, errors.New("missing O/U entries in Encrypt dictionary")
 	}
 
-	encryptMetadata := true
-	if bytesIndex(body, []byte(`/EncryptMetadata false`)) >= 0 || bytesIndex(body, []byte(`/EncryptMetadatafalse`)) >= 0 {
-		encryptMetadata = false
-	}
+	encryptMetadata := bytesIndex(body, []byte(`/EncryptMetadata false`)) < 0 && bytesIndex(body, []byte(`/EncryptMetadatafalse`)) < 0
 	usesAES := bytesIndex(body, []byte("/AESV2")) >= 0 || bytesIndex(body, []byte("/AESV3")) >= 0
 
 	return standardEncryptDict{
@@ -199,7 +196,7 @@ func deriveAndValidateUserKey(password string, d standardEncryptDict, id0 []byte
 	if len(fileKey) == 0 {
 		return nil, false
 	}
-	if validateUserPassword(password, fileKey, d, id0) {
+	if validateUserPassword(fileKey, d, id0) {
 		return fileKey, true
 	}
 	return nil, false
@@ -236,7 +233,7 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 	return append([]byte{}, sum[:keyLen]...)
 }
 
-func validateUserPassword(password string, fileKey []byte, d standardEncryptDict, id0 []byte) bool {
+func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) bool {
 	if d.R == 2 {
 		exp := rc4Crypt(fileKey, pdfPasswordPadding)
 		return len(d.U) >= 32 && bytes.Equal(exp, d.U[:32])

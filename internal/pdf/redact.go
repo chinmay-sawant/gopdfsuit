@@ -1182,8 +1182,7 @@ func resolveUsedXObjectRefs(content []byte, resources []byte) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, 4)
 	for _, d := range doRe.FindAllSubmatch(content, -1) {
-		name := string(d[1])
-		if key, ok := nameToRef[name]; ok && !seen[key] {
+		if key, ok := nameToRef[string(d[1])]; ok && !seen[key] {
 			seen[key] = true
 			out = append(out, key)
 		}

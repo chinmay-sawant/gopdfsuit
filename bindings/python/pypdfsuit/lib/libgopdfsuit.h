@@ -144,10 +144,20 @@ extern ByteResult GetPageInfo(char* pdfData, int pdfLen);
 //
 extern ByteResult ExtractTextPositions(char* pdfData, int pdfLen, int pageNum);
 
+// FindTextOccurrences searches for text and returns redaction candidate rectangles.
+// The caller must free the result using FreeBytesResult.
+//
+extern ByteResult FindTextOccurrences(char* pdfData, int pdfLen, char* searchText);
+
 // ApplyRedactions applies redaction rectangles to the PDF.
 // The caller must free the result using FreeBytesResult.
 //
 extern ByteResult ApplyRedactions(char* pdfData, int pdfLen, char* redactionsJSON);
+
+// ApplyRedactionsAdvanced applies a unified redaction request to the PDF.
+// The caller must free the result using FreeBytesResult.
+//
+extern ByteResult ApplyRedactionsAdvanced(char* pdfData, int pdfLen, char* optionsJSON);
 
 // FreeBytesResult frees memory allocated by functions returning ByteResult.
 //

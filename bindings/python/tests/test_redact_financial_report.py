@@ -4,8 +4,6 @@ Tests for redaction against the sample financial report.
 
 from pathlib import Path
 
-import pytest
-
 from pypdfsuit import apply_redactions_advanced, find_text_occurrences
 
 
@@ -38,12 +36,6 @@ class TestFinancialReportRedaction:
         output_path.write_bytes(out)
         assert output_path.exists()
 
-        if out == pdf_bytes:
-            pytest.xfail(
-                "Current Python shared library build did not apply text-search redactions; "
-                "rebuild bindings with latest core implementation to enforce byte-diff assertion."
-            )
-
         assert out != pdf_bytes
 
     def test_financial_report_page2_text_redaction(self):
@@ -53,12 +45,6 @@ class TestFinancialReportRedaction:
         pdf_bytes = pdf_path.read_bytes()
 
         rects = find_text_occurrences(pdf_bytes, "SECTION C")
-
-        if not rects:
-            pytest.xfail(
-                "find_text_occurrences returned no rectangles in current Python shared library build; "
-                "rebuild bindings with latest text search implementation to enforce page assertions."
-            )
 
         assert len(rects) > 0
         assert any(r.get("pageNum") == 2 for r in rects)
