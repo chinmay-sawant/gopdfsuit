@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/svg"
 )
 
 // fmtNumImg formats a float with 2 decimal places for image dimensions
@@ -127,7 +128,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 
 	// Check if data is SVG (simple check)
 	if bytes.Contains(imageBytes, []byte("<svg")) || bytes.Contains(imageBytes, []byte("<SVG")) {
-		pdfCmds, w, h, err := ConvertSVGToPDFCommands(imageBytes)
+		pdfCmds, w, h, err := svg.ConvertSVGToPDFCommands(imageBytes)
 		if err == nil {
 			// Successfully converted SVG to PDF commands
 			// We return a Form XObject structure

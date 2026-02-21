@@ -32,7 +32,7 @@ class TestFinancialReportRedaction:
         assert out is not None
         assert len(out) > 0
 
-        output_path = repo_root / "financial_report_redacted_pypdfsuit_test_output.pdf"
+        output_path = repo_root / "sampledata" / "financialreport" / "financial_report_redacted_pypdfsuit_test_output.pdf"
         output_path.write_bytes(out)
         assert output_path.exists()
 

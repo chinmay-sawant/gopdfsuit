@@ -1,4 +1,4 @@
-package pdf
+package form
 
 import (
 	"bytes"
@@ -1065,4 +1065,24 @@ func FlattenPDFBytes(pdfBytes []byte) ([]byte, error) {
 	// For now, return the input bytes unchanged.
 	// return scripts.FlattenPDFBytes(pdfBytes)
 	return pdfBytes, nil
+}
+
+// escapePDFString escapes characters as required for PDF literal strings.
+func escapePDFString(s string) string {
+	// Fast path: most text has no special characters
+	if !strings.ContainsAny(s, `()\`) {
+		return s
+	}
+	var sb strings.Builder
+	sb.Grow(len(s) + 4)
+	for _, r := range s {
+		switch r {
+		case '(', ')', '\\':
+			sb.WriteRune('\\')
+			sb.WriteRune(r)
+		default:
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
 }

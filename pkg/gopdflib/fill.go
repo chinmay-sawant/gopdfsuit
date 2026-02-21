@@ -2,7 +2,7 @@
 package gopdflib
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/form"
 )
 
 // FillPDFWithXFDF fills a PDF form with data from an XFDF file.
@@ -19,5 +19,5 @@ import (
 //	}
 //	os.WriteFile("filled.pdf", filled, 0644)
 func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
-	return pdf.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	return form.FillPDFWithXFDF(pdfBytes, xfdfBytes)
 }

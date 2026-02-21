@@ -1,4 +1,4 @@
-package pdf
+package redact
 
 import (
 	"bytes"

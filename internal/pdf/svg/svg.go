@@ -1,4 +1,4 @@
-package pdf
+package svg
 
 import (
 	"bytes"
