@@ -18,7 +18,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/v1/redact/apply", HandleRedactApply)
 
-	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "template.pdf")
+	pdfPath := filepath.Join("..", "..", "sampledata", "EpsteinFiles", "Epsteinfiles.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
@@ -27,7 +27,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 
-	fw, err := mw.CreateFormFile("pdf", "template.pdf")
+	fw, err := mw.CreateFormFile("pdf", "Epsteinfiles.pdf")
 	if err != nil {
 		t.Fatalf("CreateFormFile failed: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	if err := mw.WriteField("mode", "secure_required"); err != nil {
 		t.Fatalf("WriteField mode failed: %v", err)
 	}
-	if err := mw.WriteField("textSearch", `[{"text":"SECTION"},{"text":"COM"}]`); err != nil {
+	if err := mw.WriteField("textSearch", `[{"text":"donald"},{"text":"Jeffrey epstein"},{"text":"jeffrey epstein"}]`); err != nil {
 		t.Fatalf("WriteField textSearch failed: %v", err)
 	}
 	if err := mw.Close(); err != nil {
@@ -79,7 +79,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	}
 
 	// Store output at repository root for easier inspection by developer
-	outputPath := filepath.Join("..", "..", "template_redacted_web.pdf")
+	outputPath := filepath.Join("..", "..", "sampledata", "EpsteinFiles", "Epsteinfiles_redacted_web.pdf")
 	if err := os.WriteFile(outputPath, w.Body.Bytes(), 0o600); err != nil {
 		t.Fatalf("failed to write redacted output PDF: %v", err)
 	}

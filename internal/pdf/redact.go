@@ -191,9 +191,7 @@ func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, e
 
 		// Fallback for PDFs that split phrases across multiple text-show operators.
 		if len(positions) > 1 && strings.Contains(normalizedQuery, " ") {
-			if rect, ok := findCombinedMatchRect(i, positions, normalizedQuery); ok {
-				redactions = append(redactions, rect)
-			}
+			redactions = append(redactions, findAllCombinedMatchRects(i, positions, normalizedQuery)...)
 		}
 	}
 	return redactions, nil
@@ -284,59 +282,156 @@ func normalizeSearchText(s string) string {
 	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), " ")
 }
 
-func findCombinedMatchRect(pageNum int, positions []TextPosition, normalizedQuery string) (RedactionRect, bool) {
+// findAllCombinedMatchRects finds ALL occurrences of normalizedQuery that span
+// multiple text-show operators on the same visual line. It groups positions into
+// lines (Y within half a character-height), concatenates each line's tokens in
+// reading order, then scans for every non-overlapping match.
+func findAllCombinedMatchRects(pageNum int, positions []TextPosition, normalizedQuery string) []RedactionRect {
+	if len(positions) == 0 || normalizedQuery == "" {
+		return nil
+	}
+
+	// Sort top-to-bottom then left-to-right (PDF Y is bottom-up so higher=first).
 	ordered := append([]TextPosition(nil), positions...)
 	sort.SliceStable(ordered, func(i, j int) bool {
-		if ordered[i].Y == ordered[j].Y {
+		if math.Abs(ordered[i].Y-ordered[j].Y) < 3 {
 			return ordered[i].X < ordered[j].X
 		}
 		return ordered[i].Y > ordered[j].Y
 	})
 
-	for i := 0; i < len(ordered); i++ {
-		joined := ""
-		minX := ordered[i].X
-		minY := ordered[i].Y
-		maxX := ordered[i].X + ordered[i].Width
-		maxY := ordered[i].Y + ordered[i].Height
+	// Group into visual lines: tokens whose Y values are within half a glyph height
+	// of the first token on that line belong together.
+	type tokenSpan struct {
+		pos   TextPosition
+		start int
+		end   int
+	}
+	type lineGroup struct {
+		spans  []tokenSpan
+		joined string
+	}
 
-		for j := i; j < len(ordered) && j < i+24; j++ {
-			part := strings.TrimSpace(ordered[j].Text)
-			if part == "" {
+	var lines []lineGroup
+	for _, pos := range ordered {
+		lineH := pos.Height
+		if lineH <= 0 {
+			lineH = 10
+		}
+		placed := false
+		for li := range lines {
+			if len(lines[li].spans) == 0 {
 				continue
 			}
-			if joined == "" {
-				joined = part
-			} else {
-				joined += " " + part
+			refY := lines[li].spans[0].pos.Y
+			if math.Abs(pos.Y-refY) < lineH*0.75 {
+				// Same line  — append token
+				part := strings.TrimSpace(pos.Text)
+				if part == "" {
+					placed = true
+					break
+				}
+				var startOff int
+				if lines[li].joined == "" {
+					startOff = 0
+					lines[li].joined = part
+				} else {
+					startOff = len(lines[li].joined) + 1
+					lines[li].joined += " " + part
+				}
+				lines[li].spans = append(lines[li].spans, tokenSpan{
+					pos:   pos,
+					start: startOff,
+					end:   len(lines[li].joined),
+				})
+				placed = true
+				break
 			}
+		}
+		if !placed {
+			part := strings.TrimSpace(pos.Text)
+			if part == "" {
+				lines = append(lines, lineGroup{})
+				continue
+			}
+			lines = append(lines, lineGroup{
+				spans:  []tokenSpan{{pos: pos, start: 0, end: len(part)}},
+				joined: part,
+			})
+		}
+	}
 
-			if ordered[j].X < minX {
-				minX = ordered[j].X
+	var results []RedactionRect
+	for _, line := range lines {
+		if line.joined == "" || len(line.spans) < 2 {
+			// Single-token lines are already handled by buildSubstringRects.
+			continue
+		}
+		normalJoined := normalizeSearchText(line.joined)
+		searchOff := 0
+		for searchOff < len(normalJoined) {
+			idx := strings.Index(normalJoined[searchOff:], normalizedQuery)
+			if idx < 0 {
+				break
 			}
-			if ordered[j].Y < minY {
-				minY = ordered[j].Y
-			}
-			if x := ordered[j].X + ordered[j].Width; x > maxX {
-				maxX = x
-			}
-			if y := ordered[j].Y + ordered[j].Height; y > maxY {
-				maxY = y
-			}
+			matchStart := searchOff + idx
+			matchEnd := matchStart + len(normalizedQuery)
 
-			if strings.Contains(normalizeSearchText(joined), normalizedQuery) {
-				return RedactionRect{
+			// Compute tight bounding box from only the overlapping tokens.
+			minX := math.MaxFloat64
+			minY := math.MaxFloat64
+			maxX := -math.MaxFloat64
+			maxY := -math.MaxFloat64
+			for _, s := range line.spans {
+				if s.start >= matchEnd || s.end <= matchStart {
+					continue
+				}
+				// Partially-overlapping tokens: trim X proportionally using charW.
+				charW := 0.0
+				if s.end > s.start {
+					charW = s.pos.Width / float64(s.end-s.start)
+				}
+				tokenX := s.pos.X
+				tokenW := s.pos.Width
+				if charW > 0 {
+					overlapStart := matchStart - s.start
+					if overlapStart < 0 {
+						overlapStart = 0
+					}
+					overlapEnd := matchEnd - s.start
+					if overlapEnd > s.end-s.start {
+						overlapEnd = s.end - s.start
+					}
+					tokenX = s.pos.X + float64(overlapStart)*charW
+					tokenW = float64(overlapEnd-overlapStart) * charW
+				}
+				if tokenX < minX {
+					minX = tokenX
+				}
+				if s.pos.Y < minY {
+					minY = s.pos.Y
+				}
+				if x := tokenX + tokenW; x > maxX {
+					maxX = x
+				}
+				if y := s.pos.Y + s.pos.Height; y > maxY {
+					maxY = y
+				}
+			}
+			if minX < math.MaxFloat64 {
+				results = append(results, RedactionRect{
 					PageNum: pageNum,
 					X:       minX,
 					Y:       minY,
 					Width:   maxX - minX,
 					Height:  maxY - minY,
-				}, true
+				})
 			}
+			// Advance past this match (non-overlapping).
+			searchOff = matchEnd
 		}
 	}
-
-	return RedactionRect{}, false
+	return results
 }
 
 // ApplyRedactionsAdvanced applies a unified redaction request.
@@ -797,7 +892,9 @@ func applyRectMaskToText(text string, pos TextPosition, rects []RedactionRect) s
 		}
 		overlap := overlapWidth(pos.X, pos.Width, r.X, r.Width)
 		coverage := overlap / pos.Width
-		if coverage >= 0.35 {
+		// Only blank the entire run when the rect covers ≥90% of it;
+		// lower overlaps use per-glyph masking below to avoid over-redacting.
+		if coverage >= 0.90 {
 			for i := range runes {
 				runes[i] = ' '
 			}
@@ -1369,14 +1466,15 @@ func parseTextOperators(content []byte) []TextPosition {
 	btEtRe := regexp.MustCompile(`(?s)BT(.*?)ET`)
 	blocks := btEtRe.FindAllStringSubmatch(strContent, -1)
 	tmRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+Tm`)
-	tdRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+Td`)
+	tdRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+T[dD]`)
 	tfRe := regexp.MustCompile(`/[A-Za-z0-9_.+-]+\s+([\d.-]+)\s+Tf`)
 	textOpRe := regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
-	tokenRe := regexp.MustCompile(`(?s)[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+Tm|[\d.-]+\s+[\d.-]+\s+Td|/[A-Za-z0-9_.+-]+\s+[\d.-]+\s+Tf|\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
+	tokenRe := regexp.MustCompile(`(?s)[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+Tm|[\d.-]+\s+[\d.-]+\s+T[dD]|/[A-Za-z0-9_.+-]+\s+[\d.-]+\s+Tf|\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
 
 	for _, block := range blocks {
 		inner := block[1]
 		currentX, currentY := 0.0, 0.0
+		lineStartX, lineStartY := 0.0, 0.0
 		currentFontSize := 10.0
 		for _, token := range tokenRe.FindAllString(inner, -1) {
 			token = strings.TrimSpace(token)
@@ -1387,13 +1485,20 @@ func parseTextOperators(content []byte) []TextPosition {
 			if m := tmRe.FindStringSubmatch(token); m != nil {
 				currentX, _ = strconv.ParseFloat(m[5], 64)
 				currentY, _ = strconv.ParseFloat(m[6], 64)
+				// Tm resets both the current text matrix AND the line matrix.
+				lineStartX = currentX
+				lineStartY = currentY
 				continue
 			}
 			if m := tdRe.FindStringSubmatch(token); m != nil {
 				dx, _ := strconv.ParseFloat(m[1], 64)
 				dy, _ := strconv.ParseFloat(m[2], 64)
-				currentX += dx
-				currentY += dy
+				// Td/TD moves relative to the line-start matrix (Tlm), not the
+				// current text position (which may have advanced after text rendering).
+				lineStartX += dx
+				lineStartY += dy
+				currentX = lineStartX
+				currentY = lineStartY
 				continue
 			}
 			if m := tfRe.FindStringSubmatch(token); m != nil {
