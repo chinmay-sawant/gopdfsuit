@@ -15,11 +15,12 @@ import (
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/encryption"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/signature"
 )
 
 // pdfBufferPool reuses bytes.Buffer across PDF generations to reduce GC pressure.
 var pdfBufferPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := new(bytes.Buffer)
 		buf.Grow(64 * 1024) // 64KB initial capacity
 		return buf
@@ -28,10 +29,48 @@ var pdfBufferPool = sync.Pool{
 
 // scratchBufPool reuses the small scratch buffer for strconv.Append* operations.
 var scratchBufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]byte, 0, 128)
 		return &buf
 	},
+}
+
+// signatureContextAdapter wraps PageManager to implement signature.SignaturePageContext
+type signatureContextAdapter struct {
+	pm *PageManager
+}
+
+func (a *signatureContextAdapter) AllocObjectID() int {
+	id := a.pm.NextObjectID
+	a.pm.NextObjectID++
+	return id
+}
+
+func (a *signatureContextAdapter) SetExtraObject(id int, content string) {
+	a.pm.ExtraObjects[id] = content
+}
+
+func (a *signatureContextAdapter) AppendPageAnnot(pageIndex int, annotID int) {
+	for len(a.pm.PageAnnots) <= pageIndex {
+		a.pm.PageAnnots = append(a.pm.PageAnnots, []int{})
+	}
+	a.pm.PageAnnots[pageIndex] = append(a.pm.PageAnnots[pageIndex], annotID)
+}
+
+func (a *signatureContextAdapter) GetMargins() signature.PageMargins {
+	return signature.PageMargins{Right: a.pm.Margins.Right, Bottom: a.pm.Margins.Bottom}
+}
+
+func (a *signatureContextAdapter) FontHas(name string) bool {
+	return a.pm.FontRegistry.HasFont(name)
+}
+
+func (a *signatureContextAdapter) FontMarkChars(name, text string) {
+	a.pm.FontRegistry.MarkCharsUsed(name, text)
+}
+
+func (a *signatureContextAdapter) EncodeTextForFont(fontName, text string) string {
+	return EncodeTextForCustomFont(fontName, text, a.pm.FontRegistry)
 }
 
 // GenerateTemplatePDF generates a PDF document with multi-page support and embedded images.
@@ -342,11 +381,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 
 	// Setup digital signature if enabled
-	var pdfSigner *PDFSigner
-	var sigIDs *SignatureIDs
+	var pdfSigner *signature.PDFSigner
+	var sigIDs *signature.SignatureIDs
 	if signatureEnabled {
 		var err error
-		pdfSigner, err = NewPDFSigner(template.Config.Signature)
+		pdfSigner, err = signature.NewPDFSigner(template.Config.Signature)
 		if err == nil && pdfSigner != nil {
 			// Get the font ID for signature appearance
 			// In PDF/A mode, this returns the Liberation font ID that replaces Helvetica
@@ -356,7 +395,12 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				// Fallback to standard font object ID if no custom font
 				signatureFontID = fontObjectIDs["Helvetica"]
 			}
-			sigIDs = pdfSigner.CreateSignatureField(pageManager, pageDims, signatureFontID)
+
+			sigPageDims := signature.PageDimensions{
+				Width:  pageDims.Width,
+				Height: pageDims.Height,
+			}
+			sigIDs = pdfSigner.CreateSignatureField(&signatureContextAdapter{pm: pageManager}, sigPageDims, signatureFontID)
 		}
 	}
 
@@ -461,7 +505,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		var acroFormContent string
 		if sigIDs != nil {
 			// SigFlags 3 = SignaturesExist (1) + AppendOnly (2)
-			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) /SigFlags %d >>", fieldsRef.String(), widgetFontRef, GetAcroFormSigFlags())
+			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) /SigFlags %d >>", fieldsRef.String(), widgetFontRef, signature.GetAcroFormSigFlags())
 		} else {
 			// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
 			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) >>", fieldsRef.String(), widgetFontRef)
@@ -1267,7 +1311,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	finalPDF := make([]byte, pdfBuffer.Len())
 	copy(finalPDF, pdfBuffer.Bytes())
 	if pdfSigner != nil && sigIDs != nil {
-		signedPDF, err := UpdatePDFWithSignature(finalPDF, pdfSigner)
+		signedPDF, err := signature.UpdatePDFWithSignature(finalPDF, pdfSigner)
 		if err == nil {
 			finalPDF = signedPDF
 		}

@@ -10,7 +10,7 @@ import (
 // ZlibWriterPool recycles zlib writers to avoid allocation overhead
 // Each zlib.NewWriter allocates ~256KB for compression tables
 var ZlibWriterPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		// Create writer that will be reset with actual buffer later
 		w, _ := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed)
 		return w
@@ -19,7 +19,7 @@ var ZlibWriterPool = sync.Pool{
 
 // CompressBufPool recycles bytes.Buffer for compression output
 var CompressBufPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return new(bytes.Buffer)
 	},
 }

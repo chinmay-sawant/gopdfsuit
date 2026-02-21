@@ -23,7 +23,7 @@ func fmtNumImg(f float64) string {
 
 // rgbDataPool recycles byte slices for RGB conversion
 var rgbDataPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]byte, 1024*1024) // Start with 1MB
 		return &buf
 	},

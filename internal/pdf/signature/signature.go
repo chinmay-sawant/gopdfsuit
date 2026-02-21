@@ -1,4 +1,4 @@
-package pdf
+package signature
 
 import (
 	"bytes"
@@ -104,7 +104,7 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 }
 
 // CreateSignatureField creates the signature field and annotation objects
-func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims PageDimensions, fontID int) *SignatureIDs {
+func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageDims PageDimensions, fontID int) *SignatureIDs {
 	ids := &SignatureIDs{}
 
 	// Determine signature rectangle
@@ -122,10 +122,10 @@ func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims Page
 
 	// Default position: bottom right of first page
 	if sigX <= 0 {
-		sigX = pageDims.Width - sigW - pageManager.Margins.Right
+		sigX = pageDims.Width - sigW - pageManager.GetMargins().Right
 	}
 	if sigY <= 0 {
-		sigY = pageManager.Margins.Bottom
+		sigY = pageManager.GetMargins().Bottom
 	}
 
 	// Create appearance stream for visible signature
@@ -134,8 +134,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims Page
 	}
 
 	// Create signature value dictionary (will be filled during signing)
-	sigValueID := pageManager.NextObjectID
-	pageManager.NextObjectID++
+	sigValueID := pageManager.AllocObjectID()
 
 	signerName := s.config.Name
 	if signerName == "" && s.certificate != nil {
@@ -186,11 +185,10 @@ func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims Page
 
 	sigValueDict.WriteString(" >>")
 
-	pageManager.ExtraObjects[sigValueID] = sigValueDict.String()
+	pageManager.SetExtraObject(sigValueID, sigValueDict.String())
 
 	// Create signature field widget annotation
-	sigAnnotID := pageManager.NextObjectID
-	pageManager.NextObjectID++
+	sigAnnotID := pageManager.AllocObjectID()
 	ids.SigAnnotID = sigAnnotID
 
 	var annotDict strings.Builder
@@ -230,17 +228,14 @@ func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims Page
 
 	annotDict.WriteString(" >>")
 
-	pageManager.ExtraObjects[sigAnnotID] = annotDict.String()
+	pageManager.SetExtraObject(sigAnnotID, annotDict.String())
 
 	// Add annotation to the appropriate page
 	pageIndex := targetPage - 1
 	if pageIndex < 0 {
 		pageIndex = 0
 	}
-	for len(pageManager.PageAnnots) <= pageIndex {
-		pageManager.PageAnnots = append(pageManager.PageAnnots, []int{})
-	}
-	pageManager.PageAnnots[pageIndex] = append(pageManager.PageAnnots[pageIndex], sigAnnotID)
+	pageManager.AppendPageAnnot(pageIndex, sigAnnotID)
 
 	ids.SigFieldID = sigAnnotID // In this implementation, field = annotation
 
@@ -248,7 +243,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager *PageManager, pageDims Page
 }
 
 // createSignatureAppearance creates the visual appearance for a visible signature
-func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, height float64, fontID int) int {
+func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, width, height float64, fontID int) int {
 	var appearance strings.Builder
 
 	// Yellow background with black border
@@ -266,8 +261,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 	}
 
 	// Check if we're using a custom font (Liberation) that needs hex encoding
-	registry := pageManager.FontRegistry
-	useHexEncoding := fontID > 0 && registry.HasFont("Helvetica")
+	useHexEncoding := fontID > 0 && pageManager.FontHas("Helvetica")
 
 	appearance.WriteString("BT\n")
 	appearance.WriteString("/F1 9 Tf\n")
@@ -277,7 +271,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 	formatText := func(text string) string {
 		if useHexEncoding {
 			// For Liberation fonts, use hex encoding
-			return EncodeTextForCustomFont("Helvetica", text, registry)
+			return pageManager.EncodeTextForFont("Helvetica", text)
 		}
 		// For standard fonts, use ASCII encoding
 		return "(" + escapeText(text) + ")"
@@ -289,14 +283,14 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 
 	// Mark font usage for subsetting
 	if useHexEncoding {
-		registry.MarkCharsUsed("Helvetica", "Digitally signed by:")
+		pageManager.FontMarkChars("Helvetica", "Digitally signed by:")
 	}
 
 	// Signer name
 	appearance.WriteString("0 -12 Td\n")
 	appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(signerName)))
 	if useHexEncoding {
-		registry.MarkCharsUsed("Helvetica", signerName)
+		pageManager.FontMarkChars("Helvetica", signerName)
 	}
 
 	// Date
@@ -305,7 +299,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 	appearance.WriteString("0 -12 Td\n")
 	appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(dateStr)))
 	if useHexEncoding {
-		registry.MarkCharsUsed("Helvetica", dateStr)
+		pageManager.FontMarkChars("Helvetica", dateStr)
 	}
 
 	// Reason if provided
@@ -314,7 +308,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 		appearance.WriteString("0 -12 Td\n")
 		appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(reasonStr)))
 		if useHexEncoding {
-			registry.MarkCharsUsed("Helvetica", reasonStr)
+			pageManager.FontMarkChars("Helvetica", reasonStr)
 		}
 	}
 
@@ -324,7 +318,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 		appearance.WriteString("0 -12 Td\n")
 		appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(locationStr)))
 		if useHexEncoding {
-			registry.MarkCharsUsed("Helvetica", locationStr)
+			pageManager.FontMarkChars("Helvetica", locationStr)
 		}
 	}
 
@@ -333,8 +327,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 	appearanceContent := appearance.String()
 
 	// Create appearance XObject
-	appearanceID := pageManager.NextObjectID
-	pageManager.NextObjectID++
+	appearanceID := pageManager.AllocObjectID()
 
 	// Construct resources dictionary using the embedded font ID
 	var resourcesDict string
@@ -349,7 +342,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager *PageManager, width, h
 	appearanceDict := fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources %s /Length %d >>\nstream\n%s\nendstream",
 		fmtNum(width), fmtNum(height), resourcesDict, len(appearanceContent), appearanceContent)
 
-	pageManager.ExtraObjects[appearanceID] = appearanceDict
+	pageManager.SetExtraObject(appearanceID, appearanceDict)
 
 	return appearanceID
 }
