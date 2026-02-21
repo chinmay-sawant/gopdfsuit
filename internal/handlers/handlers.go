@@ -3,7 +3,6 @@ package handlers
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -14,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
@@ -199,9 +199,9 @@ func handleGetTemplateData(c *gin.Context) {
 		return
 	}
 
-	// Validate JSON structure
+	// Validate JSON structure using sonic for performance
 	var template models.PDFTemplate
-	if err := json.Unmarshal(data, &template); err != nil {
+	if err := sonic.Unmarshal(data, &template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON template format: " + err.Error()})
 		return
 	}
@@ -267,8 +267,15 @@ func handleUploadFont(c *gin.Context) {
 }
 
 func handleGenerateTemplatePDF(c *gin.Context) {
+	// Optimization: use sonic for faster JSON binding
 	var template models.PDFTemplate
-	if err := c.ShouldBindJSON(&template); err != nil {
+	data, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
+		return
+	}
+
+	if err := sonic.Unmarshal(data, &template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
 		return
 	}
@@ -470,7 +477,13 @@ func handlehtmlToPDF(c *gin.Context) {
 	log.Printf("Starting HTML to PDF conversion request")
 
 	var req models.HtmlToPDFRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	data, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
+		return
+	}
+
+	if err := sonic.Unmarshal(data, &req); err != nil {
 		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
@@ -522,7 +535,13 @@ func handlehtmlToImage(c *gin.Context) {
 	log.Printf("Starting HTML to image conversion request")
 
 	var req models.HtmlToImageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	data, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
+		return
+	}
+
+	if err := sonic.Unmarshal(data, &req); err != nil {
 		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return

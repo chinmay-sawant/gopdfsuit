@@ -6,8 +6,10 @@ import { Rate, Trend } from 'k6/metrics';
 const errorRate = new Rate('errors');
 const pdfGenerationTime = new Trend('pdf_generation_time');
 
+import { getWeightedPayload } from './payload_generator.js';
+
 // Load JSON payload from file (executed once at init time)
-const financialDigitalSignaturePayload = JSON.parse(open('../../sampledata/editor/financial_digitalsignature.json'));
+// const financialDigitalSignaturePayload = JSON.parse(open('../../sampledata/editor/financial_digitalsignature.json'));
 
 // Test configuration
 export const options = {
@@ -25,19 +27,20 @@ export const options = {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
-                { duration: '5s', target: 5 },   // Ramp up to 5 users
-                { duration: '10s', target: 5 },  // Stay at 5 users
-                { duration: '5s', target: 0 },   // Ramp down to 0
+                { duration: '5s', target: 48 },   // Ramp up to 48 users
+                { duration: '10s', target: 48 },  // Stay at 48 users
+                { duration: '5s', target: 0 },     // Ramp down to 0
             ],
             startTime: '10s',
             tags: { test_type: 'load' },
         },
     },
     thresholds: {
-        http_req_duration: ['p(95)<5000'],  // 95% of requests should be below 5s
+        http_req_duration: ['p(95)<5000', 'p(99)<7000'],  // 95% < 5s, 99% < 7s
         http_req_failed: ['rate<0.1'],       // Error rate should be below 10%
         errors: ['rate<0.1'],                // Custom error rate below 10%
     },
+    summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
 };
 
 // Base URL configuration
@@ -54,7 +57,8 @@ const headers = {
 
 export default function () {
     const url = `${BASE_URL}/api/v1/generate/template-pdf`;
-    const payload = JSON.stringify(financialDigitalSignaturePayload);
+    // Generate dynamic payload based on weighted distribution
+    const payload = JSON.stringify(getWeightedPayload());
 
     const startTime = Date.now();
     const response = http.post(url, payload, { headers: headers });
@@ -77,14 +81,14 @@ export default function () {
     errorRate.add(!checkResult);
 
     // Small sleep between requests to simulate realistic user behavior
-    sleep(1);
+    // sleep(1);
 }
 
 // Setup function - runs once before the test
 export function setup() {
     console.log(`Starting load test against ${BASE_URL}`);
     console.log('Testing endpoint: /api/v1/generate/template-pdf');
-    console.log('Payload loaded from: sampledata/editor/financial_digitalsignature.json');
+    console.log('Payload loaded from: random payload');
 
     // Verify server is reachable
     const healthCheck = http.get(`${BASE_URL}/gopdfsuit`);

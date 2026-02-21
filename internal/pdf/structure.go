@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 )
@@ -128,32 +129,18 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	// but for our internal representation:
 	elem.Kids = append(elem.Kids, mcid)
 
-	// Write BMC/BDC operator
-	if len(props) == 0 {
-		// Pre-allocate buffer for marked content command
-		mcBuf := make([]byte, 0, 64)
-		mcBuf = append(mcBuf, '/')
-		mcBuf = append(mcBuf, string(tag)...)
-		mcBuf = append(mcBuf, " <</MCID "...)
-		mcBuf = strconv.AppendInt(mcBuf, int64(mcid), 10)
-		mcBuf = append(mcBuf, ">> BDC\n"...)
-		streamBuilder.Write(mcBuf)
-	} else {
-		// Just handle Alt text for now in properties list if strictly needed,
-		// but standard practice is BDC with property dictionary
-		var mcBuf []byte
-		mcBuf = append(mcBuf, '/')
-		mcBuf = append(mcBuf, string(tag)...)
-		mcBuf = append(mcBuf, " <</MCID "...)
-		mcBuf = strconv.AppendInt(mcBuf, int64(mcid), 10)
-		streamBuilder.Write(mcBuf)
-		if alt, ok := props["Alt"]; ok {
-			streamBuilder.WriteString(" /Alt (")
-			streamBuilder.WriteString(escapeText(alt))
-			streamBuilder.WriteString(")")
-		}
-		streamBuilder.WriteString(">> BDC\n")
+	// Write BMC/BDC operator — direct writes, no intermediate allocation
+	var intBuf [12]byte
+	streamBuilder.WriteByte('/')
+	streamBuilder.WriteString(string(tag))
+	streamBuilder.WriteString(" <</MCID ")
+	streamBuilder.Write(strconv.AppendInt(intBuf[:0], int64(mcid), 10))
+	if alt, ok := props["Alt"]; ok {
+		streamBuilder.WriteString(" /Alt (")
+		streamBuilder.WriteString(escapeText(alt))
+		streamBuilder.WriteByte(')')
 	}
+	streamBuilder.WriteString(">> BDC\n")
 
 	return mcid
 }
@@ -161,6 +148,65 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 // EndMarkedContent ends the current marked content sequence
 func (sm *StructureManager) EndMarkedContent(streamBuilder *strings.Builder) {
 	streamBuilder.WriteString("EMC\n")
+	if sm.CurrentParent != nil && sm.CurrentParent.Parent != nil {
+		sm.CurrentParent = sm.CurrentParent.Parent
+	}
+}
+
+// BeginMarkedContentBuf writes directly to a bytes.Buffer (avoids strings.Builder intermediary in hot loops)
+func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string) int {
+	// 1. Create structure element
+	elem := &StructElem{
+		Type:   tag,
+		Parent: sm.CurrentParent,
+		PageID: pageIndex,
+	}
+
+	if val, ok := props["Title"]; ok {
+		elem.Title = val
+	}
+	if val, ok := props["Alt"]; ok {
+		elem.Alt = val
+	}
+
+	// 2. Add as kid to current parent
+	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, elem)
+	sm.Elements = append(sm.Elements, elem)
+
+	// 3. Set current parent to this new element
+	sm.CurrentParent = elem
+
+	// 4. Generate MCID for content stream
+	mcid := sm.GetNextMCID(pageIndex)
+
+	// Track in ParentTree
+	if sm.ParentTree[pageIndex] == nil {
+		sm.ParentTree[pageIndex] = make([]*StructElem, 0)
+	}
+	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
+
+	// 5. Add KID for MCID
+	elem.Kids = append(elem.Kids, mcid)
+
+	// Write BDC operator directly to bytes.Buffer
+	var intBuf [12]byte
+	buf.WriteByte('/')
+	buf.WriteString(string(tag))
+	buf.WriteString(" <</MCID ")
+	buf.Write(strconv.AppendInt(intBuf[:0], int64(mcid), 10))
+	if alt, ok := props["Alt"]; ok {
+		buf.WriteString(" /Alt (")
+		buf.WriteString(escapeText(alt))
+		buf.WriteByte(')')
+	}
+	buf.WriteString(">> BDC\n")
+
+	return mcid
+}
+
+// EndMarkedContentBuf writes EMC directly to a bytes.Buffer (avoids strings.Builder intermediary)
+func (sm *StructureManager) EndMarkedContentBuf(buf *bytes.Buffer) {
+	buf.WriteString("EMC\n")
 	if sm.CurrentParent != nil && sm.CurrentParent.Parent != nil {
 		sm.CurrentParent = sm.CurrentParent.Parent
 	}
