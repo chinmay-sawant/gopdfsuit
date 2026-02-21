@@ -19,6 +19,19 @@ var pdfPasswordPadding = []byte{
 	0x2f, 0x0c, 0xa9, 0xfe, 0x64, 0x53, 0x69, 0x7a,
 }
 
+// padPassword pads or truncates password to 32 bytes
+func padPassword(password string) []byte {
+	pwd := []byte(password)
+	if len(pwd) >= 32 {
+		return pwd[:32]
+	}
+	// Pad with standard padding bytes
+	result := make([]byte, 32)
+	copy(result, pwd)
+	copy(result[len(pwd):], pdfPasswordPadding[:32-len(pwd)])
+	return result
+}
+
 type standardEncryptDict struct {
 	R               int
 	P               int
