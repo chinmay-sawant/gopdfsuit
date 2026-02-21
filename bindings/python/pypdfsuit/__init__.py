@@ -50,6 +50,13 @@ from .merge import merge_pdfs
 from .split import split_pdf, parse_page_spec
 from .fill import fill_pdf_with_xfdf
 from .html import convert_html_to_pdf, convert_html_to_image
+from .redact import (
+    get_page_info,
+    extract_text_positions,
+    apply_redactions,
+    find_text_occurrences,
+    apply_redactions_advanced,
+)
 
 __all__ = [
     # Types
@@ -83,4 +90,9 @@ __all__ = [
     "fill_pdf_with_xfdf",
     "convert_html_to_pdf",
     "convert_html_to_image",
+    "get_page_info",
+    "extract_text_positions",
+    "apply_redactions",
+    "find_text_occurrences",
+    "apply_redactions_advanced",
 ]

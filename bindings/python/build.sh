@@ -41,8 +41,8 @@ CGO_ENABLED=1 go build \
     -o "$OUTPUT_DIR/$OUTPUT_FILE" \
     ./bindings/python/cgo/
 
-# Clean up the header file (we don't need it, we define our own in Python)
-rm -f "$OUTPUT_DIR/libgopdfsuit.h" "$OUTPUT_DIR/gopdfsuit.h"
+# Keep generated headers in sync with exports for developers and CI diffs.
+rm -f "$OUTPUT_DIR/gopdfsuit.h"
 
 echo "Build complete: $OUTPUT_DIR/$OUTPUT_FILE"
 echo ""

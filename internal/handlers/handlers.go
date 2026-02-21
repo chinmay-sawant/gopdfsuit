@@ -112,6 +112,13 @@ func RegisterRoutes(router *gin.Engine) {
 		// HTML to PDF/Image endpoints (powered by gochromedp)
 		v1.POST("/htmltopdf", handlehtmlToPDF)
 		v1.POST("/htmltoimage", handlehtmlToImage)
+
+		// Redaction endpoints
+		v1.POST("/redact/page-info", HandleRedactPageInfo)
+		v1.POST("/redact/text-positions", HandleRedactTextPositions)
+		v1.POST("/redact/capabilities", HandleRedactCapabilities)
+		v1.POST("/redact/apply", HandleRedactApply)
+		v1.POST("/redact/search", HandleRedactSearch)
 	}
 
 	// Add pprof routes for profiling
