@@ -189,8 +189,11 @@ func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, e
 			redactions = append(redactions, buildSubstringRects(i, pos, searchText)...)
 		}
 
-		// Fallback for PDFs that split phrases across multiple text-show operators.
-		if len(positions) > 1 && strings.Contains(normalizedQuery, " ") {
+		// Fallback for PDFs that split words/phrases across multiple text-show operators
+		// (e.g., "don" + "ald" as two separate Tj ops, or "Jeffrey" + "Epstein").
+		// The guard inside findAllCombinedMatchRects skips single-token lines already
+		// handled by buildSubstringRects above.
+		if len(positions) > 1 {
 			redactions = append(redactions, findAllCombinedMatchRects(i, positions, normalizedQuery)...)
 		}
 	}
@@ -229,6 +232,42 @@ func FindTextOccurrencesMulti(pdfBytes []byte, searchTexts []string) ([]Redactio
 	return all, nil
 }
 
+// isURLToken returns true when a text token is a URL or URL fragment.
+// Proportional character-offset estimation is unreliable for these because
+// they are packed with narrow chars (:, /, ., -, &, ?, =) that skew the
+// average glyph width. In secure_required mode the content stream rewrite
+// already scrubs the text; a wrong-position overlay just confuses the output.
+func isURLToken(text string) bool {
+	if strings.Contains(text, "://") {
+		return true
+	}
+	runes := []rune(text)
+	if len(runes) <= 30 || strings.ContainsRune(text, ' ') {
+		return false
+	}
+	// URL query / path fragments: no spaces, longer than 30 chars, contain
+	// multiple URL-special characters (&, =, +, %).
+	queryCount := 0
+	hyphenCount := 0
+	for _, ch := range text {
+		switch ch {
+		case '&', '=', '+', '%', '?':
+			queryCount++
+		case '-':
+			hyphenCount++
+		}
+	}
+	if queryCount >= 2 {
+		return true
+	}
+	// URL path slug: long no-space token with many hyphens (e.g. wrapped URL
+	// path lines like "birther-wagon-insists-Hillary-drove-says-lot-problems-Bill-Clinton-s-").
+	if len(runes) > 40 && hyphenCount >= 4 {
+		return true
+	}
+	return false
+}
+
 func buildSubstringRects(pageNum int, pos TextPosition, loweredSearch string) []RedactionRect {
 	if loweredSearch == "" || strings.TrimSpace(pos.Text) == "" {
 		return nil
@@ -244,10 +283,24 @@ func buildSubstringRects(pageNum int, pos TextPosition, loweredSearch string) []
 		charW = pos.Width / float64(len(src))
 	}
 
+	// For URL tokens proportional character offsets are unreliable (narrow
+	// chars skew the average).  If any match is found, redact the whole URL.
+	urlToken := isURLToken(pos.Text)
+
 	rects := make([]RedactionRect, 0, 2)
 	for i := 0; i+len(needle) <= len(src); i++ {
 		if !runeSliceEqual(src[i:i+len(needle)], needle) {
 			continue
+		}
+		if urlToken {
+			// Redact the entire URL token with one rect and stop scanning.
+			return []RedactionRect{{
+				PageNum: pageNum,
+				X:       pos.X,
+				Y:       pos.Y,
+				Width:   pos.Width,
+				Height:  pos.Height,
+			}}
 		}
 		x := pos.X
 		w := pos.Width
@@ -384,6 +437,23 @@ func findAllCombinedMatchRects(pageNum int, positions []TextPosition, normalized
 			maxY := -math.MaxFloat64
 			for _, s := range line.spans {
 				if s.start >= matchEnd || s.end <= matchStart {
+					continue
+				}
+				// URL token: redact the whole token — proportional offset is
+				// unreliable for these, but the token itself must be covered.
+				if isURLToken(s.pos.Text) {
+					if s.pos.X < minX {
+						minX = s.pos.X
+					}
+					if s.pos.Y < minY {
+						minY = s.pos.Y
+					}
+					if x := s.pos.X + s.pos.Width; x > maxX {
+						maxX = x
+					}
+					if y := s.pos.Y + s.pos.Height; y > maxY {
+						maxY = y
+					}
 					continue
 				}
 				// Partially-overlapping tokens: trim X proportionally using charW.

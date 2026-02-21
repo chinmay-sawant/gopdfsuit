@@ -8,7 +8,7 @@ import (
 )
 
 func TestFinancialReportTextRedaction(t *testing.T) {
-	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
+	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "compliant_financial_report.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
@@ -32,7 +32,7 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	}
 
 	// store output at repository root for easier inspection by developer
-	outputPath := filepath.Join("..", "..", "financial_report_redacted_test_output.pdf")
+	outputPath := filepath.Join("..", "..", "sampledata", "financialreport", "compliant_financial_report_redacted.pdf")
 	if err := os.WriteFile(outputPath, out, 0o600); err != nil {
 		t.Fatalf("failed to write redacted output PDF: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 }
 
 func TestFinancialReportPage2TextRedaction(t *testing.T) {
-	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
+	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "compliant_financial_report.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
@@ -75,7 +75,7 @@ func TestFinancialReportPage2TextRedaction(t *testing.T) {
 }
 
 func TestFinancialReportPage2TextRedactionMultiTerms(t *testing.T) {
-	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
+	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "compliant_financial_report.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)

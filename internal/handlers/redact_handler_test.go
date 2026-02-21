@@ -41,7 +41,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	if err := mw.WriteField("mode", "secure_required"); err != nil {
 		t.Fatalf("WriteField mode failed: %v", err)
 	}
-	if err := mw.WriteField("textSearch", `[{"text":"donald"},{"text":"Jeffrey epstein"},{"text":"jeffrey epstein"}]`); err != nil {
+	if err := mw.WriteField("textSearch", `[{"text":"donald"},{"text":"Jeffrey epstein"},{"text":"jeffrey epstein"},{"text":"Bill"}]`); err != nil {
 		t.Fatalf("WriteField textSearch failed: %v", err)
 	}
 	if err := mw.Close(); err != nil {
