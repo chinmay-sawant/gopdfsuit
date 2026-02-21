@@ -48,10 +48,9 @@ var (
 
 // Internal aliases for lower-case names previously used in the pdf package
 var (
-	getCompressBuffer     = font.GetCompressBuffer
-	getZlibWriter         = font.GetZlibWriter
-	putZlibWriter         = font.PutZlibWriter // Note: remote code uses getZlibWriter/putZlibWriter names
-	compressBufPool       = &font.CompressBufPool
-	generateCIDToGIDMap   = font.GenerateCIDToGIDMap
-	generateToUnicodeCMap = font.GenerateToUnicodeCMap
+	getCompressBuffer   = font.GetCompressBuffer
+	getZlibWriter       = font.GetZlibWriter
+	putZlibWriter       = font.PutZlibWriter // Note: remote code uses getZlibWriter/putZlibWriter names
+	compressBufPool     = &font.CompressBufPool
+	generateCIDToGIDMap = font.GenerateCIDToGIDMap
 )
