@@ -926,7 +926,7 @@ func scrubDecodedContent(decoded []byte, rects []RedactionRect, queries []Redact
 			// text as UTF-16BE hex so the 2-byte code-pair structure stays intact.
 			if strings.HasPrefix(trimmedOp, "<") && !strings.HasPrefix(trimmedOp, "[") {
 				out.WriteString("<")
-				for _, r := range []rune(newText) {
+				for _, r := range newText {
 					_, _ = fmt.Fprintf(&out, "%04X", uint16(r))
 				}
 				out.WriteString("> Tj")
