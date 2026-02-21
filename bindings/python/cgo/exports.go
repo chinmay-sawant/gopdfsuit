@@ -259,6 +259,146 @@ func GetAvailableFonts() C.ByteResult {
 	return result
 }
 
+// GetPageInfo returns metadata about PDF pages.
+// The caller must free the result using FreeBytesResult.
+//
+//export GetPageInfo
+func GetPageInfo(pdfData *C.char, pdfLen C.int) C.ByteResult {
+	var result C.ByteResult
+
+	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
+	info, err := gopdflib.GetPageInfo(pdfBytes)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	infoJSON, err := json.Marshal(info)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	result.length = C.int(len(infoJSON))
+	result.data = (*C.char)(C.malloc(C.size_t(len(infoJSON))))
+	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&infoJSON[0]), C.size_t(len(infoJSON)))
+
+	return result
+}
+
+// ExtractTextPositions extracts text coordinates from a specific page.
+// The caller must free the result using FreeBytesResult.
+//
+//export ExtractTextPositions
+func ExtractTextPositions(pdfData *C.char, pdfLen C.int, pageNum C.int) C.ByteResult {
+	var result C.ByteResult
+
+	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
+	positions, err := gopdflib.ExtractTextPositions(pdfBytes, int(pageNum))
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	posJSON, err := json.Marshal(positions)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	result.length = C.int(len(posJSON))
+	result.data = (*C.char)(C.malloc(C.size_t(len(posJSON))))
+	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&posJSON[0]), C.size_t(len(posJSON)))
+
+	return result
+}
+
+// FindTextOccurrences searches for text and returns redaction candidate rectangles.
+// The caller must free the result using FreeBytesResult.
+//
+//export FindTextOccurrences
+func FindTextOccurrences(pdfData *C.char, pdfLen C.int, searchText *C.char) C.ByteResult {
+	var result C.ByteResult
+
+	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
+	text := C.GoString(searchText)
+	rects, err := gopdflib.FindTextOccurrences(pdfBytes, text)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	rectsJSON, err := json.Marshal(rects)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	result.length = C.int(len(rectsJSON))
+	result.data = (*C.char)(C.malloc(C.size_t(len(rectsJSON))))
+	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&rectsJSON[0]), C.size_t(len(rectsJSON)))
+
+	return result
+}
+
+// ApplyRedactions applies redaction rectangles to the PDF.
+// The caller must free the result using FreeBytesResult.
+//
+//export ApplyRedactions
+func ApplyRedactions(pdfData *C.char, pdfLen C.int, redactionsJSON *C.char) C.ByteResult {
+	var result C.ByteResult
+
+	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
+	redactionsStr := C.GoString(redactionsJSON)
+
+	var redactions []gopdflib.RedactionRect
+	if err := json.Unmarshal([]byte(redactionsStr), &redactions); err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	out, err := gopdflib.ApplyRedactions(pdfBytes, redactions)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	result.length = C.int(len(out))
+	result.data = (*C.char)(C.malloc(C.size_t(len(out))))
+	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&out[0]), C.size_t(len(out)))
+
+	return result
+}
+
+// ApplyRedactionsAdvanced applies a unified redaction request to the PDF.
+// The caller must free the result using FreeBytesResult.
+//
+//export ApplyRedactionsAdvanced
+func ApplyRedactionsAdvanced(pdfData *C.char, pdfLen C.int, optionsJSON *C.char) C.ByteResult {
+	var result C.ByteResult
+
+	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
+	optionsStr := C.GoString(optionsJSON)
+
+	var options gopdflib.ApplyRedactionOptions
+	if err := json.Unmarshal([]byte(optionsStr), &options); err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	out, err := gopdflib.ApplyRedactionsAdvanced(pdfBytes, options)
+	if err != nil {
+		result.error = C.CString(err.Error())
+		return result
+	}
+
+	result.length = C.int(len(out))
+	result.data = (*C.char)(C.malloc(C.size_t(len(out))))
+	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&out[0]), C.size_t(len(out)))
+
+	return result
+}
+
 // FreeBytesResult frees memory allocated by functions returning ByteResult.
 //
 //export FreeBytesResult
