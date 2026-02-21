@@ -387,13 +387,6 @@ func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, opts ApplyRedactionOptio
 	all := make([]RedactionRect, 0, len(opts.Blocks)+8)
 	all = append(all, opts.Blocks...)
 	activeTextQueries := opts.TextSearch
-	if len(opts.Blocks) > 0 && len(opts.TextSearch) > 0 {
-		// Block placement should be authoritative when user has manually selected areas.
-		// Mixing stale search queries (especially single-character terms) can produce noisy
-		// extra redactions and apparent coordinate drift.
-		activeTextQueries = nil
-		report.Warnings = append(report.Warnings, "textSearch ignored because manual block redactions were provided")
-	}
 
 	for _, q := range activeTextQueries {
 		query := strings.TrimSpace(q.Text)
@@ -556,11 +549,6 @@ func applySecureContentRedactions(pdfBytes []byte, redactions []RedactionRect, q
 
 		visited := make(map[string]bool)
 		activeQueries := queries
-		if len(rects) > 0 {
-			// When rects are available, rely on geometry-based secure masking only.
-			// Direct query replacement can shift glyph layout (notably for short terms like "A").
-			activeQueries = nil
-		}
 
 		for _, key := range keys {
 			changed, nestedWarnings := rewriteSecureStreamTree(objMap, key, pageResources, rects, activeQueries, visited)
@@ -767,9 +755,21 @@ func scrubDecodedContent(decoded []byte, rects []RedactionRect, queries []Redact
 
 		if newText != text {
 			changed = true
-			out.WriteString("(")
-			out.WriteString(escapePDFTextLiteral(newText))
-			out.WriteString(") Tj")
+			trimmedOp := strings.TrimSpace(op)
+			// Preserve the original encoding format.
+			// CIDFont/Identity-H operators use <hex> Tj — re-encode replacement
+			// text as UTF-16BE hex so the 2-byte code-pair structure stays intact.
+			if strings.HasPrefix(trimmedOp, "<") && !strings.HasPrefix(trimmedOp, "[") {
+				out.WriteString("<")
+				for _, r := range []rune(newText) {
+					_, _ = fmt.Fprintf(&out, "%04X", uint16(r))
+				}
+				out.WriteString("> Tj")
+			} else {
+				out.WriteString("(")
+				out.WriteString(escapePDFTextLiteral(newText))
+				out.WriteString(") Tj")
+			}
 		} else {
 			out.WriteString(op)
 		}
@@ -1598,6 +1598,25 @@ func decodePDFHexLiteral(hexText string) string {
 			u16 = append(u16, (uint16(b[i+1])<<8)|uint16(b[i]))
 		}
 		return string(utf16.Decode(u16))
+	}
+	// Detect UTF-16BE without BOM — standard in CIDFont Identity-H encoded PDFs.
+	// Heuristic: even byte count and every high byte (indices 0,2,4…) is 0x00,
+	// indicating BMP Unicode code-points encoded as big-endian 16-bit pairs.
+	if len(b) >= 4 && len(b)%2 == 0 {
+		allHighZero := true
+		for i := 0; i < len(b); i += 2 {
+			if b[i] != 0x00 {
+				allHighZero = false
+				break
+			}
+		}
+		if allHighZero {
+			u16 := make([]uint16, 0, len(b)/2)
+			for i := 0; i+1 < len(b); i += 2 {
+				u16 = append(u16, (uint16(b[i])<<8)|uint16(b[i+1]))
+			}
+			return string(utf16.Decode(u16))
+		}
 	}
 	return string(b)
 }

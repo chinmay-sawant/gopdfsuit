@@ -334,21 +334,19 @@ const Redaction = () => {
                     formData.append('password', password)
                 }
 
-                if (!hasBlockRedactions) {
-                    const allSearches = [...searchQueries]
-                    const inlineTerms = parseSearchTerms(searchText)
-                    allSearches.push(...inlineTerms)
-                    const seen = new Set()
-                    const uniqueSearches = allSearches.filter((term) => {
-                        const key = term.trim().toLowerCase()
-                        if (!key || seen.has(key)) return false
-                        seen.add(key)
-                        return true
-                    })
+                const allSearches = [...searchQueries]
+                const inlineTerms = parseSearchTerms(searchText)
+                allSearches.push(...inlineTerms)
+                const seen = new Set()
+                const uniqueSearches = allSearches.filter((term) => {
+                    const key = term.trim().toLowerCase()
+                    if (!key || seen.has(key)) return false
+                    seen.add(key)
+                    return true
+                })
 
-                    if (uniqueSearches.length > 0) {
-                        formData.append('textSearch', JSON.stringify(uniqueSearches.map((text) => ({ text }))))
-                    }
+                if (uniqueSearches.length > 0) {
+                    formData.append('textSearch', JSON.stringify(uniqueSearches.map((text) => ({ text }))))
                 }
                 return formData
             }
@@ -390,6 +388,13 @@ const Redaction = () => {
                 throw new Error(lastError)
             }
 
+      // Read report header before consuming blob (headers and body are independent)
+      let report = null
+      const reportHeader = response.headers.get('X-Redaction-Report')
+      if (reportHeader) {
+        try { report = JSON.parse(reportHeader) } catch { /* ignore */ }
+      }
+
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -398,12 +403,22 @@ const Redaction = () => {
       document.body.appendChild(a)
       a.click()
       a.remove()
-      if (fallbackUsed) {
-        setSuccessMsg('Secure redaction was unavailable for this PDF; visual redaction fallback was applied and downloaded successfully.')
+
+      if (report && report.generatedRects === 0) {
+        setSuccessMsg(
+          'No redactable text content was found in this PDF — the downloaded file is unchanged. ' +
+          'This usually means the PDF is scanned/image-based and its text is not embedded as selectable text. ' +
+          'Try drawing redaction boxes manually instead, or use a PDF with embedded text.'
+        )
+      } else if (fallbackUsed) {
+        const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
+        setSuccessMsg(`Secure redaction was unavailable for this PDF; visual redaction fallback was applied and downloaded successfully.${rectInfo}`)
       } else if (appliedMode === 'secure_required') {
-        setSuccessMsg('Secure redaction applied and PDF downloaded successfully!')
+        const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
+        setSuccessMsg(`Secure redaction applied and PDF downloaded successfully!${rectInfo}`)
       } else {
-        setSuccessMsg('Visual redaction applied and PDF downloaded successfully!')
+        const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
+        setSuccessMsg(`Visual redaction applied and PDF downloaded successfully!${rectInfo}`)
       }
     } catch (err) {
       setError(err.message)

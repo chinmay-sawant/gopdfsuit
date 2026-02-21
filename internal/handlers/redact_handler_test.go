@@ -18,7 +18,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/v1/redact/apply", HandleRedactApply)
 
-	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
+	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "template.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
@@ -27,7 +27,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 
-	fw, err := mw.CreateFormFile("pdf", "financial_report.pdf")
+	fw, err := mw.CreateFormFile("pdf", "template.pdf")
 	if err != nil {
 		t.Fatalf("CreateFormFile failed: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	}
 
 	// Store output at repository root for easier inspection by developer
-	outputPath := filepath.Join("..", "..", "financial_report_redacted_web.pdf")
+	outputPath := filepath.Join("..", "..", "template_redacted_web.pdf")
 	if err := os.WriteFile(outputPath, w.Body.Bytes(), 0o600); err != nil {
 		t.Fatalf("failed to write redacted output PDF: %v", err)
 	}
