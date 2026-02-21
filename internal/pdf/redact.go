@@ -386,8 +386,16 @@ func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, opts ApplyRedactionOptio
 
 	all := make([]RedactionRect, 0, len(opts.Blocks)+8)
 	all = append(all, opts.Blocks...)
+	activeTextQueries := opts.TextSearch
+	if len(opts.Blocks) > 0 && len(opts.TextSearch) > 0 {
+		// Block placement should be authoritative when user has manually selected areas.
+		// Mixing stale search queries (especially single-character terms) can produce noisy
+		// extra redactions and apparent coordinate drift.
+		activeTextQueries = nil
+		report.Warnings = append(report.Warnings, "textSearch ignored because manual block redactions were provided")
+	}
 
-	for _, q := range opts.TextSearch {
+	for _, q := range activeTextQueries {
 		query := strings.TrimSpace(q.Text)
 		if query == "" {
 			continue
@@ -401,7 +409,7 @@ func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, opts ApplyRedactionOptio
 	}
 
 	if opts.OCR != nil && opts.OCR.Enabled {
-		ocrRects, err := runOCRSearch(pdfBytes, opts.TextSearch, *opts.OCR)
+		ocrRects, err := runOCRSearch(pdfBytes, activeTextQueries, *opts.OCR)
 		if err != nil {
 			report.Warnings = append(report.Warnings, "OCR fallback error: "+err.Error())
 		} else {
@@ -412,22 +420,14 @@ func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, opts ApplyRedactionOptio
 	report.GeneratedRects = len(all)
 	workingPDF := pdfBytes
 
-	// In visual mode, still attempt secure content rewriting as best-effort.
-	// If it works, we get both searchable-text removal and visual overlays.
-	if mode == "visual_allowed" && len(all) > 0 {
-		secureOut, secureChanged, secureWarns, err := applySecureContentRedactions(workingPDF, all, opts.TextSearch)
-		report.Warnings = append(report.Warnings, secureWarns...)
-		if err != nil {
-			report.Warnings = append(report.Warnings, "best-effort secure removal skipped: "+err.Error())
-		} else if secureChanged {
-			workingPDF = secureOut
-			report.AppliedSecure = true
-			report.SecurityOutcome = "secure"
-		}
+	// Keep visual mode strictly visual to avoid mutating encoded text streams.
+	// Best-effort secure rewriting can produce glyph corruption for complex font encodings.
+	if mode == "visual_allowed" {
+		report.Warnings = append(report.Warnings, "visual_allowed mode skipped secure text rewrite to preserve original glyph encoding")
 	}
 
 	if mode == "secure_required" {
-		secureOut, secureChanged, secureWarns, err := applySecureContentRedactions(workingPDF, all, opts.TextSearch)
+		secureOut, secureChanged, secureWarns, err := applySecureContentRedactions(workingPDF, all, activeTextQueries)
 		report.Warnings = append(report.Warnings, secureWarns...)
 		if err != nil {
 			report.SecurityOutcome = "failed"
@@ -548,25 +548,26 @@ func applySecureContentRedactions(pdfBytes []byte, redactions []RedactionRect, q
 		}
 		pageBody := objMap[pageRef]
 		keys := extractContentKeys(pageBody)
+		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
 			warnings = append(warnings, fmt.Sprintf("page %d: no content streams", pageNum))
 			continue
 		}
 
+		visited := make(map[string]bool)
+		activeQueries := queries
+		if len(rects) > 0 {
+			// When rects are available, rely on geometry-based secure masking only.
+			// Direct query replacement can shift glyph layout (notably for short terms like "A").
+			activeQueries = nil
+		}
+
 		for _, key := range keys {
-			objBody, ok := objMap[key]
-			if !ok {
-				continue
-			}
-			updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("stream %s: %v", key, err))
-				continue
-			}
+			changed, nestedWarnings := rewriteSecureStreamTree(objMap, key, pageResources, rects, activeQueries, visited)
 			if changed {
-				objMap[key] = updated
 				changedAny = true
 			}
+			warnings = append(warnings, nestedWarnings...)
 		}
 	}
 
@@ -576,6 +577,55 @@ func applySecureContentRedactions(pdfBytes []byte, redactions []RedactionRect, q
 	}
 
 	return out, changedAny, warnings, nil
+}
+
+func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resources []byte, rects []RedactionRect, queries []RedactionTextQuery, visited map[string]bool) (bool, []string) {
+	if visited[streamKey] {
+		return false, nil
+	}
+	visited[streamKey] = true
+
+	objBody, ok := objMap[streamKey]
+	if !ok {
+		return false, nil
+	}
+
+	_, decoded, ok := inspectStream(objBody)
+	if !ok {
+		return false, nil
+	}
+
+	updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
+	warnings := make([]string, 0, 2)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("stream %s: %v", streamKey, err))
+	} else if changed {
+		objMap[streamKey] = updated
+	}
+
+	if len(resources) == 0 || len(decoded) == 0 {
+		return changed, warnings
+	}
+
+	childRefs := resolveUsedXObjectRefs(decoded, resources)
+	for _, childKey := range childRefs {
+		childBody, ok := objMap[childKey]
+		if !ok {
+			continue
+		}
+		// Only recurse into Form XObjects where text content commonly lives.
+		if !regexp.MustCompile(`/Subtype\s*/Form(\b|\s|/)`).Match(childBody) {
+			continue
+		}
+		childResources := extractResourcesBody(childBody, objMap)
+		childChanged, childWarnings := rewriteSecureStreamTree(objMap, childKey, childResources, rects, queries, visited)
+		if childChanged {
+			changed = true
+		}
+		warnings = append(warnings, childWarnings...)
+	}
+
+	return changed, warnings
 }
 
 func inspectStream(streamObj []byte) ([]byte, []byte, bool) {
@@ -738,6 +788,23 @@ func applyRectMaskToText(text string, pos TextPosition, rects []RedactionRect) s
 	if len(runes) == 0 || pos.Width <= 0 {
 		return text
 	}
+
+	// In secure mode, if a redaction block covers a substantial portion of a text run,
+	// scrub the full run. For small overlaps, keep per-glyph masking.
+	for _, r := range rects {
+		if !rectsIntersectWithTolerance(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height, pos.Height*0.75) {
+			continue
+		}
+		overlap := overlapWidth(pos.X, pos.Width, r.X, r.Width)
+		coverage := overlap / pos.Width
+		if coverage >= 0.35 {
+			for i := range runes {
+				runes[i] = ' '
+			}
+			return string(runes)
+		}
+	}
+
 	charW := pos.Width / float64(len(runes))
 	if charW <= 0 {
 		return text
@@ -801,6 +868,22 @@ func escapePDFTextLiteral(s string) string {
 
 func rectsIntersect(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
 	return x1 < x2+w2 && x1+w1 > x2 && y1 < y2+h2 && y1+h1 > y2
+}
+
+func rectsIntersectWithTolerance(x1, y1, w1, h1, x2, y2, w2, h2, pad float64) bool {
+	if pad < 0 {
+		pad = 0
+	}
+	return rectsIntersect(x1, y1, w1, h1, x2-pad, y2-pad, w2+(2*pad), h2+(2*pad))
+}
+
+func overlapWidth(x1, w1, x2, w2 float64) float64 {
+	left := math.Max(x1, x2)
+	right := math.Min(x1+w1, x2+w2)
+	if right <= left {
+		return 0
+	}
+	return right - left
 }
 
 // ApplyRedactions applies visual redaction rectangles to the PDF
@@ -1288,38 +1371,42 @@ func parseTextOperators(content []byte) []TextPosition {
 	tmRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+Tm`)
 	tdRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+Td`)
 	tfRe := regexp.MustCompile(`/[A-Za-z0-9_.+-]+\s+([\d.-]+)\s+Tf`)
-	opRe := regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
+	textOpRe := regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
+	tokenRe := regexp.MustCompile(`(?s)[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+Tm|[\d.-]+\s+[\d.-]+\s+Td|/[A-Za-z0-9_.+-]+\s+[\d.-]+\s+Tf|\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
 
 	for _, block := range blocks {
 		inner := block[1]
 		currentX, currentY := 0.0, 0.0
 		currentFontSize := 10.0
-		for _, m := range opRe.FindAllStringIndex(inner, -1) {
-			op := inner[m[0]:m[1]]
-			prefix := inner[:m[0]]
-
-			tmMatches := tmRe.FindAllStringSubmatch(prefix, -1)
-			if len(tmMatches) > 0 {
-				lastTm := tmMatches[len(tmMatches)-1]
-				currentX, _ = strconv.ParseFloat(lastTm[5], 64)
-				currentY, _ = strconv.ParseFloat(lastTm[6], 64)
+		for _, token := range tokenRe.FindAllString(inner, -1) {
+			token = strings.TrimSpace(token)
+			if token == "" {
+				continue
 			}
-			tdMatches := tdRe.FindAllStringSubmatch(prefix, -1)
-			if len(tdMatches) > 0 {
-				lastTd := tdMatches[len(tdMatches)-1]
-				dx, _ := strconv.ParseFloat(lastTd[1], 64)
-				dy, _ := strconv.ParseFloat(lastTd[2], 64)
+
+			if m := tmRe.FindStringSubmatch(token); m != nil {
+				currentX, _ = strconv.ParseFloat(m[5], 64)
+				currentY, _ = strconv.ParseFloat(m[6], 64)
+				continue
+			}
+			if m := tdRe.FindStringSubmatch(token); m != nil {
+				dx, _ := strconv.ParseFloat(m[1], 64)
+				dy, _ := strconv.ParseFloat(m[2], 64)
 				currentX += dx
 				currentY += dy
+				continue
 			}
-			tfMatches := tfRe.FindAllStringSubmatch(prefix, -1)
-			if len(tfMatches) > 0 {
-				if fs, err := strconv.ParseFloat(tfMatches[len(tfMatches)-1][1], 64); err == nil && fs > 0 {
+			if m := tfRe.FindStringSubmatch(token); m != nil {
+				if fs, err := strconv.ParseFloat(m[1], 64); err == nil && fs > 0 {
 					currentFontSize = fs
 				}
+				continue
+			}
+			if !textOpRe.MatchString(token) {
+				continue
 			}
 
-			textStr := strings.TrimSpace(extractTextFromOperator(op))
+			textStr := strings.TrimSpace(extractTextFromOperator(token))
 			if textStr == "" {
 				continue
 			}
@@ -1338,6 +1425,8 @@ func parseTextOperators(content []byte) []TextPosition {
 				Width:  width,
 				Height: height,
 			})
+			// Approximate text advance for subsequent operators on the same text line.
+			currentX += width
 		}
 	}
 

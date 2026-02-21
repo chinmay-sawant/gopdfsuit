@@ -151,6 +151,10 @@ func HandleRedactTextPositions(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read pdf file"})
 		return
 	}
+	if len(pdfBytes) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is empty"})
+		return
+	}
 
 	positions, err := pdf.ExtractTextPositions(pdfBytes, pageNum)
 	if err != nil {
@@ -247,6 +251,10 @@ func HandleRedactApply(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read pdf file"})
 		return
 	}
+	if len(pdfBytes) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is empty"})
+		return
+	}
 
 	redactedPDF, report, err := pdf.ApplyRedactionsAdvancedWithReport(pdfBytes, options)
 	if err != nil {
@@ -301,6 +309,10 @@ func HandleRedactSearch(c *gin.Context) {
 	pdfBytes, err := io.ReadAll(f)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read pdf file"})
+		return
+	}
+	if len(pdfBytes) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is empty"})
 		return
 	}
 

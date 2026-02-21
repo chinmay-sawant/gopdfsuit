@@ -5,8 +5,8 @@ import { Upload, Download, Eraser, Trash2, ChevronLeft, ChevronRight, AlertCircl
 import { makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
 import BackgroundAnimation from '../components/BackgroundAnimation'
-// import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
-// import 'react-pdf/dist/esm/Page/TextLayer.css'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
 
 // Valid for React-PDF v7/v8/v9. Configure worker.
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
@@ -30,7 +30,7 @@ const Redaction = () => {
     const [searchQueries, setSearchQueries] = useState([])
   const [isSearching, setIsSearching] = useState(false)
     const [password, setPassword] = useState('')
-    const [mode, setMode] = useState('visual_allowed')
+    const [mode, setMode] = useState('auto')
 
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
@@ -38,6 +38,21 @@ const Redaction = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [successMsg, setSuccessMsg] = useState(null)
+
+    const readErrorResponse = async (response, fallbackMessage) => {
+        try {
+            const text = await response.text()
+            if (!text) return fallbackMessage
+            try {
+                const parsed = JSON.parse(text)
+                return parsed?.error || parsed?.message || fallbackMessage
+            } catch {
+                return text
+            }
+        } catch {
+            return fallbackMessage
+        }
+    }
 
     const parseSearchTerms = (raw) => {
         if (!raw) return []
@@ -81,7 +96,11 @@ const Redaction = () => {
 
   const handleFileUpload = async (event) => {
     const selectedFile = event.target.files[0]
-    if (selectedFile && selectedFile.type === 'application/pdf') {
+        if (selectedFile && selectedFile.type === 'application/pdf') {
+            if (selectedFile.size === 0) {
+                setError('Selected PDF is empty. Please choose a valid non-empty PDF file.')
+                return
+            }
       setFile(selectedFile)
       setRedactions({})
       setPageNumber(1)
@@ -235,6 +254,10 @@ const Redaction = () => {
   const handleSearch = async () => {
         const terms = parseSearchTerms(searchText)
         if (!file || terms.length === 0) return
+        if (file.size === 0) {
+            setError('Selected PDF is empty. Please re-upload a valid PDF.')
+            return
+        }
     setIsSearching(true)
     setError(null)
         setSuccessMsg(null)
@@ -250,8 +273,8 @@ const Redaction = () => {
         }, getAuthHeaders)
 
                 if (!response.ok) {
-                    const bodyText = await response.text()
-                    throw new Error(bodyText || 'Search failed')
+                    const message = await readErrorResponse(response, 'Search failed')
+                    throw new Error(message)
                 }
 
                 const payload = await response.json()
@@ -292,41 +315,80 @@ const Redaction = () => {
         const hasAny = Object.values(redactions).some(arr => arr && arr.length > 0)
         const hasTextCriteria = searchQueries.length > 0 || parseSearchTerms(searchText).length > 0
         if (!file || (!hasAny && !hasTextCriteria)) return
+        if (file.size === 0) {
+            setError('Selected PDF is empty. Please re-upload a valid PDF.')
+            return
+        }
     
     setIsLoading(true)
     try {
       // Flatten redactions map to array
       const allRedactions = Object.values(redactions).flat()
-      
-      const formData = new FormData()
-      formData.append('pdf', file)
-            formData.append('blocks', JSON.stringify(allRedactions))
-            formData.append('mode', mode)
-            if (password.trim()) {
-                formData.append('password', password)
+
+            const buildPayload = (modeToUse) => {
+                const formData = new FormData()
+                formData.append('pdf', file)
+                formData.append('blocks', JSON.stringify(allRedactions))
+                formData.append('mode', modeToUse)
+                if (password.trim()) {
+                    formData.append('password', password)
+                }
+
+                if (!hasBlockRedactions) {
+                    const allSearches = [...searchQueries]
+                    const inlineTerms = parseSearchTerms(searchText)
+                    allSearches.push(...inlineTerms)
+                    const seen = new Set()
+                    const uniqueSearches = allSearches.filter((term) => {
+                        const key = term.trim().toLowerCase()
+                        if (!key || seen.has(key)) return false
+                        seen.add(key)
+                        return true
+                    })
+
+                    if (uniqueSearches.length > 0) {
+                        formData.append('textSearch', JSON.stringify(uniqueSearches.map((text) => ({ text }))))
+                    }
+                }
+                return formData
             }
 
-            const allSearches = [...searchQueries]
-            const inlineTerms = parseSearchTerms(searchText)
-            allSearches.push(...inlineTerms)
-            const seen = new Set()
-            const uniqueSearches = allSearches.filter((term) => {
-                const key = term.trim().toLowerCase()
-                if (!key || seen.has(key)) return false
-                seen.add(key)
-                return true
-            })
+            const modesToTry = mode === 'auto' ? ['secure_required', 'visual_allowed'] : [mode]
+            let appliedMode = ''
+            let fallbackUsed = false
+            let response = null
+            let lastError = 'Redaction failed'
 
-            if (uniqueSearches.length > 0) {
-                formData.append('textSearch', JSON.stringify(uniqueSearches.map((text) => ({ text }))))
+            for (let i = 0; i < modesToTry.length; i += 1) {
+                const candidateMode = modesToTry[i]
+                const tryResponse = await makeAuthenticatedRequest('/api/v1/redact/apply', {
+                    method: 'POST',
+                    body: buildPayload(candidateMode),
+                    throwOnError: false,
+                }, getAuthHeaders)
+
+                if (tryResponse.ok) {
+                    response = tryResponse
+                    appliedMode = candidateMode
+                    fallbackUsed = mode === 'auto' && i > 0
+                    break
+                }
+
+                const message = await readErrorResponse(tryResponse, 'Redaction failed')
+                lastError = message
+
+                const canFallback = mode === 'auto' && candidateMode === 'secure_required'
+                const secureUnavailable = message.toLowerCase().includes('secure_required requested but no secure text content could be removed')
+                if (canFallback && secureUnavailable) {
+                    continue
+                }
+
+                throw new Error(message)
             }
 
-      const response = await makeAuthenticatedRequest('/api/v1/redact/apply', {
-        method: 'POST',
-        body: formData,
-      }, getAuthHeaders)
-
-      if (!response.ok) throw new Error('Redaction failed')
+            if (!response) {
+                throw new Error(lastError)
+            }
 
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
@@ -336,7 +398,13 @@ const Redaction = () => {
       document.body.appendChild(a)
       a.click()
       a.remove()
-      setSuccessMsg("Redacted PDF downloaded successfully!")
+      if (fallbackUsed) {
+        setSuccessMsg('Secure redaction was unavailable for this PDF; visual redaction fallback was applied and downloaded successfully.')
+      } else if (appliedMode === 'secure_required') {
+        setSuccessMsg('Secure redaction applied and PDF downloaded successfully!')
+      } else {
+        setSuccessMsg('Visual redaction applied and PDF downloaded successfully!')
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -430,6 +498,8 @@ const Redaction = () => {
                                 <Page 
                                     pageNumber={pageNumber} 
                                     onLoadSuccess={onPageLoadSuccess}
+                                    renderTextLayer={false}
+                                    renderAnnotationLayer={false}
                                     width={Math.min(800, window.innerWidth - 100)} // Responsive width
                                                                         onRenderSuccess={() => {
                                                                              // Measure against actual rendered PDF canvas bounds for precise coordinate transforms.
@@ -524,8 +594,9 @@ const Redaction = () => {
                                                                 onChange={(e) => setMode(e.target.value)}
                                                                 style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd', background: 'rgba(255,255,255,0.1)', color: 'inherit' }}
                                                             >
-                                                                <option value="visual_allowed">Visual Allowed (current engine)</option>
+                                                                <option value="auto">Default (Try Secure, then Visual Fallback)</option>
                                                                 <option value="secure_required">Secure Required</option>
+                                                                <option value="visual_allowed">Visual Allowed (current engine)</option>
                                                             </select>
                                                         </div>
                                                         <div style={{ marginBottom: '0.75rem' }}>
@@ -555,7 +626,7 @@ const Redaction = () => {
                                                                     setSearchQueries([])
                                                                     setSearchText('')
                                                                     setPassword('')
-                                                                    setMode('visual_allowed')
+                                                                    setMode('auto')
                                                                 }}
                                 className="btn-outline-glow"
                                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}

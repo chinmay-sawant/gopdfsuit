@@ -15,7 +15,7 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	}
 
 	opts := ApplyRedactionOptions{
-		Mode: "visual_allowed",
+		Mode: "secure_required",
 		TextSearch: []RedactionTextQuery{
 			{Text: "SEC"},
 			{Text: "COM"},
