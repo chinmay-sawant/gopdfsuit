@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 type ocrWord struct {
@@ -25,12 +27,12 @@ type ocrWord struct {
 
 // OCRProvider is an adapter interface for OCR backends.
 type OCRProvider interface {
-	ExtractWords(pdfBytes []byte, settings OCRSettings) ([]ocrWord, error)
+	ExtractWords(pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error)
 }
 
 type tesseractProvider struct{}
 
-func getOCRProvider(settings OCRSettings) (OCRProvider, error) {
+func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
 	provider := strings.TrimSpace(strings.ToLower(settings.Provider))
 	if provider == "" || provider == "tesseract" {
 		return tesseractProvider{}, nil
@@ -38,7 +40,7 @@ func getOCRProvider(settings OCRSettings) (OCRProvider, error) {
 	return nil, fmt.Errorf("unsupported OCR provider: %s", settings.Provider)
 }
 
-func runOCRSearch(pdfBytes []byte, queries []RedactionTextQuery, settings OCRSettings) ([]RedactionRect, error) {
+func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings models.OCRSettings) ([]models.RedactionRect, error) {
 	if len(queries) == 0 {
 		return nil, nil
 	}
@@ -46,11 +48,11 @@ func runOCRSearch(pdfBytes []byte, queries []RedactionTextQuery, settings OCRSet
 	if err != nil {
 		return nil, err
 	}
-	words, err := p.ExtractWords(pdfBytes, settings)
+	words, err := p.ExtractWords(r.pdfBytes, settings)
 	if err != nil {
 		return nil, err
 	}
-	var rects []RedactionRect
+	var rects []models.RedactionRect
 	for _, w := range words {
 		for _, q := range queries {
 			term := strings.TrimSpace(strings.ToLower(q.Text))
@@ -58,7 +60,7 @@ func runOCRSearch(pdfBytes []byte, queries []RedactionTextQuery, settings OCRSet
 				continue
 			}
 			if strings.Contains(strings.ToLower(w.Text), term) {
-				rects = append(rects, RedactionRect{
+				rects = append(rects, models.RedactionRect{
 					PageNum: w.PageNum,
 					X:       w.X,
 					Y:       w.Y,
@@ -72,7 +74,7 @@ func runOCRSearch(pdfBytes []byte, queries []RedactionTextQuery, settings OCRSet
 	return rects, nil
 }
 
-func (tesseractProvider) ExtractWords(pdfBytes []byte, settings OCRSettings) ([]ocrWord, error) {
+func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error) {
 	if _, err := exec.LookPath("pdftoppm"); err != nil {
 		return nil, errors.New("pdftoppm command not found for OCR pipeline")
 	}
@@ -80,7 +82,11 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings OCRSettings) ([]
 		return nil, errors.New("tesseract command not found for OCR pipeline")
 	}
 
-	info, err := GetPageInfo(pdfBytes)
+	r, err := NewRedactor(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	info, err := r.GetPageInfo()
 	if err != nil {
 		return nil, err
 	}

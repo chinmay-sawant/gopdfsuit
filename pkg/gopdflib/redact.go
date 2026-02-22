@@ -1,49 +1,73 @@
 package gopdflib
 
-import "github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/redact"
+import (
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/redact"
+)
 
-// PageInfo aliases for public API
-type PageInfo = redact.PageInfo
-type PageDetail = redact.PageDetail
-type TextPosition = redact.TextPosition
-type RedactionRect = redact.RedactionRect
-type RedactionTextQuery = redact.RedactionTextQuery
-type ApplyRedactionOptions = redact.ApplyRedactionOptions
-type OCRSettings = redact.OCRSettings
-type PageCapability = redact.PageCapability
-type RedactionApplyReport = redact.RedactionApplyReport
+type PageInfo = models.PageInfo
+type PageDetail = models.PageDetail
+type TextPosition = models.TextPosition
+type RedactionRect = models.RedactionRect
+type RedactionTextQuery = models.RedactionTextQuery
+type ApplyRedactionOptions = models.ApplyRedactionOptions
+type OCRSettings = models.OCRSettings
+type PageCapability = models.PageCapability
+type RedactionApplyReport = models.RedactionApplyReport
 
-// GetPageInfo extracts metadata about PDF pages (count, dimensions)
 func GetPageInfo(pdfBytes []byte) (PageInfo, error) {
-	return redact.GetPageInfo(pdfBytes)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		return PageInfo{}, err
+	}
+	return r.GetPageInfo()
 }
 
-// ExtractTextPositions extracts text coordinates from a specific page
 func ExtractTextPositions(pdfBytes []byte, pageNum int) ([]TextPosition, error) {
-	return redact.ExtractTextPositions(pdfBytes, pageNum)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	return r.ExtractTextPositions(pageNum)
 }
 
-// FindTextOccurrences searches for text and returns candidate redaction rectangles.
 func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, error) {
-	return redact.FindTextOccurrences(pdfBytes, searchText)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	return r.FindTextOccurrences(searchText)
 }
 
 // ApplyRedactions applies visual redaction rectangles to the PDF
 func ApplyRedactions(pdfBytes []byte, redactions []RedactionRect) ([]byte, error) {
-	return redact.ApplyRedactions(pdfBytes, redactions)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	return r.ApplyRedactions(redactions)
 }
 
-// ApplyRedactionsAdvanced applies a unified redaction request.
 func ApplyRedactionsAdvanced(pdfBytes []byte, options ApplyRedactionOptions) ([]byte, error) {
-	return redact.ApplyRedactionsAdvanced(pdfBytes, options)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	return r.ApplyRedactionsAdvanced(options)
 }
 
-// ApplyRedactionsAdvancedWithReport applies a unified redaction request and returns an execution report.
 func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, options ApplyRedactionOptions) ([]byte, RedactionApplyReport, error) {
-	return redact.ApplyRedactionsAdvancedWithReport(pdfBytes, options)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		return nil, RedactionApplyReport{}, err
+	}
+	return r.ApplyRedactionsAdvancedWithReport(options)
 }
 
-// AnalyzePageCapabilities classifies each page for text/image redaction capability.
 func AnalyzePageCapabilities(pdfBytes []byte) ([]PageCapability, error) {
-	return redact.AnalyzePageCapabilities(pdfBytes)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	return r.AnalyzePageCapabilities()
 }

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
 // Minimal valid PDF with 1 page for testing (Same as before)
@@ -109,7 +111,8 @@ startxref
 `)
 
 func TestGetPageInfo(t *testing.T) {
-	info, err := GetPageInfo(minimalPDF)
+	r, _ := NewRedactor(minimalPDF)
+	info, err := r.GetPageInfo()
 	if err != nil {
 		t.Fatalf("GetPageInfo failed: %v", err)
 	}
@@ -128,7 +131,8 @@ func TestGetPageInfo(t *testing.T) {
 }
 
 func TestExtractTextPositions(t *testing.T) {
-	positions, err := ExtractTextPositions(minimalPDF, 1)
+	r, _ := NewRedactor(minimalPDF)
+	positions, err := r.ExtractTextPositions(1)
 	if err != nil {
 		t.Fatalf("ExtractTextPositions failed: %v", err)
 	}
@@ -150,7 +154,7 @@ func TestExtractTextPositions(t *testing.T) {
 }
 
 func TestApplyRedactions(t *testing.T) {
-	redactions := []RedactionRect{
+	redactions := []models.RedactionRect{
 		{
 			PageNum: 1,
 			X:       100,
@@ -160,7 +164,8 @@ func TestApplyRedactions(t *testing.T) {
 		},
 	}
 
-	redactedBytes, err := ApplyRedactions(minimalPDF, redactions)
+	r, _ := NewRedactor(minimalPDF)
+	redactedBytes, err := r.ApplyRedactions(redactions)
 	if err != nil {
 		t.Fatalf("ApplyRedactions failed: %v", err)
 	}
@@ -176,7 +181,8 @@ func TestApplyRedactions(t *testing.T) {
 
 func TestFindTextOccurrences(t *testing.T) {
 	// "Hello World" is in the PDF. Search for "Hello".
-	rects, err := FindTextOccurrences(minimalPDF, "Hello")
+	r, _ := NewRedactor(minimalPDF)
+	rects, err := r.FindTextOccurrences("Hello")
 	if err != nil {
 		t.Fatalf("FindTextOccurrences failed: %v", err)
 	}
@@ -200,7 +206,8 @@ func TestFindTextOccurrences(t *testing.T) {
 }
 
 func TestFindTextOccurrencesSingleLetterIsNotWholeWord(t *testing.T) {
-	rects, err := FindTextOccurrences(minimalPDF, "o")
+	r, _ := NewRedactor(minimalPDF)
+	rects, err := r.FindTextOccurrences("o")
 	if err != nil {
 		t.Fatalf("FindTextOccurrences failed: %v", err)
 	}
@@ -208,7 +215,7 @@ func TestFindTextOccurrencesSingleLetterIsNotWholeWord(t *testing.T) {
 		t.Fatalf("expected at least 2 matches for letter 'o', got %d", len(rects))
 	}
 
-	positions, err := ExtractTextPositions(minimalPDF, 1)
+	positions, err := r.ExtractTextPositions(1)
 	if err != nil || len(positions) == 0 {
 		t.Fatalf("failed to read baseline text positions: err=%v count=%d", err, len(positions))
 	}
@@ -225,7 +232,8 @@ func TestFindTextOccurrencesSingleLetterIsNotWholeWord(t *testing.T) {
 }
 
 func TestFindTextOccurrencesMultiPage(t *testing.T) {
-	rects, err := FindTextOccurrences(minimalMultiPagePDF, "Alpha")
+	r, _ := NewRedactor(minimalMultiPagePDF)
+	rects, err := r.FindTextOccurrences("Alpha")
 	if err != nil {
 		t.Fatalf("FindTextOccurrences failed: %v", err)
 	}
@@ -240,12 +248,13 @@ func TestFindTextOccurrencesMultiPage(t *testing.T) {
 }
 
 func TestApplyRedactionsAdvancedSecureRequired(t *testing.T) {
-	opts := ApplyRedactionOptions{
+	opts := models.ApplyRedactionOptions{
 		Mode:       "secure_required",
-		TextSearch: []RedactionTextQuery{{Text: "Hello"}},
+		TextSearch: []models.RedactionTextQuery{{Text: "Hello"}},
 	}
 
-	out, report, err := ApplyRedactionsAdvancedWithReport(minimalPDF, opts)
+	r, _ := NewRedactor(minimalPDF)
+	out, report, err := r.ApplyRedactionsAdvancedWithReport(opts)
 	if err != nil {
 		if strings.Contains(err.Error(), "no secure text content") {
 			t.Skip("minimal fixture does not expose parseable text stream for secure rewrite")
@@ -262,7 +271,8 @@ func TestApplyRedactionsAdvancedSecureRequired(t *testing.T) {
 		t.Fatalf("expected securityOutcome=secure, got %s", report.SecurityOutcome)
 	}
 
-	rects, err := FindTextOccurrences(out, "Hello")
+	rOut, _ := NewRedactor(out)
+	rects, err := rOut.FindTextOccurrences("Hello")
 	if err != nil {
 		t.Fatalf("FindTextOccurrences on secure output failed: %v", err)
 	}
@@ -272,7 +282,8 @@ func TestApplyRedactionsAdvancedSecureRequired(t *testing.T) {
 }
 
 func TestAnalyzePageCapabilities(t *testing.T) {
-	caps, err := AnalyzePageCapabilities(minimalPDF)
+	r, _ := NewRedactor(minimalPDF)
+	caps, err := r.AnalyzePageCapabilities()
 	if err != nil {
 		t.Fatalf("AnalyzePageCapabilities failed: %v", err)
 	}
@@ -285,7 +296,7 @@ func TestAnalyzePageCapabilities(t *testing.T) {
 }
 
 func TestApplyRedactionsPreservesHeaderVersionAndTrailerID(t *testing.T) {
-	redactions := []RedactionRect{{
+	redactions := []models.RedactionRect{{
 		PageNum: 1,
 		X:       100,
 		Y:       690,
@@ -293,7 +304,8 @@ func TestApplyRedactionsPreservesHeaderVersionAndTrailerID(t *testing.T) {
 		Height:  20,
 	}}
 
-	out, err := ApplyRedactions(minimalPDFWithIDAndVersion, redactions)
+	r, _ := NewRedactor(minimalPDFWithIDAndVersion)
+	out, err := r.ApplyRedactions(redactions)
 	if err != nil {
 		t.Fatalf("ApplyRedactions failed: %v", err)
 	}
@@ -316,7 +328,7 @@ func TestScrubDecodedContentPreservesNonMatchedCharacters(t *testing.T) {
 	}
 	p := positions[0]
 	charW := p.Width / float64(len([]rune(p.Text)))
-	rects := []RedactionRect{{
+	rects := []models.RedactionRect{{
 		PageNum: 1,
 		X:       p.X + charW,
 		Y:       p.Y,
@@ -324,7 +336,7 @@ func TestScrubDecodedContentPreservesNonMatchedCharacters(t *testing.T) {
 		Height:  p.Height,
 	}}
 
-	out, changed := scrubDecodedContent(decoded, rects, []RedactionTextQuery{{Text: "e"}})
+	out, changed := scrubDecodedContent(decoded, rects, []models.RedactionTextQuery{{Text: "e"}})
 	if !changed {
 		t.Fatal("expected content to be changed")
 	}

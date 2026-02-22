@@ -17,7 +17,7 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	}
 
 	opts := gopdflib.ApplyRedactionOptions{
-		Mode: "visual_allowed",
+		Mode: "secure_required",
 		TextSearch: []gopdflib.RedactionTextQuery{
 			{Text: "A"},
 		},
