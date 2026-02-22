@@ -1,9 +1,15 @@
 {
   "config": {
-    "pageBorder": "30:30:40:40",
+    "pageBorder": "1:1:1:1",
+    "pageMargin": "72:72:72:72",
     "page": "A4",
     "pageAlignment": 1,
-    "pdfTitle": "John Doe - Resume"
+    "watermark": "",
+    "pdfTitle": "John Doe - Resume",
+    "pdfaCompliant": true,
+    "signature": {
+      "enabled": false
+    }
   },
   "title": {
     "props": "Helvetica:24:100:center:0:0:0:0",
@@ -37,7 +43,13 @@
     }
   },
   "elements": [
-    { "type": "spacer", "spacer": { "height": 10 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 10,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -60,10 +72,17 @@
               }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 15 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -89,10 +108,17 @@
               }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 15 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -109,10 +135,17 @@
               }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 5 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 5,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -139,7 +172,10 @@
                 "text": "New York, NY",
                 "textcolor": "#5D6D7E"
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -149,13 +185,23 @@
                 "text": "• Led a team of 5 engineers to re-architect the core billing service, reducing latency by 40%.\n• Implemented CI/CD pipelines using GitHub Actions and Docker, cutting deployment times in half.\n• Mentored junior developers and established code review best practices across the engineering department.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 10 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 10,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -182,7 +228,10 @@
                 "text": "San Francisco, CA",
                 "textcolor": "#5D6D7E"
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -192,13 +241,23 @@
                 "text": "• Developed responsive front-end components using React and Redux.\n• Designed RESTful APIs in Node.js to support mobile applications.\n• Optimized database queries, resulting in a 25% improvement in load times for the main dashboard.\n• Collaborated with product managers to define and document product requirements.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 10 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 10,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -225,7 +284,10 @@
                 "text": "Austin, TX",
                 "textcolor": "#5D6D7E"
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -235,13 +297,23 @@
                 "text": "• Assisted in building the initial MVP for a widely used project management tool.\n• Integrated third-party payment gateways including Stripe and PayPal.\n• Wrote comprehensive unit tests using Jest, achieving 85% code coverage.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 15 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -258,10 +330,17 @@
               }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 5 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 5,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -289,7 +368,10 @@
                 "text": "A high-performance distributed caching mechanism built with Go and gRPC, capable of handling 50k+ QPS with eventual consistency.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -313,7 +395,10 @@
                 "text": "An accessible, highly customizable component library used by 5+ internal tools, powered by React, TypeScript, and Storybook.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -337,7 +422,10 @@
                 "text": "Machine learning based prediction API using Python, FastAPI, and TensorFlow to forecast short-term market trends.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -361,7 +449,10 @@
                 "text": "Centralized authentication and authorization gateway for microservices, implementing OAuth2 and JWT validation written in Node.js.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -385,7 +476,10 @@
                 "text": "Full-stack chat application utilizing WebSockets, Redis pub/sub, React, and Express. Includes end-to-end encryption features.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -409,7 +503,10 @@
                 "text": "A comprehensive dashboard for tracking expenses and investments using Plaid API, React, and a PostgreSQL backend.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -433,7 +530,10 @@
                 "text": "A central control hub mapped to Raspberry Pi to manage smart home devices locally without depending on cloud services.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -457,7 +557,10 @@
                 "text": "Architectural refactoring project demonstrating the migration of a legacy Spring Boot monolith to independent Go microservices.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -481,7 +584,10 @@
                 "text": "A lightweight 2D game engine programmed in C++ using SDL2, featuring basic collision detection, sprite animation, and input handling.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           },
           {
@@ -505,13 +611,23 @@
                 "text": "A proof-of-work blockchain implementation designed to understand consensus algorithms and cryptographic hashing mechanisms.",
                 "wrap": true
               },
-              { "props": "Helvetica:10:000:right:0:0:0:0", "text": "" }
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 15 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -528,10 +644,17 @@
               }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 5 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 5,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -564,10 +687,17 @@
               }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 15 } },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
     {
       "type": "table",
       "table": {
@@ -584,10 +714,10 @@
               }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     },
-    { "type": "spacer", "spacer": { "height": 5 } },
     {
       "type": "table",
       "table": {
@@ -597,12 +727,12 @@
           {
             "row": [
               {
-                "props": "Helvetica:11:100:left:0:0:0:0",
+                "props": "Helvetica:11:100:left:1:1:1:1",
                 "text": "Languages:",
                 "textcolor": "#1B4F72"
               },
               {
-                "props": "Helvetica:11:000:left:0:0:0:0",
+                "props": "Helvetica:11:000:left:1:1:1:1",
                 "text": "JavaScript, TypeScript, Python, Go, Java, SQL",
                 "wrap": true
               }
@@ -611,12 +741,12 @@
           {
             "row": [
               {
-                "props": "Helvetica:11:100:left:0:0:0:0",
+                "props": "Helvetica:11:100:left:1:1:1:1",
                 "text": "Frameworks:",
                 "textcolor": "#1B4F72"
               },
               {
-                "props": "Helvetica:11:000:left:0:0:0:0",
+                "props": "Helvetica:11:000:left:1:1:1:1",
                 "text": "React, Node.js, Express, Django, Gin, Flask",
                 "wrap": true
               }
@@ -625,12 +755,12 @@
           {
             "row": [
               {
-                "props": "Helvetica:11:100:left:0:0:0:0",
+                "props": "Helvetica:11:100:left:1:1:1:1",
                 "text": "Tools & Cloud:",
                 "textcolor": "#1B4F72"
               },
               {
-                "props": "Helvetica:11:000:left:0:0:0:0",
+                "props": "Helvetica:11:000:left:1:1:1:1",
                 "text": "Docker, Kubernetes, AWS (EC2, S3, RDS), Git, Jenkins, GitHub Actions",
                 "wrap": true
               }
@@ -639,12 +769,12 @@
           {
             "row": [
               {
-                "props": "Helvetica:11:100:left:0:0:0:0",
+                "props": "Helvetica:11:100:left:1:1:1:1",
                 "text": "Databases:",
                 "textcolor": "#1B4F72"
               },
               {
-                "props": "Helvetica:11:000:left:0:0:0:0",
+                "props": "Helvetica:11:000:left:1:1:1:1",
                 "text": "PostgreSQL, MongoDB, Redis, MySQL",
                 "wrap": true
               }
@@ -653,18 +783,19 @@
           {
             "row": [
               {
-                "props": "Helvetica:11:100:left:0:0:0:0",
+                "props": "Helvetica:11:100:left:1:1:1:1",
                 "text": "Hobbies:",
                 "textcolor": "#1B4F72"
               },
               {
-                "props": "Helvetica:11:000:left:0:0:0:0",
+                "props": "Helvetica:11:000:left:1:1:1:1",
                 "text": "Photography (Landscape and Street), Rock Climbing, Open Source Contributing, Playing the Piano, Custom Keyboard Building",
                 "wrap": true
               }
             ]
           }
-        ]
+        ],
+        "type": "table"
       }
     }
   ],
@@ -677,11 +808,26 @@
       "title": "Resume - John Doe",
       "page": 1,
       "children": [
-        { "title": "Professional Summary", "page": 1 },
-        { "title": "Professional Experience", "page": 1 },
-        { "title": "Projects", "page": 2 },
-        { "title": "Education", "page": 3 },
-        { "title": "Skills & Hobbies", "page": 3 }
+        {
+          "title": "Professional Summary",
+          "page": 1
+        },
+        {
+          "title": "Professional Experience",
+          "page": 1
+        },
+        {
+          "title": "Projects",
+          "page": 2
+        },
+        {
+          "title": "Education",
+          "page": 3
+        },
+        {
+          "title": "Skills & Hobbies",
+          "page": 3
+        }
       ]
     }
   ]
