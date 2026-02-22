@@ -169,7 +169,6 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 }
 
 // ApplyRedactionsAdvanced applies a unified redaction request.
-// Current implementation supports visual overlay redactions only.
 func (r *Redactor) ApplyRedactionsAdvanced(opts models.ApplyRedactionOptions) ([]byte, error) {
 	out, _, err := r.ApplyRedactionsAdvancedWithReport(opts)
 	return out, err

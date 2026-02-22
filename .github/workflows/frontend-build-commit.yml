@@ -1,49 +1,114 @@
-name: Frontend Build and Commit
+name: CI/CD Pipeline
 
 on:
   push:
     branches: ["main", "master"]
     paths:
-      - "frontend/**"
-      - "makefile"
-      - ".github/workflows/frontend-build-commit.yml"
+      - "**"
   pull_request:
     branches: ["*"]
     paths:
-      - "frontend/**"
-      - "makefile"
-      - ".github/workflows/frontend-build-commit.yml"
+      - "**"
   workflow_dispatch:
 
 jobs:
-  build-and-commit:
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: false
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  frontend-lint:
+    name: Frontend Lint
+    needs: backend-lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Lint
+        run: npm run lint
+
+  python-build:
+    name: Python Build
+    needs: frontend-lint
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build shared library
+        shell: bash
+        run: |
+          cd bindings/python
+          ./build.sh
+      - name: Build Python Package
+        shell: bash
+        run: |
+          cd bindings/python
+          pip install build
+          python -m build
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: bindings/python/dist/
+
+  build-and-commit-frontend:
+    name: Frontend Build and Commit
+    needs: python-build
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
-
       - name: Install dependencies
         run: cd frontend && npm ci
-
       - name: Build frontend
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: |
           export VITE_IS_CLOUD_RUN=true
           export VITE_ENVIRONMENT=cloudrun
+          export VITE_CLOUD_RUN_URL=https://gopdfsuit.ue.r.appspot.com
+          export VITE_API_URL=https://gopdfsuit.ue.r.appspot.com
+          export CLOUD_RUN_SERVICE_URL=https://gopdfsuit.ue.r.appspot.com
           export DISABLE_PROFILING=true
           cd frontend && npm run build
-
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
