@@ -25,7 +25,7 @@ class TestFinancialReportRedaction:
             pdf_bytes,
             {
                 "mode": "visual_allowed",
-                "textSearch": [{"text": "SEC"}, {"text": "COM"}],
+                "textSearch": [{"text": "SECTION"}, {"text": "Total"}],
             },
         )
 

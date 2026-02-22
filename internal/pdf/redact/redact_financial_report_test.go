@@ -19,8 +19,8 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	opts := models.ApplyRedactionOptions{
 		Mode: "secure_required",
 		TextSearch: []models.RedactionTextQuery{
-			{Text: "SEC"},
-			{Text: "COM"},
+			{Text: "SECTION"},
+			{Text: "Total"},
 		},
 	}
 

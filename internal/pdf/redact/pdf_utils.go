@@ -426,6 +426,32 @@ func extractKidsRefs(body []byte) []string {
 	return refs
 }
 
+// estimateStringWidth provides a heuristic-based width estimation based on common
+// font character widths. This helps avoid overlaps and gaps caused by assuming
+// all characters are the same width.
+func estimateStringWidth(text string, fontSize float64) float64 {
+	var width float64
+	for _, r := range text {
+		switch r {
+		case 'i', 'j', 'l', 'I', '1', '.', ',', ';', ':', '!', '\'', '|':
+			width += 0.25
+		case 'f', 't', 'r', '-', ' ', '(', ')':
+			width += 0.35
+		case 'm', 'w', 'M', 'W', 'O', 'Q', '@', '%':
+			width += 0.8
+		default:
+			if r >= 'A' && r <= 'Z' {
+				width += 0.65
+			} else if r >= '0' && r <= '9' {
+				width += 0.55
+			} else {
+				width += 0.52
+			}
+		}
+	}
+	return width * fontSize
+}
+
 func parseTextOperators(content []byte) []models.TextPosition {
 	var positions []models.TextPosition
 
@@ -486,7 +512,7 @@ func parseTextOperators(content []byte) []models.TextPosition {
 			if height < 8 {
 				height = 8
 			}
-			width := float64(len([]rune(textStr))) * currentFontSize * 0.52
+			width := estimateStringWidth(textStr, currentFontSize)
 			if width < currentFontSize {
 				width = currentFontSize
 			}

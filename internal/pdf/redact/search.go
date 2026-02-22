@@ -158,13 +158,14 @@ func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, low
 		return nil
 	}
 
-	charW := 0.0
-	if pos.Width > 0 {
-		charW = pos.Width / float64(len(src))
+	// Original string preserved for precise width estimation (case-sensitive)
+	origSrc := []rune(pos.Text)
+	totalEst := estimateStringWidth(pos.Text, pos.Height)
+	scale := 1.0
+	if totalEst > 0 && pos.Width > 0 {
+		scale = pos.Width / totalEst
 	}
 
-	// For URL tokens proportional character offsets are unreliable (narrow
-	// chars skew the average).  If any match is found, redact the whole URL.
 	urlToken := r.isURLToken(pos.Text)
 
 	rects := make([]models.RedactionRect, 0, 2)
@@ -182,12 +183,22 @@ func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, low
 				Height:  pos.Height,
 			}}
 		}
-		x := pos.X
-		w := pos.Width
-		if charW > 0 {
-			x = pos.X + (float64(i) * charW)
-			w = float64(len(needle)) * charW
+
+		var offsetEst, matchEst float64
+		for j := 0; j < i; j++ {
+			if j < len(origSrc) {
+				offsetEst += estimateStringWidth(string(origSrc[j]), pos.Height)
+			}
 		}
+		for j := 0; j < len(needle); j++ {
+			if i+j < len(origSrc) {
+				matchEst += estimateStringWidth(string(origSrc[i+j]), pos.Height)
+			}
+		}
+
+		x := pos.X + (offsetEst * scale)
+		w := matchEst * scale
+
 		rects = append(rects, models.RedactionRect{
 			PageNum: pageNum,
 			X:       x,
@@ -336,24 +347,39 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 					}
 					continue
 				}
-				// Partially-overlapping tokens: trim X proportionally using charW.
-				charW := 0.0
-				if s.end > s.start {
-					charW = s.pos.Width / float64(s.end-s.start)
-				}
+				// Partially-overlapping tokens: trim X proportionally using estimated widths.
 				tokenX := s.pos.X
 				tokenW := s.pos.Width
-				if charW > 0 {
+				tokenText := []rune(s.pos.Text)
+				tokenEst := estimateStringWidth(s.pos.Text, s.pos.Height)
+
+				if tokenEst > 0 && s.pos.Width > 0 && len(tokenText) > 0 {
+					scale := s.pos.Width / tokenEst
+
 					overlapStart := matchStart - s.start
 					if overlapStart < 0 {
 						overlapStart = 0
 					}
+
 					overlapEnd := matchEnd - s.start
 					if overlapEnd > s.end-s.start {
 						overlapEnd = s.end - s.start
 					}
-					tokenX = s.pos.X + float64(overlapStart)*charW
-					tokenW = float64(overlapEnd-overlapStart) * charW
+
+					var offsetEst, matchEst float64
+					for j := 0; j < overlapStart; j++ {
+						if j < len(tokenText) {
+							offsetEst += estimateStringWidth(string(tokenText[j]), s.pos.Height)
+						}
+					}
+					for j := overlapStart; j < overlapEnd; j++ {
+						if j < len(tokenText) {
+							matchEst += estimateStringWidth(string(tokenText[j]), s.pos.Height)
+						}
+					}
+
+					tokenX = s.pos.X + (offsetEst * scale)
+					tokenW = matchEst * scale
 				}
 				if tokenX < minX {
 					minX = tokenX

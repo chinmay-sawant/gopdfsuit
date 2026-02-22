@@ -1,16 +1,17 @@
 package redact
 
 import (
-"bytes"
-"compress/zlib"
-"fmt"
-"strings"
-	"regexp"
+	"bytes"
+	"compress/zlib"
 	"errors"
+	"fmt"
 	"math"
+	"regexp"
+	"strings"
 
-"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
+
 func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
 	objMap := r.objMap
 	if objMap == nil {
@@ -259,20 +260,13 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 		if newText != text {
 			changed = true
 			trimmedOp := strings.TrimSpace(op)
-			// Preserve the original encoding format.
-			// CIDFont/Identity-H operators use <hex> Tj — re-encode replacement
-			// text as UTF-16BE hex so the 2-byte code-pair structure stays intact.
-			if strings.HasPrefix(trimmedOp, "<") && !strings.HasPrefix(trimmedOp, "[") {
-				out.WriteString("<")
-				for _, r := range newText {
-					_, _ = fmt.Fprintf(&out, "%04X", uint16(r))
-				}
-				out.WriteString("> Tj")
-			} else {
-				out.WriteString("(")
-				out.WriteString(escapePDFTextLiteral(newText))
-				out.WriteString(") Tj")
-			}
+			// CIDFont/Identity-H operators use <hex> Tj encoding.
+			isHex := strings.HasPrefix(trimmedOp, "<") && !strings.HasPrefix(trimmedOp, "[")
+			// Use a TJ array with kerning adjustments so that remaining
+			// text stays in its original position after characters are
+			// removed. Simple Tj with spaces causes text to shift because
+			// space glyphs are narrower than letter glyphs.
+			out.WriteString(buildRedactionTJArray(text, newText, isHex))
 		} else {
 			out.WriteString(op)
 		}
@@ -364,6 +358,113 @@ func replaceCaseInsensitiveWithSpaces(s, term string) string {
 		i++
 	}
 	return string(b)
+}
+
+// buildRedactionTJArray constructs a TJ array operator that uses kerning
+// adjustments so that text remaining after redaction stays in position.
+// Each removed character is replaced by a kern of -520 units (matching
+// the 0.52*fontSize heuristic used in parseTextOperators). This avoids
+// the problem of space glyphs being narrower than letter glyphs.
+func buildRedactionTJArray(original, redacted string, isHex bool) string {
+	origRunes := []rune(original)
+	redRunes := []rune(redacted)
+
+	// If lengths differ unexpectedly, fall back to simple Tj.
+	if len(origRunes) != len(redRunes) {
+		if isHex {
+			var sb strings.Builder
+			sb.WriteString("<")
+			for _, r := range redacted {
+				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+			}
+			sb.WriteString("> Tj")
+			return sb.String()
+		}
+		return "(" + escapePDFTextLiteral(redacted) + ") Tj"
+	}
+
+	// Check if any character was actually replaced (non-space → space).
+	hasRedaction := false
+	for i := range origRunes {
+		if origRunes[i] != ' ' && redRunes[i] == ' ' {
+			hasRedaction = true
+			break
+		}
+	}
+	if !hasRedaction {
+		// No positional redaction: use simple Tj format.
+		if isHex {
+			var sb strings.Builder
+			sb.WriteString("<")
+			for _, r := range redacted {
+				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+			}
+			sb.WriteString("> Tj")
+			return sb.String()
+		}
+		return "(" + escapePDFTextLiteral(redacted) + ") Tj"
+	}
+
+	// Build segments: text runs and kern (removed-char) runs.
+	type segment struct {
+		text    string
+		removed string // chars that were removed (for kerning estimation)
+		isKern  bool
+	}
+
+	var segments []segment
+	var textBuf, kernBuf strings.Builder
+
+	for i := range redRunes {
+		wasReplaced := origRunes[i] != ' ' && redRunes[i] == ' '
+		if wasReplaced {
+			if textBuf.Len() > 0 {
+				segments = append(segments, segment{text: textBuf.String()})
+				textBuf.Reset()
+			}
+			kernBuf.WriteRune(origRunes[i])
+		} else {
+			if kernBuf.Len() > 0 {
+				segments = append(segments, segment{isKern: true, removed: kernBuf.String()})
+				kernBuf.Reset()
+			}
+			textBuf.WriteRune(redRunes[i])
+		}
+	}
+	if kernBuf.Len() > 0 {
+		segments = append(segments, segment{isKern: true, removed: kernBuf.String()})
+	}
+	if textBuf.Len() > 0 {
+		segments = append(segments, segment{text: textBuf.String()})
+	}
+
+	// Build TJ array: [(text) kern (text) ...] TJ
+	var out strings.Builder
+	out.WriteString("[")
+	for _, seg := range segments {
+		if seg.isKern {
+			// Estimate width of removed string
+			// TJ array kerning units are 1/1000 of text space.
+			estWidth := estimateStringWidth(seg.removed, 1000)
+			// Negative value = advance cursor to the right.
+			kern := -int(math.Round(estWidth))
+			_, _ = fmt.Fprintf(&out, "%d ", kern)
+		} else {
+			if isHex {
+				out.WriteString("<")
+				for _, r := range seg.text {
+					_, _ = fmt.Fprintf(&out, "%04X", uint16(r))
+				}
+				out.WriteString("> ")
+			} else {
+				out.WriteString("(")
+				out.WriteString(escapePDFTextLiteral(seg.text))
+				out.WriteString(") ")
+			}
+		}
+	}
+	out.WriteString("] TJ")
+	return out.String()
 }
 
 func escapePDFTextLiteral(s string) string {

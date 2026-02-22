@@ -211,7 +211,6 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		r.pdfBytes = dec
 		r.objMap = objMap
 		r.info = nil // Reset cached info to force recalculation on decrypted bytes
-		workingPDF = dec
 		report.Warnings = append(report.Warnings, "input PDF was decrypted using in-house pipeline and output is emitted decrypted")
 	}
 
