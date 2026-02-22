@@ -1,11 +1,19 @@
 name: Frontend Build and Commit
 
 on:
-  pull_request:
-    branches: [main, master]
+  push:
+    branches: ["main", "master"]
     paths:
       - "frontend/**"
       - "makefile"
+      - ".github/workflows/frontend-build-commit.yml"
+  pull_request:
+    branches: ["*"]
+    paths:
+      - "frontend/**"
+      - "makefile"
+      - ".github/workflows/frontend-build-commit.yml"
+  workflow_dispatch:
 
 jobs:
   build-and-commit:
@@ -17,7 +25,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
