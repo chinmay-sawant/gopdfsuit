@@ -132,6 +132,32 @@ url_req = HtmlToPDFRequest(
 )
 url_output = convert_html_to_pdf(req)`
             }
+        },
+        {
+            id: 'python-redact',
+            title: 'Redact PDF',
+            description: 'Apply visual or structural redactions securely from Python.',
+            code: {
+                python: `from pypdfsuit import apply_redactions_advanced
+
+# Read input PDF
+with open("financial_report.pdf", "rb") as f:
+    pdf_bytes = f.read()
+
+# Apply redactions via text search
+out = apply_redactions_advanced(
+    pdf_bytes,
+    {
+        "mode": "visual_allowed",
+        "textSearch": [{"text": "SECTION"}, {"text": "Total"}],
+    }
+)
+
+if out:
+    with open("redacted.pdf", "wb") as f:
+        f.write(out)`
+            }
         }
     ]
 };
+
