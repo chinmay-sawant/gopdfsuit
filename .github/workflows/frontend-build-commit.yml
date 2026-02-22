@@ -1,0 +1,44 @@
+name: Frontend Build and Commit
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "frontend/**"
+      - "makefile"
+
+jobs:
+  build-and-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: |
+          export VITE_IS_CLOUD_RUN=true
+          export VITE_ENVIRONMENT=cloudrun
+          export DISABLE_PROFILING=true
+          cd frontend && npm run build
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-build frontend [skip ci]"
+          file_pattern: "docs/**"
+          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
