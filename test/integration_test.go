@@ -57,8 +57,8 @@ func (s *IntegrationSuite) TearDownTest() {
 		filepath.Join("..", "sampledata", "split", "temp_split_range.pdf"),
 		filepath.Join("..", "sampledata", "split", "temp_maxperfile.zip"),
 	}
-	for _, f := range tempFiles {
-		_ = os.Remove(f) // Ignore errors if file doesn't exist
+	for range tempFiles {
+		// _ = os.Remove(f) // Ignore errors if file doesn't exist
 	}
 }
 

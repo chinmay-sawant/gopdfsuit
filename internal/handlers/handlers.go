@@ -17,6 +17,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/form"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 )
@@ -338,7 +339,7 @@ func handleFillPDF(c *gin.Context) {
 		return
 	}
 
-	out, err := pdf.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	out, err := form.FillPDFWithXFDF(pdfBytes, xfdfBytes)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

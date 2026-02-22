@@ -7,7 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/redact"
 	"github.com/gin-gonic/gin"
 )
 
@@ -33,12 +34,12 @@ func parseCommaSeparatedTerms(raw string) []string {
 	return terms
 }
 
-func normalizeTextSearchQueries(queries []pdf.RedactionTextQuery) []pdf.RedactionTextQuery {
+func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.RedactionTextQuery {
 	if len(queries) == 0 {
 		return nil
 	}
 	seen := make(map[string]struct{}, len(queries))
-	normalized := make([]pdf.RedactionTextQuery, 0, len(queries))
+	normalized := make([]models.RedactionTextQuery, 0, len(queries))
 	for _, q := range queries {
 		for _, term := range parseCommaSeparatedTerms(q.Text) {
 			key := strings.ToLower(term)
@@ -46,7 +47,7 @@ func normalizeTextSearchQueries(queries []pdf.RedactionTextQuery) []pdf.Redactio
 				continue
 			}
 			seen[key] = struct{}{}
-			normalized = append(normalized, pdf.RedactionTextQuery{Text: term})
+			normalized = append(normalized, models.RedactionTextQuery{Text: term})
 		}
 	}
 	return normalized
@@ -77,7 +78,12 @@ func HandleRedactPageInfo(c *gin.Context) {
 		return
 	}
 
-	info, err := pdf.GetPageInfo(pdfBytes)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load PDF for info: " + err.Error()})
+		return
+	}
+	info, err := r.GetPageInfo()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -111,7 +117,12 @@ func HandleRedactCapabilities(c *gin.Context) {
 		return
 	}
 
-	caps, err := pdf.AnalyzePageCapabilities(pdfBytes)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load PDF: " + err.Error()})
+		return
+	}
+	caps, err := r.AnalyzePageCapabilities()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -156,7 +167,12 @@ func HandleRedactTextPositions(c *gin.Context) {
 		return
 	}
 
-	positions, err := pdf.ExtractTextPositions(pdfBytes, pageNum)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load PDF: " + err.Error()})
+		return
+	}
+	positions, err := r.ExtractTextPositions(pageNum)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -173,7 +189,7 @@ func HandleRedactApply(c *gin.Context) {
 		return
 	}
 
-	var options pdf.ApplyRedactionOptions
+	var options models.ApplyRedactionOptions
 	options.Mode = strings.TrimSpace(c.PostForm("mode"))
 	options.Password = c.PostForm("password")
 
@@ -198,14 +214,14 @@ func HandleRedactApply(c *gin.Context) {
 				if text == "" {
 					continue
 				}
-				options.TextSearch = append(options.TextSearch, pdf.RedactionTextQuery{Text: text})
+				options.TextSearch = append(options.TextSearch, models.RedactionTextQuery{Text: text})
 			}
 		}
 	}
 
 	ocrJSON := c.PostForm("ocr")
 	if strings.TrimSpace(ocrJSON) != "" {
-		var ocr pdf.OCRSettings
+		var ocr models.OCRSettings
 		if err := json.Unmarshal([]byte(ocrJSON), &ocr); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ocr json"})
 			return
@@ -231,9 +247,9 @@ func HandleRedactApply(c *gin.Context) {
 			if len(terms) == 0 {
 				terms = []string{searchText}
 			}
-			options.TextSearch = make([]pdf.RedactionTextQuery, 0, len(terms))
+			options.TextSearch = make([]models.RedactionTextQuery, 0, len(terms))
 			for _, t := range terms {
-				options.TextSearch = append(options.TextSearch, pdf.RedactionTextQuery{Text: t})
+				options.TextSearch = append(options.TextSearch, models.RedactionTextQuery{Text: t})
 			}
 		}
 	}
@@ -256,7 +272,12 @@ func HandleRedactApply(c *gin.Context) {
 		return
 	}
 
-	redactedPDF, report, err := pdf.ApplyRedactionsAdvancedWithReport(pdfBytes, options)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load PDF: " + err.Error()})
+		return
+	}
+	redactedPDF, report, err := r.ApplyRedactionsAdvancedWithReport(options)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -316,7 +337,12 @@ func HandleRedactSearch(c *gin.Context) {
 		return
 	}
 
-	rects, err := pdf.FindTextOccurrencesMulti(pdfBytes, terms)
+	r, err := redact.NewRedactor(pdfBytes)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load PDF: " + err.Error()})
+		return
+	}
+	rects, err := r.FindTextOccurrencesMulti(terms)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

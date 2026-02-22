@@ -24,7 +24,7 @@ The pprof report identified these hotspots:
 
 ```go
 var zlibWriterPool = sync.Pool{
-    New: func() interface{} {
+    New: func() any {
         w, _ := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed)
         return w
     },
@@ -41,7 +41,7 @@ var zlibWriterPool = sync.Pool{
 
 ```go
 var compressBufPool = sync.Pool{
-    New: func() interface{} {
+    New: func() any {
         return new(bytes.Buffer)
     },
 }

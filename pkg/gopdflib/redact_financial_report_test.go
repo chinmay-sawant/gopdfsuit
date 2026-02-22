@@ -17,9 +17,10 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	}
 
 	opts := gopdflib.ApplyRedactionOptions{
-		Mode: "visual_allowed",
+		Mode: "secure_required",
 		TextSearch: []gopdflib.RedactionTextQuery{
-			{Text: "A"},
+			{Text: "SECTION"},
+			{Text: "Total"},
 		},
 	}
 
@@ -33,7 +34,7 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	}
 
 	// Store output at repository root for easier inspection by developer.
-	outputPath := filepath.Join("..", "..", "financial_report_redacted_gopdflib_test_output.pdf")
+	outputPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report_redacted_gopdflib_test_output.pdf")
 	if err := os.WriteFile(outputPath, out, 0o600); err != nil {
 		t.Fatalf("failed to write redacted output PDF: %v", err)
 	}
