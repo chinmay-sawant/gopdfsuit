@@ -80,7 +80,7 @@ jobs:
 
   build-and-commit-frontend:
     name: Frontend Build and Commit
-    needs: python-build
+    needs: frontend-lint
     runs-on: ubuntu-latest
     permissions:
       contents: write
