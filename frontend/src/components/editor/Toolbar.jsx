@@ -1,8 +1,24 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Upload, Moon, Sun, Eye, Download, Copy, Check, Edit } from 'lucide-react'
 
 export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, onDownloadPDF, templateInput, setTemplateInput, copiedId, elementCount = 0, pageSize = 'A4', onUploadFont }) {
     const fileInputRef = useRef(null)
+    const [githubFiles, setGithubFiles] = useState([])
+    const [loadMethod, setLoadMethod] = useState('local')
+
+    useEffect(() => {
+        fetch('https://api.github.com/repos/chinmay-sawant/gopdfsuit/git/trees/master?recursive=1')
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.tree) {
+                    const jsonFiles = data.tree
+                        .filter(f => f.type === 'blob' && f.path.startsWith('sampledata/') && f.path.endsWith('.json'))
+                        .map(f => f.path.substring('sampledata/'.length));
+                    setGithubFiles(jsonFiles);
+                }
+            })
+            .catch(err => console.error('Error fetching github files:', err))
+    }, [])
 
     const handleFontUpload = (e) => {
         const file = e.target.files?.[0]
@@ -30,14 +46,39 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <input
-                    type="text"
-                    value={templateInput}
-                    onChange={(e) => setTemplateInput(e.target.value)}
-                    placeholder="Load template file..."
-                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.9rem', minWidth: '200px', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
-                />
-                <button onClick={() => onLoadTemplate(templateInput)} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <select
+                    value={loadMethod}
+                    onChange={(e) => {
+                        setLoadMethod(e.target.value)
+                        setTemplateInput('')
+                    }}
+                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.9rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                >
+                    <option value="local">Local</option>
+                    <option value="github">GitHub</option>
+                </select>
+
+                {loadMethod === 'local' ? (
+                    <input
+                        type="text"
+                        value={templateInput}
+                        onChange={(e) => setTemplateInput(e.target.value)}
+                        placeholder="Load template file..."
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.9rem', minWidth: '180px', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                    />
+                ) : (
+                    <select
+                        value={templateInput}
+                        onChange={(e) => setTemplateInput(e.target.value)}
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.9rem', minWidth: '180px', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                    >
+                        <option value="">Select a file...</option>
+                        {githubFiles.map(f => (
+                            <option key={f} value={f}>{f}</option>
+                        ))}
+                    </select>
+                )}
+                <button onClick={() => onLoadTemplate(templateInput, loadMethod)} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     <Upload size={14} /> Load
                 </button>
                 <button onClick={onPreviewPDF} className="btn primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--secondary-color)', color: 'white' }}>
