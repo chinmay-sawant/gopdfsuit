@@ -1075,6 +1075,51 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	trailer := fmt.Sprintf("trailer\n<</Size %d/Root %d 0 R>>\nstartxref\n%d\n%%%%EOF\n", maxObj+1, root, xrefStart)
 	out = append(out, xrefBuf.Bytes()...)
 	out = append(out, []byte(trailer)...)
+	// --- PASS 3: GLOBAL NEED APPEARANCES ---
+	// If fields were modified or APs stripped, force the PDF viewer to recreate appearances on open.
+	acroFormRe := regexp.MustCompile(`(?s)(/AcroForm\s*<<.*?)(>>)|(/AcroForm\s+\d+\s+\d+\s+R)`)
+	acroMatch := acroFormRe.FindSubmatch(out)
+	if acroMatch != nil {
+		if acroMatch[1] != nil {
+			// Inline dictionary case
+			dictPart := acroMatch[1]
+			needApRe := regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
+			if needApRe.Match(dictPart) {
+				newDict := needApRe.ReplaceAll(dictPart, []byte("/NeedAppearances true"))
+				out = bytes.Replace(out, dictPart, newDict, 1)
+			} else {
+				// Inject it
+				newDict := append(dictPart, []byte(" /NeedAppearances true ")...)
+				out = bytes.Replace(out, dictPart, newDict, 1)
+			}
+		} else if acroMatch[3] != nil {
+			// Indirect reference case
+			refFull := string(acroMatch[3])
+			refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
+			if rm := refRe.FindStringSubmatch(refFull); rm != nil {
+				objRe := regexp.MustCompile(fmt.Sprintf(`(?s)\b%s\s+%s\s+obj(.*?)endobj`, rm[1], rm[2]))
+				if objM := objRe.FindSubmatch(out); objM != nil {
+					objBody := objM[1]
+					needApRe := regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
+					if needApRe.Match(objBody) {
+						newBody := needApRe.ReplaceAll(objBody, []byte("/NeedAppearances true"))
+						out = bytes.Replace(out, objBody, newBody, 1)
+					} else {
+						// Inject before the ending >>
+						insertPos := bytes.LastIndex(objBody, []byte(">>"))
+						if insertPos >= 0 {
+							var newBody bytes.Buffer
+							newBody.Write(objBody[:insertPos])
+							newBody.WriteString(" /NeedAppearances true ")
+							newBody.Write(objBody[insertPos:])
+							out = bytes.Replace(out, objBody, newBody.Bytes(), 1)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return out, nil
 }
 
@@ -1227,10 +1272,64 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 		updated, changed := updateObjStmFieldValue(objContent, fields)
 
 		if kidsToRemoveAP[members[i].objNum] {
-			apRe := regexp.MustCompile(`\s*/AP\s*<<.*?>>|\s*/AP\s+(\d+\s+\d+\s+R)`)
-			if apRe.Match(updated) {
-				updated = apRe.ReplaceAll(updated, []byte(" "))
+			// Clean any standalone indirect APs
+			apReRef := regexp.MustCompile(`/AP\s+\d+\s+\d+\s+R`)
+			if apReRef.Match(updated) {
+				updated = apReRef.ReplaceAll(updated, []byte(" "))
 				changed = true
+			}
+			// Manual removal of /AP dictionary to handle nested <<>>
+			apIdx := bytes.Index(updated, []byte("/AP"))
+			if apIdx >= 0 {
+				afterAP := updated[apIdx+3:]
+				trimmedAfter := bytes.TrimSpace(afterAP)
+				if bytes.HasPrefix(trimmedAfter, []byte("<<")) {
+					// We need to find matching >>
+					depth := 0
+					endIdx := -1
+					for j := 0; j < len(trimmedAfter)-1; j++ {
+						if trimmedAfter[j] == '<' && trimmedAfter[j+1] == '<' {
+							depth++
+							j++
+						} else if trimmedAfter[j] == '>' && trimmedAfter[j+1] == '>' {
+							depth--
+							j++
+							if depth == 0 {
+								endIdx = j
+								break
+							}
+						}
+					}
+					if endIdx != -1 {
+						// Remove from /AP through the matching >>
+						startRemove := apIdx
+						endRemove := apIdx + 3 + (len(afterAP) - len(trimmedAfter)) + endIdx + 1
+
+						var newBody bytes.Buffer
+						newBody.Write(updated[:startRemove])
+						newBody.WriteByte(' ') // replace with space
+						newBody.Write(updated[endRemove:])
+						updated = newBody.Bytes()
+						changed = true
+					}
+				}
+			}
+		}
+
+		// Pass 3: If this object is AcroForm globally inject NeedAppearances.
+		// Usually identified by /Fields or /DA or /SigFlags coupled with being a catalog reference...
+		if bytes.Contains(updated, []byte("/Fields[")) || bytes.Contains(updated, []byte("/Fields [")) {
+			// Basic AcroForm object identification
+			if !bytes.Contains(updated, []byte("/NeedAppearances")) {
+				insertPos := bytes.LastIndex(updated, []byte(">>"))
+				if insertPos >= 0 {
+					var newBody bytes.Buffer
+					newBody.Write(updated[:insertPos])
+					newBody.WriteString(" /NeedAppearances true ")
+					newBody.Write(updated[insertPos:])
+					updated = newBody.Bytes()
+					changed = true
+				}
 			}
 		}
 
