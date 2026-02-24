@@ -9,6 +9,7 @@ export const gettingStartedSection = {
 
 • Template-based PDF generation with auto page breaks
 • Digital signatures (PKCS#7) with X.509 certificate chains
+• Secure PDF redaction (text-search & coordinates)
 • PDF encryption with password protection & permissions
 • Bookmarks, internal links, and named destinations
 • PDF/A-4 and PDF/UA-2 compliance for archival standards
@@ -24,6 +25,7 @@ Requirements: Go 1.24+, Google Chrome (for HTML conversion)`,
             features: [
                 { title: 'Template Generation', description: 'JSON-based PDF generation with auto page breaks', icon: 'FileText' },
                 { title: 'Digital Signatures', description: 'PKCS#7 signing with X.509 certificate chains', icon: 'PenTool' },
+                { title: 'Secure Redaction', description: 'Scrub sensitive info via text search or manual regions', icon: 'ShieldOff' },
                 { title: 'PDF Encryption', description: 'AES-256 encryption with granular permissions', icon: 'Lock' },
                 { title: 'Smart Navigation', description: 'Bookmarks, internal links, and named destinations', icon: 'BookOpen' },
                 { title: 'Archival Standards', description: 'PDF/A-4 & PDF/UA-2 compliance for long-term preservation', icon: 'Archive' },

@@ -1,15 +1,60 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Sidebar } from '../components/documentation/Sidebar'
 import { DocContent } from '../components/documentation/DocContent'
 import { docSections } from '../components/documentation/content'
 
 const Documentation = () => {
-    const [activeItem, setActiveItem] = useState(docSections[0].items[0])
+    const [searchParams, setSearchParams] = useSearchParams()
+    
+    // Find item based on URL or default to first
+    const [activeItem, setActiveItem] = useState(() => {
+        const itemParam = searchParams.get('item')
+        if (itemParam) {
+            for (const section of docSections) {
+                const item = section.items.find(i => i.id === itemParam || i.id === itemParam.toLowerCase())
+                if (item) return item
+            }
+        }
+        return docSections[0].items[0]
+    })
+
+    // Sync state with URL if it changes externally
+    useEffect(() => {
+        const itemParam = searchParams.get('item')
+        if (itemParam) {
+            for (const section of docSections) {
+                const item = section.items.find(i => i.id === itemParam || i.id === itemParam.toLowerCase())
+                if (item && item.id !== activeItem?.id) {
+                    setActiveItem(item)
+                    break
+                }
+            }
+        }
+    }, [searchParams, activeItem?.id])
+
+    const handleItemClick = (item) => {
+        setActiveItem(item)
+        setSearchParams({ item: item.id })
+    }
 
     // Scroll to top when item changes
     useEffect(() => {
-        // This might be handled by the scrolling container in DocContent, 
-        // but if we had a global scroll we'd do it here.
+        const contentContainer = document.getElementById('doc-content-scrollArea')
+        const codeContainer = document.getElementById('doc-code-scrollArea')
+        
+        if (contentContainer) {
+            contentContainer.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+        if (codeContainer) {
+            codeContainer.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+        
+        // Also ensure sidebar item is visible
+        const sidebarItem = document.getElementById(`sidebar-item-${activeItem?.id}`)
+        if (sidebarItem) {
+            sidebarItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
     }, [activeItem])
 
     return (
@@ -23,7 +68,7 @@ const Documentation = () => {
             <Sidebar
                 sections={docSections}
                 activeId={activeItem?.id}
-                onItemClick={setActiveItem}
+                onItemClick={handleItemClick}
             />
             <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
                 <DocContent item={activeItem} />

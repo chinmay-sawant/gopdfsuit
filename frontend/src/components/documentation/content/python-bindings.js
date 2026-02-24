@@ -12,7 +12,7 @@ The **pypdfsuit** package provides high-performance bindings to the Go core usin
 **Key Features:**
 • **Zero Interaction Overhead**: Calls Go functions directly in-process via shared library.
 • **Type-Safe API**: Uses Python dataclasses and Pydantic models.
-• **Full Feature Set**: PDF Generation, Merging, Splitting, Form Filling, and HTML Conversion.
+• **Full Feature Set**: PDF Generation, Merging, Splitting, Redaction, Form Filling, and HTML Conversion.
 `,
             features: [
                 { title: 'Native Performance', description: 'Direct CGO calls without network overhead', icon: 'Zap' },
