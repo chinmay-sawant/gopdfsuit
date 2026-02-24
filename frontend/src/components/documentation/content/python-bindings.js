@@ -12,7 +12,7 @@ The **pypdfsuit** package provides high-performance bindings to the Go core usin
 **Key Features:**
 • **Zero Interaction Overhead**: Calls Go functions directly in-process via shared library.
 • **Type-Safe API**: Uses Python dataclasses and Pydantic models.
-• **Full Feature Set**: PDF Generation, Merging, Splitting, Form Filling, and HTML Conversion.
+• **Full Feature Set**: PDF Generation, Merging, Splitting, Redaction, Form Filling, and HTML Conversion.
 `,
             features: [
                 { title: 'Native Performance', description: 'Direct CGO calls without network overhead', icon: 'Zap' },
@@ -132,6 +132,32 @@ url_req = HtmlToPDFRequest(
 )
 url_output = convert_html_to_pdf(req)`
             }
+        },
+        {
+            id: 'python-redact',
+            title: 'Redact PDF',
+            description: 'Apply visual or structural redactions securely from Python.',
+            code: {
+                python: `from pypdfsuit import apply_redactions_advanced
+
+# Read input PDF
+with open("financial_report.pdf", "rb") as f:
+    pdf_bytes = f.read()
+
+# Apply redactions via text search
+out = apply_redactions_advanced(
+    pdf_bytes,
+    {
+        "mode": "visual_allowed",
+        "textSearch": [{"text": "SECTION"}, {"text": "Total"}],
+    }
+)
+
+if out:
+    with open("redacted.pdf", "wb") as f:
+        f.write(out)`
+            }
         }
     ]
 };
+

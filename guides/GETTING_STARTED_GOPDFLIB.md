@@ -6,6 +6,7 @@ This guide provides a comprehensive overview of how to install and start using t
 
 1.  [Downloading and Installing](#downloading-and-installing)
 2.  [Loading PDF Templates from JSON](#loading-pdf-templates-from-json)
+3.  [Redacting a PDF](#redacting-a-pdf)
 
 ---
 
@@ -18,7 +19,6 @@ This section explains how to download and install the `gopdflib` package using t
 - Go (version 1.21 or later is recommended)
 
 ### Steps to Download
-
 
 1.  **Get the Package**
     Run the following command in your terminal to download the package:
@@ -57,7 +57,7 @@ func main() {
         Page:          "A4",
         PageAlignment: 1, // Portrait
     }
-    
+
     fmt.Printf("gopdflib Config initialized: %+v\n", config)
 }
 ```
@@ -158,3 +158,66 @@ The JSON structure directly mirrors the `gopdflib.PDFTemplate` struct. Common to
 - `bookmarks`: Navigation outline
 
 Refer to the `sampledata/editor/financial_digitalsignature.json` file for a comprehensive example of the JSON schema.
+
+---
+
+## Redacting a PDF
+
+This section explains how to scrub sensitive information from existing PDFs using `gopdflib`. You can redact specific areas via coordinates, or automatically search and redact specific text content.
+
+### Overview
+
+The `gopdflib.ApplyRedactionsAdvanced` function allows you to pass in a combination of explicit coordinates and text queries to redact a PDF visually and structurally.
+
+### Example Code
+
+Create a file named `main.go` with the following content:
+
+```go
+package main
+
+import (
+    "fmt"
+    "os"
+
+    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
+)
+
+func main() {
+    pdfPath := "sample.pdf"
+
+    // 1. Read the input PDF
+    pdfBytes, err := os.ReadFile(pdfPath)
+    if err != nil {
+        panic(fmt.Errorf("failed to read file: %w", err))
+    }
+
+    // 2. Define redaction options
+    options := gopdflib.ApplyRedactionOptions{
+        TextSearch: []gopdflib.RedactionTextQuery{
+            {Text: "Confidential"},
+            {Text: "Secret"},
+        },
+        // You can also redact specific regions:
+        // Blocks: []gopdflib.RedactionRect{
+        //     {PageNum: 1, X: 100, Y: 100, Width: 200, Height: 20},
+        // },
+        Mode: "visual_allowed", // optional
+    }
+
+    // 3. Apply the redactions
+    redactedBytes, err := gopdflib.ApplyRedactionsAdvanced(pdfBytes, options)
+    if err != nil {
+        panic(fmt.Errorf("failed to redact PDF: %w", err))
+    }
+
+    // 4. Save the redacted PDF
+    outputPath := "redacted.pdf"
+    err = os.WriteFile(outputPath, redactedBytes, 0644)
+    if err != nil {
+        panic(fmt.Errorf("failed to save PDF: %w", err))
+    }
+
+    fmt.Printf("PDF successfully redacted and saved to %s!\n", outputPath)
+}
+```

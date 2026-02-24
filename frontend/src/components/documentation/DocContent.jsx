@@ -172,7 +172,7 @@ export const DocContent = ({ item }) => {
     return (
         <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
             {/* Content Column */}
-            <div style={{
+            <div id="doc-content-scrollArea" style={{
                 flex: 1,
                 padding: '3rem 4rem',
                 overflowY: 'auto',
@@ -258,7 +258,7 @@ export const DocContent = ({ item }) => {
             </div>
 
             {/* Code Column */}
-            <div style={{
+            <div id="doc-code-scrollArea" style={{
                 width: '45%',
                 minWidth: '400px',
                 background: isLight ? '#f8fafc' : '#0f172a',

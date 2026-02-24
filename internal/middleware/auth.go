@@ -11,10 +11,12 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
+// isCloudRunCached is evaluated once at package init to avoid per-request os.Getenv overhead.
+var isCloudRunCached = os.Getenv("K_SERVICE") != "" || os.Getenv("K_REVISION") != ""
+
 // IsCloudRun checks if the application is running on Google Cloud Run
 func IsCloudRun() bool {
-	// Cloud Run sets K_SERVICE environment variable
-	return os.Getenv("K_SERVICE") != "" || os.Getenv("K_REVISION") != ""
+	return isCloudRunCached
 }
 
 // GoogleAuthMiddleware validates Google OAuth ID tokens

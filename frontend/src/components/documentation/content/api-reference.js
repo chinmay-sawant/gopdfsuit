@@ -257,6 +257,42 @@ const imageBlob = await response.blob();`
         node: `const response = await fetch('http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json');
 const template = await response.json();`
       }
+    },
+    {
+      id: 'redact-pdf',
+      title: 'Redact PDF',
+      method: 'POST',
+      endpoint: '/api/v1/redact/apply',
+      description: 'Apply redactions to a PDF document using explicit regions or text search. Send as multipart form data.',
+      params: [
+        { name: 'pdf', type: 'file', required: true, description: 'The PDF file to redact' },
+        { name: 'blocks', type: 'string', required: false, description: 'JSON array of RedactionRect objects' },
+        { name: 'textSearch', type: 'string', required: false, description: 'JSON array of TextQuery objects (e.g., [{"text": "Secret"}])' },
+        { name: 'mode', type: 'string', required: false, description: 'Redaction mode: "secure_required" or "visual_allowed"' }
+      ],
+      code: {
+        curl: `curl -X POST "http://localhost:8080/api/v1/redact/apply" \\
+  -F "pdf=@Epsteinfiles.pdf" \\
+  -F "blocks=[]" \\
+  -F "textSearch=[{\\"text\\":\\"donald\\"},{\\"text\\":\\"Jeffrey epstein\\"}]" \\
+  -F "mode=secure_required" \\
+  --output redacted.pdf`,
+        node: `const formData = new FormData();
+formData.append('pdf', pdfFile);
+formData.append('blocks', '[]');
+formData.append('textSearch', '[{"text":"donald"}, {"text":"Jeffrey epstein"}]');
+formData.append('mode', 'secure_required');
+
+const response = await fetch('http://localhost:8080/api/v1/redact/apply', {
+  method: 'POST',
+  body: formData
+});
+
+const redactedPdf = await response.blob();
+// Check response headers for X-Redaction-Report
+const reportMsg = response.headers.get('X-Redaction-Report');`
+      }
     }
   ]
 };
+

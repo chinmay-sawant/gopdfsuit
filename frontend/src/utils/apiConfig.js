@@ -37,6 +37,8 @@ export const isAuthRequired = () => {
  * Make an authenticated API request
  */
 export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders) => {
+  const { throwOnError = true, ...fetchOptions } = options
+
   // If auth is required, ensure we have auth headers
   if (isAuthRequired()) {
     if (!getAuthHeaders) {
@@ -44,20 +46,34 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
     }
     
     const authHeaders = getAuthHeaders()
-    options.headers = {
-      ...options.headers,
+    fetchOptions.headers = {
+      ...fetchOptions.headers,
       ...authHeaders
     }
   }
   
   const baseUrl = getApiBaseUrl()
   const fullUrl = url.startsWith('http') ? url : `${baseUrl}${url}`  
-  const response = await fetch(fullUrl, options)  
-  if (!response.ok) {
+  const response = await fetch(fullUrl, fetchOptions)
+  if (!response.ok && throwOnError) {
     const errorText = await response.text()
     console.log('Error response body:', errorText)
     if (response.status === 401 || response.status === 403) {
       throw new Error('Authentication failed. Please login again.')
+    }
+
+    let serverMessage = ''
+    if (errorText) {
+      try {
+        const parsed = JSON.parse(errorText)
+        serverMessage = parsed?.error || parsed?.message || ''
+      } catch {
+        serverMessage = errorText
+      }
+    }
+
+    if (serverMessage) {
+      throw new Error(serverMessage)
     }
     throw new Error(`API request failed: ${response.statusText}`)
   }

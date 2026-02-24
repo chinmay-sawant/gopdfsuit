@@ -1,8 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
-// Load JSON payload from file (executed once at init time)
-const amazonReceiptPayload = JSON.parse(open('../../sampledata/amazon/amazon_receipt.json'));
+import { getWeightedPayload } from './payload_generator.js';
 
 // Simple smoke test configuration
 export const options = {
@@ -23,12 +22,13 @@ const headers = {
 
 export default function () {
     const url = `${BASE_URL}/api/v1/generate/template-pdf`;
-    const response = http.post(url, JSON.stringify(amazonReceiptPayload), { headers });
+    const payload = JSON.stringify(getWeightedPayload());
+    const response = http.post(url, payload, { headers });
 
     check(response, {
         'status is 200': (r) => r.status === 200,
         'response has content': (r) => r.body && r.body.length > 0,
     });
 
-    sleep(0.5);
+    // sleep(0.5);
 }
