@@ -9,6 +9,7 @@ import (
 
 // MergePDFs merges multiple PDF files into one
 // It properly handles form fields, widgets, appearance streams, and various PDF versions
+//nolint:revive // exported
 func MergePDFs(files [][]byte) ([]byte, error) {
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no PDF files provided")

@@ -44,7 +44,7 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 
 // GenerateXMPMetadata generates PDF/A-4 and PDF/UA-2 compliant XMP metadata (PDF 2.0 based)
 // pdfDateStr should be in PDF format: D:YYYYMMDDHHmmSSOHH'mm'
-func GenerateXMPMetadata(documentID string, pdfDateStr string) string {
+func GenerateXMPMetadata(documentID string, pdfDateStr string) string { //nolint:revive
 	// Convert PDF date to XMP date format for consistency
 	xmpDateStr := ConvertPDFDateToXMP(pdfDateStr)
 
@@ -476,18 +476,19 @@ func buildGrayICCProfile() []byte {
 // GenerateOutputIntentObject generates the OutputIntent object for PDF/A-4
 func GenerateOutputIntentObject(objectID int, iccProfileID int, encryptor ObjectEncryptor) string {
 	// Encrypt string values if needed
-	idStr := "(sRGB IEC61966-2.1)"
+	const srgbICC = "sRGB IEC61966-2.1"
+	idStr := "(" + srgbICC + ")"
 	regStr := "(http://www.color.org)"
-	infoStr := "(sRGB IEC61966-2.1)"
+	infoStr := "(" + srgbICC + ")"
 
 	if encryptor != nil {
-		idEnc := encryptor.EncryptString([]byte("sRGB IEC61966-2.1"), objectID, 0)
+		idEnc := encryptor.EncryptString([]byte(srgbICC), objectID, 0)
 		idStr = fmt.Sprintf("<%s>", hex.EncodeToString(idEnc))
 
 		regEnc := encryptor.EncryptString([]byte("http://www.color.org"), objectID, 0)
 		regStr = fmt.Sprintf("<%s>", hex.EncodeToString(regEnc))
 
-		infoEnc := encryptor.EncryptString([]byte("sRGB IEC61966-2.1"), objectID, 0)
+		infoEnc := encryptor.EncryptString([]byte(srgbICC), objectID, 0)
 		infoStr = fmt.Sprintf("<%s>", hex.EncodeToString(infoEnc))
 	}
 

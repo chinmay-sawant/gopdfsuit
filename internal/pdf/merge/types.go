@@ -24,6 +24,7 @@ type PDFObject struct {
 }
 
 // MergeContext holds the state during a merge operation
+//nolint:revive // exported
 type MergeContext struct {
 	// Output buffer
 	Output bytes.Buffer

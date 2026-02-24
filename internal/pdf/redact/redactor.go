@@ -135,7 +135,7 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 				continue
 			}
 			rawStream, decStream, _ := inspectStream(objBody)
-			combined := append(rawStream, decStream...)
+			combined := append(rawStream, decStream...) //nolint:gocritic
 			s := string(combined)
 			if strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ")) {
 				hasText = true
@@ -187,7 +187,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 
 	mode := strings.TrimSpace(strings.ToLower(opts.Mode))
 	if mode == "" {
-		mode = "visual_allowed"
+		mode = "visual_allowed" //nolint:goconst
 	}
 	report.Mode = mode
 	if mode != "visual_allowed" && mode != "secure_required" {
@@ -260,7 +260,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		secureOut, secureChanged, secureWarns, err := r.applySecureContentRedactions(all, activeTextQueries)
 		report.Warnings = append(report.Warnings, secureWarns...)
 		if err != nil {
-			report.SecurityOutcome = "failed"
+			report.SecurityOutcome = "failed" //nolint:goconst
 			return nil, report, err
 		}
 		if !secureChanged {

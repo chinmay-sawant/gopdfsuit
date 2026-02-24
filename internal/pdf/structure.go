@@ -10,30 +10,54 @@ import (
 type StructureType string
 
 const (
-	StructDocument  StructureType = "Document"
-	StructPart      StructureType = "Part"
-	StructSect      StructureType = "Sect"
-	StructDiv       StructureType = "Div"
-	StructH1        StructureType = "H1"
-	StructH2        StructureType = "H2"
-	StructH3        StructureType = "H3"
-	StructH4        StructureType = "H4"
-	StructH5        StructureType = "H5"
-	StructH6        StructureType = "H6"
-	StructP         StructureType = "P"
-	StructL         StructureType = "L"     // List
-	StructLI        StructureType = "LI"    // List Item
-	StructLbl       StructureType = "Lbl"   // List Label
-	StructLBody     StructureType = "LBody" // List Body
-	StructTable     StructureType = "Table"
-	StructTR        StructureType = "TR"
-	StructTH        StructureType = "TH"
-	StructTD        StructureType = "TD"
-	StructFigure    StructureType = "Figure"
-	StructCaption   StructureType = "Caption"
-	StructForm      StructureType = "Form"
-	StructLink      StructureType = "Link"      // PDF/UA-2: Link annotation wrapper
-	StructReference StructureType = "Reference" // PDF/UA-2: Reference structure
+	// StructDocument represents the Document grouping element.
+	StructDocument StructureType = "Document"
+	// StructPart represents the Part grouping element.
+	StructPart StructureType = "Part"
+	// StructSect represents the Sect grouping element.
+	StructSect StructureType = "Sect"
+	// StructDiv represents the Div grouping element.
+	StructDiv StructureType = "Div"
+	// StructH1 represents the H1 header element.
+	StructH1 StructureType = "H1"
+	// StructH2 represents the H2 header element.
+	StructH2 StructureType = "H2"
+	// StructH3 represents the H3 header element.
+	StructH3 StructureType = "H3"
+	// StructH4 represents the H4 header element.
+	StructH4 StructureType = "H4"
+	// StructH5 represents the H5 header element.
+	StructH5 StructureType = "H5"
+	// StructH6 represents the H6 header element.
+	StructH6 StructureType = "H6"
+	// StructP represents the Paragraph element.
+	StructP StructureType = "P"
+	// StructL represents the List element.
+	StructL StructureType = "L"
+	// StructLI represents the List Item element.
+	StructLI StructureType = "LI"
+	// StructLbl represents the List Label element.
+	StructLbl StructureType = "Lbl"
+	// StructLBody represents the List Body element.
+	StructLBody StructureType = "LBody"
+	// StructTable represents the Table element.
+	StructTable StructureType = "Table"
+	// StructTR represents the Table Row element.
+	StructTR StructureType = "TR"
+	// StructTH represents the Table Header element.
+	StructTH StructureType = "TH"
+	// StructTD represents the Table Data element.
+	StructTD StructureType = "TD"
+	// StructFigure represents the Figure element.
+	StructFigure StructureType = "Figure"
+	// StructCaption represents the Caption element.
+	StructCaption StructureType = "Caption"
+	// StructForm represents the Form grouping element.
+	StructForm StructureType = "Form"
+	// StructLink represents a Link structure element (PDF/UA-2).
+	StructLink StructureType = "Link"
+	// StructReference represents a Reference structure element (PDF/UA-2).
+	StructReference StructureType = "Reference"
 )
 
 // StructElem represents a node in the structure tree

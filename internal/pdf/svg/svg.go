@@ -1,3 +1,4 @@
+// Package svg provides support for converting simple vector graphics (SVG) to PDF commands.
 package svg
 
 import (
@@ -10,6 +11,7 @@ import (
 
 // SVG support for converting simple vector graphics to PDF commands
 
+// SVG represents the root of an SVG document.
 type SVG struct {
 	XMLName  xml.Name `xml:"svg"`
 	Width    string   `xml:"width,attr"`
@@ -18,6 +20,7 @@ type SVG struct {
 	Children []Token  `xml:",any"`
 }
 
+// Token represents a generic SVG element.
 type Token struct {
 	XMLName xml.Name
 	Attrs   []xml.Attr `xml:",any,attr"`
@@ -31,6 +34,8 @@ func parseDimension(val string) float64 {
 }
 
 // ConvertSVGToPDFCommands parses SVG data and returns PDF content stream commands
+//
+//nolint:gocyclo
 func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	var svg SVG
 	// Handle XML namespace issues by just ignoring them for simple parsing?
@@ -238,14 +243,15 @@ func applyTransform(b *bytes.Buffer, t string) {
 	parts := strings.Fields(t)
 
 	for i := range parts {
-		if strings.HasPrefix(parts[i], "translate(") {
+		switch {
+		case strings.HasPrefix(parts[i], "translate("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 2 {
 				tx, _ := strconv.ParseFloat(args[0], 64)
 				ty, _ := strconv.ParseFloat(args[1], 64)
 				fmt.Fprintf(b, "1 0 0 1 %.2f %.2f cm\n", tx, ty)
 			}
-		} else if strings.HasPrefix(parts[i], "scale(") {
+		case strings.HasPrefix(parts[i], "scale("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 2 {
 				sx, _ := strconv.ParseFloat(args[0], 64)
@@ -255,7 +261,7 @@ func applyTransform(b *bytes.Buffer, t string) {
 				s, _ := strconv.ParseFloat(args[0], 64)
 				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", s, s)
 			}
-		} else if strings.HasPrefix(parts[i], "matrix(") {
+		case strings.HasPrefix(parts[i], "matrix("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 6 {
 				fmt.Fprintf(b, "%s %s %s %s %s %s cm\n", args[0], args[1], args[2], args[3], args[4], args[5])
@@ -277,7 +283,7 @@ func extractArgs(tokens []string) []string {
 
 func parseColor(c string) (float64, float64, float64, bool) {
 	c = strings.TrimSpace(c)
-	if c == "" || c == "none" || c == "transparent" {
+	if c == "" || c == "none" || c == "transparent" { //nolint:goconst
 		return 0, 0, 0, false
 	}
 	if after, ok := strings.CutPrefix(c, "#"); ok {
@@ -312,7 +318,7 @@ func parseColor(c string) (float64, float64, float64, bool) {
 	}
 	// Basic color names
 	switch strings.ToLower(c) {
-	case "black":
+	case "black": //nolint:goconst
 		return 0, 0, 0, true
 	case "white":
 		return 1, 1, 1, true
@@ -435,6 +441,7 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 }
 
 func drawOp(b *bytes.Buffer, fill, stroke string) {
+	//nolint:gocritic
 	if fill != "none" && stroke != "none" && stroke != "" {
 		b.WriteString("B\n") // Fill and Stroke
 	} else if fill != "none" {

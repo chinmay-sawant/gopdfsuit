@@ -233,11 +233,12 @@ func traverseField(ref string, objMap map[string][]byte, parentPrefix string, ou
 	tv := ""
 	name := ""
 	if m := tReLocal.FindSubmatchIndex(body); m != nil {
-		if m[4] != -1 && m[5] != -1 {
+		switch {
+		case m[4] != -1 && m[5] != -1:
 			name = string(body[m[4]:m[5]])
-		} else if m[6] != -1 && m[7] != -1 {
+		case m[6] != -1 && m[7] != -1:
 			name = decodeHexString(string(body[m[6]:m[7]]))
-		} else if m[8] != -1 && m[9] != -1 {
+		case m[8] != -1 && m[9] != -1:
 			name = string(body[m[8]:m[9]])
 		}
 		name = strings.TrimSpace(name)
@@ -463,6 +464,8 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 }
 
 // DetectFormFieldsAdvanced performs comprehensive field detection using the logic from fielddetect.go
+//
+//nolint:gocyclo
 func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 	if len(pdfBytes) == 0 {
 		return nil, errors.New("empty pdf bytes")
@@ -603,13 +606,14 @@ func detectFormFieldsNaive(pdfBytes []byte) (map[string]string, error) {
 
 	for _, mi := range matches {
 		var name string
-		if mi[4] != -1 && mi[5] != -1 {
+		switch {
+		case mi[4] != -1 && mi[5] != -1:
 			name = string(pdfBytes[mi[4]:mi[5]])
-		} else if mi[6] != -1 && mi[7] != -1 {
+		case mi[6] != -1 && mi[7] != -1:
 			name = decodeHexString(string(pdfBytes[mi[6]:mi[7]]))
-		} else if mi[8] != -1 && mi[9] != -1 {
+		case mi[8] != -1 && mi[9] != -1:
 			name = string(pdfBytes[mi[8]:mi[9]])
-		} else {
+		default:
 			continue
 		}
 
@@ -734,6 +738,8 @@ func buildXFDF(fields map[string]string) []byte {
 }
 
 // FillPDFWithXFDF attempts a best-effort in-place fill of PDF form fields using XFDF data.
+//
+//nolint:gocyclo
 func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	if len(pdfBytes) == 0 {
 		return nil, errors.New("empty pdf bytes")
@@ -1170,6 +1176,7 @@ func fillXFDFInObjectStreams(pdfBytes []byte, fields map[string]string) ([]byte,
 	return out, changedAny, nil
 }
 
+//nolint:gocyclo
 func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, error) {
 	streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
 	sm := streamRe.FindSubmatchIndex(body)
@@ -1451,7 +1458,7 @@ func replaceOrInsertPDFEntry(dict []byte, pattern string, replacement []byte) ([
 	if insertPos < 0 {
 		// If '>>' is not found, append to the end.
 		// Ensure the original 'dict' is not used after 'append' if it reallocates.
-		newDict := append(dict, ' ')
+		newDict := append(dict, ' ') //nolint:gocritic
 		newDict = append(newDict, replacement...)
 		return newDict, true
 	}

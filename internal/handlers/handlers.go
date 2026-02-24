@@ -1,3 +1,4 @@
+// Package handlers provides HTTP handlers for the application.
 package handlers
 
 import (
@@ -98,7 +99,7 @@ func RegisterRoutes(router *gin.Engine) {
 	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run
 	{
 		// Handle all OPTIONS requests for CORS
-		v1.OPTIONS("/*path", func(c *gin.Context) {
+		v1.OPTIONS("/*path", func(c *gin.Context) { //nolint:revive
 			// Handled by CORSMiddleware
 		})
 
@@ -500,7 +501,7 @@ func handleHTMLToPDF(c *gin.Context) {
 		req.Orientation = "Portrait"
 	}
 	if req.MarginTop == "" {
-		req.MarginTop = "10mm"
+		req.MarginTop = "10mm" //nolint:goconst
 	}
 	if req.MarginRight == "" {
 		req.MarginRight = "10mm"

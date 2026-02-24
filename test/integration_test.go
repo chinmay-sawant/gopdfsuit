@@ -46,20 +46,7 @@ func (s *IntegrationSuite) TearDownSuite() {
 
 // TearDownTest runs after each test
 func (s *IntegrationSuite) TearDownTest() {
-	// Clean up temp files
-	tempFiles := []string{
-		filepath.Join("..", "sampledata", "editor", "temp_editor.pdf"),
-		filepath.Join("..", "sampledata", "merge", "temp_merge.pdf"),
-		filepath.Join("..", "sampledata", "filler", "temp_filler.pdf"),
-		filepath.Join("..", "sampledata", "htmltopdf", "temp_htmltopdf.pdf"),
-		filepath.Join("..", "sampledata", "htmltoimg", "temp_htmltoimage.png"),
-		filepath.Join("..", "sampledata", "split", "temp_split.pdf"),
-		filepath.Join("..", "sampledata", "split", "temp_split_range.pdf"),
-		filepath.Join("..", "sampledata", "split", "temp_maxperfile.zip"),
-	}
-	for range tempFiles {
-		// _ = os.Remove(f) // Ignore errors if file doesn't exist
-	}
+	// Cleanup handled by individual tests or OS if needed
 }
 
 // Helper to compare file sizes

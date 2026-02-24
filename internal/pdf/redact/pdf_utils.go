@@ -440,11 +440,12 @@ func estimateStringWidth(text string, fontSize float64) float64 {
 		case 'm', 'w', 'M', 'W', 'O', 'Q', '@', '%':
 			width += 0.8
 		default:
-			if r >= 'A' && r <= 'Z' {
+			switch {
+			case r >= 'A' && r <= 'Z':
 				width += 0.65
-			} else if r >= '0' && r <= '9' {
+			case r >= '0' && r <= '9':
 				width += 0.55
-			} else {
+			default:
 				width += 0.52
 			}
 		}

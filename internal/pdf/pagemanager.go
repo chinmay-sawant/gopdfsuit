@@ -118,6 +118,7 @@ func (pm *PageManager) CheckPageBreak(requiredHeight float64) bool {
 	return pm.CurrentYPos-requiredHeight < pm.Margins.Bottom
 }
 
+// ContentWidth returns the available width for content on the current page.
 func (pm *PageManager) ContentWidth() float64 {
 	return pm.PageDimensions.Width - pm.Margins.Left - pm.Margins.Right
 }

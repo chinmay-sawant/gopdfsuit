@@ -18,6 +18,7 @@ const hexDigits = "0123456789ABCDEF"
 // These include FirstChar, LastChar, Widths, and FontDescriptor as required by Arlington Model
 
 // FontMetrics holds the complete metrics for a standard font
+//nolint:revive // exported
 type FontMetrics struct {
 	BaseFont       string
 	FirstChar      int
@@ -27,6 +28,7 @@ type FontMetrics struct {
 }
 
 // FontDescriptor holds font descriptor information
+//nolint:revive // exported
 type FontDescriptor struct {
 	FontName    string
 	Flags       int
@@ -212,7 +214,7 @@ var zapfDingbatsWidths = []int{
 // GetFontMetrics returns the complete font metrics for a given font name
 func GetFontMetrics(fontName string) FontMetrics {
 	switch fontName {
-	case "Helvetica":
+	case "Helvetica": //nolint:goconst
 		return FontMetrics{
 			BaseFont:  "Helvetica",
 			FirstChar: 32,
@@ -230,7 +232,7 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     523,
 			},
 		}
-	case "Helvetica-Bold":
+	case "Helvetica-Bold": //nolint:goconst
 		return FontMetrics{
 			BaseFont:  "Helvetica-Bold",
 			FirstChar: 32,
@@ -248,7 +250,7 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     532,
 			},
 		}
-	case "Helvetica-Oblique":
+	case "Helvetica-Oblique": //nolint:goconst
 		return FontMetrics{
 			BaseFont:  "Helvetica-Oblique",
 			FirstChar: 32,
@@ -266,7 +268,7 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     523,
 			},
 		}
-	case "Helvetica-BoldOblique":
+	case "Helvetica-BoldOblique": //nolint:goconst
 		return FontMetrics{
 			BaseFont:  "Helvetica-BoldOblique",
 			FirstChar: 32,
@@ -841,7 +843,7 @@ func GenerateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 	f := font.Font
 
 	// Determine the maximum CID used
-	var maxCID uint16 = 0
+	var maxCID uint16    
 	for char := range font.UsedChars {
 		if uint16(char) > maxCID {
 			maxCID = uint16(char)

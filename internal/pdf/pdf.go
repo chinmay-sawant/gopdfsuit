@@ -44,15 +44,16 @@ func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
 	var pdfData []byte
 	var err error
 
-	if req.HTML != "" {
+	switch {
+	case req.HTML != "":
 		log.Printf("ConvertHTMLToPDF: Converting HTML content")
 		// Convert HTML content
 		pdfData, err = gochromedp.ConvertHTMLToPDF(req.HTML, options)
-	} else if req.URL != "" {
+	case req.URL != "":
 		log.Printf("ConvertHTMLToPDF: Converting URL: %s", req.URL)
 		// Convert URL
 		pdfData, err = gochromedp.ConvertURLToPDF(req.URL, options)
-	} else {
+	default:
 		log.Printf("ConvertHTMLToPDF: Error - neither HTML nor URL provided")
 		return nil, fmt.Errorf("either HTML content or URL must be provided")
 	}
@@ -84,15 +85,16 @@ func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
 	var imageData []byte
 	var err error
 
-	if req.HTML != "" {
+	switch {
+	case req.HTML != "":
 		log.Printf("ConvertHTMLToImage: Converting HTML content")
 		// Convert HTML content
 		imageData, err = gochromedp.ConvertHTMLToImage(req.HTML, options)
-	} else if req.URL != "" {
+	case req.URL != "":
 		log.Printf("ConvertHTMLToImage: Converting URL: %s", req.URL)
 		// Convert URL
 		imageData, err = gochromedp.ConvertURLToImage(req.URL, options)
-	} else {
+	default:
 		log.Printf("ConvertHTMLToImage: Error - neither HTML nor URL provided")
 		return nil, fmt.Errorf("either HTML content or URL must be provided")
 	}

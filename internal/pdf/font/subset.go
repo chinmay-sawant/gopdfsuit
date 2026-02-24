@@ -329,6 +329,7 @@ func subsetHmtx(font *TTFFont, glyphs []uint16) []byte {
 }
 
 // subsetCmap generates a format 4 cmap table with remapped glyph IDs
+//nolint:gocyclo
 func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 	var buf bytes.Buffer
 
