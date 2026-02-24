@@ -25,6 +25,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          args: -E revive,gocritic,gocyclo,goconst ./...
 
   frontend-lint:
     name: Frontend Lint

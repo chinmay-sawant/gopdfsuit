@@ -18,8 +18,8 @@ import (
 
 // This file intentionally left minimal to keep package build roots simple.
 
-// ConvertHTMLToPDF converts HTML content to PDF using gochromedp
-func ConvertHTMLToPDF(req models.HtmlToPDFRequest) ([]byte, error) {
+// ConvertHTMLToPDF converts HTML content to PDF using gochromedp.
+func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
 	log.Printf("ConvertHTMLToPDF: Starting conversion. HTML length: %d, URL: %s", len(req.HTML), req.URL)
 
 	// Prepare options
@@ -38,7 +38,7 @@ func ConvertHTMLToPDF(req models.HtmlToPDFRequest) ([]byte, error) {
 	}
 	// Note: LowQuality option not available in gochromedp ConvertOptions
 
-	log.Printf("ConvertHTMLToPDF: Options prepared - PageSize: %s, Orientation: %s, Grayscale: %t", 
+	log.Printf("ConvertHTMLToPDF: Options prepared - PageSize: %s, Orientation: %s, Grayscale: %t",
 		options.PageSize, options.Orientation, options.Grayscale)
 
 	var pdfData []byte
@@ -66,8 +66,8 @@ func ConvertHTMLToPDF(req models.HtmlToPDFRequest) ([]byte, error) {
 	return pdfData, nil
 }
 
-// ConvertHTMLToImage converts HTML content to image using gochromedp
-func ConvertHTMLToImage(req models.HtmlToImageRequest) ([]byte, error) {
+// ConvertHTMLToImage converts HTML content to image using gochromedp.
+func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
 	log.Printf("ConvertHTMLToImage: Starting conversion. HTML length: %d, URL: %s, Format: %s", len(req.HTML), req.URL, req.Format)
 
 	// Prepare options
@@ -78,7 +78,7 @@ func ConvertHTMLToImage(req models.HtmlToImageRequest) ([]byte, error) {
 		Quality: req.Quality,
 	}
 
-	log.Printf("ConvertHTMLToImage: Options prepared - Format: %s, Width: %d, Height: %d, Quality: %d", 
+	log.Printf("ConvertHTMLToImage: Options prepared - Format: %s, Width: %d, Height: %d, Quality: %d",
 		options.Format, options.Width, options.Height, options.Quality)
 
 	var imageData []byte

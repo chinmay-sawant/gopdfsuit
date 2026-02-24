@@ -111,8 +111,8 @@ func RegisterRoutes(router *gin.Engine) {
 		v1.POST("/fonts", handleUploadFont)
 
 		// HTML to PDF/Image endpoints (powered by gochromedp)
-		v1.POST("/htmltopdf", handlehtmlToPDF)
-		v1.POST("/htmltoimage", handlehtmlToImage)
+		v1.POST("/htmltopdf", handleHTMLToPDF)
+		v1.POST("/htmltoimage", handleHTMLToImage)
 
 		// Redaction endpoints
 		v1.POST("/redact/page-info", HandleRedactPageInfo)
@@ -473,11 +473,11 @@ func handlerSplitPDF(c *gin.Context) {
 
 }
 
-// handlehtmlToPDF handles HTML to PDF conversion using htmltopdf
-func handlehtmlToPDF(c *gin.Context) {
+// handleHTMLToPDF handles HTML to PDF conversion using htmltopdf
+func handleHTMLToPDF(c *gin.Context) {
 	log.Printf("Starting HTML to PDF conversion request")
 
-	var req models.HtmlToPDFRequest
+	var req models.HTMLToPDFRequest
 	data, err := c.GetRawData()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
@@ -531,11 +531,11 @@ func handlehtmlToPDF(c *gin.Context) {
 	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
-// handlehtmlToImage handles HTML to image conversion using htmltoimage
-func handlehtmlToImage(c *gin.Context) {
+// handleHTMLToImage handles HTML to image conversion using htmltoimage
+func handleHTMLToImage(c *gin.Context) {
 	log.Printf("Starting HTML to image conversion request")
 
-	var req models.HtmlToImageRequest
+	var req models.HTMLToImageRequest
 	data, err := c.GetRawData()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})

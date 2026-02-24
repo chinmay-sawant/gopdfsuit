@@ -10,7 +10,7 @@ import (
 //
 // Example - Convert HTML string:
 //
-//	req := gopdflib.HtmlToPDFRequest{
+//	req := gopdflib.HTMLToPDFRequest{
 //	    HTML:        "<html><body><h1>Hello World</h1></body></html>",
 //	    PageSize:    "A4",
 //	    Orientation: "Portrait",
@@ -19,12 +19,12 @@ import (
 //
 // Example - Convert URL:
 //
-//	req := gopdflib.HtmlToPDFRequest{
+//	req := gopdflib.HTMLToPDFRequest{
 //	    URL:      "https://example.com",
 //	    PageSize: "Letter",
 //	}
 //	pdfBytes, err := gopdflib.ConvertHTMLToPDF(req)
-func ConvertHTMLToPDF(req HtmlToPDFRequest) ([]byte, error) {
+func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
 	return pdf.ConvertHTMLToPDF(req)
 }
 
@@ -34,13 +34,13 @@ func ConvertHTMLToPDF(req HtmlToPDFRequest) ([]byte, error) {
 //
 // Example:
 //
-//	req := gopdflib.HtmlToImageRequest{
+//	req := gopdflib.HTMLToImageRequest{
 //	    HTML:   "<html><body><h1>Hello World</h1></body></html>",
 //	    Format: "png",
 //	    Width:  800,
 //	    Height: 600,
 //	}
 //	imgBytes, err := gopdflib.ConvertHTMLToImage(req)
-func ConvertHTMLToImage(req HtmlToImageRequest) ([]byte, error) {
+func ConvertHTMLToImage(req HTMLToImageRequest) ([]byte, error) {
 	return pdf.ConvertHTMLToImage(req)
 }

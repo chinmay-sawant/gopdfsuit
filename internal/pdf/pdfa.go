@@ -25,7 +25,7 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 	month := date[4:6]
 	day := date[6:8]
 	hour := date[8:10]
-	min := date[10:12]
+	minute := date[10:12]
 	sec := date[12:14]
 
 	// Parse timezone: -07'00' or +05'30'
@@ -39,7 +39,7 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 		tz = tzSign + tzHour + ":" + tzMin
 	}
 
-	return fmt.Sprintf("%s-%s-%sT%s:%s:%s%s", year, month, day, hour, min, sec, tz)
+	return fmt.Sprintf("%s-%s-%sT%s:%s:%s%s", year, month, day, hour, minute, sec, tz)
 }
 
 // GenerateXMPMetadata generates PDF/A-4 and PDF/UA-2 compliant XMP metadata (PDF 2.0 based)

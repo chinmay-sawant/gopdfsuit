@@ -159,11 +159,11 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 		case hasImage:
 			typeName = "image_only"
 		}
-		cap := models.PageCapability{PageNum: i, Type: typeName, HasText: hasText, HasImage: hasImage}
+		capability := models.PageCapability{PageNum: i, Type: typeName, HasText: hasText, HasImage: hasImage}
 		if typeName == "image_only" {
-			cap.Note = "text search requires OCR for image-only content"
+			capability.Note = "text search requires OCR for image-only content"
 		}
-		caps = append(caps, cap)
+		caps = append(caps, capability)
 	}
 	return caps, nil
 }

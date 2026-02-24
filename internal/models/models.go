@@ -1,5 +1,7 @@
+// Package models defines the data structures used throughout gopdfsuit.
 package models
 
+// PDFTemplate represents the complete structure for generating a PDF document.
 type PDFTemplate struct {
 	Config    Config     `json:"config"`
 	Title     Title      `json:"title"`
@@ -21,10 +23,12 @@ type Bookmark struct {
 	Open     bool       `json:"open,omitempty"`     // Whether children are expanded by default
 }
 
+// Spacer represents a vertical gap between elements.
 type Spacer struct {
 	Height float64 `json:"height"`
 }
 
+// Element represents a generic document component that can be a table, spacer, or image.
 type Element struct {
 	Type   string  `json:"type"`             // "table", "spacer", "image"
 	Index  int     `json:"index,omitempty"`  // Index into the respective array (Table, Spacer, Image)
@@ -33,6 +37,7 @@ type Element struct {
 	Image  *Image  `json:"image,omitempty"`  // Inline image data (alternative to index)
 }
 
+// Config holds document-wide settings such as page size, margins, and security.
 type Config struct {
 	PageBorder          string             `json:"pageBorder"`
 	PageMargin          string             `json:"pageMargin,omitempty"`          // Page margins in points: "left:right:top:bottom" (default: "72:72:72:72")
@@ -106,6 +111,7 @@ type CustomFontConfig struct {
 	FontData string `json:"fontData,omitempty"` // Base64-encoded font data (alternative to FilePath)
 }
 
+// Title represents the header section of the document.
 type Title struct {
 	Props string `json:"props"`
 	Text  string `json:"text"`
@@ -127,6 +133,7 @@ type TitleTable struct {
 	Rows         []Row     `json:"rows"`
 }
 
+// Table represents a grid of data rows and cells.
 type Table struct {
 	MaxColumns int   `json:"maxcolumns"`
 	Rows       []Row `json:"rows"`
@@ -147,10 +154,12 @@ type Table struct {
 	TextColor string `json:"textcolor,omitempty"`
 }
 
+// Row represents a single horizontal line of cells in a table.
 type Row struct {
 	Row []Cell `json:"row"`
 }
 
+// Cell represents a single unit of data within a table row.
 type Cell struct {
 	Props    string `json:"props"`
 	Text     string `json:"text,omitempty"`
@@ -185,6 +194,7 @@ type Cell struct {
 	Dest string `json:"dest,omitempty"`
 }
 
+// FormField represents a fillable component in a PDF form.
 type FormField struct {
 	Type      string `json:"type"` // "checkbox", "radio", "text"
 	Name      string `json:"name"`
@@ -194,6 +204,7 @@ type FormField struct {
 	Shape     string `json:"shape,omitempty"`      // "round" or "square" (for radio)
 }
 
+// Image represents a visual asset to be embedded in the document.
 type Image struct {
 	ImageName string  `json:"imagename"`
 	ImageData string  `json:"imagedata"` // Base64 encoded image data
@@ -203,6 +214,7 @@ type Image struct {
 	Link string `json:"link,omitempty"`
 }
 
+// Footer represents the bottom section of each page.
 type Footer struct {
 	Font string `json:"font"`
 	Text string `json:"text"`
@@ -210,6 +222,7 @@ type Footer struct {
 	Link string `json:"link,omitempty"`
 }
 
+// Props defines the stylistic properties for document elements.
 type Props struct {
 	FontName  string
 	FontSize  int
@@ -221,8 +234,8 @@ type Props struct {
 	Borders   [4]int // left, right, top, bottom
 }
 
-// htmlToPDFRequest represents the input for htmltopdf conversion
-type HtmlToPDFRequest struct {
+// HTMLToPDFRequest represents the input for htmltopdf conversion.
+type HTMLToPDFRequest struct {
 	HTML         string            `json:"html,omitempty"`        // Raw HTML content
 	URL          string            `json:"url,omitempty"`         // URL to convert
 	OutputPath   string            `json:"output_path,omitempty"` // Optional output path
@@ -238,8 +251,8 @@ type HtmlToPDFRequest struct {
 	Options      map[string]string `json:"options,omitempty"`     // Additional htmltopdf options
 }
 
-// htmlToImageRequest represents the input for htmltoimage conversion
-type HtmlToImageRequest struct {
+// HTMLToImageRequest represents the input for htmltoimage conversion.
+type HTMLToImageRequest struct {
 	HTML       string            `json:"html,omitempty"`        // Raw HTML content
 	URL        string            `json:"url,omitempty"`         // URL to convert
 	OutputPath string            `json:"output_path,omitempty"` // Optional output path

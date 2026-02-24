@@ -213,7 +213,7 @@ func (s *IntegrationSuite) TestFillPDF() {
 // TestHtmlToPDF tests /api/v1/htmltopdf
 func (s *IntegrationSuite) TestHtmlToPDF() {
 	// 1. Input URL
-	req := models.HtmlToPDFRequest{
+	req := models.HTMLToPDFRequest{
 		URL: "https://en.wikipedia.org/wiki/Ana_de_Armas",
 	}
 	reqBody, _ := json.Marshal(req)
@@ -253,7 +253,7 @@ func (s *IntegrationSuite) TestHtmlToPDF() {
 // TestHtmlToImage tests /api/v1/htmltoimage
 func (s *IntegrationSuite) TestHtmlToImage() {
 	// 1. Input URL
-	req := models.HtmlToImageRequest{
+	req := models.HTMLToImageRequest{
 		URL:    "https://en.wikipedia.org/wiki/Ana_de_Armas",
 		Format: "png",
 	}

@@ -1,3 +1,4 @@
+// Package main provides CGO exports for the Python bindings.
 package main
 
 /*
@@ -192,7 +193,7 @@ func ConvertHTMLToPDF(requestJSON *C.char) C.ByteResult {
 	var result C.ByteResult
 
 	reqStr := C.GoString(requestJSON)
-	var req gopdflib.HtmlToPDFRequest
+	var req gopdflib.HTMLToPDFRequest
 	if err := json.Unmarshal([]byte(reqStr), &req); err != nil {
 		result.error = C.CString(err.Error())
 		return result
@@ -219,7 +220,7 @@ func ConvertHTMLToImage(requestJSON *C.char) C.ByteResult {
 	var result C.ByteResult
 
 	reqStr := C.GoString(requestJSON)
-	var req gopdflib.HtmlToImageRequest
+	var req gopdflib.HTMLToImageRequest
 	if err := json.Unmarshal([]byte(reqStr), &req); err != nil {
 		result.error = C.CString(err.Error())
 		return result

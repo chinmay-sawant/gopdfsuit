@@ -300,7 +300,7 @@ func Pkcs7Pad(data []byte, blockSize int) []byte {
 }
 
 // GetEncryptDictionary returns the /Encrypt dictionary content
-func (enc *PDFEncryption) GetEncryptDictionary(encryptObjID int) string {
+func (enc *PDFEncryption) GetEncryptDictionary(_ int) string {
 	var dict strings.Builder
 
 	dict.WriteString("<< /Type /Encrypt")

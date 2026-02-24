@@ -114,15 +114,15 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 
 				// Apply group styles (fill/stroke) which inherit
 				if fill, ok := attrs["fill"]; ok {
-					r, g, b_val, ok := parseColor(fill)
+					r, g, bVal, ok := parseColor(fill)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f rg\n", r, g, b_val)
+						fmt.Fprintf(&b, "%.3f %.3f %.3f rg\n", r, g, bVal)
 					}
 				}
 				if stroke, ok := attrs["stroke"]; ok {
-					r, g, b_val, ok := parseColor(stroke)
+					r, g, bVal, ok := parseColor(stroke)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f RG\n", r, g, b_val)
+						fmt.Fprintf(&b, "%.3f %.3f %.3f RG\n", r, g, bVal)
 					}
 				}
 			}
@@ -372,8 +372,8 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 	b.WriteString("q\n") // Save state
 
 	// Apply styles
-	if r, g, blu, ok := parseColor(stroke); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f RG\n", r, g, blu)
+	if r, g, blue, ok := parseColor(stroke); ok {
+		fmt.Fprintf(b, "%.2f %.2f %.2f RG\n", r, g, blue)
 	}
 
 	// SVG default: fill is black if not specified, NOT transparent
@@ -385,8 +385,8 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 	} else if fill == "none" || fill == "transparent" {
 		// Explicit no fill - keep as "none" for drawOp logic
 		fill = "none"
-	} else if r, g, blu, ok := parseColor(fill); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f rg\n", r, g, blu)
+	} else if r, g, blue, ok := parseColor(fill); ok {
+		fmt.Fprintf(b, "%.2f %.2f %.2f rg\n", r, g, blue)
 	} else {
 		// Unknown fill value - default to black
 		fill = "black"

@@ -231,7 +231,7 @@ func (sm *StructureManager) EndStructureElement() {
 }
 
 // RegisterPageStructParents registers the parent tree mapping for a page
-func (sm *StructureManager) RegisterPageStructParents(pageObjectID int, pageIndex int) {
+func (sm *StructureManager) RegisterPageStructParents(_ int, _ int) {
 	// This logic handles the ParentTree mapping "Page Object -> [StructElem refs]"
 	// required for reliable reverse lookup.
 	// The StructParents entry in Page dictionary points to a key in ParentTree.
@@ -243,7 +243,7 @@ func (sm *StructureManager) RegisterPageStructParents(pageObjectID int, pageInde
 
 // GenerateStructTreeRoot generates the StructTreeRoot object content
 // namespaceObjID is the object ID of the PDF 2.0 namespace dictionary (0 to skip)
-func (sm *StructureManager) GenerateStructTreeRoot(rootObjID int, parentTreeObjID int, namespaceObjID int) string {
+func (sm *StructureManager) GenerateStructTreeRoot(_ int, parentTreeObjID int, namespaceObjID int) string {
 	var sb strings.Builder
 	var structBuf []byte
 	structBuf = append(structBuf, "<< /Type /StructTreeRoot /ParentTree "...)
@@ -285,7 +285,7 @@ type LinkElement struct {
 
 // AddLinkElement adds a Link structure element for an annotation
 // PDF/UA-2 requires link annotations to be wrapped in Link structure elements
-func (sm *StructureManager) AddLinkElement(annotObjID int, pageIndex int) {
+func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 	// Create a Link structure element
 	linkElem := &StructElem{
 		Type:   StructLink,

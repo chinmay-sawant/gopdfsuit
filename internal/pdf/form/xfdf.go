@@ -1,3 +1,4 @@
+// Package form provides functionality for parsing XFDF and filling PDF forms.
 package form
 
 import (
@@ -61,8 +62,8 @@ func ParseXFDF(xfdfBytes []byte) (map[string]string, error) {
 	return m, nil
 }
 
-// Enhanced field detection structures
-type FormField struct {
+// Field represents a detected or targetable PDF form field.
+type Field struct {
 	Name  string
 	Value string
 	Type  string // V, AS, or detected type
@@ -1089,7 +1090,9 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				out = bytes.Replace(out, dictPart, newDict, 1)
 			} else {
 				// Inject it
-				newDict := append(dictPart, []byte(" /NeedAppearances true ")...)
+				newDict := make([]byte, len(dictPart)+len(" /NeedAppearances true "))
+				copy(newDict, dictPart)
+				copy(newDict[len(dictPart):], " /NeedAppearances true ")
 				out = bytes.Replace(out, dictPart, newDict, 1)
 			}
 		} else if acroMatch[3] != nil {
@@ -1446,7 +1449,10 @@ func replaceOrInsertPDFEntry(dict []byte, pattern string, replacement []byte) ([
 
 	insertPos := bytes.LastIndex(dict, []byte(">>"))
 	if insertPos < 0 {
-		newDict := append(dict, append([]byte(" "), replacement...)...)
+		// If '>>' is not found, append to the end.
+		// Ensure the original 'dict' is not used after 'append' if it reallocates.
+		newDict := append(dict, ' ')
+		newDict = append(newDict, replacement...)
 		return newDict, true
 	}
 
