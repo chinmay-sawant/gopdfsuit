@@ -89,6 +89,7 @@ export const Sidebar = ({ sections, activeId, onItemClick }) => {
                                 {section.items.map(item => (
                                     <div
                                         key={item.id}
+                                        id={`sidebar-item-${item.id}`}
                                         onClick={() => onItemClick(item)}
                                         style={{
                                             padding: '0.4rem 0.5rem',

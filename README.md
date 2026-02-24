@@ -55,6 +55,7 @@ GoPdfSuit is a powerful Go web service for template-based PDF generation.
 - **Advanced Elements**: Rich text styling, tables, barcodes, QR codes, SVG vector graphics, and interactive forms (checkboxes, radio buttons).
 - **Navigation**: Auto-generated bookmarks, internal links, and named destinations for easy document navigation.
 - **Form Filling**: Fill generic AcroForms and XFDF data.
+- **Redaction**: Securely redact sensitive information using specific coordinates or text search.
 - **Merge & Split**: Combine multiple PDFs or split them.
 - **HTML Conversion**: High-fidelity HTML to PDF/Image conversion using headless Chrome.
 - **Native Bindings**:
