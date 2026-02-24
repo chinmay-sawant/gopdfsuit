@@ -264,7 +264,11 @@ func traverseField(ref string, objMap map[string][]byte, parentPrefix string, ou
 	}
 
 	if fullName != "" {
-		out[fullName] = tv
+		if tv != "" {
+			out[fullName] = tv
+		} else if _, exists := out[fullName]; !exists {
+			out[fullName] = ""
+		}
 	}
 
 	kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
@@ -393,7 +397,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 			continue
 		}
 		// extract stream
-		streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+		streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
 		sm := streamRe.FindSubmatch(body)
 		if sm == nil {
 			continue
@@ -486,7 +490,7 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 		// Handle ObjStm objects
 		if bytesIndex(body, []byte("/ObjStm")) >= 0 || bytesIndex(body, []byte("/Type/ObjStm")) >= 0 {
 			// find stream
-			streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+			streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
 			if sm := streamRe.FindSubmatch(body); sm != nil {
 				streamBytes := sm[1]
 				// try decompress
@@ -628,7 +632,7 @@ func detectFormFieldsNaive(pdfBytes []byte) (map[string]string, error) {
 
 // decompressStreams decompresses any compressed streams in the object body
 func decompressStreams(body []byte) []byte {
-	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
 	newBody := body
 
 	for {
@@ -838,82 +842,88 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		allJobs = append(allJobs, jobs...)
 	}
 
-	if len(allJobs) == 0 {
-		if bytes.Contains(out, []byte("/ObjStm")) {
-			if filled, changed, err := fillXFDFInObjectStreams(out, fields); err != nil {
-				return nil, err
-			} else if changed {
-				return filled, nil
-			}
+	objStmChanged := false
+	if bytes.Contains(out, []byte("/ObjStm")) {
+		if filled, changed, err := fillXFDFInObjectStreams(out, fields); err != nil {
+			return nil, err
+		} else if changed {
+			out = filled
+			objStmChanged = true
 		}
+	}
+
+	if len(allJobs) == 0 && !objStmChanged {
 		return out, nil
 	}
 
-	// --- PASS 2: MODIFICATION (WRITE-ONLY, IN REVERSE) ---
-	sort.Slice(allJobs, func(i, j int) bool { return allJobs[i].dictStart > allJobs[j].dictStart })
+	if !objStmChanged {
 
-	radioGroups := make(map[string]string)
-	for _, job := range allJobs {
-		if job.fieldType == typeRadio {
-			radioGroups[job.field] = job.val
-		}
-	}
-	for fieldName, value := range radioGroups {
-		re := regexp.MustCompile(fmt.Sprintf(`(?s)(<<.*?/T\s*\(\s*%s\s*\).*?/Kids.*?>>)`, regexp.QuoteMeta(fieldName)))
-		match := re.FindIndex(out)
-		if match == nil || bytes.Contains(out[match[0]:match[1]], []byte("/Subtype /Widget")) {
-			continue
-		}
-		dictStart, dictEnd := match[0], match[1]
-		dictBytes := out[dictStart:dictEnd]
-		newV := []byte("/V /" + value)
-		vRe := regexp.MustCompile(`/V\s*\(?.*?\)?`)
-		var newDictBytes []byte
-		if vRe.Match(dictBytes) {
-			newDictBytes = vRe.ReplaceAll(dictBytes, newV)
-		} else {
-			newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newV, []byte(">>")...)...), 1)
-		}
-		out = append(out[:dictStart], append(newDictBytes, out[dictEnd:]...)...)
-	}
+		// --- PASS 2: MODIFICATION (WRITE-ONLY, IN REVERSE) ---
+		sort.Slice(allJobs, func(i, j int) bool { return allJobs[i].dictStart > allJobs[j].dictStart })
 
-	for _, job := range allJobs {
-		dictBytes := out[job.dictStart:job.dictEnd]
-		var newDictBytes []byte
-		switch job.fieldType {
-		case typeText:
-			esc := escapePDFString(job.val)
-			newV := []byte(fmt.Sprintf("/V (%s)", esc))
-			vRe := regexp.MustCompile(`/V\s*\(.*?\)`)
+		radioGroups := make(map[string]string)
+		for _, job := range allJobs {
+			if job.fieldType == typeRadio {
+				radioGroups[job.field] = job.val
+			}
+		}
+		for fieldName, value := range radioGroups {
+			re := regexp.MustCompile(fmt.Sprintf(`(?s)(<<.*?/T\s*\(\s*%s\s*\).*?/Kids.*?>>)`, regexp.QuoteMeta(fieldName)))
+			match := re.FindIndex(out)
+			if match == nil || bytes.Contains(out[match[0]:match[1]], []byte("/Subtype /Widget")) {
+				continue
+			}
+			dictStart, dictEnd := match[0], match[1]
+			dictBytes := out[dictStart:dictEnd]
+			newV := []byte("/V /" + value)
+			vRe := regexp.MustCompile(`/V\s*\(?.*?\)?`)
+			var newDictBytes []byte
 			if vRe.Match(dictBytes) {
 				newDictBytes = vRe.ReplaceAll(dictBytes, newV)
 			} else {
 				newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newV, []byte(">>")...)...), 1)
 			}
-			apRe := regexp.MustCompile(`\s*/AP\s*<<.*?>>`)
-			newDictBytes = apRe.ReplaceAll(newDictBytes, []byte(" "))
-		case typeButton, typeRadio:
-			newState := "/Off"
-			if job.fieldType == typeButton && (strings.ToLower(job.val) == "yes" || strings.ToLower(job.val) == "on") {
-				apDictRe := regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
-				if apMatch := apDictRe.FindSubmatch(dictBytes); apMatch != nil {
-					newState = "/" + string(apMatch[1])
-				} else {
-					newState = "/Yes"
-				}
-			} else if job.fieldType == typeRadio && job.radioExportValue == job.val {
-				newState = "/" + job.radioExportValue
-			}
-			newAS := []byte("/AS " + newState)
-			asRe := regexp.MustCompile(`/AS\s*/\w+`)
-			if asRe.Match(dictBytes) {
-				newDictBytes = asRe.ReplaceAll(dictBytes, newAS)
-			} else {
-				newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newAS, []byte(">>")...)...), 1)
-			}
+			out = append(out[:dictStart], append(newDictBytes, out[dictEnd:]...)...)
 		}
-		if newDictBytes != nil {
-			out = append(out[:job.dictStart], append(newDictBytes, out[job.dictEnd:]...)...)
+
+		for _, job := range allJobs {
+			dictBytes := out[job.dictStart:job.dictEnd]
+			var newDictBytes []byte
+			switch job.fieldType {
+			case typeText:
+				esc := escapePDFString(job.val)
+				newV := []byte(fmt.Sprintf("/V (%s)", esc))
+				vRe := regexp.MustCompile(`/V\s*\(.*?\)`)
+				if vRe.Match(dictBytes) {
+					newDictBytes = vRe.ReplaceAll(dictBytes, newV)
+				} else {
+					newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newV, []byte(">>")...)...), 1)
+				}
+				apRe := regexp.MustCompile(`\s*/AP\s*<<.*?>>`)
+				newDictBytes = apRe.ReplaceAll(newDictBytes, []byte(" "))
+			case typeButton, typeRadio:
+				newState := "/Off"
+				if job.fieldType == typeButton && (strings.ToLower(job.val) == "yes" || strings.ToLower(job.val) == "on") {
+					apDictRe := regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
+					if apMatch := apDictRe.FindSubmatch(dictBytes); apMatch != nil {
+						newState = "/" + string(apMatch[1])
+					} else {
+						newState = "/Yes"
+					}
+				} else if job.fieldType == typeRadio && job.radioExportValue == job.val {
+					newState = "/" + job.radioExportValue
+				}
+				newAS := []byte("/AS " + newState)
+				asRe := regexp.MustCompile(`/AS\s*/\w+`)
+				if asRe.Match(dictBytes) {
+					newDictBytes = asRe.ReplaceAll(dictBytes, newAS)
+				} else {
+					newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newAS, []byte(">>")...)...), 1)
+				}
+			}
+			if newDictBytes != nil {
+				out = append(out[:job.dictStart], append(newDictBytes, out[job.dictEnd:]...)...)
+			}
 		}
 	}
 
@@ -1113,7 +1123,7 @@ func fillXFDFInObjectStreams(pdfBytes []byte, fields map[string]string) ([]byte,
 }
 
 func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, error) {
-	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
 	sm := streamRe.FindSubmatchIndex(body)
 	if sm == nil {
 		return body, false, nil
@@ -1241,13 +1251,20 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 }
 
 func updateObjStmFieldValue(objContent []byte, fields map[string]string) ([]byte, bool) {
-	nameRe := regexp.MustCompile(`/T\s*\(([^)]*)\)`)
+	nameRe := regexp.MustCompile(`/T\s*(?:\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
 	nameMatch := nameRe.FindSubmatch(objContent)
 	if nameMatch == nil {
 		return objContent, false
 	}
 
-	fieldName := strings.TrimSpace(string(nameMatch[1]))
+	var fieldName string
+	if len(nameMatch[1]) > 0 {
+		fieldName = string(nameMatch[1])
+	} else if len(nameMatch[2]) > 0 {
+		fieldName = decodeHexString(string(nameMatch[2]))
+	}
+	fieldName = strings.TrimSpace(fieldName)
+
 	value, ok := fields[fieldName]
 	if !ok {
 		return objContent, false
@@ -1256,16 +1273,16 @@ func updateObjStmFieldValue(objContent []byte, fields map[string]string) ([]byte
 	updated := make([]byte, len(objContent))
 	copy(updated, objContent)
 
-	if bytes.Contains(updated, []byte("/FT /Tx")) {
+	if bytes.Contains(updated, []byte("/FT /Tx")) || bytes.Contains(updated, []byte("/FT/Tx")) {
 		replacement := []byte("/V (" + escapePDFString(value) + ")")
-		newUpdated, changed := replaceOrInsertPDFEntry(updated, `/V\s*\((?:\\.|[^\\)])*\)|/V\s*/[^\s/>]+`, replacement)
+		newUpdated, changed := replaceOrInsertPDFEntry(updated, `/V\s*\((?:\\.|[^\\)])*\)|/V\s*/[^\s/>]+|/V\s*<[0-9A-Fa-f\s]+>`, replacement)
 		return newUpdated, changed
 	}
 
-	if bytes.Contains(updated, []byte("/FT /Btn")) {
+	if bytes.Contains(updated, []byte("/FT /Btn")) || bytes.Contains(updated, []byte("/FT/Btn")) {
 		state := xfdfValueToPDFName(value)
-		newUpdated, changedV := replaceOrInsertPDFEntry(updated, `/V\s*/[^\s/>]+|/V\s*\((?:\\.|[^\\)])*\)`, []byte("/V /"+state))
-		newUpdated, changedAS := replaceOrInsertPDFEntry(newUpdated, `/AS\s*/[^\s/>]+|/AS\s*\((?:\\.|[^\\)])*\)`, []byte("/AS /"+state))
+		newUpdated, changedV := replaceOrInsertPDFEntry(updated, `/V\s*/[^\s/>]+|/V\s*\((?:\\.|[^\\)])*\)|/V\s*<[0-9A-Fa-f\s]+>`, []byte("/V /"+state))
+		newUpdated, changedAS := replaceOrInsertPDFEntry(newUpdated, `/AS\s*/[^\s/>]+|/AS\s*\((?:\\.|[^\\)])*\)|/AS\s*<[0-9A-Fa-f\s]+>`, []byte("/AS /"+state))
 		return newUpdated, changedV || changedAS
 	}
 
