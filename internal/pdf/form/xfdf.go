@@ -1172,6 +1172,46 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 		members = append(members, objMember{objNum: num, offset: off})
 	}
 
+	kidsToRemoveAP := make(map[int]bool)
+	for i := range members {
+		start := members[i].offset
+		end := len(content)
+		if i+1 < len(members) {
+			end = members[i+1].offset
+		}
+		objContent := bytes.TrimSpace(content[start:end])
+
+		nameRe := regexp.MustCompile(`/T\s*(?:\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
+		if nameMatch := nameRe.FindSubmatch(objContent); nameMatch != nil {
+			var fieldName string
+			if len(nameMatch[1]) > 0 {
+				fieldName = string(nameMatch[1])
+			} else if len(nameMatch[2]) > 0 {
+				fieldName = decodeHexString(string(nameMatch[2]))
+			}
+			fieldName = strings.TrimSpace(fieldName)
+
+			if _, ok := fields[fieldName]; ok {
+				if bytes.Contains(objContent, []byte("/FT /Tx")) || bytes.Contains(objContent, []byte("/FT/Tx")) {
+					kidsToRemoveAP[members[i].objNum] = true
+					kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
+					if m := kidsRe.FindSubmatch(objContent); m != nil {
+						refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
+						for _, r := range refRe.FindAllSubmatch(m[1], -1) {
+							kidNum, _ := strconv.Atoi(string(r[1]))
+							kidsToRemoveAP[kidNum] = true
+						}
+					}
+					singleKidsRe := regexp.MustCompile(`/Kids\s+(\d+)\s+(\d+)\s+R`)
+					if m := singleKidsRe.FindSubmatch(objContent); m != nil {
+						kidNum, _ := strconv.Atoi(string(m[1]))
+						kidsToRemoveAP[kidNum] = true
+					}
+				}
+			}
+		}
+	}
+
 	changedAny := false
 	for i := range members {
 		start := members[i].offset
@@ -1185,6 +1225,15 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 
 		objContent := bytes.TrimSpace(content[start:end])
 		updated, changed := updateObjStmFieldValue(objContent, fields)
+
+		if kidsToRemoveAP[members[i].objNum] {
+			apRe := regexp.MustCompile(`\s*/AP\s*<<.*?>>|\s*/AP\s+(\d+\s+\d+\s+R)`)
+			if apRe.Match(updated) {
+				updated = apRe.ReplaceAll(updated, []byte(" "))
+				changed = true
+			}
+		}
+
 		if changed {
 			changedAny = true
 		}
