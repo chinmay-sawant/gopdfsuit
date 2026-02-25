@@ -39,6 +39,7 @@ Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a
 - **Form Filling**: Fill PDF forms using XFDF data
 - **HTML to PDF**: Convert HTML content or URLs to PDF documents
 - **HTML to Image**: Convert HTML content or URLs to images (PNG, JPG, SVG)
+- **PDF Redaction**: Securely redact sensitive information using coordinates or text search
 
 ## Installation
 
@@ -168,6 +169,28 @@ with open("filled.pdf", "wb") as f:
     f.write(filled)
 ```
 
+### Redact a PDF
+
+```python
+from pypdfsuit import apply_redactions_advanced
+
+with open("document.pdf", "rb") as f:
+    pdf_data = f.read()
+
+redacted = apply_redactions_advanced(pdf_data, {
+    "blocks": [
+        {"pageNum": 1, "x": 120, "y": 620, "width": 180, "height": 24}
+    ],
+    "textSearch": [
+        {"text": "Confidential"}
+    ],
+    "mode": "visual_allowed"
+})
+
+with open("redacted.pdf", "wb") as f:
+    f.write(redacted)
+```
+
 ## API Reference
 
 ### Types
@@ -196,10 +219,16 @@ with open("filled.pdf", "wb") as f:
 - `fill_pdf_with_xfdf(pdf_data: bytes, xfdf_data: bytes) -> bytes`
 - `convert_html_to_pdf(request: HtmlToPDFRequest) -> bytes`
 - `convert_html_to_image(request: HtmlToImageRequest) -> bytes`
+- `get_page_info(pdf_data: bytes) -> dict`
+- `extract_text_positions(pdf_data: bytes, page_num: int) -> list[dict]`
+- `find_text_occurrences(pdf_data: bytes, text: str) -> list[dict]`
+- `apply_redactions(pdf_data: bytes, redactions: list[dict]) -> bytes`
+- `apply_redactions_advanced(pdf_data: bytes, options: dict) -> bytes`
 
 ## Props String Format
 
 The props string format for cells and titles is:
+
 ```
 FontName:FontSize:StyleCode:Alignment:BorderLeft:BorderRight:BorderTop:BorderBottom
 ```

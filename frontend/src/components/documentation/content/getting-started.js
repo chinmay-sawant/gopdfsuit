@@ -9,6 +9,7 @@ export const gettingStartedSection = {
 
 • Template-based PDF generation with auto page breaks
 • Digital signatures (PKCS#7) with X.509 certificate chains
+• Secure PDF redaction (text-search & coordinates)
 • PDF encryption with password protection & permissions
 • Bookmarks, internal links, and named destinations
 • PDF/A-4 and PDF/UA-2 compliance for archival standards
@@ -24,6 +25,7 @@ Requirements: Go 1.24+, Google Chrome (for HTML conversion)`,
             features: [
                 { title: 'Template Generation', description: 'JSON-based PDF generation with auto page breaks', icon: 'FileText' },
                 { title: 'Digital Signatures', description: 'PKCS#7 signing with X.509 certificate chains', icon: 'PenTool' },
+                { title: 'Secure Redaction', description: 'Scrub sensitive info via text search or manual regions', icon: 'ShieldOff' },
                 { title: 'PDF Encryption', description: 'AES-256 encryption with granular permissions', icon: 'Lock' },
                 { title: 'Smart Navigation', description: 'Bookmarks, internal links, and named destinations', icon: 'BookOpen' },
                 { title: 'Archival Standards', description: 'PDF/A-4 & PDF/UA-2 compliance for long-term preservation', icon: 'Archive' },
@@ -424,6 +426,50 @@ pip install requests pydantic
 # Run the example
 python main.py`
             }
+        },
+        {
+            id: 'gopdflib-redaction',
+            title: 'gopdflib Redaction',
+            description: 'Redact sensitive information from PDFs programmatically.',
+            content: `Use the gopdflib \`ApplyRedactionsAdvanced\` function to scrub text from an existing PDF. You can specify exact coordinates or search for text like "Confidential" to automatically locate and redact it. 
+            
+The \`secure_required\` mode can be used to ensure text is permanently removed from the document stream, while \`visual_allowed\` will attempt to visually redact text by painting over it.`,
+            code: {
+                go: `package main
+
+import (
+    "fmt"
+    "os"
+
+    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
+)
+
+func main() {
+    pdfBytes, err := os.ReadFile("document.pdf")
+    if err != nil {
+        panic(err)
+    }
+
+    options := gopdflib.ApplyRedactionOptions{
+        TextSearch: []gopdflib.RedactionTextQuery{
+            {Text: "Jeffrey epstein"},
+            {Text: "Confidential"},
+        },
+        // We can also supply explicit regions:
+        // Blocks: []gopdflib.RedactionRect{ ... },
+        Mode: "secure_required",
+    }
+    
+    redactedBytes, report, err := gopdflib.ApplyRedactionsAdvancedWithReport(pdfBytes, options)
+    if err != nil {
+        panic(err)
+    }
+    
+    fmt.Printf("Generated %v redactions\\n", report.GeneratedRects)
+    os.WriteFile("redacted.pdf", redactedBytes, 0644)
+}`
+            }
         }
     ]
 };
+

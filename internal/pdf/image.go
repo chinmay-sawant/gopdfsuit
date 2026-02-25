@@ -2,19 +2,18 @@ package pdf
 
 import (
 	"bytes"
-	"compress/zlib"
 	"encoding/base64"
 	"fmt"
 	"image"
 	_ "image/jpeg" // Register JPEG decoder
 	_ "image/png"  // Register PNG decoder
-	"io"
 	"strconv"
 	"strings"
 
 	"sync"
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/svg"
 )
 
 // fmtNumImg formats a float with 2 decimal places for image dimensions
@@ -24,46 +23,10 @@ func fmtNumImg(f float64) string {
 
 // rgbDataPool recycles byte slices for RGB conversion
 var rgbDataPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		buf := make([]byte, 1024*1024) // Start with 1MB
 		return &buf
 	},
-}
-
-// zlibWriterPool recycles zlib writers to avoid allocation overhead
-// Each zlib.NewWriter allocates ~256KB for compression tables
-var zlibWriterPool = sync.Pool{
-	New: func() interface{} {
-		// Create writer that will be reset with actual buffer later
-		w, _ := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed)
-		return w
-	},
-}
-
-// compressBufPool recycles bytes.Buffer for compression output
-var compressBufPool = sync.Pool{
-	New: func() interface{} {
-		return new(bytes.Buffer)
-	},
-}
-
-// getZlibWriter returns a pooled zlib writer reset to write to the given buffer
-func getZlibWriter(buf *bytes.Buffer) *zlib.Writer {
-	w := zlibWriterPool.Get().(*zlib.Writer)
-	w.Reset(buf)
-	return w
-}
-
-// putZlibWriter returns a zlib writer to the pool
-func putZlibWriter(w *zlib.Writer) {
-	zlibWriterPool.Put(w)
-}
-
-// getCompressBuffer returns a pooled compression buffer
-func getCompressBuffer() *bytes.Buffer {
-	buf := compressBufPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	return buf
 }
 
 // imageCache stores decoded images keyed by a hash of their base64 data
@@ -165,7 +128,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 
 	// Check if data is SVG (simple check)
 	if bytes.Contains(imageBytes, []byte("<svg")) || bytes.Contains(imageBytes, []byte("<SVG")) {
-		pdfCmds, w, h, err := ConvertSVGToPDFCommands(imageBytes)
+		pdfCmds, w, h, err := svg.ConvertSVGToPDFCommands(imageBytes)
 		if err == nil {
 			// Successfully converted SVG to PDF commands
 			// We return a Form XObject structure
@@ -598,15 +561,16 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 
 	// Calculate height to maintain aspect ratio
 	var imageHeight float64
-	if originalImgWidth > 0 && originalImgHeight > 0 {
+	switch {
+	case originalImgWidth > 0 && originalImgHeight > 0:
 		// Maintain aspect ratio based on original image dimensions
 		aspectRatio := float64(originalImgHeight) / float64(originalImgWidth)
 		imageHeight = imageWidth * aspectRatio
-	} else if image.Height > 0 && image.Width > 0 {
+	case image.Height > 0 && image.Width > 0:
 		// Use provided dimensions to calculate aspect ratio
 		aspectRatio := image.Height / image.Width
 		imageHeight = imageWidth * aspectRatio
-	} else {
+	default:
 		// Default height if no dimensions available
 		imageHeight = 200
 	}

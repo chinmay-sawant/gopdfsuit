@@ -1,9 +1,9 @@
+// Package handlers provides HTTP handlers for the application.
 package handlers
 
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -14,9 +14,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/form"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 )
@@ -97,7 +99,7 @@ func RegisterRoutes(router *gin.Engine) {
 	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run
 	{
 		// Handle all OPTIONS requests for CORS
-		v1.OPTIONS("/*path", func(c *gin.Context) {
+		v1.OPTIONS("/*path", func(c *gin.Context) { //nolint:revive
 			// Handled by CORSMiddleware
 		})
 
@@ -110,8 +112,15 @@ func RegisterRoutes(router *gin.Engine) {
 		v1.POST("/fonts", handleUploadFont)
 
 		// HTML to PDF/Image endpoints (powered by gochromedp)
-		v1.POST("/htmltopdf", handlehtmlToPDF)
-		v1.POST("/htmltoimage", handlehtmlToImage)
+		v1.POST("/htmltopdf", handleHTMLToPDF)
+		v1.POST("/htmltoimage", handleHTMLToImage)
+
+		// Redaction endpoints
+		v1.POST("/redact/page-info", HandleRedactPageInfo)
+		v1.POST("/redact/text-positions", HandleRedactTextPositions)
+		v1.POST("/redact/capabilities", HandleRedactCapabilities)
+		v1.POST("/redact/apply", HandleRedactApply)
+		v1.POST("/redact/search", HandleRedactSearch)
 	}
 
 	// Add pprof routes for profiling
@@ -192,9 +201,9 @@ func handleGetTemplateData(c *gin.Context) {
 		return
 	}
 
-	// Validate JSON structure
+	// Validate JSON structure using sonic for performance
 	var template models.PDFTemplate
-	if err := json.Unmarshal(data, &template); err != nil {
+	if err := sonic.Unmarshal(data, &template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON template format: " + err.Error()})
 		return
 	}
@@ -260,8 +269,15 @@ func handleUploadFont(c *gin.Context) {
 }
 
 func handleGenerateTemplatePDF(c *gin.Context) {
+	// Optimization: use sonic for faster JSON binding
 	var template models.PDFTemplate
-	if err := c.ShouldBindJSON(&template); err != nil {
+	data, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
+		return
+	}
+
+	if err := sonic.Unmarshal(data, &template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
 		return
 	}
@@ -324,7 +340,7 @@ func handleFillPDF(c *gin.Context) {
 		return
 	}
 
-	out, err := pdf.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	out, err := form.FillPDFWithXFDF(pdfBytes, xfdfBytes)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -458,12 +474,18 @@ func handlerSplitPDF(c *gin.Context) {
 
 }
 
-// handlehtmlToPDF handles HTML to PDF conversion using htmltopdf
-func handlehtmlToPDF(c *gin.Context) {
+// handleHTMLToPDF handles HTML to PDF conversion using htmltopdf
+func handleHTMLToPDF(c *gin.Context) {
 	log.Printf("Starting HTML to PDF conversion request")
 
-	var req models.HtmlToPDFRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var req models.HTMLToPDFRequest
+	data, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
+		return
+	}
+
+	if err := sonic.Unmarshal(data, &req); err != nil {
 		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
@@ -479,7 +501,7 @@ func handlehtmlToPDF(c *gin.Context) {
 		req.Orientation = "Portrait"
 	}
 	if req.MarginTop == "" {
-		req.MarginTop = "10mm"
+		req.MarginTop = "10mm" //nolint:goconst
 	}
 	if req.MarginRight == "" {
 		req.MarginRight = "10mm"
@@ -510,12 +532,18 @@ func handlehtmlToPDF(c *gin.Context) {
 	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
-// handlehtmlToImage handles HTML to image conversion using htmltoimage
-func handlehtmlToImage(c *gin.Context) {
+// handleHTMLToImage handles HTML to image conversion using htmltoimage
+func handleHTMLToImage(c *gin.Context) {
 	log.Printf("Starting HTML to image conversion request")
 
-	var req models.HtmlToImageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	var req models.HTMLToImageRequest
+	data, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
+		return
+	}
+
+	if err := sonic.Unmarshal(data, &req); err != nil {
 		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return

@@ -14,6 +14,7 @@ import HtmlToImage from './pages/HtmlToImage'
 import Screenshots from './pages/Screenshots'
 import Comparison from './pages/Comparison'
 import Documentation from './pages/Documentation'
+import Redaction from './pages/Redaction'
 
 function App() {
   // Wrap only the Editor route with AuthGuard when auth is required
@@ -40,6 +41,7 @@ function App() {
           <Route path="/htmltoimage" element={<HtmlToImage />} />
           <Route path="/screenshots" element={<Screenshots />} />
           <Route path="/comparison" element={<Comparison />} />
+          <Route path="/redact" element={<Redaction />} />
           <Route path="/documentation" element={<Documentation />} />
         </Routes>
       </div>

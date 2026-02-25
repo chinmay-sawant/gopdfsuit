@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xfdf xmlns="http://ns.adobe.com/xfdf/" xml:space="preserve">
+  <fields>
+    <field name="patient_name"><value>John Smith</value></field>
+    <field name="dob"><value>1980-05-20</value></field>
+    <field name="phone"><value>555-0199</value></field>
+    <field name="email"><value>john.s@example.com</value></field>
+    <field name="insurance"><value>MediCare Plus</value></field>
+    <field name="gender"><value>Male</value></field>
+    <field name="fever"><value>Yes</value></field>
+    <field name="cough"><value>Off</value></field>
+    <field name="headache"><value>Yes</value></field>
+    <field name="doctor_notes">
+        <value>Patient reports high fever for 3 days.
+Prescribed antibiotics.
+Follow up in 1 week.</value>
+    </field>
+  </fields>
+  <f href="medical_form.pdf"/>
+</xfdf>

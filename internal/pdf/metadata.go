@@ -12,7 +12,8 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 )
 
-// PDFAHandler handles PDF/A compliance features
+// PDFAHandler handles PDF/A compliance features, including metadata and color profiles.
+//nolint:revive // exported
 type PDFAHandler struct {
 	config            *models.PDFAConfig
 	pageManager       *PageManager
@@ -309,7 +310,7 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	}
 
 	// Encrypt string values in OutputIntent dictionary if needed
-	idStr := "(sRGB IEC61966-2.1)"
+	idStr := "(sRGB IEC61966-2.1)" //nolint:goconst
 	regStr := "(http://www.color.org)"
 	infoStr := "(sRGB IEC61966-2.1)"
 

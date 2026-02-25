@@ -431,37 +431,47 @@ export default function Editor() {
   }
 
   // --- File Upload ---
-  const onLoadTemplate = async (filename) => {
+  const onLoadTemplate = async (filename, source = 'local') => {
     if (!filename || !filename.trim()) {
       alert('Please enter a template filename')
       return
     }
 
     try {
-      // Make GET request to fetch the template
-      const response = await makeAuthenticatedRequest(
-        `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json'
+      let templateData;
+
+      if (source === 'github') {
+        const response = await fetch(`https://raw.githubusercontent.com/chinmay-sawant/gopdfsuit/master/sampledata/${filename}`);
+        if (!response.ok) {
+          throw new Error(`Failed to load from GitHub: ${response.status} ${response.statusText}`);
+        }
+        templateData = await response.json();
+      } else {
+        // Make GET request to fetch the template
+        const response = await makeAuthenticatedRequest(
+          `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
+          {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            }
+          },
+          isAuthRequired() ? getAuthHeaders : null
+        )
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            triggerLogin()
+            return
           }
-        },
-        isAuthRequired() ? getAuthHeaders : null
-      )
+          if (response.status === 404) {
+            throw new Error(`Template "${filename}" not found`)
+          }
+          throw new Error(`Failed to load template: ${response.status}`)
+        }
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          triggerLogin()
-          return
-        }
-        if (response.status === 404) {
-          throw new Error(`Template "${filename}" not found`)
-        }
-        throw new Error(`Failed to load template: ${response.status}`)
+        templateData = await response.json()
       }
-
-      const templateData = await response.json()
 
       // Parse and load the template data
       const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = templateData

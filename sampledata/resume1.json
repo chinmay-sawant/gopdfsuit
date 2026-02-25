@@ -1,0 +1,834 @@
+{
+  "config": {
+    "pageBorder": "1:1:1:1",
+    "pageMargin": "72:72:72:72",
+    "page": "A4",
+    "pageAlignment": 1,
+    "watermark": "",
+    "pdfTitle": "John Doe - Resume",
+    "pdfaCompliant": true,
+    "signature": {
+      "enabled": false
+    }
+  },
+  "title": {
+    "props": "Helvetica:24:100:center:0:0:0:0",
+    "table": {
+      "maxcolumns": 1,
+      "columnwidths": [1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:36:100:center:0:0:0:0",
+              "text": "JOHN DOE",
+              "bgcolor": "#1B4F72",
+              "textcolor": "#FFFFFF",
+              "height": 45
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:14:100:center:0:0:0:0",
+              "text": "SENIOR SOFTWARE ENGINEER",
+              "bgcolor": "#2874A6",
+              "textcolor": "#FFFFFF",
+              "height": 25
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "elements": [
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 10,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 3,
+        "columnwidths": [1, 1, 1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:center:0:0:0:0",
+                "text": "john.doe@example.com"
+              },
+              {
+                "props": "Helvetica:10:000:center:0:0:0:0",
+                "text": "New York, NY | (555) 123-4567"
+              },
+              {
+                "props": "Helvetica:10:000:center:0:0:0:0",
+                "text": "github.com/johndoe"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:14:100:left:1:1:1:1",
+                "text": " PROFESSIONAL SUMMARY",
+                "bgcolor": "#EBF5FB",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:000:left:0:0:0:0",
+                "text": "Experienced Software Engineer with over 8 years of expertise in full-stack development, cloud architecture, and team leadership. Proven track record of delivering scalable web applications and improving system performance in high-growth environments. Adept at driving technical strategy and mentoring engineering teams to achieve high code quality and rapid delivery.",
+                "wrap": true
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:14:100:left:1:1:1:1",
+                "text": " PROFESSIONAL EXPERIENCE",
+                "bgcolor": "#EBF5FB",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 5,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [3, 1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:12:100:left:0:0:0:0",
+                "text": "Senior Software Engineer — TechCorp Inc."
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Jan 2020 - Present",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:010:left:0:0:0:0",
+                "text": "New York, NY",
+                "textcolor": "#5D6D7E"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:000:left:0:0:0:0",
+                "text": "• Led a team of 5 engineers to re-architect the core billing service, reducing latency by 40%.\n• Implemented CI/CD pipelines using GitHub Actions and Docker, cutting deployment times in half.\n• Mentored junior developers and established code review best practices across the engineering department.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 10,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [3, 1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:12:100:left:0:0:0:0",
+                "text": "Software Engineer — WebSolutions LLC"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Mar 2017 - Dec 2019",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:010:left:0:0:0:0",
+                "text": "San Francisco, CA",
+                "textcolor": "#5D6D7E"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:000:left:0:0:0:0",
+                "text": "• Developed responsive front-end components using React and Redux.\n• Designed RESTful APIs in Node.js to support mobile applications.\n• Optimized database queries, resulting in a 25% improvement in load times for the main dashboard.\n• Collaborated with product managers to define and document product requirements.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 10,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [3, 1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:12:100:left:0:0:0:0",
+                "text": "Junior Developer — StartupHub"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Jun 2015 - Feb 2017",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:010:left:0:0:0:0",
+                "text": "Austin, TX",
+                "textcolor": "#5D6D7E"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:000:left:0:0:0:0",
+                "text": "• Assisted in building the initial MVP for a widely used project management tool.\n• Integrated third-party payment gateways including Stripe and PayPal.\n• Wrote comprehensive unit tests using Jest, achieving 85% code coverage.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:14:100:left:1:1:1:1",
+                "text": " PROJECTS",
+                "bgcolor": "#EBF5FB",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 5,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [4, 1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Distributed Cache System",
+                "link": "https://github.com/johndoe/dist-cache"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Oct 2023 - Present",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "A high-performance distributed caching mechanism built with Go and gRPC, capable of handling 50k+ QPS with eventual consistency.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "React UI Component Library",
+                "link": "https://github.com/johndoe/ui-lib"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Feb 2023 - Sep 2023",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "An accessible, highly customizable component library used by 5+ internal tools, powered by React, TypeScript, and Storybook.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Stock Market Predictor API",
+                "link": "https://github.com/johndoe/stock-predict"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Jul 2022 - Jan 2023",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "Machine learning based prediction API using Python, FastAPI, and TensorFlow to forecast short-term market trends.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Microservices Auth Gateway",
+                "link": "https://github.com/johndoe/auth-gateway"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Mar 2022 - Jun 2022",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "Centralized authentication and authorization gateway for microservices, implementing OAuth2 and JWT validation written in Node.js.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Real-time Chat App",
+                "link": "https://github.com/johndoe/rt-chat"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Oct 2021 - Feb 2022",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "Full-stack chat application utilizing WebSockets, Redis pub/sub, React, and Express. Includes end-to-end encryption features.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Personal Finance Tracker",
+                "link": "https://github.com/johndoe/fin-tracker"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "May 2021 - Sep 2021",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "A comprehensive dashboard for tracking expenses and investments using Plaid API, React, and a PostgreSQL backend.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "IoT Home Automation Hub",
+                "link": "https://github.com/johndoe/iot-hub"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Jan 2021 - Apr 2021",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "A central control hub mapped to Raspberry Pi to manage smart home devices locally without depending on cloud services.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "E-commerce Monolith to Microservices",
+                "link": "https://github.com/johndoe/ecommerce-mig"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Jul 2020 - Dec 2020",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "Architectural refactoring project demonstrating the migration of a legacy Spring Boot monolith to independent Go microservices.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Game Engine (2D)",
+                "link": "https://github.com/johndoe/2d-engine"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Feb 2020 - Jun 2020",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "A lightweight 2D game engine programmed in C++ using SDL2, featuring basic collision detection, sprite animation, and input handling.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Blockchain Ledger Prototype",
+                "link": "https://github.com/johndoe/simple-chain"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Aug 2019 - Jan 2020",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "A proof-of-work blockchain implementation designed to understand consensus algorithms and cryptographic hashing mechanisms.",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": ""
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:14:100:left:1:1:1:1",
+                "text": " EDUCATION",
+                "bgcolor": "#EBF5FB",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 5,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [3, 1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:12:100:left:0:0:0:0",
+                "text": "Bachelor of Science in Computer Science"
+              },
+              {
+                "props": "Helvetica:10:100:right:0:0:0:0",
+                "text": "Graduated: May 2015",
+                "textcolor": "#2874A6"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:010:left:0:0:0:0",
+                "text": "University of Technology, Stateville",
+                "textcolor": "#5D6D7E"
+              },
+              {
+                "props": "Helvetica:10:000:right:0:0:0:0",
+                "text": "GPA: 3.8/4.0"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 15,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:14:100:left:1:1:1:1",
+                "text": " SKILLS & HOBBIES",
+                "bgcolor": "#EBF5FB",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [1, 3],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:1:1:1",
+                "text": "Languages:",
+                "textcolor": "#1B4F72"
+              },
+              {
+                "props": "Helvetica:11:000:left:1:1:1:1",
+                "text": "JavaScript, TypeScript, Python, Go, Java, SQL",
+                "wrap": true
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:1:1:1",
+                "text": "Frameworks:",
+                "textcolor": "#1B4F72"
+              },
+              {
+                "props": "Helvetica:11:000:left:1:1:1:1",
+                "text": "React, Node.js, Express, Django, Gin, Flask",
+                "wrap": true
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:1:1:1",
+                "text": "Tools & Cloud:",
+                "textcolor": "#1B4F72"
+              },
+              {
+                "props": "Helvetica:11:000:left:1:1:1:1",
+                "text": "Docker, Kubernetes, AWS (EC2, S3, RDS), Git, Jenkins, GitHub Actions",
+                "wrap": true
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:1:1:1",
+                "text": "Databases:",
+                "textcolor": "#1B4F72"
+              },
+              {
+                "props": "Helvetica:11:000:left:1:1:1:1",
+                "text": "PostgreSQL, MongoDB, Redis, MySQL",
+                "wrap": true
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:1:1:1",
+                "text": "Hobbies:",
+                "textcolor": "#1B4F72"
+              },
+              {
+                "props": "Helvetica:11:000:left:1:1:1:1",
+                "text": "Photography (Landscape and Street), Rock Climbing, Open Source Contributing, Playing the Piano, Custom Keyboard Building",
+                "wrap": true
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    }
+  ],
+  "footer": {
+    "font": "Helvetica:8:000:center",
+    "text": "JOHN DOE | SENIOR SOFTWARE ENGINEER | JOHN.DOE@EXAMPLE.COM"
+  },
+  "bookmarks": [
+    {
+      "title": "Resume - John Doe",
+      "page": 1,
+      "children": [
+        {
+          "title": "Professional Summary",
+          "page": 1
+        },
+        {
+          "title": "Professional Experience",
+          "page": 1
+        },
+        {
+          "title": "Projects",
+          "page": 2
+        },
+        {
+          "title": "Education",
+          "page": 3
+        },
+        {
+          "title": "Skills & Hobbies",
+          "page": 3
+        }
+      ]
+    }
+  ]
+}

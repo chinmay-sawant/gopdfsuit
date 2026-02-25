@@ -64,8 +64,8 @@ type Props = models.Props
 // FontInfo represents a font's information.
 type FontInfo = models.FontInfo
 
-// HtmlToPDFRequest represents the input for HTML to PDF conversion.
-type HtmlToPDFRequest = models.HtmlToPDFRequest
+// HTMLToPDFRequest represents the input for HTML to PDF conversion.
+type HTMLToPDFRequest = models.HTMLToPDFRequest
 
-// HtmlToImageRequest represents the input for HTML to image conversion.
-type HtmlToImageRequest = models.HtmlToImageRequest
+// HTMLToImageRequest represents the input for HTML to image conversion.
+type HTMLToImageRequest = models.HTMLToImageRequest

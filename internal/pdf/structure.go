@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 )
@@ -9,30 +10,54 @@ import (
 type StructureType string
 
 const (
-	StructDocument  StructureType = "Document"
-	StructPart      StructureType = "Part"
-	StructSect      StructureType = "Sect"
-	StructDiv       StructureType = "Div"
-	StructH1        StructureType = "H1"
-	StructH2        StructureType = "H2"
-	StructH3        StructureType = "H3"
-	StructH4        StructureType = "H4"
-	StructH5        StructureType = "H5"
-	StructH6        StructureType = "H6"
-	StructP         StructureType = "P"
-	StructL         StructureType = "L"     // List
-	StructLI        StructureType = "LI"    // List Item
-	StructLbl       StructureType = "Lbl"   // List Label
-	StructLBody     StructureType = "LBody" // List Body
-	StructTable     StructureType = "Table"
-	StructTR        StructureType = "TR"
-	StructTH        StructureType = "TH"
-	StructTD        StructureType = "TD"
-	StructFigure    StructureType = "Figure"
-	StructCaption   StructureType = "Caption"
-	StructForm      StructureType = "Form"
-	StructLink      StructureType = "Link"      // PDF/UA-2: Link annotation wrapper
-	StructReference StructureType = "Reference" // PDF/UA-2: Reference structure
+	// StructDocument represents the Document grouping element.
+	StructDocument StructureType = "Document"
+	// StructPart represents the Part grouping element.
+	StructPart StructureType = "Part"
+	// StructSect represents the Sect grouping element.
+	StructSect StructureType = "Sect"
+	// StructDiv represents the Div grouping element.
+	StructDiv StructureType = "Div"
+	// StructH1 represents the H1 header element.
+	StructH1 StructureType = "H1"
+	// StructH2 represents the H2 header element.
+	StructH2 StructureType = "H2"
+	// StructH3 represents the H3 header element.
+	StructH3 StructureType = "H3"
+	// StructH4 represents the H4 header element.
+	StructH4 StructureType = "H4"
+	// StructH5 represents the H5 header element.
+	StructH5 StructureType = "H5"
+	// StructH6 represents the H6 header element.
+	StructH6 StructureType = "H6"
+	// StructP represents the Paragraph element.
+	StructP StructureType = "P"
+	// StructL represents the List element.
+	StructL StructureType = "L"
+	// StructLI represents the List Item element.
+	StructLI StructureType = "LI"
+	// StructLbl represents the List Label element.
+	StructLbl StructureType = "Lbl"
+	// StructLBody represents the List Body element.
+	StructLBody StructureType = "LBody"
+	// StructTable represents the Table element.
+	StructTable StructureType = "Table"
+	// StructTR represents the Table Row element.
+	StructTR StructureType = "TR"
+	// StructTH represents the Table Header element.
+	StructTH StructureType = "TH"
+	// StructTD represents the Table Data element.
+	StructTD StructureType = "TD"
+	// StructFigure represents the Figure element.
+	StructFigure StructureType = "Figure"
+	// StructCaption represents the Caption element.
+	StructCaption StructureType = "Caption"
+	// StructForm represents the Form grouping element.
+	StructForm StructureType = "Form"
+	// StructLink represents a Link structure element (PDF/UA-2).
+	StructLink StructureType = "Link"
+	// StructReference represents a Reference structure element (PDF/UA-2).
+	StructReference StructureType = "Reference"
 )
 
 // StructElem represents a node in the structure tree
@@ -128,32 +153,18 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	// but for our internal representation:
 	elem.Kids = append(elem.Kids, mcid)
 
-	// Write BMC/BDC operator
-	if len(props) == 0 {
-		// Pre-allocate buffer for marked content command
-		mcBuf := make([]byte, 0, 64)
-		mcBuf = append(mcBuf, '/')
-		mcBuf = append(mcBuf, string(tag)...)
-		mcBuf = append(mcBuf, " <</MCID "...)
-		mcBuf = strconv.AppendInt(mcBuf, int64(mcid), 10)
-		mcBuf = append(mcBuf, ">> BDC\n"...)
-		streamBuilder.Write(mcBuf)
-	} else {
-		// Just handle Alt text for now in properties list if strictly needed,
-		// but standard practice is BDC with property dictionary
-		var mcBuf []byte
-		mcBuf = append(mcBuf, '/')
-		mcBuf = append(mcBuf, string(tag)...)
-		mcBuf = append(mcBuf, " <</MCID "...)
-		mcBuf = strconv.AppendInt(mcBuf, int64(mcid), 10)
-		streamBuilder.Write(mcBuf)
-		if alt, ok := props["Alt"]; ok {
-			streamBuilder.WriteString(" /Alt (")
-			streamBuilder.WriteString(escapeText(alt))
-			streamBuilder.WriteString(")")
-		}
-		streamBuilder.WriteString(">> BDC\n")
+	// Write BMC/BDC operator — direct writes, no intermediate allocation
+	var intBuf [12]byte
+	streamBuilder.WriteByte('/')
+	streamBuilder.WriteString(string(tag))
+	streamBuilder.WriteString(" <</MCID ")
+	streamBuilder.Write(strconv.AppendInt(intBuf[:0], int64(mcid), 10))
+	if alt, ok := props["Alt"]; ok {
+		streamBuilder.WriteString(" /Alt (")
+		streamBuilder.WriteString(escapeText(alt))
+		streamBuilder.WriteByte(')')
 	}
+	streamBuilder.WriteString(">> BDC\n")
 
 	return mcid
 }
@@ -161,6 +172,65 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 // EndMarkedContent ends the current marked content sequence
 func (sm *StructureManager) EndMarkedContent(streamBuilder *strings.Builder) {
 	streamBuilder.WriteString("EMC\n")
+	if sm.CurrentParent != nil && sm.CurrentParent.Parent != nil {
+		sm.CurrentParent = sm.CurrentParent.Parent
+	}
+}
+
+// BeginMarkedContentBuf writes directly to a bytes.Buffer (avoids strings.Builder intermediary in hot loops)
+func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string) int {
+	// 1. Create structure element
+	elem := &StructElem{
+		Type:   tag,
+		Parent: sm.CurrentParent,
+		PageID: pageIndex,
+	}
+
+	if val, ok := props["Title"]; ok {
+		elem.Title = val
+	}
+	if val, ok := props["Alt"]; ok {
+		elem.Alt = val
+	}
+
+	// 2. Add as kid to current parent
+	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, elem)
+	sm.Elements = append(sm.Elements, elem)
+
+	// 3. Set current parent to this new element
+	sm.CurrentParent = elem
+
+	// 4. Generate MCID for content stream
+	mcid := sm.GetNextMCID(pageIndex)
+
+	// Track in ParentTree
+	if sm.ParentTree[pageIndex] == nil {
+		sm.ParentTree[pageIndex] = make([]*StructElem, 0)
+	}
+	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
+
+	// 5. Add KID for MCID
+	elem.Kids = append(elem.Kids, mcid)
+
+	// Write BDC operator directly to bytes.Buffer
+	var intBuf [12]byte
+	buf.WriteByte('/')
+	buf.WriteString(string(tag))
+	buf.WriteString(" <</MCID ")
+	buf.Write(strconv.AppendInt(intBuf[:0], int64(mcid), 10))
+	if alt, ok := props["Alt"]; ok {
+		buf.WriteString(" /Alt (")
+		buf.WriteString(escapeText(alt))
+		buf.WriteByte(')')
+	}
+	buf.WriteString(">> BDC\n")
+
+	return mcid
+}
+
+// EndMarkedContentBuf writes EMC directly to a bytes.Buffer (avoids strings.Builder intermediary)
+func (sm *StructureManager) EndMarkedContentBuf(buf *bytes.Buffer) {
+	buf.WriteString("EMC\n")
 	if sm.CurrentParent != nil && sm.CurrentParent.Parent != nil {
 		sm.CurrentParent = sm.CurrentParent.Parent
 	}
@@ -185,7 +255,7 @@ func (sm *StructureManager) EndStructureElement() {
 }
 
 // RegisterPageStructParents registers the parent tree mapping for a page
-func (sm *StructureManager) RegisterPageStructParents(pageObjectID int, pageIndex int) {
+func (sm *StructureManager) RegisterPageStructParents(_ int, _ int) {
 	// This logic handles the ParentTree mapping "Page Object -> [StructElem refs]"
 	// required for reliable reverse lookup.
 	// The StructParents entry in Page dictionary points to a key in ParentTree.
@@ -197,7 +267,7 @@ func (sm *StructureManager) RegisterPageStructParents(pageObjectID int, pageInde
 
 // GenerateStructTreeRoot generates the StructTreeRoot object content
 // namespaceObjID is the object ID of the PDF 2.0 namespace dictionary (0 to skip)
-func (sm *StructureManager) GenerateStructTreeRoot(rootObjID int, parentTreeObjID int, namespaceObjID int) string {
+func (sm *StructureManager) GenerateStructTreeRoot(_ int, parentTreeObjID int, namespaceObjID int) string {
 	var sb strings.Builder
 	var structBuf []byte
 	structBuf = append(structBuf, "<< /Type /StructTreeRoot /ParentTree "...)
@@ -239,7 +309,7 @@ type LinkElement struct {
 
 // AddLinkElement adds a Link structure element for an annotation
 // PDF/UA-2 requires link annotations to be wrapped in Link structure elements
-func (sm *StructureManager) AddLinkElement(annotObjID int, pageIndex int) {
+func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 	// Create a Link structure element
 	linkElem := &StructElem{
 		Type:   StructLink,

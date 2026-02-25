@@ -16,6 +16,7 @@ var pageSizes = map[string][2]float64{
 
 const defaultMargin = 72.0 // Standard 1 inch margin
 
+// PageMargins represents the margins (left, right, top, bottom) for a PDF page in points.
 type PageMargins struct {
 	Left   float64
 	Right  float64
@@ -23,6 +24,7 @@ type PageMargins struct {
 	Bottom float64
 }
 
+// DefaultPageMargins returns the standard 1-inch margins (72 points) for all sides.
 func DefaultPageMargins() PageMargins {
 	return PageMargins{Left: defaultMargin, Right: defaultMargin, Top: defaultMargin, Bottom: defaultMargin}
 }

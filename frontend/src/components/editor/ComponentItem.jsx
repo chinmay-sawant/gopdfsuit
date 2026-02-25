@@ -522,7 +522,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                 const totalTableWidth = usableWidthForTable
 
                 return (
-                    <div style={{ borderRadius: '4px', padding: '10px', overflow: 'hidden', background: 'white' }}>
+                    <div style={{ borderRadius: '4px', padding: '0', overflow: 'hidden', background: 'white' }}>
                         {/* Use div-based layout for per-cell width control */
                             <div style={{ width: `${totalTableWidth}px` }}>
                                 {element.rows?.map((row, rowIdx) => {
@@ -915,7 +915,7 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
             onClick={handleClick}
             style={{
                 position: 'relative',
-                margin: '4px 0',
+                margin: '0',
                 padding: isSelected && element.type !== 'table' ? '8px' : '0',
                 border: isSelected && element.type !== 'table' ? '2px dashed hsl(var(--ring))' : '2px solid transparent',
                 borderRadius: element.type === 'table' ? '0' : '6px',
