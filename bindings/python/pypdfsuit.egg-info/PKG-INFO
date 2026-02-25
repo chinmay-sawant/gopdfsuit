@@ -39,6 +39,7 @@ Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a
 - **Form Filling**: Fill PDF forms using XFDF data
 - **HTML to PDF**: Convert HTML content or URLs to PDF documents
 - **HTML to Image**: Convert HTML content or URLs to images (PNG, JPG, SVG)
+- **PDF Redaction**: Securely redact sensitive information using coordinates or text search
 
 ## Installation
 
@@ -227,6 +228,7 @@ with open("redacted.pdf", "wb") as f:
 ## Props String Format
 
 The props string format for cells and titles is:
+
 ```
 FontName:FontSize:StyleCode:Alignment:BorderLeft:BorderRight:BorderTop:BorderBottom
 ```
