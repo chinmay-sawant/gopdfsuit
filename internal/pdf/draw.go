@@ -1071,7 +1071,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.Write(checkboxBuf)
 				}
 				contentStream.WriteString("Q\n")
-			} else if cell.MathEnabled != nil && *cell.MathEnabled && cell.Text != "" && typstsyntax.IsMathExpression(cell.Text) {
+			case cell.MathEnabled != nil && *cell.MathEnabled && cell.Text != "" && typstsyntax.IsMathExpression(cell.Text):
 				// Draw math expression using Typst syntax parser + glyph-based rendering
 				textColor := cell.TextColor
 				if textColor == "" {
@@ -1090,10 +1090,10 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					CellHeight: cellHeight,
 					TextColor:  colorStr,
 					EstimateWidth: func(text string, fontSize float64) float64 {
-						return EstimateTextWidth(cellProps.FontName, text, fontSize, pageManager.FontRegistry)
+						return EstimateTextWidth(rowResolvedFonts[colIdx], text, fontSize, pageManager.FontRegistry)
 					},
 					FormatText: func(text string) string {
-						return formatTextForPDF(cellProps, text, pageManager.FontRegistry)
+						return formatTextForPDF(rowResolvedFonts[colIdx], text, pageManager.FontRegistry)
 					},
 				}
 
