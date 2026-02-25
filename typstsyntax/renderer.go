@@ -52,6 +52,7 @@ type MathElement struct {
 // ElementType classifies renderable elements.
 type ElementType int
 
+// ElementType constants.
 const (
 	ElemGlyph  ElementType = iota // Text/glyph rendering
 	ElemLine                      // Line drawing (fraction bar, root line, etc.)

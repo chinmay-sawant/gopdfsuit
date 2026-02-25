@@ -1640,7 +1640,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			val = onState
 		}
 
-		widgetDict.WriteString(fmt.Sprintf(" /V %s /AS %s", val, val))
+		fmt.Fprintf(&widgetDict, " /V %s /AS %s", val, val)
 
 		// Checkbox Appearance Streams using 're' operator
 		// On Appearance (Box with X)

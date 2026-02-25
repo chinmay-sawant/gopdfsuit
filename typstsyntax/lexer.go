@@ -8,6 +8,7 @@ import (
 // TokenType represents the type of a Typst math token.
 type TokenType int
 
+// TokenType constants.
 const (
 	TokenText        TokenType = iota // Plain text/identifier
 	TokenNumber                       // Numeric literal
@@ -222,8 +223,6 @@ func (l *Lexer) lexIdentifier() {
 	// Check if it's a known symbol
 	if _, ok := TypstSymbols[word]; ok {
 		l.emit(TokenSymbol, word)
-	} else if PredefinedOperators[word] {
-		l.emit(TokenText, word)
 	} else {
 		l.emit(TokenText, word)
 	}
@@ -252,16 +251,17 @@ func (l *Lexer) lexPrimes() {
 }
 
 func (l *Lexer) lexBackslash() {
-	if l.peek() == '\\' {
+	switch l.peek() {
+	case '\\':
 		l.emit(TokenBackslash, "\\\\")
 		l.pos += 2
-	} else if l.peek() == '{' {
+	case '{':
 		l.emit(TokenText, "{")
 		l.pos += 2
-	} else if l.peek() == '}' {
+	case '}':
 		l.emit(TokenText, "}")
 		l.pos += 2
-	} else {
+	default:
 		l.emit(TokenText, "\\")
 		l.pos++
 	}
