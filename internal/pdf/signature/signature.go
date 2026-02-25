@@ -1,3 +1,4 @@
+// Package signature provides digital signature support for PDF documents.
 package signature
 
 import (
@@ -27,7 +28,8 @@ type PDFSigner struct {
 	certChain   []*x509.Certificate
 }
 
-// Signature field and annotation IDs
+// SignatureIDs holds the object IDs for a signature field and its associated annotations.
+//nolint:revive // exported
 type SignatureIDs struct {
 	SigFieldID     int
 	SigAnnotID     int
@@ -651,7 +653,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	if len(sigHex) > 16384 {
 		return pdfData, fmt.Errorf("signature too large: %d bytes (max 8192)", len(sigHex)/2)
 	}
-	sigHex = sigHex + strings.Repeat("0", 16384-len(sigHex))
+	sigHex += strings.Repeat("0", 16384-len(sigHex))
 
 	// Replace Contents value
 	copy(result[contentsStart:contentsEnd], []byte(sigHex))

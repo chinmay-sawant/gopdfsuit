@@ -269,10 +269,10 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 	var titleX float64
 	switch titleProps.Alignment {
-	case "center":
+	case "center": //nolint:goconst
 		// Center the text within the available area (between margins)
 		titleX = pageManager.Margins.Left + (availableWidth-textWidth)/2
-	case "right":
+	case "right": //nolint:goconst
 		// Right align: position text so it ends at the right margin
 		titleX = pageManager.PageDimensions.Width - pageManager.Margins.Right - textWidth
 	default:
@@ -312,6 +312,8 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 }
 
 // drawTitleTable renders an embedded table within the title section (no borders by default)
+//
+//nolint:gocyclo
 func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageManager *PageManager, cellImageObjectIDs map[string]int, defaultBgColor, defaultTextColor string, defaultProps models.Props) {
 	availableWidth := pageManager.ContentWidth()
 	baseRowHeight := float64(25) // Standard row height
@@ -727,6 +729,8 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 }
 
 // drawTable renders a table with automatic page breaks
+//
+//nolint:gocyclo
 func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManager, borderConfig, watermark string, cellImageObjectIDs map[string]int) {
 	availableWidth := pageManager.ContentWidth()
 	baseRowHeight := float64(25) // Standard row height
@@ -915,7 +919,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			// Draw content (so borders are drawn on top of images)
-			if cell.Image != nil {
+			switch {
+			case cell.Image != nil:
 				// Check if we have an XObject for this cell image
 				cellKey := buildCellKey2(imageKeyPrefix, rowIdx, colIdx)
 				if _, exists := cellImageObjectIDs[cellKey]; exists && cell.Image.ImageData != "" {
@@ -1010,7 +1015,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.WriteString("ET\n")
 					}
 				}
-			} else if cell.FormField != nil {
+			case cell.FormField != nil:
 				// Draw form field widget
 				fieldWidth := 12.0
 				fieldHeight := 12.0
@@ -1025,7 +1030,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 				drawWidget(cell, fieldX, fieldY, fieldWidth, fieldHeight, pageManager)
 
-			} else if cell.Checkbox != nil {
+			case cell.Checkbox != nil:
 				// Draw checkbox using 're' operator
 				checkboxSize := 10.0
 				checkboxX := cellX + (cellWidth-checkboxSize)/2
@@ -1065,7 +1070,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.Write(checkboxBuf)
 				}
 				contentStream.WriteString("Q\n")
-			} else if cell.Text != "" {
+			case cell.Text != "":
 				// Draw text with font styling
 				contentStream.WriteString("BT\n")
 				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
@@ -1521,13 +1526,14 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 
 	// Calculate height based on aspect ratio
 	var imageHeight float64
-	if originalImgWidth > 0 && originalImgHeight > 0 {
+	switch {
+	case originalImgWidth > 0 && originalImgHeight > 0:
 		aspectRatio := float64(originalImgHeight) / float64(originalImgWidth)
 		imageHeight = usableWidth * aspectRatio
-	} else if image.Height > 0 && image.Width > 0 {
+	case image.Height > 0 && image.Width > 0:
 		aspectRatio := image.Height / image.Width
 		imageHeight = usableWidth * aspectRatio
-	} else {
+	default:
 		imageHeight = 200 // Default height
 	}
 

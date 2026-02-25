@@ -90,8 +90,8 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 		}
 		ob.pageManager.NextObjectID++
 
-		// Resolve destination
-		if bm.Dest != "" {
+		switch {
+		case bm.Dest != "":
 			// Try to find named destination
 			if dest, exists := ob.pageManager.NamedDests[bm.Dest]; exists {
 				if dest.PageIndex < len(ob.pageManager.Pages) {
@@ -130,7 +130,7 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 					item.DestY = ob.pageManager.PageDimensions.Height - ob.pageManager.Margins.Top
 				}
 			}
-		} else if bm.Page > 0 {
+		case bm.Page > 0:
 			// Use explicit page number
 			pageIndex := bm.Page - 1 // Convert to 0-based
 			if pageIndex >= len(ob.pageManager.Pages) {
@@ -147,7 +147,7 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 			} else {
 				item.DestY = ob.pageManager.PageDimensions.Height - ob.pageManager.Margins.Top
 			}
-		} else {
+		default:
 			// Default to first page
 			if len(ob.pageManager.Pages) > 0 {
 				item.DestPageID = ob.pageManager.Pages[0]

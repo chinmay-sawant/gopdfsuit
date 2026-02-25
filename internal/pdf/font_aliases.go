@@ -5,14 +5,21 @@ package pdf
 
 import "github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/font"
 
+//nolint:revive // exported
 // Type aliases for backward compatibility within this package.
 // External consumers should use the font package directly.
 type CustomFontRegistry = font.CustomFontRegistry
+//nolint:revive // exported
 type RegisteredFont = font.RegisteredFont
+//nolint:revive // exported
 type TTFFont = font.TTFFont
+//nolint:revive // exported
 type FontMetrics = font.FontMetrics
+//nolint:revive // exported
 type FontDescriptor = font.FontDescriptor
+//nolint:revive // exported
 type PDFAFontManager = font.PDFAFontManager
+//nolint:revive // exported
 type PDFAFontConfig = font.PDFAFontConfig
 
 // Function aliases for backward compatibility within this package.

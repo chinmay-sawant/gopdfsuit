@@ -418,13 +418,14 @@ func (r *CustomFontRegistry) ResolveFontName(props models.Props) string {
 
 	// 3. Fallback logic: map unknown fonts to Helvetica family
 	var fallbackName string
-	if props.Bold && props.Italic {
+	switch {
+	case props.Bold && props.Italic:
 		fallbackName = "Helvetica-BoldOblique"
-	} else if props.Bold {
+	case props.Bold:
 		fallbackName = "Helvetica-Bold"
-	} else if props.Italic {
+	case props.Italic:
 		fallbackName = "Helvetica-Oblique"
-	} else {
+	default:
 		fallbackName = "Helvetica"
 	}
 

@@ -89,7 +89,7 @@ func parseProps(props string) models.Props {
 	parts := strings.Split(props, ":")
 
 	// Default values
-	fontName := "Helvetica"
+	fontName := "Helvetica" //nolint:goconst
 	fontSize := 12
 	styleCode := "000"
 	alignment := "left"
@@ -187,22 +187,23 @@ func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
 
 	// 2. Check if it's a known standard font name
 	switch props.FontName {
-	case "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique",
-		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
-		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique",
+	case "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", //nolint:goconst
+		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic", //nolint:goconst
+		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", //nolint:goconst
 		"Symbol", "ZapfDingbats":
 		return props.FontName
 	}
 
 	// 3. Fallback logic: map unknown fonts to Helvetica family
 	var fallbackName string
-	if props.Bold && props.Italic {
+	switch {
+	case props.Bold && props.Italic:
 		fallbackName = "Helvetica-BoldOblique"
-	} else if props.Bold {
+	case props.Bold:
 		fallbackName = "Helvetica-Bold"
-	} else if props.Italic {
+	case props.Italic:
 		fallbackName = "Helvetica-Oblique"
-	} else {
+	default:
 		fallbackName = "Helvetica"
 	}
 
@@ -229,7 +230,7 @@ func getFontReference(props models.Props, registry *CustomFontRegistry) string {
 	switch actualFontName {
 	// Helvetica family (F1-F4)
 	case "Helvetica":
-		return "/F1"
+		return "/F1" //nolint:goconst
 	case "Helvetica-Bold":
 		return "/F2"
 	case "Helvetica-Oblique":

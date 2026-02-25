@@ -29,7 +29,8 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 		if p == "" {
 			continue
 		}
-		if rngRe.MatchString(p) {
+		switch {
+		case rngRe.MatchString(p):
 			m := rngRe.FindStringSubmatch(p)
 			a, _ := strconv.Atoi(m[1])
 			b, _ := strconv.Atoi(m[2])
@@ -45,13 +46,13 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 			for i := a; i <= b; i++ {
 				set[i] = true
 			}
-		} else if numRe.MatchString(p) {
+		case numRe.MatchString(p):
 			n, _ := strconv.Atoi(p)
 			if n < 1 || (totalPages > 0 && n > totalPages) {
 				return nil, fmt.Errorf("invalid page: %s", p)
 			}
 			set[n] = true
-		} else {
+		default:
 			return nil, fmt.Errorf("invalid token: %s", p)
 		}
 	}

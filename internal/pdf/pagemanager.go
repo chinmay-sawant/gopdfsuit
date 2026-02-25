@@ -100,11 +100,11 @@ func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
 	// PDF Rectangle: [LLx LLy URx URy]
 	rect := fmt.Sprintf("[%s %s %s %s]", fmtNum(x), fmtNum(y), fmtNum(x+w), fmtNum(y+h))
 
-	validUrl := escapePDFString(url)
+	validURL := escapePDFString(url)
 
 	// PDF/UA-2: Include StructParent entry
 	content := fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /StructParent %d /A << /Type /Action /S /URI /URI (%s) >> >>",
-		rect, structParentIdx, validUrl)
+		rect, structParentIdx, validURL)
 
 	pm.ExtraObjects[annotID] = content
 	pm.AddAnnotation(annotID)
@@ -118,6 +118,7 @@ func (pm *PageManager) CheckPageBreak(requiredHeight float64) bool {
 	return pm.CurrentYPos-requiredHeight < pm.Margins.Bottom
 }
 
+// ContentWidth returns the available width for content on the current page.
 func (pm *PageManager) ContentWidth() float64 {
 	return pm.PageDimensions.Width - pm.Margins.Left - pm.Margins.Right
 }

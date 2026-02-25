@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	_ "image/png"
+	_ "image/png" // Register PNG decoder for image.DecodeConfig
 	"os"
 	"os/exec"
 	"path/filepath"

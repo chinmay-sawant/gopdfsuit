@@ -1,3 +1,4 @@
+// Package redact provides functionality for PDF text and image redaction.
 package redact
 
 import (

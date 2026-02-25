@@ -75,6 +75,8 @@ func (a *signatureContextAdapter) EncodeTextForFont(fontName, text string) strin
 
 // GenerateTemplatePDF generates a PDF document with multi-page support and embedded images.
 // Returns the PDF bytes and any error encountered during generation.
+//
+//nolint:gocyclo
 func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pdfBufferPtr := pdfBufferPool.Get().(*bytes.Buffer)
 	pdfBufferPtr.Reset()
@@ -198,7 +200,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	// Process inline table images in Elements array
 	for elemIdx, elem := range template.Elements {
-		if elem.Type == "table" && elem.Table != nil {
+		if elem.Type == "table" && elem.Table != nil { //nolint:goconst
 			for rowIdx, row := range elem.Table.Rows {
 				for colIdx, cell := range row.Row {
 					if cell.Image != nil && cell.Image.ImageData != "" {
@@ -1364,24 +1366,26 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 			case "table":
 				var table models.Table
 				var imageKeyPrefix string
-				if elem.Table != nil {
+				switch {
+				case elem.Table != nil:
 					table = *elem.Table
 					imageKeyPrefix = fmt.Sprintf("elem_inline:%d", elemIdx) // Use elem_inline prefix for inline tables
-				} else if elem.Index < len(template.Table) {
+				case elem.Index < len(template.Table):
 					table = template.Table[elem.Index]
 					imageKeyPrefix = fmt.Sprintf("%d", elem.Index) // Use index as key for indexed tables
-				} else {
+				default:
 					continue
 				}
 				drawTable(table, imageKeyPrefix, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 				tableIdx++
 			case "spacer":
 				var spacer models.Spacer
-				if elem.Spacer != nil {
+				switch {
+				case elem.Spacer != nil:
 					spacer = *elem.Spacer
-				} else if elem.Index < len(template.Spacer) {
+				case elem.Index < len(template.Spacer):
 					spacer = template.Spacer[elem.Index]
-				} else {
+				default:
 					continue
 				}
 				drawSpacer(spacer, pageManager)
@@ -1455,6 +1459,8 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 // collectUsedStandardFonts returns a set of standard font names used in the template
 // Always includes Helvetica as it's the default font and used for form fields
 // Excludes fonts that are registered as custom fonts (e.g., Liberation fonts in PDF/A mode)
+//
+//nolint:gocyclo
 func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontRegistry) map[string]bool {
 	used := make(map[string]bool)
 

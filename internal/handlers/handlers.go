@@ -1,3 +1,4 @@
+// Package handlers provides HTTP handlers for the application.
 package handlers
 
 import (
@@ -98,7 +99,7 @@ func RegisterRoutes(router *gin.Engine) {
 	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run
 	{
 		// Handle all OPTIONS requests for CORS
-		v1.OPTIONS("/*path", func(c *gin.Context) {
+		v1.OPTIONS("/*path", func(c *gin.Context) { //nolint:revive
 			// Handled by CORSMiddleware
 		})
 
@@ -111,8 +112,8 @@ func RegisterRoutes(router *gin.Engine) {
 		v1.POST("/fonts", handleUploadFont)
 
 		// HTML to PDF/Image endpoints (powered by gochromedp)
-		v1.POST("/htmltopdf", handlehtmlToPDF)
-		v1.POST("/htmltoimage", handlehtmlToImage)
+		v1.POST("/htmltopdf", handleHTMLToPDF)
+		v1.POST("/htmltoimage", handleHTMLToImage)
 
 		// Redaction endpoints
 		v1.POST("/redact/page-info", HandleRedactPageInfo)
@@ -473,11 +474,11 @@ func handlerSplitPDF(c *gin.Context) {
 
 }
 
-// handlehtmlToPDF handles HTML to PDF conversion using htmltopdf
-func handlehtmlToPDF(c *gin.Context) {
+// handleHTMLToPDF handles HTML to PDF conversion using htmltopdf
+func handleHTMLToPDF(c *gin.Context) {
 	log.Printf("Starting HTML to PDF conversion request")
 
-	var req models.HtmlToPDFRequest
+	var req models.HTMLToPDFRequest
 	data, err := c.GetRawData()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
@@ -500,7 +501,7 @@ func handlehtmlToPDF(c *gin.Context) {
 		req.Orientation = "Portrait"
 	}
 	if req.MarginTop == "" {
-		req.MarginTop = "10mm"
+		req.MarginTop = "10mm" //nolint:goconst
 	}
 	if req.MarginRight == "" {
 		req.MarginRight = "10mm"
@@ -531,11 +532,11 @@ func handlehtmlToPDF(c *gin.Context) {
 	c.Data(http.StatusOK, "application/pdf", pdfBytes)
 }
 
-// handlehtmlToImage handles HTML to image conversion using htmltoimage
-func handlehtmlToImage(c *gin.Context) {
+// handleHTMLToImage handles HTML to image conversion using htmltoimage
+func handleHTMLToImage(c *gin.Context) {
 	log.Printf("Starting HTML to image conversion request")
 
-	var req models.HtmlToImageRequest
+	var req models.HTMLToImageRequest
 	data, err := c.GetRawData()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})

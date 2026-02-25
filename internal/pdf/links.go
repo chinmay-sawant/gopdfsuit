@@ -45,15 +45,16 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 	annotDict.WriteString(fmt.Sprintf(" /StructParent %d", structParentIdx))
 
 	// Add action based on link type
-	if annot.URI != "" {
+	switch {
+	case annot.URI != "":
 		// External URL - use URI action
 		annotDict.WriteString(fmt.Sprintf(" /A << /Type /Action /S /URI /URI (%s) >>",
 			escapeText(annot.URI)))
-	} else if annot.Dest != "" {
+	case annot.Dest != "":
 		// Internal link - use named destination
 		// PDF/UA-2: Use /Dest (name) - the named destination contains both /D and /SD
 		annotDict.WriteString(fmt.Sprintf(" /Dest (%s)", escapeText(annot.Dest)))
-	} else if annot.PageIndex >= 0 {
+	case annot.PageIndex >= 0:
 		// Internal link with explicit page destination
 		// Format: [pageRef /XYZ left top zoom]
 		// XYZ = position at (left, top) with zoom factor

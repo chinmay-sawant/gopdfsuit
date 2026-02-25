@@ -561,15 +561,16 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 
 	// Calculate height to maintain aspect ratio
 	var imageHeight float64
-	if originalImgWidth > 0 && originalImgHeight > 0 {
+	switch {
+	case originalImgWidth > 0 && originalImgHeight > 0:
 		// Maintain aspect ratio based on original image dimensions
 		aspectRatio := float64(originalImgHeight) / float64(originalImgWidth)
 		imageHeight = imageWidth * aspectRatio
-	} else if image.Height > 0 && image.Width > 0 {
+	case image.Height > 0 && image.Width > 0:
 		// Use provided dimensions to calculate aspect ratio
 		aspectRatio := image.Height / image.Width
 		imageHeight = imageWidth * aspectRatio
-	} else {
+	default:
 		// Default height if no dimensions available
 		imageHeight = 200
 	}

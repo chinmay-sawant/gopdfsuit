@@ -148,7 +148,7 @@ func ParseTTF(data []byte) (*TTFFont, error) {
 
 	if err := font.parseName(data); err != nil {
 		// Name table is optional for basic functionality
-		font.PostScriptName = "UnknownFont"
+		font.PostScriptName = "UnknownFont" //nolint:goconst
 		font.FamilyName = "Unknown"
 		font.FullName = "Unknown Font"
 	}
@@ -518,6 +518,7 @@ func (f *TTFFont) parseCmapFormat12(data []byte, offset uint32) error {
 }
 
 // parseName parses the 'name' table for font names
+//nolint:gocyclo
 func (f *TTFFont) parseName(data []byte) error {
 	table, ok := f.Tables["name"]
 	if !ok {

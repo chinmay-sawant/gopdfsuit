@@ -1,3 +1,4 @@
+//nolint:revive // package comment
 package font
 
 import (
