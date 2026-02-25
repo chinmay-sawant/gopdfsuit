@@ -135,7 +135,9 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 				continue
 			}
 			rawStream, decStream, _ := inspectStream(objBody)
-			combined := append(rawStream, decStream...) //nolint:gocritic
+			combined := make([]byte, 0, len(rawStream)+len(decStream))
+			combined = append(combined, rawStream...)
+			combined = append(combined, decStream...)
 			s := string(combined)
 			if strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ")) {
 				hasText = true
