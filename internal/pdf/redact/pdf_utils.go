@@ -272,11 +272,14 @@ func locateStreamSegment(obj []byte) (int, int, bool) {
 		}
 	}
 
-	endstreamIdx := bytes.Index(obj[start:], []byte("endstream"))
-	if endstreamIdx < 0 {
+	// Fallback when /Length is indirect or inaccurate: use the last endstream marker
+	// in this object body to avoid matching an incidental "endstream" byte sequence
+	// inside compressed stream data.
+	endstreamIdx := bytes.LastIndex(obj, []byte("endstream"))
+	if endstreamIdx < 0 || endstreamIdx < start {
 		return 0, 0, false
 	}
-	end := start + endstreamIdx
+	end := endstreamIdx
 	for end > start && (obj[end-1] == '\r' || obj[end-1] == '\n') {
 		end--
 	}
@@ -287,6 +290,10 @@ func locateStreamSegment(obj []byte) (int, int, bool) {
 }
 
 func parseInlineLength(obj []byte) int {
+	if regexp.MustCompile(`/Length\s+\d+\s+\d+\s+R`).Find(obj) != nil {
+		return 0
+	}
+
 	re := regexp.MustCompile(`/Length\s+(\d+)`)
 	m := re.FindSubmatch(obj)
 	if m == nil {
