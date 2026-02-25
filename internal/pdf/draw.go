@@ -1093,6 +1093,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						return EstimateTextWidth(rowResolvedFonts[colIdx], text, fontSize, pageManager.FontRegistry)
 					},
 					FormatText: func(text string) string {
+						// Math rendering emits many Unicode glyph fragments (integrals, set symbols,
+						// superscripts/subscripts). Mark them so custom-font subsetting keeps them.
+						pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], text)
 						return formatTextForPDF(rowResolvedFonts[colIdx], text, pageManager.FontRegistry)
 					},
 				}

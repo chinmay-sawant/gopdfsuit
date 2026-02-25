@@ -177,6 +177,12 @@ func (le *LayoutEngine) layoutOperator(op string, fontSize float64) *MathLayout 
 }
 
 func (le *LayoutEngine) layoutSuperscript(node *Node, fontSize float64) *MathLayout {
+	if len(node.Children) >= 2 {
+		if lay, ok := le.layoutBigOperatorLimits(node.Children[0], node.Children[1], nil, fontSize); ok {
+			return lay
+		}
+	}
+
 	baseLay := le.layoutNode(node.Children[0], fontSize)
 	supFontSize := fontSize * 0.65
 	var supLay *MathLayout
@@ -206,6 +212,12 @@ func (le *LayoutEngine) layoutSuperscript(node *Node, fontSize float64) *MathLay
 }
 
 func (le *LayoutEngine) layoutSubscript(node *Node, fontSize float64) *MathLayout {
+	if len(node.Children) >= 2 {
+		if lay, ok := le.layoutBigOperatorLimits(node.Children[0], nil, node.Children[1], fontSize); ok {
+			return lay
+		}
+	}
+
 	baseLay := le.layoutNode(node.Children[0], fontSize)
 	subFontSize := fontSize * 0.65
 	var subLay *MathLayout
@@ -412,47 +424,245 @@ func (le *LayoutEngine) layoutAccent(node *Node, fontSize float64) *MathLayout {
 }
 
 func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
-	// For simplicity, layout as a sequence of comma-separated elements
-	elemFontSize := fontSize * 0.85
-	var elements []MathElement
-	totalW := fontSize * 0.3 // left bracket
-	maxH := fontSize
+	if len(node.Args) == 0 {
+		return le.layoutText("[]", fontSize)
+	}
 
-	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: "[", FontSize: fontSize,
-		X: 0, Width: fontSize * 0.3,
-	})
+	elemFontSize := fontSize * 0.82
+	cols := inferMatrixColumns(len(node.Args))
+	rows := int(math.Ceil(float64(len(node.Args)) / float64(cols)))
 
-	for i, arg := range node.Args {
-		if i > 0 {
-			elements = append(elements, MathElement{
-				Type: ElemGlyph, Text: " ", FontSize: elemFontSize,
-				X: totalW, Width: elemFontSize * 0.15,
-			})
-			totalW += elemFontSize * 0.15
-		}
-		argLay := le.layoutNode(arg, elemFontSize)
-		for _, el := range argLay.Elements {
-			el.X += totalW
-			elements = append(elements, el)
-		}
-		totalW += argLay.Width
-		if argLay.Height > maxH {
-			maxH = argLay.Height
+	grid := make([][]*MathLayout, rows)
+	colWidths := make([]float64, cols)
+	rowHeights := make([]float64, rows)
+
+	idx := 0
+	for r := 0; r < rows; r++ {
+		grid[r] = make([]*MathLayout, cols)
+		for c := 0; c < cols; c++ {
+			if idx >= len(node.Args) {
+				break
+			}
+			cellLay := le.layoutNode(node.Args[idx], elemFontSize)
+			grid[r][c] = cellLay
+			if cellLay.Width > colWidths[c] {
+				colWidths[c] = cellLay.Width
+			}
+			cellSpan := cellLay.Height + cellLay.Depth
+			if cellSpan > rowHeights[r] {
+				rowHeights[r] = cellSpan
+			}
+			idx++
 		}
 	}
 
-	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: "]", FontSize: fontSize,
-		X: totalW, Width: fontSize * 0.3,
-	})
-	totalW += fontSize * 0.3
+	colGap := fontSize * 0.45
+	rowGap := fontSize * 0.30
+	delimW := fontSize * 0.35
+	delimFont := fontSize * 1.65
 
-	return &MathLayout{Width: totalW, Height: maxH, Elements: elements}
+	innerW := 0.0
+	for c := 0; c < cols; c++ {
+		innerW += colWidths[c]
+		if c > 0 {
+			innerW += colGap
+		}
+	}
+
+	var elements []MathElement
+	elements = append(elements, MathElement{Type: ElemGlyph, Text: "(", FontSize: delimFont, X: 0, Width: delimW})
+
+	colX := make([]float64, cols)
+	x := delimW + fontSize*0.12
+	for c := 0; c < cols; c++ {
+		colX[c] = x
+		x += colWidths[c] + colGap
+	}
+
+	y := 0.0
+	for r := 0; r < rows; r++ {
+		if r > 0 {
+			y -= rowHeights[r-1] + rowGap
+		}
+		for c := 0; c < cols; c++ {
+			cellLay := grid[r][c]
+			if cellLay == nil {
+				continue
+			}
+			offsetX := colX[c] + (colWidths[c]-cellLay.Width)/2
+			for _, el := range cellLay.Elements {
+				el.X += offsetX
+				el.Y += y
+				elements = append(elements, el)
+			}
+		}
+	}
+
+	rightX := delimW + fontSize*0.12 + innerW + fontSize*0.10
+	elements = append(elements, MathElement{Type: ElemGlyph, Text: ")", FontSize: delimFont, X: rightX, Width: delimW})
+
+	totalW := rightX + delimW
+	depth := 0.0
+	for r := 0; r < rows; r++ {
+		depth += rowHeights[r]
+		if r > 0 {
+			depth += rowGap
+		}
+	}
+	depth = math.Max(0, depth-rowHeights[0])
+
+	return &MathLayout{Width: totalW, Height: rowHeights[0] + fontSize*0.35, Depth: depth, Elements: elements}
 }
 
 func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
-	return le.layoutMatrix(&Node{Type: NodeMatrix, Args: node.Args}, fontSize)
+	if len(node.Args) == 0 {
+		return le.layoutText("[]", fontSize)
+	}
+
+	elemFontSize := fontSize * 0.85
+	innerW := 0.0
+	rowHeights := make([]float64, len(node.Args))
+	argLayouts := make([]*MathLayout, len(node.Args))
+
+	for i, arg := range node.Args {
+		lay := le.layoutNode(arg, elemFontSize)
+		argLayouts[i] = lay
+		if lay.Width > innerW {
+			innerW = lay.Width
+		}
+		rowHeights[i] = lay.Height + lay.Depth
+	}
+
+	rowGap := fontSize * 0.30
+	delimW := fontSize * 0.35
+	delimFont := fontSize * 1.8
+	contentX := delimW + fontSize*0.15
+
+	var elements []MathElement
+	elements = append(elements, MathElement{Type: ElemGlyph, Text: "[", FontSize: delimFont, X: 0, Width: delimW})
+
+	y := 0.0
+	for i, lay := range argLayouts {
+		if i > 0 {
+			y -= rowHeights[i-1] + rowGap
+		}
+		x := contentX + (innerW-lay.Width)/2
+		for _, el := range lay.Elements {
+			el.X += x
+			el.Y += y
+			elements = append(elements, el)
+		}
+	}
+
+	rightX := contentX + innerW + fontSize*0.10
+	elements = append(elements, MathElement{Type: ElemGlyph, Text: "]", FontSize: delimFont, X: rightX, Width: delimW})
+
+	totalW := rightX + delimW
+	depth := 0.0
+	for i := range rowHeights {
+		depth += rowHeights[i]
+		if i > 0 {
+			depth += rowGap
+		}
+	}
+	depth = math.Max(0, depth-rowHeights[0])
+
+	return &MathLayout{Width: totalW, Height: rowHeights[0] + fontSize*0.35, Depth: depth, Elements: elements}
+}
+
+func inferMatrixColumns(argCount int) int {
+	if argCount <= 1 {
+		return 1
+	}
+	root := int(math.Round(math.Sqrt(float64(argCount))))
+	if root > 1 && root*root == argCount {
+		return root
+	}
+	if argCount%3 == 0 && argCount >= 6 {
+		return 3
+	}
+	if argCount%2 == 0 {
+		return 2
+	}
+	return 1
+}
+
+func (le *LayoutEngine) layoutBigOperatorLimits(baseNode, supNode, subNode *Node, fontSize float64) (*MathLayout, bool) {
+	// Common parse shape for sum/product with both limits is:
+	// NodeSuperscript(NodeSubscript(op, lower), upper)
+	if subNode == nil && baseNode != nil && baseNode.Type == NodeSubscript && len(baseNode.Children) >= 2 {
+		candidateBase := baseNode.Children[0]
+		if isBigLimitOperator(candidateBase) {
+			subNode = baseNode.Children[1]
+			baseNode = candidateBase
+		}
+	}
+
+	if !isBigLimitOperator(baseNode) {
+		return nil, false
+	}
+
+	opLay := le.layoutNode(baseNode, fontSize*1.15)
+	scriptSize := fontSize * 0.62
+
+	var supLay, subLay *MathLayout
+	if supNode != nil {
+		supLay = le.layoutNode(supNode, scriptSize)
+	}
+	if subNode != nil {
+		subLay = le.layoutNode(subNode, scriptSize)
+	}
+
+	width := opLay.Width
+	if supLay != nil {
+		width = math.Max(width, supLay.Width)
+	}
+	if subLay != nil {
+		width = math.Max(width, subLay.Width)
+	}
+
+	gap := fontSize * 0.14
+	var elements []MathElement
+
+	opX := (width - opLay.Width) / 2
+	for _, el := range opLay.Elements {
+		el.X += opX
+		elements = append(elements, el)
+	}
+
+	height := opLay.Height
+	depth := opLay.Depth
+
+	if supLay != nil {
+		supX := (width - supLay.Width) / 2
+		supY := opLay.Height + gap
+		for _, el := range supLay.Elements {
+			el.X += supX
+			el.Y += supY
+			elements = append(elements, el)
+		}
+		height = math.Max(height, supY+supLay.Height)
+	}
+
+	if subLay != nil {
+		subX := (width - subLay.Width) / 2
+		subY := -(gap + subLay.Height)
+		for _, el := range subLay.Elements {
+			el.X += subX
+			el.Y += subY
+			elements = append(elements, el)
+		}
+		depth = math.Max(depth, gap+subLay.Height+subLay.Depth)
+	}
+
+	return &MathLayout{Width: width, Height: height, Depth: depth, Elements: elements}, true
+}
+
+func isBigLimitOperator(node *Node) bool {
+	if node == nil || node.Type != NodeSymbol {
+		return false
+	}
+	return node.Value == "∑" || node.Value == "∏"
 }
 
 func (le *LayoutEngine) layoutBinom(node *Node, fontSize float64) *MathLayout {
