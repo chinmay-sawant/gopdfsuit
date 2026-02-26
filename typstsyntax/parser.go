@@ -102,9 +102,6 @@ func (p *Parser) parseSequence() []*Node {
 		if tok.Type == TokenEOF || tok.Type == TokenRParen || tok.Type == TokenRBrace || tok.Type == TokenRBracket {
 			break
 		}
-		if tok.Type == TokenComma || tok.Type == TokenSemicolon {
-			break
-		}
 		node := p.parseExpr()
 		if node != nil {
 			nodes = append(nodes, node)
@@ -223,7 +220,7 @@ func (p *Parser) parseFunctionCall(name string) *Node {
 
 	var args []*Node
 	for p.current().Type != TokenRParen && p.current().Type != TokenEOF {
-		arg := p.parseSequence()
+		arg := p.parseFunctionArgSequence()
 		if len(arg) == 1 {
 			args = append(args, arg[0])
 		} else if len(arg) > 1 {
@@ -239,6 +236,23 @@ func (p *Parser) parseFunctionCall(name string) *Node {
 	p.expect(TokenRParen) // consume )
 
 	return p.buildFuncNode(name, args)
+}
+
+// parseFunctionArgSequence parses a function argument until a top-level
+// separator (comma/semicolon), closing parenthesis, or EOF.
+func (p *Parser) parseFunctionArgSequence() []*Node {
+	var nodes []*Node
+	for {
+		tok := p.current()
+		if tok.Type == TokenEOF || tok.Type == TokenRParen || tok.Type == TokenComma || tok.Type == TokenSemicolon {
+			break
+		}
+		node := p.parseExpr()
+		if node != nil {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
 }
 
 // buildFuncNode creates the appropriate AST node for a function call.

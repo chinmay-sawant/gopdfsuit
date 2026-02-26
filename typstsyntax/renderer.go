@@ -133,6 +133,21 @@ func (le *LayoutEngine) layoutNode(node *Node, fontSize float64) *MathLayout {
 	}
 }
 
+// offsetElement shifts all coordinate fields (X/Y for glyphs, LineX/LineY for lines) by dx, dy.
+func offsetElement(el *MathElement, dx, dy float64) {
+	el.X += dx
+	el.Y += dy
+	if el.Type == ElemLine {
+		el.LineX1 += dx
+		el.LineY1 += dy
+		el.LineX2 += dx
+		el.LineY2 += dy
+	}
+	for i := range el.Children {
+		offsetElement(&el.Children[i], dx, dy)
+	}
+}
+
 func (le *LayoutEngine) estimateWidth(text string, fontSize float64) float64 {
 	if le.ctx.EstimateWidth != nil {
 		return le.ctx.EstimateWidth(text, fontSize)
@@ -203,8 +218,7 @@ func (le *LayoutEngine) layoutSuperscript(node *Node, fontSize float64) *MathLay
 
 	// Offset superscript elements
 	for _, el := range supLay.Elements {
-		el.X += baseLay.Width
-		el.Y += supRise
+		offsetElement(&el, baseLay.Width, supRise)
 		elements = append(elements, el)
 	}
 
@@ -237,8 +251,7 @@ func (le *LayoutEngine) layoutSubscript(node *Node, fontSize float64) *MathLayou
 	elements = append(elements, baseLay.Elements...)
 
 	for _, el := range subLay.Elements {
-		el.X += baseLay.Width
-		el.Y -= subDrop
+		offsetElement(&el, baseLay.Width, -subDrop)
 		elements = append(elements, el)
 	}
 
@@ -265,8 +278,7 @@ func (le *LayoutEngine) layoutFraction(node *Node, fontSize float64) *MathLayout
 
 	// Numerator
 	for _, el := range numLay.Elements {
-		el.X += numX
-		el.Y += numY
+		offsetElement(&el, numX, numY)
 		elements = append(elements, el)
 	}
 
@@ -282,8 +294,7 @@ func (le *LayoutEngine) layoutFraction(node *Node, fontSize float64) *MathLayout
 
 	// Denominator
 	for _, el := range denLay.Elements {
-		el.X += denX
-		el.Y += denY
+		offsetElement(&el, denX, denY)
 		elements = append(elements, el)
 	}
 
@@ -322,7 +333,7 @@ func (le *LayoutEngine) layoutSqrt(node *Node, fontSize float64) *MathLayout {
 
 	// Inner content
 	for _, el := range inner.Elements {
-		el.X += radWidth
+		offsetElement(&el, radWidth, 0)
 		elements = append(elements, el)
 	}
 
@@ -341,8 +352,7 @@ func (le *LayoutEngine) layoutRoot(node *Node, fontSize float64) *MathLayout {
 
 	// Index (small, top-left of radical)
 	for _, el := range indexLay.Elements {
-		el.X += fontSize * 0.05
-		el.Y += totalH - indexLay.Height*0.5
+		offsetElement(&el, fontSize*0.05, totalH-indexLay.Height*0.5)
 		elements = append(elements, el)
 	}
 
@@ -364,7 +374,7 @@ func (le *LayoutEngine) layoutRoot(node *Node, fontSize float64) *MathLayout {
 
 	// Inner content
 	for _, el := range innerLay.Elements {
-		el.X += radWidth
+		offsetElement(&el, radWidth, 0)
 		elements = append(elements, el)
 	}
 
@@ -377,24 +387,31 @@ func (le *LayoutEngine) layoutGroup(node *Node, fontSize float64) *MathLayout {
 	delims := getGroupDelimiters(node.Value)
 	delimWidth := fontSize * 0.3
 
+	// Scale delimiters to match inner content height
+	delimFontSize := fontSize
+	innerSpan := innerLay.Height + innerLay.Depth
+	if innerSpan > fontSize*1.2 {
+		delimFontSize = innerSpan * 0.9
+	}
+
 	totalW := delimWidth*2 + innerLay.Width
 	elements := make([]MathElement, 0)
 
 	// Left delimiter
 	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: delims[0], FontSize: fontSize,
+		Type: ElemGlyph, Text: delims[0], FontSize: delimFontSize,
 		X: 0, Width: delimWidth,
 	})
 
 	// Inner content, shifted right
 	for _, el := range innerLay.Elements {
-		el.X += delimWidth
+		offsetElement(&el, delimWidth, 0)
 		elements = append(elements, el)
 	}
 
 	// Right delimiter
 	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: delims[1], FontSize: fontSize,
+		Type: ElemGlyph, Text: delims[1], FontSize: delimFontSize,
 		X: delimWidth + innerLay.Width, Width: delimWidth,
 	})
 
@@ -491,8 +508,7 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 			}
 			offsetX := colX[c] + (colWidths[c]-cellLay.Width)/2
 			for _, el := range cellLay.Elements {
-				el.X += offsetX
-				el.Y += y
+				offsetElement(&el, offsetX, y)
 				elements = append(elements, el)
 			}
 		}
@@ -548,8 +564,7 @@ func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
 		}
 		x := contentX + (innerW-lay.Width)/2
 		for _, el := range lay.Elements {
-			el.X += x
-			el.Y += y
+			offsetElement(&el, x, y)
 			elements = append(elements, el)
 		}
 	}
@@ -626,7 +641,7 @@ func (le *LayoutEngine) layoutBigOperatorLimits(baseNode, supNode, subNode *Node
 
 	opX := (width - opLay.Width) / 2
 	for _, el := range opLay.Elements {
-		el.X += opX
+		offsetElement(&el, opX, 0)
 		elements = append(elements, el)
 	}
 
@@ -637,8 +652,7 @@ func (le *LayoutEngine) layoutBigOperatorLimits(baseNode, supNode, subNode *Node
 		supX := (width - supLay.Width) / 2
 		supY := opLay.Height + gap
 		for _, el := range supLay.Elements {
-			el.X += supX
-			el.Y += supY
+			offsetElement(&el, supX, supY)
 			elements = append(elements, el)
 		}
 		height = math.Max(height, supY+supLay.Height)
@@ -648,8 +662,7 @@ func (le *LayoutEngine) layoutBigOperatorLimits(baseNode, supNode, subNode *Node
 		subX := (width - subLay.Width) / 2
 		subY := -(gap + subLay.Height)
 		for _, el := range subLay.Elements {
-			el.X += subX
-			el.Y += subY
+			offsetElement(&el, subX, subY)
 			elements = append(elements, el)
 		}
 		depth = math.Max(depth, gap+subLay.Height+subLay.Depth)
@@ -688,16 +701,14 @@ func (le *LayoutEngine) layoutBinom(node *Node, fontSize float64) *MathLayout {
 	// Top
 	topX := delimW + (innerW-topLay.Width)/2
 	for _, el := range topLay.Elements {
-		el.X += topX
-		el.Y += topY
+		offsetElement(&el, topX, topY)
 		elements = append(elements, el)
 	}
 
 	// Bottom
 	botX := delimW + (innerW-botLay.Width)/2
 	for _, el := range botLay.Elements {
-		el.X += botX
-		el.Y += botY
+		offsetElement(&el, botX, botY)
 		elements = append(elements, el)
 	}
 
@@ -735,8 +746,7 @@ func (le *LayoutEngine) layoutCases(node *Node, fontSize float64) *MathLayout {
 		}
 		argLay := le.layoutNode(arg, caseFontSize)
 		for _, el := range argLay.Elements {
-			el.X += delimW + fontSize*0.2
-			el.Y += yOffset
+			offsetElement(&el, delimW+fontSize*0.2, yOffset)
 			elements = append(elements, el)
 		}
 		if argLay.Width > maxW {
@@ -785,12 +795,22 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 	})
 
 	for _, el := range innerLay.Elements {
-		el.X += delimW
+		offsetElement(&el, delimW, 0)
 		elements = append(elements, el)
 	}
 
+	// Scale delimiters to match inner content height
+	delimFontSize := fontSize
+	innerSpan := innerLay.Height + innerLay.Depth
+	if innerSpan > fontSize*1.2 {
+		delimFontSize = innerSpan * 0.9
+	}
+
+	// Update delimiter font sizes
+	elements[0].FontSize = delimFontSize
+
 	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: delims[1], FontSize: fontSize,
+		Type: ElemGlyph, Text: delims[1], FontSize: delimFontSize,
 		X: delimW + innerLay.Width, Width: delimW,
 	})
 
@@ -856,8 +876,7 @@ func (le *LayoutEngine) layoutUnderOver(node *Node, fontSize float64) *MathLayou
 			totalH += annLay.Height + fontSize*0.2
 		}
 		for _, el := range annLay.Elements {
-			el.X += annX
-			el.Y += annY
+			offsetElement(&el, annX, annY)
 			elements = append(elements, el)
 		}
 	}
@@ -901,7 +920,7 @@ func (le *LayoutEngine) layoutSequence(nodes []*Node, fontSize float64) *MathLay
 	for _, child := range nodes {
 		childLay := le.layoutNode(child, fontSize)
 		for _, el := range childLay.Elements {
-			el.X += totalW
+			offsetElement(&el, totalW, 0)
 			elements = append(elements, el)
 		}
 		totalW += childLay.Width
@@ -941,7 +960,7 @@ func (le *LayoutEngine) layoutGenericFunc(node *Node, fontSize float64) *MathLay
 		}
 		argLay := le.layoutNode(arg, fontSize)
 		for _, el := range argLay.Elements {
-			el.X += totalW
+			offsetElement(&el, totalW, 0)
 			elements = append(elements, el)
 		}
 		totalW += argLay.Width

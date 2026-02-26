@@ -295,7 +295,7 @@ func TestTypstMathStress_GenerateEquationBankPDF(t *testing.T) {
 	}
 	rowHeights := make([]float64, len(rows))
 	for i := range rowHeights {
-		rowHeights[i] = 38
+		rowHeights[i] = 2.5
 	}
 
 	if totalFormulaCount < 50 || totalFormulaCount > 100 {
@@ -370,6 +370,115 @@ func TestTypstMathStress_GenerateEquationBankPDF(t *testing.T) {
 	}
 	if !bytes.Contains(pdfBytes, []byte("/Subtype /Type0")) || !bytes.Contains(pdfBytes, []byte("/CF")) {
 		t.Fatal("expected equation bank PDF resources to include embedded Type0 custom font reference")
+	}
+}
+
+func TestTypstMathStress_GenerateImageStyleShowcasePDF(t *testing.T) {
+	mathFontPath, ok := resolveMathFontPath()
+	if !ok {
+		t.Skip("no unicode math-capable font found (looked for DejaVu/Noto Math). Install fonts-dejavu-core or fonts-noto-math")
+	}
+
+	const mathFontName = "MathUnicode"
+	mathEnabled := true
+
+	showcaseExpressions := []string{
+		"$ dot(x)_j = frac(q, c) sum_(l=1)^n dot(x)_l [frac(partial A, partial x_j) - frac(partial A_j, partial x_l)] $",
+		"$ - frac(partial A_j, partial t) - c frac(partial phi, partial x_j) $",
+		"$ F_(mu,nu) = lr( mat(0, B_z, -B_y, -iE_x; -B_z, 0, B_x, -iE_y; B_y, -B_x, 0, -iE_z; iE_x, iE_y, iE_z, 0) ) $",
+		"$ Sigma = sum_(l=1)^n [a_l + b_l] $",
+		"$ sum_(k=0)^n {(k+1)} = [frac((n+1)(n+2), 2)] $",
+		"$ [lr((ax + b)(cx + d))] = [acx^2 + (ad + bc)x + bd] $",
+		"$ lr((ax + b)(cx + d)) = acx^2 + (ad + bc)x + bd $",
+		"$ (ax)(d) + (b)(cx) arrow.r (ad + bc)x $",
+	}
+
+	rows := make([]models.Row, 0, len(showcaseExpressions)+3)
+	rowHeights := make([]float64, 0, len(showcaseExpressions)+3)
+
+	rows = append(rows, models.Row{Row: []models.Cell{{
+		Props: mathFontName + ":13:100:left:1:1:1:1",
+		Text:  "Image-Inspired Typst Math Showcase",
+	}}})
+	rowHeights = append(rowHeights, 8)
+
+	for _, expr := range showcaseExpressions {
+		ast := typstsyntax.ParseMath(expr)
+		if ast == nil {
+			t.Fatalf("ParseMath(%q) returned nil", expr)
+		}
+		flat := strings.TrimSpace(typstsyntax.FlattenToText(ast))
+		if flat == "" {
+			t.Fatalf("FlattenToText(%q) returned empty text", expr)
+		}
+		if strings.Contains(expr, "sum_") && !strings.Contains(flat, "∑") {
+			t.Fatalf("FlattenToText(%q) did not include sigma symbol: %q", expr, flat)
+		}
+		if strings.Contains(expr, "[") && !strings.Contains(flat, "[") {
+			t.Fatalf("FlattenToText(%q) did not include opening bracket: %q", expr, flat)
+		}
+
+		rows = append(rows, models.Row{Row: []models.Cell{{
+			Props:       mathFontName + ":12:000:left:1:1:1:1",
+			Text:        expr,
+			MathEnabled: &mathEnabled,
+		}}})
+
+		rowHeights = append(rowHeights, 5)
+
+	}
+
+	template := models.PDFTemplate{
+		Config: models.Config{
+			Page: "A4",
+			CustomFonts: []models.CustomFontConfig{{
+				Name:     mathFontName,
+				FilePath: mathFontPath,
+			}},
+		},
+		Title: models.Title{
+			Text:  "Typst Figure-Like Math Output",
+			Props: mathFontName + ":15:100:center:0:0:0:0",
+		},
+		Table: []models.Table{{
+			MaxColumns: 1,
+			Rows:       rows,
+			RowHeights: rowHeights,
+		}},
+	}
+
+	pdfBytes, err := GenerateTemplatePDF(template)
+	if err != nil {
+		t.Fatalf("GenerateTemplatePDF for image-style showcase failed: %v", err)
+	}
+	if len(pdfBytes) == 0 {
+		t.Fatal("image-style showcase PDF is empty")
+	}
+
+	outPath, err := filepath.Abs("../../sampledata/typstsyntax/typst_math_image_style_showcase.pdf")
+	if err != nil {
+		t.Fatalf("failed to build output path: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		t.Fatalf("failed to create output directory: %v", err)
+	}
+	if err := os.WriteFile(outPath, pdfBytes, 0o644); err != nil {
+		t.Fatalf("failed to write image-style showcase PDF: %v", err)
+	}
+
+	fi, err := os.Stat(outPath)
+	if err != nil {
+		t.Fatalf("failed to stat image-style showcase PDF: %v", err)
+	}
+	if fi.Size() == 0 {
+		t.Fatalf("image-style showcase PDF on disk is empty: %s", outPath)
+	}
+
+	if !bytes.Contains(pdfBytes, []byte("/Identity-H")) {
+		t.Fatal("expected image-style showcase PDF to use Identity-H encoding for Unicode math glyphs")
+	}
+	if !bytes.Contains(pdfBytes, []byte("/ToUnicode")) {
+		t.Fatal("expected image-style showcase PDF to include ToUnicode mapping for custom math font")
 	}
 }
 
