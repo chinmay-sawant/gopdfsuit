@@ -387,11 +387,16 @@ func (le *LayoutEngine) layoutGroup(node *Node, fontSize float64) *MathLayout {
 	delims := getGroupDelimiters(node.Value)
 	delimWidth := fontSize * 0.3
 
-	// Scale delimiters to match inner content height
+	// Scale delimiters conservatively to avoid oversized brackets
 	delimFontSize := fontSize
 	innerSpan := innerLay.Height + innerLay.Depth
-	if innerSpan > fontSize*1.2 {
-		delimFontSize = innerSpan * 0.9
+	if innerSpan > fontSize*1.5 {
+		ratio := innerSpan / fontSize
+		scaleFactor := 1.0 + (ratio-1.0)*0.3
+		if scaleFactor > 1.8 {
+			scaleFactor = 1.8
+		}
+		delimFontSize = fontSize * scaleFactor
 	}
 
 	totalW := delimWidth*2 + innerLay.Width
@@ -476,7 +481,28 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 	colGap := fontSize * 0.45
 	rowGap := fontSize * 0.30
 	delimW := fontSize * 0.35
-	delimFont := fontSize * 1.65
+
+	// Calculate total grid height for dynamic bracket sizing and centering
+	totalGridHeight := 0.0
+	for r := 0; r < rows; r++ {
+		totalGridHeight += rowHeights[r]
+		if r > 0 {
+			totalGridHeight += rowGap
+		}
+	}
+
+	// Center grid around math axis (~0.25*fontSize above baseline)
+	mathAxis := fontSize * 0.25
+	yShift := mathAxis + (totalGridHeight-rowHeights[0])/2
+
+	// Dynamic bracket sizing: scale to cover entire grid height
+	delimFont := totalGridHeight / 0.85
+	if delimFont < fontSize*1.3 {
+		delimFont = fontSize * 1.3
+	}
+
+	// Bracket Y: position so bracket visual center aligns with math axis
+	bracketY := mathAxis - delimFont*0.25
 
 	innerW := 0.0
 	for c := 0; c < cols; c++ {
@@ -487,7 +513,7 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 	}
 
 	var elements []MathElement
-	elements = append(elements, MathElement{Type: ElemGlyph, Text: "(", FontSize: delimFont, X: 0, Width: delimW})
+	elements = append(elements, MathElement{Type: ElemGlyph, Text: "(", FontSize: delimFont, X: 0, Y: bracketY, Width: delimW})
 
 	colX := make([]float64, cols)
 	x := delimW + fontSize*0.12
@@ -496,7 +522,7 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 		x += colWidths[c] + colGap
 	}
 
-	y := 0.0
+	y := yShift
 	for r := 0; r < rows; r++ {
 		if r > 0 {
 			y -= rowHeights[r-1] + rowGap
@@ -515,19 +541,12 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 	}
 
 	rightX := delimW + fontSize*0.12 + innerW + fontSize*0.10
-	elements = append(elements, MathElement{Type: ElemGlyph, Text: ")", FontSize: delimFont, X: rightX, Width: delimW})
+	elements = append(elements, MathElement{Type: ElemGlyph, Text: ")", FontSize: delimFont, X: rightX, Y: bracketY, Width: delimW})
 
 	totalW := rightX + delimW
-	depth := 0.0
-	for r := 0; r < rows; r++ {
-		depth += rowHeights[r]
-		if r > 0 {
-			depth += rowGap
-		}
-	}
-	depth = math.Max(0, depth-rowHeights[0])
+	halfSpan := totalGridHeight/2 + fontSize*0.35
 
-	return &MathLayout{Width: totalW, Height: rowHeights[0] + fontSize*0.35, Depth: depth, Elements: elements}
+	return &MathLayout{Width: totalW, Height: halfSpan + mathAxis, Depth: halfSpan - mathAxis, Elements: elements}
 }
 
 func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
@@ -551,13 +570,34 @@ func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
 
 	rowGap := fontSize * 0.30
 	delimW := fontSize * 0.35
-	delimFont := fontSize * 1.8
 	contentX := delimW + fontSize*0.15
 
-	var elements []MathElement
-	elements = append(elements, MathElement{Type: ElemGlyph, Text: "[", FontSize: delimFont, X: 0, Width: delimW})
+	// Calculate total grid height for dynamic bracket sizing and centering
+	totalGridHeight := 0.0
+	for i := range rowHeights {
+		totalGridHeight += rowHeights[i]
+		if i > 0 {
+			totalGridHeight += rowGap
+		}
+	}
 
-	y := 0.0
+	// Center grid around math axis (~0.25*fontSize above baseline)
+	mathAxis := fontSize * 0.25
+	yShift := mathAxis + (totalGridHeight-rowHeights[0])/2
+
+	// Dynamic bracket sizing: scale to cover entire grid height
+	delimFont := totalGridHeight / 0.85
+	if delimFont < fontSize*1.3 {
+		delimFont = fontSize * 1.3
+	}
+
+	// Bracket Y: position so bracket visual center aligns with math axis
+	bracketY := mathAxis - delimFont*0.25
+
+	var elements []MathElement
+	elements = append(elements, MathElement{Type: ElemGlyph, Text: "[", FontSize: delimFont, X: 0, Y: bracketY, Width: delimW})
+
+	y := yShift
 	for i, lay := range argLayouts {
 		if i > 0 {
 			y -= rowHeights[i-1] + rowGap
@@ -570,19 +610,12 @@ func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
 	}
 
 	rightX := contentX + innerW + fontSize*0.10
-	elements = append(elements, MathElement{Type: ElemGlyph, Text: "]", FontSize: delimFont, X: rightX, Width: delimW})
+	elements = append(elements, MathElement{Type: ElemGlyph, Text: "]", FontSize: delimFont, X: rightX, Y: bracketY, Width: delimW})
 
 	totalW := rightX + delimW
-	depth := 0.0
-	for i := range rowHeights {
-		depth += rowHeights[i]
-		if i > 0 {
-			depth += rowGap
-		}
-	}
-	depth = math.Max(0, depth-rowHeights[0])
+	halfSpan := totalGridHeight/2 + fontSize*0.35
 
-	return &MathLayout{Width: totalW, Height: rowHeights[0] + fontSize*0.35, Depth: depth, Elements: elements}
+	return &MathLayout{Width: totalW, Height: halfSpan + mathAxis, Depth: halfSpan - mathAxis, Elements: elements}
 }
 
 func inferMatrixColumns(argCount int) int {
@@ -787,11 +820,22 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 	delimW := fontSize * 0.3
 	totalW := delimW*2 + innerLay.Width
 
+	// Scale delimiters to cover inner content
+	innerSpan := innerLay.Height + innerLay.Depth
+	delimFontSize := innerSpan / 0.85
+	if delimFontSize < fontSize*1.1 {
+		delimFontSize = fontSize * 1.1
+	}
+
+	// Center bracket vertically around the inner content midpoint
+	innerMid := (innerLay.Height - innerLay.Depth) / 2
+	bracketY := innerMid - delimFontSize*0.25
+
 	elements := make([]MathElement, 0)
 
 	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: delims[0], FontSize: fontSize,
-		X: 0, Width: delimW,
+		Type: ElemGlyph, Text: delims[0], FontSize: delimFontSize,
+		X: 0, Y: bracketY, Width: delimW,
 	})
 
 	for _, el := range innerLay.Elements {
@@ -799,19 +843,9 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 		elements = append(elements, el)
 	}
 
-	// Scale delimiters to match inner content height
-	delimFontSize := fontSize
-	innerSpan := innerLay.Height + innerLay.Depth
-	if innerSpan > fontSize*1.2 {
-		delimFontSize = innerSpan * 0.9
-	}
-
-	// Update delimiter font sizes
-	elements[0].FontSize = delimFontSize
-
 	elements = append(elements, MathElement{
 		Type: ElemGlyph, Text: delims[1], FontSize: delimFontSize,
-		X: delimW + innerLay.Width, Width: delimW,
+		X: delimW + innerLay.Width, Y: bracketY, Width: delimW,
 	})
 
 	return &MathLayout{Width: totalW, Height: innerLay.Height, Depth: innerLay.Depth, Elements: elements}
