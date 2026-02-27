@@ -47,6 +47,8 @@ type MathElement struct {
 	LineX2    float64
 	LineY2    float64
 	LineWidth float64
+	// Path drawing (for smooth curves like parentheses)
+	PathPoints [][2]float64 // Sequence of (x,y) points for a continuous stroked path
 }
 
 // ElementType classifies renderable elements.
@@ -58,6 +60,7 @@ const (
 	ElemLine                      // Line drawing (fraction bar, root line, etc.)
 	ElemGroup                     // Group of sub-elements
 	ElemOffset                    // Position offset
+	ElemPath                      // Multi-point path (smooth curves)
 )
 
 // LayoutEngine calculates positions and sizes for math AST nodes.
@@ -1212,6 +1215,36 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 			buf.WriteString(" l S\n")
 			buf.WriteString("Q\n")
 
+		case ElemPath:
+			if len(el.PathPoints) < 2 {
+				continue
+			}
+			lineW := el.LineWidth
+			if lineW <= 0 {
+				lineW = 0.5
+			}
+			buf.WriteString("q\n")
+			if ctx.TextColor != "" {
+				buf.WriteString(ctx.TextColor)
+				buf.WriteString(" RG\n")
+			}
+			buf.WriteString("1 J 1 j\n") // round line cap + round line join
+			buf.WriteString(fmtFloat(lineW))
+			buf.WriteString(" w\n")
+			p0 := el.PathPoints[0]
+			buf.WriteString(fmtFloat(baseX + el.X + p0[0]))
+			buf.WriteString(" ")
+			buf.WriteString(fmtFloat(baseY + el.Y + p0[1]))
+			buf.WriteString(" m\n")
+			for _, pt := range el.PathPoints[1:] {
+				buf.WriteString(fmtFloat(baseX + el.X + pt[0]))
+				buf.WriteString(" ")
+				buf.WriteString(fmtFloat(baseY + el.Y + pt[1]))
+				buf.WriteString(" l\n")
+			}
+			buf.WriteString("S\n")
+			buf.WriteString("Q\n")
+
 		case ElemGroup:
 			renderElements(buf, el.Children, baseX+el.X, baseY+el.Y, ctx)
 		}
@@ -1260,48 +1293,41 @@ func makeSquareBracketRight(x, top, bottom, serifLen float64) MathElement {
 	}
 }
 
-// makeParenLeft draws a "(" as a series of line segments approximating a curve.
+// parenSegments is the number of line segments used to approximate a smooth parenthesis curve.
+const parenSegments = 20
+
+// makeParenLeft draws a "(" as a smooth curve using many segments.
 func makeParenLeft(x, top, bottom float64) MathElement {
-	mid := (top + bottom) / 2
 	h := top - bottom
-	// curve inward by a fraction of height
-	curve := h * 0.12
-	if curve < 1.5 {
-		curve = 1.5
+	curve := h * 0.18
+	if curve < 2.0 {
+		curve = 2.0
 	}
-	// approximate with 4 segments
-	q1 := bottom + h*0.25
-	q3 := bottom + h*0.75
-	return MathElement{
-		Type: ElemGroup, X: 0, Y: 0,
-		Children: []MathElement{
-			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x - curve*0.5, LineY2: q3, LineWidth: parenLineWidth},
-			{Type: ElemLine, LineX1: x - curve*0.5, LineY1: q3, LineX2: x - curve, LineY2: mid, LineWidth: parenLineWidth},
-			{Type: ElemLine, LineX1: x - curve, LineY1: mid, LineX2: x - curve*0.5, LineY2: q1, LineWidth: parenLineWidth},
-			{Type: ElemLine, LineX1: x - curve*0.5, LineY1: q1, LineX2: x, LineY2: bottom, LineWidth: parenLineWidth},
-		},
+	points := make([][2]float64, parenSegments+1)
+	for i := 0; i <= parenSegments; i++ {
+		t := float64(i) / float64(parenSegments)
+		py := top - h*t
+		px := x - curve*math.Sin(math.Pi*t)
+		points[i] = [2]float64{px, py}
 	}
+	return MathElement{Type: ElemPath, X: 0, Y: 0, PathPoints: points, LineWidth: parenLineWidth}
 }
 
-// makeParenRight draws a ")" as a series of line segments approximating a curve.
+// makeParenRight draws a ")" as a smooth curve using many segments.
 func makeParenRight(x, top, bottom float64) MathElement {
-	mid := (top + bottom) / 2
 	h := top - bottom
-	curve := h * 0.12
-	if curve < 1.5 {
-		curve = 1.5
+	curve := h * 0.18
+	if curve < 2.0 {
+		curve = 2.0
 	}
-	q1 := bottom + h*0.25
-	q3 := bottom + h*0.75
-	return MathElement{
-		Type: ElemGroup, X: 0, Y: 0,
-		Children: []MathElement{
-			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x + curve*0.5, LineY2: q3, LineWidth: parenLineWidth},
-			{Type: ElemLine, LineX1: x + curve*0.5, LineY1: q3, LineX2: x + curve, LineY2: mid, LineWidth: parenLineWidth},
-			{Type: ElemLine, LineX1: x + curve, LineY1: mid, LineX2: x + curve*0.5, LineY2: q1, LineWidth: parenLineWidth},
-			{Type: ElemLine, LineX1: x + curve*0.5, LineY1: q1, LineX2: x, LineY2: bottom, LineWidth: parenLineWidth},
-		},
+	points := make([][2]float64, parenSegments+1)
+	for i := 0; i <= parenSegments; i++ {
+		t := float64(i) / float64(parenSegments)
+		py := top - h*t
+		px := x + curve*math.Sin(math.Pi*t)
+		points[i] = [2]float64{px, py}
 	}
+	return MathElement{Type: ElemPath, X: 0, Y: 0, PathPoints: points, LineWidth: parenLineWidth}
 }
 
 // makeVerticalLine draws a simple vertical line (used for |, ‖, etc.)
