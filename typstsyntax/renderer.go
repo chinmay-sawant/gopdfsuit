@@ -134,6 +134,8 @@ func (le *LayoutEngine) layoutNode(node *Node, fontSize float64) *MathLayout {
 }
 
 // offsetElement shifts all coordinate fields (X/Y for glyphs, LineX/LineY for lines) by dx, dy.
+// For ElemGroup elements, only the group's X/Y is shifted since children are positioned
+// relative to the group origin and rendered via baseX+group.X in renderElements.
 func offsetElement(el *MathElement, dx, dy float64) {
 	el.X += dx
 	el.Y += dy
@@ -143,8 +145,13 @@ func offsetElement(el *MathElement, dx, dy float64) {
 		el.LineX2 += dx
 		el.LineY2 += dy
 	}
-	for i := range el.Children {
-		offsetElement(&el.Children[i], dx, dy)
+	// Only recurse into children for non-group elements.
+	// ElemGroup children are rendered relative to group.X/group.Y,
+	// so offsetting both would double the displacement.
+	if el.Type != ElemGroup {
+		for i := range el.Children {
+			offsetElement(&el.Children[i], dx, dy)
+		}
 	}
 }
 
@@ -445,28 +452,32 @@ func (le *LayoutEngine) layoutAccent(node *Node, fontSize float64) *MathLayout {
 	return &MathLayout{Width: baseLay.Width, Height: baseLay.Height + fontSize*0.3, Elements: elements}
 }
 
-func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
+// layoutMatrixGrid lays out the matrix grid content without any surrounding
+// delimiters. Returns the grid layout plus bracket top/bottom coordinates
+// for external delimiter placement.
+func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *MathLayout, bracketTop, bracketBottom float64) {
 	if len(node.Args) == 0 {
-		return le.layoutText("[]", fontSize)
+		lay := le.layoutText("[]", fontSize)
+		return lay, fontSize, 0
 	}
 
 	elemFontSize := fontSize * 0.82
 	cols := inferMatrixColumns(len(node.Args))
-	rows := int(math.Ceil(float64(len(node.Args)) / float64(cols)))
+	rowCount := int(math.Ceil(float64(len(node.Args)) / float64(cols)))
 
-	grid := make([][]*MathLayout, rows)
+	gridCells := make([][]*MathLayout, rowCount)
 	colWidths := make([]float64, cols)
-	rowHeights := make([]float64, rows)
+	rowHeights := make([]float64, rowCount)
 
 	idx := 0
-	for r := 0; r < rows; r++ {
-		grid[r] = make([]*MathLayout, cols)
+	for r := 0; r < rowCount; r++ {
+		gridCells[r] = make([]*MathLayout, cols)
 		for c := 0; c < cols; c++ {
 			if idx >= len(node.Args) {
 				break
 			}
 			cellLay := le.layoutNode(node.Args[idx], elemFontSize)
-			grid[r][c] = cellLay
+			gridCells[r][c] = cellLay
 			if cellLay.Width > colWidths[c] {
 				colWidths[c] = cellLay.Width
 			}
@@ -480,11 +491,10 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 
 	colGap := fontSize * 0.45
 	rowGap := fontSize * 0.30
-	delimW := fontSize * 0.35
 
-	// Calculate total grid height for dynamic bracket sizing and centering
+	// Calculate total grid height
 	totalGridHeight := 0.0
-	for r := 0; r < rows; r++ {
+	for r := 0; r < rowCount; r++ {
 		totalGridHeight += rowHeights[r]
 		if r > 0 {
 			totalGridHeight += rowGap
@@ -496,8 +506,8 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 	yShift := mathAxis + (totalGridHeight-rowHeights[0])/2
 
 	// Bracket top/bottom relative to baseline
-	bracketTop := yShift + rowHeights[0]*0.7
-	bracketBottom := yShift - totalGridHeight + rowHeights[0]*0.3
+	bTop := yShift + rowHeights[0]*0.7
+	bBottom := yShift - totalGridHeight + rowHeights[0]*0.3
 
 	innerW := 0.0
 	for c := 0; c < cols; c++ {
@@ -509,23 +519,22 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 
 	var elements []MathElement
 
-	// Left paren drawn as thin lines
-	elements = append(elements, makeParenLeft(delimW*0.8, bracketTop, bracketBottom))
-
+	// Column X positions (no delimiter offset — grid starts at x=0)
+	padding := fontSize * 0.12
 	colX := make([]float64, cols)
-	x := delimW + fontSize*0.12
+	x := padding
 	for c := 0; c < cols; c++ {
 		colX[c] = x
 		x += colWidths[c] + colGap
 	}
 
 	y := yShift
-	for r := 0; r < rows; r++ {
+	for r := 0; r < rowCount; r++ {
 		if r > 0 {
 			y -= rowHeights[r-1] + rowGap
 		}
 		for c := 0; c < cols; c++ {
-			cellLay := grid[r][c]
+			cellLay := gridCells[r][c]
 			if cellLay == nil {
 				continue
 			}
@@ -537,15 +546,40 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 		}
 	}
 
-	rightX := delimW + fontSize*0.12 + innerW + fontSize*0.10
+	totalW := padding + innerW + padding
+	halfSpan := totalGridHeight/2 + fontSize*0.35
+
+	lay := &MathLayout{Width: totalW, Height: halfSpan + mathAxis, Depth: halfSpan - mathAxis, Elements: elements}
+	return lay, bTop, bBottom
+}
+
+func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
+	gridLay, bracketTop, bracketBottom := le.layoutMatrixGrid(node, fontSize)
+	if len(node.Args) == 0 {
+		return gridLay
+	}
+
+	delimW := fontSize * 0.35
+
+	var elements []MathElement
+
+	// Left paren drawn as thin lines
+	elements = append(elements, makeParenLeft(delimW*0.8, bracketTop, bracketBottom))
+
+	// Inner grid content, shifted right past the left delimiter
+	for _, el := range gridLay.Elements {
+		offsetElement(&el, delimW, 0)
+		elements = append(elements, el)
+	}
+
+	rightX := delimW + gridLay.Width
 
 	// Right paren drawn as thin lines
 	elements = append(elements, makeParenRight(rightX+delimW*0.2, bracketTop, bracketBottom))
 
 	totalW := rightX + delimW
-	halfSpan := totalGridHeight/2 + fontSize*0.35
 
-	return &MathLayout{Width: totalW, Height: halfSpan + mathAxis, Depth: halfSpan - mathAxis, Elements: elements}
+	return &MathLayout{Width: totalW, Height: gridLay.Height, Depth: gridLay.Depth, Elements: elements}
 }
 
 func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
@@ -615,6 +649,33 @@ func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
 	halfSpan := totalGridHeight/2 + fontSize*0.35
 
 	return &MathLayout{Width: totalW, Height: halfSpan + mathAxis, Depth: halfSpan - mathAxis, Elements: elements}
+}
+
+// findSingleMatrix looks through the LR node's args for a single matrix node,
+// skipping whitespace literals and sequence wrappers.
+func findSingleMatrix(args []*Node) *Node {
+	if len(args) == 1 {
+		arg := args[0]
+		if arg.Type == NodeMatrix {
+			return arg
+		}
+		// Unwrap sequence: look for a single non-space child that is a matrix
+		if arg.Type == NodeSequence {
+			var matNode *Node
+			for _, c := range arg.Children {
+				if c.Type == NodeLiteral && strings.TrimSpace(c.Value) == "" {
+					continue
+				}
+				if c.Type == NodeMatrix && matNode == nil {
+					matNode = c
+				} else {
+					return nil // multiple non-space children
+				}
+			}
+			return matNode
+		}
+	}
+	return nil
 }
 
 func inferMatrixColumns(argCount int) int {
@@ -814,9 +875,35 @@ func (le *LayoutEngine) layoutCancel(node *Node, fontSize float64) *MathLayout {
 
 func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 	delims := getLRDelimiters(node.FuncName)
+	delimW := fontSize * 0.3
+
+	// Special case: if the only child is a matrix (possibly wrapped in a sequence
+	// with whitespace), use the grid-only layout to avoid double brackets.
+	matNode := findSingleMatrix(node.Args)
+	if matNode != nil {
+		gridLay, bracketTop, bracketBottom := le.layoutMatrixGrid(matNode, fontSize)
+
+		var elements []MathElement
+
+		// Draw left delimiter
+		elements = append(elements, makeDelimiterElement(delims[0], 0, delimW, bracketTop, bracketBottom, fontSize))
+
+		// Grid content shifted right past delimiter
+		for _, el := range gridLay.Elements {
+			offsetElement(&el, delimW, 0)
+			elements = append(elements, el)
+		}
+
+		// Draw right delimiter
+		rightX := delimW + gridLay.Width
+		elements = append(elements, makeDelimiterElement(delims[1], rightX, delimW, bracketTop, bracketBottom, fontSize))
+
+		totalW := rightX + delimW
+		return &MathLayout{Width: totalW, Height: gridLay.Height, Depth: gridLay.Depth, Elements: elements}
+	}
+
 	innerLay := le.layoutSequence(node.Args, fontSize)
 
-	delimW := fontSize * 0.3
 	totalW := delimW*2 + innerLay.Width
 
 	// Bracket top/bottom relative to baseline
