@@ -124,10 +124,18 @@ func (p *Parser) parseExpr() *Node {
 		case TokenSuperscript:
 			p.advance()
 			right := p.parseAtom()
+			// Unwrap paren grouping — parens after ^ are for grouping, not display
+			if right != nil && right.Type == NodeGroup && right.Value == "" {
+				right = &Node{Type: NodeSequence, Children: right.Children}
+			}
 			left = &Node{Type: NodeSuperscript, Children: []*Node{left, right}}
 		case TokenSubscript:
 			p.advance()
 			right := p.parseAtom()
+			// Unwrap paren grouping — parens after _ are for grouping, not display
+			if right != nil && right.Type == NodeGroup && right.Value == "" {
+				right = &Node{Type: NodeSequence, Children: right.Children}
+			}
 			left = &Node{Type: NodeSubscript, Children: []*Node{left, right}}
 		case TokenSlash:
 			p.advance()

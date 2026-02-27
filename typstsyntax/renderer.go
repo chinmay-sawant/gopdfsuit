@@ -875,28 +875,38 @@ func (le *LayoutEngine) layoutCancel(node *Node, fontSize float64) *MathLayout {
 
 func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 	delims := getLRDelimiters(node.FuncName)
-	delimW := fontSize * 0.3
 
 	// Special case: if the only child is a matrix (possibly wrapped in a sequence
 	// with whitespace), use the grid-only layout to avoid double brackets.
 	matNode := findSingleMatrix(node.Args)
 	if matNode != nil {
-		gridLay, bracketTop, bracketBottom := le.layoutMatrixGrid(matNode, fontSize)
+		gridLay, _, _ := le.layoutMatrixGrid(matNode, fontSize)
+
+		innerSpan := gridLay.Height + gridLay.Depth
+		delimFontSize := lrDelimFontSize(innerSpan, fontSize)
+		delimW := delimFontSize * 0.35
+		// Position delimiter baseline so the glyph is vertically centered on the content.
+		// The glyph's visual center is at baseline + (ascender-descender)/2 ≈ baseline + 0.35*fs.
+		// The content center is at (Height - Depth) / 2.
+		delimY := (gridLay.Height-gridLay.Depth)/2 - delimFontSize*0.35
 
 		var elements []MathElement
 
-		// Draw left delimiter
-		elements = append(elements, makeDelimiterElement(delims[0], 0, delimW, bracketTop, bracketBottom, fontSize))
+		elements = append(elements, MathElement{
+			Type: ElemGlyph, Text: delims[0], FontSize: delimFontSize,
+			X: 0, Y: delimY, Width: delimW,
+		})
 
-		// Grid content shifted right past delimiter
 		for _, el := range gridLay.Elements {
 			offsetElement(&el, delimW, 0)
 			elements = append(elements, el)
 		}
 
-		// Draw right delimiter
 		rightX := delimW + gridLay.Width
-		elements = append(elements, makeDelimiterElement(delims[1], rightX, delimW, bracketTop, bracketBottom, fontSize))
+		elements = append(elements, MathElement{
+			Type: ElemGlyph, Text: delims[1], FontSize: delimFontSize,
+			X: rightX, Y: delimY, Width: delimW,
+		})
 
 		totalW := rightX + delimW
 		return &MathLayout{Width: totalW, Height: gridLay.Height, Depth: gridLay.Depth, Elements: elements}
@@ -904,26 +914,46 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 
 	innerLay := le.layoutSequence(node.Args, fontSize)
 
-	totalW := delimW*2 + innerLay.Width
+	innerSpan := innerLay.Height + innerLay.Depth
+	delimFontSize := lrDelimFontSize(innerSpan, fontSize)
+	delimW := delimFontSize * 0.35
 
-	// Bracket top/bottom relative to baseline
-	bracketTop := innerLay.Height + fontSize*0.1
-	bracketBottom := -innerLay.Depth - fontSize*0.1
+	totalW := delimW*2 + innerLay.Width
 
 	elements := make([]MathElement, 0)
 
-	// Draw left delimiter as thin lines
-	elements = append(elements, makeDelimiterElement(delims[0], 0, delimW, bracketTop, bracketBottom, fontSize))
+	// Position delimiter baseline so the glyph is vertically centered on the content
+	delimY := 0.0
+	if delimFontSize > fontSize*1.2 {
+		delimY = -innerLay.Depth - delimFontSize*0.25
+	}
+
+	elements = append(elements, MathElement{
+		Type: ElemGlyph, Text: delims[0], FontSize: delimFontSize,
+		X: 0, Y: delimY, Width: delimW,
+	})
 
 	for _, el := range innerLay.Elements {
 		offsetElement(&el, delimW, 0)
 		elements = append(elements, el)
 	}
 
-	// Draw right delimiter as thin lines
-	elements = append(elements, makeDelimiterElement(delims[1], delimW+innerLay.Width, delimW, bracketTop, bracketBottom, fontSize))
+	elements = append(elements, MathElement{
+		Type: ElemGlyph, Text: delims[1], FontSize: delimFontSize,
+		X: delimW + innerLay.Width, Y: delimY, Width: delimW,
+	})
 
 	return &MathLayout{Width: totalW, Height: innerLay.Height, Depth: innerLay.Depth, Elements: elements}
+}
+
+// lrDelimFontSize computes the delimiter font size for lr() based on content height.
+func lrDelimFontSize(innerSpan, fontSize float64) float64 {
+	if innerSpan <= fontSize*1.2 {
+		return fontSize
+	}
+	// A parenthesis glyph typically spans ~1.15x the em size.
+	// Scale so the rendered glyph roughly matches the content height.
+	return innerSpan * 0.85
 }
 
 func (le *LayoutEngine) layoutPrime(node *Node, fontSize float64) *MathLayout {
