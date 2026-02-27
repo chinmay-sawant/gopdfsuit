@@ -1209,7 +1209,7 @@ func fmtFloat(f float64) string {
 }
 
 // bracketLineWidth is a constant thin line width for all drawn brackets.
-const bracketLineWidth = 0.6
+const bracketLineWidth = 0.4
 
 // makeSquareBracketLeft draws a "[" bracket as 3 lines: top serif, vertical, bottom serif.
 // x is the right edge of the bracket area, top/bottom are relative Y coords.
