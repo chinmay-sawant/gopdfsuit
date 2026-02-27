@@ -495,14 +495,9 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 	mathAxis := fontSize * 0.25
 	yShift := mathAxis + (totalGridHeight-rowHeights[0])/2
 
-	// Dynamic bracket sizing: scale to cover entire grid height
-	delimFont := totalGridHeight / 0.85
-	if delimFont < fontSize*1.3 {
-		delimFont = fontSize * 1.3
-	}
-
-	// Bracket Y: position so bracket visual center aligns with math axis
-	bracketY := mathAxis - delimFont*0.25
+	// Bracket top/bottom relative to baseline
+	bracketTop := yShift + rowHeights[0]*0.7
+	bracketBottom := yShift - totalGridHeight + rowHeights[0]*0.3
 
 	innerW := 0.0
 	for c := 0; c < cols; c++ {
@@ -513,7 +508,9 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 	}
 
 	var elements []MathElement
-	elements = append(elements, MathElement{Type: ElemGlyph, Text: "(", FontSize: delimFont, X: 0, Y: bracketY, Width: delimW})
+
+	// Left paren drawn as thin lines
+	elements = append(elements, makeParenLeft(delimW*0.8, bracketTop, bracketBottom))
 
 	colX := make([]float64, cols)
 	x := delimW + fontSize*0.12
@@ -541,7 +538,9 @@ func (le *LayoutEngine) layoutMatrix(node *Node, fontSize float64) *MathLayout {
 	}
 
 	rightX := delimW + fontSize*0.12 + innerW + fontSize*0.10
-	elements = append(elements, MathElement{Type: ElemGlyph, Text: ")", FontSize: delimFont, X: rightX, Y: bracketY, Width: delimW})
+
+	// Right paren drawn as thin lines
+	elements = append(elements, makeParenRight(rightX+delimW*0.2, bracketTop, bracketBottom))
 
 	totalW := rightX + delimW
 	halfSpan := totalGridHeight/2 + fontSize*0.35
@@ -585,17 +584,15 @@ func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
 	mathAxis := fontSize * 0.25
 	yShift := mathAxis + (totalGridHeight-rowHeights[0])/2
 
-	// Dynamic bracket sizing: scale to cover entire grid height
-	delimFont := totalGridHeight / 0.85
-	if delimFont < fontSize*1.3 {
-		delimFont = fontSize * 1.3
-	}
-
-	// Bracket Y: position so bracket visual center aligns with math axis
-	bracketY := mathAxis - delimFont*0.25
+	// Bracket top/bottom relative to baseline
+	bracketTop := yShift + rowHeights[0]*0.7
+	bracketBottom := yShift - totalGridHeight + rowHeights[0]*0.3
+	serifLen := fontSize * 0.15
 
 	var elements []MathElement
-	elements = append(elements, MathElement{Type: ElemGlyph, Text: "[", FontSize: delimFont, X: 0, Y: bracketY, Width: delimW})
+
+	// Left square bracket drawn as thin lines
+	elements = append(elements, makeSquareBracketLeft(delimW*0.3, bracketTop, bracketBottom, serifLen))
 
 	y := yShift
 	for i, lay := range argLayouts {
@@ -610,7 +607,9 @@ func (le *LayoutEngine) layoutVector(node *Node, fontSize float64) *MathLayout {
 	}
 
 	rightX := contentX + innerW + fontSize*0.10
-	elements = append(elements, MathElement{Type: ElemGlyph, Text: "]", FontSize: delimFont, X: rightX, Y: bracketY, Width: delimW})
+
+	// Right square bracket drawn as thin lines
+	elements = append(elements, makeSquareBracketRight(rightX+delimW*0.7, bracketTop, bracketBottom, serifLen))
 
 	totalW := rightX + delimW
 	halfSpan := totalGridHeight/2 + fontSize*0.35
@@ -820,33 +819,22 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 	delimW := fontSize * 0.3
 	totalW := delimW*2 + innerLay.Width
 
-	// Scale delimiters to cover inner content
-	innerSpan := innerLay.Height + innerLay.Depth
-	delimFontSize := innerSpan / 0.85
-	if delimFontSize < fontSize*1.1 {
-		delimFontSize = fontSize * 1.1
-	}
-
-	// Center bracket vertically around the inner content midpoint
-	innerMid := (innerLay.Height - innerLay.Depth) / 2
-	bracketY := innerMid - delimFontSize*0.25
+	// Bracket top/bottom relative to baseline
+	bracketTop := innerLay.Height + fontSize*0.1
+	bracketBottom := -innerLay.Depth - fontSize*0.1
 
 	elements := make([]MathElement, 0)
 
-	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: delims[0], FontSize: delimFontSize,
-		X: 0, Y: bracketY, Width: delimW,
-	})
+	// Draw left delimiter as thin lines
+	elements = append(elements, makeDelimiterElement(delims[0], 0, delimW, bracketTop, bracketBottom, fontSize))
 
 	for _, el := range innerLay.Elements {
 		offsetElement(&el, delimW, 0)
 		elements = append(elements, el)
 	}
 
-	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: delims[1], FontSize: delimFontSize,
-		X: delimW + innerLay.Width, Y: bracketY, Width: delimW,
-	})
+	// Draw right delimiter as thin lines
+	elements = append(elements, makeDelimiterElement(delims[1], delimW+innerLay.Width, delimW, bracketTop, bracketBottom, fontSize))
 
 	return &MathLayout{Width: totalW, Height: innerLay.Height, Depth: innerLay.Depth, Elements: elements}
 }
@@ -1101,6 +1089,172 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 // fmtFloat formats a float64 for PDF with 2 decimal places.
 func fmtFloat(f float64) string {
 	return fmt.Sprintf("%.2f", f)
+}
+
+// bracketLineWidth is a constant thin line width for all drawn brackets.
+const bracketLineWidth = 0.6
+
+// makeSquareBracketLeft draws a "[" bracket as 3 lines: top serif, vertical, bottom serif.
+// x is the right edge of the bracket area, top/bottom are relative Y coords.
+func makeSquareBracketLeft(x, top, bottom, serifLen float64) MathElement {
+	return MathElement{
+		Type: ElemGroup, X: 0, Y: 0,
+		Children: []MathElement{
+			// vertical line
+			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+			// top serif
+			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x + serifLen, LineY2: top, LineWidth: bracketLineWidth},
+			// bottom serif
+			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x + serifLen, LineY2: bottom, LineWidth: bracketLineWidth},
+		},
+	}
+}
+
+// makeSquareBracketRight draws a "]" bracket as 3 lines.
+func makeSquareBracketRight(x, top, bottom, serifLen float64) MathElement {
+	return MathElement{
+		Type: ElemGroup, X: 0, Y: 0,
+		Children: []MathElement{
+			// vertical line
+			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+			// top serif
+			{Type: ElemLine, LineX1: x - serifLen, LineY1: top, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+			// bottom serif
+			{Type: ElemLine, LineX1: x - serifLen, LineY1: bottom, LineX2: x, LineY2: bottom, LineWidth: bracketLineWidth},
+		},
+	}
+}
+
+// makeParenLeft draws a "(" as a series of line segments approximating a curve.
+func makeParenLeft(x, top, bottom float64) MathElement {
+	mid := (top + bottom) / 2
+	h := top - bottom
+	// curve inward by a fraction of height
+	curve := h * 0.12
+	if curve < 1.5 {
+		curve = 1.5
+	}
+	// approximate with 4 segments
+	q1 := bottom + h*0.25
+	q3 := bottom + h*0.75
+	return MathElement{
+		Type: ElemGroup, X: 0, Y: 0,
+		Children: []MathElement{
+			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x - curve*0.5, LineY2: q3, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x - curve*0.5, LineY1: q3, LineX2: x - curve, LineY2: mid, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x - curve, LineY1: mid, LineX2: x - curve*0.5, LineY2: q1, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x - curve*0.5, LineY1: q1, LineX2: x, LineY2: bottom, LineWidth: bracketLineWidth},
+		},
+	}
+}
+
+// makeParenRight draws a ")" as a series of line segments approximating a curve.
+func makeParenRight(x, top, bottom float64) MathElement {
+	mid := (top + bottom) / 2
+	h := top - bottom
+	curve := h * 0.12
+	if curve < 1.5 {
+		curve = 1.5
+	}
+	q1 := bottom + h*0.25
+	q3 := bottom + h*0.75
+	return MathElement{
+		Type: ElemGroup, X: 0, Y: 0,
+		Children: []MathElement{
+			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x + curve*0.5, LineY2: q3, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x + curve*0.5, LineY1: q3, LineX2: x + curve, LineY2: mid, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x + curve, LineY1: mid, LineX2: x + curve*0.5, LineY2: q1, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x + curve*0.5, LineY1: q1, LineX2: x, LineY2: bottom, LineWidth: bracketLineWidth},
+		},
+	}
+}
+
+// makeVerticalLine draws a simple vertical line (used for |, ‖, etc.)
+func makeVerticalLine(x, top, bottom float64) MathElement {
+	return MathElement{
+		Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth,
+	}
+}
+
+// makeFloorLeft draws "⌊" — vertical line + bottom serif.
+func makeFloorLeft(x, top, bottom, serifLen float64) MathElement {
+	return MathElement{
+		Type: ElemGroup, X: 0, Y: 0,
+		Children: []MathElement{
+			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x + serifLen, LineY2: bottom, LineWidth: bracketLineWidth},
+		},
+	}
+}
+
+// makeFloorRight draws "⌋" — vertical line + bottom serif.
+func makeFloorRight(x, top, bottom, serifLen float64) MathElement {
+	return MathElement{
+		Type: ElemGroup, X: 0, Y: 0,
+		Children: []MathElement{
+			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x - serifLen, LineY1: bottom, LineX2: x, LineY2: bottom, LineWidth: bracketLineWidth},
+		},
+	}
+}
+
+// makeCeilLeft draws "⌈" — vertical line + top serif.
+func makeCeilLeft(x, top, bottom, serifLen float64) MathElement {
+	return MathElement{
+		Type: ElemGroup, X: 0, Y: 0,
+		Children: []MathElement{
+			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x + serifLen, LineY2: top, LineWidth: bracketLineWidth},
+		},
+	}
+}
+
+// makeCeilRight draws "⌉" — vertical line + top serif.
+func makeCeilRight(x, top, bottom, serifLen float64) MathElement {
+	return MathElement{
+		Type: ElemGroup, X: 0, Y: 0,
+		Children: []MathElement{
+			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x - serifLen, LineY1: top, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+		},
+	}
+}
+
+// makeDelimiterElement draws any delimiter as thin lines at the given position.
+func makeDelimiterElement(delim string, xStart, delimW, top, bottom, fontSize float64) MathElement {
+	serifLen := fontSize * 0.15
+	switch delim {
+	case "(":
+		return makeParenLeft(xStart+delimW*0.8, top, bottom)
+	case ")":
+		return makeParenRight(xStart+delimW*0.2, top, bottom)
+	case "[":
+		return makeSquareBracketLeft(xStart+delimW*0.3, top, bottom, serifLen)
+	case "]":
+		return makeSquareBracketRight(xStart+delimW*0.7, top, bottom, serifLen)
+	case "|":
+		return makeVerticalLine(xStart+delimW*0.5, top, bottom)
+	case "‖":
+		gap := fontSize * 0.08
+		return MathElement{
+			Type: ElemGroup, X: 0, Y: 0,
+			Children: []MathElement{
+				{Type: ElemLine, LineX1: xStart + delimW*0.5 - gap, LineY1: bottom, LineX2: xStart + delimW*0.5 - gap, LineY2: top, LineWidth: bracketLineWidth},
+				{Type: ElemLine, LineX1: xStart + delimW*0.5 + gap, LineY1: bottom, LineX2: xStart + delimW*0.5 + gap, LineY2: top, LineWidth: bracketLineWidth},
+			},
+		}
+	case "⌊":
+		return makeFloorLeft(xStart+delimW*0.3, top, bottom, serifLen)
+	case "⌋":
+		return makeFloorRight(xStart+delimW*0.7, top, bottom, serifLen)
+	case "⌈":
+		return makeCeilLeft(xStart+delimW*0.3, top, bottom, serifLen)
+	case "⌉":
+		return makeCeilRight(xStart+delimW*0.7, top, bottom, serifLen)
+	default:
+		// Fallback: draw as vertical line
+		return makeVerticalLine(xStart+delimW*0.5, top, bottom)
+	}
 }
 
 // escapePDFText escapes special characters for PDF literal strings.
