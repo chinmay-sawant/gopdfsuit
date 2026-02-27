@@ -880,17 +880,32 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 	// with whitespace), use the grid-only layout to avoid double brackets.
 	matNode := findSingleMatrix(node.Args)
 	if matNode != nil {
-		gridLay, _, _ := le.layoutMatrixGrid(matNode, fontSize)
+		gridLay, bracketTop, bracketBottom := le.layoutMatrixGrid(matNode, fontSize)
 
 		innerSpan := gridLay.Height + gridLay.Depth
 		delimFontSize := lrDelimFontSize(innerSpan, fontSize)
 		delimW := delimFontSize * 0.35
-		// Position delimiter baseline so the glyph is vertically centered on the content.
-		// The glyph's visual center is at baseline + (ascender-descender)/2 ≈ baseline + 0.35*fs.
-		// The content center is at (Height - Depth) / 2.
-		delimY := (gridLay.Height-gridLay.Depth)/2 - delimFontSize*0.35
 
 		var elements []MathElement
+
+		// Use line-drawn parentheses for "(" ")" to keep them thin
+		if delims[0] == "(" && delims[1] == ")" {
+			elements = append(elements, makeParenLeft(delimW*0.8, bracketTop, bracketBottom))
+
+			for _, el := range gridLay.Elements {
+				offsetElement(&el, delimW, 0)
+				elements = append(elements, el)
+			}
+
+			rightX := delimW + gridLay.Width
+			elements = append(elements, makeParenRight(rightX+delimW*0.2, bracketTop, bracketBottom))
+
+			totalW := rightX + delimW
+			return &MathLayout{Width: totalW, Height: gridLay.Height, Depth: gridLay.Depth, Elements: elements}
+		}
+
+		// For other delimiters (|, ‖, ⌊, ⌋, etc.) use font glyphs
+		delimY := (gridLay.Height-gridLay.Depth)/2 - delimFontSize*0.35
 
 		elements = append(elements, MathElement{
 			Type: ElemGlyph, Text: delims[0], FontSize: delimFontSize,
@@ -1211,6 +1226,9 @@ func fmtFloat(f float64) string {
 // bracketLineWidth is a constant thin line width for all drawn brackets.
 const bracketLineWidth = 0.4
 
+// parenLineWidth is a thinner line width specifically for curved parentheses.
+const parenLineWidth = 0.15
+
 // makeSquareBracketLeft draws a "[" bracket as 3 lines: top serif, vertical, bottom serif.
 // x is the right edge of the bracket area, top/bottom are relative Y coords.
 func makeSquareBracketLeft(x, top, bottom, serifLen float64) MathElement {
@@ -1257,10 +1275,10 @@ func makeParenLeft(x, top, bottom float64) MathElement {
 	return MathElement{
 		Type: ElemGroup, X: 0, Y: 0,
 		Children: []MathElement{
-			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x - curve*0.5, LineY2: q3, LineWidth: bracketLineWidth},
-			{Type: ElemLine, LineX1: x - curve*0.5, LineY1: q3, LineX2: x - curve, LineY2: mid, LineWidth: bracketLineWidth},
-			{Type: ElemLine, LineX1: x - curve, LineY1: mid, LineX2: x - curve*0.5, LineY2: q1, LineWidth: bracketLineWidth},
-			{Type: ElemLine, LineX1: x - curve*0.5, LineY1: q1, LineX2: x, LineY2: bottom, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x - curve*0.5, LineY2: q3, LineWidth: parenLineWidth},
+			{Type: ElemLine, LineX1: x - curve*0.5, LineY1: q3, LineX2: x - curve, LineY2: mid, LineWidth: parenLineWidth},
+			{Type: ElemLine, LineX1: x - curve, LineY1: mid, LineX2: x - curve*0.5, LineY2: q1, LineWidth: parenLineWidth},
+			{Type: ElemLine, LineX1: x - curve*0.5, LineY1: q1, LineX2: x, LineY2: bottom, LineWidth: parenLineWidth},
 		},
 	}
 }
@@ -1278,10 +1296,10 @@ func makeParenRight(x, top, bottom float64) MathElement {
 	return MathElement{
 		Type: ElemGroup, X: 0, Y: 0,
 		Children: []MathElement{
-			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x + curve*0.5, LineY2: q3, LineWidth: bracketLineWidth},
-			{Type: ElemLine, LineX1: x + curve*0.5, LineY1: q3, LineX2: x + curve, LineY2: mid, LineWidth: bracketLineWidth},
-			{Type: ElemLine, LineX1: x + curve, LineY1: mid, LineX2: x + curve*0.5, LineY2: q1, LineWidth: bracketLineWidth},
-			{Type: ElemLine, LineX1: x + curve*0.5, LineY1: q1, LineX2: x, LineY2: bottom, LineWidth: bracketLineWidth},
+			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x + curve*0.5, LineY2: q3, LineWidth: parenLineWidth},
+			{Type: ElemLine, LineX1: x + curve*0.5, LineY1: q3, LineX2: x + curve, LineY2: mid, LineWidth: parenLineWidth},
+			{Type: ElemLine, LineX1: x + curve, LineY1: mid, LineX2: x + curve*0.5, LineY2: q1, LineWidth: parenLineWidth},
+			{Type: ElemLine, LineX1: x + curve*0.5, LineY1: q1, LineX2: x, LineY2: bottom, LineWidth: parenLineWidth},
 		},
 	}
 }
