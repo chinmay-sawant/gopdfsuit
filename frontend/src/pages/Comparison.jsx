@@ -700,47 +700,9 @@ const Comparison = () => {
         </div>
       </section>
 
-      {/* Animation styles */}
+      {/* Grid layout styles */}
       <style>
         {`
-          @keyframes fadeInUp {
-            from {
-              opacity: 0;
-              transform: translate3d(0, 40px, 0);
-            }
-            to {
-              opacity: 1;
-              transform: translate3d(0, 0, 0);
-            }
-          }
-          
-          @keyframes fadeInScale {
-            from {
-              opacity: 0;
-              transform: scale(0.9);
-            }
-            to {
-              opacity: 1;
-              transform: scale(1);
-            }
-          }
-          
-          .animate-fadeInUp {
-            animation: fadeInUp 0.8s ease-out forwards;
-          }
-          
-          .animate-fadeInScale {
-            animation: fadeInScale 0.6s ease-out forwards;
-          }
-          
-          .stagger-animation {
-            opacity: 0;
-          }
-          
-          .stagger-animation.visible {
-            opacity: 1;
-          }
-          
           .comparison-cards-grid {
             display: grid;
             grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;

@@ -9,6 +9,7 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.9",
     "@react-oauth/google": "^0.13.4",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",

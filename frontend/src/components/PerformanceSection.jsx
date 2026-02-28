@@ -2,30 +2,19 @@
 
 const PerformanceSection = ({ isVisible }) => {
     return (
-        <>
+        <div className={`performance-wrapper animate-fadeInScale stagger-animation ${isVisible ? 'visible' : ''}`}>
             <h2
-                className={`animate-fadeInUp stagger-animation ${isVisible ? 'visible' : ''}`}
-                style={{
-                    color: 'hsl(var(--foreground))',
-                    marginBottom: '1rem',
-                    animationDelay: '0.4s',
-                }}
+                className="gradient-text section-heading"
+                style={{ animationDelay: '0.4s' }}
             >
                 🏃‍♂️ Performance
             </h2>
-            <p
-                className={`animate-fadeInUp stagger-animation ${isVisible ? 'visible' : ''}`}
-                style={{
-                    color: 'hsl(var(--muted-foreground))',
-                    marginBottom: '2rem',
-                    animationDelay: '0.6s',
-                }}
-            >
+            <p className="section-subheading" style={{ marginBottom: '2rem' }}>
                 Ultra-fast PDF generation with in-memory processing
             </p>
 
             {/* Performance Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            <div className="performance-stats-grid">
                 {[
                     { value: '~6.64 ms', label: 'Average Response', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
                     { value: '5.79 ms', label: 'Min Response', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
@@ -33,51 +22,22 @@ const PerformanceSection = ({ isVisible }) => {
                 ].map((stat, index) => (
                     <div
                         key={index}
-                        className={`animate-fadeInScale stagger-animation ${isVisible ? 'visible' : ''}`}
+                        className="performance-stat-card"
                         style={{
                             background: stat.bg,
-                            padding: '1rem',
-                            borderRadius: '8px',
-                            border: `1px solid ${stat.border}`,
-                            transition: 'all 0.3s ease',
-                            animationDelay: `${0.8 + index * 0.2}s`,
+                            borderColor: stat.border,
                         }}
                     >
-                        <div
-                            className="animate-pulse"
-                            style={{
-                                fontSize: '1.5rem',
-                                fontWeight: 'bold',
-                                color: stat.color,
-                                animationDelay: `${2 + index * 0.5}s`,
-                            }}
-                        >
+                        <div className="performance-stat-value" style={{ color: stat.color }}>
                             {stat.value}
                         </div>
-                        <div style={{ fontSize: '0.8rem', color: 'hsl(var(--muted-foreground))' }}>
-                            {stat.label}
-                        </div>
+                        <div className="performance-stat-label">{stat.label}</div>
                     </div>
                 ))}
             </div>
 
             {/* Sample Logs */}
-            <div style={{
-                background: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                padding: '1rem',
-                borderRadius: '8px',
-                fontFamily: 'monospace',
-                color: '#4ecdc4',
-                fontSize: '0.8rem',
-                textAlign: 'left',
-                maxHeight: '200px',
-                overflowY: 'auto',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'rgba(78, 205, 196, 0.5) hsl(var(--card))',
-            }}
-                className="custom-scrollbar"
-            >
+            <div className="performance-logs custom-scrollbar">
                 <div style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Recent Performance Logs:</div>
                 [GIN] 2026/01/31 - 22:45:10 | 200 |       7.18ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
                 [GIN] 2026/01/31 - 22:45:11 | 200 |       6.47ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
@@ -93,20 +53,14 @@ const PerformanceSection = ({ isVisible }) => {
                 [GIN] 2026/01/31 - 22:45:17 | 200 |       6.88ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;<br />
                 [GIN] 2026/01/31 - 22:45:17 | 200 |       6.42ms |             ::1 | POST     &quot;/api/v1/generate/template-pdf&quot;
             </div>
-            <p style={{
-                color: 'hsl(var(--muted-foreground))',
-                marginTop: '1rem',
-                fontSize: '0.85rem',
-                marginBottom: 0,
-                lineHeight: 1.6,
-            }}>
+            <p className="performance-disclaimer">
                 Benchmarks for PDF generation with PDF/A compliance, font embedding, digital signatures, bookmarks, and internal links.
                 <br />
                 <span style={{ fontSize: '0.75rem', fontStyle: 'italic', opacity: 0.8 }}>
                     * Results may vary based on selected options, hardware configuration, data complexity, and network conditions.
                 </span>
             </p>
-        </>
+        </div>
     )
 }
 
