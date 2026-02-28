@@ -80,6 +80,7 @@ def _python_to_json_key(key: str) -> str:
         "crop_y": "crop_y",
         "display_name": "displayName",
         "max_per_file": "MaxPerFile",
+        "math_enabled": "mathEnabled",
     }
     return mapping.get(key, key)
 
@@ -236,6 +237,8 @@ class Cell:
     text_color: Optional[str] = None
     link: Optional[str] = None
     wrap: Optional[bool] = None
+    dest: Optional[str] = None
+    math_enabled: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = _to_dict(self)
