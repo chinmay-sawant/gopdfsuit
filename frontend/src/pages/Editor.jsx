@@ -38,7 +38,7 @@ export default function Editor() {
 
   const [copiedId, setCopiedId] = useState(null)
   const [clipboard, setClipboard] = useState(null)
-  const [templateInput, setTemplateInput] = useState('')
+  const [templateInput, setTemplateInput] = useState('editor/financial_report.json')
   const canvasRef = useRef(null)
   const [toasts, setToasts] = useState([])
   const { menuState, showMenu, hideMenu } = useContextMenu()
@@ -186,11 +186,15 @@ export default function Editor() {
     let newCellData = { ...currentCell }
 
     if (type === 'checkbox') {
-      newCellData = { props: defaultProps, chequebox: true, text: undefined, image: undefined, form_field: undefined }
+      newCellData = { props: defaultProps, form_field: { name: `checkbox_${Date.now()}`, checked: false, type: 'checkbox' }, text: undefined, image: undefined, chequebox: undefined }
+    } else if (type === 'checkbox_simple') {
+      newCellData = { props: defaultProps, chequebox: false, text: undefined, image: undefined, form_field: undefined }
     } else if (type === 'text_input') {
       newCellData = { props: defaultProps, form_field: { name: `field_${Date.now()}`, value: '', type: 'text' }, text: undefined, image: undefined, chequebox: undefined }
     } else if (type === 'radio') {
       newCellData = { props: defaultProps, form_field: { name: `radio_${Date.now()}`, checked: false, type: 'radio' }, text: undefined, image: undefined, chequebox: undefined }
+    } else if (type === 'radio_simple') {
+      newCellData = { props: defaultProps, radio: false, text: undefined, image: undefined, form_field: undefined, chequebox: undefined }
     } else if (type === 'image') {
       newCellData = { props: defaultProps, image: { imagename: '', imagedata: null, width: 100, height: 80 }, text: undefined, chequebox: undefined, form_field: undefined }
     } else if (type === 'hyperlink') {

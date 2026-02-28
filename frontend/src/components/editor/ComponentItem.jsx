@@ -699,6 +699,26 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                                 }}
                                                                 style={inputStyle}
                                                             />
+                                                        ) : cell.radio !== undefined ? (
+                                                            <input
+                                                                type="radio"
+                                                                checked={cell.radio}
+                                                                onChange={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const newRows = [...element.rows]
+                                                                    newRows[rowIdx].row[colIdx] = {
+                                                                        ...newRows[rowIdx].row[colIdx],
+                                                                        radio: e.target.checked
+                                                                    }
+                                                                    onUpdate({ rows: newRows })
+                                                                }}
+                                                                onFocus={() => handleCellClick(rowIdx, colIdx)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleCellClick(rowIdx, colIdx)
+                                                                }}
+                                                                style={inputStyle}
+                                                            />
                                                         ) : cell.image !== undefined ? (
                                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '4px' }}>
                                                                 {cell.image.imagedata ? (

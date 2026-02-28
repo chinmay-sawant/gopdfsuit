@@ -203,8 +203,14 @@ function getMenuItems(targetType, targetData, handlers, clipboard, hasTitle, onH
         </SubMenu>,
         <MenuSeparator key="s3" />,
         <SubMenu key="insertcell" label="Insert Into Cell" icon="📥">
-          <MenuItem label="Checkbox" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'checkbox')} onHide={onHide} />
-          <MenuItem label="Radio Button" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'radio')} onHide={onHide} />
+          <SubMenu label="Checkbox" icon="☑️">
+            <MenuItem label="Form Field" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'checkbox')} onHide={onHide} />
+            <MenuItem label="Simple" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'checkbox_simple')} onHide={onHide} />
+          </SubMenu>
+          <SubMenu label="Radio Button" icon="🔘">
+            <MenuItem label="Form Field" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'radio')} onHide={onHide} />
+            <MenuItem label="Simple" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'radio_simple')} onHide={onHide} />
+          </SubMenu>
           <MenuItem label="Text Input" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'text_input')} onHide={onHide} />
           <MenuItem label="Image" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'image')} onHide={onHide} />
           <MenuItem label="Hyperlink" onClick={() => handlers.insertField(elementId, rowIdx, colIdx, 'hyperlink')} onHide={onHide} />

@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect } from 'react'
-import { Upload, Moon, Sun, Eye, Download, Copy, Check, Edit } from 'lucide-react'
+import { Upload, Moon, Sun, Eye, Download, Copy, Check, Edit, Github, HardDrive, FolderOpen } from 'lucide-react'
 
 export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, onDownloadPDF, templateInput, setTemplateInput, copiedId, elementCount = 0, pageSize = 'A4', onUploadFont }) {
     const fileInputRef = useRef(null)
     const [githubFiles, setGithubFiles] = useState([])
-    const [loadMethod, setLoadMethod] = useState('local')
+    const [loadMethod, setLoadMethod] = useState('github')
 
     useEffect(() => {
         fetch('https://api.github.com/repos/chinmay-sawant/gopdfsuit/git/trees/master?recursive=1')
@@ -24,10 +24,24 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
         const file = e.target.files?.[0]
         if (file) {
             onUploadFont?.(file)
-            // Reset input so same file can be uploaded again if needed
             e.target.value = ''
         }
     }
+
+    const toggleBtnStyle = (active) => ({
+        padding: '0.3rem 0.6rem',
+        fontSize: '0.78rem',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.3rem',
+        fontWeight: active ? '600' : '400',
+        background: active ? 'hsl(var(--primary))' : 'transparent',
+        color: active ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+        transition: 'all 0.15s ease'
+    })
 
     return (
         <div style={{
@@ -46,54 +60,120 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <select
-                    value={loadMethod}
-                    onChange={(e) => {
-                        setLoadMethod(e.target.value)
-                        setTemplateInput('')
-                    }}
-                    style={{ padding: '0.4rem 0.6rem', fontSize: '0.9rem', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
-                >
-                    <option value="local">Local</option>
-                    <option value="github">GitHub</option>
-                </select>
+                {/* Load Section - grouped with border */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.3rem',
+                    borderRadius: '8px',
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--muted) / 0.5)'
+                }}>
+                    {/* Segmented Toggle */}
+                    <div style={{
+                        display: 'flex',
+                        borderRadius: '6px',
+                        background: 'hsl(var(--muted))',
+                        padding: '2px',
+                        gap: '2px'
+                    }}>
+                        <button
+                            onClick={() => {
+                                setLoadMethod('github')
+                                if (loadMethod !== 'github') setTemplateInput('editor/financial_report.json')
+                            }}
+                            style={toggleBtnStyle(loadMethod === 'github')}
+                            title="Load from GitHub repository"
+                        >
+                            <Github size={13} /> GitHub
+                        </button>
+                        <button
+                            onClick={() => {
+                                setLoadMethod('local')
+                                if (loadMethod !== 'local') setTemplateInput('')
+                            }}
+                            style={toggleBtnStyle(loadMethod === 'local')}
+                            title="Load from local server"
+                        >
+                            <HardDrive size={13} /> Local
+                        </button>
+                    </div>
 
-                {loadMethod === 'local' ? (
-                    <input
-                        type="text"
-                        value={templateInput}
-                        onChange={(e) => setTemplateInput(e.target.value)}
-                        placeholder="Load template file..."
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.9rem', minWidth: '180px', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
-                    />
-                ) : (
-                    <select
-                        value={templateInput}
-                        onChange={(e) => setTemplateInput(e.target.value)}
-                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.9rem', minWidth: '180px', borderRadius: '4px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
+                    {/* File Picker */}
+                    {loadMethod === 'local' ? (
+                        <input
+                            type="text"
+                            value={templateInput}
+                            onChange={(e) => setTemplateInput(e.target.value)}
+                            placeholder="Enter template path..."
+                            style={{
+                                padding: '0.35rem 0.6rem',
+                                fontSize: '0.8rem',
+                                minWidth: '200px',
+                                borderRadius: '5px',
+                                border: '1px solid hsl(var(--border))',
+                                background: 'hsl(var(--background))',
+                                color: 'hsl(var(--foreground))',
+                                outline: 'none'
+                            }}
+                        />
+                    ) : (
+                        <select
+                            value={templateInput}
+                            onChange={(e) => setTemplateInput(e.target.value)}
+                            style={{
+                                padding: '0.35rem 0.6rem',
+                                fontSize: '0.8rem',
+                                minWidth: '220px',
+                                borderRadius: '5px',
+                                border: '1px solid hsl(var(--border))',
+                                background: 'hsl(var(--background))',
+                                color: 'hsl(var(--foreground))',
+                                outline: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value="">Select a template...</option>
+                            {githubFiles.map(f => (
+                                <option key={f} value={f}>{f}</option>
+                            ))}
+                        </select>
+                    )}
+
+                    {/* Load Button */}
+                    <button
+                        onClick={() => onLoadTemplate(templateInput, loadMethod)}
+                        className="btn"
+                        style={{
+                            padding: '0.35rem 0.7rem',
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            borderRadius: '5px',
+                            fontWeight: '500'
+                        }}
                     >
-                        <option value="">Select a file...</option>
-                        {githubFiles.map(f => (
-                            <option key={f} value={f}>{f}</option>
-                        ))}
-                    </select>
-                )}
-                <button onClick={() => onLoadTemplate(templateInput, loadMethod)} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <Upload size={14} /> Load
-                </button>
-                <button onClick={onPreviewPDF} className="btn primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--secondary-color)', color: 'white' }}>
+                        <FolderOpen size={13} /> Load
+                    </button>
+                </div>
+
+                <div style={{ width: '1px', height: '24px', background: 'hsl(var(--border))' }}></div>
+
+                <button onClick={onPreviewPDF} className="btn primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--secondary-color)', color: 'white', borderRadius: '6px', fontWeight: '500' }}>
                     <Eye size={14} /> Preview
                 </button>
-                <button onClick={onDownloadPDF} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <button onClick={onDownloadPDF} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '6px' }}>
                     <Download size={14} /> Generate
                 </button>
                 <button
                     onClick={() => fileInputRef.current?.click()}
                     className="btn"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '6px' }}
                     title="Upload custom font (.ttf or .otf)"
                 >
-                    <Upload size={14} /> Upload Font
+                    <Upload size={14} /> Font
                 </button>
                 <input
                     ref={fileInputRef}
@@ -102,11 +182,11 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                     style={{ display: 'none' }}
                     onChange={handleFontUpload}
                 />
-                <button onClick={onCopyJSON} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <button onClick={onCopyJSON} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '6px' }}>
                     {copiedId === 'json' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
                 </button>
 
-                <div style={{ width: '1px', height: '20px', background: 'hsl(var(--border))', margin: '0 0.5rem' }}></div>
+                <div style={{ width: '1px', height: '24px', background: 'hsl(var(--border))' }}></div>
 
                 <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="btn icon-only" title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
                     {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
