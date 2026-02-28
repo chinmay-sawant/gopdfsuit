@@ -11,9 +11,11 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
             .then(res => res.json())
             .then(data => {
                 if (data && data.tree) {
+                    const skipFolders = ['benchmarks/', 'gopdflib/'];
                     const jsonFiles = data.tree
                         .filter(f => f.type === 'blob' && f.path.startsWith('sampledata/') && f.path.endsWith('.json'))
-                        .map(f => f.path.substring('sampledata/'.length));
+                        .map(f => f.path.substring('sampledata/'.length))
+                        .filter(f => !skipFolders.some(skip => f.startsWith(skip)));
                     setGithubFiles(jsonFiles);
                 }
             })
@@ -121,7 +123,10 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                     ) : (
                         <select
                             value={templateInput}
-                            onChange={(e) => setTemplateInput(e.target.value)}
+                            onChange={(e) => {
+                                setTemplateInput(e.target.value)
+                                if (e.target.value) onLoadTemplate(e.target.value, 'github')
+                            }}
                             style={{
                                 padding: '0.35rem 0.6rem',
                                 fontSize: '0.8rem',

@@ -19,6 +19,10 @@ import Toolbar from '../components/editor/Toolbar'
 import ContextMenu from '../components/shortcut/ContextMenu'
 import useContextMenu from '../components/shortcut/useContextMenu'
 
+// Module-level font cache — cleared on any page refresh (hard or soft)
+let _fontsCache = null
+let _fontsFetchPromise = null
+
 export default function Editor() {
   const { theme, setTheme } = useTheme()
   const { getAuthHeaders, triggerLogin } = useAuth()
@@ -52,28 +56,38 @@ export default function Editor() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
-  // Fetch fonts from API on component mount
+  // Fetch fonts from API on component mount (module-level cache, single request)
   useEffect(() => {
-    const fetchFonts = async () => {
-      try {
-        const response = await makeAuthenticatedRequest(
+    const loadFonts = async () => {
+      if (_fontsCache) {
+        setFonts(_fontsCache)
+        return
+      }
+      if (!_fontsFetchPromise) {
+        _fontsFetchPromise = makeAuthenticatedRequest(
           '/api/v1/fonts',
           {},
           isAuthRequired() ? getAuthHeaders : null
-        )
-        if (response.ok) {
-          const data = await response.json()
-          if (data.fonts && Array.isArray(data.fonts)) {
-            setFonts(data.fonts)
+        ).then(async (response) => {
+          if (response.ok) {
+            const data = await response.json()
+            if (data.fonts && Array.isArray(data.fonts)) {
+              _fontsCache = data.fonts
+              return data.fonts
+            }
           }
-        } else {
           console.warn('Failed to fetch fonts, using defaults')
-        }
-      } catch (error) {
-        console.error('Error fetching fonts:', error)
+          return null
+        }).catch((error) => {
+          console.error('Error fetching fonts:', error)
+          _fontsFetchPromise = null
+          return null
+        })
       }
+      const fonts = await _fontsFetchPromise
+      if (fonts) setFonts(fonts)
     }
-    fetchFonts()
+    loadFonts()
   }, [getAuthHeaders])
 
   // Get all elements in order for display
@@ -970,7 +984,9 @@ export default function Editor() {
               if (response.ok) {
                 const data = await response.json()
                 showToast(`Font "${data.name}" uploaded successfully!`, 'success')
-                // Refresh fonts list
+                // Refresh fonts list (invalidate cache)
+                _fontsCache = null
+                _fontsFetchPromise = null
                 const fontsResponse = await makeAuthenticatedRequest(
                   '/api/v1/fonts',
                   {},
@@ -979,6 +995,7 @@ export default function Editor() {
                 if (fontsResponse.ok) {
                   const fontsData = await fontsResponse.json()
                   if (fontsData.fonts && Array.isArray(fontsData.fonts)) {
+                    _fontsCache = fontsData.fonts
                     setFonts(fontsData.fonts)
                   }
                 }
