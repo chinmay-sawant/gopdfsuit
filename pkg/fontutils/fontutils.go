@@ -198,7 +198,7 @@ func downloadFont(font MathFontInfo) error {
 	if err != nil {
 		return fmt.Errorf("download %s: %w", font.Name, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download %s: HTTP %d", font.Name, resp.StatusCode)
@@ -216,14 +216,16 @@ func downloadFont(font MathFontInfo) error {
 	limitedReader := io.LimitReader(resp.Body, maxFontSize)
 
 	_, err = io.Copy(tmpFile, limitedReader)
-	tmpFile.Close()
+	if closeErr := tmpFile.Close(); closeErr != nil && err == nil {
+		err = closeErr
+	}
 	if err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("write font file: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, destPath); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("rename temp file: %w", err)
 	}
 
