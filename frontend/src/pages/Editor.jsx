@@ -13,9 +13,11 @@ import PropertiesPanel from '../components/editor/PropertiesPanel'
 import JsonTemplate from '../components/editor/JsonTemplate'
 import ComponentItem from '../components/editor/ComponentItem'
 import { PAGE_SIZES, DEFAULT_FONTS, COMPONENT_TYPES } from '../components/editor/constants'
-import { getFontFamily, parsePageMargins } from '../components/editor/utils'
+import { getFontFamily, parsePageMargins, parseProps, formatProps } from '../components/editor/utils'
 
 import Toolbar from '../components/editor/Toolbar'
+import ContextMenu from '../components/shortcut/ContextMenu'
+import useContextMenu from '../components/shortcut/useContextMenu'
 
 export default function Editor() {
   const { theme, setTheme } = useTheme()
@@ -35,9 +37,11 @@ export default function Editor() {
   const [fonts, setFonts] = useState(DEFAULT_FONTS)
 
   const [copiedId, setCopiedId] = useState(null)
+  const [clipboard, setClipboard] = useState(null)
   const [templateInput, setTemplateInput] = useState('')
   const canvasRef = useRef(null)
   const [toasts, setToasts] = useState([])
+  const { menuState, showMenu, hideMenu } = useContextMenu()
 
   const showToast = (message, type = 'success', duration = 3000) => {
     const id = Date.now()
@@ -249,6 +253,276 @@ export default function Editor() {
     // Update selection to follow the dragged component
     const newId = `${draggedComponent.type}-${targetIndex}`
     setSelectedId(newId)
+  }
+
+  // --- Context Menu Handlers ---
+
+  // Find element by ID across title, components, footer
+  const findElementById = (id) => {
+    if (id === 'title') return title ? { ...title, type: 'title' } : null
+    if (id === 'footer') return footer ? { ...footer, type: 'footer' } : null
+    const idx = parseInt(id.split('-')[1])
+    const comp = components[idx]
+    return comp || null
+  }
+
+  const handleCopy = (id) => {
+    const el = findElementById(id)
+    if (!el) return
+    const type = id === 'title' ? 'title' : id === 'footer' ? 'footer' : el.type
+    setClipboard({ type, data: structuredClone(el) })
+    showToast('Copied to clipboard', 'success', 1500)
+  }
+
+  const handleCut = (id) => {
+    handleCopy(id)
+    handleDelete(id)
+  }
+
+  const handlePaste = (afterId) => {
+    if (!clipboard) return
+    const { type, data } = clipboard
+    const clone = structuredClone(data)
+
+    if (type === 'title') {
+      if (!title) setTitle(clone)
+      else showToast('Title already exists', 'error', 2000)
+    } else if (type === 'footer') {
+      if (!footer) setFooter(clone)
+      else showToast('Footer already exists', 'error', 2000)
+    } else {
+      // Insert after the target, or append at end
+      if (afterId && afterId !== 'title' && afterId !== 'footer') {
+        const idx = parseInt(afterId.split('-')[1])
+        const newComponents = [...components]
+        newComponents.splice(idx + 1, 0, clone)
+        setComponents(newComponents)
+      } else {
+        setComponents([...components, clone])
+      }
+    }
+  }
+
+  const handleDuplicate = (id) => {
+    const el = findElementById(id)
+    if (!el) return
+    const clone = structuredClone(el)
+
+    if (id === 'title') {
+      showToast('Cannot duplicate title — only one allowed', 'error', 2000)
+      return
+    }
+    if (id === 'footer') {
+      showToast('Cannot duplicate footer — only one allowed', 'error', 2000)
+      return
+    }
+
+    const idx = parseInt(id.split('-')[1])
+    const newComponents = [...components]
+    newComponents.splice(idx + 1, 0, clone)
+    setComponents(newComponents)
+  }
+
+  // Toggle style bit (0=bold, 1=italic, 2=underline) on an element's props
+  const handleToggleStyle = (id, bitIndex) => {
+    const el = findElementById(id)
+    if (!el) return
+
+    if (id === 'title' && el.table) {
+      // For title, toggle on the textprops
+      const parsed = parseProps(el.textprops || el.props)
+      const s = parsed.style.split('')
+      s[bitIndex] = s[bitIndex] === '1' ? '0' : '1'
+      handleUpdate(id, { textprops: formatProps({ ...parsed, style: s.join('') }) })
+    } else if (id === 'footer') {
+      const parsed = parseProps(el.props)
+      const s = parsed.style.split('')
+      s[bitIndex] = s[bitIndex] === '1' ? '0' : '1'
+      handleUpdate(id, { props: formatProps({ ...parsed, style: s.join('') }) })
+    }
+  }
+
+  // Toggle style on a specific cell
+  const handleToggleCellStyle = (elementId, rowIdx, colIdx, bitIndex) => {
+    const el = findElementById(elementId)
+    if (!el || !el.rows) return
+    const newRows = structuredClone(el.rows)
+    const cell = newRows[rowIdx]?.row?.[colIdx]
+    if (!cell) return
+    const parsed = parseProps(cell.props)
+    const s = parsed.style.split('')
+    s[bitIndex] = s[bitIndex] === '1' ? '0' : '1'
+    cell.props = formatProps({ ...parsed, style: s.join('') })
+    handleUpdate(elementId, { rows: newRows })
+  }
+
+  // Set alignment on element
+  const handleSetAlignment = (id, align) => {
+    const el = findElementById(id)
+    if (!el) return
+
+    if (id === 'title' && el.table) {
+      const parsed = parseProps(el.textprops || el.props)
+      handleUpdate(id, { textprops: formatProps({ ...parsed, align }) })
+    } else if (id === 'footer') {
+      const parsed = parseProps(el.props)
+      handleUpdate(id, { props: formatProps({ ...parsed, align }) })
+    }
+  }
+
+  // Set alignment on a cell
+  const handleSetCellAlignment = (elementId, rowIdx, colIdx, align) => {
+    const el = findElementById(elementId)
+    if (!el || !el.rows) return
+    const newRows = structuredClone(el.rows)
+    const cell = newRows[rowIdx]?.row?.[colIdx]
+    if (!cell) return
+    const parsed = parseProps(cell.props)
+    cell.props = formatProps({ ...parsed, align })
+    handleUpdate(elementId, { rows: newRows })
+  }
+
+  // Border presets for element props
+  const borderPresets = { none: [0, 0, 0, 0], all: [1, 1, 1, 1], box: [1, 1, 1, 1], bottom: [0, 0, 0, 1] }
+
+  const handleSetBorderPreset = (id, preset) => {
+    const el = findElementById(id)
+    if (!el) return
+    const borders = borderPresets[preset] || [0, 0, 0, 0]
+
+    if (id === 'title' && el.table) {
+      const parsed = parseProps(el.textprops || el.props)
+      handleUpdate(id, { textprops: formatProps({ ...parsed, borders }), props: formatProps({ ...parseProps(el.props), borders }) })
+    } else if (id === 'footer') {
+      const parsed = parseProps(el.props)
+      handleUpdate(id, { props: formatProps({ ...parsed, borders }) })
+    }
+  }
+
+  const handleSetCellBorderPreset = (elementId, rowIdx, colIdx, preset) => {
+    const el = findElementById(elementId)
+    if (!el || !el.rows) return
+    const borders = borderPresets[preset] || [0, 0, 0, 0]
+    const newRows = structuredClone(el.rows)
+    const cell = newRows[rowIdx]?.row?.[colIdx]
+    if (!cell) return
+    const parsed = parseProps(cell.props)
+    cell.props = formatProps({ ...parsed, borders })
+    handleUpdate(elementId, { rows: newRows })
+  }
+
+  // Add/remove rows and columns
+  const handleAddRow = (id) => {
+    const el = findElementById(id)
+    if (!el || !el.rows) return
+    const colCount = el.rows[0]?.row?.length || el.maxcolumns || 3
+    const newRow = { row: Array.from({ length: colCount }, () => ({ props: 'Helvetica:12:000:left:1:1:1:1', text: '' })) }
+    handleUpdate(id, { rows: [...el.rows, newRow] })
+  }
+
+  const handleAddColumn = (id) => {
+    const el = findElementById(id)
+    if (!el || !el.rows) return
+    const newRows = el.rows.map(r => ({
+      ...r,
+      row: [...r.row, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }]
+    }))
+    handleUpdate(id, { rows: newRows, maxcolumns: (el.maxcolumns || el.rows[0].row.length) + 1 })
+  }
+
+  const handleRemoveRow = (id) => {
+    const el = findElementById(id)
+    if (!el || !el.rows || el.rows.length <= 1) return
+    handleUpdate(id, { rows: el.rows.slice(0, -1) })
+  }
+
+  const handleRemoveColumn = (id) => {
+    const el = findElementById(id)
+    if (!el || !el.rows) return
+    const colCount = el.rows[0]?.row?.length || 0
+    if (colCount <= 1) return
+    const newRows = el.rows.map(r => ({ ...r, row: r.row.slice(0, -1) }))
+    handleUpdate(id, { rows: newRows, maxcolumns: Math.max(1, (el.maxcolumns || colCount) - 1) })
+  }
+
+  // Toggle text wrap on a cell
+  const handleToggleWrap = (elementId, rowIdx, colIdx) => {
+    const el = findElementById(elementId)
+    if (!el || !el.rows) return
+    const newRows = structuredClone(el.rows)
+    const cell = newRows[rowIdx]?.row?.[colIdx]
+    if (!cell) return
+    cell.wrap = !cell.wrap
+    handleUpdate(elementId, { rows: newRows })
+  }
+
+  // Insert form field into cell (used by context menu)
+  const handleInsertField = (elementId, rowIdx, colIdx, type) => {
+    const el = findElementById(elementId)
+    if (!el) return
+    handleCellDrop(el, elementId, (updates) => handleUpdate(elementId, updates), rowIdx, colIdx, type)
+  }
+
+  // Delete a specific row by index
+  const handleDeleteRow = (id, rowIdx) => {
+    const el = findElementById(id)
+    if (!el || !el.rows || el.rows.length <= 1) return
+    const newRows = el.rows.filter((_, i) => i !== rowIdx)
+    handleUpdate(id, { rows: newRows })
+  }
+
+  // Delete a specific column by index
+  const handleDeleteColumn = (id, colIdx) => {
+    const el = findElementById(id)
+    if (!el || !el.rows) return
+    const colCount = el.rows[0]?.row?.length || 0
+    if (colCount <= 1) return
+    const newRows = el.rows.map(r => ({ ...r, row: r.row.filter((_, i) => i !== colIdx) }))
+    handleUpdate(id, { rows: newRows, maxcolumns: Math.max(1, (el.maxcolumns || colCount) - 1) })
+  }
+
+  // Clear a specific cell (reset text and props)
+  const handleClearCell = (id, rowIdx, colIdx) => {
+    const el = findElementById(id)
+    if (!el || !el.rows) return
+    const newRows = structuredClone(el.rows)
+    const cell = newRows[rowIdx]?.row?.[colIdx]
+    if (!cell) return
+    cell.text = ''
+    cell.props = 'Helvetica:12:000:left:1:1:1:1'
+    delete cell.image
+    delete cell.checkbox
+    delete cell.radio
+    delete cell.hyperlink
+    delete cell.text_input
+    handleUpdate(id, { rows: newRows })
+  }
+
+  // Aggregate all context menu handlers
+  const contextMenuHandlers = {
+    cut: handleCut,
+    copy: handleCopy,
+    paste: handlePaste,
+    duplicate: handleDuplicate,
+    delete: handleDelete,
+    toggleStyle: handleToggleStyle,
+    toggleCellStyle: handleToggleCellStyle,
+    setAlignment: handleSetAlignment,
+    setCellAlignment: handleSetCellAlignment,
+    setBorderPreset: handleSetBorderPreset,
+    setCellBorderPreset: handleSetCellBorderPreset,
+    addRow: handleAddRow,
+    addColumn: handleAddColumn,
+    removeRow: handleRemoveRow,
+    removeColumn: handleRemoveColumn,
+    deleteRow: handleDeleteRow,
+    deleteColumn: handleDeleteColumn,
+    clearCell: handleClearCell,
+    toggleWrap: handleToggleWrap,
+    insertField: handleInsertField,
+    addElement: handleDropElement,
+    moveUp: (index) => handleMove(index, 'up'),
+    moveDown: (index) => handleMove(index, 'down')
   }
 
   // --- JSON Handling ---
@@ -556,6 +830,23 @@ export default function Editor() {
   // --- Keyboard Shortcuts ---
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Skip shortcuts when typing in input fields
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        // Only handle Ctrl+S to save JSON even in inputs
+        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+          e.preventDefault()
+          const element = document.createElement('a')
+          const file = new Blob([jsonText], { type: 'application/json' })
+          element.href = URL.createObjectURL(file)
+          element.download = 'template.json'
+          document.body.appendChild(element)
+          element.click()
+          document.body.removeChild(element)
+        }
+        return
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
         const element = document.createElement('a')
@@ -565,11 +856,69 @@ export default function Editor() {
         document.body.appendChild(element)
         element.click()
         document.body.removeChild(element)
+        return
+      }
+
+      if (!selectedId) return
+
+      const ctrl = e.metaKey || e.ctrlKey
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        handleDelete(selectedId)
+      } else if (ctrl && e.key === 'c') {
+        e.preventDefault()
+        handleCopy(selectedId)
+      } else if (ctrl && e.key === 'x') {
+        e.preventDefault()
+        handleCut(selectedId)
+      } else if (ctrl && e.key === 'v') {
+        e.preventDefault()
+        handlePaste(selectedId)
+      } else if (ctrl && e.key === 'd') {
+        e.preventDefault()
+        handleDuplicate(selectedId)
+      } else if (ctrl && e.key === 'b') {
+        e.preventDefault()
+        if (selectedCell) {
+          handleToggleCellStyle(selectedCell.elementId, selectedCell.rowIdx, selectedCell.colIdx, 0)
+        } else {
+          handleToggleStyle(selectedId, 0)
+        }
+      } else if (ctrl && e.key === 'i') {
+        e.preventDefault()
+        if (selectedCell) {
+          handleToggleCellStyle(selectedCell.elementId, selectedCell.rowIdx, selectedCell.colIdx, 1)
+        } else {
+          handleToggleStyle(selectedId, 1)
+        }
+      } else if (ctrl && e.key === 'u') {
+        e.preventDefault()
+        if (selectedCell) {
+          handleToggleCellStyle(selectedCell.elementId, selectedCell.rowIdx, selectedCell.colIdx, 2)
+        } else {
+          handleToggleStyle(selectedId, 2)
+        }
+      } else if (e.altKey && e.key === 'ArrowUp') {
+        e.preventDefault()
+        const el = allElements.find(el => el.id === selectedId)
+        if (el && el.type !== 'title' && el.type !== 'footer') {
+          const idx = parseInt(selectedId.split('-')[1])
+          handleMove(idx, 'up')
+        }
+      } else if (e.altKey && e.key === 'ArrowDown') {
+        e.preventDefault()
+        const el = allElements.find(el => el.id === selectedId)
+        if (el && el.type !== 'title' && el.type !== 'footer') {
+          const idx = parseInt(selectedId.split('-')[1])
+          handleMove(idx, 'down')
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [jsonText])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jsonText, selectedId, selectedCell, clipboard, allElements, components, title, footer])
 
   return (
     <div style={{
@@ -722,6 +1071,7 @@ export default function Editor() {
                 if (COMPONENT_TYPES[type]) handleDropElement(type)
               }}
               onClick={() => { setSelectedId(null); setSelectedCell(null) }}
+              onContextMenu={(e) => showMenu(e, 'canvas', {})}
             >
               {/* Background Grid - only at top and left edge */}
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '20px', background: 'repeating-linear-gradient(90deg, transparent, transparent 49px, #f0f0f0 50px)', pointerEvents: 'none', opacity: 0.5 }} />
@@ -864,6 +1214,7 @@ export default function Editor() {
                           handleCellDrop={handleCellDrop}
                           currentPageSize={currentPageSize}
                           pageMargins={pageMargins}
+                          onContextMenu={showMenu}
                         />
 
                         {/* Drop Zone After Last Element */}
@@ -1048,6 +1399,15 @@ export default function Editor() {
           </div>
         </div>
       )}
+
+      {/* Context Menu */}
+      <ContextMenu
+        menuState={menuState}
+        onHide={hideMenu}
+        handlers={contextMenuHandlers}
+        clipboard={clipboard}
+        hasTitle={!!title}
+      />
 
       {/* Toast Notifications */}
       {toasts.map((toast, index) => (

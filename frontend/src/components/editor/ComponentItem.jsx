@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Image as ImageIcon, ChevronUp, ChevronDown, X, GripVertical } from 'lucide-react'
 import { getStyleFromProps, getImageSrc } from './utils'
 
-export default function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop, currentPageSize, pageMargins }) {
+export default function ComponentItem({ element, index, isSelected, onSelect, onUpdate, onMove, onDelete, canMoveUp, canMoveDown, selectedCell, onCellSelect, onDragStart, onDragEnd, onDrop, isDragging, draggedType, handleCellDrop, currentPageSize, pageMargins, onContextMenu }) {
     const [, setIsResizing] = useState(false)
 
     const handleClick = (e) => {
@@ -595,6 +595,11 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
                                                         key={colIdx}
                                                         style={cellContainerStyle}
                                                         onClick={(e) => handleCellClick(rowIdx, colIdx, e)}
+                                                        onContextMenu={(e) => {
+                                                            e.stopPropagation()
+                                                            handleCellClick(rowIdx, colIdx, e)
+                                                            onContextMenu?.(e, 'cell', { elementId: element.id, element, index, rowIdx, colIdx })
+                                                        }}
                                                         onDragOver={(e) => {
                                                             if (draggedType === 'checkbox' || draggedType === 'image' || draggedType === 'radio' || draggedType === 'text_input' || draggedType === 'hyperlink') {
                                                                 e.preventDefault()
@@ -913,6 +918,11 @@ export default function ComponentItem({ element, index, isSelected, onSelect, on
     return (
         <div
             onClick={handleClick}
+            onContextMenu={(e) => {
+                e.stopPropagation()
+                const type = element.type === 'title' ? 'title' : element.type === 'footer' ? 'footer' : element.type
+                onContextMenu?.(e, type, { elementId: element.id, element, index })
+            }}
             style={{
                 position: 'relative',
                 margin: '0',
