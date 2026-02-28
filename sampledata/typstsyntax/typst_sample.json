@@ -1,0 +1,1303 @@
+{
+  "config": {
+    "pageBorder": "0:0:0:0",
+    "pageMargin": "45:45:45:45",
+    "page": "A4",
+    "pageAlignment": 1,
+    "watermark": "",
+    "pdfaCompliant": false,
+    "arlingtonCompatible": false,
+    "embedFonts": false
+  },
+  "title": {
+    "props": "Helvetica:16:100:center:0:0:0:0",
+    "text": "Typst Syntax Equation Bank",
+    "table": {
+      "maxcolumns": 1,
+      "columnwidths": [1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:20:100:center:0:0:0:0",
+              "text": "Typst Syntax Equation Bank",
+              "bgcolor": "#0D1117",
+              "textcolor": "#79C0FF",
+              "height": 50
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:8:000:center:0:0:0:0",
+              "text": "70 equations across 5 categories — Calculus, Linear Algebra, Logic, Set Theory, Symbols & Operators",
+              "bgcolor": "#0D1117",
+              "textcolor": "#8B949E",
+              "height": 18
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "table": [
+    {
+      "maxcolumns": 1,
+      "columnwidths": [1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:11:100:left:1:1:1:1",
+              "text": "  CALCULUS",
+              "bgcolor": "#1A1E24",
+              "textcolor": "#FF7B72",
+              "height": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1.6, 3],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:8:100:center:1:0:0:1",
+              "text": "Category",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            },
+            {
+              "props": "Helvetica:8:100:center:0:1:0:1",
+              "text": "Expression",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Definite integral"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ integral_0^1 x^2 d x $",
+              "mathEnabled": true,
+              "height": 30
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Integral with fraction",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ integral_a^b frac(1, 1 + x^2) d x $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 34
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Improper integral"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ integral_(0)^oo e^(-x) d x $",
+              "mathEnabled": true,
+              "height": 30
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Double integral",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ integral.double_A f(x, y) d x d y $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 30
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Triple integral"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ integral.triple_V rho(x, y, z) d V $",
+              "mathEnabled": true,
+              "height": 30
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Contour integral",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ integral.cont_C F dot d r $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 30
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Partial derivative"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ partial f / partial x $",
+              "mathEnabled": true,
+              "height": 24
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "2nd partial derivative",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ partial^2 u / partial x^2 $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 24
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Limit"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ lim_(x -> 0) frac(sin x, x) = 1 $",
+              "mathEnabled": true,
+              "height": 34
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Euler limit",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ lim_(n -> oo) (1 + frac(1, n))^n = e $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 34
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Derivative notation"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ d/dx (x^3) = 3x^2 $",
+              "mathEnabled": true,
+              "height": 24
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Nabla divergence",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ nabla dot F = 0 $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Nabla curl"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ nabla times F = 0 $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Summation",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ sum_(k=1)^n k = frac(n(n+1), 2) $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 34
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Product (factorial)"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ product_(i=1)^n i = n! $",
+              "mathEnabled": true,
+              "height": 30
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:11:100:left:1:1:1:1",
+              "text": "  LINEAR ALGEBRA",
+              "bgcolor": "#1A1E24",
+              "textcolor": "#D2A8FF",
+              "height": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1.6, 3],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:8:100:center:1:0:0:1",
+              "text": "Category",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            },
+            {
+              "props": "Helvetica:8:100:center:0:1:0:1",
+              "text": "Expression",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Vector (3D)"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ vec(1, 2, 3) $",
+              "mathEnabled": true,
+              "height": 26
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Symbolic vector",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ vec(a, b, c) $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 26
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Identity matrix"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ mat(1, 0; 0, 1) $",
+              "mathEnabled": true,
+              "height": 28
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "2x2 matrix",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ mat(1, 2; 3, 4) $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 28
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Linear system"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A x = b $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Transpose product",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A^T A $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 24
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Determinant"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ det(A) = lambda_1 lambda_2 $",
+              "mathEnabled": true,
+              "height": 24
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Rank inequality",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ rank(A) <= n $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Kernel subset"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ ker(T) subset.eq V $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Image subset",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ im(T) subset.eq W $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Dot product"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ x dot y = 0 $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Cross product",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ x times y $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Norm (Euclidean)"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ norm(x) = sqrt(x_1^2 + x_2^2) $",
+              "mathEnabled": true,
+              "height": 28
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Delimited matrix",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ lr( mat(1, 0; 0, 1) ) $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 28
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "SVD decomposition"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A = U Sigma V^T $",
+              "mathEnabled": true,
+              "height": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:11:100:left:1:1:1:1",
+              "text": "  LOGIC",
+              "bgcolor": "#1A1E24",
+              "textcolor": "#7EE787",
+              "height": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1.6, 3],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:8:100:center:1:0:0:1",
+              "text": "Category",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            },
+            {
+              "props": "Helvetica:8:100:center:0:1:0:1",
+              "text": "Expression",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Universal & existential"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ forall x in RR, exists y in RR: y >= x $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Law of excluded middle",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ forall p, p or not p $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Conjunction elimination"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ p and q => p $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Biconditional",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ p iff q $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Implication"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ p implies q $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "De Morgan's law",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ not (p and q) iff (not p) or (not q) $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Turnstile"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ p tack q $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Semantic entailment",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ Gamma models phi $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Tautology / contradiction"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ top != bot $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Existential statement",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ exists x: P(x) $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Arrow notation"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ alpha -> beta $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Transitivity",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A <= B and B <= C => A <= C $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:11:100:left:1:1:1:1",
+              "text": "  SET THEORY",
+              "bgcolor": "#1A1E24",
+              "textcolor": "#FFA657",
+              "height": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1.6, 3],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:8:100:center:1:0:0:1",
+              "text": "Category",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            },
+            {
+              "props": "Helvetica:8:100:center:0:1:0:1",
+              "text": "Expression",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Element of"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ x in A $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Not element of",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ x in.not A $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Proper subset"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A subset B $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Subset or equal",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A subset.eq B $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Superset or equal"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A supset.eq B $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Union",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A union B $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Intersection"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A sect B $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Set difference",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ A \\ B $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Empty set"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ emptyset subset.eq A $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Number sets inclusion",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ RR^3 subset.eq CC^3 $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 24
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Number set chain"
+            },
+            {
+              "props": "Helvetica:11:000:left:0:1:0:1",
+              "text": "$ NN subset.eq ZZ subset.eq QQ subset.eq RR subset.eq CC $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Function mapping",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ f: A -> B $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Mapsto notation"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ f: A -> B, x mapsto f(x) $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 1,
+      "columnwidths": [1],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:11:100:left:1:1:1:1",
+              "text": "  SYMBOLS & OPERATORS",
+              "bgcolor": "#1A1E24",
+              "textcolor": "#79C0FF",
+              "height": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "maxcolumns": 2,
+      "columnwidths": [1.6, 3],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:8:100:center:1:0:0:1",
+              "text": "Category",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            },
+            {
+              "props": "Helvetica:8:100:center:0:1:0:1",
+              "text": "Expression",
+              "bgcolor": "#21262D",
+              "textcolor": "#C9D1D9"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Greek sum"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ alpha + beta = gamma $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Not equal",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ theta != pi $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Greater or equal"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ lambda >= 0 $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Less or equal",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ mu <= nu $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Approximately equal"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ xi approx zeta $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Equivalence",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ phi equiv psi $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Aleph / infinity"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ aleph_0 < oo $",
+              "mathEnabled": true,
+              "height": 24
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Reduced Planck const",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ hbar omega $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Angle notation"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ angle ABC = 90 degree $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Parallel lines",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ a parallel b $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Perpendicular lines"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ l perp m $",
+              "mathEnabled": true,
+              "height": 22
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Square root",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ sqrt(x^2 + y^2) $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 28
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Cube root"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ root(3, x) $",
+              "mathEnabled": true,
+              "height": 26
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Fraction",
+              "bgcolor": "#F6F8FA"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ frac(a+b, c-d) $",
+              "mathEnabled": true,
+              "bgcolor": "#F6F8FA",
+              "height": 30
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:9:000:left:1:0:0:1",
+              "text": "Combined accents"
+            },
+            {
+              "props": "Helvetica:12:000:left:0:1:0:1",
+              "text": "$ hat(x) + tilde(y) + bar(z) $",
+              "mathEnabled": true,
+              "height": 26
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "elements": [
+    { "type": "table", "index": 0 },
+    { "type": "table", "index": 1 },
+    { "type": "table", "index": 2 },
+    { "type": "table", "index": 3 },
+    { "type": "table", "index": 4 },
+    { "type": "table", "index": 5 },
+    { "type": "table", "index": 6 },
+    { "type": "table", "index": 7 },
+    { "type": "table", "index": 8 },
+    { "type": "table", "index": 9 }
+  ],
+  "footer": {
+    "font": "Helvetica:7:000:center",
+    "text": "TYPST SYNTAX EQUATION BANK  |  GOPDFSUIT  |  github.com/chinmay-sawant/gopdfsuit"
+  }
+}
