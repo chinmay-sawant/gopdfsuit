@@ -304,9 +304,16 @@ func (r *CustomFontRegistry) GetFontReference(name string) string {
 	return ""
 }
 
+const (
+	fontHelvetica            = "Helvetica"
+	fontHelveticaBold        = "Helvetica-Bold"
+	fontHelveticaOblique     = "Helvetica-Oblique"
+	fontHelveticaBoldOblique = "Helvetica-BoldOblique"
+)
+
 // standardFontSet is pre-allocated once to avoid per-call map allocation in IsCustomFont.
 var standardFontSet = map[string]bool{
-	"Helvetica": true, "Helvetica-Bold": true, "Helvetica-Oblique": true, "Helvetica-BoldOblique": true,
+	fontHelvetica: true, fontHelveticaBold: true, fontHelveticaOblique: true, fontHelveticaBoldOblique: true,
 	"Times-Roman": true, "Times-Bold": true, "Times-Italic": true, "Times-BoldItalic": true,
 	"Courier": true, "Courier-Bold": true, "Courier-Oblique": true, "Courier-BoldOblique": true,
 	"Symbol": true, "ZapfDingbats": true,
@@ -409,7 +416,7 @@ func (r *CustomFontRegistry) ResolveFontName(props models.Props) string {
 
 	// 2. Check if it's a known standard font name
 	switch props.FontName {
-	case "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique",
+	case fontHelvetica, fontHelveticaBold, fontHelveticaOblique, fontHelveticaBoldOblique,
 		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
 		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique",
 		"Symbol", "ZapfDingbats":
@@ -420,13 +427,13 @@ func (r *CustomFontRegistry) ResolveFontName(props models.Props) string {
 	var fallbackName string
 	switch {
 	case props.Bold && props.Italic:
-		fallbackName = "Helvetica-BoldOblique"
+		fallbackName = fontHelveticaBoldOblique
 	case props.Bold:
-		fallbackName = "Helvetica-Bold"
+		fallbackName = fontHelveticaBold
 	case props.Italic:
-		fallbackName = "Helvetica-Oblique"
+		fallbackName = fontHelveticaOblique
 	default:
-		fallbackName = "Helvetica"
+		fallbackName = fontHelvetica
 	}
 
 	return fallbackName

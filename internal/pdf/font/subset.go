@@ -775,10 +775,7 @@ func getCompositeComponentGIDs(data []byte) []uint16 {
 	var components []uint16
 	// Component data starts at offset 10 (after header: numContours + xMin + yMin + xMax + yMax)
 	pos := 10
-	for {
-		if pos+4 > len(data) {
-			break
-		}
+	for pos+4 <= len(data) {
 		flags := binary.BigEndian.Uint16(data[pos:])
 		glyphIndex := binary.BigEndian.Uint16(data[pos+2:])
 		components = append(components, glyphIndex)
@@ -792,11 +789,12 @@ func getCompositeComponentGIDs(data []byte) []uint16 {
 		}
 
 		// Skip transform data
-		if flags&compositeWeHaveAScale != 0 {
+		switch {
+		case flags&compositeWeHaveAScale != 0:
 			pos += 2 // one F2Dot14
-		} else if flags&compositeWeHaveAnXYScale != 0 {
+		case flags&compositeWeHaveAnXYScale != 0:
 			pos += 4 // two F2Dot14
-		} else if flags&compositeWeHaveATwoByTwo != 0 {
+		case flags&compositeWeHaveATwoByTwo != 0:
 			pos += 8 // four F2Dot14
 		}
 
@@ -844,10 +842,7 @@ func remapCompositeGIDs(data []byte, oldToNew map[uint16]uint16) {
 	}
 
 	pos := 10
-	for {
-		if pos+4 > len(data) {
-			break
-		}
+	for pos+4 <= len(data) {
 		flags := binary.BigEndian.Uint16(data[pos:])
 		oldGID := binary.BigEndian.Uint16(data[pos+2:])
 
@@ -863,11 +858,12 @@ func remapCompositeGIDs(data []byte, oldToNew map[uint16]uint16) {
 			pos += 2
 		}
 
-		if flags&compositeWeHaveAScale != 0 {
+		switch {
+		case flags&compositeWeHaveAScale != 0:
 			pos += 2
-		} else if flags&compositeWeHaveAnXYScale != 0 {
+		case flags&compositeWeHaveAnXYScale != 0:
 			pos += 4
-		} else if flags&compositeWeHaveATwoByTwo != 0 {
+		case flags&compositeWeHaveATwoByTwo != 0:
 			pos += 8
 		}
 
