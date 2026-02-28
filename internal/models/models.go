@@ -192,6 +192,10 @@ type Cell struct {
 	// Other cells can link to it using Link: "#dest-name".
 	// Bookmarks can also reference it via the Dest field.
 	Dest string `json:"dest,omitempty"`
+	// MathEnabled enables Typst math syntax rendering for this cell.
+	// When true, the cell's Text is parsed as Typst math (e.g., "$ A = pi r^2 $")
+	// and rendered as mathematical notation instead of plain text.
+	MathEnabled *bool `json:"mathEnabled,omitempty"`
 }
 
 // FormField represents a fillable component in a PDF form.

@@ -24,6 +24,10 @@ func SubsetTTF(font *TTFFont, usedGlyphs []uint16) ([]byte, map[uint16]uint16, e
 		}
 	}
 
+	// Resolve composite glyph dependencies: composite glyphs reference
+	// component glyphs by GID, so those components must also be in the subset.
+	addCompositeComponents(font, glyphSet)
+
 	// Convert to sorted slice
 	sortedGlyphs := make([]uint16, 0, len(glyphSet))
 	for glyph := range glyphSet {
@@ -261,6 +265,12 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 	var newGlyf bytes.Buffer
 	newOffsets := make([]uint32, len(glyphs)+1)
 
+	// Build old-to-new GID mapping for this subset
+	oldToNewGID := make(map[uint16]uint16)
+	for newIdx, oldGID := range glyphs {
+		oldToNewGID[oldGID] = uint16(newIdx)
+	}
+
 	for i, glyphID := range glyphs {
 		newOffsets[i] = uint32(newGlyf.Len())
 
@@ -279,7 +289,13 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 			if offset+length > uint32(len(glyfData)) {
 				length = uint32(len(glyfData)) - offset
 			}
-			newGlyf.Write(glyfData[offset : offset+length])
+			glyphBytes := make([]byte, length)
+			copy(glyphBytes, glyfData[offset:offset+length])
+
+			// Remap component GID references in composite glyphs
+			remapCompositeGIDs(glyphBytes, oldToNewGID)
+
+			newGlyf.Write(glyphBytes)
 
 			// Pad to even boundary for short loca format
 			if newGlyf.Len()%2 != 0 {
@@ -329,6 +345,7 @@ func subsetHmtx(font *TTFFont, glyphs []uint16) []byte {
 }
 
 // subsetCmap generates a format 4 cmap table with remapped glyph IDs
+//
 //nolint:gocyclo
 func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 	var buf bytes.Buffer
@@ -692,4 +709,166 @@ func CompressFontData(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// TrueType composite glyph flags (from OpenType spec)
+const (
+	compositeArg1And2AreWords   = 0x0001
+	compositeMoreComponents     = 0x0020
+	compositeWeHaveAScale       = 0x0008
+	compositeWeHaveAnXYScale    = 0x0040
+	compositeWeHaveATwoByTwo    = 0x0080
+	compositeWeHaveInstructions = 0x0100
+)
+
+// getGlyphData returns the raw glyf data for a given glyph ID using the loca table.
+func getGlyphData(font *TTFFont, glyphID uint16) []byte {
+	glyfTable, hasGlyf := font.Tables["glyf"]
+	locaTable, hasLoca := font.Tables["loca"]
+	if !hasGlyf || !hasLoca {
+		return nil
+	}
+
+	headTable := font.Tables["head"]
+	isShortLoca := font.RawData[headTable.Offset+50] == 0 && font.RawData[headTable.Offset+51] == 0
+
+	locaData := font.RawData[locaTable.Offset : locaTable.Offset+locaTable.Length]
+	glyfData := font.RawData[glyfTable.Offset : glyfTable.Offset+glyfTable.Length]
+
+	var offset, nextOffset uint32
+	if isShortLoca {
+		if int(glyphID)*2+2 > len(locaData) {
+			return nil
+		}
+		offset = uint32(binary.BigEndian.Uint16(locaData[int(glyphID)*2:])) * 2
+		nextOffset = uint32(binary.BigEndian.Uint16(locaData[int(glyphID)*2+2:])) * 2
+	} else {
+		if int(glyphID)*4+4 > len(locaData) {
+			return nil
+		}
+		offset = binary.BigEndian.Uint32(locaData[int(glyphID)*4:])
+		nextOffset = binary.BigEndian.Uint32(locaData[int(glyphID)*4+4:])
+	}
+
+	if nextOffset <= offset || offset >= uint32(len(glyfData)) {
+		return nil
+	}
+	length := nextOffset - offset
+	if offset+length > uint32(len(glyfData)) {
+		length = uint32(len(glyfData)) - offset
+	}
+	return glyfData[offset : offset+length]
+}
+
+// getCompositeComponentGIDs extracts the component glyph IDs referenced by a composite glyph.
+// Returns nil if the glyph is not composite.
+func getCompositeComponentGIDs(data []byte) []uint16 {
+	if len(data) < 10 {
+		return nil
+	}
+	// numberOfContours is the first int16; negative means composite
+	numContours := int16(binary.BigEndian.Uint16(data[0:2]))
+	if numContours >= 0 {
+		return nil // simple glyph
+	}
+
+	var components []uint16
+	// Component data starts at offset 10 (after header: numContours + xMin + yMin + xMax + yMax)
+	pos := 10
+	for pos+4 <= len(data) {
+		flags := binary.BigEndian.Uint16(data[pos:])
+		glyphIndex := binary.BigEndian.Uint16(data[pos+2:])
+		components = append(components, glyphIndex)
+		pos += 4
+
+		// Skip arguments (offsets/points)
+		if flags&compositeArg1And2AreWords != 0 {
+			pos += 4 // two int16 args
+		} else {
+			pos += 2 // two int8 args
+		}
+
+		// Skip transform data
+		switch {
+		case flags&compositeWeHaveAScale != 0:
+			pos += 2 // one F2Dot14
+		case flags&compositeWeHaveAnXYScale != 0:
+			pos += 4 // two F2Dot14
+		case flags&compositeWeHaveATwoByTwo != 0:
+			pos += 8 // four F2Dot14
+		}
+
+		if flags&compositeMoreComponents == 0 {
+			break
+		}
+	}
+	return components
+}
+
+// addCompositeComponents expands the glyph set to include all component glyphs
+// referenced by composite glyphs, recursively.
+func addCompositeComponents(font *TTFFont, glyphSet map[uint16]bool) {
+	// Iterate until no new glyphs are added (handles nested composites)
+	for {
+		added := false
+		for gid := range glyphSet {
+			data := getGlyphData(font, gid)
+			if data == nil {
+				continue
+			}
+			components := getCompositeComponentGIDs(data)
+			for _, compGID := range components {
+				if compGID < font.NumGlyphs && !glyphSet[compGID] {
+					glyphSet[compGID] = true
+					added = true
+				}
+			}
+		}
+		if !added {
+			break
+		}
+	}
+}
+
+// remapCompositeGIDs rewrites component glyph ID references in composite glyph data
+// to use the new GIDs from the subset mapping.
+func remapCompositeGIDs(data []byte, oldToNew map[uint16]uint16) {
+	if len(data) < 10 {
+		return
+	}
+	numContours := int16(binary.BigEndian.Uint16(data[0:2]))
+	if numContours >= 0 {
+		return // simple glyph, nothing to remap
+	}
+
+	pos := 10
+	for pos+4 <= len(data) {
+		flags := binary.BigEndian.Uint16(data[pos:])
+		oldGID := binary.BigEndian.Uint16(data[pos+2:])
+
+		if newGID, ok := oldToNew[oldGID]; ok {
+			binary.BigEndian.PutUint16(data[pos+2:], newGID)
+		}
+		_ = oldGID
+		pos += 4
+
+		if flags&compositeArg1And2AreWords != 0 {
+			pos += 4
+		} else {
+			pos += 2
+		}
+
+		switch {
+		case flags&compositeWeHaveAScale != 0:
+			pos += 2
+		case flags&compositeWeHaveAnXYScale != 0:
+			pos += 4
+		case flags&compositeWeHaveATwoByTwo != 0:
+			pos += 8
+		}
+
+		if flags&compositeMoreComponents == 0 {
+			break
+		}
+	}
 }
