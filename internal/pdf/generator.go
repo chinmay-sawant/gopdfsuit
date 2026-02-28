@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -133,6 +134,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			}
 		}
 	}
+
+	// Auto-resolve math fonts: scan for math-enabled cells referencing unregistered fonts
+	autoResolveMathFonts(template, fontRegistry)
 
 	// Initialize page manager with Arlington compatibility flag and per-generation font registry
 	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry)
@@ -1712,4 +1716,96 @@ func buildCellKeyElemInline(elemIdx, rowIdx, colIdx int) string {
 	bCol := strconv.AppendInt(buf[n:n], int64(colIdx), 10)
 	n += len(bCol)
 	return string(buf[:n])
+}
+
+// mathFontCandidates lists system font paths that support Unicode math glyphs.
+var mathFontCandidates = []string{
+	"/usr/share/fonts/truetype/noto/NotoSansMath-Regular.ttf",
+	"/usr/share/fonts/opentype/noto/NotoSansMath-Regular.otf",
+	"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+	"/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+}
+
+// autoResolveMathFonts scans the template for cells with mathEnabled=true that
+// reference a font not yet registered in the registry. When found, it attempts
+// to auto-discover a suitable math-capable system font and register it under
+// the requested name so that Unicode math symbols render correctly.
+func autoResolveMathFonts(template models.PDFTemplate, registry *CustomFontRegistry) {
+	needed := collectUnregisteredMathFontNames(template, registry)
+	if len(needed) == 0 {
+		return
+	}
+
+	// Find a suitable math font on the system
+	var fontPath string
+	for _, candidate := range mathFontCandidates {
+		if _, err := os.Stat(candidate); err == nil {
+			fontPath = candidate
+			break
+		}
+	}
+	if fontPath == "" {
+		return // no suitable font found on this system
+	}
+
+	for name := range needed {
+		if err := registry.RegisterFontFromFile(name, fontPath); err != nil {
+			fmt.Printf("Warning: auto-resolve math font %s failed: %v\n", name, err)
+		}
+	}
+}
+
+// collectUnregisteredMathFontNames scans all cells in the template for those
+// with mathEnabled=true and returns font names (from props) not already
+// registered in the font registry.
+func collectUnregisteredMathFontNames(template models.PDFTemplate, registry *CustomFontRegistry) map[string]struct{} {
+	needed := make(map[string]struct{})
+
+	checkCell := func(cell models.Cell) {
+		if cell.MathEnabled == nil || !*cell.MathEnabled {
+			return
+		}
+		if cell.Props == "" {
+			return
+		}
+		fontName := strings.SplitN(cell.Props, ":", 2)[0]
+		if fontName == "" {
+			return
+		}
+		if registry.HasFont(fontName) || IsStandardFont(fontName) {
+			return
+		}
+		needed[fontName] = struct{}{}
+	}
+
+	// Scan title table
+	if template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				checkCell(cell)
+			}
+		}
+	}
+
+	// Scan indexed tables
+	for _, tbl := range template.Table {
+		for _, row := range tbl.Rows {
+			for _, cell := range row.Row {
+				checkCell(cell)
+			}
+		}
+	}
+
+	// Scan element inline tables
+	for _, elem := range template.Elements {
+		if elem.Table != nil {
+			for _, row := range elem.Table.Rows {
+				for _, cell := range row.Row {
+					checkCell(cell)
+				}
+			}
+		}
+	}
+
+	return needed
 }

@@ -446,6 +446,98 @@ func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
 	s.compareFileSizes(tempPath, expectedPath)
 }
 
+// TestGenerateTypstMathShowcasePDF tests /api/v1/generate/template-pdf with typst_math_showcase.json
+func (s *IntegrationSuite) TestGenerateTypstMathShowcasePDF() {
+	baseDir := filepath.Join("..", "sampledata", "typstsyntax")
+	jsonPath := filepath.Join(baseDir, "typst_math_showcase.json")
+	jsonData, err := os.ReadFile(jsonPath)
+	s.NoError(err, "Failed to read typst_math_showcase.json")
+
+	resp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBuffer(jsonData))
+	s.NoError(err)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
+
+	body, err := io.ReadAll(resp.Body)
+	s.NoError(err)
+	s.Greater(len(body), 0, "Generated PDF should not be empty")
+
+	outPath := filepath.Join(baseDir, "typst_math_showcase.pdf")
+	err = os.WriteFile(outPath, body, 0644)
+	s.NoError(err, "Failed to write typst_math_showcase.pdf")
+
+	info, err := os.Stat(outPath)
+	s.NoError(err)
+	s.Greater(info.Size(), int64(0), "typst_math_showcase.pdf should have non-zero size")
+}
+
+// TestGenerateTypstSamplePDF tests /api/v1/generate/template-pdf with typst_sample.json
+func (s *IntegrationSuite) TestGenerateTypstSamplePDF() {
+	mathFontPath, ok := resolveMathFontPathIntegration()
+	if !ok {
+		s.T().Skip("no unicode math-capable font found (looked for DejaVu/Noto Math). Install fonts-dejavu-core or fonts-noto-math")
+	}
+
+	baseDir := filepath.Join("..", "sampledata", "typstsyntax")
+	jsonPath := filepath.Join(baseDir, "typst_sample.json")
+	jsonData, err := os.ReadFile(jsonPath)
+	s.NoError(err, "Failed to read typst_sample.json")
+
+	// Unmarshal, inject customFonts config with resolved font path, then re-marshal
+	var template models.PDFTemplate
+	err = json.Unmarshal(jsonData, &template)
+	s.NoError(err, "Failed to unmarshal typst_sample.json")
+
+	template.Config.CustomFonts = []models.CustomFontConfig{{
+		Name:     "MathUnicode",
+		FilePath: mathFontPath,
+	}}
+
+	modifiedJSON, err := json.Marshal(template)
+	s.NoError(err, "Failed to marshal modified template")
+
+	resp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBuffer(modifiedJSON))
+	s.NoError(err)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
+
+	body, err := io.ReadAll(resp.Body)
+	s.NoError(err)
+	s.Greater(len(body), 0, "Generated PDF should not be empty")
+
+	outPath := filepath.Join(baseDir, "typst_sample.pdf")
+	err = os.WriteFile(outPath, body, 0644)
+	s.NoError(err, "Failed to write typst_sample.pdf")
+
+	info, err := os.Stat(outPath)
+	s.NoError(err)
+	s.Greater(info.Size(), int64(0), "typst_sample.pdf should have non-zero size")
+}
+
+// resolveMathFontPathIntegration finds a unicode-capable math font on the system
+func resolveMathFontPathIntegration() (string, bool) {
+	candidates := []string{
+		"/usr/share/fonts/truetype/noto/NotoSansMath-Regular.ttf",
+		"/usr/share/fonts/opentype/noto/NotoSansMath-Regular.otf",
+		"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+		"/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+	}
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err == nil {
+			return path, true
+		}
+	}
+	return "", false
+}
+
 // Run the suite
 func TestIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(IntegrationSuite))
