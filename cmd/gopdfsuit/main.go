@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/fontutils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,6 +38,9 @@ func main() {
 			}()
 		}
 	}
+
+	// Ensure math fonts are available (downloads missing ones in background)
+	go fontutils.EnsureMathFonts()
 
 	// Use release mode to disable debug overhead
 	gin.SetMode(gin.ReleaseMode)
