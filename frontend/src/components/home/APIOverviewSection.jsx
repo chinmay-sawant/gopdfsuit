@@ -10,6 +10,9 @@ const restEndpoints = [
   { method: 'GET', path: '/api/v1/fonts', desc: 'List fonts' },
   { method: 'POST', path: '/api/v1/htmltopdf', desc: 'HTML to PDF' },
   { method: 'POST', path: '/api/v1/htmltoimage', desc: 'HTML to Image' },
+  { method: 'POST', path: '/api/v1/redact/page-info', desc: 'Get page info' },
+  { method: 'POST', path: '/api/v1/redact/search', desc: 'Search text for redaction' },
+  { method: 'POST', path: '/api/v1/redact/apply', desc: 'Apply redactions' },
 ]
 
 const webRoutes = [
@@ -22,6 +25,7 @@ const webRoutes = [
   { path: '/htmltoimage', desc: 'HTML to Image Converter' },
   { path: '/screenshots', desc: 'Screenshots Page' },
   { path: '/comparison', desc: 'Feature Comparison' },
+  { path: '/redact', desc: 'PDF Redaction Tool' },
 ]
 
 const APIOverviewSection = ({ isVisible }) => {

@@ -19,6 +19,7 @@ const featureCategories = [
       { name: 'Go Support (gopdflib)', desc: 'Direct Struct Access & HTTP API', color: '#ffc107' },
       { name: 'Native Python Bindings', desc: 'CGO + ctypes wrapper via pypdfsuit', color: '#4ecdc4' },
       { name: 'Python Web Client', desc: 'Lightweight REST API client', color: '#007acc' },
+      { name: 'Language Agnostic', desc: 'REST API works with any programming language', color: '#f093fb' },
     ],
   },
   {
@@ -35,9 +36,18 @@ const featureCategories = [
     features: [
       { name: 'Font Subsetting', desc: 'TrueType embedding with glyph optimization', color: '#4ecdc4' },
       { name: 'PDF Merge', desc: 'Combine multiple PDFs, preserve forms', color: '#007acc' },
+      { name: 'PDF Split', desc: 'Extract page ranges into separate files', color: '#ffc107' },
       { name: 'XFDF Form Filling', desc: 'Advanced field detection and population', color: '#f093fb' },
+      { name: 'PDF Redaction', desc: 'Visual selection or text search redaction', color: '#ef4444' },
       { name: 'Bookmarks & Links', desc: 'Outlines with internal/external hyperlinks', color: '#ffc107' },
-      { name: 'Language Agnostic', desc: 'REST API works with any programming language', color: '#f093fb' },
+    ],
+  },
+  {
+    label: 'Conversion',
+    features: [
+      { name: 'HTML to PDF', desc: 'Chromium-based web page conversion', color: '#4ecdc4' },
+      { name: 'HTML to Image', desc: 'PNG, JPG, or SVG with custom dimensions', color: '#007acc' },
+      { name: 'Typst Math Rendering', desc: 'Mathematical equations via Typst syntax', color: '#10b981' },
     ],
   },
 ]

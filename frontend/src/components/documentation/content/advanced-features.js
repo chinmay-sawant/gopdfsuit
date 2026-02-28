@@ -203,6 +203,66 @@ Combine with "arlingtonCompatible": true for full PDF 2.0 Arlington Model compli
   }
 }`
             }
+        },
+        {
+            id: 'typst-math',
+            title: 'Typst Math Rendering',
+            description: 'Render mathematical equations in PDF table cells using Typst syntax.',
+            content: `Typst math syntax support allows rendering mathematical expressions in PDF table cells. Enable it with "mathEnabled": true in the cell config.
+
+**How It Works**:
+1. Cell values wrapped in \`$...$\` are detected as math expressions
+2. The Typst syntax is parsed into an AST
+3. The AST is rendered as proper mathematical notation in the PDF
+
+**Supported Syntax**:
+• \`$ A = pi r^2 $\` → A = \u03C0r\u00B2
+• \`$ frac(a, b) $\` → fraction a/b
+• \`$ sqrt(x) $\` → \u221Ax
+• \`$ sum_(i=1)^n i $\` → \u03A3 summation
+• \`$ vec(a, b, c) $\` → column vector
+• \`$ mat(1, 2; 3, 4) $\` → 2\u00D72 matrix
+
+**Sample Data**: [Typst Math Samples](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/typstsyntax)
+**Syntax Reference**: [SYNTAX_REFERENCE.md](https://github.com/chinmay-sawant/gopdfsuit/blob/master/typstsyntax/SYNTAX_REFERENCE.md)`,
+            params: [
+                { name: 'mathEnabled', type: 'bool', required: true, description: 'Enable Typst math rendering in cells' }
+            ],
+            code: {
+                json: `{
+  "config": {
+    "mathEnabled": true
+  },
+  "data": [
+    {
+      "dataType": "table",
+      "rows": [
+        {
+          "columns": [
+            {
+              "value": "$ A = pi r^2 $"
+            }
+          ]
+        },
+        {
+          "columns": [
+            {
+              "value": "$ frac(a^2 + b^2, c) $"
+            }
+          ]
+        },
+        {
+          "columns": [
+            {
+              "value": "$ sum_(i=1)^n i = frac(n(n+1), 2) $"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}`
+            }
         }
     ]
 };

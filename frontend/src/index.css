@@ -926,6 +926,11 @@ select:focus {
   color: #10b981;
 }
 
+.feature-icon-box.red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
 /* Scroll indicator */
 @keyframes scroll-bounce {
 

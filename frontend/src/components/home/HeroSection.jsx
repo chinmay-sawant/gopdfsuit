@@ -16,11 +16,15 @@ const pillRows = [
   },
   {
     label: 'Core',
-    items: ['Multi-page Support', 'Split PDFs', 'HTML To PDF', 'HTML To Image']
+    items: ['Multi-page Support', 'Split PDFs', 'PDF Redaction']
+  },
+  {
+    label: 'Conversion',
+    items: ['HTML To PDF', 'HTML To Image', 'Typst Math Rendering']
   },
   {
     label: 'Platform',
-    items: ['Native Python Support', 'Send Data via API', 'Docker Support', 'Private', 'In-Memory']
+    items: ['Native Python Support', 'Send Data via API', 'Docker Support', 'Private & In-Memory']
   }
 ]
 

@@ -8,6 +8,8 @@ import {
   Globe,
   Image,
   Zap,
+  Eraser,
+  Sigma,
   ArrowRight,
 } from 'lucide-react'
 
@@ -19,8 +21,6 @@ const features = [
     link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/master/pkg/gopdflib',
     color: 'blue',
     external: true,
-    wide: true,
-    extra: '$ go get github.com/chinmay-sawant/\n    gopdfsuit/pkg/gopdflib\n\nimport "gopdflib"\npdf := gopdflib.New()',
   },
   {
     icon: <Globe size={24} />,
@@ -66,8 +66,6 @@ const features = [
     description: 'Combine multiple PDFs with drag-and-drop reordering and live preview.',
     link: '/merge',
     color: 'purple',
-    wide: true,
-    extra: 'input1.pdf ─┐\ninput2.pdf ─┤─► merged.pdf\ninput3.pdf ─┘',
   },
   {
     icon: <FileCheck size={24} />,
@@ -89,6 +87,21 @@ const features = [
     description: 'Convert HTML to PNG, JPG, or SVG with custom dimensions.',
     link: '/htmltoimage',
     color: 'blue',
+  },
+  {
+    icon: <Eraser size={24} />,
+    title: 'PDF Redaction',
+    description: 'Redact sensitive content with visual selection or text search across pages.',
+    link: '/redact',
+    color: 'red',
+  },
+  {
+    icon: <Sigma size={24} />,
+    title: 'Typst Math Rendering',
+    description: 'Render mathematical equations in PDFs using Typst syntax with full symbol support.',
+    link: 'https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/typstsyntax',
+    color: 'green',
+    external: true,
   },
 ]
 

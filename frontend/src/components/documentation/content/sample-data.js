@@ -24,7 +24,8 @@ export const sampleDataSection = {
 • [python](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/python) - Python client examples and templates
 • [samplecode](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/samplecode) - Code snippets and usage examples
 • [split](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/split) - PDF splitting samples
-• [svg](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/svg) - SVG vector graphics examples`
+• [svg](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/svg) - SVG vector graphics examples
+• [typstsyntax](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/typstsyntax) - Typst math syntax samples and rendered PDFs`
         },
         {
             id: 'sampledata-gopdflib',
