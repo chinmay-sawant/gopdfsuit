@@ -955,6 +955,109 @@ export default function PropertiesPanel({ selectedElement, selectedCell, selecte
                                         >
                                             Remove Form Field
                                         </button>
+                                        <button
+                                            onClick={() => {
+                                                const newRows = [...selectedElement.rows]
+                                                const cellType = selectedCellElement.form_field.type
+                                                if (cellType === 'checkbox') {
+                                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                        ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                        form_field: undefined,
+                                                        chequebox: selectedCellElement.form_field.checked || false
+                                                    }
+                                                } else if (cellType === 'radio') {
+                                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                        ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                        form_field: undefined,
+                                                        radio: selectedCellElement.form_field.checked || false
+                                                    }
+                                                }
+                                                updateElement(selectedElement.id, { rows: newRows })
+                                            }}
+                                            style={{ marginTop: '0.35rem', width: '100%', padding: '0.35rem', fontSize: '0.75rem', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'transparent', color: 'hsl(var(--muted-foreground))', cursor: 'pointer' }}
+                                            disabled={selectedCellElement.form_field.type === 'text'}
+                                            title={selectedCellElement.form_field.type === 'text' ? 'Text inputs cannot be converted to simple' : 'Convert to simple (non-form-field) element'}
+                                        >
+                                            Convert to Simple
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Simple Checkbox Properties - show if cell has chequebox */}
+                                {selectedCellElement.chequebox !== undefined && !selectedCellElement.form_field && (
+                                    <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'hsl(var(--muted))', borderRadius: '6px', border: '1px solid hsl(var(--border))' }}>
+                                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
+                                            ☑️ Simple Checkbox
+                                        </label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedCellElement.chequebox || false}
+                                                onChange={(e) => {
+                                                    const newRows = [...selectedElement.rows]
+                                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                        ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                        chequebox: e.target.checked
+                                                    }
+                                                    updateElement(selectedElement.id, { rows: newRows })
+                                                }}
+                                                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                            />
+                                            <label style={{ fontSize: '0.75rem', color: 'hsl(var(--foreground))' }}>Checked</label>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newRows = [...selectedElement.rows]
+                                                newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                    ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                    chequebox: undefined,
+                                                    form_field: { name: `checkbox_${Date.now()}`, checked: selectedCellElement.chequebox || false, type: 'checkbox' }
+                                                }
+                                                updateElement(selectedElement.id, { rows: newRows })
+                                            }}
+                                            style={{ width: '100%', padding: '0.35rem', fontSize: '0.75rem', border: '1px solid hsl(var(--primary))', borderRadius: '4px', background: 'transparent', color: 'hsl(var(--primary))', cursor: 'pointer' }}
+                                        >
+                                            Convert to Form Field
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Simple Radio Properties - show if cell has radio */}
+                                {selectedCellElement.radio !== undefined && !selectedCellElement.form_field && (
+                                    <div style={{ marginBottom: '0.75rem', padding: '0.75rem', background: 'hsl(var(--muted))', borderRadius: '6px', border: '1px solid hsl(var(--border))' }}>
+                                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.5rem', color: 'hsl(var(--foreground))' }}>
+                                            🔘 Simple Radio
+                                        </label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                            <input
+                                                type="radio"
+                                                checked={selectedCellElement.radio || false}
+                                                onChange={(e) => {
+                                                    const newRows = [...selectedElement.rows]
+                                                    newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                        ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                        radio: e.target.checked
+                                                    }
+                                                    updateElement(selectedElement.id, { rows: newRows })
+                                                }}
+                                                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                            />
+                                            <label style={{ fontSize: '0.75rem', color: 'hsl(var(--foreground))' }}>Selected</label>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newRows = [...selectedElement.rows]
+                                                newRows[selectedCell.rowIdx].row[selectedCell.colIdx] = {
+                                                    ...newRows[selectedCell.rowIdx].row[selectedCell.colIdx],
+                                                    radio: undefined,
+                                                    form_field: { name: `radio_${Date.now()}`, checked: selectedCellElement.radio || false, type: 'radio' }
+                                                }
+                                                updateElement(selectedElement.id, { rows: newRows })
+                                            }}
+                                            style={{ width: '100%', padding: '0.35rem', fontSize: '0.75rem', border: '1px solid hsl(var(--primary))', borderRadius: '4px', background: 'transparent', color: 'hsl(var(--primary))', cursor: 'pointer' }}
+                                        >
+                                            Convert to Form Field
+                                        </button>
                                     </div>
                                 )}
 
