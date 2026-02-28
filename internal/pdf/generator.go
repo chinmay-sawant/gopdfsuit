@@ -17,6 +17,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/encryption"
 	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/signature"
+	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/fontutils"
 )
 
 // pdfBufferPool reuses bytes.Buffer across PDF generations to reduce GC pressure.
@@ -1718,14 +1719,6 @@ func buildCellKeyElemInline(elemIdx, rowIdx, colIdx int) string {
 	return string(buf[:n])
 }
 
-// mathFontCandidates lists system font paths that support Unicode math glyphs.
-var mathFontCandidates = []string{
-	"/usr/share/fonts/truetype/noto/NotoSansMath-Regular.ttf",
-	"/usr/share/fonts/opentype/noto/NotoSansMath-Regular.otf",
-	"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-	"/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
-}
-
 // autoResolveMathFonts scans the template for cells with mathEnabled=true that
 // reference a font not yet registered in the registry. When found, it attempts
 // to auto-discover a suitable math-capable system font and register it under
@@ -1736,9 +1729,9 @@ func autoResolveMathFonts(template models.PDFTemplate, registry *CustomFontRegis
 		return
 	}
 
-	// Find a suitable math font on the system
+	// Find a suitable math font on the system (cross-platform paths from fontutils)
 	var fontPath string
-	for _, candidate := range mathFontCandidates {
+	for _, candidate := range fontutils.MathFontCandidates() {
 		if _, err := os.Stat(candidate); err == nil {
 			fontPath = candidate
 			break
