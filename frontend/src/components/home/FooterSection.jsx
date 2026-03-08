@@ -11,6 +11,7 @@ import {
   Image,
   Camera,
   Book,
+  Gauge,
 } from 'lucide-react'
 
 const toolLinks = [
@@ -22,6 +23,7 @@ const toolLinks = [
 ]
 
 const resourceLinks = [
+  { path: '/documentation?item=performance-overview', label: 'Performance', icon: <Gauge size={14} /> },
   { path: '/documentation', label: 'Documentation', icon: <Book size={14} /> },
   { path: '/comparison', label: 'Comparison', icon: <FileCheck size={14} /> },
   { path: '/screenshots', label: 'Screenshots', icon: <Camera size={14} /> },

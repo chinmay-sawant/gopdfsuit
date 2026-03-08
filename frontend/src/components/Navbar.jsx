@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors, Book, Eraser } from 'lucide-react'
+import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors, Book, Eraser, Gauge } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { isAuthRequired } from '../utils/apiConfig'
@@ -12,6 +12,14 @@ const Navbar = () => {
   const authRequired = isAuthRequired()
   const auth = useAuth()
   const { isAuthenticated, user, logout } = authRequired ? auth : { isAuthenticated: false, user: null, logout: () => { } }
+
+  const isNavItemActive = (path) => {
+    const [pathname, query] = path.split('?')
+    if (location.pathname !== pathname) return false
+    if (query) return location.search === `?${query}`
+    if (pathname === '/documentation') return location.search !== '?item=performance-overview'
+    return true
+  }
 
   // Check if running on GitHub Pages
   const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')
@@ -28,6 +36,7 @@ const Navbar = () => {
     { path: '/comparison', label: 'Comparison', icon: FileCheck },
     { path: '/screenshots', label: 'Screenshots', icon: Camera },
     { path: '/redact', label: 'Redact', icon: Eraser },
+    { path: '/documentation?item=performance-overview', label: 'Performance', icon: Gauge },
     { path: '/documentation', label: 'Documentation', icon: Book },
   ]
 
@@ -77,6 +86,9 @@ const Navbar = () => {
               },
             }} className="desktop-menu">
               {navItems.slice(1).map(({ path, label, icon: Icon }) => (
+                (() => {
+                  const active = isNavItemActive(path)
+                  return (
                 <Link
                   key={path}
                   to={path}
@@ -84,22 +96,22 @@ const Navbar = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.35rem', // Reduced from 0.5rem
-                    color: location.pathname === path ? 'var(--secondary-color)' : 'hsl(var(--muted-foreground))',
+                    color: active ? 'var(--secondary-color)' : 'hsl(var(--muted-foreground))',
                     textDecoration: 'none',
                     padding: '0.4rem 0.5rem', // Reduced padding from 0.5rem 0.75rem
                     borderRadius: '6px',
                     transition: 'all 0.3s ease',
                     fontSize: '0.85rem', // Reduced font size
-                    background: location.pathname === path ? 'color-mix(in hsl, var(--secondary-color) 15%, transparent)' : 'transparent',
+                    background: active ? 'color-mix(in hsl, var(--secondary-color) 15%, transparent)' : 'transparent',
                   }}
                   onMouseEnter={(e) => {
-                    if (location.pathname !== path) {
+                    if (!active) {
                       e.currentTarget.style.background = 'hsl(var(--accent))'
                       e.currentTarget.style.color = 'hsl(var(--accent-foreground))'
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (location.pathname !== path) {
+                    if (!active) {
                       e.currentTarget.style.background = 'transparent'
                       e.currentTarget.style.color = 'hsl(var(--muted-foreground))'
                     }
@@ -108,6 +120,8 @@ const Navbar = () => {
                   <Icon size={14} /> {/* Reduced icon size from 16 */}
                   {label}
                 </Link>
+                  )
+                })()
               ))}
 
               {/* Theme toggle - desktop */}
@@ -241,6 +255,9 @@ const Navbar = () => {
               borderRadius: '8px',
             }} className="mobile-menu">
               {navItems.slice(1).map(({ path, label, icon: Icon }) => (
+                (() => {
+                  const active = isNavItemActive(path)
+                  return (
                 <Link
                   key={path}
                   to={path}
@@ -249,16 +266,18 @@ const Navbar = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
-                    color: location.pathname === path ? 'var(--secondary-color)' : 'hsl(var(--muted-foreground))',
+                    color: active ? 'var(--secondary-color)' : 'hsl(var(--muted-foreground))',
                     textDecoration: 'none',
                     padding: '0.75rem',
                     borderRadius: '6px',
-                    background: location.pathname === path ? 'color-mix(in hsl, var(--secondary-color) 15%, transparent)' : 'transparent',
+                    background: active ? 'color-mix(in hsl, var(--secondary-color) 15%, transparent)' : 'transparent',
                   }}
                 >
                   <Icon size={16} />
                   {label}
                 </Link>
+                  )
+                })()
               ))}
 
               {/* Theme toggle - mobile */}

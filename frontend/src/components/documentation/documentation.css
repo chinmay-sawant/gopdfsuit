@@ -252,6 +252,42 @@
     line-height: 1.7;
 }
 
+.doc-content-text {
+    margin-bottom: 1rem;
+    line-height: 1.8;
+}
+
+.doc-heading {
+    margin: 2rem 0 1rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+
+.doc-heading-2 {
+    font-size: 1.6rem;
+    font-weight: 750;
+}
+
+.doc-heading-3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+}
+
+.doc-list {
+    margin: 0 0 1.25rem 1.25rem;
+    padding-left: 1rem;
+    line-height: 1.8;
+}
+
+.doc-list li {
+    margin-bottom: 0.45rem;
+}
+
+.doc-list.ordered {
+    list-style: decimal;
+}
+
 .doc-content code {
     background: hsl(var(--muted));
     padding: 0.2rem 0.4rem;
