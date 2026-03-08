@@ -9,10 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
 // PDFAHandler handles PDF/A compliance features, including metadata and color profiles.
+//
 //nolint:revive // exported
 type PDFAHandler struct {
 	config            *models.PDFAConfig

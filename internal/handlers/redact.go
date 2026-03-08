@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/redact"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/redact"
 	"github.com/gin-gonic/gin"
 )
 

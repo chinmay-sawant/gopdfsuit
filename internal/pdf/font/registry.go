@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
 // CustomFontRegistry manages loaded custom fonts for PDF generation

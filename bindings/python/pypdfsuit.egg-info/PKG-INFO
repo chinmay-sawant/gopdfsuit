@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: pypdfsuit
-Version: 1.0.0
+Version: 5.0.0
 Summary: Python bindings for gopdfsuit - PDF generation, merging, splitting, and more
 Author: Chinmay Sawant
 License: MIT

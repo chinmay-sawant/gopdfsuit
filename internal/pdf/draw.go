@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v4/typstsyntax"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/typstsyntax"
 )
 
 // fmtNum formats a float with 2 decimal places (standard PDF precision)

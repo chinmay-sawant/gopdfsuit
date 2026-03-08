@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/benchmarktemplates"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/benchmarktemplates"
 )
 
 func main() {

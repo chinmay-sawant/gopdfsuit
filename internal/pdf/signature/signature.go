@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
 // PDFSigner handles digital signatures for PDF documents
@@ -29,6 +29,7 @@ type PDFSigner struct {
 }
 
 // SignatureIDs holds the object IDs for a signature field and its associated annotations.
+//
 //nolint:revive // exported
 type SignatureIDs struct {
 	SigFieldID     int

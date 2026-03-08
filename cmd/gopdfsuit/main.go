@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/handlers"
-	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/fontutils"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/fontutils"
 	"github.com/gin-gonic/gin"
 )
 
