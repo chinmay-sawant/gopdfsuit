@@ -5,6 +5,9 @@ This directory contains benchmark scripts for:
 - pdf-lib (Node.js)
 - PDFKit (Node.js)
 - FPDF (Python)
+- GoPDFSuit (Go)
+- GoPDFLib (Go)
+- PyPDFSuit (Python bindings)
 
 ## Setup
 
@@ -31,4 +34,7 @@ node bench_jspdf.js
 node bench_pdflib.js
 node bench_pdfkit.js
 python3 bench_fpdf.py
+go run gopdfsuit/bench.go
+go run gopdflib/bench.go
+python3 pypdfsuit/bench.py
 ```

@@ -44,8 +44,10 @@ const renderMarkdownContent = (content) => {
     let tableBuffer = [];
     let textBuffer = [];
     let listBuffer = [];
+    let orderedListBuffer = [];
     let inTable = false;
     let inList = false;
+    let inOrderedList = false;
 
     const flushTable = (key) => {
         if (tableBuffer.length > 0) {
@@ -101,6 +103,19 @@ const renderMarkdownContent = (content) => {
         }
     }
 
+    const flushOrderedList = (key) => {
+        if (orderedListBuffer.length > 0) {
+            elements.push(
+                <ol key={key} className="doc-list ordered">
+                    {orderedListBuffer.map((item, i) => (
+                        <li key={i}>{parseInlineStyles(item)}</li>
+                    ))}
+                </ol>
+            );
+            orderedListBuffer = [];
+        }
+    }
+
     lines.forEach((line, index) => {
         const trimmed = line.trim();
 
@@ -109,6 +124,7 @@ const renderMarkdownContent = (content) => {
             if (!inTable) {
                 flushText(`text-before-table-${index}`);
                 flushList(`list-before-table-${index}`);
+                flushOrderedList(`ordered-list-before-table-${index}`);
                 inTable = true;
             }
             tableBuffer.push(trimmed);
@@ -118,16 +134,47 @@ const renderMarkdownContent = (content) => {
             inTable = false;
         }
 
+        const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+        if (headingMatch) {
+            flushText(`text-before-heading-${index}`);
+            flushList(`list-before-heading-${index}`);
+            flushOrderedList(`ordered-list-before-heading-${index}`);
+            const level = Math.min(headingMatch[1].length, 6);
+            const headingText = headingMatch[2];
+            const HeadingTag = `h${level}`;
+            elements.push(
+                <HeadingTag key={`heading-${index}`} className={`doc-heading doc-heading-${level}`}>
+                    {parseInlineStyles(headingText)}
+                </HeadingTag>
+            );
+            return;
+        }
+
         // Handle Lists
         if (trimmed.match(/^[•-]\s/)) {
             if (!inList) {
                 flushText(`text-before-list-${index}`);
+                flushOrderedList(`ordered-list-before-list-${index}`);
                 // No need to flush table as it's handled above
                 inList = true;
             }
             // Remove bullet point
             listBuffer.push(trimmed.replace(/^[•-]\s/, ''));
+            return;
+        }
+
+        if (trimmed.match(/^\d+\.\s/)) {
+            if (!inOrderedList) {
+                flushText(`text-before-ordered-list-${index}`);
+                flushList(`list-before-ordered-list-${index}`);
+                inOrderedList = true;
+            }
+            orderedListBuffer.push(trimmed.replace(/^\d+\.\s/, ''));
         } else {
+            if (inOrderedList) {
+                flushOrderedList(`ordered-list-${index}`);
+                inOrderedList = false;
+            }
             if (inList) {
                 flushList(`list-${index}`);
                 inList = false;
@@ -145,6 +192,7 @@ const renderMarkdownContent = (content) => {
 
     if (inTable) flushTable('table-end');
     if (inList) flushList('list-end');
+    if (inOrderedList) flushOrderedList('ordered-list-end');
     flushText('text-end'); // Flush remaining text
 
     return <div className="doc-content">{elements}</div>;
@@ -153,6 +201,8 @@ const renderMarkdownContent = (content) => {
 export const DocContent = ({ item }) => {
     const { theme } = useTheme()
     const isLight = theme === 'light'
+    const shouldStackCode = item?.codePlacement === 'below'
+    const hasSidePanel = Boolean(item?.features || item?.code) && !shouldStackCode
 
     if (!item) return (
         <div style={{
@@ -176,7 +226,8 @@ export const DocContent = ({ item }) => {
                 flex: 1,
                 padding: '3rem 4rem',
                 overflowY: 'auto',
-                maxWidth: '900px'
+                maxWidth: hasSidePanel ? '900px' : 'min(1180px, 100%)',
+                margin: hasSidePanel ? '0' : '0 auto'
             }}>
                 <div style={{ marginBottom: '2rem' }}>
                     <h1 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '1rem', lineHeight: 1.2, letterSpacing: '-0.02em' }}>{item.title}</h1>
@@ -213,6 +264,15 @@ export const DocContent = ({ item }) => {
 
                     {renderMarkdownContent(item.content)}
                 </div>
+
+                {shouldStackCode && item.code && (
+                    <div style={{ marginTop: '3rem', maxWidth: '100%' }}>
+                        <h3 style={{ color: isLight ? '#64748b' : '#94a3b8', fontSize: '0.8rem', fontWeight: '600', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '0.05em' }}>
+                            Example Code
+                        </h3>
+                        <CodeBlock code={item.code} />
+                    </div>
+                )}
 
                 {item.params && item.params.length > 0 && (
                     <div style={{ marginTop: '3rem' }}>
@@ -258,6 +318,7 @@ export const DocContent = ({ item }) => {
             </div>
 
             {/* Code Column */}
+            {hasSidePanel && (
             <div id="doc-code-scrollArea" style={{
                 width: '45%',
                 minWidth: '400px',
@@ -300,6 +361,7 @@ export const DocContent = ({ item }) => {
                     </div>
                 )}
             </div>
+            )}
         </div>
     )
 }
