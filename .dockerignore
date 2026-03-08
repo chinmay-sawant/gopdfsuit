@@ -3,6 +3,7 @@ bkp
 dockerfolder
 guides
 node_modules
+*node_modules*
 test
 venv
 .venv
@@ -18,3 +19,6 @@ sampledata
 *.log
 .DS_Store
 Thumbs.db
+temp_verapdf
+veraPDF
+screenshots
