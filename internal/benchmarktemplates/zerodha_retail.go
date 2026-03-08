@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
 func boolPtr(value bool) *bool {

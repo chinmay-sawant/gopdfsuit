@@ -8,7 +8,7 @@ import (
 
 	"strconv"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
 // hexDigits is a lookup table for fast hex encoding, avoiding fmt.Sprintf("%04X") per character.
@@ -18,6 +18,7 @@ const hexDigits = "0123456789ABCDEF"
 // These include FirstChar, LastChar, Widths, and FontDescriptor as required by Arlington Model
 
 // FontMetrics holds the complete metrics for a standard font
+//
 //nolint:revive // exported
 type FontMetrics struct {
 	BaseFont       string
@@ -28,6 +29,7 @@ type FontMetrics struct {
 }
 
 // FontDescriptor holds font descriptor information
+//
 //nolint:revive // exported
 type FontDescriptor struct {
 	FontName    string
@@ -843,7 +845,7 @@ func GenerateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 	f := font.Font
 
 	// Determine the maximum CID used
-	var maxCID uint16    
+	var maxCID uint16
 	for char := range font.UsedChars {
 		if uint16(char) > maxCID {
 			maxCID = uint16(char)

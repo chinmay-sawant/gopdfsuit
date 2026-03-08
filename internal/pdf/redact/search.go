@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
 // ExtractTextPositions extracts text with coordinates from a specific page
@@ -230,6 +230,7 @@ func (r *Redactor) normalizeSearchText(s string) string {
 // multiple text-show operators on the same visual line. It groups positions into
 // lines (Y within half a character-height), concatenates each line's tokens in
 // reading order, then scans for every non-overlapping match.
+//
 //nolint:gocyclo
 func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.TextPosition, normalizedQuery string) []models.RedactionRect {
 	if len(positions) == 0 || normalizedQuery == "" {

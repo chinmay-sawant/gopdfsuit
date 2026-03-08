@@ -15,11 +15,11 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/middleware"
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/form"
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/middleware"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/form"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 )
 

@@ -2,7 +2,7 @@
 package gopdflib
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/v4/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
 )
 
 // GeneratePDF creates a PDF document from a template and returns the PDF bytes.

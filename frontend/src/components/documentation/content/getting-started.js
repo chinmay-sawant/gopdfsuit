@@ -69,12 +69,12 @@ View detailed sample data and examples [here](https://github.com/chinmay-sawant/
 
 Import the package in your Go code to access all PDF generation features.`,
             code: {
-                bash: `go get github.com/chinmay-sawant/gopdfsuit/v4@latest`,
+                bash: `go get github.com/chinmay-sawant/gopdfsuit/v5@v5.0.0`,
                 go: `package main
 
 import (
     "fmt"
-    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
 func main() {
@@ -101,8 +101,7 @@ import (
     "encoding/json"
     "fmt"
     "os"
-
-    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
 func main() {
@@ -149,7 +148,7 @@ import (
     "fmt"
     "os"
     "time"
-    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
 func main() {
@@ -256,7 +255,7 @@ func buildFinancialReportTemplate() gopdflib.PDFTemplate {
 
 import (
     "os"
-    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
 func main() {
@@ -441,7 +440,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/chinmay-sawant/gopdfsuit/v4/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
 func main() {

@@ -19,7 +19,7 @@ Example usage:
         f.write(pdf_bytes)
 """
 
-__version__ = "1.0.0"
+__version__ = "5.0.0"
 
 from .types import (
     PDFTemplate,

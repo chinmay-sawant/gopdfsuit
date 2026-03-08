@@ -1,11 +1,11 @@
 // This module file has been added to skip the download for go get
-module github.com/chinmay-sawant/gopdfsuit/v4/sampledata
+module github.com/chinmay-sawant/gopdfsuit/v5/sampledata
 
 go 1.24.0
 
 require (
 	github.com/chinmay-sawant/gopdfsuit-client v1.0.1
-	github.com/chinmay-sawant/gopdfsuit/v4 v4.2.0
+	github.com/chinmay-sawant/gopdfsuit/v5 v5.0.0
 )
 
 require (
@@ -21,4 +21,4 @@ require (
 	golang.org/x/sys v0.39.0 // indirect
 )
 
-replace github.com/chinmay-sawant/gopdfsuit/v4 => ../
+replace github.com/chinmay-sawant/gopdfsuit/v5 => ../
