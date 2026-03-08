@@ -44,6 +44,11 @@ __pycache__
 *venv*
 mem.prof
 
+# Python packaging outputs
+bindings/python/build/
+bindings/python/dist/
+bindings/python/*.egg-info/
+
 # Benchmarks
 sampledata/benchmarks/typst-*/
 sampledata/benchmarks/data.json
