@@ -1,3 +1,4 @@
+// Package benchmarktemplates provides reusable benchmark document builders and runners.
 package benchmarktemplates
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
+// RunSingleDocumentBenchmark renders the benchmark template multiple times and prints timing stats.
 func RunSingleDocumentBenchmark(name string) error {
 	template, err := BuildZerodhaRetailTemplate()
 	if err != nil {
@@ -53,6 +55,7 @@ func RunSingleDocumentBenchmark(name string) error {
 	return nil
 }
 
+// Fail prints a benchmark error and exits the process with a non-zero status.
 func Fail(err error) {
 	if err == nil {
 		return
