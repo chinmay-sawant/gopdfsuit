@@ -77,17 +77,29 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Clean generated Python packaging outputs
+        shell: bash
+        run: |
+          rm -rf bindings/python/build bindings/python/dist bindings/python/*.egg-info
       - name: Build shared library
         shell: bash
         run: |
           cd bindings/python
           ./build.sh
-      - name: Build Python Package
+      - name: Build source distribution
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         shell: bash
         run: |
           cd bindings/python
           pip install build
-          python -m build
+          python -m build --sdist
+      - name: Build wheel
+        if: ${{ matrix.os != 'ubuntu-latest' }}
+        shell: bash
+        run: |
+          cd bindings/python
+          pip install build
+          python -m build --wheel
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -161,6 +173,15 @@ jobs:
             echo "already_published=false" >> "$GITHUB_OUTPUT"
             echo "Version ${version} is not on PyPI yet."
           fi
+
+      - name: Prune stale or unsupported distributions
+        if: ${{ steps.pypi-check.outputs.already_published != 'true' }}
+        shell: bash
+        run: |
+          version=$(grep -E '^version = ' bindings/python/pyproject.toml | head -n 1 | cut -d '"' -f 2)
+          find dist -maxdepth 1 -type f ! -name "pypdfsuit-${version}*" -delete
+          find dist -maxdepth 1 -type f -name '*linux_*.whl' -delete
+          ls -1 dist
 
       - name: Publish package to PyPI
         if: ${{ steps.pypi-check.outputs.already_published != 'true' }}
