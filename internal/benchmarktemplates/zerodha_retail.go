@@ -49,6 +49,7 @@ func readChain() ([]string, error) {
 	return chain, nil
 }
 
+// BuildZerodhaRetailTemplate constructs the sample Zerodha retail contract note used for benchmarks.
 func BuildZerodhaRetailTemplate() (gopdflib.PDFTemplate, error) {
 	privateKey, err := readText(filepath.Join("certs", "leaf.key"))
 	if err != nil {
@@ -229,6 +230,7 @@ func BuildZerodhaRetailTemplate() (gopdflib.PDFTemplate, error) {
 	}, nil
 }
 
+// BenchmarkHeader formats a standard heading for benchmark output.
 func BenchmarkHeader(name string) string {
 	return fmt.Sprintf("=== %s Single Zerodha Benchmark ===", name)
 }

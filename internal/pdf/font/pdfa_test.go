@@ -13,7 +13,7 @@ func TestEnsureFontsAvailableCachesFailedDownload(t *testing.T) {
 	tmpDir := t.TempDir()
 	var hits atomic.Int32
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		hits.Add(1)
 		http.Error(w, "missing", http.StatusNotFound)
 	}))
