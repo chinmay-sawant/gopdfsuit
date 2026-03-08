@@ -62,17 +62,20 @@ var LiberationFontFiles = map[string]string{
 	"LiberationMono-BoldItalic": "LiberationMono-BoldItalic.ttf",
 }
 
-// Liberation font download URLs (GitHub releases)
-// These are the open-source Liberation fonts from Red Hat
-const liberationFontsBaseURL = "https://github.com/liberationfonts/liberation-fonts/releases/download/2.1.5/"
-const liberationFontsZipURL = liberationFontsBaseURL + "liberation-fonts-ttf-2.1.5.tar.gz"
+// Liberation font download URL (GitHub release asset)
+// The release asset uses the stable GitHub files endpoint rather than /releases/download.
+const defaultLiberationFontsArchiveURL = "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz"
+
+var liberationFontsArchiveURL = defaultLiberationFontsArchiveURL
 
 // PDFAFontManager manages Liberation font loading for PDF/A compliance
 type PDFAFontManager struct {
-	mu          sync.RWMutex
-	config      PDFAFontConfig
-	loadedFonts map[string]*TTFFont
-	initialized bool
+	mu              sync.RWMutex
+	config          PDFAFontConfig
+	loadedFonts     map[string]*TTFFont
+	initialized     bool
+	lastEnsureErr   error
+	ensureAttempted bool
 }
 
 // Global PDF/A font manager
@@ -115,6 +118,7 @@ func (m *PDFAFontManager) initialize(config PDFAFontConfig) error {
 		default:
 			// Linux/Unix
 			systemPaths := []string{
+				"/usr/share/fonts/truetype/liberation2",
 				"/usr/share/fonts/liberation",
 				"/usr/share/fonts/truetype/liberation",
 				"/usr/share/fonts/liberation-sans",
@@ -131,6 +135,8 @@ func (m *PDFAFontManager) initialize(config PDFAFontConfig) error {
 
 	m.config = config
 	m.initialized = true
+	m.lastEnsureErr = nil
+	m.ensureAttempted = false
 	return nil
 }
 
@@ -148,24 +154,38 @@ func (m *PDFAFontManager) EnsureFontsAvailable() error {
 	// Check if fonts are already available
 	fontsDir := m.findFontsDirectory()
 	if fontsDir != "" {
+		m.lastEnsureErr = nil
 		return nil
 	}
 
+	if m.ensureAttempted {
+		if m.lastEnsureErr != nil {
+			return m.lastEnsureErr
+		}
+		return fmt.Errorf("liberation fonts are still unavailable")
+	}
+
 	if !m.config.AutoDownload {
-		return fmt.Errorf("liberation fonts not found. Please install them or enable auto-download.\n"+
+		m.ensureAttempted = true
+		m.lastEnsureErr = fmt.Errorf("liberation fonts not found. Please install them or enable auto-download.\n"+
 			"On Ubuntu/Debian: sudo apt-get install fonts-liberation\n"+
 			"On Fedora: sudo dnf install liberation-fonts\n"+
 			"On macOS: brew install font-liberation\n"+
 			"Or place TTF files in: %s", m.config.FontsDirectory)
+		return m.lastEnsureErr
 	}
 
 	// Create fonts directory
 	if err := os.MkdirAll(m.config.FontsDirectory, 0755); err != nil {
-		return fmt.Errorf("failed to create fonts directory: %w", err)
+		m.ensureAttempted = true
+		m.lastEnsureErr = fmt.Errorf("failed to create fonts directory: %w", err)
+		return m.lastEnsureErr
 	}
 
 	// Download fonts using the ZIP/Tarball to ensure all variants are present
-	return m.downloadFonts()
+	m.ensureAttempted = true
+	m.lastEnsureErr = m.downloadFonts()
+	return m.lastEnsureErr
 }
 
 // findFontsDirectory finds a directory containing Liberation fonts
@@ -200,7 +220,7 @@ func (m *PDFAFontManager) checkFontDir(dir string) bool {
 
 // downloadFonts downloads Liberation font files
 func (m *PDFAFontManager) downloadFonts() error {
-	fmt.Printf("Downloading Liberation fonts from %s...\n", liberationFontsZipURL)
+	fmt.Printf("Downloading Liberation fonts from %s...\n", liberationFontsArchiveURL)
 
 	// Create temp file for the tar.gz
 	tmpFile, err := os.CreateTemp("", "liberation-fonts-*.tar.gz")
@@ -215,7 +235,7 @@ func (m *PDFAFontManager) downloadFonts() error {
 	}()
 
 	// Download the file
-	resp, err := http.Get(liberationFontsZipURL)
+	resp, err := http.Get(liberationFontsArchiveURL)
 	if err != nil {
 		return fmt.Errorf("failed to download fonts: %w", err)
 	}
