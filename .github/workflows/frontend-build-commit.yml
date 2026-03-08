@@ -3,17 +3,31 @@ name: CI/CD Pipeline
 on:
   push:
     branches: ["main", "master"]
+    tags: ["v*"]
     paths:
       - "**"
   pull_request:
     branches: ["*"]
     paths:
       - "**"
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      run_mode:
+        description: "Choose whether to run regular CI, build release artifacts, or publish to PyPI"
+        required: true
+        default: full-ci
+        type: choice
+        options:
+          - full-ci
+          - build-python-artifacts
+          - publish-pypi
 
 jobs:
   backend-lint:
     name: Backend Lint
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full-ci') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +44,7 @@ jobs:
   frontend-lint:
     name: Frontend Lint
     needs: backend-lint
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full-ci') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,6 +65,7 @@ jobs:
   python-build:
     name: Python Build
     needs: frontend-lint
+    if: ${{ always() && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && (inputs.run_mode == 'build-python-artifacts' || inputs.run_mode == 'publish-pypi')))) }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -82,6 +98,7 @@ jobs:
   build-and-commit-frontend:
     name: Frontend Build and Commit
     needs: frontend-lint
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full-ci') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -116,3 +133,39 @@ jobs:
           commit_message: "chore: auto-build frontend [skip ci]"
           file_pattern: "docs/**"
           commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: python-build
+    if: ${{ needs.python-build.result == 'success' && ((github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'publish-pypi')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: dist-*
+          merge-multiple: true
+
+      - name: Check whether version is already on PyPI
+        id: pypi-check
+        shell: bash
+        run: |
+          version=$(grep -E '^version = ' bindings/python/pyproject.toml | head -n 1 | cut -d '"' -f 2)
+          if curl --silent --fail "https://pypi.org/pypi/pypdfsuit/${version}/json" > /dev/null; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "Version ${version} is already published on PyPI."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+            echo "Version ${version} is not on PyPI yet."
+          fi
+
+      - name: Publish package to PyPI
+        if: ${{ steps.pypi-check.outputs.already_published != 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: dist/
