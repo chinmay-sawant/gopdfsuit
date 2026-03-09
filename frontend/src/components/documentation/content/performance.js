@@ -11,7 +11,7 @@ export const performanceSection = {
 Two benchmark modes were executed:
 
 1. A **single Zerodha retail contract note** rendered repeatedly in-process by the runners under **sampledata/benchmarks**.
-2. The **weighted Zerodha workload** in **sampledata/gopdflib/zerodha** that mixes retail, active trader, and HFT-style contract notes across 48 workers.
+2. The **weighted Zerodha workload** in **sampledata/gopdflib/zerodha** that mixes reta./gopdfsuit/.veil, active trader, and HFT-style contract notes across 48 workers.
 
 **Machine Profile**
 
@@ -62,9 +62,9 @@ cd sampledata/benchmarks/gopdfsuit && go run bench.go
 cd sampledata/benchmarks/gopdflib && go run bench.go
 
 # Dedicated Python benchmark runners
-cd /home/chinmay/ChinmayPersonalProjects/gopdfsuit
-/home/chinmay/ChinmayPersonalProjects/gopdfsuit/.venv/bin/python sampledata/benchmarks/pypdfsuit/bench.py
-/home/chinmay/ChinmayPersonalProjects/gopdfsuit/.venv/bin/python sampledata/gopdflib/zerodha/pypdfsuit_bench.py
+cd ./gopdfsuit
+.venv/bin/python sampledata/benchmarks/pypdfsuit/bench.py
+.venv/bin/python sampledata/gopdflib/zerodha/pypdfsuit_bench.py
 
 # Existing Zerodha Go runner
 go run sampledata/gopdflib/zerodha/main.go`
