@@ -13,6 +13,8 @@ The **pypdfsuit** package provides high-performance bindings to the Go core usin
 • **Zero Interaction Overhead**: Calls Go functions directly in-process via shared library.
 • **Type-Safe API**: Uses Python dataclasses and Pydantic models.
 • **Full Feature Set**: PDF Generation, Merging, Splitting, Redaction, Form Filling, and HTML Conversion.
+
+**Sample Data**: [Amazon Pay Receipt Example](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/python/amazonReceipt)
 `,
             features: [
                 { title: 'Native Performance', description: 'Direct CGO calls without network overhead', icon: 'Zap' },
@@ -30,7 +32,14 @@ The **pypdfsuit** package provides high-performance bindings to the Go core usin
 Prerequisites:
 • **Go 1.21+** (for building the shared library)
 • **Python 3.8+**
-• **GCC/Clang** (for CGO compilation)`,
+• **GCC/Clang** (for CGO compilation)
+
+**Windows Note**:
+There is currently an issue on Windows. Please build the application locally.
+
+**Build Scripts**:
+• **Linux/macOS**: [bindings/python/build.sh](https://github.com/chinmay-sawant/gopdfsuit/blob/master/bindings/python/build.sh)
+• **Windows**: [bindings/python/build.bat](https://github.com/chinmay-sawant/gopdfsuit/blob/master/bindings/python/build.bat)`,
             code: {
                 bash: `# Clone the repository
 git clone https://github.com/chinmay-sawant/gopdfsuit.git
@@ -39,6 +48,14 @@ cd gopdfsuit
 # Build and install the Python package
 cd bindings/python
 ./build.sh   # Compiles the Go shared library
+pip install .`,
+                batch: `REM Clone the repository
+git clone https://github.com/chinmay-sawant/gopdfsuit.git
+cd gopdfsuit
+
+REM Build and install the Python package locally on Windows
+cd bindings\python
+build.bat
 pip install .`
             }
         },
