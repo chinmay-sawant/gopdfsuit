@@ -54,7 +54,7 @@ git clone https://github.com/chinmay-sawant/gopdfsuit.git
 cd gopdfsuit
 
 REM Build and install the Python package locally on Windows
-cd bindings\python
+cd bindings\\python
 build.bat
 pip install .`
             }
