@@ -16,7 +16,7 @@ Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a
 
 ### From Source
 
-1. Build the shared library:
+1. Build the shared library locally:
 
 ```bash
 cd bindings/python
@@ -24,11 +24,26 @@ chmod +x build.sh
 ./build.sh
 ```
 
+On Windows, use the batch file instead:
+
+```bat
+cd bindings\python
+build.bat
+```
+
 2. Install the Python package:
 
 ```bash
 pip install .
 ```
+
+### Windows Note
+
+There is currently an issue on Windows. Please build the application locally.
+
+Sample data for the Python bindings is available here:
+
+- [amazonReceipt](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/python/amazonReceipt)
 
 ### Requirements
 

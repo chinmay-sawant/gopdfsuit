@@ -33,11 +33,11 @@ const Navbar = () => {
     { path: '/filler', label: 'Filler', icon: FileCheck },
     { path: '/htmltopdf', label: 'HTML→PDF', icon: Globe },
     { path: '/htmltoimage', label: 'HTML→Image', icon: Image },
+    { path: '/redact', label: 'Redact', icon: Eraser },
     { path: '/comparison', label: 'Comparison', icon: FileCheck },
     { path: '/screenshots', label: 'Screenshots', icon: Camera },
-    { path: '/redact', label: 'Redact', icon: Eraser },
     { path: '/documentation?item=performance-overview', label: 'Performance', icon: Gauge },
-    { path: '/documentation', label: 'Documentation', icon: Book },
+    { path: '/documentation?item=introduction', label: 'Documentation', icon: Book },
   ]
 
   return (
