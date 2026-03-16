@@ -196,5 +196,3 @@ MIT License - see [LICENSE](LICENSE)
   <p>⭐ Star this repo if you find it helpful!</p>
   <p><em>Developed from scratch with assistance from <strong>GitHub Copilot</strong>.</em></p>
 </div>
-
-bakro lodu
