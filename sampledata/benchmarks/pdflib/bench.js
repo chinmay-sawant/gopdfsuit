@@ -1,9 +1,15 @@
+'use strict';
+
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const fs = require('fs');
+const path = require('path');
 const { performance } = require('perf_hooks');
+const { Worker, isMainThread, workerData, parentPort } = require('worker_threads');
 
-const data = JSON.parse(fs.readFileSync('../data.json', 'utf8'));
+const DATA_PATH = path.resolve(__dirname, '../data.json');
+const data = JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
 const iterations = 10;
+const NUM_WORKERS = Math.min(48, iterations);
 
 async function runOnce() {
     const start = performance.now();
@@ -168,40 +174,62 @@ async function runOnce() {
     // Note: pdf-lib does NOT support PDF/A or PDF/UA standards natively
     // For PDF/A-4 or PDF/UA-2 compliance, you would need a different library
     // such as HummusJS with specialized PDF/A generation capabilities
-    
+
     const pdfBytes = await pdfDoc.save();
-    fs.writeFileSync('output_pdflib.pdf', pdfBytes);
+    // Generate bytes in-memory — no disk I/O in hot path
 
     return performance.now() - start;
 }
 
-async function main() {
-    const timings = [];
-
-    console.log('=== pdf-lib Data Benchmark ===');
-    console.log(`Iterations: ${iterations}`);
-
-    const totalStart = performance.now();
-    for (let runIndex = 1; runIndex <= iterations; runIndex += 1) {
-        const elapsedMs = await runOnce();
-        timings.push(elapsedMs);
-        console.log(`Run ${runIndex}: ${elapsedMs.toFixed(2)} ms`);
+if (isMainThread) {
+    function spawnWorker(runIndex) {
+        return new Promise((resolve, reject) => {
+            const worker = new Worker(__filename, { workerData: { runIndex } });
+            worker.on('message', (msg) => resolve(msg));
+            worker.on('error', reject);
+            worker.on('exit', (code) => {
+                if (code !== 0) reject(new Error(`Worker ${runIndex} exited with code ${code}`));
+            });
+        });
     }
-    const totalSeconds = (performance.now() - totalStart) / 1000;
 
-    const min = Math.min(...timings);
-    const max = Math.max(...timings);
-    const avg = timings.reduce((sum, value) => sum + value, 0) / timings.length;
+    async function main() {
+        console.log('=== pdf-lib Data Benchmark ===');
+        console.log(`Iterations: ${iterations} | Workers: ${NUM_WORKERS}`);
 
-    console.log('');
-    console.log(`Min: ${min.toFixed(2)} ms`);
-    console.log(`Avg: ${avg.toFixed(2)} ms`);
-    console.log(`Max: ${max.toFixed(2)} ms`);
-    console.log(`Throughput: ${(timings.length / totalSeconds).toFixed(2)} ops/sec`);
-    console.log('PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A or PDF/UA natively)');
+        const totalStart = performance.now();
+        const results = await Promise.all(
+            Array.from({ length: iterations }, (_, i) => spawnWorker(i + 1))
+        );
+        const totalSeconds = (performance.now() - totalStart) / 1000;
+
+        const ordered = results.sort((a, b) => a.runIndex - b.runIndex);
+        for (const { runIndex, elapsed } of ordered) {
+            console.log(`Run ${runIndex}: ${elapsed.toFixed(2)} ms`);
+        }
+
+        const timings = ordered.map((r) => r.elapsed);
+        const sorted = [...timings].sort((a, b) => a - b);
+        const p95idx = Math.max(0, Math.ceil(sorted.length * 0.95) - 1);
+
+        console.log('');
+        console.log(`Min:        ${sorted[0].toFixed(2)} ms`);
+        console.log(`Avg:        ${(sorted.reduce((s, v) => s + v, 0) / sorted.length).toFixed(2)} ms`);
+        console.log(`P95:        ${sorted[p95idx].toFixed(2)} ms`);
+        console.log(`Max:        ${sorted[sorted.length - 1].toFixed(2)} ms`);
+        console.log(`Throughput: ${(timings.length / totalSeconds).toFixed(2)} ops/sec`);
+        console.log('PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A natively)');
+    }
+
+    main().catch((err) => { console.error(err); process.exit(1); });
+} else {
+    // Worker thread: generate one PDF and report elapsed time
+    runOnce()
+        .then((elapsed) => {
+            parentPort.postMessage({ elapsed, runIndex: workerData.runIndex });
+        })
+        .catch((err) => {
+            console.error(`Worker ${workerData.runIndex} error:`, err);
+            process.exit(1);
+        });
 }
-
-main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});

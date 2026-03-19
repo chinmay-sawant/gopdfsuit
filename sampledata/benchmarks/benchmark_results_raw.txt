@@ -1,39 +1,205 @@
-# Benchmark Results - 2026-02-01 02:55:23
+# Benchmark Results - 2026-03-20 00:57:32
 
-## GoPDFSuit (10 runs)
-Run 1: 131.39 ms
-Run 2: 123.27 ms
-Run 3: 125.86 ms
-Run 4: 128.42 ms
-Run 5: 126.59 ms
-Run 6: 126.91 ms
-Run 7: 130.65 ms
-Run 8: 125.39 ms
-Run 9: 122.97 ms
-Run 10: 128.41 ms
-Average: 126.99 ms, Min: 122.97 ms, Max: 131.39 ms
-File Size: 1.7M
+==========================================
+GoPDFLib Data-Table (Go)
+==========================================
+=== GoPDFLib Data Benchmark ===
+Iterations: 10 | Workers: 48
+Run 5: 112.51 ms
+Run 4: 114.81 ms
+Run 6: 115.15 ms
+Run 9: 117.67 ms
+Run 8: 118.22 ms
+Run 1: 120.27 ms
+Run 3: 122.10 ms
+Run 10: 122.98 ms
+Run 2: 123.91 ms
+Run 7: 127.17 ms
+  Max Memory Allocated: 114.91 MB
 
-## PDFKit
-Time: 305.71 ms, Size: 205K
+Min:        112.51 ms
+Avg:        119.48 ms
+P95:        127.17 ms
+Max:        127.17 ms
+Throughput: 77.81 ops/sec
+Output: output_databench_gopdflib.pdf
 
-## pdf-lib
-Time: 674.16 ms, Size: 313K
+==========================================
+GoPDFLib Zerodha (Go)
+==========================================
+=== GoPDFLib Single Zerodha Benchmark ===
+Iterations: 10 | Workers: 48
+Run 5: 9.47 ms
+Run 3: 9.98 ms
+Run 7: 10.45 ms
+Run 1: 10.38 ms
+Run 10: 10.92 ms
+Run 4: 11.02 ms
+Run 9: 10.96 ms
+Run 2: 11.02 ms
+Run 8: 12.08 ms
+Run 6: 12.53 ms
+  Max Memory Allocated: 0.00 MB
 
-## jsPDF
-Time: 56.20 ms, Size: 279K
+Min:        9.47 ms
+Avg:        10.88 ms
+P95:        12.53 ms
+Max:        12.53 ms
+Throughput: 783.34 ops/sec
 
-## FPDF2
-Time:  ms, Size: 203K
+==========================================
+GoPDFSuit (Go)
+==========================================
+=== GoPDFSuit Single Zerodha Benchmark ===
+Iterations: 10 | Workers: 48
+Run 3: 10.52 ms
+Run 5: 10.85 ms
+Run 8: 11.41 ms
+Run 10: 11.48 ms
+Run 4: 11.52 ms
+Run 9: 11.66 ms
+Run 2: 11.99 ms
+Run 1: 12.51 ms
+Run 7: 12.33 ms
+Run 6: 12.77 ms
+  Max Memory Allocated: 0.00 MB
 
-## Typst
-Time: 774.58 ms, Size: 221K
+Min:        10.52 ms
+Avg:        11.70 ms
+P95:        12.77 ms
+Max:        12.77 ms
+Throughput: 720.33 ops/sec
 
+==========================================
+PyPDFSuit (Python)
+==========================================
+=== PyPDFSuit Concurrent Zerodha Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 40.07 ms
+Run 2: 40.71 ms
+Run 3: 39.95 ms
+Run 4: 40.39 ms
+Run 5: 39.49 ms
+Run 6: 39.40 ms
+Run 7: 39.84 ms
+Run 8: 38.63 ms
+Run 9: 38.53 ms
+Run 10: 38.33 ms
 
-## Summary
-GoPDFSuit: 126.99 ms (avg of 10), 1.7M, PDF/A-4
-jsPDF: 56.20 ms, 279K, PDF 1.3
-PDFKit: 305.71 ms, 205K, PDF 1.3
-Typst: 774.58 ms, 221K, PDF/A-2b
-pdf-lib: 674.16 ms, 313K, PDF 1.7
-FPDF2:  ms, 203K, PDF/A-1b
+Min: 38.33 ms
+Avg: 39.53 ms
+P95: 40.71 ms
+Max: 40.71 ms
+Throughput: 157.26 ops/sec
+
+==========================================
+FPDF2 (Python)
+==========================================
+=== FPDF2 Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 4915.89 ms
+Run 2: 4807.84 ms
+Run 3: 4831.93 ms
+Run 4: 4765.18 ms
+Run 5: 4886.71 ms
+Run 6: 4842.44 ms
+Run 7: 4734.69 ms
+Run 8: 4927.40 ms
+Run 9: 4762.71 ms
+Run 10: 4816.05 ms
+
+Min: 4734.69 ms
+Avg: 4829.08 ms
+P95: 4927.40 ms
+Max: 4927.40 ms
+Throughput: 2.02 ops/sec
+
+==========================================
+jsPDF (Node.js)
+==========================================
+=== jsPDF Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1154.14 ms
+Run 2: 1152.80 ms
+Run 3: 1132.74 ms
+Run 4: 1106.19 ms
+Run 5: 1187.31 ms
+Run 6: 1099.46 ms
+Run 7: 1098.54 ms
+Run 8: 1058.14 ms
+Run 9: 1133.62 ms
+Run 10: 1086.41 ms
+
+Min:        1058.14 ms
+Avg:        1120.94 ms
+P95:        1187.31 ms
+Max:        1187.31 ms
+Throughput: 7.74 ops/sec
+
+==========================================
+PDFKit (Node.js)
+==========================================
+=== PDFKit Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 836.93 ms
+Run 2: 820.49 ms
+Run 3: 1002.08 ms
+Run 4: 920.84 ms
+Run 5: 912.62 ms
+Run 6: 945.21 ms
+Run 7: 869.78 ms
+Run 8: 870.45 ms
+Run 9: 910.68 ms
+Run 10: 967.06 ms
+
+Min:        820.49 ms
+Avg:        905.61 ms
+P95:        1002.08 ms
+Max:        1002.08 ms
+Throughput: 8.58 ops/sec
+
+==========================================
+pdf-lib (Node.js)
+==========================================
+=== pdf-lib Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1904.82 ms
+Run 2: 1992.81 ms
+Run 3: 2038.01 ms
+Run 4: 2012.31 ms
+Run 5: 1951.28 ms
+Run 6: 2044.71 ms
+Run 7: 2146.37 ms
+Run 8: 2157.59 ms
+Run 9: 2101.03 ms
+Run 10: 2063.34 ms
+
+Min:        1904.82 ms
+Avg:        2041.23 ms
+P95:        2157.59 ms
+Max:        2157.59 ms
+Throughput: 4.13 ops/sec
+PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A natively)
+
+==========================================
+Typst
+==========================================
+=== Typst Data Benchmark ===
+Iterations: 10 | Workers: 10 (parallel)
+Run 1: 1311.15 ms
+Run 2: 1327.36 ms
+Run 3: 1346.83 ms
+Run 4: 1306.09 ms
+Run 5: 1378.97 ms
+Run 6: 1318.28 ms
+Run 7: 1307.54 ms
+Run 8: 1316.77 ms
+Run 9: 1316.91 ms
+Run 10: 1307.80 ms
+
+Min: 1306.09 ms
+Avg: 1323.77 ms
+Max: 1378.97 ms
+Throughput: 7.22 ops/sec
+PDF Standard: PDF/A-2b (ISO 19005-2:2011) — highest supported by bundled typst 0.12.0
+

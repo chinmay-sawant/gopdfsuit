@@ -62,7 +62,7 @@ const HeroSection = ({ starCount }) => {
           }}
         >
           <p className="hero-description">
-            An high-performance, <span className="highlight-foreground">MIT-licensed</span> Go engine that <span className="highlight-teal">saves enterprise costs</span> and solves critical <span className="highlight-foreground">compliance challenges</span> for Fintechs & Enterprises by generating secure, <span className="highlight-blue">PDF/UA-2 & PDF/A-4</span> compliant documents in <span className="highlight-yellow">under 10ms*</span>.
+            An high-performance, <span className="highlight-foreground">MIT-licensed</span> Go engine that <span className="highlight-teal">saves enterprise costs</span> and solves critical <span className="highlight-foreground">compliance challenges</span> for Fintechs & Enterprises by generating secure, <span className="highlight-blue">PDF/UA-2 & PDF/A-4</span> compliant documents in <span className="highlight-yellow">about 11ms*</span>.
           </p>
 
           <div className="hero-pills-container">

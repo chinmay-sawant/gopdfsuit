@@ -1,20 +1,24 @@
 
 const headlineStats = [
-    { value: '40.50 ms', label: 'Best Data Avg', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
-    { value: '23.63 ops/sec', label: 'Peak Data Throughput', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
-    { value: '3.28 ms', label: 'Best Zerodha Avg', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-    { value: '303.20 ops/sec', label: 'Peak Zerodha Throughput', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
+    { value: '119.48 ms', label: 'Best Data Avg', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
+    { value: '77.81 ops/sec', label: 'Peak Data Throughput', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
+    { value: '10.88 ms', label: 'Best Zerodha Avg', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+    { value: '783.34 ops/sec', label: 'Peak Zerodha Throughput', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
 ]
 
 const dataBenchmarks = [
-    { name: 'GoPDFLib', avg: '40.50 ms', min: '35.95 ms', max: '51.76 ms', throughput: '23.63 ops/sec' },
-    { name: 'PyPDFSuit', avg: '115.12 ms', min: '106.36 ms', max: '137.72 ms', throughput: '8.68 ops/sec' },
+    { name: 'GoPDFLib', avg: '119.48 ms', min: '112.51 ms', max: '127.17 ms', throughput: '77.81 ops/sec' },
+    { name: 'PDFKit', avg: '905.61 ms', min: '820.49 ms', max: '1002.08 ms', throughput: '8.58 ops/sec' },
+    { name: 'jsPDF', avg: '1120.94 ms', min: '1058.14 ms', max: '1187.31 ms', throughput: '7.74 ops/sec' },
+    { name: 'Typst', avg: '1323.77 ms', min: '1306.09 ms', max: '1378.97 ms', throughput: '7.22 ops/sec' },
+    { name: 'pdf-lib', avg: '2041.23 ms', min: '1904.82 ms', max: '2157.59 ms', throughput: '4.13 ops/sec' },
+    { name: 'FPDF2', avg: '4829.08 ms', min: '4734.69 ms', max: '4927.40 ms', throughput: '2.02 ops/sec' },
 ]
 
 const zerodhaBenchmarks = [
-    { name: 'GoPDFSuit', throughput: '303.20 ops/sec', avg: '3.28 ms', min: '2.61 ms', max: '4.77 ms' },
-    { name: 'GoPDFLib', throughput: '269.06 ops/sec', avg: '3.69 ms', min: '2.61 ms', max: '5.03 ms' },
-    { name: 'PyPDFSuit', throughput: '179.97 ops/sec', avg: '5.54 ms', min: '4.05 ms', max: '10.54 ms' },
+    { name: 'GoPDFLib', throughput: '783.34 ops/sec', avg: '10.88 ms', min: '9.47 ms', max: '12.53 ms' },
+    { name: 'GoPDFSuit', throughput: '720.33 ops/sec', avg: '11.70 ms', min: '10.52 ms', max: '12.77 ms' },
+    { name: 'PyPDFSuit', throughput: '157.26 ops/sec', avg: '39.53 ms', min: '38.33 ms', max: '40.71 ms' },
 ]
 
 const parallelWeightedBenchmarks = [
@@ -51,8 +55,8 @@ const PerformanceSection = ({ isVisible }) => {
                 Measured Performance
             </h2>
             <p className="section-subheading" style={{ marginBottom: '2rem' }}>
-                Captured locally on March 19, 2026 from the checked-in benchmark runners, showing the best observed serial result across 10 full command reruns.
-                Historical parallel weighted workload numbers are shown separately below.
+                Captured locally on March 20, 2026 from the latest checked-in benchmark suite run.
+                Every harness below ran 10 iterations, while worker counts still vary by runtime. Historical parallel weighted workload numbers are shown separately below.
             </p>
 
             <div className="performance-stats-grid">

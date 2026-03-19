@@ -52,7 +52,7 @@ const Comparison = () => {
       name: 'GoPdfSuit',
       isOurs: true,
       pricing: 'Free (MIT License)',
-      performance: 'Ultra Fast (Sub-ms - ~7ms)',
+      performance: 'Ultra Fast (~11ms avg Zerodha)',
       deployment: 'Microservice/Sidecar/Docker',
       memory: 'In-Memory Processing',
       integration: 'REST API + Native Python + gopdflib',
