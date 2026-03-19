@@ -73,12 +73,10 @@ func buildRows(records []benchmarkRecord) []gopdflib.Row {
 func buildTemplate(records []benchmarkRecord) gopdflib.PDFTemplate {
 	return gopdflib.PDFTemplate{
 		Config: gopdflib.Config{
-			PageBorder:          "0:0:0:0",
-			Page:                "A4",
-			PageAlignment:       1,
-			PdfTitle:            "User Report",
-			ArlingtonCompatible: false,
-			PDFACompliant:       false,
+			PageBorder:    "0:0:0:0",
+			Page:          "A4",
+			PageAlignment: 1,
+			PdfTitle:      "User Report",
 		},
 		Title: gopdflib.Title{
 			Props: "Helvetica:16:100:center:0:0:0:0",

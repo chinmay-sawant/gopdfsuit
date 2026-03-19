@@ -1,10 +1,11 @@
-const { PDFDocument, StandardFonts, rgb, PDFName } = require('pdf-lib');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const fs = require('fs');
 const { performance } = require('perf_hooks');
 
 const data = JSON.parse(fs.readFileSync('../data.json', 'utf8'));
+const iterations = 10;
 
-async function run() {
+async function runOnce() {
     const start = performance.now();
     const pdfDoc = await PDFDocument.create();
     
@@ -171,9 +172,36 @@ async function run() {
     const pdfBytes = await pdfDoc.save();
     fs.writeFileSync('output_pdflib.pdf', pdfBytes);
 
-    const end = performance.now();
-    console.log(`pdf-lib Time: ${(end - start).toFixed(2)} ms`);
+    return performance.now() - start;
+}
+
+async function main() {
+    const timings = [];
+
+    console.log('=== pdf-lib Data Benchmark ===');
+    console.log(`Iterations: ${iterations}`);
+
+    const totalStart = performance.now();
+    for (let runIndex = 1; runIndex <= iterations; runIndex += 1) {
+        const elapsedMs = await runOnce();
+        timings.push(elapsedMs);
+        console.log(`Run ${runIndex}: ${elapsedMs.toFixed(2)} ms`);
+    }
+    const totalSeconds = (performance.now() - totalStart) / 1000;
+
+    const min = Math.min(...timings);
+    const max = Math.max(...timings);
+    const avg = timings.reduce((sum, value) => sum + value, 0) / timings.length;
+
+    console.log('');
+    console.log(`Min: ${min.toFixed(2)} ms`);
+    console.log(`Avg: ${avg.toFixed(2)} ms`);
+    console.log(`Max: ${max.toFixed(2)} ms`);
+    console.log(`Throughput: ${(timings.length / totalSeconds).toFixed(2)} ops/sec`);
     console.log('PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A or PDF/UA natively)');
 }
 
-run();
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});
