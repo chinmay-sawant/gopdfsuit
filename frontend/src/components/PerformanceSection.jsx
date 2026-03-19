@@ -1,18 +1,27 @@
 
 const headlineStats = [
-    { value: '2.48 ms', label: 'Fastest Retail Render', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
-    { value: '306.05 ops/sec', label: 'Peak Serial Throughput', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
-    { value: '1913.13 ops/sec', label: 'Go Zerodha Peak', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-    { value: '233.76 ops/sec', label: 'Py Zerodha Peak', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
+    { value: '119.48 ms', label: 'Best Data Avg', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
+    { value: '77.81 ops/sec', label: 'Peak Data Throughput', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
+    { value: '10.88 ms', label: 'Best Zerodha Avg', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+    { value: '783.34 ops/sec', label: 'Peak Zerodha Throughput', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
 ]
 
-const sharedBenchmarks = [
-    { name: 'GoPDFLib', time: '2.48 ms', throughput: '306.05 ops/sec' },
-    { name: 'GoPDFSuit', time: '2.87 ms', throughput: '243.00 ops/sec' },
-    { name: 'PyPDFSuit', time: '3.05 ms', throughput: '211.51 ops/sec' },
+const dataBenchmarks = [
+    { name: 'GoPDFLib', avg: '119.48 ms', min: '112.51 ms', max: '127.17 ms', throughput: '77.81 ops/sec' },
+    { name: 'PDFKit', avg: '905.61 ms', min: '820.49 ms', max: '1002.08 ms', throughput: '8.58 ops/sec' },
+    { name: 'jsPDF', avg: '1120.94 ms', min: '1058.14 ms', max: '1187.31 ms', throughput: '7.74 ops/sec' },
+    { name: 'Typst', avg: '1323.77 ms', min: '1306.09 ms', max: '1378.97 ms', throughput: '7.22 ops/sec' },
+    { name: 'pdf-lib', avg: '2041.23 ms', min: '1904.82 ms', max: '2157.59 ms', throughput: '4.13 ops/sec' },
+    { name: 'FPDF2', avg: '4829.08 ms', min: '4734.69 ms', max: '4927.40 ms', throughput: '2.02 ops/sec' },
 ]
 
 const zerodhaBenchmarks = [
+    { name: 'GoPDFLib', throughput: '783.34 ops/sec', avg: '10.88 ms', min: '9.47 ms', max: '12.53 ms' },
+    { name: 'GoPDFSuit', throughput: '720.33 ops/sec', avg: '11.70 ms', min: '10.52 ms', max: '12.77 ms' },
+    { name: 'PyPDFSuit', throughput: '157.26 ops/sec', avg: '39.53 ms', min: '38.33 ms', max: '40.71 ms' },
+]
+
+const parallelWeightedBenchmarks = [
     { name: 'GoPDFLib', workers: '48', throughput: '1913.13 ops/sec', avg: '24.558 ms', min: '2.280 ms', max: '505.087 ms', mix: '4004 / 766 / 230' },
     { name: 'PyPDFSuit', workers: '48', throughput: '233.76 ops/sec', avg: '185.517 ms', min: '2.657 ms', max: '3516.474 ms', mix: '4015 / 767 / 218' },
 ]
@@ -46,7 +55,8 @@ const PerformanceSection = ({ isVisible }) => {
                 Measured Performance
             </h2>
             <p className="section-subheading" style={{ marginBottom: '2rem' }}>
-                Captured locally on March 9, 2026 from the checked-in benchmark runners, showing the best observed result for each benchmark mode.
+                Captured locally on March 20, 2026 from the latest checked-in benchmark suite run.
+                Every harness below ran 10 iterations, while worker counts still vary by runtime. Historical parallel weighted workload numbers are shown separately below.
             </p>
 
             <div className="performance-stats-grid">
@@ -68,20 +78,24 @@ const PerformanceSection = ({ isVisible }) => {
             </div>
 
             <div className="performance-logs custom-scrollbar" style={{ marginBottom: '1.25rem' }}>
-                <div style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Single Zerodha Retail Contract Note</div>
+                <div style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Data Table Benchmark</div>
                 <table style={tableStyle}>
                     <thead>
                         <tr>
                             <th style={cellStyle}>Library</th>
-                            <th style={cellStyle}>Best Time</th>
+                            <th style={cellStyle}>Best Avg</th>
+                            <th style={cellStyle}>Best Min</th>
+                            <th style={cellStyle}>Best Max</th>
                             <th style={cellStyle}>Peak Serial Throughput</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {sharedBenchmarks.map((benchmark) => (
+                        {dataBenchmarks.map((benchmark) => (
                             <tr key={benchmark.name}>
                                 <td style={cellStyle}>{benchmark.name}</td>
-                                <td style={cellStyle}>{benchmark.time}</td>
+                                <td style={cellStyle}>{benchmark.avg}</td>
+                                <td style={cellStyle}>{benchmark.min}</td>
+                                <td style={cellStyle}>{benchmark.max}</td>
                                 <td style={cellStyle}>{benchmark.throughput}</td>
                             </tr>
                         ))}
@@ -90,7 +104,36 @@ const PerformanceSection = ({ isVisible }) => {
             </div>
 
             <div className="performance-logs custom-scrollbar" style={{ marginBottom: '1.25rem' }}>
-                <div style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Zerodha Weighted Workload</div>
+                <div style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Zerodha Contract Note Benchmark</div>
+                <table style={tableStyle}>
+                    <thead>
+                        <tr>
+                            <th style={cellStyle}>Runtime</th>
+                            <th style={cellStyle}>Avg</th>
+                            <th style={cellStyle}>Min</th>
+                            <th style={cellStyle}>Max</th>
+                            <th style={cellStyle}>Throughput</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {zerodhaBenchmarks.map((benchmark) => (
+                            <tr key={benchmark.name}>
+                                <td style={cellStyle}>{benchmark.name}</td>
+                                <td style={cellStyle}>{benchmark.avg}</td>
+                                <td style={cellStyle}>{benchmark.min}</td>
+                                <td style={cellStyle}>{benchmark.max}</td>
+                                <td style={cellStyle}>{benchmark.throughput}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="performance-logs custom-scrollbar" style={{ marginBottom: '1.25rem' }}>
+                <div style={{ marginBottom: '0.75rem', fontWeight: 'bold' }}>Parallel Weighted Workload</div>
+                <div style={{ marginBottom: '0.75rem', opacity: 0.82, fontSize: '0.85rem' }}>
+                    This is a different benchmark mode: a mixed retail, active-trader, and HFT workload executed across 48 workers in parallel. Higher throughput here reflects concurrent aggregate processing, not single-document serial latency.
+                </div>
                 <table style={tableStyle}>
                     <thead>
                         <tr>
@@ -104,7 +147,7 @@ const PerformanceSection = ({ isVisible }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {zerodhaBenchmarks.map((benchmark) => (
+                        {parallelWeightedBenchmarks.map((benchmark) => (
                             <tr key={benchmark.name}>
                                 <td style={cellStyle}>{benchmark.name}</td>
                                 <td style={cellStyle}>{benchmark.workers}</td>
@@ -129,7 +172,7 @@ const PerformanceSection = ({ isVisible }) => {
                 Benchmarks cover PDF generation with PDF/A settings, embedded fonts, bookmarks, internal links, and digital signatures where the runner enables them.
                 <br />
                 <span style={{ fontSize: '0.75rem', fontStyle: 'italic', opacity: 0.8 }}>
-                    * The retail section measures serial single-document rendering, while the Zerodha workload section measures aggregate throughput across 48 workers.
+                    * Serial tables measure one benchmark process at a time. The parallel weighted table measures aggregate throughput across 48 workers, so it should be read as concurrent system throughput rather than single-document latency.
                 </span>
             </p>
         </div>
