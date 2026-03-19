@@ -73,6 +73,7 @@ func TestMathRender(t *testing.T) {
 		layout := typstsyntax.RenderMathToLayout(expr, ctx)
 		if layout == nil {
 			t.Fatalf("RenderMathToLayout(%q) returned nil", expr)
+			return
 		}
 		if layout.Width <= 0 {
 			t.Fatalf("RenderMathToLayout(%q) returned non-positive width: %f", expr, layout.Width)

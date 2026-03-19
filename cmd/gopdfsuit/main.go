@@ -19,6 +19,10 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
 	var wg sync.WaitGroup
 
 	// Profiling is opt-in to avoid heap instrumentation overhead in production/benchmarks
@@ -107,14 +111,20 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	var exitCode int
 	select {
 	case err := <-serverErrors:
 		log.Printf("Server error: %v", err)
-		os.Exit(1)
+		exitCode = 1
 	case <-quit:
 		log.Println("Shutting down server...")
 	}
 
 	// Wait for background tasks to finish
 	wg.Wait()
+
+	if exitCode != 0 {
+		return exitCode
+	}
+	return 0
 }

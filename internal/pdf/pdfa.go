@@ -116,9 +116,7 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string { //nolint
 	return xmp
 }
 
-// GenerateXMPMetadataObject generates the XMP metadata stream object
-// pdfDateStr should be in PDF format: D:YYYYMMDDHHmmSSOHH'mm'
-// GenXMPMeta generates the XMP metadata object
+// GenXMPMeta generates the XMP metadata stream object
 func GenXMPMeta(objectID int, documentID string, pdfDateStr string, encryptor ObjectEncryptor) string {
 	xmpData := GenerateXMPMetadata(documentID, pdfDateStr)
 
@@ -302,9 +300,7 @@ func GetSRGBICCProfile() []byte {
 	return buildSRGBICCProfile()
 }
 
-// GenerateICCProfileObject generates the ICC profile stream object for sRGB
-// Returns the bytes to write to the PDF buffer
-// GenICCProfile generates the ICC profile object
+// GenICCProfile generates the ICC profile stream object for sRGB
 func GenICCProfile(objectID int, encryptor ObjectEncryptor) []byte {
 	// Get the complete sRGB ICC profile
 	iccProfile := GetSRGBICCProfile()
@@ -334,9 +330,7 @@ func GenICCProfile(objectID int, encryptor ObjectEncryptor) []byte {
 	return result.Bytes()
 }
 
-// GenerateGrayICCProfileObject generates the ICC profile stream object for DeviceGray
-// Returns the bytes to write to the PDF buffer
-// GenGrayICC generates the Gray ICC profile object
+// GenGrayICC generates the ICC profile stream object for DeviceGray
 func GenGrayICC(objectID int, encryptor ObjectEncryptor) []byte {
 	// Build a simple Gray ICC profile
 	grayProfile := buildGrayICCProfile()
@@ -470,8 +464,7 @@ func buildGrayICCProfile() []byte {
 	return profile
 }
 
-// GenerateOutputIntentObject generates the OutputIntent object for PDF/A-4
-// GenOutIntent generates the OutputIntent object
+// GenOutIntent generates the OutputIntent object for PDF/A-4
 func GenOutIntent(objectID int, iccProfileID int, encryptor ObjectEncryptor) string {
 	// Encrypt string values if needed
 	const srgbICC = "sRGB IEC61966-2.1"
