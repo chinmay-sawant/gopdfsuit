@@ -61,7 +61,7 @@ func (s *IntegrationSuite) compareFileSizes(generatedPath, expectedPath string) 
 }
 
 // Helper to compare file sizes with a tolerance (for PDFs with timestamps/signatures)
-func (s *IntegrationSuite) compareFileSizesWithTolerance(generatedPath, expectedPath string, toleranceBytes int64) {
+func (s *IntegrationSuite) compareSizes(generatedPath, expectedPath string, toleranceBytes int64) {
 	genInfo, err := os.Stat(generatedPath)
 	s.NoError(err, "Failed to stat generated file: "+generatedPath)
 
@@ -102,7 +102,7 @@ func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 
 	// 4. Check size against generated.pdf (use tolerance due to digital signature timestamps)
 	expectedPath := filepath.Join("..", "sampledata", "editor", "generated.pdf")
-	s.compareFileSizesWithTolerance(tempPath, expectedPath, 1024)
+	s.compareSizes(tempPath, expectedPath, 1024)
 }
 
 // TestMergePDFs tests /api/v1/merge
@@ -446,8 +446,8 @@ func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
 	s.compareFileSizes(tempPath, expectedPath)
 }
 
-// TestGenerateTypstMathShowcasePDF tests /api/v1/generate/template-pdf with typst_math_showcase.json
-func (s *IntegrationSuite) TestGenerateTypstMathShowcasePDF() {
+// TestTypstMathShow tests /api/v1/generate/template-pdf with typst_math_showcase.json
+func (s *IntegrationSuite) TestTypstMathShow() {
 	baseDir := filepath.Join("..", "sampledata", "typstsyntax")
 	jsonPath := filepath.Join(baseDir, "typst_math_showcase.json")
 	jsonData, err := os.ReadFile(jsonPath)
@@ -475,9 +475,9 @@ func (s *IntegrationSuite) TestGenerateTypstMathShowcasePDF() {
 	s.Greater(info.Size(), int64(0), "typst_math_showcase.pdf should have non-zero size")
 }
 
-// TestGenerateTypstSamplePDF tests /api/v1/generate/template-pdf with typst_sample.json
-func (s *IntegrationSuite) TestGenerateTypstSamplePDF() {
-	mathFontPath, ok := resolveMathFontPathIntegration()
+// TestTypstSample tests /api/v1/generate/template-pdf with typst_sample.json
+func (s *IntegrationSuite) TestTypstSample() {
+	mathFontPath, ok := resolveMathPath()
 	if !ok {
 		s.T().Skip("no unicode math-capable font found (looked for DejaVu/Noto Math). Install fonts-dejavu-core or fonts-noto-math")
 	}
@@ -522,8 +522,8 @@ func (s *IntegrationSuite) TestGenerateTypstSamplePDF() {
 	s.Greater(info.Size(), int64(0), "typst_sample.pdf should have non-zero size")
 }
 
-// resolveMathFontPathIntegration finds a unicode-capable math font on the system
-func resolveMathFontPathIntegration() (string, bool) {
+// resolveMathPath finds a unicode-capable math font on the system
+func resolveMathPath() (string, bool) {
 	candidates := []string{
 		"/usr/share/fonts/truetype/noto/NotoSansMath-Regular.ttf",
 		"/usr/share/fonts/opentype/noto/NotoSansMath-Regular.otf",

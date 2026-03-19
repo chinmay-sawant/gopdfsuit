@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/typstsyntax"
 )
 
-func TestTypstMathStress_RenderToContentStream(t *testing.T) {
+func TestMathRender(t *testing.T) {
 	t.Parallel()
 
 	expressions := []string{
@@ -64,7 +65,7 @@ func TestTypstMathStress_RenderToContentStream(t *testing.T) {
 
 		if strings.Contains(expr, "integral") {
 			integralExprCount++
-			if !containsAnyIntegralGlyph(flattened) {
+			if !hasIntegral(flattened) {
 				t.Fatalf("expression %q did not render integral symbol in flattened text: %q", expr, flattened)
 			}
 		}
@@ -87,7 +88,7 @@ func TestTypstMathStress_RenderToContentStream(t *testing.T) {
 			t.Fatalf("RenderToContentStream(%q) missing BT/ET operators", expr)
 		}
 
-		if strings.Contains(expr, "integral") && !containsAnyIntegralGlyph(out) {
+		if strings.Contains(expr, "integral") && !hasIntegral(out) {
 			t.Fatalf("RenderToContentStream(%q) did not include integral symbol in stream", expr)
 		}
 	}
@@ -97,7 +98,7 @@ func TestTypstMathStress_RenderToContentStream(t *testing.T) {
 	}
 }
 
-func TestTypstMathStress_GenerateTemplatePDFWithIntegrals(t *testing.T) {
+func TestMathIntegrals(t *testing.T) {
 	t.Parallel()
 
 	mathFontPath, ok := resolveMathFontPath()
@@ -120,10 +121,11 @@ func TestTypstMathStress_GenerateTemplatePDFWithIntegrals(t *testing.T) {
 		"$ sum_(k=1)^n k = frac(n(n+1), 2) $",
 	}
 
+	props := fmt.Sprintf("%s:12:000:left:1:1:1:1", mathFontName)
 	rows := make([]models.Row, 0, len(expressions))
 	for _, expr := range expressions {
 		rows = append(rows, models.Row{Row: []models.Cell{{
-			Props:       mathFontName + ":12:000:left:1:1:1:1",
+			Props:       props,
 			Text:        expr,
 			MathEnabled: &mathEnabled,
 		}}})
@@ -171,7 +173,7 @@ func TestTypstMathStress_GenerateTemplatePDFWithIntegrals(t *testing.T) {
 	}
 }
 
-func TestTypstMathStress_GenerateEquationBankPDF(t *testing.T) {
+func TestMathEqBank(t *testing.T) {
 	mathFontPath, ok := resolveMathFontPath()
 	if !ok {
 		t.Skip("no unicode math-capable font found (looked for DejaVu/Noto Math). Install fonts-dejavu-core or fonts-noto-math")
@@ -283,13 +285,15 @@ func TestTypstMathStress_GenerateEquationBankPDF(t *testing.T) {
 	}
 
 	totalFormulaCount := 0
+	nameProps := fmt.Sprintf("%s:10:100:left:1:1:1:1", mathFontName)
+	formulaProps := fmt.Sprintf("%s:11:000:left:1:1:1:1", mathFontName)
 	rows := make([]models.Row, 0, 120)
 	for _, batch := range batches {
 		for _, formula := range batch.formulas {
 			totalFormulaCount++
 			rows = append(rows, models.Row{Row: []models.Cell{
-				{Props: mathFontName + ":10:100:left:1:1:1:1", Text: batch.name},
-				{Props: mathFontName + ":11:000:left:1:1:1:1", Text: formula, MathEnabled: &mathEnabled},
+				{Props: nameProps, Text: batch.name},
+				{Props: formulaProps, Text: formula, MathEnabled: &mathEnabled},
 			}})
 		}
 	}
@@ -373,7 +377,7 @@ func TestTypstMathStress_GenerateEquationBankPDF(t *testing.T) {
 	}
 }
 
-func TestTypstMathStress_GenerateImageStyleShowcasePDF(t *testing.T) {
+func TestMathShowcase(t *testing.T) {
 	mathFontPath, ok := resolveMathFontPath()
 	if !ok {
 		t.Skip("no unicode math-capable font found (looked for DejaVu/Noto Math). Install fonts-dejavu-core or fonts-noto-math")
@@ -396,8 +400,9 @@ func TestTypstMathStress_GenerateImageStyleShowcasePDF(t *testing.T) {
 	rows := make([]models.Row, 0, len(showcaseExpressions)+3)
 	rowHeights := make([]float64, 0, len(showcaseExpressions)+3)
 
+	titleProps := fmt.Sprintf("%s:13:100:left:1:1:1:1", mathFontName)
 	rows = append(rows, models.Row{Row: []models.Cell{{
-		Props: mathFontName + ":13:100:left:1:1:1:1",
+		Props: titleProps,
 		Text:  "Image-Inspired Typst Math Showcase",
 	}}})
 	rowHeights = append(rowHeights, 8)
@@ -418,8 +423,9 @@ func TestTypstMathStress_GenerateImageStyleShowcasePDF(t *testing.T) {
 			t.Fatalf("FlattenToText(%q) did not include opening bracket: %q", expr, flat)
 		}
 
+		cellProps := fmt.Sprintf("%s:12:000:left:1:1:1:1", mathFontName)
 		rows = append(rows, models.Row{Row: []models.Cell{{
-			Props:       mathFontName + ":12:000:left:1:1:1:1",
+			Props:       cellProps,
 			Text:        expr,
 			MathEnabled: &mathEnabled,
 		}}})
@@ -482,7 +488,7 @@ func TestTypstMathStress_GenerateImageStyleShowcasePDF(t *testing.T) {
 	}
 }
 
-func containsAnyIntegralGlyph(text string) bool {
+func hasIntegral(text string) bool {
 	return strings.Contains(text, "∫") ||
 		strings.Contains(text, "∬") ||
 		strings.Contains(text, "∭") ||

@@ -8,9 +8,9 @@ import (
 
 // Annotation and form field handling for PDF merge
 
-// ExtractAnnotationsFromPage extracts annotation object references from a page object
+// ExtractAnnots extracts annotation object references from a page object
 // Returns a list of annotation object numbers
-func ExtractAnnotationsFromPage(pageBody []byte, objMap map[int][]byte) []int {
+func ExtractAnnots(pageBody []byte, objMap map[int][]byte) []int {
 	var annots []int
 	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
 
@@ -122,7 +122,7 @@ func ExtractFormFields(fc *FileContext) {
 	// Method 3: Extract annotations from pages
 	for objNum, body := range fc.Objects {
 		if IsPageObject(body) && !IsPagesTreeObject(body) {
-			pageAnnots := ExtractAnnotationsFromPage(body, fc.Objects)
+			pageAnnots := ExtractAnnots(body, fc.Objects)
 			if len(pageAnnots) > 0 {
 				fc.Annots[objNum] = pageAnnots
 			}

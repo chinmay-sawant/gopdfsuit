@@ -408,11 +408,13 @@ func WrapText(text string, resolvedFontName string, fontSize float64, maxWidth f
 		}
 
 		// Try adding word to current line
-		testLine := currentLine
-		if testLine != "" {
-			testLine += " "
+		var sb strings.Builder
+		if currentLine != "" {
+			sb.WriteString(currentLine)
+			sb.WriteByte(' ')
 		}
-		testLine += word
+		sb.WriteString(word)
+		testLine := sb.String()
 
 		testWidth := EstimateTextWidth(resolvedFontName, testLine, fontSize, registry)
 		if testWidth <= maxWidth {
@@ -474,12 +476,8 @@ func wrapLongWord(word string, resolvedFontName string, fontSize float64, maxWid
 	return lines
 }
 
-// CalculateWrappedTextHeight calculates the total height needed for wrapped text
-// lineCount: number of lines of text
-// fontSize: font size in points
-// lineSpacing: multiplier for line height (e.g., 1.2 for 120% line height)
-// Returns the total height in points
-func CalculateWrappedTextHeight(lineCount int, fontSize float64, lineSpacing float64) float64 {
+// WrapHeight calculates the total height needed for wrapped text
+func WrapHeight(lineCount int, fontSize float64, lineSpacing float64) float64 {
 	if lineCount <= 0 {
 		return 0
 	}

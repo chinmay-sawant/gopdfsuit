@@ -39,10 +39,10 @@ func monitorMemory(done chan bool, wg *sync.WaitGroup) {
 	}
 }
 
-// RunSingleDocumentBenchmark renders the benchmark template concurrently using a
+// RunDocBenchmark renders the benchmark template concurrently using a
 // 48-worker pool and prints timing statistics including P95 and throughput.
-func RunSingleDocumentBenchmark(name string) error {
-	template, err := BuildZerodhaRetailTemplate()
+func RunDocBenchmark(name string) error {
+	template, err := BuildZerodhaTemplate()
 	if err != nil {
 		return err
 	}

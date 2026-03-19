@@ -132,7 +132,7 @@ func main() {
 	}
 
 	// 4. Process the map recursively
-	ProcessMap(templateMap, data)
+	replaceMapNodes(templateMap, data)
 
 	// 5. Marshal back to JSON
 	outputBytes, err := json.MarshalIndent(templateMap, "", "  ")
@@ -177,30 +177,34 @@ func main() {
 	fmt.Printf("Total processed in ms: %d\n", elapsed.Milliseconds())
 }
 
-// ProcessMap recursively traverses the map and replaces placeholders in string values
-func ProcessMap(m map[string]interface{}, data map[string]string) {
+type DocumentNode map[string]any
+
+// replaceMapNodes recursively traverses the map and replaces placeholders in string values
+func replaceMapNodes(m DocumentNode, data map[string]string) {
 	for k, v := range m {
 		switch val := v.(type) {
 		case string:
 			m[k] = ReplacePlaceholders(val, data)
-		case map[string]interface{}:
-			ProcessMap(val, data)
-		case []interface{}:
-			ProcessSlice(val, data)
+		case DocumentNode:
+			replaceMapNodes(val, data)
+		case DocumentList:
+			replaceSliceNodes(val, data)
 		}
 	}
 }
 
-// ProcessSlice recursively traverses the slice
-func ProcessSlice(s []interface{}, data map[string]string) {
+type DocumentList []any
+
+// replaceSliceNodes recursively traverses the slice
+func replaceSliceNodes(s DocumentList, data map[string]string) {
 	for i, v := range s {
 		switch val := v.(type) {
 		case string:
 			s[i] = ReplacePlaceholders(val, data)
-		case map[string]interface{}:
-			ProcessMap(val, data)
-		case []interface{}:
-			ProcessSlice(val, data)
+		case DocumentNode:
+			replaceMapNodes(val, data)
+		case DocumentList:
+			replaceSliceNodes(val, data)
 		}
 	}
 }

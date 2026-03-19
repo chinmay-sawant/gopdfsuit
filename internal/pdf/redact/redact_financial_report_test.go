@@ -9,7 +9,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
-func TestFinancialReportTextRedaction(t *testing.T) {
+func TestRedactFin(t *testing.T) {
 	pdfPath := filepath.Join("..", "..", "..", "sampledata", "financialreport", "compliant_financial_report.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
 	if err != nil {
@@ -28,9 +28,9 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRedactor failed: %v", err)
 	}
-	out, report, err := r.ApplyRedactionsAdvancedWithReport(opts)
+	out, report, err := r.ApplyRedactionsReport(opts)
 	if err != nil {
-		t.Fatalf("ApplyRedactionsAdvancedWithReport failed: %v", err)
+		t.Fatalf("ApplyRedactionsReport failed: %v", err)
 	}
 	t.Logf("redaction report: generated=%d matchedText=%d applied=%d warnings=%v capabilities=%v", report.GeneratedRects, report.MatchedTextCount, report.AppliedRectangles, report.Warnings, report.Capabilities)
 	if len(out) == 0 {
@@ -53,7 +53,7 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	}
 }
 
-func TestFinancialReportPage2TextRedaction(t *testing.T) {
+func TestRedactFinP2(t *testing.T) {
 	pdfPath := filepath.Join("..", "..", "..", "sampledata", "financialreport", "compliant_financial_report.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
 	if err != nil {
@@ -84,7 +84,7 @@ func TestFinancialReportPage2TextRedaction(t *testing.T) {
 	}
 }
 
-func TestFinancialReportPage2TextRedactionMultiTerms(t *testing.T) {
+func TestRedactFinMulti(t *testing.T) {
 	pdfPath := filepath.Join("..", "..", "..", "sampledata", "financialreport", "compliant_financial_report.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
 	if err != nil {
@@ -95,9 +95,9 @@ func TestFinancialReportPage2TextRedactionMultiTerms(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRedactor failed: %v", err)
 	}
-	rects, err := r.FindTextOccurrencesMulti([]string{"SEC", "COM"})
+	rects, err := r.FindTextMulti([]string{"SEC", "COM"})
 	if err != nil {
-		t.Fatalf("FindTextOccurrencesMulti failed: %v", err)
+		t.Fatalf("FindTextMulti failed: %v", err)
 	}
 	if len(rects) == 0 {
 		t.Fatal("expected matches for SEC/COM in sample PDF")

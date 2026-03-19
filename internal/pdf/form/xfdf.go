@@ -251,7 +251,7 @@ func traverseField(ref string, objMap map[string][]byte, parentPrefix string, ou
 				tv = rv
 			}
 			if tv == "" {
-				if asn, ok := findWidgetAnnotationsForName(name, objMap); ok {
+				if asn, ok := findWidgetAnnots(name, objMap); ok {
 					tv = asn
 				}
 			}
@@ -334,8 +334,8 @@ func resolveValueRef(body []byte, objMap map[string][]byte) string {
 	return resolve(body, 0)
 }
 
-// findWidgetAnnotationsForName searches for widget annotations with the field name
-func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string, bool) {
+// findWidgetAnnots searches for widget annotations with the field name
+func findWidgetAnnots(name string, objMap map[string][]byte) (string, bool) {
 	needle := []byte("(" + name + ")")
 	for k, body := range objMap {
 		if bytesIndex(body, []byte(`/Subtype/Widget`)) < 0 {
@@ -463,10 +463,10 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 	}
 }
 
-// DetectFormFieldsAdvanced performs comprehensive field detection using the logic from fielddetect.go
+// DetectFieldsAdv performs comprehensive field detection using the logic from fielddetect.go
 //
 //nolint:gocyclo
-func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
+func DetectFieldsAdv(pdfBytes []byte) (map[string]string, error) {
 	if len(pdfBytes) == 0 {
 		return nil, errors.New("empty pdf bytes")
 	}
@@ -675,7 +675,7 @@ func decompressStreams(body []byte) []byte {
 
 // DetectFormFields now uses the enhanced detection logic
 func DetectFormFields(pdfBytes []byte) ([]string, error) {
-	fieldMap, err := DetectFormFieldsAdvanced(pdfBytes)
+	fieldMap, err := DetectFieldsAdv(pdfBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -699,7 +699,7 @@ func FillPDFWithXFDFAdvanced(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	detectedFields, err := DetectFormFieldsAdvanced(pdfBytes)
+	detectedFields, err := DetectFieldsAdv(pdfBytes)
 	if err != nil {
 		return nil, err
 	}

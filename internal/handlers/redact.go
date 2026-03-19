@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func parseCommaSeparatedTerms(raw string) []string {
+func parseTerms(raw string) []string {
 	parts := strings.Split(raw, ",")
 	if len(parts) == 0 {
 		return nil
@@ -34,14 +34,14 @@ func parseCommaSeparatedTerms(raw string) []string {
 	return terms
 }
 
-func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.RedactionTextQuery {
+func normalizeQueries(queries []models.RedactionTextQuery) []models.RedactionTextQuery {
 	if len(queries) == 0 {
 		return nil
 	}
 	seen := make(map[string]struct{}, len(queries))
 	normalized := make([]models.RedactionTextQuery, 0, len(queries))
 	for _, q := range queries {
-		for _, term := range parseCommaSeparatedTerms(q.Text) {
+		for _, term := range parseTerms(q.Text) {
 			key := strings.ToLower(term)
 			if _, ok := seen[key]; ok {
 				continue
@@ -122,7 +122,7 @@ func HandleRedactCapabilities(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load PDF: " + err.Error()})
 		return
 	}
-	caps, err := r.AnalyzePageCapabilities()
+	caps, err := r.AnalyzePageCaps()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -131,8 +131,8 @@ func HandleRedactCapabilities(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"capabilities": caps})
 }
 
-// HandleRedactTextPositions handles requests to extract text positions from a page
-func HandleRedactTextPositions(c *gin.Context) {
+// HandleRedactPos handles requests to extract text positions from a page
+func HandleRedactPos(c *gin.Context) {
 	file, err := c.FormFile("pdf")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is required"})
@@ -243,7 +243,7 @@ func HandleRedactApply(c *gin.Context) {
 	// Backward compatibility: allow plain text search field for one-shot apply.
 	if len(options.TextSearch) == 0 {
 		if searchText := strings.TrimSpace(c.PostForm("text")); searchText != "" {
-			terms := parseCommaSeparatedTerms(searchText)
+			terms := parseTerms(searchText)
 			if len(terms) == 0 {
 				terms = []string{searchText}
 			}
@@ -253,7 +253,7 @@ func HandleRedactApply(c *gin.Context) {
 			}
 		}
 	}
-	options.TextSearch = normalizeTextSearchQueries(options.TextSearch)
+	options.TextSearch = normalizeQueries(options.TextSearch)
 
 	f, err := file.Open()
 	if err != nil {
@@ -277,7 +277,7 @@ func HandleRedactApply(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load PDF: " + err.Error()})
 		return
 	}
-	redactedPDF, report, err := r.ApplyRedactionsAdvancedWithReport(options)
+	redactedPDF, report, err := r.ApplyRedactionsReport(options)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -309,7 +309,7 @@ func HandleRedactSearch(c *gin.Context) {
 	if len(terms) == 0 {
 		searchText := strings.TrimSpace(c.PostForm("text"))
 		if searchText != "" {
-			terms = parseCommaSeparatedTerms(searchText)
+			terms = parseTerms(searchText)
 			if len(terms) == 0 {
 				terms = []string{searchText}
 			}
@@ -342,7 +342,7 @@ func HandleRedactSearch(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load PDF: " + err.Error()})
 		return
 	}
-	rects, err := r.FindTextOccurrencesMulti(terms)
+	rects, err := r.FindTextMulti(terms)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

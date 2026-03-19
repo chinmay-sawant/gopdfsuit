@@ -18,7 +18,7 @@ func TestXFDFFillSample(t *testing.T) {
 	}
 
 	// Test enhanced field detection
-	detectedFieldsMap, err := DetectFormFieldsAdvanced(pdfBytes)
+	detectedFieldsMap, err := DetectFieldsAdv(pdfBytes)
 	if err != nil {
 		t.Fatalf("detect fields advanced: %v", err)
 	}

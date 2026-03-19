@@ -294,8 +294,8 @@ func FindStreamStart(data []byte) int {
 	return -1
 }
 
-// ReplaceRefsOutsideStreams rewrites indirect references only outside stream blocks
-func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
+// ReplaceRefs rewrites indirect references only outside stream blocks
+func ReplaceRefs(data []byte, offset int) []byte {
 	refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 	var out bytes.Buffer
 	i := 0
@@ -459,7 +459,7 @@ func ParseObjectStream(body []byte) map[int][]byte {
 	firstOffset, _ := strconv.Atoi(string(firstMatch[1]))
 
 	// Find and decompress stream
-	streamData := extractAndDecompressStream(body)
+	streamData := extractStream(body)
 	if streamData == nil || len(streamData) < firstOffset {
 		return result
 	}
@@ -505,8 +505,8 @@ func ParseObjectStream(body []byte) map[int][]byte {
 	return result
 }
 
-// extractAndDecompressStream extracts and decompresses a stream from an object body
-func extractAndDecompressStream(body []byte) []byte {
+// extractStream extracts and decompresses a stream from an object body
+func extractStream(body []byte) []byte {
 	// Find stream start
 	streamStart := FindStreamStart(body)
 	if streamStart == -1 {

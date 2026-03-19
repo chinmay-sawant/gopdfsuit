@@ -3,6 +3,7 @@ package redact
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -27,7 +28,7 @@ type ocrWord struct {
 
 // OCRProvider is an adapter interface for OCR backends.
 type OCRProvider interface {
-	ExtractWords(pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error)
+	ExtractWords(ctx context.Context, pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error)
 }
 
 type tesseractProvider struct{}
@@ -48,7 +49,7 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 	if err != nil {
 		return nil, err
 	}
-	words, err := p.ExtractWords(r.pdfBytes, settings)
+	words, err := p.ExtractWords(context.Background(), r.pdfBytes, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 	return rects, nil
 }
 
-func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error) {
+func (tesseractProvider) ExtractWords(ctx context.Context, pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error) {
 	if _, err := exec.LookPath("pdftoppm"); err != nil {
 		return nil, errors.New("pdftoppm command not found for OCR pipeline")
 	}
@@ -111,9 +112,9 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 	for page := 1; page <= info.TotalPages; page++ {
 		imgBase := filepath.Join(tmpDir, fmt.Sprintf("page-%d", page))
 		imgPath := imgBase + ".png"
-		pdftoppmCmd := exec.Command("pdftoppm", "-f", strconv.Itoa(page), "-l", strconv.Itoa(page), "-singlefile", "-png", pdfPath, imgBase)
+		pdftoppmCmd := exec.CommandContext(ctx, "pdftoppm", "-f", strconv.Itoa(page), "-l", strconv.Itoa(page), "-singlefile", "-png", pdfPath, imgBase)
 		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, err, string(out))
+			return nil, fmt.Errorf("pdftoppm failed on page %d: %w (%s)", page, err, string(out))
 		}
 
 		imgFile, err := os.Open(imgPath)
@@ -126,10 +127,10 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 			return nil, err
 		}
 
-		tsvCmd := exec.Command("tesseract", imgPath, "stdout", "tsv", "-l", lang)
+		tsvCmd := exec.CommandContext(ctx, "tesseract", imgPath, "stdout", "tsv", "-l", lang)
 		tsvOut, err := tsvCmd.CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("tesseract failed on page %d: %v (%s)", page, err, string(tsvOut))
+			return nil, fmt.Errorf("tesseract failed on page %d: %w (%s)", page, err, string(tsvOut))
 		}
 
 		pageDim := info.Pages[page-1]

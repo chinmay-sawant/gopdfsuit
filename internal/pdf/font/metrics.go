@@ -499,8 +499,8 @@ func GenerateFontObject(fontName string, fontObjectID, fontDescriptorID, widthsA
 	return sb.String()
 }
 
-// GenerateFontDescriptorObject creates a FontDescriptor object
-func GenerateFontDescriptorObject(fontName string, objectID int) string {
+// GenFontDescriptor creates a FontDescriptor object
+func GenFontDescriptor(fontName string, objectID int) string {
 	metrics := GetFontMetrics(fontName)
 	fd := metrics.FontDescriptor
 
@@ -536,8 +536,8 @@ func GenerateFontDescriptorObject(fontName string, objectID int) string {
 	return sb.String()
 }
 
-// GenerateWidthsArrayObject creates a Widths array object
-func GenerateWidthsArrayObject(fontName string, objectID int) string {
+// GenWidthsArray creates a Widths array object
+func GenWidthsArray(fontName string, objectID int) string {
 	metrics := GetFontMetrics(fontName)
 
 	var widthsArray strings.Builder
@@ -557,10 +557,8 @@ func GenerateWidthsArrayObject(fontName string, objectID int) string {
 	return widthsArray.String()
 }
 
-// GetHelveticaFontResourceString returns a complete inline font resource for XObjects
-// This is used in form field appearance streams - optimized for minimal size
-// arlingtonCompatible: if true, includes full font metrics for PDF 2.0 compliance
-func GetHelveticaFontResourceString() string {
+// GetHelvResource returns a complete inline font resource for XObjects
+func GetHelvResource() string {
 	metrics := GetFontMetrics("Helvetica")
 
 	// Build compact widths array inline (no extra spaces)
@@ -579,15 +577,13 @@ func GetHelveticaFontResourceString() string {
 		metrics.FirstChar, metrics.LastChar, widths.String())
 }
 
-// GetSimpleHelveticaFontResourceString returns a simple inline font resource for XObjects
-// This is used when Arlington compatibility is OFF - minimal font definition
-func GetSimpleHelveticaFontResourceString() string {
+// GetSimpleHelvResource returns a simple inline font resource for XObjects
+func GetSimpleHelvResource() string {
 	return `<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>`
 }
 
-// GenerateSimpleFontObject creates a simple font object (non-Arlington mode)
-// This is the legacy format without FirstChar, LastChar, Widths, and FontDescriptor
-func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int) string {
+// GenSimpleFontObj creates a simple font object (non-Arlington mode)
+func GenSimpleFontObj(fontName string, fontRef string, fontObjectID int) string {
 	var sb strings.Builder
 	sb.WriteString(strconv.Itoa(fontObjectID))
 	sb.WriteString(" 0 obj\n<< /Type /Font /Subtype /Type1 /Name ")
@@ -632,7 +628,7 @@ func GetAvailableFonts() []models.FontInfo {
 		fonts = append(fonts, models.FontInfo{
 			ID:          f.Name,
 			Name:        f.Name,
-			DisplayName: f.Name + " (Custom)",
+			DisplayName: fmt.Sprintf("%s (Custom)", f.Name),
 			Reference:   registry.GetFontReference(f.Name),
 		})
 	}
@@ -642,9 +638,8 @@ func GetAvailableFonts() []models.FontInfo {
 
 // ========== TrueType/OpenType Font Support for Custom Font Embedding ==========
 
-// GenerateTrueTypeFontObjects generates all PDF objects needed for a custom TrueType font
-// Returns map of object ID to object content
-func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor) map[int]string {
+// GenTTFObjects generates all PDF objects needed for a custom TrueType font
+func GenTTFObjects(font *RegisteredFont, encryptor ObjectEncryptor) map[int]string {
 	objects := make(map[int]string)
 
 	// Get font data (subset if available, otherwise full font)
@@ -691,7 +686,7 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	objects[font.CIDToGIDMapID] = GenerateCIDToGIDMap(font, encryptor)
 
 	// Generate FontDescriptor
-	objects[font.DescriptorID] = generateTrueTypeFontDescriptor(font)
+	objects[font.DescriptorID] = genTTFDescriptor(font)
 
 	// Generate CIDFont dictionary
 	objects[font.CIDFontID] = generateCIDFontDict(font)
@@ -736,8 +731,8 @@ func generateCIDFontDict(font *RegisteredFont) string {
 		psName, font.DescriptorID, defaultWidth, font.WidthsID, font.CIDToGIDMapID)
 }
 
-// generateTrueTypeFontDescriptor generates the FontDescriptor for a TrueType font
-func generateTrueTypeFontDescriptor(font *RegisteredFont) string {
+// genTTFDescriptor generates the FontDescriptor for a TrueType font
+func genTTFDescriptor(font *RegisteredFont) string {
 	f := font.Font
 	psName := f.PostScriptName
 	if len(font.SubsetData) > 0 {

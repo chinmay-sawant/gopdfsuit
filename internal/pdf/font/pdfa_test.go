@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestEnsureFontsAvailableCachesFailedDownload(t *testing.T) {
+func TestFontCacheFail(t *testing.T) {
 	tmpDir := t.TempDir()
 	var hits atomic.Int32
 
@@ -62,7 +62,7 @@ func TestEnsureFontsAvailableCachesFailedDownload(t *testing.T) {
 	}
 }
 
-func TestEnsureFontsAvailableSucceedsAfterFontsAppear(t *testing.T) {
+func TestFontCacheRetry(t *testing.T) {
 	tmpDir := t.TempDir()
 	fontsDir := filepath.Join(tmpDir, "fonts")
 

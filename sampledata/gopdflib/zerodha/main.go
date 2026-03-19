@@ -291,7 +291,7 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 // Template 2: Active Trader (2-3 pages, 40 trades)
 // ──────────────────────────────────────────────
 
-func buildActiveTraderTemplate() gopdflib.PDFTemplate {
+func buildTraderTemplate() gopdflib.PDFTemplate {
 	rng := rand.New(rand.NewSource(42))
 	trades := generateTrades(40, rng)
 
@@ -637,7 +637,7 @@ func main() {
 	// Pre-build all 3 templates
 	fmt.Println("Building templates...")
 	retailTemplate := buildRetailTemplate()
-	activeTemplate := buildActiveTraderTemplate()
+	activeTemplate := buildTraderTemplate()
 	hftTemplate := buildHFTTemplate()
 	fmt.Println("Templates built.")
 

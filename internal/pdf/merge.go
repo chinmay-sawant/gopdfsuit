@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // MergePDFs merges multiple PDF byte slices into a single PDF by parsing objects,
@@ -109,7 +110,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		}
 
 		// Extract form fields from this PDF ONLY
-		formFields := extractFormFieldsFromFile(f, objMap)
+		formFields := extractFields(f, objMap)
 
 		// Process objects in numeric order to maintain consistency
 		var fileObjects []int
@@ -124,7 +125,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 			body := objMap[origNum]
 
 			// replace indirect references only outside stream blocks to avoid corrupting streams
-			newBody := replaceRefsOutsideStreams(body, refRe, offset)
+			newBody := replaceRefs(body, refRe, offset)
 
 			newNum := offset + origNum
 			appended = append(appended, struct {
@@ -159,19 +160,21 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 	// Write Catalog object (1) - now includes AcroForm if we have form fields
 	offsets[1] = out.Len()
-	catalogDict := "<< /Type /Catalog /Pages 2 0 R"
+	var catalogDict strings.Builder
+	catalogDict.WriteString("<< /Type /Catalog /Pages 2 0 R")
 	if len(mergedFormFields) > 0 {
-		catalogDict += " /AcroForm << /Fields ["
+		catalogDict.WriteString(" /AcroForm << /Fields [")
 		for i, fieldNum := range mergedFormFields {
 			if i > 0 {
-				catalogDict += " "
+				catalogDict.WriteByte(' ')
 			}
-			catalogDict += fmt.Sprintf("%d 0 R", fieldNum)
+			catalogDict.WriteString(strconv.Itoa(fieldNum))
+			catalogDict.WriteString(" 0 R")
 		}
-		catalogDict += "] >>"
+		catalogDict.WriteString("] >>")
 	}
-	catalogDict += " >>"
-	out.WriteString(fmt.Sprintf("1 0 obj\n%s\nendobj\n", catalogDict))
+	catalogDict.WriteString(" >>")
+	out.WriteString(fmt.Sprintf("1 0 obj\n%s\nendobj\n", catalogDict.String()))
 
 	// Write Pages object (2) with all kids
 	offsets[2] = out.Len()
@@ -247,9 +250,9 @@ func byteSlice(in []string) [][]byte {
 	return out
 }
 
-// replaceRefsOutsideStreams rewrites indirect references (n m R) in data only in regions
+// replaceRefs rewrites indirect references (n m R) in data only in regions
 // that are not within stream...endstream blocks, to avoid mangling compressed stream contents.
-func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []byte {
+func replaceRefs(data []byte, refRe *regexp.Regexp, offset int) []byte {
 	var out bytes.Buffer
 	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
 	last := 0
@@ -304,8 +307,8 @@ func addParentRef(pageBody []byte, parentObjNum int) []byte {
 	return result.Bytes()
 }
 
-// extractFormFieldsFromFile finds form field objects in a specific PDF file
-func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
+// extractFields finds form field objects in a specific PDF file
+func extractFields(pdfData []byte, objMap map[int][]byte) []int {
 	var fields []int
 	fieldSet := make(map[int]bool) // Avoid duplicates within this file
 

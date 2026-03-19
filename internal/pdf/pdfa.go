@@ -118,7 +118,8 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string { //nolint
 
 // GenerateXMPMetadataObject generates the XMP metadata stream object
 // pdfDateStr should be in PDF format: D:YYYYMMDDHHmmSSOHH'mm'
-func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr string, encryptor ObjectEncryptor) string {
+// GenXMPMeta generates the XMP metadata object
+func GenXMPMeta(objectID int, documentID string, pdfDateStr string, encryptor ObjectEncryptor) string {
 	xmpData := GenerateXMPMetadata(documentID, pdfDateStr)
 
 	streamContent := []byte(xmpData)
@@ -132,14 +133,8 @@ func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr strin
 		objectID, len(streamContent), string(streamContent))
 }
 
-// buildSRGBICCProfile builds a valid sRGB ICC profile from scratch
-// This creates a properly structured ICC v2.1 profile (more widely compatible)
-// We use the INVERSE sRGB gamma (linearization curve) as the TRC because:
-//  1. Hex colors like #154360 are already gamma-encoded (sRGB)
-//  2. When Adobe applies this profile, it applies the TRC to "linearize" the input
-//  3. If we don't compensate, colors appear washed out due to matrix transformation
-//  4. By using the linearization curve, we tell Adobe to treat these as already-linear
-//     which means the matrix conversion produces correct output
+// buildSRGBICCProfile builds a valid sRGB ICC v2.1 profile.
+// It uses an inverse sRGB gamma linearization curve to ensure correct color appearance in Adobe.
 func buildSRGBICCProfile() []byte {
 	// Use inverse sRGB gamma curve (linearization) to compensate for matrix conversion
 	// This curve converts sRGB-encoded values to linear, which is what Adobe expects
@@ -309,7 +304,8 @@ func GetSRGBICCProfile() []byte {
 
 // GenerateICCProfileObject generates the ICC profile stream object for sRGB
 // Returns the bytes to write to the PDF buffer
-func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
+// GenICCProfile generates the ICC profile object
+func GenICCProfile(objectID int, encryptor ObjectEncryptor) []byte {
 	// Get the complete sRGB ICC profile
 	iccProfile := GetSRGBICCProfile()
 
@@ -340,7 +336,8 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 
 // GenerateGrayICCProfileObject generates the ICC profile stream object for DeviceGray
 // Returns the bytes to write to the PDF buffer
-func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
+// GenGrayICC generates the Gray ICC profile object
+func GenGrayICC(objectID int, encryptor ObjectEncryptor) []byte {
 	// Build a simple Gray ICC profile
 	grayProfile := buildGrayICCProfile()
 
@@ -474,7 +471,8 @@ func buildGrayICCProfile() []byte {
 }
 
 // GenerateOutputIntentObject generates the OutputIntent object for PDF/A-4
-func GenerateOutputIntentObject(objectID int, iccProfileID int, encryptor ObjectEncryptor) string {
+// GenOutIntent generates the OutputIntent object
+func GenOutIntent(objectID int, iccProfileID int, encryptor ObjectEncryptor) string {
 	// Encrypt string values if needed
 	const srgbICC = "sRGB IEC61966-2.1"
 	idStr := "(" + srgbICC + ")"

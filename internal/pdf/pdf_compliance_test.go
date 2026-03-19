@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// TestLiberationSansCompliance checks if LiberationSans font metrics and subsetting
+// TestLibSansComp checks if LiberationSans font metrics and subsetting
 // behave as expected for PDF/A compliance (specifically Glyph Widths).
-func TestLiberationSansCompliance(t *testing.T) {
+func TestLibSansComp(t *testing.T) {
 	// Initialize font manager (uses default or fallback)
 	manager := GetPDFAFontManager()
 

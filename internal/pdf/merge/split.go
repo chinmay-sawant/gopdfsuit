@@ -229,7 +229,7 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 			continue
 		}
 		newNum := offset + origNum
-		newBody := ReplaceRefsOutsideStreams(body, offset)
+		newBody := ReplaceRefs(body, offset)
 
 		// If page leaf, record remapped page number
 		if IsPageObject(newBody) && !IsPagesTreeObject(newBody) {

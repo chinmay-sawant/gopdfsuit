@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestFillPDFWithXFDFCompressedSample(t *testing.T) {
+func TestFillXFDFComp(t *testing.T) {
 	baseDir := filepath.Join("..", "..", "..", "sampledata", "filler", "compressed")
 	pdfPath := filepath.Join(baseDir, "medical_form.pdf")
 	xfdfPath := filepath.Join(baseDir, "medical_data.xfdf")
@@ -35,7 +35,7 @@ func TestFillPDFWithXFDFCompressedSample(t *testing.T) {
 		t.Fatalf("write generated.pdf: %v", err)
 	}
 
-	fields, err := DetectFormFieldsAdvanced(out)
+	fields, err := DetectFieldsAdv(out)
 	if err != nil {
 		t.Fatalf("detect fields from output: %v", err)
 	}

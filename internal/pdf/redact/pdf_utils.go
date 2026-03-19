@@ -212,7 +212,11 @@ func extractPageContent(pageBody []byte, objMap map[string][]byte) ([]byte, erro
 		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 		refs := refRe.FindAllSubmatch(match[3], -1)
 		for _, r := range refs {
-			contentKeys = append(contentKeys, string(r[1])+" "+string(r[2]))
+			var sb strings.Builder
+			sb.WriteString(string(r[1]))
+			sb.WriteByte(' ')
+			sb.WriteString(string(r[2]))
+			contentKeys = append(contentKeys, sb.String())
 		}
 	}
 
@@ -240,7 +244,7 @@ func extractPageContent(pageBody []byte, objMap map[string][]byte) ([]byte, erro
 			if len(resources) > 0 {
 				xobjRefs := resolveUsedXObjectRefs(dec, resources)
 				for _, xkey := range xobjRefs {
-					appendXObjectContentRecursive(&fullContent, xkey, objMap, visitedXObjects)
+					appendXObjContent(&fullContent, xkey, objMap, visitedXObjects)
 				}
 			}
 		}
@@ -376,7 +380,7 @@ func resolveUsedXObjectRefs(content []byte, resources []byte) []string {
 	return out
 }
 
-func appendXObjectContentRecursive(out *bytes.Buffer, key string, objMap map[string][]byte, visited map[string]bool) {
+func appendXObjContent(out *bytes.Buffer, key string, objMap map[string][]byte, visited map[string]bool) {
 	if visited[key] {
 		return
 	}
@@ -404,7 +408,7 @@ func appendXObjectContentRecursive(out *bytes.Buffer, key string, objMap map[str
 		return
 	}
 	for _, child := range resolveUsedXObjectRefs(dec, res) {
-		appendXObjectContentRecursive(out, child, objMap, visited)
+		appendXObjContent(out, child, objMap, visited)
 	}
 }
 
@@ -422,7 +426,11 @@ func extractKidsRefs(body []byte) []string {
 	if m := kidsArrRe.FindSubmatch(body); m != nil {
 		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 		for _, r := range refRe.FindAllSubmatch(m[1], -1) {
-			refs = append(refs, string(r[1])+" "+string(r[2]))
+			var sb strings.Builder
+			sb.WriteString(string(r[1]))
+			sb.WriteByte(' ')
+			sb.WriteString(string(r[2]))
+			refs = append(refs, sb.String())
 		}
 		return refs
 	}

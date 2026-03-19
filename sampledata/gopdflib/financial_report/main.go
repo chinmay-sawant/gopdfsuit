@@ -58,7 +58,7 @@ func main() {
 	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)
 
 	// Build the template
-	template := buildFinancialReportTemplate()
+	template := buildFinTemplate()
 
 	// Warm-up run (not counted in metrics)
 	fmt.Println("Warm-up run...")
@@ -177,8 +177,8 @@ func main() {
 	fmt.Println("=== Done ===")
 }
 
-// buildFinancialReportTemplate creates a PDFTemplate matching financial_digitalsignature.json
-func buildFinancialReportTemplate() gopdflib.PDFTemplate {
+// buildFinTemplate creates a PDFTemplate matching financial_digitalsignature.json
+func buildFinTemplate() gopdflib.PDFTemplate {
 	// Helper to create float64 pointer
 	floatPtr := func(f float64) *float64 { return &f }
 

@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
+func TestRedactMultipart(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/api/v1/redact/apply", HandleRedactApply)
@@ -86,7 +86,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	t.Logf("redacted test output written to: %s", outputPath)
 }
 
-func TestHandleRedactApply_RejectsEmptyPDF(t *testing.T) {
+func TestRedactApplyEmpty(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/api/v1/redact/apply", HandleRedactApply)

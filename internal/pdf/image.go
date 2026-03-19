@@ -123,7 +123,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	// Decode base64 to bytes
 	imageBytes, err := base64.StdEncoding.DecodeString(cleanData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64: %v", err)
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
 	}
 
 	// Check if data is SVG (simple check)
@@ -147,7 +147,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	// Try to decode as PNG/JPEG
 	img, format, err := image.Decode(bytes.NewReader(imageBytes))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %v", err)
+		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
 	bounds := img.Bounds()
@@ -495,8 +495,8 @@ type ImageEncryptor interface {
 	EncryptStream(data []byte, objNum, genNum int) []byte
 }
 
-// CreateEncryptedImageXObject creates an encrypted PDF XObject for an image
-func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor ImageEncryptor) string {
+// CreateEncXObj creates an encrypted PDF XObject for an image
+func CreateEncXObj(imgObj *ImageObject, objectID int, encryptor ImageEncryptor) string {
 	var buf bytes.Buffer
 
 	// Encrypt the image data (or form stream commands)

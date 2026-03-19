@@ -760,9 +760,9 @@ func getGlyphData(font *TTFFont, glyphID uint16) []byte {
 	return glyfData[offset : offset+length]
 }
 
-// getCompositeComponentGIDs extracts the component glyph IDs referenced by a composite glyph.
+// getCompGIDs extracts the component glyph IDs referenced by a composite glyph.
 // Returns nil if the glyph is not composite.
-func getCompositeComponentGIDs(data []byte) []uint16 {
+func getCompGIDs(data []byte) []uint16 {
 	if len(data) < 10 {
 		return nil
 	}
@@ -816,7 +816,7 @@ func addCompositeComponents(font *TTFFont, glyphSet map[uint16]bool) {
 			if data == nil {
 				continue
 			}
-			components := getCompositeComponentGIDs(data)
+			components := getCompGIDs(data)
 			for _, compGID := range components {
 				if compGID < font.NumGlyphs && !glyphSet[compGID] {
 					glyphSet[compGID] = true

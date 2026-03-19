@@ -103,7 +103,7 @@ func RegisterRoutes(router *gin.Engine) {
 			// Handled by CORSMiddleware
 		})
 
-		v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
+		v1.POST("/generate/template-pdf", handleGenPDF)
 		v1.POST("/fill", handleFillPDF)
 		v1.POST("/merge", handleMergePDFs)
 		v1.POST("/split", handlerSplitPDF)
@@ -117,7 +117,7 @@ func RegisterRoutes(router *gin.Engine) {
 
 		// Redaction endpoints
 		v1.POST("/redact/page-info", HandleRedactPageInfo)
-		v1.POST("/redact/text-positions", HandleRedactTextPositions)
+		v1.POST("/redact/text-positions", HandleRedactPos)
 		v1.POST("/redact/capabilities", HandleRedactCapabilities)
 		v1.POST("/redact/apply", HandleRedactApply)
 		v1.POST("/redact/search", HandleRedactSearch)
@@ -268,7 +268,7 @@ func handleUploadFont(c *gin.Context) {
 	})
 }
 
-func handleGenerateTemplatePDF(c *gin.Context) {
+func handleGenPDF(c *gin.Context) {
 	// Optimization: use sonic for faster JSON binding
 	var template models.PDFTemplate
 	data, err := c.GetRawData()

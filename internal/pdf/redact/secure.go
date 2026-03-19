@@ -12,7 +12,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
-func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
+func (r *Redactor) applySecureRedacts(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
 	objMap := r.objMap
 	if objMap == nil {
 		var err error
@@ -87,7 +87,7 @@ func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resourc
 		return false, nil
 	}
 
-	updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
+	updated, changed, err := rewriteSecure(objBody, rects, queries)
 	warnings := make([]string, 0, 2)
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("stream %s: %v", streamKey, err))
@@ -152,13 +152,17 @@ func extractContentKeys(pageBody []byte) []string {
 		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 		refs := refRe.FindAllSubmatch(match[3], -1)
 		for _, r := range refs {
-			keys = append(keys, string(r[1])+" "+string(r[2]))
+			var sb strings.Builder
+			sb.WriteString(string(r[1]))
+			sb.WriteByte(' ')
+			sb.WriteString(string(r[2]))
+			keys = append(keys, sb.String())
 		}
 	}
 	return keys
 }
 
-func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, error) {
+func rewriteSecure(streamObj []byte, rects []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, error) {
 	start, end, ok := locateStreamSegment(streamObj)
 	if !ok {
 		return streamObj, false, nil
@@ -254,7 +258,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 			if term == "" {
 				continue
 			}
-			newText = replaceCaseInsensitiveWithSpaces(newText, term)
+			newText = replaceInsensitive(newText, term)
 		}
 
 		if newText != text {
@@ -289,7 +293,7 @@ func applyRectMaskToText(text string, pos models.TextPosition, rects []models.Re
 	// In secure mode, if a redaction block covers a substantial portion of a text run,
 	// scrub the full run. For small overlaps, keep per-glyph masking.
 	for _, r := range rects {
-		if !rectsIntersectWithTolerance(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height, pos.Height*0.75) {
+		if !rectsIntersectTol(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height, pos.Height*0.75) {
 			continue
 		}
 		overlap := overlapWidth(pos.X, pos.Width, r.X, r.Width)
@@ -334,7 +338,7 @@ func applyRectMaskToText(text string, pos models.TextPosition, rects []models.Re
 	return string(out)
 }
 
-func replaceCaseInsensitiveWithSpaces(s, term string) string {
+func replaceInsensitive(s, term string) string {
 	if term == "" {
 		return s
 	}
@@ -476,7 +480,7 @@ func rectsIntersect(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
 	return x1 < x2+w2 && x1+w1 > x2 && y1 < y2+h2 && y1+h1 > y2
 }
 
-func rectsIntersectWithTolerance(x1, y1, w1, h1, x2, y2, w2, h2, pad float64) bool {
+func rectsIntersectTol(x1, y1, w1, h1, x2, y2, w2, h2, pad float64) bool {
 	if pad < 0 {
 		pad = 0
 	}

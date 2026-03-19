@@ -55,7 +55,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		offset := ctx.CurrentMax
 
 		// Collect all objects to process (including annotation dependencies)
-		objectsToProcess := collectObjectsWithDependencies(fc)
+		objectsToProcess := collectObjsDeps(fc)
 
 		// Process objects maintaining order
 		for _, origNum := range objectsToProcess {
@@ -67,7 +67,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 			newNum := offset + origNum
 
 			// Remap references in body
-			newBody := ReplaceRefsOutsideStreams(body, offset)
+			newBody := ReplaceRefs(body, offset)
 
 			// Special handling for Page objects - update annotations
 			if IsPageObject(newBody) && !IsPagesTreeObject(newBody) {
@@ -258,9 +258,9 @@ func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp
 	return pages
 }
 
-// collectObjectsWithDependencies returns all object numbers to process
+// collectObjsDeps returns all object numbers to process
 // ensuring annotation dependencies are included but excluding original catalog/pages/objstm
-func collectObjectsWithDependencies(fc *FileContext) []int {
+func collectObjsDeps(fc *FileContext) []int {
 	included := make(map[int]bool)
 	excluded := make(map[int]bool)
 	var result []int

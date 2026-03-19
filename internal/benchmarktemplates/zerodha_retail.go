@@ -44,13 +44,13 @@ func readChain() ([]string, error) {
 		if stripped == "" {
 			continue
 		}
-		chain = append(chain, stripped+"\n-----END CERTIFICATE-----")
+		chain = append(chain, fmt.Sprintf("%s\n-----END CERTIFICATE-----", stripped))
 	}
 	return chain, nil
 }
 
-// BuildZerodhaRetailTemplate constructs the sample Zerodha retail contract note used for benchmarks.
-func BuildZerodhaRetailTemplate() (gopdflib.PDFTemplate, error) {
+// BuildZerodhaTemplate constructs the sample Zerodha retail contract note used for benchmarks.
+func BuildZerodhaTemplate() (gopdflib.PDFTemplate, error) {
 	privateKey, err := readText(filepath.Join("certs", "leaf.key"))
 	if err != nil {
 		return gopdflib.PDFTemplate{}, err

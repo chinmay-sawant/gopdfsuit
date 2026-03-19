@@ -433,7 +433,7 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 
 	case "path":
 		d := attrs["d"]
-		parsePathData(b, d)
+		parseSVGPath(b, d)
 		drawOp(b, fill, stroke)
 	}
 
@@ -451,13 +451,14 @@ func drawOp(b *bytes.Buffer, fill, stroke string) {
 	}
 }
 
-func parsePathData(b *bytes.Buffer, d string) {
+func parseSVGPath(b *bytes.Buffer, d string) {
 	// Normalize
 	d = strings.ReplaceAll(d, ",", " ")
-	// Add spaces around commands
-	for _, cmd := range []string{"M", "L", "C", "Z", "Q", "H", "V", "m", "l", "c", "z", "q", "h", "v"} {
-		d = strings.ReplaceAll(d, cmd, " "+cmd+" ")
-	}
+	replacer := strings.NewReplacer(
+		"M", " M ", "L", " L ", "C", " C ", "Z", " Z ", "Q", " Q ", "H", " H ", "V", " V ",
+		"m", " m ", "l", " l ", "c", " c ", "z", " z ", "q", " q ", "h", " h ", "v", " v ",
+	)
+	d = replacer.Replace(d)
 
 	tokens := strings.Fields(d)
 	i := 0

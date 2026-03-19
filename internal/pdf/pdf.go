@@ -60,7 +60,7 @@ func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
 
 	if err != nil {
 		log.Printf("ConvertHTMLToPDF: Conversion failed with error: %v", err)
-		return nil, fmt.Errorf("PDF conversion failed: %v", err)
+		return nil, fmt.Errorf("PDF conversion failed: %w", err)
 	}
 
 	log.Printf("ConvertHTMLToPDF: Conversion successful. PDF size: %d bytes", len(pdfData))
@@ -101,7 +101,7 @@ func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
 
 	if err != nil {
 		log.Printf("ConvertHTMLToImage: Conversion failed with error: %v", err)
-		return nil, fmt.Errorf("image conversion failed: %v", err)
+		return nil, fmt.Errorf("image conversion failed: %w", err)
 	}
 
 	log.Printf("ConvertHTMLToImage: Conversion successful. Image size: %d bytes", len(imageData))

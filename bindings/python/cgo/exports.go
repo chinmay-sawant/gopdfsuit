@@ -371,11 +371,11 @@ func ApplyRedactions(pdfData *C.char, pdfLen C.int, redactionsJSON *C.char) C.By
 	return result
 }
 
-// ApplyRedactionsAdvanced applies a unified redaction request to the PDF.
+// ApplyRedactionsAdv applies a unified redaction request to the PDF.
 // The caller must free the result using FreeBytesResult.
 //
-//export ApplyRedactionsAdvanced
-func ApplyRedactionsAdvanced(pdfData *C.char, pdfLen C.int, optionsJSON *C.char) C.ByteResult {
+//export ApplyRedactionsAdv
+func ApplyRedactionsAdv(pdfData *C.char, pdfLen C.int, optionsJSON *C.char) C.ByteResult {
 	var result C.ByteResult
 
 	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
@@ -387,7 +387,7 @@ func ApplyRedactionsAdvanced(pdfData *C.char, pdfLen C.int, optionsJSON *C.char)
 		return result
 	}
 
-	out, err := gopdflib.ApplyRedactionsAdvanced(pdfBytes, options)
+	out, err := gopdflib.ApplyRedactionsAdv(pdfBytes, options)
 	if err != nil {
 		result.error = C.CString(err.Error())
 		return result
