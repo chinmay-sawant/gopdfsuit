@@ -843,7 +843,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	for _, imgObj := range imageObjects {
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+			imgObj.ColorSpace = "[/ICCBased " + strconv.Itoa(actualICCProfileObjID) + " 0 R]"
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -858,7 +858,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	for _, imgObj := range cellImageObjects {
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+			imgObj.ColorSpace = "[/ICCBased " + strconv.Itoa(actualICCProfileObjID) + " 0 R]"
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -873,7 +873,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	for _, imgObj := range elemImageObjects {
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+			imgObj.ColorSpace = "[/ICCBased " + strconv.Itoa(actualICCProfileObjID) + " 0 R]"
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -1111,9 +1111,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	maxPageIndex := len(pageManager.Pages)
 	for i := 0; i < maxPageIndex; i++ {
 		if elems, exists := pageManager.Structure.ParentTree[i]; exists && len(elems) > 0 {
-			ptBuilder.WriteString(fmt.Sprintf(" %d [", i)) // Key is page index
+			ptBuilder.WriteString(" "); ptBuilder.WriteString(strconv.Itoa(i)); ptBuilder.WriteString(" [") // Key is page index
 			for _, elem := range elems {
-				ptBuilder.WriteString(fmt.Sprintf(" %d 0 R", elem.ObjectID))
+				ptBuilder.WriteString(" "); ptBuilder.WriteString(strconv.Itoa(elem.ObjectID)); ptBuilder.WriteString(" 0 R")
 			}
 			ptBuilder.WriteString(" ]")
 		}
@@ -1123,7 +1123,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Each annotation's StructParent value maps to its Link structure element
 	for _, annotInfo := range pageManager.AnnotStructElems {
 		if linkElem, exists := pageManager.Structure.LinkElements[annotInfo.AnnotObjID]; exists {
-			ptBuilder.WriteString(fmt.Sprintf(" %d %d 0 R", annotInfo.StructParentIdx, linkElem.ObjectID))
+			ptBuilder.WriteString(" "); ptBuilder.WriteString(strconv.Itoa(annotInfo.StructParentIdx)); ptBuilder.WriteString(" "); ptBuilder.WriteString(strconv.Itoa(linkElem.ObjectID)); ptBuilder.WriteString(" 0 R")
 		}
 	}
 
@@ -1142,20 +1142,20 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 		// PDF/UA-2: Document element must be in PDF 2.0 namespace
 		if elem.Type == StructDocument {
-			sb.WriteString(fmt.Sprintf(" /NS %d 0 R", namespaceID))
+			sb.WriteString(" /NS "); sb.WriteString(strconv.Itoa(namespaceID)); sb.WriteString(" 0 R")
 		}
 
 		if elem.Parent == pageManager.Structure.Root {
-			sb.WriteString(fmt.Sprintf(" /P %d 0 R", structTreeRootID))
+			sb.WriteString(" /P "); sb.WriteString(strconv.Itoa(structTreeRootID)); sb.WriteString(" 0 R")
 		} else if elem.Parent != nil {
-			sb.WriteString(fmt.Sprintf(" /P %d 0 R", elem.Parent.ObjectID))
+			sb.WriteString(" /P "); sb.WriteString(strconv.Itoa(elem.Parent.ObjectID)); sb.WriteString(" 0 R")
 		}
 
 		if elem.Title != "" {
-			sb.WriteString(fmt.Sprintf(" /T (%s)", escapeText(elem.Title)))
+			sb.WriteString(" /T ("); sb.WriteString(escapeText(elem.Title)); sb.WriteString(")")
 		}
 		if elem.Alt != "" {
-			sb.WriteString(fmt.Sprintf(" /Alt (%s)", escapeText(elem.Alt)))
+			sb.WriteString(" /Alt ("); sb.WriteString(escapeText(elem.Alt)); sb.WriteString(")")
 		}
 
 		// Kids
@@ -1173,7 +1173,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 						if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 							pageObjID = pageManager.Pages[elem.PageID]
 						}
-						sb.WriteString(fmt.Sprintf(" << /Type /OBJR /Obj %d 0 R /Pg %d 0 R >>", annotObjID, pageObjID))
+						sb.WriteString(" << /Type /OBJR /Obj "); sb.WriteString(strconv.Itoa(annotObjID)); sb.WriteString(" 0 R /Pg "); sb.WriteString(strconv.Itoa(pageObjID)); sb.WriteString(" 0 R >>")
 						break
 					}
 				}
@@ -1181,9 +1181,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 			for _, k := range elem.Kids {
 				if kidElem, ok := k.(*StructElem); ok {
-					sb.WriteString(fmt.Sprintf(" %d 0 R", kidElem.ObjectID))
+					sb.WriteString(" "); sb.WriteString(strconv.Itoa(kidElem.ObjectID)); sb.WriteString(" 0 R")
 				} else if mcid, ok := k.(int); ok {
-					sb.WriteString(fmt.Sprintf(" %d", mcid))
+					sb.WriteString(" "); sb.WriteString(strconv.Itoa(mcid))
 				}
 			}
 			sb.WriteString(" ]")
@@ -1195,7 +1195,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// pm.Pages[elem.PageID] gives the object ID.
 		if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 			pageObjID := pageManager.Pages[elem.PageID]
-			sb.WriteString(fmt.Sprintf(" /Pg %d 0 R", pageObjID))
+			sb.WriteString(" /Pg "); sb.WriteString(strconv.Itoa(pageObjID)); sb.WriteString(" 0 R")
 		}
 
 		sb.WriteString(" >>\nendobj\n")
@@ -1375,10 +1375,10 @@ func genAllContent(template models.PDFTemplate, pageManager *PageManager, imageO
 				switch {
 				case elem.Table != nil:
 					table = *elem.Table
-					imageKeyPrefix = fmt.Sprintf("elem_inline:%d", elemIdx) // Use elem_inline prefix for inline tables
+					imageKeyPrefix = "elem_inline:" + strconv.Itoa(elemIdx) // Use elem_inline prefix for inline tables
 				case elem.Index < len(template.Table):
 					table = template.Table[elem.Index]
-					imageKeyPrefix = fmt.Sprintf("%d", elem.Index) // Use index as key for indexed tables
+					imageKeyPrefix = strconv.Itoa(elem.Index) // Use index as key for indexed tables
 				default:
 					continue
 				}
@@ -1402,7 +1402,7 @@ func genAllContent(template models.PDFTemplate, pageManager *PageManager, imageO
 					image = *elem.Image
 					if imgObj, exists := elemImageObjects[elemIdx]; exists {
 						// Use element image XObject with /E prefix to distinguish from /I prefix
-						imageXObjectRef := fmt.Sprintf("/E%d", elemIdx)
+						imageXObjectRef := "/E" + strconv.Itoa(elemIdx)
 						drawImageXObj(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						// Fall back to placeholder if no XObject
@@ -1412,7 +1412,7 @@ func genAllContent(template models.PDFTemplate, pageManager *PageManager, imageO
 					// Reference to template.Image array
 					image = template.Image[elem.Index]
 					if imgObj, exists := imageObjects[elem.Index]; exists {
-						imageXObjectRef := fmt.Sprintf("/I%d", elem.Index)
+						imageXObjectRef := "/I" + strconv.Itoa(elem.Index)
 						drawImageXObj(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
@@ -1425,7 +1425,7 @@ func genAllContent(template models.PDFTemplate, pageManager *PageManager, imageO
 		// Tables - Process each table with automatic page breaks
 		for tableIdx, table := range template.Table {
 			// For legacy table array, use simple index as key
-			imageKeyPrefix := fmt.Sprintf("%d", tableIdx)
+			imageKeyPrefix := strconv.Itoa(tableIdx)
 			drawTable(table, imageKeyPrefix, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 		}
 
@@ -1438,7 +1438,7 @@ func genAllContent(template models.PDFTemplate, pageManager *PageManager, imageO
 		for i, image := range template.Image {
 			if imgObj, exists := imageObjects[i]; exists {
 				// Image was successfully decoded, draw it with XObject reference
-				imageXObjectRef := fmt.Sprintf("/I%d", i)
+				imageXObjectRef := "/I" + strconv.Itoa(i)
 				drawImageXObj(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 			} else {
 				// Fall back to placeholder if image couldn't be decoded

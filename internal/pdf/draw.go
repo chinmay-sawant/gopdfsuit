@@ -1079,7 +1079,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				}
 				colorStr := "0 0 0"
 				if r, g, b, _, valid := parseHexColor(textColor); valid {
-					colorStr = fmt.Sprintf("%s %s %s", fmtNum(r), fmtNum(g), fmtNum(b))
+					var sb strings.Builder
+					sb.WriteString(fmtNum(r)); sb.WriteString(" "); sb.WriteString(fmtNum(g)); sb.WriteString(" "); sb.WriteString(fmtNum(b))
+					colorStr = sb.String()
 				}
 
 				// Set up render context with font callbacks

@@ -14,6 +14,14 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
+func padInt(n int, width int) string {
+	s := strconv.Itoa(n)
+	if len(s) >= width {
+		return s
+	}
+	return strings.Repeat("0", width-len(s)) + s
+}
+
 // buildObjectMap parses the PDF into a map of "num gen" -> body
 func buildObjectMap(pdfBytes []byte) (map[string][]byte, error) {
 	objMap := make(map[string][]byte)
@@ -65,7 +73,7 @@ func buildObjectMap(pdfBytes []byte) (map[string][]byte, error) {
 							if off < 0 || off >= len(content) || end <= off || end > len(content) {
 								continue
 							}
-							objMap[fmt.Sprintf("%d 0", objNum)] = content[off:end]
+							objMap[strconv.Itoa(objNum)+" 0"] = content[off:end]
 						}
 						objMap[key] = body
 						continue
@@ -850,7 +858,10 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		}{offset: out.Len(), gen: obj.gen}
 
 		body := objMap[obj.key]
-		fmt.Fprintf(&out, "%d %d obj\n", obj.id, obj.gen)
+		out.WriteString(strconv.Itoa(obj.id))
+		out.WriteString(" ")
+		out.WriteString(strconv.Itoa(obj.gen))
+		out.WriteString(" obj\n")
 		out.Write(body)
 		if !bytes.HasSuffix(body, []byte("\n")) {
 			out.WriteByte('\n')
@@ -877,10 +888,16 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		if len(block) == 0 {
 			return
 		}
-		out.WriteString(fmt.Sprintf("%d %d\n", start, len(block)))
+		out.WriteString(strconv.Itoa(start))
+		out.WriteString(" ")
+		out.WriteString(strconv.Itoa(len(block)))
+		out.WriteString("\n")
 		for _, id := range block {
 			entry := offsetByObject[id]
-			out.WriteString(fmt.Sprintf("%010d %05d n \n", entry.offset, entry.gen))
+			out.WriteString(padInt(entry.offset, 10))
+			out.WriteString(" ")
+			out.WriteString(padInt(entry.gen, 5))
+			out.WriteString(" n \n")
 		}
 	}
 
@@ -900,7 +917,18 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		trailerIDPart = " /ID " + trailerID
 	}
 
-	fmt.Fprintf(&out, "trailer\n<< /Size %d /Root %s R /Prev %d%s >>\nstartxref\n%d\n%%%%EOF\n", maxID+1, rootRef, prevStartXRef, trailerIDPart, xrefStart)
+	out.WriteString("trailer\n<< /Size ")
+	out.WriteString(strconv.Itoa(maxID + 1))
+	out.WriteString(" /Root ")
+	out.WriteString(rootRef)
+	out.WriteString(" R /Prev ")
+	out.WriteString(strconv.FormatInt(int64(prevStartXRef), 10))
+	if trailerIDPart != "" {
+		out.WriteString(trailerIDPart)
+	}
+	out.WriteString(" >>\nstartxref\n")
+	out.WriteString(strconv.Itoa(xrefStart))
+	out.WriteString("\n%%EOF\n")
 
 	return out.Bytes(), nil
 }

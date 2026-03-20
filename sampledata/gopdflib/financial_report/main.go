@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -81,21 +82,32 @@ func main() {
 	memWg.Add(1)
 	go monitorMemory(memDone, &memWg)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Start workers
 	for range numWorkers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for range jobs {
-				start := time.Now()
-				_, err := gopdflib.GeneratePDF(template)
-				elapsed := time.Since(start)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case _, ok := <-jobs:
+					if !ok {
+						return
+					}
+					start := time.Now()
+					_, err := gopdflib.GeneratePDF(template)
+					elapsed := time.Since(start)
 
-				if err != nil {
-					errors <- err
-					continue
+					if err != nil {
+						errors <- err
+						continue
+					}
+					results <- elapsed
 				}
-				results <- elapsed
 			}
 		}()
 	}

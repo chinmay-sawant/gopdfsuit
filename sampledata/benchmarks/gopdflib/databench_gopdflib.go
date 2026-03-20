@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,7 +64,7 @@ func buildRows(records []benchmarkRecord) []gopdflib.Row {
 		}
 
 		rows = append(rows, gopdflib.Row{Row: []gopdflib.Cell{
-			{Props: "Helvetica:10:000:left:1:1:1:1", Text: fmt.Sprintf("%d", record.ID), BgColor: bgColor},
+			{Props: "Helvetica:10:000:left:1:1:1:1", Text: strconv.Itoa(record.ID), BgColor: bgColor},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Name, BgColor: bgColor},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Email, BgColor: bgColor, Wrap: boolPtr(true)},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Role, BgColor: bgColor},
@@ -120,9 +121,8 @@ func runDataBenchGoPDFLib() error {
 	fmt.Printf("Iterations: %d | Workers: %d\n", dataIterations, numDataWorkers)
 
 	var (
-		mu      sync.Mutex
 		timings []float64
-		lastPDF []byte
+		lastPDF atomic.Value // replaced []byte for atomic updates
 		ops     atomic.Int64
 		wg      sync.WaitGroup
 	)
@@ -135,6 +135,7 @@ func runDataBenchGoPDFLib() error {
 	sem := make(chan struct{}, numDataWorkers)
 	totalStart := time.Now()
 
+	resultsChan := make(chan float64, dataIterations)
 	for i := 1; i <= dataIterations; i++ {
 		sem <- struct{}{}
 		wg.Add(1)
@@ -150,14 +151,17 @@ func runDataBenchGoPDFLib() error {
 			}
 			elapsed := float64(time.Since(start).Nanoseconds()) / 1_000_000
 			ops.Add(1)
-			mu.Lock()
-			timings = append(timings, elapsed)
-			lastPDF = pdfBytes
-			mu.Unlock()
+			resultsChan <- elapsed
+			lastPDF.Store(pdfBytes)
 			fmt.Printf("Run %d: %.2f ms\n", idx, elapsed)
 		}(i)
 	}
 	wg.Wait()
+	close(resultsChan)
+	for t := range resultsChan {
+		timings = append(timings, t)
+	}
+
 	totalSeconds := time.Since(totalStart).Seconds()
 
 	memDone <- true
@@ -168,7 +172,8 @@ func runDataBenchGoPDFLib() error {
 	}
 
 	outputPath := filepath.Join(filepath.Dir(mustCurrentFile()), "output_databench_gopdflib.pdf")
-	if err := os.WriteFile(outputPath, lastPDF, 0o644); err != nil {
+	lastPDFBytes, _ := lastPDF.Load().([]byte)
+	if err := os.WriteFile(outputPath, lastPDFBytes, 0o644); err != nil {
 		return fmt.Errorf("failed to write output pdf: %w", err)
 	}
 

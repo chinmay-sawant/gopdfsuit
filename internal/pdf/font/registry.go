@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -139,13 +140,14 @@ func (r *CustomFontRegistry) GenerateSubsets() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	usedGlyphs := make([]uint16, 0, 256)
 	for name, font := range r.fonts {
 		if len(font.UsedChars) == 0 {
 			continue
 		}
 
 		// Collect used glyphs
-		usedGlyphs := make([]uint16, 0, len(font.UsedChars))
+		usedGlyphs = usedGlyphs[:0]
 		for char := range font.UsedChars {
 			if glyphID, ok := font.Font.CharToGlyph[char]; ok {
 				usedGlyphs = append(usedGlyphs, glyphID)
@@ -205,7 +207,7 @@ func (r *CustomFontRegistry) ResetUsage() {
 	defer r.mu.Unlock()
 
 	for _, font := range r.fonts {
-		font.UsedChars = make(map[rune]bool)
+		for k := range font.UsedChars { delete(font.UsedChars, k) }
 		font.SubsetData = nil
 		font.OldToNewGlyph = nil
 		font.ObjectID = 0
@@ -233,10 +235,11 @@ func (r *CustomFontRegistry) CloneForGeneration() *CustomFontRegistry {
 		// Create a new RegisteredFont instance sharing the same static TTFFont data
 		// but with fresh usage maps and specific PDF object IDs
 		// Pre-size UsedChars to 256 to avoid map rehashing during font scanning
+		usedCharsMap := newRuneMap()
 		clone.fonts[name] = &RegisteredFont{
 			Name:      font.Name,
 			Font:      font.Font,
-			UsedChars: make(map[rune]bool, 256),
+			UsedChars: usedCharsMap,
 			// Other fields default to zero/nil
 		}
 	}
@@ -278,7 +281,7 @@ func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
 		font.FontFileID = currentID
 		currentID++
 		// Cache the reference string
-		font.CachedRef = fmt.Sprintf("/CF%d", font.ObjectID)
+		font.CachedRef = "/CF" + strconv.Itoa(font.ObjectID)
 	}
 
 	return currentID
@@ -388,11 +391,16 @@ func (r *CustomFontRegistry) GeneratePDFFontResources() string {
 	for _, font := range r.fonts {
 		// Only output resources for fonts that were actually used
 		if font.ObjectID > 0 && len(font.UsedChars) > 0 {
+			resources.WriteString(" ")
 			if font.CachedRef != "" {
-				resources.WriteString(fmt.Sprintf(" %s %d 0 R", font.CachedRef, font.ObjectID))
+				resources.WriteString(font.CachedRef)
 			} else {
-				resources.WriteString(fmt.Sprintf(" /CF%d %d 0 R", font.ObjectID, font.ObjectID))
+				resources.WriteString("/CF")
+				resources.WriteString(strconv.Itoa(font.ObjectID))
 			}
+			resources.WriteString(" ")
+			resources.WriteString(strconv.Itoa(font.ObjectID))
+			resources.WriteString(" 0 R")
 		}
 	}
 
@@ -437,4 +445,8 @@ func (r *CustomFontRegistry) ResolveFontName(props models.Props) string {
 	}
 
 	return fallbackName
+}
+
+func newRuneMap() map[rune]bool {
+	return make(map[rune]bool, 256)
 }

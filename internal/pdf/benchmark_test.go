@@ -3,10 +3,10 @@ package pdf
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -60,7 +60,7 @@ func getGoPdfSuitTemplate(records []BenchmarkRecord) models.PDFTemplate {
 	for i, r := range records {
 		rows[i] = models.Row{
 			Row: []models.Cell{
-				{Props: "Helvetica:10:000:left:1:1:1:1", Text: fmt.Sprint(r.ID)},
+				{Props: "Helvetica:10:000:left:1:1:1:1", Text: strconv.Itoa(r.ID)},
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Name},
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Email},
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Role},

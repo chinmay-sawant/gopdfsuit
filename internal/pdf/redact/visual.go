@@ -2,7 +2,7 @@ package redact
 
 import (
 	"errors"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -35,10 +35,12 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 	// Find highest object number
 	maxObj := 0
 	for k := range objMap {
-		var n int
-		_, _ = fmt.Sscanf(k, "%d", &n)
-		if n > maxObj {
-			maxObj = n
+		if idx := strings.Index(k, " "); idx != -1 {
+			if n, err := strconv.Atoi(k[:idx]); err == nil {
+				if n > maxObj {
+					maxObj = n
+				}
+			}
 		}
 	}
 	nextObj := maxObj + 1
@@ -47,7 +49,7 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 	for pageNum, rects := range redactionsByPage {
 		pageRef, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			return nil, fmt.Errorf("failed to find page %d: %w", pageNum, err)
+			return nil, errors.New("failed to find page " + strconv.Itoa(pageNum) + ": " + err.Error())
 		}
 		pageBody := objMap[pageRef]
 
@@ -56,18 +58,25 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 		sb.WriteString("q 0 0 0 rg ") // Save state, set black color
 		for _, rect := range rects {
 			// Construct rectangle path: x y w h re f (fill)
-			sb.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re f ", rect.X, rect.Y, rect.Width, rect.Height))
+			sb.WriteString(strconv.FormatFloat(rect.X, 'f', 2, 64))
+			sb.WriteString(" ")
+			sb.WriteString(strconv.FormatFloat(rect.Y, 'f', 2, 64))
+			sb.WriteString(" ")
+			sb.WriteString(strconv.FormatFloat(rect.Width, 'f', 2, 64))
+			sb.WriteString(" ")
+			sb.WriteString(strconv.FormatFloat(rect.Height, 'f', 2, 64))
+			sb.WriteString(" re f ")
 		}
 		sb.WriteString("Q ") // Restore state
 		streamContent := sb.String()
 
 		// Create new stream object
-		streamObjKey := fmt.Sprintf("%d 0", nextObj)
+		streamObjKey := strconv.Itoa(nextObj) + " 0"
 		nextObj++
 
 		// NOTE: objMap stores body content between "obj" and "endobj" markers.
 		// rebuildPDF wraps each body with "N G obj\n...\nendobj\n".
-		streamObj := fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", len(streamContent), streamContent)
+		streamObj := "<< /Length " + strconv.Itoa(len(streamContent)) + " >>\nstream\n" + streamContent + "\nendstream"
 		objMap[streamObjKey] = []byte(streamObj)
 
 		// Append this new object to the page's /Contents

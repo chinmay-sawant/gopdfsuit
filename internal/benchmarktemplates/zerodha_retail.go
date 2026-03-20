@@ -44,7 +44,10 @@ func readChain() ([]string, error) {
 		if stripped == "" {
 			continue
 		}
-		chain = append(chain, fmt.Sprintf("%s\n-----END CERTIFICATE-----", stripped))
+		var sb strings.Builder
+		sb.WriteString(stripped)
+		sb.WriteString("\n-----END CERTIFICATE-----")
+		chain = append(chain, sb.String())
 	}
 	return chain, nil
 }

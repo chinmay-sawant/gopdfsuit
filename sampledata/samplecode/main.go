@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	pdf "github.com/chinmay-sawant/gopdfsuit-client"
@@ -113,7 +114,22 @@ func main() {
 		return
 	}
 	for k, v := range tempMap {
-		data["{"+k+"}"] = fmt.Sprint(v)
+		var valStr string
+		switch tv := v.(type) {
+		case string:
+			valStr = tv
+		case float64:
+			valStr = strconv.FormatFloat(tv, 'g', -1, 64)
+		default:
+			if s, ok := v.(string); ok {
+				valStr = s
+			} else if i, ok := v.(int); ok {
+				valStr = strconv.Itoa(i)
+			} else {
+				valStr = "(complex value)"
+			}
+		}
+		data["{"+k+"}"] = valStr
 	}
 
 	// 2. Read the template file

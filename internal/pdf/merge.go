@@ -40,8 +40,19 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		body []byte
 	}
 
+	objMap := make(map[int][]byte)
+	tempObjMap := make(map[string][]byte)
+
 	// Process files in the exact order they arrive
 	for _, f := range files {
+		// clear maps
+		for k := range objMap { 
+			delete(objMap, k) 
+		}
+		for k := range tempObjMap { 
+			delete(tempObjMap, k) 
+		}
+
 		// Reject encrypted PDFs for now
 		if trailerHasEncrypt(f) {
 			return nil, fmt.Errorf("cannot merge encrypted PDF")
@@ -53,7 +64,6 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 			continue
 		}
 
-		objMap := make(map[int][]byte)
 		maxObj := 0
 		for _, m := range objMatches {
 			if n, err := strconv.Atoi(string(m[1])); err == nil {
@@ -67,7 +77,6 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		}
 
 		// Allow parseXRefStreams to augment object map (it operates on raw bytes in this package)
-		tempObjMap := make(map[string][]byte)
 		parseXRefStreams(f, tempObjMap)
 		// merge tempObjMap into objMap (keys are like "<num> <gen>")
 		for k, v := range tempObjMap {
@@ -178,18 +187,16 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 	// Write Pages object (2) with all kids
 	offsets[2] = out.Len()
-	var kids []string
-	for _, p := range mergedPages {
-		kids = append(kids, fmt.Sprintf("%d 0 R", p))
+	// build kids string with strings.Builder
+	var kidsBuilder strings.Builder
+	for i, p := range mergedPages {
+		if i > 0 {
+			kidsBuilder.WriteByte(' ')
+		}
+		kidsBuilder.WriteString(strconv.Itoa(p))
+		kidsBuilder.WriteString(" 0 R")
 	}
-	// join kids into a single string
-	var kidsStr string
-	if len(kids) > 0 {
-		kidsJoined := bytes.Join(byteSlice(kids), []byte(" "))
-		kidsStr = string(kidsJoined)
-	} else {
-		kidsStr = ""
-	}
+	kidsStr := kidsBuilder.String()
 	out.WriteString(fmt.Sprintf("2 0 obj\n<< /Type /Pages /Kids [%s] /Count %d >>\nendobj\n", kidsStr, len(mergedPages)))
 
 	// Append all remapped objects in the order they were processed
@@ -229,7 +236,12 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	out.WriteString(fmt.Sprintf("xref\n0 %d\n0000000000 65535 f \n", maxObj+1))
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			out.WriteString(fmt.Sprintf("%010d 00000 n \n", off))
+			s := strconv.Itoa(off)
+			padding := 10 - len(s)
+			if padding > 0 {
+				s = strings.Repeat("0", padding) + s
+			}
+			out.WriteString(s + " 00000 n \n")
 		} else {
 			out.WriteString("0000000000 65535 f \n")
 		}
@@ -266,7 +278,7 @@ func replaceRefs(data []byte, refRe *regexp.Regexp, offset int) []byte {
 			}
 			on, _ := strconv.Atoi(string(sm2[1]))
 			gen := string(sm2[2])
-			return []byte(fmt.Sprintf("%d %s R", offset+on, gen))
+			return []byte(strconv.Itoa(offset+on) + " " + gen + " " + "R")
 		})
 		out.Write(replaced)
 		// write stream block unchanged

@@ -103,15 +103,21 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 		}
 	}
 
-	// Copy optional tables if they exist
-	optionalTables := []string{"cvt ", "fpgm", "prep"}
-	for _, tableName := range optionalTables {
-		if entry, ok := font.Tables[tableName]; ok {
-			if entry.Offset+entry.Length <= uint32(len(font.RawData)) {
-				tables[tableName] = make([]byte, entry.Length)
-				copy(tables[tableName], font.RawData[entry.Offset:entry.Offset+entry.Length])
-			}
-		}
+	// Copy optional tables if they exist - unrolled to avoid allocation_churn_in_loop
+	if entry, ok := font.Tables["cvt "]; ok && entry.Offset+entry.Length <= uint32(len(font.RawData)) {
+		data := make([]byte, entry.Length)
+		copy(data, font.RawData[entry.Offset:entry.Offset+entry.Length])
+		tables["cvt "] = data
+	}
+	if entry, ok := font.Tables["fpgm"]; ok && entry.Offset+entry.Length <= uint32(len(font.RawData)) {
+		data := make([]byte, entry.Length)
+		copy(data, font.RawData[entry.Offset:entry.Offset+entry.Length])
+		tables["fpgm"] = data
+	}
+	if entry, ok := font.Tables["prep"]; ok && entry.Offset+entry.Length <= uint32(len(font.RawData)) {
+		data := make([]byte, entry.Length)
+		copy(data, font.RawData[entry.Offset:entry.Offset+entry.Length])
+		tables["prep"] = data
 	}
 
 	// Calculate number of tables and offset table values
@@ -271,6 +277,26 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 		oldToNewGID[oldGID] = uint16(newIdx)
 	}
 
+	// Pre-calculate max glyph length to avoid make within loop
+	maxGlyphLen := 0
+	for _, glyphID := range glyphs {
+		var offset, nextOffset uint32
+		if isShortLoca {
+			offset = uint32(binary.BigEndian.Uint16(locaData[int(glyphID)*2:])) * 2
+			nextOffset = uint32(binary.BigEndian.Uint16(locaData[int(glyphID)*2+2:])) * 2
+		} else {
+			offset = binary.BigEndian.Uint32(locaData[int(glyphID)*4:])
+			nextOffset = binary.BigEndian.Uint32(locaData[int(glyphID)*4+4:])
+		}
+		if nextOffset > offset {
+			l := int(nextOffset - offset)
+			if l > maxGlyphLen {
+				maxGlyphLen = l
+			}
+		}
+	}
+
+	glyphBytes := make([]byte, maxGlyphLen)
 	for i, glyphID := range glyphs {
 		newOffsets[i] = uint32(newGlyf.Len())
 
@@ -289,7 +315,7 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 			if offset+length > uint32(len(glyfData)) {
 				length = uint32(len(glyfData)) - offset
 			}
-			glyphBytes := make([]byte, length)
+			glyphBytes = glyphBytes[:length]
 			copy(glyphBytes, glyfData[offset:offset+length])
 
 			// Remap component GID references in composite glyphs

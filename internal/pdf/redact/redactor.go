@@ -135,14 +135,11 @@ func (r *Redactor) AnalyzePageCaps() ([]models.PageCapability, error) {
 				continue
 			}
 			rawStream, decStream, _ := inspectStream(objBody)
-			combined := make([]byte, 0, len(rawStream)+len(decStream))
-			combined = append(combined, rawStream...)
-			combined = append(combined, decStream...)
-			s := string(combined)
-			if strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ")) {
+			if (strings.Contains(string(rawStream), "BT") && (strings.Contains(string(rawStream), "Tj") || strings.Contains(string(rawStream), "TJ"))) ||
+			   (strings.Contains(string(decStream), "BT") && (strings.Contains(string(decStream), "Tj") || strings.Contains(string(decStream), "TJ"))) {
 				hasText = true
 			}
-			if strings.Contains(s, " Do") || bytesIndex(objBody, []byte("/Image")) >= 0 {
+			if strings.Contains(string(rawStream), " Do") || strings.Contains(string(decStream), " Do") || bytesIndex(objBody, []byte("/Image")) >= 0 {
 				hasImage = true
 			}
 		}

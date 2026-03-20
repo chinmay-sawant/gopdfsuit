@@ -110,7 +110,7 @@ func (tesseractProvider) ExtractWords(ctx context.Context, pdfBytes []byte, sett
 
 	words := make([]ocrWord, 0)
 	for page := 1; page <= info.TotalPages; page++ {
-		imgBase := filepath.Join(tmpDir, fmt.Sprintf("page-%d", page))
+		imgBase := filepath.Join(tmpDir, "page-"+strconv.Itoa(page))
 		imgPath := imgBase + ".png"
 		pdftoppmCmd := exec.CommandContext(ctx, "pdftoppm", "-f", strconv.Itoa(page), "-l", strconv.Itoa(page), "-singlefile", "-png", pdfPath, imgBase)
 		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {

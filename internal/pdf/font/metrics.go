@@ -628,7 +628,12 @@ func GetAvailableFonts() []models.FontInfo {
 		fonts = append(fonts, models.FontInfo{
 			ID:          f.Name,
 			Name:        f.Name,
-			DisplayName: fmt.Sprintf("%s (Custom)", f.Name),
+			DisplayName: func() string {
+				var sb strings.Builder
+				sb.WriteString(f.Name)
+				sb.WriteString(" (Custom)")
+				return sb.String()
+			}(),
 			Reference:   registry.GetFontReference(f.Name),
 		})
 	}

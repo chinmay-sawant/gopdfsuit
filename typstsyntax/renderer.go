@@ -468,19 +468,18 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 	cols := inferMatrixColumns(len(node.Args))
 	rowCount := int(math.Ceil(float64(len(node.Args)) / float64(cols)))
 
-	gridCells := make([][]*MathLayout, rowCount)
+	gridCells := make([]*MathLayout, rowCount*cols)
 	colWidths := make([]float64, cols)
 	rowHeights := make([]float64, rowCount)
 
 	idx := 0
 	for r := 0; r < rowCount; r++ {
-		gridCells[r] = make([]*MathLayout, cols)
 		for c := 0; c < cols; c++ {
 			if idx >= len(node.Args) {
 				break
 			}
 			cellLay := le.layoutNode(node.Args[idx], elemFontSize)
-			gridCells[r][c] = cellLay
+			gridCells[r*cols+c] = cellLay
 			if cellLay.Width > colWidths[c] {
 				colWidths[c] = cellLay.Width
 			}
@@ -537,7 +536,7 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 			y -= rowHeights[r-1] + rowGap
 		}
 		for c := 0; c < cols; c++ {
-			cellLay := gridCells[r][c]
+			cellLay := gridCells[r*cols+c]
 			if cellLay == nil {
 				continue
 			}

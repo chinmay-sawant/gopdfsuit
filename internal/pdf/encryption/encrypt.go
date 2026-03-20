@@ -98,8 +98,8 @@ func (enc *PDFEncryption) ownerHash(userPassword, ownerPassword string) []byte {
 	copy(result, userPwd)
 
 	// For R=4, we do 20 iterations with modified key
+	modifiedKey := make([]byte, len(key))
 	for i := 0; i <= 19; i++ {
-		modifiedKey := make([]byte, len(key))
 		for j := range key {
 			modifiedKey[j] = key[j] ^ byte(i)
 		}
@@ -153,12 +153,12 @@ func (enc *PDFEncryption) userHash() []byte {
 	result := rc4Encrypt(enc.EncryptionKey, hash)
 
 	// Step 3: For R=4, do 19 additional iterations with modified key
+	modifiedKeyUser := make([]byte, len(enc.EncryptionKey))
 	for i := 1; i <= 19; i++ {
-		modifiedKey := make([]byte, len(enc.EncryptionKey))
 		for j := range enc.EncryptionKey {
-			modifiedKey[j] = enc.EncryptionKey[j] ^ byte(i)
+			modifiedKeyUser[j] = enc.EncryptionKey[j] ^ byte(i)
 		}
-		result = rc4Encrypt(modifiedKey, result)
+		result = rc4Encrypt(modifiedKeyUser, result)
 	}
 
 	// Pad result to 32 bytes with arbitrary padding

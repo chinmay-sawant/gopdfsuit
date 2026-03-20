@@ -424,7 +424,7 @@ func TestMathShowcase(t *testing.T) {
 			t.Fatalf("FlattenToText(%q) did not include opening bracket: %q", expr, flat)
 		}
 
-		cellProps := fmt.Sprintf("%s:12:000:left:1:1:1:1", mathFontName)
+		cellProps := mathFontName + ":12:000:left:1:1:1:1"
 		rows = append(rows, models.Row{Row: []models.Cell{{
 			Props:       cellProps,
 			Text:        expr,

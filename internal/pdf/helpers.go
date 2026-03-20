@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -158,7 +159,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				objstm := f2
 				index := f3
 				// look for objstm content we earlier extracted
-				key := fmt.Sprintf("%d 0", objstm)
+				key := strconv.Itoa(objstm) + " 0"
 				if stm, ok := objMap[key]; ok {
 					// try to parse embedded objects from stm similarly to earlier logic
 					_ = index

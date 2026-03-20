@@ -453,7 +453,7 @@ func handlerSplitPDF(c *gin.Context) {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 	for i, b := range outs {
-		name := fmt.Sprintf("originalfile-part%d.pdf", i+1)
+		name := "originalfile-part" + strconv.Itoa(i+1) + ".pdf"
 		fw, err := zw.Create(name)
 		if err != nil {
 			_ = zw.Close()
