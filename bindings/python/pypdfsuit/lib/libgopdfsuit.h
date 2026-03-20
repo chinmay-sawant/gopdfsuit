@@ -154,10 +154,10 @@ extern ByteResult FindTextOccurrences(char* pdfData, int pdfLen, char* searchTex
 //
 extern ByteResult ApplyRedactions(char* pdfData, int pdfLen, char* redactionsJSON);
 
-// ApplyRedactionsAdvanced applies a unified redaction request to the PDF.
+// ApplyRedactionsAdv applies a unified redaction request to the PDF.
 // The caller must free the result using FreeBytesResult.
 //
-extern ByteResult ApplyRedactionsAdvanced(char* pdfData, int pdfLen, char* optionsJSON);
+extern ByteResult ApplyRedactionsAdv(char* pdfData, int pdfLen, char* optionsJSON);
 
 // FreeBytesResult frees memory allocated by functions returning ByteResult.
 //

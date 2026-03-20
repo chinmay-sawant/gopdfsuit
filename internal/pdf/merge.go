@@ -253,14 +253,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// helper to convert []string to [][]byte for bytes.Join
-func byteSlice(in []string) [][]byte {
-	out := make([][]byte, len(in))
-	for i, s := range in {
-		out[i] = []byte(s)
-	}
-	return out
-}
+
 
 // replaceRefs rewrites indirect references (n m R) in data only in regions
 // that are not within stream...endstream blocks, to avoid mangling compressed stream contents.
