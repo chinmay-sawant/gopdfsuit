@@ -22,6 +22,8 @@ type PDFAFontConfig struct {
 	FallbackFontsDirectory string
 	// AutoDownload enables automatic downloading of Liberation fonts if not found
 	AutoDownload bool
+	// ArchiveURL overrides the default Liberation fonts download URL. Intended for testing only.
+	ArchiveURL string
 }
 
 // LiberationFontMapping maps standard PDF fonts to Liberation equivalents
@@ -87,6 +89,14 @@ var pdfaFontManager = &PDFAFontManager{
 // GetPDFAFontManager returns the global PDF/A font manager
 func GetPDFAFontManager() *PDFAFontManager {
 	return pdfaFontManager
+}
+
+// NewPDFAFontManager creates a new, independent PDFAFontManager for use in tests
+// or components that require isolated font state.
+func NewPDFAFontManager() *PDFAFontManager {
+	return &PDFAFontManager{
+		loadedFonts: make(map[string]*TTFFont),
+	}
 }
 
 // Initialize sets up the font manager with the given config
@@ -221,7 +231,11 @@ func (m *PDFAFontManager) checkFontDir(dir string) bool {
 
 // downloadFonts downloads Liberation font files
 func (m *PDFAFontManager) downloadFonts(ctx context.Context) error {
-	fmt.Printf("Downloading Liberation fonts from %s...\n", liberationFontsArchiveURL)
+	archiveURL := liberationFontsArchiveURL
+	if m.config.ArchiveURL != "" {
+		archiveURL = m.config.ArchiveURL
+	}
+	fmt.Printf("Downloading Liberation fonts from %s...\n", archiveURL)
 
 	// Create temp file for the tar.gz
 	tmpFile, err := os.CreateTemp("", "liberation-fonts-*.tar.gz")
@@ -236,7 +250,7 @@ func (m *PDFAFontManager) downloadFonts(ctx context.Context) error {
 	}()
 
 	// Download the file
-	req, err := http.NewRequestWithContext(ctx, "GET", liberationFontsArchiveURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", archiveURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
