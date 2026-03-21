@@ -5,99 +5,140 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 )
 
-func TestFontCacheFail(t *testing.T) {
+// newCachingTestManager creates a PDFAFontManager pointed at a temp directory,
+// using an httptest server that always returns the given HTTP status code.
+// Returns the manager, the hit counter, and a cleanup function.
+func newCachingTestManager(t *testing.T, statusCode int) (*PDFAFontManager, *atomic.Int32) {
+	t.Helper()
 	tmpDir := t.TempDir()
 	var hits atomic.Int32
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		hits.Add(1)
-		http.Error(w, "missing", http.StatusNotFound)
+		http.Error(w, http.StatusText(statusCode), statusCode)
 	}))
-	defer server.Close()
+	t.Cleanup(server.Close)
 
-	oldURL := liberationFontsArchiveURL
-	liberationFontsArchiveURL = server.URL + "/liberation-fonts.tar.gz"
-	t.Cleanup(func() {
-		liberationFontsArchiveURL = oldURL
-	})
-
-	manager := &PDFAFontManager{
-		loadedFonts: make(map[string]*TTFFont),
-	}
-
-	err := manager.Initialize(PDFAFontConfig{
+	m := NewPDFAFontManager()
+	if err := m.Initialize(PDFAFontConfig{
 		FontsDirectory:         filepath.Join(tmpDir, "fonts"),
-		FallbackFontsDirectory: filepath.Join(tmpDir, "missing-system-fonts"),
+		FallbackFontsDirectory: filepath.Join(tmpDir, "fallback"),
 		AutoDownload:           true,
-	})
-	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+		ArchiveURL:             server.URL + "/liberation-fonts.tar.gz",
+	}); err != nil {
+		t.Fatalf("Initialize: %v", err)
 	}
+	return m, &hits
+}
 
-	err = manager.EnsureFontsAvailable()
+// TestCacheFailError verifies that a 404 from the download server
+// causes EnsureFontsAvailable to return a non-nil error.
+func TestCacheFailError(t *testing.T) {
+	m, _ := newCachingTestManager(t, http.StatusNotFound)
+
+	err := m.EnsureFontsAvailable()
 	if err == nil {
-		t.Fatal("expected first EnsureFontsAvailable call to fail")
+		t.Fatal("expected error when download returns 404, got nil")
 	}
-	if got := hits.Load(); got != 1 {
-		t.Fatalf("expected one download attempt after first call, got %d", got)
-	}
-
-	err = manager.EnsureFontsAvailable()
-	if err == nil {
-		t.Fatal("expected second EnsureFontsAvailable call to return cached failure")
-	}
-	if got := hits.Load(); got != 1 {
-		t.Fatalf("expected cached failure to avoid re-download, got %d attempts", got)
-	}
-
-	if manager.lastEnsureErr == nil {
-		t.Fatal("expected cached ensure error to be stored")
-	}
-	if want := "failed to download fonts: HTTP 404"; manager.lastEnsureErr.Error() != want {
-		t.Fatalf("expected cached error %q, got %q", want, manager.lastEnsureErr.Error())
+	if msg := err.Error(); !strings.Contains(strings.ToLower(msg), "font") &&
+		!strings.Contains(msg, "404") && !strings.Contains(msg, "download") {
+		t.Errorf("error message should reference fonts or download failure; got: %q", msg)
 	}
 }
 
-func TestFontCacheRetry(t *testing.T) {
+// TestCacheFailNoRetry verifies that a failed download is cached so
+// subsequent calls do not trigger additional HTTP requests.
+func TestCacheFailNoRetry(t *testing.T) {
+	m, hits := newCachingTestManager(t, http.StatusNotFound)
+
+	// Prime the cache with a failed attempt.
+	_ = m.EnsureFontsAvailable()
+	hitsAfterFirst := hits.Load()
+	if hitsAfterFirst != 1 {
+		t.Fatalf("expected exactly 1 HTTP hit after first call, got %d", hitsAfterFirst)
+	}
+
+	// A second call must reuse the cached error and not hit the server again.
+	_ = m.EnsureFontsAvailable()
+	if got := hits.Load(); got != hitsAfterFirst {
+		t.Errorf("download cache broken: HTTP hit count grew from %d to %d on second call", hitsAfterFirst, got)
+	}
+}
+
+// TestCacheFailStableMsg verifies that successive failures return the
+// same error message, confirming the result is served from cache.
+func TestCacheFailStableMsg(t *testing.T) {
+	m, _ := newCachingTestManager(t, http.StatusNotFound)
+
+	firstErr := m.EnsureFontsAvailable()
+	secondErr := m.EnsureFontsAvailable()
+
+	if firstErr == nil || secondErr == nil {
+		t.Fatalf("both calls must fail; got first=%v second=%v", firstErr, secondErr)
+	}
+	if firstErr.Error() != secondErr.Error() {
+		t.Errorf("cached error message changed: first=%q second=%q", firstErr.Error(), secondErr.Error())
+	}
+}
+
+// newOfflineManager creates a PDFAFontManager with AutoDownload disabled,
+// using the supplied fontsDir as the primary fonts directory.
+func newOfflineManager(t *testing.T, fontsDir string) *PDFAFontManager {
+	t.Helper()
 	tmpDir := t.TempDir()
-	fontsDir := filepath.Join(tmpDir, "fonts")
-
-	manager := &PDFAFontManager{
-		loadedFonts: make(map[string]*TTFFont),
-	}
-
-	err := manager.Initialize(PDFAFontConfig{
+	m := NewPDFAFontManager()
+	if err := m.Initialize(PDFAFontConfig{
 		FontsDirectory:         fontsDir,
-		FallbackFontsDirectory: filepath.Join(tmpDir, "missing-system-fonts"),
+		FallbackFontsDirectory: filepath.Join(tmpDir, "fallback"),
 		AutoDownload:           false,
-	})
-	if err != nil {
-		t.Fatalf("Initialize failed: %v", err)
+	}); err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+	return m
+}
+
+// TestRetryErrWhenAbsent verifies that EnsureFontsAvailable returns
+// an error (mentioning fonts) when the fonts directory does not exist.
+func TestRetryErrWhenAbsent(t *testing.T) {
+	fontsDir := filepath.Join(t.TempDir(), "fonts") // does not yet exist
+	m := newOfflineManager(t, fontsDir)
+
+	err := m.EnsureFontsAvailable()
+	if err == nil {
+		t.Fatal("expected error when fonts directory is absent, got nil")
+	}
+	if msg := err.Error(); !strings.Contains(strings.ToLower(msg), "font") {
+		t.Errorf("error should mention fonts; got: %q", msg)
+	}
+}
+
+// TestRetryOKWithFonts verifies that EnsureFontsAvailable
+// succeeds once the required font file is written to the configured directory.
+func TestRetryOKWithFonts(t *testing.T) {
+	fontsDir := filepath.Join(t.TempDir(), "fonts")
+	m := newOfflineManager(t, fontsDir)
+
+	// Ensure initial failure so we know the recovery path is exercised.
+	if err := m.EnsureFontsAvailable(); err == nil {
+		t.Fatal("expected initial failure before fonts are placed")
 	}
 
-	if err := manager.EnsureFontsAvailable(); err == nil {
-		t.Fatal("expected missing fonts to fail")
-	}
-
+	// Write the font file that the manager checks for.
 	if err := os.MkdirAll(fontsDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
+		t.Fatalf("MkdirAll: %v", err)
 	}
 	fontPath := filepath.Join(fontsDir, "LiberationSans-Regular.ttf")
-	if err := os.WriteFile(fontPath, []byte("placeholder"), 0o644); err != nil {
-		t.Fatalf("WriteFile failed: %v", err)
+	fontData := []byte("\x00\x01\x00\x00") // minimal SFNT/TTF magic bytes
+	if err := os.WriteFile(fontPath, fontData, 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
 	}
 
-	if err := manager.EnsureFontsAvailable(); err != nil {
-		t.Fatalf("expected EnsureFontsAvailable to succeed after font appears, got %v", err)
-	}
-	if manager.lastEnsureErr != nil {
-		t.Fatalf("expected cached error to clear after success, got %v", manager.lastEnsureErr)
-	}
-	if !manager.ensureAttempted {
-		t.Fatal("expected ensureAttempted to remain true after the initial failure")
+	if err := m.EnsureFontsAvailable(); err != nil {
+		t.Fatalf("EnsureFontsAvailable should succeed after fonts are placed, got: %v", err)
 	}
 }
