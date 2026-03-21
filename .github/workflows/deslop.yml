@@ -1,0 +1,20 @@
+name: Deslop
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chinmay-sawant/deslop@v0.1.0
+        with:
+          path: .
