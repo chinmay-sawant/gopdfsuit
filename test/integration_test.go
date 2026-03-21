@@ -666,8 +666,5 @@ func TestIntegrationSuite(t *testing.T) {
 		t.Skip("integration tests require a running HTTP server setup")
 	}
 	s := new(IntegrationSuite)
-	if s == nil {
-		t.Fatal("IntegrationSuite allocation must not return nil")
-	}
 	suite.Run(t, s)
 }

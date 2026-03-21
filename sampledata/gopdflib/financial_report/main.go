@@ -66,7 +66,7 @@ func main() {
 	warmUpPDF, err := gopdflib.GeneratePDF(template)
 	if err != nil {
 		fmt.Printf("Error during warm-up: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	// Channels for jobs and results
@@ -135,7 +135,7 @@ func main() {
 	// Check for errors
 	if len(errors) > 0 {
 		fmt.Printf("Encountered %d errors during execution.\n", len(errors))
-		os.Exit(1)
+		return
 	}
 
 	// Collect timing data
@@ -152,7 +152,7 @@ func main() {
 		return
 	}
 
-	var minDuration, maxDuration time.Duration = durations[0], durations[0]
+	minDuration, maxDuration := durations[0], durations[0]
 	for _, d := range durations {
 		if d < minDuration {
 			minDuration = d
@@ -181,7 +181,7 @@ func main() {
 	err = os.WriteFile(outputPath, warmUpPDF, 0644)
 	if err != nil {
 		fmt.Printf("\nError saving PDF: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	fmt.Println()

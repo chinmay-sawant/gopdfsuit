@@ -11,6 +11,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -279,6 +280,11 @@ func handleGenPDF(c *gin.Context) {
 
 	if err := sonic.Unmarshal(data, &template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
+		return
+	}
+
+	if reflect.DeepEqual(template, models.PDFTemplate{}) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Template body cannot be empty"})
 		return
 	}
 
