@@ -30,4 +30,4 @@ jobs:
       - uses: chinmay-sawant/deslop@v0.1.0
         with:
           path: .
-          fail-on-findings: 'false'
+          fail-on-findings: 'true'
