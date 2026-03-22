@@ -1,8 +1,0 @@
-goslop scan root: .
-Go files discovered: 90
-Go files analyzed: 90
-Functions fingerprinted: 723
-Findings: 0
-Index summary: packages=28 symbols=877 imports=485
-Parse failures: 0
-Timings: discover=18ms parse=257ms index=0ms heuristics=23ms total=301ms

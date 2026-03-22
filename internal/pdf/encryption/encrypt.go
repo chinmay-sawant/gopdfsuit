@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -75,32 +76,27 @@ func (enc *PDFEncryption) ownerHash(userPassword, ownerPassword string) []byte {
 	// Step 1: Pad owner password
 	ownerPwd := padPassword(ownerPassword)
 
-	// Step 2: SHA256 hash the padded owner password
-	hashFull := sha256.Sum256(ownerPwd)
-	var hash [16]byte
-	copy(hash[:], hashFull[:16])
+	// Step 2: Hash the padded owner password with MD5.
+	hash := md5.Sum(ownerPwd)
+	key := hash[:]
 
-	// Step 3: For R=4, do 50 iterations of SHA256
+	// Step 3: For R=4, do 50 additional MD5 iterations on the key bytes.
 	for i := 0; i < 50; i++ {
-		hashFull = sha256.Sum256(hash[:])
-		copy(hash[:], hashFull[:16])
+		next := md5.Sum(key)
+		key = next[:]
 	}
-
-	// Use first 16 bytes as RC4 key (but we'll use it for AES key derivation)
-	key := hash[:16]
 
 	// Step 4: Pad user password
 	userPwd := padPassword(userPassword)
 
-	// Step 5: Encrypt with key using RC4-like XOR operation
-	// For AES mode, we use a different approach - just encrypt with AES
+	// Step 5: Encrypt the padded user password using the revision 4 RC4 derivation.
 	result := make([]byte, 32)
 	copy(result, userPwd)
 
 	// For R=4, we do 20 iterations with modified key
-	modifiedKey := make([]byte, len(key))
+	modifiedKey := make([]byte, len(key[:16]))
 	for i := 0; i <= 19; i++ {
-		for j := range key {
+		for j := range key[:16] {
 			modifiedKey[j] = key[j] ^ byte(i)
 		}
 		result = rc4Encrypt(modifiedKey, result)
@@ -114,8 +110,8 @@ func (enc *PDFEncryption) genEncKey(userPassword string) []byte {
 	// Step 1: Pad user password
 	userPwd := padPassword(userPassword)
 
-	// Step 2: Create SHA256 hash of: padded password + O value + P value + document ID
-	hasher := sha256.New()
+	// Step 2: Create MD5 hash of: padded password + O value + P value + document ID
+	hasher := md5.New()
 	hasher.Write(userPwd)
 	hasher.Write(enc.OwnerPasswordHash)
 
@@ -131,10 +127,10 @@ func (enc *PDFEncryption) genEncKey(userPassword string) []byte {
 
 	hash := hasher.Sum(nil)
 
-	// Step 3: For R=4, do 50 additional SHA256 iterations on first 16 bytes
+	// Step 3: For R=4, do 50 additional MD5 iterations on the key bytes.
 	for i := 0; i < 50; i++ {
-		h := sha256.Sum256(hash[:16])
-		hash = h[:]
+		next := md5.Sum(hash[:16])
+		hash = next[:]
 	}
 
 	// Return first 16 bytes as the encryption key
@@ -143,8 +139,8 @@ func (enc *PDFEncryption) genEncKey(userPassword string) []byte {
 
 // computeUserHash computes the /U (user) hash value per PDF spec Algorithm 5
 func (enc *PDFEncryption) userHash() []byte {
-	// Step 1: Create SHA256 hash of padding + document ID
-	hasher := sha256.New()
+	// Step 1: Create MD5 hash of padding + document ID.
+	hasher := md5.New()
 	hasher.Write(paddingBytes)
 	hasher.Write(enc.DocumentID)
 	hash := hasher.Sum(nil)
@@ -274,8 +270,8 @@ func (enc *PDFEncryption) EncryptString(data []byte, objNum, genNum int) []byte 
 
 // computeObjectKey computes the encryption key for a specific object
 func (enc *PDFEncryption) objKey(objNum, genNum int) []byte {
-	// Create key by hashing: file key + object number + generation number
-	hasher := sha256.New()
+	// Create key by hashing: file key + object number + generation number + AES salt.
+	hasher := md5.New()
 	hasher.Write(enc.EncryptionKey)
 
 	// Object and generation numbers as little-endian 3 bytes each
@@ -292,8 +288,13 @@ func (enc *PDFEncryption) objKey(objNum, genNum int) []byte {
 
 	hash := hasher.Sum(nil)
 
-	// Use min(n+5, 16) bytes where n is key length (16)
-	return hash[:16]
+	// Use min(n+5, 16) bytes where n is the file key length.
+	keyLength := len(enc.EncryptionKey) + 5
+	if keyLength > 16 {
+		keyLength = 16
+	}
+
+	return hash[:keyLength]
 }
 
 // Pkcs7Pad pads data to block size using PKCS#7

@@ -91,6 +91,13 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	xrefOffsets := make(map[int]int)
 
+	// PDF/A forbids encrypted documents. The editor already enforces this, but
+	// direct API callers can still send both flags at once.
+	if template.Config.Security != nil && template.Config.Security.Enabled {
+		template.Config.PDFA = nil
+		template.Config.PDFACompliant = false
+	}
+
 	// Get page dimensions from config
 	pageConfig := template.Config
 	pageDims := getPageDimensions(pageConfig.Page, pageConfig.PageAlignment)

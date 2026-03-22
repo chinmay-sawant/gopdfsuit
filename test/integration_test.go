@@ -115,6 +115,30 @@ func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 	s.compareSizes(tempPath, expectedPath, 1024)
 }
 
+// TestGenerateEncryptedTemplatePDF tests encrypted template generation using the
+// sample payload that enables password protection.
+func (s *IntegrationSuite) TestGenerateEncryptedTemplatePDF() {
+	jsonPath := filepath.Join("..", "sampledata", "editor", "financial_encrypted.json")
+	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
+	s.NoError(err, "Failed to read encrypted sample JSON file")
+
+	resp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBuffer(jsonData))
+	s.NoError(err)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
+
+	body, err := io.ReadAll(resp.Body)
+	s.NoError(err)
+	s.True(bytes.HasPrefix(body, []byte("%PDF-")), "generated output should be a PDF")
+	s.True(bytes.Contains(body, []byte("/Encrypt")), "generated PDF should contain an encryption dictionary")
+	s.True(bytes.Contains(body, []byte("/CFM /AESV2")), "generated PDF should use AESV2 crypt filter")
+	s.False(bytes.Contains(body, []byte("/OutputIntents [")), "encrypted PDF generation should disable PDF/A output intents")
+}
+
 // TestMergePDFs tests /api/v1/merge
 func (s *IntegrationSuite) TestMergePDFs() {
 	t := s.T()
