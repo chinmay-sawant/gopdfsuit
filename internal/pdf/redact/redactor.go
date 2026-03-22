@@ -136,7 +136,7 @@ func (r *Redactor) AnalyzePageCaps() ([]models.PageCapability, error) {
 			}
 			rawStream, decStream, _ := inspectStream(objBody)
 			if (strings.Contains(string(rawStream), "BT") && (strings.Contains(string(rawStream), "Tj") || strings.Contains(string(rawStream), "TJ"))) ||
-			   (strings.Contains(string(decStream), "BT") && (strings.Contains(string(decStream), "Tj") || strings.Contains(string(decStream), "TJ"))) {
+				(strings.Contains(string(decStream), "BT") && (strings.Contains(string(decStream), "Tj") || strings.Contains(string(decStream), "TJ"))) {
 				hasText = true
 			}
 			if strings.Contains(string(rawStream), " Do") || strings.Contains(string(decStream), " Do") || bytesIndex(objBody, []byte("/Image")) >= 0 {

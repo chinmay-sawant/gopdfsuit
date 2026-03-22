@@ -11,7 +11,7 @@ import (
 
 func TestRedactFin(t *testing.T) {
 	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
-	pdfBytes, err := os.ReadFile(pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath) //nolint:gosec // test data
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
 	}
@@ -51,7 +51,7 @@ func TestRedactFin(t *testing.T) {
 
 func TestRedactFinP2(t *testing.T) {
 	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
-	pdfBytes, err := os.ReadFile(pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath) //nolint:gosec // test data
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
 	}

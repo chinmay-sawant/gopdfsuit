@@ -316,10 +316,15 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 	var rootDict strings.Builder
 	rootDict.WriteString("<< /Type /Outlines")
 	if firstTopLevel > 0 {
-		rootDict.WriteString(" /First "); rootDict.WriteString(strconv.Itoa(firstTopLevel)); rootDict.WriteString(" 0 R")
-		rootDict.WriteString(" /Last "); rootDict.WriteString(strconv.Itoa(lastTopLevel)); rootDict.WriteString(" 0 R")
+		rootDict.WriteString(" /First ")
+		rootDict.WriteString(strconv.Itoa(firstTopLevel))
+		rootDict.WriteString(" 0 R")
+		rootDict.WriteString(" /Last ")
+		rootDict.WriteString(strconv.Itoa(lastTopLevel))
+		rootDict.WriteString(" 0 R")
 	}
-	rootDict.WriteString(" /Count "); rootDict.WriteString(strconv.Itoa(totalCount))
+	rootDict.WriteString(" /Count ")
+	rootDict.WriteString(strconv.Itoa(totalCount))
 	rootDict.WriteString(" >>")
 	ob.pageManager.ExtraObjects[ob.outlineObjID] = rootDict.String()
 
@@ -359,32 +364,53 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 			}
 
 			encrypted := ob.encryptor.EncryptString(titleBytes, item.ObjectID, 0)
-			itemDict.WriteString(" /Title <"); itemDict.WriteString(hex.EncodeToString(encrypted)); itemDict.WriteString(">")
+			itemDict.WriteString(" /Title <")
+			itemDict.WriteString(hex.EncodeToString(encrypted))
+			itemDict.WriteString(">")
 		} else {
-			itemDict.WriteString(" /Title ("); itemDict.WriteString(escapeTextUnicode(item.Title)); itemDict.WriteString(")")
+			itemDict.WriteString(" /Title (")
+			itemDict.WriteString(escapeTextUnicode(item.Title))
+			itemDict.WriteString(")")
 		}
 
-		itemDict.WriteString(" /Parent "); itemDict.WriteString(strconv.Itoa(item.ParentID)); itemDict.WriteString(" 0 R")
+		itemDict.WriteString(" /Parent ")
+		itemDict.WriteString(strconv.Itoa(item.ParentID))
+		itemDict.WriteString(" 0 R")
 
 		// PDF/UA-2 Compliance: Use /Dest (name) instead of /A << /S /GoTo ... >>
 		// The named destination contains both /D and /SD entries
 		if item.DestKey != "" {
-			itemDict.WriteString(" /Dest ("); itemDict.WriteString(escapeText(item.DestKey)); itemDict.WriteString(")")
+			itemDict.WriteString(" /Dest (")
+			itemDict.WriteString(escapeText(item.DestKey))
+			itemDict.WriteString(")")
 		} else if item.DestPageID > 0 {
 			// Fallback for items without a destination key (shouldn't happen normally)
-			itemDict.WriteString(" /Dest ["); itemDict.WriteString(strconv.Itoa(item.DestPageID)); itemDict.WriteString(" 0 R /XYZ null "); itemDict.WriteString(fmtNum(item.DestY)); itemDict.WriteString(" null]")
+			itemDict.WriteString(" /Dest [")
+			itemDict.WriteString(strconv.Itoa(item.DestPageID))
+			itemDict.WriteString(" 0 R /XYZ null ")
+			itemDict.WriteString(fmtNum(item.DestY))
+			itemDict.WriteString(" null]")
 		}
 
 		if item.PrevID > 0 {
-			itemDict.WriteString(" /Prev "); itemDict.WriteString(strconv.Itoa(item.PrevID)); itemDict.WriteString(" 0 R")
+			itemDict.WriteString(" /Prev ")
+			itemDict.WriteString(strconv.Itoa(item.PrevID))
+			itemDict.WriteString(" 0 R")
 		}
 		if item.NextID > 0 {
-			itemDict.WriteString(" /Next "); itemDict.WriteString(strconv.Itoa(item.NextID)); itemDict.WriteString(" 0 R")
+			itemDict.WriteString(" /Next ")
+			itemDict.WriteString(strconv.Itoa(item.NextID))
+			itemDict.WriteString(" 0 R")
 		}
 		if item.FirstID > 0 {
-			itemDict.WriteString(" /First "); itemDict.WriteString(strconv.Itoa(item.FirstID)); itemDict.WriteString(" 0 R")
-			itemDict.WriteString(" /Last "); itemDict.WriteString(strconv.Itoa(item.LastID)); itemDict.WriteString(" 0 R")
-			itemDict.WriteString(" /Count "); itemDict.WriteString(strconv.Itoa(item.Count))
+			itemDict.WriteString(" /First ")
+			itemDict.WriteString(strconv.Itoa(item.FirstID))
+			itemDict.WriteString(" 0 R")
+			itemDict.WriteString(" /Last ")
+			itemDict.WriteString(strconv.Itoa(item.LastID))
+			itemDict.WriteString(" 0 R")
+			itemDict.WriteString(" /Count ")
+			itemDict.WriteString(strconv.Itoa(item.Count))
 		}
 
 		itemDict.WriteString(" >>")
@@ -410,13 +436,23 @@ func escapeTextUnicode(s string) string {
 		for _, r := range s {
 			// Convert to UTF-16BE
 			if r <= 0xFFFF {
-				result.WriteString("\\x"); result.WriteString(fmtHexByte((r >> 8) & 0xFF)); result.WriteString("\\x"); result.WriteString(fmtHexByte(r & 0xFF))
+				result.WriteString("\\x")
+				result.WriteString(fmtHexByte((r >> 8) & 0xFF))
+				result.WriteString("\\x")
+				result.WriteString(fmtHexByte(r & 0xFF))
 			} else {
 				// Surrogate pair for characters > 0xFFFF
 				r -= 0x10000
 				high := 0xD800 + ((r >> 10) & 0x3FF)
 				low := 0xDC00 + (r & 0x3FF)
-				result.WriteString("\\x"); result.WriteString(fmtHexByte((high >> 8) & 0xFF)); result.WriteString("\\x"); result.WriteString(fmtHexByte(high & 0xFF)); result.WriteString("\\x"); result.WriteString(fmtHexByte((low >> 8) & 0xFF)); result.WriteString("\\x"); result.WriteString(fmtHexByte(low & 0xFF))
+				result.WriteString("\\x")
+				result.WriteString(fmtHexByte((high >> 8) & 0xFF))
+				result.WriteString("\\x")
+				result.WriteString(fmtHexByte(high & 0xFF))
+				result.WriteString("\\x")
+				result.WriteString(fmtHexByte((low >> 8) & 0xFF))
+				result.WriteString("\\x")
+				result.WriteString(fmtHexByte(low & 0xFF))
 			}
 		}
 		return result.String()
@@ -479,11 +515,15 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 			// Usually names are ASCII, but handle them as bytes
 			encrypted := ob.encryptor.EncryptString([]byte(name), destsTreeID, 0)
 			var sb strings.Builder
-			sb.WriteString("<"); sb.WriteString(hex.EncodeToString(encrypted)); sb.WriteString(">")
+			sb.WriteString("<")
+			sb.WriteString(hex.EncodeToString(encrypted))
+			sb.WriteString(">")
 			nameStr = sb.String()
 		} else {
 			var sb strings.Builder
-			sb.WriteString("("); sb.WriteString(escapeText(name)); sb.WriteString(")")
+			sb.WriteString("(")
+			sb.WriteString(escapeText(name))
+			sb.WriteString(")")
 			nameStr = sb.String()
 		}
 
@@ -492,11 +532,23 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		// /SD is the structure destination (required for PDF/UA-2)
 		if dest.StructElemID > 0 {
 			namesArray.WriteString(nameStr)
-			namesArray.WriteString(" << /D ["); namesArray.WriteString(strconv.Itoa(pageObjID)); namesArray.WriteString(" 0 R /XYZ null "); namesArray.WriteString(fmtNum(dest.Y)); namesArray.WriteString(" null] /SD ["); namesArray.WriteString(strconv.Itoa(dest.StructElemID)); namesArray.WriteString(" 0 R /XYZ null "); namesArray.WriteString(fmtNum(dest.Y)); namesArray.WriteString(" null] >>")
+			namesArray.WriteString(" << /D [")
+			namesArray.WriteString(strconv.Itoa(pageObjID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.WriteString(" null] /SD [")
+			namesArray.WriteString(strconv.Itoa(dest.StructElemID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.WriteString(" null] >>")
 		} else {
 			// Fallback for destinations without structure element (not fully PDF/UA-2 compliant)
 			namesArray.WriteString(nameStr)
-			namesArray.WriteString(" ["); namesArray.WriteString(strconv.Itoa(pageObjID)); namesArray.WriteString(" 0 R /XYZ null "); namesArray.WriteString(fmtNum(dest.Y)); namesArray.WriteString(" null]")
+			namesArray.WriteString(" [")
+			namesArray.WriteString(strconv.Itoa(pageObjID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.WriteString(" null]")
 		}
 	}
 	namesArray.WriteString("]")

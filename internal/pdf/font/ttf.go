@@ -58,7 +58,7 @@ type TableEntry struct {
 
 // LoadTTFFromFile loads and parses a TTF/OTF font from a file path
 func LoadTTFFromFile(path string) (*TTFFont, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is from configuration
 	if err != nil {
 		return nil, fmt.Errorf("failed to read font file: %w", err)
 	}
@@ -176,7 +176,7 @@ func (f *TTFFont) parseHead(data []byte) error {
 		return errors.New("missing 'head' table")
 	}
 
-	if table.Offset+54 > uint32(len(data)) {
+	if table.Offset+54 > uint32(len(data)) { //nolint:gosec
 		return errors.New("head table truncated")
 	}
 
@@ -216,7 +216,7 @@ func (f *TTFFont) parseHhea(data []byte) error {
 		return errors.New("missing 'hhea' table")
 	}
 
-	if table.Offset+36 > uint32(len(data)) {
+	if table.Offset+36 > uint32(len(data)) { //nolint:gosec
 		return errors.New("hhea table truncated")
 	}
 
@@ -245,7 +245,7 @@ func (f *TTFFont) parseMaxp(data []byte) error {
 		return errors.New("missing 'maxp' table")
 	}
 
-	if table.Offset+6 > uint32(len(data)) {
+	if table.Offset+6 > uint32(len(data)) { //nolint:gosec
 		return errors.New("maxp table truncated")
 	}
 
@@ -270,7 +270,7 @@ func (f *TTFFont) parseHmtx(data []byte) error {
 
 	// Need to get numberOfHMetrics from hhea table
 	hheaTable := f.Tables["hhea"]
-	if hheaTable.Offset+36 > uint32(len(data)) {
+	if hheaTable.Offset+36 > uint32(len(data)) { //nolint:gosec
 		return errors.New("hhea table truncated")
 	}
 
@@ -455,18 +455,18 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 			var glyphID uint16
 
 			if idRangeOffsets[i] == 0 {
-				glyphID = uint16(int32(c) + int32(idDeltas[i]))
+				glyphID = uint16(int32(c) + int32(idDeltas[i])) //nolint:gosec // TTF cmap format 4 range
 			} else {
 				// Calculate offset into glyph ID array
 				glyphIndexOffset := idRangeOffsetPos + int64(i)*2 + int64(idRangeOffsets[i]) + int64(c-startCodes[i])*2
 				if glyphIndexOffset+2 <= int64(len(data[offset:])) {
-					glyphReader := bytes.NewReader(data[offset+uint32(glyphIndexOffset):])
+					glyphReader := bytes.NewReader(data[offset+uint32(glyphIndexOffset):]) //nolint:gosec
 					if err := binary.Read(glyphReader, binary.BigEndian, &glyphID); err != nil {
 						// Should probably handle error, but nested loop context, maybe break
 						break
 					}
 					if glyphID != 0 {
-						glyphID = uint16(int32(glyphID) + int32(idDeltas[i]))
+						glyphID = uint16(int32(glyphID) + int32(idDeltas[i])) //nolint:gosec
 					}
 				}
 			}
@@ -506,7 +506,7 @@ func (f *TTFFont) parseCmapFormat12(data []byte, offset uint32) error {
 		}
 
 		for c := startCharCode; c <= endCharCode; c++ {
-			glyphID := uint16(startGlyphID + (c - startCharCode))
+			glyphID := uint16(startGlyphID + (c - startCharCode)) //nolint:gosec // TTF cmap format 12 range
 			if glyphID < f.NumGlyphs {
 				f.CharToGlyph[rune(c)] = glyphID
 				f.GlyphToChar[glyphID] = rune(c)
@@ -518,6 +518,7 @@ func (f *TTFFont) parseCmapFormat12(data []byte, offset uint32) error {
 }
 
 // parseName parses the 'name' table for font names
+//
 //nolint:gocyclo
 func (f *TTFFont) parseName(data []byte) error {
 	table, ok := f.Tables["name"]
@@ -565,7 +566,7 @@ func (f *TTFFont) parseName(data []byte) error {
 		if platformID == 3 && encodingID == 1 {
 			strStart := storageOffset + uint32(offset)
 			strEnd := strStart + uint32(length)
-			if strEnd <= uint32(len(data)) {
+			if strEnd <= uint32(len(data)) { //nolint:gosec
 				// Convert UTF-16BE to string
 				str := decodeUTF16BE(data[strStart:strEnd])
 				switch nameID {
@@ -585,7 +586,7 @@ func (f *TTFFont) parseName(data []byte) error {
 		if platformID == 1 && encodingID == 0 && f.PostScriptName == "" {
 			strStart := storageOffset + uint32(offset)
 			strEnd := strStart + uint32(length)
-			if strEnd <= uint32(len(data)) {
+			if strEnd <= uint32(len(data)) { //nolint:gosec
 				str := string(data[strStart:strEnd])
 				switch nameID {
 				case 1:
@@ -681,7 +682,7 @@ func (f *TTFFont) parseOS2(data []byte) error {
 	}
 
 	// Estimate StemV from weight class
-	f.StemV = int16(50 + (usWeightClass-400)/10)
+	f.StemV = int16(50 + (usWeightClass-400)/10) //nolint:gosec
 	if f.StemV < 50 {
 		f.StemV = 50
 	}

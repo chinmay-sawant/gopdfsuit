@@ -562,8 +562,9 @@ func decompressFlate(data []byte) []byte {
 	}()
 
 	var out bytes.Buffer
-	_, err = io.Copy(&out, reader)
-	if err != nil {
+	// Limit decompression to 50MB to prevent bombs
+	_, err = io.CopyN(&out, reader, 50*1024*1024)
+	if err != nil && err != io.EOF {
 		return nil
 	}
 

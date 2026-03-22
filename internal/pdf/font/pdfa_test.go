@@ -129,12 +129,12 @@ func TestRetryOKWithFonts(t *testing.T) {
 	}
 
 	// Write the font file that the manager checks for.
-	if err := os.MkdirAll(fontsDir, 0o755); err != nil {
+	if err := os.MkdirAll(fontsDir, 0o750); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 	fontPath := filepath.Join(fontsDir, "LiberationSans-Regular.ttf")
 	fontData := []byte("\x00\x01\x00\x00") // minimal SFNT/TTF magic bytes
-	if err := os.WriteFile(fontPath, fontData, 0o644); err != nil {
+	if err := os.WriteFile(fontPath, fontData, 0o600); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 

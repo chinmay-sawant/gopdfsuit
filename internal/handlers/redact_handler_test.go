@@ -19,7 +19,7 @@ func TestRedactMultipart(t *testing.T) {
 	r.POST("/api/v1/redact/apply", HandleRedactApply)
 
 	pdfPath := filepath.Join("..", "..", "sampledata", "EpsteinFiles", "Epsteinfiles.pdf")
-	pdfBytes, err := os.ReadFile(pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
 	}

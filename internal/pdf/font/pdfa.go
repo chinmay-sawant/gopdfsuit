@@ -187,7 +187,7 @@ func (m *PDFAFontManager) EnsureFontsAvailable() error {
 	}
 
 	// Create fonts directory
-	if err := os.MkdirAll(m.config.FontsDirectory, 0755); err != nil {
+	if err := os.MkdirAll(m.config.FontsDirectory, 0750); err != nil {
 		m.ensureAttempted = true
 		m.lastEnsureErr = fmt.Errorf("failed to create fonts directory: %w", err)
 		return m.lastEnsureErr
@@ -318,12 +318,12 @@ func (m *PDFAFontManager) downloadFonts(ctx context.Context) error {
 			}
 
 			destPath := filepath.Join(m.config.FontsDirectory, fileName)
-			outFile, err := os.Create(destPath)
+			outFile, err := os.Create(destPath) //nolint:gosec // controlled destination
 			if err != nil {
 				return fmt.Errorf("failed to create font file %s: %w", destPath, err)
 			}
 
-			if _, err := io.Copy(outFile, tr); err != nil {
+			if _, err := io.Copy(outFile, tr); err != nil { //nolint:gosec // extracting small font files
 				_ = outFile.Close()
 				return fmt.Errorf("failed to extract %s: %w", fileName, err)
 			}

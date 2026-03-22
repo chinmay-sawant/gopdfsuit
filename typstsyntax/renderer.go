@@ -284,7 +284,7 @@ func (le *LayoutEngine) layoutFraction(node *Node, fontSize float64) *MathLayout
 	denX := (fracWidth - denLay.Width) / 2
 	denY := barY - barPadding - denLay.Height
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(numLay.Elements)+len(denLay.Elements)+1)
 
 	// Numerator
 	for _, el := range numLay.Elements {
@@ -323,7 +323,7 @@ func (le *LayoutEngine) layoutSqrt(node *Node, fontSize float64) *MathLayout {
 	totalH := inner.Height + overlineGap + fontSize*0.15
 	totalW := radWidth + inner.Width + fontSize*0.1
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(inner.Elements)+2)
 
 	// Radical sign (√) glyph
 	elements = append(elements, MathElement{
@@ -358,7 +358,7 @@ func (le *LayoutEngine) layoutRoot(node *Node, fontSize float64) *MathLayout {
 	totalW := radWidth + innerLay.Width + fontSize*0.1
 	totalH := innerLay.Height + fontSize*0.25
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(indexLay.Elements)+len(innerLay.Elements)+2)
 
 	// Index (small, top-left of radical)
 	for _, el := range indexLay.Elements {
@@ -410,7 +410,7 @@ func (le *LayoutEngine) layoutGroup(node *Node, fontSize float64) *MathLayout {
 	}
 
 	totalW := delimWidth*2 + innerLay.Width
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(innerLay.Elements)+2)
 
 	// Left delimiter
 	elements = append(elements, MathElement{
@@ -784,8 +784,7 @@ func (le *LayoutEngine) layoutBinom(node *Node, fontSize float64) *MathLayout {
 
 	topY := fontSize*0.4 + gap
 	botY := fontSize*0.4 - gap - botLay.Height
-
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(topLay.Elements)+len(botLay.Elements)+2)
 
 	// Left paren
 	elements = append(elements, MathElement{

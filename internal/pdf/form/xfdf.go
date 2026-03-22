@@ -89,7 +89,7 @@ func decodeHexString(s string) string {
 	return string(b)
 }
 
-// tryZlibDecompress attempts to decompress zlib data
+// tryZlibDecompress attempts to decompress zlib data with a 50MB limit
 func tryZlibDecompress(b []byte) ([]byte, error) {
 	r, err := zlib.NewReader(bytes.NewReader(b))
 	if err != nil {
@@ -99,20 +99,30 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 		_ = r.Close()
 	}()
 	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
+	// Limit decompression to 50MB to prevent decompression bombs (G110)
+	const maxDecompressSize = 50 * 1024 * 1024
+	if _, err := io.CopyN(&out, r, maxDecompressSize); err != nil {
+		if err == io.EOF {
+			return out.Bytes(), nil
+		}
 		return nil, err
 	}
 	return out.Bytes(), nil
 }
 
-// tryFlateDecompress attempts to decompress raw flate data
+// tryFlateDecompress attempts to decompress raw flate data with a 50MB limit
 func tryFlateDecompress(b []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewReader(b))
 	defer func() {
 		_ = r.Close()
 	}()
 	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
+	// Limit decompression to 50MB to prevent decompression bombs (G110)
+	const maxDecompressSize = 50 * 1024 * 1024
+	if _, err := io.CopyN(&out, r, maxDecompressSize); err != nil {
+		if err == io.EOF {
+			return out.Bytes(), nil
+		}
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -429,9 +439,9 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 		w0, w1, w2 := W[0], W[1], W[2]
 		total := w0 + w1 + w2
 		for pos := 0; pos+total <= len(dec); pos += total {
-			f1 := int(readUint(dec[pos : pos+w0]))
-			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))
-			f3 := int(readUint(dec[pos+w0+w1 : pos+total]))
+			f1 := int(readUint(dec[pos : pos+w0]))          //nolint:gosec
+			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))    //nolint:gosec
+			f3 := int(readUint(dec[pos+w0+w1 : pos+total])) //nolint:gosec
 			// type 1: f1==1 -> offset f3
 			if f1 == 1 {
 				off := f3

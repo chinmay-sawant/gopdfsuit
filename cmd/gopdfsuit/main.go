@@ -27,10 +27,11 @@ func run() int {
 
 	// Profiling is opt-in to avoid heap instrumentation overhead in production/benchmarks
 	if os.Getenv("ENABLE_PROFILING") == "1" {
-		f, err := os.Create("/tmp/mem.prof")
+		f, err := os.CreateTemp("", "gopdfsuit-mem-*.prof")
 		if err != nil {
 			log.Printf("could not create memory profile: %v", err)
 		} else {
+			log.Printf("Memory profile will be written to: %s", f.Name())
 			defer func() {
 				if err := f.Close(); err != nil {
 					log.Printf("could not close memory profile: %v", err)

@@ -231,7 +231,7 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 	h := sha256.New()
 	h.Write(pad)
 	h.Write(d.O)
-	h.Write(int32LEBytes(int32(d.P)))
+	h.Write(int32LEBytes(int32(d.P))) //nolint:gosec // P is a 32-bit PDF flag
 	h.Write(id0)
 	if d.R >= 4 && !d.EncryptMetadata {
 		h.Write([]byte{0xff, 0xff, 0xff, 0xff})

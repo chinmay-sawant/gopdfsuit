@@ -207,7 +207,9 @@ func (r *CustomFontRegistry) ResetUsage() {
 	defer r.mu.Unlock()
 
 	for _, font := range r.fonts {
-		for k := range font.UsedChars { delete(font.UsedChars, k) }
+		for k := range font.UsedChars {
+			delete(font.UsedChars, k)
+		}
 		font.SubsetData = nil
 		font.OldToNewGlyph = nil
 		font.ObjectID = 0

@@ -112,12 +112,12 @@ func (tesseractProvider) ExtractWords(ctx context.Context, pdfBytes []byte, sett
 	for page := 1; page <= info.TotalPages; page++ {
 		imgBase := filepath.Join(tmpDir, "page-"+strconv.Itoa(page))
 		imgPath := imgBase + ".png"
-		pdftoppmCmd := exec.CommandContext(ctx, "pdftoppm", "-f", strconv.Itoa(page), "-l", strconv.Itoa(page), "-singlefile", "-png", pdfPath, imgBase)
+		pdftoppmCmd := exec.CommandContext(ctx, "pdftoppm", "-f", strconv.Itoa(page), "-l", strconv.Itoa(page), "-singlefile", "-png", pdfPath, imgBase) //nolint:gosec // controlled inputs
 		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("pdftoppm failed on page %d: %w (%s)", page, err, string(out))
 		}
 
-		imgFile, err := os.Open(imgPath)
+		imgFile, err := os.Open(imgPath) //nolint:gosec // controlled path
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +127,7 @@ func (tesseractProvider) ExtractWords(ctx context.Context, pdfBytes []byte, sett
 			return nil, err
 		}
 
-		tsvCmd := exec.CommandContext(ctx, "tesseract", imgPath, "stdout", "tsv", "-l", lang)
+		tsvCmd := exec.CommandContext(ctx, "tesseract", imgPath, "stdout", "tsv", "-l", lang) //nolint:gosec // controlled inputs
 		tsvOut, err := tsvCmd.CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("tesseract failed on page %d: %w (%s)", page, err, string(tsvOut))

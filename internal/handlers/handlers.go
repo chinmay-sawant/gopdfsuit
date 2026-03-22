@@ -196,7 +196,7 @@ func handleGetTemplateData(c *gin.Context) {
 	filePath := filepath.Join(getProjectRoot(), filename)
 
 	// Read the JSON file
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filePath) //nolint:gosec // controlled path
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template file not found: " + filename})
 		return

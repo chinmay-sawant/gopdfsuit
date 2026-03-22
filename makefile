@@ -47,7 +47,8 @@ mod:
 	go mod tidy
 
 lint:
-	golangci-lint run -E revive,gocritic,gocyclo,goconst ./...
+# 	golangci-lint run -E revive,gocritic,gocyclo,goconst ./...
+	golangci-lint run -E errcheck,staticcheck,revive,gocritic,gocyclo,goconst,gosec,bodyclose,prealloc ./...
 	cd frontend && npm run lint
 	cd .. 
 

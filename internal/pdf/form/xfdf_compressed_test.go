@@ -13,12 +13,12 @@ func TestFillXFDFComp(t *testing.T) {
 	xfdfPath := filepath.Join(baseDir, "medical_data.xfdf")
 	outPath := filepath.Join(baseDir, "generated.pdf")
 
-	pdfBytes, err := os.ReadFile(pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath) //nolint:gosec // test data
 	if err != nil {
 		t.Fatalf("read pdf: %v", err)
 	}
 
-	xfdfBytes, err := os.ReadFile(xfdfPath)
+	xfdfBytes, err := os.ReadFile(xfdfPath) //nolint:gosec // test data
 	if err != nil {
 		t.Fatalf("read xfdf: %v", err)
 	}
@@ -31,8 +31,8 @@ func TestFillXFDFComp(t *testing.T) {
 		t.Fatalf("filled output is empty")
 	}
 
-	if err := os.WriteFile(outPath, out, 0644); err != nil {
-		t.Fatalf("write generated.pdf: %v", err)
+	if err := os.WriteFile(outPath, out, 0o600); err != nil {
+		t.Fatalf("write result: %v", err)
 	}
 
 	fields, err := DetectFieldsAdv(out)

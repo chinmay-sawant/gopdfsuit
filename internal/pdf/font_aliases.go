@@ -31,33 +31,33 @@ type PDFAFontConfig = font.PDFAFontConfig
 
 // Function aliases for backward compatibility within this package.
 var (
-	GetFontRegistry       = font.GetFontRegistry
-	NewFontRegistry       = font.NewFontRegistry
-	GetFontMetrics        = font.GetFontMetrics
-	GenerateFontObject    = font.GenerateFontObject
-	GenSimpleFontObj      = font.GenSimpleFontObj
-	GenFontDescriptor     = font.GenFontDescriptor
-	GenWidthsArray        = font.GenWidthsArray
-	GenTTFObjects         = font.GenTTFObjects
+	GetFontRegistry         = font.GetFontRegistry
+	NewFontRegistry         = font.NewFontRegistry
+	GetFontMetrics          = font.GetFontMetrics
+	GenerateFontObject      = font.GenerateFontObject
+	GenSimpleFontObj        = font.GenSimpleFontObj
+	GenFontDescriptor       = font.GenFontDescriptor
+	GenWidthsArray          = font.GenWidthsArray
+	GenTTFObjects           = font.GenTTFObjects
 	EncodeTextForCustomFont = font.EncodeTextForCustomFont
-	GetHelvResource       = font.GetHelvResource
-	GetSimpleHelvResource = font.GetSimpleHelvResource
-	GetAvailableFonts     = font.GetAvailableFonts
-	CompressFontData      = font.CompressFontData
-	IsCustomFont          = font.IsCustomFont
-	GetPDFAFontManager    = font.GetPDFAFontManager
-	IsStandardFont        = font.IsStandardFont
-	GetMappedFontName     = font.GetMappedFontName
-	GetLibFontPSName      = font.GetLibFontPSName
-	ParseTTF              = font.ParseTTF
-	LoadTTFFromFile       = font.LoadTTFFromFile
-	LoadTTFFromData       = font.LoadTTFFromData
-	SubsetTTF             = font.SubsetTTF
-	SubsetTTFForText      = font.SubsetTTFForText
-	GetCompressBuffer     = font.GetCompressBuffer
-	GetZlibWriter         = font.GetZlibWriter
-	PutZlibWriter         = font.PutZlibWriter
-	CompressBufPool       = &font.CompressBufPool
+	GetHelvResource         = font.GetHelvResource
+	GetSimpleHelvResource   = font.GetSimpleHelvResource
+	GetAvailableFonts       = font.GetAvailableFonts
+	CompressFontData        = font.CompressFontData
+	IsCustomFont            = font.IsCustomFont
+	GetPDFAFontManager      = font.GetPDFAFontManager
+	IsStandardFont          = font.IsStandardFont
+	GetMappedFontName       = font.GetMappedFontName
+	GetLibFontPSName        = font.GetLibFontPSName
+	ParseTTF                = font.ParseTTF
+	LoadTTFFromFile         = font.LoadTTFFromFile
+	LoadTTFFromData         = font.LoadTTFFromData
+	SubsetTTF               = font.SubsetTTF
+	SubsetTTFForText        = font.SubsetTTFForText
+	GetCompressBuffer       = font.GetCompressBuffer
+	GetZlibWriter           = font.GetZlibWriter
+	PutZlibWriter           = font.PutZlibWriter
+	CompressBufPool         = &font.CompressBufPool
 )
 
 // Internal aliases for lower-case names previously used in the pdf package

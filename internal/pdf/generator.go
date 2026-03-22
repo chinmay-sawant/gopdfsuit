@@ -1015,7 +1015,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		randomBytes := make([]byte, 16)
 		if _, err := rand.Read(randomBytes); err != nil {
 			// Fallback to time-based randomness if rand fails
-			binary.BigEndian.PutUint64(randomBytes, uint64(time.Now().UnixNano()))
+			binary.BigEndian.PutUint64(randomBytes, uint64(time.Now().UnixNano())) //nolint:gosec // positive UnixNano
 		}
 		randomHashFull := sha256.Sum256(randomBytes)
 		var randomHash [16]byte
@@ -1111,9 +1111,13 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	maxPageIndex := len(pageManager.Pages)
 	for i := 0; i < maxPageIndex; i++ {
 		if elems, exists := pageManager.Structure.ParentTree[i]; exists && len(elems) > 0 {
-			ptBuilder.WriteString(" "); ptBuilder.WriteString(strconv.Itoa(i)); ptBuilder.WriteString(" [") // Key is page index
+			ptBuilder.WriteString(" ")
+			ptBuilder.WriteString(strconv.Itoa(i))
+			ptBuilder.WriteString(" [") // Key is page index
 			for _, elem := range elems {
-				ptBuilder.WriteString(" "); ptBuilder.WriteString(strconv.Itoa(elem.ObjectID)); ptBuilder.WriteString(" 0 R")
+				ptBuilder.WriteString(" ")
+				ptBuilder.WriteString(strconv.Itoa(elem.ObjectID))
+				ptBuilder.WriteString(" 0 R")
 			}
 			ptBuilder.WriteString(" ]")
 		}
@@ -1123,7 +1127,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Each annotation's StructParent value maps to its Link structure element
 	for _, annotInfo := range pageManager.AnnotStructElems {
 		if linkElem, exists := pageManager.Structure.LinkElements[annotInfo.AnnotObjID]; exists {
-			ptBuilder.WriteString(" "); ptBuilder.WriteString(strconv.Itoa(annotInfo.StructParentIdx)); ptBuilder.WriteString(" "); ptBuilder.WriteString(strconv.Itoa(linkElem.ObjectID)); ptBuilder.WriteString(" 0 R")
+			ptBuilder.WriteString(" ")
+			ptBuilder.WriteString(strconv.Itoa(annotInfo.StructParentIdx))
+			ptBuilder.WriteString(" ")
+			ptBuilder.WriteString(strconv.Itoa(linkElem.ObjectID))
+			ptBuilder.WriteString(" 0 R")
 		}
 	}
 
@@ -1142,20 +1150,30 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 		// PDF/UA-2: Document element must be in PDF 2.0 namespace
 		if elem.Type == StructDocument {
-			sb.WriteString(" /NS "); sb.WriteString(strconv.Itoa(namespaceID)); sb.WriteString(" 0 R")
+			sb.WriteString(" /NS ")
+			sb.WriteString(strconv.Itoa(namespaceID))
+			sb.WriteString(" 0 R")
 		}
 
 		if elem.Parent == pageManager.Structure.Root {
-			sb.WriteString(" /P "); sb.WriteString(strconv.Itoa(structTreeRootID)); sb.WriteString(" 0 R")
+			sb.WriteString(" /P ")
+			sb.WriteString(strconv.Itoa(structTreeRootID))
+			sb.WriteString(" 0 R")
 		} else if elem.Parent != nil {
-			sb.WriteString(" /P "); sb.WriteString(strconv.Itoa(elem.Parent.ObjectID)); sb.WriteString(" 0 R")
+			sb.WriteString(" /P ")
+			sb.WriteString(strconv.Itoa(elem.Parent.ObjectID))
+			sb.WriteString(" 0 R")
 		}
 
 		if elem.Title != "" {
-			sb.WriteString(" /T ("); sb.WriteString(escapeText(elem.Title)); sb.WriteString(")")
+			sb.WriteString(" /T (")
+			sb.WriteString(escapeText(elem.Title))
+			sb.WriteString(")")
 		}
 		if elem.Alt != "" {
-			sb.WriteString(" /Alt ("); sb.WriteString(escapeText(elem.Alt)); sb.WriteString(")")
+			sb.WriteString(" /Alt (")
+			sb.WriteString(escapeText(elem.Alt))
+			sb.WriteString(")")
 		}
 
 		// Kids
@@ -1173,7 +1191,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 						if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 							pageObjID = pageManager.Pages[elem.PageID]
 						}
-						sb.WriteString(" << /Type /OBJR /Obj "); sb.WriteString(strconv.Itoa(annotObjID)); sb.WriteString(" 0 R /Pg "); sb.WriteString(strconv.Itoa(pageObjID)); sb.WriteString(" 0 R >>")
+						sb.WriteString(" << /Type /OBJR /Obj ")
+						sb.WriteString(strconv.Itoa(annotObjID))
+						sb.WriteString(" 0 R /Pg ")
+						sb.WriteString(strconv.Itoa(pageObjID))
+						sb.WriteString(" 0 R >>")
 						break
 					}
 				}
@@ -1181,9 +1203,12 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 			for _, k := range elem.Kids {
 				if kidElem, ok := k.(*StructElem); ok {
-					sb.WriteString(" "); sb.WriteString(strconv.Itoa(kidElem.ObjectID)); sb.WriteString(" 0 R")
+					sb.WriteString(" ")
+					sb.WriteString(strconv.Itoa(kidElem.ObjectID))
+					sb.WriteString(" 0 R")
 				} else if mcid, ok := k.(int); ok {
-					sb.WriteString(" "); sb.WriteString(strconv.Itoa(mcid))
+					sb.WriteString(" ")
+					sb.WriteString(strconv.Itoa(mcid))
 				}
 			}
 			sb.WriteString(" ]")
@@ -1195,7 +1220,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// pm.Pages[elem.PageID] gives the object ID.
 		if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 			pageObjID := pageManager.Pages[elem.PageID]
-			sb.WriteString(" /Pg "); sb.WriteString(strconv.Itoa(pageObjID)); sb.WriteString(" 0 R")
+			sb.WriteString(" /Pg ")
+			sb.WriteString(strconv.Itoa(pageObjID))
+			sb.WriteString(" 0 R")
 		}
 
 		sb.WriteString(" >>\nendobj\n")

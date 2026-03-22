@@ -573,8 +573,6 @@ type attribute struct {
 	Value asn1.RawValue `asn1:"set"`
 }
 
-
-
 // GetAcroFormSigFlags returns the SigFlags value for AcroForm when signatures are present
 func GetAcroFormSigFlags() int {
 	// SigFlags value 3 means:

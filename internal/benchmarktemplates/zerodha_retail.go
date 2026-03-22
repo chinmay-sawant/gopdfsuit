@@ -24,7 +24,7 @@ func repoRoot() string {
 }
 
 func readText(relativePath string) (string, error) {
-	content, err := os.ReadFile(filepath.Join(repoRoot(), relativePath))
+	content, err := os.ReadFile(filepath.Join(repoRoot(), relativePath)) //nolint:gosec
 	if err != nil {
 		return "", err
 	}

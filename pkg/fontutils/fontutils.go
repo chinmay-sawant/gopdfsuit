@@ -187,7 +187,7 @@ func downloadFont(font MathFontInfo) error {
 	}
 
 	destDir := fontsDir()
-	if err := os.MkdirAll(destDir, 0o755); err != nil {
+	if err := os.MkdirAll(destDir, 0o750); err != nil {
 		return fmt.Errorf("create fonts dir: %w", err)
 	}
 

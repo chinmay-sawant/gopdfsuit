@@ -57,5 +57,5 @@ func TestXFDFFillSample(t *testing.T) {
 	if len(out2) == 0 {
 		t.Fatalf("output empty")
 	}
-	_ = os.WriteFile("../../../sampledata/oldata/pdf+xfdf/filled_sample.pdf", out2, 0644)
+	_ = os.WriteFile("../../../sampledata/oldata/pdf+xfdf/filled_sample.pdf", out2, 0o600)
 }

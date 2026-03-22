@@ -91,7 +91,7 @@ func BenchmarkGoPdfSuit(b *testing.B) {
 			b.Fatalf("Generated empty PDF")
 		}
 		if i == 0 {
-			_ = os.WriteFile("../../sampledata/benchmarks/gopdfsuit/output.pdf", pdfBytes, 0644)
+			_ = os.WriteFile("../../sampledata/benchmarks/gopdfsuit/output.pdf", pdfBytes, 0600)
 		}
 	}
 }
@@ -109,7 +109,7 @@ func BenchmarkTypst(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Output to file
-		cmd := exec.CommandContext(ctx, absPath, "compile", typFilePath, outPath)
+		cmd := exec.CommandContext(ctx, absPath, "compile", typFilePath, outPath) //nolint:gosec
 		// Set Cwd so Typst can find data.json
 		cmd.Dir = filepath.Dir(typFilePath)
 

@@ -2,9 +2,9 @@ package pdf
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -339,10 +339,10 @@ func TestMathEqBank(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build output path: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o750); err != nil {
 		t.Fatalf("failed to create output directory: %v", err)
 	}
-	if err := os.WriteFile(outPath, pdfBytes, 0o644); err != nil {
+	if err := os.WriteFile(outPath, pdfBytes, 0o600); err != nil {
 		t.Fatalf("failed to write equation bank PDF: %v", err)
 	}
 
@@ -466,10 +466,10 @@ func TestMathShowcase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to build output path: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o750); err != nil {
 		t.Fatalf("failed to create output directory: %v", err)
 	}
-	if err := os.WriteFile(outPath, pdfBytes, 0o644); err != nil {
+	if err := os.WriteFile(outPath, pdfBytes, 0o600); err != nil {
 		t.Fatalf("failed to write image-style showcase PDF: %v", err)
 	}
 

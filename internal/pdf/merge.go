@@ -11,6 +11,7 @@ import (
 // MergePDFs merges multiple PDF byte slices into a single PDF by parsing objects,
 // remapping object numbers and building a new /Pages tree that references all
 // page objects from the inputs. This avoids an external dependency.
+//
 //nolint:gocyclo
 func MergePDFs(files [][]byte) ([]byte, error) {
 	header := []byte("%PDF-1.7\n%âãÏÓ\n")
@@ -46,11 +47,11 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	// Process files in the exact order they arrive
 	for _, f := range files {
 		// clear maps
-		for k := range objMap { 
-			delete(objMap, k) 
+		for k := range objMap {
+			delete(objMap, k)
 		}
-		for k := range tempObjMap { 
-			delete(tempObjMap, k) 
+		for k := range tempObjMap {
+			delete(tempObjMap, k)
 		}
 
 		// Reject encrypted PDFs for now
@@ -253,8 +254,6 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-
-
 // replaceRefs rewrites indirect references (n m R) in data only in regions
 // that are not within stream...endstream blocks, to avoid mangling compressed stream contents.
 func replaceRefs(data []byte, refRe *regexp.Regexp, offset int) []byte {
@@ -371,8 +370,9 @@ func extractFields(pdfData []byte, objMap map[int][]byte) []int {
 	return fields
 }
 
-//nolint:revive // exported
 // isFormFieldObject checks if an object body represents a form field
+//
+//nolint:revive // exported
 func IsFormFieldObject(body []byte) bool {
 	// Check for common form field indicators
 	formFieldTypes := [][]byte{

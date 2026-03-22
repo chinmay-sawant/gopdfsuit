@@ -93,9 +93,9 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	// [  0   1   1 ]
 	// M = [1/w 0 0 -1/h 0 1]
 
-	b.WriteString(fmtNum6(1.0/width))
+	b.WriteString(fmtNum6(1.0 / width))
 	b.WriteString(" 0 0 ")
-	b.WriteString(fmtNum6(-1.0/height))
+	b.WriteString(fmtNum6(-1.0 / height))
 	b.WriteString(" 0 1 cm\n")
 
 	// State tracking
@@ -441,7 +441,12 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 
 	// Apply styles
 	if r, g, blue, ok := parseColor(stroke); ok {
-		b.WriteString(fmtNum(r)); b.WriteString(" "); b.WriteString(fmtNum(g)); b.WriteString(" "); b.WriteString(fmtNum(blue)); b.WriteString(" RG\n")
+		b.WriteString(fmtNum(r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(g))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(blue))
+		b.WriteString(" RG\n")
 	}
 
 	// SVG default: fill is black if not specified, NOT transparent
@@ -454,14 +459,20 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		// Explicit no fill - keep as "none" for drawOp logic
 		fill = "none"
 	} else if r, g, blue, ok := parseColor(fill); ok {
-		b.WriteString(fmtNum(r)); b.WriteString(" "); b.WriteString(fmtNum(g)); b.WriteString(" "); b.WriteString(fmtNum(blue)); b.WriteString(" rg\n")
+		b.WriteString(fmtNum(r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(g))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(blue))
+		b.WriteString(" rg\n")
 	} else {
 		// Unknown fill value - default to black
 		fill = "black"
 		b.WriteString("0.00 0.00 0.00 rg\n")
 	}
 
-	b.WriteString(fmtNum(sw)); b.WriteString(" w\n")
+	b.WriteString(fmtNum(sw))
+	b.WriteString(" w\n")
 
 	switch name {
 	case "rect":
@@ -469,7 +480,14 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y := parseDimension(attrs["y"])
 		w := parseDimension(attrs["width"])
 		h := parseDimension(attrs["height"])
-		b.WriteString(fmtNum(x)); b.WriteString(" "); b.WriteString(fmtNum(y)); b.WriteString(" "); b.WriteString(fmtNum(w)); b.WriteString(" "); b.WriteString(fmtNum(h)); b.WriteString(" re\n")
+		b.WriteString(fmtNum(x))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(y))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(w))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(h))
+		b.WriteString(" re\n")
 		drawOp(b, fill, stroke)
 
 	case "line":
@@ -477,7 +495,14 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y1 := parseDimension(attrs["y1"])
 		x2 := parseDimension(attrs["x2"])
 		y2 := parseDimension(attrs["y2"])
-		b.WriteString(fmtNum(x1)); b.WriteString(" "); b.WriteString(fmtNum(y1)); b.WriteString(" m "); b.WriteString(fmtNum(x2)); b.WriteString(" "); b.WriteString(fmtNum(y2)); b.WriteString(" l\n")
+		b.WriteString(fmtNum(x1))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(y1))
+		b.WriteString(" m ")
+		b.WriteString(fmtNum(x2))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(y2))
+		b.WriteString(" l\n")
 		b.WriteString("S\n")
 
 	case "circle":
@@ -486,11 +511,58 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		r := parseDimension(attrs["r"])
 		magic := 0.551784
 		d := r * magic
-		b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy-r)); b.WriteString(" m\n")
-		b.WriteString(fmtNum(cx+d)); b.WriteString(" "); b.WriteString(fmtNum(cy-r)); b.WriteString(" "); b.WriteString(fmtNum(cx+r)); b.WriteString(" "); b.WriteString(fmtNum(cy-d)); b.WriteString(" "); b.WriteString(fmtNum(cx+r)); b.WriteString(" "); b.WriteString(fmtNum(cy)); b.WriteString(" c\n")
-		b.WriteString(fmtNum(cx+r)); b.WriteString(" "); b.WriteString(fmtNum(cy+d)); b.WriteString(" "); b.WriteString(fmtNum(cx+d)); b.WriteString(" "); b.WriteString(fmtNum(cy+r)); b.WriteString(" "); b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy+r)); b.WriteString(" c\n")
-		b.WriteString(fmtNum(cx-d)); b.WriteString(" "); b.WriteString(fmtNum(cy+r)); b.WriteString(" "); b.WriteString(fmtNum(cx-r)); b.WriteString(" "); b.WriteString(fmtNum(cy+d)); b.WriteString(" "); b.WriteString(fmtNum(cx-r)); b.WriteString(" "); b.WriteString(fmtNum(cy)); b.WriteString(" c\n")
-		b.WriteString(fmtNum(cx-r)); b.WriteString(" "); b.WriteString(fmtNum(cy-d)); b.WriteString(" "); b.WriteString(fmtNum(cx-d)); b.WriteString(" "); b.WriteString(fmtNum(cy-r)); b.WriteString(" "); b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy-r)); b.WriteString(" c\n")
+		b.WriteString(fmtNum(cx))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - r))
+		b.WriteString(" m\n")
+		b.WriteString(fmtNum(cx + d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy))
+		b.WriteString(" c\n")
+		b.WriteString(fmtNum(cx + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx + d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + r))
+		b.WriteString(" c\n")
+		b.WriteString(fmtNum(cx - d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy))
+		b.WriteString(" c\n")
+		b.WriteString(fmtNum(cx - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx - d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - r))
+		b.WriteString(" c\n")
 		drawOp(b, fill, stroke)
 
 	case "path":
@@ -537,7 +609,10 @@ func parseSVGPath(b *bytes.Buffer, d string) {
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			b.WriteString(fmtNum(x)); b.WriteString(" "); b.WriteString(fmtNum(y)); b.WriteString(" m ")
+			b.WriteString(fmtNum(x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y))
+			b.WriteString(" m ")
 			cx, cy = x, y
 		case "m":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
@@ -546,14 +621,20 @@ func parseSVGPath(b *bytes.Buffer, d string) {
 			i++
 			cx += dx
 			cy += dy
-			b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy)); b.WriteString(" m ")
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" m ")
 
 		case "L":
 			x, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			b.WriteString(fmtNum(x)); b.WriteString(" "); b.WriteString(fmtNum(y)); b.WriteString(" l ")
+			b.WriteString(fmtNum(x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y))
+			b.WriteString(" l ")
 			cx, cy = x, y
 		case "l":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
@@ -562,29 +643,44 @@ func parseSVGPath(b *bytes.Buffer, d string) {
 			i++
 			cx += dx
 			cy += dy
-			b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy)); b.WriteString(" l ")
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ")
 
 		case "H":
 			x, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cx = x
-			b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy)); b.WriteString(" l ")
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ")
 		case "h":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cx += dx
-			b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy)); b.WriteString(" l ") // Treat z inside h case? No, separate case.
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ") // Treat z inside h case? No, separate case.
 
 		case "V":
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cy = y
-			b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy)); b.WriteString(" l ")
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ")
 		case "v":
 			dy, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cy += dy
-			b.WriteString(fmtNum(cx)); b.WriteString(" "); b.WriteString(fmtNum(cy)); b.WriteString(" l ")
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ")
 
 		case "C":
 			x1, _ := strconv.ParseFloat(tokens[i], 64)
@@ -599,7 +695,18 @@ func parseSVGPath(b *bytes.Buffer, d string) {
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			b.WriteString(fmtNum(x1)); b.WriteString(" "); b.WriteString(fmtNum(y1)); b.WriteString(" "); b.WriteString(fmtNum(x2)); b.WriteString(" "); b.WriteString(fmtNum(y2)); b.WriteString(" "); b.WriteString(fmtNum(x)); b.WriteString(" "); b.WriteString(fmtNum(y)); b.WriteString(" c ")
+			b.WriteString(fmtNum(x1))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y1))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(x2))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y2))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y))
+			b.WriteString(" c ")
 			cx, cy = x, y
 
 		case "c":
@@ -615,7 +722,18 @@ func parseSVGPath(b *bytes.Buffer, d string) {
 			i++
 			dy, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			b.WriteString(fmtNum(cx+dx1)); b.WriteString(" "); b.WriteString(fmtNum(cy+dy1)); b.WriteString(" "); b.WriteString(fmtNum(cx+dx2)); b.WriteString(" "); b.WriteString(fmtNum(cy+dy2)); b.WriteString(" "); b.WriteString(fmtNum(cx+dx)); b.WriteString(" "); b.WriteString(fmtNum(cy+dy)); b.WriteString(" c ")
+			b.WriteString(fmtNum(cx + dx1))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy + dy1))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cx + dx2))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy + dy2))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cx + dx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy + dy))
+			b.WriteString(" c ")
 			cx += dx
 			cy += dy
 
@@ -639,7 +757,18 @@ func parseSVGPath(b *bytes.Buffer, d string) {
 			cp2x := x + k*(x1-x)
 			cp2y := y + k*(y1-y)
 
-			b.WriteString(fmtNum(cp1x)); b.WriteString(" "); b.WriteString(fmtNum(cp1y)); b.WriteString(" "); b.WriteString(fmtNum(cp2x)); b.WriteString(" "); b.WriteString(fmtNum(cp2y)); b.WriteString(" "); b.WriteString(fmtNum(x)); b.WriteString(" "); b.WriteString(fmtNum(y)); b.WriteString(" c ")
+			b.WriteString(fmtNum(cp1x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp1y))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp2x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp2y))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y))
+			b.WriteString(" c ")
 			cx, cy = x, y
 
 		case "q":
@@ -664,7 +793,18 @@ func parseSVGPath(b *bytes.Buffer, d string) {
 			cp2x := absX + k*(absX1-absX)
 			cp2y := absY + k*(absY1-absY)
 
-			b.WriteString(fmtNum(cp1x)); b.WriteString(" "); b.WriteString(fmtNum(cp1y)); b.WriteString(" "); b.WriteString(fmtNum(cp2x)); b.WriteString(" "); b.WriteString(fmtNum(cp2y)); b.WriteString(" "); b.WriteString(fmtNum(absX)); b.WriteString(" "); b.WriteString(fmtNum(absY)); b.WriteString(" c ")
+			b.WriteString(fmtNum(cp1x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp1y))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp2x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp2y))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(absX))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(absY))
+			b.WriteString(" c ")
 			cx, cy = absX, absY
 
 		case "Z", "z":

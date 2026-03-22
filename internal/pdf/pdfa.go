@@ -172,7 +172,7 @@ func buildSRGBICCProfile() []byte {
 	profile := make([]byte, profileSize)
 
 	// Write header (128 bytes)
-	binary.BigEndian.PutUint32(profile[0:4], uint32(profileSize)) // Profile size
+	binary.BigEndian.PutUint32(profile[0:4], uint32(profileSize)) //nolint:gosec // small ICC profile
 	copy(profile[4:8], []byte{0, 0, 0, 0})                        // CMM Type
 	binary.BigEndian.PutUint32(profile[8:12], 0x02100000)         // Version 2.1 (more compatible)
 	copy(profile[12:16], []byte("mntr"))                          // Device class: monitor
@@ -224,8 +224,8 @@ func buildSRGBICCProfile() []byte {
 
 	for _, tag := range tags {
 		copy(profile[offset:offset+4], []byte(tag.sig))
-		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
-		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
+		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset)) //nolint:gosec
+		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))  //nolint:gosec
 		offset += 12
 	}
 
@@ -391,11 +391,11 @@ func buildGrayICCProfile() []byte {
 	profile := make([]byte, profileSize)
 
 	// Header
-	binary.BigEndian.PutUint32(profile[0:4], uint32(profileSize))
-	binary.BigEndian.PutUint32(profile[8:12], 0x02100000) // Version 2.1 (more compatible)
-	copy(profile[12:16], []byte("mntr"))                  // monitor
-	copy(profile[16:20], []byte("GRAY"))                  // Gray color space
-	copy(profile[20:24], []byte("XYZ "))                  // PCS
+	binary.BigEndian.PutUint32(profile[0:4], uint32(profileSize)) //nolint:gosec
+	binary.BigEndian.PutUint32(profile[8:12], 0x02100000)         // Version 2.1 (more compatible)
+	copy(profile[12:16], []byte("mntr"))                          // monitor
+	copy(profile[16:20], []byte("GRAY"))                          // Gray color space
+	copy(profile[20:24], []byte("XYZ "))                          // PCS
 	binary.BigEndian.PutUint16(profile[24:26], 2024)
 	binary.BigEndian.PutUint16(profile[26:28], 1)
 	binary.BigEndian.PutUint16(profile[28:30], 1)
@@ -422,8 +422,8 @@ func buildGrayICCProfile() []byte {
 
 	for _, tag := range tags {
 		copy(profile[offset:offset+4], []byte(tag.sig))
-		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
-		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
+		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset)) //nolint:gosec
+		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))  //nolint:gosec
 		offset += 12
 	}
 

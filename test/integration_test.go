@@ -89,7 +89,7 @@ func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 
 	// 1. Input JSON from sampledata/editor/financial_report.json
 	jsonPath := filepath.Join("..", "sampledata", "editor", "financial_digitalsignature.json")
-	jsonData, err := os.ReadFile(jsonPath)
+	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
 	s.NoError(err, "Failed to read sample JSON file")
 
 	// 2. Send to endpoint
@@ -107,7 +107,7 @@ func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 	s.NoError(err)
 
 	tempPath := filepath.Join("..", "sampledata", "editor", "temp_editor.pdf")
-	err = os.WriteFile(tempPath, body, 0644)
+	err = os.WriteFile(tempPath, body, 0o600)
 	s.NoError(err, "Failed to write temp_editor.pdf")
 
 	// 4. Check size against generated.pdf (use tolerance due to digital signature timestamps)
@@ -138,7 +138,7 @@ func (s *IntegrationSuite) TestMergePDFs() {
 
 	for _, fname := range files {
 		fpath := filepath.Join(baseDir, fname)
-		data, err := os.ReadFile(fpath)
+		data, err := os.ReadFile(fpath) //nolint:gosec
 		if err != nil {
 			s.T().Skipf("Skipping TestMergePDFs: file %s not found", fname)
 			return
@@ -165,7 +165,7 @@ func (s *IntegrationSuite) TestMergePDFs() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_merge.pdf")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_merge.pdf")
 
 	// 4. Check size against generated.pdf
@@ -201,7 +201,7 @@ func (s *IntegrationSuite) TestFillPDF() {
 	writer := multipart.NewWriter(body)
 
 	// Add PDF
-	pdfData, err := os.ReadFile(pdfPath)
+	pdfData, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestFillPDF: sample PDF not found")
 		return
@@ -212,7 +212,7 @@ func (s *IntegrationSuite) TestFillPDF() {
 	s.NoError(err)
 
 	// Add XFDF
-	xfdfData, err := os.ReadFile(xfdfPath)
+	xfdfData, err := os.ReadFile(xfdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestFillPDF: sample XFDF not found")
 		return
@@ -239,7 +239,7 @@ func (s *IntegrationSuite) TestFillPDF() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_filler.pdf")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_filler.pdf")
 
 	// 4. Check size against generated.pdf
@@ -284,10 +284,10 @@ func (s *IntegrationSuite) TestHtmlToPDF() {
 
 	baseDir := filepath.Join("..", "sampledata", "htmltopdf")
 	// Ensure directory exists
-	s.NoError(os.MkdirAll(baseDir, 0755))
+	s.NoError(os.MkdirAll(baseDir, 0o750))
 
 	tempPath := filepath.Join(baseDir, "temp_htmltopdf.pdf")
-	err = os.WriteFile(tempPath, body, 0644)
+	err = os.WriteFile(tempPath, body, 0o600)
 	s.NoError(err, "Failed to write temp_htmltopdf.pdf")
 
 	// 4. Check that the file is non-zero size
@@ -334,10 +334,10 @@ func (s *IntegrationSuite) TestHtmlToImage() {
 
 	baseDir := filepath.Join("..", "sampledata", "htmltoimg")
 	// Ensure directory exists
-	s.NoError(os.MkdirAll(baseDir, 0755))
+	s.NoError(os.MkdirAll(baseDir, 0o750))
 
 	tempPath := filepath.Join(baseDir, "temp_htmltoimage.png")
-	err = os.WriteFile(tempPath, body, 0644)
+	err = os.WriteFile(tempPath, body, 0o600)
 	s.NoError(err, "Failed to write temp_htmltoimage.png")
 
 	// 4. Check that the file is non-zero size
@@ -365,7 +365,7 @@ func (s *IntegrationSuite) TestSplitPDF() {
 
 	// 1. Input PDF
 	pdfPath := filepath.Join(baseDir, "em.pdf")
-	pdfData, err := os.ReadFile(pdfPath)
+	pdfData, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestSplitPDF: sample PDF not found")
 		return
@@ -403,7 +403,7 @@ func (s *IntegrationSuite) TestSplitPDF() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_split.pdf")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_split.pdf")
 
 	// 4. Check size against split.pdf
@@ -434,7 +434,7 @@ func (s *IntegrationSuite) TestSplitPDFRange() {
 
 	// 1. Input PDF
 	pdfPath := filepath.Join(baseDir, "em.pdf")
-	pdfData, err := os.ReadFile(pdfPath)
+	pdfData, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestSplitPDFRange: sample PDF not found")
 		return
@@ -472,7 +472,7 @@ func (s *IntegrationSuite) TestSplitPDFRange() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_split_range.pdf")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_split_range.pdf")
 
 	// 4. Check size against split_range.pdf
@@ -504,7 +504,7 @@ func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
 
 	// 1. Input PDF
 	pdfPath := filepath.Join(baseDir, "em.pdf")
-	pdfData, err := os.ReadFile(pdfPath)
+	pdfData, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestSplitPDFMaxPerFile: sample PDF not found")
 		return
@@ -542,7 +542,7 @@ func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_maxperfile.zip")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_maxperfile.zip")
 
 	// 4. Check size against maxperfile.zip
@@ -563,7 +563,7 @@ func (s *IntegrationSuite) TestTypstMathShow() {
 
 	baseDir := filepath.Join("..", "sampledata", "typstsyntax")
 	jsonPath := filepath.Join(baseDir, "typst_math_showcase.json")
-	jsonData, err := os.ReadFile(jsonPath)
+	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
 	s.NoError(err, "Failed to read typst_math_showcase.json")
 
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBuffer(jsonData))
@@ -580,7 +580,7 @@ func (s *IntegrationSuite) TestTypstMathShow() {
 	s.Greater(len(body), 0, "Generated PDF should not be empty")
 
 	outPath := filepath.Join(baseDir, "typst_math_showcase.pdf")
-	err = os.WriteFile(outPath, body, 0644)
+	err = os.WriteFile(outPath, body, 0o600)
 	s.NoError(err, "Failed to write typst_math_showcase.pdf")
 
 	info, err := os.Stat(outPath)
@@ -606,7 +606,7 @@ func (s *IntegrationSuite) TestTypstSample() {
 
 	baseDir := filepath.Join("..", "sampledata", "typstsyntax")
 	jsonPath := filepath.Join(baseDir, "typst_sample.json")
-	jsonData, err := os.ReadFile(jsonPath)
+	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
 	s.NoError(err, "Failed to read typst_sample.json")
 
 	// Unmarshal, inject customFonts config with resolved font path, then re-marshal
@@ -636,7 +636,7 @@ func (s *IntegrationSuite) TestTypstSample() {
 	s.Greater(len(body), 0, "Generated PDF should not be empty")
 
 	outPath := filepath.Join(baseDir, "typst_sample.pdf")
-	err = os.WriteFile(outPath, body, 0644)
+	err = os.WriteFile(outPath, body, 0o600)
 	s.NoError(err, "Failed to write typst_sample.pdf")
 
 	info, err := os.Stat(outPath)
