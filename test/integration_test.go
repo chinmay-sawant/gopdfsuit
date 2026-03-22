@@ -135,7 +135,10 @@ func (s *IntegrationSuite) TestGenerateEncryptedTemplatePDF() {
 	s.NoError(err)
 	s.True(bytes.HasPrefix(body, []byte("%PDF-")), "generated output should be a PDF")
 	s.True(bytes.Contains(body, []byte("/Encrypt")), "generated PDF should contain an encryption dictionary")
-	s.True(bytes.Contains(body, []byte("/CFM /AESV2")), "generated PDF should use AESV2 crypt filter")
+	s.True(bytes.Contains(body, []byte("/V 5")), "generated PDF should use revision 5 encryption")
+	s.True(bytes.Contains(body, []byte("/R 5")), "generated PDF should use revision 5 standard security")
+	s.True(bytes.Contains(body, []byte("/Length 256")), "generated PDF should advertise a 256-bit encryption key")
+	s.True(bytes.Contains(body, []byte("/CFM /AESV3")), "generated PDF should use AESV3 crypt filter")
 	s.False(bytes.Contains(body, []byte("/OutputIntents [")), "encrypted PDF generation should disable PDF/A output intents")
 }
 

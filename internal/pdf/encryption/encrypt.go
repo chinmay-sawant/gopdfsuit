@@ -5,332 +5,288 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/md5"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
-// PDFEncryption handles PDF document encryption using AES-128 (V=4, R=4)
-// This is widely compatible with all PDF readers
+const (
+	fileEncryptionKeyLength = 32
+	passwordSaltLength      = 8
+	passwordEntryLength     = 48
+	permissionsEntryLength  = 16
+	maxPasswordBytes        = 127
+)
+
+var randomReader io.Reader = rand.Reader
+
+// PDFEncryption handles PDF document encryption using AES-256 (V=5, R=5).
 type PDFEncryption struct {
-	EncryptionKey     []byte // Encryption key (16 bytes for AES-128)
-	UserPasswordHash  []byte // /U value (32 bytes)
-	OwnerPasswordHash []byte // /O value (32 bytes)
-	Permissions       int32  // /P value (permission flags)
-	DocumentID        []byte // First element of document ID array
+	EncryptionKey        []byte
+	UserPasswordHash     []byte
+	OwnerPasswordHash    []byte
+	UserEncryptedKey     []byte
+	OwnerEncryptedKey    []byte
+	EncryptedPermissions []byte
+	Permissions          int32
+	DocumentID           []byte
 }
 
-// PDF encryption padding string (32 bytes) - per PDF spec
-var paddingBytes = []byte{
-	0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41,
-	0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08,
-	0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80,
-	0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A,
-}
-
-// NewPDFEncryption creates a new encryption handler with AES-128
+// NewPDFEncryption creates a new AES-256 encryption handler.
 func NewPDFEncryption(config *models.SecurityConfig, documentID []byte) (*PDFEncryption, error) {
 	if config == nil || config.OwnerPassword == "" {
 		return nil, fmt.Errorf("owner password is required for encryption")
 	}
 
 	enc := &PDFEncryption{
-		DocumentID: documentID,
+		DocumentID: append([]byte(nil), documentID...),
 	}
-
-	// Calculate permissions from config
 	enc.Permissions = enc.calculatePermissions(config)
 
-	// Compute Owner password hash (/O value) first
-	enc.OwnerPasswordHash = enc.ownerHash(config.UserPassword, config.OwnerPassword)
+	fileKey, err := readRandomBytes(fileEncryptionKeyLength)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate file encryption key: %w", err)
+	}
+	enc.EncryptionKey = fileKey
 
-	// Compute encryption key using user password
-	enc.EncryptionKey = enc.genEncKey(config.UserPassword)
+	userValidationSalt, err := readRandomBytes(passwordSaltLength)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate user validation salt: %w", err)
+	}
+	userKeySalt, err := readRandomBytes(passwordSaltLength)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate user key salt: %w", err)
+	}
+	enc.UserPasswordHash = enc.userHash(config.UserPassword, userValidationSalt, userKeySalt)
+	enc.UserEncryptedKey, err = enc.userEncryptedKey(config.UserPassword, userKeySalt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive user encrypted key: %w", err)
+	}
 
-	// Compute User password hash (/U value)
-	enc.UserPasswordHash = enc.userHash()
+	ownerValidationSalt, err := readRandomBytes(passwordSaltLength)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate owner validation salt: %w", err)
+	}
+	ownerKeySalt, err := readRandomBytes(passwordSaltLength)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate owner key salt: %w", err)
+	}
+	enc.OwnerPasswordHash = enc.ownerHash(config.OwnerPassword, ownerValidationSalt, ownerKeySalt, enc.UserPasswordHash)
+	enc.OwnerEncryptedKey, err = enc.ownerEncryptedKey(config.OwnerPassword, ownerKeySalt, enc.UserPasswordHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive owner encrypted key: %w", err)
+	}
+
+	enc.EncryptedPermissions, err = enc.permissionsHash()
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive encrypted permissions: %w", err)
+	}
 
 	return enc, nil
 }
 
-// padPassword pads or truncates password to 32 bytes
-func padPassword(password string) []byte {
-	pwd := []byte(password)
-	if len(pwd) >= 32 {
-		return pwd[:32]
+func readRandomBytes(length int) ([]byte, error) {
+	buffer := make([]byte, length)
+	if _, err := io.ReadFull(randomReader, buffer); err != nil {
+		return nil, err
 	}
-	// Pad with standard padding bytes
-	result := make([]byte, 32)
-	copy(result, pwd)
-	copy(result[len(pwd):], paddingBytes[:32-len(pwd)])
+	return buffer, nil
+}
+
+func normalizePassword(password string) []byte {
+	buffer := []byte(password)
+	if len(buffer) > maxPasswordBytes {
+		buffer = buffer[:maxPasswordBytes]
+	}
+	return append([]byte(nil), buffer...)
+}
+
+func sha256Digest(parts ...[]byte) []byte {
+	hasher := sha256.New()
+	for _, part := range parts {
+		_, _ = hasher.Write(part)
+	}
+	return hasher.Sum(nil)
+}
+
+func zeroIV() []byte {
+	return make([]byte, aes.BlockSize)
+}
+
+func aesCBCEncrypt(key, iv, plaintext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(iv) != aes.BlockSize {
+		return nil, fmt.Errorf("iv length must be %d bytes", aes.BlockSize)
+	}
+	if len(plaintext)%aes.BlockSize != 0 {
+		return nil, fmt.Errorf("plaintext length must be a multiple of %d", aes.BlockSize)
+	}
+
+	ciphertext := make([]byte, len(plaintext))
+	mode := cipher.NewCBCEncrypter(block, iv)
+	mode.CryptBlocks(ciphertext, plaintext)
+	return ciphertext, nil
+}
+
+func (enc *PDFEncryption) userHash(userPassword string, validationSalt, keySalt []byte) []byte {
+	password := normalizePassword(userPassword)
+	digest := sha256Digest(password, validationSalt)
+
+	result := make([]byte, 0, passwordEntryLength)
+	result = append(result, digest...)
+	result = append(result, validationSalt...)
+	result = append(result, keySalt...)
 	return result
 }
 
-// computeOwnerHash computes the /O (owner) hash value per PDF spec Algorithm 3
-func (enc *PDFEncryption) ownerHash(userPassword, ownerPassword string) []byte {
-	// Step 1: Pad owner password
-	ownerPwd := padPassword(ownerPassword)
+func (enc *PDFEncryption) userEncryptedKey(userPassword string, keySalt []byte) ([]byte, error) {
+	key := sha256Digest(normalizePassword(userPassword), keySalt)
+	return aesCBCEncrypt(key, zeroIV(), enc.EncryptionKey)
+}
 
-	// Step 2: Hash the padded owner password with MD5.
-	hash := md5.Sum(ownerPwd)
-	key := hash[:]
+func (enc *PDFEncryption) ownerHash(ownerPassword string, validationSalt, keySalt, userHash []byte) []byte {
+	password := normalizePassword(ownerPassword)
+	digest := sha256Digest(password, validationSalt, userHash)
 
-	// Step 3: For R=4, do 50 additional MD5 iterations on the key bytes.
-	for i := 0; i < 50; i++ {
-		next := md5.Sum(key)
-		key = next[:]
-	}
-
-	// Step 4: Pad user password
-	userPwd := padPassword(userPassword)
-
-	// Step 5: Encrypt the padded user password using the revision 4 RC4 derivation.
-	result := make([]byte, 32)
-	copy(result, userPwd)
-
-	// For R=4, we do 20 iterations with modified key
-	modifiedKey := make([]byte, len(key[:16]))
-	for i := 0; i <= 19; i++ {
-		for j := range key[:16] {
-			modifiedKey[j] = key[j] ^ byte(i)
-		}
-		result = rc4Encrypt(modifiedKey, result)
-	}
-
+	result := make([]byte, 0, passwordEntryLength)
+	result = append(result, digest...)
+	result = append(result, validationSalt...)
+	result = append(result, keySalt...)
 	return result
 }
 
-// computeEncryptionKey computes the file encryption key per PDF spec Algorithm 2
-func (enc *PDFEncryption) genEncKey(userPassword string) []byte {
-	// Step 1: Pad user password
-	userPwd := padPassword(userPassword)
-
-	// Step 2: Create MD5 hash of: padded password + O value + P value + document ID
-	hasher := md5.New()
-	hasher.Write(userPwd)
-	hasher.Write(enc.OwnerPasswordHash)
-
-	// Write permissions as 4-byte little-endian
-	pBytes := make([]byte, 4)
-	pBytes[0] = byte(enc.Permissions)
-	pBytes[1] = byte(enc.Permissions >> 8)
-	pBytes[2] = byte(enc.Permissions >> 16)
-	pBytes[3] = byte(enc.Permissions >> 24)
-	hasher.Write(pBytes)
-
-	hasher.Write(enc.DocumentID)
-
-	hash := hasher.Sum(nil)
-
-	// Step 3: For R=4, do 50 additional MD5 iterations on the key bytes.
-	for i := 0; i < 50; i++ {
-		next := md5.Sum(hash[:16])
-		hash = next[:]
-	}
-
-	// Return first 16 bytes as the encryption key
-	return hash[:16]
+func (enc *PDFEncryption) ownerEncryptedKey(ownerPassword string, keySalt, userHash []byte) ([]byte, error) {
+	key := sha256Digest(normalizePassword(ownerPassword), keySalt, userHash)
+	return aesCBCEncrypt(key, zeroIV(), enc.EncryptionKey)
 }
 
-// computeUserHash computes the /U (user) hash value per PDF spec Algorithm 5
-func (enc *PDFEncryption) userHash() []byte {
-	// Step 1: Create MD5 hash of padding + document ID.
-	hasher := md5.New()
-	hasher.Write(paddingBytes)
-	hasher.Write(enc.DocumentID)
-	hash := hasher.Sum(nil)
+func (enc *PDFEncryption) permissionsHash() ([]byte, error) {
+	block := make([]byte, permissionsEntryLength)
+	writePermissionsLittleEndian(block[:4], enc.Permissions)
+	for index := 4; index < 8; index++ {
+		block[index] = 0xff
+	}
+	block[8] = 'T'
+	copy(block[9:12], []byte("adb"))
 
-	// Step 2: Encrypt with file encryption key using RC4
-	result := rc4Encrypt(enc.EncryptionKey, hash)
+	randomTail, err := readRandomBytes(4)
+	if err != nil {
+		return nil, err
+	}
+	copy(block[12:], randomTail)
 
-	// Step 3: For R=4, do 19 additional iterations with modified key
-	modifiedKeyUser := make([]byte, len(enc.EncryptionKey))
-	for i := 1; i <= 19; i++ {
-		for j := range enc.EncryptionKey {
-			modifiedKeyUser[j] = enc.EncryptionKey[j] ^ byte(i)
-		}
-		result = rc4Encrypt(modifiedKeyUser, result)
+	cipherBlock, err := aes.NewCipher(enc.EncryptionKey)
+	if err != nil {
+		return nil, err
 	}
 
-	// Pad result to 32 bytes with arbitrary padding
-	finalResult := make([]byte, 32)
-	copy(finalResult, result)
-	// Fill remaining bytes with 0
-	return finalResult
+	encrypted := make([]byte, permissionsEntryLength)
+	cipherBlock.Encrypt(encrypted, block)
+	return encrypted, nil
 }
 
-// rc4Encrypt performs RC4 encryption
-func rc4Encrypt(key, data []byte) []byte {
-	// Initialize S-box
-	s := make([]byte, 256)
-	for i := 0; i < 256; i++ {
-		s[i] = byte(i)
-	}
-
-	// Key-scheduling algorithm (KSA)
-	j := 0
-	for i := 0; i < 256; i++ {
-		j = (j + int(s[i]) + int(key[i%len(key)])) % 256
-		s[i], s[j] = s[j], s[i]
-	}
-
-	// Pseudo-random generation algorithm (PRGA)
-	result := make([]byte, len(data))
-	i, j := 0, 0
-	for k := 0; k < len(data); k++ {
-		i = (i + 1) % 256
-		j = (j + int(s[i])) % 256
-		s[i], s[j] = s[j], s[i]
-		result[k] = data[k] ^ s[(int(s[i])+int(s[j]))%256]
-	}
-
-	return result
+func writePermissionsLittleEndian(dst []byte, permissions int32) {
+	dst[0] = byte(permissions)
+	dst[1] = byte(permissions >> 8)
+	dst[2] = byte(permissions >> 16)
+	dst[3] = byte(permissions >> 24)
 }
 
-// calculatePermissions calculates the /P value from security config
 func (enc *PDFEncryption) calculatePermissions(config *models.SecurityConfig) int32 {
-	// Start with required bits set
-	// Bits 1-2 must be 0, bits 7-8 must be 1, bits 13-32 must be 1
-	var p int32 = -4 // 0xFFFFFFFC - bits 1,2 are 0
+	var permissions int32 = -4
 
-	// Clear permission bits based on config (set to 0 means NOT allowed)
-	// Bit 3 (value 4): Print
 	if !config.AllowPrinting {
-		p &= ^int32(4)
+		permissions &= ^int32(4)
 	}
-	// Bit 4 (value 8): Modify contents
 	if !config.AllowModifying {
-		p &= ^int32(8)
+		permissions &= ^int32(8)
 	}
-	// Bit 5 (value 16): Copy/extract text and graphics
 	if !config.AllowCopying {
-		p &= ^int32(16)
+		permissions &= ^int32(16)
 	}
-	// Bit 6 (value 32): Add/modify annotations
 	if !config.AllowAnnotations {
-		p &= ^int32(32)
+		permissions &= ^int32(32)
 	}
-	// Bit 9 (value 256): Fill form fields
 	if !config.AllowFormFilling {
-		p &= ^int32(256)
+		permissions &= ^int32(256)
 	}
-	// Bit 10 (value 512): Accessibility
 	if !config.AllowAccessibility {
-		p &= ^int32(512)
+		permissions &= ^int32(512)
 	}
-	// Bit 11 (value 1024): Assemble document
 	if !config.AllowAssembly {
-		p &= ^int32(1024)
+		permissions &= ^int32(1024)
 	}
-	// Bit 12 (value 2048): Print high quality
 	if !config.AllowHighQualityPrint {
-		p &= ^int32(2048)
+		permissions &= ^int32(2048)
 	}
 
-	return p
+	return permissions
 }
 
-// EncryptStream encrypts a PDF stream using AES-128-CBC
+// EncryptStream encrypts a PDF stream using AES-256-CBC.
 func (enc *PDFEncryption) EncryptStream(data []byte, objNum, genNum int) []byte {
-	// Compute object key
 	key := enc.objKey(objNum, genNum)
 
-	// Generate random IV
-	iv := make([]byte, aes.BlockSize)
-	if _, err := rand.Read(iv); err != nil {
-		return data
-	}
-
-	// Pad data
-	padded := Pkcs7Pad(data, aes.BlockSize)
-
-	// Encrypt
-	block, err := aes.NewCipher(key)
+	iv, err := readRandomBytes(aes.BlockSize)
 	if err != nil {
 		return data
 	}
 
-	ciphertext := make([]byte, len(padded))
-	mode := cipher.NewCBCEncrypter(block, iv)
-	mode.CryptBlocks(ciphertext, padded)
+	padded := Pkcs7Pad(data, aes.BlockSize)
+	ciphertext, err := aesCBCEncrypt(key, iv, padded)
+	if err != nil {
+		return data
+	}
 
-	// Prepend IV
-	return append(iv, ciphertext...)
+	result := make([]byte, 0, len(iv)+len(ciphertext))
+	result = append(result, iv...)
+	result = append(result, ciphertext...)
+	return result
 }
 
-// EncryptString encrypts a PDF string
+// EncryptString encrypts a PDF string.
 func (enc *PDFEncryption) EncryptString(data []byte, objNum, genNum int) []byte {
 	return enc.EncryptStream(data, objNum, genNum)
 }
 
-// computeObjectKey computes the encryption key for a specific object
-func (enc *PDFEncryption) objKey(objNum, genNum int) []byte {
-	// Create key by hashing: file key + object number + generation number + AES salt.
-	hasher := md5.New()
-	hasher.Write(enc.EncryptionKey)
-
-	// Object and generation numbers as little-endian 3 bytes each
-	hasher.Write([]byte{
-		byte(objNum),
-		byte(objNum >> 8),
-		byte(objNum >> 16),
-		byte(genNum),
-		byte(genNum >> 8),
-	})
-
-	// For AES, append "sAlT"
-	hasher.Write([]byte("sAlT"))
-
-	hash := hasher.Sum(nil)
-
-	// Use min(n+5, 16) bytes where n is the file key length.
-	keyLength := len(enc.EncryptionKey) + 5
-	if keyLength > 16 {
-		keyLength = 16
-	}
-
-	return hash[:keyLength]
+func (enc *PDFEncryption) objKey(_, _ int) []byte {
+	return append([]byte(nil), enc.EncryptionKey...)
 }
 
-// Pkcs7Pad pads data to block size using PKCS#7
+// Pkcs7Pad pads data to block size using PKCS#7.
 func Pkcs7Pad(data []byte, blockSize int) []byte {
 	padding := blockSize - (len(data) % blockSize)
 	padText := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(data, padText...)
 }
 
-// GetEncryptDictionary returns the /Encrypt dictionary content
+// GetEncryptDictionary returns the /Encrypt dictionary content.
 func (enc *PDFEncryption) GetEncryptDictionary(_ int) string {
 	var dict strings.Builder
 
 	dict.WriteString("<< /Type /Encrypt")
 	dict.WriteString(" /Filter /Standard")
-	dict.WriteString(" /V 4")        // AES-128
-	dict.WriteString(" /R 4")        // Revision 4
-	dict.WriteString(" /Length 128") // Key length in bits
-
-	// String/Stream filters for AES
+	dict.WriteString(" /V 5")
+	dict.WriteString(" /R 5")
+	dict.WriteString(" /Length 256")
 	dict.WriteString(" /StmF /StdCF")
 	dict.WriteString(" /StrF /StdCF")
-
-	// Crypt filters definition
-	dict.WriteString(" /CF << /StdCF << /Type /CryptFilter /CFM /AESV2 /Length 16 >> >>")
-
-	// Permission flags
+	dict.WriteString(" /CF << /StdCF << /Type /CryptFilter /CFM /AESV3 /Length 32 /AuthEvent /DocOpen >> >>")
 	dict.WriteString(fmt.Sprintf(" /P %d", enc.Permissions))
-
-	// Password hashes (hex encoded)
 	dict.WriteString(fmt.Sprintf(" /U <%s>", hex.EncodeToString(enc.UserPasswordHash)))
 	dict.WriteString(fmt.Sprintf(" /O <%s>", hex.EncodeToString(enc.OwnerPasswordHash)))
-
-	// Encrypt metadata flag
+	dict.WriteString(fmt.Sprintf(" /UE <%s>", hex.EncodeToString(enc.UserEncryptedKey)))
+	dict.WriteString(fmt.Sprintf(" /OE <%s>", hex.EncodeToString(enc.OwnerEncryptedKey)))
+	dict.WriteString(fmt.Sprintf(" /Perms <%s>", hex.EncodeToString(enc.EncryptedPermissions)))
 	dict.WriteString(" /EncryptMetadata true")
-
 	dict.WriteString(" >>")
 
 	return dict.String()
@@ -338,16 +294,18 @@ func (enc *PDFEncryption) GetEncryptDictionary(_ int) string {
 
 func GenerateDocumentID(data []byte) []byte {
 	hasher := sha256.New()
-	hasher.Write(data)
+	_, _ = hasher.Write(data)
+
 	randomBytes := make([]byte, 16)
-	if _, err := rand.Read(randomBytes); err == nil {
-		hasher.Write(randomBytes)
+	if _, err := io.ReadFull(randomReader, randomBytes); err == nil {
+		_, _ = hasher.Write(randomBytes)
 	}
+
 	sum := hasher.Sum(nil)
-	return sum[:16]
+	return append([]byte(nil), sum[:16]...)
 }
 
-// FormatDocumentID formats the document ID for PDF trailer
+// FormatDocumentID formats the document ID for PDF trailer.
 func FormatDocumentID(id []byte) string {
 	hexID := hex.EncodeToString(id)
 	return fmt.Sprintf("[<%s> <%s>]", hexID, hexID)
