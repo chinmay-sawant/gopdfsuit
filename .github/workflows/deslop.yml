@@ -1,0 +1,33 @@
+name: Deslop
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: Branch to scan
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ github.event_name != 'workflow_dispatch' }}
+        uses: actions/checkout@v4
+      - if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch_name }}
+      - uses: chinmay-sawant/deslop@v0.1.0
+        with:
+          path: .
+          fail-on-findings: 'true'
