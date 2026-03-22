@@ -12,7 +12,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
-func TestNewPDFEncryptionUsesAES256Revision5(t *testing.T) {
+func TestNewAES256(t *testing.T) {
 	config := &models.SecurityConfig{
 		Enabled:               true,
 		OwnerPassword:         "owner-secret",
@@ -54,10 +54,19 @@ func TestNewPDFEncryptionUsesAES256Revision5(t *testing.T) {
 	}
 
 	wantUserHash := referenceUserHash(config.UserPassword, userValidationSalt, userKeySalt)
-	wantUserEncryptedKey := referenceEncryptedKey(config.UserPassword, userKeySalt, nil, fileKey)
+	wantUserEncryptedKey, err := referenceEncryptedKey(config.UserPassword, userKeySalt, nil, fileKey)
+	if err != nil {
+		t.Fatalf("referenceEncryptedKey user returned error: %v", err)
+	}
 	wantOwnerHash := referenceOwnerHash(config.OwnerPassword, ownerValidationSalt, ownerKeySalt, wantUserHash)
-	wantOwnerEncryptedKey := referenceEncryptedKey(config.OwnerPassword, ownerKeySalt, wantUserHash, fileKey)
-	wantPerms := referencePermissionsHash(fileKey, enc.Permissions, permissionsTail)
+	wantOwnerEncryptedKey, err := referenceEncryptedKey(config.OwnerPassword, ownerKeySalt, wantUserHash, fileKey)
+	if err != nil {
+		t.Fatalf("referenceEncryptedKey owner returned error: %v", err)
+	}
+	wantPerms, err := referencePermissionsHash(fileKey, enc.Permissions, permissionsTail)
+	if err != nil {
+		t.Fatalf("referencePermissionsHash returned error: %v", err)
+	}
 
 	if !bytes.Equal(enc.EncryptionKey, fileKey) {
 		t.Fatalf("file key mismatch\nwant: %x\n got: %x", fileKey, enc.EncryptionKey)
@@ -86,7 +95,7 @@ func TestNewPDFEncryptionUsesAES256Revision5(t *testing.T) {
 	}
 }
 
-func TestEncryptStreamUsesAES256FileKey(t *testing.T) {
+func TestEncryptStreamAES256(t *testing.T) {
 	enc := &PDFEncryption{
 		EncryptionKey: bytes.Repeat([]byte{0x7a}, fileEncryptionKeyLength),
 	}
@@ -95,7 +104,10 @@ func TestEncryptStreamUsesAES256FileKey(t *testing.T) {
 
 	plaintext := []byte("classified payload")
 	got := enc.EncryptStream(plaintext, 27, 0)
-	wantCiphertext := referenceCBCEncrypt(enc.EncryptionKey, iv, Pkcs7Pad(plaintext, aes.BlockSize))
+	wantCiphertext, err := referenceCBCEncrypt(enc.EncryptionKey, iv, Pkcs7Pad(plaintext, aes.BlockSize))
+	if err != nil {
+		t.Fatalf("referenceCBCEncrypt returned error: %v", err)
+	}
 	want := append(append([]byte{}, iv...), wantCiphertext...)
 
 	if !bytes.Equal(got, want) {
@@ -137,7 +149,7 @@ func referenceOwnerHash(ownerPassword string, validationSalt, keySalt, userHash 
 	return result
 }
 
-func referenceEncryptedKey(password string, keySalt, userHash, fileKey []byte) []byte {
+func referenceEncryptedKey(password string, keySalt, userHash, fileKey []byte) ([]byte, error) {
 	parts := [][]byte{referenceNormalizePassword(password), keySalt}
 	if len(userHash) > 0 {
 		parts = append(parts, userHash)
@@ -146,9 +158,9 @@ func referenceEncryptedKey(password string, keySalt, userHash, fileKey []byte) [
 	return referenceCBCEncrypt(key, make([]byte, aes.BlockSize), fileKey)
 }
 
-func referencePermissionsHash(fileKey []byte, permissions int32, randomTail []byte) []byte {
+func referencePermissionsHash(fileKey []byte, permissions int32, randomTail []byte) ([]byte, error) {
 	block := make([]byte, permissionsEntryLength)
-	writePermissionsLittleEndian(block[:4], permissions)
+	writePermsLE(block[:4], permissions)
 	for index := 4; index < 8; index++ {
 		block[index] = 0xff
 	}
@@ -158,12 +170,12 @@ func referencePermissionsHash(fileKey []byte, permissions int32, randomTail []by
 
 	cipherBlock, err := aes.NewCipher(fileKey)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	encrypted := make([]byte, len(block))
 	cipherBlock.Encrypt(encrypted, block)
-	return encrypted
+	return encrypted, nil
 }
 
 func referenceNormalizePassword(password string) []byte {
@@ -182,14 +194,14 @@ func referenceSHA256(parts ...[]byte) []byte {
 	return hasher.Sum(nil)
 }
 
-func referenceCBCEncrypt(key, iv, plaintext []byte) []byte {
+func referenceCBCEncrypt(key, iv, plaintext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	ciphertext := make([]byte, len(plaintext))
 	mode := cipher.NewCBCEncrypter(block, iv)
 	mode.CryptBlocks(ciphertext, plaintext)
-	return ciphertext
+	return ciphertext, nil
 }

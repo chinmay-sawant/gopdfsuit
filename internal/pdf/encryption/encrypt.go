@@ -170,7 +170,7 @@ func (enc *PDFEncryption) ownerEncryptedKey(ownerPassword string, keySalt, userH
 
 func (enc *PDFEncryption) permissionsHash() ([]byte, error) {
 	block := make([]byte, permissionsEntryLength)
-	writePermissionsLittleEndian(block[:4], enc.Permissions)
+	writePermsLE(block[:4], enc.Permissions)
 	for index := 4; index < 8; index++ {
 		block[index] = 0xff
 	}
@@ -193,7 +193,7 @@ func (enc *PDFEncryption) permissionsHash() ([]byte, error) {
 	return encrypted, nil
 }
 
-func writePermissionsLittleEndian(dst []byte, permissions int32) {
+func writePermsLE(dst []byte, permissions int32) {
 	dst[0] = byte(permissions)
 	dst[1] = byte(permissions >> 8)
 	dst[2] = byte(permissions >> 16)

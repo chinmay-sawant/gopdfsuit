@@ -115,31 +115,39 @@ func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 	s.compareSizes(tempPath, expectedPath, 1024)
 }
 
-// TestGenerateEncryptedTemplatePDF tests encrypted template generation using the
+// TestEncryptedPDF tests encrypted template generation using the
 // sample payload that enables password protection.
-func (s *IntegrationSuite) TestGenerateEncryptedTemplatePDF() {
+func (s *IntegrationSuite) TestEncryptedPDF() {
+	t := s.T()
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBufferString("{invalid json}"))
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("malformed JSON should not return 200, got %d", errResp.StatusCode)
+	}
+
 	jsonPath := filepath.Join("..", "sampledata", "editor", "financial_encrypted.json")
 	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
-	s.NoError(err, "Failed to read encrypted sample JSON file")
+	require.NoError(t, err, "Failed to read encrypted sample JSON file")
 
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBuffer(jsonData))
-	s.NoError(err)
+	require.NoError(t, err)
 	defer func() {
 		_ = resp.Body.Close()
 	}()
 
-	s.Equal(http.StatusOK, resp.StatusCode)
-	s.Equal("application/pdf", resp.Header.Get("Content-Type"))
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "application/pdf", resp.Header.Get("Content-Type"))
 
 	body, err := io.ReadAll(resp.Body)
-	s.NoError(err)
-	s.True(bytes.HasPrefix(body, []byte("%PDF-")), "generated output should be a PDF")
-	s.True(bytes.Contains(body, []byte("/Encrypt")), "generated PDF should contain an encryption dictionary")
-	s.True(bytes.Contains(body, []byte("/V 5")), "generated PDF should use revision 5 encryption")
-	s.True(bytes.Contains(body, []byte("/R 5")), "generated PDF should use revision 5 standard security")
-	s.True(bytes.Contains(body, []byte("/Length 256")), "generated PDF should advertise a 256-bit encryption key")
-	s.True(bytes.Contains(body, []byte("/CFM /AESV3")), "generated PDF should use AESV3 crypt filter")
-	s.False(bytes.Contains(body, []byte("/OutputIntents [")), "encrypted PDF generation should disable PDF/A output intents")
+	require.NoError(t, err)
+	require.True(t, bytes.HasPrefix(body, []byte("%PDF-")), "generated output should be a PDF")
+	require.True(t, bytes.Contains(body, []byte("/Encrypt")), "generated PDF should contain an encryption dictionary")
+	require.True(t, bytes.Contains(body, []byte("/V 5")), "generated PDF should use revision 5 encryption")
+	require.True(t, bytes.Contains(body, []byte("/R 5")), "generated PDF should use revision 5 standard security")
+	require.True(t, bytes.Contains(body, []byte("/Length 256")), "generated PDF should advertise a 256-bit encryption key")
+	require.True(t, bytes.Contains(body, []byte("/CFM /AESV3")), "generated PDF should use AESV3 crypt filter")
+	require.False(t, bytes.Contains(body, []byte("/OutputIntents [")), "encrypted PDF generation should disable PDF/A output intents")
 }
 
 // TestMergePDFs tests /api/v1/merge
