@@ -375,6 +375,19 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 
 	// Authenticated attributes MUST be in DER-sorted order for SET encoding
 	// OIDs: ContentType (1.9.3), MessageDigest (1.9.4), SigningTime (1.9.5)
+	oidDataBytes, err := asn1.Marshal(oidData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal oidData: %w", err)
+	}
+	messageDigestBytes, err := asn1.Marshal(messageDigest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal messageDigest: %w", err)
+	}
+	signingTimeBytes, err := asn1.Marshal(signingTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal signingTime: %w", err)
+	}
+
 	authenticatedAttrs := []attribute{
 		{
 			Type: oidContentType,
@@ -382,7 +395,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 				Class:      asn1.ClassUniversal,
 				Tag:        asn1.TagSet,
 				IsCompound: true,
-				Bytes:      mustMarshal(oidData),
+				Bytes:      oidDataBytes,
 			},
 		},
 		{
@@ -391,7 +404,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 				Class:      asn1.ClassUniversal,
 				Tag:        asn1.TagSet,
 				IsCompound: true,
-				Bytes:      mustMarshal(messageDigest),
+				Bytes:      messageDigestBytes,
 			},
 		},
 		{
@@ -400,7 +413,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 				Class:      asn1.ClassUniversal,
 				Tag:        asn1.TagSet,
 				IsCompound: true,
-				Bytes:      mustMarshal(signingTime),
+				Bytes:      signingTimeBytes,
 			},
 		},
 	}
@@ -558,14 +571,6 @@ type pkixAlgorithmIdentifier struct {
 type attribute struct {
 	Type  asn1.ObjectIdentifier
 	Value asn1.RawValue `asn1:"set"`
-}
-
-func mustMarshal(v interface{}) []byte {
-	b, err := asn1.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
 }
 
 // GetAcroFormSigFlags returns the SigFlags value for AcroForm when signatures are present

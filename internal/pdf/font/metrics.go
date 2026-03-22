@@ -499,8 +499,8 @@ func GenerateFontObject(fontName string, fontObjectID, fontDescriptorID, widthsA
 	return sb.String()
 }
 
-// GenerateFontDescriptorObject creates a FontDescriptor object
-func GenerateFontDescriptorObject(fontName string, objectID int) string {
+// GenFontDescriptor creates a FontDescriptor object
+func GenFontDescriptor(fontName string, objectID int) string {
 	metrics := GetFontMetrics(fontName)
 	fd := metrics.FontDescriptor
 
@@ -536,8 +536,8 @@ func GenerateFontDescriptorObject(fontName string, objectID int) string {
 	return sb.String()
 }
 
-// GenerateWidthsArrayObject creates a Widths array object
-func GenerateWidthsArrayObject(fontName string, objectID int) string {
+// GenWidthsArray creates a Widths array object
+func GenWidthsArray(fontName string, objectID int) string {
 	metrics := GetFontMetrics(fontName)
 
 	var widthsArray strings.Builder
@@ -557,10 +557,8 @@ func GenerateWidthsArrayObject(fontName string, objectID int) string {
 	return widthsArray.String()
 }
 
-// GetHelveticaFontResourceString returns a complete inline font resource for XObjects
-// This is used in form field appearance streams - optimized for minimal size
-// arlingtonCompatible: if true, includes full font metrics for PDF 2.0 compliance
-func GetHelveticaFontResourceString() string {
+// GetHelvResource returns a complete inline font resource for XObjects
+func GetHelvResource() string {
 	metrics := GetFontMetrics("Helvetica")
 
 	// Build compact widths array inline (no extra spaces)
@@ -579,15 +577,13 @@ func GetHelveticaFontResourceString() string {
 		metrics.FirstChar, metrics.LastChar, widths.String())
 }
 
-// GetSimpleHelveticaFontResourceString returns a simple inline font resource for XObjects
-// This is used when Arlington compatibility is OFF - minimal font definition
-func GetSimpleHelveticaFontResourceString() string {
+// GetSimpleHelvResource returns a simple inline font resource for XObjects
+func GetSimpleHelvResource() string {
 	return `<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>`
 }
 
-// GenerateSimpleFontObject creates a simple font object (non-Arlington mode)
-// This is the legacy format without FirstChar, LastChar, Widths, and FontDescriptor
-func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int) string {
+// GenSimpleFontObj creates a simple font object (non-Arlington mode)
+func GenSimpleFontObj(fontName string, fontRef string, fontObjectID int) string {
 	var sb strings.Builder
 	sb.WriteString(strconv.Itoa(fontObjectID))
 	sb.WriteString(" 0 obj\n<< /Type /Font /Subtype /Type1 /Name ")
@@ -601,39 +597,47 @@ func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int)
 // GetAvailableFonts returns the list of available fonts for PDF generation.
 // This includes the standard PDF Type 1 fonts and commonly used fonts.
 func GetAvailableFonts() []models.FontInfo {
-	fonts := []models.FontInfo{
-		// Standard PDF Type 1 Fonts - Helvetica family (F1-F4)
-		{ID: "Helvetica", Name: "Helvetica", DisplayName: "Helvetica", Reference: "/F1"},
-		{ID: "Helvetica-Bold", Name: "Helvetica-Bold", DisplayName: "Helvetica Bold", Reference: "/F2"},
-		{ID: "Helvetica-Oblique", Name: "Helvetica-Oblique", DisplayName: "Helvetica Italic", Reference: "/F3"},
-		{ID: "Helvetica-BoldOblique", Name: "Helvetica-BoldOblique", DisplayName: "Helvetica Bold Italic", Reference: "/F4"},
-
-		// Standard PDF Type 1 Fonts - Times family (F5-F8)
-		{ID: "Times-Roman", Name: "Times-Roman", DisplayName: "Times Roman", Reference: "/F5"},
-		{ID: "Times-Bold", Name: "Times-Bold", DisplayName: "Times Bold", Reference: "/F6"},
-		{ID: "Times-Italic", Name: "Times-Italic", DisplayName: "Times Italic", Reference: "/F7"},
-		{ID: "Times-BoldItalic", Name: "Times-BoldItalic", DisplayName: "Times Bold Italic", Reference: "/F8"},
-
-		// Standard PDF Type 1 Fonts - Courier family (F9-F12)
-		{ID: "Courier", Name: "Courier", DisplayName: "Courier", Reference: "/F9"},
-		{ID: "Courier-Bold", Name: "Courier-Bold", DisplayName: "Courier Bold", Reference: "/F10"},
-		{ID: "Courier-Oblique", Name: "Courier-Oblique", DisplayName: "Courier Italic", Reference: "/F11"},
-		{ID: "Courier-BoldOblique", Name: "Courier-BoldOblique", DisplayName: "Courier Bold Italic", Reference: "/F12"},
-
-		// Standard PDF Type 1 Fonts - Symbol and Decorative (F13-F14)
-		{ID: "Symbol", Name: "Symbol", DisplayName: "Symbol", Reference: "/F13"},
-		{ID: "ZapfDingbats", Name: "ZapfDingbats", DisplayName: "Zapf Dingbats", Reference: "/F14"},
-	}
-
-	// Add registered custom fonts
+	// Standard PDF Type 1 Fonts - 14 standard fonts
 	registry := GetFontRegistry()
 	customFonts := registry.GetAllFonts()
+	fonts := make([]models.FontInfo, 0, 14+len(customFonts))
+
+	fonts = append(fonts,
+		// Standard PDF Type 1 Fonts - Helvetica family (F1-F4)
+		models.FontInfo{ID: "Helvetica", Name: "Helvetica", DisplayName: "Helvetica", Reference: "/F1"},
+		models.FontInfo{ID: "Helvetica-Bold", Name: "Helvetica-Bold", DisplayName: "Helvetica Bold", Reference: "/F2"},
+		models.FontInfo{ID: "Helvetica-Oblique", Name: "Helvetica-Oblique", DisplayName: "Helvetica Italic", Reference: "/F3"},
+		models.FontInfo{ID: "Helvetica-BoldOblique", Name: "Helvetica-BoldOblique", DisplayName: "Helvetica Bold Italic", Reference: "/F4"},
+
+		// Standard PDF Type 1 Fonts - Times family (F5-F8)
+		models.FontInfo{ID: "Times-Roman", Name: "Times-Roman", DisplayName: "Times Roman", Reference: "/F5"},
+		models.FontInfo{ID: "Times-Bold", Name: "Times-Bold", DisplayName: "Times Bold", Reference: "/F6"},
+		models.FontInfo{ID: "Times-Italic", Name: "Times-Italic", DisplayName: "Times Italic", Reference: "/F7"},
+		models.FontInfo{ID: "Times-BoldItalic", Name: "Times-BoldItalic", DisplayName: "Times Bold Italic", Reference: "/F8"},
+
+		// Standard PDF Type 1 Fonts - Courier family (F9-F12)
+		models.FontInfo{ID: "Courier", Name: "Courier", DisplayName: "Courier", Reference: "/F9"},
+		models.FontInfo{ID: "Courier-Bold", Name: "Courier-Bold", DisplayName: "Courier Bold", Reference: "/F10"},
+		models.FontInfo{ID: "Courier-Oblique", Name: "Courier-Oblique", DisplayName: "Courier Italic", Reference: "/F11"},
+		models.FontInfo{ID: "Courier-BoldOblique", Name: "Courier-BoldOblique", DisplayName: "Courier Bold Italic", Reference: "/F12"},
+
+		// Standard PDF Type 1 Fonts - Symbol and Decorative (F13-F14)
+		models.FontInfo{ID: "Symbol", Name: "Symbol", DisplayName: "Symbol", Reference: "/F13"},
+		models.FontInfo{ID: "ZapfDingbats", Name: "ZapfDingbats", DisplayName: "Zapf Dingbats", Reference: "/F14"},
+	)
+
+	// Add registered custom fonts
 	for _, f := range customFonts {
 		fonts = append(fonts, models.FontInfo{
-			ID:          f.Name,
-			Name:        f.Name,
-			DisplayName: f.Name + " (Custom)",
-			Reference:   registry.GetFontReference(f.Name),
+			ID:   f.Name,
+			Name: f.Name,
+			DisplayName: func() string {
+				var sb strings.Builder
+				sb.WriteString(f.Name)
+				sb.WriteString(" (Custom)")
+				return sb.String()
+			}(),
+			Reference: registry.GetFontReference(f.Name),
 		})
 	}
 
@@ -642,9 +646,8 @@ func GetAvailableFonts() []models.FontInfo {
 
 // ========== TrueType/OpenType Font Support for Custom Font Embedding ==========
 
-// GenerateTrueTypeFontObjects generates all PDF objects needed for a custom TrueType font
-// Returns map of object ID to object content
-func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor) map[int]string {
+// GenTTFObjects generates all PDF objects needed for a custom TrueType font
+func GenTTFObjects(font *RegisteredFont, encryptor ObjectEncryptor) map[int]string {
 	objects := make(map[int]string)
 
 	// Get font data (subset if available, otherwise full font)
@@ -691,7 +694,7 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	objects[font.CIDToGIDMapID] = GenerateCIDToGIDMap(font, encryptor)
 
 	// Generate FontDescriptor
-	objects[font.DescriptorID] = generateTrueTypeFontDescriptor(font)
+	objects[font.DescriptorID] = genTTFDescriptor(font)
 
 	// Generate CIDFont dictionary
 	objects[font.CIDFontID] = generateCIDFontDict(font)
@@ -736,8 +739,8 @@ func generateCIDFontDict(font *RegisteredFont) string {
 		psName, font.DescriptorID, defaultWidth, font.WidthsID, font.CIDToGIDMapID)
 }
 
-// generateTrueTypeFontDescriptor generates the FontDescriptor for a TrueType font
-func generateTrueTypeFontDescriptor(font *RegisteredFont) string {
+// genTTFDescriptor generates the FontDescriptor for a TrueType font
+func genTTFDescriptor(font *RegisteredFont) string {
 	f := font.Font
 	psName := f.PostScriptName
 	if len(font.SubsetData) > 0 {
@@ -817,7 +820,7 @@ func generateCIDWidths(font *RegisteredFont) string {
 		startIdx := i
 
 		// Collect consecutive CIDs
-		for i < len(widths) && widths[i].cid == startCID+uint16(i-startIdx) {
+		for i < len(widths) && widths[i].cid == startCID+uint16(i-startIdx) { //nolint:gosec // Consecutive CIDs are small
 			i++
 		}
 

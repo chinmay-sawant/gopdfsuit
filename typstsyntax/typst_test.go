@@ -88,7 +88,7 @@ func TestLexerSymbols(t *testing.T) {
 	}
 }
 
-func TestLexerMultiCharOperators(t *testing.T) {
+func TestLexerOps(t *testing.T) {
 	tests := []struct {
 		input  string
 		expect string
@@ -213,7 +213,7 @@ func TestRenderMathToLayout(t *testing.T) {
 	}
 }
 
-func TestRenderToContentStream(t *testing.T) {
+func TestRenderStream(t *testing.T) {
 	ctx := &RenderContext{
 		X:         100,
 		Y:         500,
@@ -240,7 +240,7 @@ func TestRenderToContentStream(t *testing.T) {
 	}
 }
 
-func TestRenderFractionToContentStream(t *testing.T) {
+func TestRenderFrac(t *testing.T) {
 	ctx := &RenderContext{
 		X:         100,
 		Y:         500,

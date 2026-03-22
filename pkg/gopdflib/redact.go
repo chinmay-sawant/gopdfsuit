@@ -68,29 +68,29 @@ func ApplyRedactions(pdfBytes []byte, redactions []RedactionRect) ([]byte, error
 	return r.ApplyRedactions(redactions)
 }
 
-// ApplyRedactionsAdvanced applies redaction using advanced options (search, OCR fallback, etc).
-func ApplyRedactionsAdvanced(pdfBytes []byte, options ApplyRedactionOptions) ([]byte, error) {
+// ApplyRedactionsAdv applies redaction using advanced options.
+func ApplyRedactionsAdv(pdfBytes []byte, options ApplyRedactionOptions) ([]byte, error) {
 	r, err := redact.NewRedactor(pdfBytes)
 	if err != nil {
 		return nil, err
 	}
-	return r.ApplyRedactionsAdvanced(options)
+	return r.ApplyRedactionsAdv(options)
 }
 
-// ApplyRedactionsAdvancedWithReport applies redaction and returns a detailed execution report.
-func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, options ApplyRedactionOptions) ([]byte, RedactionApplyReport, error) {
+// ApplyRedactionsReport applies redaction and returns a detailed execution report.
+func ApplyRedactionsReport(pdfBytes []byte, options ApplyRedactionOptions) ([]byte, RedactionApplyReport, error) {
 	r, err := redact.NewRedactor(pdfBytes)
 	if err != nil {
 		return nil, RedactionApplyReport{}, err
 	}
-	return r.ApplyRedactionsAdvancedWithReport(options)
+	return r.ApplyRedactionsReport(options)
 }
 
-// AnalyzePageCapabilities determines which pages have searchable text or require OCR.
-func AnalyzePageCapabilities(pdfBytes []byte) ([]PageCapability, error) {
+// AnalyzePageCaps determines which pages have searchable text or require OCR.
+func AnalyzePageCaps(pdfBytes []byte) ([]PageCapability, error) {
 	r, err := redact.NewRedactor(pdfBytes)
 	if err != nil {
 		return nil, err
 	}
-	return r.AnalyzePageCapabilities()
+	return r.AnalyzePageCaps()
 }

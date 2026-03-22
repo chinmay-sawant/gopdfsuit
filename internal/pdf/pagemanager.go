@@ -95,7 +95,7 @@ func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
 	pm.NextObjectID++
 
 	// PDF/UA-2: Get StructParent index for this annotation
-	structParentIdx := pm.GetNextAnnotStructParent()
+	structParentIdx := pm.NextAnnotSP()
 
 	// PDF Rectangle: [LLx LLy URx URy]
 	rect := fmt.Sprintf("[%s %s %s %s]", fmtNum(x), fmtNum(y), fmtNum(x+w), fmtNum(y+h))
@@ -133,9 +133,9 @@ func (pm *PageManager) GetCurrentPageID() int {
 	return pm.Pages[pm.CurrentPageIndex]
 }
 
-// GetNextAnnotStructParent returns and increments the StructParent counter for annotations
+// NextAnnotSP returns and increments the StructParent counter for annotations
 // PDF/UA-2: Each annotation needs a unique StructParent value for ParentTree lookup
-func (pm *PageManager) GetNextAnnotStructParent() int {
+func (pm *PageManager) NextAnnotSP() int {
 	idx := pm.NextAnnotStructParent
 	pm.NextAnnotStructParent++
 	return idx

@@ -228,7 +228,7 @@ func (p *Parser) parseFunctionCall(name string) *Node {
 
 	var args []*Node
 	for p.current().Type != TokenRParen && p.current().Type != TokenEOF {
-		arg := p.parseFunctionArgSequence()
+		arg := p.parseArgSeq()
 		if len(arg) == 1 {
 			args = append(args, arg[0])
 		} else if len(arg) > 1 {
@@ -246,9 +246,9 @@ func (p *Parser) parseFunctionCall(name string) *Node {
 	return p.buildFuncNode(name, args)
 }
 
-// parseFunctionArgSequence parses a function argument until a top-level
+// parseArgSeq parses a function argument until a top-level
 // separator (comma/semicolon), closing parenthesis, or EOF.
-func (p *Parser) parseFunctionArgSequence() []*Node {
+func (p *Parser) parseArgSeq() []*Node {
 	var nodes []*Node
 	for {
 		tok := p.current()
@@ -303,7 +303,7 @@ func (p *Parser) buildFuncNode(name string, args []*Node) *Node {
 	if node := p.tryBuildUnderOverNode(name, args); node != nil {
 		return node
 	}
-	if node := p.tryBuildStyleOrVariantNode(name, args); node != nil {
+	if node := p.tryBuildStyle(name, args); node != nil {
 		return node
 	}
 
@@ -364,7 +364,7 @@ func (p *Parser) tryBuildUnderOverNode(name string, args []*Node) *Node {
 	return nil
 }
 
-func (p *Parser) tryBuildStyleOrVariantNode(name string, args []*Node) *Node {
+func (p *Parser) tryBuildStyle(name string, args []*Node) *Node {
 	switch name {
 	case "bold", "italic", "upright":
 		if len(args) >= 1 {

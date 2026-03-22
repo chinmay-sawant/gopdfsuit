@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	benchmarktemplates.Fail(benchmarktemplates.RunSingleDocumentBenchmark("GoPDFSuit"))
+	benchmarktemplates.Fail(benchmarktemplates.RunDocBenchmark("GoPDFSuit"))
 }

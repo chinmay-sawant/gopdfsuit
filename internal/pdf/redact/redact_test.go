@@ -130,7 +130,7 @@ func TestGetPageInfo(t *testing.T) {
 	}
 }
 
-func TestExtractTextPositions(t *testing.T) {
+func TestExtractPos(t *testing.T) {
 	r, _ := NewRedactor(minimalPDF)
 	positions, err := r.ExtractTextPositions(1)
 	if err != nil {
@@ -205,7 +205,7 @@ func TestFindTextOccurrences(t *testing.T) {
 	}
 }
 
-func TestFindTextOccurrencesSingleLetterIsNotWholeWord(t *testing.T) {
+func TestFindTextSingle(t *testing.T) {
 	r, _ := NewRedactor(minimalPDF)
 	rects, err := r.FindTextOccurrences("o")
 	if err != nil {
@@ -231,7 +231,7 @@ func TestFindTextOccurrencesSingleLetterIsNotWholeWord(t *testing.T) {
 	}
 }
 
-func TestFindTextOccurrencesMultiPage(t *testing.T) {
+func TestFindTextMulti(t *testing.T) {
 	r, _ := NewRedactor(minimalMultiPagePDF)
 	rects, err := r.FindTextOccurrences("Alpha")
 	if err != nil {
@@ -247,19 +247,19 @@ func TestFindTextOccurrencesMultiPage(t *testing.T) {
 	}
 }
 
-func TestApplyRedactionsAdvancedSecureRequired(t *testing.T) {
+func TestRedactSecure(t *testing.T) {
 	opts := models.ApplyRedactionOptions{
 		Mode:       "secure_required",
 		TextSearch: []models.RedactionTextQuery{{Text: "Hello"}},
 	}
 
 	r, _ := NewRedactor(minimalPDF)
-	out, report, err := r.ApplyRedactionsAdvancedWithReport(opts)
+	out, report, err := r.ApplyRedactionsReport(opts)
 	if err != nil {
 		if strings.Contains(err.Error(), "no secure text content") {
 			t.Skip("minimal fixture does not expose parseable text stream for secure rewrite")
 		}
-		t.Fatalf("ApplyRedactionsAdvancedWithReport failed: %v", err)
+		t.Fatalf("ApplyRedactionsReport failed: %v", err)
 	}
 	if len(out) == 0 {
 		t.Fatal("expected output bytes")
@@ -281,11 +281,11 @@ func TestApplyRedactionsAdvancedSecureRequired(t *testing.T) {
 	}
 }
 
-func TestAnalyzePageCapabilities(t *testing.T) {
+func TestAnalyzePageCaps(t *testing.T) {
 	r, _ := NewRedactor(minimalPDF)
-	caps, err := r.AnalyzePageCapabilities()
+	caps, err := r.AnalyzePageCaps()
 	if err != nil {
-		t.Fatalf("AnalyzePageCapabilities failed: %v", err)
+		t.Fatalf("AnalyzePageCaps failed: %v", err)
 	}
 	if len(caps) != 1 {
 		t.Fatalf("expected 1 capability entry, got %d", len(caps))
@@ -295,7 +295,7 @@ func TestAnalyzePageCapabilities(t *testing.T) {
 	}
 }
 
-func TestApplyRedactionsPreservesHeaderVersionAndTrailerID(t *testing.T) {
+func TestRedactPreserve(t *testing.T) {
 	redactions := []models.RedactionRect{{
 		PageNum: 1,
 		X:       100,
@@ -320,7 +320,7 @@ func TestApplyRedactionsPreservesHeaderVersionAndTrailerID(t *testing.T) {
 	}
 }
 
-func TestScrubDecodedContentPreservesNonMatchedCharacters(t *testing.T) {
+func TestScrubPreserve(t *testing.T) {
 	decoded := []byte("BT /F1 12 Tf 100 700 Td (Hello) Tj ET")
 	positions := parseTextOperators(decoded)
 	if len(positions) == 0 {

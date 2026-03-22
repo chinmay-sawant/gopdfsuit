@@ -16,7 +16,7 @@ func main() {
 	fmt.Println()
 
 	// Build the template with text wrapping examples
-	template := buildTextWrappingTemplate()
+	template := buildWrapTemplate()
 
 	// Generate PDF
 	pdfBytes, err := gopdflib.GeneratePDF(template)
@@ -42,7 +42,7 @@ func main() {
 	fmt.Println("  4. Mixed wrapped and non-wrapped cells in same row")
 }
 
-func buildTextWrappingTemplate() gopdflib.PDFTemplate {
+func buildWrapTemplate() gopdflib.PDFTemplate {
 	// Helper to create bool pointer
 	boolPtr := func(b bool) *bool { return &b }
 

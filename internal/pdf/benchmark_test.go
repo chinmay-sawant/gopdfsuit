@@ -1,11 +1,12 @@
 package pdf
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -19,20 +20,20 @@ type BenchmarkRecord struct {
 	Desc  string `json:"desc"`
 }
 
-func loadBenchmarkData() []BenchmarkRecord {
+func loadBenchmarkData(tb testing.TB) []BenchmarkRecord {
 	file, err := os.Open("../../sampledata/benchmarks/data.json")
 	if err != nil {
-		panic(err)
+		tb.Fatal(err)
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			panic(err)
+			tb.Error(err)
 		}
 	}()
 
 	var records []BenchmarkRecord
 	if err := json.NewDecoder(file).Decode(&records); err != nil {
-		panic(err)
+		tb.Fatal(err)
 	}
 	return records
 }
@@ -59,7 +60,7 @@ func getGoPdfSuitTemplate(records []BenchmarkRecord) models.PDFTemplate {
 	for i, r := range records {
 		rows[i] = models.Row{
 			Row: []models.Cell{
-				{Props: "Helvetica:10:000:left:1:1:1:1", Text: fmt.Sprint(r.ID)},
+				{Props: "Helvetica:10:000:left:1:1:1:1", Text: strconv.Itoa(r.ID)},
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Name},
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Email},
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Role},
@@ -77,7 +78,7 @@ func getGoPdfSuitTemplate(records []BenchmarkRecord) models.PDFTemplate {
 }
 
 func BenchmarkGoPdfSuit(b *testing.B) {
-	records := loadBenchmarkData()
+	records := loadBenchmarkData(b)
 	template := getGoPdfSuitTemplate(records)
 
 	b.ResetTimer()
@@ -90,7 +91,7 @@ func BenchmarkGoPdfSuit(b *testing.B) {
 			b.Fatalf("Generated empty PDF")
 		}
 		if i == 0 {
-			_ = os.WriteFile("../../sampledata/benchmarks/gopdfsuit/output.pdf", pdfBytes, 0644)
+			_ = os.WriteFile("../../sampledata/benchmarks/gopdfsuit/output.pdf", pdfBytes, 0600)
 		}
 	}
 }
@@ -102,10 +103,13 @@ func BenchmarkTypst(b *testing.B) {
 	// Output to typst folder
 	outPath, _ := filepath.Abs("../../sampledata/benchmarks/typst/output.pdf")
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Output to file
-		cmd := exec.Command(absPath, "compile", typFilePath, outPath)
+		cmd := exec.CommandContext(ctx, absPath, "compile", typFilePath, outPath) //nolint:gosec
 		// Set Cwd so Typst can find data.json
 		cmd.Dir = filepath.Dir(typFilePath)
 

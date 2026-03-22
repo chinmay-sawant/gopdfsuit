@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -58,14 +59,14 @@ func main() {
 	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)
 
 	// Build the template
-	template := buildFinancialReportTemplate()
+	template := buildFinTemplate()
 
 	// Warm-up run (not counted in metrics)
 	fmt.Println("Warm-up run...")
 	warmUpPDF, err := gopdflib.GeneratePDF(template)
 	if err != nil {
 		fmt.Printf("Error during warm-up: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	// Channels for jobs and results
@@ -81,21 +82,32 @@ func main() {
 	memWg.Add(1)
 	go monitorMemory(memDone, &memWg)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Start workers
 	for range numWorkers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for range jobs {
-				start := time.Now()
-				_, err := gopdflib.GeneratePDF(template)
-				elapsed := time.Since(start)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case _, ok := <-jobs:
+					if !ok {
+						return
+					}
+					start := time.Now()
+					_, err := gopdflib.GeneratePDF(template)
+					elapsed := time.Since(start)
 
-				if err != nil {
-					errors <- err
-					continue
+					if err != nil {
+						errors <- err
+						continue
+					}
+					results <- elapsed
 				}
-				results <- elapsed
 			}
 		}()
 	}
@@ -123,7 +135,7 @@ func main() {
 	// Check for errors
 	if len(errors) > 0 {
 		fmt.Printf("Encountered %d errors during execution.\n", len(errors))
-		os.Exit(1)
+		return
 	}
 
 	// Collect timing data
@@ -140,7 +152,7 @@ func main() {
 		return
 	}
 
-	var minDuration, maxDuration time.Duration = durations[0], durations[0]
+	minDuration, maxDuration := durations[0], durations[0]
 	for _, d := range durations {
 		if d < minDuration {
 			minDuration = d
@@ -169,7 +181,7 @@ func main() {
 	err = os.WriteFile(outputPath, warmUpPDF, 0644)
 	if err != nil {
 		fmt.Printf("\nError saving PDF: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	fmt.Println()
@@ -177,8 +189,8 @@ func main() {
 	fmt.Println("=== Done ===")
 }
 
-// buildFinancialReportTemplate creates a PDFTemplate matching financial_digitalsignature.json
-func buildFinancialReportTemplate() gopdflib.PDFTemplate {
+// buildFinTemplate creates a PDFTemplate matching financial_digitalsignature.json
+func buildFinTemplate() gopdflib.PDFTemplate {
 	// Helper to create float64 pointer
 	floatPtr := func(f float64) *float64 { return &f }
 

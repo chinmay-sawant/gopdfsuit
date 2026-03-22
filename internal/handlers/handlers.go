@@ -11,6 +11,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -103,7 +104,7 @@ func RegisterRoutes(router *gin.Engine) {
 			// Handled by CORSMiddleware
 		})
 
-		v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
+		v1.POST("/generate/template-pdf", handleGenPDF)
 		v1.POST("/fill", handleFillPDF)
 		v1.POST("/merge", handleMergePDFs)
 		v1.POST("/split", handlerSplitPDF)
@@ -117,7 +118,7 @@ func RegisterRoutes(router *gin.Engine) {
 
 		// Redaction endpoints
 		v1.POST("/redact/page-info", HandleRedactPageInfo)
-		v1.POST("/redact/text-positions", HandleRedactTextPositions)
+		v1.POST("/redact/text-positions", HandleRedactPos)
 		v1.POST("/redact/capabilities", HandleRedactCapabilities)
 		v1.POST("/redact/apply", HandleRedactApply)
 		v1.POST("/redact/search", HandleRedactSearch)
@@ -195,7 +196,7 @@ func handleGetTemplateData(c *gin.Context) {
 	filePath := filepath.Join(getProjectRoot(), filename)
 
 	// Read the JSON file
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filePath) //nolint:gosec // controlled path
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template file not found: " + filename})
 		return
@@ -268,7 +269,7 @@ func handleUploadFont(c *gin.Context) {
 	})
 }
 
-func handleGenerateTemplatePDF(c *gin.Context) {
+func handleGenPDF(c *gin.Context) {
 	// Optimization: use sonic for faster JSON binding
 	var template models.PDFTemplate
 	data, err := c.GetRawData()
@@ -279,6 +280,11 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 
 	if err := sonic.Unmarshal(data, &template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
+		return
+	}
+
+	if reflect.DeepEqual(template, models.PDFTemplate{}) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Template body cannot be empty"})
 		return
 	}
 
@@ -453,7 +459,7 @@ func handlerSplitPDF(c *gin.Context) {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 	for i, b := range outs {
-		name := fmt.Sprintf("originalfile-part%d.pdf", i+1)
+		name := "originalfile-part" + strconv.Itoa(i+1) + ".pdf"
 		fw, err := zw.Create(name)
 		if err != nil {
 			_ = zw.Close()

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -36,7 +37,8 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 		_ = r.Close()
 	}()
 	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
+	// Limit decompression to 50MB to prevent bombs
+	if _, err := io.CopyN(&out, r, 50*1024*1024); err != nil && err != io.EOF {
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -49,7 +51,8 @@ func tryFlateDecompress(b []byte) ([]byte, error) {
 		_ = r.Close()
 	}()
 	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
+	// Limit decompression to 50MB to prevent bombs
+	if _, err := io.CopyN(&out, r, 50*1024*1024); err != nil && err != io.EOF {
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -127,9 +130,9 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 		w0, w1, w2 := W[0], W[1], W[2]
 		total := w0 + w1 + w2
 		for pos := 0; pos+total <= len(dec); pos += total {
-			f1 := int(readUint(dec[pos : pos+w0]))
-			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))
-			f3 := int(readUint(dec[pos+w0+w1 : pos+total]))
+			f1 := int(readUint(dec[pos : pos+w0]))          //nolint:gosec
+			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))    //nolint:gosec
+			f3 := int(readUint(dec[pos+w0+w1 : pos+total])) //nolint:gosec
 			if f1 == 1 {
 				off := f3
 				if off > 0 && off < len(data) {
@@ -146,7 +149,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 			if f1 == 2 {
 				objstm := f2
 				index := f3
-				key := fmt.Sprintf("%d 0", objstm)
+				key := strconv.Itoa(objstm) + " 0"
 				if stm, ok := objMap[key]; ok {
 					_ = index
 					_ = stm

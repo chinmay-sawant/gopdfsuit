@@ -254,8 +254,8 @@ func (sm *StructureManager) EndStructureElement() {
 	}
 }
 
-// RegisterPageStructParents registers the parent tree mapping for a page
-func (sm *StructureManager) RegisterPageStructParents(_ int, _ int) {
+// RegPageParents registers the parent tree mapping for a page
+func (sm *StructureManager) RegPageParents(_ int, _ int) {
 	// This logic handles the ParentTree mapping "Page Object -> [StructElem refs]"
 	// required for reliable reverse lookup.
 	// The StructParents entry in Page dictionary points to a key in ParentTree.
@@ -313,11 +313,11 @@ func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 	// Create a Link structure element
 	linkElem := &StructElem{
 		Type:   StructLink,
-		Parent: sm.GetCurrentDocumentElement(),
+		Parent: sm.CurrDocElem(),
 	}
 
 	// Add to Document element's kids
-	if docElem := sm.GetCurrentDocumentElement(); docElem != nil {
+	if docElem := sm.CurrDocElem(); docElem != nil {
 		docElem.Kids = append(docElem.Kids, linkElem)
 	}
 
@@ -331,8 +331,8 @@ func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 	sm.LinkElements[annotObjID] = linkElem
 }
 
-// GetCurrentDocumentElement returns the Document element (first child of Root)
-func (sm *StructureManager) GetCurrentDocumentElement() *StructElem {
+// CurrDocElem returns the Document element (first child of Root)
+func (sm *StructureManager) CurrDocElem() *StructElem {
 	if len(sm.Root.Kids) > 0 {
 		if docElem, ok := sm.Root.Kids[0].(*StructElem); ok {
 			return docElem
@@ -348,11 +348,11 @@ func (sm *StructureManager) CreateBookmarkSect(title string) *StructElem {
 	sectElem := &StructElem{
 		Type:   StructSect,
 		Title:  title,
-		Parent: sm.GetCurrentDocumentElement(),
+		Parent: sm.CurrDocElem(),
 	}
 
 	// Add to Document element's kids
-	if docElem := sm.GetCurrentDocumentElement(); docElem != nil {
+	if docElem := sm.CurrDocElem(); docElem != nil {
 		docElem.Kids = append(docElem.Kids, sectElem)
 	}
 

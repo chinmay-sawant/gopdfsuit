@@ -89,7 +89,7 @@ func decodeHexString(s string) string {
 	return string(b)
 }
 
-// tryZlibDecompress attempts to decompress zlib data
+// tryZlibDecompress attempts to decompress zlib data with a 50MB limit
 func tryZlibDecompress(b []byte) ([]byte, error) {
 	r, err := zlib.NewReader(bytes.NewReader(b))
 	if err != nil {
@@ -99,20 +99,30 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 		_ = r.Close()
 	}()
 	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
+	// Limit decompression to 50MB to prevent decompression bombs (G110)
+	const maxDecompressSize = 50 * 1024 * 1024
+	if _, err := io.CopyN(&out, r, maxDecompressSize); err != nil {
+		if err == io.EOF {
+			return out.Bytes(), nil
+		}
 		return nil, err
 	}
 	return out.Bytes(), nil
 }
 
-// tryFlateDecompress attempts to decompress raw flate data
+// tryFlateDecompress attempts to decompress raw flate data with a 50MB limit
 func tryFlateDecompress(b []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewReader(b))
 	defer func() {
 		_ = r.Close()
 	}()
 	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
+	// Limit decompression to 50MB to prevent decompression bombs (G110)
+	const maxDecompressSize = 50 * 1024 * 1024
+	if _, err := io.CopyN(&out, r, maxDecompressSize); err != nil {
+		if err == io.EOF {
+			return out.Bytes(), nil
+		}
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -251,7 +261,7 @@ func traverseField(ref string, objMap map[string][]byte, parentPrefix string, ou
 				tv = rv
 			}
 			if tv == "" {
-				if asn, ok := findWidgetAnnotationsForName(name, objMap); ok {
+				if asn, ok := findWidgetAnnots(name, objMap); ok {
 					tv = asn
 				}
 			}
@@ -334,8 +344,8 @@ func resolveValueRef(body []byte, objMap map[string][]byte) string {
 	return resolve(body, 0)
 }
 
-// findWidgetAnnotationsForName searches for widget annotations with the field name
-func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string, bool) {
+// findWidgetAnnots searches for widget annotations with the field name
+func findWidgetAnnots(name string, objMap map[string][]byte) (string, bool) {
 	needle := []byte("(" + name + ")")
 	for k, body := range objMap {
 		if bytesIndex(body, []byte(`/Subtype/Widget`)) < 0 {
@@ -429,9 +439,9 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 		w0, w1, w2 := W[0], W[1], W[2]
 		total := w0 + w1 + w2
 		for pos := 0; pos+total <= len(dec); pos += total {
-			f1 := int(readUint(dec[pos : pos+w0]))
-			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))
-			f3 := int(readUint(dec[pos+w0+w1 : pos+total]))
+			f1 := int(readUint(dec[pos : pos+w0]))          //nolint:gosec
+			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))    //nolint:gosec
+			f3 := int(readUint(dec[pos+w0+w1 : pos+total])) //nolint:gosec
 			// type 1: f1==1 -> offset f3
 			if f1 == 1 {
 				off := f3
@@ -452,7 +462,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				objstm := f2
 				index := f3
 				// look for objstm content we earlier extracted
-				key := fmt.Sprintf("%d 0", objstm)
+				key := strconv.Itoa(objstm) + " 0"
 				if stm, ok := objMap[key]; ok {
 					// try to parse embedded objects from stm similarly to earlier logic
 					_ = index
@@ -463,10 +473,10 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 	}
 }
 
-// DetectFormFieldsAdvanced performs comprehensive field detection using the logic from fielddetect.go
+// DetectFieldsAdv performs comprehensive field detection using the logic from fielddetect.go
 //
 //nolint:gocyclo
-func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
+func DetectFieldsAdv(pdfBytes []byte) (map[string]string, error) {
 	if len(pdfBytes) == 0 {
 		return nil, errors.New("empty pdf bytes")
 	}
@@ -543,7 +553,7 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 							}
 							objBytes := content[off:end]
 							// store under objnum 0 generation
-							objKey := fmt.Sprintf("%d 0", objnum)
+							objKey := strconv.Itoa(objnum) + " 0"
 							objMap[objKey] = objBytes
 						}
 						// also store the ObjStm object itself
@@ -675,7 +685,7 @@ func decompressStreams(body []byte) []byte {
 
 // DetectFormFields now uses the enhanced detection logic
 func DetectFormFields(pdfBytes []byte) ([]string, error) {
-	fieldMap, err := DetectFormFieldsAdvanced(pdfBytes)
+	fieldMap, err := DetectFieldsAdv(pdfBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -699,7 +709,7 @@ func FillPDFWithXFDFAdvanced(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	detectedFields, err := DetectFormFieldsAdvanced(pdfBytes)
+	detectedFields, err := DetectFieldsAdv(pdfBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -875,7 +885,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			}
 		}
 		for fieldName, value := range radioGroups {
-			re := regexp.MustCompile(fmt.Sprintf(`(?s)(<<.*?/T\s*\(\s*%s\s*\).*?/Kids.*?>>)`, regexp.QuoteMeta(fieldName)))
+			re := regexp.MustCompile("(?s)(<<.*?/T\\s*\\(\\s*" + regexp.QuoteMeta(fieldName) + "\\s*\\).*?/Kids.*?>>)")
 			match := re.FindIndex(out)
 			if match == nil || bytes.Contains(out[match[0]:match[1]], []byte("/Subtype /Widget")) {
 				continue
@@ -899,7 +909,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			switch job.fieldType {
 			case typeText:
 				esc := escapePDFString(job.val)
-				newV := []byte(fmt.Sprintf("/V (%s)", esc))
+				newV := []byte("/V (" + esc + ")")
 				vRe := regexp.MustCompile(`/V\s*\(.*?\)`)
 				if vRe.Match(dictBytes) {
 					newDictBytes = vRe.ReplaceAll(dictBytes, newV)
@@ -962,13 +972,13 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		nextObj++
 		job.apObjNum = nextObj
 		nextObj++
-		re := regexp.MustCompile(fmt.Sprintf(`(?s)(<<.*?/Subtype\s*/Widget.*?/T\s*\(\s*%s\s*\).*?>>)`, regexp.QuoteMeta(job.field)))
+		re := regexp.MustCompile("(?s)(<<.*?/Subtype\\s*/Widget.*?/T\\s*\\(\\s*" + regexp.QuoteMeta(job.field) + "\\s*\\).*?>>)")
 		match := re.FindIndex(out)
 		if match == nil {
 			continue
 		}
 		dictEnd := match[1]
-		apRef := []byte(fmt.Sprintf(" /AP<</N %d 0 R>>", job.apObjNum))
+		apRef := []byte(" /AP<</N " + strconv.Itoa(job.apObjNum) + " 0 R>>")
 		out = append(out[:dictEnd-2], append(apRef, out[dictEnd-2:]...)...)
 	}
 
@@ -1007,11 +1017,9 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		if y < 2 {
 			y = 2
 		}
-		streamBody := fmt.Sprintf("q\nBT\n/F1 %.2f Tf\n0 g\n%.2f %.2f Td\n(%s) Tj\nET\nQ",
-			job.fontSize, tx, y, streamText)
+		streamBody := "q\nBT\n/F1 " + strconv.FormatFloat(job.fontSize, 'f', 2, 64) + " Tf\n0 g\n" + strconv.FormatFloat(tx, 'f', 2, 64) + " " + strconv.FormatFloat(y, 'f', 2, 64) + " Td\n(" + streamText + ") Tj\nET\nQ"
 
-		fontDescObj := fmt.Sprintf("\n%d 0 obj\n<</Type/FontDescriptor/FontName/%s/Flags 32/FontBBox[-558 -225 1000 931]/ItalicAngle 0/Ascent 905/Descent -212/CapHeight 905/StemV 88>>\nendobj\n",
-			job.fontDescObjNum, job.fontResourceName)
+		fontDescObj := "\n" + strconv.Itoa(job.fontDescObjNum) + " 0 obj\n<</Type/FontDescriptor/FontName/" + job.fontResourceName + "/Flags 32/FontBBox[-558 -225 1000 931]/ItalicAngle 0/Ascent 905/Descent -212/CapHeight 905/StemV 88>>\nendobj\n"
 		out = append(out, []byte(fontDescObj)...)
 
 		// --- START OF CHANGES ---
@@ -1030,8 +1038,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 
 		// Update the Font object to include FirstChar, LastChar, and the Widths array.
 		// Using full WinAnsiEncoding range (32-255) for PDF 2.0 compliance
-		fontObj := fmt.Sprintf("\n%d 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/%s/Encoding/WinAnsiEncoding/FirstChar 32/LastChar 255/Widths %s/FontDescriptor %d 0 R>>\nendobj\n",
-			job.fontObjNum, job.fontResourceName, widthsStr, job.fontDescObjNum)
+		fontObj := "\n" + strconv.Itoa(job.fontObjNum) + " 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/" + job.fontResourceName + "/Encoding/WinAnsiEncoding/FirstChar 32/LastChar 255/Widths " + widthsStr + "/FontDescriptor " + strconv.Itoa(job.fontDescObjNum) + " 0 R>>\nendobj\n"
 
 		// --- END OF CHANGES ---
 
@@ -1046,8 +1053,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			return nil, fmt.Errorf("compression close failed: %w", err)
 		}
 		comp := compBuf.Bytes()
-		apObj := fmt.Sprintf("\n%d 0 obj\n<</Type/XObject/Subtype/Form/FormType 1/BBox[0 0 %.2f %.2f]/Resources<</Font<</F1 %d 0 R>>/ProcSet[/PDF/Text]>>/Filter/FlateDecode/Length %d>>\nstream\n%s\nendstream\nendobj\n",
-			job.apObjNum, job.width, job.height, job.fontObjNum, len(comp), string(comp))
+		apObj := "\n" + strconv.Itoa(job.apObjNum) + " 0 obj\n<</Type/XObject/Subtype/Form/FormType 1/BBox[0 0 " + strconv.FormatFloat(job.width, 'f', 2, 64) + " " + strconv.FormatFloat(job.height, 'f', 2, 64) + "]/Resources<</Font<</F1 " + strconv.Itoa(job.fontObjNum) + " 0 R>>/ProcSet[/PDF/Text]>>/Filter/FlateDecode/Length " + strconv.Itoa(len(comp)) + ">>\nstream\n" + string(comp) + "\nendstream\nendobj\n"
 		out = append(out, []byte(apObj)...)
 	}
 
@@ -1063,11 +1069,19 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	}
 	xrefStart := len(out)
 	var xrefBuf bytes.Buffer
-	fmt.Fprintf(&xrefBuf, "xref\n0 %d\n", maxObj+1)
+	xrefBuf.WriteString("xref\n0 ")
+	xrefBuf.WriteString(strconv.Itoa(maxObj + 1))
+	xrefBuf.WriteString("\n")
 	xrefBuf.WriteString("0000000000 65535 f \r\n")
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			fmt.Fprintf(&xrefBuf, "%010d 00000 n \r\n", off)
+			s := strconv.Itoa(off)
+			padding := 10 - len(s)
+			if padding > 0 {
+				xrefBuf.WriteString(strings.Repeat("0", padding))
+			}
+			xrefBuf.WriteString(s)
+			xrefBuf.WriteString(" 00000 n \r\n")
 		} else {
 			xrefBuf.WriteString("0000000000 65535 f \r\n")
 		}
@@ -1079,7 +1093,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			root = r
 		}
 	}
-	trailer := fmt.Sprintf("trailer\n<</Size %d/Root %d 0 R>>\nstartxref\n%d\n%%%%EOF\n", maxObj+1, root, xrefStart)
+	trailer := "trailer\n<</Size " + strconv.Itoa(maxObj+1) + "/Root " + strconv.Itoa(root) + " 0 R>>\nstartxref\n" + strconv.Itoa(xrefStart) + "\n%%EOF\n"
 	out = append(out, xrefBuf.Bytes()...)
 	out = append(out, []byte(trailer)...)
 	// --- PASS 3: GLOBAL NEED APPEARANCES ---

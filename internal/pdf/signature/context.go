@@ -3,6 +3,7 @@ package signature
 
 // SignaturePageContext abstracts the PageManager for signature operations,
 // breaking the circular dependency between the root pdf package and this subpackage.
+//
 //nolint:revive // exported
 type SignaturePageContext interface {
 	// AllocObjectID allocates and returns a new PDF object ID.

@@ -3,16 +3,17 @@ package redact
 import (
 	"bytes"
 	"compress/zlib"
+	"encoding/hex"
 	"errors"
-	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
-func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
+func (r *Redactor) applySecureRedacts(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
 	objMap := r.objMap
 	if objMap == nil {
 		var err error
@@ -36,22 +37,35 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 
 	var warnings []string
 	changedAny := false
+	visited := make(map[string]bool)
+	var warnBuilder strings.Builder
 
 	for pageNum, rects := range redactionsByPage {
 		pageRef, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("page %d: %v", pageNum, err))
+			warnBuilder.Reset()
+			warnBuilder.WriteString("page ")
+			warnBuilder.WriteString(strconv.Itoa(pageNum))
+			warnBuilder.WriteString(": ")
+			warnBuilder.WriteString(err.Error())
+			warnings = append(warnings, warnBuilder.String())
 			continue
 		}
 		pageBody := objMap[pageRef]
 		keys := extractContentKeys(pageBody)
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
-			warnings = append(warnings, fmt.Sprintf("page %d: no content streams", pageNum))
+			warnBuilder.Reset()
+			warnBuilder.WriteString("page ")
+			warnBuilder.WriteString(strconv.Itoa(pageNum))
+			warnBuilder.WriteString(": no content streams")
+			warnings = append(warnings, warnBuilder.String())
 			continue
 		}
 
-		visited := make(map[string]bool)
+		for k := range visited {
+			delete(visited, k)
+		}
 		activeQueries := queries
 
 		for _, key := range keys {
@@ -87,10 +101,10 @@ func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resourc
 		return false, nil
 	}
 
-	updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
+	updated, changed, err := rewriteSecure(objBody, rects, queries)
 	warnings := make([]string, 0, 2)
 	if err != nil {
-		warnings = append(warnings, fmt.Sprintf("stream %s: %v", streamKey, err))
+		warnings = append(warnings, "stream "+streamKey+": "+err.Error())
 	} else if changed {
 		objMap[streamKey] = updated
 	}
@@ -151,14 +165,19 @@ func extractContentKeys(pageBody []byte) []string {
 	if len(match[3]) > 0 {
 		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 		refs := refRe.FindAllSubmatch(match[3], -1)
+		var sb strings.Builder // Moved outside the loop
 		for _, r := range refs {
-			keys = append(keys, string(r[1])+" "+string(r[2]))
+			sb.Reset() // Reset for each iteration
+			sb.WriteString(string(r[1]))
+			sb.WriteByte(' ')
+			sb.WriteString(string(r[2]))
+			keys = append(keys, sb.String())
 		}
 	}
 	return keys
 }
 
-func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, error) {
+func rewriteSecure(streamObj []byte, rects []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, error) {
 	start, end, ok := locateStreamSegment(streamObj)
 	if !ok {
 		return streamObj, false, nil
@@ -203,7 +222,7 @@ func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, 
 	newObj = append(newObj, streamObj[end:]...)
 
 	lenRe := regexp.MustCompile(`/Length\s+(?:\d+\s+\d+\s+R|\d+)`)
-	newObj = lenRe.ReplaceAll(newObj, []byte(fmt.Sprintf("/Length %d", len(encoded))))
+	newObj = lenRe.ReplaceAll(newObj, []byte("/Length "+strconv.Itoa(len(encoded))))
 
 	return newObj, true, nil
 }
@@ -254,7 +273,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 			if term == "" {
 				continue
 			}
-			newText = replaceCaseInsensitiveWithSpaces(newText, term)
+			newText = replaceInsensitive(newText, term)
 		}
 
 		if newText != text {
@@ -289,7 +308,7 @@ func applyRectMaskToText(text string, pos models.TextPosition, rects []models.Re
 	// In secure mode, if a redaction block covers a substantial portion of a text run,
 	// scrub the full run. For small overlaps, keep per-glyph masking.
 	for _, r := range rects {
-		if !rectsIntersectWithTolerance(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height, pos.Height*0.75) {
+		if !rectsIntersectTol(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height, pos.Height*0.75) {
 			continue
 		}
 		overlap := overlapWidth(pos.X, pos.Width, r.X, r.Width)
@@ -334,7 +353,7 @@ func applyRectMaskToText(text string, pos models.TextPosition, rects []models.Re
 	return string(out)
 }
 
-func replaceCaseInsensitiveWithSpaces(s, term string) string {
+func replaceInsensitive(s, term string) string {
 	if term == "" {
 		return s
 	}
@@ -374,8 +393,9 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 		if isHex {
 			var sb strings.Builder
 			sb.WriteString("<")
-			for _, r := range redacted {
-				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+			for _, r := range redRunes {
+				u := uint16(r)
+				sb.WriteString(hex.EncodeToString([]byte{byte(u >> 8), byte(u)}))
 			}
 			sb.WriteString("> Tj")
 			return sb.String()
@@ -396,8 +416,9 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 		if isHex {
 			var sb strings.Builder
 			sb.WriteString("<")
-			for _, r := range redacted {
-				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+			for _, r := range redRunes {
+				u := uint16(r)
+				sb.WriteString(hex.EncodeToString([]byte{byte(u >> 8), byte(u)}))
 			}
 			sb.WriteString("> Tj")
 			return sb.String()
@@ -448,12 +469,14 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			estWidth := estimateStringWidth(seg.removed, 1000)
 			// Negative value = advance cursor to the right.
 			kern := -int(math.Round(estWidth))
-			_, _ = fmt.Fprintf(&out, "%d ", kern)
+			out.WriteString(strconv.Itoa(kern))
+			out.WriteString(" ")
 		} else {
 			if isHex {
 				out.WriteString("<")
 				for _, r := range seg.text {
-					_, _ = fmt.Fprintf(&out, "%04X", uint16(r))
+					u := uint16(r)
+					out.WriteString(hex.EncodeToString([]byte{byte(u >> 8), byte(u)}))
 				}
 				out.WriteString("> ")
 			} else {
@@ -476,7 +499,7 @@ func rectsIntersect(x1, y1, w1, h1, x2, y2, w2, h2 float64) bool {
 	return x1 < x2+w2 && x1+w1 > x2 && y1 < y2+h2 && y1+h1 > y2
 }
 
-func rectsIntersectWithTolerance(x1, y1, w1, h1, x2, y2, w2, h2, pad float64) bool {
+func rectsIntersectTol(x1, y1, w1, h1, x2, y2, w2, h2, pad float64) bool {
 	if pad < 0 {
 		pad = 0
 	}

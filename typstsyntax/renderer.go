@@ -284,7 +284,7 @@ func (le *LayoutEngine) layoutFraction(node *Node, fontSize float64) *MathLayout
 	denX := (fracWidth - denLay.Width) / 2
 	denY := barY - barPadding - denLay.Height
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(numLay.Elements)+len(denLay.Elements)+1)
 
 	// Numerator
 	for _, el := range numLay.Elements {
@@ -323,7 +323,7 @@ func (le *LayoutEngine) layoutSqrt(node *Node, fontSize float64) *MathLayout {
 	totalH := inner.Height + overlineGap + fontSize*0.15
 	totalW := radWidth + inner.Width + fontSize*0.1
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(inner.Elements)+2)
 
 	// Radical sign (√) glyph
 	elements = append(elements, MathElement{
@@ -358,7 +358,7 @@ func (le *LayoutEngine) layoutRoot(node *Node, fontSize float64) *MathLayout {
 	totalW := radWidth + innerLay.Width + fontSize*0.1
 	totalH := innerLay.Height + fontSize*0.25
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(indexLay.Elements)+len(innerLay.Elements)+2)
 
 	// Index (small, top-left of radical)
 	for _, el := range indexLay.Elements {
@@ -410,7 +410,7 @@ func (le *LayoutEngine) layoutGroup(node *Node, fontSize float64) *MathLayout {
 	}
 
 	totalW := delimWidth*2 + innerLay.Width
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(innerLay.Elements)+2)
 
 	// Left delimiter
 	elements = append(elements, MathElement{
@@ -468,19 +468,18 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 	cols := inferMatrixColumns(len(node.Args))
 	rowCount := int(math.Ceil(float64(len(node.Args)) / float64(cols)))
 
-	gridCells := make([][]*MathLayout, rowCount)
+	gridCells := make([]*MathLayout, rowCount*cols)
 	colWidths := make([]float64, cols)
 	rowHeights := make([]float64, rowCount)
 
 	idx := 0
 	for r := 0; r < rowCount; r++ {
-		gridCells[r] = make([]*MathLayout, cols)
 		for c := 0; c < cols; c++ {
 			if idx >= len(node.Args) {
 				break
 			}
 			cellLay := le.layoutNode(node.Args[idx], elemFontSize)
-			gridCells[r][c] = cellLay
+			gridCells[r*cols+c] = cellLay
 			if cellLay.Width > colWidths[c] {
 				colWidths[c] = cellLay.Width
 			}
@@ -537,7 +536,7 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 			y -= rowHeights[r-1] + rowGap
 		}
 		for c := 0; c < cols; c++ {
-			cellLay := gridCells[r][c]
+			cellLay := gridCells[r*cols+c]
 			if cellLay == nil {
 				continue
 			}
@@ -785,8 +784,7 @@ func (le *LayoutEngine) layoutBinom(node *Node, fontSize float64) *MathLayout {
 
 	topY := fontSize*0.4 + gap
 	botY := fontSize*0.4 - gap - botLay.Height
-
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(topLay.Elements)+len(botLay.Elements)+2)
 
 	// Left paren
 	elements = append(elements, MathElement{

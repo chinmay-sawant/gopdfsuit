@@ -3,6 +3,7 @@ package font
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,6 +22,8 @@ type PDFAFontConfig struct {
 	FallbackFontsDirectory string
 	// AutoDownload enables automatic downloading of Liberation fonts if not found
 	AutoDownload bool
+	// ArchiveURL overrides the default Liberation fonts download URL. Intended for testing only.
+	ArchiveURL string
 }
 
 // LiberationFontMapping maps standard PDF fonts to Liberation equivalents
@@ -86,6 +89,14 @@ var pdfaFontManager = &PDFAFontManager{
 // GetPDFAFontManager returns the global PDF/A font manager
 func GetPDFAFontManager() *PDFAFontManager {
 	return pdfaFontManager
+}
+
+// NewPDFAFontManager creates a new, independent PDFAFontManager for use in tests
+// or components that require isolated font state.
+func NewPDFAFontManager() *PDFAFontManager {
+	return &PDFAFontManager{
+		loadedFonts: make(map[string]*TTFFont),
+	}
 }
 
 // Initialize sets up the font manager with the given config
@@ -176,7 +187,7 @@ func (m *PDFAFontManager) EnsureFontsAvailable() error {
 	}
 
 	// Create fonts directory
-	if err := os.MkdirAll(m.config.FontsDirectory, 0755); err != nil {
+	if err := os.MkdirAll(m.config.FontsDirectory, 0750); err != nil {
 		m.ensureAttempted = true
 		m.lastEnsureErr = fmt.Errorf("failed to create fonts directory: %w", err)
 		return m.lastEnsureErr
@@ -184,7 +195,7 @@ func (m *PDFAFontManager) EnsureFontsAvailable() error {
 
 	// Download fonts using the ZIP/Tarball to ensure all variants are present
 	m.ensureAttempted = true
-	m.lastEnsureErr = m.downloadFonts()
+	m.lastEnsureErr = m.downloadFonts(context.Background())
 	return m.lastEnsureErr
 }
 
@@ -219,8 +230,12 @@ func (m *PDFAFontManager) checkFontDir(dir string) bool {
 }
 
 // downloadFonts downloads Liberation font files
-func (m *PDFAFontManager) downloadFonts() error {
-	fmt.Printf("Downloading Liberation fonts from %s...\n", liberationFontsArchiveURL)
+func (m *PDFAFontManager) downloadFonts(ctx context.Context) error {
+	archiveURL := liberationFontsArchiveURL
+	if m.config.ArchiveURL != "" {
+		archiveURL = m.config.ArchiveURL
+	}
+	fmt.Printf("Downloading Liberation fonts from %s...\n", archiveURL)
 
 	// Create temp file for the tar.gz
 	tmpFile, err := os.CreateTemp("", "liberation-fonts-*.tar.gz")
@@ -235,7 +250,12 @@ func (m *PDFAFontManager) downloadFonts() error {
 	}()
 
 	// Download the file
-	resp, err := http.Get(liberationFontsArchiveURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", archiveURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download fonts: %w", err)
 	}
@@ -298,12 +318,12 @@ func (m *PDFAFontManager) downloadFonts() error {
 			}
 
 			destPath := filepath.Join(m.config.FontsDirectory, fileName)
-			outFile, err := os.Create(destPath)
+			outFile, err := os.Create(destPath) //nolint:gosec // controlled destination
 			if err != nil {
 				return fmt.Errorf("failed to create font file %s: %w", destPath, err)
 			}
 
-			if _, err := io.Copy(outFile, tr); err != nil {
+			if _, err := io.Copy(outFile, tr); err != nil { //nolint:gosec // extracting small font files
 				_ = outFile.Close()
 				return fmt.Errorf("failed to extract %s: %w", fileName, err)
 			}
@@ -353,10 +373,8 @@ func (m *PDFAFontManager) GetLiberationFont(standardFontName string) (*TTFFont, 
 	return font, nil
 }
 
-// RegisterLiberationFontsForPDFA registers all required Liberation fonts with the font registry
-// In PDF/A mode, standard fonts are replaced with Liberation equivalents
-// This registers them under their STANDARD names so getFontReference picks them up
-func (m *PDFAFontManager) RegisterLiberationFontsForPDFA(registry *CustomFontRegistry, usedStandardFonts []string) error {
+// RegisterLibFonts registers all required Liberation fonts with the font registry
+func (m *PDFAFontManager) RegisterLibFonts(registry *CustomFontRegistry, usedStandardFonts []string) error {
 	if err := m.EnsureFontsAvailable(); err != nil {
 		return err
 	}
@@ -407,8 +425,8 @@ func IsStandardFont(fontName string) bool {
 	return ok
 }
 
-// GetLiberationFontPostScriptName returns the PostScript name for a Liberation font
-func GetLiberationFontPostScriptName(liberationName string) string {
+// GetLibFontPSName returns the PostScript name for a Liberation font
+func GetLibFontPSName(liberationName string) string {
 	// Liberation fonts use their name as PostScript name with hyphens
 	psNames := map[string]string{
 		"LiberationSans-Regular":     "LiberationSans",

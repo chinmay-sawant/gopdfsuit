@@ -74,14 +74,14 @@ func (r *Redactor) FindTextOccurrences(searchText string) ([]models.RedactionRec
 		// The guard inside r.findAllCombinedMatchRects skips single-token lines already
 		// handled by r.buildSubstringRects above.
 		if len(positions) > 1 {
-			redactions = append(redactions, r.findAllCombinedMatchRects(i, positions, normalizedQuery)...)
+			redactions = append(redactions, r.findAllMatchRects(i, positions, normalizedQuery)...)
 		}
 	}
 	return redactions, nil
 }
 
-// FindTextOccurrencesMulti searches for multiple terms and combines results.
-func (r *Redactor) FindTextOccurrencesMulti(searchTexts []string) ([]models.RedactionRect, error) {
+// FindTextMulti searches for multiple terms and combines results.
+func (r *Redactor) FindTextMulti(searchTexts []string) ([]models.RedactionRect, error) {
 	if len(r.pdfBytes) == 0 {
 		return nil, errors.New("empty pdf bytes")
 	}
@@ -112,11 +112,7 @@ func (r *Redactor) FindTextOccurrencesMulti(searchTexts []string) ([]models.Reda
 	return all, nil
 }
 
-// isURLToken returns true when a text token is a URL or URL fragment.
-// Proportional character-offset estimation is unreliable for these because
-// they are packed with narrow chars (:, /, ., -, &, ?, =) that skew the
-// average glyph width. In secure_required mode the content stream rewrite
-// already scrubs the text; a wrong-position overlay just confuses the output.
+// isURLToken returns true if the token appears to be a URL component.
 func (r *Redactor) isURLToken(text string) bool {
 	if strings.Contains(text, "://") {
 		return true
@@ -232,7 +228,7 @@ func (r *Redactor) normalizeSearchText(s string) string {
 // reading order, then scans for every non-overlapping match.
 //
 //nolint:gocyclo
-func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.TextPosition, normalizedQuery string) []models.RedactionRect {
+func (r *Redactor) findAllMatchRects(pageNum int, positions []models.TextPosition, normalizedQuery string) []models.RedactionRect {
 	if len(positions) == 0 || normalizedQuery == "" {
 		return nil
 	}

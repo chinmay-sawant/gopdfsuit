@@ -12,6 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"context"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -89,7 +92,21 @@ func generateTrades(n int, rng *rand.Rand) []trade {
 		price = float64(int(price*100)) / 100 // round to 2 decimals
 		total := float64(qty) * price
 
-		timeStr := fmt.Sprintf("%02d:%02d:%02d", hour, min, sec)
+		var timeBuilder strings.Builder
+		{
+			h := strconv.Itoa(hour)
+			if len(h) < 2 { timeBuilder.WriteString("0") }
+			timeBuilder.WriteString(h)
+			timeBuilder.WriteString(":")
+			m := strconv.Itoa(min)
+			if len(m) < 2 { timeBuilder.WriteString("0") }
+			timeBuilder.WriteString(m)
+			timeBuilder.WriteString(":")
+			s := strconv.Itoa(sec)
+			if len(s) < 2 { timeBuilder.WriteString("0") }
+			timeBuilder.WriteString(s)
+		}
+		timeStr := timeBuilder.String()
 		sec++
 		if sec >= 60 {
 			sec = 0
@@ -291,7 +308,7 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 // Template 2: Active Trader (2-3 pages, 40 trades)
 // ──────────────────────────────────────────────
 
-func buildActiveTraderTemplate() gopdflib.PDFTemplate {
+func buildTraderTemplate() gopdflib.PDFTemplate {
 	rng := rand.New(rand.NewSource(42))
 	trades := generateTrades(40, rng)
 
@@ -317,9 +334,9 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 		tradeRows = append(tradeRows, gopdflib.Row{Row: []gopdflib.Cell{
 			{Props: "Helvetica:8:000:center:1:0:0:1", Text: t.Symbol, BgColor: bg},
 			{Props: "Helvetica:8:000:center:0:0:0:1", Text: t.Action, TextColor: actionColor, BgColor: bg},
-			{Props: "Helvetica:8:000:center:0:0:0:1", Text: fmt.Sprintf("%d", t.Qty), BgColor: bg},
-			{Props: "Helvetica:8:000:right:0:0:0:1", Text: fmt.Sprintf("₹%.2f", t.Price), BgColor: bg},
-			{Props: "Helvetica:8:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", t.Total), BgColor: bg},
+			{Props: "Helvetica:8:000:center:0:0:0:1", Text: strconv.Itoa(t.Qty), BgColor: bg},
+			{Props: "Helvetica:8:000:right:0:0:0:1", Text: "₹" + strconv.FormatFloat(t.Price, 'f', 2, 64), BgColor: bg},
+			{Props: "Helvetica:8:000:right:0:1:0:1", Text: "₹" + strconv.FormatFloat(t.Total, 'f', 2, 64), BgColor: bg},
 		}})
 	}
 
@@ -423,7 +440,7 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 				Rows: []gopdflib.Row{
 					{Row: []gopdflib.Cell{
 						{Props: "Helvetica:9:000:left:1:0:0:1", Text: "Total Turnover"},
-						{Props: "Helvetica:9:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", totalTurnover)},
+						{Props: "Helvetica:9:000:right:0:1:0:1", Text: "₹" + strconv.FormatFloat(totalTurnover, 'f', 2, 64)},
 					}},
 					{Row: []gopdflib.Cell{
 						{Props: "Helvetica:9:000:left:1:0:0:1", Text: "Brokerage", BgColor: "#F8F9F9"},
@@ -435,7 +452,7 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 					}},
 					{Row: []gopdflib.Cell{
 						{Props: "Helvetica:10:100:left:1:0:1:1", Text: "Net Payable", BgColor: "#A9CCE3"},
-						{Props: "Helvetica:10:100:right:0:1:1:1", Text: fmt.Sprintf("₹%.2f", totalTurnover+20+150), BgColor: "#A9CCE3"},
+						{Props: "Helvetica:10:100:right:0:1:1:1", Text: "₹" + strconv.FormatFloat(totalTurnover+20+150, 'f', 2, 64), BgColor: "#A9CCE3"},
 					}},
 				},
 			}},
@@ -486,13 +503,13 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 			actionColor = "#E74C3C"
 		}
 		tradeRows = append(tradeRows, gopdflib.Row{Row: []gopdflib.Cell{
-			{Props: "Helvetica:7:000:center:1:0:0:1", Text: fmt.Sprintf("%d", t.ID), BgColor: bg},
+			{Props: "Helvetica:7:000:center:1:0:0:1", Text: strconv.Itoa(t.ID), BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Time, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Symbol, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Action, TextColor: actionColor, BgColor: bg},
-			{Props: "Helvetica:7:000:center:0:0:0:1", Text: fmt.Sprintf("%d", t.Qty), BgColor: bg},
-			{Props: "Helvetica:7:000:right:0:0:0:1", Text: fmt.Sprintf("₹%.2f", t.Price), BgColor: bg},
-			{Props: "Helvetica:7:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", t.Total), BgColor: bg},
+			{Props: "Helvetica:7:000:center:0:0:0:1", Text: strconv.Itoa(t.Qty), BgColor: bg},
+			{Props: "Helvetica:7:000:right:0:0:0:1", Text: "₹" + strconv.FormatFloat(t.Price, 'f', 2, 64), BgColor: bg},
+			{Props: "Helvetica:7:000:right:0:1:0:1", Text: "₹" + strconv.FormatFloat(t.Total, 'f', 2, 64), BgColor: bg},
 		}})
 	}
 
@@ -637,7 +654,7 @@ func main() {
 	// Pre-build all 3 templates
 	fmt.Println("Building templates...")
 	retailTemplate := buildRetailTemplate()
-	activeTemplate := buildActiveTraderTemplate()
+	activeTemplate := buildTraderTemplate()
 	hftTemplate := buildHFTTemplate()
 	fmt.Println("Templates built.")
 
@@ -679,36 +696,45 @@ func main() {
 	memWg.Add(1)
 	go monitorMemory(memDone, &memWg)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Start workers
 	for range numWorkers {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			localRng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(rand.Intn(10000))))
-			for range jobs {
-				roll := localRng.Intn(100)
-				var tmpl gopdflib.PDFTemplate
-				switch {
-				case roll < 80:
-					tmpl = retailTemplate
-					atomic.AddInt64(&retailCount, 1)
-				case roll < 95:
-					tmpl = activeTemplate
-					atomic.AddInt64(&activeCount, 1)
-				default:
-					tmpl = hftTemplate
-					atomic.AddInt64(&hftCount, 1)
-				}
+			for {
+				select {
+				case job, ok := <-jobs:
+					if !ok {
+						return
+					}
+					_ = job
+					roll := localRng.Intn(100)
+					var tmpl gopdflib.PDFTemplate
+					if roll < 80 {
+						tmpl = retailTemplate
+						atomic.AddInt64(&retailCount, 1)
+					} else if roll < 95 {
+						tmpl = activeTemplate
+						atomic.AddInt64(&activeCount, 1)
+					} else {
+						tmpl = hftTemplate
+						atomic.AddInt64(&hftCount, 1)
+					}
 
-				start := time.Now()
-				_, err := gopdflib.GeneratePDF(tmpl)
-				elapsed := time.Since(start)
-
-				if err != nil {
-					errors <- err
-					continue
+					start := time.Now()
+					_, err := gopdflib.GeneratePDF(tmpl)
+					if err != nil {
+						errors <- err
+						continue
+					}
+					results <- time.Since(start)
+				case <-ctx.Done():
+					return
 				}
-				results <- elapsed
 			}
 		}()
 	}

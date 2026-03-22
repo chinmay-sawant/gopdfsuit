@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type Record struct {
@@ -18,11 +20,21 @@ func main() {
 	count := 2000 // 2000 rows for a solid benchmark
 	var data []Record
 
+	var nameBuilder, emailBuilder strings.Builder
 	for i := 1; i <= count; i++ {
+		nameBuilder.Reset()
+		nameBuilder.WriteString("User ")
+		nameBuilder.WriteString(strconv.Itoa(i))
+
+		emailBuilder.Reset()
+		emailBuilder.WriteString("user")
+		emailBuilder.WriteString(strconv.Itoa(i))
+		emailBuilder.WriteString("@example.com")
+
 		data = append(data, Record{
 			ID:    i,
-			Name:  fmt.Sprintf("User %d", i),
-			Email: fmt.Sprintf("user%d@example.com", i),
+			Name:  nameBuilder.String(),
+			Email: emailBuilder.String(),
 			Role:  "Administrator",
 			Desc:  "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
 		})

@@ -98,8 +98,8 @@ func (r *Redactor) GetPageInfo() (models.PageInfo, error) {
 	}, nil
 }
 
-// AnalyzePageCapabilities classifies each page for text/image redaction capability.
-func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
+// AnalyzePageCaps classifies each page for text/image redaction capability.
+func (r *Redactor) AnalyzePageCaps() ([]models.PageCapability, error) {
 	objMap := r.objMap
 	var err error
 	if objMap == nil {
@@ -135,14 +135,11 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 				continue
 			}
 			rawStream, decStream, _ := inspectStream(objBody)
-			combined := make([]byte, 0, len(rawStream)+len(decStream))
-			combined = append(combined, rawStream...)
-			combined = append(combined, decStream...)
-			s := string(combined)
-			if strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ")) {
+			if (strings.Contains(string(rawStream), "BT") && (strings.Contains(string(rawStream), "Tj") || strings.Contains(string(rawStream), "TJ"))) ||
+				(strings.Contains(string(decStream), "BT") && (strings.Contains(string(decStream), "Tj") || strings.Contains(string(decStream), "TJ"))) {
 				hasText = true
 			}
-			if strings.Contains(s, " Do") || bytesIndex(objBody, []byte("/Image")) >= 0 {
+			if strings.Contains(string(rawStream), " Do") || strings.Contains(string(decStream), " Do") || bytesIndex(objBody, []byte("/Image")) >= 0 {
 				hasImage = true
 			}
 		}
@@ -170,14 +167,14 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 	return caps, nil
 }
 
-// ApplyRedactionsAdvanced applies a unified redaction request.
-func (r *Redactor) ApplyRedactionsAdvanced(opts models.ApplyRedactionOptions) ([]byte, error) {
-	out, _, err := r.ApplyRedactionsAdvancedWithReport(opts)
+// ApplyRedactionsAdv applies a unified redaction request.
+func (r *Redactor) ApplyRedactionsAdv(opts models.ApplyRedactionOptions) ([]byte, error) {
+	out, _, err := r.ApplyRedactionsReport(opts)
 	return out, err
 }
 
-// ApplyRedactionsAdvancedWithReport applies redactions and returns an execution report.
-func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionOptions) ([]byte, models.RedactionApplyReport, error) {
+// ApplyRedactionsReport applies redactions and returns an execution report.
+func (r *Redactor) ApplyRedactionsReport(opts models.ApplyRedactionOptions) ([]byte, models.RedactionApplyReport, error) {
 	if len(r.pdfBytes) == 0 {
 		return nil, models.RedactionApplyReport{}, errors.New("empty pdf bytes")
 	}
@@ -215,7 +212,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		report.Warnings = append(report.Warnings, "input PDF was decrypted using in-house pipeline and output is emitted decrypted")
 	}
 
-	caps, capErr := r.AnalyzePageCapabilities()
+	caps, capErr := r.AnalyzePageCaps()
 	if capErr == nil {
 		report.Capabilities = caps
 	}
@@ -259,7 +256,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 	}
 
 	if mode == "secure_required" {
-		secureOut, secureChanged, secureWarns, err := r.applySecureContentRedactions(all, activeTextQueries)
+		secureOut, secureChanged, secureWarns, err := r.applySecureRedacts(all, activeTextQueries)
 		report.Warnings = append(report.Warnings, secureWarns...)
 		if err != nil {
 			report.SecurityOutcome = "failed" //nolint:goconst

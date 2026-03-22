@@ -4,10 +4,26 @@ package svg
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
+
+func fmtNum(f float64) string {
+	return strconv.FormatFloat(f, 'f', 2, 64)
+}
+
+func fmtNum6(f float64) string {
+	return strconv.FormatFloat(f, 'f', 6, 64)
+}
+
+func fmtNum4(f float64) string {
+	return strconv.FormatFloat(f, 'f', 4, 64)
+}
+
+func fmtNum3(f float64) string {
+	return strconv.FormatFloat(f, 'f', 3, 64)
+}
 
 // SVG support for converting simple vector graphics to PDF commands
 
@@ -77,7 +93,10 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	// [  0   1   1 ]
 	// M = [1/w 0 0 -1/h 0 1]
 
-	fmt.Fprintf(&b, "%.6f 0 0 %.6f 0 1 cm\n", 1.0/width, -1.0/height)
+	b.WriteString(fmtNum6(1.0 / width))
+	b.WriteString(" 0 0 ")
+	b.WriteString(fmtNum6(-1.0 / height))
+	b.WriteString(" 0 1 cm\n")
 
 	// State tracking
 	inDefs := 0
@@ -85,10 +104,15 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 
 	// Iterate children
 	decoder := xml.NewDecoder(bytes.NewReader(data))
+	// Attribute map for group inheritance — moved outside to avoid allocation in loop
+	attrs := make(map[string]string)
 	for {
 		t, err := decoder.Token()
-		if err != nil {
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, 0, 0, err
 		}
 		switch se := t.(type) {
 		case xml.StartElement:
@@ -107,7 +131,10 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 			if se.Name.Local == "g" {
 				b.WriteString("q\n")
 
-				attrs := make(map[string]string)
+				// clear attributes
+				for k := range attrs {
+					delete(attrs, k)
+				}
 				for _, a := range se.Attr {
 					attrs[a.Name.Local] = a.Value
 				}
@@ -121,13 +148,23 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 				if fill, ok := attrs["fill"]; ok {
 					r, g, bVal, ok := parseColor(fill)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f rg\n", r, g, bVal)
+						b.WriteString(fmtNum3(r))
+						b.WriteString(" ")
+						b.WriteString(fmtNum3(g))
+						b.WriteString(" ")
+						b.WriteString(fmtNum3(bVal))
+						b.WriteString(" rg\n")
 					}
 				}
 				if stroke, ok := attrs["stroke"]; ok {
 					r, g, bVal, ok := parseColor(stroke)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f RG\n", r, g, bVal)
+						b.WriteString(fmtNum3(r))
+						b.WriteString(" ")
+						b.WriteString(fmtNum3(g))
+						b.WriteString(" ")
+						b.WriteString(fmtNum3(bVal))
+						b.WriteString(" RG\n")
 					}
 				}
 			}
@@ -164,7 +201,11 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 
 						// Apply use-specific transform/translation
 						if x != 0 || y != 0 {
-							b.WriteString(fmt.Sprintf("1 0 0 1 %.6f %.6f cm\n", x, -y))
+							b.WriteString("1 0 0 1 ")
+							b.WriteString(fmtNum6(x))
+							b.WriteString(" ")
+							b.WriteString(fmtNum6(-y))
+							b.WriteString(" cm\n")
 						}
 						if transform != "" {
 							applyTransform(&b, transform) // Note: height might be irrelevant for purely relative transforms but needed for coordinate flip
@@ -249,22 +290,43 @@ func applyTransform(b *bytes.Buffer, t string) {
 			if len(args) >= 2 {
 				tx, _ := strconv.ParseFloat(args[0], 64)
 				ty, _ := strconv.ParseFloat(args[1], 64)
-				fmt.Fprintf(b, "1 0 0 1 %.2f %.2f cm\n", tx, ty)
+				b.WriteString("1 0 0 1 ")
+				b.WriteString(fmtNum(tx))
+				b.WriteString(" ")
+				b.WriteString(fmtNum(ty))
+				b.WriteString(" cm\n")
 			}
 		case strings.HasPrefix(parts[i], "scale("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 2 {
 				sx, _ := strconv.ParseFloat(args[0], 64)
 				sy, _ := strconv.ParseFloat(args[1], 64)
-				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", sx, sy)
+				b.WriteString(fmtNum4(sx))
+				b.WriteString(" 0 0 ")
+				b.WriteString(fmtNum4(sy))
+				b.WriteString(" 0 0 cm\n")
 			} else if len(args) == 1 {
 				s, _ := strconv.ParseFloat(args[0], 64)
-				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", s, s)
+				b.WriteString(fmtNum4(s))
+				b.WriteString(" 0 0 ")
+				b.WriteString(fmtNum4(s))
+				b.WriteString(" 0 0 cm\n")
 			}
 		case strings.HasPrefix(parts[i], "matrix("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 6 {
-				fmt.Fprintf(b, "%s %s %s %s %s %s cm\n", args[0], args[1], args[2], args[3], args[4], args[5])
+				b.WriteString(args[0])
+				b.WriteString(" ")
+				b.WriteString(args[1])
+				b.WriteString(" ")
+				b.WriteString(args[2])
+				b.WriteString(" ")
+				b.WriteString(args[3])
+				b.WriteString(" ")
+				b.WriteString(args[4])
+				b.WriteString(" ")
+				b.WriteString(args[5])
+				b.WriteString(" cm\n")
 			}
 		}
 	}
@@ -379,7 +441,12 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 
 	// Apply styles
 	if r, g, blue, ok := parseColor(stroke); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f RG\n", r, g, blue)
+		b.WriteString(fmtNum(r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(g))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(blue))
+		b.WriteString(" RG\n")
 	}
 
 	// SVG default: fill is black if not specified, NOT transparent
@@ -387,19 +454,25 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 	if fill == "" {
 		// Default fill is black per SVG spec
 		fill = "black"
-		fmt.Fprintf(b, "0.00 0.00 0.00 rg\n") // Black fill
+		b.WriteString("0.00 0.00 0.00 rg\n") // Black fill
 	} else if fill == "none" || fill == "transparent" {
 		// Explicit no fill - keep as "none" for drawOp logic
 		fill = "none"
 	} else if r, g, blue, ok := parseColor(fill); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f rg\n", r, g, blue)
+		b.WriteString(fmtNum(r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(g))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(blue))
+		b.WriteString(" rg\n")
 	} else {
 		// Unknown fill value - default to black
 		fill = "black"
-		fmt.Fprintf(b, "0.00 0.00 0.00 rg\n")
+		b.WriteString("0.00 0.00 0.00 rg\n")
 	}
 
-	fmt.Fprintf(b, "%.2f w\n", sw)
+	b.WriteString(fmtNum(sw))
+	b.WriteString(" w\n")
 
 	switch name {
 	case "rect":
@@ -407,7 +480,14 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y := parseDimension(attrs["y"])
 		w := parseDimension(attrs["width"])
 		h := parseDimension(attrs["height"])
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f re\n", x, y, w, h)
+		b.WriteString(fmtNum(x))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(y))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(w))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(h))
+		b.WriteString(" re\n")
 		drawOp(b, fill, stroke)
 
 	case "line":
@@ -415,7 +495,14 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y1 := parseDimension(attrs["y1"])
 		x2 := parseDimension(attrs["x2"])
 		y2 := parseDimension(attrs["y2"])
-		fmt.Fprintf(b, "%.2f %.2f m %.2f %.2f l\n", x1, y1, x2, y2)
+		b.WriteString(fmtNum(x1))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(y1))
+		b.WriteString(" m ")
+		b.WriteString(fmtNum(x2))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(y2))
+		b.WriteString(" l\n")
 		b.WriteString("S\n")
 
 	case "circle":
@@ -424,16 +511,63 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		r := parseDimension(attrs["r"])
 		magic := 0.551784
 		d := r * magic
-		fmt.Fprintf(b, "%.2f %.2f m\n", cx, cy-r)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx+d, cy-r, cx+r, cy-d, cx+r, cy)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx+r, cy+d, cx+d, cy+r, cx, cy+r)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx-d, cy+r, cx-r, cy+d, cx-r, cy)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx-r, cy-d, cx-d, cy-r, cx, cy-r)
+		b.WriteString(fmtNum(cx))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - r))
+		b.WriteString(" m\n")
+		b.WriteString(fmtNum(cx + d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy))
+		b.WriteString(" c\n")
+		b.WriteString(fmtNum(cx + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx + d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + r))
+		b.WriteString(" c\n")
+		b.WriteString(fmtNum(cx - d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy + d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy))
+		b.WriteString(" c\n")
+		b.WriteString(fmtNum(cx - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx - d))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - r))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cx))
+		b.WriteString(" ")
+		b.WriteString(fmtNum(cy - r))
+		b.WriteString(" c\n")
 		drawOp(b, fill, stroke)
 
 	case "path":
 		d := attrs["d"]
-		parsePathData(b, d)
+		parseSVGPath(b, d)
 		drawOp(b, fill, stroke)
 	}
 
@@ -451,13 +585,14 @@ func drawOp(b *bytes.Buffer, fill, stroke string) {
 	}
 }
 
-func parsePathData(b *bytes.Buffer, d string) {
+func parseSVGPath(b *bytes.Buffer, d string) {
 	// Normalize
 	d = strings.ReplaceAll(d, ",", " ")
-	// Add spaces around commands
-	for _, cmd := range []string{"M", "L", "C", "Z", "Q", "H", "V", "m", "l", "c", "z", "q", "h", "v"} {
-		d = strings.ReplaceAll(d, cmd, " "+cmd+" ")
-	}
+	replacer := strings.NewReplacer(
+		"M", " M ", "L", " L ", "C", " C ", "Z", " Z ", "Q", " Q ", "H", " H ", "V", " V ",
+		"m", " m ", "l", " l ", "c", " c ", "z", " z ", "q", " q ", "h", " h ", "v", " v ",
+	)
+	d = replacer.Replace(d)
 
 	tokens := strings.Fields(d)
 	i := 0
@@ -474,7 +609,10 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f m ", x, y)
+			b.WriteString(fmtNum(x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y))
+			b.WriteString(" m ")
 			cx, cy = x, y
 		case "m":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
@@ -483,14 +621,20 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			cx += dx
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f m ", cx, cy)
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" m ")
 
 		case "L":
 			x, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f l ", x, y)
+			b.WriteString(fmtNum(x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y))
+			b.WriteString(" l ")
 			cx, cy = x, y
 		case "l":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
@@ -499,29 +643,44 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			cx += dx
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ")
 
 		case "H":
 			x, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cx = x
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ")
 		case "h":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cx += dx
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy) // Treat z inside h case? No, separate case.
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ") // Treat z inside h case? No, separate case.
 
 		case "V":
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cy = y
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ")
 		case "v":
 			dy, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			b.WriteString(fmtNum(cx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy))
+			b.WriteString(" l ")
 
 		case "C":
 			x1, _ := strconv.ParseFloat(tokens[i], 64)
@@ -536,7 +695,18 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", x1, y1, x2, y2, x, y)
+			b.WriteString(fmtNum(x1))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y1))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(x2))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y2))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y))
+			b.WriteString(" c ")
 			cx, cy = x, y
 
 		case "c":
@@ -552,7 +722,18 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			dy, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cx+dx1, cy+dy1, cx+dx2, cy+dy2, cx+dx, cy+dy)
+			b.WriteString(fmtNum(cx + dx1))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy + dy1))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cx + dx2))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy + dy2))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cx + dx))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cy + dy))
+			b.WriteString(" c ")
 			cx += dx
 			cy += dy
 
@@ -576,7 +757,18 @@ func parsePathData(b *bytes.Buffer, d string) {
 			cp2x := x + k*(x1-x)
 			cp2y := y + k*(y1-y)
 
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cp1x, cp1y, cp2x, cp2y, x, y)
+			b.WriteString(fmtNum(cp1x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp1y))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp2x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp2y))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(y))
+			b.WriteString(" c ")
 			cx, cy = x, y
 
 		case "q":
@@ -601,7 +793,18 @@ func parsePathData(b *bytes.Buffer, d string) {
 			cp2x := absX + k*(absX1-absX)
 			cp2y := absY + k*(absY1-absY)
 
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cp1x, cp1y, cp2x, cp2y, absX, absY)
+			b.WriteString(fmtNum(cp1x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp1y))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp2x))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(cp2y))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(absX))
+			b.WriteString(" ")
+			b.WriteString(fmtNum(absY))
+			b.WriteString(" c ")
 			cx, cy = absX, absY
 
 		case "Z", "z":

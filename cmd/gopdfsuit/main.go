@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"sync"
 	"syscall"
 	"time"
 
@@ -18,12 +19,19 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+func run() int {
+	var wg sync.WaitGroup
+
 	// Profiling is opt-in to avoid heap instrumentation overhead in production/benchmarks
 	if os.Getenv("ENABLE_PROFILING") == "1" {
-		f, err := os.Create("/tmp/mem.prof")
+		f, err := os.CreateTemp("", "gopdfsuit-mem-*.prof")
 		if err != nil {
 			log.Printf("could not create memory profile: %v", err)
 		} else {
+			log.Printf("Memory profile will be written to: %s", f.Name())
 			defer func() {
 				if err := f.Close(); err != nil {
 					log.Printf("could not close memory profile: %v", err)
@@ -40,7 +48,11 @@ func main() {
 	}
 
 	// Ensure math fonts are available (downloads missing ones in background)
-	go fontutils.EnsureMathFonts()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fontutils.EnsureMathFonts()
+	}()
 
 	// Use release mode to disable debug overhead
 	gin.SetMode(gin.ReleaseMode)
@@ -89,15 +101,31 @@ func main() {
 		WriteTimeout: 60 * time.Second,
 	}
 
+	serverErrors := make(chan error, 1)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			serverErrors <- err
 		}
 	}()
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
+
+	var exitCode int
+	select {
+	case err := <-serverErrors:
+		log.Printf("Server error: %v", err)
+		exitCode = 1
+	case <-quit:
+		log.Println("Shutting down server...")
+	}
+
+	// Wait for background tasks to finish
+	wg.Wait()
+
+	if exitCode != 0 {
+		return exitCode
+	}
+	return 0
 }

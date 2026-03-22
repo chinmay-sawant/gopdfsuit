@@ -9,9 +9,9 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
-func TestFinancialReportTextRedaction(t *testing.T) {
+func TestRedactFin(t *testing.T) {
 	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
-	pdfBytes, err := os.ReadFile(pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath) //nolint:gosec // test data
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
 	}
@@ -24,9 +24,9 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 		},
 	}
 
-	out, report, err := gopdflib.ApplyRedactionsAdvancedWithReport(pdfBytes, opts)
+	out, report, err := gopdflib.ApplyRedactionsReport(pdfBytes, opts)
 	if err != nil {
-		t.Fatalf("ApplyRedactionsAdvancedWithReport failed: %v", err)
+		t.Fatalf("ApplyRedactionsReport failed: %v", err)
 	}
 	t.Logf("redaction report: generated=%d matchedText=%d applied=%d warnings=%v capabilities=%v", report.GeneratedRects, report.MatchedTextCount, report.AppliedRectangles, report.Warnings, report.Capabilities)
 	if len(out) == 0 {
@@ -49,9 +49,9 @@ func TestFinancialReportTextRedaction(t *testing.T) {
 	}
 }
 
-func TestFinancialReportPage2TextRedaction(t *testing.T) {
+func TestRedactFinP2(t *testing.T) {
 	pdfPath := filepath.Join("..", "..", "sampledata", "financialreport", "financial_report.pdf")
-	pdfBytes, err := os.ReadFile(pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath) //nolint:gosec // test data
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
 	}

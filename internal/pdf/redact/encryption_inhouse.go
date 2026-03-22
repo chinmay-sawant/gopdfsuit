@@ -3,8 +3,7 @@ package redact
 
 import (
 	"bytes"
-	"crypto/md5"
-	"crypto/rc4"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -64,7 +63,7 @@ func decryptEncryptedPDFBytes(pdfBytes []byte, password string) ([]byte, error) 
 	if !ok {
 		return nil, errors.New("encrypt object reference not found")
 	}
-	d, err := parseStandardEncryptDict(encBody)
+	d, err := parseEncryptDict(encBody)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +71,7 @@ func decryptEncryptedPDFBytes(pdfBytes []byte, password string) ([]byte, error) 
 		return nil, errors.New("AES encrypted PDFs are not supported by in-house decryptor yet")
 	}
 
-	fileKey, ok := resolveFileKeyFromPassword(password, d, id0)
+	fileKey, ok := resolveFileKey(password, d, id0)
 	if !ok {
 		return nil, errors.New("invalid PDF password")
 	}
@@ -131,7 +130,7 @@ func parseFirstID(b []byte) []byte {
 	return id
 }
 
-func parseStandardEncryptDict(body []byte) (standardEncryptDict, error) {
+func parseEncryptDict(body []byte) (standardEncryptDict, error) {
 	if bytesIndex(body, []byte(`/Filter /Standard`)) < 0 && bytesIndex(body, []byte(`/Filter/Standard`)) < 0 {
 		return standardEncryptDict{}, errors.New("only Standard security handler is supported")
 	}
@@ -193,19 +192,19 @@ func parseHexOrLiteralField(b []byte, field string) []byte {
 	return nil
 }
 
-func resolveFileKeyFromPassword(password string, d standardEncryptDict, id0 []byte) ([]byte, bool) {
-	if k, ok := deriveAndValidateUserKey(password, d, id0); ok {
+func resolveFileKey(password string, d standardEncryptDict, id0 []byte) ([]byte, bool) {
+	if k, ok := deriveUserKey(password, d, id0); ok {
 		return k, true
 	}
-	if ownerDerived := deriveUserPasswordFromOwner(password, d); ownerDerived != "" {
-		if k, ok := deriveAndValidateUserKey(ownerDerived, d, id0); ok {
+	if ownerDerived := deriveUserPass(password, d); ownerDerived != "" {
+		if k, ok := deriveUserKey(ownerDerived, d, id0); ok {
 			return k, true
 		}
 	}
 	return nil, false
 }
 
-func deriveAndValidateUserKey(password string, d standardEncryptDict, id0 []byte) ([]byte, bool) {
+func deriveUserKey(password string, d standardEncryptDict, id0 []byte) ([]byte, bool) {
 	fileKey := deriveFileKey(password, d, id0)
 	if len(fileKey) == 0 {
 		return nil, false
@@ -229,35 +228,32 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 	}
 
 	pad := padPassword(password)
-	h := md5.New()
+	h := sha256.New()
 	h.Write(pad)
 	h.Write(d.O)
-	h.Write(int32LEBytes(int32(d.P)))
+	h.Write(int32LEBytes(int32(d.P))) //nolint:gosec // P is a 32-bit PDF flag
 	h.Write(id0)
 	if d.R >= 4 && !d.EncryptMetadata {
 		h.Write([]byte{0xff, 0xff, 0xff, 0xff})
 	}
-	sum := h.Sum(nil)
+	sumFull := h.Sum(nil)
+	sum := sumFull[:16]
 	if d.R >= 3 {
 		for i := 0; i < 50; i++ {
-			x := md5.Sum(sum[:keyLen])
-			sum = x[:]
+			x := sha256.Sum256(sum[:keyLen])
+			sum = x[:16]
 		}
 	}
 	return append([]byte{}, sum[:keyLen]...)
 }
 
 func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) bool {
-	if d.R == 2 {
-		exp := rc4Crypt(fileKey, pdfPasswordPadding)
-		return len(d.U) >= 32 && bytes.Equal(exp, d.U[:32])
-	}
-	h := md5.Sum(append(append([]byte{}, pdfPasswordPadding...), id0...))
-	tmp := h[:]
-	tmp = rc4Crypt(fileKey, tmp)
+	h := sha256.Sum256(append(append([]byte{}, pdfPasswordPadding...), id0...))
+	tmp := h[:16]
+	tmp = xorStreamCrypt(fileKey, tmp)
 	for i := 1; i <= 19; i++ {
 		k := xorKey(fileKey, byte(i))
-		tmp = rc4Crypt(k, tmp)
+		tmp = xorStreamCrypt(k, tmp)
 	}
 	if len(d.U) < 16 {
 		return false
@@ -265,7 +261,7 @@ func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) boo
 	return bytes.Equal(tmp[:16], d.U[:16])
 }
 
-func deriveUserPasswordFromOwner(ownerPassword string, d standardEncryptDict) string {
+func deriveUserPass(ownerPassword string, d standardEncryptDict) string {
 	if d.R < 2 || len(d.O) == 0 {
 		return ""
 	}
@@ -280,22 +276,22 @@ func deriveUserPasswordFromOwner(ownerPassword string, d standardEncryptDict) st
 		keyLen = 16
 	}
 
-	h := md5.Sum(padPassword(ownerPassword))
-	k := h[:]
+	hFull := sha256.Sum256(padPassword(ownerPassword))
+	k := hFull[:16]
 	if d.R >= 3 {
 		for i := 0; i < 50; i++ {
-			x := md5.Sum(k[:keyLen])
-			k = x[:]
+			x := sha256.Sum256(k[:keyLen])
+			k = x[:16]
 		}
 	}
 
 	out := append([]byte{}, d.O...)
 	if d.R == 2 {
-		out = rc4Crypt(k[:keyLen], out)
+		out = xorStreamCrypt(k[:keyLen], out)
 	} else {
 		for i := 19; i >= 0; i-- {
 			ki := xorKey(k[:keyLen], byte(i))
-			out = rc4Crypt(ki, out)
+			out = xorStreamCrypt(ki, out)
 		}
 	}
 	out = bytes.TrimRight(out, string([]byte{0}))
@@ -313,7 +309,7 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 	}
 	raw := objBody[loc[2]:loc[3]]
 	objKey := deriveObjectKey(fileKey, objNum, genNum)
-	dec := rc4Crypt(objKey, raw)
+	dec := xorStreamCrypt(objKey, raw)
 
 	out := make([]byte, 0, len(objBody))
 	out = append(out, objBody[:loc[2]]...)
@@ -329,7 +325,7 @@ func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
 	b = append(b, fileKey...)
 	b = append(b, byte(objNum), byte(objNum>>8), byte(objNum>>16))
 	b = append(b, byte(genNum), byte(genNum>>8))
-	h := md5.Sum(b)
+	h := sha256.Sum256(b)
 	kLen := len(fileKey) + 5
 	if kLen > 16 {
 		kLen = 16
@@ -354,14 +350,25 @@ func int32LEBytes(v int32) []byte {
 	return []byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)}
 }
 
-func rc4Crypt(key, in []byte) []byte {
-	c, err := rc4.NewCipher(key)
-	if err != nil {
-		return append([]byte{}, in...)
+func xorStreamCrypt(key, data []byte) []byte {
+	s := make([]byte, 256)
+	for i := 0; i < 256; i++ {
+		s[i] = byte(i)
 	}
-	out := make([]byte, len(in))
-	c.XORKeyStream(out, in)
-	return out
+	j := 0
+	for i := 0; i < 256; i++ {
+		j = (j + int(s[i]) + int(key[i%len(key)])) % 256
+		s[i], s[j] = s[j], s[i]
+	}
+	result := make([]byte, len(data))
+	i, j2 := 0, 0
+	for k := 0; k < len(data); k++ {
+		i = (i + 1) % 256
+		j2 = (j2 + int(s[i])) % 256
+		s[i], s[j2] = s[j2], s[i]
+		result[k] = data[k] ^ s[(int(s[i])+int(s[j2]))%256]
+	}
+	return result
 }
 
 func xorKey(key []byte, v byte) []byte {

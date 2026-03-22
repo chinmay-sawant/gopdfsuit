@@ -7,18 +7,18 @@ import (
 	"testing"
 )
 
-func TestFillPDFWithXFDFCompressedSample(t *testing.T) {
+func TestFillXFDFComp(t *testing.T) {
 	baseDir := filepath.Join("..", "..", "..", "sampledata", "filler", "compressed")
 	pdfPath := filepath.Join(baseDir, "medical_form.pdf")
 	xfdfPath := filepath.Join(baseDir, "medical_data.xfdf")
 	outPath := filepath.Join(baseDir, "generated.pdf")
 
-	pdfBytes, err := os.ReadFile(pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath) //nolint:gosec // test data
 	if err != nil {
 		t.Fatalf("read pdf: %v", err)
 	}
 
-	xfdfBytes, err := os.ReadFile(xfdfPath)
+	xfdfBytes, err := os.ReadFile(xfdfPath) //nolint:gosec // test data
 	if err != nil {
 		t.Fatalf("read xfdf: %v", err)
 	}
@@ -31,11 +31,11 @@ func TestFillPDFWithXFDFCompressedSample(t *testing.T) {
 		t.Fatalf("filled output is empty")
 	}
 
-	if err := os.WriteFile(outPath, out, 0644); err != nil {
-		t.Fatalf("write generated.pdf: %v", err)
+	if err := os.WriteFile(outPath, out, 0o600); err != nil {
+		t.Fatalf("write result: %v", err)
 	}
 
-	fields, err := DetectFormFieldsAdvanced(out)
+	fields, err := DetectFieldsAdv(out)
 	if err != nil {
 		t.Fatalf("detect fields from output: %v", err)
 	}

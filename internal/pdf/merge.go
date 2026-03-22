@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // MergePDFs merges multiple PDF byte slices into a single PDF by parsing objects,
 // remapping object numbers and building a new /Pages tree that references all
 // page objects from the inputs. This avoids an external dependency.
+//
 //nolint:gocyclo
 func MergePDFs(files [][]byte) ([]byte, error) {
 	header := []byte("%PDF-1.7\n%âãÏÓ\n")
@@ -39,8 +41,19 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		body []byte
 	}
 
+	objMap := make(map[int][]byte)
+	tempObjMap := make(map[string][]byte)
+
 	// Process files in the exact order they arrive
 	for _, f := range files {
+		// clear maps
+		for k := range objMap {
+			delete(objMap, k)
+		}
+		for k := range tempObjMap {
+			delete(tempObjMap, k)
+		}
+
 		// Reject encrypted PDFs for now
 		if trailerHasEncrypt(f) {
 			return nil, fmt.Errorf("cannot merge encrypted PDF")
@@ -52,7 +65,6 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 			continue
 		}
 
-		objMap := make(map[int][]byte)
 		maxObj := 0
 		for _, m := range objMatches {
 			if n, err := strconv.Atoi(string(m[1])); err == nil {
@@ -66,7 +78,6 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		}
 
 		// Allow parseXRefStreams to augment object map (it operates on raw bytes in this package)
-		tempObjMap := make(map[string][]byte)
 		parseXRefStreams(f, tempObjMap)
 		// merge tempObjMap into objMap (keys are like "<num> <gen>")
 		for k, v := range tempObjMap {
@@ -109,7 +120,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		}
 
 		// Extract form fields from this PDF ONLY
-		formFields := extractFormFieldsFromFile(f, objMap)
+		formFields := extractFields(f, objMap)
 
 		// Process objects in numeric order to maintain consistency
 		var fileObjects []int
@@ -124,7 +135,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 			body := objMap[origNum]
 
 			// replace indirect references only outside stream blocks to avoid corrupting streams
-			newBody := replaceRefsOutsideStreams(body, refRe, offset)
+			newBody := replaceRefs(body, refRe, offset)
 
 			newNum := offset + origNum
 			appended = append(appended, struct {
@@ -159,34 +170,34 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 	// Write Catalog object (1) - now includes AcroForm if we have form fields
 	offsets[1] = out.Len()
-	catalogDict := "<< /Type /Catalog /Pages 2 0 R"
+	var catalogDict strings.Builder
+	catalogDict.WriteString("<< /Type /Catalog /Pages 2 0 R")
 	if len(mergedFormFields) > 0 {
-		catalogDict += " /AcroForm << /Fields ["
+		catalogDict.WriteString(" /AcroForm << /Fields [")
 		for i, fieldNum := range mergedFormFields {
 			if i > 0 {
-				catalogDict += " "
+				catalogDict.WriteByte(' ')
 			}
-			catalogDict += fmt.Sprintf("%d 0 R", fieldNum)
+			catalogDict.WriteString(strconv.Itoa(fieldNum))
+			catalogDict.WriteString(" 0 R")
 		}
-		catalogDict += "] >>"
+		catalogDict.WriteString("] >>")
 	}
-	catalogDict += " >>"
-	out.WriteString(fmt.Sprintf("1 0 obj\n%s\nendobj\n", catalogDict))
+	catalogDict.WriteString(" >>")
+	out.WriteString(fmt.Sprintf("1 0 obj\n%s\nendobj\n", catalogDict.String()))
 
 	// Write Pages object (2) with all kids
 	offsets[2] = out.Len()
-	var kids []string
-	for _, p := range mergedPages {
-		kids = append(kids, fmt.Sprintf("%d 0 R", p))
+	// build kids string with strings.Builder
+	var kidsBuilder strings.Builder
+	for i, p := range mergedPages {
+		if i > 0 {
+			kidsBuilder.WriteByte(' ')
+		}
+		kidsBuilder.WriteString(strconv.Itoa(p))
+		kidsBuilder.WriteString(" 0 R")
 	}
-	// join kids into a single string
-	var kidsStr string
-	if len(kids) > 0 {
-		kidsJoined := bytes.Join(byteSlice(kids), []byte(" "))
-		kidsStr = string(kidsJoined)
-	} else {
-		kidsStr = ""
-	}
+	kidsStr := kidsBuilder.String()
 	out.WriteString(fmt.Sprintf("2 0 obj\n<< /Type /Pages /Kids [%s] /Count %d >>\nendobj\n", kidsStr, len(mergedPages)))
 
 	// Append all remapped objects in the order they were processed
@@ -226,7 +237,12 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	out.WriteString(fmt.Sprintf("xref\n0 %d\n0000000000 65535 f \n", maxObj+1))
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			out.WriteString(fmt.Sprintf("%010d 00000 n \n", off))
+			s := strconv.Itoa(off)
+			padding := 10 - len(s)
+			if padding > 0 {
+				s = strings.Repeat("0", padding) + s
+			}
+			out.WriteString(s + " 00000 n \n")
 		} else {
 			out.WriteString("0000000000 65535 f \n")
 		}
@@ -238,18 +254,9 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// helper to convert []string to [][]byte for bytes.Join
-func byteSlice(in []string) [][]byte {
-	out := make([][]byte, len(in))
-	for i, s := range in {
-		out[i] = []byte(s)
-	}
-	return out
-}
-
-// replaceRefsOutsideStreams rewrites indirect references (n m R) in data only in regions
+// replaceRefs rewrites indirect references (n m R) in data only in regions
 // that are not within stream...endstream blocks, to avoid mangling compressed stream contents.
-func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []byte {
+func replaceRefs(data []byte, refRe *regexp.Regexp, offset int) []byte {
 	var out bytes.Buffer
 	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
 	last := 0
@@ -263,7 +270,7 @@ func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []
 			}
 			on, _ := strconv.Atoi(string(sm2[1]))
 			gen := string(sm2[2])
-			return []byte(fmt.Sprintf("%d %s R", offset+on, gen))
+			return []byte(strconv.Itoa(offset+on) + " " + gen + " " + "R")
 		})
 		out.Write(replaced)
 		// write stream block unchanged
@@ -304,8 +311,8 @@ func addParentRef(pageBody []byte, parentObjNum int) []byte {
 	return result.Bytes()
 }
 
-// extractFormFieldsFromFile finds form field objects in a specific PDF file
-func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
+// extractFields finds form field objects in a specific PDF file
+func extractFields(pdfData []byte, objMap map[int][]byte) []int {
 	var fields []int
 	fieldSet := make(map[int]bool) // Avoid duplicates within this file
 
@@ -363,8 +370,9 @@ func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
 	return fields
 }
 
-//nolint:revive // exported
 // isFormFieldObject checks if an object body represents a form field
+//
+//nolint:revive // exported
 func IsFormFieldObject(body []byte) bool {
 	// Check for common form field indicators
 	formFieldTypes := [][]byte{

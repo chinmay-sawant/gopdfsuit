@@ -14,6 +14,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -61,7 +62,7 @@ func (s *IntegrationSuite) compareFileSizes(generatedPath, expectedPath string) 
 }
 
 // Helper to compare file sizes with a tolerance (for PDFs with timestamps/signatures)
-func (s *IntegrationSuite) compareFileSizesWithTolerance(generatedPath, expectedPath string, toleranceBytes int64) {
+func (s *IntegrationSuite) compareSizes(generatedPath, expectedPath string, toleranceBytes int64) {
 	genInfo, err := os.Stat(generatedPath)
 	s.NoError(err, "Failed to stat generated file: "+generatedPath)
 
@@ -77,9 +78,18 @@ func (s *IntegrationSuite) compareFileSizesWithTolerance(generatedPath, expected
 
 // TestGenerateTemplatePDF tests /api/v1/generate/template-pdf
 func (s *IntegrationSuite) TestGenerateTemplatePDF() {
+	t := s.T()
+	// Error case: malformed JSON body should be rejected
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBufferString("{invalid json}"))
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("malformed JSON should not return 200, got %d", errResp.StatusCode)
+	}
+
 	// 1. Input JSON from sampledata/editor/financial_report.json
 	jsonPath := filepath.Join("..", "sampledata", "editor", "financial_digitalsignature.json")
-	jsonData, err := os.ReadFile(jsonPath)
+	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
 	s.NoError(err, "Failed to read sample JSON file")
 
 	// 2. Send to endpoint
@@ -97,16 +107,63 @@ func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 	s.NoError(err)
 
 	tempPath := filepath.Join("..", "sampledata", "editor", "temp_editor.pdf")
-	err = os.WriteFile(tempPath, body, 0644)
+	err = os.WriteFile(tempPath, body, 0o600)
 	s.NoError(err, "Failed to write temp_editor.pdf")
 
 	// 4. Check size against generated.pdf (use tolerance due to digital signature timestamps)
 	expectedPath := filepath.Join("..", "sampledata", "editor", "generated.pdf")
-	s.compareFileSizesWithTolerance(tempPath, expectedPath, 1024)
+	s.compareSizes(tempPath, expectedPath, 1024)
+}
+
+// TestEncryptedPDF tests encrypted template generation using the
+// sample payload that enables password protection.
+func (s *IntegrationSuite) TestEncryptedPDF() {
+	t := s.T()
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBufferString("{invalid json}"))
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("malformed JSON should not return 200, got %d", errResp.StatusCode)
+	}
+
+	jsonPath := filepath.Join("..", "sampledata", "editor", "financial_encrypted.json")
+	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
+	require.NoError(t, err, "Failed to read encrypted sample JSON file")
+
+	resp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBuffer(jsonData))
+	require.NoError(t, err)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "application/pdf", resp.Header.Get("Content-Type"))
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.True(t, bytes.HasPrefix(body, []byte("%PDF-")), "generated output should be a PDF")
+	require.True(t, bytes.Contains(body, []byte("/Encrypt")), "generated PDF should contain an encryption dictionary")
+	require.True(t, bytes.Contains(body, []byte("/V 5")), "generated PDF should use revision 5 encryption")
+	require.True(t, bytes.Contains(body, []byte("/R 5")), "generated PDF should use revision 5 standard security")
+	require.True(t, bytes.Contains(body, []byte("/Length 256")), "generated PDF should advertise a 256-bit encryption key")
+	require.True(t, bytes.Contains(body, []byte("/CFM /AESV3")), "generated PDF should use AESV3 crypt filter")
+	require.False(t, bytes.Contains(body, []byte("/OutputIntents [")), "encrypted PDF generation should disable PDF/A output intents")
 }
 
 // TestMergePDFs tests /api/v1/merge
 func (s *IntegrationSuite) TestMergePDFs() {
+	t := s.T()
+	// Error case: merging with no files should be rejected
+	emptyBody := &bytes.Buffer{}
+	emptyWriter := multipart.NewWriter(emptyBody)
+	require.NoError(t, emptyWriter.Close())
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/merge", emptyWriter.FormDataContentType(), emptyBody)
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("merge with no files should not return 200, got %d", errResp.StatusCode)
+	}
+
 	// 1. Inputs: em-16.pdf, em-19.pdf, em-51.pdf
 	files := []string{"em-16.pdf", "em-19.pdf", "em-51.pdf"}
 	baseDir := filepath.Join("..", "sampledata", "merge")
@@ -116,7 +173,7 @@ func (s *IntegrationSuite) TestMergePDFs() {
 
 	for _, fname := range files {
 		fpath := filepath.Join(baseDir, fname)
-		data, err := os.ReadFile(fpath)
+		data, err := os.ReadFile(fpath) //nolint:gosec
 		if err != nil {
 			s.T().Skipf("Skipping TestMergePDFs: file %s not found", fname)
 			return
@@ -143,7 +200,7 @@ func (s *IntegrationSuite) TestMergePDFs() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_merge.pdf")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_merge.pdf")
 
 	// 4. Check size against generated.pdf
@@ -153,6 +210,22 @@ func (s *IntegrationSuite) TestMergePDFs() {
 
 // TestFillPDF tests /api/v1/fill
 func (s *IntegrationSuite) TestFillPDF() {
+	t := s.T()
+	// Error case: fill with xfdf but no pdf field should be rejected
+	errBody := &bytes.Buffer{}
+	errWriter := multipart.NewWriter(errBody)
+	xfdfErrPart, err := errWriter.CreateFormFile("xfdf", "data.xfdf")
+	require.NoError(t, err)
+	_, err = xfdfErrPart.Write([]byte(`<?xml version="1.0"?><xfdf/>`))
+	require.NoError(t, err)
+	require.NoError(t, errWriter.Close())
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/fill", errWriter.FormDataContentType(), errBody)
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("fill without pdf should not return 200, got %d", errResp.StatusCode)
+	}
+
 	baseDir := filepath.Join("..", "sampledata", "filler")
 
 	// 1. Inputs
@@ -163,7 +236,7 @@ func (s *IntegrationSuite) TestFillPDF() {
 	writer := multipart.NewWriter(body)
 
 	// Add PDF
-	pdfData, err := os.ReadFile(pdfPath)
+	pdfData, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestFillPDF: sample PDF not found")
 		return
@@ -174,7 +247,7 @@ func (s *IntegrationSuite) TestFillPDF() {
 	s.NoError(err)
 
 	// Add XFDF
-	xfdfData, err := os.ReadFile(xfdfPath)
+	xfdfData, err := os.ReadFile(xfdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestFillPDF: sample XFDF not found")
 		return
@@ -201,7 +274,7 @@ func (s *IntegrationSuite) TestFillPDF() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_filler.pdf")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_filler.pdf")
 
 	// 4. Check size against generated.pdf
@@ -211,6 +284,15 @@ func (s *IntegrationSuite) TestFillPDF() {
 
 // TestHtmlToPDF tests /api/v1/htmltopdf
 func (s *IntegrationSuite) TestHtmlToPDF() {
+	t := s.T()
+	// Error case: empty URL body should be rejected
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/htmltopdf", "application/json", bytes.NewBufferString("{}"))
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("htmltopdf with empty URL should not return 200, got %d", errResp.StatusCode)
+	}
+
 	// 1. Input URL
 	req := models.HTMLToPDFRequest{
 		URL: "https://en.wikipedia.org/wiki/Ana_de_Armas",
@@ -237,10 +319,10 @@ func (s *IntegrationSuite) TestHtmlToPDF() {
 
 	baseDir := filepath.Join("..", "sampledata", "htmltopdf")
 	// Ensure directory exists
-	s.NoError(os.MkdirAll(baseDir, 0755))
+	s.NoError(os.MkdirAll(baseDir, 0o750))
 
 	tempPath := filepath.Join(baseDir, "temp_htmltopdf.pdf")
-	err = os.WriteFile(tempPath, body, 0644)
+	err = os.WriteFile(tempPath, body, 0o600)
 	s.NoError(err, "Failed to write temp_htmltopdf.pdf")
 
 	// 4. Check that the file is non-zero size
@@ -251,6 +333,15 @@ func (s *IntegrationSuite) TestHtmlToPDF() {
 
 // TestHtmlToImage tests /api/v1/htmltoimage
 func (s *IntegrationSuite) TestHtmlToImage() {
+	t := s.T()
+	// Error case: empty URL body should be rejected
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/htmltoimage", "application/json", bytes.NewBufferString("{}"))
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("htmltoimage with empty URL should not return 200, got %d", errResp.StatusCode)
+	}
+
 	// 1. Input URL
 	req := models.HTMLToImageRequest{
 		URL:    "https://en.wikipedia.org/wiki/Ana_de_Armas",
@@ -278,10 +369,10 @@ func (s *IntegrationSuite) TestHtmlToImage() {
 
 	baseDir := filepath.Join("..", "sampledata", "htmltoimg")
 	// Ensure directory exists
-	s.NoError(os.MkdirAll(baseDir, 0755))
+	s.NoError(os.MkdirAll(baseDir, 0o750))
 
 	tempPath := filepath.Join(baseDir, "temp_htmltoimage.png")
-	err = os.WriteFile(tempPath, body, 0644)
+	err = os.WriteFile(tempPath, body, 0o600)
 	s.NoError(err, "Failed to write temp_htmltoimage.png")
 
 	// 4. Check that the file is non-zero size
@@ -292,11 +383,24 @@ func (s *IntegrationSuite) TestHtmlToImage() {
 
 // TestSplitPDF tests /api/v1/split with single page
 func (s *IntegrationSuite) TestSplitPDF() {
+	t := s.T()
+	// Error case: split with no pdf file should be rejected
+	errBody := &bytes.Buffer{}
+	errWriter := multipart.NewWriter(errBody)
+	require.NoError(t, errWriter.WriteField("pages", "1"))
+	require.NoError(t, errWriter.Close())
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/split", errWriter.FormDataContentType(), errBody)
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("split without pdf should not return 200, got %d", errResp.StatusCode)
+	}
+
 	baseDir := filepath.Join("..", "sampledata", "split")
 
 	// 1. Input PDF
 	pdfPath := filepath.Join(baseDir, "em.pdf")
-	pdfData, err := os.ReadFile(pdfPath)
+	pdfData, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestSplitPDF: sample PDF not found")
 		return
@@ -334,7 +438,7 @@ func (s *IntegrationSuite) TestSplitPDF() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_split.pdf")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_split.pdf")
 
 	// 4. Check size against split.pdf
@@ -344,11 +448,28 @@ func (s *IntegrationSuite) TestSplitPDF() {
 
 // TestSplitPDFRange tests /api/v1/split with page range
 func (s *IntegrationSuite) TestSplitPDFRange() {
+	t := s.T()
+	// Error case: split with invalid page range should be rejected
+	errBody := &bytes.Buffer{}
+	errWriter := multipart.NewWriter(errBody)
+	errPart, err := errWriter.CreateFormFile("pdf", "fake.pdf")
+	require.NoError(t, err)
+	_, err = errPart.Write([]byte("not a pdf"))
+	require.NoError(t, err)
+	require.NoError(t, errWriter.WriteField("pages", "abc-xyz"))
+	require.NoError(t, errWriter.Close())
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/split", errWriter.FormDataContentType(), errBody)
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("split with invalid page range should not return 200, got %d", errResp.StatusCode)
+	}
+
 	baseDir := filepath.Join("..", "sampledata", "split")
 
 	// 1. Input PDF
 	pdfPath := filepath.Join(baseDir, "em.pdf")
-	pdfData, err := os.ReadFile(pdfPath)
+	pdfData, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestSplitPDFRange: sample PDF not found")
 		return
@@ -386,7 +507,7 @@ func (s *IntegrationSuite) TestSplitPDFRange() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_split_range.pdf")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_split_range.pdf")
 
 	// 4. Check size against split_range.pdf
@@ -396,11 +517,29 @@ func (s *IntegrationSuite) TestSplitPDFRange() {
 
 // TestSplitPDFMaxPerFile tests /api/v1/split with max per file
 func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
+	t := s.T()
+	// Error case: non-numeric max_per_file should be rejected
+	errBody := &bytes.Buffer{}
+	errWriter := multipart.NewWriter(errBody)
+	errPart, err := errWriter.CreateFormFile("pdf", "fake.pdf")
+	require.NoError(t, err)
+	_, err = errPart.Write([]byte("not a pdf"))
+	require.NoError(t, err)
+	require.NoError(t, errWriter.WriteField("pages", "1-3"))
+	require.NoError(t, errWriter.WriteField("max_per_file", "abc"))
+	require.NoError(t, errWriter.Close())
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/split", errWriter.FormDataContentType(), errBody)
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("split with non-numeric max_per_file should not return 200, got %d", errResp.StatusCode)
+	}
+
 	baseDir := filepath.Join("..", "sampledata", "split")
 
 	// 1. Input PDF
 	pdfPath := filepath.Join(baseDir, "em.pdf")
-	pdfData, err := os.ReadFile(pdfPath)
+	pdfData, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		s.T().Skip("Skipping TestSplitPDFMaxPerFile: sample PDF not found")
 		return
@@ -438,7 +577,7 @@ func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
 	s.NoError(err)
 
 	tempPath := filepath.Join(baseDir, "temp_maxperfile.zip")
-	err = os.WriteFile(tempPath, respBody, 0644)
+	err = os.WriteFile(tempPath, respBody, 0o600)
 	s.NoError(err, "Failed to write temp_maxperfile.zip")
 
 	// 4. Check size against maxperfile.zip
@@ -446,11 +585,20 @@ func (s *IntegrationSuite) TestSplitPDFMaxPerFile() {
 	s.compareFileSizes(tempPath, expectedPath)
 }
 
-// TestGenerateTypstMathShowcasePDF tests /api/v1/generate/template-pdf with typst_math_showcase.json
-func (s *IntegrationSuite) TestGenerateTypstMathShowcasePDF() {
+// TestTypstMathShow tests /api/v1/generate/template-pdf with typst_math_showcase.json
+func (s *IntegrationSuite) TestTypstMathShow() {
+	t := s.T()
+	// Error case: malformed JSON body should be rejected
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBufferString("{bad}"))
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("malformed JSON for typst should not return 200, got %d", errResp.StatusCode)
+	}
+
 	baseDir := filepath.Join("..", "sampledata", "typstsyntax")
 	jsonPath := filepath.Join(baseDir, "typst_math_showcase.json")
-	jsonData, err := os.ReadFile(jsonPath)
+	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
 	s.NoError(err, "Failed to read typst_math_showcase.json")
 
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBuffer(jsonData))
@@ -467,7 +615,7 @@ func (s *IntegrationSuite) TestGenerateTypstMathShowcasePDF() {
 	s.Greater(len(body), 0, "Generated PDF should not be empty")
 
 	outPath := filepath.Join(baseDir, "typst_math_showcase.pdf")
-	err = os.WriteFile(outPath, body, 0644)
+	err = os.WriteFile(outPath, body, 0o600)
 	s.NoError(err, "Failed to write typst_math_showcase.pdf")
 
 	info, err := os.Stat(outPath)
@@ -475,16 +623,25 @@ func (s *IntegrationSuite) TestGenerateTypstMathShowcasePDF() {
 	s.Greater(info.Size(), int64(0), "typst_math_showcase.pdf should have non-zero size")
 }
 
-// TestGenerateTypstSamplePDF tests /api/v1/generate/template-pdf with typst_sample.json
-func (s *IntegrationSuite) TestGenerateTypstSamplePDF() {
-	mathFontPath, ok := resolveMathFontPathIntegration()
+// TestTypstSample tests /api/v1/generate/template-pdf with typst_sample.json
+func (s *IntegrationSuite) TestTypstSample() {
+	t := s.T()
+	// Error case: empty template body should be rejected
+	errResp, err := s.client.Post(s.ts.URL+"/api/v1/generate/template-pdf", "application/json", bytes.NewBufferString("{}"))
+	require.NoError(t, err)
+	require.NoError(t, errResp.Body.Close())
+	if errResp.StatusCode == http.StatusOK {
+		t.Fatalf("empty template body should not return 200, got %d", errResp.StatusCode)
+	}
+
+	mathFontPath, ok := resolveMathPath()
 	if !ok {
 		s.T().Skip("no unicode math-capable font found (looked for DejaVu/Noto Math). Install fonts-dejavu-core or fonts-noto-math")
 	}
 
 	baseDir := filepath.Join("..", "sampledata", "typstsyntax")
 	jsonPath := filepath.Join(baseDir, "typst_sample.json")
-	jsonData, err := os.ReadFile(jsonPath)
+	jsonData, err := os.ReadFile(jsonPath) //nolint:gosec
 	s.NoError(err, "Failed to read typst_sample.json")
 
 	// Unmarshal, inject customFonts config with resolved font path, then re-marshal
@@ -514,7 +671,7 @@ func (s *IntegrationSuite) TestGenerateTypstSamplePDF() {
 	s.Greater(len(body), 0, "Generated PDF should not be empty")
 
 	outPath := filepath.Join(baseDir, "typst_sample.pdf")
-	err = os.WriteFile(outPath, body, 0644)
+	err = os.WriteFile(outPath, body, 0o600)
 	s.NoError(err, "Failed to write typst_sample.pdf")
 
 	info, err := os.Stat(outPath)
@@ -522,8 +679,8 @@ func (s *IntegrationSuite) TestGenerateTypstSamplePDF() {
 	s.Greater(info.Size(), int64(0), "typst_sample.pdf should have non-zero size")
 }
 
-// resolveMathFontPathIntegration finds a unicode-capable math font on the system
-func resolveMathFontPathIntegration() (string, bool) {
+// resolveMathPath finds a unicode-capable math font on the system
+func resolveMathPath() (string, bool) {
 	candidates := []string{
 		"/usr/share/fonts/truetype/noto/NotoSansMath-Regular.ttf",
 		"/usr/share/fonts/opentype/noto/NotoSansMath-Regular.otf",
@@ -540,5 +697,9 @@ func resolveMathFontPathIntegration() (string, bool) {
 
 // Run the suite
 func TestIntegrationSuite(t *testing.T) {
-	suite.Run(t, new(IntegrationSuite))
+	if testing.Short() {
+		t.Skip("integration tests require a running HTTP server setup")
+	}
+	s := new(IntegrationSuite)
+	suite.Run(t, s)
 }

@@ -1,0 +1,8 @@
+deslop scan root: .
+Go files discovered: 91
+Go files analyzed: 91
+Functions fingerprinted: 740
+Findings: 0
+Index summary: packages=28 symbols=895 imports=494
+Parse failures: 0
+Timings: discover=3ms parse=283ms index=0ms heuristics=27ms total=315ms

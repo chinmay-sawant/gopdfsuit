@@ -23,7 +23,7 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 
 	// Get the StructParent index for this annotation
 	// This links the annotation to the ParentTree for PDF/UA-2
-	structParentIdx := pageManager.GetNextAnnotStructParent()
+	structParentIdx := pageManager.NextAnnotSP()
 
 	annotDict.WriteString("<< /Type /Annot /Subtype /Link")
 	annotDict.WriteString(fmt.Sprintf(" /Rect [%s %s %s %s]",

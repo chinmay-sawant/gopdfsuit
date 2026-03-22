@@ -842,7 +842,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				cellProps := rowCellProps[colIdx] // Use cached props
 				lineSpacing := 1.3                // 130% line height for readability
 				padding := 12.0                   // Top + bottom padding
-				wrappedHeight := CalculateWrappedTextHeight(len(wrappedTextLines[colIdx]), float64(cellProps.FontSize), lineSpacing) + padding
+				wrappedHeight := WrapHeight(len(wrappedTextLines[colIdx]), float64(cellProps.FontSize), lineSpacing) + padding
 				if wrappedHeight > rowHeight {
 					rowHeight = wrappedHeight
 				}
@@ -1079,7 +1079,13 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				}
 				colorStr := "0 0 0"
 				if r, g, b, _, valid := parseHexColor(textColor); valid {
-					colorStr = fmtNum(r) + " " + fmtNum(g) + " " + fmtNum(b)
+					var sb strings.Builder
+					sb.WriteString(fmtNum(r))
+					sb.WriteString(" ")
+					sb.WriteString(fmtNum(g))
+					sb.WriteString(" ")
+					sb.WriteString(fmtNum(b))
+					colorStr = sb.String()
 				}
 
 				// Set up render context with font callbacks
@@ -1569,8 +1575,8 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	pageManager.CurrentYPos -= (imageHeight + spacing)
 }
 
-// drawImageWithXObjectInternal handles image drawing with XObject, including page breaks
-func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pageManager *PageManager, borderConfig, watermark string, originalImgWidth, originalImgHeight int) {
+// drawImageXObj handles image drawing with XObject, including page breaks
+func drawImageXObj(image models.Image, imageXObjectRef string, pageManager *PageManager, borderConfig, watermark string, originalImgWidth, originalImgHeight int) {
 	// Calculate usable width to estimate height for page break check
 	usableWidth := pageManager.ContentWidth()
 
@@ -1792,9 +1798,9 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			// Standard mode: Embed Helvetica definition in XObject resources
 			var helveticaFont string
 			if pageManager.ArlingtonCompatible {
-				helveticaFont = GetHelveticaFontResourceString()
+				helveticaFont = GetHelvResource()
 			} else {
-				helveticaFont = GetSimpleHelveticaFontResourceString()
+				helveticaFont = GetSimpleHelvResource()
 			}
 			apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << /F1 %s >> >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), helveticaFont, len(apContent), apContent)
 		}

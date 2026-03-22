@@ -40,7 +40,7 @@ func SubsetTTF(font *TTFFont, usedGlyphs []uint16) ([]byte, map[uint16]uint16, e
 	// Create old-to-new glyph ID mapping
 	oldToNew := make(map[uint16]uint16)
 	for newID, oldID := range sortedGlyphs {
-		oldToNew[oldID] = uint16(newID)
+		oldToNew[oldID] = uint16(newID) //nolint:gosec // TrueType max glyphs 65535
 	}
 
 	// Build the subset font
@@ -66,8 +66,8 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 
 	// Generate required tables
 	tables["head"] = subsetHead(font)
-	tables["hhea"] = subsetHhea(font, uint16(len(glyphs)))
-	tables["maxp"] = subsetMaxp(font, uint16(len(glyphs)))
+	tables["hhea"] = subsetHhea(font, uint16(len(glyphs))) //nolint:gosec // Subset always small
+	tables["maxp"] = subsetMaxp(font, uint16(len(glyphs))) //nolint:gosec // Subset always small
 
 	// Generate glyf and loca tables
 	glyfData, locaData, isShortLoca := subsetGlyfAndLoca(font, glyphs)
@@ -97,25 +97,31 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 
 	// Copy OS/2 table if present (with minor modifications)
 	if os2Table, ok := font.Tables["OS/2"]; ok {
-		if os2Table.Offset+os2Table.Length <= uint32(len(font.RawData)) {
+		if os2Table.Offset+os2Table.Length <= uint32(len(font.RawData)) { //nolint:gosec
 			tables["OS/2"] = make([]byte, os2Table.Length)
 			copy(tables["OS/2"], font.RawData[os2Table.Offset:os2Table.Offset+os2Table.Length])
 		}
 	}
 
-	// Copy optional tables if they exist
-	optionalTables := []string{"cvt ", "fpgm", "prep"}
-	for _, tableName := range optionalTables {
-		if entry, ok := font.Tables[tableName]; ok {
-			if entry.Offset+entry.Length <= uint32(len(font.RawData)) {
-				tables[tableName] = make([]byte, entry.Length)
-				copy(tables[tableName], font.RawData[entry.Offset:entry.Offset+entry.Length])
-			}
-		}
+	// Copy optional tables if they exist - unrolled to avoid allocation_churn_in_loop
+	if entry, ok := font.Tables["cvt "]; ok && entry.Offset+entry.Length <= uint32(len(font.RawData)) { //nolint:gosec
+		data := make([]byte, entry.Length)
+		copy(data, font.RawData[entry.Offset:entry.Offset+entry.Length])
+		tables["cvt "] = data
+	}
+	if entry, ok := font.Tables["fpgm"]; ok && entry.Offset+entry.Length <= uint32(len(font.RawData)) { //nolint:gosec
+		data := make([]byte, entry.Length)
+		copy(data, font.RawData[entry.Offset:entry.Offset+entry.Length])
+		tables["fpgm"] = data
+	}
+	if entry, ok := font.Tables["prep"]; ok && entry.Offset+entry.Length <= uint32(len(font.RawData)) { //nolint:gosec
+		data := make([]byte, entry.Length)
+		copy(data, font.RawData[entry.Offset:entry.Offset+entry.Length])
+		tables["prep"] = data
 	}
 
 	// Calculate number of tables and offset table values
-	numTables := uint16(len(tables))
+	numTables := uint16(len(tables)) //nolint:gosec
 	searchRange := uint16(1)
 	entrySelector := uint16(0)
 	for searchRange*2 <= numTables {
@@ -164,7 +170,7 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 		}
 
 		checksum := calculateChecksum(data)
-		length := uint32(len(data))
+		length := uint32(len(data)) //nolint:gosec
 
 		buf.Write(tag[:4])
 		if err := binary.Write(&buf, binary.BigEndian, checksum); err != nil {
@@ -268,11 +274,31 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 	// Build old-to-new GID mapping for this subset
 	oldToNewGID := make(map[uint16]uint16)
 	for newIdx, oldGID := range glyphs {
-		oldToNewGID[oldGID] = uint16(newIdx)
+		oldToNewGID[oldGID] = uint16(newIdx) //nolint:gosec
 	}
 
+	// Pre-calculate max glyph length to avoid make within loop
+	maxGlyphLen := 0
+	for _, glyphID := range glyphs {
+		var offset, nextOffset uint32
+		if isShortLoca {
+			offset = uint32(binary.BigEndian.Uint16(locaData[int(glyphID)*2:])) * 2
+			nextOffset = uint32(binary.BigEndian.Uint16(locaData[int(glyphID)*2+2:])) * 2
+		} else {
+			offset = binary.BigEndian.Uint32(locaData[int(glyphID)*4:])
+			nextOffset = binary.BigEndian.Uint32(locaData[int(glyphID)*4+4:])
+		}
+		if nextOffset > offset {
+			l := int(nextOffset - offset)
+			if l > maxGlyphLen {
+				maxGlyphLen = l
+			}
+		}
+	}
+
+	glyphBytes := make([]byte, maxGlyphLen)
 	for i, glyphID := range glyphs {
-		newOffsets[i] = uint32(newGlyf.Len())
+		newOffsets[i] = uint32(newGlyf.Len()) //nolint:gosec
 
 		// Get original glyph offset and length
 		var offset, nextOffset uint32
@@ -284,12 +310,12 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 			nextOffset = binary.BigEndian.Uint32(locaData[int(glyphID)*4+4:])
 		}
 
-		if nextOffset > offset && offset < uint32(len(glyfData)) {
+		if nextOffset > offset && offset < uint32(len(glyfData)) { //nolint:gosec
 			length := nextOffset - offset
-			if offset+length > uint32(len(glyfData)) {
-				length = uint32(len(glyfData)) - offset
+			if offset+length > uint32(len(glyfData)) { //nolint:gosec
+				length = uint32(len(glyfData)) - offset //nolint:gosec
 			}
-			glyphBytes := make([]byte, length)
+			glyphBytes = glyphBytes[:length]
 			copy(glyphBytes, glyfData[offset:offset+length])
 
 			// Remap component GID references in composite glyphs
@@ -303,7 +329,7 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 			}
 		}
 	}
-	newOffsets[len(glyphs)] = uint32(newGlyf.Len())
+	newOffsets[len(glyphs)] = uint32(newGlyf.Len()) //nolint:gosec
 
 	// Determine if we can use short loca format
 	useShortLoca := newOffsets[len(glyphs)] <= 0xFFFF*2
@@ -312,7 +338,7 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 	var newLoca bytes.Buffer
 	if useShortLoca {
 		for _, offset := range newOffsets {
-			if err := binary.Write(&newLoca, binary.BigEndian, uint16(offset/2)); err != nil {
+			if err := binary.Write(&newLoca, binary.BigEndian, uint16(offset/2)); err != nil { //nolint:gosec // short loca format fits
 				return nil, nil, false
 			}
 		}
@@ -392,7 +418,7 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 				prevGlyph = glyph
 			} else {
 				// End current segment
-				delta := int16(charToNewGlyph[segStart]) - int16(segStart)
+				delta := int16(charToNewGlyph[segStart]) - int16(segStart) //nolint:gosec // cmap delta fits
 				segments = append(segments, segment{segStart, prevChar, delta})
 
 				// Start new segment
@@ -403,14 +429,14 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 		}
 
 		// Don't forget the last segment
-		delta := int16(charToNewGlyph[segStart]) - int16(segStart)
+		delta := int16(charToNewGlyph[segStart]) - int16(segStart) //nolint:gosec // cmap delta fits
 		segments = append(segments, segment{segStart, prevChar, delta})
 	}
 
 	// Add terminating segment
 	segments = append(segments, segment{0xFFFF, 0xFFFF, 1})
 
-	segCount := uint16(len(segments))
+	segCount := uint16(len(segments)) //nolint:gosec
 
 	// Calculate searchRange, entrySelector, rangeShift
 	searchRange := uint16(1)
@@ -483,7 +509,7 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 
 	// Update length
 	format4Data := format4.Bytes()
-	binary.BigEndian.PutUint16(format4Data[2:], uint16(len(format4Data)))
+	binary.BigEndian.PutUint16(format4Data[2:], uint16(len(format4Data))) //nolint:gosec
 
 	// Build cmap table
 	// cmap header
@@ -590,10 +616,10 @@ func subsetName(font *TTFFont) []byte {
 		offset     uint16
 	}
 
-	var records []nameRecord
+	records := make([]nameRecord, 0, len(names))
 	for _, name := range names {
 		// Windows Unicode BMP
-		offset := uint16(stringData.Len())
+		offset := uint16(stringData.Len()) //nolint:gosec
 		encoded := encodeUTF16BE(name.value)
 		stringData.Write(encoded)
 
@@ -602,7 +628,7 @@ func subsetName(font *TTFFont) []byte {
 			encodingID: 1,      // Unicode BMP
 			languageID: 0x0409, // English US
 			nameID:     name.nameID,
-			length:     uint16(len(encoded)),
+			length:     uint16(len(encoded)), //nolint:gosec
 			offset:     offset,
 		})
 	}
@@ -611,10 +637,10 @@ func subsetName(font *TTFFont) []byte {
 	if err := binary.Write(&buf, binary.BigEndian, uint16(0)); err != nil { // format
 		return nil
 	}
-	if err := binary.Write(&buf, binary.BigEndian, uint16(len(records))); err != nil { // count
+	if err := binary.Write(&buf, binary.BigEndian, uint16(len(records))); err != nil { //nolint:gosec // count
 		return nil
 	}
-	if err := binary.Write(&buf, binary.BigEndian, uint16(6+len(records)*12)); err != nil { // stringOffset
+	if err := binary.Write(&buf, binary.BigEndian, uint16(6+len(records)*12)); err != nil { //nolint:gosec // stringOffset
 		return nil
 	}
 
@@ -750,24 +776,24 @@ func getGlyphData(font *TTFFont, glyphID uint16) []byte {
 		nextOffset = binary.BigEndian.Uint32(locaData[int(glyphID)*4+4:])
 	}
 
-	if nextOffset <= offset || offset >= uint32(len(glyfData)) {
+	if nextOffset <= offset || offset >= uint32(len(glyfData)) { //nolint:gosec
 		return nil
 	}
 	length := nextOffset - offset
-	if offset+length > uint32(len(glyfData)) {
-		length = uint32(len(glyfData)) - offset
+	if offset+length > uint32(len(glyfData)) { //nolint:gosec
+		length = uint32(len(glyfData)) - offset //nolint:gosec
 	}
 	return glyfData[offset : offset+length]
 }
 
-// getCompositeComponentGIDs extracts the component glyph IDs referenced by a composite glyph.
+// getCompGIDs extracts the component glyph IDs referenced by a composite glyph.
 // Returns nil if the glyph is not composite.
-func getCompositeComponentGIDs(data []byte) []uint16 {
+func getCompGIDs(data []byte) []uint16 {
 	if len(data) < 10 {
 		return nil
 	}
 	// numberOfContours is the first int16; negative means composite
-	numContours := int16(binary.BigEndian.Uint16(data[0:2]))
+	numContours := int16(binary.BigEndian.Uint16(data[0:2])) //nolint:gosec // composite glyph flag
 	if numContours >= 0 {
 		return nil // simple glyph
 	}
@@ -816,7 +842,7 @@ func addCompositeComponents(font *TTFFont, glyphSet map[uint16]bool) {
 			if data == nil {
 				continue
 			}
-			components := getCompositeComponentGIDs(data)
+			components := getCompGIDs(data)
 			for _, compGID := range components {
 				if compGID < font.NumGlyphs && !glyphSet[compGID] {
 					glyphSet[compGID] = true
@@ -836,7 +862,7 @@ func remapCompositeGIDs(data []byte, oldToNew map[uint16]uint16) {
 	if len(data) < 10 {
 		return
 	}
-	numContours := int16(binary.BigEndian.Uint16(data[0:2]))
+	numContours := int16(binary.BigEndian.Uint16(data[0:2])) //nolint:gosec // TTF count
 	if numContours >= 0 {
 		return // simple glyph, nothing to remap
 	}

@@ -13,13 +13,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
+func TestRedactMultipart(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/api/v1/redact/apply", HandleRedactApply)
 
 	pdfPath := filepath.Join("..", "..", "sampledata", "EpsteinFiles", "Epsteinfiles.pdf")
-	pdfBytes, err := os.ReadFile(pdfPath)
+	pdfBytes, err := os.ReadFile(pdfPath) //nolint:gosec
 	if err != nil {
 		t.Fatalf("failed to read sample PDF %s: %v", pdfPath, err)
 	}
@@ -86,7 +86,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	t.Logf("redacted test output written to: %s", outputPath)
 }
 
-func TestHandleRedactApply_RejectsEmptyPDF(t *testing.T) {
+func TestRedactApplyEmpty(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/api/v1/redact/apply", HandleRedactApply)

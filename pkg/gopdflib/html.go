@@ -6,41 +6,13 @@ import (
 )
 
 // ConvertHTMLToPDF converts HTML content or a URL to a PDF document.
-// This function requires Chrome/Chromium to be available on the system.
-//
-// Example - Convert HTML string:
-//
-//	req := gopdflib.HTMLToPDFRequest{
-//	    HTML:        "<html><body><h1>Hello World</h1></body></html>",
-//	    PageSize:    "A4",
-//	    Orientation: "Portrait",
-//	}
-//	pdfBytes, err := gopdflib.ConvertHTMLToPDF(req)
-//
-// Example - Convert URL:
-//
-//	req := gopdflib.HTMLToPDFRequest{
-//	    URL:      "https://example.com",
-//	    PageSize: "Letter",
-//	}
-//	pdfBytes, err := gopdflib.ConvertHTMLToPDF(req)
+// Requires Chrome/Chromium to be available on the system.
 func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
 	return pdf.ConvertHTMLToPDF(req)
 }
 
-// ConvertHTMLToImage converts HTML content or a URL to an image.
-// Supported formats: png, jpg/jpeg, svg (default: png).
-// This function requires Chrome/Chromium to be available on the system.
-//
-// Example:
-//
-//	req := gopdflib.HTMLToImageRequest{
-//	    HTML:   "<html><body><h1>Hello World</h1></body></html>",
-//	    Format: "png",
-//	    Width:  800,
-//	    Height: 600,
-//	}
-//	imgBytes, err := gopdflib.ConvertHTMLToImage(req)
+// ConvertHTMLToImage converts HTML content or a URL to an image (png, jpg, svg).
+// Requires Chrome/Chromium to be available on the system.
 func ConvertHTMLToImage(req HTMLToImageRequest) ([]byte, error) {
 	return pdf.ConvertHTMLToImage(req)
 }

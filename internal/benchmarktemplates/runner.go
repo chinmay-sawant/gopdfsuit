@@ -39,10 +39,10 @@ func monitorMemory(done chan bool, wg *sync.WaitGroup) {
 	}
 }
 
-// RunSingleDocumentBenchmark renders the benchmark template concurrently using a
+// RunDocBenchmark renders the benchmark template concurrently using a
 // 48-worker pool and prints timing statistics including P95 and throughput.
-func RunSingleDocumentBenchmark(name string) error {
-	template, err := BuildZerodhaRetailTemplate()
+func RunDocBenchmark(name string) error {
+	template, err := BuildZerodhaTemplate()
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,7 @@ func RunSingleDocumentBenchmark(name string) error {
 	fmt.Printf("Iterations: %d | Workers: %d\n", iterations, numWorkers)
 
 	var (
-		mu        sync.Mutex
-		durations []float64
+		durations = make([]float64, iterations)
 		ops       atomic.Int64
 		wg        sync.WaitGroup
 	)
@@ -74,9 +73,7 @@ func RunSingleDocumentBenchmark(name string) error {
 			start := time.Now()
 			if _, genErr := gopdflib.GeneratePDF(template); genErr == nil {
 				elapsedMs := float64(time.Since(start).Nanoseconds()) / 1_000_000
-				mu.Lock()
-				durations = append(durations, elapsedMs)
-				mu.Unlock()
+				durations[idx-1] = elapsedMs
 				ops.Add(1)
 				fmt.Printf("Run %d: %.2f ms\n", idx, elapsedMs)
 			}

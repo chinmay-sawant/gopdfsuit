@@ -129,7 +129,7 @@ func ExampleGeneratePDF() {
 
 	pdfBytes, err := gopdflib.GeneratePDF(template)
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	// Use pdfBytes...
@@ -144,7 +144,7 @@ func ExampleMergePDFs() {
 
 	merged, err := gopdflib.MergePDFs([][]byte{pdf1, pdf2})
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	// Use merged PDF...

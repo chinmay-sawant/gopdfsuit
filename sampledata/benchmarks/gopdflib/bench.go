@@ -12,5 +12,5 @@ func main() {
 		return
 	}
 
-	benchmarktemplates.Fail(benchmarktemplates.RunSingleDocumentBenchmark("GoPDFLib"))
+	benchmarktemplates.Fail(benchmarktemplates.RunDocBenchmark("GoPDFLib"))
 }

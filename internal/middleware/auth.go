@@ -148,21 +148,29 @@ func GetUserEmail(c *gin.Context) (string, bool) {
 	return emailStr, ok
 }
 
-// GetUserInfo retrieves all user info from context
-func GetUserInfo(c *gin.Context) map[string]interface{} {
-	userInfo := make(map[string]interface{})
+// GetUserInfo retrieves all user info from context as strings
+func GetUserInfo(c *gin.Context) map[string]string {
+	userInfo := make(map[string]string)
 
 	if email, exists := c.Get("user_email"); exists {
-		userInfo["email"] = email
+		if s, ok := email.(string); ok {
+			userInfo["email"] = s
+		}
 	}
 	if name, exists := c.Get("user_name"); exists {
-		userInfo["name"] = name
+		if s, ok := name.(string); ok {
+			userInfo["name"] = s
+		}
 	}
 	if picture, exists := c.Get("user_picture"); exists {
-		userInfo["picture"] = picture
+		if s, ok := picture.(string); ok {
+			userInfo["picture"] = s
+		}
 	}
 	if sub, exists := c.Get("user_sub"); exists {
-		userInfo["sub"] = sub
+		if s, ok := sub.(string); ok {
+			userInfo["sub"] = s
+		}
 	}
 
 	return userInfo
