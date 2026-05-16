@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -128,7 +129,8 @@ func HandleRedactCapabilities(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"capabilities": caps})
+	isFillable := bytes.Contains(pdfBytes, []byte("/AcroForm"))
+	c.JSON(http.StatusOK, gin.H{"capabilities": caps, "is_fillable": isFillable})
 }
 
 // HandleRedactTextPositions handles requests to extract text positions from a page

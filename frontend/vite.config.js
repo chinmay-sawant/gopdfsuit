@@ -1,5 +1,10 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'url'
+import path from 'path'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,6 +17,11 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     base: '/gopdfsuit/',
     envDir: '../',
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: path.resolve(__dirname, '../new_tests/frontend/setup.js'),
+    },
     build: {
       outDir: '../docs',
       emptyOutDir: true,
@@ -23,6 +33,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      fs: {
+        allow: ['..']
+      },
       proxy: {
         '/api': {
           target: target,
