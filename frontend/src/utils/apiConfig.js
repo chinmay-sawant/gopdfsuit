@@ -34,6 +34,14 @@ export const isAuthRequired = () => {
 }
 
 /**
+ * Google OAuth UI/hooks only when Cloud Run auth is on and Client ID is configured.
+ */
+export const isGoogleOAuthEnabled = (clientId) => {
+  const id = (clientId ?? import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '').trim()
+  return isAuthRequired() && id.length > 0
+}
+
+/**
  * Make an authenticated API request
  */
 export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders) => {
@@ -84,9 +92,12 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
 /**
  * Configuration object for easy access
  */
+const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim()
+
 export const apiConfig = {
   isCloudRun: isCloudRunEnvironment(),
   baseUrl: getApiBaseUrl(),
   authRequired: isAuthRequired(),
-  googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+  googleClientId,
+  googleOAuthEnabled: isGoogleOAuthEnabled(googleClientId),
 }
