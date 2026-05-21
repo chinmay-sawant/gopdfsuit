@@ -27,6 +27,9 @@ test:
 test-integration: test
 	go test -count=1 -v ./test
 
+e2e:
+	cd new_tests/e2e && npm install && npx playwright install chromium && npm test
+
 clean:
 	rm -rf bin/
 
@@ -81,7 +84,7 @@ gengine-deploy: test-integration
 	cd frontend && npm run build && cd ..
 	gcloud app deploy
 
-.PHONY: build test clean run fmt vet mod lint
+.PHONY: build test clean run fmt vet mod lint e2e
 
 # go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/profile?seconds=30"
 # go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/heap"
