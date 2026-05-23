@@ -121,6 +121,8 @@ func RegisterRoutes(router *gin.Engine) {
 		v1.POST("/redact/capabilities", HandleRedactCapabilities)
 		v1.POST("/redact/apply", HandleRedactApply)
 		v1.POST("/redact/search", HandleRedactSearch)
+
+		v1.GET("/test/auth", handleTestAuth)
 	}
 
 	// Add pprof routes for profiling
@@ -584,4 +586,22 @@ func handleHTMLToImage(c *gin.Context) {
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=converted.%s", req.Format))
 	c.Data(http.StatusOK, contentType, imageBytes)
+}
+
+func handleTestAuth(c *gin.Context) {
+	userInfo := middleware.GetUserInfo(c)
+
+	if len(userInfo) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"authenticated": false,
+			"message":       "No user info found in context (auth middleware may be disabled)",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"authenticated": true,
+		"message":       "Token verified successfully with Google OAuth",
+		"user":          userInfo,
+	})
 }

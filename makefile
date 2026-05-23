@@ -28,7 +28,7 @@ test-integration: test
 	go test -count=1 -v ./test
 
 e2e:
-	cd new_tests/e2e && npm install && npx playwright install chromium && npm test
+	cd new_tests/integration && npm install && npx playwright install chromium && npm test
 
 clean:
 	rm -rf bin/
