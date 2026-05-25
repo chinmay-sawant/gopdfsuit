@@ -2,7 +2,6 @@ package font
 
 import (
 	"bytes"
-	"compress/zlib"
 	"encoding/binary"
 	"errors"
 	"sort"
@@ -698,17 +697,20 @@ func encodeUTF16BE(s string) []byte {
 
 // CompressFontData compresses font data using zlib (FlateDecode)
 func CompressFontData(data []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	w := zlib.NewWriter(&buf)
-	_, err := w.Write(data)
-	if err != nil {
+	buf := GetCompressBuffer()
+	defer PutCompressBuffer(buf)
+	w := GetZlibWriter(buf)
+	if _, err := w.Write(data); err != nil {
+		_ = w.Close()
+		PutZlibWriter(w)
 		return nil, err
 	}
-	err = w.Close()
-	if err != nil {
+	if err := w.Close(); err != nil {
+		PutZlibWriter(w)
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	PutZlibWriter(w)
+	return append([]byte(nil), buf.Bytes()...), nil
 }
 
 // TrueType composite glyph flags (from OpenType spec)

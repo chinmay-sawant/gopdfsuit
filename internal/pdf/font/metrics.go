@@ -1028,32 +1028,38 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	return result
 }
 
-// EncodeTextForCustomFont encodes text for use with a custom font (Identity-H encoding)
-// Returns the encoded hex string suitable for use in PDF content stream with Tj operator
-// Characters not in the font are replaced with a space to prevent .notdef references
-// Uses []byte append with inline hex encoding for minimal allocations.
-func EncodeTextForCustomFont(fontName string, text string, registry *CustomFontRegistry) string {
+// AppendTextForCustomFont appends hex-encoded Identity-H text for a custom font to dst.
+// Characters not in the font are replaced with a space to prevent .notdef references.
+func AppendTextForCustomFont(dst []byte, fontName string, text string, registry *CustomFontRegistry) []byte {
 	font, ok := registry.GetFont(fontName)
-	buf := make([]byte, 0, len(text)*4+2)
-	buf = append(buf, '<')
+	dst = append(dst, '<')
 	if !ok {
 		// Fallback: encode as-is if font not found
 		for _, char := range text {
 			v := uint16(char)
-			buf = append(buf, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
+			dst = append(dst, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
 		}
 	} else {
 		spaceHex := [4]byte{hexDigits[0], hexDigits[0], hexDigits[uint16(' ')>>4&0xF], hexDigits[uint16(' ')&0xF]}
 		for _, char := range text {
 			if _, exists := font.Font.CharToGlyph[char]; exists {
 				v := uint16(char)
-				buf = append(buf, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
+				dst = append(dst, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
 			} else {
-				buf = append(buf, spaceHex[0], spaceHex[1], spaceHex[2], spaceHex[3])
+				dst = append(dst, spaceHex[0], spaceHex[1], spaceHex[2], spaceHex[3])
 			}
 		}
 	}
-	buf = append(buf, '>')
+	return append(dst, '>')
+}
+
+// EncodeTextForCustomFont encodes text for use with a custom font (Identity-H encoding)
+// Returns the encoded hex string suitable for use in PDF content stream with Tj operator
+// Characters not in the font are replaced with a space to prevent .notdef references
+// Uses []byte append with inline hex encoding for minimal allocations.
+func EncodeTextForCustomFont(fontName string, text string, registry *CustomFontRegistry) string {
+	buf := make([]byte, 0, len(text)*4+2)
+	buf = AppendTextForCustomFont(buf, fontName, text, registry)
 	return string(buf)
 }
 

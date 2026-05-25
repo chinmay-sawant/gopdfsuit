@@ -32,7 +32,8 @@ This directory contains benchmark scripts for:
 ```bash
 bash run_all_benchmarks.sh
 
-cd gopdflib && go run . data       # GoPDFLib data-table (1000 iterations, 48 goroutine workers)
+cd gopdflib && go run -mod=mod . data       # GoPDFLib data-table (5000 iterations, 48 workers, PDF/A)
+cd gopdflib && bash run_pprof_bench.sh      # 5000× with 5 CPU + 1 heap pprof captures
 cd gopdflib && go run .            # GoPDFLib Zerodha (48 iterations, 48 goroutine workers)
 cd gopdfsuit && go run .           # GoPDFSuit Zerodha (48 iterations, 48 goroutine workers)
 cd pypdfsuit && python3 bench.py   # PyPDFSuit Zerodha (500 iterations, 48 process workers)
@@ -49,7 +50,7 @@ The suite no longer uses one universal iteration count. Each harness runs with i
 
 | Runtime | Concurrency Mechanism | Iterations | Worker Count |
 |---|---|---:|---:|
-| GoPDFLib data | Semaphore-guarded goroutine pool + `sync.WaitGroup` + `sync/atomic` | 1000 | 48 |
+| GoPDFLib data | Semaphore-guarded goroutine pool + `sync.WaitGroup` + `sync/atomic` | 5000 | 48 |
 | GoPDFLib Zerodha | Semaphore-guarded goroutine pool + `sync.WaitGroup` + `sync/atomic` | 48 | 48 |
 | GoPDFSuit Zerodha | Semaphore-guarded goroutine pool + `sync.WaitGroup` + `sync/atomic` | 48 | 48 |
 | PyPDFSuit | `multiprocessing.Pool` (bypasses the GIL for CPU-bound PDF generation) | 500 | 48 |

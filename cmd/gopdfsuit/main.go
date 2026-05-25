@@ -69,8 +69,7 @@ func main() {
 	// for CPU-bound PDF generation workloads.
 	// Using NumCPU() prevents goroutine thrashing — 100 goroutines on 24 cores
 	// caused massive context-switch overhead and was the primary bottleneck.
-	// maxConcurrent := runtime.NumCPU()
-	maxConcurrent := 48
+	maxConcurrent := runtime.NumCPU()
 	semaphore := make(chan struct{}, maxConcurrent)
 	fmt.Printf("Server starting with %d max concurrent workers (CPUs: %d)\n", maxConcurrent, runtime.NumCPU())
 

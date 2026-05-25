@@ -6,7 +6,7 @@ import { Rate, Trend } from 'k6/metrics';
 const errorRate = new Rate('errors');
 const pdfGenerationTime = new Trend('pdf_generation_time');
 
-import { getWeightedPayload } from './payload_generator.js';
+import { getPayloadOptions, getWeightedPayload } from './payload_generator.js';
 
 // Load JSON payload from file (executed once at init time)
 // const financialDigitalSignaturePayload = JSON.parse(open('../../sampledata/editor/financial_digitalsignature.json'));
@@ -58,7 +58,7 @@ const headers = {
 export default function () {
     const url = `${BASE_URL}/api/v1/generate/template-pdf`;
     // Generate dynamic payload based on weighted distribution
-    const payload = JSON.stringify(getWeightedPayload());
+    const payload = JSON.stringify(getWeightedPayload(getPayloadOptions('tagged')));
 
     const startTime = Date.now();
     const response = http.post(url, payload, { headers: headers });

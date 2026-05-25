@@ -82,6 +82,7 @@ func buildTemplate(records []benchmarkRecord) gopdflib.PDFTemplate {
 			PageAlignment:       1,
 			PdfTitle:            "User Report",
 			PDFACompliant:       true,
+			TaggedPDF:           true,
 			ArlingtonCompatible: true,
 			EmbedFonts:          boolPtr(true),
 		},
@@ -113,11 +114,12 @@ func runDataBenchGoPDFLib() error {
 	}
 
 	template := buildTemplate(records)
-	const numDataWorkers = 48
-	const dataIterations = 10
+	iterations := benchDataIterations()
+	workers := effectiveWorkers(benchDataWorkers())
+	quiet := benchQuiet()
 
 	fmt.Printf("=== GoPDFLib Data Benchmark ===\n")
-	fmt.Printf("Iterations: %d | Workers: %d\n", dataIterations, numDataWorkers)
+	fmt.Printf("Iterations: %d | Workers: %d | PDF/A: true\n", iterations, workers)
 
 	var (
 		mu      sync.Mutex
@@ -132,10 +134,10 @@ func runDataBenchGoPDFLib() error {
 	memWg.Add(1)
 	go monitorMemoryData(memDone, &memWg)
 
-	sem := make(chan struct{}, numDataWorkers)
+	sem := make(chan struct{}, workers)
 	totalStart := time.Now()
 
-	for i := 1; i <= dataIterations; i++ {
+	for i := 1; i <= iterations; i++ {
 		sem <- struct{}{}
 		wg.Add(1)
 		go func(idx int) {
@@ -149,12 +151,16 @@ func runDataBenchGoPDFLib() error {
 				return
 			}
 			elapsed := float64(time.Since(start).Nanoseconds()) / 1_000_000
-			ops.Add(1)
+			n := ops.Add(1)
 			mu.Lock()
 			timings = append(timings, elapsed)
 			lastPDF = pdfBytes
 			mu.Unlock()
-			fmt.Printf("Run %d: %.2f ms\n", idx, elapsed)
+			if !quiet {
+				fmt.Printf("Run %d: %.2f ms\n", idx, elapsed)
+			} else if n%500 == 0 || int(n) == iterations {
+				fmt.Printf("  progress: %d / %d (latest %.2f ms)\n", n, iterations, elapsed)
+			}
 		}(i)
 	}
 	wg.Wait()

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -37,14 +35,21 @@ func loadBenchmarkData() []BenchmarkRecord {
 	return records
 }
 
+func pdfAConfig() models.Config {
+	return models.Config{
+		Page:                "A4",
+		PageAlignment:       1,
+		PageBorder:          "10:10:10:10",
+		PdfTitle:            "User Report",
+		PDFACompliant:       true,
+		TaggedPDF:           true,
+		ArlingtonCompatible: true,
+	}
+}
+
 func getGoPdfSuitTemplate(records []BenchmarkRecord) models.PDFTemplate {
 	template := models.PDFTemplate{
-		Config: models.Config{
-			Page:          "A4",
-			PageAlignment: 1,
-			PageBorder:    "10:10:10:10",
-			PdfTitle:      "User Report",
-		},
+		Config: pdfAConfig(),
 		Title: models.Title{
 			Text:  "User Report",
 			Props: "Helvetica:24:100:center:0:0:0:0",
@@ -91,26 +96,6 @@ func BenchmarkGoPdfSuit(b *testing.B) {
 		}
 		if i == 0 {
 			_ = os.WriteFile("../../sampledata/benchmarks/gopdfsuit/output.pdf", pdfBytes, 0644)
-		}
-	}
-}
-
-func BenchmarkTypst(b *testing.B) {
-	absPath, _ := filepath.Abs("../../sampledata/benchmarks/typst-x86_64-unknown-linux-musl/typst")
-	typFilePath, _ := filepath.Abs("../../sampledata/benchmarks/typst/benchmark.typ")
-
-	// Output to typst folder
-	outPath, _ := filepath.Abs("../../sampledata/benchmarks/typst/output.pdf")
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		// Output to file
-		cmd := exec.Command(absPath, "compile", typFilePath, outPath)
-		// Set Cwd so Typst can find data.json
-		cmd.Dir = filepath.Dir(typFilePath)
-
-		if output, err := cmd.CombinedOutput(); err != nil {
-			b.Fatalf("Typst failed: %v, Output: %s", err, string(output))
 		}
 	}
 }

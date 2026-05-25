@@ -20,10 +20,7 @@ type LinkAnnotation struct {
 // Returns the annotation object ID
 func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 	var annotDict strings.Builder
-
-	// Get the StructParent index for this annotation
-	// This links the annotation to the ParentTree for PDF/UA-2
-	structParentIdx := pageManager.GetNextAnnotStructParent()
+	var structParentIdx int
 
 	annotDict.WriteString("<< /Type /Annot /Subtype /Link")
 	annotDict.WriteString(fmt.Sprintf(" /Rect [%s %s %s %s]",
@@ -42,7 +39,10 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 	annotDict.WriteString(" /F 4")
 
 	// PDF/UA-2: StructParent links annotation to structure tree
-	annotDict.WriteString(fmt.Sprintf(" /StructParent %d", structParentIdx))
+	if pageManager.Structure.Enabled {
+		structParentIdx = pageManager.GetNextAnnotStructParent()
+		annotDict.WriteString(fmt.Sprintf(" /StructParent %d", structParentIdx))
+	}
 
 	// Add action based on link type
 	switch {
@@ -67,9 +67,10 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 
 	objID := pageManager.AddExtraObject(annotDict.String())
 
-	// PDF/UA-2: Create Link structure element that references this annotation
-	// The Link element contains an OBJR (object reference) kid pointing to the annotation
-	pageManager.AddLinkStructureElement(objID, structParentIdx)
+	if pageManager.Structure.Enabled {
+		// PDF/UA-2: Link structure element that references this annotation
+		pageManager.AddLinkStructureElement(objID, structParentIdx)
+	}
 
 	return objID
 }

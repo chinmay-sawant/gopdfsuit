@@ -9,12 +9,7 @@ import (
 
 func buildSyntheticTableTemplate(rows int) models.PDFTemplate {
 	template := models.PDFTemplate{
-		Config: models.Config{
-			Page:          "A4",
-			PageAlignment: 1,
-			PageBorder:    "10:10:10:10",
-			PdfTitle:      "User Report",
-		},
+		Config: pdfAConfig(),
 		Title: models.Title{
 			Text:  "User Report",
 			Props: "Helvetica:24:100:center:0:0:0:0",

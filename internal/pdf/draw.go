@@ -773,8 +773,13 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	wrappedTextLines := make([][][]byte, table.MaxColumns)
 	rowCellProps := make([]models.Props, table.MaxColumns)
 	rowResolvedFonts := make([]string, table.MaxColumns)
-	// Scratch buffer reused across all cells to avoid per-cell growslice allocations
+	// Scratch buffers reused across all cells to reduce allocations
 	scratchBuf := make([]byte, 0, 128)
+	borderBuf := make([]byte, 0, 64)
+	xobjBuf := make([]byte, 0, 96)
+	colorBuf := make([]byte, 0, 48)
+	placeholderBuf := make([]byte, 0, 64)
+	checkboxBuf := make([]byte, 0, 64)
 	var wrapState WrapState
 
 	for rowIdx, row := range table.Rows {
@@ -939,7 +944,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					shortKey := strings.ReplaceAll(cellKey, ":", "_")
 					contentStream.WriteString("q\n")
 					// Set up clipping rectangle to confine image within cell bounds (with padding)
-					var xobjBuf []byte
+					xobjBuf = xobjBuf[:0]
 					xobjBuf = appendFmtNum(xobjBuf, imgX)
 					xobjBuf = append(xobjBuf, ' ')
 					xobjBuf = appendFmtNum(xobjBuf, imgY)
@@ -979,7 +984,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.WriteString("q\n")
 					contentStream.WriteString("0.5 w\n")
 					contentStream.WriteString("0.7 0.7 0.7 RG\n")
-					var placeholderBuf []byte
+					placeholderBuf = placeholderBuf[:0]
 					placeholderBuf = appendFmtNum(placeholderBuf, imgX)
 					placeholderBuf = append(placeholderBuf, ' ')
 					placeholderBuf = appendFmtNum(placeholderBuf, imgY)
@@ -1040,7 +1045,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 				contentStream.WriteString("q\n")
 				contentStream.WriteString("1 w\n")
-				var checkboxBuf []byte
+				checkboxBuf = checkboxBuf[:0]
 				checkboxBuf = appendFmtNum(checkboxBuf, checkboxX)
 				checkboxBuf = append(checkboxBuf, ' ')
 				checkboxBuf = appendFmtNum(checkboxBuf, checkboxY)
@@ -1136,7 +1141,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					textColor = table.TextColor
 				}
 				if r, g, b, _, valid := parseHexColor(textColor); valid {
-					var colorBuf []byte
+					colorBuf = colorBuf[:0]
 					colorBuf = appendFmtNum(colorBuf, r)
 					colorBuf = append(colorBuf, ' ')
 					colorBuf = appendFmtNum(colorBuf, g)
@@ -1167,16 +1172,15 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 							continue
 						}
 
-						lineStr := string(line)
-						lineWidth := EstimateTextWidth(rowResolvedFonts[colIdx], lineStr, fontSize, pageManager.FontRegistry)
+						lineEstWidth := EstimateTextWidth(rowResolvedFonts[colIdx], byteString(line), fontSize, pageManager.FontRegistry)
 
 						// Calculate X position based on alignment
 						var textX float64
 						switch cellProps.Alignment {
 						case "center":
-							textX = cellX + (cellWidth-lineWidth)/2
+							textX = cellX + (cellWidth-lineEstWidth)/2
 						case "right":
-							textX = cellX + cellWidth - lineWidth - 5
+							textX = cellX + cellWidth - lineEstWidth - 5
 						default:
 							textX = cellX + 5
 						}
@@ -1193,7 +1197,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.Write(textPosBuf)
 
 						// Render the line
-						textPosBuf = append(textPosBuf[:0], formatTextForPDF(rowResolvedFonts[colIdx], lineStr, pageManager.FontRegistry)...)
+						textPosBuf = appendTextForPDF(textPosBuf[:0], rowResolvedFonts[colIdx], byteString(line), pageManager.FontRegistry)
 						textPosBuf = append(textPosBuf, " Tj\n"...)
 						contentStream.Write(textPosBuf)
 					}
@@ -1259,8 +1263,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.Write(textPosBuf)
 					}
 
-					textPosBuf = textPosBuf[:0]
-					textPosBuf = append(textPosBuf, formatTextForPDF(resolvedName, cell.Text, pageManager.FontRegistry)...)
+					textPosBuf = appendTextForPDF(textPosBuf[:0], resolvedName, cell.Text, pageManager.FontRegistry)
 					textPosBuf = append(textPosBuf, " Tj\n"...)
 					contentStream.Write(textPosBuf)
 					contentStream.WriteString("ET\n")
@@ -1271,7 +1274,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
 				contentStream.WriteString("q\n")
 				if cellProps.Borders[0] > 0 { // left
-					var borderBuf []byte
+					borderBuf = borderBuf[:0]
 					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[0]), 10)
 					borderBuf = append(borderBuf, " w "...)
 					borderBuf = appendFmtNum(borderBuf, cellX)
@@ -1285,7 +1288,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.Write(borderBuf)
 				}
 				if cellProps.Borders[1] > 0 { // right
-					var borderBuf []byte
+					borderBuf = borderBuf[:0]
 					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[1]), 10)
 					borderBuf = append(borderBuf, " w "...)
 					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
@@ -1299,7 +1302,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.Write(borderBuf)
 				}
 				if cellProps.Borders[2] > 0 { // top
-					var borderBuf []byte
+					borderBuf = borderBuf[:0]
 					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[2]), 10)
 					borderBuf = append(borderBuf, " w "...)
 					borderBuf = appendFmtNum(borderBuf, cellX)
@@ -1313,7 +1316,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.Write(borderBuf)
 				}
 				if cellProps.Borders[3] > 0 { // bottom
-					var borderBuf []byte
+					borderBuf = borderBuf[:0]
 					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[3]), 10)
 					borderBuf = append(borderBuf, " w "...)
 					borderBuf = appendFmtNum(borderBuf, cellX)

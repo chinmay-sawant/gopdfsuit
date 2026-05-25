@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/encryption"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/signature"
@@ -26,6 +28,14 @@ var pdfBufferPool = sync.Pool{
 		buf := new(bytes.Buffer)
 		buf.Grow(64 * 1024) // 64KB initial capacity
 		return buf
+	},
+}
+
+// finalPDFSlicePool holds scratch []byte slices for assembling the PDF before cloning for the caller.
+var finalPDFSlicePool = sync.Pool{
+	New: func() any {
+		s := make([]byte, 0, 256*1024)
+		return &s
 	},
 }
 
@@ -95,6 +105,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pageConfig := template.Config
 	pageDims := getPageDimensions(pageConfig.Page, pageConfig.PageAlignment)
 	pageMargins := ParsePageMargins(pageConfig.PageMargin)
+	taggedPDF := template.Config.TaggedPDF || template.Config.PDFACompliant
 
 	// Create a local clone of the font registry for this PDF generation session
 	// This ensures thread safety by isolating usage tracking (UsedChars) per generation
@@ -140,7 +151,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	autoResolveMathFonts(template, fontRegistry)
 
 	// Initialize page manager with Arlington compatibility flag and per-generation font registry
-	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry)
+	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry, taggedPDF)
 
 	// Process images and create XObjects
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
@@ -436,11 +447,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	metadataObjectID := pageManager.NextObjectID
 	pageManager.NextObjectID++
 
-	// Reserve StructTreeRoot ID for PDF/UA
-	structTreeRootID := pageManager.NextObjectID
-	pageManager.NextObjectID++
-
-	// Only reserve ICC profile and OutputIntent IDs for PDF/A mode
+	var structTreeRootID int
+	if taggedPDF {
+		structTreeRootID = pageManager.NextObjectID
+		pageManager.NextObjectID++
+	}
 	var iccProfileObjectID, outputIntentObjectID, grayICCProfileObjID int
 	if template.Config.PDFACompliant {
 		iccProfileObjectID = pageManager.NextObjectID
@@ -463,9 +474,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
 	// Add language tag for accessibility (PDF/UA requirement)
 	pdfBuffer.WriteString(" /Lang (en-US)")
-	// Add PDF/A specific entries or default MarkInfo
-	// Add MarkInfo to indicate this is a tagged PDF (Required for PDF/UA)
-	pdfBuffer.WriteString(" /MarkInfo << /Marked true >>")
+	if taggedPDF {
+		// Tagged PDF catalog entries (omit when generating untagged PDFs for performance/size)
+		pdfBuffer.WriteString(" /MarkInfo << /Marked true >>")
+	}
 
 	// Add ViewerPreferences (Required for PDF/UA)
 	pdfBuffer.WriteString(" /ViewerPreferences << /DisplayDocTitle true >>")
@@ -526,14 +538,13 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		pdfBuffer.WriteString(" 0 R")
 	}
 
-	// Store position where we'll need to inject PDF/A references
-	// For now we close the catalog and will rebuild it if needed
-	// Add StructTreeRoot reference (required for PDF/UA)
-	pdfBuffer.WriteString(" /StructTreeRoot ")
-	b = b[:0]
-	b = strconv.AppendInt(b, int64(structTreeRootID), 10)
-	pdfBuffer.Write(b)
-	pdfBuffer.WriteString(" 0 R")
+	if taggedPDF {
+		pdfBuffer.WriteString(" /StructTreeRoot ")
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(structTreeRootID), 10)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(" 0 R")
+	}
 
 	// For PDF/A, add Metadata and OutputIntent references using pre-reserved object IDs
 	// Note: We use the pre-reserved IDs directly here to avoid placeholder replacement
@@ -737,8 +748,42 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		pdfBuffer.WriteString("endobj\n")
 	}
 
-	// Generate content stream objects with FlateDecode compression
-	for i, contentStream := range pageManager.ContentStreams {
+	// Generate content stream objects with FlateDecode compression (zlib in parallel, encrypt + write serialized)
+	nStreams := len(pageManager.ContentStreams)
+	compressedPages := make([][]byte, nStreams)
+	var compGroup errgroup.Group
+	for si := range pageManager.ContentStreams {
+		si := si
+		compGroup.Go(func() error {
+			contentStream := &pageManager.ContentStreams[si]
+			compressedBuf := getCompressBuffer()
+			if grow := contentStream.Len() / 4; grow < 4096 {
+				compressedBuf.Grow(4096)
+			} else {
+				compressedBuf.Grow(grow)
+			}
+			zlibWriter := getZlibWriter(compressedBuf)
+			if _, err := zlibWriter.Write(contentStream.Bytes()); err != nil {
+				_ = zlibWriter.Close()
+				putZlibWriter(zlibWriter)
+				putCompressBuffer(compressedBuf)
+				return fmt.Errorf("compress page stream %d: %w", si, err)
+			}
+			if err := zlibWriter.Close(); err != nil {
+				putZlibWriter(zlibWriter)
+				putCompressBuffer(compressedBuf)
+				return fmt.Errorf("compress page stream close %d: %w", si, err)
+			}
+			putZlibWriter(zlibWriter)
+			compressedPages[si] = append([]byte(nil), compressedBuf.Bytes()...)
+			putCompressBuffer(compressedBuf)
+			return nil
+		})
+	}
+	if err := compGroup.Wait(); err != nil {
+		return nil, err
+	}
+	for i := range pageManager.ContentStreams {
 		objectID := contentObjectStart + i
 		xrefOffsets[objectID] = pdfBuffer.Len()
 		b = b[:0]
@@ -746,20 +791,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		b = append(b, " 0 obj\n"...)
 		pdfBuffer.Write(b)
 
-		// Compress content stream with pooled zlib writer (avoids allocation overhead)
-		compressedBuf := getCompressBuffer()
-		zlibWriter := getZlibWriter(compressedBuf)
-		if _, err := zlibWriter.Write(contentStream.Bytes()); err != nil {
-			_ = zlibWriter.Close()
-			putZlibWriter(zlibWriter)
-			compressBufPool.Put(compressedBuf)
-			continue // Skip encryption if compression fails
-		}
-		_ = zlibWriter.Close()
-		putZlibWriter(zlibWriter)
-		compressedData := compressedBuf.Bytes()
+		compressedData := compressedPages[i]
 
-		// Encrypt content stream if encryption is enabled
+		// Encrypt content stream per object order when encryption is enabled
 		if enc != nil {
 			encryptedData := enc.EncryptStream(compressedData, objectID, 0)
 			pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
@@ -769,7 +803,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			pdfBuffer.WriteString(" >>\nstream\n")
 			pdfBuffer.Write(encryptedData)
 		} else {
-			// Write stream without encryption
 			pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
 			b = b[:0]
 			b = strconv.AppendInt(b, int64(len(compressedData)), 10)
@@ -777,7 +810,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			pdfBuffer.WriteString(" >>\nstream\n")
 			pdfBuffer.Write(compressedData)
 		}
-		compressBufPool.Put(compressedBuf)
 		pdfBuffer.WriteString("\nendstream\nendobj\n")
 	}
 
@@ -1045,171 +1077,175 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		}
 	}
 
-	// Generate Structure Tree Objects (PDF/UA)
-	// 1. Assign Object IDs to all elements
-	// structTreeRootID is already reserved
+	if taggedPDF {
+		// Generate Structure Tree Objects (PDF/UA)
+		// 1. Assign Object IDs to all elements
+		// structTreeRootID is already reserved
 
-	// Recursively assign IDs to all children
+		// Recursively assign IDs to all children
 
-	// Recursively assign IDs to all children
-	var assignStructIDs func(elem *StructElem)
-	assignStructIDs = func(elem *StructElem) {
-		// Only assign ID if not already assigned (e.g. by bookmarks or links logic)
-		if elem.ObjectID == 0 {
-			elem.ObjectID = pageManager.NextObjectID
-			pageManager.NextObjectID++
+		// Recursively assign IDs to all children
+		var assignStructIDs func(elem *StructElem)
+		assignStructIDs = func(elem *StructElem) {
+			// Only assign ID if not already assigned (e.g. by bookmarks or links logic)
+			if elem.ObjectID == 0 {
+				elem.ObjectID = pageManager.NextObjectID
+				pageManager.NextObjectID++
+			}
+			for _, kid := range elem.Kids {
+				if kid.Elem != nil {
+					assignStructIDs(kid.Elem)
+				}
+			}
 		}
-		for _, kid := range elem.Kids {
+		// Start from root's children (Root itself has structTreeRootID, its children are elements)
+		for _, kid := range pageManager.Structure.Root.Kids {
 			if kid.Elem != nil {
 				assignStructIDs(kid.Elem)
 			}
 		}
-	}
-	// Start from root's children (Root itself has structTreeRootID, its children are elements)
-	for _, kid := range pageManager.Structure.Root.Kids {
-		if kid.Elem != nil {
-			assignStructIDs(kid.Elem)
-		}
-	}
 
-	// 2. Generate ParentTree
-	parentTreeID := pageManager.NextObjectID
-	pageManager.NextObjectID++
+		// 2. Generate ParentTree
+		parentTreeID := pageManager.NextObjectID
+		pageManager.NextObjectID++
 
-	// 3. Generate PDF 2.0 Namespace for PDF/UA-2
-	namespaceID := pageManager.NextObjectID
-	pageManager.NextObjectID++
+		// 3. Generate PDF 2.0 Namespace for PDF/UA-2
+		namespaceID := pageManager.NextObjectID
+		pageManager.NextObjectID++
 
-	xrefOffsets[namespaceID] = pdfBuffer.Len()
-	b = b[:0]
-	b = strconv.AppendInt(b, int64(namespaceID), 10)
-	b = append(b, " 0 obj\n<< /Type /Namespace /NS (http://iso.org/pdf2/ssn) >>\nendobj\n"...)
-	pdfBuffer.Write(b)
+		xrefOffsets[namespaceID] = pdfBuffer.Len()
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(namespaceID), 10)
+		b = append(b, " 0 obj\n<< /Type /Namespace /NS (http://iso.org/pdf2/ssn) >>\nendobj\n"...)
+		pdfBuffer.Write(b)
 
-	xrefOffsets[structTreeRootID] = pdfBuffer.Len()
-	b = b[:0]
-	b = strconv.AppendInt(b, int64(structTreeRootID), 10)
-	b = append(b, " 0 obj\n"...)
-	pdfBuffer.Write(b)
-	pdfBuffer.WriteString(pageManager.Structure.GenerateStructTreeRoot(structTreeRootID, parentTreeID, namespaceID))
-	pdfBuffer.WriteString("\nendobj\n")
+		xrefOffsets[structTreeRootID] = pdfBuffer.Len()
+		b = b[:0]
+		b = strconv.AppendInt(b, int64(structTreeRootID), 10)
+		b = append(b, " 0 obj\n"...)
+		pdfBuffer.Write(b)
+		pdfBuffer.WriteString(pageManager.Structure.GenerateStructTreeRoot(structTreeRootID, parentTreeID, namespaceID))
+		pdfBuffer.WriteString("\nendobj\n")
 
-	// Write ParentTree
-	xrefOffsets[parentTreeID] = pdfBuffer.Len()
+		// Write ParentTree
+		xrefOffsets[parentTreeID] = pdfBuffer.Len()
 
-	// Build ParentTree Nums map
-	// Maps StructParents key (page index) to Array of IndirectRefs to StructElems
-	var ptBuilder strings.Builder
-	ptBuilder.WriteString(strconv.Itoa(parentTreeID))
-	ptBuilder.WriteString(" 0 obj\n<< /Nums [")
+		// Build ParentTree Nums map
+		// Maps StructParents key (page index) to Array of IndirectRefs to StructElems
+		var ptBuilder strings.Builder
+		ptBuilder.WriteString(strconv.Itoa(parentTreeID))
+		ptBuilder.WriteString(" 0 obj\n<< /Nums [")
 
-	// Iterate through all pages that have marked content
-	// We iterate by page index to keep Nums sorted
-	maxPageIndex := len(pageManager.Pages)
-	for i := 0; i < maxPageIndex; i++ {
-		if elems, exists := pageManager.Structure.ParentTree[i]; exists && len(elems) > 0 {
-			ptBuilder.WriteString(fmt.Sprintf(" %d [", i)) // Key is page index
-			for _, elem := range elems {
-				ptBuilder.WriteString(fmt.Sprintf(" %d 0 R", elem.ObjectID))
+		// Iterate through all pages that have marked content
+		// We iterate by page index to keep Nums sorted
+		maxPageIndex := len(pageManager.Pages)
+		for i := 0; i < maxPageIndex; i++ {
+			if elems, exists := pageManager.Structure.ParentTree[i]; exists && len(elems) > 0 {
+				ptBuilder.WriteString(fmt.Sprintf(" %d [", i)) // Key is page index
+				for _, elem := range elems {
+					ptBuilder.WriteString(fmt.Sprintf(" %d 0 R", elem.ObjectID))
+				}
+				ptBuilder.WriteString(" ]")
 			}
-			ptBuilder.WriteString(" ]")
-		}
-	}
-
-	// PDF/UA-2: Add ParentTree entries for annotation StructParents
-	// Each annotation's StructParent value maps to its Link structure element
-	for _, annotInfo := range pageManager.AnnotStructElems {
-		if linkElem, exists := pageManager.Structure.LinkElements[annotInfo.AnnotObjID]; exists {
-			ptBuilder.WriteString(fmt.Sprintf(" %d %d 0 R", annotInfo.StructParentIdx, linkElem.ObjectID))
-		}
-	}
-
-	ptBuilder.WriteString(" ] >>\nendobj\n")
-	pdfBuffer.WriteString(ptBuilder.String())
-
-	// Write all Structure Elements
-	var writeStructElems func(elem *StructElem)
-	writeStructElems = func(elem *StructElem) {
-		xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
-
-		var sb strings.Builder
-		sb.WriteString(strconv.Itoa(elem.ObjectID))
-		sb.WriteString(" 0 obj\n<< /Type /StructElem /S /")
-		sb.WriteString(string(elem.Type))
-
-		// PDF/UA-2: Document element must be in PDF 2.0 namespace
-		if elem.Type == StructDocument {
-			sb.WriteString(fmt.Sprintf(" /NS %d 0 R", namespaceID))
 		}
 
-		if elem.Parent == pageManager.Structure.Root {
-			sb.WriteString(fmt.Sprintf(" /P %d 0 R", structTreeRootID))
-		} else if elem.Parent != nil {
-			sb.WriteString(fmt.Sprintf(" /P %d 0 R", elem.Parent.ObjectID))
+		// PDF/UA-2: Add ParentTree entries for annotation StructParents
+		// Each annotation's StructParent value maps to its Link structure element
+		for _, annotInfo := range pageManager.AnnotStructElems {
+			if linkElem, exists := pageManager.Structure.LinkElements[annotInfo.AnnotObjID]; exists {
+				ptBuilder.WriteString(fmt.Sprintf(" %d %d 0 R", annotInfo.StructParentIdx, linkElem.ObjectID))
+			}
 		}
 
-		if elem.Title != "" {
-			sb.WriteString(fmt.Sprintf(" /T (%s)", escapeText(elem.Title)))
-		}
-		if elem.Alt != "" {
-			sb.WriteString(fmt.Sprintf(" /Alt (%s)", escapeText(elem.Alt)))
-		}
+		ptBuilder.WriteString(" ] >>\nendobj\n")
+		pdfBuffer.WriteString(ptBuilder.String())
 
-		// Kids
-		if len(elem.Kids) > 0 || elem.Type == StructLink {
-			sb.WriteString(" /K [")
+		// Write all Structure Elements
+		var writeStructElems func(elem *StructElem)
+		writeStructElems = func(elem *StructElem) {
+			xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
 
-			// PDF/UA-2: For Link elements, output OBJR pointing to annotation
-			if elem.Type == StructLink {
-				// Find the annotation object ID for this Link element
-				for annotObjID, linkElem := range pageManager.Structure.LinkElements {
-					if linkElem == elem {
-						// OBJR = Object Reference to the annotation
-						// Format: << /Type /OBJR /Obj annotRef /Pg pageRef >>
-						pageObjID := 3 // Default to first page
-						if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
-							pageObjID = pageManager.Pages[elem.PageID]
+			var sb strings.Builder
+			sb.WriteString(strconv.Itoa(elem.ObjectID))
+			sb.WriteString(" 0 obj\n<< /Type /StructElem /S /")
+			sb.WriteString(string(elem.Type))
+
+			// PDF/UA-2: Document element must be in PDF 2.0 namespace
+			if elem.Type == StructDocument {
+				sb.WriteString(fmt.Sprintf(" /NS %d 0 R", namespaceID))
+			}
+
+			if elem.Parent == pageManager.Structure.Root {
+				sb.WriteString(fmt.Sprintf(" /P %d 0 R", structTreeRootID))
+			} else if elem.Parent != nil {
+				sb.WriteString(fmt.Sprintf(" /P %d 0 R", elem.Parent.ObjectID))
+			}
+
+			if elem.Title != "" {
+				sb.WriteString(fmt.Sprintf(" /T (%s)", escapeText(elem.Title)))
+			}
+			if elem.Alt != "" {
+				sb.WriteString(fmt.Sprintf(" /Alt (%s)", escapeText(elem.Alt)))
+			}
+
+			// Kids
+			if len(elem.Kids) > 0 || elem.Type == StructLink {
+				sb.WriteString(" /K [")
+
+				// PDF/UA-2: For Link elements, output OBJR pointing to annotation
+				if elem.Type == StructLink {
+					// Find the annotation object ID for this Link element
+					for annotObjID, linkElem := range pageManager.Structure.LinkElements {
+						if linkElem == elem {
+							// OBJR = Object Reference to the annotation
+							// Format: << /Type /OBJR /Obj annotRef /Pg pageRef >>
+							pageObjID := 3 // Default to first page
+							if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
+								pageObjID = pageManager.Pages[elem.PageID]
+							}
+							sb.WriteString(fmt.Sprintf(" << /Type /OBJR /Obj %d 0 R /Pg %d 0 R >>", annotObjID, pageObjID))
+							break
 						}
-						sb.WriteString(fmt.Sprintf(" << /Type /OBJR /Obj %d 0 R /Pg %d 0 R >>", annotObjID, pageObjID))
-						break
 					}
 				}
+
+				for _, k := range elem.Kids {
+					if k.Elem != nil {
+						sb.WriteString(fmt.Sprintf(" %d 0 R", k.Elem.ObjectID))
+					} else {
+						sb.WriteString(fmt.Sprintf(" %d", k.MCID))
+					}
+				}
+				sb.WriteString(" ]")
 			}
 
+			// Pg entry (Page containing this element - required if not inherited)
+			// We use elem.PageID + initial page offset (3) logic?
+			// No, PageID in StructElem is index. We need absolute Object ID.
+			// pm.Pages[elem.PageID] gives the object ID.
+			if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
+				pageObjID := pageManager.Pages[elem.PageID]
+				sb.WriteString(fmt.Sprintf(" /Pg %d 0 R", pageObjID))
+			}
+
+			sb.WriteString(" >>\nendobj\n")
+			pdfBuffer.WriteString(sb.String())
+
+			// Recurse
 			for _, k := range elem.Kids {
 				if k.Elem != nil {
-					sb.WriteString(fmt.Sprintf(" %d 0 R", k.Elem.ObjectID))
-				} else {
-					sb.WriteString(fmt.Sprintf(" %d", k.MCID))
+					writeStructElems(k.Elem)
 				}
 			}
-			sb.WriteString(" ]")
 		}
 
-		// Pg entry (Page containing this element - required if not inherited)
-		// We use elem.PageID + initial page offset (3) logic?
-		// No, PageID in StructElem is index. We need absolute Object ID.
-		// pm.Pages[elem.PageID] gives the object ID.
-		if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
-			pageObjID := pageManager.Pages[elem.PageID]
-			sb.WriteString(fmt.Sprintf(" /Pg %d 0 R", pageObjID))
-		}
-
-		sb.WriteString(" >>\nendobj\n")
-		pdfBuffer.WriteString(sb.String())
-
-		// Recurse
-		for _, k := range elem.Kids {
-			if k.Elem != nil {
-				writeStructElems(k.Elem)
+		for _, kid := range pageManager.Structure.Root.Kids {
+			if kid.Elem != nil {
+				writeStructElems(kid.Elem)
 			}
 		}
-	}
 
-	for _, kid := range pageManager.Structure.Root.Kids {
-		if kid.Elem != nil {
-			writeStructElems(kid.Elem)
-		}
+		pageManager.Structure.ReleaseStructElemsToPool()
 	}
 
 	// Buffer replacement logic removed as we use reserved ID now
@@ -1313,16 +1349,22 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
 
-	// Apply digital signature if configured
-	// Copy bytes before returning since pdfBuffer goes back to pool
-	finalPDF := make([]byte, pdfBuffer.Len())
-	copy(finalPDF, pdfBuffer.Bytes())
+	// Assemble scratch PDF bytes from pool-backed slice (caller receives an owned copy below).
+	finalScr := finalPDFSlicePool.Get().(*[]byte)
+	*finalScr = append((*finalScr)[:0], pdfBuffer.Bytes()...)
+	unsignedOwned := slices.Clone(*finalScr)
+	finalPDFSlicePool.Put(finalScr)
+
+	finalPDF := unsignedOwned
 	if pdfSigner != nil && sigIDs != nil {
 		signedPDF, err := signature.UpdatePDFWithSignature(finalPDF, pdfSigner)
-		if err == nil {
-			finalPDF = signedPDF
+		if err != nil {
+			// Signing failed — return unsigned copy (caller-owned).
+			return finalPDF, nil
 		}
-		// If signing fails, we still return the unsigned PDF
+		// Signing writes into a dedicated buffer inside UpdatePDFWithSignature — clone once more
+		// so callers never retain pooled or shared scratch space.
+		finalPDF = slices.Clone(signedPDF)
 	}
 
 	return finalPDF, nil

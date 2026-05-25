@@ -38,20 +38,23 @@ type NamedDest struct {
 	StructElemID int     // PDF/UA-2: Structure Element ID for /SD
 }
 
-// NewPageManager creates a new page manager with initial page
-func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompatible bool, fontRegistry *CustomFontRegistry) *PageManager {
+// NewPageManager creates a new page manager with initial page.
+// When taggedPDF is false, marked content and structure-tree bookkeeping are disabled.
+func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompatible bool, fontRegistry *CustomFontRegistry, taggedPDF bool) *PageManager {
+	var firstStream bytes.Buffer
+	firstStream.Grow(65536)
 	pm := &PageManager{
 		Pages:                 []int{3}, // First page starts at object 3
 		CurrentPageIndex:      0,        // Start with first page
 		CurrentYPos:           pageDims.Height - margins.Top,
 		PageDimensions:        pageDims,
 		Margins:               margins,
-		ContentStreams:        make([]bytes.Buffer, 1),
+		ContentStreams:        []bytes.Buffer{firstStream},
 		PageAnnots:            make([][]int, 1),
 		ExtraObjects:          make(map[int][]byte),
 		NextObjectID:          2000, // Start extra objects at 2000 to avoid conflicts
 		ArlingtonCompatible:   arlingtonCompatible,
-		Structure:             NewStructureManager(),
+		Structure:             NewStructureManager(taggedPDF),
 		NextAnnotStructParent: 1000, // Start annotation StructParents at 1000 to avoid conflicts with page StructParents
 		AnnotStructElems:      make([]AnnotStructElem, 0),
 		NamedDests:            make(map[string]NamedDest),
@@ -67,7 +70,9 @@ func (pm *PageManager) AddNewPage() {
 	pm.Pages = append(pm.Pages, nextPageID)
 	pm.CurrentPageIndex = len(pm.Pages) - 1 // Move to new page
 	pm.CurrentYPos = pm.PageDimensions.Height - pm.Margins.Top
-	pm.ContentStreams = append(pm.ContentStreams, bytes.Buffer{})
+	var nb bytes.Buffer
+	nb.Grow(65536)
+	pm.ContentStreams = append(pm.ContentStreams, nb)
 	pm.PageAnnots = append(pm.PageAnnots, []int{})
 }
 
@@ -94,23 +99,27 @@ func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
 	annotID := pm.NextObjectID
 	pm.NextObjectID++
 
-	// PDF/UA-2: Get StructParent index for this annotation
-	structParentIdx := pm.GetNextAnnotStructParent()
-
 	// PDF Rectangle: [LLx LLy URx URy]
 	rect := fmt.Sprintf("[%s %s %s %s]", fmtNum(x), fmtNum(y), fmtNum(x+w), fmtNum(y+h))
 
 	validURL := escapePDFString(url)
 
-	// PDF/UA-2: Include StructParent entry
-	content := fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /StructParent %d /A << /Type /Action /S /URI /URI (%s) >> >>",
-		rect, structParentIdx, validURL)
+	var content string
+	if pm.Structure.Enabled {
+		structParentIdx := pm.GetNextAnnotStructParent()
+		content = fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /StructParent %d /A << /Type /Action /S /URI /URI (%s) >> >>",
+			rect, structParentIdx, validURL)
+		pm.ExtraObjects[annotID] = []byte(content)
+		pm.AddAnnotation(annotID)
+		pm.AddLinkStructureElement(annotID, structParentIdx)
+		return
+	}
+
+	content = fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /A << /Type /Action /S /URI /URI (%s) >> >>",
+		rect, validURL)
 
 	pm.ExtraObjects[annotID] = []byte(content)
 	pm.AddAnnotation(annotID)
-
-	// PDF/UA-2: Create Link structure element for this annotation
-	pm.AddLinkStructureElement(annotID, structParentIdx)
 }
 
 // CheckPageBreak determines if a new page is needed based on required height

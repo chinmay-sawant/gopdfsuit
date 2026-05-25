@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/middleware"
@@ -22,6 +23,22 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 )
+
+var templatePDFPool = sync.Pool{
+	New: func() any {
+		return new(models.PDFTemplate)
+	},
+}
+
+// resetTemplate clears a pooled PDFTemplate before unmarshal (and before Put) so
+// omitted JSON fields do not leak from prior requests. Zeroing the shell also
+// drops large slice backing arrays from the pooled value after each use.
+func resetTemplate(t *models.PDFTemplate) {
+	if t == nil {
+		return
+	}
+	*t = models.PDFTemplate{}
+}
 
 // getProjectRoot returns the base directory where the `web` folder lives.
 // Resolution strategy:
@@ -141,12 +158,12 @@ func RegisterRoutes(router *gin.Engine) {
 		pprofGroup.GET("/symbol", gin.WrapF(http.HandlerFunc(pprof.Symbol)))
 		pprofGroup.POST("/symbol", gin.WrapF(http.HandlerFunc(pprof.Symbol)))
 		pprofGroup.GET("/trace", gin.WrapF(http.HandlerFunc(pprof.Trace)))
-		pprofGroup.GET("/heap", gin.WrapF(http.HandlerFunc(pprof.Index)))
-		pprofGroup.GET("/goroutine", gin.WrapF(http.HandlerFunc(pprof.Index)))
-		pprofGroup.GET("/allocs", gin.WrapF(http.HandlerFunc(pprof.Index)))
-		pprofGroup.GET("/block", gin.WrapF(http.HandlerFunc(pprof.Index)))
-		pprofGroup.GET("/mutex", gin.WrapF(http.HandlerFunc(pprof.Index)))
-		pprofGroup.GET("/threadcreate", gin.WrapF(http.HandlerFunc(pprof.Index)))
+		pprofGroup.GET("/heap", gin.WrapH(pprof.Handler("heap")))
+		pprofGroup.GET("/goroutine", gin.WrapH(pprof.Handler("goroutine")))
+		pprofGroup.GET("/allocs", gin.WrapH(pprof.Handler("allocs")))
+		pprofGroup.GET("/block", gin.WrapH(pprof.Handler("block")))
+		pprofGroup.GET("/mutex", gin.WrapH(pprof.Handler("mutex")))
+		pprofGroup.GET("/threadcreate", gin.WrapH(pprof.Handler("threadcreate")))
 	}
 
 	// Redirect root path to /gopdfsuit
@@ -269,20 +286,25 @@ func handleUploadFont(c *gin.Context) {
 }
 
 func handleGenerateTemplatePDF(c *gin.Context) {
-	// Optimization: use sonic for faster JSON binding
-	var template models.PDFTemplate
+	template := templatePDFPool.Get().(*models.PDFTemplate)
+	resetTemplate(template)
+	defer func() {
+		resetTemplate(template)
+		templatePDFPool.Put(template)
+	}()
+
 	data, err := c.GetRawData()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
 		return
 	}
 
-	if err := sonic.Unmarshal(data, &template); err != nil {
+	if err := sonic.Unmarshal(data, template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
 		return
 	}
 
-	pdfBytes, err := pdf.GenerateTemplatePDF(template)
+	pdfBytes, err := pdf.GenerateTemplatePDF(*template)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF generation failed: " + err.Error()})
 		return

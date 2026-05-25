@@ -7,16 +7,24 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
+)
+
+var (
+	flagCPUProfile = flag.String("cpuprofile", "", "write CPU profile to file")
+	flagMemProfile = flag.String("memprofile", "", "write heap profile to file")
 )
 
 // ──────────────────────────────────────────────
@@ -125,6 +133,7 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 			PageAlignment:       1,
 			PdfTitle:            "Contract Note - CN2024001",
 			PDFACompliant:       true,
+			TaggedPDF:           true,
 			ArlingtonCompatible: true,
 			EmbedFonts:          boolPtr(true),
 			Signature: &gopdflib.SignatureConfig{
@@ -336,6 +345,7 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 			Watermark:           "CONFIDENTIAL",
 			PdfTitle:            "Contract Note - Active Trader",
 			PDFACompliant:       true,
+			TaggedPDF:           true,
 			ArlingtonCompatible: true,
 			EmbedFonts:          boolPtr(true),
 		},
@@ -503,6 +513,7 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 			PageAlignment:       1,
 			PdfTitle:            "Contract Note - HFT Algo Capital LLP",
 			PDFACompliant:       true,
+			TaggedPDF:           true,
 			ArlingtonCompatible: true,
 			EmbedFonts:          boolPtr(true),
 		},
@@ -624,12 +635,60 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 // ──────────────────────────────────────────────
 
 func main() {
+	flag.Parse()
+
+	if *flagCPUProfile != "" {
+		f, err := os.Create(*flagCPUProfile)
+		if err != nil {
+			fmt.Printf("cpu profile: %v\n", err)
+			os.Exit(1)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			_ = f.Close()
+			fmt.Printf("cpu profile: %v\n", err)
+			os.Exit(1)
+		}
+		defer func() {
+			pprof.StopCPUProfile()
+			_ = f.Close()
+		}()
+	}
+
+	if err := runBenchmark(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	if *flagMemProfile != "" {
+		f, err := os.Create(*flagMemProfile)
+		if err != nil {
+			fmt.Printf("heap profile: %v\n", err)
+			os.Exit(1)
+		}
+		defer func() { _ = f.Close() }()
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			fmt.Printf("heap profile: %v\n", err)
+			os.Exit(1)
+		}
+	}
+}
+
+func envInt(key string, fallback int) int {
+	if raw := os.Getenv(key); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			return n
+		}
+	}
+	return fallback
+}
+
+func runBenchmark() error {
 	fmt.Println("=== Zerodha Gold Standard Benchmark ===")
 	fmt.Println("Workload Mix: 80% Retail | 15% Active | 5% HFT")
 	fmt.Println()
 
-	iterations := 5000
-	numWorkers := 48
+	iterations := envInt("BENCH_ITERATIONS", 5000)
+	numWorkers := envInt("BENCH_WORKERS", 48)
 
 	fmt.Println(getSystemInfo())
 	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)
@@ -645,18 +704,15 @@ func main() {
 	fmt.Println("Warm-up runs...")
 	retailPDF, err := gopdflib.GeneratePDF(retailTemplate)
 	if err != nil {
-		fmt.Printf("Error generating retail PDF: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error generating retail PDF: %w", err)
 	}
 	activePDF, err := gopdflib.GeneratePDF(activeTemplate)
 	if err != nil {
-		fmt.Printf("Error generating active PDF: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error generating active PDF: %w", err)
 	}
 	hftPDF, err := gopdflib.GeneratePDF(hftTemplate)
 	if err != nil {
-		fmt.Printf("Error generating HFT PDF: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error generating HFT PDF: %w", err)
 	}
 	fmt.Printf("  Retail PDF size:  %d bytes (%.2f KB)\n", len(retailPDF), float64(len(retailPDF))/1024.0)
 	fmt.Printf("  Active PDF size:  %d bytes (%.2f KB)\n", len(activePDF), float64(len(activePDF))/1024.0)
@@ -732,15 +788,16 @@ func main() {
 	close(errors)
 
 	// Check errors
-	errCount := len(errors)
+	var errCount int
+	for e := range errors {
+		if errCount == 0 {
+			fmt.Printf("  First error: %v\n", e)
+		}
+		errCount++
+	}
 	if errCount > 0 {
 		fmt.Printf("Encountered %d errors during execution.\n", errCount)
-		// Print first error
-		for e := range errors {
-			fmt.Printf("  First error: %v\n", e)
-			break
-		}
-		os.Exit(1)
+		return fmt.Errorf("benchmark failed with %d errors", errCount)
 	}
 
 	// Collect timing data
@@ -753,7 +810,7 @@ func main() {
 
 	if len(durations) == 0 {
 		fmt.Println("No results collected.")
-		return
+		return fmt.Errorf("no results collected")
 	}
 
 	var minDuration, maxDuration time.Duration = durations[0], durations[0]
@@ -805,4 +862,5 @@ func main() {
 
 	fmt.Println()
 	fmt.Println("=== Done ===")
+	return nil
 }

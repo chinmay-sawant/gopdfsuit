@@ -338,9 +338,21 @@ func escapePDFString(s string) string {
 	return sb.String()
 }
 
-// isCustomFontCheck checks if the font name refers to a registered custom font
-func isCustomFontCheck(fontName string, registry *CustomFontRegistry) bool {
-	return registry.HasFont(fontName)
+// appendEscapedPDFLiteral appends PDF literal-string contents for s (not including outer parentheses).
+// Escapes `(`, `)`, and `\` as required by the PDF spec.
+func appendEscapedPDFLiteral(dst []byte, s string) []byte {
+	if !strings.ContainsAny(s, `()\`) {
+		return append(dst, s...)
+	}
+	for _, r := range s {
+		if r == '(' || r == ')' || r == '\\' {
+			dst = append(dst, '\\')
+		}
+		var scratch [utf8.UTFMax]byte
+		n := utf8.EncodeRune(scratch[:], r)
+		dst = append(dst, scratch[:n]...)
+	}
+	return dst
 }
 
 // EstimateTextWidth estimates the width of text in points for a given font and size
@@ -364,14 +376,24 @@ func EstimateTextWidth(resolvedName string, text string, fontSize float64, regis
 	return float64(utf8.RuneCountInString(text)) * fontSize * avgCharWidth
 }
 
+// appendTextForPDF appends PDF text for a Tj operator: hex string for custom fonts,
+// or a parenthesized escaped literal for standard fonts.
+func appendTextForPDF(dst []byte, resolvedName, text string, registry *CustomFontRegistry) []byte {
+	if registry.HasFont(resolvedName) {
+		return AppendTextForCustomFont(dst, resolvedName, text, registry)
+	}
+	dst = append(dst, '(')
+	dst = appendEscapedPDFLiteral(dst, text)
+	return append(dst, ')')
+}
+
 // formatTextForPDF formats text for use in a PDF content stream
 // For custom fonts, returns hex-encoded string; for standard fonts, returns escaped literal
 // Accepts a pre-resolved font name to avoid redundant resolveFontName calls.
 func formatTextForPDF(resolvedName string, text string, registry *CustomFontRegistry) string {
-	if isCustomFontCheck(resolvedName, registry) {
-		return EncodeTextForCustomFont(resolvedName, text, registry)
-	}
-	return "(" + escapePDFString(text) + ")"
+	buf := make([]byte, 0, len(text)+4)
+	buf = appendTextForPDF(buf, resolvedName, text, registry)
+	return string(buf)
 }
 
 // WrapState holds reusable buffers for allocation-free text wrapping.
@@ -409,6 +431,8 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 
 	lineStart := len(ws.buf)
 	hasWords := false
+	var lineWidth float64
+	spaceWidth := EstimateTextWidth(resolvedFontName, " ", fontSize, registry)
 
 	for i := 0; i < len(text); {
 		r, size := utf8.DecodeRuneInString(text[i:])
@@ -435,17 +459,26 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 				ws.lines = append(ws.lines, ws.buf[lineStart:])
 				lineStart = len(ws.buf)
 			}
+			lineWidth = 0
 			wrapLongWordInto(ws, word, resolvedFontName, fontSize, maxWidth, registry)
+			lineWidth = EstimateTextWidth(resolvedFontName, byteString(ws.buf[lineStart:]), fontSize, registry)
 			continue
 		}
 
 		savedLen := len(ws.buf)
+		var trialWidth float64
 		if savedLen > lineStart {
-			ws.buf = append(ws.buf, ' ')
+			trialWidth = lineWidth + spaceWidth + wordWidth
+		} else {
+			trialWidth = lineWidth + wordWidth
 		}
-		ws.buf = append(ws.buf, word...)
 
-		if EstimateTextWidth(resolvedFontName, byteString(ws.buf[lineStart:]), fontSize, registry) <= maxWidth {
+		if trialWidth <= maxWidth {
+			if savedLen > lineStart {
+				ws.buf = append(ws.buf, ' ')
+			}
+			ws.buf = append(ws.buf, word...)
+			lineWidth = trialWidth
 			continue
 		}
 
@@ -455,6 +488,7 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 		}
 		lineStart = len(ws.buf)
 		ws.buf = append(ws.buf, word...)
+		lineWidth = wordWidth
 	}
 
 	if len(ws.buf) > lineStart {
