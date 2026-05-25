@@ -459,7 +459,6 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 				ws.lines = append(ws.lines, ws.buf[lineStart:])
 				lineStart = len(ws.buf)
 			}
-			lineWidth = 0
 			wrapLongWordInto(ws, word, resolvedFontName, fontSize, maxWidth, registry)
 			lineWidth = EstimateTextWidth(resolvedFontName, byteString(ws.buf[lineStart:]), fontSize, registry)
 			continue

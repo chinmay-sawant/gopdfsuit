@@ -1,3 +1,4 @@
+// Package xref provides helpers for writing PDF cross-reference tables.
 package xref
 
 import (

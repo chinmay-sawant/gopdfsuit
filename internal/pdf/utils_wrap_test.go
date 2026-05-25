@@ -5,9 +5,11 @@ import (
 	"testing"
 )
 
+const wrapTestFontHelvetica = "Helvetica"
+
 func TestWrapTextIntoMatchesWrapText(t *testing.T) {
 	registry := NewFontRegistry()
-	fontName := "Helvetica"
+	fontName := wrapTestFontHelvetica
 	fontSize := 12.0
 
 	tests := []struct {
@@ -74,14 +76,14 @@ func TestWrapTextIntoReusesBuffers(t *testing.T) {
 	registry := NewFontRegistry()
 	var ws WrapState
 
-	first := WrapTextInto(&ws, "hello world", "Helvetica", 12, 200, registry)
+	first := WrapTextInto(&ws, "hello world", wrapTestFontHelvetica, 12, 200, registry)
 	if len(first) == 0 {
 		t.Fatal("expected at least one line")
 	}
 
 	firstCap := cap(ws.buf)
 
-	second := WrapTextInto(&ws, "another wrap test line", "Helvetica", 12, 40, registry)
+	second := WrapTextInto(&ws, "another wrap test line", wrapTestFontHelvetica, 12, 40, registry)
 	if len(second) == 0 {
 		t.Fatal("expected at least one line from second call")
 	}
