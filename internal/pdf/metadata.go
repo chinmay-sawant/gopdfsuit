@@ -1,8 +1,6 @@
 package pdf
 
 import (
-	"bytes"
-	"compress/zlib"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -10,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
 )
 
 // PDFAHandler handles PDF/A compliance features, including metadata and color profiles.
@@ -281,14 +280,18 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	iccData := getSRGBICCProfile()
 
 	// Compress the ICC profile with zlib (FlateDecode)
-	var compressedBuf bytes.Buffer
-	zlibWriter := zlib.NewWriter(&compressedBuf)
+	compressedBuf := font.GetCompressBuffer()
+	zlibWriter := font.GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(iccData); err != nil {
 		_ = zlibWriter.Close()
+		font.PutZlibWriter(zlibWriter)
+		font.PutCompressBuffer(compressedBuf)
 		return 0, nil, nil
 	}
 	_ = zlibWriter.Close()
-	compressedData := compressedBuf.Bytes()
+	font.PutZlibWriter(zlibWriter)
+	compressedData := append([]byte(nil), compressedBuf.Bytes()...)
+	font.PutCompressBuffer(compressedBuf)
 
 	// Encrypt compressed ICC profile stream if needed
 	if h.encryptor != nil {

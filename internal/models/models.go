@@ -53,6 +53,7 @@ type Config struct {
 	EmbedFonts          *bool              `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
 	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`         // Custom TTF/OTF fonts to embed
 	PDFACompliant       bool               `json:"pdfaCompliant,omitempty"`       // Enable PDF/A-4 compliance mode (PDF 2.0, requires all fonts to be embedded via Liberation fonts)
+	TaggedPDF           bool               `json:"taggedPDF,omitempty"`           // Emit structure tree/marked content; implied when pdfaCompliant is true via generator logic
 }
 
 // SecurityConfig holds PDF encryption and permission settings

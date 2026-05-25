@@ -1,0 +1,18 @@
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_DataTable2000-24    	     165	  35250178 ns/op	  50.84 MB/s	14924618 B/op	  291860 allocs/op
+BenchmarkGenerateTemplatePDF_DataTable2000-24    	     100	  56484969 ns/op	  31.73 MB/s	14947075 B/op	  291860 allocs/op
+BenchmarkGenerateTemplatePDF_DataTable2000-24    	     135	  39352615 ns/op	  45.54 MB/s	14926735 B/op	  291860 allocs/op
+BenchmarkGoPdfSuit-24                            	     180	  35412592 ns/op	  50.61 MB/s	14903101 B/op	  291861 allocs/op
+BenchmarkGoPdfSuit-24                            	     154	  37322755 ns/op	  48.02 MB/s	14925570 B/op	  291861 allocs/op
+BenchmarkGoPdfSuit-24                            	     165	  44918415 ns/op	  39.90 MB/s	14845562 B/op	  291859 allocs/op
+BenchmarkGenerateTemplatePDF_Parallel-24         	     756	   9397287 ns/op	 190.72 MB/s	14289302 B/op	  291836 allocs/op
+BenchmarkGenerateTemplatePDF_Parallel-24         	     711	   7434129 ns/op	 241.08 MB/s	14283918 B/op	  291837 allocs/op
+BenchmarkGenerateTemplatePDF_Parallel-24         	     848	   7276989 ns/op	 246.29 MB/s	14262605 B/op	  291836 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf	91.118s
+
+# Post-Pass-1 snapshot (2000-row Helvetica table, 24 CPUs)
+# Note: alloc count unchanged on this workload — custom-font bench needed to measure P1-01/P1-02 wins

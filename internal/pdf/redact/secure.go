@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -14,9 +15,10 @@ import (
 
 func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
 	objMap := r.objMap
+	objGen := r.objGen
 	if objMap == nil {
 		var err error
-		objMap, err = buildObjectMap(r.pdfBytes)
+		objMap, objGen, err = buildObjectMap(r.pdfBytes)
 		if err != nil {
 			return nil, false, nil, err
 		}
@@ -38,12 +40,12 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 	changedAny := false
 
 	for pageNum, rects := range redactionsByPage {
-		pageRef, err := findPageObject(objMap, r.pdfBytes, pageNum)
+		pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("page %d: %v", pageNum, err))
 			continue
 		}
-		pageBody := objMap[pageRef]
+		pageBody := objMap[pageObjNum]
 		keys := extractContentKeys(pageBody)
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
@@ -51,7 +53,7 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 			continue
 		}
 
-		visited := make(map[string]bool)
+		visited := make(map[int]bool)
 		activeQueries := queries
 
 		for _, key := range keys {
@@ -63,7 +65,7 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 		}
 	}
 
-	out, err := rebuildPDF(objMap, r.pdfBytes)
+	out, err := rebuildPDF(objMap, objGen, r.pdfBytes)
 	if err != nil {
 		return nil, false, warnings, err
 	}
@@ -71,13 +73,13 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 	return out, changedAny, warnings, nil
 }
 
-func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resources []byte, rects []models.RedactionRect, queries []models.RedactionTextQuery, visited map[string]bool) (bool, []string) {
-	if visited[streamKey] {
+func rewriteSecureStreamTree(objMap map[int][]byte, streamObjNum int, resources []byte, rects []models.RedactionRect, queries []models.RedactionTextQuery, visited map[int]bool) (bool, []string) {
+	if visited[streamObjNum] {
 		return false, nil
 	}
-	visited[streamKey] = true
+	visited[streamObjNum] = true
 
-	objBody, ok := objMap[streamKey]
+	objBody, ok := objMap[streamObjNum]
 	if !ok {
 		return false, nil
 	}
@@ -90,9 +92,9 @@ func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resourc
 	updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
 	warnings := make([]string, 0, 2)
 	if err != nil {
-		warnings = append(warnings, fmt.Sprintf("stream %s: %v", streamKey, err))
+		warnings = append(warnings, fmt.Sprintf("stream %d: %v", streamObjNum, err))
 	} else if changed {
-		objMap[streamKey] = updated
+		objMap[streamObjNum] = updated
 	}
 
 	if len(resources) == 0 || len(decoded) == 0 {
@@ -100,8 +102,8 @@ func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resourc
 	}
 
 	childRefs := resolveUsedXObjectRefs(decoded, resources)
-	for _, childKey := range childRefs {
-		childBody, ok := objMap[childKey]
+	for _, childNum := range childRefs {
+		childBody, ok := objMap[childNum]
 		if !ok {
 			continue
 		}
@@ -110,7 +112,7 @@ func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resourc
 			continue
 		}
 		childResources := extractResourcesBody(childBody, objMap)
-		childChanged, childWarnings := rewriteSecureStreamTree(objMap, childKey, childResources, rects, queries, visited)
+		childChanged, childWarnings := rewriteSecureStreamTree(objMap, childNum, childResources, rects, queries, visited)
 		if childChanged {
 			changed = true
 		}
@@ -137,22 +139,28 @@ func inspectStream(streamObj []byte) ([]byte, []byte, bool) {
 	return raw, raw, true
 }
 
-func extractContentKeys(pageBody []byte) []string {
+func extractContentKeys(pageBody []byte) []int {
 	contentsRe := regexp.MustCompile(`/Contents\s+(?:(\d+)\s+(\d+)\s+R|\[(.*?)\])`)
 	match := contentsRe.FindSubmatch(pageBody)
 	if match == nil {
 		return nil
 	}
-	var keys []string
+	var keys []int
 	if len(match[1]) > 0 {
-		keys = append(keys, string(match[1])+" "+string(match[2]))
+		n, err := strconv.Atoi(string(match[1]))
+		if err == nil {
+			keys = append(keys, n)
+		}
 		return keys
 	}
 	if len(match[3]) > 0 {
 		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 		refs := refRe.FindAllSubmatch(match[3], -1)
 		for _, r := range refs {
-			keys = append(keys, string(r[1])+" "+string(r[2]))
+			n, err := strconv.Atoi(string(r[1]))
+			if err == nil {
+				keys = append(keys, n)
+			}
 		}
 	}
 	return keys

@@ -79,13 +79,13 @@ func putRGBDataBuffer(buf []byte) {
 
 // ImageObject represents a PDF image XObject
 type ImageObject struct {
+	ImageData    []byte
+	ColorSpace   string
+	Filter       string
 	ObjectID     int
 	Width        int
 	Height       int
-	ColorSpace   string
 	BitsPerComp  int
-	Filter       string
-	ImageData    []byte
 	ImageDataLen int
 	IsForm       bool
 }
@@ -202,7 +202,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		// Copy compressed data since buffer will be reused
 		imgObj.ImageData = append([]byte(nil), compressedBuf.Bytes()...)
 		imgObj.ImageDataLen = len(imgObj.ImageData)
-		compressBufPool.Put(compressedBuf)
+		putCompressBuffer(compressedBuf)
 
 	case "jpeg", "jpg":
 		// For JPEG, use original bytes directly to preserve quality
@@ -235,7 +235,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		imgObj.Filter = "/FlateDecode"
 		imgObj.ImageData = append([]byte(nil), compressedBuf.Bytes()...)
 		imgObj.ImageDataLen = len(imgObj.ImageData)
-		compressBufPool.Put(compressedBuf)
+		putCompressBuffer(compressedBuf)
 	}
 
 	// Store in cache for future lookups of same image data

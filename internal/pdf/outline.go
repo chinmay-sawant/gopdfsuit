@@ -158,39 +158,36 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 		// PDF/UA-2: Create a Sect (Section) structure element for this bookmark target
 		// This enables using /SD (structure destination) in the GoTo action
 		sectElem := ob.pageManager.Structure.CreateBookmarkSect(bm.Title)
-
-		// Assign Object ID immediately so we can reference it in the outline dictionary
-		sectElem.ObjectID = ob.pageManager.NextObjectID
-		ob.pageManager.NextObjectID++
-
-		item.DestStructElemID = sectElem.ObjectID
+		var destStructElemID int
+		if sectElem != nil {
+			// Assign Object ID immediately so we can reference it in the outline dictionary
+			sectElem.ObjectID = ob.pageManager.NextObjectID
+			ob.pageManager.NextObjectID++
+			destStructElemID = sectElem.ObjectID
+		}
+		item.DestStructElemID = destStructElemID
 
 		// PDF/UA-2: Generate unique destination key and register named destination
 		// This allows using /Dest (name) instead of /A << /S /GoTo ... >>
 		destKey := fmt.Sprintf("_bm_%d", len(ob.outlineItems))
 		item.DestKey = destKey
 
-		// Register the named destination with structure element for PDF/UA-2
-		ob.pageManager.NamedDests[destKey] = NamedDest{
+		nd := NamedDest{
 			PageIndex:    0, // Will be determined from DestPageID
 			Y:            item.DestY,
 			StructElemID: item.DestStructElemID,
 		}
-		// Find the page index from DestPageID
 		for pageIdx, pageObjID := range ob.pageManager.Pages {
 			if pageObjID == item.DestPageID {
-				ob.pageManager.NamedDests[destKey] = NamedDest{
-					PageIndex:    pageIdx,
-					Y:            item.DestY,
-					StructElemID: item.DestStructElemID,
-				}
+				nd.PageIndex = pageIdx
 				break
 			}
 		}
+		ob.pageManager.NamedDests[destKey] = nd
 
 		// PDF/UA-2: If this bookmark defines a user-specified destination (bm.Dest),
 		// update that destination with the structure element ID so internal links work
-		if bm.Dest != "" {
+		if bm.Dest != "" && item.DestStructElemID > 0 {
 			if existingDest, exists := ob.pageManager.NamedDests[bm.Dest]; exists {
 				existingDest.StructElemID = item.DestStructElemID
 				ob.pageManager.NamedDests[bm.Dest] = existingDest
@@ -321,7 +318,7 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 	}
 	rootDict.WriteString(fmt.Sprintf(" /Count %d", totalCount))
 	rootDict.WriteString(" >>")
-	ob.pageManager.ExtraObjects[ob.outlineObjID] = rootDict.String()
+	ob.pageManager.ExtraObjects[ob.outlineObjID] = []byte(rootDict.String())
 
 	// Generate each outline item
 	for _, item := range ob.outlineItems {
@@ -389,7 +386,7 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 		}
 
 		itemDict.WriteString(" >>")
-		ob.pageManager.ExtraObjects[item.ObjectID] = itemDict.String()
+		ob.pageManager.ExtraObjects[item.ObjectID] = []byte(itemDict.String())
 	}
 }
 
@@ -495,14 +492,14 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	namesArray.WriteString("]")
 
 	destsTreeContent := fmt.Sprintf("<< /Names %s >>", namesArray.String())
-	ob.pageManager.ExtraObjects[destsTreeID] = destsTreeContent
+	ob.pageManager.ExtraObjects[destsTreeID] = []byte(destsTreeContent)
 
 	// Create Names dictionary object
 	namesID := ob.pageManager.NextObjectID
 	ob.pageManager.NextObjectID++
 
 	namesContent := fmt.Sprintf("<< /Dests %d 0 R >>", destsTreeID)
-	ob.pageManager.ExtraObjects[namesID] = namesContent
+	ob.pageManager.ExtraObjects[namesID] = []byte(namesContent)
 
 	return namesID, true
 }

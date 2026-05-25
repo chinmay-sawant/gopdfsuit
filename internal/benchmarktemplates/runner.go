@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,9 +16,20 @@ import (
 )
 
 const (
-	numWorkers = 48
-	iterations = 10
+	defaultWorkers = 48
 )
+
+func envInt(key string, fallback int) int {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= 0 {
+		return fallback
+	}
+	return n
+}
 
 func monitorMemory(done chan bool, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -47,8 +59,14 @@ func RunSingleDocumentBenchmark(name string) error {
 		return err
 	}
 
+	iterations := envInt("BENCH_ITERATIONS", defaultWorkers)
+	workers := envInt("BENCH_WORKERS", defaultWorkers)
+	if workers > iterations {
+		workers = iterations
+	}
+
 	fmt.Println(BenchmarkHeader(name))
-	fmt.Printf("Iterations: %d | Workers: %d\n", iterations, numWorkers)
+	fmt.Printf("Iterations: %d | Workers: %d\n", iterations, workers)
 
 	var (
 		mu        sync.Mutex
@@ -62,7 +80,7 @@ func RunSingleDocumentBenchmark(name string) error {
 	memWg.Add(1)
 	go monitorMemory(memDone, &memWg)
 
-	sem := make(chan struct{}, numWorkers)
+	sem := make(chan struct{}, workers)
 	totalStart := time.Now()
 	for runIndex := 1; runIndex <= iterations; runIndex++ {
 		sem <- struct{}{}

@@ -2,12 +2,13 @@ package pdf
 
 import (
 	"bytes"
-	"compress/zlib"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
 )
 
 // ConvertPDFDateToXMP converts a PDF date string (D:YYYYMMDDHHmmSSOHH'mm') to XMP format (YYYY-MM-DDTHH:mm:ss+HH:MM)
@@ -314,14 +315,18 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 	iccProfile := GetSRGBICCProfile()
 
 	// Compress the ICC profile
-	var compressedBuf bytes.Buffer
-	zlibWriter := zlib.NewWriter(&compressedBuf)
-	if _, err := zlibWriter.Write(iccProfile); err != nil {
-		_ = zlibWriter.Close()
+	cb := font.GetCompressBuffer()
+	zw := font.GetZlibWriter(cb)
+	if _, err := zw.Write(iccProfile); err != nil {
+		_ = zw.Close()
+		font.PutZlibWriter(zw)
+		font.PutCompressBuffer(cb)
 		return nil
 	}
-	_ = zlibWriter.Close()
-	compressedData := compressedBuf.Bytes()
+	_ = zw.Close()
+	font.PutZlibWriter(zw)
+	compressedData := append([]byte(nil), cb.Bytes()...)
+	font.PutCompressBuffer(cb)
 
 	// Encrypt if needed
 	if encryptor != nil {
@@ -345,14 +350,18 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 	grayProfile := buildGrayICCProfile()
 
 	// Compress the ICC profile
-	var compressedBuf bytes.Buffer
-	zlibWriter := zlib.NewWriter(&compressedBuf)
-	if _, err := zlibWriter.Write(grayProfile); err != nil {
-		_ = zlibWriter.Close()
+	cb := font.GetCompressBuffer()
+	zw := font.GetZlibWriter(cb)
+	if _, err := zw.Write(grayProfile); err != nil {
+		_ = zw.Close()
+		font.PutZlibWriter(zw)
+		font.PutCompressBuffer(cb)
 		return nil
 	}
-	_ = zlibWriter.Close()
-	compressedData := compressedBuf.Bytes()
+	_ = zw.Close()
+	font.PutZlibWriter(zw)
+	compressedData := append([]byte(nil), cb.Bytes()...)
+	font.PutCompressBuffer(cb)
 
 	// Encrypt if needed
 	if encryptor != nil {

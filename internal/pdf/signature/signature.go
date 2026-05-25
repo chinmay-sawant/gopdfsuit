@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -50,35 +51,48 @@ var (
 	oidSigningTime   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 5}
 )
 
-// NewPDFSigner creates a new PDF signer from config
-func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
-	if config == nil || !config.Enabled {
-		return nil, nil
+// parsedSignerPEMEntry caches certificate, private key (e.g. *rsa.PrivateKey), and chain for a PEM fingerprint.
+type parsedSignerPEMEntry struct {
+	cert      *x509.Certificate
+	key       crypto.PrivateKey
+	certChain []*x509.Certificate
+}
+
+var signerPEMMaterialCache sync.Map // hex(sha256(...)) -> *parsedSignerPEMEntry
+
+func signerPEMCacheKey(certPEM, keyPEM string, chain []string) string {
+	h := sha256.New()
+	h.Write([]byte(certPEM))
+	h.Write([]byte{0})
+	h.Write([]byte(keyPEM))
+	for _, c := range chain {
+		h.Write([]byte{1})
+		h.Write([]byte(c))
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.Certificate, crypto.PrivateKey, []*x509.Certificate, error) {
+	cacheKey := signerPEMCacheKey(certPEM, keyPEM, chainPEMs)
+	if v, ok := signerPEMMaterialCache.Load(cacheKey); ok {
+		ent := v.(*parsedSignerPEMEntry)
+		return ent.cert, ent.key, ent.certChain, nil
 	}
 
-	signer := &PDFSigner{
-		config: config,
-	}
-
-	// Parse certificate
-	block, _ := pem.Decode([]byte(config.CertificatePEM))
+	block, _ := pem.Decode([]byte(certPEM))
 	if block == nil {
-		return nil, fmt.Errorf("failed to parse certificate PEM")
+		return nil, nil, nil, fmt.Errorf("failed to parse certificate PEM")
 	}
-
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse certificate: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
-	signer.certificate = cert
 
-	// Parse private key
-	keyBlock, _ := pem.Decode([]byte(config.PrivateKeyPEM))
+	keyBlock, _ := pem.Decode([]byte(keyPEM))
 	if keyBlock == nil {
-		return nil, fmt.Errorf("failed to parse private key PEM")
+		return nil, nil, nil, fmt.Errorf("failed to parse private key PEM")
 	}
 
-	// Try parsing as PKCS#8 first, then PKCS#1
 	var privateKey crypto.PrivateKey
 	privateKey, err = x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
 	if err != nil {
@@ -86,24 +100,52 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 		if err != nil {
 			privateKey, err = x509.ParseECPrivateKey(keyBlock.Bytes)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse private key: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to parse private key: %w", err)
 			}
 		}
 	}
-	signer.privateKey = privateKey
 
-	// Parse certificate chain if provided
-	for _, chainPEM := range config.CertificateChain {
+	var chain []*x509.Certificate
+	for _, chainPEM := range chainPEMs {
 		chainBlock, _ := pem.Decode([]byte(chainPEM))
-		if chainBlock != nil {
-			chainCert, err := x509.ParseCertificate(chainBlock.Bytes)
-			if err == nil {
-				signer.certChain = append(signer.certChain, chainCert)
-			}
+		if chainBlock == nil {
+			continue
+		}
+		chainCert, perr := x509.ParseCertificate(chainBlock.Bytes)
+		if perr == nil {
+			chain = append(chain, chainCert)
 		}
 	}
 
-	return signer, nil
+	signerPEMMaterialCache.Store(cacheKey, &parsedSignerPEMEntry{
+		cert:      cert,
+		key:       privateKey,
+		certChain: chain,
+	})
+	return cert, privateKey, chain, nil
+}
+
+// NewPDFSigner creates a new PDF signer from config
+func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
+	if config == nil || !config.Enabled {
+		return nil, nil
+	}
+
+	cert, privateKey, chain, err := parseSignerPEMMaterials(
+		config.CertificatePEM,
+		config.PrivateKeyPEM,
+		config.CertificateChain,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PDFSigner{
+		config:      config,
+		certificate: cert,
+		privateKey:  privateKey,
+		certChain:   chain,
+	}, nil
 }
 
 // CreateSignatureField creates the signature field and annotation objects

@@ -21,7 +21,9 @@ var ZlibWriterPool = sync.Pool{
 // CompressBufPool recycles bytes.Buffer for compression output
 var CompressBufPool = sync.Pool{
 	New: func() any {
-		return new(bytes.Buffer)
+		buf := new(bytes.Buffer)
+		buf.Grow(65536)
+		return buf
 	},
 }
 
@@ -42,4 +44,13 @@ func GetCompressBuffer() *bytes.Buffer {
 	buf := CompressBufPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	return buf
+}
+
+// PutCompressBuffer returns a compression buffer to the pool after resetting it.
+func PutCompressBuffer(buf *bytes.Buffer) {
+	if buf == nil {
+		return
+	}
+	buf.Reset()
+	CompressBufPool.Put(buf)
 }

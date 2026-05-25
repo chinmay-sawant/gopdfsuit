@@ -1,8 +1,8 @@
 const headlineStats = [
-  { value: '10.88 ms', label: 'Best Zerodha Avg', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
-  { value: '783.34 ops/sec', label: 'Peak Zerodha Throughput', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
-  { value: '9.47 ms', label: 'Best Zerodha Min', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-  { value: '12.53 ms', label: 'Best Zerodha Max', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
+  { value: '2061 ops/sec', label: 'Peak Zerodha Throughput', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
+  { value: '1705 ops/sec', label: '10-Run Avg Throughput', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
+  { value: '22.7 ms', label: 'Best Avg Latency', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+  { value: '1.73 ms', label: 'Best Min Latency', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
 ]
 
 const dataBenchmarks = [
@@ -21,7 +21,8 @@ const zerodhaBenchmarks = [
 ]
 
 const parallelWeightedBenchmarks = [
-  { name: 'GoPDFLib', workers: '48', throughput: '1913.13 ops/sec', avg: '24.558 ms', min: '2.280 ms', max: '505.087 ms', mix: '4004 / 766 / 230' },
+  { name: 'GoPDFLib', workers: '48', throughput: '2061.33 ops/sec', avg: '22.680 ms', min: '1.725 ms', max: '659.165 ms', mix: '4002 / 732 / 266' },
+  { name: 'GoPDFLib (10-run avg)', workers: '48', throughput: '1704.95 ops/sec', avg: '27.647 ms', min: '1.967 ms', max: '883.804 ms', mix: '~4000 / ~750 / ~250' },
   { name: 'PyPDFSuit', workers: '48', throughput: '233.76 ops/sec', avg: '185.517 ms', min: '2.657 ms', max: '3516.474 ms', mix: '4015 / 767 / 218' },
 ]
 
@@ -72,8 +73,8 @@ const PerformanceSection = ({ isVisible }) => {
             Measured Performance
           </h2>
           <p className="section-subheading performance-intro">
-            Captured locally on March 20, 2026 from the latest checked-in benchmark suite run.
-            The headline numbers below refer to the Zerodha Contract Note benchmark, a real-world template workload focused on serial generation latency and throughput. Historical parallel weighted workload numbers are shown separately below.
+            Captured on WSL2 (May 2026) from the Zerodha Gold Standard benchmark: 5000 iterations, 48 workers, 80% Retail / 15% Active / 5% HFT, PDF/A + tagged PDF + digital signatures.
+            Headline numbers are aggregate concurrent throughput (not per-core). Serial 48-iteration retail comparisons and cross-library data-table benchmarks are shown separately below.
           </p>
         </div>
 
@@ -97,8 +98,8 @@ const PerformanceSection = ({ isVisible }) => {
 
         <div className="performance-panels-grid">
           <BenchmarkPanel
-            title="Zerodha Contract Note"
-            description="Real-world template benchmark focused on serial generation latency and throughput for contract note workloads."
+            title="Zerodha Contract Note (48× serial)"
+            description="Single retail contract note rendered 48 times in-process (March 2026 harness). Serial throughput only — not comparable to the 5000×48 gold standard above."
             columns={[
               { key: 'name', label: 'Runtime' },
               { key: 'avg', label: 'Avg' },
@@ -124,8 +125,8 @@ const PerformanceSection = ({ isVisible }) => {
           />
 
           <BenchmarkPanel
-            title="Parallel Weighted Workload"
-            description="Mixed retail, active-trader, and HFT traffic executed across 48 workers. Higher throughput here reflects aggregate concurrent processing rather than single-document latency."
+            title="Parallel Weighted Workload (5000×48)"
+            description="Mixed retail, active-trader, and HFT traffic with PDF/A compliance. Peak row is the best observed WSL run; avg row is the mean of 10 sequential runs. Throughput is aggregate system throughput across 48 workers."
             columns={[
               { key: 'name', label: 'Runtime' },
               { key: 'workers', label: 'Workers' },

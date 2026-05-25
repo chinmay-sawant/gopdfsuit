@@ -40,6 +40,7 @@ var (
 	GenerateWidthsArrayObject            = font.GenerateWidthsArrayObject
 	GenerateTrueTypeFontObjects          = font.GenerateTrueTypeFontObjects
 	EncodeTextForCustomFont              = font.EncodeTextForCustomFont
+	AppendTextForCustomFont              = font.AppendTextForCustomFont
 	GetHelveticaFontResourceString       = font.GetHelveticaFontResourceString
 	GetSimpleHelveticaFontResourceString = font.GetSimpleHelveticaFontResourceString
 	GetAvailableFonts                    = font.GetAvailableFonts
@@ -55,6 +56,7 @@ var (
 	SubsetTTF                            = font.SubsetTTF
 	SubsetTTFForText                     = font.SubsetTTFForText
 	GetCompressBuffer                    = font.GetCompressBuffer
+	PutCompressBuffer                    = font.PutCompressBuffer
 	GetZlibWriter                        = font.GetZlibWriter
 	PutZlibWriter                        = font.PutZlibWriter
 	CompressBufPool                      = &font.CompressBufPool
@@ -63,8 +65,8 @@ var (
 // Internal aliases for lower-case names previously used in the pdf package
 var (
 	getCompressBuffer   = font.GetCompressBuffer
+	putCompressBuffer   = font.PutCompressBuffer
 	getZlibWriter       = font.GetZlibWriter
 	putZlibWriter       = font.PutZlibWriter // Note: remote code uses getZlibWriter/putZlibWriter names
-	compressBufPool     = &font.CompressBufPool
 	generateCIDToGIDMap = font.GenerateCIDToGIDMap
 )
