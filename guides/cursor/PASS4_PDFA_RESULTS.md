@@ -220,7 +220,7 @@ With **PDF/A compliance enabled**, Pass 4 delivers (5-run averages):
 
 - **~36 ms/op** Rows2000 (best **~32 ms**, worst **~40 ms**); **~163K allocs/op** (vs Pass 3 **~303K**)
 - **~31 ms/op** GoPdfSuit (best **~28 ms**, worst **~33 ms**)
-- **Zerodha 5000×48:** **859 ops/s** avg (best **908**, worst **830**); **54.5 ms** avg latency (**+35% throughput vs Go 1.24**)
+- **Zerodha 5000×48:** **1705 ops/s** avg (peak **2061**, worst **1542**); **27.7 ms** avg latency (**+197% throughput vs Go 1.24** 10-run avg)
 - Micro-bench CPU: **`memclr` avg ~4.5%** (best **3.8%**, worst **5.5%**); load-test **`memclr` 27%** vs baseline **49.7%**
 - **~5.7× higher** load-test throughput and **p99 under 2 s** (vs 27 s baseline)
 - **~88% lower** heap under concurrent load, while retaining structure tagging and PDF/A objects

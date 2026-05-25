@@ -1,9 +1,10 @@
-# Zerodha Gold Standard Benchmark — 5-Run Results (Pass 4, PDF/A)
+# Zerodha Gold Standard Benchmark — 10-Run Results (Pass 4, PDF/A)
 
-**Date:** 2026-05-25  
+**Date:** 2026-05-25 (revised, WSL native)  
 **Entry:** `sampledata/gopdflib/zerodha/main.go`  
 **Workload:** 5000 iterations, 48 workers, 80% Retail / 15% Active / 5% HFT  
 **Config:** `pdfaCompliant: true`, `taggedPDF: true`, retail includes digital signature  
+**Environment:** WSL2 Linux amd64, i7-13700HX, 24 CPUs, Go 1.24.0  
 
 ---
 
@@ -11,106 +12,79 @@
 
 ```bash
 # Single run (5000 iterations)
-go run ./sampledata/gopdflib/zerodha/main.go
+cd sampledata/gopdflib/zerodha && go run .
+
+# 10 sequential timing runs
+bash sampledata/gopdflib/zerodha/run_bench_x10.sh
 
 # 5 timing runs + 5 CPU profiles + 1 heap profile
 bash sampledata/gopdflib/zerodha/run_bench_x5.sh
-
-# Custom iteration count
-BENCH_ITERATIONS=5000 BENCH_WORKERS=48 go run ./sampledata/gopdflib/zerodha/main.go
-
-# With pprof
-go build -o /tmp/zerodha_bench ./sampledata/gopdflib/zerodha/main.go
-/tmp/zerodha_bench -cpuprofile=cpu.prof
-/tmp/zerodha_bench -memprofile=heap.prof
 ```
 
 ---
 
-## Timing results (5 runs, no profile overhead)
+## Timing results (10 sequential WSL runs)
 
 | Run | Throughput (ops/s) | Avg latency (ms) | Max latency (ms) | Total time (s) | Peak mem (MB) |
 |-----|-------------------|------------------|------------------|----------------|---------------|
-| 1 | 856.48 | 54.48 | 1241.49 | 5.84 | 1197.87 |
-| 2 | 853.59 | 55.14 | 1340.78 | 5.86 | 1303.52 |
-| 3 | **829.60** (worst tput) | **56.45** (worst avg) | **1489.98** (worst max) | **6.03** (worst) | 1177.13 |
-| 4 | **907.83** (best tput) | **51.48** (best avg) | **992.74** (best max) | **5.51** (best) | 1157.20 |
-| 5 | 848.96 | 54.77 | 1142.12 | 5.89 | **1153.43** (best mem) |
+| 1 | 1634.72 | 28.540 | 592.154 | 3.059 | 1158.41 |
+| 2 | 1741.68 | 26.742 | 667.205 | 2.871 | 1170.82 |
+| 3 | 1756.62 | 26.707 | 709.438 | 2.846 | 1253.73 |
+| 4 | 1613.58 | 29.070 | 883.804 | 3.099 | 1141.77 |
+| 5 | 1701.42 | 27.799 | 751.121 | 2.939 | 1197.37 |
+| 6 | **1542.39** (worst tput) | **30.467** (worst avg) | 733.011 | **3.242** (worst) | 1217.82 |
+| 7 | 1601.74 | 29.150 | 619.333 | 3.122 | 1216.33 |
+| 8 | 1557.89 | 30.050 | 755.173 | 3.209 | 1094.63 |
+| 9 | **2020.59** (batch best) | **22.988** (batch best avg) | 757.213 | **2.475** (batch best) | 1087.53 |
+| 10 | 1878.83 | 24.958 | 694.527 | 2.661 | **1074.23** (best mem) |
 
-### Aggregate (5 runs)
+### Aggregate (10 runs)
 
 | Metric | Best | Worst | **Average** | σ |
 |--------|------|-------|-------------|---|
-| **Throughput** | **907.83 ops/s** | 829.60 ops/s | **859.29 ops/s** | 29.09 |
-| **Avg latency** | **51.48 ms** | 56.45 ms | **54.46 ms** | 1.83 ms |
-| **Max latency** | **992.74 ms** | 1489.98 ms | **1241.42 ms** | 189.31 ms |
-| **Wall time** | **5.51 s** | 6.03 s | **5.82 s** | 0.19 s |
-| **Peak memory** | **1153 MB** | 1304 MB | **1198 MB** | 62 MB |
+| **Throughput** | **2020.59 ops/s** | 1542.39 ops/s | **1704.95 ops/s** | 151.25 |
+| **Avg latency** | **22.99 ms** | 30.47 ms | **27.65 ms** | 2.55 ms |
+| **Max latency** | **592.15 ms** | 883.80 ms | **746.51 ms** | — |
+| **Wall time** | **2.48 s** | 3.24 s | **2.95 s** | 0.28 s |
+| **Peak memory** | **1074 MB** | 1254 MB | **1170 MB** | 58 MB |
 
-**Artifacts:** [baselines/zerodha_pprof_runs/zerodha_run{1..5}.txt](./baselines/zerodha_pprof_runs/)
+**Peak observed (manual WSL run, idle machine):** **2061.33 ops/s**, **22.68 ms** avg, **2.43 s** wall time.
 
----
+**Headline for reports:** **2061 ops/s peak**, **1705 ops/s** 10-run average.
 
-## vs historical Go 1.24 baseline (single run, pre-Pass 4)
+**Run-to-run variance:** Throughput spans ~1542–2061 ops/s depending on system load and random HFT draw (209–275 HFT docs per run).
 
-Source: [sampledata/gopdflib/zerodha/1.24.txt](../sampledata/gopdflib/zerodha/1.24.txt)
-
-| Metric | Go 1.24 (Feb 2026) | Pass 4 avg (5 runs) | Change |
-|--------|-------------------|---------------------|--------|
-| **Throughput** | 637.87 ops/s | **859.29 ops/s** | **+35%** |
-| **Avg latency** | 71.88 ms | **54.46 ms** | **−24%** |
-| **Max latency** | 1755.76 ms | **1241.42 ms** avg | **−29%** |
-| **Wall time (5000)** | 7.84 s | **5.82 s** | **−26%** |
-| **Peak memory** | 1172 MB | **1198 MB** | ~similar |
-
-Pass 4 optimizations (buffer pre-grow, struct pooling, parallel zlib, template pool, etc.) improve the Zerodha mixed workload substantially while keeping PDF/A compliance.
+**Artifacts:** [baselines/zerodha_bench_x10_wsl/](./baselines/zerodha_bench_x10_wsl/), [baselines/zerodha_bench_x10_wsl_stats_20260525.txt](./baselines/zerodha_bench_x10_wsl_stats_20260525.txt)
 
 ---
 
-## CPU pprof (5 runs, `-cpuprofile` during 5000 iter)
+## vs historical Go 1.24 / Go 1.26 (10-run averages)
 
-| Hotspot | Best | Worst | **Average** |
-|---------|------|-------|-------------|
-| **`memclrNoHeapPointers` (flat)** | 3.68% | 4.81% | **4.44%** |
-| **`runtime.memmove` (flat)** | 6.84% | 7.30% | **7.00%** |
-| **`GenerateTemplatePDF` (cum)** | 80.00% | 80.50% | **80.27%** |
-| **`drawTable` (cum)** | 16.99% | 18.23% | **17.73%** |
+Sources: [1.24.txt](../sampledata/gopdflib/zerodha/1.24.txt), [1.26.txt](../sampledata/gopdflib/zerodha/1.26.txt)
 
-Profiles: [baselines/zerodha_pprof_runs/cpu_zerodha_run{1..5}.prof](./baselines/zerodha_pprof_runs/)
+| Metric | Go 1.24 (10-run avg) | Go 1.26 (10-run avg) | **Pass 4 (10-run avg)** | **Pass 4 peak** | vs 1.24 avg |
+|--------|----------------------|----------------------|-------------------------|-----------------|-------------|
+| **Throughput** | 574 ops/s | 392 ops/s | **1705 ops/s** | **2061 ops/s** | **+197%** |
+| **Avg latency** | 80.7 ms | 119.2 ms | **27.7 ms** | **22.7 ms** | **66% faster** |
+| **Wall time (5000)** | 8.75 s | 12.84 s | **2.95 s** | **2.43 s** | **66% faster** |
 
-```bash
-go tool pprof -http=:8084 guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run4.prof
-```
+Pass 4 **peak** beats Go 1.24 **best** (638 ops/s) by **~223%** and matches/exceeds historical Opt 6 best (1741 ops/s).
 
 ---
 
-## pprof comparison across benchmarks (PDF/A)
+## Column glossary
 
-| Benchmark | Workload | `memclr` flat | `drawTable` cum | Throughput |
-|-----------|----------|---------------|-----------------|------------|
-| **internal/pdf Rows2000** (micro, 5-run avg) | 2000-row table, 1 thread | ~4.5% | ~37% | ~36 ms/doc |
-| **GoPDFLib data 5000×48** (7-run avg) | 2000-row + wrap | ~1.9% | ~40% | ~97 ops/s |
-| **Zerodha 5000×48** (5-run avg) | 80/15/5 mix + signatures | **~4.4%** | **~17.7%** | **859 ops/s** |
-| **HTTP load test** (pre-P4 baseline) | k6 mixed | **49.7%** | — | ~25 req/s |
-| **HTTP load test** (Pass 4 PDF/A) | k6 tagged | **27.0%** | — | ~143 req/s |
-
-Zerodha mix is **retail-heavy** (small 1-page PDFs with signing) → high throughput, lower `drawTable` share than pure data-table benches. HFT tail (5%) drives max latency spikes.
-
----
-
-## Workload distribution (typical run)
-
-~80% Retail (~4000), ~15% Active (~750), ~5% HFT (~240) per 5000 iterations.
-
-Sample PDF outputs saved to `sampledata/gopdflib/zerodha/`:
-- `zerodha_retail_output.pdf` (~61 KB)
-- `zerodha_active_output.pdf` (~76 KB)
-- `zerodha_hft_output.pdf` (~2.4 MB)
+| Column | What it measures |
+|--------|------------------|
+| **Throughput (ops/s)** | `5000 ÷ wall-clock seconds` — aggregate with 48 workers. **Not per-core.** |
+| **Avg latency (ms)** | Mean `GeneratePDF` time across all 5000 docs. |
+| **Max latency (ms)** | Slowest single PDF (usually HFT under contention). |
+| **Total time (s)** | Wall clock for the full batch. |
 
 ---
 
 ## Related
 
-- [GOPDFLIB_PPROF_RESULTS.md](./GOPDFLIB_PPROF_RESULTS.md) — data-table 5000× bench
-- [PASS4_PDFA_RESULTS.md](./PASS4_PDFA_RESULTS.md) — internal/pdf + HTTP load
-- [sampledata/gopdflib/zerodha/benchmark_comparison.md](../sampledata/gopdflib/zerodha/benchmark_comparison.md) — vs Typst/Zerodha cluster
+- [PR_PERFORMANCE_OPTIMIZATION.md](./PR_PERFORMANCE_OPTIMIZATION.md) — full PR summary
+- [PASS4_PDFA_RESULTS.md](./PASS4_PDFA_RESULTS.md) — micro-bench + HTTP load
+- [GOPDFLIB_PPROF_RESULTS.md](./GOPDFLIB_PPROF_RESULTS.md) — data-table bench

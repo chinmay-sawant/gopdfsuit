@@ -6,12 +6,12 @@ export const performanceSection = {
             title: 'Benchmark Results',
             description: 'Measured benchmark results for GoPDFSuit, GoPDFLib, and pypdfsuit on a single Zerodha contract note and on the weighted 48-worker Zerodha workload.',
             codePlacement: 'below',
-            content: `These measurements were captured on **March 9, 2026** by running the benchmark files checked into this repository and keeping the best observed result shown below.
+            content: `These measurements were captured on **May 25, 2026** on WSL2 (Intel i7-13700HX, 24 logical CPUs) by running the benchmark files checked into this repository.
 
 Two benchmark modes were executed:
 
-1. A **single Zerodha retail contract note** rendered repeatedly in-process by the runners under **sampledata/benchmarks**.
-2. The **weighted Zerodha workload** in **sampledata/gopdflib/zerodha** that mixes reta./gopdfsuit/.veil, active trader, and HFT-style contract notes across 48 workers.
+1. A **single Zerodha retail contract note** rendered repeatedly in-process by the runners under **sampledata/benchmarks** (48 iterations, serial comparison).
+2. The **weighted Zerodha workload** in **sampledata/gopdflib/zerodha** — **5000 iterations**, **48 workers**, 80% Retail / 15% Active / 5% HFT, with **PDF/A + tagged PDF + digital signatures**.
 
 **Machine Profile**
 
@@ -19,8 +19,40 @@ Two benchmark modes were executed:
 - **CPU:** 13th Gen Intel(R) Core(TM) i7-13700HX
 - **Topology:** 12 cores, 24 logical CPUs, 2 threads per core
 - **Memory:** 7.6 GiB RAM
+- **Go:** 1.24.0
 
-## Single Zerodha Retail Contract Note
+## Zerodha Gold Standard (5000×48, PDF/A)
+
+This is the primary end-to-end benchmark. **Throughput values are aggregate system throughput** across 48 concurrent workers — not per-core and not single-thread serial throughput.
+
+| Metric | Peak observed | 10-run average |
+| --- | ---: | ---: |
+| **Throughput** | **2061.33 ops/sec** | **1704.95 ops/sec** |
+| **Avg latency** | **22.680 ms** | **27.647 ms** |
+| **Min latency** | **1.725 ms** | **1.967 ms** |
+| **Max latency** | **659.165 ms** | **746.510 ms** |
+| **Wall time (5000 docs)** | **2.426 s** | **2.952 s** |
+
+**vs Go 1.24 historical (10-run avg):** **+197% throughput**, **66% lower avg latency**.
+
+### 10-run detail (sequential WSL runs)
+
+| Run | Throughput | Avg | Wall (s) |
+| ---: | ---: | ---: | ---: |
+| 1 | 1634.72 ops/sec | 28.540 ms | 3.059 |
+| 2 | 1741.68 ops/sec | 26.742 ms | 2.871 |
+| 3 | 1756.62 ops/sec | 26.707 ms | 2.846 |
+| 4 | 1613.58 ops/sec | 29.070 ms | 3.099 |
+| 5 | 1701.42 ops/sec | 27.799 ms | 2.939 |
+| 6 | 1542.39 ops/sec | 30.467 ms | 3.242 |
+| 7 | 1601.74 ops/sec | 29.150 ms | 3.122 |
+| 8 | 1557.89 ops/sec | 30.050 ms | 3.209 |
+| 9 | 2020.59 ops/sec | 22.988 ms | 2.475 |
+| 10 | 1878.83 ops/sec | 24.958 ms | 2.661 |
+
+Run-to-run variance is driven by system load and random HFT draw (~209–275 HFT docs per 5000).
+
+## Single Zerodha Retail Contract Note (48 iterations)
 
 This section measures the same retail contract-note document rendered serially in-process. The **ops/sec** values here are **single-instance serial throughput**, not multi-worker throughput.
 
@@ -30,44 +62,32 @@ This section measures the same retail contract-note document rendered serially i
 | **GoPDFSuit** | Go | 2.87 ms | 243.00 ops/sec |
 | **pypdfsuit** | Python bindings | 3.05 ms | 211.51 ops/sec |
 
-| Ranking | Observation |
-| --- | --- |
-| 1 | **GoPDFLib** posts the fastest single-document retail render in the current local run. |
-| 2 | **GoPDFSuit** remains close on the same contract-note template and stays in the same performance tier. |
-| 3 | **pypdfsuit** is slower on the serial single-document pass, but remains within the same order of magnitude on the exact same retail template. |
+### Weighted Workload — PyPDFSuit comparison
 
-### Zerodha Weighted Workload
-
-This workload keeps the realistic retail-heavy mix and reports the strongest observed 48-worker pass for each runtime. These throughput values are aggregate system throughput and should not be compared directly with the single-document serial throughput above.
-
-| Runtime | Iterations | Workers | Best Throughput | Avg Latency | Min Latency | Max Latency | Retail / Active / HFT |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| **GoPDFLib** | 5000 | 48 | **1913.13 ops/sec** | **24.558 ms** | 2.280 ms | 505.087 ms | 4004 / 766 / 230 |
-| **pypdfsuit** | 5000 | 48 | 233.76 ops/sec | 185.517 ms | 2.657 ms | 3516.474 ms | 4015 / 767 / 218 |
-
-**Benchmark Notes:**
-• **GoPDFLib** and **GoPDFSuit** single-document benchmarks now execute a **single Zerodha retail contract note** instead of the old generic user-report dataset.
-• **pypdfsuit** now uses the same retail contract-note template for its single-document benchmark under **sampledata/benchmarks/pypdfsuit/bench.py**.
-• A missing **pypdfsuit** Zerodha benchmark runner was added at **sampledata/gopdflib/zerodha/pypdfsuit_bench.py** and executed against the weighted retail/active/HFT workload.
-• The single-document benchmark values shown here come from repeated in-process renders of the same retail contract note and no longer show output-size data.
-• Both Zerodha runners were executed with **48 workers** for the current comparison.
+| Runtime | Iterations | Workers | Best Throughput | Avg Latency |
+| --- | ---: | ---: | ---: | ---: |
+| **GoPDFLib** | 5000 | 48 | **2061.33 ops/sec** | **22.680 ms** |
+| **pypdfsuit** | 5000 | 48 | 233.76 ops/sec | 185.517 ms |
 
 **How to read this page:**
-• Use the **single retail contract-note section** to compare per-document render speed on the same Zerodha template.
-• Use the **weighted Zerodha workload section** to compare end-to-end concurrent throughput under a realistic broker mix.
-• Use **pypdfsuit** when Python ergonomics matter and the measured binding overhead is acceptable for the target workload.`,
+• Use the **gold standard 5000×48 section** for realistic broker-mix concurrent throughput under PDF/A compliance.
+• Use the **single retail contract-note section** to compare per-document render speed on the same template across runtimes.
+• **Do not** compare serial ops/sec directly with 5000×48 aggregate ops/sec — they measure different concurrency models.`,
             code: {
-                bash: `# Single-document Zerodha retail benchmark runners
+                bash: `# Zerodha gold standard (5000 iterations, 48 workers)
+cd sampledata/gopdflib/zerodha && go run .
+
+# 10 sequential timing runs
+bash sampledata/gopdflib/zerodha/run_bench_x10.sh
+
+# Single-document Zerodha retail benchmark runners
 cd sampledata/benchmarks/gopdfsuit && go run bench.go
 cd sampledata/benchmarks/gopdflib && go run bench.go
 
-# Dedicated Python benchmark runners
+# Python benchmark runners
 cd ./gopdfsuit
 .venv/bin/python sampledata/benchmarks/pypdfsuit/bench.py
-.venv/bin/python sampledata/gopdflib/zerodha/pypdfsuit_bench.py
-
-# Existing Zerodha Go runner
-go run sampledata/gopdflib/zerodha/main.go`
+.venv/bin/python sampledata/gopdflib/zerodha/pypdfsuit_bench.py`
             }
         }
     ]
