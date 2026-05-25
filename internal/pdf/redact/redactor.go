@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -13,7 +14,8 @@ import (
 // caching the parsed PDF structure to avoid redundant processing.
 type Redactor struct {
 	pdfBytes []byte
-	objMap   map[string][]byte
+	objMap   map[int][]byte
+	objGen   map[int]int
 	info     *models.PageInfo
 }
 
@@ -34,9 +36,10 @@ func NewRedactor(pdfBytes []byte) (*Redactor, error) {
 	}
 
 	// Try to build the map, but don't fail immediately if it's just meant for GetPageInfo error handling
-	objMap, err := buildObjectMap(pdfBytes)
+	objMap, objGen, err := buildObjectMap(pdfBytes)
 	if err == nil {
 		r.objMap = objMap
+		r.objGen = objGen
 
 		info, err := r.GetPageInfo()
 		if err == nil {
@@ -60,22 +63,21 @@ func (r *Redactor) GetPageInfo() (models.PageInfo, error) {
 		return models.PageInfo{}, errors.New("encrypted PDFs are not supported")
 	}
 
-	rootRef, ok := findRootRef(r.pdfBytes)
+	rootNum, _, ok := findRootRef(r.pdfBytes)
 	if !ok {
 		return models.PageInfo{}, errors.New("could not find PDF root object")
 	}
 
-	// Use cached objMap if available, else build
 	objMap := r.objMap
 	var err error
 	if objMap == nil {
-		objMap, err = buildObjectMap(r.pdfBytes)
+		objMap, _, err = buildObjectMap(r.pdfBytes)
 		if err != nil {
 			return models.PageInfo{}, err
 		}
 	}
 
-	rootBody, ok := objMap[rootRef]
+	rootBody, ok := objMap[rootNum]
 	if !ok {
 		return models.PageInfo{}, errors.New("root object not found in map")
 	}
@@ -85,10 +87,13 @@ func (r *Redactor) GetPageInfo() (models.PageInfo, error) {
 	if pm == nil {
 		return models.PageInfo{}, errors.New("no /Pages reference in Root")
 	}
-	pagesKey := string(pm[1]) + " " + string(pm[2])
+	pagesNum, err := strconv.Atoi(string(pm[1]))
+	if err != nil || pagesNum <= 0 {
+		return models.PageInfo{}, errors.New("invalid /Pages reference in Root")
+	}
 
 	var pageDims []models.PageDetail
-	if err := traversePages(pagesKey, objMap, &pageDims); err != nil {
+	if err := traversePages(pagesNum, objMap, &pageDims); err != nil {
 		return models.PageInfo{}, fmt.Errorf("error traversing page tree: %w", err)
 	}
 
@@ -103,7 +108,7 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 	objMap := r.objMap
 	var err error
 	if objMap == nil {
-		objMap, err = buildObjectMap(r.pdfBytes)
+		objMap, _, err = buildObjectMap(r.pdfBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -120,12 +125,12 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 
 	caps := make([]models.PageCapability, 0, info.TotalPages)
 	for i := 1; i <= info.TotalPages; i++ {
-		pageRef, err := findPageObject(objMap, r.pdfBytes, i)
+		pageObjNum, err := findPageObject(objMap, r.pdfBytes, i)
 		if err != nil {
 			caps = append(caps, models.PageCapability{PageNum: i, Type: "unknown", Note: err.Error()})
 			continue
 		}
-		body := objMap[pageRef]
+		body := objMap[pageObjNum]
 		keys := extractContentKeys(body)
 		hasText := false
 		hasImage := false
@@ -204,13 +209,14 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 			return nil, report, err
 		}
 		// Try to build object map for decrypted bytes if successful
-		objMap, objErr := buildObjectMap(dec)
+		objMap, objGen, objErr := buildObjectMap(dec)
 		if objErr != nil {
 			return nil, report, objErr
 		}
 		// Temporarily replace redactor state with decrypted version for this operation
 		r.pdfBytes = dec
 		r.objMap = objMap
+		r.objGen = objGen
 		r.info = nil // Reset cached info to force recalculation on decrypted bytes
 		report.Warnings = append(report.Warnings, "input PDF was decrypted using in-house pipeline and output is emitted decrypted")
 	}

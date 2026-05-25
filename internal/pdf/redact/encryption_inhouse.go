@@ -51,16 +51,16 @@ func decryptEncryptedPDFBytes(pdfBytes []byte, password string) ([]byte, error) 
 		return nil, errors.New("encrypted PDF detected; password is required")
 	}
 
-	objMap, err := buildObjectMap(pdfBytes)
+	objMap, objGen, err := buildObjectMap(pdfBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	encRef, id0, err := parseEncryptRefAndID(pdfBytes)
+	encNum, _, id0, err := parseEncryptRefAndID(pdfBytes)
 	if err != nil {
 		return nil, err
 	}
-	encBody, ok := objMap[encRef]
+	encBody, ok := objMap[encNum]
 	if !ok {
 		return nil, errors.New("encrypt object reference not found")
 	}
@@ -77,41 +77,39 @@ func decryptEncryptedPDFBytes(pdfBytes []byte, password string) ([]byte, error) 
 		return nil, errors.New("invalid PDF password")
 	}
 
-	for key, body := range objMap {
-		objNum, genNum, ok := parseObjectKey(key)
-		if !ok {
-			continue
-		}
+	for objNum, body := range objMap {
+		genNum := objGenNum(objGen, objNum)
 		updated, changed := decryptObjectStreams(body, fileKey, objNum, genNum)
 		if changed {
-			objMap[key] = updated
+			objMap[objNum] = updated
 		}
 	}
 
 	// Rebuild output as decrypted PDF (no /Encrypt entry in trailer).
-	return rebuildPDF(objMap, pdfBytes)
+	return rebuildPDF(objMap, objGen, pdfBytes)
 }
 
-func parseEncryptRefAndID(pdfBytes []byte) (string, []byte, error) {
+func parseEncryptRefAndID(pdfBytes []byte) (encNum int, encGen int, id []byte, err error) {
 	trailers := regexp.MustCompile(`(?s)trailer\s*<<(.*?)>>`).FindAllSubmatch(pdfBytes, -1)
 	if len(trailers) == 0 {
-		return "", nil, errors.New("missing trailer")
+		return 0, 0, nil, errors.New("missing trailer")
 	}
 	tr := trailers[len(trailers)-1][1]
 	re := regexp.MustCompile(`/Encrypt\s+(\d+)\s+(\d+)\s+R`)
 	m := re.FindSubmatch(tr)
 	if m == nil {
-		return "", nil, errors.New("trailer has no /Encrypt reference")
+		return 0, 0, nil, errors.New("trailer has no /Encrypt reference")
 	}
-	encRef := string(m[1]) + " " + string(m[2])
-	id := parseFirstID(tr)
+	encNum, _ = strconv.Atoi(string(m[1]))
+	encGen, _ = strconv.Atoi(string(m[2]))
+	id = parseFirstID(tr)
 	if len(id) == 0 {
 		id = parseFirstID(pdfBytes)
 	}
 	if len(id) == 0 {
-		return "", nil, errors.New("missing trailer /ID for encrypted PDF")
+		return 0, 0, nil, errors.New("missing trailer /ID for encrypted PDF")
 	}
-	return encRef, id, nil
+	return encNum, encGen, id, nil
 }
 
 func parseFirstID(b []byte) []byte {
@@ -335,19 +333,6 @@ func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
 		kLen = 16
 	}
 	return h[:kLen]
-}
-
-func parseObjectKey(key string) (int, int, bool) {
-	parts := strings.Fields(key)
-	if len(parts) != 2 {
-		return 0, 0, false
-	}
-	o, err1 := strconv.Atoi(parts[0])
-	g, err2 := strconv.Atoi(parts[1])
-	if err1 != nil || err2 != nil {
-		return 0, 0, false
-	}
-	return o, g, true
 }
 
 func int32LEBytes(v int32) []byte {

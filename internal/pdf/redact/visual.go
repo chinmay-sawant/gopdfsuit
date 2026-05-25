@@ -18,62 +18,53 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 	}
 
 	objMap := r.objMap
+	objGen := r.objGen
 	if objMap == nil {
 		var err error
-		objMap, err = buildObjectMap(r.pdfBytes)
+		objMap, objGen, err = buildObjectMap(r.pdfBytes)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Group redactions by page
 	redactionsByPage := make(map[int][]models.RedactionRect)
 	for _, rect := range redactions {
 		redactionsByPage[rect.PageNum] = append(redactionsByPage[rect.PageNum], rect)
 	}
 
-	// Find highest object number
 	maxObj := 0
-	for k := range objMap {
-		var n int
-		_, _ = fmt.Sscanf(k, "%d", &n)
+	for n := range objMap {
 		if n > maxObj {
 			maxObj = n
 		}
 	}
 	nextObj := maxObj + 1
 
-	// For each page with redactions, append a new content stream
 	for pageNum, rects := range redactionsByPage {
-		pageRef, err := findPageObject(objMap, r.pdfBytes, pageNum)
+		pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
 			return nil, fmt.Errorf("failed to find page %d: %w", pageNum, err)
 		}
-		pageBody := objMap[pageRef]
+		pageBody := objMap[pageObjNum]
 
-		// Create redaction stream content
 		var sb strings.Builder
-		sb.WriteString("q 0 0 0 rg ") // Save state, set black color
+		sb.WriteString("q 0 0 0 rg ")
 		for _, rect := range rects {
-			// Construct rectangle path: x y w h re f (fill)
 			sb.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re f ", rect.X, rect.Y, rect.Width, rect.Height))
 		}
-		sb.WriteString("Q ") // Restore state
+		sb.WriteString("Q ")
 		streamContent := sb.String()
 
-		// Create new stream object
-		streamObjKey := fmt.Sprintf("%d 0", nextObj)
-		nextObj++
-
-		// NOTE: objMap stores body content between "obj" and "endobj" markers.
-		// rebuildPDF wraps each body with "N G obj\n...\nendobj\n".
+		streamGen := 0
 		streamObj := fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", len(streamContent), streamContent)
-		objMap[streamObjKey] = []byte(streamObj)
+		objMap[nextObj] = []byte(streamObj)
+		objGen[nextObj] = streamGen
 
-		// Append this new object to the page's /Contents
-		newPageBody := appendStreamToPage(pageBody, streamObjKey)
-		objMap[pageRef] = newPageBody
+		newPageBody := appendStreamToPage(pageBody, nextObj, streamGen)
+		objMap[pageObjNum] = newPageBody
+
+		nextObj++
 	}
 
-	return rebuildPDF(objMap, r.pdfBytes)
+	return rebuildPDF(objMap, objGen, r.pdfBytes)
 }

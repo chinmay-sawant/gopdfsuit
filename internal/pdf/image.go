@@ -79,13 +79,13 @@ func putRGBDataBuffer(buf []byte) {
 
 // ImageObject represents a PDF image XObject
 type ImageObject struct {
+	ImageData    []byte
+	ColorSpace   string
+	Filter       string
 	ObjectID     int
 	Width        int
 	Height       int
-	ColorSpace   string
 	BitsPerComp  int
-	Filter       string
-	ImageData    []byte
 	ImageDataLen int
 	IsForm       bool
 }

@@ -49,7 +49,7 @@ func (a *signatureContextAdapter) AllocObjectID() int {
 }
 
 func (a *signatureContextAdapter) SetExtraObject(id int, content string) {
-	a.pm.ExtraObjects[id] = content
+	a.pm.ExtraObjects[id] = []byte(content)
 }
 
 func (a *signatureContextAdapter) AppendPageAnnot(pageIndex int, annotID int) {
@@ -423,7 +423,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		for _, annotID := range annots {
 			// Check if this is a widget annotation (not a link)
 			if content, exists := pageManager.ExtraObjects[annotID]; exists {
-				if strings.Contains(content, "/Subtype /Widget") {
+				if bytes.Contains(content, []byte("/Subtype /Widget")) {
 					allWidgetIDs = append(allWidgetIDs, annotID)
 				}
 			}
@@ -517,7 +517,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
 			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) >>", fieldsRef.String(), widgetFontRef)
 		}
-		pageManager.ExtraObjects[acroFormID] = acroFormContent
+		pageManager.ExtraObjects[acroFormID] = []byte(acroFormContent)
 
 		pdfBuffer.WriteString(" /AcroForm ")
 		b = b[:0]
@@ -610,7 +610,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				writeXObjRefInt("E", elemIdx, objID)
 			}
 			for id, content := range pageManager.ExtraObjects {
-				if strings.Contains(content, "/Type /XObject") {
+				if bytes.Contains(content, []byte("/Type /XObject")) {
 					writeXObjRefInt("X", id, id)
 				}
 			}
@@ -618,7 +618,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		} else {
 			hasXObjects := false
 			for _, content := range pageManager.ExtraObjects {
-				if strings.Contains(content, "/Type /XObject") {
+				if bytes.Contains(content, []byte("/Type /XObject")) {
 					hasXObjects = true
 					break
 				}
@@ -626,7 +626,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			if hasXObjects {
 				xobjBuilder.WriteString(" /XObject <<")
 				for id, content := range pageManager.ExtraObjects {
-					if strings.Contains(content, "/Type /XObject") {
+					if bytes.Contains(content, []byte("/Type /XObject")) {
 						writeXObjRefInt("X", id, id)
 					}
 				}
@@ -906,7 +906,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		b = strconv.AppendInt(b, int64(id), 10)
 		b = append(b, " 0 obj\n"...)
 		pdfBuffer.Write(b)
-		pdfBuffer.WriteString(content)
+		pdfBuffer.Write(content)
 		pdfBuffer.WriteString("\nendobj\n")
 	}
 
@@ -1060,15 +1060,15 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			pageManager.NextObjectID++
 		}
 		for _, kid := range elem.Kids {
-			if structElem, ok := kid.(*StructElem); ok {
-				assignStructIDs(structElem)
+			if kid.Elem != nil {
+				assignStructIDs(kid.Elem)
 			}
 		}
 	}
 	// Start from root's children (Root itself has structTreeRootID, its children are elements)
 	for _, kid := range pageManager.Structure.Root.Kids {
-		if structElem, ok := kid.(*StructElem); ok {
-			assignStructIDs(structElem)
+		if kid.Elem != nil {
+			assignStructIDs(kid.Elem)
 		}
 	}
 
@@ -1177,10 +1177,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			}
 
 			for _, k := range elem.Kids {
-				if kidElem, ok := k.(*StructElem); ok {
-					sb.WriteString(fmt.Sprintf(" %d 0 R", kidElem.ObjectID))
-				} else if mcid, ok := k.(int); ok {
-					sb.WriteString(fmt.Sprintf(" %d", mcid))
+				if k.Elem != nil {
+					sb.WriteString(fmt.Sprintf(" %d 0 R", k.Elem.ObjectID))
+				} else {
+					sb.WriteString(fmt.Sprintf(" %d", k.MCID))
 				}
 			}
 			sb.WriteString(" ]")
@@ -1200,15 +1200,15 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 		// Recurse
 		for _, k := range elem.Kids {
-			if kidElem, ok := k.(*StructElem); ok {
-				writeStructElems(kidElem)
+			if k.Elem != nil {
+				writeStructElems(k.Elem)
 			}
 		}
 	}
 
 	for _, kid := range pageManager.Structure.Root.Kids {
-		if structElem, ok := kid.(*StructElem); ok {
-			writeStructElems(structElem)
+		if kid.Elem != nil {
+			writeStructElems(kid.Elem)
 		}
 	}
 

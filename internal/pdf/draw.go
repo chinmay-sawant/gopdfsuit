@@ -770,11 +770,12 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 	// Reuse buffers for row processing to reduce allocations
 	cellWidthsForRow := make([]float64, table.MaxColumns)
-	wrappedTextLines := make([][]string, table.MaxColumns)
+	wrappedTextLines := make([][][]byte, table.MaxColumns)
 	rowCellProps := make([]models.Props, table.MaxColumns)
 	rowResolvedFonts := make([]string, table.MaxColumns)
 	// Scratch buffer reused across all cells to avoid per-cell growslice allocations
 	scratchBuf := make([]byte, 0, 128)
+	var wrapState WrapState
 
 	for rowIdx, row := range table.Rows {
 		// PDF/UA: Start Row Structure
@@ -817,7 +818,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				if maxTextWidth < 10 {
 					maxTextWidth = 10 // Minimum width to avoid issues
 				}
-				wrappedTextLines[colIdx] = WrapText(cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
+				wrappedTextLines[colIdx] = WrapTextInto(&wrapState, cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
 			}
 
 			// Mark chars used for subsetting (once per cell)
@@ -1162,12 +1163,12 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					startY := pageManager.CurrentYPos - topPadding - fontSize
 
 					for lineIdx, line := range lines {
-						if line == "" {
+						if len(line) == 0 {
 							continue
 						}
 
-						// Calculate text width for this line
-						lineWidth := EstimateTextWidth(rowResolvedFonts[colIdx], line, fontSize, pageManager.FontRegistry)
+						lineStr := string(line)
+						lineWidth := EstimateTextWidth(rowResolvedFonts[colIdx], lineStr, fontSize, pageManager.FontRegistry)
 
 						// Calculate X position based on alignment
 						var textX float64
@@ -1192,7 +1193,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.Write(textPosBuf)
 
 						// Render the line
-						textPosBuf = append(textPosBuf[:0], formatTextForPDF(rowResolvedFonts[colIdx], line, pageManager.FontRegistry)...)
+						textPosBuf = append(textPosBuf[:0], formatTextForPDF(rowResolvedFonts[colIdx], lineStr, pageManager.FontRegistry)...)
 						textPosBuf = append(textPosBuf, " Tj\n"...)
 						contentStream.Write(textPosBuf)
 					}

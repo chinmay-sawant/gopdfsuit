@@ -1,0 +1,14 @@
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF/Rows2000-24         	     116	  28729506 ns/op	  62.38 MB/s	15443529 B/op	  292168 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24         	     120	  29428877 ns/op	  60.90 MB/s	15550160 B/op	  292170 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24	      88	  37860059 ns/op	  48.84 MB/s	19870408 B/op	  357083 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24	      92	  35270608 ns/op	  52.42 MB/s	19224670 B/op	  357070 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf	21.215s
+
+# Post-Pass-2 snapshot (2026-05-25)
+# Rows2000: ~29 ms/op (Pass 1 baseline ~35-56 ms/op) — ~15-20% faster
+# WrapEnabled: ~35-38 ms/op, 357K allocs (validates wrap path separately)

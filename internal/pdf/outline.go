@@ -321,7 +321,7 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 	}
 	rootDict.WriteString(fmt.Sprintf(" /Count %d", totalCount))
 	rootDict.WriteString(" >>")
-	ob.pageManager.ExtraObjects[ob.outlineObjID] = rootDict.String()
+	ob.pageManager.ExtraObjects[ob.outlineObjID] = []byte(rootDict.String())
 
 	// Generate each outline item
 	for _, item := range ob.outlineItems {
@@ -389,7 +389,7 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 		}
 
 		itemDict.WriteString(" >>")
-		ob.pageManager.ExtraObjects[item.ObjectID] = itemDict.String()
+		ob.pageManager.ExtraObjects[item.ObjectID] = []byte(itemDict.String())
 	}
 }
 
@@ -495,14 +495,14 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	namesArray.WriteString("]")
 
 	destsTreeContent := fmt.Sprintf("<< /Names %s >>", namesArray.String())
-	ob.pageManager.ExtraObjects[destsTreeID] = destsTreeContent
+	ob.pageManager.ExtraObjects[destsTreeID] = []byte(destsTreeContent)
 
 	// Create Names dictionary object
 	namesID := ob.pageManager.NextObjectID
 	ob.pageManager.NextObjectID++
 
 	namesContent := fmt.Sprintf("<< /Dests %d 0 R >>", destsTreeID)
-	ob.pageManager.ExtraObjects[namesID] = namesContent
+	ob.pageManager.ExtraObjects[namesID] = []byte(namesContent)
 
 	return namesID, true
 }

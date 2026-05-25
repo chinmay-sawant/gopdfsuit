@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
 )
 
 // bytesIndex is a helper to find a subsequence in a []byte
@@ -55,13 +58,29 @@ func tryFlateDecompress(b []byte) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// findRootRef looks for /Root n m R in the PDF bytes
-func findRootRef(data []byte) (string, bool) {
+// findRootRef looks for /Root n m R in the PDF bytes.
+func findRootRef(data []byte) (objNum int, genNum int, ok bool) {
 	rootRe := regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
 	if m := rootRe.FindSubmatch(data); m != nil {
-		return string(m[1]) + " " + string(m[2]), true
+		objNum, _ = strconv.Atoi(string(m[1]))
+		genNum, _ = strconv.Atoi(string(m[2]))
+		return objNum, genNum, true
 	}
-	return "", false
+	return 0, 0, false
+}
+
+func objGenNum(objGen map[int]int, objNum int) int {
+	if objGen == nil {
+		return 0
+	}
+	if g, ok := objGen[objNum]; ok {
+		return g
+	}
+	return 0
+}
+
+func isPDFWhitespace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
 }
 
 // parseArrayInts parses array values from PDF dictionary
@@ -94,11 +113,17 @@ func readUint(b []byte) uint64 {
 	return v
 }
 
-// parseXRefStreams looks for XRef stream objects and uses them to augment objMap
-func parseXRefStreams(data []byte, objMap map[string][]byte) {
-	objStreamRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-	for _, m := range objStreamRe.FindAllSubmatch(data, -1) {
-		body := m[3]
+// parseXRefStreams looks for XRef stream objects and uses them to augment objMap / objGen.
+func parseXRefStreams(data []byte, objMap map[int][]byte, objGen map[int]int) {
+	if objGen == nil {
+		return
+	}
+	for _, b := range merge.FindObjectBoundaries(data) {
+		bodyEnd := b.End - len("endobj")
+		for bodyEnd > b.BodyStart && isPDFWhitespace(data[bodyEnd-1]) {
+			bodyEnd--
+		}
+		body := data[b.BodyStart:bodyEnd]
 		if bytesIndex(body, []byte(`/W[`)) < 0 || bytesIndex(body, []byte(`/Index`)) < 0 {
 			continue
 		}
@@ -120,8 +145,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 		if len(W) < 3 {
 			continue
 		}
-		Index := parseArrayInts(body, `/Index`)
-		if Index == nil {
+		if parseArrayInts(body, `/Index`) == nil {
 			continue
 		}
 		w0, w1, w2 := W[0], W[1], W[2]
@@ -133,21 +157,30 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 			if f1 == 1 {
 				off := f3
 				if off > 0 && off < len(data) {
-					tail := data[off:]
-					reObj := regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-					if ro := reObj.FindSubmatch(tail); ro != nil {
-						onum := string(ro[2])
-						ogen := string(ro[3])
-						key := onum + " " + ogen
-						objMap[key] = ro[4]
+					endPos := merge.FindEndObj(data, off)
+					if endPos == -1 {
+						continue
 					}
+					objStartRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
+					loc := objStartRe.FindSubmatchIndex(data[off:endPos])
+					if loc == nil {
+						continue
+					}
+					onum, _ := strconv.Atoi(string(data[off+loc[2] : off+loc[3]]))
+					ogen, _ := strconv.Atoi(string(data[off+loc[4] : off+loc[5]]))
+					objBodyStart := off + loc[1]
+					objBodyEnd := endPos - len("endobj")
+					for objBodyEnd > objBodyStart && isPDFWhitespace(data[objBodyEnd-1]) {
+						objBodyEnd--
+					}
+					objMap[onum] = data[objBodyStart:objBodyEnd]
+					objGen[onum] = ogen
 				}
 			}
 			if f1 == 2 {
 				objstm := f2
 				index := f3
-				key := fmt.Sprintf("%d 0", objstm)
-				if stm, ok := objMap[key]; ok {
+				if stm, ok := objMap[objstm]; ok {
 					_ = index
 					_ = stm
 				}

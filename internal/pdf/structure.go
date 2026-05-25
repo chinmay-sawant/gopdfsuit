@@ -60,13 +60,19 @@ const (
 	StructReference StructureType = "Reference"
 )
 
+// StructKid represents a child of a structure element: either a nested element or an MCID leaf reference.
+type StructKid struct {
+	Elem *StructElem // non-nil for structure element child
+	MCID int         // valid when Elem == nil (MCID leaf reference)
+}
+
 // StructElem represents a node in the structure tree
 type StructElem struct {
 	Type     StructureType
 	Title    string
 	Alt      string
 	Lang     string
-	Kids     []interface{} // Can be *StructElem or int (MCID reference object)
+	Kids     []StructKid
 	Parent   *StructElem
 	ObjectID int // Assigned when writing to PDF
 	PageID   int // Reference to the page object ID where this element appears
@@ -130,7 +136,7 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	}
 
 	// 2. Add as kid to current parent
-	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, elem)
+	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, StructKid{Elem: elem})
 	sm.Elements = append(sm.Elements, elem)
 
 	// 3. Set current parent to this new element
@@ -151,7 +157,7 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	// The Kid is an integer MCID, but it also needs to reference the page
 	// In the actual PDF structure, this is represented slightly differently,
 	// but for our internal representation:
-	elem.Kids = append(elem.Kids, mcid)
+	elem.Kids = append(elem.Kids, StructKid{MCID: mcid})
 
 	// Write BMC/BDC operator — direct writes, no intermediate allocation
 	var intBuf [12]byte
@@ -194,7 +200,7 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	}
 
 	// 2. Add as kid to current parent
-	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, elem)
+	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, StructKid{Elem: elem})
 	sm.Elements = append(sm.Elements, elem)
 
 	// 3. Set current parent to this new element
@@ -210,7 +216,7 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
 
 	// 5. Add KID for MCID
-	elem.Kids = append(elem.Kids, mcid)
+	elem.Kids = append(elem.Kids, StructKid{MCID: mcid})
 
 	// Write BDC operator directly to bytes.Buffer
 	var intBuf [12]byte
@@ -242,7 +248,7 @@ func (sm *StructureManager) BeginStructureElement(tag StructureType) {
 		Type:   tag,
 		Parent: sm.CurrentParent,
 	}
-	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, elem)
+	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, StructKid{Elem: elem})
 	sm.Elements = append(sm.Elements, elem)
 	sm.CurrentParent = elem
 }
@@ -287,7 +293,7 @@ func (sm *StructureManager) GenerateStructTreeRoot(_ int, parentTreeObjID int, n
 	// Point to the first child (Document)
 	if len(sm.Root.Kids) > 0 {
 		// Assuming the first kid is the Document element
-		if firstKid, ok := sm.Root.Kids[0].(*StructElem); ok {
+		if firstKid := sm.Root.Kids[0].Elem; firstKid != nil {
 			structBuf = structBuf[:0]
 			structBuf = append(structBuf, " /K "...)
 			structBuf = strconv.AppendInt(structBuf, int64(firstKid.ObjectID), 10)
@@ -318,7 +324,7 @@ func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 
 	// Add to Document element's kids
 	if docElem := sm.GetCurrentDocumentElement(); docElem != nil {
-		docElem.Kids = append(docElem.Kids, linkElem)
+		docElem.Kids = append(docElem.Kids, StructKid{Elem: linkElem})
 	}
 
 	sm.Elements = append(sm.Elements, linkElem)
@@ -334,7 +340,7 @@ func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 // GetCurrentDocumentElement returns the Document element (first child of Root)
 func (sm *StructureManager) GetCurrentDocumentElement() *StructElem {
 	if len(sm.Root.Kids) > 0 {
-		if docElem, ok := sm.Root.Kids[0].(*StructElem); ok {
+		if docElem := sm.Root.Kids[0].Elem; docElem != nil {
 			return docElem
 		}
 	}
@@ -353,7 +359,7 @@ func (sm *StructureManager) CreateBookmarkSect(title string) *StructElem {
 
 	// Add to Document element's kids
 	if docElem := sm.GetCurrentDocumentElement(); docElem != nil {
-		docElem.Kids = append(docElem.Kids, sectElem)
+		docElem.Kids = append(docElem.Kids, StructKid{Elem: sectElem})
 	}
 
 	sm.Elements = append(sm.Elements, sectElem)

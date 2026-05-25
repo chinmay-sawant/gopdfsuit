@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
+	"unsafe"
 
 	"unicode/utf8"
 
@@ -372,105 +374,142 @@ func formatTextForPDF(resolvedName string, text string, registry *CustomFontRegi
 	return "(" + escapePDFString(text) + ")"
 }
 
+// WrapState holds reusable buffers for allocation-free text wrapping.
+type WrapState struct {
+	lines   [][]byte
+	buf     []byte
+	wordBuf []byte
+}
+
+// byteString converts a byte slice to a string without allocation.
+func byteString(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafe.String(unsafe.SliceData(b), len(b))
+}
+
+// WrapTextInto wraps text into lines stored in ws, reusing ws buffers across calls.
+// Returned slices are valid only until the next WrapTextInto call on the same ws.
+func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWidth float64, registry *CustomFontRegistry) [][]byte {
+	ws.lines = ws.lines[:0]
+	ws.buf = ws.buf[:0]
+
+	if text == "" {
+		ws.lines = append(ws.lines, nil)
+		return ws.lines
+	}
+
+	if maxWidth <= 0 {
+		lineStart := len(ws.buf)
+		ws.buf = append(ws.buf, text...)
+		ws.lines = append(ws.lines, ws.buf[lineStart:])
+		return ws.lines
+	}
+
+	lineStart := len(ws.buf)
+	hasWords := false
+
+	for i := 0; i < len(text); {
+		r, size := utf8.DecodeRuneInString(text[i:])
+		if unicode.IsSpace(r) {
+			i += size
+			continue
+		}
+
+		wordStart := i
+		for i < len(text) {
+			r, size = utf8.DecodeRuneInString(text[i:])
+			if unicode.IsSpace(r) {
+				break
+			}
+			i += size
+		}
+
+		hasWords = true
+		word := text[wordStart:i]
+
+		wordWidth := EstimateTextWidth(resolvedFontName, word, fontSize, registry)
+		if wordWidth > maxWidth {
+			if len(ws.buf) > lineStart {
+				ws.lines = append(ws.lines, ws.buf[lineStart:])
+				lineStart = len(ws.buf)
+			}
+			wrapLongWordInto(ws, word, resolvedFontName, fontSize, maxWidth, registry)
+			continue
+		}
+
+		savedLen := len(ws.buf)
+		if savedLen > lineStart {
+			ws.buf = append(ws.buf, ' ')
+		}
+		ws.buf = append(ws.buf, word...)
+
+		if EstimateTextWidth(resolvedFontName, byteString(ws.buf[lineStart:]), fontSize, registry) <= maxWidth {
+			continue
+		}
+
+		ws.buf = ws.buf[:savedLen]
+		if savedLen > lineStart {
+			ws.lines = append(ws.lines, ws.buf[lineStart:savedLen])
+		}
+		lineStart = len(ws.buf)
+		ws.buf = append(ws.buf, word...)
+	}
+
+	if len(ws.buf) > lineStart {
+		ws.lines = append(ws.lines, ws.buf[lineStart:])
+	}
+
+	if !hasWords || len(ws.lines) == 0 {
+		ws.lines = append(ws.lines, nil)
+	}
+
+	return ws.lines
+}
+
+// wrapLongWordInto breaks a single word that's too long into multiple lines using ws.wordBuf.
+func wrapLongWordInto(ws *WrapState, word, resolvedFontName string, fontSize, maxWidth float64, registry *CustomFontRegistry) {
+	ws.wordBuf = append(ws.wordBuf[:0], word...)
+
+	start := 0
+	for start < len(ws.wordBuf) {
+		end := start
+		lastGood := start
+
+		for end < len(ws.wordBuf) {
+			_, rs := utf8.DecodeRune(ws.wordBuf[end:])
+			end += rs
+			if EstimateTextWidth(resolvedFontName, byteString(ws.wordBuf[start:end]), fontSize, registry) > maxWidth {
+				break
+			}
+			lastGood = end
+		}
+
+		if lastGood == start {
+			_, rs := utf8.DecodeRune(ws.wordBuf[start:])
+			end = start + rs
+		} else {
+			end = lastGood
+		}
+
+		lineStart := len(ws.buf)
+		ws.buf = append(ws.buf, ws.wordBuf[start:end]...)
+		ws.lines = append(ws.lines, ws.buf[lineStart:])
+		start = end
+	}
+}
+
 // WrapText splits text into multiple lines that fit within the specified maxWidth.
 // It wraps on word boundaries when possible, and handles long words that exceed maxWidth.
 // Returns a slice of strings, each representing one line of text.
 func WrapText(text string, resolvedFontName string, fontSize float64, maxWidth float64, registry *CustomFontRegistry) []string {
-	if text == "" {
-		return []string{""}
+	var ws WrapState
+	byteLines := WrapTextInto(&ws, text, resolvedFontName, fontSize, maxWidth, registry)
+	lines := make([]string, len(byteLines))
+	for i, line := range byteLines {
+		lines[i] = string(line)
 	}
-
-	// Handle edge case where maxWidth is too small
-	if maxWidth <= 0 {
-		return []string{text}
-	}
-
-	words := strings.Fields(text)
-	if len(words) == 0 {
-		return []string{""}
-	}
-
-	var lines []string
-	var currentLine string
-
-	for _, word := range words {
-		// Check if word alone exceeds maxWidth (need to break it up)
-		wordWidth := EstimateTextWidth(resolvedFontName, word, fontSize, registry)
-		if wordWidth > maxWidth {
-			// Flush current line first
-			if currentLine != "" {
-				lines = append(lines, currentLine)
-				currentLine = ""
-			}
-			// Break long word into chunks that fit
-			lines = append(lines, wrapLongWord(word, resolvedFontName, fontSize, maxWidth, registry)...)
-			continue
-		}
-
-		// Try adding word to current line
-		testLine := currentLine
-		if testLine != "" {
-			testLine += " "
-		}
-		testLine += word
-
-		testWidth := EstimateTextWidth(resolvedFontName, testLine, fontSize, registry)
-		if testWidth <= maxWidth {
-			// Fits - add to current line
-			currentLine = testLine
-		} else {
-			// Doesn't fit - start new line
-			if currentLine != "" {
-				lines = append(lines, currentLine)
-			}
-			currentLine = word
-		}
-	}
-
-	// Don't forget the last line
-	if currentLine != "" {
-		lines = append(lines, currentLine)
-	}
-
-	// Ensure at least one line is returned
-	if len(lines) == 0 {
-		return []string{""}
-	}
-
-	return lines
-}
-
-// wrapLongWord breaks a single word that's too long into multiple lines
-func wrapLongWord(word string, resolvedFontName string, fontSize float64, maxWidth float64, registry *CustomFontRegistry) []string {
-	var lines []string
-	runes := []rune(word)
-	start := 0
-
-	for start < len(runes) {
-		// Binary search for the maximum number of characters that fit
-		end := start + 1
-		for end <= len(runes) {
-			substr := string(runes[start:end])
-			if EstimateTextWidth(resolvedFontName, substr, fontSize, registry) > maxWidth {
-				break
-			}
-			end++
-		}
-
-		// Back up one character (the one that caused overflow)
-		if end > start+1 {
-			end--
-		}
-
-		// Ensure we make progress (at least one character per line)
-		if end == start {
-			end = start + 1
-		}
-
-		lines = append(lines, string(runes[start:end]))
-		start = end
-	}
-
 	return lines
 }
 

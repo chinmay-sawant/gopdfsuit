@@ -14,7 +14,7 @@ type PageManager struct {
 	Margins               PageMargins
 	ContentStreams        []bytes.Buffer       // Content for each page
 	PageAnnots            [][]int              // Annotation Object IDs per page
-	ExtraObjects          map[int]string       // Object ID -> Object Content
+	ExtraObjects          map[int][]byte       // Object ID -> Object Content
 	NextObjectID          int                  // Counter for new objects
 	ArlingtonCompatible   bool                 // Whether to use Arlington Model compliant fonts
 	Structure             *StructureManager    // PDF/UA Structure Tree Manager
@@ -48,7 +48,7 @@ func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompa
 		Margins:               margins,
 		ContentStreams:        make([]bytes.Buffer, 1),
 		PageAnnots:            make([][]int, 1),
-		ExtraObjects:          make(map[int]string),
+		ExtraObjects:          make(map[int][]byte),
 		NextObjectID:          2000, // Start extra objects at 2000 to avoid conflicts
 		ArlingtonCompatible:   arlingtonCompatible,
 		Structure:             NewStructureManager(),
@@ -80,7 +80,7 @@ func (pm *PageManager) AddAnnotation(objID int) {
 func (pm *PageManager) AddExtraObject(content string) int {
 	id := pm.NextObjectID
 	pm.NextObjectID++
-	pm.ExtraObjects[id] = content
+	pm.ExtraObjects[id] = []byte(content)
 	return id
 }
 
@@ -106,7 +106,7 @@ func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
 	content := fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /StructParent %d /A << /Type /Action /S /URI /URI (%s) >> >>",
 		rect, structParentIdx, validURL)
 
-	pm.ExtraObjects[annotID] = content
+	pm.ExtraObjects[annotID] = []byte(content)
 	pm.AddAnnotation(annotID)
 
 	// PDF/UA-2: Create Link structure element for this annotation

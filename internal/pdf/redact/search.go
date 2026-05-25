@@ -18,18 +18,18 @@ func (r *Redactor) ExtractTextPositions(pageNum int) ([]models.TextPosition, err
 	objMap := r.objMap
 	if objMap == nil {
 		var err error
-		objMap, err = buildObjectMap(r.pdfBytes)
+		objMap, _, err = buildObjectMap(r.pdfBytes)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	pageRef, err := findPageObject(objMap, r.pdfBytes, pageNum)
+	pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 	if err != nil {
 		return nil, err
 	}
 
-	pageBody := objMap[pageRef]
+	pageBody := objMap[pageObjNum]
 	contentBytes, err := extractPageContent(pageBody, objMap)
 	if err != nil {
 		return nil, err
