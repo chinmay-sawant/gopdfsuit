@@ -93,10 +93,10 @@ func RegisterRoutes(router *gin.Engine) {
 	router.Static("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
 	router.Static("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
 
-	// API endpoints - protected with Google OAuth when running on Cloud Run
+	// API endpoints - protected by auth-ms JWT when running on Cloud Run
 	v1 := router.Group("/api/v1")
 	v1.Use(middleware.CORSMiddleware())       // Add CORS middleware
-	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run
+	v1.Use(middleware.AuthMiddleware()) // Validates auth-ms JWT; only enforced on Cloud Run
 	{
 		// Handle all OPTIONS requests for CORS
 		v1.OPTIONS("/*path", func(c *gin.Context) { //nolint:revive
@@ -601,7 +601,7 @@ func handleTestAuth(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"authenticated": true,
-		"message":       "Token verified successfully with Google OAuth",
+		"message":       "Token verified successfully",
 		"user":          userInfo,
 	})
 }

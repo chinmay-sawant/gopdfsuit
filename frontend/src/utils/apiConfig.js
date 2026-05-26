@@ -1,8 +1,8 @@
 // Environment configuration for API endpoints
-// Checks if the backend is deployed on Google Cloud Run
+// Checks if the backend is deployed on Cloud Run
 
 /**
- * Check if the application is running on Google Cloud Run
+ * Check if the application is running on Cloud Run
  * Cloud Run sets K_SERVICE environment variable automatically
  */
 export const isCloudRunEnvironment = () => {
@@ -26,19 +26,18 @@ export const getApiBaseUrl = () => {
 }
 
 /**
- * Check if authentication is required
- * Only require auth when running on Cloud Run
+ * Base URL of the auth-ms microservice (login/register/verify).
  */
-export const isAuthRequired = () => {
-  return isCloudRunEnvironment()
+export const getAuthBaseUrl = () => {
+  return import.meta.env.VITE_AUTH_URL || 'http://localhost:9090'
 }
 
 /**
- * Google OAuth UI/hooks only when Cloud Run auth is on and Client ID is configured.
+ * Check if authentication is required.
+ * Enabled on Cloud Run, or anywhere via VITE_AUTH_ENABLED=true (e.g. `make run`).
  */
-export const isGoogleOAuthEnabled = (clientId) => {
-  const id = (clientId ?? import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '').trim()
-  return isAuthRequired() && id.length > 0
+export const isAuthRequired = () => {
+  return isCloudRunEnvironment() || import.meta.env.VITE_AUTH_ENABLED === 'true'
 }
 
 /**
@@ -92,12 +91,9 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
 /**
  * Configuration object for easy access
  */
-const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim()
-
 export const apiConfig = {
   isCloudRun: isCloudRunEnvironment(),
   baseUrl: getApiBaseUrl(),
+  authUrl: getAuthBaseUrl(),
   authRequired: isAuthRequired(),
-  googleClientId,
-  googleOAuthEnabled: isGoogleOAuthEnabled(googleClientId),
 }

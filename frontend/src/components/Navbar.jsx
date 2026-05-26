@@ -166,18 +166,6 @@ const Navbar = () => {
                       maxWidth: '160px', /* Reduced max-width */
                       marginLeft: '0.25rem'
                     }}>
-                    {user.picture && (
-                      <img
-                        src={user.picture}
-                        alt={user.name}
-                        style={{
-                          width: '24px', /* Reduced size */
-                          height: '24px',
-                          borderRadius: '50%',
-                          border: '1px solid hsl(var(--border))'
-                        }}
-                      />
-                    )}
                     <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                       <span style={{
                         fontSize: '0.75rem', /* Reduced font size */
@@ -188,9 +176,8 @@ const Navbar = () => {
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
                       }}>
-                        {user.name}
+                        {user.email}
                       </span>
-                      {/* Hidden email for compactness */}
                     </div>
                   </div>
 
@@ -323,29 +310,11 @@ const Navbar = () => {
                     background: 'hsl(var(--card))',
                     marginTop: '0.5rem'
                   }}>
-                    {user.picture && (
-                      <img
-                        src={user.picture}
-                        alt={user.name}
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          border: '2px solid hsl(var(--border))'
-                        }}
-                      />
-                    )}
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
                       <span style={{
                         fontSize: '0.875rem',
                         fontWeight: '600',
                         color: 'hsl(var(--foreground))'
-                      }}>
-                        {user.name}
-                      </span>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        color: 'hsl(var(--muted-foreground))'
                       }}>
                         {user.email}
                       </span>

@@ -2,43 +2,76 @@
 package middleware
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/api/idtoken"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // isCloudRunCached is evaluated once at package init to avoid per-request os.Getenv overhead.
 var isCloudRunCached = os.Getenv("K_SERVICE") != "" || os.Getenv("K_REVISION") != ""
 
-// IsCloudRun checks if the application is running on Google Cloud Run
+// authEnabledCached lets us enforce auth anywhere (e.g. local dev / make run),
+// independent of the Cloud Run deploy platform.
+var authEnabledCached = os.Getenv("AUTH_ENABLED") == "true"
+
+// IsCloudRun checks if the application is running on Cloud Run
 func IsCloudRun() bool {
 	return isCloudRunCached
 }
 
-// GoogleAuthMiddleware validates Google OAuth ID tokens
-// Only enforces authentication when running on Cloud Run
-func GoogleAuthMiddleware() gin.HandlerFunc {
+// authRequired reports whether requests must carry a valid auth-ms JWT.
+func authRequired() bool {
+	return authEnabledCached || isCloudRunCached
+}
+
+// authSecret is the shared HS256 secret used to verify JWTs minted by auth-ms.
+// It must match AUTH_JWT_SECRET configured on the auth-ms service.
+func authSecret() []byte {
+	s := os.Getenv("AUTH_JWT_SECRET")
+	if s == "" {
+		s = "dev-insecure-secret-change-me"
+	}
+	return []byte(s)
+}
+
+type authClaims struct {
+	Email string `json:"email"`
+	jwt.RegisteredClaims
+}
+
+func verifyToken(tokenString string) (*authClaims, error) {
+	claims := &authClaims{}
+	_, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return authSecret(), nil
+	}, jwt.WithValidMethods([]string{"HS256"}))
+	if err != nil {
+		return nil, err
+	}
+	return claims, nil
+}
+
+// AuthMiddleware validates auth-ms JWTs and only enforces authentication when
+// running on Cloud Run (mirrors the frontend, which gates the UI there).
+func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Skip authentication if not running on Cloud Run
-		if !IsCloudRun() {
+		if !authRequired() {
 			c.Next()
 			return
 		}
-
 		// Skip authentication for OPTIONS requests (CORS preflight)
-		if c.Request.Method == "OPTIONS" {
+		if c.Request.Method == http.MethodOptions {
 			c.Next()
 			return
 		}
 
-		// Get authorization header
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		token, ok := bearerToken(c)
+		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "Authorization header required",
 			})
@@ -46,96 +79,52 @@ func GoogleAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Extract Bearer token
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Invalid authorization header format. Expected: Bearer <token>",
-			})
-			c.Abort()
-			return
-		}
-
-		token := parts[1]
-
-		// Get the expected audience (your Cloud Run service URL)
-		// This should be set as an environment variable
-		audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
-		if audience == "" {
-			// Try Client ID as audience (common for Google Sign-In)
-			audience = os.Getenv("GOOGLE_CLIENT_ID")
-		}
-		if audience == "" {
-			// If not set, try to get from Cloud Run metadata
-			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
-		}
-
-		// Validate the ID token
-		ctx := context.Background()
-		payload, err := idtoken.Validate(ctx, token, audience)
+		claims, err := verifyToken(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "Invalid ID token",
+				"error":   "Invalid token",
 				"details": err.Error(),
 			})
 			c.Abort()
 			return
 		}
 
-		// Token is valid, store user info in context
-		c.Set("user_email", payload.Claims["email"])
-		c.Set("user_name", payload.Claims["name"])
-		c.Set("user_picture", payload.Claims["picture"])
-		c.Set("user_sub", payload.Subject)
-
+		setUserContext(c, claims)
 		c.Next()
 	}
 }
 
-// OptionalAuthMiddleware checks for authentication but doesn't enforce it
-// Useful for endpoints that can work with or without auth
+// OptionalAuthMiddleware attaches user info when a valid token is present but
+// never rejects the request. Useful for endpoints that work with or without auth.
 func OptionalAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Skip if not on Cloud Run
-		if !IsCloudRun() {
+		if !authRequired() {
 			c.Next()
 			return
 		}
-
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			// No auth provided, continue without user info
+		token, ok := bearerToken(c)
+		if !ok {
 			c.Next()
 			return
 		}
-
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			c.Next()
-			return
+		if claims, err := verifyToken(token); err == nil {
+			setUserContext(c, claims)
 		}
-
-		token := parts[1]
-		audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
-		if audience == "" {
-			audience = os.Getenv("GOOGLE_CLIENT_ID")
-		}
-		if audience == "" {
-			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
-		}
-
-		ctx := context.Background()
-		payload, err := idtoken.Validate(ctx, token, audience)
-		if err == nil {
-			// Token is valid, store user info
-			c.Set("user_email", payload.Claims["email"])
-			c.Set("user_name", payload.Claims["name"])
-			c.Set("user_picture", payload.Claims["picture"])
-			c.Set("user_sub", payload.Subject)
-		}
-
 		c.Next()
 	}
+}
+
+func bearerToken(c *gin.Context) (string, bool) {
+	parts := strings.SplitN(c.GetHeader("Authorization"), " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" || parts[1] == "" {
+		return "", false
+	}
+	return parts[1], true
+}
+
+func setUserContext(c *gin.Context, claims *authClaims) {
+	c.Set("user_email", claims.Email)
+	c.Set("user_sub", claims.Subject)
 }
 
 // GetUserEmail retrieves the authenticated user's email from context
@@ -155,27 +144,9 @@ func GetUserInfo(c *gin.Context) map[string]interface{} {
 	if email, exists := c.Get("user_email"); exists {
 		userInfo["email"] = email
 	}
-	if name, exists := c.Get("user_name"); exists {
-		userInfo["name"] = name
-	}
-	if picture, exists := c.Get("user_picture"); exists {
-		userInfo["picture"] = picture
-	}
 	if sub, exists := c.Get("user_sub"); exists {
 		userInfo["sub"] = sub
 	}
 
 	return userInfo
-}
-
-// LogAuthInfo logs authentication information (useful for debugging)
-func LogAuthInfo(c *gin.Context) {
-	if IsCloudRun() {
-		userInfo := GetUserInfo(c)
-		if len(userInfo) > 0 {
-			fmt.Printf("Authenticated user: %+v\n", userInfo)
-		} else {
-			fmt.Println("No authenticated user")
-		}
-	}
 }

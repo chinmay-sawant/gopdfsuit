@@ -19,6 +19,9 @@ go.work.sum
 # Go build cache
 *.log
 
+# auth-ms local SQLite database (runtime; the container uses a Docker volume)
+*.db
+
 # IDE/editor files
 .vscode/
 .idea/

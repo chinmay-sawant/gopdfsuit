@@ -1,4 +1,3 @@
-
 import { HashRouter as Router, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import AuthGuard from './components/AuthGuard'
@@ -17,7 +16,7 @@ import Documentation from './pages/Documentation'
 import Redaction from './pages/Redaction'
 
 function App() {
-  // Wrap only the Editor route with AuthGuard when auth is required
+  // Auth gates only the Editor route (same scope as the previous auth).
   const EditorRoute = isAuthRequired() ? (
     <AuthGuard>
       <Editor />

@@ -1,0 +1,25 @@
+# Basic containerized auth-ms with its SQLite database persisted in a volume.
+#   make auth-up     build + start (http://localhost:9090)
+#   make auth-down   stop
+#   make auth-logs   follow logs
+# The shared JWT secret must match the backend's AUTH_JWT_SECRET.
+services:
+  auth-ms:
+    build:
+      context: .
+      dockerfile: auth-ms/Dockerfile
+    image: gopdfsuit-auth-ms
+    container_name: gopdfsuit-auth-ms
+    ports:
+      - "9090:9090"
+    environment:
+      AUTH_PORT: "9090"
+      AUTH_DB_PATH: /data/auth.db
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-dev-insecure-secret-change-me}
+      AUTH_CORS_ORIGIN: "*"
+    volumes:
+      - auth-data:/data
+    restart: unless-stopped
+
+volumes:
+  auth-data:
