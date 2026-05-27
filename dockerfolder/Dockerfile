@@ -1,7 +1,7 @@
 # Build from the root directory using: docker build -f dockerfolder/Dockerfile -t gopdfsuit .
 
 # --- Build stage ---
-FROM golang:1.24.11-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
 	rm -rf /var/lib/apt/lists/*
