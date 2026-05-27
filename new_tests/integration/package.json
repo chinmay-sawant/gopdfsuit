@@ -2,7 +2,6 @@
   "name": "gopdfsuit-e2e",
   "private": true,
   "description": "End-to-end tests (Playwright) for gopdfsuit",
-  "packageManager": "pnpm@11.1.3",
   "scripts": {
     "test": "playwright test",
     "test:auth": "playwright test -c playwright.cloudrun.config.js",

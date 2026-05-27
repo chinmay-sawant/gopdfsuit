@@ -43,9 +43,9 @@ test-unit:
 	# 6 unitarios go-be (TC 01, 04, 06, 08, 09, 10).
 	go test -count=1 -v -run "TestFlowCases" ./new_tests/backend/
 	# 4 unitarios fe-react (TC 02, 03, 05, 07).
-	# --ignore-scripts evita el bloqueo de pnpm 11 con esbuild (los tests no
+	# --ignore-scripts evita el postinstall nativo de esbuild (los tests no
 	# necesitan el binario nativo de esbuild).
-	cd frontend && corepack pnpm install --ignore-scripts && corepack pnpm run test:isolated
+	cd frontend && npm install --ignore-scripts && npm run test:isolated
 
 test-integration:
 	# Integración Go encadenada (sobre IntegrationSuite real con httptest):
@@ -60,7 +60,7 @@ test-integration:
 	# Integración Playwright:
 	#   TC 03 -> merge.fail.spec.js (FE↔BE merge con PDFs corruptos)
 	#   TC 05 -> auth.spec.js       (FE → auth-ms → BE)
-	cd new_tests/integration && corepack pnpm install --ignore-scripts && corepack pnpm exec playwright install chromium && corepack pnpm run test:all
+	cd new_tests/integration && npm install --ignore-scripts && npx playwright install chromium && npm run test:all
 
 # Todo lo nuestro.
 test: test-unit test-integration
@@ -89,7 +89,7 @@ run:
 	@trap 'kill 0' INT TERM EXIT; \
 	AUTH_PORT=9090 AUTH_DB_PATH=auth.db AUTH_JWT_SECRET=$(AUTH_JWT_SECRET) go run ./auth-ms & \
 	AUTH_ENABLED=true AUTH_JWT_SECRET=$(AUTH_JWT_SECRET) go run ./cmd/gopdfsuit & \
-	(cd frontend && corepack pnpm install --ignore-scripts && VITE_AUTH_ENABLED=true VITE_AUTH_URL=http://localhost:9090 VITE_API_URL=http://localhost:8080 corepack pnpm run dev) & \
+	(cd frontend && npm install --ignore-scripts && VITE_AUTH_ENABLED=true VITE_AUTH_URL=http://localhost:9090 VITE_API_URL=http://localhost:8080 npm run dev) & \
 	wait
 
 fmt:
@@ -103,11 +103,11 @@ mod:
 
 lint:
 	golangci-lint run -E revive,gocritic,gocyclo,goconst ./...
-	cd frontend && corepack pnpm run lint
+	cd frontend && npm run lint
 	cd .. 
 
 gdocker: test-unit
-	cd frontend && corepack pnpm install --ignore-scripts && corepack pnpm run build && cd ..
+	cd frontend && npm install --ignore-scripts && npm run build && cd ..
 	docker rm -f gopdfsuit
 	docker build -t gopdfsuit . 
 
@@ -133,7 +133,7 @@ gengine-deploy: test-unit
 	export VITE_IS_CLOUD_RUN=true;\
 	export VITE_ENVIRONMENT=cloudrun;\
 	export DISABLE_PROFILING=true;\
-	cd frontend && corepack pnpm install --ignore-scripts && corepack pnpm run build && cd ..
+	cd frontend && npm install --ignore-scripts && npm run build && cd ..
 	gcloud app deploy
 
 .PHONY: build test test-unit test-integration auth-up auth-down auth-logs clean run fmt vet mod lint e2e

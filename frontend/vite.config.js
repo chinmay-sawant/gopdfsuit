@@ -17,6 +17,13 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     base: '/gopdfsuit/',
     envDir: '../',
+    resolve: {
+      alias: {
+        '@testing-library/jest-dom': path.resolve(__dirname, 'node_modules/@testing-library/jest-dom'),
+        '@testing-library/react': path.resolve(__dirname, 'node_modules/@testing-library/react'),
+        '@testing-library/user-event': path.resolve(__dirname, 'node_modules/@testing-library/user-event'),
+      },
+    },
     test: {
       globals: true,
       environment: 'jsdom',

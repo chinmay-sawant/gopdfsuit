@@ -50,7 +50,7 @@ export default defineConfig({
       },
     },
     {
-      command: 'pnpm run dev',
+      command: 'npm run dev',
       cwd: '../../frontend',
       port: 3000,
       reuseExistingServer: false,

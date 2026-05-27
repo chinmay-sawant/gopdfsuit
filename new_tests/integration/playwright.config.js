@@ -28,7 +28,7 @@ export default defineConfig({
       env: { GOTOOLCHAIN: 'auto' },
     },
     {
-      command: 'pnpm run dev',
+      command: 'npm run dev',
       cwd: '../../frontend',
       port: 3000,
       reuseExistingServer: true,
