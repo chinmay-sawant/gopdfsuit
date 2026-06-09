@@ -1,13 +1,14 @@
-# 📄 GoPdfSuit
+# 📄 GoPdfSuit - Three PDF Engines, One Repo
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org/)
-[![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
+[![REST API](https://img.shields.io/badge/API-REST%20(Language%20Agnostic)-00ADD8?style=flat)](https://gin-gonic.com/)
+[![Python](https://img.shields.io/badge/Python-Bindings-3776AB?style=flat&logo=python)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=flat&logo=docker)](https://hub.docker.com/)
 [![gochromedp](https://img.shields.io/badge/gochromedp-1.0+-00ADD8?style=flat)](https://github.com/chinmay-sawant/gochromedp)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/chinmay-sawant/gopdfsuit)
 
-> 🚀 A powerful Go web service for template-based PDF generation with multi-page support, PDF merging, form filling, and HTML to PDF/Image conversion.
+> 🚀 **gopdfsuit** (language-agnostic REST API) · **gopdflib** (Go library) · **pypdfsuit** (Python bindings) - template-based PDF generation with multi-page support, merging, form filling, and HTML to PDF/Image conversion.
 
 ## Star History
 
@@ -15,7 +16,13 @@
 
 ## ⚡ Performance & Efficiency
 
-**92% Cost Reduction** vs traditional distributed architectures.
+**92% Cost Reduction** vs traditional distributed architectures. All benchmarks below run with **PDF/A-4 (PDF 2.0)** compliance enabled - no shortcuts.
+
+| Runtime                 | Workers | Throughput        | Avg Latency | Workload        | Benchmarks Run |
+| :---------------------- | ------: | :---------------- | :---------- | :-------------- | -------------: |
+| **gopdflib** (Go lib)   |      48 | 2,061 ops/sec     | 27.7 ms     | Zerodha 5000    |         2,000+ |
+| **gopdfsuit** (REST API) |      48 | 143 req/sec       | 119 ms      | k6 load test    |           600+ |
+| **pypdfsuit** (Python)  |      48 | 214 ops/sec       | 197 ms      | 80/15/5 mixed   |         5,000+ |
 
 | Metric               | Industry Standard (Typst/LaTeX) | gopdfsuit (Go 1.24)             |
 | :------------------- | :------------------------------ | :------------------------------ |
@@ -23,7 +30,8 @@
 | **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
 | **Throughput**       | ~1k PDFs/sec (Cluster)          | **~600 PDFs/sec (Single Node)** |
 
-> **Result**: Generates 1.5 million financial PDFs in ~45 mins on a single machine.
+
+> **Result**: Generates 1.5 million PDF/A-compliant financial PDFs in ~45 mins on a single machine. Full reports: [BENCHMARK_REPORT.md](sampledata/benchmarks/BENCHMARK_REPORT.md) · [Pass 4 Results](guides/cursor/PASS4_PDFA_RESULTS.md)
 
 ---
 
@@ -46,21 +54,24 @@
 
 ## 📖 Overview
 
-GoPdfSuit is a powerful Go web service for template-based PDF generation.
+**Three applications, one repository** - pick the flavor that fits your stack:
+
+| Component | Type | Use Case |
+| :-------- | :--- | :------- |
+| **gopdfsuit** | Language-agnostic REST API | Spin up as a service - call it from **any language** (Go, Python, JS, cURL, etc.) |
+| **gopdflib** | Go library | `import "github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib"` directly in your Go project |
+| **pypdfsuit** | Python bindings | `from pypdfsuit import Generator` - CGO-powered extension of gopdflib for Python |
 
 **Key Features:**
 
 - **Template-Based Generation**: Create PDFs from JSON templates with auto page breaks and flow control.
 - **Security & Compliance**: Digital signatures (PKCS#7, X.509), AES-256 encryption, granular permissions, and PDF/A-4 & PDF/UA-2 compliance.
 - **Advanced Elements**: Rich text styling, tables, barcodes, QR codes, SVG vector graphics, and interactive forms (checkboxes, radio buttons).
-- **Navigation**: Auto-generated bookmarks, internal links, and named destinations for easy document navigation.
+- **Navigation**: Auto-generated bookmarks, internal links, and named destinations.
 - **Form Filling**: Fill generic AcroForms and XFDF data.
 - **Redaction**: Securely redact sensitive information using specific coordinates or text search.
 - **Merge & Split**: Combine multiple PDFs or split them.
-- **HTML Conversion**: High-fidelity HTML to PDF/Image conversion using headless Chrome.
-- **Native Bindings**:
-  - **Python**: Direct CGO bindings for high-performance integration.
-  - **Go**: Usable as a standalone Go library (`gopdflib`).
+- **HTML Conversion**: High-fidelity HTML to PDF/Image via headless Chrome.
 - **Web Interfaces**: Built-in React UI for viewer, editor, merger, filler, and converters.
 
 **Requirements**: Go 1.24+, Google Chrome (for HTML conversion)
