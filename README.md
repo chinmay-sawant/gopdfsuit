@@ -24,14 +24,7 @@
 | **gopdfsuit** (REST API) |      48 | 143 req/sec       | 119 ms      | k6 load test    |           600+ |
 | **pypdfsuit** (Python)  |      48 | 214 ops/sec       | 197 ms      | 80/15/5 mixed   |         5,000+ |
 
-| Metric               | Industry Standard (Typst/LaTeX) | gopdfsuit (Go 1.24)             |
-| :------------------- | :------------------------------ | :------------------------------ |
-| **Infrastructure**   | ~40 Node Cluster                | **2 Nodes** (95% Less)          |
-| **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
-| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~600 PDFs/sec (Single Node)** |
-
-
-> **Result**: Generates 1.5 million PDF/A-compliant financial PDFs in ~45 mins on a single machine. Full reports: [BENCHMARK_REPORT.md](sampledata/benchmarks/BENCHMARK_REPORT.md) · [Pass 4 Results](guides/cursor/PASS4_PDFA_RESULTS.md)
+Full reports: [BENCHMARK_REPORT.md](sampledata/benchmarks/BENCHMARK_REPORT.md) · [Pass 4 Results](guides/cursor/PASS4_PDFA_RESULTS.md)
 
 ---
 
