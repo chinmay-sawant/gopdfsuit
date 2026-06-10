@@ -34,24 +34,24 @@ func putPageContentStreamBuffer(buf *bytes.Buffer) {
 
 // PageManager handles multi-page document generation
 type PageManager struct {
-	Pages                 []int   // List of page object IDs
-	CurrentPageIndex      int     // Current page index (0-based)
-	CurrentYPos           float64 // Current Y position on page
-	PageDimensions        PageDimensions
-	Margins               PageMargins
-	ContentStreams        []*bytes.Buffer      // Content for each page
-	PageAnnots            [][]int              // Annotation Object IDs per page
-	ExtraObjects          map[int][]byte       // Object ID -> Object Content
-	NextObjectID          int                  // Counter for new objects
-	ArlingtonCompatible   bool                 // Whether to use Arlington Model compliant fonts
-	Structure             *StructureManager    // PDF/UA Structure Tree Manager
-	NextAnnotStructParent int                  // PDF/UA-2: Counter for annotation StructParent values
-	AnnotStructElems      []AnnotStructElem    // PDF/UA-2: Annotation to structure element mapping
-	NamedDests            map[string]NamedDest // Map of named destinations for internal linking
-	FontRegistry          *CustomFontRegistry  // Per-generation font registry for thread-safe font access
-	InitialStreamCap      int                  // Initial capacity for pooled page content streams
-	cachedPageInit        []byte               // Reused border/watermark init bytes for continuation pages (C3)
-	cachedPageInitBorder  string
+	Pages                   []int   // List of page object IDs
+	CurrentPageIndex        int     // Current page index (0-based)
+	CurrentYPos             float64 // Current Y position on page
+	PageDimensions          PageDimensions
+	Margins                 PageMargins
+	ContentStreams          []*bytes.Buffer      // Content for each page
+	PageAnnots              [][]int              // Annotation Object IDs per page
+	ExtraObjects            map[int][]byte       // Object ID -> Object Content
+	NextObjectID            int                  // Counter for new objects
+	ArlingtonCompatible     bool                 // Whether to use Arlington Model compliant fonts
+	Structure               *StructureManager    // PDF/UA Structure Tree Manager
+	NextAnnotStructParent   int                  // PDF/UA-2: Counter for annotation StructParent values
+	AnnotStructElems        []AnnotStructElem    // PDF/UA-2: Annotation to structure element mapping
+	NamedDests              map[string]NamedDest // Map of named destinations for internal linking
+	FontRegistry            *CustomFontRegistry  // Per-generation font registry for thread-safe font access
+	InitialStreamCap        int                  // Initial capacity for pooled page content streams
+	cachedPageInit          []byte               // Reused border/watermark init bytes for continuation pages (C3)
+	cachedPageInitBorder    string
 	cachedPageInitWatermark string
 }
 

@@ -40,10 +40,10 @@ type PDFSigner struct {
 var pdfSignerCache sync.Map // signerPEMCacheKey -> *PDFSigner
 
 var (
-	marshaledOIDData = mustMarshal(oidData)
-	sha256HasherPool     sync.Pool
-	authAttrsBytesPool   sync.Pool
-	signWorkerSlots      = make(chan struct{}, maxSignWorkers())
+	marshaledOIDData   = mustMarshal(oidData)
+	sha256HasherPool   sync.Pool
+	authAttrsBytesPool sync.Pool
+	signWorkerSlots    = make(chan struct{}, maxSignWorkers())
 )
 
 func maxSignWorkers() int {
@@ -87,14 +87,14 @@ type SignatureIDs struct {
 
 // OID values for CMS/PKCS#7
 var (
-	oidData          = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 1}
-	oidSignedData    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
-	oidSHA256        = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
-	oidRSAEncryption     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
-	oidECDSAWithSHA256   = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}
-	oidContentType   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
-	oidMessageDigest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
-	oidSigningTime   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 5}
+	oidData            = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 1}
+	oidSignedData      = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
+	oidSHA256          = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
+	oidRSAEncryption   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+	oidECDSAWithSHA256 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}
+	oidContentType     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 3}
+	oidMessageDigest   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 4}
+	oidSigningTime     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 5}
 )
 
 // parsedSignerPEMEntry caches certificate, private key (e.g. *rsa.PrivateKey), and chain for a PEM fingerprint.
@@ -711,11 +711,11 @@ func GetAcroFormSigFlags() int {
 }
 
 type signaturePlacement struct {
-	byteRangePos   int
+	byteRangePos    int
 	byteRangeMarker []byte
-	contentsStart  int
-	contentsEnd    int
-	byteRange      [4]int
+	contentsStart   int
+	contentsEnd     int
+	byteRange       [4]int
 }
 
 func locateSignaturePlacement(pdfData []byte) (signaturePlacement, error) {

@@ -214,7 +214,7 @@ func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, 
 	newObj = append(newObj, streamObj[end:]...)
 
 	lenRe := regexp.MustCompile(`/Length\s+(?:\d+\s+\d+\s+R|\d+)`)
-	newObj = lenRe.ReplaceAll(newObj, 	[]byte("/Length " + strconv.Itoa(len(encoded))))
+	newObj = lenRe.ReplaceAll(newObj, []byte("/Length "+strconv.Itoa(len(encoded))))
 
 	return newObj, true, nil
 }

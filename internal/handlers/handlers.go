@@ -22,6 +22,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const mimeTypePDF = "application/pdf"
+
 var templatePDFPool = sync.Pool{
 	New: func() any {
 		return new(models.PDFTemplate)
@@ -343,9 +345,9 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Type", mimeTypePDF)
 	c.Header("Content-Disposition", "attachment; filename=generated.pdf")
-	c.Data(http.StatusOK, "application/pdf", pdfBytes)
+	c.Data(http.StatusOK, mimeTypePDF, pdfBytes)
 }
 
 // handleFillPDF accepts multipart form data with fields 'pdf' and 'xfdf' (files or raw bytes)
@@ -401,9 +403,9 @@ func handleFillPDF(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Type", mimeTypePDF)
 	c.Header("Content-Disposition", "attachment; filename=filled.pdf")
-	c.Data(http.StatusOK, "application/pdf", out)
+	c.Data(http.StatusOK, mimeTypePDF, out)
 }
 
 // handleMergePDFs accepts multiple 'pdf' form files, merges them into a single PDF,
@@ -445,9 +447,9 @@ func handleMergePDFs(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Type", mimeTypePDF)
 	c.Header("Content-Disposition", "attachment; filename=merged.pdf")
-	c.Data(http.StatusOK, "application/pdf", merged)
+	c.Data(http.StatusOK, mimeTypePDF, merged)
 }
 
 // handleSplitPDF accepts a 'pdf' file and splits it according to optional 'pages' and 'max_per_file' form fields,
@@ -497,9 +499,9 @@ func handlerSplitPDF(c *gin.Context) {
 
 	// If single output, return directly as PDF
 	if len(outs) == 1 {
-		c.Header("Content-Type", "application/pdf")
+		c.Header("Content-Type", mimeTypePDF)
 		c.Header("Content-Disposition", "attachment; filename=split.pdf")
-		c.Data(http.StatusOK, "application/pdf", outs[0])
+		c.Data(http.StatusOK, mimeTypePDF, outs[0])
 		return
 	}
 
@@ -576,9 +578,9 @@ func handleHTMLToPDF(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Type", mimeTypePDF)
 	c.Header("Content-Disposition", "attachment; filename=converted.pdf")
-	c.Data(http.StatusOK, "application/pdf", pdfBytes)
+	c.Data(http.StatusOK, mimeTypePDF, pdfBytes)
 }
 
 // handleHTMLToImage handles HTML to image conversion using htmltoimage

@@ -166,7 +166,7 @@ func parseXRefStreams(data []byte, objMap map[int][]byte, objGen map[int]int) {
 					if endPos == -1 {
 						continue
 					}
-					
+
 					loc := objStartRe.FindSubmatchIndex(data[off:endPos])
 					if loc == nil {
 						continue

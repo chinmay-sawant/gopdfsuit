@@ -101,7 +101,7 @@ func RunSingleDocumentBenchmark(name string) error {
 		}(runIndex)
 	}
 	wg.Wait()
-	totalSeconds := time.Now().Sub(totalStart).Seconds()
+	totalSeconds := time.Since(totalStart).Seconds()
 
 	memDone <- true
 	memWg.Wait()

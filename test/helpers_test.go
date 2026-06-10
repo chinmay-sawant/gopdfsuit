@@ -2,7 +2,6 @@ package tests
 
 import (
 	"bytes"
-	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -75,16 +74,6 @@ func writeMultipartPDF(t testing.TB, fieldName, filename string, pdfBytes []byte
 		t.Fatal(err)
 	}
 	return body, writer.FormDataContentType()
-}
-
-func readResponseBody(t testing.TB, rc io.ReadCloser) []byte {
-	t.Helper()
-	defer func() { _ = rc.Close() }()
-	data, err := io.ReadAll(rc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return data
 }
 
 func assertFilledXFDFFields(t testing.TB, filledPDF, xfdf []byte) {

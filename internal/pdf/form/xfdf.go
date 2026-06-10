@@ -34,8 +34,6 @@ var (
 	reHexString       = regexp.MustCompile(`<([0-9A-Fa-f\s]{2,400})>`)
 	reNameStr         = regexp.MustCompile(`/([A-Za-z0-9_+-]{1,200})`)
 	reTFull           = regexp.MustCompile(`/T\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
-	reTShort          = regexp.MustCompile(`/T\s*(?:\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
-	reTWidget         = regexp.MustCompile(`/T\s*\((.*?)\)`)
 	reKids            = regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
 	reRef             = regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 	reSingleKids      = regexp.MustCompile(`/Kids\s+(\d+)\s+(\d+)\s+R`)
@@ -43,9 +41,6 @@ var (
 	reStreamAlt       = regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
 	reTrailer         = regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
 	reObjStream       = regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-	reFields          = regexp.MustCompile(`/Fields\s*\[(.*?)\]`)
-	reFieldsSingle    = regexp.MustCompile(`/Fields\s+(\d+)\s+(\d+)\s+R`)
-	reWidget          = regexp.MustCompile(`(?s)<<.*?/Subtype\s*/Widget.*?>>`)
 	reRect            = regexp.MustCompile(`/Rect\s*\[\s*([^\]]+)\s*\]`)
 	reQ               = regexp.MustCompile(`/Q\s*(\d)`)
 	reDA              = regexp.MustCompile(`/DA\s*\((.*?)\)`)
@@ -53,15 +48,12 @@ var (
 	reVBroad          = regexp.MustCompile(`/V\s*\(?.*?\)?`)
 	reVParen          = regexp.MustCompile(`/V\s*\((?:\\.|[^\\)])*\)`)
 	reBtnOnState      = regexp.MustCompile(`/AP\s*<<.*?/N\s*<<[^>]*?/Yes`)
-	reObj0            = regexp.MustCompile(`(\d+)\s+0\s+obj`)
 	reNeedAppearances = regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
 	reAcroForm        = regexp.MustCompile(`(/AcroForm\s*<<)`)
 	reRoot0           = regexp.MustCompile(`/Root\s+(\d+)\s+0\s+R`)
 	reAcroFormBoth    = regexp.MustCompile(`(?s)(/AcroForm\s*<<.*?)(>>)|(/AcroForm\s+\d+\s+\d+\s+R)`)
 	reAPRef           = regexp.MustCompile(`/AP\s+\d+\s+\d+\s+R`)
 	reLength          = regexp.MustCompile(`/Length\s+\d+`)
-	reAcroFormRef     = regexp.MustCompile(`/AcroForm\s+(\d+)\s+(\d+)\s+R`)
-	reRootRef         = regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
 
 	bytesSubtypeWidget      = []byte("/Subtype/Widget")
 	bytesSubtypeSpaceWidget = []byte("/Subtype /Widget")
@@ -498,7 +490,7 @@ func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string
 					return decodeHexString(string(m[4])), true
 				}
 			}
-		if am := reAP.FindSubmatch(body); am != nil {
+			if am := reAP.FindSubmatch(body); am != nil {
 				if nm := reN.FindSubmatch(am[1]); nm != nil {
 					if kr := reKey.FindSubmatch(nm[1]); kr != nil {
 						return string(kr[1]), true
@@ -588,8 +580,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				var buf [30]byte
 				b := strconv.AppendInt(buf[:0], int64(objstm), 10)
 				b = append(b, ' ', '0')
-				key := string(b)
-				if stm, ok := objMap[key]; ok {
+				if stm, ok := objMap[string(b)]; ok {
 					// try to parse embedded objects from stm similarly to earlier logic
 					_ = index
 					_ = stm
@@ -1110,8 +1101,12 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		b = strconv.AppendInt(b, int64(job.apObjNum), 10)
 		b = append(b, " 0 R>>"...)
 		apRef := bytes.Clone(b)
-		newDict := append(dictBytes[:len(dictBytes)-2], append(apRef, dictBytes[len(dictBytes)-2:]...)...)
-		out = append(out[:dictStart], append(newDict, out[dictEnd:]...)...)
+		var newDict bytes.Buffer
+		newDict.Grow(len(dictBytes) + len(apRef))
+		newDict.Write(dictBytes[:len(dictBytes)-2])
+		newDict.Write(apRef)
+		newDict.Write(dictBytes[len(dictBytes)-2:])
+		out = append(out[:dictStart], append(newDict.Bytes(), out[dictEnd:]...)...)
 	}
 
 	if reNeedAppearances.Match(out) {
@@ -1176,7 +1171,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		buf.WriteString(" 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/")
 		buf.WriteString(job.fontResourceName)
 		buf.WriteString("/Encoding/WinAnsiEncoding/FirstChar 32/LastChar 255/Widths ")
-		buf.WriteString(buildWidthsStr())
+		buf.WriteString(helveticaWidthsStr)
 		buf.WriteString("/FontDescriptor ")
 		buf.Write(strconv.AppendInt(scratch[:0], int64(job.fontDescObjNum), 10))
 		buf.WriteString(" 0 R>>\nendobj\n")

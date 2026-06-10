@@ -299,7 +299,7 @@ func HandleRedactApply(c *gin.Context) {
 	}
 
 	c.Header("Content-Disposition", "attachment; filename=redacted.pdf")
-	c.Data(http.StatusOK, "application/pdf", redactedPDF)
+	c.Data(http.StatusOK, mimeTypePDF, redactedPDF)
 }
 
 // HandleRedactSearch searches for text and returns potential redaction rectangles

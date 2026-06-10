@@ -368,10 +368,10 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 						titleBytes = append(titleBytes, byte(high>>8), byte(high), byte(low>>8), byte(low))
 					}
 				}
-		} else {
-			// ASCII bytes
-			titleBytes = append(titleBytes[:0], item.Title...)
-		}
+			} else {
+				// ASCII bytes
+				titleBytes = append(titleBytes[:0], item.Title...)
+			}
 
 			encrypted := ob.encryptor.EncryptString(titleBytes, item.ObjectID, 0)
 			itemDict.WriteString(" /Title <")

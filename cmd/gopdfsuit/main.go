@@ -22,7 +22,7 @@ func main() {
 		f, err := os.Create("/tmp/mem.prof")
 		if err == nil {
 			defer f.Close()
-			defer pprof.WriteHeapProfile(f)
+			defer func() { _ = pprof.WriteHeapProfile(f) }()
 		}
 	}
 

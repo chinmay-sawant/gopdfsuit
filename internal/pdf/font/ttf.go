@@ -518,6 +518,7 @@ func (f *TTFFont) parseCmapFormat12(data []byte, offset uint32) error {
 }
 
 // parseName parses the 'name' table for font names
+//
 //nolint:gocyclo
 func (f *TTFFont) parseName(data []byte) error {
 	table, ok := f.Tables["name"]

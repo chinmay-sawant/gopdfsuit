@@ -129,6 +129,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	return slices.Clone(doc.Bytes()), nil
 }
 
+//nolint:gocyclo // large template renderer with many element-type branches
 func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF, err error) {
 	pdfBufferPtr := pdfBufferPool.Get().(*bytes.Buffer)
 	pdfBufferPtr.Reset()
@@ -566,23 +567,23 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		// Get appropriate font reference for AcroForm DA (handles PDF/A mode)
 		widgetFontRef := getWidgetFontReference(fontRegistry)
 
-	var acroFormContent []byte
-	if sigIDs != nil {
-		acroFormContent = append(acroFormContent, "<< /Fields "...)
-		acroFormContent = append(acroFormContent, fieldsRef.String()...)
-		acroFormContent = append(acroFormContent, " /DA ("...)
-		acroFormContent = append(acroFormContent, widgetFontRef...)
-		acroFormContent = append(acroFormContent, " 0 Tf 0 g) /SigFlags "...)
-		acroFormContent = strconv.AppendInt(acroFormContent, int64(signature.GetAcroFormSigFlags()), 10)
-		acroFormContent = append(acroFormContent, " >>"...)
-	} else {
-		acroFormContent = append(acroFormContent, "<< /Fields "...)
-		acroFormContent = append(acroFormContent, fieldsRef.String()...)
-		acroFormContent = append(acroFormContent, " /DA ("...)
-		acroFormContent = append(acroFormContent, widgetFontRef...)
-		acroFormContent = append(acroFormContent, " 0 Tf 0 g) >>"...)
-	}
-	pageManager.ExtraObjects[acroFormID] = acroFormContent
+		var acroFormContent []byte
+		if sigIDs != nil {
+			acroFormContent = append(acroFormContent, "<< /Fields "...)
+			acroFormContent = append(acroFormContent, fieldsRef.String()...)
+			acroFormContent = append(acroFormContent, " /DA ("...)
+			acroFormContent = append(acroFormContent, widgetFontRef...)
+			acroFormContent = append(acroFormContent, " 0 Tf 0 g) /SigFlags "...)
+			acroFormContent = strconv.AppendInt(acroFormContent, int64(signature.GetAcroFormSigFlags()), 10)
+			acroFormContent = append(acroFormContent, " >>"...)
+		} else {
+			acroFormContent = append(acroFormContent, "<< /Fields "...)
+			acroFormContent = append(acroFormContent, fieldsRef.String()...)
+			acroFormContent = append(acroFormContent, " /DA ("...)
+			acroFormContent = append(acroFormContent, widgetFontRef...)
+			acroFormContent = append(acroFormContent, " 0 Tf 0 g) >>"...)
+		}
+		pageManager.ExtraObjects[acroFormID] = acroFormContent
 
 		pdfBuffer.WriteString(" /AcroForm ")
 		b = b[:0]
@@ -846,7 +847,8 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		}
 
 		// Encrypt content stream per object order when encryption is enabled
-		if enc != nil {
+		switch {
+		case enc != nil:
 			encryptedData := enc.EncryptStream(streamData, objectID, 0)
 			if useFlate[i] {
 				pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
@@ -858,14 +860,14 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			pdfBuffer.Write(b)
 			pdfBuffer.WriteString(" >>\nstream\n")
 			pdfBuffer.Write(encryptedData)
-		} else if useFlate[i] {
+		case useFlate[i]:
 			pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
 			b = b[:0]
 			b = strconv.AppendInt(b, int64(len(streamData)), 10)
 			pdfBuffer.Write(b)
 			pdfBuffer.WriteString(" >>\nstream\n")
 			pdfBuffer.Write(streamData)
-		} else {
+		default:
 			pdfBuffer.WriteString("<< /Length ")
 			b = b[:0]
 			b = strconv.AppendInt(b, int64(len(streamData)), 10)
@@ -1519,7 +1521,7 @@ func (d *imageObjectDeduper) intern(imgObj *ImageObject, nextObjectID *int) *Ima
 		}
 	}
 	imgObj.ObjectID = *nextObjectID
-	*nextObjectID = *nextObjectID + 1
+	*nextObjectID++
 	d.objects[key] = append(d.objects[key], imgObj)
 	d.unique++
 	return imgObj
@@ -1598,13 +1600,6 @@ func estimateInitialContentStreamCap(template models.PDFTemplate) int {
 		return maxCap
 	}
 	return score
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // generateAllContentWithImages processes the template and generates content with image support

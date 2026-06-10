@@ -17,6 +17,7 @@ var (
 // MergePDFs merges multiple PDF byte slices into a single PDF by parsing objects,
 // remapping object numbers and building a new /Pages tree that references all
 // page objects from the inputs. This avoids an external dependency.
+//
 //nolint:gocyclo
 func MergePDFs(files [][]byte) ([]byte, error) {
 	header := []byte("%PDF-1.7\n%âãÏÓ\n")
@@ -389,8 +390,9 @@ func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
 	return fields
 }
 
-//nolint:revive // exported
 // isFormFieldObject checks if an object body represents a form field
+//
+//nolint:revive // exported
 func IsFormFieldObject(body []byte) bool {
 	// Check for common form field indicators
 	formFieldTypes := [][]byte{

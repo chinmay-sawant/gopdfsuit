@@ -47,7 +47,7 @@ func TestHandleGenerateTemplatePDF_MockSuccess(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
-	if ct := w.Header().Get("Content-Type"); ct != "application/pdf" {
+	if ct := w.Header().Get("Content-Type"); ct != mimeTypePDF {
 		t.Fatalf("content-type=%q", ct)
 	}
 	if !bytes.Equal(w.Body.Bytes(), []byte("%PDF-mock")) {
@@ -152,7 +152,7 @@ func TestHandleSplitPDF_MockSingleOutput(t *testing.T) {
 	r, mockSvc := setupMockRouter(t)
 	mockSvc.EXPECT().
 		SplitPDF(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(pdfBytes []byte, spec merge.SplitSpec) ([][]byte, error) {
+		DoAndReturn(func(_ []byte, spec merge.SplitSpec) ([][]byte, error) {
 			_ = spec
 			return [][]byte{[]byte("%PDF-split")}, nil
 		})
@@ -172,8 +172,7 @@ func TestHandleSplitPDF_MockSingleOutput(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
 	}
-	if ct := w.Header().Get("Content-Type"); ct != "application/pdf" {
+	if ct := w.Header().Get("Content-Type"); ct != mimeTypePDF {
 		t.Fatalf("content-type=%q", ct)
 	}
 }
-

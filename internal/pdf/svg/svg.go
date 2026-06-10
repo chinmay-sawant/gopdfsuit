@@ -122,31 +122,31 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 			if se.Name.Local == "g" {
 				b.WriteString("q\n")
 
-			clear(attrs)
-			for _, a := range se.Attr {
-				attrs[a.Name.Local] = a.Value
-			}
-
-			// Apply transforms
-			if t, ok := attrs["transform"]; ok {
-				applyTransform(&b, t)
-			}
-
-			// Apply group styles (fill/stroke) which inherit
-			if fill, ok := attrs["fill"]; ok {
-				r, g, bVal, ok := parseColor(fill)
-				if ok {
-					writeFloats(&b, 3, r, g, bVal)
-					b.WriteString(" rg\n")
+				clear(attrs)
+				for _, a := range se.Attr {
+					attrs[a.Name.Local] = a.Value
 				}
-			}
-			if stroke, ok := attrs["stroke"]; ok {
-				r, g, bVal, ok := parseColor(stroke)
-				if ok {
-					writeFloats(&b, 3, r, g, bVal)
-					b.WriteString(" RG\n")
+
+				// Apply transforms
+				if t, ok := attrs["transform"]; ok {
+					applyTransform(&b, t)
 				}
-			}
+
+				// Apply group styles (fill/stroke) which inherit
+				if fill, ok := attrs["fill"]; ok {
+					r, g, bVal, ok := parseColor(fill)
+					if ok {
+						writeFloats(&b, 3, r, g, bVal)
+						b.WriteString(" rg\n")
+					}
+				}
+				if stroke, ok := attrs["stroke"]; ok {
+					r, g, bVal, ok := parseColor(stroke)
+					if ok {
+						writeFloats(&b, 3, r, g, bVal)
+						b.WriteString(" RG\n")
+					}
+				}
 			}
 
 			if se.Name.Local == "use" {
@@ -182,8 +182,8 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 						// Apply use-specific transform/translation
 						if x != 0 || y != 0 {
 							b.WriteString("1 0 0 1 ")
-					writeFloats(&b, 6, x, -y)
-					b.WriteString(" cm\n")
+							writeFloats(&b, 6, x, -y)
+							b.WriteString(" cm\n")
 						}
 						if transform != "" {
 							applyTransform(&b, transform) // Note: height might be irrelevant for purely relative transforms but needed for coordinate flip
@@ -269,8 +269,8 @@ func applyTransform(b *bytes.Buffer, t string) {
 				tx, _ := strconv.ParseFloat(args[0], 64)
 				ty, _ := strconv.ParseFloat(args[1], 64)
 				b.WriteString("1 0 0 1 ")
-			writeFloats(b, 2, tx, ty)
-			b.WriteString(" cm\n")
+				writeFloats(b, 2, tx, ty)
+				b.WriteString(" cm\n")
 			}
 		case strings.HasPrefix(parts[i], "scale("):
 			args := extractArgs(parts[i:])
@@ -278,15 +278,15 @@ func applyTransform(b *bytes.Buffer, t string) {
 				sx, _ := strconv.ParseFloat(args[0], 64)
 				sy, _ := strconv.ParseFloat(args[1], 64)
 				writeFloats(b, 4, sx)
-			b.WriteString(" 0 0 ")
-			writeFloats(b, 4, sy)
-			b.WriteString(" 0 0 cm\n")
+				b.WriteString(" 0 0 ")
+				writeFloats(b, 4, sy)
+				b.WriteString(" 0 0 cm\n")
 			} else if len(args) == 1 {
 				s, _ := strconv.ParseFloat(args[0], 64)
 				writeFloats(b, 4, s)
-			b.WriteString(" 0 0 ")
-			writeFloats(b, 4, s)
-			b.WriteString(" 0 0 cm\n")
+				b.WriteString(" 0 0 ")
+				writeFloats(b, 4, s)
+				b.WriteString(" 0 0 cm\n")
 			}
 		case strings.HasPrefix(parts[i], "matrix("):
 			args := extractArgs(parts[i:])
@@ -519,67 +519,67 @@ func parsePathData(b *bytes.Buffer, d string) {
 		cmd := tokens[i]
 		i++
 		switch cmd {
-	case "M":
-		x, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		y, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		writeFloats(b, 2, x, y)
-		b.WriteString(" m ")
-		cx, cy = x, y
-	case "m":
-		dx, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		dy, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		cx += dx
-		cy += dy
-		writeFloats(b, 2, cx, cy)
-		b.WriteString(" m ")
+		case "M":
+			x, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			y, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			writeFloats(b, 2, x, y)
+			b.WriteString(" m ")
+			cx, cy = x, y
+		case "m":
+			dx, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			dy, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			cx += dx
+			cy += dy
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" m ")
 
-	case "L":
-		x, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		y, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		writeFloats(b, 2, x, y)
-		b.WriteString(" l ")
-		cx, cy = x, y
-	case "l":
-		dx, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		dy, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		cx += dx
-		cy += dy
-		writeFloats(b, 2, cx, cy)
-		b.WriteString(" l ")
+		case "L":
+			x, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			y, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			writeFloats(b, 2, x, y)
+			b.WriteString(" l ")
+			cx, cy = x, y
+		case "l":
+			dx, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			dy, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			cx += dx
+			cy += dy
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
-	case "H":
-		x, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		cx = x
-		writeFloats(b, 2, cx, cy)
-		b.WriteString(" l ")
-	case "h":
-		dx, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		cx += dx
-		writeFloats(b, 2, cx, cy)
-		b.WriteString(" l ")
+		case "H":
+			x, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			cx = x
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
+		case "h":
+			dx, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			cx += dx
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
-	case "V":
-		y, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		cy = y
-		writeFloats(b, 2, cx, cy)
-		b.WriteString(" l ")
-	case "v":
-		dy, _ := strconv.ParseFloat(tokens[i], 64)
-		i++
-		cy += dy
-		writeFloats(b, 2, cx, cy)
-		b.WriteString(" l ")
+		case "V":
+			y, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			cy = y
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
+		case "v":
+			dy, _ := strconv.ParseFloat(tokens[i], 64)
+			i++
+			cy += dy
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
 		case "C":
 			x1, _ := strconv.ParseFloat(tokens[i], 64)
