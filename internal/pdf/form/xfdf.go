@@ -26,9 +26,9 @@ var (
 	reObj             = regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
 	reFirst           = regexp.MustCompile(`/First\s+(\d+)`)
 	reAPDictForRadio  = regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
-	reRemoveAP        = regexp.MustCompile(`\s*/AP\s*<<.*?>>`)
+	reRemoveAP        = regexp.MustCompile(`(?s)\s*/AP\s*<<.*?>>`)
 	reASWidget        = regexp.MustCompile(`/AS\s*/\w+`)
-	reValue           = regexp.MustCompile(`/V\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
+	reValue           = regexp.MustCompile(`/V\s*(\((?:\\.|[^\\)])*\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
 	reAsToken         = regexp.MustCompile(`/AS\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
 	reParen           = regexp.MustCompile(`\(([^)]{1,200})\)`)
 	reHexString       = regexp.MustCompile(`<([0-9A-Fa-f\s]{2,400})>`)
@@ -51,7 +51,8 @@ var (
 	reDA              = regexp.MustCompile(`/DA\s*\((.*?)\)`)
 	reTf              = regexp.MustCompile(`/([\w.-]+)\s+([\d.]+)\s+Tf`)
 	reVBroad          = regexp.MustCompile(`/V\s*\(?.*?\)?`)
-	reVParen          = regexp.MustCompile(`/V\s*\(.*?\)`)
+	reVParen          = regexp.MustCompile(`/V\s*\((?:\\.|[^\\)])*\)`)
+	reBtnOnState      = regexp.MustCompile(`/AP\s*<<.*?/N\s*<<[^>]*?/Yes`)
 	reObj0            = regexp.MustCompile(`(\d+)\s+0\s+obj`)
 	reNeedAppearances = regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
 	reAcroForm        = regexp.MustCompile(`(/AcroForm\s*<<)`)
@@ -159,6 +160,74 @@ func bytesIndex(b, sub []byte) int {
 	return bytes.Index(b, sub)
 }
 
+// findBalancedDictBounds returns the [start, end) slice of a PDF dictionary opened at openIdx (<<).
+func findBalancedDictBounds(data []byte, openIdx int) (start, end int, ok bool) {
+	if openIdx < 0 || openIdx+1 >= len(data) || data[openIdx] != '<' || data[openIdx+1] != '<' {
+		return 0, 0, false
+	}
+	depth := 0
+	for i := openIdx; i < len(data)-1; i++ {
+		if data[i] == '<' && data[i+1] == '<' {
+			depth++
+			i++
+			continue
+		}
+		if data[i] == '>' && data[i+1] == '>' {
+			depth--
+			i++
+			if depth == 0 {
+				return openIdx, i + 1, true
+			}
+		}
+	}
+	return 0, 0, false
+}
+
+// findWidgetDictBounds locates the widget annotation dictionary containing /T (fieldName).
+func findWidgetDictBounds(data []byte, fieldName string) (start, end int, ok bool) {
+	tKey := []byte("/T (" + fieldName + ")")
+	tIdx := bytes.Index(data, tKey)
+	if tIdx < 0 {
+		return 0, 0, false
+	}
+	depth := 0
+	openIdx := -1
+	for i := tIdx; i >= 1; i-- {
+		if data[i-1] == '<' && data[i] == '<' {
+			if depth == 0 {
+				openIdx = i - 1
+				break
+			}
+			depth--
+			i--
+			continue
+		}
+		if data[i-1] == '>' && data[i] == '>' {
+			depth++
+			i--
+		}
+	}
+	if openIdx < 0 {
+		return 0, 0, false
+	}
+	start, end, ok = findBalancedDictBounds(data, openIdx)
+	if !ok {
+		return 0, 0, false
+	}
+	dict := data[start:end]
+	if !bytes.Contains(dict, bytesSubtypeSpaceWidget) && !bytes.Contains(dict, bytesSubtypeWidget) {
+		return 0, 0, false
+	}
+	return start, end, true
+}
+
+func buttonOnState(dictBytes []byte) string {
+	if reBtnOnState.Match(dictBytes) {
+		return "/Yes"
+	}
+	return "/Yes"
+}
+
 // decodeHexString converts hex string to regular string
 func decodeHexString(s string) string {
 	s = strings.ReplaceAll(s, "\n", "")
@@ -212,14 +281,14 @@ func extractTokenGroups(content []byte, pos int) (string, string) {
 	window := content[pos:limit]
 
 	if m := reValue.FindSubmatch(window); m != nil {
+		if len(m[1]) > 2 && m[1][0] == '(' && m[1][len(m[1])-1] == ')' {
+			return "V", unescapePDFString(string(m[1][1 : len(m[1])-1]))
+		}
 		if len(m[2]) > 0 {
-			return "V", string(m[2])
+			return "V", decodeHexString(string(m[2]))
 		}
 		if len(m[3]) > 0 {
-			return "V", decodeHexString(string(m[3]))
-		}
-		if len(m[4]) > 0 {
-			return "V", string(m[4])
+			return "V", string(m[3])
 		}
 	}
 	if m := reAsToken.FindSubmatch(window); m != nil {
@@ -665,8 +734,7 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 
 // detectFormFieldsNaive performs simple field detection by scanning for /T tokens
 func detectFormFieldsNaive(pdfBytes []byte) (map[string]string, error) {
-	tRe := regexp.MustCompile(`/T\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
-	matches := tRe.FindAllSubmatchIndex(pdfBytes, -1)
+	matches := reTFull.FindAllSubmatchIndex(pdfBytes, -1)
 
 	result := make(map[string]string)
 	seen := make(map[string]bool)
@@ -675,7 +743,7 @@ func detectFormFieldsNaive(pdfBytes []byte) (map[string]string, error) {
 		var name string
 		switch {
 		case mi[4] != -1 && mi[5] != -1:
-			name = string(pdfBytes[mi[4]:mi[5]])
+			name = unescapePDFString(string(pdfBytes[mi[4]:mi[5]]))
 		case mi[6] != -1 && mi[7] != -1:
 			name = decodeHexString(string(pdfBytes[mi[6]:mi[7]]))
 		case mi[8] != -1 && mi[9] != -1:
@@ -843,26 +911,15 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	var allJobs []job
 
 	// --- PASS 1: DISCOVERY (READ-ONLY) ---
-	widgetRe := regexp.MustCompile(`(?s)<<.*?/Subtype\s*/Widget.*?>>`)
-	nameRe := regexp.MustCompile(`/T\s*\((.*?)\)`)
-	widgetMatches := widgetRe.FindAllIndex(out, -1)
-
 	discoveredWidgets := make(map[string][]job)
 
-	for _, match := range widgetMatches {
-		dictStart, dictEnd := match[0], match[1]
-		dictBytes := out[dictStart:dictEnd]
-		nameMatch := nameRe.FindSubmatch(dictBytes)
-		if nameMatch == nil {
+	for fieldName, currentVal := range fields {
+		dictStart, dictEnd, ok := findWidgetDictBounds(out, fieldName)
+		if !ok {
 			continue
 		}
-		fieldName := string(nameMatch[1])
+		dictBytes := out[dictStart:dictEnd]
 
-		if _, ok := fields[fieldName]; !ok {
-			continue // Skip if this field is not in our input data
-		}
-
-		currentVal := fields[fieldName]
 		newJob := job{field: fieldName, val: currentVal, dictStart: dictStart, dictEnd: dictEnd}
 
 		if bytes.Contains(dictBytes, []byte("/FT /Btn")) {
@@ -968,7 +1025,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		}
 
 		for _, job := range allJobs {
-			dictBytes := out[job.dictStart:job.dictEnd]
+			dictStart, dictEnd, ok := findWidgetDictBounds(out, job.field)
+			if !ok {
+				continue
+			}
+			dictBytes := out[dictStart:dictEnd]
 			var newDictBytes []byte
 			switch job.fieldType {
 			case typeText:
@@ -984,27 +1045,28 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				}
 				newDictBytes = reRemoveAP.ReplaceAll(newDictBytes, bytesSpace)
 			case typeButton, typeRadio:
-				newState := "/Off"
-				if job.fieldType == typeButton && (strings.ToLower(job.val) == "yes" || strings.ToLower(job.val) == "on") {
-			if apMatch := reAPDictForRadio.FindSubmatch(dictBytes); apMatch != nil {
-						newState = "/" + string(apMatch[1])
-					} else {
-						newState = "/Yes"
-					}
+				newState := []byte("/Off")
+				if job.fieldType == typeButton && (strings.EqualFold(job.val, "yes") || strings.EqualFold(job.val, "on")) {
+					newState = []byte(buttonOnState(dictBytes))
 				} else if job.fieldType == typeRadio && job.radioExportValue == job.val {
-					newState = "/" + job.radioExportValue
+					newState = append([]byte("/"), job.radioExportValue...)
 				}
-				newAS := make([]byte, 0, len(newState)+4)
-				newAS = append(newAS, "/AS "...)
-				newAS = append(newAS, newState...)
-		if reASWidget.Match(dictBytes) {
-				newDictBytes = reASWidget.ReplaceAll(dictBytes, newAS)
+				newAS := append([]byte("/AS "), newState...)
+				newVBtn := append([]byte("/V "), newState...)
+				newDictBytes = dictBytes
+				if reASWidget.Match(newDictBytes) {
+					newDictBytes = reASWidget.ReplaceAll(newDictBytes, newAS)
 				} else {
-					newDictBytes = bytes.Replace(dictBytes, bytesGtGt, append(bytesSpace, append(newAS, bytesGtGt...)...), 1)
+					newDictBytes = bytes.Replace(newDictBytes, bytesGtGt, append(bytesSpace, append(newAS, bytesGtGt...)...), 1)
+				}
+				if reValue.Match(newDictBytes) {
+					newDictBytes = reValue.ReplaceAll(newDictBytes, newVBtn)
+				} else {
+					newDictBytes = bytes.Replace(newDictBytes, bytesGtGt, append(bytesSpace, append(newVBtn, bytesGtGt...)...), 1)
 				}
 			}
 			if newDictBytes != nil {
-				out = append(out[:job.dictStart], append(newDictBytes, out[job.dictEnd:]...)...)
+				out = append(out[:dictStart], append(newDictBytes, out[dictEnd:]...)...)
 			}
 		}
 	}
@@ -1037,26 +1099,19 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		nextObj++
 		job.apObjNum = nextObj
 		nextObj++
-		tKey := []byte("/T (" + job.field + ")")
-		tIdx := bytes.Index(out, tKey)
-		if tIdx < 0 {
+		dictStart, dictEnd, ok := findWidgetDictBounds(out, job.field)
+		if !ok {
 			continue
 		}
-		dictStart := bytes.LastIndex(out[:tIdx], []byte("<<"))
-		if dictStart < 0 {
-			continue
-		}
-		dictEnd := bytes.Index(out[dictStart:], []byte(">>"))
-		if dictEnd < 0 {
-			continue
-		}
-		dictEnd += dictStart + 2
+		dictBytes := out[dictStart:dictEnd]
+		dictBytes = reRemoveAP.ReplaceAll(dictBytes, bytesSpace)
 		var apRefScratch [30]byte
 		b := append(apRefScratch[:0], " /AP<</N "...)
 		b = strconv.AppendInt(b, int64(job.apObjNum), 10)
 		b = append(b, " 0 R>>"...)
 		apRef := bytes.Clone(b)
-		out = append(out[:dictEnd-2], append(apRef, out[dictEnd-2:]...)...)
+		newDict := append(dictBytes[:len(dictBytes)-2], append(apRef, dictBytes[len(dictBytes)-2:]...)...)
+		out = append(out[:dictStart], append(newDict, out[dictEnd:]...)...)
 	}
 
 	if reNeedAppearances.Match(out) {
@@ -1610,6 +1665,24 @@ func xfdfValueToPDFName(value string) string {
 		return "Yes"
 	}
 	return token
+}
+
+// unescapePDFString reverses escapePDFString for literal PDF strings.
+func unescapePDFString(s string) string {
+	if !strings.Contains(s, `\`) {
+		return s
+	}
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+			sb.WriteByte(s[i])
+			continue
+		}
+		sb.WriteByte(s[i])
+	}
+	return sb.String()
 }
 
 // escapePDFString escapes characters as required for PDF literal strings.

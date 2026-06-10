@@ -18,7 +18,6 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/form"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 )
@@ -338,7 +337,7 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		return
 	}
 
-	pdfBytes, err := pdf.GenerateTemplatePDF(*template)
+	pdfBytes, err := pdfService.GenerateTemplatePDF(*template)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF generation failed: " + err.Error()})
 		return
@@ -396,7 +395,7 @@ func handleFillPDF(c *gin.Context) {
 		return
 	}
 
-	out, err := form.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	out, err := pdfService.FillPDFWithXFDF(pdfBytes, xfdfBytes)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -440,7 +439,7 @@ func handleMergePDFs(c *gin.Context) {
 		pdfBytesList = append(pdfBytesList, buf)
 	}
 
-	merged, err := merge.MergePDFs(pdfBytesList)
+	merged, err := pdfService.MergePDFs(pdfBytesList)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -490,7 +489,7 @@ func handlerSplitPDF(c *gin.Context) {
 		MaxPerFile: maxPerFile,
 	}
 
-	outs, err := merge.SplitPDF(pdfBytes, spec)
+	outs, err := pdfService.SplitPDF(pdfBytes, spec)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

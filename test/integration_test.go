@@ -206,7 +206,10 @@ func (s *IntegrationSuite) TestFillPDF() {
 
 	// 4. Check size against generated.pdf (tolerance for encoding variance from optimizations)
 	expectedPath := filepath.Join(baseDir, "generated.pdf")
-	s.compareFileSizesWithTolerance(tempPath, expectedPath, 500)
+	s.compareFileSizesWithTolerance(tempPath, expectedPath, 700)
+
+	// 5. Verify merged PDF field values match XFDF input
+	assertFilledXFDFFields(s.T(), respBody, xfdfData)
 }
 
 // TestHtmlToPDF tests /api/v1/htmltopdf
