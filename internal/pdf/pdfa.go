@@ -231,7 +231,7 @@ func buildSRGBICCProfile() []byte {
 	}
 
 	for _, tag := range tags {
-		copy(profile[offset:offset+4], []byte(tag.sig))
+		copy(profile[offset:offset+4], tag.sig)
 		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
 		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
 		offset += 12
@@ -239,9 +239,9 @@ func buildSRGBICCProfile() []byte {
 
 	// Write cprt (copyright) - textType
 	offset = cprtOffset
-	copy(profile[offset:offset+4], []byte("text"))
+	copy(profile[offset:offset+4], "text")
 	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
-	copy(profile[offset+8:offset+32], []byte("Public Domain\x00"))
+	copy(profile[offset+8:offset+32], "Public Domain\x00")
 
 	// Write desc (description) - mluc type
 	offset = descOffset
@@ -439,7 +439,7 @@ func buildGrayICCProfile() []byte {
 	}
 
 	for _, tag := range tags {
-		copy(profile[offset:offset+4], []byte(tag.sig))
+		copy(profile[offset:offset+4], tag.sig)
 		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
 		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
 		offset += 12
@@ -447,8 +447,8 @@ func buildGrayICCProfile() []byte {
 
 	// cprt
 	offset = cprtOffset
-	copy(profile[offset:offset+4], []byte("text"))
-	copy(profile[offset+8:offset+32], []byte("Public Domain\x00"))
+	copy(profile[offset:offset+4], "text")
+	copy(profile[offset+8:offset+32], "Public Domain\x00")
 
 	// desc
 	offset = descOffset

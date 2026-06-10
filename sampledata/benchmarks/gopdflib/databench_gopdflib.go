@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,7 +65,7 @@ func buildRows(records []benchmarkRecord) []gopdflib.Row {
 		}
 
 		rows = append(rows, gopdflib.Row{Row: []gopdflib.Cell{
-			{Props: "Helvetica:10:000:left:1:1:1:1", Text: fmt.Sprintf("%d", record.ID), BgColor: bgColor},
+			{Props: "Helvetica:10:000:left:1:1:1:1", Text: strconv.Itoa(record.ID), BgColor: bgColor},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Name, BgColor: bgColor},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Email, BgColor: bgColor, Wrap: boolPtr(true)},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Role, BgColor: bgColor},
@@ -170,7 +172,7 @@ func runDataBenchGoPDFLib() error {
 	memWg.Wait()
 
 	if len(timings) == 0 {
-		return fmt.Errorf("no successful runs")
+		return errors.New("no successful runs")
 	}
 
 	outputPath := filepath.Join(filepath.Dir(mustCurrentFile()), "output_databench_gopdflib.pdf")

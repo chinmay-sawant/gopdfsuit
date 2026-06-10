@@ -2,7 +2,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -71,7 +70,7 @@ func GoogleAuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Validate the ID token
-		ctx := context.Background()
+		ctx := c.Request.Context()
 		payload, err := idtoken.Validate(ctx, token, audience)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -124,7 +123,7 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
 		}
 
-		ctx := context.Background()
+		ctx := c.Request.Context()
 		payload, err := idtoken.Validate(ctx, token, audience)
 		if err == nil {
 			// Token is valid, store user info

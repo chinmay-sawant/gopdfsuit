@@ -91,7 +91,7 @@ func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.
 
 	keyBlock, _ := pem.Decode([]byte(keyPEM))
 	if keyBlock == nil {
-		return nil, nil, nil, fmt.Errorf("failed to parse private key PEM")
+		return nil, nil, nil, errors.New("failed to parse private key PEM")
 	}
 
 	var privateKey crypto.PrivateKey
@@ -204,16 +204,16 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	sigValueDict.WriteString(">")
 
 	if s.config.Reason != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Reason (%s)", escapeText(s.config.Reason)))
+		sigValueDict.WriteString(" /Reason (" + escapeText(s.config.Reason) + ")")
 	}
 	if s.config.Location != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Location (%s)", escapeText(s.config.Location)))
+		sigValueDict.WriteString(" /Location (" + escapeText(s.config.Location) + ")")
 	}
 	if s.config.ContactInfo != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /ContactInfo (%s)", escapeText(s.config.ContactInfo)))
+		sigValueDict.WriteString(" /ContactInfo (" + escapeText(s.config.ContactInfo) + ")")
 	}
 	if signerName != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Name (%s)", escapeText(signerName)))
+		sigValueDict.WriteString(" /Name (" + escapeText(signerName) + ")")
 	}
 
 	// Signing time - PDF date format: D:YYYYMMDDHHmmSSOHH'mm'
@@ -227,7 +227,23 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	}
 	tzHours := tzOffset / 3600
 	tzMinutes := (tzOffset % 3600) / 60
-	sigValueDict.WriteString(fmt.Sprintf(" /M (D:%s%s%02d'%02d')", now.Format("20060102150405"), tzSign, tzHours, tzMinutes))
+	tzHoursStr := strconv.Itoa(tzHours)
+	if len(tzHoursStr) == 1 {
+		tzHoursStr = "0" + tzHoursStr
+	}
+	tzMinsStr := strconv.Itoa(tzMinutes)
+	if len(tzMinsStr) == 1 {
+		tzMinsStr = "0" + tzMinsStr
+	}
+	var timeBuf strings.Builder
+	timeBuf.WriteString(" /M (D:")
+	timeBuf.WriteString(now.Format("20060102150405"))
+	timeBuf.WriteString(tzSign)
+	timeBuf.WriteString(tzHoursStr)
+	timeBuf.WriteByte('\'')
+	timeBuf.WriteString(tzMinsStr)
+	timeBuf.WriteString("')")
+	sigValueDict.WriteString(timeBuf.String())
 
 	sigValueDict.WriteString(" >>")
 
@@ -474,7 +490,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 			return nil, fmt.Errorf("failed to sign: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported key type")
+		return nil, errors.New("unsupported key type")
 	}
 
 	// Extract content bytes for SignerInfo (strip SET tag and length)
@@ -626,7 +642,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	byteRangeMarker := []byte("/ByteRange [0 0000000000 0000000000 0000000000]")
 	byteRangePos := bytes.Index(pdfData, byteRangeMarker)
 	if byteRangePos < 0 {
-		return pdfData, fmt.Errorf("byteRange placeholder not found")
+		return pdfData, errors.New("byteRange placeholder not found")
 	}
 
 	// Find Contents placeholder in signature dictionary
@@ -682,7 +698,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	copy(result, pdfData)
 
 	// Replace ByteRange
-	copy(result[byteRangePos:byteRangePos+len(byteRangeMarker)], []byte(newByteRange))
+	copy(result[byteRangePos:byteRangePos+len(byteRangeMarker)], newByteRange)
 
 	// Generate signature over the byte ranges (excluding Contents value)
 	signature, err := signer.SignPDF(result, byteRange)
@@ -700,7 +716,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	sigHex += strings.Repeat("0", 16384-len(sigHex))
 
 	// Replace Contents value
-	copy(result[contentsStart:contentsEnd], []byte(sigHex))
+	copy(result[contentsStart:contentsEnd], sigHex)
 
 	return result, nil
 }

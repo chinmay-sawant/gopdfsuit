@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/zlib"
 	"errors"
-	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -41,21 +40,22 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 	var warnings []string
 	changedAny := false
 
+	var buf [20]byte
+	visited := make(map[int]bool)
 	for pageNum, rects := range redactionsByPage {
+		clear(visited)
 		pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			warnings = append(warnings, "page " + strconv.Itoa(pageNum) + ": " + err.Error())
+			warnings = append(warnings, "page "+string(strconv.AppendInt(buf[:0], int64(pageNum), 10))+": "+err.Error())
 			continue
 		}
 		pageBody := objMap[pageObjNum]
 		keys := extractContentKeys(pageBody)
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
-			warnings = append(warnings, "page " + strconv.Itoa(pageNum) + ": no content streams")
+			warnings = append(warnings, "page "+string(strconv.AppendInt(buf[:0], int64(pageNum), 10))+": no content streams")
 			continue
 		}
-
-		visited := make(map[int]bool)
 		activeQueries := queries
 
 		for _, key := range keys {
@@ -94,7 +94,8 @@ func rewriteSecureStreamTree(objMap map[int][]byte, streamObjNum int, resources 
 	updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
 	warnings := make([]string, 0, 2)
 	if err != nil {
-		warnings = append(warnings, fmt.Sprintf("stream %d: %v", streamObjNum, err))
+		var sbuf [20]byte
+		warnings = append(warnings, "stream "+string(strconv.AppendInt(sbuf[:0], int64(streamObjNum), 10))+": "+err.Error())
 	} else if changed {
 		objMap[streamObjNum] = updated
 	}
@@ -228,7 +229,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 		return decoded, false
 	}
 
-	var out strings.Builder
+	var out bytes.Buffer
 	last := 0
 	changed := false
 	posIdx := 0
@@ -273,12 +274,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 		if newText != text {
 			changed = true
 			trimmedOp := strings.TrimSpace(op)
-			// CIDFont/Identity-H operators use <hex> Tj encoding.
 			isHex := strings.HasPrefix(trimmedOp, "<") && !strings.HasPrefix(trimmedOp, "[")
-			// Use a TJ array with kerning adjustments so that remaining
-			// text stays in its original position after characters are
-			// removed. Simple Tj with spaces causes text to shift because
-			// space glyphs are narrower than letter glyphs.
 			out.WriteString(buildRedactionTJArray(text, newText, isHex))
 		} else {
 			out.WriteString(op)
@@ -290,7 +286,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 	if !changed {
 		return decoded, false
 	}
-	return []byte(out.String()), true
+	return out.Bytes(), true
 }
 
 func applyRectMaskToText(text string, pos models.TextPosition, rects []models.RedactionRect) string {
@@ -462,14 +458,12 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 	// Build TJ array: [(text) kern (text) ...] TJ
 	var out strings.Builder
 	out.WriteString("[")
+	var scratch [20]byte
 	for _, seg := range segments {
 		if seg.isKern {
-			// Estimate width of removed string
-			// TJ array kerning units are 1/1000 of text space.
 			estWidth := estimateStringWidth(seg.removed, 1000)
-			// Negative value = advance cursor to the right.
 			kern := -int(math.Round(estWidth))
-			out.WriteString(strconv.Itoa(kern))
+			out.WriteString(string(strconv.AppendInt(scratch[:0], int64(kern), 10)))
 			out.WriteByte(' ')
 		} else {
 			if isHex {

@@ -2,7 +2,7 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,21 +20,9 @@ func main() {
 	// Profiling is opt-in to avoid heap instrumentation overhead in production/benchmarks
 	if os.Getenv("ENABLE_PROFILING") == "1" {
 		f, err := os.Create("/tmp/mem.prof")
-		if err != nil {
-			log.Printf("could not create memory profile: %v", err)
-		} else {
-			defer func() {
-				if err := f.Close(); err != nil {
-					log.Printf("could not close memory profile: %v", err)
-				}
-			}()
-			defer func() {
-				log.Println("Writing memory profile...")
-				if err := pprof.WriteHeapProfile(f); err != nil {
-					log.Printf("could not write memory profile: %v", err)
-				}
-				log.Println("Memory profile written")
-			}()
+		if err == nil {
+			defer f.Close()
+			defer pprof.WriteHeapProfile(f)
 		}
 	}
 
@@ -52,10 +40,6 @@ func main() {
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}))
 
-	// Only add request logger in debug mode (GIN_MODE=debug)
-	if gin.Mode() == gin.DebugMode {
-		router.Use(gin.Logger())
-	}
 	// Concurrency control: match to CPU count to minimize context switching
 	// for CPU-bound PDF generation workloads.
 	// Using NumCPU() prevents goroutine thrashing — 100 goroutines on 24 cores
@@ -79,7 +63,8 @@ func main() {
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			fmt.Fprintf(os.Stderr, "listen: %s\n", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -87,5 +72,5 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+	os.Stderr.WriteString("Shutting down server...\n")
 }

@@ -7,7 +7,19 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
+)
+
+var (
+	encryptBytes = []byte("/Encrypt")
+	wBytes       = []byte("/W[")
+	indexBytes   = []byte("/Index")
+)
+
+var (
+	streamRe = regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	reObjRe  = regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
 )
 
 // bytesIndex is a helper to find a subsequence in a []byte
@@ -19,12 +31,12 @@ func bytesIndex(b, sub []byte) int {
 func trailerHasEncrypt(data []byte) bool {
 	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
 	for _, m := range trRe.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], []byte(`/Encrypt`)) >= 0 {
+		if bytesIndex(m[1], encryptBytes) >= 0 {
 			return true
 		}
 	}
 	// also check for /Encrypt elsewhere
-	return bytesIndex(data, []byte(`/Encrypt`)) >= 0
+	return bytesIndex(data, encryptBytes) >= 0
 }
 
 // tryZlibDecompress attempts to decompress zlib data
@@ -101,11 +113,10 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 	objStreamRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
 	for _, m := range objStreamRe.FindAllSubmatch(data, -1) {
 		body := m[3]
-		if bytesIndex(body, []byte(`/W[`)) < 0 || bytesIndex(body, []byte(`/Index`)) < 0 {
+		if bytesIndex(body, wBytes) < 0 || bytesIndex(body, indexBytes) < 0 {
 			continue
 		}
 		// extract stream
-		streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
 		sm := streamRe.FindSubmatch(body)
 		if sm == nil {
 			continue
@@ -134,6 +145,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 		// iterate index pairs
 		w0, w1, w2 := W[0], W[1], W[2]
 		total := w0 + w1 + w2
+		var objstmBuf [8]byte
 		for pos := 0; pos+total <= len(dec); pos += total {
 			f1 := int(readUint(dec[pos : pos+w0]))
 			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))
@@ -144,8 +156,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				if off > 0 && off < len(data) {
 					// try to parse object at this offset
 					tail := data[off:]
-					reObj := regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-					if ro := reObj.FindSubmatch(tail); ro != nil {
+					if ro := reObjRe.FindSubmatch(tail); ro != nil {
 						onum := string(ro[2])
 						ogen := string(ro[3])
 						key := onum + " " + ogen
@@ -158,7 +169,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				objstm := f2
 				index := f3
 				// look for objstm content we earlier extracted
-				key := fmt.Sprintf("%d 0", objstm)
+				key := string(strconv.AppendInt(objstmBuf[:0], int64(objstm), 10)) + " 0"
 				if stm, ok := objMap[key]; ok {
 					// try to parse embedded objects from stm similarly to earlier logic
 					_ = index

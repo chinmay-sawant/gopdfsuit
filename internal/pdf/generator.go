@@ -305,7 +305,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	var enc *encryption.PDFEncryption
 	if template.Config.Security != nil && template.Config.Security.Enabled && template.Config.Security.OwnerPassword != "" {
 		// Generate a preliminary document ID for encryption setup
-		preliminaryID := encryption.GenerateDocumentID([]byte(template.Title.Text + fmt.Sprintf("%d", len(pageManager.Pages))))
+		preliminaryID := encryption.GenerateDocumentID(append([]byte(template.Title.Text), strconv.AppendInt((*scratchPtr)[:0], int64(len(pageManager.Pages)), 10)...))
 		var err error
 		enc, err = encryption.NewPDFEncryption(template.Config.Security, preliminaryID)
 		if err != nil {
@@ -553,16 +553,23 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		// Get appropriate font reference for AcroForm DA (handles PDF/A mode)
 		widgetFontRef := getWidgetFontReference(fontRegistry)
 
-		// Build AcroForm content - include SigFlags if signatures are present
-		var acroFormContent string
-		if sigIDs != nil {
-			// SigFlags 3 = SignaturesExist (1) + AppendOnly (2)
-			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) /SigFlags %d >>", fieldsRef.String(), widgetFontRef, signature.GetAcroFormSigFlags())
-		} else {
-			// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
-			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) >>", fieldsRef.String(), widgetFontRef)
-		}
-		pageManager.ExtraObjects[acroFormID] = []byte(acroFormContent)
+	var acroFormContent []byte
+	if sigIDs != nil {
+		acroFormContent = append(acroFormContent, "<< /Fields "...)
+		acroFormContent = append(acroFormContent, fieldsRef.String()...)
+		acroFormContent = append(acroFormContent, " /DA ("...)
+		acroFormContent = append(acroFormContent, widgetFontRef...)
+		acroFormContent = append(acroFormContent, " 0 Tf 0 g) /SigFlags "...)
+		acroFormContent = strconv.AppendInt(acroFormContent, int64(signature.GetAcroFormSigFlags()), 10)
+		acroFormContent = append(acroFormContent, " >>"...)
+	} else {
+		acroFormContent = append(acroFormContent, "<< /Fields "...)
+		acroFormContent = append(acroFormContent, fieldsRef.String()...)
+		acroFormContent = append(acroFormContent, " /DA ("...)
+		acroFormContent = append(acroFormContent, widgetFontRef...)
+		acroFormContent = append(acroFormContent, " 0 Tf 0 g) >>"...)
+	}
+	pageManager.ExtraObjects[acroFormID] = acroFormContent
 
 		pdfBuffer.WriteString(" /AcroForm ")
 		b = b[:0]
@@ -913,6 +920,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		actualICCProfileObjID = pdfaHandler.GetICCProfileObjID()
 	}
 
+	// Pre-compute ICC-based color space string for PDF/A images
+	iccColorSpace := "[/ICCBased " + strconv.Itoa(actualICCProfileObjID) + " 0 R]"
+
 	// Generate image XObjects (standalone images)
 	writtenImageObjects := make(map[int]struct{}, imageDeduper.uniqueObjectCount())
 	for _, imgObj := range imageObjects {
@@ -922,7 +932,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		writtenImageObjects[imgObj.ObjectID] = struct{}{}
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+			imgObj.ColorSpace = iccColorSpace
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -941,7 +951,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		writtenImageObjects[imgObj.ObjectID] = struct{}{}
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+			imgObj.ColorSpace = iccColorSpace
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -960,7 +970,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		writtenImageObjects[imgObj.ObjectID] = struct{}{}
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+			imgObj.ColorSpace = iccColorSpace
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -997,10 +1007,13 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		pdfBuffer.WriteString("\nendobj\n")
 	}
 
+	// Capture generation time once for reuse in metadata
+	genTime := time.Now()
+
 	// Generate PDF/A metadata objects if enabled
 	if pdfaHandler != nil {
 		// Generate XMP metadata content (but use our pre-reserved metadataObjectID for consistency with Catalog)
-		docIDForXMP := fmt.Sprintf("%x", time.Now().UnixNano())
+		docIDForXMP := strconv.FormatInt(genTime.UnixNano(), 16)
 		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
 		// Write metadata object using the pre-reserved ID that's already in the Catalog
 		xrefOffsets[metadataObjectID] = pdfBuffer.Len()
@@ -1045,8 +1058,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	infoObjectID := pageManager.NextObjectID
 	pageManager.NextObjectID++
 	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
-	// Go's time format doesn't support the PDF timezone format directly, so we build it manually
-	now := time.Now()
+	now := genTime
 	_, tzOffset := now.Zone()
 	tzSign := "+"
 	if tzOffset < 0 {
@@ -1202,7 +1214,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 				elems := pageManager.Structure.ParentTree[i]
 				if len(elems) > 0 {
 					ptBuilder.WriteByte(' ')
-					ptBuilder.WriteString(strconv.Itoa(i))
+					b = b[:0]
+					b = strconv.AppendInt(b, int64(i), 10)
+					ptBuilder.Write(b)
 					ptBuilder.WriteString(" [") // Key is page index
 					for _, elem := range elems {
 						appendObjRefToBuilder(&ptBuilder, elem.ObjectID)
@@ -1217,7 +1231,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		for _, annotInfo := range pageManager.AnnotStructElems {
 			if linkElem, exists := pageManager.Structure.LinkElements[annotInfo.AnnotObjID]; exists {
 				ptBuilder.WriteByte(' ')
-				ptBuilder.WriteString(strconv.Itoa(annotInfo.StructParentIdx))
+				b = b[:0]
+				b = strconv.AppendInt(b, int64(annotInfo.StructParentIdx), 10)
+				ptBuilder.Write(b)
 				appendObjRefToBuilder(&ptBuilder, linkElem.ObjectID)
 			}
 		}
@@ -1286,7 +1302,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 						appendObjRefToBuilder(&sb, k.Elem.ObjectID)
 					} else {
 						sb.WriteByte(' ')
-						sb.WriteString(strconv.Itoa(k.MCID))
+						b = b[:0]
+						b = strconv.AppendInt(b, int64(k.MCID), 10)
+						sb.Write(b)
 					}
 				}
 				sb.WriteString(" ]")
@@ -1476,7 +1494,7 @@ func (d *imageObjectDeduper) intern(imgObj *ImageObject, nextObjectID *int) *Ima
 		isForm:       imgObj.IsForm,
 	}
 	for _, existing := range d.objects[key] {
-		if bytes.Equal(existing.ImageData, imgObj.ImageData) {
+		if len(existing.ImageData) == len(imgObj.ImageData) && bytes.Equal(existing.ImageData, imgObj.ImageData) {
 			return existing
 		}
 	}
@@ -1566,6 +1584,8 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 	// Initialize first page
 	initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
 
+	var intBuf []byte
+
 	// Title - Process if title text is provided OR if title has a table
 	if template.Title.Text != "" || template.Title.Table != nil {
 		titleProps := parseProps(template.Title.Props)
@@ -1607,10 +1627,10 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 				switch {
 				case elem.Table != nil:
 					table = *elem.Table
-					imageKeyPrefix = fmt.Sprintf("elem_inline:%d", elemIdx) // Use elem_inline prefix for inline tables
+					imageKeyPrefix = "elem_inline:" + string(strconv.AppendInt(intBuf[:0], int64(elemIdx), 10)) // Use elem_inline prefix for inline tables
 				case elem.Index < len(template.Table):
 					table = template.Table[elem.Index]
-					imageKeyPrefix = fmt.Sprintf("%d", elem.Index) // Use index as key for indexed tables
+					imageKeyPrefix = string(strconv.AppendInt(intBuf[:0], int64(elem.Index), 10)) // Use index as key for indexed tables
 				default:
 					continue
 				}
@@ -1633,8 +1653,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 					// Inline image in elements array - use element index for XObject lookup
 					image = *elem.Image
 					if imgObj, exists := elemImageObjects[elemIdx]; exists {
-						// Use element image XObject with /E prefix to distinguish from /I prefix
-						imageXObjectRef := fmt.Sprintf("/E%d", elemIdx)
+						imageXObjectRef := "/E" + string(strconv.AppendInt(intBuf[:0], int64(elemIdx), 10))
 						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						// Fall back to placeholder if no XObject
@@ -1644,7 +1663,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 					// Reference to template.Image array
 					image = template.Image[elem.Index]
 					if imgObj, exists := imageObjects[elem.Index]; exists {
-						imageXObjectRef := fmt.Sprintf("/I%d", elem.Index)
+						imageXObjectRef := "/I" + string(strconv.AppendInt(intBuf[:0], int64(elem.Index), 10))
 						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
@@ -1656,8 +1675,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		// Legacy mode: process tables, then spacers, then images (spacers at end)
 		// Tables - Process each table with automatic page breaks
 		for tableIdx, table := range template.Table {
-			// For legacy table array, use simple index as key
-			imageKeyPrefix := fmt.Sprintf("%d", tableIdx)
+			imageKeyPrefix := string(strconv.AppendInt(intBuf[:0], int64(tableIdx), 10))
 			drawTable(table, imageKeyPrefix, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 		}
 
@@ -1669,8 +1687,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		// Images - Process each image with automatic page breaks
 		for i, image := range template.Image {
 			if imgObj, exists := imageObjects[i]; exists {
-				// Image was successfully decoded, draw it with XObject reference
-				imageXObjectRef := fmt.Sprintf("/I%d", i)
+				imageXObjectRef := "/I" + string(strconv.AppendInt(intBuf[:0], int64(i), 10))
 				drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 			} else {
 				// Fall back to placeholder if image couldn't be decoded

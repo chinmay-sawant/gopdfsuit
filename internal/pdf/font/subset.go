@@ -107,8 +107,8 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 	for _, tableName := range optionalTables {
 		if entry, ok := font.Tables[tableName]; ok {
 			if entry.Offset+entry.Length <= uint32(len(font.RawData)) {
-				tables[tableName] = make([]byte, entry.Length)
-				copy(tables[tableName], font.RawData[entry.Offset:entry.Offset+entry.Length])
+				tables[tableName] = make([]byte, 0, entry.Length)
+				tables[tableName] = append(tables[tableName], font.RawData[entry.Offset:entry.Offset+entry.Length]...)
 			}
 		}
 	}
@@ -157,15 +157,16 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 		data := tables[name]
 
 		// Pad table name to 4 bytes
-		tag := []byte(name)
-		for len(tag) < 4 {
-			tag = append(tag, ' ')
+		var tag [4]byte
+		copy(tag[:], name)
+		for i := len(name); i < 4; i++ {
+			tag[i] = ' '
 		}
 
 		checksum := calculateChecksum(data)
 		length := uint32(len(data))
 
-		buf.Write(tag[:4])
+		buf.Write(tag[:])
 		if err := binary.Write(&buf, binary.BigEndian, checksum); err != nil {
 			return nil, nil, err
 		}
@@ -288,8 +289,8 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 			if offset+length > uint32(len(glyfData)) {
 				length = uint32(len(glyfData)) - offset
 			}
-			glyphBytes := make([]byte, length)
-			copy(glyphBytes, glyfData[offset:offset+length])
+			glyphBytes := make([]byte, 0, length)
+			glyphBytes = append(glyphBytes, glyfData[offset:offset+length]...)
 
 			// Remap component GID references in composite glyphs
 			remapCompositeGIDs(glyphBytes, oldToNewGID)

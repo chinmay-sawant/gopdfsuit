@@ -6,6 +6,12 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
+)
+
+var (
+	annotsArrayReExtract = regexp.MustCompile(`/Annots\s*\[(.*?)\]`)
+	refReExtract         = regexp.MustCompile(`(\d+)\s+\d+\s+R`)
 )
 
 // MergePDFs merges multiple PDF byte slices into a single PDF by parsing objects,
@@ -160,35 +166,45 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 	// Write Catalog object (1) - now includes AcroForm if we have form fields
 	offsets[1] = out.Len()
-	catalogDict := "<< /Type /Catalog /Pages 2 0 R"
+	var catalogBuf strings.Builder
+	catalogBuf.WriteString("<< /Type /Catalog /Pages 2 0 R")
 	if len(mergedFormFields) > 0 {
-		catalogDict += " /AcroForm << /Fields ["
+		catalogBuf.WriteString(" /AcroForm << /Fields [")
+		var fieldNumBuf [20]byte
 		for i, fieldNum := range mergedFormFields {
 			if i > 0 {
-				catalogDict += " "
+				catalogBuf.WriteByte(' ')
 			}
-			catalogDict += fmt.Sprintf("%d 0 R", fieldNum)
+			s := strconv.AppendInt(fieldNumBuf[:0], int64(fieldNum), 10)
+			catalogBuf.Write(s)
+			catalogBuf.WriteString(" 0 R")
 		}
-		catalogDict += "] >>"
+		catalogBuf.WriteString("] >>")
 	}
-	catalogDict += " >>"
-	out.WriteString(fmt.Sprintf("1 0 obj\n%s\nendobj\n", catalogDict))
+	catalogBuf.WriteString(" >>")
+	out.WriteString("1 0 obj\n")
+	out.WriteString(catalogBuf.String())
+	out.WriteString("\nendobj\n")
 
 	// Write Pages object (2) with all kids
 	offsets[2] = out.Len()
-	var kids []string
-	for _, p := range mergedPages {
-		kids = append(kids, fmt.Sprintf("%d 0 R", p))
+	var kidsBuf strings.Builder
+	var pageNumBuf [20]byte
+	for i, p := range mergedPages {
+		if i > 0 {
+			kidsBuf.WriteByte(' ')
+		}
+		s := strconv.AppendInt(pageNumBuf[:0], int64(p), 10)
+		kidsBuf.Write(s)
+		kidsBuf.WriteString(" 0 R")
 	}
-	// join kids into a single string
-	var kidsStr string
-	if len(kids) > 0 {
-		kidsJoined := bytes.Join(byteSlice(kids), []byte(" "))
-		kidsStr = string(kidsJoined)
-	} else {
-		kidsStr = ""
-	}
-	out.WriteString(fmt.Sprintf("2 0 obj\n<< /Type /Pages /Kids [%s] /Count %d >>\nendobj\n", kidsStr, len(mergedPages)))
+	out.WriteString("2 0 obj\n<< /Type /Pages /Kids [")
+	out.WriteString(kidsBuf.String())
+	out.WriteString("] /Count ")
+	var countBuf [20]byte
+	cs := strconv.AppendInt(countBuf[:0], int64(len(mergedPages)), 10)
+	out.Write(cs)
+	out.WriteString(" >>\nendobj\n")
 
 	// Append all remapped objects in the order they were processed
 	parentRe := regexp.MustCompile(`/Parent\s+\d+\s+\d+\s+R`)
@@ -249,15 +265,6 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// helper to convert []string to [][]byte for bytes.Join
-func byteSlice(in []string) [][]byte {
-	out := make([][]byte, len(in))
-	for i, s := range in {
-		out[i] = []byte(s)
-	}
-	return out
-}
-
 // replaceRefsOutsideStreams rewrites indirect references (n m R) in data only in regions
 // that are not within stream...endstream blocks, to avoid mangling compressed stream contents.
 func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []byte {
@@ -274,7 +281,12 @@ func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []
 			}
 			on, _ := strconv.Atoi(string(sm2[1]))
 			gen := string(sm2[2])
-			return []byte(fmt.Sprintf("%d %s R", offset+on, gen))
+			refBuf := make([]byte, 0, 20)
+			refBuf = strconv.AppendInt(refBuf, int64(offset+on), 10)
+			refBuf = append(refBuf, ' ')
+			refBuf = append(refBuf, gen...)
+			refBuf = append(refBuf, " R"...)
+			return refBuf
 		})
 		out.Write(replaced)
 		// write stream block unchanged
@@ -291,7 +303,12 @@ func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []
 			}
 			on, _ := strconv.Atoi(string(sm2[1]))
 			gen := string(sm2[2])
-			return []byte(fmt.Sprintf("%d %s R", offset+on, gen))
+			refBuf := make([]byte, 0, 20)
+			refBuf = strconv.AppendInt(refBuf, int64(offset+on), 10)
+			refBuf = append(refBuf, ' ')
+			refBuf = append(refBuf, gen...)
+			refBuf = append(refBuf, " R"...)
+			return refBuf
 		})
 		out.Write(replaced)
 	}
@@ -351,10 +368,8 @@ func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
 	// Also scan for widget annotations in page objects from THIS file only
 	for _, body := range objMap {
 		if bytesIndex(body, []byte("/Type /Page")) >= 0 {
-			annotsRe := regexp.MustCompile(`/Annots\s*\[(.*?)\]`)
-			if annotsMatch := annotsRe.FindSubmatch(body); annotsMatch != nil {
-				refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
-				for _, ref := range refRe.FindAllSubmatch(annotsMatch[1], -1) {
+			if annotsMatch := annotsArrayReExtract.FindSubmatch(body); annotsMatch != nil {
+				for _, ref := range refReExtract.FindAllSubmatch(annotsMatch[1], -1) {
 					if annotNum, err := strconv.Atoi(string(ref[1])); err == nil {
 						if annotBody, exists := objMap[annotNum]; exists {
 							// Check if this annotation is a widget (form field)

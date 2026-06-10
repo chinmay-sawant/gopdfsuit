@@ -4,9 +4,7 @@ package handlers
 import (
 	"archive/zip"
 	"bytes"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -14,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/middleware"
@@ -29,6 +28,10 @@ var templatePDFPool = sync.Pool{
 		return new(models.PDFTemplate)
 	},
 }
+
+var templateDataCache sync.Map
+
+var pprofForbiddenResp = gin.H{"error": "Forbidden: Pprof is only accessible from localhost"}
 
 // resetTemplate clears a pooled PDFTemplate before unmarshal (and before Put) so
 // omitted JSON fields do not leak from prior requests. Zeroing the shell also
@@ -154,7 +157,7 @@ func RegisterRoutes(router *gin.Engine) {
 	pprofGroup.Use(func(c *gin.Context) {
 		clientIP := c.ClientIP()
 		if clientIP != "127.0.0.1" && clientIP != "::1" {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden: Pprof is only accessible from localhost"})
+			c.AbortWithStatusJSON(http.StatusForbidden, pprofForbiddenResp)
 			return
 		}
 		c.Next()
@@ -223,6 +226,12 @@ func handleGetTemplateData(c *gin.Context) {
 		return
 	}
 
+	if cached, ok := templateDataCache.Load(filePath); ok {
+		c.Header("Content-Type", "application/json")
+		c.Data(http.StatusOK, "application/json", cached.([]byte))
+		return
+	}
+
 	// Read the JSON file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -236,6 +245,8 @@ func handleGetTemplateData(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON template format: " + err.Error()})
 		return
 	}
+
+	templateDataCache.Store(filePath, data)
 
 	// Return the JSON data
 	c.Header("Content-Type", "application/json")
@@ -277,10 +288,21 @@ func handleUploadFont(c *gin.Context) {
 		_ = f.Close()
 	}()
 
-	data, err := io.ReadAll(f)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file: " + err.Error()})
-		return
+	var data []byte
+	if file.Size > 0 {
+		buf := bytes.NewBuffer(make([]byte, 0, file.Size))
+		if _, err := io.Copy(buf, f); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file: " + err.Error()})
+			return
+		}
+		data = buf.Bytes()
+	} else {
+		buf := bytes.NewBuffer(make([]byte, 0, 128<<10))
+		if _, err := io.Copy(buf, f); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file: " + err.Error()})
+			return
+		}
+		data = buf.Bytes()
 	}
 
 	// Register font
@@ -360,12 +382,12 @@ func handleFillPDF(c *gin.Context) {
 	// If files not provided, try to read raw body fields
 	if len(pdfBytes) == 0 {
 		if b := c.PostForm("pdf_bytes"); b != "" {
-			pdfBytes = []byte(b)
+			pdfBytes = unsafe.Slice(unsafe.StringData(b), len(b))
 		}
 	}
 	if len(xfdfBytes) == 0 {
 		if b := c.PostForm("xfdf_bytes"); b != "" {
-			xfdfBytes = []byte(b)
+			xfdfBytes = unsafe.Slice(unsafe.StringData(b), len(b))
 		}
 	}
 
@@ -403,17 +425,16 @@ func handleMergePDFs(c *gin.Context) {
 
 	var pdfBytesList [][]byte
 	// Process files in the exact order they appear in the form to maintain selection sequence
-	for i, fh := range files {
-		fmt.Printf("Processing file %d: %s\n", i+1, fh.Filename)
+	for _, fh := range files {
 		f, err := fh.Open()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
 			return
 		}
 		buf, err := io.ReadAll(f)
 		_ = f.Close()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
 			return
 		}
 		pdfBytesList = append(pdfBytesList, buf)
@@ -486,21 +507,25 @@ func handlerSplitPDF(c *gin.Context) {
 	// Multiple outputs: return a zip archive
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
+	var numBuf [20]byte
+	var zipErr string
 	for i, b := range outs {
-		name := fmt.Sprintf("originalfile-part%d.pdf", i+1)
+		name := "originalfile-part" + string(strconv.AppendInt(numBuf[:0], int64(i+1), 10)) + ".pdf"
 		fw, err := zw.Create(name)
 		if err != nil {
-			_ = zw.Close()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip create failed: " + err.Error()})
-			return
+			zipErr = "zip create failed: " + err.Error()
+			break
 		}
 		if _, err := fw.Write(b); err != nil {
-			_ = zw.Close()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip write failed: " + err.Error()})
-			return
+			zipErr = "zip write failed: " + err.Error()
+			break
 		}
 	}
 	_ = zw.Close()
+	if zipErr != "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": zipErr})
+		return
+	}
 
 	c.Header("Content-Type", "application/zip")
 	c.Header("Content-Disposition", "attachment; filename=splits.zip")
@@ -510,7 +535,6 @@ func handlerSplitPDF(c *gin.Context) {
 
 // handleHTMLToPDF handles HTML to PDF conversion using htmltopdf
 func handleHTMLToPDF(c *gin.Context) {
-	log.Printf("Starting HTML to PDF conversion request")
 
 	var req models.HTMLToPDFRequest
 	data, err := c.GetRawData()
@@ -520,12 +544,9 @@ func handleHTMLToPDF(c *gin.Context) {
 	}
 
 	if err := sonic.Unmarshal(data, &req); err != nil {
-		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
 	}
-
-	log.Printf("Request parsed successfully. HTML length: %d, URL: %s", len(req.HTML), req.URL)
 
 	// Set defaults
 	if req.PageSize == "" {
@@ -550,16 +571,11 @@ func handleHTMLToPDF(c *gin.Context) {
 		req.DPI = 300
 	}
 
-	log.Printf("Calling pdf.ConvertHTMLToPDF with options: PageSize=%s, Orientation=%s, DPI=%d", req.PageSize, req.Orientation, req.DPI)
-
 	pdfBytes, err := pdf.ConvertHTMLToPDF(req)
 	if err != nil {
-		log.Printf("PDF conversion failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF conversion failed: " + err.Error()})
 		return
 	}
-
-	log.Printf("PDF conversion successful. PDF size: %d bytes", len(pdfBytes))
 
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "attachment; filename=converted.pdf")
@@ -568,7 +584,6 @@ func handleHTMLToPDF(c *gin.Context) {
 
 // handleHTMLToImage handles HTML to image conversion using htmltoimage
 func handleHTMLToImage(c *gin.Context) {
-	log.Printf("Starting HTML to image conversion request")
 
 	var req models.HTMLToImageRequest
 	data, err := c.GetRawData()
@@ -578,12 +593,9 @@ func handleHTMLToImage(c *gin.Context) {
 	}
 
 	if err := sonic.Unmarshal(data, &req); err != nil {
-		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
 	}
-
-	log.Printf("Request parsed successfully. HTML length: %d, URL: %s, Format: %s", len(req.HTML), req.URL, req.Format)
 
 	// Set defaults
 	if req.Format == "" {
@@ -596,16 +608,11 @@ func handleHTMLToImage(c *gin.Context) {
 		req.Zoom = 1.0
 	}
 
-	log.Printf("Calling pdf.ConvertHTMLToImage with options: Format=%s, Quality=%d, Zoom=%.2f", req.Format, req.Quality, req.Zoom)
-
 	imageBytes, err := pdf.ConvertHTMLToImage(req)
 	if err != nil {
-		log.Printf("Image conversion failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Image conversion failed: " + err.Error()})
 		return
 	}
-
-	log.Printf("Image conversion successful. Image size: %d bytes", len(imageBytes))
 
 	contentType := "image/png"
 	switch req.Format {
@@ -616,6 +623,6 @@ func handleHTMLToImage(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", contentType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=converted.%s", req.Format))
+	c.Header("Content-Disposition", "attachment; filename=converted."+req.Format)
 	c.Data(http.StatusOK, contentType, imageBytes)
 }

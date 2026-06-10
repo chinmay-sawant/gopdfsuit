@@ -1,14 +1,18 @@
 package pdf
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
+
+const hexTable = "0123456789ABCDEF"
 
 // OutlineBuilder builds the PDF outline (bookmarks) tree structure
 type OutlineBuilder struct {
@@ -171,8 +175,10 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 
 		// PDF/UA-2: Generate unique destination key and register named destination
 		// This allows using /Dest (name) instead of /A << /S /GoTo ... >>
-		destKey := "_bm_" + strconv.Itoa(len(ob.outlineItems))
-		item.DestKey = destKey
+		var bmBuf [32]byte
+		copy(bmBuf[:4], "_bm_")
+		numEnd := 4 + len(strconv.AppendInt(bmBuf[4:4], int64(len(ob.outlineItems)), 10))
+		item.DestKey = string(bmBuf[:numEnd])
 
 		nd := NamedDest{
 			PageIndex:    0, // Will be determined from DestPageID
@@ -185,7 +191,7 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 				break
 			}
 		}
-		ob.pageManager.NamedDests[destKey] = nd
+		ob.pageManager.NamedDests[item.DestKey] = nd
 
 		// PDF/UA-2: If this bookmark defines a user-specified destination (bm.Dest),
 		// update that destination with the structure element ID so internal links work
@@ -312,25 +318,35 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 	}
 
 	// Generate root outline dictionary
-	var rootDict strings.Builder
+	var rootDict bytes.Buffer
 	rootDict.WriteString("<< /Type /Outlines")
 	if firstTopLevel > 0 {
-		rootDict.WriteString(fmt.Sprintf(" /First %d 0 R", firstTopLevel))
-		rootDict.WriteString(fmt.Sprintf(" /Last %d 0 R", lastTopLevel))
+		var buf [20]byte
+		rootDict.WriteString(" /First ")
+		rootDict.Write(strconv.AppendInt(buf[:0], int64(firstTopLevel), 10))
+		rootDict.WriteString(" 0 R")
+		rootDict.WriteString(" /Last ")
+		rootDict.Write(strconv.AppendInt(buf[:0], int64(lastTopLevel), 10))
+		rootDict.WriteString(" 0 R")
 	}
-	rootDict.WriteString(fmt.Sprintf(" /Count %d", totalCount))
+	{
+		var buf [20]byte
+		rootDict.WriteString(" /Count ")
+		rootDict.Write(strconv.AppendInt(buf[:0], int64(totalCount), 10))
+	}
 	rootDict.WriteString(" >>")
-	ob.pageManager.ExtraObjects[ob.outlineObjID] = []byte(rootDict.String())
+	ob.pageManager.ExtraObjects[ob.outlineObjID] = rootDict.Bytes()
 
 	// Generate each outline item
+	var buf [20]byte
+	var titleBytes []byte
 	for _, item := range ob.outlineItems {
-		var itemDict strings.Builder
+		var itemDict bytes.Buffer
 		itemDict.WriteString("<<")
 
 		// Handle Title encryption
 		if ob.encryptor != nil {
 			// Encrypt title (handle UTF-16BE encoding if needed)
-			var titleBytes []byte
 			hasUnicode := false
 			for _, r := range item.Title {
 				if r > 127 {
@@ -352,43 +368,63 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 						titleBytes = append(titleBytes, byte(high>>8), byte(high), byte(low>>8), byte(low))
 					}
 				}
-			} else {
-				// ASCII bytes
-				titleBytes = []byte(item.Title)
-			}
-
-			encrypted := ob.encryptor.EncryptString(titleBytes, item.ObjectID, 0)
-			itemDict.WriteString(fmt.Sprintf(" /Title <%s>", hex.EncodeToString(encrypted)))
 		} else {
-			itemDict.WriteString(fmt.Sprintf(" /Title (%s)", escapeTextUnicode(item.Title)))
+			// ASCII bytes
+			titleBytes = append(titleBytes[:0], item.Title...)
 		}
 
-		itemDict.WriteString(fmt.Sprintf(" /Parent %d 0 R", item.ParentID))
+			encrypted := ob.encryptor.EncryptString(titleBytes, item.ObjectID, 0)
+			itemDict.WriteString(" /Title <")
+			itemDict.WriteString(hex.EncodeToString(encrypted))
+			itemDict.WriteByte('>')
+		} else {
+			itemDict.WriteString(" /Title (")
+			itemDict.WriteString(escapeTextUnicode(item.Title))
+			itemDict.WriteByte(')')
+		}
+
+		itemDict.WriteString(" /Parent ")
+		itemDict.Write(strconv.AppendInt(buf[:0], int64(item.ParentID), 10))
+		itemDict.WriteString(" 0 R")
 
 		// PDF/UA-2 Compliance: Use /Dest (name) instead of /A << /S /GoTo ... >>
 		// The named destination contains both /D and /SD entries
 		if item.DestKey != "" {
-			itemDict.WriteString(fmt.Sprintf(" /Dest (%s)", escapeText(item.DestKey)))
+			itemDict.WriteString(" /Dest (")
+			itemDict.WriteString(escapeText(item.DestKey))
+			itemDict.WriteByte(')')
 		} else if item.DestPageID > 0 {
 			// Fallback for items without a destination key (shouldn't happen normally)
-			itemDict.WriteString(fmt.Sprintf(" /Dest [%d 0 R /XYZ null %s null]",
-				item.DestPageID, fmtNum(item.DestY)))
+			itemDict.WriteString(" /Dest [")
+			itemDict.Write(strconv.AppendInt(buf[:0], int64(item.DestPageID), 10))
+			itemDict.WriteString(" 0 R /XYZ null ")
+			itemDict.Write(appendFmtNum(buf[:0], item.DestY))
+			itemDict.WriteString(" null]")
 		}
 
 		if item.PrevID > 0 {
-			itemDict.WriteString(fmt.Sprintf(" /Prev %d 0 R", item.PrevID))
+			itemDict.WriteString(" /Prev ")
+			itemDict.Write(strconv.AppendInt(buf[:0], int64(item.PrevID), 10))
+			itemDict.WriteString(" 0 R")
 		}
 		if item.NextID > 0 {
-			itemDict.WriteString(fmt.Sprintf(" /Next %d 0 R", item.NextID))
+			itemDict.WriteString(" /Next ")
+			itemDict.Write(strconv.AppendInt(buf[:0], int64(item.NextID), 10))
+			itemDict.WriteString(" 0 R")
 		}
 		if item.FirstID > 0 {
-			itemDict.WriteString(fmt.Sprintf(" /First %d 0 R", item.FirstID))
-			itemDict.WriteString(fmt.Sprintf(" /Last %d 0 R", item.LastID))
-			itemDict.WriteString(fmt.Sprintf(" /Count %d", item.Count))
+			itemDict.WriteString(" /First ")
+			itemDict.Write(strconv.AppendInt(buf[:0], int64(item.FirstID), 10))
+			itemDict.WriteString(" 0 R")
+			itemDict.WriteString(" /Last ")
+			itemDict.Write(strconv.AppendInt(buf[:0], int64(item.LastID), 10))
+			itemDict.WriteString(" 0 R")
+			itemDict.WriteString(" /Count ")
+			itemDict.Write(strconv.AppendInt(buf[:0], int64(item.Count), 10))
 		}
 
 		itemDict.WriteString(" >>")
-		ob.pageManager.ExtraObjects[item.ObjectID] = []byte(itemDict.String())
+		ob.pageManager.ExtraObjects[item.ObjectID] = itemDict.Bytes()
 	}
 }
 
@@ -410,14 +446,32 @@ func escapeTextUnicode(s string) string {
 		for _, r := range s {
 			// Convert to UTF-16BE
 			if r <= 0xFFFF {
-				result.WriteString(fmt.Sprintf("\\x%02X\\x%02X", (r>>8)&0xFF, r&0xFF))
+				hi, lo := byte(r>>8), byte(r)
+				result.WriteString("\\x")
+				result.WriteByte(hexTable[hi>>4])
+				result.WriteByte(hexTable[hi&0xF])
+				result.WriteString("\\x")
+				result.WriteByte(hexTable[lo>>4])
+				result.WriteByte(hexTable[lo&0xF])
 			} else {
 				// Surrogate pair for characters > 0xFFFF
 				r -= 0x10000
 				high := 0xD800 + ((r >> 10) & 0x3FF)
 				low := 0xDC00 + (r & 0x3FF)
-				result.WriteString(fmt.Sprintf("\\x%02X\\x%02X\\x%02X\\x%02X",
-					(high>>8)&0xFF, high&0xFF, (low>>8)&0xFF, low&0xFF))
+				hhi, hlo := byte(high>>8), byte(high)
+				lhi, llo := byte(low>>8), byte(low)
+				result.WriteString("\\x")
+				result.WriteByte(hexTable[hhi>>4])
+				result.WriteByte(hexTable[hhi&0xF])
+				result.WriteString("\\x")
+				result.WriteByte(hexTable[hlo>>4])
+				result.WriteByte(hexTable[hlo&0xF])
+				result.WriteString("\\x")
+				result.WriteByte(hexTable[lhi>>4])
+				result.WriteByte(hexTable[lhi&0xF])
+				result.WriteString("\\x")
+				result.WriteByte(hexTable[llo>>4])
+				result.WriteByte(hexTable[llo&0xF])
 			}
 		}
 		return result.String()
@@ -435,7 +489,7 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	}
 
 	// Build Names array for Dests name tree
-	var namesArray strings.Builder
+	var namesArray bytes.Buffer
 	namesArray.WriteString("[")
 
 	// Sort names for binary search tree compliance
@@ -449,6 +503,7 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	destsTreeID := ob.pageManager.NextObjectID
 	ob.pageManager.NextObjectID++
 
+	var numBuf [20]byte
 	for i, name := range names {
 		dest := ob.pageManager.NamedDests[name]
 		pageObjID := 0
@@ -466,8 +521,8 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		if ob.encryptor != nil {
 			// Names in name tree are strings and must be encrypted
 			// Usually names are ASCII, but handle them as bytes
-			encrypted := ob.encryptor.EncryptString([]byte(name), destsTreeID, 0)
-			nameStr = fmt.Sprintf("<%s>", hex.EncodeToString(encrypted))
+			encrypted := ob.encryptor.EncryptString(unsafe.Slice(unsafe.StringData(name), len(name)), destsTreeID, 0)
+			nameStr = "<" + hex.EncodeToString(encrypted) + ">"
 		} else {
 			nameStr = "(" + escapeText(name) + ")"
 		}
@@ -478,35 +533,34 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		if dest.StructElemID > 0 {
 			namesArray.WriteString(nameStr)
 			namesArray.WriteString(" << /D [")
-			namesArray.WriteString(strconv.Itoa(pageObjID))
+			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(pageObjID), 10))
 			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.Write(appendFmtNum(numBuf[:0], dest.Y))
 			namesArray.WriteString(" null] /SD [")
-			namesArray.WriteString(strconv.Itoa(dest.StructElemID))
+			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(dest.StructElemID), 10))
 			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.Write(appendFmtNum(numBuf[:0], dest.Y))
 			namesArray.WriteString(" null] >>")
 		} else {
-			// Fallback for destinations without structure element (not fully PDF/UA-2 compliant)
 			namesArray.WriteString(nameStr)
 			namesArray.WriteString(" [")
-			namesArray.WriteString(strconv.Itoa(pageObjID))
+			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(pageObjID), 10))
 			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.Write(appendFmtNum(numBuf[:0], dest.Y))
 			namesArray.WriteString(" null]")
 		}
 	}
 	namesArray.WriteString("]")
 
-	destsTreeContent := fmt.Sprintf("<< /Names %s >>", namesArray.String())
-	ob.pageManager.ExtraObjects[destsTreeID] = []byte(destsTreeContent)
+	destsTreeContent := "<< /Names " + namesArray.String() + " >>"
+	ob.pageManager.ExtraObjects[destsTreeID] = unsafe.Slice(unsafe.StringData(destsTreeContent), len(destsTreeContent))
 
 	// Create Names dictionary object
 	namesID := ob.pageManager.NextObjectID
 	ob.pageManager.NextObjectID++
 
-	namesContent := fmt.Sprintf("<< /Dests %d 0 R >>", destsTreeID)
-	ob.pageManager.ExtraObjects[namesID] = []byte(namesContent)
+	namesContent := fmt.Appendf(nil, "<< /Dests %d 0 R >>", destsTreeID)
+	ob.pageManager.ExtraObjects[namesID] = namesContent
 
 	return namesID, true
 }

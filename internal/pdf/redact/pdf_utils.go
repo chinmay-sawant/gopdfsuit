@@ -757,7 +757,7 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}
 		gen := objGenNum(objGen, objNum)
 		origBody, ok := originalMap[objNum]
-		if !ok || !bytes.Equal(origBody, body) {
+		if !ok || len(origBody) != len(body) || !bytes.Equal(origBody, body) {
 			changed = append(changed, objMeta{id: objNum, gen: gen})
 		}
 	}
@@ -795,6 +795,7 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		gen    int
 	}, len(changed))
 
+	var objHeader [32]byte
 	for _, obj := range changed {
 		offsetByObject[obj.id] = struct {
 			offset int
@@ -802,7 +803,11 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}{offset: out.Len(), gen: obj.gen}
 
 		body := objMap[obj.id]
-		fmt.Fprintf(&out, "%d %d obj\n", obj.id, obj.gen)
+		header := strconv.AppendInt(objHeader[:0], int64(obj.id), 10)
+		header = append(header, ' ')
+		header = strconv.AppendInt(header, int64(obj.gen), 10)
+		header = append(header, ' ', 'o', 'b', 'j', '\n')
+		out.Write(header)
 		out.Write(body)
 		if !bytes.HasSuffix(body, []byte("\n")) {
 			out.WriteByte('\n')

@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -35,10 +36,10 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 			a, _ := strconv.Atoi(m[1])
 			b, _ := strconv.Atoi(m[2])
 			if a < 1 || b < a {
-				return nil, fmt.Errorf("invalid range: %s", p)
+				return nil, errors.New("invalid range: " + p)
 			}
 			if totalPages > 0 && a > totalPages {
-				return nil, fmt.Errorf("invalid range: %s", p)
+				return nil, errors.New("invalid range: " + p)
 			}
 			if totalPages > 0 && b > totalPages {
 				b = totalPages
@@ -49,15 +50,15 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 		case numRe.MatchString(p):
 			n, _ := strconv.Atoi(p)
 			if n < 1 || (totalPages > 0 && n > totalPages) {
-				return nil, fmt.Errorf("invalid page: %s", p)
+				return nil, errors.New("invalid page: " + p)
 			}
 			set[n] = true
 		default:
-			return nil, fmt.Errorf("invalid token: %s", p)
+			return nil, errors.New("invalid token: " + p)
 		}
 	}
 
-	var pages []int
+	pages := make([]int, 0, len(set))
 	for k := range set {
 		pages = append(pages, k)
 	}
@@ -74,20 +75,20 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	*/
 
 	if len(file) == 0 {
-		return nil, fmt.Errorf("empty file")
+		return nil, errors.New("empty file")
 	}
 	if hasEncrypt(file) {
-		return nil, fmt.Errorf("cannot split encrypted PDF")
+		return nil, errors.New("cannot split encrypted PDF")
 	}
 
 	fc := parseFile(file)
 	if fc == nil {
-		return nil, fmt.Errorf("invalid PDF")
+		return nil, errors.New("invalid PDF")
 	}
 
 	totalPages := len(fc.Pages)
 	if totalPages == 0 {
-		return nil, fmt.Errorf("no pages found")
+		return nil, errors.New("no pages found")
 	}
 
 	// Build requested page list (map 1-based indexes to page object numbers)
@@ -96,7 +97,7 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	// explicit Pages
 	for _, p := range spec.Pages {
 		if p < 1 || p > totalPages {
-			return nil, fmt.Errorf("page out of range: %d", p)
+			return nil, errors.New("page out of range: " + strconv.Itoa(p))
 		}
 		requestedObjNums = append(requestedObjNums, fc.Pages[p-1])
 	}
@@ -104,7 +105,7 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	// ranges
 	for _, r := range spec.Ranges {
 		if r[0] < 1 || r[1] < r[0] || r[1] > totalPages {
-			return nil, fmt.Errorf("invalid range: %v", r)
+			return nil, errors.New("invalid range: [" + strconv.Itoa(r[0]) + "," + strconv.Itoa(r[1]) + "]")
 		}
 		for i := r[0]; i <= r[1]; i++ {
 			requestedObjNums = append(requestedObjNums, fc.Pages[i-1])

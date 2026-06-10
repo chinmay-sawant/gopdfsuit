@@ -7,6 +7,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -97,7 +98,16 @@ func generateTrades(n int, rng *rand.Rand) []trade {
 		price = float64(int(price*100)) / 100 // round to 2 decimals
 		total := float64(qty) * price
 
-		timeStr := fmt.Sprintf("%02d:%02d:%02d", hour, min, sec)
+		var tb [8]byte
+		tb[0] = byte('0' + hour/10)
+		tb[1] = byte('0' + hour%10)
+		tb[2] = ':'
+		tb[3] = byte('0' + min/10)
+		tb[4] = byte('0' + min%10)
+		tb[5] = ':'
+		tb[6] = byte('0' + sec/10)
+		tb[7] = byte('0' + sec%10)
+		timeStr := string(tb[:])
 		sec++
 		if sec >= 60 {
 			sec = 0
@@ -326,9 +336,9 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 		tradeRows = append(tradeRows, gopdflib.Row{Row: []gopdflib.Cell{
 			{Props: "Helvetica:8:000:center:1:0:0:1", Text: t.Symbol, BgColor: bg},
 			{Props: "Helvetica:8:000:center:0:0:0:1", Text: t.Action, TextColor: actionColor, BgColor: bg},
-			{Props: "Helvetica:8:000:center:0:0:0:1", Text: fmt.Sprintf("%d", t.Qty), BgColor: bg},
-			{Props: "Helvetica:8:000:right:0:0:0:1", Text: fmt.Sprintf("₹%.2f", t.Price), BgColor: bg},
-			{Props: "Helvetica:8:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", t.Total), BgColor: bg},
+			{Props: "Helvetica:8:000:center:0:0:0:1", Text: strconv.Itoa(t.Qty), BgColor: bg},
+			{Props: "Helvetica:8:000:right:0:0:0:1", Text: "₹" + strconv.FormatFloat(t.Price, 'f', 2, 64), BgColor: bg},
+			{Props: "Helvetica:8:000:right:0:1:0:1", Text: "₹" + strconv.FormatFloat(t.Total, 'f', 2, 64), BgColor: bg},
 		}})
 	}
 
@@ -496,13 +506,13 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 			actionColor = "#E74C3C"
 		}
 		tradeRows = append(tradeRows, gopdflib.Row{Row: []gopdflib.Cell{
-			{Props: "Helvetica:7:000:center:1:0:0:1", Text: fmt.Sprintf("%d", t.ID), BgColor: bg},
+			{Props: "Helvetica:7:000:center:1:0:0:1", Text: strconv.Itoa(t.ID), BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Time, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Symbol, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Action, TextColor: actionColor, BgColor: bg},
-			{Props: "Helvetica:7:000:center:0:0:0:1", Text: fmt.Sprintf("%d", t.Qty), BgColor: bg},
-			{Props: "Helvetica:7:000:right:0:0:0:1", Text: fmt.Sprintf("₹%.2f", t.Price), BgColor: bg},
-			{Props: "Helvetica:7:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", t.Total), BgColor: bg},
+			{Props: "Helvetica:7:000:center:0:0:0:1", Text: strconv.Itoa(t.Qty), BgColor: bg},
+			{Props: "Helvetica:7:000:right:0:0:0:1", Text: "₹" + strconv.FormatFloat(t.Price, 'f', 2, 64), BgColor: bg},
+			{Props: "Helvetica:7:000:right:0:1:0:1", Text: "₹" + strconv.FormatFloat(t.Total, 'f', 2, 64), BgColor: bg},
 		}})
 	}
 
@@ -725,7 +735,7 @@ func runBenchmark() error {
 	// Channels
 	jobs := make(chan int, iterations)
 	results := make(chan time.Duration, iterations)
-	errors := make(chan error, iterations)
+	errCh := make(chan error, iterations)
 
 	var wg sync.WaitGroup
 
@@ -761,7 +771,7 @@ func runBenchmark() error {
 				elapsed := time.Since(start)
 
 				if err != nil {
-					errors <- err
+errCh <- err
 					continue
 				}
 				results <- elapsed
@@ -785,11 +795,11 @@ func runBenchmark() error {
 	memWg.Wait()
 
 	close(results)
-	close(errors)
+	close(errCh)
 
 	// Check errors
 	var errCount int
-	for e := range errors {
+	for e := range errCh {
 		if errCount == 0 {
 			fmt.Printf("  First error: %v\n", e)
 		}
@@ -810,7 +820,7 @@ func runBenchmark() error {
 
 	if len(durations) == 0 {
 		fmt.Println("No results collected.")
-		return fmt.Errorf("no results collected")
+		return errors.New("no results collected")
 	}
 
 	var minDuration, maxDuration time.Duration = durations[0], durations[0]

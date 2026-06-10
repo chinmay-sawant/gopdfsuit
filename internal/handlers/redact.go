@@ -6,11 +6,22 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/redact"
 	"github.com/gin-gonic/gin"
 )
+
+func fastTrimSpace(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	if s[0] > ' ' && s[len(s)-1] > ' ' {
+		return s
+	}
+	return strings.TrimSpace(s)
+}
 
 func parseCommaSeparatedTerms(raw string) []string {
 	parts := strings.Split(raw, ",")
@@ -20,7 +31,7 @@ func parseCommaSeparatedTerms(raw string) []string {
 	seen := make(map[string]struct{}, len(parts))
 	terms := make([]string, 0, len(parts))
 	for _, p := range parts {
-		term := strings.TrimSpace(p)
+		term := fastTrimSpace(p)
 		if term == "" {
 			continue
 		}
@@ -190,12 +201,12 @@ func HandleRedactApply(c *gin.Context) {
 	}
 
 	var options models.ApplyRedactionOptions
-	options.Mode = strings.TrimSpace(c.PostForm("mode"))
+	options.Mode = fastTrimSpace(c.PostForm("mode"))
 	options.Password = c.PostForm("password")
 
 	blocksJSON := c.PostForm("blocks")
 	if blocksJSON != "" {
-		if err := json.Unmarshal([]byte(blocksJSON), &options.Blocks); err != nil {
+		if err := json.NewDecoder(strings.NewReader(blocksJSON)).Decode(&options.Blocks); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid blocks json"})
 			return
 		}
@@ -203,14 +214,15 @@ func HandleRedactApply(c *gin.Context) {
 
 	textSearchJSON := c.PostForm("textSearch")
 	if textSearchJSON != "" {
-		if err := json.Unmarshal([]byte(textSearchJSON), &options.TextSearch); err != nil {
+		textSearchBytes := unsafe.Slice(unsafe.StringData(textSearchJSON), len(textSearchJSON))
+		if err := json.Unmarshal(textSearchBytes, &options.TextSearch); err != nil {
 			var plain []string
-			if err2 := json.Unmarshal([]byte(textSearchJSON), &plain); err2 != nil {
+			if err2 := json.Unmarshal(textSearchBytes, &plain); err2 != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid textSearch json"})
 				return
 			}
 			for _, text := range plain {
-				text = strings.TrimSpace(text)
+				text = fastTrimSpace(text)
 				if text == "" {
 					continue
 				}
@@ -220,9 +232,9 @@ func HandleRedactApply(c *gin.Context) {
 	}
 
 	ocrJSON := c.PostForm("ocr")
-	if strings.TrimSpace(ocrJSON) != "" {
+	if fastTrimSpace(ocrJSON) != "" {
 		var ocr models.OCRSettings
-		if err := json.Unmarshal([]byte(ocrJSON), &ocr); err != nil {
+		if err := json.NewDecoder(strings.NewReader(ocrJSON)).Decode(&ocr); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ocr json"})
 			return
 		}
@@ -233,7 +245,7 @@ func HandleRedactApply(c *gin.Context) {
 	if len(options.Blocks) == 0 {
 		redactionsJSON := c.PostForm("redactions")
 		if redactionsJSON != "" {
-			if err := json.Unmarshal([]byte(redactionsJSON), &options.Blocks); err != nil {
+			if err := json.NewDecoder(strings.NewReader(redactionsJSON)).Decode(&options.Blocks); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid redactions json"})
 				return
 			}
@@ -242,7 +254,7 @@ func HandleRedactApply(c *gin.Context) {
 
 	// Backward compatibility: allow plain text search field for one-shot apply.
 	if len(options.TextSearch) == 0 {
-		if searchText := strings.TrimSpace(c.PostForm("text")); searchText != "" {
+		if searchText := fastTrimSpace(c.PostForm("text")); searchText != "" {
 			terms := parseCommaSeparatedTerms(searchText)
 			if len(terms) == 0 {
 				terms = []string{searchText}
@@ -299,15 +311,15 @@ func HandleRedactSearch(c *gin.Context) {
 	}
 
 	var terms []string
-	textsJSON := strings.TrimSpace(c.PostForm("texts"))
+	textsJSON := fastTrimSpace(c.PostForm("texts"))
 	if textsJSON != "" {
-		if err := json.Unmarshal([]byte(textsJSON), &terms); err != nil {
+		if err := json.NewDecoder(strings.NewReader(textsJSON)).Decode(&terms); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid texts json"})
 			return
 		}
 	}
 	if len(terms) == 0 {
-		searchText := strings.TrimSpace(c.PostForm("text"))
+		searchText := fastTrimSpace(c.PostForm("text"))
 		if searchText != "" {
 			terms = parseCommaSeparatedTerms(searchText)
 			if len(terms) == 0 {

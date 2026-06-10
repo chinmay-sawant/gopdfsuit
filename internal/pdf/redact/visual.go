@@ -1,8 +1,10 @@
 package redact
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -40,24 +42,41 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 	}
 	nextObj := maxObj + 1
 
+	var sbuf [64]byte
 	for pageNum, rects := range redactionsByPage {
 		pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			return nil, fmt.Errorf("failed to find page %d: %w", pageNum, err)
+			return nil, fmt.Errorf("failed to find page %s: %w", string(strconv.AppendInt(sbuf[:0], int64(pageNum), 10)), err)
 		}
 		pageBody := objMap[pageObjNum]
 
 		var sb strings.Builder
 		sb.WriteString("q 0 0 0 rg ")
 		for _, rect := range rects {
-			sb.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re f ", rect.X, rect.Y, rect.Width, rect.Height))
+			b := strconv.AppendFloat(sbuf[:0], rect.X, 'f', 2, 64)
+			sb.Write(b)
+			sb.WriteByte(' ')
+			b = strconv.AppendFloat(sbuf[:0], rect.Y, 'f', 2, 64)
+			sb.Write(b)
+			sb.WriteByte(' ')
+			b = strconv.AppendFloat(sbuf[:0], rect.Width, 'f', 2, 64)
+			sb.Write(b)
+			sb.WriteByte(' ')
+			b = strconv.AppendFloat(sbuf[:0], rect.Height, 'f', 2, 64)
+			sb.Write(b)
+			sb.WriteString(" re f ")
 		}
 		sb.WriteString("Q ")
 		streamContent := sb.String()
 
 		streamGen := 0
-		streamObj := fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", len(streamContent), streamContent)
-		objMap[nextObj] = []byte(streamObj)
+		var streamBuf bytes.Buffer
+		streamBuf.WriteString("<< /Length ")
+		streamBuf.WriteString(string(strconv.AppendInt(sbuf[:0], int64(len(streamContent)), 10)))
+		streamBuf.WriteString(" >>\nstream\n")
+		streamBuf.WriteString(streamContent)
+		streamBuf.WriteString("\nendstream")
+		objMap[nextObj] = streamBuf.Bytes()
 		objGen[nextObj] = streamGen
 
 		newPageBody := appendStreamToPage(pageBody, nextObj, streamGen)

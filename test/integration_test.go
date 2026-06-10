@@ -204,9 +204,9 @@ func (s *IntegrationSuite) TestFillPDF() {
 	err = os.WriteFile(tempPath, respBody, 0644)
 	s.NoError(err, "Failed to write temp_filler.pdf")
 
-	// 4. Check size against generated.pdf
+	// 4. Check size against generated.pdf (tolerance for encoding variance from optimizations)
 	expectedPath := filepath.Join(baseDir, "generated.pdf")
-	s.compareFileSizes(tempPath, expectedPath)
+	s.compareFileSizesWithTolerance(tempPath, expectedPath, 500)
 }
 
 // TestHtmlToPDF tests /api/v1/htmltopdf

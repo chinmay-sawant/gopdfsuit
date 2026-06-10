@@ -310,33 +310,28 @@ func convertToRGB(img image.Image, rgbData []byte) error {
 
 	idx := 0
 
-	// Fast path for NRGBA (common for PNGs)
-	if nrgba, ok := img.(*image.NRGBA); ok {
+	// Fast paths for common types (avoids repeated type assertions)
+	switch v := img.(type) {
+	case *image.NRGBA:
 		for y := 0; y < height; y++ {
-			// Calculate starting offset for this row in the source image
-			rowStart := (y + bounds.Min.Y - nrgba.Rect.Min.Y) * nrgba.Stride
+			rowStart := (y + bounds.Min.Y - v.Rect.Min.Y) * v.Stride
 			for x := 0; x < width; x++ {
-				pixOffset := rowStart + (x+bounds.Min.X-nrgba.Rect.Min.X)*4
-				// Just take R, G, B, ignore Alpha
-				rgbData[idx] = nrgba.Pix[pixOffset]
-				rgbData[idx+1] = nrgba.Pix[pixOffset+1]
-				rgbData[idx+2] = nrgba.Pix[pixOffset+2]
+				pixOffset := rowStart + (x+bounds.Min.X-v.Rect.Min.X)*4
+				rgbData[idx] = v.Pix[pixOffset]
+				rgbData[idx+1] = v.Pix[pixOffset+1]
+				rgbData[idx+2] = v.Pix[pixOffset+2]
 				idx += 3
 			}
 		}
 		return nil
-	}
-
-	// Fast path for RGBA
-	if rgba, ok := img.(*image.RGBA); ok {
+	case *image.RGBA:
 		for y := 0; y < height; y++ {
-			rowStart := (y + bounds.Min.Y - rgba.Rect.Min.Y) * rgba.Stride
+			rowStart := (y + bounds.Min.Y - v.Rect.Min.Y) * v.Stride
 			for x := 0; x < width; x++ {
-				pixOffset := rowStart + (x+bounds.Min.X-rgba.Rect.Min.X)*4
-				// RGBA uses premultiplied alpha
-				rgbData[idx] = rgba.Pix[pixOffset]
-				rgbData[idx+1] = rgba.Pix[pixOffset+1]
-				rgbData[idx+2] = rgba.Pix[pixOffset+2]
+				pixOffset := rowStart + (x+bounds.Min.X-v.Rect.Min.X)*4
+				rgbData[idx] = v.Pix[pixOffset]
+				rgbData[idx+1] = v.Pix[pixOffset+1]
+				rgbData[idx+2] = v.Pix[pixOffset+2]
 				idx += 3
 			}
 		}
@@ -373,12 +368,13 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 
 	idx := 0
 
-	// Optimize for NRGBA (common for PNG) which has straight alpha
-	if nrgba, ok := img.(*image.NRGBA); ok {
-		pix := nrgba.Pix
-		stride := nrgba.Stride
-		minX := bounds.Min.X - nrgba.Rect.Min.X
-		minY := bounds.Min.Y - nrgba.Rect.Min.Y
+	// Optimize for NRGBA (common for PNG) and RGBA using type switch
+	switch v := img.(type) {
+	case *image.NRGBA:
+		pix := v.Pix
+		stride := v.Stride
+		minX := bounds.Min.X - v.Rect.Min.X
+		minY := bounds.Min.Y - v.Rect.Min.Y
 		for y := 0; y < height; y++ {
 			rowStart := (y + minY) * stride
 			for x := 0; x < width; x++ {
@@ -398,12 +394,8 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 					rgbData[idx+1] = 255
 					rgbData[idx+2] = 255
 				default:
-					// Blend with white: Result = C*alpha + 255*(255-alpha)
-					// Fast divide by 255: (x * 257 + 256) >> 16 ≈ x / 255
-					// For better accuracy: (x + 127) / 255 ≈ (x * 0x8081) >> 23
 					invA := 255 - a
 					white := 255 * invA
-					// Using: ((n * 0x8081) >> 23) approximates n/255 with high accuracy
 					rgbData[idx] = byte(((r*a + white) * 0x8081) >> 23)
 					rgbData[idx+1] = byte(((g*a + white) * 0x8081) >> 23)
 					rgbData[idx+2] = byte(((b*a + white) * 0x8081) >> 23)
@@ -412,19 +404,15 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 			}
 		}
 		return nil
-	}
-
-	// Optimize for RGBA which has pre-multiplied alpha
-	if rgba, ok := img.(*image.RGBA); ok {
-		pix := rgba.Pix
-		stride := rgba.Stride
-		minX := bounds.Min.X - rgba.Rect.Min.X
-		minY := bounds.Min.Y - rgba.Rect.Min.Y
+	case *image.RGBA:
+		pix := v.Pix
+		stride := v.Stride
+		minX := bounds.Min.X - v.Rect.Min.X
+		minY := bounds.Min.Y - v.Rect.Min.Y
 		for y := range height {
 			rowStart := (y + minY) * stride
 			for x := range width {
 				pixOffset := rowStart + (x+minX)*4
-				// Values are already premultiplied by alpha: C_pre = C_straight * alpha
 				rPre := uint32(pix[pixOffset])
 				gPre := uint32(pix[pixOffset+1])
 				bPre := uint32(pix[pixOffset+2])
@@ -440,8 +428,6 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 					rgbData[idx+1] = 255
 					rgbData[idx+2] = 255
 				default:
-					// Blend with white: Result = C_pre + 255*(1-alpha/255)
-					// Fast divide by 255
 					bgPart := ((255 * (255 - a)) * 0x8081) >> 23
 					rgbData[idx] = byte(rPre + bgPart)
 					rgbData[idx+1] = byte(gPre + bgPart)
