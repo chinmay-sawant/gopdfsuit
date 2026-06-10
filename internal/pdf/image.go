@@ -86,6 +86,8 @@ func copyCachedImageObject(cached *ImageObject) *ImageObject {
 		Filter:       cached.Filter,
 		ImageData:    cached.ImageData,
 		ImageDataLen: cached.ImageDataLen,
+		CacheKey:     cached.CacheKey,
+		SourceLen:    cached.SourceLen,
 	}
 }
 
@@ -116,6 +118,8 @@ type ImageObject struct {
 	BitsPerComp  int
 	ImageDataLen int
 	IsForm       bool
+	CacheKey     uint64
+	SourceLen    int
 }
 
 // DecodeImageData decodes base64 image data and returns image information
@@ -177,6 +181,8 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 				ImageData:    pdfCmds,
 				ImageDataLen: len(pdfCmds),
 				IsForm:       true,
+				CacheKey:     hash,
+				SourceLen:    len(cleanData),
 			}, nil
 		}
 		// If SVG conversion fails, try to proceed as raster image (might fail too) or return error?
@@ -198,6 +204,8 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		Height:      height,
 		ColorSpace:  "/DeviceRGB",
 		BitsPerComp: 8,
+		CacheKey:    hash,
+		SourceLen:   len(cleanData),
 	}
 
 	// Convert image to raw RGB data for PDF

@@ -22,6 +22,33 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/fontutils"
 )
 
+type BorrowedPDF struct {
+	buf   *bytes.Buffer
+	bytes []byte
+}
+
+func (d *BorrowedPDF) Bytes() []byte {
+	if d == nil {
+		return nil
+	}
+	if d.buf != nil {
+		return d.buf.Bytes()
+	}
+	return d.bytes
+}
+
+func (d *BorrowedPDF) Len() int {
+	return len(d.Bytes())
+}
+
+func (d *BorrowedPDF) Release() {
+	if d == nil || d.buf == nil {
+		return
+	}
+	pdfBufferPool.Put(d.buf)
+	d.buf = nil
+}
+
 // pdfBufferPool reuses bytes.Buffer across PDF generations to reduce GC pressure.
 var pdfBufferPool = sync.Pool{
 	New: func() any {
@@ -82,10 +109,23 @@ func (a *signatureContextAdapter) EncodeTextForFont(fontName, text string) strin
 //
 //nolint:gocyclo
 func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
+	doc, err := GenerateTemplatePDFBorrowed(template)
+	if err != nil {
+		return nil, err
+	}
+	defer doc.Release()
+	return slices.Clone(doc.Bytes()), nil
+}
+
+func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF, err error) {
 	pdfBufferPtr := pdfBufferPool.Get().(*bytes.Buffer)
 	pdfBufferPtr.Reset()
-	defer pdfBufferPool.Put(pdfBufferPtr)
 	pdfBuffer := pdfBufferPtr // use directly as *bytes.Buffer
+	defer func() {
+		if err != nil {
+			pdfBufferPool.Put(pdfBuffer)
+		}
+	}()
 
 	scratchPtr := scratchBufPool.Get().(*[]byte)
 	b := (*scratchPtr)[:0]
@@ -157,15 +197,18 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	nextImageObjectID := 1000 // Start image objects at ID 1000
 
+	// Reuse identical decoded images across all document references so repeated
+	// cell PNGs point at one shared XObject instead of serializing duplicates.
+	imageDeduper := newImageObjectDeduper()
+
 	// Process standalone images
 	for i, img := range template.Image {
 		if img.ImageData != "" {
 			imgObj, err := DecodeImageData(img.ImageData)
 			if err == nil {
-				imgObj.ObjectID = nextImageObjectID
+				imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
 				imageObjects[i] = imgObj
-				imageObjectIDs[i] = nextImageObjectID
-				nextImageObjectID++
+				imageObjectIDs[i] = imgObj.ObjectID
 			}
 		}
 	}
@@ -177,11 +220,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				if cell.Image != nil && cell.Image.ImageData != "" {
 					imgObj, err := DecodeImageData(cell.Image.ImageData)
 					if err == nil {
-						imgObj.ObjectID = nextImageObjectID
+						imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
 						cellKey := buildCellKey2("title", rowIdx, colIdx)
 						cellImageObjects[cellKey] = imgObj
-						cellImageObjectIDs[cellKey] = nextImageObjectID
-						nextImageObjectID++
+						cellImageObjectIDs[cellKey] = imgObj.ObjectID
 					}
 				}
 			}
@@ -195,12 +237,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				if cell.Image != nil && cell.Image.ImageData != "" {
 					imgObj, err := DecodeImageData(cell.Image.ImageData)
 					if err == nil {
-						imgObj.ObjectID = nextImageObjectID
+						imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
 						// Key for indexed tables: "0:0:0" (tableIdx:rowIdx:colIdx)
 						cellKey := buildCellKey3(tableIdx, rowIdx, colIdx)
 						cellImageObjects[cellKey] = imgObj
-						cellImageObjectIDs[cellKey] = nextImageObjectID
-						nextImageObjectID++
+						cellImageObjectIDs[cellKey] = imgObj.ObjectID
 					}
 				}
 			}
@@ -215,12 +256,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 					if cell.Image != nil && cell.Image.ImageData != "" {
 						imgObj, err := DecodeImageData(cell.Image.ImageData)
 						if err == nil {
-							imgObj.ObjectID = nextImageObjectID
+							imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
 							// Key for inline tables: "elem_inline:5:0:0" (elem_inline:elemIdx:rowIdx:colIdx)
 							cellKey := buildCellKeyElemInline(elemIdx, rowIdx, colIdx)
 							cellImageObjects[cellKey] = imgObj
-							cellImageObjectIDs[cellKey] = nextImageObjectID
-							nextImageObjectID++
+							cellImageObjectIDs[cellKey] = imgObj.ObjectID
 						}
 					}
 				}
@@ -236,10 +276,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		if elem.Type == "image" && elem.Image != nil && elem.Image.ImageData != "" {
 			imgObj, err := DecodeImageData(elem.Image.ImageData)
 			if err == nil {
-				imgObj.ObjectID = nextImageObjectID
+				imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
 				elemImageObjects[elemIdx] = imgObj
-				elemImageObjectIDs[elemIdx] = nextImageObjectID
-				nextImageObjectID++
+				elemImageObjectIDs[elemIdx] = imgObj.ObjectID
 			}
 		}
 	}
@@ -257,6 +296,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjects, cellImageObjectIDs, elemImageObjects)
+	ensurePDFBufferCapacity(pdfBuffer, estimateFinalPDFSize(pageManager, imageDeduper.uniqueObjectCount()))
 
 	// Generate font subsets MOVED to after signature generation to ensure signature chars are included
 
@@ -874,7 +914,12 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 
 	// Generate image XObjects (standalone images)
+	writtenImageObjects := make(map[int]struct{}, imageDeduper.uniqueObjectCount())
 	for _, imgObj := range imageObjects {
+		if _, exists := writtenImageObjects[imgObj.ObjectID]; exists {
+			continue
+		}
+		writtenImageObjects[imgObj.ObjectID] = struct{}{}
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
 			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
@@ -890,6 +935,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	// Generate image XObjects (cell images)
 	for _, imgObj := range cellImageObjects {
+		if _, exists := writtenImageObjects[imgObj.ObjectID]; exists {
+			continue
+		}
+		writtenImageObjects[imgObj.ObjectID] = struct{}{}
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
 			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
@@ -905,6 +954,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	// Generate image XObjects (element images)
 	for _, imgObj := range elemImageObjects {
+		if _, exists := writtenImageObjects[imgObj.ObjectID]; exists {
+			continue
+		}
+		writtenImageObjects[imgObj.ObjectID] = struct{}{}
 		// PDF/UA-2: Ensure images use the ICC profile for color space
 		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
 			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
@@ -1371,23 +1424,103 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
 
-	// Keep a single owned copy for the caller; pooled buffers must not escape.
-	finalPDF := slices.Clone(pdfBuffer.Bytes())
 	if pdfSigner != nil && sigIDs != nil {
-		signedPDF, err := signature.UpdatePDFWithSignature(finalPDF, pdfSigner)
+		signedPDF, err := signature.UpdatePDFWithSignature(pdfBuffer.Bytes(), pdfSigner)
 		if err != nil {
-			return finalPDF, nil
+			return &BorrowedPDF{buf: pdfBuffer}, nil
 		}
-		finalPDF = signedPDF
+		pdfBufferPool.Put(pdfBuffer)
+		return &BorrowedPDF{bytes: signedPDF}, nil
 	}
 
-	return finalPDF, nil
+	return &BorrowedPDF{buf: pdfBuffer}, nil
 }
 
 func appendObjRefToBuilder(sb *strings.Builder, objID int) {
 	sb.WriteByte(' ')
 	sb.WriteString(strconv.Itoa(objID))
 	sb.WriteString(" 0 R")
+}
+
+type imageObjectKey struct {
+	hash         uint64
+	sourceLen    int
+	width        int
+	height       int
+	bitsPerComp  int
+	imageDataLen int
+	filter       string
+	isForm       bool
+}
+
+type imageObjectDeduper struct {
+	objects map[imageObjectKey][]*ImageObject
+	unique  int
+}
+
+func newImageObjectDeduper() *imageObjectDeduper {
+	return &imageObjectDeduper{
+		objects: make(map[imageObjectKey][]*ImageObject),
+	}
+}
+
+func (d *imageObjectDeduper) intern(imgObj *ImageObject, nextObjectID *int) *ImageObject {
+	key := imageObjectKey{
+		hash:         imgObj.CacheKey,
+		sourceLen:    imgObj.SourceLen,
+		width:        imgObj.Width,
+		height:       imgObj.Height,
+		bitsPerComp:  imgObj.BitsPerComp,
+		imageDataLen: imgObj.ImageDataLen,
+		filter:       imgObj.Filter,
+		isForm:       imgObj.IsForm,
+	}
+	for _, existing := range d.objects[key] {
+		if bytes.Equal(existing.ImageData, imgObj.ImageData) {
+			return existing
+		}
+	}
+	imgObj.ObjectID = *nextObjectID
+	*nextObjectID = *nextObjectID + 1
+	d.objects[key] = append(d.objects[key], imgObj)
+	d.unique++
+	return imgObj
+}
+
+func (d *imageObjectDeduper) uniqueObjectCount() int {
+	if d == nil {
+		return 0
+	}
+	return d.unique
+}
+
+func ensurePDFBufferCapacity(pdfBuffer *bytes.Buffer, want int) {
+	if want <= 0 {
+		return
+	}
+	if pdfBuffer.Cap() >= want {
+		return
+	}
+	pdfBuffer.Grow(want - pdfBuffer.Cap())
+}
+
+func estimateFinalPDFSize(pageManager *PageManager, uniqueImageObjects int) int {
+	estimate := 256 * 1024
+	estimate += len(pageManager.Pages) * 512
+	estimate += len(pageManager.ExtraObjects) * 128
+	estimate += uniqueImageObjects * 512
+	for _, stream := range pageManager.ContentStreams {
+		if stream == nil {
+			continue
+		}
+		rawLen := stream.Len()
+		estimate += rawLen / 3
+		estimate += 128
+	}
+	for _, extra := range pageManager.ExtraObjects {
+		estimate += len(extra) + 32
+	}
+	return estimate
 }
 
 func estimateInitialContentStreamCap(template models.PDFTemplate) int {

@@ -1,0 +1,239 @@
+# SlopGuard Findings
+
+Source chunks: `/home/chinmay/ChinmayPersonalProjects/slopguard/scripts/chunks/Chunk_*.txt`
+
+## Scope
+
+- Total exported findings: `226`
+- Existing `CWE-*` findings already covered elsewhere: `8`
+- Actionable performance findings in this plan: `218`
+- This file keeps all `226` checklist items so the exported finding numbers remain stable.
+
+## Checklist
+
+- [ ] Finding 1 `PERF-41` at `cmd/gopdfsuit/main.go:24:4` (medium): remove standard logger calls from the production hot path or switch to a structured non-blocking logger.
+- [ ] Finding 2 `PERF-68` at `cmd/gopdfsuit/main.go:57:14` (medium): disable `gin.Logger()` on the production path or replace it with an async logger.
+- [x] Finding 3 `CWE-497` at `cmd/gopdfsuit/main.go:63:19` is already covered by the existing CWE ruleset; exclude it from this performance remediation pass.
+- [ ] Finding 4 `PERF-40` at `internal/benchmarktemplates/runner.go:85:16` (medium): capture the timestamp once per operation and reuse it instead of calling `time.Now()` repeatedly.
+- [ ] Finding 5 `PERF-7` at `internal/benchmarktemplates/runner.go:90:4` (medium): remove `defer` from the loop body and close or release resources explicitly.
+- [ ] Finding 6 `PERF-7` at `internal/benchmarktemplates/runner.go:91:4` (medium): remove `defer` from the loop body and close or release resources explicitly.
+- [ ] Finding 7 `PERF-22` at `internal/handlers/handlers.go:227:15` (medium): load the file outside the handler or cache the data instead of calling `os.ReadFile` on the request path.
+- [ ] Finding 8 `PERF-57` at `internal/handlers/handlers.go:280:15` (medium): trim middleware allocations on the request path or move the heavy work outside the middleware.
+- [ ] Finding 9 `PERF-32` at `internal/handlers/handlers.go:363:15` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 10 `PERF-32` at `internal/handlers/handlers.go:368:16` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 11 `PERF-56` at `internal/handlers/handlers.go:410:4` (medium): avoid repeated `c.JSON` marshaling in the loop; batch or preencode the response.
+- [ ] Finding 12 `PERF-6` at `internal/handlers/handlers.go:490:11` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 13 `PERF-35` at `internal/handlers/handlers.go:490:11` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 14 `PERF-41` at `internal/handlers/handlers.go:513:2` (medium): remove standard logger calls from the production hot path or switch to a structured non-blocking logger.
+- [ ] Finding 15 `PERF-46` at `internal/handlers/redact.go:23:11` (medium): avoid allocation-heavy trimming when a cheap prefix, suffix, or length guard will do.
+- [ ] Finding 16 `PERF-32` at `internal/handlers/redact.go:198:28` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 17 `PERF-32` at `internal/handlers/redact.go:206:28` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 18 `PERF-32` at `internal/handlers/redact.go:208:30` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 19 `PERF-32` at `internal/handlers/redact.go:225:28` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 20 `PERF-32` at `internal/handlers/redact.go:236:29` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 21 `PERF-32` at `internal/handlers/redact.go:304:28` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 22 `PERF-30` at `internal/middleware/auth.go:74:10` (medium): avoid detached `context.Background()` work from the request path; propagate or derive the request context.
+- [ ] Finding 23 `PERF-42` at `internal/pdf/encryption/encrypt.go:38:15` (medium): replace static `fmt.Errorf` text with `errors.New`.
+- [ ] Finding 24 `PERF-32` at `internal/pdf/encryption/encrypt.go:62:9` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [x] Finding 25 `CWE-328` at `internal/pdf/encryption/encrypt.go:79:10` is already covered by the existing CWE ruleset; exclude it from this performance remediation pass.
+- [x] Finding 26 `CWE-916` at `internal/pdf/encryption/encrypt.go:79:10` is already covered by the existing CWE ruleset; exclude it from this performance remediation pass.
+- [ ] Finding 27 `PERF-3` at `internal/pdf/encryption/encrypt.go:99:3` (medium): stop rebuilding the slice inside the loop; reuse the slice or preallocate once.
+- [ ] Finding 28 `PERF-3` at `internal/pdf/encryption/encrypt.go:154:3` (medium): stop rebuilding the slice inside the loop; reuse the slice or preallocate once.
+- [ ] Finding 29 `PERF-53` at `internal/pdf/encryption/encrypt.go:246:15` (medium): replace package-level `math/rand` usage with a local `rand.Rand` backed by an explicit source.
+- [ ] Finding 30 `PERF-35` at `internal/pdf/encryption/encrypt.go:321:19` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 31 `PERF-15` at `internal/pdf/font/metrics.go:552:27` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 32 `PERF-15` at `internal/pdf/font/metrics.go:573:22` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 33 `PERF-15` at `internal/pdf/font/metrics.go:826:22` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 34 `PERF-15` at `internal/pdf/font/metrics.go:832:23` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 35 `PERF-15` at `internal/pdf/font/metrics.go:969:20` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 36 `PERF-42` at `internal/pdf/font/pdfa.go:165:10` (medium): replace static `fmt.Errorf` text with `errors.New`.
+- [ ] Finding 37 `PERF-35` at `internal/pdf/font/pdfa.go:170:21` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 38 `PERF-35` at `internal/pdf/font/registry.go:60:10` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 39 `PERF-31` at `internal/pdf/font/registry.go:90:3` (medium): remove unnecessary `defer` from the hot function and handle cleanup inline when cheaper.
+- [ ] Finding 40 `PERF-31` at `internal/pdf/font/registry.go:106:3` (medium): remove unnecessary `defer` from the hot function and handle cleanup inline when cheaper.
+- [ ] Finding 41 `PERF-15` at `internal/pdf/font/registry.go:282:28` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 42 `PERF-46` at `internal/pdf/font/registry.go:351:15` (medium): avoid allocation-heavy trimming when a cheap prefix, suffix, or length guard will do.
+- [ ] Finding 43 `PERF-15` at `internal/pdf/font/registry.go:396:13` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 44 `PERF-3` at `internal/pdf/font/subset.go:110:5` (medium): stop rebuilding the slice inside the loop; reuse the slice or preallocate once.
+- [ ] Finding 45 `PERF-32` at `internal/pdf/font/subset.go:160:10` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 46 `PERF-3` at `internal/pdf/font/subset.go:291:4` (medium): stop rebuilding the slice inside the loop; reuse the slice or preallocate once.
+- [ ] Finding 47 `PERF-35` at `internal/pdf/font/ttf.go:63:15` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 48 `PERF-15` at `internal/pdf/form/xfdf.go:467:12` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 49 `PERF-15` at `internal/pdf/form/xfdf.go:556:18` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 50 `PERF-1` at `internal/pdf/form/xfdf.go:822:14` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 51 `PERF-1` at `internal/pdf/form/xfdf.go:837:11` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 52 `PERF-1` at `internal/pdf/form/xfdf.go:842:12` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 53 `PERF-1` at `internal/pdf/form/xfdf.go:844:13` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 54 `PERF-1` at `internal/pdf/form/xfdf.go:887:10` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 55 `PERF-6` at `internal/pdf/form/xfdf.go:887:29` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 56 `PERF-35` at `internal/pdf/form/xfdf.go:887:29` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 57 `PERF-1` at `internal/pdf/form/xfdf.go:895:11` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 58 `PERF-32` at `internal/pdf/form/xfdf.go:911:13` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 59 `PERF-6` at `internal/pdf/form/xfdf.go:911:20` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 60 `PERF-1` at `internal/pdf/form/xfdf.go:912:12` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 61 `PERF-1` at `internal/pdf/form/xfdf.go:971:9` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 62 `PERF-6` at `internal/pdf/form/xfdf.go:971:28` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 63 `PERF-32` at `internal/pdf/form/xfdf.go:977:12` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 64 `PERF-6` at `internal/pdf/form/xfdf.go:977:19` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 65 `PERF-6` at `internal/pdf/form/xfdf.go:1016:17` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 66 `PERF-6` at `internal/pdf/form/xfdf.go:1019:18` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 67 `PERF-32` at `internal/pdf/form/xfdf.go:1021:21` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 68 `PERF-15` at `internal/pdf/form/xfdf.go:1029:26` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 69 `PERF-6` at `internal/pdf/form/xfdf.go:1039:14` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 70 `PERF-32` at `internal/pdf/form/xfdf.go:1044:21` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 71 `PERF-32` at `internal/pdf/form/xfdf.go:1048:25` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 72 `PERF-6` at `internal/pdf/form/xfdf.go:1055:12` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 73 `PERF-32` at `internal/pdf/form/xfdf.go:1057:21` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 74 `PERF-6` at `internal/pdf/form/xfdf.go:1076:4` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 75 `PERF-1` at `internal/pdf/form/xfdf.go:1245:13` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 76 `PERF-1` at `internal/pdf/form/xfdf.go:1258:16` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 77 `PERF-1` at `internal/pdf/form/xfdf.go:1260:16` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 78 `PERF-1` at `internal/pdf/form/xfdf.go:1266:22` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 79 `PERF-1` at `internal/pdf/form/xfdf.go:1292:15` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 80 `PERF-15` at `internal/pdf/form/xfdf.go:1366:29` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 81 `PERF-15` at `internal/pdf/form/xfdf.go:1368:29` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 82 `PERF-48` at `internal/pdf/form/xfdf.go:1460:20` (medium): add a cheap length or prefix guard before full `bytes.Equal` comparison.
+- [ ] Finding 83 `PERF-32` at `internal/pdf/generator.go:81:26` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 84 `PERF-32` at `internal/pdf/generator.go:308:50` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 85 `PERF-35` at `internal/pdf/generator.go:308:79` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 86 `PERF-32` at `internal/pdf/generator.go:565:42` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 87 `PERF-6` at `internal/pdf/generator.go:925:24` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 88 `PERF-6` at `internal/pdf/generator.go:944:24` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 89 `PERF-6` at `internal/pdf/generator.go:963:24` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 90 `PERF-40` at `internal/pdf/generator.go:1003:36` (medium): capture the timestamp once per operation and reuse it instead of calling `time.Now()` repeatedly.
+- [ ] Finding 91 `PERF-53` at `internal/pdf/generator.go:1103:16` (medium): replace package-level `math/rand` usage with a local `rand.Rand` backed by an explicit source.
+- [ ] Finding 92 `PERF-15` at `internal/pdf/generator.go:1205:28` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 93 `PERF-15` at `internal/pdf/generator.go:1220:27` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 94 `PERF-15` at `internal/pdf/generator.go:1289:22` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 95 `PERF-48` at `internal/pdf/generator.go:1479:6` (medium): add a cheap length or prefix guard before full `bytes.Equal` comparison.
+- [ ] Finding 96 `PERF-6` at `internal/pdf/generator.go:1610:23` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 97 `PERF-6` at `internal/pdf/generator.go:1613:23` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 98 `PERF-6` at `internal/pdf/generator.go:1637:26` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 99 `PERF-6` at `internal/pdf/generator.go:1647:26` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 100 `PERF-6` at `internal/pdf/generator.go:1660:22` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 101 `PERF-6` at `internal/pdf/generator.go:1673:24` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 102 `PERF-32` at `internal/pdf/helpers.go:22:23` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 103 `PERF-32` at `internal/pdf/helpers.go:104:23` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 104 `PERF-32` at `internal/pdf/helpers.go:104:62` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 105 `PERF-1` at `internal/pdf/helpers.go:108:15` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 106 `PERF-1` at `internal/pdf/helpers.go:147:15` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 107 `PERF-6` at `internal/pdf/helpers.go:161:12` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 108 `PERF-35` at `internal/pdf/helpers.go:161:12` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 109 `PERF-44` at `internal/pdf/image.go:314:18` (medium): cache the repeated type assertion result in a local variable and reuse it.
+- [ ] Finding 110 `PERF-2` at `internal/pdf/merge.go:168:5` (medium): replace repeated string concatenation with a `strings.Builder` or reusable byte buffer.
+- [ ] Finding 111 `PERF-2` at `internal/pdf/merge.go:170:4` (medium): replace repeated string concatenation with a `strings.Builder` or reusable byte buffer.
+- [ ] Finding 112 `PERF-6` at `internal/pdf/merge.go:170:19` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 113 `PERF-35` at `internal/pdf/merge.go:170:19` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 114 `PERF-6` at `internal/pdf/merge.go:181:23` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 115 `PERF-32` at `internal/pdf/merge.go:256:12` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 116 `PERF-32` at `internal/pdf/merge.go:277:11` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 117 `PERF-6` at `internal/pdf/merge.go:277:18` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 118 `PERF-1` at `internal/pdf/merge.go:354:16` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 119 `PERF-1` at `internal/pdf/merge.go:356:14` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 120 `PERF-1` at `internal/pdf/merge/annotations.go:310:19` (medium): hoist the regex compilation out of the loop and reuse one precompiled matcher.
+- [ ] Finding 121 `PERF-42` at `internal/pdf/merge/merger.go:15:15` (medium): replace static `fmt.Errorf` text with `errors.New`.
+- [ ] Finding 122 `PERF-15` at `internal/pdf/merge/merger.go:415:14` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 123 `PERF-45` at `internal/pdf/merge/parser.go:79:13` (medium): add a realistic capacity hint before appending in the loop.
+- [ ] Finding 124 `PERF-35` at `internal/pdf/merge/split.go:38:17` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 125 `PERF-45` at `internal/pdf/merge/split.go:62:11` (medium): add a realistic capacity hint before appending in the loop.
+- [ ] Finding 126 `PERF-42` at `internal/pdf/merge/split.go:77:15` (medium): replace static `fmt.Errorf` text with `errors.New`.
+- [ ] Finding 127 `PERF-35` at `internal/pdf/metadata.go:120:18` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 128 `PERF-46` at `internal/pdf/metadata.go:205:10` (medium): avoid allocation-heavy trimming when a cheap prefix, suffix, or length guard will do.
+- [ ] Finding 129 `PERF-32` at `internal/pdf/metadata.go:255:19` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 130 `PERF-32` at `internal/pdf/metadata.go:297:27` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 131 `PERF-15` at `internal/pdf/outline.go:174:23` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 132 `PERF-35` at `internal/pdf/outline.go:318:24` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 133 `PERF-32` at `internal/pdf/outline.go:323:49` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 134 `PERF-32` at `internal/pdf/outline.go:357:18` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 135 `PERF-6` at `internal/pdf/outline.go:361:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 136 `PERF-6` at `internal/pdf/outline.go:363:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 137 `PERF-6` at `internal/pdf/outline.go:366:24` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 138 `PERF-6` at `internal/pdf/outline.go:371:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 139 `PERF-6` at `internal/pdf/outline.go:374:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 140 `PERF-6` at `internal/pdf/outline.go:379:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 141 `PERF-6` at `internal/pdf/outline.go:382:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 142 `PERF-6` at `internal/pdf/outline.go:385:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 143 `PERF-6` at `internal/pdf/outline.go:386:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 144 `PERF-6` at `internal/pdf/outline.go:387:25` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 145 `PERF-32` at `internal/pdf/outline.go:391:48` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 146 `PERF-6` at `internal/pdf/outline.go:413:24` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 147 `PERF-6` at `internal/pdf/outline.go:419:24` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 148 `PERF-32` at `internal/pdf/outline.go:469:44` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 149 `PERF-6` at `internal/pdf/outline.go:470:14` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 150 `PERF-15` at `internal/pdf/outline.go:481:27` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 151 `PERF-15` at `internal/pdf/outline.go:485:27` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 152 `PERF-15` at `internal/pdf/outline.go:493:27` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 153 `PERF-32` at `internal/pdf/outline.go:502:45` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 154 `PERF-32` at `internal/pdf/outline.go:509:41` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 155 `PERF-32` at `internal/pdf/pdfa.go:234:34` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 156 `PERF-32` at `internal/pdf/pdfa.go:442:34` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [x] Finding 157 `CWE-328` at `internal/pdf/redact/encryption_inhouse.go:241:9` is already covered by the existing CWE ruleset; exclude it from this performance remediation pass.
+- [x] Finding 158 `CWE-916` at `internal/pdf/redact/encryption_inhouse.go:241:9` is already covered by the existing CWE ruleset; exclude it from this performance remediation pass.
+- [ ] Finding 159 `PERF-48` at `internal/pdf/redact/encryption_inhouse.go:251:28` (medium): add a cheap length or prefix guard before full `bytes.Equal` comparison.
+- [ ] Finding 160 `PERF-46` at `internal/pdf/redact/ocr_adapter.go:36:14` (medium): avoid allocation-heavy trimming when a cheap prefix, suffix, or length guard will do.
+- [ ] Finding 161 `PERF-35` at `internal/pdf/redact/ocr_adapter.go:40:14` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 162 `PERF-6` at `internal/pdf/redact/ocr_adapter.go:112:36` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 163 `PERF-15` at `internal/pdf/redact/ocr_adapter.go:114:49` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 164 `PERF-15` at `internal/pdf/redact/ocr_adapter.go:114:75` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 165 `PERF-55` at `internal/pdf/redact/ocr_adapter.go:139:14` (medium): raise the scanner buffer limit or replace `bufio.Scanner` where larger tokens are expected.
+- [ ] Finding 166 `PERF-47` at `internal/pdf/redact/ocr_adapter.go:147:12` (medium): replace `strings.Split` on the hot path with `Cut`, indexed scanning, or a reusable parser.
+- [ ] Finding 167 `PERF-48` at `internal/pdf/redact/pdf_utils.go:760:14` (medium): add a cheap length or prefix guard before full `bytes.Equal` comparison.
+- [ ] Finding 168 `PERF-6` at `internal/pdf/redact/pdf_utils.go:805:3` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 169 `PERF-35` at `internal/pdf/redact/redactor.go:97:29` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 170 `PERF-46` at `internal/pdf/redact/redactor.go:197:10` (medium): avoid allocation-heavy trimming when a cheap prefix, suffix, or length guard will do.
+- [ ] Finding 171 `PERF-46` at `internal/pdf/redact/search.go:97:11` (medium): avoid allocation-heavy trimming when a cheap prefix, suffix, or length guard will do.
+- [ ] Finding 172 `PERF-15` at `internal/pdf/redact/secure.go:47:42` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 173 `PERF-15` at `internal/pdf/redact/secure.go:54:42` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 174 `PERF-4` at `internal/pdf/redact/secure.go:58:3` (medium): move the map allocation out of the loop or reuse a preallocated map when safe.
+- [ ] Finding 175 `PERF-35` at `internal/pdf/redact/secure.go:97:31` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 176 `PERF-46` at `internal/pdf/redact/secure.go:241:11` (medium): avoid allocation-heavy trimming when a cheap prefix, suffix, or length guard will do.
+- [ ] Finding 177 `PERF-32` at `internal/pdf/redact/secure.go:293:9` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 178 `PERF-15` at `internal/pdf/redact/secure.go:472:20` (medium): replace per-iteration `strconv` formatting with append-based numeric writes using a reusable scratch buffer.
+- [ ] Finding 179 `PERF-35` at `internal/pdf/redact/visual.go:46:16` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 180 `PERF-6` at `internal/pdf/redact/visual.go:53:19` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 181 `PERF-6` at `internal/pdf/redact/visual.go:59:16` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 182 `PERF-32` at `internal/pdf/redact/visual.go:60:21` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 183 `PERF-32` at `internal/pdf/signature/signature.go:66:10` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 184 `PERF-32` at `internal/pdf/signature/signature.go:68:10` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 185 `PERF-32` at `internal/pdf/signature/signature.go:71:11` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 186 `PERF-32` at `internal/pdf/signature/signature.go:83:25` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 187 `PERF-35` at `internal/pdf/signature/signature.go:89:25` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 188 `PERF-32` at `internal/pdf/signature/signature.go:92:28` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 189 `PERF-42` at `internal/pdf/signature/signature.go:94:25` (medium): replace static `fmt.Errorf` text with `errors.New`.
+- [ ] Finding 190 `PERF-32` at `internal/pdf/signature/signature.go:111:31` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 191 `PERF-40` at `internal/pdf/signature/signature.go:221:9` (medium): capture the timestamp once per operation and reuse it instead of calling `time.Now()` repeatedly.
+- [ ] Finding 192 `PERF-32` at `internal/pdf/signature/signature.go:685:63` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 193 `PERF-32` at `internal/pdf/signature/signature.go:703:42` (medium): keep the hot path in one representation and remove repeated `string`/`[]byte` conversions.
+- [ ] Finding 194 `PERF-47` at `internal/pdf/svg/svg.go:237:10` (medium): replace `strings.Split` on the hot path with `Cut`, indexed scanning, or a reusable parser.
+- [ ] Finding 195 `PERF-7` at `pkg/fontutils/fontutils.go:149:4` (medium): remove `defer` from the loop body and close or release resources explicitly.
+- [ ] Finding 196 `PERF-6` at `sampledata/benchmarks/gen_data.go:24:11` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 197 `PERF-35` at `sampledata/benchmarks/gen_data.go:24:11` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 198 `PERF-6` at `sampledata/benchmarks/gen_data.go:25:11` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [x] Finding 199 `CWE-497` at `sampledata/benchmarks/gopdflib/benchconfig.go:55:10` is already covered by the existing CWE ruleset; exclude it from this performance remediation pass.
+- [ ] Finding 200 `PERF-6` at `sampledata/benchmarks/gopdflib/databench_gopdflib.go:66:51` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 201 `PERF-35` at `sampledata/benchmarks/gopdflib/databench_gopdflib.go:66:51` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 202 `PERF-40` at `sampledata/benchmarks/gopdflib/databench_gopdflib.go:138:16` (medium): capture the timestamp once per operation and reuse it instead of calling `time.Now()` repeatedly.
+- [ ] Finding 203 `PERF-7` at `sampledata/benchmarks/gopdflib/databench_gopdflib.go:144:4` (medium): remove `defer` from the loop body and close or release resources explicitly.
+- [ ] Finding 204 `PERF-7` at `sampledata/benchmarks/gopdflib/databench_gopdflib.go:145:4` (medium): remove `defer` from the loop body and close or release resources explicitly.
+- [ ] Finding 205 `PERF-42` at `sampledata/benchmarks/gopdflib/databench_gopdflib.go:173:10` (medium): replace static `fmt.Errorf` text with `errors.New`.
+- [x] Finding 206 `CWE-497` at `sampledata/gopdflib/financial_report/main.go:22:33` is already covered by the existing CWE ruleset; exclude it from this performance remediation pass.
+- [ ] Finding 207 `PERF-36` at `sampledata/gopdflib/financial_report/main.go:87:3` (medium): capture the loop variable into a local before starting the goroutine.
+- [ ] Finding 208 `PERF-7` at `sampledata/gopdflib/financial_report/main.go:88:4` (medium): remove `defer` from the loop body and close or release resources explicitly.
+- [ ] Finding 209 `PERF-40` at `sampledata/gopdflib/financial_report/main.go:90:14` (medium): capture the timestamp once per operation and reuse it instead of calling `time.Now()` repeatedly.
+- [x] Finding 210 `CWE-497` at `sampledata/gopdflib/zerodha/main.go:41:33` is already covered by the existing CWE ruleset; exclude it from this performance remediation pass.
+- [ ] Finding 211 `PERF-6` at `sampledata/gopdflib/zerodha/main.go:100:14` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 212 `PERF-35` at `sampledata/gopdflib/zerodha/main.go:100:14` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.
+- [ ] Finding 213 `PERF-6` at `sampledata/gopdflib/zerodha/main.go:329:52` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 214 `PERF-6` at `sampledata/gopdflib/zerodha/main.go:330:51` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 215 `PERF-6` at `sampledata/gopdflib/zerodha/main.go:331:51` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 216 `PERF-6` at `sampledata/gopdflib/zerodha/main.go:499:52` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 217 `PERF-6` at `sampledata/gopdflib/zerodha/main.go:503:52` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 218 `PERF-6` at `sampledata/gopdflib/zerodha/main.go:504:51` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 219 `PERF-6` at `sampledata/gopdflib/zerodha/main.go:505:51` (medium): replace loop-local `fmt` formatting with direct builder writes or `strconv.Append*`.
+- [ ] Finding 220 `PERF-36` at `sampledata/gopdflib/zerodha/main.go:741:3` (medium): capture the loop variable into a local before starting the goroutine.
+- [ ] Finding 221 `PERF-7` at `sampledata/gopdflib/zerodha/main.go:742:4` (medium): remove `defer` from the loop body and close or release resources explicitly.
+- [ ] Finding 222 `PERF-40` at `sampledata/gopdflib/zerodha/main.go:743:40` (medium): capture the timestamp once per operation and reuse it instead of calling `time.Now()` repeatedly.
+- [ ] Finding 223 `PERF-42` at `sampledata/gopdflib/zerodha/main.go:813:10` (medium): replace static `fmt.Errorf` text with `errors.New`.
+- [ ] Finding 224 `PERF-3` at `typstsyntax/renderer.go:477:3` (medium): stop rebuilding the slice inside the loop; reuse the slice or preallocate once.
+- [ ] Finding 225 `PERF-46` at `typstsyntax/renderer.go:669:33` (medium): avoid allocation-heavy trimming when a cheap prefix, suffix, or length guard will do.
+- [ ] Finding 226 `PERF-35` at `typstsyntax/renderer.go:1256:9` (medium): replace boxed `fmt.Sprintf` or `fmt.Errorf` usage with direct builders, `strconv`, or static errors.

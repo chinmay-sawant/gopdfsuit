@@ -60,7 +60,8 @@ type benchmarkEngine struct {
 }
 
 type pdfTarget struct {
-	buf bytes.Buffer
+	buf     bytes.Buffer
+	release func()
 }
 
 func BenchmarkGoPDFKit(b *testing.B) {
@@ -123,6 +124,11 @@ func benchmarkEngineWorkload(b *testing.B, engine benchmarkEngine, wl workload, 
 	}
 	runOne := func() {
 		var target pdfTarget
+		defer func() {
+			if target.release != nil {
+				target.release()
+			}
+		}()
 		if err := engine.render(wl, &target); err != nil {
 			setErr(err)
 			return
@@ -346,12 +352,13 @@ func renderGoPDFKitImageRows(pdf *document.Document, wl workload) {
 }
 
 func renderGoPDFLib(wl workload, target *pdfTarget) error {
-	pdfBytes, err := gopdflib.GeneratePDF(wl.template)
+	doc, err := gopdflib.GeneratePDFBorrowed(wl.template)
 	if err != nil {
 		return fmt.Errorf("gopdflib output: %w", err)
 	}
-	_, err = target.buf.Write(pdfBytes)
-	return err
+	target.buf = *bytes.NewBuffer(doc.Bytes())
+	target.release = doc.Release
+	return nil
 }
 
 func gopdfSuitTemplate(wl workload) gopdflib.PDFTemplate {

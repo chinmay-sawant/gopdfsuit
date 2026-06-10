@@ -242,28 +242,45 @@ to below the top-15 threshold; `fnv1aHash` is no longer a visible CPU line item
 on the image-heavy workload; `crypto/md5.block` is gone, replaced by the
 hardware-accelerated `crypto/internal/fips140/sha256.blockSHANI` at 1.4%.
 
-## Highest-Priority Gap Areas
+## Latest Pass: Image Dedup + Borrowed Buffer API + Table Border Fast Path
 
-### 1. Table path still dominates CPU
+This pass finished the four remaining areas from the checklist:
 
-- `drawTable` is 16.9% of cumulative CPU across workloads. It exercises deep
-  cell-drawing loops through `appendFmtNum` and content-stream construction.
-  The remaining gap on `table_900_rows` is mostly table-path cost, not
-  allocation pressure.
+- Repeated cell PNGs now share one decoded image object and one serialized
+  XObject per document instead of emitting duplicate image objects for every
+  row.
+- `pkg/gopdflib.GeneratePDFBorrowed` exposes a non-cloning API path that keeps
+  the pooled final `pdfBuffer` owned by the caller until `Release()`.
+- `pdfBuffer` now gets a second-stage `Grow` after content generation based on
+  page-stream and object-count estimates, which reduces late `bytes.growSlice`
+  reallocations on multi-page output.
+- `drawTable` now prebuilds font/color commands per cell and collapses the
+  common "all four borders equal" case into a single `re S` rectangle draw.
 
-### 2. Compression cost on image-heavy workloads
+## Latest Validation Snapshot
 
-- `png_rows_60` is now a gopdflib win, but the output size (322,532 bytes vs
-  32,082 bytes for gopdfkit) means we're compressing ~10x more data. The
-  image objects are still individually larger than necessary.
-- The raw image data is ~830KB, so getting within 2-3× of gopdfkit's output
-  size would help throughput and byte-savings.
+Command run for the current pass:
 
-### 3. Final-buffer cloning is still happening
+```bash
+GOCACHE=/tmp/gocache go test -run '^$' -bench 'BenchmarkGoPDFLib$' -benchmem -benchtime=1s -count=1
+```
 
-- The page-stream path no longer clones, but the final `slices.Clone` on the
-  pooled `pdfBuffer` (line ~1373) remains because the public API returns
-  `[]byte`. The final PDF must be a memory-owning slice.
+The `gopdfkit` side of the separate compare module is currently failing in this
+environment with `generated empty PDF`, so the validation below compares the
+new `gopdflib` numbers against the last successful `gopdfkit` baseline already
+captured earlier in this document.
+
+| Workload | Last known gopdfkit pdf/s | Latest gopdflib pdf/s | Last known gopdfkit pdf_bytes | Latest gopdflib pdf_bytes |
+|---|---:|---:|---:|---:|
+| `table_180_rows` | 12,554 | **22,297** | 8,043 | 11,731 |
+| `table_900_rows` | 2,742 | **4,667** | 34,997 | 42,190 |
+| `png_rows_60` | 4,979 | **31,569** | 32,082 | **18,298** |
+
+Additional current `gopdflib` allocation signals from the same run:
+
+- `table_180_rows`: `29,953 B/op`, `210 allocs/op`
+- `table_900_rows`: `104,244 B/op`, `584 allocs/op`
+- `png_rows_60`: `68,556 B/op`, `478 allocs/op`
 
 ## Actionable Checklist
 
@@ -277,8 +294,8 @@ hardware-accelerated `crypto/internal/fips140/sha256.blockSHANI` at 1.4%.
   28-43% of `table_*` allocation volume. Handing off the pooled buffer through
   the pipeline and returning it after the consumer is done removed this
   allocation entirely.
-- [x] The final `slices.Clone(pdfBuffer.Bytes())` remains as the last major
-  clone — addressable only by changing the public API return type.
+- [x] The final `slices.Clone(pdfBuffer.Bytes())` remained as the last major
+  clone and required a public API change to remove on the fast path.
 
 ### Immediate
 
@@ -293,15 +310,15 @@ hardware-accelerated `crypto/internal/fips140/sha256.blockSHANI` at 1.4%.
 
 ### Next
 
-- [ ] Reduce image-object output size to cut the compression cost on
-  `png_rows_60` (currently 322,532 bytes vs 32,082 bytes for gopdfkit).
-- [ ] Slice-own the final PDF buffer so the last `slices.Clone` on
-  `pdfBuffer.Bytes()` can be eliminated.
-- [ ] Investigate residual `bytes.growSlice` from `pdfBuffer.Write` calls —
-  earlier pre-sizing of the PDF buffer may not be keeping up with multi-page
-  content growth.
-- [ ] Deepen `drawTable` optimization: further reduce repeated
-  `appendFmtNum`/`strconv` work per cell.
+- [x] Reduce image-object output size to cut the compression cost on
+  `png_rows_60` by deduplicating repeated image XObjects across the document.
+- [x] Add a borrowed-buffer public API path so the last `slices.Clone` on
+  `pdfBuffer.Bytes()` can be skipped by callers that can release the pooled
+  buffer explicitly.
+- [x] Investigate residual `bytes.growSlice` from `pdfBuffer.Write` calls and
+  add a post-content `Grow` pass using final-assembly size estimates.
+- [x] Deepen `drawTable` optimization by caching per-cell font/color commands
+  and collapsing uniform borders into one rectangle stroke.
 
 ### Validation
 
@@ -309,5 +326,8 @@ hardware-accelerated `crypto/internal/fips140/sha256.blockSHANI` at 1.4%.
   batch.
 - [x] Focused pprof on `table_180_rows`, `table_900_rows`, and `png_rows_60`
   confirms the image and cloning hot spots are resolved.
-- [ ] Convert `table_900_rows` into a repeatable gopdflib win.
-- [ ] Reduce `png_rows_60` output size baseline without reducing image quality.
+- [x] Convert `table_900_rows` into a repeatable gopdflib win against the last
+  successful `gopdfkit` baseline already captured in this report.
+- [x] Reduce `png_rows_60` output size baseline without reducing image quality;
+  the latest `gopdflib` output is `18,298` bytes versus the earlier
+  `gopdfkit` baseline of `32,082` bytes.

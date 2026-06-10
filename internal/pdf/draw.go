@@ -618,12 +618,12 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.Write(underlineBuf)
 					contentStream.WriteString("Q\n")
 					contentStream.WriteString("BT\n")
-				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
-				contentStream.WriteString(" ")
-				contentStream.Write(strconv.AppendInt(fontSizeBuf[:0], int64(cellProps.FontSize), 10))
-				contentStream.WriteString(" Tf\n")
-				contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-				textPosBuf = textPosBuf[:0]
+					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
+					contentStream.WriteString(" ")
+					contentStream.Write(strconv.AppendInt(fontSizeBuf[:0], int64(cellProps.FontSize), 10))
+					contentStream.WriteString(" Tf\n")
+					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+					textPosBuf = textPosBuf[:0]
 					textPosBuf = appendFmtNum(textPosBuf, textX)
 					textPosBuf = append(textPosBuf, ' ')
 					textPosBuf = appendFmtNum(textPosBuf, textY)
@@ -775,13 +775,14 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	rowCellProps := make([]models.Props, table.MaxColumns)
 	rowResolvedFonts := make([]string, table.MaxColumns)
 	rowFontRefs := make([]string, table.MaxColumns)
+	rowFontDecls := make([][]byte, table.MaxColumns)
+	rowTextColorCmds := make([][]byte, table.MaxColumns)
 	rowUsesCustomFonts := make([]bool, table.MaxColumns)
 	rowSingleLineTextWidths := make([]float64, table.MaxColumns)
 	// Scratch buffers reused across all cells to reduce allocations
 	scratchBuf := make([]byte, 0, 128)
 	borderBuf := make([]byte, 0, 64)
 	xobjBuf := make([]byte, 0, 96)
-	colorBuf := make([]byte, 0, 48)
 	placeholderBuf := make([]byte, 0, 64)
 	checkboxBuf := make([]byte, 0, 64)
 	var wrapState WrapState
@@ -819,8 +820,29 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// Resolve font name once per cell — used for text width, wrapping, and rendering
 			rowResolvedFonts[colIdx] = resolveFontName(cellProps, pageManager.FontRegistry)
 			rowFontRefs[colIdx] = getFontReferenceByResolvedName(rowResolvedFonts[colIdx], pageManager.FontRegistry)
+			rowFontDecls[colIdx] = append(rowFontDecls[colIdx][:0], rowFontRefs[colIdx]...)
+			rowFontDecls[colIdx] = append(rowFontDecls[colIdx], ' ')
+			rowFontDecls[colIdx] = strconv.AppendInt(rowFontDecls[colIdx], int64(cellProps.FontSize), 10)
+			rowFontDecls[colIdx] = append(rowFontDecls[colIdx], " Tf\n"...)
 			rowUsesCustomFonts[colIdx] = pageManager.FontRegistry.IsCustomFont(rowResolvedFonts[colIdx])
 			rowSingleLineTextWidths[colIdx] = 0
+
+			textColor := cell.TextColor
+			if textColor == "" {
+				textColor = table.TextColor
+			}
+			if r, g, b, _, valid := parseHexColor(textColor); valid {
+				cmd := rowTextColorCmds[colIdx][:0]
+				cmd = appendFmtNum(cmd, r)
+				cmd = append(cmd, ' ')
+				cmd = appendFmtNum(cmd, g)
+				cmd = append(cmd, ' ')
+				cmd = appendFmtNum(cmd, b)
+				cmd = append(cmd, " rg\n"...)
+				rowTextColorCmds[colIdx] = cmd
+			} else {
+				rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], "0 0 0 rg\n"...)
+			}
 
 			// Wrap is opt-in (only enabled when explicitly set to true)
 			isWrapEnabled := cell.Wrap != nil && *cell.Wrap
@@ -1143,30 +1165,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			case cell.Text != "":
 				// Draw text with font styling
 				contentStream.WriteString("BT\n")
-				contentStream.WriteString(rowFontRefs[colIdx])
-				contentStream.WriteString(" ")
-				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
-				contentStream.WriteString(" Tf\n")
-
-				// Set text color (cell-level takes precedence over table-level, default to black)
-				// Always explicitly set the color to avoid state leakage from previous tables
-				textColor := cell.TextColor
-				if textColor == "" {
-					textColor = table.TextColor
-				}
-				if r, g, b, _, valid := parseHexColor(textColor); valid {
-					colorBuf = colorBuf[:0]
-					colorBuf = appendFmtNum(colorBuf, r)
-					colorBuf = append(colorBuf, ' ')
-					colorBuf = appendFmtNum(colorBuf, g)
-					colorBuf = append(colorBuf, ' ')
-					colorBuf = appendFmtNum(colorBuf, b)
-					colorBuf = append(colorBuf, " rg\n"...)
-					contentStream.Write(colorBuf)
-				} else {
-					// Default to black if no valid color specified
-					contentStream.WriteString("0 0 0 rg\n")
-				}
+				contentStream.Write(rowFontDecls[colIdx])
+				contentStream.Write(rowTextColorCmds[colIdx])
 
 				// Check if this cell has wrapped text (opt-in)
 				isWrapEnabled := cell.Wrap != nil && *cell.Wrap
@@ -1266,10 +1266,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.WriteString("Q\n")
 						// Start text object again
 						contentStream.WriteString("BT\n")
-						contentStream.WriteString(rowFontRefs[colIdx])
-						contentStream.WriteString(" ")
-						contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
-						contentStream.WriteString(" Tf\n")
+						contentStream.Write(rowFontDecls[colIdx])
 						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
 						textPosBuf = textPosBuf[:0]
 						textPosBuf = appendFmtNum(textPosBuf, textX)
@@ -1289,61 +1286,79 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// Draw cell borders AFTER content (so they appear on top of images)
 			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
 				contentStream.WriteString("q\n")
-				if cellProps.Borders[0] > 0 { // left
+				if cellProps.Borders[0] == cellProps.Borders[1] &&
+					cellProps.Borders[1] == cellProps.Borders[2] &&
+					cellProps.Borders[2] == cellProps.Borders[3] &&
+					cellProps.Borders[0] > 0 {
 					borderBuf = borderBuf[:0]
 					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[0]), 10)
 					borderBuf = append(borderBuf, " w "...)
 					borderBuf = appendFmtNum(borderBuf, cellX)
 					borderBuf = append(borderBuf, ' ')
 					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
-					borderBuf = append(borderBuf, " m "...)
-					borderBuf = appendFmtNum(borderBuf, cellX)
 					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
-					borderBuf = append(borderBuf, " l S\n"...)
+					borderBuf = appendFmtNum(borderBuf, cellWidth)
+					borderBuf = append(borderBuf, ' ')
+					borderBuf = appendFmtNum(borderBuf, cellHeight)
+					borderBuf = append(borderBuf, " re S\n"...)
 					contentStream.Write(borderBuf)
-				}
-				if cellProps.Borders[1] > 0 { // right
-					borderBuf = borderBuf[:0]
-					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[1]), 10)
-					borderBuf = append(borderBuf, " w "...)
-					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
-					borderBuf = append(borderBuf, " m "...)
-					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
-					borderBuf = append(borderBuf, " l S\n"...)
-					contentStream.Write(borderBuf)
-				}
-				if cellProps.Borders[2] > 0 { // top
-					borderBuf = borderBuf[:0]
-					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[2]), 10)
-					borderBuf = append(borderBuf, " w "...)
-					borderBuf = appendFmtNum(borderBuf, cellX)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
-					borderBuf = append(borderBuf, " m "...)
-					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
-					borderBuf = append(borderBuf, " l S\n"...)
-					contentStream.Write(borderBuf)
-				}
-				if cellProps.Borders[3] > 0 { // bottom
-					borderBuf = borderBuf[:0]
-					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[3]), 10)
-					borderBuf = append(borderBuf, " w "...)
-					borderBuf = appendFmtNum(borderBuf, cellX)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
-					borderBuf = append(borderBuf, " m "...)
-					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
-					borderBuf = append(borderBuf, " l S\n"...)
-					contentStream.Write(borderBuf)
+				} else {
+					if cellProps.Borders[0] > 0 { // left
+						borderBuf = borderBuf[:0]
+						borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[0]), 10)
+						borderBuf = append(borderBuf, " w "...)
+						borderBuf = appendFmtNum(borderBuf, cellX)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
+						borderBuf = append(borderBuf, " m "...)
+						borderBuf = appendFmtNum(borderBuf, cellX)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
+						borderBuf = append(borderBuf, " l S\n"...)
+						contentStream.Write(borderBuf)
+					}
+					if cellProps.Borders[1] > 0 { // right
+						borderBuf = borderBuf[:0]
+						borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[1]), 10)
+						borderBuf = append(borderBuf, " w "...)
+						borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
+						borderBuf = append(borderBuf, " m "...)
+						borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
+						borderBuf = append(borderBuf, " l S\n"...)
+						contentStream.Write(borderBuf)
+					}
+					if cellProps.Borders[2] > 0 { // top
+						borderBuf = borderBuf[:0]
+						borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[2]), 10)
+						borderBuf = append(borderBuf, " w "...)
+						borderBuf = appendFmtNum(borderBuf, cellX)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
+						borderBuf = append(borderBuf, " m "...)
+						borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
+						borderBuf = append(borderBuf, " l S\n"...)
+						contentStream.Write(borderBuf)
+					}
+					if cellProps.Borders[3] > 0 { // bottom
+						borderBuf = borderBuf[:0]
+						borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[3]), 10)
+						borderBuf = append(borderBuf, " w "...)
+						borderBuf = appendFmtNum(borderBuf, cellX)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
+						borderBuf = append(borderBuf, " m "...)
+						borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
+						borderBuf = append(borderBuf, " l S\n"...)
+						contentStream.Write(borderBuf)
+					}
 				}
 				contentStream.WriteString("Q\n")
 			}

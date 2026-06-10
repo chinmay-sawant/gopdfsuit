@@ -5,6 +5,8 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
 )
 
+type BorrowedPDF = pdf.BorrowedPDF
+
 // GeneratePDF creates a PDF document from a template and returns the PDF bytes.
 //
 // Example usage:
@@ -42,6 +44,12 @@ import (
 //	os.WriteFile("output.pdf", pdfBytes, 0644)
 func GeneratePDF(template PDFTemplate) ([]byte, error) {
 	return pdf.GenerateTemplatePDF(template)
+}
+
+// GeneratePDFBorrowed creates a PDF document without cloning the final pooled
+// assembly buffer. Call Release when the bytes are no longer needed.
+func GeneratePDFBorrowed(template PDFTemplate) (*BorrowedPDF, error) {
+	return pdf.GenerateTemplatePDFBorrowed(template)
 }
 
 // GetAvailableFonts returns a list of available fonts for PDF generation.
