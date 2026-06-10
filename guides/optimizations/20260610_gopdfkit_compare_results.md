@@ -12,8 +12,8 @@ GOCACHE=/tmp/go1264-bench /home/chinmay/go/bin/go1.26.4 test -run '^$' -bench 'B
 
 ## Summary
 
-`gopdflib` is currently faster on `6/7` workloads in the shared comparison harness.
-`GoPDFKit` still leads on `table_900_rows`.
+`gopdflib` is currently faster on `5/7` workloads in the shared comparison harness.
+`GoPDFKit` still leads on `table_180_rows` and `table_900_rows`.
 
 ## Updated Summary After Profile-Backed Fixes
 
@@ -130,7 +130,8 @@ After pooling page content buffers in the library and caching prebuilt `gopdflib
 
 ## What This Means
 
-- `gopdflib` now wins 6/7 workloads. The only remaining GoPDFKit win is `table_900_rows`.
+- `gopdflib` now wins 5/7 workloads in the latest run.
+- `GoPDFKit` still leads on `table_180_rows` and `table_900_rows`.
 - Allocation volume has dropped 20-40% on most workloads since the original baseline.
 - The biggest remaining gaps are `drawTable` CPU cost and image-byte inflation on `png_rows_60`.
 
@@ -188,6 +189,21 @@ After pooling page content buffers in the library and caching prebuilt `gopdflib
 | `invoice_40_rows` | 36,144 | 44,504 | +23.1% |
 | `png_table_180_rows` | 11,103 | 12,574 | +13.3% |
 | `png_rows_60` | 4,852 | 6,991 | +44.1% |
+
+## Current Standing (go1.26.4, 40 workers, benchtime=3s)
+
+| Workload | gopdflib pdf/s | gopdfkit pdf/s | gopdflib B/op | gopdfkit B/op | gopdflib pdf_bytes | gopdfkit pdf_bytes |
+|---|---:|---:|---:|---:|---:|---:|
+| `text_short` | **174,763** | 125,921 | 30,123 | 33,445 | 4,303 | 1,505 |
+| `text_240_lines` | **15,994** | 14,485 | 58,987 | 303,565 | 13,074 | 4,706 |
+| `table_180_rows` | 11,548 | **12,554** | 77,900 | 372,920 | 22,885 | 8,043 |
+| `table_900_rows` | 2,563 | **2,742** | 284,346 | 1,782,175 | 97,915 | 34,997 |
+| `invoice_40_rows` | **44,504** | 34,957 | 41,461 | 102,597 | 8,633 | 3,232 |
+| `png_table_180_rows` | **12,574** | 6,929 | 91,674 | 583,793 | 28,500 | 15,784 |
+| `png_rows_60` | **6,991** | 4,979 | 1,100,963 | 659,269 | 322,532 | 32,082 |
+
+gopdflib wins **5/7** workloads. The two remaining GoPDFKit wins are
+`table_180_rows` (9% margin) and `table_900_rows` (7% margin).
 
 ## What Changed After The Buffer Clone & Image Cache Pass
 
