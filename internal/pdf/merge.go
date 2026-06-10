@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -39,11 +40,14 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		body []byte
 	}
 
+	pagesRe := regexp.MustCompile(`/Pages\s+(\d+)\s+(\d+)\s+R`)
+	kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
+
 	// Process files in the exact order they arrive
 	for _, f := range files {
 		// Reject encrypted PDFs for now
 		if trailerHasEncrypt(f) {
-			return nil, fmt.Errorf("cannot merge encrypted PDF")
+			return nil, errors.New("cannot merge encrypted PDF")
 		}
 
 		// Build object map using same approach as DetectFormFieldsAdvanced
@@ -52,7 +56,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 			continue
 		}
 
-		objMap := make(map[int][]byte)
+		objMap := make(map[int][]byte, len(objMatches))
 		maxObj := 0
 		for _, m := range objMatches {
 			if n, err := strconv.Atoi(string(m[1])); err == nil {
@@ -66,7 +70,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		}
 
 		// Allow parseXRefStreams to augment object map (it operates on raw bytes in this package)
-		tempObjMap := make(map[string][]byte)
+		tempObjMap := make(map[string][]byte, 64)
 		parseXRefStreams(f, tempObjMap)
 		// merge tempObjMap into objMap (keys are like "<num> <gen>")
 		for k, v := range tempObjMap {
@@ -88,14 +92,11 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 			var rootNum, rootGen int
 			if _, err := fmt.Sscanf(rootRef, "%d %d", &rootNum, &rootGen); err == nil {
 				if rootBody, ok2 := objMap[rootNum]; ok2 {
-					pagesRe := regexp.MustCompile(`/Pages\s+(\d+)\s+(\d+)\s+R`)
 					if pm := pagesRe.FindSubmatch(rootBody); pm != nil {
 						if pnum, err := strconv.Atoi(string(pm[1])); err == nil {
 							if pagesBody, ok3 := objMap[pnum]; ok3 {
-								kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
 								if km := kidsRe.FindSubmatch(pagesBody); km != nil {
-									refReLocal := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-									for _, r := range refReLocal.FindAllSubmatch(km[1], -1) {
+									for _, r := range refRe.FindAllSubmatch(km[1], -1) {
 										if pn, err := strconv.Atoi(string(r[1])); err == nil {
 											pagesFromTree = append(pagesFromTree, pn)
 										}
@@ -190,6 +191,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	out.WriteString(fmt.Sprintf("2 0 obj\n<< /Type /Pages /Kids [%s] /Count %d >>\nendobj\n", kidsStr, len(mergedPages)))
 
 	// Append all remapped objects in the order they were processed
+	parentRe := regexp.MustCompile(`/Parent\s+\d+\s+\d+\s+R`)
 	for _, a := range appended {
 		offsets[a.num] = out.Len()
 		var b []byte
@@ -206,7 +208,6 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 				body = addParentRef(body, 2)
 			} else {
 				// Update existing parent reference to point to our Pages object
-				parentRe := regexp.MustCompile(`/Parent\s+\d+\s+\d+\s+R`)
 				body = parentRe.ReplaceAll(body, []byte("/Parent 2 0 R"))
 			}
 		}
@@ -223,10 +224,20 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		}
 	}
 	xrefStart := out.Len()
-	out.WriteString(fmt.Sprintf("xref\n0 %d\n0000000000 65535 f \n", maxObj+1))
+	out.WriteString("xref\n0 ")
+	var xrefBuf [20]byte
+	xrefNum := strconv.AppendInt(xrefBuf[:0], int64(maxObj+1), 10)
+	out.Write(xrefNum)
+	out.WriteString("\n0000000000 65535 f \n")
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			out.WriteString(fmt.Sprintf("%010d 00000 n \n", off))
+			var xrefLineBuf [20]byte
+			xrefLineNum := strconv.AppendInt(xrefLineBuf[:0], int64(off), 10)
+			for i := len(xrefLineNum); i < 10; i++ {
+				out.WriteByte('0')
+			}
+			out.Write(xrefLineNum)
+			out.WriteString(" 00000 n \n")
 		} else {
 			out.WriteString("0000000000 65535 f \n")
 		}

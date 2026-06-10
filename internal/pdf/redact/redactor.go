@@ -192,7 +192,10 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		SecurityOutcome: "visual_only",
 	}
 
-	mode := strings.TrimSpace(strings.ToLower(opts.Mode))
+	mode := strings.ToLower(opts.Mode)
+	if len(mode) > 0 && (mode[0] == ' ' || mode[len(mode)-1] == ' ') {
+		mode = strings.TrimSpace(mode)
+	}
 	if mode == "" {
 		mode = "visual_allowed" //nolint:goconst
 	}

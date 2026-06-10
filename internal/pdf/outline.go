@@ -3,6 +3,8 @@ package pdf
 import (
 	"encoding/hex"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -169,7 +171,7 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 
 		// PDF/UA-2: Generate unique destination key and register named destination
 		// This allows using /Dest (name) instead of /A << /S /GoTo ... >>
-		destKey := fmt.Sprintf("_bm_%d", len(ob.outlineItems))
+		destKey := "_bm_" + strconv.Itoa(len(ob.outlineItems))
 		item.DestKey = destKey
 
 		nd := NamedDest{
@@ -441,14 +443,7 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	for name := range ob.pageManager.NamedDests {
 		names = append(names, name)
 	}
-	// Simple sort
-	for i := 0; i < len(names)-1; i++ {
-		for j := i + 1; j < len(names); j++ {
-			if names[i] > names[j] {
-				names[i], names[j] = names[j], names[i]
-			}
-		}
-	}
+	sort.Strings(names)
 
 	// Create Dests name tree object ID upfront for encryption key generation
 	destsTreeID := ob.pageManager.NextObjectID
@@ -474,19 +469,31 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 			encrypted := ob.encryptor.EncryptString([]byte(name), destsTreeID, 0)
 			nameStr = fmt.Sprintf("<%s>", hex.EncodeToString(encrypted))
 		} else {
-			nameStr = fmt.Sprintf("(%s)", escapeText(name))
+			nameStr = "(" + escapeText(name) + ")"
 		}
 
 		// PDF/UA-2: Output as dictionary with both /D and /SD keys
 		// /D is the page-based destination (for compatibility)
 		// /SD is the structure destination (required for PDF/UA-2)
 		if dest.StructElemID > 0 {
-			namesArray.WriteString(fmt.Sprintf("%s << /D [%d 0 R /XYZ null %s null] /SD [%d 0 R /XYZ null %s null] >>",
-				nameStr, pageObjID, fmtNum(dest.Y), dest.StructElemID, fmtNum(dest.Y)))
+			namesArray.WriteString(nameStr)
+			namesArray.WriteString(" << /D [")
+			namesArray.WriteString(strconv.Itoa(pageObjID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.WriteString(" null] /SD [")
+			namesArray.WriteString(strconv.Itoa(dest.StructElemID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.WriteString(" null] >>")
 		} else {
 			// Fallback for destinations without structure element (not fully PDF/UA-2 compliant)
-			namesArray.WriteString(fmt.Sprintf("%s [%d 0 R /XYZ null %s null]",
-				nameStr, pageObjID, fmtNum(dest.Y)))
+			namesArray.WriteString(nameStr)
+			namesArray.WriteString(" [")
+			namesArray.WriteString(strconv.Itoa(pageObjID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(fmtNum(dest.Y))
+			namesArray.WriteString(" null]")
 		}
 	}
 	namesArray.WriteString("]")

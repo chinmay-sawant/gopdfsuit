@@ -92,7 +92,10 @@ func (r *Redactor) FindTextOccurrencesMulti(searchTexts []string) ([]models.Reda
 	seenTerms := make(map[string]struct{}, len(searchTexts))
 	all := make([]models.RedactionRect, 0, len(searchTexts)*4)
 	for _, raw := range searchTexts {
-		term := strings.TrimSpace(raw)
+		term := raw
+		if len(term) > 0 && (term[0] == ' ' || term[len(term)-1] == ' ') {
+			term = strings.TrimSpace(term)
+		}
 		if term == "" {
 			continue
 		}
@@ -259,6 +262,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 	}
 
 	var lines []lineGroup
+	var buildBuf strings.Builder
 	for _, pos := range ordered {
 		lineH := pos.Height
 		if lineH <= 0 {
@@ -277,18 +281,22 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 					placed = true
 					break
 				}
+				buildBuf.Reset()
+				buildBuf.WriteString(lines[li].joined)
 				var startOff int
-				if lines[li].joined == "" {
+				if buildBuf.Len() == 0 {
 					startOff = 0
-					lines[li].joined = part
+					buildBuf.WriteString(part)
 				} else {
-					startOff = len(lines[li].joined) + 1
-					lines[li].joined += " " + part
+					startOff = buildBuf.Len() + 1
+					buildBuf.WriteString(" ")
+					buildBuf.WriteString(part)
 				}
+				lines[li].joined = buildBuf.String()
 				lines[li].spans = append(lines[li].spans, tokenSpan{
 					pos:   pos,
 					start: startOff,
-					end:   len(lines[li].joined),
+					end:   buildBuf.Len(),
 				})
 				placed = true
 				break

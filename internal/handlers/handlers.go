@@ -107,8 +107,16 @@ func RegisterRoutes(router *gin.Engine) {
 	base := getProjectRoot()
 
 	// Serve static assets from Vite build (matching the base path in vite.config.js)
-	router.Static("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
-	router.Static("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
+	// Add cache headers for static assets
+	staticWithCache := func(relativePath, root string) {
+		handler := http.FileServer(http.Dir(root))
+		router.GET(relativePath+"/*filepath", func(c *gin.Context) {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			handler.ServeHTTP(c.Writer, c.Request)
+		})
+	}
+	staticWithCache("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
+	staticWithCache("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
 
 	// API endpoints - protected with Google OAuth when running on Cloud Run
 	v1 := router.Group("/api/v1")
@@ -209,7 +217,11 @@ func handleGetTemplateData(c *gin.Context) {
 	// project root so files at repository root are found when running the
 	// server from cmd/gopdfsuit.
 	filename = filepath.Base(filename)
-	filePath := filepath.Join(getProjectRoot(), filename)
+	filePath := filepath.Clean(filepath.Join(getProjectRoot(), filename))
+	if !strings.HasPrefix(filePath, filepath.Clean(getProjectRoot())) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file path"})
+		return
+	}
 
 	// Read the JSON file
 	data, err := os.ReadFile(filePath)
@@ -272,7 +284,7 @@ func handleUploadFont(c *gin.Context) {
 	}
 
 	// Register font
-	fontName := strings.TrimSuffix(file.Filename, filepath.Ext(file.Filename))
+	fontName := file.Filename[:len(file.Filename)-len(ext)]
 	err = pdf.GetFontRegistry().RegisterFontFromData(fontName, data)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to register font: " + err.Error()})

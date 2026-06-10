@@ -201,9 +201,11 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 		xmp.WriteString("\n")
 		keywords := strings.Split(h.config.Keywords, ",")
 		for _, kw := range keywords {
-			kw = strings.TrimSpace(kw)
+			if len(kw) > 0 && (kw[0] == ' ' || kw[len(kw)-1] == ' ') {
+				kw = strings.TrimSpace(kw)
+			}
 			if kw != "" {
-				xmp.WriteString(fmt.Sprintf(`          <rdf:li>%s</rdf:li>`, escapeXML(kw)))
+				xmp.WriteString(`          <rdf:li>` + escapeXML(kw) + `</rdf:li>`)
 				xmp.WriteString("\n")
 			}
 		}

@@ -2,6 +2,7 @@
 package benchmarktemplates
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -107,7 +108,7 @@ func RunSingleDocumentBenchmark(name string) error {
 	memWg.Wait()
 
 	if len(durations) == 0 {
-		return fmt.Errorf("no successful runs")
+		return errors.New("no successful runs")
 	}
 
 	sort.Float64s(durations)

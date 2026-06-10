@@ -13,6 +13,8 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
+var formSubtypeRe = regexp.MustCompile(`/Subtype\s*/Form(\b|\s|/)`)
+
 func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
 	objMap := r.objMap
 	objGen := r.objGen
@@ -42,14 +44,14 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 	for pageNum, rects := range redactionsByPage {
 		pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("page %d: %v", pageNum, err))
+			warnings = append(warnings, "page " + strconv.Itoa(pageNum) + ": " + err.Error())
 			continue
 		}
 		pageBody := objMap[pageObjNum]
 		keys := extractContentKeys(pageBody)
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
-			warnings = append(warnings, fmt.Sprintf("page %d: no content streams", pageNum))
+			warnings = append(warnings, "page " + strconv.Itoa(pageNum) + ": no content streams")
 			continue
 		}
 
@@ -108,7 +110,7 @@ func rewriteSecureStreamTree(objMap map[int][]byte, streamObjNum int, resources 
 			continue
 		}
 		// Only recurse into Form XObjects where text content commonly lives.
-		if !regexp.MustCompile(`/Subtype\s*/Form(\b|\s|/)`).Match(childBody) {
+		if !formSubtypeRe.Match(childBody) {
 			continue
 		}
 		childResources := extractResourcesBody(childBody, objMap)
@@ -211,7 +213,7 @@ func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, 
 	newObj = append(newObj, streamObj[end:]...)
 
 	lenRe := regexp.MustCompile(`/Length\s+(?:\d+\s+\d+\s+R|\d+)`)
-	newObj = lenRe.ReplaceAll(newObj, []byte(fmt.Sprintf("/Length %d", len(encoded))))
+	newObj = lenRe.ReplaceAll(newObj, 	[]byte("/Length " + strconv.Itoa(len(encoded))))
 
 	return newObj, true, nil
 }
@@ -234,7 +236,10 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 	for _, m := range matches {
 		out.WriteString(src[last:m[0]])
 		op := src[m[0]:m[1]]
-		text := strings.TrimSpace(extractTextFromOperator(op))
+		text := extractTextFromOperator(op)
+		if len(text) > 0 && (text[0] == ' ' || text[len(text)-1] == ' ') {
+			text = strings.TrimSpace(text)
+		}
 		if text == "" {
 			out.WriteString(op)
 			last = m[1]
@@ -368,6 +373,14 @@ func replaceCaseInsensitiveWithSpaces(s, term string) string {
 	return string(b)
 }
 
+func writeHexUint16(sb *strings.Builder, v uint16) {
+	const digits = "0123456789ABCDEF"
+	sb.WriteByte(digits[(v>>12)&0xF])
+	sb.WriteByte(digits[(v>>8)&0xF])
+	sb.WriteByte(digits[(v>>4)&0xF])
+	sb.WriteByte(digits[v&0xF])
+}
+
 // buildRedactionTJArray constructs a TJ array operator that uses kerning
 // adjustments so that text remaining after redaction stays in position.
 // Each removed character is replaced by a kern of -520 units (matching
@@ -383,7 +396,7 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			var sb strings.Builder
 			sb.WriteString("<")
 			for _, r := range redacted {
-				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+				writeHexUint16(&sb, uint16(r))
 			}
 			sb.WriteString("> Tj")
 			return sb.String()
@@ -405,7 +418,7 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			var sb strings.Builder
 			sb.WriteString("<")
 			for _, r := range redacted {
-				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+				writeHexUint16(&sb, uint16(r))
 			}
 			sb.WriteString("> Tj")
 			return sb.String()
@@ -456,12 +469,13 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			estWidth := estimateStringWidth(seg.removed, 1000)
 			// Negative value = advance cursor to the right.
 			kern := -int(math.Round(estWidth))
-			_, _ = fmt.Fprintf(&out, "%d ", kern)
+			out.WriteString(strconv.Itoa(kern))
+			out.WriteByte(' ')
 		} else {
 			if isHex {
 				out.WriteString("<")
 				for _, r := range seg.text {
-					_, _ = fmt.Fprintf(&out, "%04X", uint16(r))
+					writeHexUint16(&out, uint16(r))
 				}
 				out.WriteString("> ")
 			} else {

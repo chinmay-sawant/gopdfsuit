@@ -435,6 +435,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			} else {
 				cellProps = parseProps(cell.Props)
 			}
+			var fontSizeBuf [12]byte
 			cellX := currentX
 
 			// Use cell-specific width if provided, otherwise use column width
@@ -551,7 +552,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				contentStream.WriteString("BT\n")
 				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 				contentStream.WriteString(" ")
-				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+				contentStream.Write(strconv.AppendInt(fontSizeBuf[:0], int64(cellProps.FontSize), 10))
 				contentStream.WriteString(" Tf\n")
 
 				// Set text color - always explicitly set to avoid state leakage, default to black
@@ -617,12 +618,12 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.Write(underlineBuf)
 					contentStream.WriteString("Q\n")
 					contentStream.WriteString("BT\n")
-					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
-					contentStream.WriteString(" ")
-					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
-					contentStream.WriteString(" Tf\n")
-					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
-					textPosBuf = textPosBuf[:0]
+				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
+				contentStream.WriteString(" ")
+				contentStream.Write(strconv.AppendInt(fontSizeBuf[:0], int64(cellProps.FontSize), 10))
+				contentStream.WriteString(" Tf\n")
+				contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+				textPosBuf = textPosBuf[:0]
 					textPosBuf = appendFmtNum(textPosBuf, textX)
 					textPosBuf = append(textPosBuf, ' ')
 					textPosBuf = appendFmtNum(textPosBuf, textY)

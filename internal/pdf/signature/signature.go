@@ -11,6 +11,7 @@ import (
 	"encoding/asn1"
 	"encoding/hex"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -81,7 +82,7 @@ func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.
 
 	block, _ := pem.Decode([]byte(certPEM))
 	if block == nil {
-		return nil, nil, nil, fmt.Errorf("failed to parse certificate PEM")
+		return nil, nil, nil, errors.New("failed to parse certificate PEM")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {

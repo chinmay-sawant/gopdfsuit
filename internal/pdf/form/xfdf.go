@@ -16,6 +16,25 @@ import (
 	"strings"
 )
 
+var (
+	reAS              = regexp.MustCompile(`/AS\s*(/(\w+)|\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
+	reAP              = regexp.MustCompile(`/AP\s*<<(.*?)>>`)
+	reN               = regexp.MustCompile(`/N\s*<<(.*?)>>`)
+	reKey             = regexp.MustCompile(`/([A-Za-z0-9_+-]+)\s*(?:/|stream|<<|\()`)
+	reNName           = regexp.MustCompile(`/N\s*/([A-Za-z0-9_+-]+)`)
+	reStream          = regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
+	reObj             = regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
+	reFirst           = regexp.MustCompile(`/First\s+(\d+)`)
+	reAPDictForRadio  = regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
+	reRemoveAP        = regexp.MustCompile(`\s*/AP\s*<<.*?>>`)
+	reASWidget        = regexp.MustCompile(`/AS\s*/\w+`)
+	bytesSubtypeWidget = []byte("/Subtype/Widget")
+	bytesT             = []byte("/T")
+	bytesW             = []byte("/W[")
+	bytesIdx           = []byte("/Index")
+	bytesEncrypt       = []byte("/Encrypt")
+)
+
 // Standard Helvetica widths for characters 32-255 (WinAnsiEncoding)
 // As per the PDF 2.0 Specification - full character set for compliance
 var helveticaWidths = []int{
@@ -338,15 +357,14 @@ func resolveValueRef(body []byte, objMap map[string][]byte) string {
 func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string, bool) {
 	needle := []byte("(" + name + ")")
 	for k, body := range objMap {
-		if bytesIndex(body, []byte(`/Subtype/Widget`)) < 0 {
+		if bytesIndex(body, bytesSubtypeWidget) < 0 {
 			continue
 		}
-		if bytesIndex(body, needle) < 0 && bytesIndex(body, []byte(`/T`)) < 0 {
+		if bytesIndex(body, needle) < 0 && bytesIndex(body, bytesT) < 0 {
 			continue
 		}
 		if bytesIndex(body, needle) >= 0 {
-			asRe := regexp.MustCompile(`/AS\s*(/(\w+)|\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
-			if m := asRe.FindSubmatch(body); m != nil {
+			if m := reAS.FindSubmatch(body); m != nil {
 				if len(m[2]) > 0 {
 					return string(m[2]), true
 				}
@@ -357,17 +375,13 @@ func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string
 					return decodeHexString(string(m[4])), true
 				}
 			}
-			apRe := regexp.MustCompile(`/AP\s*<<(.*?)>>`)
-			if am := apRe.FindSubmatch(body); am != nil {
-				nRe := regexp.MustCompile(`/N\s*<<(.*?)>>`)
-				if nm := nRe.FindSubmatch(am[1]); nm != nil {
-					keyRe := regexp.MustCompile(`/([A-Za-z0-9_+-]+)\s*(?:/|stream|<<|\()`)
-					if kr := keyRe.FindSubmatch(nm[1]); kr != nil {
+		if am := reAP.FindSubmatch(body); am != nil {
+				if nm := reN.FindSubmatch(am[1]); nm != nil {
+					if kr := reKey.FindSubmatch(nm[1]); kr != nil {
 						return string(kr[1]), true
 					}
 				}
-				nNameRe := regexp.MustCompile(`/N\s*/([A-Za-z0-9_+-]+)`)
-				if nn := nNameRe.FindSubmatch(am[1]); nn != nil {
+				if nn := reNName.FindSubmatch(am[1]); nn != nil {
 					return string(nn[1]), true
 				}
 			}
@@ -381,12 +395,12 @@ func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string
 func trailerHasEncrypt(data []byte) bool {
 	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
 	for _, m := range trRe.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], []byte(`/Encrypt`)) >= 0 {
+		if bytesIndex(m[1], bytesEncrypt) >= 0 {
 			return true
 		}
 	}
 	// also check for /Encrypt elsewhere
-	return bytesIndex(data, []byte(`/Encrypt`)) >= 0
+	return bytesIndex(data, bytesEncrypt) >= 0
 }
 
 // parseXRefStreams looks for XRef stream objects and uses them to augment objMap
@@ -395,12 +409,11 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 	objStreamRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
 	for _, m := range objStreamRe.FindAllSubmatch(data, -1) {
 		body := m[3]
-		if bytesIndex(body, []byte(`/W[`)) < 0 || bytesIndex(body, []byte(`/Index`)) < 0 {
+		if bytesIndex(body, bytesW) < 0 || bytesIndex(body, bytesIdx) < 0 {
 			continue
 		}
 		// extract stream
-		streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
-		sm := streamRe.FindSubmatch(body)
+		sm := reStream.FindSubmatch(body)
 		if sm == nil {
 			continue
 		}
@@ -438,7 +451,6 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				if off > 0 && off < len(data) {
 					// try to parse object at this offset
 					tail := data[off:]
-					reObj := regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
 					if ro := reObj.FindSubmatch(tail); ro != nil {
 						onum := string(ro[2])
 						ogen := string(ro[3])
@@ -452,7 +464,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				objstm := f2
 				index := f3
 				// look for objstm content we earlier extracted
-				key := fmt.Sprintf("%d 0", objstm)
+				key := strconv.Itoa(objstm) + " 0"
 				if stm, ok := objMap[key]; ok {
 					// try to parse embedded objects from stm similarly to earlier logic
 					_ = index
@@ -494,8 +506,7 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 		// Handle ObjStm objects
 		if bytesIndex(body, []byte("/ObjStm")) >= 0 || bytesIndex(body, []byte("/Type/ObjStm")) >= 0 {
 			// find stream
-			streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
-			if sm := streamRe.FindSubmatch(body); sm != nil {
+			if sm := reStream.FindSubmatch(body); sm != nil {
 				streamBytes := sm[1]
 				// try decompress
 				var dec []byte
@@ -506,9 +517,8 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 				}
 				if dec != nil {
 					// find First value in dict
-					firstRe := regexp.MustCompile(`/First\s+(\d+)`)
 					first := 0
-					if fm := firstRe.FindSubmatch(body); fm != nil {
+					if fm := reFirst.FindSubmatch(body); fm != nil {
 						if _, err := fmt.Sscanf(string(fm[1]), "%d", &first); err != nil {
 							first = 0
 						}
@@ -543,7 +553,7 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 							}
 							objBytes := content[off:end]
 							// store under objnum 0 generation
-							objKey := fmt.Sprintf("%d 0", objnum)
+							objKey := strconv.Itoa(objnum) + " 0"
 							objMap[objKey] = objBytes
 						}
 						// also store the ObjStm object itself
@@ -801,8 +811,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		if bytes.Contains(dictBytes, []byte("/FT /Btn")) {
 			if bytes.Contains(dictBytes, []byte("/Parent")) {
 				newJob.fieldType = typeRadio
-				apDictRe := regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
-				if apMatch := apDictRe.FindSubmatch(dictBytes); apMatch != nil {
+				if apMatch := reAPDictForRadio.FindSubmatch(dictBytes); apMatch != nil {
 					newJob.radioExportValue = string(apMatch[1])
 				}
 			} else {
@@ -906,13 +915,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				} else {
 					newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newV, []byte(">>")...)...), 1)
 				}
-				apRe := regexp.MustCompile(`\s*/AP\s*<<.*?>>`)
-				newDictBytes = apRe.ReplaceAll(newDictBytes, []byte(" "))
+				newDictBytes = reRemoveAP.ReplaceAll(newDictBytes, []byte(" "))
 			case typeButton, typeRadio:
 				newState := "/Off"
 				if job.fieldType == typeButton && (strings.ToLower(job.val) == "yes" || strings.ToLower(job.val) == "on") {
-					apDictRe := regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
-					if apMatch := apDictRe.FindSubmatch(dictBytes); apMatch != nil {
+			if apMatch := reAPDictForRadio.FindSubmatch(dictBytes); apMatch != nil {
 						newState = "/" + string(apMatch[1])
 					} else {
 						newState = "/Yes"
@@ -921,9 +928,8 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 					newState = "/" + job.radioExportValue
 				}
 				newAS := []byte("/AS " + newState)
-				asRe := regexp.MustCompile(`/AS\s*/\w+`)
-				if asRe.Match(dictBytes) {
-					newDictBytes = asRe.ReplaceAll(dictBytes, newAS)
+		if reASWidget.Match(dictBytes) {
+				newDictBytes = reASWidget.ReplaceAll(dictBytes, newAS)
 				} else {
 					newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newAS, []byte(">>")...)...), 1)
 				}

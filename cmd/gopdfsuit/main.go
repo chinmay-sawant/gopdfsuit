@@ -2,7 +2,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -49,17 +48,9 @@ func main() {
 	// which serializes stdout writes under a mutex on every request.
 	router := gin.New()
 
-	// Lightweight custom recovery: only captures stack on actual panic
-	// (gin.Recovery() has per-request overhead from defer/stack-trace setup)
-	router.Use(func(c *gin.Context) {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[Recovery] panic recovered: %v", r)
-				c.AbortWithStatus(http.StatusInternalServerError)
-			}
-		}()
-		c.Next()
-	})
+	router.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}))
 
 	// Only add request logger in debug mode (GIN_MODE=debug)
 	if gin.Mode() == gin.DebugMode {
@@ -71,8 +62,6 @@ func main() {
 	// caused massive context-switch overhead and was the primary bottleneck.
 	maxConcurrent := runtime.NumCPU()
 	semaphore := make(chan struct{}, maxConcurrent)
-	fmt.Printf("Server starting with %d max concurrent workers (CPUs: %d)\n", maxConcurrent, runtime.NumCPU())
-
 	router.Use(func(c *gin.Context) {
 		semaphore <- struct{}{}
 		defer func() { <-semaphore }()
