@@ -24,6 +24,6 @@ require (
 	golang.org/x/text v0.37.0 // indirect
 )
 
-replace github.com/cssbruno/gopdfkit => /tmp/gopdfkit
+replace github.com/cssbruno/gopdfkit => /tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2
 
 replace github.com/chinmay-sawant/gopdfsuit/v5 => /home/chinmay/ChinmayPersonalProjects/gopdfsuit
