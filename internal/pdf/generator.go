@@ -26,16 +26,8 @@ import (
 var pdfBufferPool = sync.Pool{
 	New: func() any {
 		buf := new(bytes.Buffer)
-		buf.Grow(64 * 1024) // 64KB initial capacity
+		buf.Grow(256 * 1024) // 256KB initial capacity reduces final assembly growth for multi-page PDFs.
 		return buf
-	},
-}
-
-// finalPDFSlicePool holds scratch []byte slices for assembling the PDF before cloning for the caller.
-var finalPDFSlicePool = sync.Pool{
-	New: func() any {
-		s := make([]byte, 0, 256*1024)
-		return &s
 	},
 }
 
@@ -151,7 +143,8 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	autoResolveMathFonts(template, fontRegistry)
 
 	// Initialize page manager with Arlington compatibility flag and per-generation font registry
-	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry, taggedPDF)
+	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry, taggedPDF, estimateInitialContentStreamCap(template))
+	defer pageManager.ReleaseContentStreams()
 
 	// Process images and create XObjects
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
@@ -720,7 +713,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Include ColorSpace resource for PDF/A mode
 		// PDF/UA: Add StructParents entry ONLY if page has marked content
 		structParentsEntry := ""
-		if pageManager.Structure.NextMCID[i] > 0 {
+		if i < len(pageManager.Structure.NextMCID) && pageManager.Structure.NextMCID[i] > 0 {
 			var spBuf [20]byte
 			sp := append(spBuf[:0], " /StructParents "...)
 			sp = strconv.AppendInt(sp, int64(i), 10)
@@ -755,7 +748,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	for si := range pageManager.ContentStreams {
 		si := si
 		compGroup.Go(func() error {
-			contentStream := &pageManager.ContentStreams[si]
+			contentStream := pageManager.ContentStreams[si]
 			compressedBuf := getCompressBuffer()
 			if grow := contentStream.Len() / 4; grow < 4096 {
 				compressedBuf.Grow(4096)
@@ -763,7 +756,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				compressedBuf.Grow(grow)
 			}
 			zlibWriter := getZlibWriter(compressedBuf)
-			if _, err := zlibWriter.Write(contentStream.Bytes()); err != nil {
+			if _, err := contentStream.WriteTo(zlibWriter); err != nil {
 				_ = zlibWriter.Close()
 				putZlibWriter(zlibWriter)
 				putCompressBuffer(compressedBuf)
@@ -775,7 +768,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				return fmt.Errorf("compress page stream close %d: %w", si, err)
 			}
 			putZlibWriter(zlibWriter)
-			compressedPages[si] = append([]byte(nil), compressedBuf.Bytes()...)
+			compressedPages[si] = slices.Clone(compressedBuf.Bytes())
 			putCompressBuffer(compressedBuf)
 			return nil
 		})
@@ -1133,6 +1126,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Build ParentTree Nums map
 		// Maps StructParents key (page index) to Array of IndirectRefs to StructElems
 		var ptBuilder strings.Builder
+		ptBuilder.Grow(128 + len(pageManager.Pages)*32 + len(pageManager.AnnotStructElems)*24)
 		ptBuilder.WriteString(strconv.Itoa(parentTreeID))
 		ptBuilder.WriteString(" 0 obj\n<< /Nums [")
 
@@ -1140,12 +1134,17 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// We iterate by page index to keep Nums sorted
 		maxPageIndex := len(pageManager.Pages)
 		for i := 0; i < maxPageIndex; i++ {
-			if elems, exists := pageManager.Structure.ParentTree[i]; exists && len(elems) > 0 {
-				ptBuilder.WriteString(fmt.Sprintf(" %d [", i)) // Key is page index
-				for _, elem := range elems {
-					ptBuilder.WriteString(fmt.Sprintf(" %d 0 R", elem.ObjectID))
+			if i < len(pageManager.Structure.ParentTree) {
+				elems := pageManager.Structure.ParentTree[i]
+				if len(elems) > 0 {
+					ptBuilder.WriteByte(' ')
+					ptBuilder.WriteString(strconv.Itoa(i))
+					ptBuilder.WriteString(" [") // Key is page index
+					for _, elem := range elems {
+						appendObjRefToBuilder(&ptBuilder, elem.ObjectID)
+					}
+					ptBuilder.WriteString(" ]")
 				}
-				ptBuilder.WriteString(" ]")
 			}
 		}
 
@@ -1153,7 +1152,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Each annotation's StructParent value maps to its Link structure element
 		for _, annotInfo := range pageManager.AnnotStructElems {
 			if linkElem, exists := pageManager.Structure.LinkElements[annotInfo.AnnotObjID]; exists {
-				ptBuilder.WriteString(fmt.Sprintf(" %d %d 0 R", annotInfo.StructParentIdx, linkElem.ObjectID))
+				ptBuilder.WriteByte(' ')
+				ptBuilder.WriteString(strconv.Itoa(annotInfo.StructParentIdx))
+				appendObjRefToBuilder(&ptBuilder, linkElem.ObjectID)
 			}
 		}
 
@@ -1166,26 +1167,37 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
 
 			var sb strings.Builder
+			sb.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
 			sb.WriteString(strconv.Itoa(elem.ObjectID))
 			sb.WriteString(" 0 obj\n<< /Type /StructElem /S /")
 			sb.WriteString(string(elem.Type))
 
 			// PDF/UA-2: Document element must be in PDF 2.0 namespace
 			if elem.Type == StructDocument {
-				sb.WriteString(fmt.Sprintf(" /NS %d 0 R", namespaceID))
+				sb.WriteString(" /NS ")
+				sb.WriteString(strconv.Itoa(namespaceID))
+				sb.WriteString(" 0 R")
 			}
 
 			if elem.Parent == pageManager.Structure.Root {
-				sb.WriteString(fmt.Sprintf(" /P %d 0 R", structTreeRootID))
+				sb.WriteString(" /P ")
+				sb.WriteString(strconv.Itoa(structTreeRootID))
+				sb.WriteString(" 0 R")
 			} else if elem.Parent != nil {
-				sb.WriteString(fmt.Sprintf(" /P %d 0 R", elem.Parent.ObjectID))
+				sb.WriteString(" /P ")
+				sb.WriteString(strconv.Itoa(elem.Parent.ObjectID))
+				sb.WriteString(" 0 R")
 			}
 
 			if elem.Title != "" {
-				sb.WriteString(fmt.Sprintf(" /T (%s)", escapeText(elem.Title)))
+				sb.WriteString(" /T (")
+				sb.WriteString(escapeText(elem.Title))
+				sb.WriteByte(')')
 			}
 			if elem.Alt != "" {
-				sb.WriteString(fmt.Sprintf(" /Alt (%s)", escapeText(elem.Alt)))
+				sb.WriteString(" /Alt (")
+				sb.WriteString(escapeText(elem.Alt))
+				sb.WriteByte(')')
 			}
 
 			// Kids
@@ -1194,26 +1206,23 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 				// PDF/UA-2: For Link elements, output OBJR pointing to annotation
 				if elem.Type == StructLink {
-					// Find the annotation object ID for this Link element
-					for annotObjID, linkElem := range pageManager.Structure.LinkElements {
-						if linkElem == elem {
-							// OBJR = Object Reference to the annotation
-							// Format: << /Type /OBJR /Obj annotRef /Pg pageRef >>
-							pageObjID := 3 // Default to first page
-							if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
-								pageObjID = pageManager.Pages[elem.PageID]
-							}
-							sb.WriteString(fmt.Sprintf(" << /Type /OBJR /Obj %d 0 R /Pg %d 0 R >>", annotObjID, pageObjID))
-							break
-						}
+					pageObjID := 3 // Default to first page
+					if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
+						pageObjID = pageManager.Pages[elem.PageID]
 					}
+					sb.WriteString(" << /Type /OBJR /Obj ")
+					sb.WriteString(strconv.Itoa(elem.AnnotObjID))
+					sb.WriteString(" 0 R /Pg ")
+					sb.WriteString(strconv.Itoa(pageObjID))
+					sb.WriteString(" 0 R >>")
 				}
 
 				for _, k := range elem.Kids {
 					if k.Elem != nil {
-						sb.WriteString(fmt.Sprintf(" %d 0 R", k.Elem.ObjectID))
+						appendObjRefToBuilder(&sb, k.Elem.ObjectID)
 					} else {
-						sb.WriteString(fmt.Sprintf(" %d", k.MCID))
+						sb.WriteByte(' ')
+						sb.WriteString(strconv.Itoa(k.MCID))
 					}
 				}
 				sb.WriteString(" ]")
@@ -1225,7 +1234,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			// pm.Pages[elem.PageID] gives the object ID.
 			if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 				pageObjID := pageManager.Pages[elem.PageID]
-				sb.WriteString(fmt.Sprintf(" /Pg %d 0 R", pageObjID))
+				sb.WriteString(" /Pg ")
+				sb.WriteString(strconv.Itoa(pageObjID))
+				sb.WriteString(" 0 R")
 			}
 
 			sb.WriteString(" >>\nendobj\n")
@@ -1349,25 +1360,61 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
 	pdfBuffer.WriteString("%%EOF\n")
 
-	// Assemble scratch PDF bytes from pool-backed slice (caller receives an owned copy below).
-	finalScr := finalPDFSlicePool.Get().(*[]byte)
-	*finalScr = append((*finalScr)[:0], pdfBuffer.Bytes()...)
-	unsignedOwned := slices.Clone(*finalScr)
-	finalPDFSlicePool.Put(finalScr)
-
-	finalPDF := unsignedOwned
+	// Keep a single owned copy for the caller; pooled buffers must not escape.
+	finalPDF := slices.Clone(pdfBuffer.Bytes())
 	if pdfSigner != nil && sigIDs != nil {
 		signedPDF, err := signature.UpdatePDFWithSignature(finalPDF, pdfSigner)
 		if err != nil {
-			// Signing failed — return unsigned copy (caller-owned).
 			return finalPDF, nil
 		}
-		// Signing writes into a dedicated buffer inside UpdatePDFWithSignature — clone once more
-		// so callers never retain pooled or shared scratch space.
-		finalPDF = slices.Clone(signedPDF)
+		finalPDF = signedPDF
 	}
 
 	return finalPDF, nil
+}
+
+func appendObjRefToBuilder(sb *strings.Builder, objID int) {
+	sb.WriteByte(' ')
+	sb.WriteString(strconv.Itoa(objID))
+	sb.WriteString(" 0 R")
+}
+
+func estimateInitialContentStreamCap(template models.PDFTemplate) int {
+	const (
+		minCap = 64 * 1024
+		maxCap = 128 * 1024
+	)
+
+	score := 0
+	for _, table := range template.Table {
+		score += len(table.Rows) * max(table.MaxColumns, 1) * 8
+	}
+	if template.Title.Text != "" {
+		score += 1024
+	}
+	if template.Footer.Text != "" {
+		score += 1024
+	}
+	for _, elem := range template.Elements {
+		score += 512
+		if elem.Table != nil {
+			score += len(elem.Table.Rows) * max(elem.Table.MaxColumns, 1) * 8
+		}
+	}
+	if score < minCap {
+		return minCap
+	}
+	if score > maxCap {
+		return maxCap
+	}
+	return score
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // generateAllContentWithImages processes the template and generates content with image support
@@ -1496,10 +1543,10 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 
 		// Draw footer on this page if footer text provided
 		if template.Footer.Text != "" {
-			drawFooter(&pageManager.ContentStreams[i], template.Footer, pageManager)
+			drawFooter(pageManager.ContentStreams[i], template.Footer, pageManager)
 		}
 		// Draw page number on this page
-		drawPageNumber(&pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions, pageManager)
+		drawPageNumber(pageManager.ContentStreams[i], i+1, totalPages, pageManager.PageDimensions, pageManager)
 	}
 }
 
@@ -1510,18 +1557,29 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 //nolint:gocyclo
 func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontRegistry) map[string]bool {
 	used := make(map[string]bool)
+	propFontCache := make(map[string]string, 32)
+	helveticaAvailable := registry.HasFont("Helvetica")
 
 	// Helper to mark font only if it's a true standard font (not overridden by custom)
 	markFont := func(propsStr string) {
-		props := parseProps(propsStr)
-		// Only mark as standard font if it's not registered as a custom font
-		if !IsCustomFont(props.FontName) && !registry.HasFont(props.FontName) {
-			used[props.FontName] = true
+		if cached, ok := propFontCache[propsStr]; ok {
+			if cached != "" {
+				used[cached] = true
+			}
+			return
 		}
+
+		fontName := parseProps(propsStr).FontName
+		if !IsCustomFont(fontName) && !registry.HasFont(fontName) {
+			propFontCache[propsStr] = fontName
+			used[fontName] = true
+			return
+		}
+		propFontCache[propsStr] = ""
 	}
 
 	// Helvetica is default font - only add if not overridden by custom font
-	if !registry.HasFont("Helvetica") {
+	if !helveticaAvailable {
 		used["Helvetica"] = true // Default font, always required for AcroForm default appearance
 	}
 
@@ -1583,13 +1641,13 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 	// Scan watermark (always uses Helvetica if present)
 	if template.Config.Watermark != "" {
 		// Watermark uses Helvetica
-		if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+		if !helveticaAvailable {
 			used["Helvetica"] = true
 		}
 	}
 
 	// Page numbers always use Helvetica
-	if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+	if !helveticaAvailable {
 		used["Helvetica"] = true
 	}
 
@@ -1627,7 +1685,7 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 	}
 	if hasImages {
 		// Image placeholders use Helvetica for displaying image names
-		if !IsCustomFont("Helvetica") && !registry.HasFont("Helvetica") {
+		if !helveticaAvailable {
 			used["Helvetica"] = true
 		}
 	}

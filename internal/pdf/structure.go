@@ -69,14 +69,15 @@ type StructKid struct {
 
 // StructElem represents a node in the structure tree
 type StructElem struct {
-	Type     StructureType
-	Title    string
-	Alt      string
-	Lang     string
-	Kids     []StructKid
-	Parent   *StructElem
-	ObjectID int // Assigned when writing to PDF
-	PageID   int // Reference to the page object ID where this element appears
+	Type       StructureType
+	Title      string
+	Alt        string
+	Lang       string
+	Kids       []StructKid
+	Parent     *StructElem
+	ObjectID   int // Assigned when writing to PDF
+	PageID     int // Reference to the page object ID where this element appears
+	AnnotObjID int // Annotation object ID for Link elements
 }
 
 // StructureManager handles the creation and management of the PDF structure tree
@@ -85,10 +86,10 @@ type StructureManager struct {
 	Root          *StructElem
 	CurrentParent *StructElem
 	Elements      []*StructElem
-	NextMCID      map[int]int           // Page Index -> Next MCID
-	ParentTree    map[int][]*StructElem // Page Index -> Array of struct elements (parents of MCIDs)
-	StructParents map[int]int           // Page Object ID -> StructParents index (in ParentTree)
-	LinkElements  map[int]*StructElem   // PDF/UA-2: Annotation Object ID -> Link StructElem
+	NextMCID      []int               // Page Index -> Next MCID
+	ParentTree    [][]*StructElem     // Page Index -> Array of struct elements (parents of MCIDs)
+	StructParents map[int]int         // Page Object ID -> StructParents index (in ParentTree)
+	LinkElements  map[int]*StructElem // PDF/UA-2: Annotation Object ID -> Link StructElem
 }
 
 // NewStructureManager creates a new structure manager. When enabled is false, marked content
@@ -103,8 +104,8 @@ func NewStructureManager(enabled bool) *StructureManager {
 		Root:          root,
 		CurrentParent: root,
 		Elements:      []*StructElem{root},
-		NextMCID:      make(map[int]int),
-		ParentTree:    make(map[int][]*StructElem),
+		NextMCID:      make([]int, 1),
+		ParentTree:    make([][]*StructElem, 1),
 		StructParents: make(map[int]int),
 	}
 
@@ -150,10 +151,21 @@ func (sm *StructureManager) ReleaseStructElemsToPool() {
 		structElemPool.Put(elem)
 	}
 	sm.Elements = []*StructElem{sm.Root}
-	sm.NextMCID = make(map[int]int)
-	sm.ParentTree = make(map[int][]*StructElem)
+	sm.NextMCID = sm.NextMCID[:0]
+	sm.ParentTree = sm.ParentTree[:0]
 	sm.StructParents = make(map[int]int)
 	sm.LinkElements = nil
+}
+
+func (sm *StructureManager) ensurePageSlot(pageIndex int) {
+	if pageIndex < len(sm.NextMCID) {
+		return
+	}
+	needed := pageIndex + 1
+	if grow := needed - len(sm.NextMCID); grow > 0 {
+		sm.NextMCID = append(sm.NextMCID, make([]int, grow)...)
+		sm.ParentTree = append(sm.ParentTree, make([][]*StructElem, grow)...)
+	}
 }
 
 // GetNextMCID returns the next available MCID for a page
@@ -161,6 +173,7 @@ func (sm *StructureManager) GetNextMCID(pageIndex int) int {
 	if !sm.Enabled {
 		return 0
 	}
+	sm.ensurePageSlot(pageIndex)
 	mcid := sm.NextMCID[pageIndex]
 	sm.NextMCID[pageIndex]++
 	return mcid
@@ -176,6 +189,7 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	elem.Type = tag
 	elem.Parent = sm.CurrentParent
 	elem.PageID = pageIndex
+	elem.Kids = make([]StructKid, 0, 1)
 
 	if val, ok := props["Title"]; ok {
 		elem.Title = val
@@ -196,9 +210,6 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 
 	// Track in ParentTree for PDF/UA logic
 	// The element we just created is the parent of this marked content
-	if sm.ParentTree[pageIndex] == nil {
-		sm.ParentTree[pageIndex] = make([]*StructElem, 0)
-	}
 	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
 
 	// 5. Add KID for MCID (Leaf node)
@@ -245,6 +256,7 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	elem.Type = tag
 	elem.Parent = sm.CurrentParent
 	elem.PageID = pageIndex
+	elem.Kids = make([]StructKid, 0, 1)
 
 	if val, ok := props["Title"]; ok {
 		elem.Title = val
@@ -264,9 +276,6 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	mcid := sm.GetNextMCID(pageIndex)
 
 	// Track in ParentTree
-	if sm.ParentTree[pageIndex] == nil {
-		sm.ParentTree[pageIndex] = make([]*StructElem, 0)
-	}
 	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
 
 	// 5. Add KID for MCID
@@ -301,12 +310,20 @@ func (sm *StructureManager) EndMarkedContentBuf(buf *bytes.Buffer) {
 
 // BeginStructureElement starts a grouping element (like Table, TR) that doesn't directly contain content yet
 func (sm *StructureManager) BeginStructureElement(tag StructureType) {
+	sm.BeginStructureElementCap(tag, 0)
+}
+
+// BeginStructureElementCap starts a grouping element and preallocates its Kids slice when the shape is known.
+func (sm *StructureManager) BeginStructureElementCap(tag StructureType, kidCap int) {
 	if !sm.Enabled {
 		return
 	}
 	elem := sm.acquireStructElem()
 	elem.Type = tag
 	elem.Parent = sm.CurrentParent
+	if kidCap > 0 {
+		elem.Kids = make([]StructKid, 0, kidCap)
+	}
 	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, StructKid{Elem: elem})
 	sm.Elements = append(sm.Elements, elem)
 	sm.CurrentParent = elem
@@ -384,6 +401,7 @@ func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 	linkElem := sm.acquireStructElem()
 	linkElem.Type = StructLink
 	linkElem.Parent = sm.GetCurrentDocumentElement()
+	linkElem.AnnotObjID = annotObjID
 
 	// Add to Document element's kids
 	if docElem := sm.GetCurrentDocumentElement(); docElem != nil {

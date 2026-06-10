@@ -220,6 +220,10 @@ func getFontReference(props models.Props, registry *CustomFontRegistry) string {
 	// Resolve usage to actual font name (handling fallbacks)
 	actualFontName := resolveFontName(props, registry)
 
+	return getFontReferenceByResolvedName(actualFontName, registry)
+}
+
+func getFontReferenceByResolvedName(actualFontName string, registry *CustomFontRegistry) string {
 	// If resolved font is custom (including PDF/A substitution), use it
 	if registry.HasFont(actualFontName) {
 		ref := registry.GetFontReference(actualFontName)

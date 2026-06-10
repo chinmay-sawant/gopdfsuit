@@ -737,7 +737,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	baseRowHeight := float64(25) // Standard row height
 
 	// PDF/UA: Start Table Structure
-	pageManager.Structure.BeginStructureElement(StructTable)
+	pageManager.Structure.BeginStructureElementCap(StructTable, len(table.Rows))
 	defer pageManager.Structure.EndStructureElement()
 
 	// Compute column widths in points using weights if provided
@@ -773,6 +773,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	wrappedTextLines := make([][][]byte, table.MaxColumns)
 	rowCellProps := make([]models.Props, table.MaxColumns)
 	rowResolvedFonts := make([]string, table.MaxColumns)
+	rowFontRefs := make([]string, table.MaxColumns)
+	rowUsesCustomFonts := make([]bool, table.MaxColumns)
+	rowSingleLineTextWidths := make([]float64, table.MaxColumns)
 	// Scratch buffers reused across all cells to reduce allocations
 	scratchBuf := make([]byte, 0, 128)
 	borderBuf := make([]byte, 0, 64)
@@ -784,7 +787,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 	for rowIdx, row := range table.Rows {
 		// PDF/UA: Start Row Structure
-		pageManager.Structure.BeginStructureElement(StructTR)
+		pageManager.Structure.BeginStructureElementCap(StructTR, min(len(row.Row), table.MaxColumns))
 
 		// Pre-calculate column widths and parsed props
 		// We need to know each cell's width before calculating wrapped text height
@@ -814,6 +817,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 			// Resolve font name once per cell — used for text width, wrapping, and rendering
 			rowResolvedFonts[colIdx] = resolveFontName(cellProps, pageManager.FontRegistry)
+			rowFontRefs[colIdx] = getFontReferenceByResolvedName(rowResolvedFonts[colIdx], pageManager.FontRegistry)
+			rowUsesCustomFonts[colIdx] = pageManager.FontRegistry.IsCustomFont(rowResolvedFonts[colIdx])
+			rowSingleLineTextWidths[colIdx] = 0
 
 			// Wrap is opt-in (only enabled when explicitly set to true)
 			isWrapEnabled := cell.Wrap != nil && *cell.Wrap
@@ -826,9 +832,14 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				wrappedTextLines[colIdx] = WrapTextInto(&wrapState, cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
 			}
 
-			// Mark chars used for subsetting (once per cell)
+			// Mark chars used for subsetting only when the resolved font is custom.
 			if cell.Text != "" {
-				pageManager.FontRegistry.MarkCharsUsed(cellProps.FontName, cell.Text)
+				if rowUsesCustomFonts[colIdx] {
+					pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], cell.Text)
+				}
+				if !isWrapEnabled && (cell.MathEnabled == nil || !*cell.MathEnabled || !typstsyntax.IsMathExpression(cell.Text)) {
+					rowSingleLineTextWidths[colIdx] = EstimateTextWidth(rowResolvedFonts[colIdx], cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
+				}
 			}
 		}
 
@@ -1091,7 +1102,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				// Set up render context with font callbacks
 				mathCtx := &typstsyntax.RenderContext{
 					FontSize:   float64(cellProps.FontSize),
-					FontRef:    getFontReference(cellProps, pageManager.FontRegistry),
+					FontRef:    rowFontRefs[colIdx],
 					CellWidth:  cellWidth,
 					CellHeight: cellHeight,
 					TextColor:  colorStr,
@@ -1101,7 +1112,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					FormatText: func(text string) string {
 						// Math rendering emits many Unicode glyph fragments (integrals, set symbols,
 						// superscripts/subscripts). Mark them so custom-font subsetting keeps them.
-						pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], text)
+						if rowUsesCustomFonts[colIdx] {
+							pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], text)
+						}
 						return formatTextForPDF(rowResolvedFonts[colIdx], text, pageManager.FontRegistry)
 					},
 				}
@@ -1129,7 +1142,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			case cell.Text != "":
 				// Draw text with font styling
 				contentStream.WriteString("BT\n")
-				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
+				contentStream.WriteString(rowFontRefs[colIdx])
 				contentStream.WriteString(" ")
 				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 				contentStream.WriteString(" Tf\n")
@@ -1204,9 +1217,11 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					contentStream.WriteString("ET\n")
 				} else {
 					// Single-line text rendering (original behavior)
-					// Calculate approximate text width
 					resolvedName := rowResolvedFonts[colIdx]
-					textWidth := EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
+					textWidth := rowSingleLineTextWidths[colIdx]
+					if textWidth == 0 {
+						textWidth = EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
+					}
 
 					var textX float64
 					switch cellProps.Alignment {
@@ -1250,7 +1265,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.WriteString("Q\n")
 						// Start text object again
 						contentStream.WriteString("BT\n")
-						contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
+						contentStream.WriteString(rowFontRefs[colIdx])
 						contentStream.WriteString(" ")
 						contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
 						contentStream.WriteString(" Tf\n")
@@ -1419,7 +1434,7 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 
 // drawPageNumber renders page number in bottom right corner
 func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions, pageManager *PageManager) {
-	pageText := fmt.Sprintf("Page %d of %d", currentPage, totalPages)
+	pageText := buildPageNumberText(currentPage, totalPages)
 
 	// Track characters for font subsetting
 	registry := pageManager.FontRegistry
@@ -1465,6 +1480,15 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 
 	// PDF/UA: End Artifact mark
 	contentStream.WriteString("EMC\n")
+}
+
+func buildPageNumberText(currentPage, totalPages int) string {
+	buf := make([]byte, 0, 32)
+	buf = append(buf, "Page "...)
+	buf = strconv.AppendInt(buf, int64(currentPage), 10)
+	buf = append(buf, " of "...)
+	buf = strconv.AppendInt(buf, int64(totalPages), 10)
+	return string(buf)
 }
 
 // drawImage renders an image in the PDF with automatic page breaks
