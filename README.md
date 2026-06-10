@@ -1,6 +1,6 @@
 # 📄 GoPdfSuit
 
-[![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
 [![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=flat&logo=docker)](https://hub.docker.com/)
 [![gochromedp](https://img.shields.io/badge/gochromedp-1.0+-00ADD8?style=flat)](https://github.com/chinmay-sawant/gochromedp)
@@ -17,13 +17,13 @@
 
 **92% Cost Reduction** vs traditional distributed architectures.
 
-| Metric               | Industry Standard (Typst/LaTeX) | gopdfsuit (Go 1.24)             |
+| Metric               | Industry Standard (Typst/LaTeX) | gopdfsuit (Go 1.26)             |
 | :------------------- | :------------------------------ | :------------------------------ |
 | **Infrastructure**   | ~40 Node Cluster                | **2 Nodes** (95% Less)          |
 | **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
-| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~600 PDFs/sec (Single Node)** |
+| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~2,236 PDFs/sec peak** (single node, 48 workers) |
 
-> **Result**: Generates 1.5 million financial PDFs in ~45 mins on a single machine.
+> **Result**: Generates 1.5 million financial PDFs in **~11 minutes** at peak throughput on a single machine (Intel i7-13700HX, 24 cores, Go 1.26.4).
 
 ---
 
@@ -63,11 +63,30 @@ GoPdfSuit is a powerful Go web service for template-based PDF generation.
   - **Go**: Usable as a standalone Go library (`gopdflib`).
 - **Web Interfaces**: Built-in React UI for viewer, editor, merger, filler, and converters.
 
-**Requirements**: Go 1.24+, Google Chrome (for HTML conversion)
+**Requirements**: Go 1.26+, Google Chrome (for HTML conversion)
 
 ---
 
 ## ❓ FAQ
+
+<details>
+<summary><b>Go version compatibility?</b></summary>
+
+This module requires **Go 1.26+** to benefit from runtime performance improvements (better GC, goroutine scheduling, hardware-accelerated crypto). The `go.mod` directive is set to `go 1.26.4`.
+
+**For Go 1.24 users:** You can still use `gopdflib` by cloning the repository and changing the `go` directive back to `1.26.4` in `go.mod`. The code itself does not use Go 1.26 language features — only the `sonic` dependency was bumped to `v1.15.2` for compatibility. Run `go mod tidy` after editing.
+
+```bash
+git clone https://github.com/chinmay-sawant/gopdfsuit.git
+cd gopdfsuit
+# Edit go.mod: change "go 1.26.4" to "go 1.26.4"
+go mod tidy
+go build ./...
+```
+
+**Note:** The official module releases will track the latest stable Go version. If you need long-term compatibility with an older Go toolchain, maintain a fork or pin to an earlier tagged release.
+
+</details>
 
 <details>
 <summary><b>Chrome not found error?</b></summary>
@@ -134,7 +153,41 @@ Uses byte-oriented approach with `/NeedAppearances true`. Works for most AcroFor
 <details>
 <summary><b>Performance benchmarks?</b></summary>
 
-Sub-millisecond to ~7ms response times for complex 2-page financial reports. In-memory processing with zero external dependencies.
+Benchmarked on **Intel i7-13700HX (24 cores), WSL2, Go 1.26.4** — 10 runs each, peak values reported.
+
+### gopdflib — Zerodha Gold Standard (48 workers, PDF/A + tagged + signed)
+
+Real-world brokerage workload: 80% retail (1-page) · 15% active trader (2–3 page) · 5% HFT (50+ page).
+
+| Metric | Peak (best of 20) | 20-run average |
+|--------|------------------:|---------------:|
+| **Throughput** | **2,236 ops/s** | 1,925 ops/s |
+| **Avg latency** | **20.9 ms** | 24.5 ms |
+| **Wall time (5,000 docs)** | **2.2 s** | 2.6 s |
+
+Reproduce: `cd sampledata/gopdflib/zerodha && go1.26.4 run .`
+
+### gopdfsuit — HTTP load test (k6, 48 VUs, PDF/A tagged payloads)
+
+| Metric | Peak (best of 10) | 10-run average |
+|--------|------------------:|---------------:|
+| **Throughput** | **520 req/s** | 496 req/s |
+| **Median latency** | **16 ms** | ~17 ms |
+| **p99 latency** | **287 ms** | ~320 ms |
+
+Reproduce: start server (`go run ./cmd/gopdfsuit`), then `k6 run test/generate_template-pdf/load_test.js`
+
+### gopdfsuit — Micro-benchmarks (single-thread, PDF/A, 2,000-row table)
+
+| Benchmark | Peak (best of 10) | 10-run average |
+|-----------|------------------:|---------------:|
+| `Rows2000` serial | **42.5 ms/op** | 54.8 ms/op |
+| `WrapEnabled/Rows2000` | **32.2 ms/op** | 33.8 ms/op |
+| `GoPdfSuit` (data.json) | **16.4 ms/op** | 17.1 ms/op |
+
+Reproduce: `go test -run='^$' -bench='BenchmarkGenerateTemplatePDF/Rows2000$|BenchmarkGoPdfSuit$' -benchmem -count=10 ./internal/pdf/`
+
+All processing is in-memory with zero external runtime dependencies.
 
 </details>
 

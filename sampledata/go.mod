@@ -1,7 +1,7 @@
 // This module file has been added to skip the download for go get
 module github.com/chinmay-sawant/gopdfsuit/v5/sampledata
 
-go 1.24.0
+go 1.26.4
 
 require (
 	github.com/chinmay-sawant/gopdfsuit-client v1.0.1

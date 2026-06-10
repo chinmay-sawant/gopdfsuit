@@ -12,6 +12,8 @@
 
 #ifndef GO_CGO_GOSTRING_TYPEDEF
 typedef struct { const char *p; ptrdiff_t n; } _GoString_;
+extern size_t _GoStringLen(_GoString_ s);
+extern const char *_GoStringPtr(_GoString_ s);
 #endif
 
 #endif
@@ -63,9 +65,15 @@ typedef size_t GoUintptr;
 typedef float GoFloat32;
 typedef double GoFloat64;
 #ifdef _MSC_VER
+#if !defined(__cplusplus) || _MSVC_LANG <= 201402L
 #include <complex.h>
 typedef _Fcomplex GoComplex64;
 typedef _Dcomplex GoComplex128;
+#else
+#include <complex>
+typedef std::complex<float> GoComplex64;
+typedef std::complex<double> GoComplex128;
+#endif
 #else
 typedef float _Complex GoComplex64;
 typedef double _Complex GoComplex128;
@@ -93,78 +101,20 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-
-// GeneratePDF generates a PDF from a JSON template.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult GeneratePDF(char* jsonTemplate);
-
-// MergePDFs merges multiple PDF files into one.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult MergePDFs(char** pdfData, int* pdfLengths, int count);
-
-// SplitPDF splits a PDF according to the given specification.
-// The caller must free the result using FreeBytesArrayResult.
-//
 extern ByteArrayResult SplitPDF(char* pdfData, int pdfLength, char* specJSON);
-
-// ParsePageSpec parses a page specification string.
-// The caller must free the result using FreeIntArrayResult.
-//
 extern ByteResult ParsePageSpec(char* spec, int totalPages);
-
-// FillPDFWithXFDF fills a PDF form with XFDF data.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult FillPDFWithXFDF(char* pdfData, int pdfLen, char* xfdfData, int xfdfLen);
-
-// ConvertHTMLToPDF converts HTML to PDF.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult ConvertHTMLToPDF(char* requestJSON);
-
-// ConvertHTMLToImage converts HTML to an image.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult ConvertHTMLToImage(char* requestJSON);
-
-// GetAvailableFonts returns the list of available fonts as JSON.
-// The caller must free the result using FreeBytesResult.
-//
-extern ByteResult GetAvailableFonts();
-
-// GetPageInfo returns metadata about PDF pages.
-// The caller must free the result using FreeBytesResult.
-//
+extern ByteResult GetAvailableFonts(void);
 extern ByteResult GetPageInfo(char* pdfData, int pdfLen);
-
-// ExtractTextPositions extracts text coordinates from a specific page.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult ExtractTextPositions(char* pdfData, int pdfLen, int pageNum);
-
-// FindTextOccurrences searches for text and returns redaction candidate rectangles.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult FindTextOccurrences(char* pdfData, int pdfLen, char* searchText);
-
-// ApplyRedactions applies redaction rectangles to the PDF.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult ApplyRedactions(char* pdfData, int pdfLen, char* redactionsJSON);
-
-// ApplyRedactionsAdvanced applies a unified redaction request to the PDF.
-// The caller must free the result using FreeBytesResult.
-//
 extern ByteResult ApplyRedactionsAdvanced(char* pdfData, int pdfLen, char* optionsJSON);
-
-// FreeBytesResult frees memory allocated by functions returning ByteResult.
-//
 extern void FreeBytesResult(ByteResult result);
-
-// FreeBytesArrayResult frees memory allocated by functions returning ByteArrayResult.
-//
 extern void FreeBytesArrayResult(ByteArrayResult result);
 
 #ifdef __cplusplus
