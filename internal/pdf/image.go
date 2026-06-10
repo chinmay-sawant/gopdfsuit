@@ -9,8 +9,8 @@ import (
 	_ "image/png"  // Register PNG decoder
 	"strconv"
 	"strings"
-
 	"sync"
+	"unsafe"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/svg"
@@ -29,11 +29,21 @@ var rgbDataPool = sync.Pool{
 	},
 }
 
-// imageCache stores decoded images keyed by a hash of their base64 data
-// This avoids re-decoding the same image when it appears multiple times
+// imageCache stores decoded images keyed by a hash of their base64 data.
+// A single-slot most-recently-used cache short-circuits the FNV-1a hash
+// whenever the same base64 string is decoded back-to-back, which is the
+// common case for image rows in a table.
 type imageCache struct {
 	mu    sync.RWMutex
 	cache map[uint64]*ImageObject // FNV-1a hash -> decoded image
+
+	// Single-slot MRU: if the incoming base64 string shares the same
+	// (data pointer, length) as the last one, we know the hash matches
+	// and can return the cached object without hashing at all.
+	lastDataPtr *byte
+	lastDataLen int
+	lastHash    uint64
+	lastObj     *ImageObject
 }
 
 var imgCache = &imageCache{
@@ -58,7 +68,25 @@ func fnv1aHash(data string) uint64 {
 func ResetImageCache() {
 	imgCache.mu.Lock()
 	imgCache.cache = make(map[uint64]*ImageObject)
+	imgCache.lastDataPtr = nil
+	imgCache.lastDataLen = 0
+	imgCache.lastHash = 0
+	imgCache.lastObj = nil
 	imgCache.mu.Unlock()
+}
+
+// copyCachedImageObject returns a fresh ImageObject that shares the heavy
+// fields (decoded pixel data) with the cached entry.
+func copyCachedImageObject(cached *ImageObject) *ImageObject {
+	return &ImageObject{
+		Width:        cached.Width,
+		Height:       cached.Height,
+		ColorSpace:   cached.ColorSpace,
+		BitsPerComp:  cached.BitsPerComp,
+		Filter:       cached.Filter,
+		ImageData:    cached.ImageData,
+		ImageDataLen: cached.ImageDataLen,
+	}
 }
 
 // getRGBDataBuffer returns a buffer with at least the requested length
@@ -102,21 +130,32 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		}
 	}
 
+	// Fast path: same image as the most recent decode. Two pointer-sized
+	// comparisons are enough because Go strings are immutable - matching
+	// (data pointer, length) implies matching contents. This avoids the
+	// full FNV-1a hash on the hot path of repeated image rows.
+	dataPtr := unsafe.StringData(cleanData)
+	dataLen := len(cleanData)
+	imgCache.mu.RLock()
+	if imgCache.lastObj != nil && imgCache.lastDataPtr == dataPtr && imgCache.lastDataLen == dataLen {
+		cached := imgCache.lastObj
+		imgCache.mu.RUnlock()
+		return copyCachedImageObject(cached), nil
+	}
+	imgCache.mu.RUnlock()
+
 	// Check cache first (fast path for duplicate images)
 	hash := fnv1aHash(cleanData)
 	imgCache.mu.RLock()
 	if cached, ok := imgCache.cache[hash]; ok {
+		// Promote the matched entry to the MRU slot so subsequent calls
+		// can skip the hash entirely.
+		imgCache.lastDataPtr = dataPtr
+		imgCache.lastDataLen = dataLen
+		imgCache.lastHash = hash
+		imgCache.lastObj = cached
 		imgCache.mu.RUnlock()
-		// Return a copy with a new ObjectID (will be set by caller)
-		return &ImageObject{
-			Width:        cached.Width,
-			Height:       cached.Height,
-			ColorSpace:   cached.ColorSpace,
-			BitsPerComp:  cached.BitsPerComp,
-			Filter:       cached.Filter,
-			ImageData:    cached.ImageData,
-			ImageDataLen: cached.ImageDataLen,
-		}, nil
+		return copyCachedImageObject(cached), nil
 	}
 	imgCache.mu.RUnlock()
 
@@ -241,6 +280,10 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	// Store in cache for future lookups of same image data
 	imgCache.mu.Lock()
 	imgCache.cache[hash] = imgObj
+	imgCache.lastDataPtr = dataPtr
+	imgCache.lastDataLen = dataLen
+	imgCache.lastHash = hash
+	imgCache.lastObj = imgObj
 	imgCache.mu.Unlock()
 
 	return imgObj, nil
@@ -438,28 +481,24 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 	return nil
 }
 
-// CreateImageXObject creates a PDF XObject for an image
-func CreateImageXObject(imgObj *ImageObject, objectID int) string {
-	var buf bytes.Buffer
-
+// CreateImageXObject creates a PDF XObject for an image.
+func CreateImageXObject(imgObj *ImageObject, objectID int) []byte {
 	// Handle Form XObject (Vectors/SVG)
 	if imgObj.IsForm {
-		b := make([]byte, 0, 256)
+		b := make([]byte, 0, 256+imgObj.ImageDataLen+24)
 		b = strconv.AppendInt(b, int64(objectID), 10)
 		b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Form\n   /BBox [0 0 1 1]\n"...)
-		b = append(b, "   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n"...) // Basic resources
+		b = append(b, "   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n"...)
 		b = append(b, "   /Length "...)
 		b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
 		b = append(b, "\n>>\nstream\n"...)
-
-		buf.Write(b)
-		buf.Write(imgObj.ImageData)
-		buf.WriteString("\nendstream\nendobj\n")
-		return buf.String()
+		b = append(b, imgObj.ImageData...)
+		b = append(b, "\nendstream\nendobj\n"...)
+		return b
 	}
 
-	// Pre-allocate buffer with capacity for typical image XObject header
-	b := make([]byte, 0, 256)
+	// Pre-allocate buffer with capacity for the header and image payload.
+	b := make([]byte, 0, 256+imgObj.ImageDataLen+24)
 
 	b = strconv.AppendInt(b, int64(objectID), 10)
 	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
@@ -482,12 +521,10 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
 	b = append(b, "\n>>\nstream\n"...)
 
-	// Write header and image data in two operations
-	buf.Write(b)
-	buf.Write(imgObj.ImageData)
-	buf.WriteString("\nendstream\nendobj\n")
+	b = append(b, imgObj.ImageData...)
+	b = append(b, "\nendstream\nendobj\n"...)
 
-	return buf.String()
+	return b
 }
 
 // ImageEncryptor interface for encrypting image data
@@ -495,31 +532,27 @@ type ImageEncryptor interface {
 	EncryptStream(data []byte, objNum, genNum int) []byte
 }
 
-// CreateEncryptedImageXObject creates an encrypted PDF XObject for an image
-func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor ImageEncryptor) string {
-	var buf bytes.Buffer
-
+// CreateEncryptedImageXObject creates an encrypted PDF XObject for an image.
+func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor ImageEncryptor) []byte {
 	// Encrypt the image data (or form stream commands)
 	encryptedData := encryptor.EncryptStream(imgObj.ImageData, objectID, 0)
 
 	// Handle Form XObject (Vectors/SVG)
 	if imgObj.IsForm {
-		b := make([]byte, 0, 256)
+		b := make([]byte, 0, 256+len(encryptedData)+24)
 		b = strconv.AppendInt(b, int64(objectID), 10)
 		b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Form\n   /BBox [0 0 1 1]\n"...)
 		b = append(b, "   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n"...)
 		b = append(b, "   /Length "...)
 		b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
 		b = append(b, "\n>>\nstream\n"...)
-
-		buf.Write(b)
-		buf.Write(encryptedData)
-		buf.WriteString("\nendstream\nendobj\n")
-		return buf.String()
+		b = append(b, encryptedData...)
+		b = append(b, "\nendstream\nendobj\n"...)
+		return b
 	}
 
-	// Pre-allocate buffer with capacity for typical image XObject header
-	b := make([]byte, 0, 256)
+	// Pre-allocate buffer with capacity for the header and encrypted payload.
+	b := make([]byte, 0, 256+len(encryptedData)+24)
 	b = strconv.AppendInt(b, int64(objectID), 10)
 	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
 	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
@@ -541,13 +574,10 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
 	b = append(b, "\n>>\nstream\n"...)
 
-	// Write header and encrypted data in two operations
-	buf.Write(b)
-	buf.Write(encryptedData)
-	buf.WriteString("\nendstream\n")
-	buf.WriteString("endobj\n")
+	b = append(b, encryptedData...)
+	b = append(b, "\nendstream\nendobj\n"...)
 
-	return buf.String()
+	return b
 }
 
 // drawImageWithXObject renders an image using XObject reference
