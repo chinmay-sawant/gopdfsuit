@@ -153,6 +153,12 @@ type Table struct {
 	// Format: hexadecimal color code (e.g., "#FF0000" for red). Default is black.
 	// Individual cell TextColor takes precedence over table TextColor.
 	TextColor string `json:"textcolor,omitempty"`
+	// SharedRowLayout enables a fast path for large tables where column Props are
+	// uniform across data rows (only Text, BgColor, and TextColor vary per row).
+	SharedRowLayout bool `json:"sharedRowLayout,omitempty"`
+	// SharedRowTemplateRow is the row index whose Props define the per-column layout.
+	// Defaults to 1 when SharedRowLayout is true (row 0 treated as header).
+	SharedRowTemplateRow int `json:"sharedRowTemplateRow,omitempty"`
 }
 
 // Row represents a single horizontal line of cells in a table.

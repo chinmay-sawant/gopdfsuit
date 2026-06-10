@@ -120,6 +120,101 @@ func initializePage(contentStream *bytes.Buffer, borderConfig, watermark string,
 	}
 }
 
+// appendPageInitialization writes border/watermark setup, caching bytes for continuation pages (C3).
+func appendPageInitialization(contentStream *bytes.Buffer, pageManager *PageManager, borderConfig, watermark string) {
+	if pageManager.cachedPageInit != nil &&
+		pageManager.cachedPageInitBorder == borderConfig &&
+		pageManager.cachedPageInitWatermark == watermark {
+		contentStream.Write(pageManager.cachedPageInit)
+		return
+	}
+	mark := contentStream.Len()
+	initializePage(contentStream, borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+	pageManager.cachedPageInit = append(pageManager.cachedPageInit[:0], contentStream.Bytes()[mark:]...)
+	pageManager.cachedPageInitBorder = borderConfig
+	pageManager.cachedPageInitWatermark = watermark
+}
+
+type sharedColumnLayout struct {
+	props          models.Props
+	resolvedFont   string
+	fontRef        string
+	fontDecl       []byte
+	usesCustomFont bool
+	uniformBorder  bool
+	borderWidth    int
+}
+
+func sharedRowTemplateIndex(table models.Table) int {
+	if !table.SharedRowLayout || len(table.Rows) < 2 {
+		return -1
+	}
+	idx := table.SharedRowTemplateRow
+	if idx <= 0 {
+		idx = 1
+	}
+	if idx >= len(table.Rows) {
+		idx = 0
+	}
+	return idx
+}
+
+func tableSupportsSharedRowLayout(table models.Table, templateRow int) bool {
+	// Explicit template row skips O(rows×cols) validation — caller attests uniformity.
+	if table.SharedRowTemplateRow > 0 {
+		return true
+	}
+	template := table.Rows[templateRow]
+	for ri := templateRow + 1; ri < len(table.Rows); ri++ {
+		row := table.Rows[ri]
+		ncol := min(len(row.Row), len(template.Row), table.MaxColumns)
+		for ci := 0; ci < ncol; ci++ {
+			tc := template.Row[ci]
+			c := row.Row[ci]
+			if tc.Props != c.Props || c.Image != nil || c.FormField != nil || c.Checkbox != nil {
+				return false
+			}
+			if c.MathEnabled != nil && *c.MathEnabled {
+				return false
+			}
+			if c.Wrap != nil && *c.Wrap {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func buildSharedColumnLayouts(table models.Table, templateRow int, registry *CustomFontRegistry) []sharedColumnLayout {
+	template := table.Rows[templateRow]
+	cols := make([]sharedColumnLayout, min(len(template.Row), table.MaxColumns))
+	for colIdx, cell := range template.Row {
+		if colIdx >= table.MaxColumns {
+			break
+		}
+		props := parseProps(cell.Props)
+		resolved := resolveFontName(props, registry)
+		decl := append([]byte(nil), getFontReferenceByResolvedName(resolved, registry)...)
+		decl = append(decl, ' ')
+		decl = strconv.AppendInt(decl, int64(props.FontSize), 10)
+		decl = append(decl, " Tf\n"...)
+		uniform := props.Borders[0] == props.Borders[1] &&
+			props.Borders[1] == props.Borders[2] &&
+			props.Borders[2] == props.Borders[3] &&
+			props.Borders[0] > 0
+		cols[colIdx] = sharedColumnLayout{
+			props:          props,
+			resolvedFont:   resolved,
+			fontRef:        getFontReferenceByResolvedName(resolved, registry),
+			fontDecl:       decl,
+			usesCustomFont: registry.IsCustomFont(resolved),
+			uniformBorder:  uniform,
+			borderWidth:    props.Borders[0],
+		}
+	}
+	return cols
+}
+
 // drawPageBorder draws the page border
 func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims PageDimensions, margins PageMargins) {
 	pageBorders := parseBorders(borderConfig)
@@ -417,6 +512,9 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 		// PDF/UA: Start TR Structure Element
 		pageManager.Structure.BeginStructureElement(StructTR)
 
+		cellCount := min(len(row.Row), table.MaxColumns)
+		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+
 		currentX := pageManager.Margins.Left
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
@@ -424,7 +522,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			}
 
 			// PDF/UA: Start TD Structure Element
-			pageManager.Structure.BeginMarkedContentBuf(contentStream, pageManager.CurrentPageIndex, StructTD, nil)
+			pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx)
 
 			// Capture cell coordinates for link
 			// Capture cell coordinates for link
@@ -781,11 +879,19 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	rowSingleLineTextWidths := make([]float64, table.MaxColumns)
 	// Scratch buffers reused across all cells to reduce allocations
 	scratchBuf := make([]byte, 0, 128)
+	textTjBuf := make([]byte, 0, 256)
 	borderBuf := make([]byte, 0, 64)
 	xobjBuf := make([]byte, 0, 96)
 	placeholderBuf := make([]byte, 0, 64)
 	checkboxBuf := make([]byte, 0, 64)
 	var wrapState WrapState
+
+	templateRow := sharedRowTemplateIndex(table)
+	var sharedCols []sharedColumnLayout
+	useSharedLayout := templateRow >= 0 && tableSupportsSharedRowLayout(table, templateRow)
+	if useSharedLayout {
+		sharedCols = buildSharedColumnLayouts(table, templateRow, pageManager.FontRegistry)
+	}
 
 	for rowIdx, row := range table.Rows {
 		// PDF/UA: Start Row Structure
@@ -806,11 +912,47 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 		}
 
+		fastRow := useSharedLayout && rowIdx != templateRow
 		// Pre-calculate wrapped text lines for cells that have wrap enabled (default: enabled)
 		// This is used both for height calculation and later for rendering
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
 				break
+			}
+
+			if fastRow && colIdx < len(sharedCols) {
+				sc := sharedCols[colIdx]
+				rowCellProps[colIdx] = sc.props
+				rowResolvedFonts[colIdx] = sc.resolvedFont
+				rowFontRefs[colIdx] = sc.fontRef
+				rowFontDecls[colIdx] = append(rowFontDecls[colIdx][:0], sc.fontDecl...)
+				rowUsesCustomFonts[colIdx] = sc.usesCustomFont
+				rowSingleLineTextWidths[colIdx] = 0
+
+				textColor := cell.TextColor
+				if textColor == "" {
+					textColor = table.TextColor
+				}
+				if r, g, b, _, valid := parseHexColor(textColor); valid {
+					cmd := rowTextColorCmds[colIdx][:0]
+					cmd = appendFmtNum(cmd, r)
+					cmd = append(cmd, ' ')
+					cmd = appendFmtNum(cmd, g)
+					cmd = append(cmd, ' ')
+					cmd = appendFmtNum(cmd, b)
+					cmd = append(cmd, " rg\n"...)
+					rowTextColorCmds[colIdx] = cmd
+				} else {
+					rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], "0 0 0 rg\n"...)
+				}
+
+				if cell.Text != "" {
+					if sc.usesCustomFont {
+						pageManager.FontRegistry.MarkCharsUsed(sc.resolvedFont, cell.Text)
+					}
+					rowSingleLineTextWidths[colIdx] = EstimateTextWidth(sc.resolvedFont, cell.Text, float64(sc.props.FontSize), pageManager.FontRegistry)
+				}
+				continue
 			}
 
 			// Parse props once per cell and cache it
@@ -893,11 +1035,14 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		if pageManager.CheckPageBreak(rowHeight) {
 			// Create new page and initialize it
 			pageManager.AddNewPage()
-			initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+			appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, borderConfig, watermark)
 		}
 
 		// Get current content stream for this page
 		contentStream := pageManager.GetCurrentContentStream()
+
+		cellCount := min(len(row.Row), table.MaxColumns)
+		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
 
 		// Draw row cells
 		currentX := pageManager.Margins.Left
@@ -910,7 +1055,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// Assuming first row is header if Table has explicit header concept, but for now just use TD
 			// Could be enhanced to detect header rows
 			cellType := StructTD
-			pageManager.Structure.BeginMarkedContentBuf(contentStream, pageManager.CurrentPageIndex, cellType, nil)
+			pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, rowMCIDBase+colIdx)
 
 			cellProps := rowCellProps[colIdx] // Use cached props
 			cellX := currentX
@@ -1211,9 +1356,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.Write(textPosBuf)
 
 						// Render the line
-						textPosBuf = appendTextForPDF(textPosBuf[:0], rowResolvedFonts[colIdx], byteString(line), pageManager.FontRegistry)
-						textPosBuf = append(textPosBuf, " Tj\n"...)
-						contentStream.Write(textPosBuf)
+						textTjBuf = appendTextForPDF(textTjBuf[:0], rowResolvedFonts[colIdx], byteString(line), pageManager.FontRegistry)
+						textTjBuf = append(textTjBuf, " Tj\n"...)
+						contentStream.Write(textTjBuf)
 					}
 					contentStream.WriteString("ET\n")
 				} else {
@@ -1276,9 +1421,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.Write(textPosBuf)
 					}
 
-					textPosBuf = appendTextForPDF(textPosBuf[:0], resolvedName, cell.Text, pageManager.FontRegistry)
-					textPosBuf = append(textPosBuf, " Tj\n"...)
-					contentStream.Write(textPosBuf)
+					textTjBuf = appendTextForPDF(textTjBuf[:0], resolvedName, cell.Text, pageManager.FontRegistry)
+					textTjBuf = append(textTjBuf, " Tj\n"...)
+					contentStream.Write(textTjBuf)
 					contentStream.WriteString("ET\n")
 				}
 			}
@@ -1526,7 +1671,7 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	if pageManager.CheckPageBreak(imageHeight + spacing) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+		appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, borderConfig, watermark)
 	}
 
 	// Get current content stream for this page
@@ -1635,7 +1780,7 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 	if pageManager.CheckPageBreak(imageHeight) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+		appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, borderConfig, watermark)
 	}
 
 	// Get current content stream for this page

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -56,6 +57,17 @@ var pdfBufferPool = sync.Pool{
 		buf.Grow(256 * 1024) // 256KB initial capacity reduces final assembly growth for multi-page PDFs.
 		return buf
 	},
+}
+
+// pageCompressSlots limits concurrent per-page zlib compression (C4: reduces flate.NewWriter churn).
+var pageCompressSlots = make(chan struct{}, maxPageCompressWorkers())
+
+func maxPageCompressWorkers() int {
+	n := runtime.NumCPU()
+	if n < 4 {
+		return 4
+	}
+	return n
 }
 
 // scratchBufPool reuses the small scratch buffer for strconv.Append* operations.
@@ -143,6 +155,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// This ensures thread safety by isolating usage tracking (UsedChars) per generation
 	globalRegistry := GetFontRegistry()
 	fontRegistry := globalRegistry.CloneForGeneration()
+	defer globalRegistry.ReleaseGenerationClone(fontRegistry)
 
 	// PDF/A mode: Register Liberation fonts for all used standard fonts
 	if template.Config.PDFACompliant {
@@ -795,30 +808,21 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// slices.Clone that was previously needed to escape pool ownership.
 	nStreams := len(pageManager.ContentStreams)
 	compressedPages := make([]*bytes.Buffer, nStreams)
+	useFlate := make([]bool, nStreams)
 	var compGroup errgroup.Group
 	for si := range pageManager.ContentStreams {
 		si := si
 		compGroup.Go(func() error {
+			pageCompressSlots <- struct{}{}
+			defer func() { <-pageCompressSlots }()
+
 			contentStream := pageManager.ContentStreams[si]
-			compressedBuf := getCompressBuffer()
-			if grow := contentStream.Len() / 4; grow < 4096 {
-				compressedBuf.Grow(4096)
-			} else {
-				compressedBuf.Grow(grow)
+			compressedBuf, ok := compressContentStream(contentStream.Bytes())
+			if !ok {
+				useFlate[si] = false
+				return nil
 			}
-			zlibWriter := getZlibWriter(compressedBuf)
-			if _, err := contentStream.WriteTo(zlibWriter); err != nil {
-				_ = zlibWriter.Close()
-				putZlibWriter(zlibWriter)
-				putCompressBuffer(compressedBuf)
-				return fmt.Errorf("compress page stream %d: %w", si, err)
-			}
-			if err := zlibWriter.Close(); err != nil {
-				putZlibWriter(zlibWriter)
-				putCompressBuffer(compressedBuf)
-				return fmt.Errorf("compress page stream close %d: %w", si, err)
-			}
-			putZlibWriter(zlibWriter)
+			useFlate[si] = true
 			compressedPages[si] = compressedBuf
 			return nil
 		})
@@ -834,32 +838,46 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		b = append(b, " 0 obj\n"...)
 		pdfBuffer.Write(b)
 
-		compressedBuf := compressedPages[i]
-		compressedData := compressedBuf.Bytes()
+		var streamData []byte
+		if useFlate[i] {
+			streamData = compressedPages[i].Bytes()
+		} else {
+			streamData = pageManager.ContentStreams[i].Bytes()
+		}
 
 		// Encrypt content stream per object order when encryption is enabled
 		if enc != nil {
-			encryptedData := enc.EncryptStream(compressedData, objectID, 0)
-			pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
+			encryptedData := enc.EncryptStream(streamData, objectID, 0)
+			if useFlate[i] {
+				pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
+			} else {
+				pdfBuffer.WriteString("<< /Length ")
+			}
 			b = b[:0]
 			b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
 			pdfBuffer.Write(b)
 			pdfBuffer.WriteString(" >>\nstream\n")
 			pdfBuffer.Write(encryptedData)
-		} else {
+		} else if useFlate[i] {
 			pdfBuffer.WriteString("<< /Filter /FlateDecode /Length ")
 			b = b[:0]
-			b = strconv.AppendInt(b, int64(len(compressedData)), 10)
+			b = strconv.AppendInt(b, int64(len(streamData)), 10)
 			pdfBuffer.Write(b)
 			pdfBuffer.WriteString(" >>\nstream\n")
-			pdfBuffer.Write(compressedData)
+			pdfBuffer.Write(streamData)
+		} else {
+			pdfBuffer.WriteString("<< /Length ")
+			b = b[:0]
+			b = strconv.AppendInt(b, int64(len(streamData)), 10)
+			pdfBuffer.Write(b)
+			pdfBuffer.WriteString(" >>\nstream\n")
+			pdfBuffer.Write(streamData)
 		}
 		pdfBuffer.WriteString("\nendstream\nendobj\n")
-		// The compressed bytes have been copied into pdfBuffer. The buffer
-		// itself is no longer needed; return it to the pool so the next
-		// page can reuse its capacity.
-		putCompressBuffer(compressedBuf)
-		compressedPages[i] = nil
+		if useFlate[i] {
+			putCompressBuffer(compressedPages[i])
+			compressedPages[i] = nil
+		}
 	}
 
 	// Generate font objects (Standard Fonts)
@@ -1245,93 +1263,18 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		var writeStructElems func(elem *StructElem)
 		writeStructElems = func(elem *StructElem) {
 			xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
-
-			var sb strings.Builder
-			sb.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
-			sb.WriteString(strconv.Itoa(elem.ObjectID))
-			sb.WriteString(" 0 obj\n<< /Type /StructElem /S /")
-			sb.WriteString(string(elem.Type))
-
-			// PDF/UA-2: Document element must be in PDF 2.0 namespace
-			if elem.Type == StructDocument {
-				sb.WriteString(" /NS ")
-				sb.WriteString(strconv.Itoa(namespaceID))
-				sb.WriteString(" 0 R")
-			}
-
-			if elem.Parent == pageManager.Structure.Root {
-				sb.WriteString(" /P ")
-				sb.WriteString(strconv.Itoa(structTreeRootID))
-				sb.WriteString(" 0 R")
-			} else if elem.Parent != nil {
-				sb.WriteString(" /P ")
-				sb.WriteString(strconv.Itoa(elem.Parent.ObjectID))
-				sb.WriteString(" 0 R")
-			}
-
-			if elem.Title != "" {
-				sb.WriteString(" /T (")
-				sb.WriteString(escapeText(elem.Title))
-				sb.WriteByte(')')
-			}
-			if elem.Alt != "" {
-				sb.WriteString(" /Alt (")
-				sb.WriteString(escapeText(elem.Alt))
-				sb.WriteByte(')')
-			}
-
-			// Kids
-			if len(elem.Kids) > 0 || elem.Type == StructLink {
-				sb.WriteString(" /K [")
-
-				// PDF/UA-2: For Link elements, output OBJR pointing to annotation
-				if elem.Type == StructLink {
-					pageObjID := 3 // Default to first page
-					if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
-						pageObjID = pageManager.Pages[elem.PageID]
-					}
-					sb.WriteString(" << /Type /OBJR /Obj ")
-					sb.WriteString(strconv.Itoa(elem.AnnotObjID))
-					sb.WriteString(" 0 R /Pg ")
-					sb.WriteString(strconv.Itoa(pageObjID))
-					sb.WriteString(" 0 R >>")
-				}
-
-				for _, k := range elem.Kids {
-					if k.Elem != nil {
-						appendObjRefToBuilder(&sb, k.Elem.ObjectID)
-					} else {
-						sb.WriteByte(' ')
-						b = b[:0]
-						b = strconv.AppendInt(b, int64(k.MCID), 10)
-						sb.Write(b)
-					}
-				}
-				sb.WriteString(" ]")
-			}
-
-			// Pg entry (Page containing this element - required if not inherited)
-			// We use elem.PageID + initial page offset (3) logic?
-			// No, PageID in StructElem is index. We need absolute Object ID.
-			// pm.Pages[elem.PageID] gives the object ID.
-			if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
-				pageObjID := pageManager.Pages[elem.PageID]
-				sb.WriteString(" /Pg ")
-				sb.WriteString(strconv.Itoa(pageObjID))
-				sb.WriteString(" 0 R")
-			}
-
-			sb.WriteString(" >>\nendobj\n")
-			pdfBuffer.WriteString(sb.String())
-
-			// Recurse
+			pdfBuffer.WriteString(formatStructElemObject(elem, structElemFormatCtx{
+				namespaceID:      namespaceID,
+				structTreeRootID: structTreeRootID,
+				root:             pageManager.Structure.Root,
+				pages:            pageManager.Pages,
+			}))
 			for _, k := range elem.Kids {
 				if k.Elem != nil {
 					writeStructElems(k.Elem)
 				}
 			}
 		}
-
 		for _, kid := range pageManager.Structure.Root.Kids {
 			if kid.Elem != nil {
 				writeStructElems(kid.Elem)
@@ -1443,12 +1386,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	pdfBuffer.WriteString("%%EOF\n")
 
 	if pdfSigner != nil && sigIDs != nil {
-		signedPDF, err := signature.UpdatePDFWithSignature(pdfBuffer.Bytes(), pdfSigner)
-		if err != nil {
+		if err := signature.UpdatePDFWithSignatureBuffer(pdfBuffer, pdfSigner); err != nil {
 			return &BorrowedPDF{buf: pdfBuffer}, nil
 		}
-		pdfBufferPool.Put(pdfBuffer)
-		return &BorrowedPDF{bytes: signedPDF}, nil
 	}
 
 	return &BorrowedPDF{buf: pdfBuffer}, nil
@@ -1458,6 +1398,86 @@ func appendObjRefToBuilder(sb *strings.Builder, objID int) {
 	sb.WriteByte(' ')
 	sb.WriteString(strconv.Itoa(objID))
 	sb.WriteString(" 0 R")
+}
+
+type structElemFormatCtx struct {
+	namespaceID      int
+	structTreeRootID int
+	root             *StructElem
+	pages            []int
+}
+
+func formatStructElemObject(elem *StructElem, ctx structElemFormatCtx) string {
+	var sb strings.Builder
+	sb.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
+	sb.WriteString(strconv.Itoa(elem.ObjectID))
+	sb.WriteString(" 0 obj\n<< /Type /StructElem /S /")
+	sb.WriteString(string(elem.Type))
+
+	if elem.Type == StructDocument {
+		sb.WriteString(" /NS ")
+		sb.WriteString(strconv.Itoa(ctx.namespaceID))
+		sb.WriteString(" 0 R")
+	}
+
+	if elem.Parent == ctx.root {
+		sb.WriteString(" /P ")
+		sb.WriteString(strconv.Itoa(ctx.structTreeRootID))
+		sb.WriteString(" 0 R")
+	} else if elem.Parent != nil {
+		sb.WriteString(" /P ")
+		sb.WriteString(strconv.Itoa(elem.Parent.ObjectID))
+		sb.WriteString(" 0 R")
+	}
+
+	if elem.Title != "" {
+		sb.WriteString(" /T (")
+		sb.WriteString(escapeText(elem.Title))
+		sb.WriteByte(')')
+	}
+	if elem.Alt != "" {
+		sb.WriteString(" /Alt (")
+		sb.WriteString(escapeText(elem.Alt))
+		sb.WriteByte(')')
+	}
+
+	if len(elem.Kids) > 0 || elem.Type == StructLink {
+		sb.WriteString(" /K [")
+
+		if elem.Type == StructLink {
+			pageObjID := 3
+			if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
+				pageObjID = ctx.pages[elem.PageID]
+			}
+			sb.WriteString(" << /Type /OBJR /Obj ")
+			sb.WriteString(strconv.Itoa(elem.AnnotObjID))
+			sb.WriteString(" 0 R /Pg ")
+			sb.WriteString(strconv.Itoa(pageObjID))
+			sb.WriteString(" 0 R >>")
+		}
+
+		var mcidScratch [16]byte
+		for _, kid := range elem.Kids {
+			if kid.Elem != nil {
+				appendObjRefToBuilder(&sb, kid.Elem.ObjectID)
+			} else {
+				sb.WriteByte(' ')
+				mcid := strconv.AppendInt(mcidScratch[:0], int64(kid.MCID), 10)
+				sb.Write(mcid)
+			}
+		}
+		sb.WriteString(" ]")
+	}
+
+	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
+		pageObjID := ctx.pages[elem.PageID]
+		sb.WriteString(" /Pg ")
+		sb.WriteString(strconv.Itoa(pageObjID))
+		sb.WriteString(" 0 R")
+	}
+
+	sb.WriteString(" >>\nendobj\n")
+	return sb.String()
 }
 
 type imageObjectKey struct {
@@ -1523,20 +1543,28 @@ func ensurePDFBufferCapacity(pdfBuffer *bytes.Buffer, want int) {
 }
 
 func estimateFinalPDFSize(pageManager *PageManager, uniqueImageObjects int) int {
-	estimate := 256 * 1024
-	estimate += len(pageManager.Pages) * 512
-	estimate += len(pageManager.ExtraObjects) * 128
-	estimate += uniqueImageObjects * 512
+	estimate := 256 * 1024 // header, catalog, xref, trailer slack
+	estimate += len(pageManager.Pages) * 2048
+	estimate += len(pageManager.ExtraObjects) * 512
+	estimate += uniqueImageObjects * 2048
 	for _, stream := range pageManager.ContentStreams {
 		if stream == nil {
 			continue
 		}
 		rawLen := stream.Len()
-		estimate += rawLen / 3
-		estimate += 128
+		// F2: pessimistic upper bound — store-uncompressed pages are rawLen; compressed ~35%.
+		compressedEst := rawLen * 2 / 5
+		if rawLen > compressedEst {
+			estimate += rawLen + 512
+		} else {
+			estimate += compressedEst + 512
+		}
 	}
 	for _, extra := range pageManager.ExtraObjects {
-		estimate += len(extra) + 32
+		estimate += len(extra) + 128
+	}
+	if sm := pageManager.Structure; sm != nil && sm.Enabled {
+		estimate += len(sm.Elements) * 160
 	}
 	return estimate
 }
@@ -1609,7 +1637,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 
 		if pageManager.CheckPageBreak(titleHeight) {
 			pageManager.AddNewPage()
-			initializePage(pageManager.GetCurrentContentStream(), template.Config.PageBorder, template.Config.Watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+			appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, template.Config.PageBorder, template.Config.Watermark)
 		}
 
 		drawTitle(pageManager.GetCurrentContentStream(), template.Title, titleProps, pageManager, cellImageObjectIDs)

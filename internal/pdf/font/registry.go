@@ -161,7 +161,16 @@ func (r *CustomFontRegistry) GenerateSubsets() error {
 			}
 		}
 
-		// Generate subset
+		// C6: reuse cached subset for identical glyph sets (common in benchmark/workload templates).
+		if cached, ok := lookupCachedSubset(font.Font, usedGlyphs); ok {
+			font.SubsetData = cached.data
+			font.OldToNewGlyph = make(map[uint16]uint16, len(cached.oldToNew))
+			for k, v := range cached.oldToNew {
+				font.OldToNewGlyph[k] = v
+			}
+			continue
+		}
+
 		subsetData, oldToNew, err := SubsetTTF(font.Font, usedGlyphs)
 		if err != nil {
 			r.mu.Unlock()
@@ -170,6 +179,7 @@ func (r *CustomFontRegistry) GenerateSubsets() error {
 
 		font.SubsetData = subsetData
 		font.OldToNewGlyph = oldToNew
+		storeCachedSubset(font.Font, usedGlyphs, subsetData, oldToNew)
 	}
 
 	r.mu.Unlock()
@@ -225,30 +235,44 @@ func (r *CustomFontRegistry) ResetUsage() {
 	r.mu.Unlock()
 }
 
+var registryClonePool sync.Pool
+
 // CloneForGeneration creates a shallow clone of the registry with reset usage data.
 // This allows concurrent PDF generation without race conditions on UsedChars.
 func (r *CustomFontRegistry) CloneForGeneration() *CustomFontRegistry {
 	r.mu.RLock()
+	defer r.mu.RUnlock()
 
-	clone := &CustomFontRegistry{
-		fonts:  make(map[string]*RegisteredFont, len(r.fonts)),
-		noLock: true, // Clone is used thread-locally
+	clone, _ := registryClonePool.Get().(*CustomFontRegistry)
+	if clone == nil {
+		clone = &CustomFontRegistry{
+			fonts:  make(map[string]*RegisteredFont, len(r.fonts)),
+			noLock: true,
+		}
 	}
-
+	if len(clone.fonts) < len(r.fonts) {
+		clone.fonts = make(map[string]*RegisteredFont, len(r.fonts))
+	} else {
+		for name := range clone.fonts {
+			delete(clone.fonts, name)
+		}
+	}
 	for name, font := range r.fonts {
-		// Create a new RegisteredFont instance sharing the same static TTFFont data
-		// but with fresh usage maps and specific PDF object IDs
-		// Pre-size UsedChars to 256 to avoid map rehashing during font scanning
 		clone.fonts[name] = &RegisteredFont{
 			Name:      font.Name,
 			Font:      font.Font,
 			UsedChars: make(map[rune]bool, 256),
-			// Other fields default to zero/nil
 		}
 	}
-
-	r.mu.RUnlock()
 	return clone
+}
+
+// ReleaseGenerationClone returns a per-generation clone to the pool.
+func (r *CustomFontRegistry) ReleaseGenerationClone(clone *CustomFontRegistry) {
+	if clone == nil || !clone.noLock {
+		return
+	}
+	registryClonePool.Put(clone)
 }
 
 // AssignObjectIDs assigns PDF object IDs to font objects

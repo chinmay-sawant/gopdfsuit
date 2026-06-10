@@ -50,6 +50,9 @@ type PageManager struct {
 	NamedDests            map[string]NamedDest // Map of named destinations for internal linking
 	FontRegistry          *CustomFontRegistry  // Per-generation font registry for thread-safe font access
 	InitialStreamCap      int                  // Initial capacity for pooled page content streams
+	cachedPageInit        []byte               // Reused border/watermark init bytes for continuation pages (C3)
+	cachedPageInitBorder  string
+	cachedPageInitWatermark string
 }
 
 // AnnotStructElem tracks the relationship between an annotation and its structure element

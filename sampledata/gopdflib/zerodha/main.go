@@ -131,6 +131,42 @@ func generateTrades(n int, rng *rand.Rand) []trade {
 	return trades
 }
 
+// retailCertificateChain is shared by RSA and ECDSA retail signer configs.
+func retailCertificateChain() []string {
+	return []string{
+		"-----BEGIN CERTIFICATE-----\nMIID0DCCArigAwIBAgIUAO/6vdyeXlJjNCQMAaYSpzVnufkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yNzA2MDIwODAyMDhaMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\nMIIBCgKCAQEAo1lU1M6OuA2KMYe2sXMBrv8LTxEFG7T18qgCnUj7cf0snyTHF/Ws\n07TOYzYchdeKNCrbG0C0ZBhg3f+kGMexYf3CA3Dh1S+k6xbGeEf/LsVBSv8pU4XS\ntXps5/29bdiYWqhMc8Wp7NGbpOAT/PUgLG/xXQiWakYhowLose20d73Kp6PZsPHv\nD9E2IQzDiA/AWtCO+G5NWqagiz0R2fNfuJDPCZQFfURbtrdnEdEs+sAIqw0fzjPg\noSTGed+PcWSil/p/8ZKecKg0WWE7xzcdWdclsUOCh9hJplSyTG7aBssT3ebLYZjX\n4dPx84Lxmhzu+OW68791l1Jt1hCvO0BT2QIDAQABo2AwXjAMBgNVHRMEBTADAQH/\nMA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUp81rlG9kaj7TgQJuKEBJzBbifbIw\nHwYDVR0jBBgwFoAUB/CjFA0QwEkFtNTYsUgutKPWOIEwDQYJKoZIhvcNAQELBQAD\nggEBAMkZEEwxvO7p/TOO97eA/VbXCUwXsU+2990HuWg9MgpBTXiaD61m7w/sD2Gu\nwV2Fvv8rW9GTBhCJ60zV6/HjBBvfGO0ci9xPAHmECVk8Z000vg2tqAHL8HXVJdFF\nYqaLXewHVHUBol2GlSk8sSSss3UNC/wUMBq+Xq0aP/Q2ueidsZhf8DT9aLYCLkdT\nOFp4HI4qJYfpU6h9kLiOcGhc6q/7ToLX8fXXwRrzj9BIQHGPkYQAFg99DYiauBY7\n+bzKhtzxy2ykOvGe7WEzXhKdWEQGkTJSZ8lvsSCafYwuSJ1RW4Hi6TQeP6Rr9qvn\nPYQ/v/v0IZ8qDtBCGTWHz7pNDPQ=\n-----END CERTIFICATE-----",
+		"-----BEGIN CERTIFICATE-----\nMIIDszCCApugAwIBAgIUGPNNf0kWGKV8Tg0Kvlqt67kM2OkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yODExMDcwODAyMDhaMGkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MQ0wCwYDVQQLDARSb290MRgwFgYDVQQDDA9Hb1BERlN1\naXRSb290Q0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDt+fuF/xXq\n1eZtUjL5PbMGgFatVpE2FAB5upEwehmGRhWo+AMhAXQtCBUsSHMcuCkB+5IQpDPT\nAdZZqni0nnKeKbSL76ryn0EjQHrWVsGa6nddPz1480ZRUXjNbSpmikT5uVc5j1ec\nR3tPw1jtP9B3xjvebEokSLX7Y0nrTPwCQeLIDzpKh80bshvRJ28vmnT38ha4UMOs\nyGV0A70J9ZzUGN9lHM68zDbsbt1ckP9EZRGWRFqjN06vXJpZkLqk/T4LcU+agwK4\n41/fhpMAy3QpYpgC9BNUWAdRzLx/Xl5F8IjGR6vV1dP7O3yKznNEth0ZMSDOsC+n\nX+67D0NLqifLAgMBAAGjUzBRMB0GA1UdDgQWBBQH8KMUDRDASQW01NixSC60o9Y4\ngTAfBgNVHSMEGDAWgBQH8KMUDRDASQW01NixSC60o9Y4gTAPBgNVHRMBAf8EBTAD\nAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQA/ntzzVNBa8bgWO8VigxTsNntGIwn/HR45\n4Og600Ynx+cLQuqIcVwT/stgjg+RO1jBSRSTCtqzbM4/LTgGTbRj4yvgluO6RDdE\n0EsLIioob97jkbLGcMRNGbI4svSBSUytDjhuvmwxz2wBJYGpxZIm6pkgtMeBHrXp\n4750iSj0ORy9TDUUkUdEXfeDBqbjeQ4M1+OaJ5LP3ze09mb1UDGnNKP2nM9m76Pt\ndT/rN+KQKFN48hLnIHMZykEVIoONEzMh3KkfJKhOdTsZrgvwyoLf56qVDCeuADfN\nztHHMRGR4xXSwWkDU/+F00oYhLi63RsFeL4IdGnXb1Tx8VbaPJVm\n-----END CERTIFICATE-----",
+	}
+}
+
+func retailSignAlgorithmLabel() string {
+	if os.Getenv("BENCH_SIGN_RSA") == "1" {
+		return "RSA-2048"
+	}
+	return "ECDSA P-256"
+}
+
+// retailSignatureConfig defaults to ECDSA P-256 for retail throughput (set BENCH_SIGN_RSA=1 for RSA).
+func retailSignatureConfig() *gopdflib.SignatureConfig {
+	cfg := &gopdflib.SignatureConfig{
+		Enabled:          true,
+		Visible:          true,
+		Name:             "Zerodha Compliance",
+		Reason:           "I am the author of this document",
+		Location:         "Mumbai, India",
+		ContactInfo:      "compliance@brokerage.com",
+		CertificateChain: retailCertificateChain(),
+	}
+	if os.Getenv("BENCH_SIGN_RSA") == "1" {
+		cfg.PrivateKeyPEM = "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDFR55rSZyF0oGt\nJhn7kHXowBy+FhZLl7zJhMp7tCJy5rl6yh3xaf0BwNp/j0WDToTayLimpfCWtGrZ\nV5VEjzGMdtD3RvmHWZKMk5SHot80k+FtWVof3M8H5LpLf8Ye7CgfTMk6lsH7uLHI\nresZXF2Vle3KYDCcj/ZtOlamv+5SGOVGOyIXSaamerArUpHkHkirokr1sq8bSWFv\nYyxyzrLJIZ1jqqwNBBMdtQP7MZnDMekveQU5XEWFJz2n7/PmhJu/c+aw2uVAGZ4l\nsDIq99CejE2vmdcTiAZsKY0INfik/2cpwOiKL4AQuNVD0cbwH2paZjTdk5CTimqI\nviCEsQzVAgMBAAECggEAAsYKzFfAzQGnpxQl216T+c2LQE6CyiJ8M5noit9+eH6v\nIhkDXY7vt32YCAd71hvD5gH0CD74m49pZsLcRPywzD72mY0BTYDZ4zYT9lA45fFX\nHJ8PLR5N0guW/u0kXCNWPd82sqctKDY+WAolIW2MantgJRWmUun6cF1/AfspOGg9\npzEroFMILwVaN+yib5MPZxOWG2qxf9jZAJEgn0W5isgOWyL347tgBQHLbqxTm5FF\nh6bz8nqRUwBLYbmcOswSpJZEm3kQGiTyznGiC1NDZMzLHWwZj1Dc/NCR9wVLXROh\nHx4muAq/Zry8mBdED08OIkqoFIKaFCBQRiGLYX+mYQKBgQDNgnailOR8vDXU9qPA\nXhe/Azn2NkLnJqV7wk5WI4aJaf1Ff8ebeZHHTJIvcA93sOAyCxi7pRz3gEUYjKVi\nzoBZHu+3LtHMje8dSjoKEUI7dLZuXCZ9hhoFQGr8nLuxZRCVB5/NPDrjWlJEnqpJ\npQccmxGCoEKyLMEr79DmtRGheQKBgQD1v4mz0+WM7AJi76c3fNSIgi4Zyik7xmw0\naU72wuCUXYfwF4fCh/tIp5FJqUMsYYld+i1jPhXn8zUq74/RDNGuvrbdZTtkYIXs\n/nVMdAhKL2VQ5t4La4bs+ml+6yfSApaUd8tbCt3ttNyqT0kfHP9XisQ6cepnuqPK\nufv5yQBrPQKBgC7jqn/T6wIOy1WI5Lnafh6F9O6ZWNB2v+Ep50e+GU83EKOP0RJH\nPZy0etI6Bj1v7OdeIsmFlcNez+UXChEuPpiW92jbVOEQLVOIgQ+U+oCoU4uAmQOg\n2kUCeqaieCy0e4EVWT+xk1oWXJjtfrsI3UOImgks2arfjT+iGw7Yl2o5AoGAS5pL\ngNlVq48IBOv5o6ZxtDVofWKmYM9ghpdHRb8aXEqSAZkbmQtAkU+L8P9zvPmcyx6m\nS/vTvXIjDzx4IDYzY/EkTORR60WOriRybbzcuAXww3zjHtxLvCglwHgT3hYRwUdB\ndpbXQ8P6hyKxOjMvkv0L9XcKSDMxJLMnA+eEi3kCgYAJB6nr6W6KQRyotXM1gWP+\n9Ff2Zd5figCt/zD61gw5SAhMLMaR+dj/mfSrDu20jXKr4f/WYuQSRZXxSDHk/pDs\nIXdKNOFnoX+EyvIniTXzQsUWdJVdmZdXseclVfKepUCcQZReYLaesQxdDovlFWjC\nEdvw5H4P31EKT6I5hL6jrA==\n-----END PRIVATE KEY-----"
+		cfg.CertificatePEM = "-----BEGIN CERTIFICATE-----\nMIIDaTCCAlECFDkGiITntD1ddujydCgb/KNltr4wMA0GCSqGSIb3DQEBCwUAMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMB4XDTI2MDExODA4MDIwOVoXDTI3MDEx\nODA4MDIwOVowaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQH\nDARDaXR5MRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBExlYWYxGDAWBgNV\nBAMMD0dvUERGU3VpdFNpZ25lcjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC\nggEBAMVHnmtJnIXSga0mGfuQdejAHL4WFkuXvMmEynu0InLmuXrKHfFp/QHA2n+P\nRYNOhNrIuKal8Ja0atlXlUSPMYx20PdG+YdZkoyTlIei3zST4W1ZWh/czwfkukt/\nxh7sKB9MyTqWwfu4scit6xlcXZWV7cpgMJyP9m06Vqa/7lIY5UY7IhdJpqZ6sCtS\nkeQeSKuiSvWyrxtJYW9jLHLOsskhnWOqrA0EEx21A/sxmcMx6S95BTlcRYUnPafv\n8+aEm79z5rDa5UAZniWwMir30J6MTa+Z1xOIBmwpjQg1+KT/ZynA6IovgBC41UPR\nxvAfalpmNN2TkJOKaoi+IISxDNUCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAh4d+\n3PV4bnOsGQIxSupZMIq+qXf1wcB8dLQWX9ILZz9uXho0E1nhDPHZXRvy/mWG3tZD\nedO8vzMhBY5sD2O8O7K7M+khajfG4gfwhCi3H1dTdze4Wq85K2/kNPqQ/d6qmnS4\nDbxIHWrm8p/wU1p4SYfWFijad9UVutaJixCI9FtCPfRYq5+s0c4cRSyKhjfZp6ic\nhQB01AsgOk1iDgQnSvvjwsz0n1BY/+Apnto3k42PYQx+FNIDIeRvtckVoHxWfmMl\ncWsY6Seqg6V41Yuts78fTKlfjhzI7gKdujl7JMtuyLrL3JVP1rZoMXnjf8SK4QAk\nPkJ5eGE0Ht4i9WkakA==\n-----END CERTIFICATE-----"
+	} else {
+		cfg.PrivateKeyPEM = ecLeafKeyPEM
+		cfg.CertificatePEM = ecLeafCertPEM
+	}
+	return cfg
+}
+
 // ──────────────────────────────────────────────
 // Template 1: Retail Investor (1 page, 2 trades)
 // ──────────────────────────────────────────────
@@ -146,21 +182,7 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 			TaggedPDF:           true,
 			ArlingtonCompatible: true,
 			EmbedFonts:          boolPtr(true),
-			Signature: &gopdflib.SignatureConfig{
-				Enabled:     true,
-				Visible:     true,
-				Name:        "Zerodha Compliance",
-				Reason:      "I am the author of this document",
-				Location:    "Mumbai, India",
-				ContactInfo: "compliance@brokerage.com",
-				// TODO: Replace with real PEM certs
-				PrivateKeyPEM:  "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDFR55rSZyF0oGt\nJhn7kHXowBy+FhZLl7zJhMp7tCJy5rl6yh3xaf0BwNp/j0WDToTayLimpfCWtGrZ\nV5VEjzGMdtD3RvmHWZKMk5SHot80k+FtWVof3M8H5LpLf8Ye7CgfTMk6lsH7uLHI\nresZXF2Vle3KYDCcj/ZtOlamv+5SGOVGOyIXSaamerArUpHkHkirokr1sq8bSWFv\nYyxyzrLJIZ1jqqwNBBMdtQP7MZnDMekveQU5XEWFJz2n7/PmhJu/c+aw2uVAGZ4l\nsDIq99CejE2vmdcTiAZsKY0INfik/2cpwOiKL4AQuNVD0cbwH2paZjTdk5CTimqI\nviCEsQzVAgMBAAECggEAAsYKzFfAzQGnpxQl216T+c2LQE6CyiJ8M5noit9+eH6v\nIhkDXY7vt32YCAd71hvD5gH0CD74m49pZsLcRPywzD72mY0BTYDZ4zYT9lA45fFX\nHJ8PLR5N0guW/u0kXCNWPd82sqctKDY+WAolIW2MantgJRWmUun6cF1/AfspOGg9\npzEroFMILwVaN+yib5MPZxOWG2qxf9jZAJEgn0W5isgOWyL347tgBQHLbqxTm5FF\nh6bz8nqRUwBLYbmcOswSpJZEm3kQGiTyznGiC1NDZMzLHWwZj1Dc/NCR9wVLXROh\nHx4muAq/Zry8mBdED08OIkqoFIKaFCBQRiGLYX+mYQKBgQDNgnailOR8vDXU9qPA\nXhe/Azn2NkLnJqV7wk5WI4aJaf1Ff8ebeZHHTJIvcA93sOAyCxi7pRz3gEUYjKVi\nzoBZHu+3LtHMje8dSjoKEUI7dLZuXCZ9hhoFQGr8nLuxZRCVB5/NPDrjWlJEnqpJ\npQccmxGCoEKyLMEr79DmtRGheQKBgQD1v4mz0+WM7AJi76c3fNSIgi4Zyik7xmw0\naU72wuCUXYfwF4fCh/tIp5FJqUMsYYld+i1jPhXn8zUq74/RDNGuvrbdZTtkYIXs\n/nVMdAhKL2VQ5t4La4bs+ml+6yfSApaUd8tbCt3ttNyqT0kfHP9XisQ6cepnuqPK\nufv5yQBrPQKBgC7jqn/T6wIOy1WI5Lnafh6F9O6ZWNB2v+Ep50e+GU83EKOP0RJH\nPZy0etI6Bj1v7OdeIsmFlcNez+UXChEuPpiW92jbVOEQLVOIgQ+U+oCoU4uAmQOg\n2kUCeqaieCy0e4EVWT+xk1oWXJjtfrsI3UOImgks2arfjT+iGw7Yl2o5AoGAS5pL\ngNlVq48IBOv5o6ZxtDVofWKmYM9ghpdHRb8aXEqSAZkbmQtAkU+L8P9zvPmcyx6m\nS/vTvXIjDzx4IDYzY/EkTORR60WOriRybbzcuAXww3zjHtxLvCglwHgT3hYRwUdB\ndpbXQ8P6hyKxOjMvkv0L9XcKSDMxJLMnA+eEi3kCgYAJB6nr6W6KQRyotXM1gWP+\n9Ff2Zd5figCt/zD61gw5SAhMLMaR+dj/mfSrDu20jXKr4f/WYuQSRZXxSDHk/pDs\nIXdKNOFnoX+EyvIniTXzQsUWdJVdmZdXseclVfKepUCcQZReYLaesQxdDovlFWjC\nEdvw5H4P31EKT6I5hL6jrA==\n-----END PRIVATE KEY-----",
-				CertificatePEM: "-----BEGIN CERTIFICATE-----\nMIIDaTCCAlECFDkGiITntD1ddujydCgb/KNltr4wMA0GCSqGSIb3DQEBCwUAMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMB4XDTI2MDExODA4MDIwOVoXDTI3MDEx\nODA4MDIwOVowaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQH\nDARDaXR5MRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBExlYWYxGDAWBgNV\nBAMMD0dvUERGU3VpdFNpZ25lcjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC\nggEBAMVHnmtJnIXSga0mGfuQdejAHL4WFkuXvMmEynu0InLmuXrKHfFp/QHA2n+P\nRYNOhNrIuKal8Ja0atlXlUSPMYx20PdG+YdZkoyTlIei3zST4W1ZWh/czwfkukt/\nxh7sKB9MyTqWwfu4scit6xlcXZWV7cpgMJyP9m06Vqa/7lIY5UY7IhdJpqZ6sCtS\nkeQeSKuiSvWyrxtJYW9jLHLOsskhnWOqrA0EEx21A/sxmcMx6S95BTlcRYUnPafv\n8+aEm79z5rDa5UAZniWwMir30J6MTa+Z1xOIBmwpjQg1+KT/ZynA6IovgBC41UPR\nxvAfalpmNN2TkJOKaoi+IISxDNUCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAh4d+\n3PV4bnOsGQIxSupZMIq+qXf1wcB8dLQWX9ILZz9uXho0E1nhDPHZXRvy/mWG3tZD\nedO8vzMhBY5sD2O8O7K7M+khajfG4gfwhCi3H1dTdze4Wq85K2/kNPqQ/d6qmnS4\nDbxIHWrm8p/wU1p4SYfWFijad9UVutaJixCI9FtCPfRYq5+s0c4cRSyKhjfZp6ic\nhQB01AsgOk1iDgQnSvvjwsz0n1BY/+Apnto3k42PYQx+FNIDIeRvtckVoHxWfmMl\ncWsY6Seqg6V41Yuts78fTKlfjhzI7gKdujl7JMtuyLrL3JVP1rZoMXnjf8SK4QAk\nPkJ5eGE0Ht4i9WkakA==\n-----END CERTIFICATE-----",
-				CertificateChain: []string{
-					"-----BEGIN CERTIFICATE-----\nMIID0DCCArigAwIBAgIUAO/6vdyeXlJjNCQMAaYSpzVnufkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yNzA2MDIwODAyMDhaMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\nMIIBCgKCAQEAo1lU1M6OuA2KMYe2sXMBrv8LTxEFG7T18qgCnUj7cf0snyTHF/Ws\n07TOYzYchdeKNCrbG0C0ZBhg3f+kGMexYf3CA3Dh1S+k6xbGeEf/LsVBSv8pU4XS\ntXps5/29bdiYWqhMc8Wp7NGbpOAT/PUgLG/xXQiWakYhowLose20d73Kp6PZsPHv\nD9E2IQzDiA/AWtCO+G5NWqagiz0R2fNfuJDPCZQFfURbtrdnEdEs+sAIqw0fzjPg\noSTGed+PcWSil/p/8ZKecKg0WWE7xzcdWdclsUOCh9hJplSyTG7aBssT3ebLYZjX\n4dPx84Lxmhzu+OW68791l1Jt1hCvO0BT2QIDAQABo2AwXjAMBgNVHRMEBTADAQH/\nMA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUp81rlG9kaj7TgQJuKEBJzBbifbIw\nHwYDVR0jBBgwFoAUB/CjFA0QwEkFtNTYsUgutKPWOIEwDQYJKoZIhvcNAQELBQAD\nggEBAMkZEEwxvO7p/TOO97eA/VbXCUwXsU+2990HuWg9MgpBTXiaD61m7w/sD2Gu\nwV2Fvv8rW9GTBhCJ60zV6/HjBBvfGO0ci9xPAHmECVk8Z000vg2tqAHL8HXVJdFF\nYqaLXewHVHUBol2GlSk8sSSss3UNC/wUMBq+Xq0aP/Q2ueidsZhf8DT9aLYCLkdT\nOFp4HI4qJYfpU6h9kLiOcGhc6q/7ToLX8fXXwRrzj9BIQHGPkYQAFg99DYiauBY7\n+bzKhtzxy2ykOvGe7WEzXhKdWEQGkTJSZ8lvsSCafYwuSJ1RW4Hi6TQeP6Rr9qvn\nPYQ/v/v0IZ8qDtBCGTWHz7pNDPQ=\n-----END CERTIFICATE-----",
-					"-----BEGIN CERTIFICATE-----\nMIIDszCCApugAwIBAgIUGPNNf0kWGKV8Tg0Kvlqt67kM2OkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yODExMDcwODAyMDhaMGkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MQ0wCwYDVQQLDARSb290MRgwFgYDVQQDDA9Hb1BERlN1\naXRSb290Q0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDt+fuF/xXq\n1eZtUjL5PbMGgFatVpE2FAB5upEwehmGRhWo+AMhAXQtCBUsSHMcuCkB+5IQpDPT\nAdZZqni0nnKeKbSL76ryn0EjQHrWVsGa6nddPz1480ZRUXjNbSpmikT5uVc5j1ec\nR3tPw1jtP9B3xjvebEokSLX7Y0nrTPwCQeLIDzpKh80bshvRJ28vmnT38ha4UMOs\nyGV0A70J9ZzUGN9lHM68zDbsbt1ckP9EZRGWRFqjN06vXJpZkLqk/T4LcU+agwK4\n41/fhpMAy3QpYpgC9BNUWAdRzLx/Xl5F8IjGR6vV1dP7O3yKznNEth0ZMSDOsC+n\nX+67D0NLqifLAgMBAAGjUzBRMB0GA1UdDgQWBBQH8KMUDRDASQW01NixSC60o9Y4\ngTAfBgNVHSMEGDAWgBQH8KMUDRDASQW01NixSC60o9Y4gTAPBgNVHRMBAf8EBTAD\nAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQA/ntzzVNBa8bgWO8VigxTsNntGIwn/HR45\n4Og600Ynx+cLQuqIcVwT/stgjg+RO1jBSRSTCtqzbM4/LTgGTbRj4yvgluO6RDdE\n0EsLIioob97jkbLGcMRNGbI4svSBSUytDjhuvmwxz2wBJYGpxZIm6pkgtMeBHrXp\n4750iSj0ORy9TDUUkUdEXfeDBqbjeQ4M1+OaJ5LP3ze09mb1UDGnNKP2nM9m76Pt\ndT/rN+KQKFN48hLnIHMZykEVIoONEzMh3KkfJKhOdTsZrgvwyoLf56qVDCeuADfN\nztHHMRGR4xXSwWkDU/+F00oYhLi63RsFeL4IdGnXb1Tx8VbaPJVm\n-----END CERTIFICATE-----",
-				},
-			},
+			Signature:           retailSignatureConfig(),
 		},
 		Title: gopdflib.Title{
 			Props: "Helvetica:24:100:center:0:0:0:0",
@@ -595,11 +617,13 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 					{Props: "Helvetica:10:100:left:1:1:1:1", Text: "SECTION B: TRADE DETAILS (2,000 TRADES)", BgColor: "#21618C", TextColor: "#FFFFFF", Dest: "hft-trades"},
 				}}},
 			}},
-			// 2000-row trade table
+			// 2000-row trade table (SharedRowLayout: uniform column props, diff-only text/colors)
 			{Type: "table", Table: &gopdflib.Table{
-				MaxColumns:   7,
-				ColumnWidths: []float64{0.6, 1, 2, 0.8, 0.6, 1.5, 1.5},
-				Rows:         tradeRows,
+				MaxColumns:           7,
+				ColumnWidths:         []float64{0.6, 1, 2, 0.8, 0.6, 1.5, 1.5},
+				Rows:                 tradeRows,
+				SharedRowLayout:      true,
+				SharedRowTemplateRow: 1,
 			}},
 			// Compliance audit with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
@@ -699,9 +723,17 @@ func runBenchmark() error {
 
 	iterations := envInt("BENCH_ITERATIONS", 5000)
 	numWorkers := envInt("BENCH_WORKERS", 48)
+	skipWrite := os.Getenv("BENCH_SKIP_WRITE") == "1"
+	benchSeed := int64(42)
+	if raw := os.Getenv("BENCH_SEED"); raw != "" {
+		if n, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			benchSeed = n
+		}
+	}
 
 	fmt.Println(getSystemInfo())
-	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)
+	fmt.Printf("GOMAXPROCS: %d\n", runtime.GOMAXPROCS(0))
+	fmt.Printf("Running %d iterations using %d workers (retail sign: %s)...\n\n", iterations, numWorkers, retailSignAlgorithmLabel())
 
 	// Pre-build all 3 templates
 	fmt.Println("Building templates...")
@@ -710,32 +742,70 @@ func runBenchmark() error {
 	hftTemplate := buildHFTTemplate()
 	fmt.Println("Templates built.")
 
-	// Warm-up runs
-	fmt.Println("Warm-up runs...")
-	retailPDF, err := gopdflib.GeneratePDF(retailTemplate)
-	if err != nil {
-		return fmt.Errorf("error generating retail PDF: %w", err)
+	var retailPDF, activePDF, hftPDF []byte
+	if os.Getenv("BENCH_WARMUP") != "0" {
+		// Warm-up runs
+		fmt.Println("Warm-up runs...")
+		var err error
+		retailPDF, err = gopdflib.GeneratePDF(retailTemplate)
+		if err != nil {
+			return fmt.Errorf("error generating retail PDF: %w", err)
+		}
+		activePDF, err = gopdflib.GeneratePDF(activeTemplate)
+		if err != nil {
+			return fmt.Errorf("error generating active PDF: %w", err)
+		}
+		hftPDF, err = gopdflib.GeneratePDF(hftTemplate)
+		if err != nil {
+			return fmt.Errorf("error generating HFT PDF: %w", err)
+		}
+		fmt.Printf("  Retail PDF size:  %d bytes (%.2f KB)\n", len(retailPDF), float64(len(retailPDF))/1024.0)
+		fmt.Printf("  Active PDF size:  %d bytes (%.2f KB)\n", len(activePDF), float64(len(activePDF))/1024.0)
+		fmt.Printf("  HFT PDF size:     %d bytes (%.2f KB)\n", len(hftPDF), float64(len(hftPDF))/1024.0)
+		fmt.Println()
+	} else {
+		fmt.Println("Warm-up skipped (BENCH_WARMUP=0).")
+		fmt.Println()
 	}
-	activePDF, err := gopdflib.GeneratePDF(activeTemplate)
-	if err != nil {
-		return fmt.Errorf("error generating active PDF: %w", err)
-	}
-	hftPDF, err := gopdflib.GeneratePDF(hftTemplate)
-	if err != nil {
-		return fmt.Errorf("error generating HFT PDF: %w", err)
-	}
-	fmt.Printf("  Retail PDF size:  %d bytes (%.2f KB)\n", len(retailPDF), float64(len(retailPDF))/1024.0)
-	fmt.Printf("  Active PDF size:  %d bytes (%.2f KB)\n", len(activePDF), float64(len(activePDF))/1024.0)
-	fmt.Printf("  HFT PDF size:     %d bytes (%.2f KB)\n", len(hftPDF), float64(len(hftPDF))/1024.0)
-	fmt.Println()
 
 	// Counters
 	var retailCount, activeCount, hftCount int64
 
+	// Exact 80/15/5 workload schedule (B3), shuffled for reproducibility (E1).
+	const (
+		workloadRetail = iota
+		workloadActive
+		workloadHFT
+	)
+	schedule := make([]int, iterations)
+	retailTarget := iterations * 80 / 100
+	activeTarget := iterations * 15 / 100
+	for i := range schedule {
+		switch {
+		case i < retailTarget:
+			schedule[i] = workloadRetail
+		case i < retailTarget+activeTarget:
+			schedule[i] = workloadActive
+		default:
+			schedule[i] = workloadHFT
+		}
+	}
+	scheduleRNG := rand.New(rand.NewSource(benchSeed))
+	scheduleRNG.Shuffle(len(schedule), func(i, j int) {
+		schedule[i], schedule[j] = schedule[j], schedule[i]
+	})
+
+	type latencyStats struct {
+		count int64
+		sumNs int64
+		minNs int64
+		maxNs int64
+	}
+
 	// Channels
 	jobs := make(chan int, iterations)
-	results := make(chan time.Duration, iterations)
 	errCh := make(chan error, iterations)
+	workerStats := make([]latencyStats, numWorkers)
 
 	var wg sync.WaitGroup
 
@@ -746,19 +816,18 @@ func runBenchmark() error {
 	go monitorMemory(memDone, &memWg)
 
 	// Start workers
-	for range numWorkers {
+	for w := range numWorkers {
 		wg.Add(1)
-		go func() {
+		go func(workerID int) {
 			defer wg.Done()
-			localRng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(rand.Intn(10000))))
-			for range jobs {
-				roll := localRng.Intn(100)
+			stats := &workerStats[workerID]
+			for jobIdx := range jobs {
 				var tmpl gopdflib.PDFTemplate
-				switch {
-				case roll < 80:
+				switch schedule[jobIdx] {
+				case workloadRetail:
 					tmpl = retailTemplate
 					atomic.AddInt64(&retailCount, 1)
-				case roll < 95:
+				case workloadActive:
 					tmpl = activeTemplate
 					atomic.AddInt64(&activeCount, 1)
 				default:
@@ -767,21 +836,32 @@ func runBenchmark() error {
 				}
 
 				start := time.Now()
-				_, err := gopdflib.GeneratePDF(tmpl)
+				doc, err := gopdflib.GeneratePDFBorrowed(tmpl)
 				elapsed := time.Since(start)
+				if doc != nil {
+					doc.Release()
+				}
 
 				if err != nil {
-errCh <- err
+					errCh <- err
 					continue
 				}
-				results <- elapsed
+				ns := elapsed.Nanoseconds()
+				stats.count++
+				stats.sumNs += ns
+				if stats.count == 1 || ns < stats.minNs {
+					stats.minNs = ns
+				}
+				if ns > stats.maxNs {
+					stats.maxNs = ns
+				}
 			}
-		}()
+		}(w)
 	}
 
 	// Start timer and send jobs
 	totalStart := time.Now()
-	for i := 1; i <= iterations; i++ {
+	for i := range iterations {
 		jobs <- i
 	}
 	close(jobs)
@@ -794,7 +874,6 @@ errCh <- err
 	memDone <- true
 	memWg.Wait()
 
-	close(results)
 	close(errCh)
 
 	// Check errors
@@ -810,35 +889,36 @@ errCh <- err
 		return fmt.Errorf("benchmark failed with %d errors", errCount)
 	}
 
-	// Collect timing data
-	var durations []time.Duration
-	var sumDuration time.Duration
-	for d := range results {
-		durations = append(durations, d)
-		sumDuration += d
+	var totalCount, totalSumNs, minNs, maxNs int64
+	for _, stats := range workerStats {
+		if stats.count == 0 {
+			continue
+		}
+		totalCount += stats.count
+		totalSumNs += stats.sumNs
+		if minNs == 0 || (stats.minNs > 0 && stats.minNs < minNs) {
+			minNs = stats.minNs
+		}
+		if stats.maxNs > maxNs {
+			maxNs = stats.maxNs
+		}
 	}
-
-	if len(durations) == 0 {
+	if totalCount == 0 {
 		fmt.Println("No results collected.")
 		return errors.New("no results collected")
 	}
 
-	var minDuration, maxDuration time.Duration = durations[0], durations[0]
-	for _, d := range durations {
-		if d < minDuration {
-			minDuration = d
-		}
-		if d > maxDuration {
-			maxDuration = d
-		}
-	}
-	avgDuration := sumDuration / time.Duration(len(durations))
+	avgDuration := time.Duration(totalSumNs / totalCount)
+	minDuration := time.Duration(minNs)
+	maxDuration := time.Duration(maxNs)
 	opsPerSec := float64(iterations) / totalTime.Seconds()
 
 	// Print summary
 	fmt.Println("=== Performance Summary ===")
 	fmt.Printf("  Iterations:      %d\n", iterations)
 	fmt.Printf("  Concurrency:     %d workers\n", numWorkers)
+	fmt.Printf("  GOMAXPROCS:      %d\n", runtime.GOMAXPROCS(0))
+	fmt.Printf("  Retail signing:  %s\n", retailSignAlgorithmLabel())
 	fmt.Printf("  Total time:      %.3f s\n", totalTime.Seconds())
 	fmt.Printf("  Throughput:      %.2f ops/sec\n", opsPerSec)
 	fmt.Println()
@@ -852,21 +932,22 @@ errCh <- err
 	fmt.Printf("  HFT      (5%%):   %d iterations\n", atomic.LoadInt64(&hftCount))
 	fmt.Println()
 
-	// Save sample PDFs into ./zerodha output directory (relative to working directory)
-	outputDir := "./"
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		fmt.Printf("Error creating output directory: %v\n", err)
-	}
-	for name, data := range map[string][]byte{
-		"zerodha_retail_output.pdf": retailPDF,
-		"zerodha_active_output.pdf": activePDF,
-		"zerodha_hft_output.pdf":    hftPDF,
-	} {
-		outPath := filepath.Join(outputDir, name)
-		if err := os.WriteFile(outPath, data, 0644); err != nil {
-			fmt.Printf("Error saving %s: %v\n", outPath, err)
-		} else {
-			fmt.Printf("Saved: %s (%d bytes)\n", outPath, len(data))
+	if !skipWrite {
+		outputDir := "./"
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			fmt.Printf("Error creating output directory: %v\n", err)
+		}
+		for name, data := range map[string][]byte{
+			"zerodha_retail_output.pdf": retailPDF,
+			"zerodha_active_output.pdf": activePDF,
+			"zerodha_hft_output.pdf":    hftPDF,
+		} {
+			outPath := filepath.Join(outputDir, name)
+			if err := os.WriteFile(outPath, data, 0644); err != nil {
+				fmt.Printf("Error saving %s: %v\n", outPath, err)
+			} else {
+				fmt.Printf("Saved: %s (%d bytes)\n", outPath, len(data))
+			}
 		}
 	}
 

@@ -123,6 +123,36 @@ var structElemPool = sync.Pool{
 	},
 }
 
+var structKidsSlicePool = sync.Pool{
+	New: func() any {
+		s := make([]StructKid, 0, 4)
+		return &s
+	},
+}
+
+func acquireStructKids(capHint int) []StructKid {
+	if capHint <= 0 {
+		capHint = 1
+	}
+	if capHint <= 8 {
+		if v := structKidsSlicePool.Get(); v != nil {
+			s := *(v.(*[]StructKid))
+			if cap(s) >= capHint {
+				return s[:0]
+			}
+		}
+	}
+	return make([]StructKid, 0, capHint)
+}
+
+func releaseStructKids(kids []StructKid) {
+	if cap(kids) < 1 || cap(kids) > 64 {
+		return
+	}
+	kids = kids[:0]
+	structKidsSlicePool.Put(&kids)
+}
+
 func (sm *StructureManager) acquireStructElem() *StructElem {
 	if !sm.Enabled {
 		return &StructElem{}
@@ -147,6 +177,7 @@ func (sm *StructureManager) ReleaseStructElemsToPool() {
 		if elem == nil || elem == sm.Root {
 			continue
 		}
+		releaseStructKids(elem.Kids)
 		*elem = StructElem{}
 		structElemPool.Put(elem)
 	}
@@ -179,6 +210,40 @@ func (sm *StructureManager) GetNextMCID(pageIndex int) int {
 	return mcid
 }
 
+func (sm *StructureManager) ensureParentTreeCapacity(pageIndex, count int) {
+	if !sm.Enabled || count <= 0 {
+		return
+	}
+	sm.ensurePageSlot(pageIndex)
+	pt := &sm.ParentTree[pageIndex]
+	need := len(*pt) + count
+	if cap(*pt) >= need {
+		return
+	}
+	newCap := need
+	if newCap < 32 {
+		newCap = 32
+	} else if c := cap(*pt); c > 0 && newCap < c*2 {
+		newCap = c * 2
+	}
+	grown := make([]*StructElem, len(*pt), newCap)
+	copy(grown, *pt)
+	*pt = grown
+}
+
+// ReserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
+// Used by drawTable to avoid per-cell ensurePageSlot/increment overhead (D4).
+func (sm *StructureManager) ReserveMCIDs(pageIndex, count int) int {
+	if !sm.Enabled || count <= 0 {
+		return 0
+	}
+	sm.ensurePageSlot(pageIndex)
+	sm.ensureParentTreeCapacity(pageIndex, count)
+	start := sm.NextMCID[pageIndex]
+	sm.NextMCID[pageIndex] += count
+	return start
+}
+
 // BeginMarkedContent starts a new structure element and returns the tag, properties strings and MCID
 func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, pageIndex int, tag StructureType, props map[string]string) int {
 	if !sm.Enabled {
@@ -189,7 +254,7 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	elem.Type = tag
 	elem.Parent = sm.CurrentParent
 	elem.PageID = pageIndex
-	elem.Kids = make([]StructKid, 0, 1)
+	elem.Kids = acquireStructKids(1)
 
 	if val, ok := props["Title"]; ok {
 		elem.Title = val
@@ -248,6 +313,15 @@ func (sm *StructureManager) EndMarkedContent(streamBuilder *strings.Builder) {
 
 // BeginMarkedContentBuf writes directly to a bytes.Buffer (avoids strings.Builder intermediary in hot loops)
 func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string) int {
+	return sm.beginMarkedContentBuf(buf, pageIndex, tag, props, -1)
+}
+
+// BeginMarkedContentBufWithMCID is like BeginMarkedContentBuf but uses a pre-reserved MCID (batch allocation).
+func (sm *StructureManager) BeginMarkedContentBufWithMCID(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string, mcid int) {
+	sm.beginMarkedContentBuf(buf, pageIndex, tag, props, mcid)
+}
+
+func (sm *StructureManager) beginMarkedContentBuf(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string, reservedMCID int) int {
 	if !sm.Enabled {
 		return 0
 	}
@@ -256,7 +330,7 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	elem.Type = tag
 	elem.Parent = sm.CurrentParent
 	elem.PageID = pageIndex
-	elem.Kids = make([]StructKid, 0, 1)
+	elem.Kids = acquireStructKids(1)
 
 	if val, ok := props["Title"]; ok {
 		elem.Title = val
@@ -272,8 +346,11 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	// 3. Set current parent to this new element
 	sm.CurrentParent = elem
 
-	// 4. Generate MCID for content stream
-	mcid := sm.GetNextMCID(pageIndex)
+	// 4. MCID for content stream (pre-reserved or next available)
+	mcid := reservedMCID
+	if mcid < 0 {
+		mcid = sm.GetNextMCID(pageIndex)
+	}
 
 	// Track in ParentTree
 	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
@@ -322,7 +399,7 @@ func (sm *StructureManager) BeginStructureElementCap(tag StructureType, kidCap i
 	elem.Type = tag
 	elem.Parent = sm.CurrentParent
 	if kidCap > 0 {
-		elem.Kids = make([]StructKid, 0, kidCap)
+		elem.Kids = acquireStructKids(kidCap)
 	}
 	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, StructKid{Elem: elem})
 	sm.Elements = append(sm.Elements, elem)

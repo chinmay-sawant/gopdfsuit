@@ -21,7 +21,7 @@
 | :------------------- | :------------------------------ | :------------------------------ |
 | **Infrastructure**   | ~40 Node Cluster                | **2 Nodes** (95% Less)          |
 | **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
-| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~2,236 PDFs/sec peak** (single node, 48 workers) |
+| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~2,750 PDFs/sec peak** (single node, 48 workers) |
 
 > **Result**: Generates 1.5 million financial PDFs in **~11 minutes** at peak throughput on a single machine (Intel i7-13700HX, 24 cores, Go 1.26.4).
 
@@ -157,15 +157,15 @@ Benchmarked on **Intel i7-13700HX (24 cores), WSL2, Go 1.26.4** — 10 runs each
 
 ### gopdflib — Zerodha Gold Standard (48 workers, PDF/A + tagged + signed)
 
-Real-world brokerage workload: 80% retail (1-page) · 15% active trader (2–3 page) · 5% HFT (50+ page).
+Real-world brokerage workload: 80% retail (1-page) · 15% active trader (2–3 page) · 5% HFT (50+ page). Every PDF generated from scratch. Retail signed with **ECDSA P-256** (`BENCH_SIGN_RSA=1` for RSA).
 
-| Metric | Peak (best of 20) | 20-run average |
-|--------|------------------:|---------------:|
-| **Throughput** | **2,236 ops/s** | 1,925 ops/s |
-| **Avg latency** | **20.9 ms** | 24.5 ms |
-| **Wall time (5,000 docs)** | **2.2 s** | 2.6 s |
+| Metric | Peak (best of 5) | 5-run average |
+|--------|-----------------:|--------------:|
+| **Throughput** | **2,751 ops/s** | 2,476 ops/s |
+| **Avg latency** | **16.9 ms** | 18.9 ms |
+| **Wall time (5,000 docs)** | **1.82 s** | 2.03 s |
 
-Reproduce: `cd sampledata/gopdflib/zerodha && go1.26.4 run .`
+Reproduce: `BENCH_SKIP_WRITE=1 BENCH_SEED=42 GOMAXPROCS=24 go1.26.4 run .` from `sampledata/gopdflib/zerodha`
 
 ### gopdfsuit — HTTP load test (k6, 48 VUs, PDF/A tagged payloads)
 

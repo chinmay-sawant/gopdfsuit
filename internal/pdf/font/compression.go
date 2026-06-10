@@ -54,3 +54,63 @@ func PutCompressBuffer(buf *bytes.Buffer) {
 	buf.Reset()
 	CompressBufPool.Put(buf)
 }
+
+const compressSampleBytes = 4096
+
+// CompressContentStream zlib-compresses raw page bytes when smaller than raw.
+// C5: if the first 4KB does not compress, skips the full pass (store-uncompressed).
+func CompressContentStream(raw []byte) (compressed *bytes.Buffer, useFlate bool) {
+	rawLen := len(raw)
+	if rawLen == 0 {
+		return nil, false
+	}
+
+	sampleLen := rawLen
+	if sampleLen > compressSampleBytes {
+		sampleLen = compressSampleBytes
+	}
+	sampleBuf := GetCompressBuffer()
+	zw := GetZlibWriter(sampleBuf)
+	if _, err := zw.Write(raw[:sampleLen]); err != nil {
+		_ = zw.Close()
+		PutZlibWriter(zw)
+		PutCompressBuffer(sampleBuf)
+		return nil, false
+	}
+	if err := zw.Close(); err != nil {
+		PutZlibWriter(zw)
+		PutCompressBuffer(sampleBuf)
+		return nil, false
+	}
+	PutZlibWriter(zw)
+	if sampleBuf.Len() >= sampleLen {
+		PutCompressBuffer(sampleBuf)
+		return nil, false
+	}
+	PutCompressBuffer(sampleBuf)
+
+	compressedBuf := GetCompressBuffer()
+	if grow := rawLen / 3; grow < 4096 {
+		compressedBuf.Grow(4096)
+	} else {
+		compressedBuf.Grow(grow)
+	}
+	zw = GetZlibWriter(compressedBuf)
+	if _, err := zw.Write(raw); err != nil {
+		_ = zw.Close()
+		PutZlibWriter(zw)
+		PutCompressBuffer(compressedBuf)
+		return nil, false
+	}
+	if err := zw.Close(); err != nil {
+		PutZlibWriter(zw)
+		PutCompressBuffer(compressedBuf)
+		return nil, false
+	}
+	PutZlibWriter(zw)
+	if compressedBuf.Len() >= rawLen {
+		PutCompressBuffer(compressedBuf)
+		return nil, false
+	}
+	return compressedBuf, true
+}
