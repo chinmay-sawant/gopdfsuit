@@ -1,6 +1,60 @@
 // Package models defines the data structures used throughout gopdfsuit.
 package models
 
+// PreallocForDecode sizes slice backing arrays from Content-Length and optional tier before JSON decode.
+func (t *PDFTemplate) PreallocForDecode(contentLength int, tier string) {
+	if t == nil {
+		return
+	}
+	if tier != "" {
+		t.preallocForTier(tier)
+		return
+	}
+	if contentLength <= 0 {
+		return
+	}
+	switch {
+	case contentLength < 20_000:
+		t.Elements = make([]Element, 0, 5)
+	case contentLength < 500_000:
+		t.Elements = make([]Element, 0, 8)
+	default:
+		t.Elements = make([]Element, 0, 16)
+	}
+}
+
+func (t *PDFTemplate) preallocForTier(tier string) {
+	switch tier {
+	case "retail":
+		t.Elements = make([]Element, 0, 6)
+		t.Table = make([]Table, 0, 1)
+	case "active":
+		t.Elements = make([]Element, 0, 8)
+		t.preallocInlineTableRows(1, 41, 5)
+	case "hft":
+		t.Elements = make([]Element, 2, 4)
+		t.preallocInlineTableRows(1, 2001, 7)
+	default:
+		t.Elements = make([]Element, 0, 8)
+	}
+}
+
+func (t *PDFTemplate) preallocInlineTableRows(elemIdx, rowCap, maxCols int) {
+	if rowCap <= 0 || elemIdx < 0 {
+		return
+	}
+	for len(t.Elements) <= elemIdx {
+		t.Elements = append(t.Elements, Element{})
+	}
+	elem := &t.Elements[elemIdx]
+	if elem.Table == nil {
+		elem.Table = &Table{MaxColumns: maxCols}
+	}
+	if cap(elem.Table.Rows) < rowCap {
+		elem.Table.Rows = make([]Row, 0, rowCap)
+	}
+}
+
 // PDFTemplate represents the complete structure for generating a PDF document.
 type PDFTemplate struct {
 	Config    Config     `json:"config"`

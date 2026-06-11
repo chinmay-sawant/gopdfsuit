@@ -11,7 +11,8 @@ import { getPayloadOptions, getWeightedPayload } from './payload_generator.js';
 // Load JSON payload from file (executed once at init time)
 // const financialDigitalSignaturePayload = JSON.parse(open('../../sampledata/editor/financial_digitalsignature.json'));
 
-// Test configuration
+// Env: BASE_URL, PAYLOAD_SCENARIO (tagged_ecdsa|tagged_rsa|unsigned|retail_only_signed),
+//      LOAD_VUS (default 48). Server: MAX_CONCURRENT=48, BENCH_MODE=1, GIN_FAST_API=1 for peak bench.
 export const options = {
     scenarios: {
         // Smoke test - verify system works under minimal load
@@ -58,7 +59,9 @@ const headers = {
 export default function () {
     const url = `${BASE_URL}/api/v1/generate/template-pdf`;
     // Generate dynamic payload based on weighted distribution
-    const payload = JSON.stringify(getWeightedPayload(getPayloadOptions('tagged')));
+    // Default: ECDSA P-256 signed PDF/A (matches Zerodha bench). Use PAYLOAD_SCENARIO=tagged_rsa for RSA.
+    const scenario = __ENV.PAYLOAD_SCENARIO || 'tagged_ecdsa';
+    const payload = JSON.stringify(getWeightedPayload(getPayloadOptions(scenario)));
 
     const startTime = Date.now();
     const response = http.post(url, payload, { headers: headers });

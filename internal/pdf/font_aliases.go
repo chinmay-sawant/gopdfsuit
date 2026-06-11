@@ -60,6 +60,7 @@ var (
 	GetZlibWriter                        = font.GetZlibWriter
 	PutZlibWriter                        = font.PutZlibWriter
 	CompressBufPool                      = &font.CompressBufPool
+	WarmCompressionPools                 = font.WarmCompressionPools
 )
 
 // Internal aliases for lower-case names previously used in the pdf package

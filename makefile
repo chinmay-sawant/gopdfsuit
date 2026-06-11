@@ -81,7 +81,23 @@ gengine-deploy: test-integration
 	cd frontend && npm run build && cd ..
 	gcloud app deploy
 
-.PHONY: build test clean run fmt vet mod lint
+.PHONY: build test clean run fmt vet mod lint load-pprof load-pprof-gate load-pprof-1k load-pprof-1500
+
+# Steady-state k6 + CPU/heap pprof for /api/v1/generate/template-pdf
+load-pprof:
+	bash test/generate_template-pdf/run_gin_pprof_load.sh
+
+# Gate run: retail-only sanity (≥2000 req/s target on fast path)
+load-pprof-gate:
+	PAYLOAD_SCENARIO=retail_only_signed THROUGHPUT_GATE=1500 bash test/generate_template-pdf/run_gin_pprof_load.sh
+
+# Weighted workload gate toward 1000+ req/s
+load-pprof-1k:
+	THROUGHPUT_GATE=1000 bash test/generate_template-pdf/run_gin_pprof_load.sh
+
+# Weighted workload gate toward 1500+ req/s
+load-pprof-1500:
+	THROUGHPUT_GATE=1500 bash test/generate_template-pdf/run_gin_pprof_load.sh
 
 # go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/profile?seconds=30"
 # go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/heap"

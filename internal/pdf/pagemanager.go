@@ -185,6 +185,39 @@ func (pm *PageManager) CheckPageBreak(requiredHeight float64) bool {
 	return pm.CurrentYPos-requiredHeight < pm.Margins.Bottom
 }
 
+// RowsFitOnCurrentPage estimates how many rows of rowHeight fit above the bottom margin.
+func (pm *PageManager) RowsFitOnCurrentPage(rowHeight float64) int {
+	if rowHeight <= 0 {
+		return 1
+	}
+	available := pm.CurrentYPos - pm.Margins.Bottom
+	n := int(available / rowHeight)
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
+// PrepareLargeTableStripe sizes per-page stream capacity from row geometry for large tables.
+func (pm *PageManager) PrepareLargeTableStripe(rowHeight float64, cols int) {
+	if rowHeight <= 0 || cols <= 0 {
+		return
+	}
+	rowsPerPage := int((pm.CurrentYPos - pm.Margins.Bottom) / rowHeight)
+	if rowsPerPage < 1 {
+		rowsPerPage = 1
+	}
+	est := rowsPerPage * cols * 512
+	if est <= pm.InitialStreamCap {
+		return
+	}
+	const maxPageStreamCap = 256 * 1024
+	if est > maxPageStreamCap {
+		est = maxPageStreamCap
+	}
+	pm.InitialStreamCap = est
+}
+
 // ContentWidth returns the available width for content on the current page.
 func (pm *PageManager) ContentWidth() float64 {
 	return pm.PageDimensions.Width - pm.Margins.Left - pm.Margins.Right

@@ -116,6 +116,11 @@ func (a *signatureContextAdapter) EncodeTextForFont(fontName, text string) strin
 	return EncodeTextForCustomFont(fontName, text, a.pm.FontRegistry)
 }
 
+// WarmRuntimePools pre-warms compression and buffer pools at process start.
+func WarmRuntimePools() {
+	WarmCompressionPools(maxPageCompressWorkers())
+}
+
 // GenerateTemplatePDF generates a PDF document with multi-page support and embedded images.
 // Returns the PDF bytes and any error encountered during generation.
 //
@@ -134,6 +139,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	pdfBufferPtr := pdfBufferPool.Get().(*bytes.Buffer)
 	pdfBufferPtr.Reset()
 	pdfBuffer := pdfBufferPtr // use directly as *bytes.Buffer
+	ensurePDFBufferCapacity(pdfBuffer, estimateTemplatePDFBufferSize(template))
 	defer func() {
 		if err != nil {
 			pdfBufferPool.Put(pdfBuffer)
@@ -1265,12 +1271,12 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		var writeStructElems func(elem *StructElem)
 		writeStructElems = func(elem *StructElem) {
 			xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
-			pdfBuffer.WriteString(formatStructElemObject(elem, structElemFormatCtx{
+			formatStructElemObjectTo(pdfBuffer, elem, structElemFormatCtx{
 				namespaceID:      namespaceID,
 				structTreeRootID: structTreeRootID,
 				root:             pageManager.Structure.Root,
 				pages:            pageManager.Pages,
-			}))
+			})
 			for _, k := range elem.Kids {
 				if k.Elem != nil {
 					writeStructElems(k.Elem)
@@ -1409,77 +1415,109 @@ type structElemFormatCtx struct {
 	pages            []int
 }
 
+var structElemBuilderPool = sync.Pool{
+	New: func() any {
+		sb := new(strings.Builder)
+		sb.Grow(256)
+		return sb
+	},
+}
+
 func formatStructElemObject(elem *StructElem, ctx structElemFormatCtx) string {
-	var sb strings.Builder
-	sb.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
-	sb.WriteString(strconv.Itoa(elem.ObjectID))
-	sb.WriteString(" 0 obj\n<< /Type /StructElem /S /")
-	sb.WriteString(string(elem.Type))
+	sb := structElemBuilderPool.Get().(*strings.Builder)
+	sb.Reset()
+	formatStructElemObjectInto(sb, elem, ctx)
+	out := sb.String()
+	structElemBuilderPool.Put(sb)
+	return out
+}
+
+func formatStructElemObjectInto(sb *strings.Builder, elem *StructElem, ctx structElemFormatCtx) {
+	formatStructElemObjectTo(sb, elem, ctx)
+}
+
+type structElemObjectWriter interface {
+	Grow(int)
+	WriteString(string) (int, error)
+	Write([]byte) (int, error)
+	WriteByte(byte) error
+}
+
+func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx structElemFormatCtx) {
+	w.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
+	w.WriteString(strconv.Itoa(elem.ObjectID))
+	w.WriteString(" 0 obj\n<< /Type /StructElem /S /")
+	w.WriteString(string(elem.Type))
 
 	if elem.Type == StructDocument {
-		sb.WriteString(" /NS ")
-		sb.WriteString(strconv.Itoa(ctx.namespaceID))
-		sb.WriteString(" 0 R")
+		w.WriteString(" /NS ")
+		w.WriteString(strconv.Itoa(ctx.namespaceID))
+		w.WriteString(" 0 R")
 	}
 
 	if elem.Parent == ctx.root {
-		sb.WriteString(" /P ")
-		sb.WriteString(strconv.Itoa(ctx.structTreeRootID))
-		sb.WriteString(" 0 R")
+		w.WriteString(" /P ")
+		w.WriteString(strconv.Itoa(ctx.structTreeRootID))
+		w.WriteString(" 0 R")
 	} else if elem.Parent != nil {
-		sb.WriteString(" /P ")
-		sb.WriteString(strconv.Itoa(elem.Parent.ObjectID))
-		sb.WriteString(" 0 R")
+		w.WriteString(" /P ")
+		w.WriteString(strconv.Itoa(elem.Parent.ObjectID))
+		w.WriteString(" 0 R")
 	}
 
 	if elem.Title != "" {
-		sb.WriteString(" /T (")
-		sb.WriteString(escapeText(elem.Title))
-		sb.WriteByte(')')
+		w.WriteString(" /T (")
+		w.WriteString(escapeText(elem.Title))
+		w.WriteByte(')')
 	}
 	if elem.Alt != "" {
-		sb.WriteString(" /Alt (")
-		sb.WriteString(escapeText(elem.Alt))
-		sb.WriteByte(')')
+		w.WriteString(" /Alt (")
+		w.WriteString(escapeText(elem.Alt))
+		w.WriteByte(')')
 	}
 
 	if len(elem.Kids) > 0 || elem.Type == StructLink {
-		sb.WriteString(" /K [")
+		w.WriteString(" /K [")
 
 		if elem.Type == StructLink {
 			pageObjID := 3
 			if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
 				pageObjID = ctx.pages[elem.PageID]
 			}
-			sb.WriteString(" << /Type /OBJR /Obj ")
-			sb.WriteString(strconv.Itoa(elem.AnnotObjID))
-			sb.WriteString(" 0 R /Pg ")
-			sb.WriteString(strconv.Itoa(pageObjID))
-			sb.WriteString(" 0 R >>")
+			w.WriteString(" << /Type /OBJR /Obj ")
+			w.WriteString(strconv.Itoa(elem.AnnotObjID))
+			w.WriteString(" 0 R /Pg ")
+			w.WriteString(strconv.Itoa(pageObjID))
+			w.WriteString(" 0 R >>")
 		}
 
 		var mcidScratch [16]byte
 		for _, kid := range elem.Kids {
 			if kid.Elem != nil {
-				appendObjRefToBuilder(&sb, kid.Elem.ObjectID)
+				appendObjRefToWriter(w, kid.Elem.ObjectID)
 			} else {
-				sb.WriteByte(' ')
+				w.WriteByte(' ')
 				mcid := strconv.AppendInt(mcidScratch[:0], int64(kid.MCID), 10)
-				sb.Write(mcid)
+				w.Write(mcid)
 			}
 		}
-		sb.WriteString(" ]")
+		w.WriteString(" ]")
 	}
 
 	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
 		pageObjID := ctx.pages[elem.PageID]
-		sb.WriteString(" /Pg ")
-		sb.WriteString(strconv.Itoa(pageObjID))
-		sb.WriteString(" 0 R")
+		w.WriteString(" /Pg ")
+		w.WriteString(strconv.Itoa(pageObjID))
+		w.WriteString(" 0 R")
 	}
 
-	sb.WriteString(" >>\nendobj\n")
-	return sb.String()
+	w.WriteString(" >>\nendobj\n")
+}
+
+func appendObjRefToWriter(w structElemObjectWriter, objID int) {
+	w.WriteByte(' ')
+	w.WriteString(strconv.Itoa(objID))
+	w.WriteString(" 0 R")
 }
 
 type imageObjectKey struct {
@@ -1573,13 +1611,22 @@ func estimateFinalPDFSize(pageManager *PageManager, uniqueImageObjects int) int 
 
 func estimateInitialContentStreamCap(template models.PDFTemplate) int {
 	const (
-		minCap = 64 * 1024
-		maxCap = 128 * 1024
+		minCap       = 64 * 1024
+		retailMaxCap = 128 * 1024
+		pageCap      = 256 * 1024
 	)
 
+	maxRows := 0
+	maxCols := 1
 	score := 0
 	for _, table := range template.Table {
-		score += len(table.Rows) * max(table.MaxColumns, 1) * 8
+		rows := len(table.Rows)
+		cols := max(table.MaxColumns, 1)
+		score += rows * cols * 8
+		if rows > maxRows {
+			maxRows = rows
+			maxCols = cols
+		}
 	}
 	if template.Title.Text != "" {
 		score += 1024
@@ -1590,16 +1637,53 @@ func estimateInitialContentStreamCap(template models.PDFTemplate) int {
 	for _, elem := range template.Elements {
 		score += 512
 		if elem.Table != nil {
-			score += len(elem.Table.Rows) * max(elem.Table.MaxColumns, 1) * 8
+			rows := len(elem.Table.Rows)
+			cols := max(elem.Table.MaxColumns, 1)
+			score += rows * cols * 8
+			if rows > maxRows {
+				maxRows = rows
+				maxCols = cols
+			}
 		}
 	}
 	if score < minCap {
-		return minCap
+		score = minCap
 	}
-	if score > maxCap {
-		return maxCap
+	if maxRows > 40 {
+		rowsPerPage := 40
+		perPage := rowsPerPage * maxCols * 512
+		if perPage > score {
+			score = perPage
+		}
+		if score > pageCap {
+			score = pageCap
+		}
+		return score
+	}
+	if score > retailMaxCap {
+		return retailMaxCap
 	}
 	return score
+}
+
+func estimateTemplatePDFBufferSize(template models.PDFTemplate) int {
+	estimate := 192 * 1024
+	for _, table := range template.Table {
+		estimate += len(table.Rows) * max(table.MaxColumns, 1) * 96
+	}
+	for _, elem := range template.Elements {
+		estimate += 2048
+		if elem.Table != nil {
+			estimate += len(elem.Table.Rows) * max(elem.Table.MaxColumns, 1) * 96
+		}
+	}
+	if template.Config.TaggedPDF || template.Config.PDFACompliant {
+		estimate += 64 * 1024
+	}
+	if template.Config.Signature != nil && template.Config.Signature.Enabled {
+		estimate += 32 * 1024
+	}
+	return estimate
 }
 
 // generateAllContentWithImages processes the template and generates content with image support

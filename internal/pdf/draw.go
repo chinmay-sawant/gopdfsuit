@@ -185,6 +185,143 @@ func tableSupportsSharedRowLayout(table models.Table, templateRow int) bool {
 	return true
 }
 
+func tableAllowsBatchMarkedContent(table models.Table) bool {
+	for _, row := range table.Rows {
+		for _, cell := range row.Row {
+			if cell.Link != "" || cell.Dest != "" || cell.Image != nil ||
+				cell.FormField != nil || cell.Checkbox != nil {
+				return false
+			}
+			if cell.MathEnabled != nil && *cell.MathEnabled {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func structureKidCap(count int) int {
+	if count <= 64 {
+		return count
+	}
+	return 64
+}
+
+func sharedColsUniformBorder(cols []sharedColumnLayout) (width int, ok bool) {
+	if len(cols) == 0 || !cols[0].uniformBorder {
+		return 0, false
+	}
+	width = cols[0].borderWidth
+	for _, c := range cols[1:] {
+		if !c.uniformBorder || c.borderWidth != width {
+			return 0, false
+		}
+	}
+	return width, true
+}
+
+// drawSharedDeferRow renders a uniform shared-layout data row (HFT fast path).
+func drawSharedDeferRow(
+	contentStream *bytes.Buffer,
+	row models.Row,
+	colWidths []float64,
+	sharedCols []sharedColumnLayout,
+	rowHeight float64,
+	rowMCIDBase int,
+	pageManager *PageManager,
+	scratchBuf, textTjBuf, borderBuf []byte,
+	rowCellProps []models.Props,
+	rowFontDecls [][]byte,
+	rowTextColorCmds [][]byte,
+	rowResolvedFonts []string,
+	rowSingleLineTextWidths []float64,
+	maxColumns int,
+) {
+	cellCount := min(len(row.Row), maxColumns)
+	currentX := pageManager.Margins.Left
+	rowLeft := currentX
+	rowWidth := 0.0
+
+	for colIdx, cell := range row.Row {
+		if colIdx >= maxColumns {
+			break
+		}
+		cellWidth := colWidths[colIdx]
+		rowWidth += cellWidth
+		cellX := currentX
+		currentX += cellWidth
+
+		pageManager.Structure.WriteCellMarkedContentBDC(contentStream, StructTD, rowMCIDBase+colIdx)
+
+		if cell.BgColor != "" {
+			if r, g, b, _, valid := parseHexColor(cell.BgColor); valid {
+				contentStream.WriteString("q\n")
+				bg := appendFmtNum(scratchBuf[:0], r)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, g)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, b)
+				bg = append(bg, " rg\n"...)
+				contentStream.Write(bg)
+				bg = bg[:0]
+				bg = appendFmtNum(bg, cellX)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, pageManager.CurrentYPos-rowHeight)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, cellWidth)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, rowHeight)
+				bg = append(bg, " re f\nQ\n"...)
+				contentStream.Write(bg)
+			}
+		}
+
+		if cell.Text != "" {
+			cellProps := rowCellProps[colIdx]
+			textWidth := rowSingleLineTextWidths[colIdx]
+			textX := cellX + 5
+			if cellProps.Alignment == "center" && textWidth > 0 {
+				textX = cellX + (cellWidth-textWidth)/2
+			} else if cellProps.Alignment == "right" && textWidth > 0 {
+				textX = cellX + cellWidth - textWidth - 5
+			}
+			textY := pageManager.CurrentYPos - rowHeight/2 - float64(cellProps.FontSize)/2
+
+			contentStream.WriteString("BT\n")
+			contentStream.Write(rowFontDecls[colIdx])
+			contentStream.Write(rowTextColorCmds[colIdx])
+			contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+			pos := appendFmtNum(scratchBuf[:0], textX)
+			pos = append(pos, ' ')
+			pos = appendFmtNum(pos, textY)
+			pos = append(pos, " Td\n"...)
+			contentStream.Write(pos)
+			textTjBuf = appendTextForPDF(textTjBuf[:0], rowResolvedFonts[colIdx], cell.Text, pageManager.FontRegistry)
+			textTjBuf = append(textTjBuf, " Tj\nET\n"...)
+			contentStream.Write(textTjBuf)
+		}
+
+		pageManager.Structure.EndCellMarkedContentBuf(contentStream)
+	}
+
+	if borderW, uniform := sharedColsUniformBorder(sharedCols); uniform {
+		contentStream.WriteString("q\n")
+		borderBuf = borderBuf[:0]
+		borderBuf = strconv.AppendInt(borderBuf, int64(borderW), 10)
+		borderBuf = append(borderBuf, " w "...)
+		borderBuf = appendFmtNum(borderBuf, rowLeft)
+		borderBuf = append(borderBuf, ' ')
+		borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-rowHeight)
+		borderBuf = append(borderBuf, ' ')
+		borderBuf = appendFmtNum(borderBuf, rowWidth)
+		borderBuf = append(borderBuf, ' ')
+		borderBuf = appendFmtNum(borderBuf, rowHeight)
+		borderBuf = append(borderBuf, " re S\nQ\n"...)
+		contentStream.Write(borderBuf)
+	}
+	_ = cellCount
+}
+
 func buildSharedColumnLayouts(table models.Table, templateRow int, registry *CustomFontRegistry) []sharedColumnLayout {
 	template := table.Rows[templateRow]
 	cols := make([]sharedColumnLayout, min(len(template.Row), table.MaxColumns))
@@ -836,8 +973,12 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	baseRowHeight := float64(25) // Standard row height
 
 	// PDF/UA: Start Table Structure
-	pageManager.Structure.BeginStructureElementCap(StructTable, len(table.Rows))
+	pageManager.Structure.BeginStructureElementCap(StructTable, structureKidCap(len(table.Rows)))
 	defer pageManager.Structure.EndStructureElement()
+
+	if len(table.Rows) > 40 {
+		pageManager.PrepareLargeTableStripe(baseRowHeight, table.MaxColumns)
+	}
 
 	// Compute column widths in points using weights if provided
 	colWidths := make([]float64, table.MaxColumns)
@@ -893,9 +1034,45 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		sharedCols = buildSharedColumnLayouts(table, templateRow, pageManager.FontRegistry)
 	}
 
+	batchRowMC := pageManager.Structure.Enabled && len(table.Rows) <= 20 && tableAllowsBatchMarkedContent(table)
+	deferStructRows := useSharedLayout && len(table.Rows) > 100
+	largeTable := len(table.Rows) > 100
+	stripeRows := 0
+	if largeTable {
+		stripeRows = pageManager.RowsFitOnCurrentPage(baseRowHeight)
+		pageManager.Structure.PreallocatePageMCIDSlots(pageManager.CurrentPageIndex, stripeRows*table.MaxColumns)
+	}
+
+	var (
+		deferredTableParent *StructElem
+		pageMCIDStart       int
+	)
+	if deferStructRows {
+		deferredTableParent = pageManager.Structure.CurrentParent
+		pageMCIDStart = pageManager.Structure.PageMCIDStart(pageManager.CurrentPageIndex)
+	}
+	flushDeferredPage := func(pageIdx int) {
+		if !deferStructRows {
+			return
+		}
+		used := pageManager.Structure.PageMCIDStart(pageIdx) - pageMCIDStart
+		if used > 0 {
+			pageManager.Structure.FillDeferredParentTreePage(pageIdx, deferredTableParent, pageMCIDStart, used)
+		}
+	}
+
 	for rowIdx, row := range table.Rows {
-		// PDF/UA: Start Row Structure
-		pageManager.Structure.BeginStructureElementCap(StructTR, min(len(row.Row), table.MaxColumns))
+		fastRow := useSharedLayout && rowIdx != templateRow
+		skipTRStruct := deferStructRows && fastRow
+
+		if !skipTRStruct {
+			// PDF/UA: Start Row Structure
+			kidCap := min(len(row.Row), table.MaxColumns)
+			if batchRowMC {
+				kidCap = 0
+			}
+			pageManager.Structure.BeginStructureElementCap(StructTR, kidCap)
+		}
 
 		// Pre-calculate column widths and parsed props
 		// We need to know each cell's width before calculating wrapped text height
@@ -912,7 +1089,6 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 		}
 
-		fastRow := useSharedLayout && rowIdx != templateRow
 		// Pre-calculate wrapped text lines for cells that have wrap enabled (default: enabled)
 		// This is used both for height calculation and later for rendering
 		for colIdx, cell := range row.Row {
@@ -1033,16 +1209,44 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 		// Check if row fits on current page
 		if pageManager.CheckPageBreak(rowHeight) {
+			flushDeferredPage(pageManager.CurrentPageIndex)
 			// Create new page and initialize it
 			pageManager.AddNewPage()
 			appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, borderConfig, watermark)
+			pageMCIDStart = pageManager.Structure.PageMCIDStart(pageManager.CurrentPageIndex)
+			if largeTable {
+				remaining := len(table.Rows) - rowIdx
+				if remaining < stripeRows {
+					stripeRows = remaining
+				}
+				pageManager.Structure.PreallocatePageMCIDSlots(
+					pageManager.CurrentPageIndex,
+					stripeRows*table.MaxColumns,
+				)
+			}
 		}
 
 		// Get current content stream for this page
 		contentStream := pageManager.GetCurrentContentStream()
 
 		cellCount := min(len(row.Row), table.MaxColumns)
-		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+		var rowMCIDBase int
+		if skipTRStruct {
+			rowMCIDBase = pageManager.Structure.ReserveMCIDsLite(pageManager.CurrentPageIndex, cellCount)
+		} else {
+			rowMCIDBase = pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+		}
+
+		if skipTRStruct && fastRow {
+			drawSharedDeferRow(
+				contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
+				scratchBuf, textTjBuf, borderBuf,
+				rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
+				table.MaxColumns,
+			)
+			pageManager.CurrentYPos -= rowHeight
+			continue
+		}
 
 		// Draw row cells
 		currentX := pageManager.Margins.Left
@@ -1052,10 +1256,13 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			// PDF/UA: Start Cell Structure (TH for header if first row, else TD)
-			// Assuming first row is header if Table has explicit header concept, but for now just use TD
-			// Could be enhanced to detect header rows
 			cellType := StructTD
-			pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, rowMCIDBase+colIdx)
+			mcid := rowMCIDBase + colIdx
+			if batchRowMC || skipTRStruct {
+				pageManager.Structure.WriteCellMarkedContentBDC(contentStream, cellType, mcid)
+			} else {
+				pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, mcid)
+			}
 
 			cellProps := rowCellProps[colIdx] // Use cached props
 			cellX := currentX
@@ -1521,14 +1728,25 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			// PDF/UA: End Cell Structure
-			pageManager.Structure.EndMarkedContentBuf(contentStream)
+			if batchRowMC || skipTRStruct {
+				pageManager.Structure.EndCellMarkedContentBuf(contentStream)
+			} else {
+				pageManager.Structure.EndMarkedContentBuf(contentStream)
+			}
 		}
 
-		// PDF/UA: End Row Structure
-		pageManager.Structure.EndStructureElement()
+		if batchRowMC {
+			pageManager.Structure.AttachRowMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
+		}
+
+		if !skipTRStruct {
+			// PDF/UA: End Row Structure
+			pageManager.Structure.EndStructureElement()
+		}
 
 		pageManager.CurrentYPos -= rowHeight
 	}
+	flushDeferredPage(pageManager.CurrentPageIndex)
 }
 
 // drawSpacer adds vertical space in the document

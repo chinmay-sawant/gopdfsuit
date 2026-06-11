@@ -8,10 +8,12 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
 	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/fontutils"
 	"github.com/gin-gonic/gin"
 )
@@ -28,6 +30,8 @@ func main() {
 
 	// Ensure math fonts are available (downloads missing ones in background)
 	go fontutils.EnsureMathFonts()
+	pdf.WarmRuntimePools()
+	handlers.WarmJSONDecode()
 
 	// Use release mode to disable debug overhead
 	gin.SetMode(gin.ReleaseMode)
@@ -40,11 +44,7 @@ func main() {
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}))
 
-	// Concurrency control: match to CPU count to minimize context switching
-	// for CPU-bound PDF generation workloads.
-	// Using NumCPU() prevents goroutine thrashing — 100 goroutines on 24 cores
-	// caused massive context-switch overhead and was the primary bottleneck.
-	maxConcurrent := runtime.NumCPU()
+	maxConcurrent := resolveMaxConcurrent()
 	semaphore := make(chan struct{}, maxConcurrent)
 	router.Use(func(c *gin.Context) {
 		semaphore <- struct{}{}
@@ -73,4 +73,23 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	os.Stderr.WriteString("Shutting down server...\n")
+}
+
+func resolveMaxConcurrent() int {
+	if v := os.Getenv("MAX_CONCURRENT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	if os.Getenv("BENCH_MODE") == "1" {
+		n := runtime.NumCPU() * 2
+		if n > 48 {
+			return 48
+		}
+		if n < 1 {
+			return 1
+		}
+		return n
+	}
+	return runtime.NumCPU()
 }

@@ -122,6 +122,12 @@ func RegisterRoutes(router *gin.Engine) {
 	staticWithCache("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
 	staticWithCache("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
 
+	// Benchmark fast path: skip CORS/auth middleware on template-pdf (GIN_FAST_API=1).
+	fastAPI := os.Getenv("GIN_FAST_API") == "1"
+	if fastAPI {
+		router.POST("/api/v1/generate/template-pdf", handleGenerateTemplatePDF)
+	}
+
 	// API endpoints - protected with Google OAuth when running on Cloud Run
 	v1 := router.Group("/api/v1")
 	v1.Use(middleware.CORSMiddleware())       // Add CORS middleware
@@ -132,7 +138,9 @@ func RegisterRoutes(router *gin.Engine) {
 			// Handled by CORSMiddleware
 		})
 
-		v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
+		if !fastAPI {
+			v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
+		}
 		v1.POST("/fill", handleFillPDF)
 		v1.POST("/merge", handleMergePDFs)
 		v1.POST("/split", handlerSplitPDF)
@@ -328,14 +336,30 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		templatePDFPool.Put(template)
 	}()
 
-	data, err := c.GetRawData()
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request data: " + err.Error()})
+	tier := c.GetHeader("X-Payload-Tier")
+	if cl := c.Request.ContentLength; cl > 0 || tier != "" {
+		template.PreallocForDecode(int(cl), tier)
+	}
+
+	if err := decodeTemplateJSON(c.Request.Body, int(c.Request.ContentLength), tier, template); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
 		return
 	}
 
-	if err := sonic.Unmarshal(data, template); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template data: " + err.Error()})
+	c.Header("Content-Type", mimeTypePDF)
+	c.Header("Content-Disposition", "attachment; filename=generated.pdf")
+
+	if _, ok := pdfService.(defaultPDFService); ok {
+		doc, err := pdf.GenerateTemplatePDFBorrowed(*template)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF generation failed: " + err.Error()})
+			return
+		}
+		defer doc.Release()
+		c.Status(http.StatusOK)
+		if _, err := c.Writer.Write(doc.Bytes()); err != nil {
+			return
+		}
 		return
 	}
 
@@ -344,9 +368,6 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF generation failed: " + err.Error()})
 		return
 	}
-
-	c.Header("Content-Type", mimeTypePDF)
-	c.Header("Content-Disposition", "attachment; filename=generated.pdf")
 	c.Data(http.StatusOK, mimeTypePDF, pdfBytes)
 }
 

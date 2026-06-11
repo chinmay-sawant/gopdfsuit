@@ -59,8 +59,27 @@ function generateTrades(n) {
     return trades;
 }
 
-// Sample signing material (aligned with sample JSON); omitted when opts.sign === false.
-const RETAIL_SIGNATURE_CONFIG = {
+// Shared chain for retail signers (RSA and ECDSA leaf certs).
+const RETAIL_CERTIFICATE_CHAIN = [
+    "-----BEGIN CERTIFICATE-----\nMIID0DCCArigAwIBAgIUAO/6vdyeXlJjNCQMAaYSpzVnufkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yNzA2MDIwODAyMDhaMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\nMIIBCgKCAQEAo1lU1M6OuA2KMYe2sXMBrv8LTxEFG7T18qgCnUj7cf0snyTHF/Ws\n07TOYzYchdeKNCrbG0C0ZBhg3f+kGMexYf3CA3Dh1S+k6xbGeEf/LsVBSv8pU4XS\ntXps5/29bdiYWqhMc8Wp7NGbpOAT/PUgLG/xXQiWakYhowLose20d73Kp6PZsPHv\nD9E2IQzDiA/AWtCO+G5NWqagiz0R2fNfuJDPCZQFfURbtrdnEdEs+sAIqw0fzjPg\noSTGed+PcWSil/p/8ZKecKg0WWE7xzcdWdclsUOCh9hJplSyTG7aBssT3ebLYZjX\n4dPx84Lxmhzu+OW68791l1Jt1hCvO0BT2QIDAQABo2AwXjAMBgNVHRMEBTADAQH/\nMA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUp81rlG9kaj7TgQJuKEBJzBbifbIw\nHwYDVR0jBBgwFoAUB/CjFA0QwEkFtNTYsUgutKPWOIEwDQYJKoZIhvcNAQELBQAD\nggEBAMkZEEwxvO7p/TOO97eA/VbXCUwXsU+2990HuWg9MgpBTXiaD61m7w/sD2Gu\nwV2Fvv8rW9GTBhCJ60zV6/HjBBvfGO0ci9xPAHmECVk8Z000vg2tqAHL8HXVJdFF\nYqaLXewHVHUBol2GlSk8sSSss3UNC/wUMBq+Xq0aP/Q2ueidsZhf8DT9aLYCLkdT\nOFp4HI4qJYfpU6h9kLiOcGhc6q/7ToLX8fXXwRrzj9BIQHGPkYQAFg99DYiauBY7\n+bzKhtzxy2ykOvGe7WEzXhKdWEQGkTJSZ8lvsSCafYwuSJ1RW4Hi6TQeP6Rr9qvn\nPYQ/v/v0IZ8qDtBCGTWHz7pNDPQ=\n-----END CERTIFICATE-----",
+    "-----BEGIN CERTIFICATE-----\nMIIDszCCApugAwIBAgIUGPNNf0kWGKV8Tg0Kvlqt67kM2OkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yODExMDcwODAyMDhaMGkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MQ0wCwYDVQQLDARSb290MRgwFgYDVQQDDA9Hb1BERlN1\naXRSb290Q0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDt+fuF/xXq\n1eZtUjL5PbMGgFatVpE2FAB5upEwehmGRhWo+AMhAXQtCBUsSHMcuCkB+5IQpDPT\nAdZZqni0nnKeKbSL76ryn0EjQHrWVsGa6nddPz1480ZRUXjNbSpmikT5uVc5j1ec\nR3tPw1jtP9B3xjvebEokSLX7Y0nrTPwCQeLIDzpKh80bshvRJ28vmnT38ha4UMOs\nyGV0A70J9ZzUGN9lHM68zDbsbt1ckP9EZRGWRFqjN06vXJpZkLqk/T4LcU+agwK4\n41/fhpMAy3QpYpgC9BNUWAdRzLx/Xl5F8IjGR6vV1dP7O3yKznNEth0ZMSDOsC+n\nX+67D0NLqifLAgMBAAGjUzBRMB0GA1UdDgQWBBQH8KMUDRDASQW01NixSC60o9Y4\ngTAfBgNVHSMEGDAWgBQH8KMUDRDASQW01NixSC60o9Y4gTAPBgNVHRMBAf8EBTAD\nAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQA/ntzzVNBa8bgWO8VigxTsNntGIwn/HR45\n4Og600Ynx+cLQuqIcVwT/stgjg+RO1jBSRSTCtqzbM4/LTgGTbRj4yvgluO6RDdE\n0EsLIioob97jkbLGcMRNGbI4svSBSUytDjhuvmwxz2wBJYGpxZIm6pkgtMeBHrXp\n4750iSj0ORy9TDUUkUdEXfeDBqbjeQ4M1+OaJ5LP3ze09mb1UDGnNKP2nM9m76Pt\ndT/rN+KQKFN48hLnIHMZykEVIoONEzMh3KkfJKhOdTsZrgvwyoLf56qVDCeuADfN\nztHHMRGR4xXSwWkDU/+F00oYhLi63RsFeL4IdGnXb1Tx8VbaPJVm\n-----END CERTIFICATE-----",
+];
+
+// ECDSA P-256 — matches sampledata/gopdflib/zerodha/certs (Zerodha bench default).
+const RETAIL_SIGNATURE_CONFIG_ECDSA = {
+    "enabled": true,
+    "visible": true,
+    "name": "Zerodha Compliance",
+    "reason": "I am the author of this document",
+    "location": "Mumbai, India",
+    "contactInfo": "compliance@brokerage.com",
+    "privateKeyPem": "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIICR4+/Wc1H0waUK0S6y4yGdZ3Z5whkafns0y4qGBK1NoAoGCCqGSM49\nAwEHoUQDQgAEhIClRR2cwjxZ6DvUKpKSMWp/tTtjP1F+l2tbaKqZ5SqFDHuaBTib\nelvCKSg4TAfzmfIpiqyi9WTtHT0co2hQZw==\n-----END EC PRIVATE KEY-----",
+    "certificatePem": "-----BEGIN CERTIFICATE-----\nMIICoDCCAYgCFAr52Vd5hl/zGDUFqMMi5AccvHUCMA0GCSqGSIb3DQEBCwUAMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMB4XDTI2MDYxMDE5NDQzMFoXDTI3MDYx\nMDE5NDQzMFowazELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQH\nDARDaXR5MRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBExlYWYxGjAYBgNV\nBAMMEUdvUERGU3VpdEVDU2lnbmVyMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE\nhIClRR2cwjxZ6DvUKpKSMWp/tTtjP1F+l2tbaKqZ5SqFDHuaBTibelvCKSg4TAfz\nmfIpiqyi9WTtHT0co2hQZzANBgkqhkiG9w0BAQsFAAOCAQEAlnNRrDeUOYCEuh+f\nXq7b5ejA8PXsaHv31KFOOOM/moNbIpLtsEElhIbDhf+1T1ADYchxBlfMJFTdwVr+\nDGqYH43JquLQ3So9ZSUgEc0fwrffbK6uPt7YeHgzCc2T9LvvJRhY66QEBiCXPUry\nisBb2V6ou3DNj5O87w0jNUNCw+4qAGZz15TBNBJLbm7g+Sn3s3trj9uEUvSgY7Bi\nSo/ahVtt5yCQwxRZTCY+6J7sBevEnHf0Gp8oqfN/b8AC5Tv2OYL+j/jmuDxeFTkd\nXpe5by+cEbxq9cgOo4ycQQKLM5c37fyDjxlSHE++dYAt3Tp8T3KlCSivSwEXrDgC\nB5w6Lw==\n-----END CERTIFICATE-----",
+    "certificateChain": RETAIL_CERTIFICATE_CHAIN,
+};
+
+// RSA-2048 — legacy load-test path; use PAYLOAD_SCENARIO=tagged_rsa to compare.
+const RETAIL_SIGNATURE_CONFIG_RSA = {
     "enabled": true,
     "visible": true,
     "name": "Zerodha Compliance",
@@ -70,10 +89,12 @@ const RETAIL_SIGNATURE_CONFIG = {
     // Using placeholder certs for test stability, same as original JSON
     "privateKeyPem": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDFR55rSZyF0oGt\nJhn7kHXowBy+FhZLl7zJhMp7tCJy5rl6yh3xaf0BwNp/j0WDToTayLimpfCWtGrZ\nV5VEjzGMdtD3RvmHWZKMk5SHot80k+FtWVof3M8H5LpLf8Ye7CgfTMk6lsH7uLHI\nresZXF2Vle3KYDCcj/ZtOlamv+5SGOVGOyIXSaamerArUpHkHkirokr1sq8bSWFv\nYyxyzrLJIZ1jqqwNBBMdtQP7MZnDMekveQU5XEWFJz2n7/PmhJu/c+aw2uVAGZ4l\nsDIq99CejE2vmdcTiAZsKY0INfik/2cpwOiKL4AQuNVD0cbwH2paZjTdk5CTimqI\nviCEsQzVAgMBAAECggEAAsYKzFfAzQGnpxQl216T+c2LQE6CyiJ8M5noit9+eH6v\nIhkDXY7vt32YCAd71hvD5gH0CD74m49pZsLcRPywzD72mY0BTYDZ4zYT9lA45fFX\nHJ8PLR5N0guW/u0kXCNWPd82sqctKDY+WAolIW2MantgJRWmUun6cF1/AfspOGg9\npzEroFMILwVaN+yib5MPZxOWG2qxf9jZAJEgn0W5isgOWyL347tgBQHLbqxTm5FF\nh6bz8nqRUwBLYbmcOswSpJZEm3kQGiTyznGiC1NDZMzLHWwZj1Dc/NCR9wVLXROh\nHx4muAq/Zry8mBdED08OIkqoFIKaFCBQRiGLYX+mYQKBgQDNgnailOR8vDXU9qPA\nXhe/Azn2NkLnJqV7wk5WI4aJaf1Ff8ebeZHHTJIvcA93sOAyCxi7pRz3gEUYjKVi\nzoBZHu+3LtHMje8dSjoKEUI7dLZuXCZ9hhoFQGr8nLuxZRCVB5/NPDrjWlJEnqpJ\npQccmxGCoEKyLMEr79DmtRGheQKBgQD1v4mz0+WM7AJi76c3fNSIgi4Zyik7xmw0\naU72wuCUXYfwF4fCh/tIp5FJqUMsYYld+i1jPhXn8zUq74/RDNGuvrbdZTtkYIXs\n/nVMdAhKL2VQ5t4La4bs+ml+6yfSApaUd8tbCt3ttNyqT0kfHP9XisQ6cepnuqPK\nufv5yQBrPQKBgC7jqn/T6wIOy1WI5Lnafh6F9O6ZWNB2v+Ep50e+GU83EKOP0RJH\nPZy0etI6Bj1v7OdeIsmFlcNez+UXChEuPpiW92jbVOEQLVOIgQ+U+oCoU4uAmQOg\n2kUCeqaieCy0e4EVWT+xk1oWXJjtfrsI3UOImgks2arfjT+iGw7Yl2o5AoGAS5pL\ngNlVq48IBOv5o6ZxtDVofWKmYM9ghpdHRb8aXEqSAZkbmQtAkU+L8P9zvPmcyx6m\nS/vTvXIjDzx4IDYzY/EkTORR60WOriRybbzcuAXww3zjHtxLvCglwHgT3hYRwUdB\ndpbXQ8P6hyKxOjMvkv0L9XcKSDMxJLMnA+eEi3kCgYAJB6nr6W6KQRyotXM1gWP+\n9Ff2Zd5figCt/zD61gw5SAhMLMaR+dj/mfSrDu20jXKr4f/WYuQSRZXxSDHk/pDs\nIXdKNOFnoX+EyvIniTXzQsUWdJVdmZdXseclVfKepUCcQZReYLaesQxdDovlFWjC\nEdvw5H4P31EKT6I5hL6jrA==\n-----END PRIVATE KEY-----",
     "certificatePem": "-----BEGIN CERTIFICATE-----\nMIIDaTCCAlECFDkGiITntD1ddujydCgb/KNltr4wMA0GCSqGSIb3DQEBCwUAMHkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MRUwEwYDVQQLDAxJbnRlcm1lZGlhdGUxIDAeBgNVBAMM\nF0dvUERGU3VpdEludGVybWVkaWF0ZUNBMB4XDTI2MDExODA4MDIwOVoXDTI3MDEx\nODA4MDIwOVowaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQH\nDARDaXR5MRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBExlYWYxGDAWBgNV\nBAMMD0dvUERGU3VpdFNpZ25lcjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC\nggEBAMVHnmtJnIXSga0mGfuQdejAHL4WFkuXvMmEynu0InLmuXrKHfFp/QHA2n+P\nRYNOhNrIuKal8Ja0atlXlUSPMYx20PdG+YdZkoyTlIei3zST4W1ZWh/czwfkukt/\nxh7sKB9MyTqWwfu4scit6xlcXZWV7cpgMJyP9m06Vqa/7lIY5UY7IhdJpqZ6sCtS\nkeQeSKuiSvWyrxtJYW9jLHLOsskhnWOqrA0EEx21A/sxmcMx6S95BTlcRYUnPafv\n8+aEm79z5rDa5UAZniWwMir30J6MTa+Z1xOIBmwpjQg1+KT/ZynA6IovgBC41UPR\nxvAfalpmNN2TkJOKaoi+IISxDNUCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAh4d+\n3PV4bnOsGQIxSupZMIq+qXf1wcB8dLQWX9ILZz9uXho0E1nhDPHZXRvy/mWG3tZD\nedO8vzMhBY5sD2O8O7K7M+khajfG4gfwhCi3H1dTdze4Wq85K2/kNPqQ/d6qmnS4\nDbxIHWrm8p/wU1p4SYfWFijad9UVutaJixCI9FtCPfRYq5+s0c4cRSyKhjfZp6ic\nhQB01AsgOk1iDgQnSvvjwsz0n1BY/+Apnto3k42PYQx+FNIDIeRvtckVoHxWfmMl\ncWsY6Seqg6V41Yuts78fTKlfjhzI7gKdujl7JMtuyLrL3JVP1rZoMXnjf8SK4QAk\nPkJ5eGE0Ht4i9WkakA==\n-----END CERTIFICATE-----",
-    "certificateChain": [
-        "-----BEGIN CERTIFICATE-----\nMIIDszCCApugAwIBAgIUGPNNf0kWGKV8Tg0Kvlqt67kM2OkwDQYJKoZIhvcNAQEL\nBQAwaTELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5\nMRIwEAYDVQQKDAlHb1BERlN1aXQxDTALBgNVBAsMBFJvb3QxGDAWBgNVBAMMD0dv\nUERGU3VpdFJvb3RDQTAeFw0yNjAxMTgwODAyMDhaFw0yODExMDcwODAyMDhaMGkx\nCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTESMBAG\nA1UECgwJR29QREZTdWl0MQ0wCwYDVQQLDARSb290MRgwFgYDVQQDDA9Hb1BERlN1\naXRSb290Q0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDt+fuF/xXq\n1eZtUjL5PbMGgFatVpE2FAB5upEwehmGRhWo+AMhAXQtCBUsSHMcuCkB+5IQpDPT\nAdZZqni0nnKeKbSL76ryn0EjQHrWVsGa6nddPz1480ZRUXjNbSpmikT5uVc5j1ec\nR3tPw1jtP9B3xjvebEokSLX7Y0nrTPwCQeLIDzpKh80bshvRJ28vmnT38ha4UMOs\nyGV0A70J9ZzUGN9lHM68zDbsbt1ckP9EZRGWRFqjN06vXJpZkLqk/T4LcU+agwK4\n41/fhpMAy3QpYpgC9BNUWAdRzLx/Xl5F8IjGR6vV1dP7O3yKznNEth0ZMSDOsC+n\nX+67D0NLqifLAgMBAAGjUzBRMB0GA1UdDgQWBBQH8KMUDRDASQW01NixSC60o9Y4\ngTAfBgNVHSMEGDAWgBQH8KMUDRDASQW01NixSC60o9Y4gTAPBgNVHRMBAf8EBTAD\nAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQA/ntzzVNBa8bgWO8VigxTsNntGIwn/HR45\n4Og600Ynx+cLQuqIcVwT/stgjg+RO1jBSRSTCtqzbM4/LTgGTbRj4yvgluO6RDdE\n0EsLIioob97jkbLGcMRNGbI4svSBSUytDjhuvmwxz2wBJYGpxZIm6pkgtMeBHrXp\n4750iSj0ORy9TDUUkUdEXfeDBqbjeQ4M1+OaJ5LP3ze09mb1UDGnNKP2nM9m76Pt\ndT/rN+KQKFN48hLnIHMZykEVIoONEzMh3KkfJKhOdTsZrgvwyoLf56qVDCeuADfN\nztHHMRGR4xXSwWkDU/+F00oYhLi63RsFeL4IdGnXb1Tx8VbaPJVm\n-----END CERTIFICATE-----"
-    ],
+    "certificateChain": RETAIL_CERTIFICATE_CHAIN,
 };
+
+function retailSignatureConfig(signKey = 'ecdsa') {
+    return signKey === 'rsa' ? RETAIL_SIGNATURE_CONFIG_RSA : RETAIL_SIGNATURE_CONFIG_ECDSA;
+}
 
 /**
  * Build config for retail-style payloads. `taggedPDF` is explicit in JSON for load scenarios
@@ -97,7 +118,7 @@ function buildRetailConfig(opts = {}) {
         cfg.taggedPDF = opts.taggedPDF !== undefined ? opts.taggedPDF : true;
     }
     if (sign) {
-        cfg.signature = RETAIL_SIGNATURE_CONFIG;
+        cfg.signature = retailSignatureConfig(opts.signKey || 'ecdsa');
     }
     return cfg;
 }
@@ -311,6 +332,8 @@ function generateHFTPayload(opts = {}) {
             "table": {
                 "maxcolumns": 7,
                 "columnwidths": [0.6, 1, 2, 0.8, 0.6, 1.5, 1.5],
+                "sharedRowLayout": true,
+                "sharedRowTemplateRow": 1,
                 "rows": tradeRows
             }
         }
@@ -327,10 +350,28 @@ function generateHFTPayload(opts = {}) {
  * Flags for load scenarios. `tier` duplicates the same semantics for documentation;
  * payloads use the flattened fields passed into buildRetailConfig.
  *
- * @param {'default'|'unsigned'|'tagged'} scenario
+ * @param {'default'|'unsigned'|'tagged'|'tagged_ecdsa'|'tagged_rsa'|'retail_only_signed'|'retail_active_signed'} scenario
  */
 export function getPayloadOptions(scenario = 'default') {
     switch (scenario) {
+        case 'retail_only_signed':
+            return {
+                tier: 'retail',
+                taggedPDF: true,
+                pdfaCompliant: true,
+                sign: true,
+                signKey: 'ecdsa',
+                retailOnly: true,
+            };
+        case 'retail_active_signed':
+            return {
+                tier: 'retail_active',
+                taggedPDF: true,
+                pdfaCompliant: true,
+                sign: true,
+                signKey: 'ecdsa',
+                retailActiveOnly: true,
+            };
         case 'unsigned':
             return {
                 tier: scenario,
@@ -338,12 +379,22 @@ export function getPayloadOptions(scenario = 'default') {
                 pdfaCompliant: false,
                 sign: false,
             };
-        case 'tagged':
+        case 'tagged_rsa':
             return {
                 tier: scenario,
                 taggedPDF: true,
                 pdfaCompliant: true,
                 sign: true,
+                signKey: 'rsa',
+            };
+        case 'tagged':
+        case 'tagged_ecdsa':
+            return {
+                tier: 'tagged_ecdsa',
+                taggedPDF: true,
+                pdfaCompliant: true,
+                sign: true,
+                signKey: 'ecdsa',
             };
         default:
             return {
@@ -351,6 +402,7 @@ export function getPayloadOptions(scenario = 'default') {
                 taggedPDF: true,
                 pdfaCompliant: true,
                 sign: true,
+                signKey: 'ecdsa',
             };
     }
 }
@@ -365,6 +417,16 @@ export function getUnsignedPayload() {
 /** @param {ReturnType<typeof getPayloadOptions>} [opts] */
 export function getWeightedPayload(opts) {
     const resolved = opts || getPayloadOptions('default');
+    if (resolved.retailOnly) {
+        return generateRetailPayload(resolved);
+    }
+    if (resolved.retailActiveOnly) {
+        const r = Math.random() * 100;
+        if (r < 85) {
+            return generateRetailPayload(resolved);
+        }
+        return generateActiveTraderPayload(resolved);
+    }
     const r = Math.random() * 100;
     if (r < 80) {
         return generateRetailPayload(resolved); // 80%
@@ -372,4 +434,27 @@ export function getWeightedPayload(opts) {
         return generateActiveTraderPayload(resolved); // 15%
     }
     return generateHFTPayload(resolved); // 5%
+}
+
+/** @param {ReturnType<typeof getPayloadOptions>} [opts] */
+export function getWeightedPayloadWithTier(opts) {
+    const resolved = opts || getPayloadOptions('default');
+    if (resolved.retailOnly) {
+        return { payload: generateRetailPayload(resolved), tier: 'retail' };
+    }
+    if (resolved.retailActiveOnly) {
+        const r = Math.random() * 100;
+        if (r < 85) {
+            return { payload: generateRetailPayload(resolved), tier: 'retail' };
+        }
+        return { payload: generateActiveTraderPayload(resolved), tier: 'active' };
+    }
+    const r = Math.random() * 100;
+    if (r < 80) {
+        return { payload: generateRetailPayload(resolved), tier: 'retail' };
+    }
+    if (r < 95) {
+        return { payload: generateActiveTraderPayload(resolved), tier: 'active' };
+    }
+    return { payload: generateHFTPayload(resolved), tier: 'hft' };
 }

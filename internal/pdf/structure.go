@@ -199,6 +199,12 @@ func (sm *StructureManager) ensurePageSlot(pageIndex int) {
 	}
 }
 
+// PageMCIDStart returns the next unassigned MCID cursor for a page.
+func (sm *StructureManager) PageMCIDStart(pageIndex int) int {
+	sm.ensurePageSlot(pageIndex)
+	return sm.NextMCID[pageIndex]
+}
+
 // GetNextMCID returns the next available MCID for a page
 func (sm *StructureManager) GetNextMCID(pageIndex int) int {
 	if !sm.Enabled {
@@ -234,11 +240,22 @@ func (sm *StructureManager) ensureParentTreeCapacity(pageIndex, count int) {
 // ReserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
 // Used by drawTable to avoid per-cell ensurePageSlot/increment overhead (D4).
 func (sm *StructureManager) ReserveMCIDs(pageIndex, count int) int {
+	return sm.reserveMCIDs(pageIndex, count, true)
+}
+
+// ReserveMCIDsLite reserves MCIDs without growing ParentTree (deferred bulk fill per page).
+func (sm *StructureManager) ReserveMCIDsLite(pageIndex, count int) int {
+	return sm.reserveMCIDs(pageIndex, count, false)
+}
+
+func (sm *StructureManager) reserveMCIDs(pageIndex, count int, reserveParentTree bool) int {
 	if !sm.Enabled || count <= 0 {
 		return 0
 	}
 	sm.ensurePageSlot(pageIndex)
-	sm.ensureParentTreeCapacity(pageIndex, count)
+	if reserveParentTree {
+		sm.ensureParentTreeCapacity(pageIndex, count)
+	}
 	start := sm.NextMCID[pageIndex]
 	sm.NextMCID[pageIndex] += count
 	return start
@@ -382,6 +399,78 @@ func (sm *StructureManager) EndMarkedContentBuf(buf *bytes.Buffer) {
 	buf.WriteString("EMC\n")
 	if sm.CurrentParent != nil && sm.CurrentParent.Parent != nil {
 		sm.CurrentParent = sm.CurrentParent.Parent
+	}
+}
+
+// WriteCellMarkedContentBDC emits BDC for a cell MCID without allocating a per-cell StructElem.
+func (sm *StructureManager) WriteCellMarkedContentBDC(buf *bytes.Buffer, tag StructureType, mcid int) {
+	if !sm.Enabled {
+		return
+	}
+	var intBuf [12]byte
+	buf.WriteByte('/')
+	buf.WriteString(string(tag))
+	buf.WriteString(" <</MCID ")
+	buf.Write(strconv.AppendInt(intBuf[:0], int64(mcid), 10))
+	buf.WriteString(">> BDC\n")
+}
+
+// EndCellMarkedContentBuf writes EMC without popping the structure parent stack.
+func (sm *StructureManager) EndCellMarkedContentBuf(buf *bytes.Buffer) {
+	if !sm.Enabled {
+		return
+	}
+	buf.WriteString("EMC\n")
+}
+
+// AttachRowMCIDs registers MCID leaf refs on the current grouping parent (typically TR).
+func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
+	if !sm.Enabled || count <= 0 || sm.CurrentParent == nil {
+		return
+	}
+	_ = startMCID
+	parent := sm.CurrentParent
+	sm.appendParentTreeRefs(pageIndex, parent, count)
+	for i := 0; i < count; i++ {
+		parent.Kids = append(parent.Kids, StructKid{MCID: startMCID+i})
+	}
+}
+
+func (sm *StructureManager) appendParentTreeRefs(pageIndex int, parent *StructElem, count int) {
+	if count <= 0 {
+		return
+	}
+	sm.ensurePageSlot(pageIndex)
+	pt := &sm.ParentTree[pageIndex]
+	n := len(*pt)
+	need := n + count
+	if cap(*pt) < need {
+		grown := make([]*StructElem, n, need)
+		copy(grown, *pt)
+		*pt = grown
+	}
+	*pt = (*pt)[:need]
+	for i := n; i < need; i++ {
+		(*pt)[i] = parent
+	}
+}
+
+// PreallocatePageMCIDSlots grows ParentTree capacity for a page before a stripe of rows.
+func (sm *StructureManager) PreallocatePageMCIDSlots(pageIndex, count int) {
+	if !sm.Enabled || count <= 0 {
+		return
+	}
+	sm.ensureParentTreeCapacity(pageIndex, count)
+}
+
+// FillDeferredParentTreePage bulk-fills ParentTree slots and MCID kids for a page stripe.
+func (sm *StructureManager) FillDeferredParentTreePage(pageIndex int, parent *StructElem, startMCID, count int) {
+	if !sm.Enabled || count <= 0 || parent == nil {
+		return
+	}
+	sm.appendParentTreeRefs(pageIndex, parent, count)
+	for i := 0; i < count; i++ {
+		parent.Kids = append(parent.Kids, StructKid{MCID: startMCID + i})
 	}
 }
 

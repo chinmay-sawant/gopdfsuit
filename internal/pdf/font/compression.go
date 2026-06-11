@@ -55,6 +55,20 @@ func PutCompressBuffer(buf *bytes.Buffer) {
 	CompressBufPool.Put(buf)
 }
 
+// WarmCompressionPools pre-fills zlib writer and buffer pools to reduce cold-start churn.
+func WarmCompressionPools(n int) {
+	if n < 1 {
+		n = 1
+	}
+	for i := 0; i < n; i++ {
+		buf := GetCompressBuffer()
+		zw := GetZlibWriter(buf)
+		_ = zw.Close()
+		PutZlibWriter(zw)
+		PutCompressBuffer(buf)
+	}
+}
+
 const compressSampleBytes = 4096
 
 // CompressContentStream zlib-compresses raw page bytes when smaller than raw.
