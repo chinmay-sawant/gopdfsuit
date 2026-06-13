@@ -91,6 +91,7 @@ BENCH_TIME ?= 5s
 ZERODHA_DIR := sampledata/gopdflib/zerodha
 BENCHMARKS_DIR := sampledata/benchmarks
 GOPDFKIT_COMPARE_DIR := $(BENCHMARKS_DIR)/gopdfkit_compare
+GOTENBERG_DIR := $(BENCHMARKS_DIR)/gotenberg
 K6_DIR := test/generate_template-pdf
 
 .PHONY: build test clean run fmt vet mod lint \
@@ -98,6 +99,7 @@ K6_DIR := test/generate_template-pdf
 	bench-help bench-setup \
 	bench-k6 bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \
 	bench-k6-smoke bench-k6-spike bench-k6-soak bench-k6-install \
+	bench-gotenberg bench-gotenberg-load bench-gotenberg-smoke bench-gotenberg-start \
 	bench-gopdflib-zerodha bench-gopdflib-zerodha-x2 bench-gopdflib-zerodha-x5 bench-gopdflib-zerodha-x10 \
 	bench-gopdflib-data bench-gopdflib-data-pprof \
 	bench-gopdfsuit-zerodha bench-pypdfsuit-zerodha bench-pypdfsuit-zerodha-x2 bench-pypdfsuit-legacy \
@@ -128,6 +130,12 @@ bench-help:
 	@echo "    make bench-k6-smoke              # quick smoke_test.js"
 	@echo "    make bench-k6-spike              # spike_test.js"
 	@echo "    make bench-k6-soak               # 30 min soak_test.js"
+	@echo ""
+	@echo "  Gotenberg HTML→PDF (Docker + k6, sampledata/benchmarks/gotenberg):"
+	@echo "    make bench-gotenberg             # weighted tagged_ecdsa, 48 VU x 35s"
+	@echo "    make bench-gotenberg-load        # k6 only (start Gotenberg yourself)"
+	@echo "    make bench-gotenberg-smoke       # 1 VU smoke_test.js"
+	@echo "    make bench-gotenberg-start       # docker run Gotenberg on :3010"
 	@echo ""
 	@echo "  Zerodha gold standard (sampledata/gopdflib/zerodha):"
 	@echo "    make bench-gopdflib-zerodha"
@@ -208,6 +216,20 @@ bench-k6-soak:
 
 bench-k6-install:
 	bash $(K6_DIR)/install_k6.sh
+
+# ── Gotenberg: k6 HTML→PDF (Chromium) ────────────────────────────────────────
+
+bench-gotenberg:
+	bash $(GOTENBERG_DIR)/run_gotenberg_load.sh
+
+bench-gotenberg-load:
+	cd $(GOTENBERG_DIR) && k6 run load_test.js
+
+bench-gotenberg-smoke:
+	cd $(GOTENBERG_DIR) && k6 run smoke_test.js
+
+bench-gotenberg-start:
+	bash $(GOTENBERG_DIR)/start_gotenberg.sh
 
 # go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/profile?seconds=30"
 # go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/heap"

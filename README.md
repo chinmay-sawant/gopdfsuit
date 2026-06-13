@@ -22,9 +22,9 @@
 | :------------------- | :------------------------------ | :------------------------------ |
 | **Infrastructure**   | ~40 Node Cluster                | **2 Nodes** (95% Less)          |
 | **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
-| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~2,460 PDFs/sec** (gopdflib Zerodha, 48 workers, 2-run avg) |
+| **Throughput**       | ~1k PDFs/sec (Cluster)          | **peak 2,953 / avg 2,646 PDFs/sec** (gopdflib Zerodha, 48 workers, 30-run, 2026-06-14) |
 
-> **Result**: Generates 1.5 million financial PDFs in **~10 minutes** at current gopdflib throughput on a single machine (Intel i7-13700HX, 24 cores, Go 1.26.4). Peak observed **3,583 ops/s** (earlier same-day run).
+> **Result**: Generates 1.5 million financial PDFs in **~9.4 minutes** at 30-run avg throughput (**~8.5 min** at peak) on a single machine (Intel i7-13700HX, 24 cores, Go 1.26.4). Historical best (idle machine, Jun 13): peak **3,604** / avg **2,787** ops/s.
 
 ---
 
@@ -157,13 +157,14 @@ Uses byte-oriented approach with `/NeedAppearances true`. Works for most AcroFor
 <details>
 <summary><b>Performance benchmarks?</b></summary>
 
-Benchmarked on **Intel i7-13700HX (24 cores), WSL2, Go 1.26.4** — 2 runs each (2026-06-11 22:01). Zerodha workload: 80% retail · 15% active · 5% HFT. All PDFs **PDF/A-4 + PDF/UA-2**; retail **ECDSA P-256**.
+Benchmarked on **Intel i7-13700HX (24 cores), WSL2, Go 1.26.4**. Zerodha workload: 80% retail · 15% active · 5% HFT. All PDFs **PDF/A-4 + PDF/UA-2**; retail **ECDSA P-256**.
 
-| Engine | Harness | Peak (2-run) | 2-run avg | Prior avg (`19:45`) |
-|--------|---------|-------------:|----------:|--------------------:|
-| **gopdflib** | Zerodha `go run .` | **2,463 ops/s** | 2,459 ops/s | 3,453 ops/s |
-| **gopdfsuit** | k6 `tagged_ecdsa` | **693 req/s** | 652 req/s | 893 req/s |
-| **pypdfsuit** | `pypdfsuit_bench.py` | **228 ops/s** | 219 ops/s | 236 ops/s |
+| Engine | Harness | Peak | Latest avg | Notes |
+|--------|---------|-----:|-----------:|-------|
+| **gopdflib** | Zerodha `go run .` | **2,953 ops/s** | **2,646 ops/s** (30-run, 2026-06-14) | Library in-process |
+| **gopdfsuit** | k6 `tagged_ecdsa` | **859 req/s** | **825 req/s** (5-run, 2026-06-14) | HTTP + Gin |
+| **pypdfsuit** | `pypdfsuit_bench.py` | 228 ops/s | 219 ops/s (2-run, 2026-06-11) | Python CGO |
+| **Gotenberg** | k6 HTML→PDF | — | **10.3 req/s** (2026-06-13) | Chromium, no PDF/A |
 
 Reproduce:
 
