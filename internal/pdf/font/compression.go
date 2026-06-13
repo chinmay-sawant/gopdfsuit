@@ -69,39 +69,45 @@ func WarmCompressionPools(n int) {
 	}
 }
 
-const compressSampleBytes = 4096
+const (
+	compressSampleBytes   = 4096
+	compressSkipSampleMin = 32 << 10 // large PDF streams are virtually always compressible
+)
 
 // CompressContentStream zlib-compresses raw page bytes when smaller than raw.
 // C5: if the first 4KB does not compress, skips the full pass (store-uncompressed).
+// P11: streams >32 KiB skip the trial pass (HFT pages — avoids double zlib).
 func CompressContentStream(raw []byte) (compressed *bytes.Buffer, useFlate bool) {
 	rawLen := len(raw)
 	if rawLen == 0 {
 		return nil, false
 	}
 
-	sampleLen := rawLen
-	if sampleLen > compressSampleBytes {
-		sampleLen = compressSampleBytes
-	}
-	sampleBuf := GetCompressBuffer()
-	zw := GetZlibWriter(sampleBuf)
-	if _, err := zw.Write(raw[:sampleLen]); err != nil {
-		_ = zw.Close()
+	if rawLen <= compressSkipSampleMin {
+		sampleLen := rawLen
+		if sampleLen > compressSampleBytes {
+			sampleLen = compressSampleBytes
+		}
+		sampleBuf := GetCompressBuffer()
+		zw := GetZlibWriter(sampleBuf)
+		if _, err := zw.Write(raw[:sampleLen]); err != nil {
+			_ = zw.Close()
+			PutZlibWriter(zw)
+			PutCompressBuffer(sampleBuf)
+			return nil, false
+		}
+		if err := zw.Close(); err != nil {
+			PutZlibWriter(zw)
+			PutCompressBuffer(sampleBuf)
+			return nil, false
+		}
 		PutZlibWriter(zw)
+		if sampleBuf.Len() >= sampleLen {
+			PutCompressBuffer(sampleBuf)
+			return nil, false
+		}
 		PutCompressBuffer(sampleBuf)
-		return nil, false
 	}
-	if err := zw.Close(); err != nil {
-		PutZlibWriter(zw)
-		PutCompressBuffer(sampleBuf)
-		return nil, false
-	}
-	PutZlibWriter(zw)
-	if sampleBuf.Len() >= sampleLen {
-		PutCompressBuffer(sampleBuf)
-		return nil, false
-	}
-	PutCompressBuffer(sampleBuf)
 
 	compressedBuf := GetCompressBuffer()
 	if grow := rawLen / 3; grow < 4096 {
@@ -109,7 +115,7 @@ func CompressContentStream(raw []byte) (compressed *bytes.Buffer, useFlate bool)
 	} else {
 		compressedBuf.Grow(grow)
 	}
-	zw = GetZlibWriter(compressedBuf)
+	zw := GetZlibWriter(compressedBuf)
 	if _, err := zw.Write(raw); err != nil {
 		_ = zw.Close()
 		PutZlibWriter(zw)

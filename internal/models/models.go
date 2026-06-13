@@ -33,6 +33,7 @@ func (t *PDFTemplate) preallocForTier(tier string) {
 		t.preallocInlineTableRows(1, 41, 5)
 	case "hft":
 		t.Elements = make([]Element, 2, 4)
+		t.preallocInlineTableRows(0, 1, 4)
 		t.preallocInlineTableRows(1, 2001, 7)
 	default:
 		t.Elements = make([]Element, 0, 8)
@@ -50,8 +51,13 @@ func (t *PDFTemplate) preallocInlineTableRows(elemIdx, rowCap, maxCols int) {
 	if elem.Table == nil {
 		elem.Table = &Table{MaxColumns: maxCols}
 	}
-	if cap(elem.Table.Rows) < rowCap {
-		elem.Table.Rows = make([]Row, 0, rowCap)
+	// Pre-size row and cell slices so sonic unmarshals in-place (avoids 2001× GrowSlice).
+	if len(elem.Table.Rows) < rowCap || cap(elem.Table.Rows) < rowCap {
+		rows := make([]Row, rowCap)
+		for i := range rows {
+			rows[i].Row = make([]Cell, 0, maxCols)
+		}
+		elem.Table.Rows = rows
 	}
 }
 

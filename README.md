@@ -22,9 +22,9 @@
 | :------------------- | :------------------------------ | :------------------------------ |
 | **Infrastructure**   | ~40 Node Cluster                | **2 Nodes** (95% Less)          |
 | **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
-| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~2,750 PDFs/sec peak** (single node, 48 workers) |
+| **Throughput**       | ~1k PDFs/sec (Cluster)          | **~2,460 PDFs/sec** (gopdflib Zerodha, 48 workers, 2-run avg) |
 
-> **Result**: Generates 1.5 million financial PDFs in **~11 minutes** at peak throughput on a single machine (Intel i7-13700HX, 24 cores, Go 1.26.4).
+> **Result**: Generates 1.5 million financial PDFs in **~10 minutes** at current gopdflib throughput on a single machine (Intel i7-13700HX, 24 cores, Go 1.26.4). Peak observed **3,583 ops/s** (earlier same-day run).
 
 ---
 
@@ -157,39 +157,26 @@ Uses byte-oriented approach with `/NeedAppearances true`. Works for most AcroFor
 <details>
 <summary><b>Performance benchmarks?</b></summary>
 
-Benchmarked on **Intel i7-13700HX (24 cores), WSL2, Go 1.26.4** — 10 runs each, peak values reported.
+Benchmarked on **Intel i7-13700HX (24 cores), WSL2, Go 1.26.4** — 2 runs each (2026-06-11 22:01). Zerodha workload: 80% retail · 15% active · 5% HFT. All PDFs **PDF/A-4 + PDF/UA-2**; retail **ECDSA P-256**.
 
-### gopdflib — Zerodha Gold Standard (48 workers, PDF/A + tagged + signed)
+| Engine | Harness | Peak (2-run) | 2-run avg | Prior avg (`19:45`) |
+|--------|---------|-------------:|----------:|--------------------:|
+| **gopdflib** | Zerodha `go run .` | **2,463 ops/s** | 2,459 ops/s | 3,453 ops/s |
+| **gopdfsuit** | k6 `tagged_ecdsa` | **693 req/s** | 652 req/s | 893 req/s |
+| **pypdfsuit** | `pypdfsuit_bench.py` | **228 ops/s** | 219 ops/s | 236 ops/s |
 
-Real-world brokerage workload: 80% retail (1-page) · 15% active trader (2–3 page) · 5% HFT (50+ page). Every PDF generated from scratch. Retail signed with **ECDSA P-256** (`BENCH_SIGN_RSA=1` for RSA).
+Reproduce:
 
-| Metric | Peak (best of 5) | 5-run average |
-|--------|-----------------:|--------------:|
-| **Throughput** | **2,751 ops/s** | 2,476 ops/s |
-| **Avg latency** | **16.9 ms** | 18.9 ms |
-| **Wall time (5,000 docs)** | **1.82 s** | 2.03 s |
+```bash
+# gopdflib
+cd sampledata/gopdflib/zerodha && GOMAXPROCS=24 go1.26.4 run .
 
-Reproduce: `BENCH_SKIP_WRITE=1 BENCH_SEED=42 GOMAXPROCS=24 go1.26.4 run .` from `sampledata/gopdflib/zerodha`
+# gopdfsuit (k6 + Gin)
+make load-pprof
 
-### gopdfsuit — HTTP load test (k6, 48 VUs, PDF/A tagged payloads)
-
-| Metric | Peak (best of 10) | 10-run average |
-|--------|------------------:|---------------:|
-| **Throughput** | **520 req/s** | 496 req/s |
-| **Median latency** | **16 ms** | ~17 ms |
-| **p99 latency** | **287 ms** | ~320 ms |
-
-Reproduce: start server (`go run ./cmd/gopdfsuit`), then `k6 run test/generate_template-pdf/load_test.js`
-
-### gopdfsuit — Micro-benchmarks (single-thread, PDF/A, 2,000-row table)
-
-| Benchmark | Peak (best of 10) | 10-run average |
-|-----------|------------------:|---------------:|
-| `Rows2000` serial | **42.5 ms/op** | 54.8 ms/op |
-| `WrapEnabled/Rows2000` | **32.2 ms/op** | 33.8 ms/op |
-| `GoPdfSuit` (data.json) | **16.4 ms/op** | 17.1 ms/op |
-
-Reproduce: `go test -run='^$' -bench='BenchmarkGenerateTemplatePDF/Rows2000$|BenchmarkGoPdfSuit$' -benchmem -count=10 ./internal/pdf/`
+# pypdfsuit
+cd sampledata/gopdflib/zerodha && python3 pypdfsuit_bench.py
+```
 
 All processing is in-memory with zero external runtime dependencies.
 

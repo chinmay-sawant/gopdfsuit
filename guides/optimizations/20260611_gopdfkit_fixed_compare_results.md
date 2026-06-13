@@ -139,3 +139,22 @@ overturned:
 The largest remaining raw throughput gap is on `text_short` and `text_240_lines`
 where gopdflib leads by 51% and 40% respectively. The smallest lead is
 `text_240_lines` at 40%.
+
+---
+
+## Re-run — 2026-06-11 22:08 IST (2-run mean, post PDF/UA-2 TD fix)
+
+**Harness:** same module, `benchtime=5s`, Go 1.26.4, i7-13700HX  
+**Artifacts:** `guides/cursor/baselines/benchmark_suite_20260611_2128/gopdfkit_run*.txt`
+
+| Workload | GoPDFKit pdf/s | gopdflib pdf/s (now) | gopdflib (3-run med above) | gopdflib Δ vs prior |
+|----------|---------------:|---------------------:|---------------------------:|--------------------:|
+| `text_short` | 109,185 | **204,214** | 160,863 | **+27%** |
+| `text_240_lines` | 13,218 | **24,808** | 16,810 | **+48%** |
+| `table_180_rows` | 10,855 | **37,245** | 21,023 | **+77%** |
+| `table_900_rows` | 2,326 | **8,057** | 4,338 | **+86%** |
+| `invoice_40_rows` | 36,408 | **115,914** | 71,920 | **+61%** |
+| `png_table_180_rows` | 6,596 | **35,759** | 19,843 | **+80%** |
+| `png_rows_60` | 4,674 | **44,517** | 30,018 | **+48%** |
+
+**Summary:** gopdflib still wins **7/7**. Micro-benchmark throughput improved **27–86%** vs the morning run despite restoring full PDF/UA-2 Table→TR→TD hierarchy (no batch-MC shortcut on TR).

@@ -38,3 +38,35 @@ func TestBeginMarkedContentBufWithMCID_usesReservedID(t *testing.T) {
 		t.Fatalf("expected 2 parent tree entries, got %d", len(sm.ParentTree[0]))
 	}
 }
+
+func TestBeginMarkedContentBufWithMCID_createsTDUnderTR(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	table := sm.CurrentParent
+
+	sm.BeginStructureElementCap(StructTR, 3)
+	tr := sm.CurrentParent
+
+	var buf bytes.Buffer
+	base := sm.ReserveMCIDs(0, 3)
+	for i := 0; i < 3; i++ {
+		sm.BeginMarkedContentBufWithMCID(&buf, 0, StructTD, nil, base+i)
+		sm.EndMarkedContentBuf(&buf)
+	}
+	sm.EndStructureElement()
+
+	if len(table.Kids) != 1 || table.Kids[0].Elem != tr {
+		t.Fatal("expected Table kid to be TR element")
+	}
+	if len(tr.Kids) != 3 {
+		t.Fatalf("expected 3 TD kids on TR, got %d", len(tr.Kids))
+	}
+	for i, kid := range tr.Kids {
+		if kid.Elem == nil || kid.Elem.Type != StructTD {
+			t.Fatalf("kid %d: expected TD struct element, got %+v", i, kid)
+		}
+		if len(kid.Elem.Kids) != 1 || kid.Elem.Kids[0].MCID != base+i {
+			t.Fatalf("kid %d: expected MCID on TD, got %+v", i, kid.Elem.Kids)
+		}
+	}
+}
