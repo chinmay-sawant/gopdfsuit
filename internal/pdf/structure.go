@@ -92,6 +92,21 @@ type StructureManager struct {
 	LinkElements  map[int]*StructElem // PDF/UA-2: Annotation Object ID -> Link StructElem
 }
 
+func growPtrSlice[T any](s []T, need, minCap int) []T {
+	if cap(s) >= need {
+		return s
+	}
+	newCap := need
+	if newCap < minCap {
+		newCap = minCap
+	} else if c := cap(s); c > 0 && newCap < c*2 {
+		newCap = c * 2
+	}
+	grown := make([]T, len(s), newCap)
+	copy(grown, s)
+	return grown
+}
+
 // NewStructureManager creates a new structure manager. When enabled is false, marked content
 // and structure-tree bookkeeping are skipped (no allocations in hot Begin/End paths).
 func NewStructureManager(enabled bool) *StructureManager {
@@ -223,18 +238,17 @@ func (sm *StructureManager) ensureParentTreeCapacity(pageIndex, count int) {
 	sm.ensurePageSlot(pageIndex)
 	pt := &sm.ParentTree[pageIndex]
 	need := len(*pt) + count
-	if cap(*pt) >= need {
+	*pt = growPtrSlice(*pt, need, 32)
+}
+
+// ReserveElementCapacity pre-grows the flat structure element slice when the
+// tagged layout size is roughly known up front.
+func (sm *StructureManager) ReserveElementCapacity(additional int) {
+	if !sm.Enabled || additional <= 0 {
 		return
 	}
-	newCap := need
-	if newCap < 32 {
-		newCap = 32
-	} else if c := cap(*pt); c > 0 && newCap < c*2 {
-		newCap = c * 2
-	}
-	grown := make([]*StructElem, len(*pt), newCap)
-	copy(grown, *pt)
-	*pt = grown
+	need := len(sm.Elements) + additional
+	sm.Elements = growPtrSlice(sm.Elements, need, 32)
 }
 
 // ReserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
@@ -309,7 +323,8 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	streamBuilder.Write(strconv.AppendInt(intBuf[:0], int64(mcid), 10))
 	if alt, ok := props["Alt"]; ok {
 		streamBuilder.WriteString(" /Alt (")
-		streamBuilder.WriteString(escapeText(alt))
+		var altBuf [1024]byte
+		streamBuilder.Write(appendEscapedPDFLiteral(altBuf[:0], alt))
 		streamBuilder.WriteByte(')')
 	}
 	streamBuilder.WriteString(">> BDC\n")
@@ -383,7 +398,8 @@ func (sm *StructureManager) beginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	buf.Write(strconv.AppendInt(intBuf[:0], int64(mcid), 10))
 	if alt, ok := props["Alt"]; ok {
 		buf.WriteString(" /Alt (")
-		buf.WriteString(escapeText(alt))
+		var altBuf [1024]byte
+		buf.Write(appendEscapedPDFLiteral(altBuf[:0], alt))
 		buf.WriteByte(')')
 	}
 	buf.WriteString(">> BDC\n")
@@ -432,7 +448,7 @@ func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
 	parent := sm.CurrentParent
 	sm.appendParentTreeRefs(pageIndex, parent, count)
 	for i := 0; i < count; i++ {
-		parent.Kids = append(parent.Kids, StructKid{MCID: startMCID+i})
+		parent.Kids = append(parent.Kids, StructKid{MCID: startMCID + i})
 	}
 }
 
@@ -444,11 +460,7 @@ func (sm *StructureManager) appendParentTreeRefs(pageIndex int, parent *StructEl
 	pt := &sm.ParentTree[pageIndex]
 	n := len(*pt)
 	need := n + count
-	if cap(*pt) < need {
-		grown := make([]*StructElem, n, need)
-		copy(grown, *pt)
-		*pt = grown
-	}
+	*pt = growPtrSlice(*pt, need, 32)
 	*pt = (*pt)[:need]
 	for i := n; i < need; i++ {
 		(*pt)[i] = parent

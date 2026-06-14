@@ -6,6 +6,7 @@ import (
 )
 
 func TestCompressContentStreamCachedReusesResult(t *testing.T) {
+	ClearPageCompressCache()
 	raw := bytes.Repeat([]byte("BT /F1 12 Tf (hello) Tj ET\n"), 128)
 
 	buf1, ok1 := CompressContentStreamCached(raw)
@@ -23,9 +24,18 @@ func TestCompressContentStreamCachedReusesResult(t *testing.T) {
 		t.Fatalf("cache hit length = %d, want %d", buf2.Len(), len1)
 	}
 	PutCompressBuffer(buf2)
+
+	var total int64
+	for i := range compressShards {
+		total += compressShards[i].count.Load()
+	}
+	if total != 1 {
+		t.Fatalf("cache entry count = %d, want 1", total)
+	}
 }
 
 func TestCompressContentStreamCachedStoresUncompressed(t *testing.T) {
+	ClearPageCompressCache()
 	raw := make([]byte, 64)
 	for i := range raw {
 		raw[i] = byte(i)
@@ -39,5 +49,13 @@ func TestCompressContentStreamCachedStoresUncompressed(t *testing.T) {
 	buf2, ok2 := CompressContentStreamCached(raw)
 	if ok2 || buf2 != nil {
 		t.Fatal("expected cached store-uncompressed decision")
+	}
+
+	var total int64
+	for i := range compressShards {
+		total += compressShards[i].count.Load()
+	}
+	if total != 1 {
+		t.Fatalf("cache entry count = %d, want 1", total)
 	}
 }

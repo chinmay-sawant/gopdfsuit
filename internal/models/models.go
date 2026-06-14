@@ -15,29 +15,51 @@ func (t *PDFTemplate) PreallocForDecode(contentLength int, tier string) {
 	}
 	switch {
 	case contentLength < 20_000:
-		t.Elements = make([]Element, 0, 5)
+		t.ensureElementsLen(0, 5)
 	case contentLength < 500_000:
-		t.Elements = make([]Element, 0, 8)
+		t.ensureElementsLen(0, 8)
 	default:
-		t.Elements = make([]Element, 0, 16)
+		t.ensureElementsLen(0, 16)
 	}
 }
 
 func (t *PDFTemplate) preallocForTier(tier string) {
 	switch tier {
 	case "retail":
-		t.Elements = make([]Element, 0, 6)
-		t.Table = make([]Table, 0, 1)
+		t.ensureElementsLen(0, 6)
+		t.ensureTableLen(0, 1)
 	case "active":
-		t.Elements = make([]Element, 0, 8)
+		t.ensureElementsLen(0, 8)
 		t.preallocInlineTableRows(1, 41, 5)
 	case "hft":
-		t.Elements = make([]Element, 2, 4)
+		t.ensureElementsLen(2, 4)
 		t.preallocInlineTableRows(0, 1, 4)
 		t.preallocInlineTableRows(1, 2001, 7)
 	default:
-		t.Elements = make([]Element, 0, 8)
+		t.ensureElementsLen(0, 8)
 	}
+}
+
+func (t *PDFTemplate) ensureElementsLen(length, capHint int) {
+	if capHint < length {
+		capHint = length
+	}
+	if cap(t.Elements) < capHint {
+		t.Elements = make([]Element, length, capHint)
+		return
+	}
+	t.Elements = t.Elements[:length]
+}
+
+func (t *PDFTemplate) ensureTableLen(length, capHint int) {
+	if capHint < length {
+		capHint = length
+	}
+	if cap(t.Table) < capHint {
+		t.Table = make([]Table, length, capHint)
+		return
+	}
+	t.Table = t.Table[:length]
 }
 
 func (t *PDFTemplate) preallocInlineTableRows(elemIdx, rowCap, maxCols int) {
@@ -52,12 +74,89 @@ func (t *PDFTemplate) preallocInlineTableRows(elemIdx, rowCap, maxCols int) {
 		elem.Table = &Table{MaxColumns: maxCols}
 	}
 	// Pre-size row and cell slices so sonic unmarshals in-place (avoids 2001× GrowSlice).
-	if len(elem.Table.Rows) < rowCap || cap(elem.Table.Rows) < rowCap {
+	if cap(elem.Table.Rows) < rowCap {
 		rows := make([]Row, rowCap)
 		for i := range rows {
 			rows[i].Row = make([]Cell, 0, maxCols)
 		}
-		elem.Table.Rows = rows
+		elem.Table.Rows = rows[:0]
+		return
+	}
+	elem.Table.Rows = elem.Table.Rows[:0]
+	for i := 0; i < cap(elem.Table.Rows); i++ {
+		row := &elem.Table.Rows[:cap(elem.Table.Rows)][i]
+		if cap(row.Row) < maxCols {
+			row.Row = make([]Cell, 0, maxCols)
+		} else {
+			row.Row = row.Row[:0]
+		}
+	}
+}
+
+// ResetForReuse clears request-visible state while keeping hot backing arrays
+// available for the next pooled decode.
+func (t *PDFTemplate) ResetForReuse() {
+	if t == nil {
+		return
+	}
+
+	clearBookmarks(t.Bookmarks)
+	for i := range t.Table {
+		resetTableForReuse(&t.Table[i])
+	}
+	for i := range t.Elements {
+		resetElementForReuse(&t.Elements[i])
+	}
+
+	t.Config = Config{}
+	t.Title = Title{}
+	t.Footer = Footer{}
+	t.Table = t.Table[:0]
+	t.Spacer = t.Spacer[:0]
+	t.Image = t.Image[:0]
+	t.Elements = t.Elements[:0]
+	t.Bookmarks = t.Bookmarks[:0]
+}
+
+func resetElementForReuse(elem *Element) {
+	if elem == nil {
+		return
+	}
+	table := elem.Table
+	if table != nil {
+		resetTableForReuse(table)
+	}
+	*elem = Element{}
+	elem.Table = table
+}
+
+func resetTableForReuse(tbl *Table) {
+	if tbl == nil {
+		return
+	}
+	for i := range tbl.Rows {
+		clearCells(tbl.Rows[i].Row)
+		tbl.Rows[i].Row = tbl.Rows[i].Row[:0]
+	}
+	rows := tbl.Rows[:0]
+	colWidths := tbl.ColumnWidths[:0]
+	rowHeights := tbl.RowHeights[:0]
+	*tbl = Table{}
+	tbl.Rows = rows
+	tbl.ColumnWidths = colWidths
+	tbl.RowHeights = rowHeights
+}
+
+func clearCells(cells []Cell) {
+	for i := range cells {
+		cells[i] = Cell{}
+	}
+}
+
+func clearBookmarks(bookmarks []Bookmark) {
+	for i := range bookmarks {
+		clearBookmarks(bookmarks[i].Children)
+		bookmarks[i] = Bookmark{}
 	}
 }
 

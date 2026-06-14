@@ -2,7 +2,6 @@ package font
 
 import (
 	"bytes"
-	"hash/fnv"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -47,21 +46,28 @@ func maxCompressShards() int {
 	return n
 }
 
-func compressShardIndex() int {
-	return int(compressShardSeq.Add(1) % uint64(compressShardCount))
+func compressShardIndex(fp uint64) int {
+	return int(fp % uint64(compressShardCount))
 }
 
 func pageContentFingerprint(raw []byte) (uint64, int) {
-	h := fnv.New64a()
-	_, _ = h.Write(raw)
-	return h.Sum64(), len(raw)
+	const (
+		offset64 = 14695981039346656037
+		prime64  = 1099511628211
+	)
+	h := uint64(offset64)
+	for _, b := range raw {
+		h ^= uint64(b)
+		h *= prime64
+	}
+	return h, len(raw)
 }
 
 // CompressContentStreamCached zlib-compresses page bytes, reusing prior results for
 // identical content streams (G2: HFT pages repeat across benchmark iterations).
 func CompressContentStreamCached(raw []byte) (compressed *bytes.Buffer, useFlate bool) {
 	fp, rawLen := pageContentFingerprint(raw)
-	shard := &compressShards[compressShardIndex()]
+	shard := &compressShards[compressShardIndex(fp)]
 	if v, ok := shard.entries.Load(fp); ok {
 		entry := v.(*pageCompressEntry)
 		if entry.rawLen == rawLen && entry.fingerprint == fp {
@@ -95,11 +101,17 @@ func CompressContentStreamCached(raw []byte) (compressed *bytes.Buffer, useFlate
 }
 
 func storePageCompressEntry(shard *compressCacheShard, key uint64, entry *pageCompressEntry) {
-	if shard.count.Add(1) > maxEntriesPerShard() {
-		shard.entries.Clear()
-		shard.count.Store(1)
+	if _, exists := shard.entries.Load(key); exists {
+		shard.entries.Store(key, entry)
+		return
 	}
-	shard.entries.Store(key, entry)
+	if shard.count.Load() >= maxEntriesPerShard() {
+		shard.entries.Clear()
+		shard.count.Store(0)
+	}
+	if _, loaded := shard.entries.LoadOrStore(key, entry); !loaded {
+		shard.count.Add(1)
+	}
 }
 
 // ClearPageCompressCache drops all shard entries (tests / memory pressure).

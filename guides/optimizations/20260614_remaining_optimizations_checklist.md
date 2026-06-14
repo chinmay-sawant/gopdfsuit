@@ -2,25 +2,31 @@
 
 **Date:** 2026-06-14  
 **Baseline:** `make bench-k6` weighted `tagged_ecdsa` (80% retail / 15% active / 5% HFT), 48 VUs × 35s  
-**Latest result:** 5-run mean **1005.6 req/s** (median 1018.3, best 1041.2, worst 946.5)  
+**Latest validation:** 2 fresh `make bench-k6` + pprof runs after the structure preallocation pass on 2026-06-14: **998.7 req/s** and **1052.7 req/s**; 2-run mean **1025.7 req/s**  
+**Best fresh run:** **1052.7 req/s**, p99 **236.9 ms**, HFT avg **323.4 ms**  
 **Historical best:** 1,232 req/s (Phase 11 peak), 1,054 req/s (post-revert baseline)  
-**Current gap:** ~95% of post-revert baseline (1,054); ~82% of Phase 11 peak (1,232)  
+**Current gap:** ~87% of post-revert baseline (1,054), ~74% of Phase 11 peak (1,232), ~61% of the current target **1,500 req/s**  
 **Previous session 5-run (before this work):** avg 825 req/s, peak 859 req/s
 
 **Implemented in this session:**
 - HI-2 — bounded the unbounded caches (subsetCache, imgCache, propsCache) + clear APIs.
 - MI-3 — replaced `strconv.Itoa` with `strconv.AppendInt` in structure-tree writer.
 - MI-1 (partial) — replaced `escapeText` with `appendEscapedPDFLiteral` + `Write([]byte)` in structure-tree writer for Title/Alt.
+- HI-1/HI-3 support — fixed `CompressContentStreamCached` shard selection so identical page streams hash into a stable shard instead of round-robin misses; also removed per-call `hash/fnv` object allocation in `pageContentFingerprint`.
+- HI-4/HI-3 support — changed HFT table row preallocation to keep `Rows` length at `0` while preserving backing capacity and per-row cell capacity.
+- MI-1 follow-up — removed `escapeText` string allocation from `BeginMarkedContent` / `BeginMarkedContentBuf` `/Alt` writing in the tagged-content BDC path.
+- HI-4 follow-up — changed pooled `PDFTemplate` reset to preserve hot HFT backing arrays across requests instead of dropping them on every `sync.Pool` reuse, with tests proving reused row/cell backing storage.
+- MI-1/structure follow-up — pre-sized tagged structure-element backing storage from the input template shape and centralized slice-growth logic for `StructureManager` / parent-tree backing arrays.
 - HI-3 — a first attempt with larger estimates + pool retention caps (8 MB / 1 MB) regressed throughput 993 → 962 req/s and increased `bytes.growSlice` in-use 256 → 338 MB. Reverted.
 - MI-1 (partial) — a generic structure-writer experiment regressed throughput 998 → 916 req/s (Go used shape-based dispatch, not monomorphization). Reverted.
 
-**Bottom line:** The 5-run average improved from 825 → 1005 req/s (+22%). The remaining unchecked items in the backlog are likely to risk regression or require deeper work.
+**Bottom line:** Across the last three implementation passes, the fresh 2-run mean improved from **916.8 req/s** to **1025.7 req/s** and the sample is far tighter than the original `794.5` / `1039.1` spread. The latest structure preallocation pass was small but positive; it still did not materially change the overall `~1500+ req/s` outlook.
 
 ---
 
 ## Shipped in this commit
 
-The following code changes are committed and reflected in the `5-run mean 1005.6 req/s` result above. See the **Commit message** at the bottom of this file.
+The following code changes are committed and were previously reflected in a `5-run mean 1005.6 req/s` run set. See the **Commit message** at the bottom of this file. Treat that result as historical, not the active baseline.
 
 ### HI-2 — Bounded the unbounded caches
 
@@ -67,19 +73,89 @@ A follow-up 5-run under heavier system load landed at:
 - HFT avg latency 460–475 ms (vs 350–360 ms in the 1005 run)
 - The drop is attributed to system load, not the code (EW-2 was fully reverted and only HI-2 + MI-3 + MI-1 partial are in `main`).
 
+### Fresh 2-run validation before this pass
+
+Two fresh runs were captured via the repo harness (`make bench-k6` -> `test/generate_template-pdf/run_gin_pprof_load.sh`) before the latest code changes to reset this checklist against current evidence:
+
+| Run | Throughput | HTTP p99 | HFT avg | pprof summary |
+|---|---:|---:|---:|---|
+| 1 | 794.52 req/s | 365.05 ms | 453.91 ms | `guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260614_130431.txt` |
+| 2 | 1039.06 req/s | 267.54 ms | 356.75 ms | `guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260614_130647.txt` |
+| **Mean** | **916.79 req/s** | n/a | n/a | fresh 2-run sample |
+
+Interpretation:
+- The system still clears the `0% errors` and sub-`500 ms` p99 bar.
+- Throughput is too unstable and too low to claim a current `~1005 req/s` steady state.
+- The path to `~1500+ req/s` must come from major CPU/alloc reductions in compression, JSON decode, structure serialization, and heap growth rather than from cache-bounds work alone.
+
+### Fresh 2-run validation after this pass
+
+After the latest code changes, the same harness was re-run twice:
+
+| Run | Throughput | HTTP p99 | HFT avg | pprof summary |
+|---|---:|---:|---:|---|
+| 1 | 978.44 req/s | 282.86 ms | 370.85 ms | `guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260614_131656.txt` |
+| 2 | 1000.17 req/s | 266.06 ms | 357.16 ms | `guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260614_131905.txt` |
+| **Mean** | **989.31 req/s** | n/a | n/a | post-change 2-run sample |
+
+Observed effect:
+- Fresh 2-run mean improved from **916.79 → 989.31 req/s** (`+7.9%`).
+- The run-to-run spread tightened substantially (`244.5 req/s` spread before vs `21.7 req/s` after).
+- `preallocInlineTableRows` retained heap dropped versus the earlier fresh sample (`25-59 MB` before vs `12-19 MB` after), but alloc_space is still high because every request still allocates those backing arrays.
+- Compression remains a dominant CPU cost even after fixing cache sharding, which implies cache reuse is not yet large enough to change the primary `compress/flate` ceiling on this workload.
+
+### Fresh 2-run validation after pooled-template reuse
+
+After preserving `PDFTemplate` backing arrays across `sync.Pool` reuse, the harness was re-run twice again:
+
+| Run | Throughput | HTTP p99 | HFT avg | pprof summary |
+|---|---:|---:|---:|---|
+| 1 | 985.02 req/s | 267.90 ms | 357.08 ms | `guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260614_135920.txt` |
+| 2 | 1033.06 req/s | 262.04 ms | 347.07 ms | `guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260614_140008.txt` |
+| **Mean** | **1009.04 req/s** | n/a | n/a | pooled-template reuse sample |
+
+Observed effect:
+- Fresh 2-run mean improved from **989.31 → 1009.04 req/s** (`+2.0%`).
+- Latency stayed healthy (`p99 262-268 ms`, `0%` errors).
+- The reuse pass did **not** materially remove `preallocInlineTableRows` from the remaining allocation profile; it still sits around `8-9% alloc_space` and `8% in-use heap`.
+- Compression and final PDF buffer growth remain the dominant blockers.
+
+### Fresh 2-run validation after structure preallocation
+
+After pre-sizing tagged structure-element backing storage, the harness was re-run twice again:
+
+| Run | Throughput | HTTP p99 | HFT avg | pprof summary |
+|---|---:|---:|---:|---|
+| 1 | 998.68 req/s | 274.40 ms | 358.75 ms | `guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260614_140420.txt` |
+| 2 | 1052.70 req/s | 236.91 ms | 323.45 ms | `guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260614_140515.txt` |
+| **Mean** | **1025.69 req/s** | n/a | n/a | structure preallocation sample |
+
+Observed effect:
+- Fresh 2-run mean improved from **1009.04 → 1025.69 req/s** (`+1.6%`).
+- The best run matched the older post-revert baseline band again (`1052.7 req/s`).
+- Structure CPU improved slightly (`formatStructElemObjectTo` roughly `9.75-10.12%` cum in the new pair), but the new generic growth helper itself now appears in alloc_space, so this was not a large net memory win.
+- Compression, `bytes.growSlice`, JSON decode, and HFT row preallocation still dominate the profile.
+
 ---
 
 ## Executive summary
 
-The caches introduced so far (page compression, font subset, image decode, props, page-init) are narrow helpers — they do **not** shortcut full PDF generation. The biggest remaining costs from the latest pprof run are:
+The caches introduced so far (page compression, font subset, image decode, props, page-init) are narrow helpers and do **not** shortcut full PDF generation. The latest fresh pprof runs show the same bottlenecks as the active limiters:
 
-1. `bytes.growSlice` — 50.5% of in-use heap, 14.5% of alloc_space.
-2. `compress/flate` (zlib) — ~20% cumulative CPU.
-3. `drawTable` / `drawSharedLayoutRow` / `drawSharedDeferRow` — ~14–19% cumulative CPU.
-4. `formatStructElemObjectTo` — ~9.5% cumulative CPU.
-5. `sonic` JSON decode — still a large allocator, especially on HFT payloads.
+1. `bytes.growSlice` — still ~50-54% in-use heap and ~13% alloc_space in the latest fresh runs.
+2. `compress/flate` (`compress/zlib.(*Writer).Close` / `CompressContentStreamCached`) — ~20-21% cumulative CPU.
+3. `drawTable` / `drawSharedLayoutRow` / `drawSharedDeferRow` — ~15-16% cumulative CPU.
+4. `formatStructElemObjectTo` — ~9.8-10.5% cumulative CPU and ~3-5% alloc_space.
+5. `sonic` + JSON decode (`sonic.Unmarshal`, `RawMessage.UnmarshalJSON`) — ~16-18% alloc_space.
+6. `PDFTemplate.preallocInlineTableRows` — reuse helped only modestly; it still shows about `9%` alloc_space and `7-8%` in-use heap in the newest pair.
+7. Structure preallocation is no longer free: `growPtrSlice[...]` now shows up as a visible allocator in the newest pair, so future structure work should avoid generic helper churn unless it clearly displaces larger allocations.
+7. `pageContentFingerprint` is now visible at ~2.1-2.3% flat CPU, so future compression-cache work should avoid adding more hashing cost unless hit rate climbs enough to pay for it.
 
-This file tracks the next implementation passes. Each section has a checklist with acceptance criteria.
+Compliance boundary for all remaining work:
+- Do not disable tagging, structure-tree generation, signing, PDF/A metadata, or unique-document behavior just to move req/s.
+- Prefer work that reduces allocations or CPU inside existing compliant code paths.
+
+This file tracks the next implementation passes with the `~1500+ req/s` goal in mind.
 
 ---
 
@@ -96,6 +172,7 @@ This file tracks the next implementation passes. Each section has a checklist wi
 - [ ] Re-run `make bench-k6` and verify weighted throughput improves and p99 stays < 500 ms.
 
 **Files:** `internal/pdf/font/compression.go`, `internal/pdf/generator.go`  
+**Priority note:** Fresh pprof still shows compression as the single largest non-handler cumulative CPU bucket. This is the safest high-impact path because it should preserve tagging/signing semantics if output bytes remain valid.  
 **Estimated gain:** +5–8% throughput  
 **Risk:** Medium — output size may increase; must keep PDF/A compatibility.
 
@@ -145,7 +222,7 @@ This file tracks the next implementation passes. Each section has a checklist wi
 - [ ] Reuse or pool page content buffers for multi-page documents instead of fresh `bytes.Buffer` per page.
 - [ ] Re-run `make bench-k6` and verify `bytes.growSlice` in-use drops and throughput improves.
 
-**Status:** Needs a more careful, data-driven approach; aggressive caps hurt throughput.
+**Status:** Still required. Fresh runs remain at `296-325 MB` `bytes.growSlice` in-use and `4.65-4.96 GB` alloc_space.
 
 **Files:** `internal/pdf/generator.go`, `internal/pdf/pagemanager.go`, `internal/pdf/draw.go`  
 **Estimated gain:** +5–7% throughput, significant heap reduction  
@@ -163,6 +240,7 @@ This file tracks the next implementation passes. Each section has a checklist wi
 - [ ] Run `make bench-k6` and check sonic alloc_space share.
 
 **Files:** `internal/models/template_decode.go` (new), `internal/handlers/json_decode.go`  
+**Priority note:** Fresh runs confirm JSON decode is still one of the few hotspots large enough to matter to a `1500+` target without touching compliance-sensitive PDF logic.  
 **Estimated gain:** +30–40% JSON decode reduction, potentially +5–10% end-to-end on HFT  
 **Risk:** High — codegen adds maintenance; must preserve all field semantics.
 
@@ -182,7 +260,7 @@ This file tracks the next implementation passes. Each section has a checklist wi
 - [ ] Exponential pre-cap for `ParentTree` in `ReserveMCIDs`.
 - [x] Verify structure-tree output unchanged: `go test ./internal/pdf/...` passes.
 
-**Result:** Changes are neutral to slightly positive. `formatStructElemObjectTo` remains ~10.5–11% cum CPU.
+**Result:** Changes were not enough. Fresh runs still show `formatStructElemObjectTo` at `9.77-10.47%` cumulative CPU.
 
 **Files:** `internal/pdf/structure.go`, `internal/pdf/generator.go`  
 **Estimated gain:** +3–5% throughput  
@@ -200,6 +278,7 @@ This file tracks the next implementation passes. Each section has a checklist wi
 - [ ] Run HFT-specific payload and confirm p99 improves.
 
 **Files:** `internal/pdf/draw.go`  
+**Priority note:** This is still worth doing, but it is secondary to compression + JSON decode + heap-growth work because its ceiling is smaller.  
 **Estimated gain:** +3–5% throughput  
 **Risk:** Medium — layout logic is complex; must preserve pagination.
 
@@ -263,7 +342,8 @@ This file tracks the next implementation passes. Each section has a checklist wi
 ## Acceptance criteria for closing this checklist
 
 - [ ] At least one high-impact item shipped and re-profiled.
-- [ ] Weighted `make bench-k6` 5-run avg returns to **≥1,000 req/s** (post-revert baseline).
+- [ ] Weighted `make bench-k6` 5-run avg reaches **~1,500+ req/s** on `tagged_ecdsa`.
+- [ ] Best run alone is not enough; require a stable 5-run band with no collapse back into the `800-1000 req/s` range.
 - [ ] p99 latency stays **< 500 ms** with 0% errors.
 - [ ] `bytes.growSlice` in-use heap drops below **200 MB** under load.
 - [ ] All `go test ./internal/...` pass.
@@ -282,6 +362,9 @@ make bench-k6
 
 # Quick retail-only gate
 make bench-k6-retail
+
+# Optional 1500 req/s retail gate
+make bench-k6-1500
 
 # Inspect latest pprof summary
 ls -t guides/cursor/baselines/gin_pprof_runs/pprof_summary_*.txt | head -1 | xargs cat

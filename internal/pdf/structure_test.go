@@ -70,3 +70,15 @@ func TestBeginMarkedContentBufWithMCID_createsTDUnderTR(t *testing.T) {
 		}
 	}
 }
+
+func TestReserveElementCapacityGrowsBackingSlice(t *testing.T) {
+	sm := NewStructureManager(true)
+	before := cap(sm.Elements)
+	sm.ReserveElementCapacity(512)
+	if got := cap(sm.Elements); got < len(sm.Elements)+512 {
+		t.Fatalf("elements cap = %d, want at least %d", got, len(sm.Elements)+512)
+	}
+	if cap(sm.Elements) < before {
+		t.Fatalf("elements cap shrank: before=%d after=%d", before, cap(sm.Elements))
+	}
+}

@@ -205,6 +205,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Initialize page manager with Arlington compatibility flag and per-generation font registry
 	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry, taggedPDF, estimateInitialContentStreamCap(template))
 	defer pageManager.ReleaseContentStreams()
+	if taggedPDF {
+		pageManager.Structure.ReserveElementCapacity(estimateStructureElementCount(template))
+	}
 
 	// Process images and create XObjects
 	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
@@ -1434,6 +1437,43 @@ func formatStructElemObject(elem *StructElem, ctx structElemFormatCtx) string {
 
 func formatStructElemObjectInto(sb *strings.Builder, elem *StructElem, ctx structElemFormatCtx) {
 	formatStructElemObjectTo(sb, elem, ctx)
+}
+
+func estimateStructureElementCount(template models.PDFTemplate) int {
+	count := 1 // Document
+
+	if template.Title.Text != "" {
+		count++
+	}
+	if template.Title.Table != nil {
+		count += 1 + len(template.Title.Table.Rows)
+		for _, row := range template.Title.Table.Rows {
+			count += len(row.Row)
+		}
+	}
+
+	for _, table := range template.Table {
+		count += 1 + len(table.Rows)
+		for _, row := range table.Rows {
+			count += min(len(row.Row), table.MaxColumns)
+		}
+	}
+
+	for _, elem := range template.Elements {
+		if elem.Table == nil {
+			continue
+		}
+		count += 1 + len(elem.Table.Rows)
+		for _, row := range elem.Table.Rows {
+			count += min(len(row.Row), elem.Table.MaxColumns)
+		}
+	}
+
+	if template.Footer.Text != "" {
+		count++
+	}
+
+	return count
 }
 
 type structElemObjectWriter interface {

@@ -35,13 +35,13 @@ var templateDataCache sync.Map
 var pprofForbiddenResp = gin.H{"error": "Forbidden: Pprof is only accessible from localhost"}
 
 // resetTemplate clears a pooled PDFTemplate before unmarshal (and before Put) so
-// omitted JSON fields do not leak from prior requests. Zeroing the shell also
-// drops large slice backing arrays from the pooled value after each use.
+// omitted JSON fields do not leak from prior requests while still retaining
+// hot backing arrays for the next pooled decode.
 func resetTemplate(t *models.PDFTemplate) {
 	if t == nil {
 		return
 	}
-	*t = models.PDFTemplate{}
+	t.ResetForReuse()
 }
 
 // getProjectRoot returns the base directory where the `web` folder lives.
