@@ -29,6 +29,8 @@ var rgbDataPool = sync.Pool{
 	},
 }
 
+const maxImageCacheEntries = 256
+
 // imageCache stores decoded images keyed by a hash of their base64 data.
 // A single-slot most-recently-used cache short-circuits the FNV-1a hash
 // whenever the same base64 string is decoded back-to-back, which is the
@@ -50,6 +52,15 @@ var imgCache = &imageCache{
 	cache: make(map[uint64]*ImageObject),
 }
 
+// clear drops all cached image entries and the MRU slot.
+func (c *imageCache) clear() {
+	c.cache = make(map[uint64]*ImageObject)
+	c.lastDataPtr = nil
+	c.lastDataLen = 0
+	c.lastHash = 0
+	c.lastObj = nil
+}
+
 // fnv1aHash computes FNV-1a hash for quick image deduplication
 func fnv1aHash(data string) uint64 {
 	const (
@@ -67,11 +78,7 @@ func fnv1aHash(data string) uint64 {
 // ResetImageCache clears the image cache (call between PDF generations if needed)
 func ResetImageCache() {
 	imgCache.mu.Lock()
-	imgCache.cache = make(map[uint64]*ImageObject)
-	imgCache.lastDataPtr = nil
-	imgCache.lastDataLen = 0
-	imgCache.lastHash = 0
-	imgCache.lastObj = nil
+	imgCache.clear()
 	imgCache.mu.Unlock()
 }
 
@@ -285,8 +292,11 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		putCompressBuffer(compressedBuf)
 	}
 
-	// Store in cache for future lookups of same image data
+	// Store in cache for future lookups of same image data, with bounded size.
 	imgCache.mu.Lock()
+	if len(imgCache.cache) >= maxImageCacheEntries {
+		imgCache.clear()
+	}
 	imgCache.cache[hash] = imgObj
 	imgCache.lastDataPtr = dataPtr
 	imgCache.lastDataLen = dataLen

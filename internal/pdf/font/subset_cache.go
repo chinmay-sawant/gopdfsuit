@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"sort"
 	"sync"
+	"sync/atomic"
 )
 
 type cachedSubset struct {
@@ -12,7 +13,18 @@ type cachedSubset struct {
 	oldToNew map[uint16]uint16
 }
 
-var subsetCache sync.Map // uint64 fingerprint -> *cachedSubset
+const maxSubsetCacheEntries = 1024
+
+var (
+	subsetCache      sync.Map // uint64 fingerprint -> *cachedSubset
+	subsetCacheCount atomic.Int64
+)
+
+// ClearSubsetCache drops all cached font subsets (tests / memory pressure).
+func ClearSubsetCache() {
+	subsetCache.Clear()
+	subsetCacheCount.Store(0)
+}
 
 func glyphSubsetFingerprint(font *TTFFont, usedGlyphs []uint16) uint64 {
 	h := fnv.New64a()
@@ -48,6 +60,10 @@ func storeCachedSubset(font *TTFFont, usedGlyphs []uint16, data []byte, oldToNew
 	oldCopy := make(map[uint16]uint16, len(oldToNew))
 	for k, v := range oldToNew {
 		oldCopy[k] = v
+	}
+	if subsetCacheCount.Add(1) > maxSubsetCacheEntries {
+		ClearSubsetCache()
+		subsetCacheCount.Store(1)
 	}
 	subsetCache.Store(key, &cachedSubset{
 		data:     append([]byte(nil), data...),

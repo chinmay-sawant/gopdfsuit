@@ -1445,34 +1445,39 @@ type structElemObjectWriter interface {
 
 func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx structElemFormatCtx) {
 	w.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
-	w.WriteString(strconv.Itoa(elem.ObjectID))
+	var scratch [24]byte
+	w.Write(strconv.AppendInt(scratch[:0], int64(elem.ObjectID), 10))
 	w.WriteString(" 0 obj\n<< /Type /StructElem /S /")
 	w.WriteString(string(elem.Type))
 
 	if elem.Type == StructDocument {
 		w.WriteString(" /NS ")
-		w.WriteString(strconv.Itoa(ctx.namespaceID))
+		w.Write(strconv.AppendInt(scratch[:0], int64(ctx.namespaceID), 10))
 		w.WriteString(" 0 R")
 	}
 
 	if elem.Parent == ctx.root {
 		w.WriteString(" /P ")
-		w.WriteString(strconv.Itoa(ctx.structTreeRootID))
+		w.Write(strconv.AppendInt(scratch[:0], int64(ctx.structTreeRootID), 10))
 		w.WriteString(" 0 R")
 	} else if elem.Parent != nil {
 		w.WriteString(" /P ")
-		w.WriteString(strconv.Itoa(elem.Parent.ObjectID))
+		w.Write(strconv.AppendInt(scratch[:0], int64(elem.Parent.ObjectID), 10))
 		w.WriteString(" 0 R")
 	}
 
 	if elem.Title != "" {
 		w.WriteString(" /T (")
-		w.WriteString(escapeText(elem.Title))
+		var scratch [1024]byte
+		escaped := appendEscapedPDFLiteral(scratch[:0], elem.Title)
+		w.Write(escaped)
 		w.WriteByte(')')
 	}
 	if elem.Alt != "" {
 		w.WriteString(" /Alt (")
-		w.WriteString(escapeText(elem.Alt))
+		var scratch [1024]byte
+		escaped := appendEscapedPDFLiteral(scratch[:0], elem.Alt)
+		w.Write(escaped)
 		w.WriteByte(')')
 	}
 
@@ -1485,9 +1490,9 @@ func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx st
 				pageObjID = ctx.pages[elem.PageID]
 			}
 			w.WriteString(" << /Type /OBJR /Obj ")
-			w.WriteString(strconv.Itoa(elem.AnnotObjID))
+			w.Write(strconv.AppendInt(scratch[:0], int64(elem.AnnotObjID), 10))
 			w.WriteString(" 0 R /Pg ")
-			w.WriteString(strconv.Itoa(pageObjID))
+			w.Write(strconv.AppendInt(scratch[:0], int64(pageObjID), 10))
 			w.WriteString(" 0 R >>")
 		}
 
@@ -1507,7 +1512,7 @@ func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx st
 	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
 		pageObjID := ctx.pages[elem.PageID]
 		w.WriteString(" /Pg ")
-		w.WriteString(strconv.Itoa(pageObjID))
+		w.Write(strconv.AppendInt(scratch[:0], int64(pageObjID), 10))
 		w.WriteString(" 0 R")
 	}
 
@@ -1516,7 +1521,8 @@ func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx st
 
 func appendObjRefToWriter(w structElemObjectWriter, objID int) {
 	w.WriteByte(' ')
-	w.WriteString(strconv.Itoa(objID))
+	var scratch [24]byte
+	w.Write(strconv.AppendInt(scratch[:0], int64(objID), 10))
 	w.WriteString(" 0 R")
 }
 
