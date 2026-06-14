@@ -49,6 +49,7 @@ var (
 	reVParen          = regexp.MustCompile(`/V\s*\((?:\\.|[^\\)])*\)`)
 	reBtnOnState      = regexp.MustCompile(`/AP\s*<<.*?/N\s*<<[^>]*?/Yes`)
 	reNeedAppearances = regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
+	reXRefStreamObj   = regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj\s*<<[^>]*?/Type\s*/XRef`)
 	reAcroForm        = regexp.MustCompile(`(/AcroForm\s*<<)`)
 	reRoot0           = regexp.MustCompile(`/Root\s+(\d+)\s+0\s+R`)
 	reAcroFormBoth    = regexp.MustCompile(`(?s)(/AcroForm\s*<<.*?)(>>)|(/AcroForm\s+\d+\s+\d+\s+R)`)
@@ -969,8 +970,9 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		}
 	}
 
-	if len(allJobs) == 0 && !objStmChanged {
-		return out, nil
+	// Object-stream-only fills keep the original xref/trailer; rebuilding breaks PDF 1.5+ xref streams.
+	if len(allJobs) == 0 {
+		return repairStartxref(out), nil
 	}
 
 	if !objStmChanged {
@@ -1204,6 +1206,9 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		out = append(out, buf.Bytes()...)
 	}
 
+	// Apply NeedAppearances before writing xref/trailer so byte offsets stay consistent.
+	out = setAcroFormNeedAppearancesTrue(out)
+
 	objMatches := objRe.FindAllSubmatchIndex(out, -1)
 	offsets := make(map[int]int)
 	maxObj := 0
@@ -1249,50 +1254,86 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	trailerBuf.WriteString("\n%%%%EOF\n")
 	out = append(out, xrefBuf.Bytes()...)
 	out = append(out, trailerBuf.Bytes()...)
-	// --- PASS 3: GLOBAL NEED APPEARANCES ---
-	// If fields were modified or APs stripped, force the PDF viewer to recreate appearances on open.
+
+	return out, nil
+}
+
+// repairStartxref rewrites the trailer offset after in-place edits shift object positions.
+func repairStartxref(out []byte) []byte {
+	sxIdx := bytes.LastIndex(out, bytesStartxref)
+	if sxIdx < 0 {
+		return out
+	}
+
+	body := out[:sxIdx]
+	xrefOffset := -1
+	if matches := reXRefStreamObj.FindAllSubmatchIndex(body, -1); len(matches) > 0 {
+		xrefOffset = matches[len(matches)-1][0]
+	} else if idx := bytes.LastIndex(body, []byte("\nxref\n")); idx >= 0 {
+		xrefOffset = idx + 1
+	} else if idx := bytes.LastIndex(body, []byte("\nxref\r\n")); idx >= 0 {
+		xrefOffset = idx + 1
+	}
+	if xrefOffset < 0 {
+		return out
+	}
+
+	after := out[sxIdx+len("startxref"):]
+	after = bytes.TrimLeft(after, "\r\n")
+	lineEnd := bytes.IndexByte(after, '\n')
+	if lineEnd < 0 {
+		return out
+	}
+	rest := after[lineEnd+1:]
+
+	var rebuilt bytes.Buffer
+	rebuilt.Grow(len(out) + 16)
+	rebuilt.Write(out[:sxIdx+len("startxref")])
+	rebuilt.WriteByte('\n')
+	rebuilt.Write(strconv.AppendInt(make([]byte, 0, 12), int64(xrefOffset), 10))
+	rebuilt.WriteByte('\n')
+	rebuilt.Write(rest)
+	return rebuilt.Bytes()
+}
+
+// setAcroFormNeedAppearancesTrue forces viewers to regenerate field appearances on open.
+// Must run before xref/trailer emission; any later byte insertion invalidates startxref.
+func setAcroFormNeedAppearancesTrue(out []byte) []byte {
 	acroMatch := reAcroFormBoth.FindSubmatch(out)
-	if acroMatch != nil {
-		if acroMatch[1] != nil {
-			// Inline dictionary case
-			dictPart := acroMatch[1]
-			if reNeedAppearances.Match(dictPart) {
-				newDict := reNeedAppearances.ReplaceAll(dictPart, bytesNeedAppTrue)
-				out = bytes.Replace(out, dictPart, newDict, 1)
-			} else {
-				// Inject it
-				newDict := make([]byte, len(dictPart)+len(" /NeedAppearances true "))
-				copy(newDict, dictPart)
-				copy(newDict[len(dictPart):], " /NeedAppearances true ")
-				out = bytes.Replace(out, dictPart, newDict, 1)
-			}
-		} else if acroMatch[3] != nil {
-			// Indirect reference case
-			refFull := string(acroMatch[3])
-			if rm := reRef.FindStringSubmatch(refFull); rm != nil {
-				objRe := regexp.MustCompile(`(?s)\b` + rm[1] + `\s+` + rm[2] + `\s+obj(.*?)endobj`)
-				if objM := objRe.FindSubmatch(out); objM != nil {
-					objBody := objM[1]
-					if reNeedAppearances.Match(objBody) {
-						newBody := reNeedAppearances.ReplaceAll(objBody, bytesNeedAppTrue)
-						out = bytes.Replace(out, objBody, newBody, 1)
-					} else {
-						// Inject before the ending >>
-						insertPos := bytes.LastIndex(objBody, bytesGtGt)
-						if insertPos >= 0 {
-							var newBody bytes.Buffer
-							newBody.Write(objBody[:insertPos])
-							newBody.WriteString(" /NeedAppearances true ")
-							newBody.Write(objBody[insertPos:])
-							out = bytes.Replace(out, objBody, newBody.Bytes(), 1)
-						}
-					}
+	if acroMatch == nil {
+		return out
+	}
+	if acroMatch[1] != nil {
+		dictPart := acroMatch[1]
+		if reNeedAppearances.Match(dictPart) {
+			return bytes.Replace(out, dictPart, reNeedAppearances.ReplaceAll(dictPart, bytesNeedAppTrue), 1)
+		}
+		newDict := make([]byte, len(dictPart)+len(" /NeedAppearances true "))
+		copy(newDict, dictPart)
+		copy(newDict[len(dictPart):], " /NeedAppearances true ")
+		return bytes.Replace(out, dictPart, newDict, 1)
+	}
+	if acroMatch[3] != nil {
+		refFull := string(acroMatch[3])
+		if rm := reRef.FindStringSubmatch(refFull); rm != nil {
+			objRe := regexp.MustCompile(`(?s)\b` + rm[1] + `\s+` + rm[2] + `\s+obj(.*?)endobj`)
+			if objM := objRe.FindSubmatch(out); objM != nil {
+				objBody := objM[1]
+				if reNeedAppearances.Match(objBody) {
+					return bytes.Replace(out, objBody, reNeedAppearances.ReplaceAll(objBody, bytesNeedAppTrue), 1)
+				}
+				insertPos := bytes.LastIndex(objBody, bytesGtGt)
+				if insertPos >= 0 {
+					var newBody bytes.Buffer
+					newBody.Write(objBody[:insertPos])
+					newBody.WriteString(" /NeedAppearances true ")
+					newBody.Write(objBody[insertPos:])
+					return bytes.Replace(out, objBody, newBody.Bytes(), 1)
 				}
 			}
 		}
 	}
-
-	return out, nil
+	return out
 }
 
 // FlattenPDFBytes flattens form fields from the provided PDF bytes and returns flattened PDF bytes.

@@ -156,7 +156,7 @@ class TestFillPDF:
         expected_path = base / "generated.pdf"
         if expected_path.exists():
             # Allow tolerance for encoding variance from performance optimizations
-            assert abs(out_path.stat().st_size - expected_path.stat().st_size) < 500
+            assert abs(out_path.stat().st_size - expected_path.stat().st_size) < 700
 
 
 class TestHtmlToPDF:

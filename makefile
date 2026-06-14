@@ -23,6 +23,16 @@ build: test-integration
 test:
 	go test ./...
 	python3 -m pytest bindings/python/tests
+	bash test/verify_pdfs.sh
+
+install-verapdf:
+	bash test/install_verapdf.sh
+
+test-verify-pdfs:
+	bash test/verify_pdfs.sh
+
+test-scan-pdfs:
+	bash test/verify_pdfs.sh --scan-all
 
 test-integration: test
 	go test -count=1 -v ./test
@@ -94,7 +104,7 @@ GOPDFKIT_COMPARE_DIR := $(BENCHMARKS_DIR)/gopdfkit_compare
 GOTENBERG_DIR := $(BENCHMARKS_DIR)/gotenberg
 K6_DIR := test/generate_template-pdf
 
-.PHONY: build test clean run fmt vet mod lint \
+.PHONY: build test install-verapdf test-verify-pdfs test-scan-pdfs clean run fmt vet mod lint \
 	load-pprof load-pprof-gate load-pprof-1k load-pprof-1500 \
 	bench-help bench-setup \
 	bench-k6 bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \
