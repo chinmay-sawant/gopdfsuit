@@ -1,6 +1,6 @@
 # 📄 GoPdfSuit - Three PDF Engines, One Repo
 
-[![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?style=flat&logo=go)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.26.4-00ADD8?style=flat&logo=go)](https://golang.org/)
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
 [![Python](https://img.shields.io/badge/Python-Bindings-3776AB?style=flat&logo=python)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=flat&logo=docker)](https://hub.docker.com/)
@@ -31,6 +31,7 @@
 ## 📑 Table of Contents
 
 - [Overview](#-overview)
+- [Prerequisites](#-prerequisites)
 - [FAQ](#-faq)
 - [Development](#-development)
 - [Contributing](#-contributing)
@@ -67,7 +68,24 @@
 - **HTML Conversion**: High-fidelity HTML to PDF/Image via headless Chrome.
 - **Web Interfaces**: Built-in React UI for viewer, editor, merger, filler, and converters.
 
-**Requirements**: Go 1.26+, Google Chrome (for HTML conversion)
+**Requirements**: Go **1.26.4**, Google Chrome (for HTML conversion), Make (for build/test targets). See [Prerequisites](#-prerequisites) for the full list.
+
+---
+
+## 📋 Prerequisites
+
+| Requirement | Version / notes |
+|-------------|-----------------|
+| **Go** | **1.26.4** (required — matches `go.mod`) |
+| **Make** | Required for `make build`, `make test`, `make run`, and other targets |
+| **Google Chrome** | Required for HTML→PDF/Image conversion |
+| **Node.js + npm** | Frontend build (Node 18+ recommended) |
+| **Python 3.8+** | Python bindings tests (`pypdfsuit`) |
+| **Java 11+** | Optional — needed to install veraPDF for PDF/A validation in tests |
+
+### Windows
+
+On Windows, use **WSL (Windows Subsystem for Linux)** for the best compatibility. The project relies on **Make** and Unix shell scripts that are not available in PowerShell or CMD. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup details.
 
 ---
 
@@ -76,19 +94,22 @@
 <details>
 <summary><b>Go version compatibility?</b></summary>
 
-This module requires **Go 1.26+** to benefit from runtime performance improvements (better GC, goroutine scheduling, hardware-accelerated crypto). The `go.mod` directive is set to `go 1.26.4`.
+This project requires **Go 1.26.4** to build and run. The `go.mod` directive is set to `go 1.26.4`, and CI uses Go 1.26.4.
 
-**For Go 1.24 users:** You can still use `gopdflib` by cloning the repository and changing the `go` directive back to `1.26.4` in `go.mod`. The code itself does not use Go 1.26 language features — only the `sonic` dependency was bumped to `v1.15.2` for compatibility. Run `go mod tidy` after editing.
+Install the exact version:
 
 ```bash
-git clone https://github.com/chinmay-sawant/gopdfsuit.git
-cd gopdfsuit
-# Edit go.mod: change "go 1.26.4" to "go 1.26.4"
-go mod tidy
-go build ./...
+# Using go install (if you use multiple Go versions)
+go install golang.org/dl/go1.26.4@latest
+go1.26.4 download
+
+# Verify
+go1.26.4 version
 ```
 
-**Note:** The official module releases will track the latest stable Go version. If you need long-term compatibility with an older Go toolchain, maintain a fork or pin to an earlier tagged release.
+Go 1.26.4 is recommended for runtime performance improvements (better GC, goroutine scheduling, hardware-accelerated crypto). The code does not rely on unreleased language features, but the module and dependencies are tested against **1.26.4** only.
+
+**For older Go toolchains:** You can try changing the `go` directive in `go.mod` and running `go mod tidy`, but this is unsupported — official releases track Go 1.26.4.
 
 </details>
 
@@ -187,15 +208,24 @@ All processing is in-memory with zero external runtime dependencies.
 
 ## 🛠️ Development
 
+> **Windows users:** Use WSL — Make and shell scripts are required. See [Prerequisites](#-prerequisites).
+
 ```bash
 # Build
+make build
+# or directly:
 go build -o bin/gopdfsuit ./cmd/gopdfsuit
 
 # Cross-compile
 GOOS=linux GOARCH=amd64 go build -o bin/gopdfsuit-linux ./cmd/gopdfsuit
 
 # Test
+make test
+# or:
 go test -cover ./...
+
+# Format & lint
+make fmt && make lint
 ```
 
 ### Project Structure
@@ -222,11 +252,14 @@ gopdfsuit/
 
 ## 🤝 Contributing
 
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for setup, development workflow, testing, and pull request guidelines.
+
+Quick start:
+
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add feature'`)
-4. Push (`git push origin feature/amazing`)
-5. Open a Pull Request
+2. Create a feature branch (`git checkout -b feat/my-feature`)
+3. Run `make fmt && make lint && make test`
+4. Commit changes and open a Pull Request
 
 ---
 

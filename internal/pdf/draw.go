@@ -150,9 +150,9 @@ type sharedColumnLayout struct {
 
 func stdFontCharWidth(resolvedName string) float64 {
 	switch resolvedName {
-	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
+	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique": //nolint:goconst
 		return 0.6
-	case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
+	case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic": //nolint:goconst
 		return 0.45
 	default:
 		return 0.5
@@ -321,9 +321,9 @@ func drawSharedDeferRow(
 			cellProps := rowCellProps[colIdx]
 			textWidth := rowSingleLineTextWidths[colIdx]
 			textX := cellX + 5
-			if cellProps.Alignment == "center" && textWidth > 0 {
+			if cellProps.Alignment == "center" && textWidth > 0 { //nolint:goconst
 				textX = cellX + (cellWidth-textWidth)/2
-			} else if cellProps.Alignment == "right" && textWidth > 0 {
+			} else if cellProps.Alignment == "right" && textWidth > 0 { //nolint:goconst
 				textX = cellX + cellWidth - textWidth - 5
 			}
 			textY := pageManager.CurrentYPos - rowHeight/2 - float64(cellProps.FontSize)/2

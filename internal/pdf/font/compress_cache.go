@@ -32,7 +32,6 @@ type compressCacheShard struct {
 var (
 	compressShardCount = maxCompressShards()
 	compressShards     = make([]compressCacheShard, compressShardCount)
-	compressShardSeq   atomic.Uint64
 )
 
 func maxCompressShards() int {

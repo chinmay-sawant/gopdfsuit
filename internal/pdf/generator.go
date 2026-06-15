@@ -1418,27 +1418,6 @@ type structElemFormatCtx struct {
 	pages            []int
 }
 
-var structElemBuilderPool = sync.Pool{
-	New: func() any {
-		sb := new(strings.Builder)
-		sb.Grow(256)
-		return sb
-	},
-}
-
-func formatStructElemObject(elem *StructElem, ctx structElemFormatCtx) string {
-	sb := structElemBuilderPool.Get().(*strings.Builder)
-	sb.Reset()
-	formatStructElemObjectInto(sb, elem, ctx)
-	out := sb.String()
-	structElemBuilderPool.Put(sb)
-	return out
-}
-
-func formatStructElemObjectInto(sb *strings.Builder, elem *StructElem, ctx structElemFormatCtx) {
-	formatStructElemObjectTo(sb, elem, ctx)
-}
-
 func estimateStructureElementCount(template models.PDFTemplate) int {
 	count := 1 // Document
 
@@ -1483,57 +1462,69 @@ type structElemObjectWriter interface {
 	WriteByte(byte) error
 }
 
+func writeStructElemBytes(w structElemObjectWriter, b []byte) {
+	_, _ = w.Write(b)
+}
+
+func writeStructElemString(w structElemObjectWriter, s string) {
+	_, _ = w.WriteString(s)
+}
+
+func writeStructElemByte(w structElemObjectWriter, b byte) {
+	_ = w.WriteByte(b)
+}
+
 func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx structElemFormatCtx) {
 	w.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
 	var scratch [24]byte
-	w.Write(strconv.AppendInt(scratch[:0], int64(elem.ObjectID), 10))
-	w.WriteString(" 0 obj\n<< /Type /StructElem /S /")
-	w.WriteString(string(elem.Type))
+	writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.ObjectID), 10))
+	writeStructElemString(w, " 0 obj\n<< /Type /StructElem /S /")
+	writeStructElemString(w, string(elem.Type))
 
 	if elem.Type == StructDocument {
-		w.WriteString(" /NS ")
-		w.Write(strconv.AppendInt(scratch[:0], int64(ctx.namespaceID), 10))
-		w.WriteString(" 0 R")
+		writeStructElemString(w, " /NS ")
+		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(ctx.namespaceID), 10))
+		writeStructElemString(w, " 0 R")
 	}
 
 	if elem.Parent == ctx.root {
-		w.WriteString(" /P ")
-		w.Write(strconv.AppendInt(scratch[:0], int64(ctx.structTreeRootID), 10))
-		w.WriteString(" 0 R")
+		writeStructElemString(w, " /P ")
+		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(ctx.structTreeRootID), 10))
+		writeStructElemString(w, " 0 R")
 	} else if elem.Parent != nil {
-		w.WriteString(" /P ")
-		w.Write(strconv.AppendInt(scratch[:0], int64(elem.Parent.ObjectID), 10))
-		w.WriteString(" 0 R")
+		writeStructElemString(w, " /P ")
+		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.Parent.ObjectID), 10))
+		writeStructElemString(w, " 0 R")
 	}
 
 	if elem.Title != "" {
-		w.WriteString(" /T (")
-		var scratch [1024]byte
-		escaped := appendEscapedPDFLiteral(scratch[:0], elem.Title)
-		w.Write(escaped)
-		w.WriteByte(')')
+		writeStructElemString(w, " /T (")
+		var titleScratch [1024]byte
+		escaped := appendEscapedPDFLiteral(titleScratch[:0], elem.Title)
+		writeStructElemBytes(w, escaped)
+		writeStructElemByte(w, ')')
 	}
 	if elem.Alt != "" {
-		w.WriteString(" /Alt (")
-		var scratch [1024]byte
-		escaped := appendEscapedPDFLiteral(scratch[:0], elem.Alt)
-		w.Write(escaped)
-		w.WriteByte(')')
+		writeStructElemString(w, " /Alt (")
+		var altScratch [1024]byte
+		escaped := appendEscapedPDFLiteral(altScratch[:0], elem.Alt)
+		writeStructElemBytes(w, escaped)
+		writeStructElemByte(w, ')')
 	}
 
 	if len(elem.Kids) > 0 || elem.Type == StructLink {
-		w.WriteString(" /K [")
+		writeStructElemString(w, " /K [")
 
 		if elem.Type == StructLink {
 			pageObjID := 3
 			if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
 				pageObjID = ctx.pages[elem.PageID]
 			}
-			w.WriteString(" << /Type /OBJR /Obj ")
-			w.Write(strconv.AppendInt(scratch[:0], int64(elem.AnnotObjID), 10))
-			w.WriteString(" 0 R /Pg ")
-			w.Write(strconv.AppendInt(scratch[:0], int64(pageObjID), 10))
-			w.WriteString(" 0 R >>")
+			writeStructElemString(w, " << /Type /OBJR /Obj ")
+			writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.AnnotObjID), 10))
+			writeStructElemString(w, " 0 R /Pg ")
+			writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(pageObjID), 10))
+			writeStructElemString(w, " 0 R >>")
 		}
 
 		var mcidScratch [16]byte
@@ -1541,29 +1532,29 @@ func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx st
 			if kid.Elem != nil {
 				appendObjRefToWriter(w, kid.Elem.ObjectID)
 			} else {
-				w.WriteByte(' ')
+				writeStructElemByte(w, ' ')
 				mcid := strconv.AppendInt(mcidScratch[:0], int64(kid.MCID), 10)
-				w.Write(mcid)
+				writeStructElemBytes(w, mcid)
 			}
 		}
-		w.WriteString(" ]")
+		writeStructElemString(w, " ]")
 	}
 
 	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
 		pageObjID := ctx.pages[elem.PageID]
-		w.WriteString(" /Pg ")
-		w.Write(strconv.AppendInt(scratch[:0], int64(pageObjID), 10))
-		w.WriteString(" 0 R")
+		writeStructElemString(w, " /Pg ")
+		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(pageObjID), 10))
+		writeStructElemString(w, " 0 R")
 	}
 
-	w.WriteString(" >>\nendobj\n")
+	writeStructElemString(w, " >>\nendobj\n")
 }
 
 func appendObjRefToWriter(w structElemObjectWriter, objID int) {
-	w.WriteByte(' ')
+	writeStructElemByte(w, ' ')
 	var scratch [24]byte
-	w.Write(strconv.AppendInt(scratch[:0], int64(objID), 10))
-	w.WriteString(" 0 R")
+	writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(objID), 10))
+	writeStructElemString(w, " 0 R")
 }
 
 type imageObjectKey struct {
