@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pypdfsuit"
-version = "5.0.0"
+version = "6.0.0"
 description = "Python bindings for gopdfsuit - PDF generation, merging, splitting, and more"
 readme = "README.md"
 requires-python = ">=3.8"

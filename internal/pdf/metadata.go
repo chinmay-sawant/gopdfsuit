@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 )
 
 // PDFAHandler handles PDF/A compliance features, including metadata and color profiles.

@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
-	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/fontutils"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/fontutils"
 	"github.com/gin-gonic/gin"
 )
 

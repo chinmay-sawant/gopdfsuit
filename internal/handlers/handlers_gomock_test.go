@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers/mocks"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers/mocks"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 )

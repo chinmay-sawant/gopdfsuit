@@ -28,7 +28,7 @@ Customize behavior using environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VERSION` | `5.0.0` | Application version tag |
+| `VERSION` | `6.0.0` | Application version tag |
 | `DOCKERUSERNAME` | `chinmaysawant` | Docker Hub username |
 | `GO_BENCH` | `go` | Go binary for benchmarks (`go1.26.4` recommended) |
 | `GOMAXPROCS_BENCH` | `24` | CPU limit for Go benchmark processes |
@@ -46,10 +46,10 @@ Customize behavior using environment variables:
 
 ```bash
 # Inline
-VERSION=5.0.0 make docker
+VERSION=6.0.0 make docker
 
 # Export for session
-export VERSION=5.0.0
+export VERSION=6.0.0
 export DOCKERUSERNAME=myusername
 make docker
 ```
@@ -73,8 +73,8 @@ make docker
 
 **Equivalent commands:**
 ```bash
-docker build -f dockerfolder/Dockerfile --build-arg VERSION=5.0.0 -t gopdfsuit:5.0.0 .
-docker run -d -p 8080:8080 gopdfsuit:5.0.0
+docker build -f dockerfolder/Dockerfile --build-arg VERSION=6.0.0 -t gopdfsuit:6.0.0 .
+docker run -d -p 8080:8080 gopdfsuit:6.0.0
 ```
 
 ---
@@ -95,10 +95,10 @@ make dockertag
 
 **Equivalent commands:**
 ```bash
-docker tag gopdfsuit:5.0.0 chinmaysawant/gopdfsuit:5.0.0
-docker tag gopdfsuit:5.0.0 chinmaysawant/gopdfsuit:latest
+docker tag gopdfsuit:6.0.0 chinmaysawant/gopdfsuit:6.0.0
+docker tag gopdfsuit:6.0.0 chinmaysawant/gopdfsuit:latest
 docker login
-docker push chinmaysawant/gopdfsuit:5.0.0
+docker push chinmaysawant/gopdfsuit:6.0.0
 docker push chinmaysawant/gopdfsuit:latest
 ```
 
@@ -118,8 +118,8 @@ make pull
 
 **Equivalent commands:**
 ```bash
-docker pull chinmaysawant/gopdfsuit:5.0.0
-docker run -d -p 8080:8080 chinmaysawant/gopdfsuit:5.0.0
+docker pull chinmaysawant/gopdfsuit:6.0.0
+docker run -d -p 8080:8080 chinmaysawant/gopdfsuit:6.0.0
 ```
 
 ---
@@ -402,7 +402,7 @@ make run          # Start development server
 ### Release Workflow
 
 ```bash
-export VERSION=5.0.0
+export VERSION=6.0.0
 make docker       # Build and test locally
 make dockertag    # Push to Docker Hub
 ```
@@ -444,7 +444,7 @@ docker ps
 docker stop <container_id>
 
 # Or use different port
-docker run -d -p 9090:8080 gopdfsuit:5.0.0
+docker run -d -p 9090:8080 gopdfsuit:6.0.0
 ```
 
 ### Docker Login Issues

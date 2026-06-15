@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/form"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/form"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=mocks/mock_services.go -package=mocks github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers PDFService
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=mocks/mock_services.go -package=mocks github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers PDFService
 
 // PDFService abstracts PDF operations used by HTTP handlers (mockable in unit tests).
 type PDFService interface {

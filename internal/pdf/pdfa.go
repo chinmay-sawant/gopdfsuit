@@ -8,7 +8,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 )
 
 // ConvertPDFDateToXMP converts a PDF date string (D:YYYYMMDDHHmmSSOHH'mm') to XMP format (YYYY-MM-DDTHH:mm:ss+HH:MM)

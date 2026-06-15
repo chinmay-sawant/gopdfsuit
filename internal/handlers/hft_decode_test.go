@@ -3,7 +3,7 @@ package handlers
 import (
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
 func TestDecodeHFTPayload_FillRowsInPlace(t *testing.T) {

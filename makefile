@@ -1,4 +1,4 @@
-VERSION ?= 5.0.0
+VERSION ?= 6.0.0
 DOCKERUSERNAME ?= chinmaysawant
 
 docker:

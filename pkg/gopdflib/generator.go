@@ -2,7 +2,7 @@
 package gopdflib
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 )
 
 type BorrowedPDF = pdf.BorrowedPDF

@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers"
 	"github.com/gin-gonic/gin"
 )
 

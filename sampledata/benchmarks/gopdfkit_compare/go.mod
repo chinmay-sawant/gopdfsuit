@@ -1,9 +1,9 @@
-module github.com/chinmay-sawant/gopdfsuit/v5/sampledata/benchmarks/gopdfkit_compare
+module github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare
 
 go 1.26.4
 
 require (
-	github.com/chinmay-sawant/gopdfsuit/v5 v5.0.0
+	github.com/chinmay-sawant/gopdfsuit/v6 v5.0.0
 	github.com/cssbruno/gopdfkit v0.0.0
 )
 
@@ -26,4 +26,4 @@ require (
 
 replace github.com/cssbruno/gopdfkit => /tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2
 
-replace github.com/chinmay-sawant/gopdfsuit/v5 => /home/chinmay/ChinmayPersonalProjects/gopdfsuit
+replace github.com/chinmay-sawant/gopdfsuit/v6 => /home/chinmay/ChinmayPersonalProjects/gopdfsuit

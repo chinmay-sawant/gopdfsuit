@@ -3,7 +3,7 @@
 // These type aliases maintain backward compatibility within the pdf package.
 package pdf
 
-import "github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
+import "github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 
 // Type aliases for backward compatibility within this package.
 // External consumers should use the font package directly.
