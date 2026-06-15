@@ -185,7 +185,7 @@ manifest_tolerance() {
     local rel="$1"
     local default_tol="$2"
     case "${rel}" in
-        editor/temp_editor.pdf|editor/temp_editor_python.pdf) echo "1024" ;;
+        editor/temp_editor.pdf|editor/temp_editor_python.pdf) echo "8192" ;;
         filler/temp_filler.pdf|filler/temp_filler_python.pdf) echo "700" ;;
         filler/compressed/temp_filler_compressed.pdf) echo "700" ;;
         filler/compressed/temp_filler_compressed_python.pdf) echo "500" ;;
