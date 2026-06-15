@@ -157,10 +157,11 @@ grep -r 'gopdfsuit/v5' docs/   # should be empty
 
 ```bash
 make fmt && make lint
-go test ./...
+make test
 go test -count=1 -v ./test
-python3 -m pytest bindings/python/tests
 ```
+
+CI runs `make test` on every PR and branch push via the **Backend Test** job (`.github/workflows/frontend-build-commit.yml`). Enable **Branch protection → Require status checks → Backend Test** on `master` to block merges when tests fail.
 
 Optional Docker smoke test:
 

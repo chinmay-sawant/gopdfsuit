@@ -42,6 +42,32 @@ jobs:
           install-mode: goinstall
           args: -E revive,gocritic,gocyclo,goconst ./...
 
+  backend-test:
+    name: Backend Test
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full-ci') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.4"
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: bindings/python/pyproject.toml
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-11-jre-headless unzip curl
+      - name: Install Python test dependencies
+        run: pip install pytest
+      - name: Install veraPDF
+        run: make install-verapdf
+      - name: Run make test
+        run: make test
+
   frontend-lint:
     name: Frontend Lint
     needs: backend-lint
@@ -109,7 +135,7 @@ jobs:
 
   build-and-commit-frontend:
     name: Frontend Build and Commit
-    needs: frontend-lint
+    needs: [frontend-lint, backend-test]
     if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full-ci') }}
     runs-on: ubuntu-latest
     permissions:
