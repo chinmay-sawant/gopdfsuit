@@ -60,7 +60,8 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-11-jre-headless unzip curl
+          sudo apt-get install -y openjdk-11-jre-headless unzip curl \
+            fonts-liberation fonts-dejavu-core fonts-noto-core
       - name: Install Python test dependencies
         run: pip install pytest
       - name: Install veraPDF
