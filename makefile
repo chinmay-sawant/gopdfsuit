@@ -22,7 +22,7 @@ build: test-integration
 
 test:
 	go test ./...
-	python3 -m pytest bindings/python/tests
+	cd bindings/python && python3 -m pytest tests
 	bash test/verify_pdfs.sh
 
 install-verapdf:
