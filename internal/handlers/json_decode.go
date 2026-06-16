@@ -34,7 +34,7 @@ var (
 // WarmJSONDecode pre-compiles the PDFTemplate JSON schema at process start.
 func WarmJSONDecode() {
 	jsonPretouchOnce.Do(func() {
-		_ = sonic.Pretouch(reflect.TypeOf(models.PDFTemplate{}))
+		_ = sonic.Pretouch(reflect.TypeFor[models.PDFTemplate]())
 		_ = decoder.NewStreamDecoder(io.NopCloser(nil))
 		var warm models.PDFTemplate
 		warm.PreallocForDecode(0, "hft")

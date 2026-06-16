@@ -148,8 +148,8 @@ func GetUserEmail(c *gin.Context) (string, bool) {
 }
 
 // GetUserInfo retrieves all user info from context
-func GetUserInfo(c *gin.Context) map[string]interface{} {
-	userInfo := make(map[string]interface{})
+func GetUserInfo(c *gin.Context) map[string]any {
+	userInfo := make(map[string]any)
 
 	if email, exists := c.Get("user_email"); exists {
 		userInfo["email"] = email

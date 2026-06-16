@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"slices"
 	"sort"
 )
 
@@ -32,9 +33,7 @@ func SubsetTTF(font *TTFFont, usedGlyphs []uint16) ([]byte, map[uint16]uint16, e
 	for glyph := range glyphSet {
 		sortedGlyphs = append(sortedGlyphs, glyph)
 	}
-	sort.Slice(sortedGlyphs, func(i, j int) bool {
-		return sortedGlyphs[i] < sortedGlyphs[j]
-	})
+	slices.Sort(sortedGlyphs)
 
 	// Create old-to-new glyph ID mapping
 	oldToNew := make(map[uint16]uint16)
@@ -191,7 +190,7 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 
 		// Pad to 4-byte boundary
 		padding := (4 - len(data)%4) % 4
-		for i := 0; i < padding; i++ {
+		for range padding {
 			buf.WriteByte(0)
 		}
 	}
@@ -365,9 +364,7 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 	for char := range charToNewGlyph {
 		chars = append(chars, char)
 	}
-	sort.Slice(chars, func(i, j int) bool {
-		return chars[i] < chars[j]
-	})
+	slices.Sort(chars)
 
 	// Build segments
 	type segment struct {

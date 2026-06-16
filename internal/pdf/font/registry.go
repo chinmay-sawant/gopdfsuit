@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -165,9 +166,7 @@ func (r *CustomFontRegistry) GenerateSubsets() error {
 		if cached, ok := lookupCachedSubset(font.Font, usedGlyphs); ok {
 			font.SubsetData = cached.data
 			font.OldToNewGlyph = make(map[uint16]uint16, len(cached.oldToNew))
-			for k, v := range cached.oldToNew {
-				font.OldToNewGlyph[k] = v
-			}
+			maps.Copy(font.OldToNewGlyph, cached.oldToNew)
 			continue
 		}
 

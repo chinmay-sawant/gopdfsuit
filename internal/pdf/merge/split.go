@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 )
@@ -131,10 +132,7 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	var groups [][]int
 	if spec.MaxPerFile > 0 {
 		for i := 0; i < len(orderedPages); i += spec.MaxPerFile {
-			end := i + spec.MaxPerFile
-			if end > len(orderedPages) {
-				end = len(orderedPages)
-			}
+			end := min(i+spec.MaxPerFile, len(orderedPages))
 			groups = append(groups, orderedPages[i:end])
 		}
 	} else {
@@ -281,10 +279,8 @@ func isExcludedForSplit(fc *FileContext, objNum int) bool {
 	if fc.OriginalPagesTree > 0 && objNum == fc.OriginalPagesTree {
 		return true
 	}
-	for _, n := range fc.ObjectStreamNums {
-		if objNum == n {
-			return true
-		}
+	if slices.Contains(fc.ObjectStreamNums, objNum) {
+		return true
 	}
 	// exclude Pages tree nodes (intermediate)
 	if body, ok := fc.Objects[objNum]; ok {

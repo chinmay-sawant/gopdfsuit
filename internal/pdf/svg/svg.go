@@ -228,8 +228,8 @@ func processElement(b *bytes.Buffer, se xml.StartElement) {
 
 	// Parse style attribute if present
 	if style, ok := attrs["style"]; ok {
-		styleParts := strings.Split(style, ";")
-		for _, part := range styleParts {
+		styleParts := strings.SplitSeq(style, ";")
+		for part := range styleParts {
 			part = strings.TrimSpace(part)
 			if part == "" {
 				continue
@@ -395,8 +395,8 @@ func parseColor(c string) (float64, float64, float64, bool) {
 // parseColorComponent parses a single RGB component (0-255 or percentage)
 func parseColorComponent(s string) float64 {
 	s = strings.TrimSpace(s)
-	if strings.HasSuffix(s, "%") {
-		val, _ := strconv.ParseFloat(strings.TrimSuffix(s, "%"), 64)
+	if before, ok := strings.CutSuffix(s, "%"); ok {
+		val, _ := strconv.ParseFloat(before, 64)
 		return val / 100.0
 	}
 	val, _ := strconv.ParseFloat(s, 64)

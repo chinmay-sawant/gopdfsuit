@@ -8,7 +8,7 @@ import (
 	"io"
 	"math"
 	"os"
-	"sort"
+	"slices"
 )
 
 // TTFFont represents a parsed TrueType/OpenType font with all necessary data for PDF embedding
@@ -410,7 +410,7 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 
 	// Read endCode array
 	endCodes := make([]uint16, segCount)
-	for i := uint16(0); i < segCount; i++ {
+	for i := range segCount {
 		if err := binary.Read(r, binary.BigEndian, &endCodes[i]); err != nil {
 			return fmt.Errorf("failed to read endCodes: %w", err)
 		}
@@ -422,7 +422,7 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 
 	// Read startCode array
 	startCodes := make([]uint16, segCount)
-	for i := uint16(0); i < segCount; i++ {
+	for i := range segCount {
 		if err := binary.Read(r, binary.BigEndian, &startCodes[i]); err != nil {
 			return fmt.Errorf("failed to read startCodes: %w", err)
 		}
@@ -430,7 +430,7 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 
 	// Read idDelta array
 	idDeltas := make([]int16, segCount)
-	for i := uint16(0); i < segCount; i++ {
+	for i := range segCount {
 		if err := binary.Read(r, binary.BigEndian, &idDeltas[i]); err != nil {
 			return fmt.Errorf("failed to read idDeltas: %w", err)
 		}
@@ -439,14 +439,14 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 	// Read idRangeOffset array
 	idRangeOffsetPos, _ := r.Seek(0, io.SeekCurrent)
 	idRangeOffsets := make([]uint16, segCount)
-	for i := uint16(0); i < segCount; i++ {
+	for i := range segCount {
 		if err := binary.Read(r, binary.BigEndian, &idRangeOffsets[i]); err != nil {
 			return fmt.Errorf("failed to read idRangeOffsets: %w", err)
 		}
 	}
 
 	// Build character to glyph mapping
-	for i := uint16(0); i < segCount; i++ {
+	for i := range segCount {
 		if startCodes[i] == 0xFFFF {
 			break
 		}
@@ -682,13 +682,7 @@ func (f *TTFFont) parseOS2(data []byte) error {
 	}
 
 	// Estimate StemV from weight class
-	f.StemV = int16(50 + (usWeightClass-400)/10)
-	if f.StemV < 50 {
-		f.StemV = 50
-	}
-	if f.StemV > 200 {
-		f.StemV = 200
-	}
+	f.StemV = min(max(int16(50+(usWeightClass-400)/10), 50), 200)
 
 	return nil
 }
@@ -768,9 +762,7 @@ func (f *TTFFont) GetUsedGlyphs(text string) []uint16 {
 		glyphs = append(glyphs, glyph)
 	}
 
-	sort.Slice(glyphs, func(i, j int) bool {
-		return glyphs[i] < glyphs[j]
-	})
+	slices.Sort(glyphs)
 
 	return glyphs
 }

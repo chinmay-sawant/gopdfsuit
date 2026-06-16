@@ -20,7 +20,7 @@ func TestPropsCacheBoundsEntries(t *testing.T) {
 	ClearPropsCache()
 
 	// Fill cache beyond its limit with unique strings.
-	for i := 0; i < maxPropsCacheEntries+10; i++ {
+	for i := range maxPropsCacheEntries + 10 {
 		parseProps("Arial:10:000:left:0:0:0:0:" + string(rune(i)))
 	}
 

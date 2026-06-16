@@ -83,7 +83,7 @@ func WriteCompactXRef(out *bytes.Buffer, offsets map[int]int, scratch []byte, st
 				if padding > 0 {
 					b = b[:10]
 					copy(b[padding:], b[:10-padding])
-					for k := 0; k < padding; k++ {
+					for k := range padding {
 						b[k] = '0'
 					}
 				}

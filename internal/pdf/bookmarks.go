@@ -66,7 +66,7 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 	// First pass: Allocate IDs for all items at this level
 	startID := pm.NextObjectID
 	pm.NextObjectID += len(items)
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		itemIDs = append(itemIDs, startID+i)
 	}
 
@@ -116,10 +116,7 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 		// Link to page (Dest)
 		// Destination array: [PageRef /Fit]
 		// Determine page object ID. Page numbers in models are 1-based.
-		pageIdx := item.Page - 1
-		if pageIdx < 0 {
-			pageIdx = 0
-		}
+		pageIdx := max(item.Page-1, 0)
 		if pageIdx >= len(pm.Pages) {
 			pageIdx = len(pm.Pages) - 1
 		}

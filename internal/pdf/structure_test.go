@@ -49,7 +49,7 @@ func TestBeginMarkedContentBufWithMCID_createsTDUnderTR(t *testing.T) {
 
 	var buf bytes.Buffer
 	base := sm.ReserveMCIDs(0, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		sm.BeginMarkedContentBufWithMCID(&buf, 0, StructTD, nil, base+i)
 		sm.EndMarkedContentBuf(&buf)
 	}

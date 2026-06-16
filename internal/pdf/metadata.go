@@ -202,8 +202,8 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 		xmp.WriteString("\n")
 		xmp.WriteString(`        <rdf:Bag>`)
 		xmp.WriteString("\n")
-		keywords := strings.Split(h.config.Keywords, ",")
-		for _, kw := range keywords {
+		keywords := strings.SplitSeq(h.config.Keywords, ",")
+		for kw := range keywords {
 			if len(kw) > 0 {
 				start, end := 0, len(kw)
 				for start < end && kw[start] == ' ' {

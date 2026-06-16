@@ -286,7 +286,7 @@ func findPageResources(pageBody []byte, objMap map[int][]byte) []byte {
 	}
 	parentRe := regexp.MustCompile(`/Parent\s+(\d+)\s+(\d+)\s+R`)
 	cur := pageBody
-	for depth := 0; depth < 16; depth++ {
+	for range 16 {
 		m := parentRe.FindSubmatch(cur)
 		if m == nil {
 			break
@@ -866,7 +866,7 @@ func xrefEntryBytes(offset, gen int) []byte {
 	var buf [20]byte
 	pos := 9
 	off := offset
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		buf[pos] = byte('0' + off%10)
 		off /= 10
 		pos--
@@ -874,7 +874,7 @@ func xrefEntryBytes(offset, gen int) []byte {
 	buf[10] = ' '
 	pos = 15
 	g := gen
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		buf[pos] = byte('0' + g%10)
 		g /= 10
 		pos--

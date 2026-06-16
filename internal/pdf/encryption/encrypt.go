@@ -80,7 +80,7 @@ func (enc *PDFEncryption) computeOwnerHash(userPassword, ownerPassword string) [
 	hash := md5.Sum(ownerPwd)
 
 	// Step 3: For R=4, do 50 iterations of MD5
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		hash = md5.Sum(hash[:])
 	}
 
@@ -130,7 +130,7 @@ func (enc *PDFEncryption) computeEncryptionKey(userPassword string) []byte {
 	hash := hasher.Sum(nil)
 
 	// Step 3: For R=4, do 50 additional MD5 iterations on first 16 bytes
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		h := md5.Sum(hash[:16])
 		hash = h[:]
 	}
@@ -170,13 +170,13 @@ func (enc *PDFEncryption) computeUserHash() []byte {
 func rc4Encrypt(key, data []byte) []byte {
 	// Initialize S-box
 	s := make([]byte, 256)
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		s[i] = byte(i)
 	}
 
 	// Key-scheduling algorithm (KSA)
 	j := 0
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		j = (j + int(s[i]) + int(key[i%len(key)])) % 256
 		s[i], s[j] = s[j], s[i]
 	}
@@ -184,7 +184,7 @@ func rc4Encrypt(key, data []byte) []byte {
 	// Pseudo-random generation algorithm (PRGA)
 	result := make([]byte, len(data))
 	i, j := 0, 0
-	for k := 0; k < len(data); k++ {
+	for k := range data {
 		i = (i + 1) % 256
 		j = (j + int(s[i])) % 256
 		s[i], s[j] = s[j], s[i]

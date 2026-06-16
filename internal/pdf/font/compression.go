@@ -84,10 +84,7 @@ func CompressContentStream(raw []byte) (compressed *bytes.Buffer, useFlate bool)
 	}
 
 	if rawLen <= compressSkipSampleMin {
-		sampleLen := rawLen
-		if sampleLen > compressSampleBytes {
-			sampleLen = compressSampleBytes
-		}
+		sampleLen := min(rawLen, compressSampleBytes)
 		sampleBuf := GetCompressBuffer()
 		zw := GetZlibWriter(sampleBuf)
 		if _, err := zw.Write(raw[:sampleLen]); err != nil {

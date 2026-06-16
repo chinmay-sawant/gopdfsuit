@@ -821,7 +821,6 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	useFlate := make([]bool, nStreams)
 	var compGroup errgroup.Group
 	for si := range pageManager.ContentStreams {
-		si := si
 		compGroup.Go(func() error {
 			pageCompressSlots <- struct{}{}
 			defer func() { <-pageCompressSlots }()
@@ -1238,7 +1237,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		// Iterate through all pages that have marked content
 		// We iterate by page index to keep Nums sorted
 		maxPageIndex := len(pageManager.Pages)
-		for i := 0; i < maxPageIndex; i++ {
+		for i := range maxPageIndex {
 			if i < len(pageManager.Structure.ParentTree) {
 				elems := pageManager.Structure.ParentTree[i]
 				if len(elems) > 0 {
@@ -1357,7 +1356,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 					// Shift existing digits right
 					b = b[:10]
 					copy(b[padding:], b[:10-padding])
-					for k := 0; k < padding; k++ {
+					for k := range padding {
 						b[k] = '0'
 					}
 				}
@@ -1842,7 +1841,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 
 	// Draw footer and page numbers on every page (footer first to avoid overlap)
 	totalPages := len(pageManager.Pages)
-	for i := 0; i < totalPages; i++ {
+	for i := range totalPages {
 		// Set CurrentPageIndex so that any annotations added (e.g. by drawFooter) go to the correct page
 		pageManager.CurrentPageIndex = i
 

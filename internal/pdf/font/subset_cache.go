@@ -3,7 +3,8 @@ package font
 import (
 	"encoding/binary"
 	"hash/fnv"
-	"sort"
+	"maps"
+	"slices"
 	"sync"
 	"sync/atomic"
 )
@@ -30,7 +31,7 @@ func glyphSubsetFingerprint(font *TTFFont, usedGlyphs []uint16) uint64 {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(font.PostScriptName))
 	glyphs := append([]uint16(nil), usedGlyphs...)
-	sort.Slice(glyphs, func(i, j int) bool { return glyphs[i] < glyphs[j] })
+	slices.Sort(glyphs)
 	for _, g := range glyphs {
 		var b [2]byte
 		binary.BigEndian.PutUint16(b[:], g)
@@ -58,9 +59,7 @@ func storeCachedSubset(font *TTFFont, usedGlyphs []uint16, data []byte, oldToNew
 	}
 	key := glyphSubsetFingerprint(font, usedGlyphs)
 	oldCopy := make(map[uint16]uint16, len(oldToNew))
-	for k, v := range oldToNew {
-		oldCopy[k] = v
-	}
+	maps.Copy(oldCopy, oldToNew)
 	if subsetCacheCount.Add(1) > maxSubsetCacheEntries {
 		ClearSubsetCache()
 		subsetCacheCount.Store(1)

@@ -145,7 +145,7 @@ func buildSRGBICCProfile() []byte {
 	// Use inverse sRGB gamma curve (linearization) to compensate for matrix conversion
 	// This curve converts sRGB-encoded values to linear, which is what Adobe expects
 	gammaTable := make([]uint16, 1024)
-	for i := 0; i < 1024; i++ {
+	for i := range 1024 {
 		x := float64(i) / 1023.0
 		var y float64
 		// sRGB to linear (inverse gamma)
@@ -382,7 +382,7 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 func buildGrayICCProfile() []byte {
 	// Pre-calculate gamma table (same sRGB gamma for gray)
 	gammaTable := make([]uint16, 1024)
-	for i := 0; i < 1024; i++ {
+	for i := range 1024 {
 		x := float64(i) / 1023.0
 		var y float64
 		if x <= 0.0031308 {

@@ -964,10 +964,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	// Write character mappings in chunks of 100 (PDF limit)
 	var ibuf [16]byte
 	for i := 0; i < len(mappings); i += 100 {
-		end := i + 100
-		if end > len(mappings) {
-			end = len(mappings)
-		}
+		end := min(i+100, len(mappings))
 		chunk := mappings[i:end]
 
 		cmap.Write(strconv.AppendInt(ibuf[:0], int64(len(chunk)), 10))
