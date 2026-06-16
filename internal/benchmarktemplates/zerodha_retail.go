@@ -10,14 +10,12 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
-//go:fix inline
 func boolPtr(value bool) *bool {
-	return new(value)
+	return &value
 }
 
-//go:fix inline
 func floatPtr(value float64) *float64 {
-	return new(value)
+	return &value
 }
 
 func repoRoot() string {
@@ -76,7 +74,7 @@ func BuildZerodhaRetailTemplate() (gopdflib.PDFTemplate, error) {
 			PdfTitle:            "Contract Note - CN2024001",
 			PDFACompliant:       true,
 			ArlingtonCompatible: true,
-			EmbedFonts:          new(true),
+			EmbedFonts:          boolPtr(true),
 			Signature: &gopdflib.SignatureConfig{
 				Enabled:          true,
 				Visible:          true,
@@ -102,14 +100,14 @@ func BuildZerodhaRetailTemplate() (gopdflib.PDFTemplate, error) {
 							Text:      "CONTRACT NOTE",
 							BgColor:   "#154360",
 							TextColor: "#FFFFFF",
-							Height:    new(float64(45)),
+							Height:    floatPtr(45),
 						},
 						{
 							Props:     "Helvetica:11:000:right:0:0:0:0",
 							Text:      "CN2024001 | 2024-02-12",
 							BgColor:   "#154360",
 							TextColor: "#AED6F1",
-							Height:    new(float64(45)),
+							Height:    floatPtr(45),
 						},
 					}},
 				},
