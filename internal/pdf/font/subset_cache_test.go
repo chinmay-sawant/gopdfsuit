@@ -34,7 +34,7 @@ func TestSubsetCacheBoundsEntries(t *testing.T) {
 	mapping := map[uint16]uint16{1: 1}
 
 	// Fill cache up to the limit with unique glyph sets.
-	for i := uint16(0); i < maxSubsetCacheEntries+10; i++ {
+	for i := range uint16(maxSubsetCacheEntries + 10) {
 		storeCachedSubset(base, []uint16{i + 100}, data, mapping)
 	}
 

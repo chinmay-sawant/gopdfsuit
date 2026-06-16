@@ -193,7 +193,7 @@ func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, low
 				offsetEst += estimateStringWidth(string(origSrc[j]), pos.Height)
 			}
 		}
-		for j := 0; j < len(needle); j++ {
+		for j := range needle {
 			if i+j < len(origSrc) {
 				matchEst += estimateStringWidth(string(origSrc[i+j]), pos.Height)
 			}
@@ -366,18 +366,12 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 				if tokenEst > 0 && s.pos.Width > 0 && len(tokenText) > 0 {
 					scale := s.pos.Width / tokenEst
 
-					overlapStart := matchStart - s.start
-					if overlapStart < 0 {
-						overlapStart = 0
-					}
+					overlapStart := max(matchStart-s.start, 0)
 
-					overlapEnd := matchEnd - s.start
-					if overlapEnd > s.end-s.start {
-						overlapEnd = s.end - s.start
-					}
+					overlapEnd := min(matchEnd-s.start, s.end-s.start)
 
 					var offsetEst, matchEst float64
-					for j := 0; j < overlapStart; j++ {
+					for j := range overlapStart {
 						if j < len(tokenText) {
 							offsetEst += estimateStringWidth(string(tokenText[j]), s.pos.Height)
 						}

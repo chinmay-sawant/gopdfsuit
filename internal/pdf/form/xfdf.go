@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"regexp"
 	"sort"
 	"strconv"
@@ -267,10 +268,7 @@ func tryFlateDecompress(b []byte) ([]byte, error) {
 
 // extractTokenGroups looks for /V or /AS tokens near a position
 func extractTokenGroups(content []byte, pos int) (string, string) {
-	limit := pos + 800
-	if limit > len(content) {
-		limit = len(content)
-	}
+	limit := min(pos+800, len(content))
 	window := content[pos:limit]
 
 	if m := reValue.FindSubmatch(window); m != nil {
@@ -832,12 +830,8 @@ func FillPDFWithXFDFAdvanced(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	}
 
 	mergedFields := make(map[string]string)
-	for name, value := range detectedFields {
-		mergedFields[name] = value
-	}
-	for name, value := range xfdfFields {
-		mergedFields[name] = value
-	}
+	maps.Copy(mergedFields, detectedFields)
+	maps.Copy(mergedFields, xfdfFields)
 
 	// Build a synthetic XFDF from merged fields so FillPDFWithXFDF can reuse logic
 	genXFDF := buildXFDF(mergedFields)
@@ -1280,11 +1274,11 @@ func repairStartxref(out []byte) []byte {
 
 	after := out[sxIdx+len("startxref"):]
 	after = bytes.TrimLeft(after, "\r\n")
-	lineEnd := bytes.IndexByte(after, '\n')
-	if lineEnd < 0 {
+	_, after0, ok := bytes.Cut(after, []byte{'\n'})
+	if !ok {
 		return out
 	}
-	rest := after[lineEnd+1:]
+	rest := after0
 
 	var rebuilt bytes.Buffer
 	rebuilt.Grow(len(out) + 16)

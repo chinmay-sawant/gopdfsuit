@@ -473,9 +473,9 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 	rowHeights := make([]float64, rowCount)
 
 	idx := 0
-	for r := 0; r < rowCount; r++ {
+	for r := range rowCount {
 		gridCells[r] = make([]*MathLayout, cols)
-		for c := 0; c < cols; c++ {
+		for c := range cols {
 			if idx >= len(node.Args) {
 				break
 			}
@@ -497,7 +497,7 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 
 	// Calculate total grid height
 	totalGridHeight := 0.0
-	for r := 0; r < rowCount; r++ {
+	for r := range rowCount {
 		totalGridHeight += rowHeights[r]
 		if r > 0 {
 			totalGridHeight += rowGap
@@ -513,7 +513,7 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 	bBottom := yShift - totalGridHeight + rowHeights[0]*0.3
 
 	innerW := 0.0
-	for c := 0; c < cols; c++ {
+	for c := range cols {
 		innerW += colWidths[c]
 		if c > 0 {
 			innerW += colGap
@@ -526,17 +526,17 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 	padding := fontSize * 0.12
 	colX := make([]float64, cols)
 	x := padding
-	for c := 0; c < cols; c++ {
+	for c := range cols {
 		colX[c] = x
 		x += colWidths[c] + colGap
 	}
 
 	y := yShift
-	for r := 0; r < rowCount; r++ {
+	for r := range rowCount {
 		if r > 0 {
 			y -= rowHeights[r-1] + rowGap
 		}
-		for c := 0; c < cols; c++ {
+		for c := range cols {
 			cellLay := gridCells[r][c]
 			if cellLay == nil {
 				continue

@@ -323,9 +323,9 @@ func convertToRGB(img image.Image, rgbData []byte) error {
 	// Fast paths for common types (avoids repeated type assertions)
 	switch v := img.(type) {
 	case *image.NRGBA:
-		for y := 0; y < height; y++ {
+		for y := range height {
 			rowStart := (y + bounds.Min.Y - v.Rect.Min.Y) * v.Stride
-			for x := 0; x < width; x++ {
+			for x := range width {
 				pixOffset := rowStart + (x+bounds.Min.X-v.Rect.Min.X)*4
 				rgbData[idx] = v.Pix[pixOffset]
 				rgbData[idx+1] = v.Pix[pixOffset+1]
@@ -335,9 +335,9 @@ func convertToRGB(img image.Image, rgbData []byte) error {
 		}
 		return nil
 	case *image.RGBA:
-		for y := 0; y < height; y++ {
+		for y := range height {
 			rowStart := (y + bounds.Min.Y - v.Rect.Min.Y) * v.Stride
-			for x := 0; x < width; x++ {
+			for x := range width {
 				pixOffset := rowStart + (x+bounds.Min.X-v.Rect.Min.X)*4
 				rgbData[idx] = v.Pix[pixOffset]
 				rgbData[idx+1] = v.Pix[pixOffset+1]
@@ -385,9 +385,9 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 		stride := v.Stride
 		minX := bounds.Min.X - v.Rect.Min.X
 		minY := bounds.Min.Y - v.Rect.Min.Y
-		for y := 0; y < height; y++ {
+		for y := range height {
 			rowStart := (y + minY) * stride
-			for x := 0; x < width; x++ {
+			for x := range width {
 				pixOffset := rowStart + (x+minX)*4
 				r := uint32(pix[pixOffset])
 				g := uint32(pix[pixOffset+1])

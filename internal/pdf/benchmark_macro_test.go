@@ -21,7 +21,7 @@ func buildSyntheticTableTemplate(rows int) models.PDFTemplate {
 	}
 
 	tableRows := make([]models.Row, rows)
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		id := i + 1
 		tableRows[i] = models.Row{
 			Row: []models.Cell{

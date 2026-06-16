@@ -367,10 +367,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	pageManager.SetExtraObject(sigAnnotID, annotDict.String())
 
 	// Add annotation to the appropriate page
-	pageIndex := targetPage - 1
-	if pageIndex < 0 {
-		pageIndex = 0
-	}
+	pageIndex := max(targetPage-1, 0)
 	pageManager.AppendPageAnnot(pageIndex, sigAnnotID)
 
 	ids.SigFieldID = sigAnnotID // In this implementation, field = annotation
@@ -694,7 +691,7 @@ type attribute struct {
 	Value asn1.RawValue `asn1:"set"`
 }
 
-func mustMarshal(v interface{}) []byte {
+func mustMarshal(v any) []byte {
 	b, err := asn1.Marshal(v)
 	if err != nil {
 		panic(err)

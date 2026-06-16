@@ -237,7 +237,7 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 	}
 	sum := h.Sum(nil)
 	if d.R >= 3 {
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			x := md5.Sum(sum[:keyLen])
 			sum = x[:]
 		}
@@ -281,7 +281,7 @@ func deriveUserPasswordFromOwner(ownerPassword string, d standardEncryptDict) st
 	h := md5.Sum(padPassword(ownerPassword))
 	k := h[:]
 	if d.R >= 3 {
-		for i := 0; i < 50; i++ {
+		for range 50 {
 			x := md5.Sum(k[:keyLen])
 			k = x[:]
 		}
@@ -318,7 +318,7 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 	out = append(out, dec...)
 	out = append(out, objBody[loc[3]:]...)
 	lenRe := regexp.MustCompile(`/Length\s+\d+`)
-	out = lenRe.ReplaceAll(out, []byte(fmt.Sprintf(`/Length %d`, len(dec))))
+	out = lenRe.ReplaceAll(out, fmt.Appendf(nil, `/Length %d`, len(dec)))
 	return out, true
 }
 
@@ -328,10 +328,7 @@ func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
 	b = append(b, byte(objNum), byte(objNum>>8), byte(objNum>>16))
 	b = append(b, byte(genNum), byte(genNum>>8))
 	h := md5.Sum(b)
-	kLen := len(fileKey) + 5
-	if kLen > 16 {
-		kLen = 16
-	}
+	kLen := min(len(fileKey)+5, 16)
 	return h[:kLen]
 }
 

@@ -447,7 +447,7 @@ func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
 	_ = startMCID
 	parent := sm.CurrentParent
 	sm.appendParentTreeRefs(pageIndex, parent, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		parent.Kids = append(parent.Kids, StructKid{MCID: startMCID + i})
 	}
 }
@@ -481,7 +481,7 @@ func (sm *StructureManager) FillDeferredParentTreePage(pageIndex int, parent *St
 		return
 	}
 	sm.appendParentTreeRefs(pageIndex, parent, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		parent.Kids = append(parent.Kids, StructKid{MCID: startMCID + i})
 	}
 }

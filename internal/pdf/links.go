@@ -85,8 +85,8 @@ func ParseLink(link string) (isExternal bool, uri string, dest string) {
 	}
 
 	// Check for internal bookmark link (starts with #)
-	if strings.HasPrefix(link, "#") {
-		return false, "", strings.TrimPrefix(link, "#")
+	if after, ok := strings.CutPrefix(link, "#"); ok {
+		return false, "", after
 	}
 
 	// Check for common URL schemes

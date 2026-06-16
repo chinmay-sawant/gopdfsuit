@@ -33,7 +33,7 @@ func TestImageCacheBoundsEntries(t *testing.T) {
 	ResetImageCache()
 
 	// Generate many tiny unique PNGs to overflow the cache.
-	for i := 0; i < maxImageCacheEntries+10; i++ {
+	for i := range maxImageCacheEntries + 10 {
 		unique := base64.StdEncoding.EncodeToString([]byte{byte(i), byte(i >> 8), 0x89, 0x50, 0x4e, 0x47})
 		// Not all will decode, but each call exercises the store path.
 		_, _ = DecodeImageData(unique)

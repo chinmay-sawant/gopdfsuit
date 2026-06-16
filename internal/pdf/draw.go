@@ -52,10 +52,7 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 		return
 	}
 	// Proportional font size (fallback minimum)
-	fontSize := int(pageDims.Width / 8)
-	if fontSize < 40 {
-		fontSize = 40
-	}
+	fontSize := max(int(pageDims.Width/8), 40)
 	// Position roughly centered
 	x := pageDims.Width * 0.20
 	y := pageDims.Height * 0.30
@@ -222,7 +219,7 @@ func tableSupportsSharedRowLayout(table models.Table, templateRow int) bool {
 	for ri := templateRow + 1; ri < len(table.Rows); ri++ {
 		row := table.Rows[ri]
 		ncol := min(len(row.Row), len(template.Row), table.MaxColumns)
-		for ci := 0; ci < ncol; ci++ {
+		for ci := range ncol {
 			tc := template.Row[ci]
 			c := row.Row[ci]
 			if tc.Props != c.Props || c.Image != nil || c.FormField != nil || c.Checkbox != nil {

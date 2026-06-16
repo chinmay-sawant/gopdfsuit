@@ -203,10 +203,7 @@ func (pm *PageManager) PrepareLargeTableStripe(rowHeight float64, cols int) {
 	if rowHeight <= 0 || cols <= 0 {
 		return
 	}
-	rowsPerPage := int((pm.CurrentYPos - pm.Margins.Bottom) / rowHeight)
-	if rowsPerPage < 1 {
-		rowsPerPage = 1
-	}
+	rowsPerPage := max(int((pm.CurrentYPos-pm.Margins.Bottom)/rowHeight), 1)
 	est := rowsPerPage * cols * 512
 	if est <= pm.InitialStreamCap {
 		return

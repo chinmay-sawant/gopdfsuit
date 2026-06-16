@@ -61,10 +61,7 @@ func RunSingleDocumentBenchmark(name string) error {
 	}
 
 	iterations := envInt("BENCH_ITERATIONS", defaultWorkers)
-	workers := envInt("BENCH_WORKERS", defaultWorkers)
-	if workers > iterations {
-		workers = iterations
-	}
+	workers := min(envInt("BENCH_WORKERS", defaultWorkers), iterations)
 
 	fmt.Println(BenchmarkHeader(name))
 	fmt.Printf("Iterations: %d | Workers: %d\n", iterations, workers)
@@ -111,10 +108,7 @@ func RunSingleDocumentBenchmark(name string) error {
 	}
 
 	sort.Float64s(durations)
-	p95idx := int(math.Ceil(float64(len(durations))*0.95)) - 1
-	if p95idx < 0 {
-		p95idx = 0
-	}
+	p95idx := max(int(math.Ceil(float64(len(durations))*0.95))-1, 0)
 	completed := len(durations)
 	totalDur := 0.0
 	for _, d := range durations {
