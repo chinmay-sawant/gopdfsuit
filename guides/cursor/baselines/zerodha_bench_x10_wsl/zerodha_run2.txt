@@ -1,0 +1,37 @@
+=== Zerodha Gold Standard Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
+GOMAXPROCS: 24
+Running 5000 iterations using 48 workers (retail sign: ECDSA P-256)...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61293 bytes (59.86 KB)
+  Active PDF size:  76065 bytes (74.28 KB)
+  HFT PDF size:     2289155 bytes (2235.50 KB)
+
+  Max Memory Allocated: 1232.09 MB
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  GOMAXPROCS:      24
+  Retail signing:  ECDSA P-256
+  Total time:      2.068 s
+  Throughput:      2418.37 ops/sec
+
+  Avg Latency:     19.379 ms
+  Min Latency:     1.169 ms
+  Max Latency:     488.665 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4000 iterations
+  Active  (15%):   750 iterations
+  HFT      (5%):   250 iterations
+
+Saved: zerodha_active_output.pdf (76065 bytes)
+Saved: zerodha_hft_output.pdf (2289155 bytes)
+Saved: zerodha_retail_output.pdf (61293 bytes)
+
+=== Done ===
