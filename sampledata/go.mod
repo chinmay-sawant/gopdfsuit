@@ -5,7 +5,7 @@ go 1.26.4
 
 require (
 	github.com/chinmay-sawant/gopdfsuit-client v1.0.1
-	github.com/chinmay-sawant/gopdfsuit/v6 v5.0.0
+	github.com/chinmay-sawant/gopdfsuit/v6 v6.0.0
 )
 
 require (

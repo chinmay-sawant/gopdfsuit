@@ -3,7 +3,7 @@ module github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_com
 go 1.26.4
 
 require (
-	github.com/chinmay-sawant/gopdfsuit/v6 v5.0.0
+	github.com/chinmay-sawant/gopdfsuit/v6 v6.0.0
 	github.com/cssbruno/gopdfkit v0.0.0
 )
 
