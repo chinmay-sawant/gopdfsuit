@@ -3,17 +3,18 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers"
-	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/fontutils"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/fontutils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,26 +22,16 @@ func main() {
 	// Profiling is opt-in to avoid heap instrumentation overhead in production/benchmarks
 	if os.Getenv("ENABLE_PROFILING") == "1" {
 		f, err := os.Create("/tmp/mem.prof")
-		if err != nil {
-			log.Printf("could not create memory profile: %v", err)
-		} else {
-			defer func() {
-				if err := f.Close(); err != nil {
-					log.Printf("could not close memory profile: %v", err)
-				}
-			}()
-			defer func() {
-				log.Println("Writing memory profile...")
-				if err := pprof.WriteHeapProfile(f); err != nil {
-					log.Printf("could not write memory profile: %v", err)
-				}
-				log.Println("Memory profile written")
-			}()
+		if err == nil {
+			defer f.Close()
+			defer func() { _ = pprof.WriteHeapProfile(f) }()
 		}
 	}
 
 	// Ensure math fonts are available (downloads missing ones in background)
 	go fontutils.EnsureMathFonts()
+	pdf.WarmRuntimePools()
+	handlers.WarmJSONDecode()
 
 	// Use release mode to disable debug overhead
 	gin.SetMode(gin.ReleaseMode)
@@ -49,30 +40,12 @@ func main() {
 	// which serializes stdout writes under a mutex on every request.
 	router := gin.New()
 
-	// Lightweight custom recovery: only captures stack on actual panic
-	// (gin.Recovery() has per-request overhead from defer/stack-trace setup)
-	router.Use(func(c *gin.Context) {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[Recovery] panic recovered: %v", r)
-				c.AbortWithStatus(http.StatusInternalServerError)
-			}
-		}()
-		c.Next()
-	})
+	router.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}))
 
-	// Only add request logger in debug mode (GIN_MODE=debug)
-	if gin.Mode() == gin.DebugMode {
-		router.Use(gin.Logger())
-	}
-	// Concurrency control: match to CPU count to minimize context switching
-	// for CPU-bound PDF generation workloads.
-	// Using NumCPU() prevents goroutine thrashing — 100 goroutines on 24 cores
-	// caused massive context-switch overhead and was the primary bottleneck.
-	maxConcurrent := runtime.NumCPU()
+	maxConcurrent := resolveMaxConcurrent()
 	semaphore := make(chan struct{}, maxConcurrent)
-	fmt.Printf("Server starting with %d max concurrent workers (CPUs: %d)\n", maxConcurrent, runtime.NumCPU())
-
 	router.Use(func(c *gin.Context) {
 		semaphore <- struct{}{}
 		defer func() { <-semaphore }()
@@ -90,7 +63,8 @@ func main() {
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			fmt.Fprintf(os.Stderr, "listen: %s\n", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -98,5 +72,24 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+	os.Stderr.WriteString("Shutting down server...\n")
+}
+
+func resolveMaxConcurrent() int {
+	if v := os.Getenv("MAX_CONCURRENT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	if os.Getenv("BENCH_MODE") == "1" {
+		n := runtime.NumCPU() * 2
+		if n > 48 {
+			return 48
+		}
+		if n < 1 {
+			return 1
+		}
+		return n
+	}
+	return runtime.NumCPU()
 }

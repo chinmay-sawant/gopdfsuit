@@ -30,6 +30,7 @@ func TestFillPDFWithXFDFCompressedSample(t *testing.T) {
 	if len(out) == 0 {
 		t.Fatalf("filled output is empty")
 	}
+	assertStartxrefPointsToXref(t, out)
 
 	if err := os.WriteFile(outPath, out, 0644); err != nil {
 		t.Fatalf("write generated.pdf: %v", err)

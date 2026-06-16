@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"compress/zlib"
 	"errors"
-	"fmt"
 	"math"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
+
+var formSubtypeRe = regexp.MustCompile(`/Subtype\s*/Form(\b|\s|/)`)
 
 func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
 	objMap := r.objMap
@@ -39,21 +40,22 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 	var warnings []string
 	changedAny := false
 
+	var buf [20]byte
+	visited := make(map[int]bool)
 	for pageNum, rects := range redactionsByPage {
+		clear(visited)
 		pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("page %d: %v", pageNum, err))
+			warnings = append(warnings, "page "+string(strconv.AppendInt(buf[:0], int64(pageNum), 10))+": "+err.Error())
 			continue
 		}
 		pageBody := objMap[pageObjNum]
 		keys := extractContentKeys(pageBody)
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
-			warnings = append(warnings, fmt.Sprintf("page %d: no content streams", pageNum))
+			warnings = append(warnings, "page "+string(strconv.AppendInt(buf[:0], int64(pageNum), 10))+": no content streams")
 			continue
 		}
-
-		visited := make(map[int]bool)
 		activeQueries := queries
 
 		for _, key := range keys {
@@ -92,7 +94,8 @@ func rewriteSecureStreamTree(objMap map[int][]byte, streamObjNum int, resources 
 	updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
 	warnings := make([]string, 0, 2)
 	if err != nil {
-		warnings = append(warnings, fmt.Sprintf("stream %d: %v", streamObjNum, err))
+		var sbuf [20]byte
+		warnings = append(warnings, "stream "+string(strconv.AppendInt(sbuf[:0], int64(streamObjNum), 10))+": "+err.Error())
 	} else if changed {
 		objMap[streamObjNum] = updated
 	}
@@ -108,7 +111,7 @@ func rewriteSecureStreamTree(objMap map[int][]byte, streamObjNum int, resources 
 			continue
 		}
 		// Only recurse into Form XObjects where text content commonly lives.
-		if !regexp.MustCompile(`/Subtype\s*/Form(\b|\s|/)`).Match(childBody) {
+		if !formSubtypeRe.Match(childBody) {
 			continue
 		}
 		childResources := extractResourcesBody(childBody, objMap)
@@ -211,7 +214,7 @@ func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, 
 	newObj = append(newObj, streamObj[end:]...)
 
 	lenRe := regexp.MustCompile(`/Length\s+(?:\d+\s+\d+\s+R|\d+)`)
-	newObj = lenRe.ReplaceAll(newObj, []byte(fmt.Sprintf("/Length %d", len(encoded))))
+	newObj = lenRe.ReplaceAll(newObj, []byte("/Length "+strconv.Itoa(len(encoded))))
 
 	return newObj, true, nil
 }
@@ -226,7 +229,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 		return decoded, false
 	}
 
-	var out strings.Builder
+	var out bytes.Buffer
 	last := 0
 	changed := false
 	posIdx := 0
@@ -234,7 +237,10 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 	for _, m := range matches {
 		out.WriteString(src[last:m[0]])
 		op := src[m[0]:m[1]]
-		text := strings.TrimSpace(extractTextFromOperator(op))
+		text := extractTextFromOperator(op)
+		if len(text) > 0 && (text[0] == ' ' || text[len(text)-1] == ' ') {
+			text = strings.TrimSpace(text)
+		}
 		if text == "" {
 			out.WriteString(op)
 			last = m[1]
@@ -268,12 +274,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 		if newText != text {
 			changed = true
 			trimmedOp := strings.TrimSpace(op)
-			// CIDFont/Identity-H operators use <hex> Tj encoding.
 			isHex := strings.HasPrefix(trimmedOp, "<") && !strings.HasPrefix(trimmedOp, "[")
-			// Use a TJ array with kerning adjustments so that remaining
-			// text stays in its original position after characters are
-			// removed. Simple Tj with spaces causes text to shift because
-			// space glyphs are narrower than letter glyphs.
 			out.WriteString(buildRedactionTJArray(text, newText, isHex))
 		} else {
 			out.WriteString(op)
@@ -285,7 +286,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 	if !changed {
 		return decoded, false
 	}
-	return []byte(out.String()), true
+	return out.Bytes(), true
 }
 
 func applyRectMaskToText(text string, pos models.TextPosition, rects []models.RedactionRect) string {
@@ -368,6 +369,14 @@ func replaceCaseInsensitiveWithSpaces(s, term string) string {
 	return string(b)
 }
 
+func writeHexUint16(sb *strings.Builder, v uint16) {
+	const digits = "0123456789ABCDEF"
+	sb.WriteByte(digits[(v>>12)&0xF])
+	sb.WriteByte(digits[(v>>8)&0xF])
+	sb.WriteByte(digits[(v>>4)&0xF])
+	sb.WriteByte(digits[v&0xF])
+}
+
 // buildRedactionTJArray constructs a TJ array operator that uses kerning
 // adjustments so that text remaining after redaction stays in position.
 // Each removed character is replaced by a kern of -520 units (matching
@@ -383,7 +392,7 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			var sb strings.Builder
 			sb.WriteString("<")
 			for _, r := range redacted {
-				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+				writeHexUint16(&sb, uint16(r))
 			}
 			sb.WriteString("> Tj")
 			return sb.String()
@@ -405,7 +414,7 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			var sb strings.Builder
 			sb.WriteString("<")
 			for _, r := range redacted {
-				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+				writeHexUint16(&sb, uint16(r))
 			}
 			sb.WriteString("> Tj")
 			return sb.String()
@@ -449,19 +458,18 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 	// Build TJ array: [(text) kern (text) ...] TJ
 	var out strings.Builder
 	out.WriteString("[")
+	var scratch [20]byte
 	for _, seg := range segments {
 		if seg.isKern {
-			// Estimate width of removed string
-			// TJ array kerning units are 1/1000 of text space.
 			estWidth := estimateStringWidth(seg.removed, 1000)
-			// Negative value = advance cursor to the right.
 			kern := -int(math.Round(estWidth))
-			_, _ = fmt.Fprintf(&out, "%d ", kern)
+			out.WriteString(string(strconv.AppendInt(scratch[:0], int64(kern), 10)))
+			out.WriteByte(' ')
 		} else {
 			if isHex {
 				out.WriteString("<")
 				for _, r := range seg.text {
-					_, _ = fmt.Fprintf(&out, "%04X", uint16(r))
+					writeHexUint16(&out, uint16(r))
 				}
 				out.WriteString("> ")
 			} else {

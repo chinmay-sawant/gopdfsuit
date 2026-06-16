@@ -2,8 +2,8 @@ package typstsyntax
 
 import (
 	"bytes"
-	"fmt"
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -666,7 +666,7 @@ func findSingleMatrix(args []*Node) *Node {
 		if arg.Type == NodeSequence {
 			var matNode *Node
 			for _, c := range arg.Children {
-				if c.Type == NodeLiteral && strings.TrimSpace(c.Value) == "" {
+				if c.Type == NodeLiteral && isSpace(c.Value) {
 					continue
 				}
 				if c.Type == NodeMatrix && matNode == nil {
@@ -1253,7 +1253,17 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 
 // fmtFloat formats a float64 for PDF with 2 decimal places.
 func fmtFloat(f float64) string {
-	return fmt.Sprintf("%.2f", f)
+	return strconv.FormatFloat(f, 'f', 2, 64)
+}
+
+// isSpace checks whether s contains only whitespace characters without allocating.
+func isSpace(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] != ' ' && s[i] != '\t' && s[i] != '\n' && s[i] != '\r' {
+			return false
+		}
+	}
+	return true
 }
 
 // bracketLineWidth is a constant thin line width for all drawn brackets.

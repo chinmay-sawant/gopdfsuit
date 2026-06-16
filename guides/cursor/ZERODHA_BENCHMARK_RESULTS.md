@@ -1,6 +1,78 @@
-# Zerodha Gold Standard Benchmark — 10-Run Results (Pass 4, PDF/A)
+# Zerodha Gold Standard Benchmark — gopdflib
 
-**Date:** 2026-05-25 (revised, WSL native)  
+## Latest — 30-run results (2026-06-14, Go 1.26.4)
+
+**Date:** 2026-06-14  
+**Entry:** `sampledata/gopdflib/zerodha/main.go`  
+**Workload:** 5000 iterations, 48 workers, 80% Retail / 15% Active / 5% HFT  
+**Config:** PDF/A + PDF/UA-2, retail **ECDSA P-256** signing  
+**Environment:** WSL2 Linux amd64, i7-13700HX, 24 CPUs, `GOMAXPROCS=24`, Go **1.26.4**  
+**Note:** Sequential back-to-back runs after other benchmarks same evening; thermal variance visible in runs 3–4 and 25–27.
+
+### Aggregate (30 runs)
+
+| Metric | Best | Worst | **Average** | σ |
+|--------|------|-------|-------------|---|
+| **Throughput** | **2952.88 ops/s** | 2183.43 ops/s | **2645.74 ops/s** | 187.28 |
+| **Avg latency** | **15.86 ms** | 21.04 ms | **17.67 ms** | — |
+| **Max latency** | 305.38 ms | **726.15 ms** | — | — |
+| **Wall time (5000)** | **1.69 s** | 2.29 s | **1.90 s** | — |
+| **Peak memory** | 1212.77 MB | **1491.17 MB** | **1330 MB** | — |
+
+**Headline:** **2953 ops/s peak**, **2646 ops/s** 30-run mean.
+
+**vs prior 13-run (`2026-06-13`, idle machine):** peak 3604 → **2953** (−18%), mean 2787 → **2646** (−5%).
+
+**Artifacts:** [baselines/zerodha_bench_x30_20260614_stats.txt](./baselines/zerodha_bench_x30_20260614_stats.txt) · raw logs in `baselines/zerodha_bench_x30_20260614_010104/`
+
+---
+
+## Prior session — 13-run results (2026-06-13, Go 1.26.4, historical best)
+
+**Date:** 2026-06-13  
+**Entry:** `sampledata/gopdflib/zerodha/main.go`  
+**Workload:** 5000 iterations, 48 workers, 80% Retail / 15% Active / 5% HFT  
+**Config:** PDF/A + PDF/UA-2, retail **ECDSA P-256** signing  
+**Environment:** WSL2 Linux amd64, i7-13700HX, 24 CPUs, `GOMAXPROCS=24`, Go **1.26.4**
+
+| Run | Throughput (ops/s) | Avg latency (ms) | Max latency (ms) | Total time (s) | Peak mem (MB) |
+|-----|-------------------:|-----------------:|-----------------:|---------------:|--------------:|
+| 1 | 2981.52 | 15.724 | 365.196 | 1.677 | 1345.17 |
+| 2 | 2505.63 | 18.612 | 445.660 | 1.996 | 1274.23 |
+| 3 | 2593.90 | 18.100 | 461.272 | 1.928 | 1280.03 |
+| 4 | 2420.95 | 19.327 | 535.979 | 2.065 | 1304.32 |
+| 5 | 2472.77 | 18.873 | 526.137 | 2.022 | 1291.94 |
+| 6 | 2674.73 | 17.499 | 411.122 | 1.869 | 1270.41 |
+| 7 | 2547.56 | 18.490 | 523.635 | 1.963 | 1251.65 |
+| 8 | 2722.93 | 17.081 | 620.455 | 1.836 | 1308.22 |
+| 9 | 3279.75 | 14.287 | 420.948 | 1.525 | 1383.41 |
+| 10 | 2960.37 | 15.646 | 407.111 | 1.689 | 1360.12 |
+| 11 | 2367.88 | 19.798 | 687.504 | 2.112 | 1408.00 |
+| 12 | **3603.53** (peak) | **12.986** (best avg) | 356.804 | **1.388** (best) | 1264.70 |
+| 13 | 3096.90 | 15.179 | 457.171 | 1.615 | 1338.06 |
+
+### Aggregate (13 runs)
+
+| Metric | Best | Worst | **Average** | σ |
+|--------|------|-------|-------------|---|
+| **Throughput** | **3603.53 ops/s** | 2367.88 ops/s | **2786.80 ops/s** | 373.31 |
+| **Avg latency** | **12.99 ms** | 19.80 ms | **17.05 ms** | — |
+| **Max latency** | 356.80 ms | **687.50 ms** | — | — |
+| **Wall time (5000)** | **1.39 s** | 2.11 s | **1.80 s** | — |
+| **Peak memory** | 1251.65 MB | **1408.00 MB** | **1314 MB** | — |
+
+**Headline:** **3604 ops/s peak**, **2787 ops/s** 13-run mean.
+
+**vs prior 2-run avg (2026-06-11):** 2459 → **2787 ops/s** (+13%).  
+**vs Pass 4 10-run avg (2026-05-25):** 1705 → **2787 ops/s** (+63%).
+
+**Artifacts:** [baselines/zerodha_bench_x13_20260613_stats.txt](./baselines/zerodha_bench_x13_20260613_stats.txt)
+
+---
+
+## Historical — 10-Run Results (Pass 4, PDF/A)
+
+**Date:** 2026-05-25 (revised, WSL native)
 **Entry:** `sampledata/gopdflib/zerodha/main.go`  
 **Workload:** 5000 iterations, 48 workers, 80% Retail / 15% Active / 5% HFT  
 **Config:** `pdfaCompliant: true`, `taggedPDF: true`, retail includes digital signature  

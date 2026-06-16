@@ -8,7 +8,7 @@ import (
 
 	"strconv"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
 // hexDigits is a lookup table for fast hex encoding, avoiding fmt.Sprintf("%04X") per character.
@@ -545,11 +545,12 @@ func GenerateWidthsArrayObject(fontName string, objectID int) string {
 	widthsArray.WriteString(" 0 obj\n[")
 
 	// Compact format - no newlines, minimal spacing
+	var widthBuf [16]byte
 	for i, w := range metrics.Widths {
 		if i > 0 {
 			widthsArray.WriteString(" ")
 		}
-		widthsArray.WriteString(strconv.Itoa(w))
+		widthsArray.Write(strconv.AppendInt(widthBuf[:0], int64(w), 10))
 	}
 
 	widthsArray.WriteString("]\nendobj\n")
@@ -565,12 +566,13 @@ func GetHelveticaFontResourceString() string {
 
 	// Build compact widths array inline (no extra spaces)
 	var widths strings.Builder
+	var ibuf [16]byte
 	widths.WriteString("[")
 	for i, w := range metrics.Widths {
 		if i > 0 {
 			widths.WriteString(" ")
 		}
-		widths.WriteString(strconv.Itoa(w))
+		widths.Write(strconv.AppendInt(ibuf[:0], int64(w), 10))
 	}
 	widths.WriteString("]")
 
@@ -808,6 +810,7 @@ func generateCIDWidths(font *RegisteredFont) string {
 
 	// Build width array using consecutive ranges for efficiency
 	var result strings.Builder
+	var ibuf [16]byte
 	result.WriteString("[")
 
 	i := 0
@@ -823,13 +826,13 @@ func generateCIDWidths(font *RegisteredFont) string {
 
 		// Write this range
 		result.WriteString(" ")
-		result.WriteString(strconv.Itoa(int(startCID)))
+		result.Write(strconv.AppendInt(ibuf[:0], int64(startCID), 10))
 		result.WriteString(" [")
 		for j := startIdx; j < i; j++ {
 			if j > startIdx {
 				result.WriteString(" ")
 			}
-			result.WriteString(strconv.Itoa(widths[j].width))
+			result.Write(strconv.AppendInt(ibuf[:0], int64(widths[j].width), 10))
 		}
 		result.WriteString("]")
 	}
@@ -959,6 +962,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	cmap.WriteString("endcodespacerange\n")
 
 	// Write character mappings in chunks of 100 (PDF limit)
+	var ibuf [16]byte
 	for i := 0; i < len(mappings); i += 100 {
 		end := i + 100
 		if end > len(mappings) {
@@ -966,7 +970,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 		}
 		chunk := mappings[i:end]
 
-		cmap.WriteString(strconv.Itoa(len(chunk)))
+		cmap.Write(strconv.AppendInt(ibuf[:0], int64(len(chunk)), 10))
 		cmap.WriteString(" beginbfchar\n")
 		for _, m := range chunk {
 			// CID as hex, Unicode code point as hex — using lookup table

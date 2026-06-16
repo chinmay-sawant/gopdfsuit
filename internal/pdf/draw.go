@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v5/typstsyntax"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/typstsyntax"
 )
 
 // fmtNum formats a float with 2 decimal places (standard PDF precision)
@@ -118,6 +119,314 @@ func initializePage(contentStream *bytes.Buffer, borderConfig, watermark string,
 	if watermark != "" {
 		drawWatermark(contentStream, watermark, pageDims, registry)
 	}
+}
+
+// appendPageInitialization writes border/watermark setup, caching bytes for continuation pages (C3).
+func appendPageInitialization(contentStream *bytes.Buffer, pageManager *PageManager, borderConfig, watermark string) {
+	if pageManager.cachedPageInit != nil &&
+		pageManager.cachedPageInitBorder == borderConfig &&
+		pageManager.cachedPageInitWatermark == watermark {
+		contentStream.Write(pageManager.cachedPageInit)
+		return
+	}
+	mark := contentStream.Len()
+	initializePage(contentStream, borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+	pageManager.cachedPageInit = append(pageManager.cachedPageInit[:0], contentStream.Bytes()[mark:]...)
+	pageManager.cachedPageInitBorder = borderConfig
+	pageManager.cachedPageInitWatermark = watermark
+}
+
+type sharedColumnLayout struct {
+	props          models.Props
+	resolvedFont   string
+	fontRef        string
+	fontDecl       []byte
+	textColorCmd   []byte
+	stdCharWidth   float64
+	usesCustomFont bool
+	uniformBorder  bool
+	borderWidth    int
+}
+
+func stdFontCharWidth(resolvedName string) float64 {
+	switch resolvedName {
+	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique": //nolint:goconst
+		return 0.6
+	case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic": //nolint:goconst
+		return 0.45
+	default:
+		return 0.5
+	}
+}
+
+func buildTextColorCmd(textColor string) []byte {
+	if r, g, b, _, valid := parseHexColor(textColor); valid {
+		cmd := make([]byte, 0, 24)
+		cmd = appendFmtNum(cmd, r)
+		cmd = append(cmd, ' ')
+		cmd = appendFmtNum(cmd, g)
+		cmd = append(cmd, ' ')
+		cmd = appendFmtNum(cmd, b)
+		return append(cmd, " rg\n"...)
+	}
+	return []byte("0 0 0 rg\n")
+}
+
+// prepSharedDeferRow updates only per-row varying fields (text width, optional text color).
+func prepSharedDeferRow(
+	row models.Row,
+	sharedCols []sharedColumnLayout,
+	rowTextColorCmds [][]byte,
+	rowSingleLineTextWidths []float64,
+	maxColumns int,
+) {
+	for colIdx, cell := range row.Row {
+		if colIdx >= maxColumns || colIdx >= len(sharedCols) {
+			break
+		}
+		sc := sharedCols[colIdx]
+		if cell.Text != "" {
+			rowSingleLineTextWidths[colIdx] = float64(utf8.RuneCountInString(cell.Text)) *
+				float64(sc.props.FontSize) * sc.stdCharWidth
+		} else {
+			rowSingleLineTextWidths[colIdx] = 0
+		}
+		if cell.TextColor != "" {
+			rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], buildTextColorCmd(cell.TextColor)...)
+		} else {
+			rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], sc.textColorCmd...)
+		}
+	}
+}
+
+func sharedRowTemplateIndex(table models.Table) int {
+	if !table.SharedRowLayout || len(table.Rows) < 2 {
+		return -1
+	}
+	idx := table.SharedRowTemplateRow
+	if idx <= 0 {
+		idx = 1
+	}
+	if idx >= len(table.Rows) {
+		idx = 0
+	}
+	return idx
+}
+
+func tableSupportsSharedRowLayout(table models.Table, templateRow int) bool {
+	// Explicit template row skips O(rows×cols) validation — caller attests uniformity.
+	if table.SharedRowTemplateRow > 0 {
+		return true
+	}
+	template := table.Rows[templateRow]
+	for ri := templateRow + 1; ri < len(table.Rows); ri++ {
+		row := table.Rows[ri]
+		ncol := min(len(row.Row), len(template.Row), table.MaxColumns)
+		for ci := 0; ci < ncol; ci++ {
+			tc := template.Row[ci]
+			c := row.Row[ci]
+			if tc.Props != c.Props || c.Image != nil || c.FormField != nil || c.Checkbox != nil {
+				return false
+			}
+			if c.MathEnabled != nil && *c.MathEnabled {
+				return false
+			}
+			if c.Wrap != nil && *c.Wrap {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func structureKidCap(count int) int {
+	if count <= 64 {
+		return count
+	}
+	return 64
+}
+
+func sharedColsUniformBorder(cols []sharedColumnLayout) (width int, ok bool) {
+	if len(cols) == 0 || !cols[0].uniformBorder {
+		return 0, false
+	}
+	width = cols[0].borderWidth
+	for _, c := range cols[1:] {
+		if !c.uniformBorder || c.borderWidth != width {
+			return 0, false
+		}
+	}
+	return width, true
+}
+
+// drawSharedDeferRow renders a uniform shared-layout data row (HFT fast path).
+func drawSharedDeferRow(
+	contentStream *bytes.Buffer,
+	row models.Row,
+	colWidths []float64,
+	sharedCols []sharedColumnLayout,
+	rowHeight float64,
+	rowMCIDBase int,
+	pageManager *PageManager,
+	scratchBuf, textTjBuf, borderBuf []byte,
+	rowCellProps []models.Props,
+	rowFontDecls [][]byte,
+	rowTextColorCmds [][]byte,
+	rowResolvedFonts []string,
+	rowSingleLineTextWidths []float64,
+	maxColumns int,
+) {
+	cellCount := min(len(row.Row), maxColumns)
+	currentX := pageManager.Margins.Left
+	rowLeft := currentX
+	rowWidth := 0.0
+
+	for colIdx, cell := range row.Row {
+		if colIdx >= maxColumns {
+			break
+		}
+		cellWidth := colWidths[colIdx]
+		rowWidth += cellWidth
+		cellX := currentX
+		currentX += cellWidth
+
+		pageManager.Structure.BeginMarkedContentBufWithMCID(
+			contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx,
+		)
+
+		if cell.BgColor != "" {
+			if r, g, b, _, valid := parseHexColor(cell.BgColor); valid {
+				contentStream.WriteString("q\n")
+				bg := appendFmtNum(scratchBuf[:0], r)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, g)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, b)
+				bg = append(bg, " rg\n"...)
+				contentStream.Write(bg)
+				bg = bg[:0]
+				bg = appendFmtNum(bg, cellX)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, pageManager.CurrentYPos-rowHeight)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, cellWidth)
+				bg = append(bg, ' ')
+				bg = appendFmtNum(bg, rowHeight)
+				bg = append(bg, " re f\nQ\n"...)
+				contentStream.Write(bg)
+			}
+		}
+
+		if cell.Text != "" {
+			cellProps := rowCellProps[colIdx]
+			textWidth := rowSingleLineTextWidths[colIdx]
+			textX := cellX + 5
+			if cellProps.Alignment == "center" && textWidth > 0 { //nolint:goconst
+				textX = cellX + (cellWidth-textWidth)/2
+			} else if cellProps.Alignment == "right" && textWidth > 0 { //nolint:goconst
+				textX = cellX + cellWidth - textWidth - 5
+			}
+			textY := pageManager.CurrentYPos - rowHeight/2 - float64(cellProps.FontSize)/2
+
+			contentStream.WriteString("BT\n")
+			contentStream.Write(rowFontDecls[colIdx])
+			contentStream.Write(rowTextColorCmds[colIdx])
+			contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+			pos := appendFmtNum(scratchBuf[:0], textX)
+			pos = append(pos, ' ')
+			pos = appendFmtNum(pos, textY)
+			pos = append(pos, " Td\n"...)
+			contentStream.Write(pos)
+			textTjBuf = appendTextForPDF(textTjBuf[:0], rowResolvedFonts[colIdx], cell.Text, pageManager.FontRegistry)
+			textTjBuf = append(textTjBuf, " Tj\nET\n"...)
+			contentStream.Write(textTjBuf)
+		}
+
+		pageManager.Structure.EndMarkedContentBuf(contentStream)
+	}
+
+	if borderW, uniform := sharedColsUniformBorder(sharedCols); uniform {
+		// PDF/UA: decorative row borders are artifacts (drawn outside per-cell TD marks).
+		contentStream.WriteString("/Artifact BMC\nq\n")
+		borderBuf = borderBuf[:0]
+		borderBuf = strconv.AppendInt(borderBuf, int64(borderW), 10)
+		borderBuf = append(borderBuf, " w "...)
+		borderBuf = appendFmtNum(borderBuf, rowLeft)
+		borderBuf = append(borderBuf, ' ')
+		borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-rowHeight)
+		borderBuf = append(borderBuf, ' ')
+		borderBuf = appendFmtNum(borderBuf, rowWidth)
+		borderBuf = append(borderBuf, ' ')
+		borderBuf = appendFmtNum(borderBuf, rowHeight)
+		borderBuf = append(borderBuf, " re S\nQ\nEMC\n"...)
+		contentStream.Write(borderBuf)
+	}
+	_ = cellCount
+}
+
+// drawSharedLayoutRow draws a shared-layout data row with PDF/UA Table → TR → TD hierarchy.
+func drawSharedLayoutRow(
+	pageManager *PageManager,
+	contentStream *bytes.Buffer,
+	row models.Row,
+	colWidths []float64,
+	sharedCols []sharedColumnLayout,
+	rowHeight float64,
+	scratchBuf, textTjBuf, borderBuf []byte,
+	rowCellProps []models.Props,
+	rowFontDecls [][]byte,
+	rowTextColorCmds [][]byte,
+	rowResolvedFonts []string,
+	rowSingleLineTextWidths []float64,
+	maxColumns int,
+) {
+	cellCount := min(len(row.Row), maxColumns)
+	pageManager.Structure.BeginStructureElementCap(StructTR, cellCount)
+	rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+	drawSharedDeferRow(
+		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
+		scratchBuf, textTjBuf, borderBuf,
+		rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
+		maxColumns,
+	)
+	pageManager.Structure.EndStructureElement()
+	pageManager.CurrentYPos -= rowHeight
+}
+
+func buildSharedColumnLayouts(table models.Table, templateRow int, registry *CustomFontRegistry) []sharedColumnLayout {
+	template := table.Rows[templateRow]
+	cols := make([]sharedColumnLayout, min(len(template.Row), table.MaxColumns))
+	for colIdx, cell := range template.Row {
+		if colIdx >= table.MaxColumns {
+			break
+		}
+		props := parseProps(cell.Props)
+		resolved := resolveFontName(props, registry)
+		decl := append([]byte(nil), getFontReferenceByResolvedName(resolved, registry)...)
+		decl = append(decl, ' ')
+		decl = strconv.AppendInt(decl, int64(props.FontSize), 10)
+		decl = append(decl, " Tf\n"...)
+		uniform := props.Borders[0] == props.Borders[1] &&
+			props.Borders[1] == props.Borders[2] &&
+			props.Borders[2] == props.Borders[3] &&
+			props.Borders[0] > 0
+		textColor := cell.TextColor
+		if textColor == "" {
+			textColor = table.TextColor
+		}
+		cols[colIdx] = sharedColumnLayout{
+			props:          props,
+			resolvedFont:   resolved,
+			fontRef:        getFontReferenceByResolvedName(resolved, registry),
+			fontDecl:       decl,
+			textColorCmd:   buildTextColorCmd(textColor),
+			stdCharWidth:   stdFontCharWidth(resolved),
+			usesCustomFont: registry.IsCustomFont(resolved),
+			uniformBorder:  uniform,
+			borderWidth:    props.Borders[0],
+		}
+	}
+	return cols
 }
 
 // drawPageBorder draws the page border
@@ -417,6 +726,9 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 		// PDF/UA: Start TR Structure Element
 		pageManager.Structure.BeginStructureElement(StructTR)
 
+		cellCount := min(len(row.Row), table.MaxColumns)
+		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+
 		currentX := pageManager.Margins.Left
 		for colIdx, cell := range row.Row {
 			if colIdx >= table.MaxColumns {
@@ -424,7 +736,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			}
 
 			// PDF/UA: Start TD Structure Element
-			pageManager.Structure.BeginMarkedContentBuf(contentStream, pageManager.CurrentPageIndex, StructTD, nil)
+			pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx)
 
 			// Capture cell coordinates for link
 			// Capture cell coordinates for link
@@ -435,6 +747,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			} else {
 				cellProps = parseProps(cell.Props)
 			}
+			var fontSizeBuf [12]byte
 			cellX := currentX
 
 			// Use cell-specific width if provided, otherwise use column width
@@ -551,7 +864,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				contentStream.WriteString("BT\n")
 				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 				contentStream.WriteString(" ")
-				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+				contentStream.Write(strconv.AppendInt(fontSizeBuf[:0], int64(cellProps.FontSize), 10))
 				contentStream.WriteString(" Tf\n")
 
 				// Set text color - always explicitly set to avoid state leakage, default to black
@@ -619,7 +932,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString("BT\n")
 					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 					contentStream.WriteString(" ")
-					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+					contentStream.Write(strconv.AppendInt(fontSizeBuf[:0], int64(cellProps.FontSize), 10))
 					contentStream.WriteString(" Tf\n")
 					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
 					textPosBuf = textPosBuf[:0]
@@ -737,8 +1050,12 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	baseRowHeight := float64(25) // Standard row height
 
 	// PDF/UA: Start Table Structure
-	pageManager.Structure.BeginStructureElement(StructTable)
+	pageManager.Structure.BeginStructureElementCap(StructTable, structureKidCap(len(table.Rows)))
 	defer pageManager.Structure.EndStructureElement()
+
+	if len(table.Rows) > 40 {
+		pageManager.PrepareLargeTableStripe(baseRowHeight, table.MaxColumns)
+	}
 
 	// Compute column widths in points using weights if provided
 	colWidths := make([]float64, table.MaxColumns)
@@ -773,18 +1090,81 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	wrappedTextLines := make([][][]byte, table.MaxColumns)
 	rowCellProps := make([]models.Props, table.MaxColumns)
 	rowResolvedFonts := make([]string, table.MaxColumns)
+	rowFontRefs := make([]string, table.MaxColumns)
+	rowFontDecls := make([][]byte, table.MaxColumns)
+	rowTextColorCmds := make([][]byte, table.MaxColumns)
+	rowUsesCustomFonts := make([]bool, table.MaxColumns)
+	rowSingleLineTextWidths := make([]float64, table.MaxColumns)
 	// Scratch buffers reused across all cells to reduce allocations
 	scratchBuf := make([]byte, 0, 128)
+	textTjBuf := make([]byte, 0, 256)
 	borderBuf := make([]byte, 0, 64)
 	xobjBuf := make([]byte, 0, 96)
-	colorBuf := make([]byte, 0, 48)
 	placeholderBuf := make([]byte, 0, 64)
 	checkboxBuf := make([]byte, 0, 64)
 	var wrapState WrapState
 
+	templateRow := sharedRowTemplateIndex(table)
+	var sharedCols []sharedColumnLayout
+	useSharedLayout := templateRow >= 0 && tableSupportsSharedRowLayout(table, templateRow)
+	if useSharedLayout {
+		sharedCols = buildSharedColumnLayouts(table, templateRow, pageManager.FontRegistry)
+	}
+
+	largeTable := len(table.Rows) > 100
+	stripeRows := 0
+	if largeTable {
+		stripeRows = pageManager.RowsFitOnCurrentPage(baseRowHeight)
+		pageManager.Structure.PreallocatePageMCIDSlots(pageManager.CurrentPageIndex, stripeRows*table.MaxColumns)
+	}
+
+	sharedDeferFast := useSharedLayout && len(sharedCols) > 0
+	if sharedDeferFast {
+		for colIdx, sc := range sharedCols {
+			if colIdx >= table.MaxColumns {
+				break
+			}
+			rowCellProps[colIdx] = sc.props
+			rowResolvedFonts[colIdx] = sc.resolvedFont
+			rowFontDecls[colIdx] = append(rowFontDecls[colIdx][:0], sc.fontDecl...)
+			rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], sc.textColorCmd...)
+		}
+	}
+
 	for rowIdx, row := range table.Rows {
+		fastRow := useSharedLayout && rowIdx != templateRow
+
+		if fastRow && sharedDeferFast {
+			rowHeight := baseRowHeight
+			prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, table.MaxColumns)
+
+			if pageManager.CheckPageBreak(rowHeight) {
+				pageManager.AddNewPage()
+				appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, borderConfig, watermark)
+				if largeTable {
+					remaining := len(table.Rows) - rowIdx
+					if remaining < stripeRows {
+						stripeRows = remaining
+					}
+					pageManager.Structure.PreallocatePageMCIDSlots(
+						pageManager.CurrentPageIndex,
+						stripeRows*table.MaxColumns,
+					)
+				}
+			}
+
+			drawSharedLayoutRow(
+				pageManager, pageManager.GetCurrentContentStream(), row, colWidths, sharedCols, rowHeight,
+				scratchBuf, textTjBuf, borderBuf,
+				rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
+				table.MaxColumns,
+			)
+			continue
+		}
+
 		// PDF/UA: Start Row Structure
-		pageManager.Structure.BeginStructureElement(StructTR)
+		kidCap := min(len(row.Row), table.MaxColumns)
+		pageManager.Structure.BeginStructureElementCap(StructTR, kidCap)
 
 		// Pre-calculate column widths and parsed props
 		// We need to know each cell's width before calculating wrapped text height
@@ -808,12 +1188,71 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				break
 			}
 
+			if fastRow && colIdx < len(sharedCols) {
+				sc := sharedCols[colIdx]
+				rowCellProps[colIdx] = sc.props
+				rowResolvedFonts[colIdx] = sc.resolvedFont
+				rowFontRefs[colIdx] = sc.fontRef
+				rowFontDecls[colIdx] = append(rowFontDecls[colIdx][:0], sc.fontDecl...)
+				rowUsesCustomFonts[colIdx] = sc.usesCustomFont
+				rowSingleLineTextWidths[colIdx] = 0
+
+				textColor := cell.TextColor
+				if textColor == "" {
+					textColor = table.TextColor
+				}
+				if r, g, b, _, valid := parseHexColor(textColor); valid {
+					cmd := rowTextColorCmds[colIdx][:0]
+					cmd = appendFmtNum(cmd, r)
+					cmd = append(cmd, ' ')
+					cmd = appendFmtNum(cmd, g)
+					cmd = append(cmd, ' ')
+					cmd = appendFmtNum(cmd, b)
+					cmd = append(cmd, " rg\n"...)
+					rowTextColorCmds[colIdx] = cmd
+				} else {
+					rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], "0 0 0 rg\n"...)
+				}
+
+				if cell.Text != "" {
+					if sc.usesCustomFont {
+						pageManager.FontRegistry.MarkCharsUsed(sc.resolvedFont, cell.Text)
+					}
+					rowSingleLineTextWidths[colIdx] = EstimateTextWidth(sc.resolvedFont, cell.Text, float64(sc.props.FontSize), pageManager.FontRegistry)
+				}
+				continue
+			}
+
 			// Parse props once per cell and cache it
 			cellProps := parseProps(cell.Props)
 			rowCellProps[colIdx] = cellProps
 
 			// Resolve font name once per cell — used for text width, wrapping, and rendering
 			rowResolvedFonts[colIdx] = resolveFontName(cellProps, pageManager.FontRegistry)
+			rowFontRefs[colIdx] = getFontReferenceByResolvedName(rowResolvedFonts[colIdx], pageManager.FontRegistry)
+			rowFontDecls[colIdx] = append(rowFontDecls[colIdx][:0], rowFontRefs[colIdx]...)
+			rowFontDecls[colIdx] = append(rowFontDecls[colIdx], ' ')
+			rowFontDecls[colIdx] = strconv.AppendInt(rowFontDecls[colIdx], int64(cellProps.FontSize), 10)
+			rowFontDecls[colIdx] = append(rowFontDecls[colIdx], " Tf\n"...)
+			rowUsesCustomFonts[colIdx] = pageManager.FontRegistry.IsCustomFont(rowResolvedFonts[colIdx])
+			rowSingleLineTextWidths[colIdx] = 0
+
+			textColor := cell.TextColor
+			if textColor == "" {
+				textColor = table.TextColor
+			}
+			if r, g, b, _, valid := parseHexColor(textColor); valid {
+				cmd := rowTextColorCmds[colIdx][:0]
+				cmd = appendFmtNum(cmd, r)
+				cmd = append(cmd, ' ')
+				cmd = appendFmtNum(cmd, g)
+				cmd = append(cmd, ' ')
+				cmd = appendFmtNum(cmd, b)
+				cmd = append(cmd, " rg\n"...)
+				rowTextColorCmds[colIdx] = cmd
+			} else {
+				rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], "0 0 0 rg\n"...)
+			}
 
 			// Wrap is opt-in (only enabled when explicitly set to true)
 			isWrapEnabled := cell.Wrap != nil && *cell.Wrap
@@ -826,9 +1265,14 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				wrappedTextLines[colIdx] = WrapTextInto(&wrapState, cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
 			}
 
-			// Mark chars used for subsetting (once per cell)
+			// Mark chars used for subsetting only when the resolved font is custom.
 			if cell.Text != "" {
-				pageManager.FontRegistry.MarkCharsUsed(cellProps.FontName, cell.Text)
+				if rowUsesCustomFonts[colIdx] {
+					pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], cell.Text)
+				}
+				if !isWrapEnabled && (cell.MathEnabled == nil || !*cell.MathEnabled || !typstsyntax.IsMathExpression(cell.Text)) {
+					rowSingleLineTextWidths[colIdx] = EstimateTextWidth(rowResolvedFonts[colIdx], cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
+				}
 			}
 		}
 
@@ -859,11 +1303,36 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		if pageManager.CheckPageBreak(rowHeight) {
 			// Create new page and initialize it
 			pageManager.AddNewPage()
-			initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+			appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, borderConfig, watermark)
+			if largeTable {
+				remaining := len(table.Rows) - rowIdx
+				if remaining < stripeRows {
+					stripeRows = remaining
+				}
+				pageManager.Structure.PreallocatePageMCIDSlots(
+					pageManager.CurrentPageIndex,
+					stripeRows*table.MaxColumns,
+				)
+			}
 		}
 
 		// Get current content stream for this page
 		contentStream := pageManager.GetCurrentContentStream()
+
+		cellCount := min(len(row.Row), table.MaxColumns)
+		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+
+		if fastRow && len(sharedCols) > 0 {
+			drawSharedDeferRow(
+				contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
+				scratchBuf, textTjBuf, borderBuf,
+				rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
+				table.MaxColumns,
+			)
+			pageManager.Structure.EndStructureElement()
+			pageManager.CurrentYPos -= rowHeight
+			continue
+		}
 
 		// Draw row cells
 		currentX := pageManager.Margins.Left
@@ -873,10 +1342,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			// PDF/UA: Start Cell Structure (TH for header if first row, else TD)
-			// Assuming first row is header if Table has explicit header concept, but for now just use TD
-			// Could be enhanced to detect header rows
 			cellType := StructTD
-			pageManager.Structure.BeginMarkedContentBuf(contentStream, pageManager.CurrentPageIndex, cellType, nil)
+			mcid := rowMCIDBase + colIdx
+			pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, mcid)
 
 			cellProps := rowCellProps[colIdx] // Use cached props
 			cellX := currentX
@@ -1091,7 +1559,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				// Set up render context with font callbacks
 				mathCtx := &typstsyntax.RenderContext{
 					FontSize:   float64(cellProps.FontSize),
-					FontRef:    getFontReference(cellProps, pageManager.FontRegistry),
+					FontRef:    rowFontRefs[colIdx],
 					CellWidth:  cellWidth,
 					CellHeight: cellHeight,
 					TextColor:  colorStr,
@@ -1101,7 +1569,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					FormatText: func(text string) string {
 						// Math rendering emits many Unicode glyph fragments (integrals, set symbols,
 						// superscripts/subscripts). Mark them so custom-font subsetting keeps them.
-						pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], text)
+						if rowUsesCustomFonts[colIdx] {
+							pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], text)
+						}
 						return formatTextForPDF(rowResolvedFonts[colIdx], text, pageManager.FontRegistry)
 					},
 				}
@@ -1129,30 +1599,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			case cell.Text != "":
 				// Draw text with font styling
 				contentStream.WriteString("BT\n")
-				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
-				contentStream.WriteString(" ")
-				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
-				contentStream.WriteString(" Tf\n")
-
-				// Set text color (cell-level takes precedence over table-level, default to black)
-				// Always explicitly set the color to avoid state leakage from previous tables
-				textColor := cell.TextColor
-				if textColor == "" {
-					textColor = table.TextColor
-				}
-				if r, g, b, _, valid := parseHexColor(textColor); valid {
-					colorBuf = colorBuf[:0]
-					colorBuf = appendFmtNum(colorBuf, r)
-					colorBuf = append(colorBuf, ' ')
-					colorBuf = appendFmtNum(colorBuf, g)
-					colorBuf = append(colorBuf, ' ')
-					colorBuf = appendFmtNum(colorBuf, b)
-					colorBuf = append(colorBuf, " rg\n"...)
-					contentStream.Write(colorBuf)
-				} else {
-					// Default to black if no valid color specified
-					contentStream.WriteString("0 0 0 rg\n")
-				}
+				contentStream.Write(rowFontDecls[colIdx])
+				contentStream.Write(rowTextColorCmds[colIdx])
 
 				// Check if this cell has wrapped text (opt-in)
 				isWrapEnabled := cell.Wrap != nil && *cell.Wrap
@@ -1197,16 +1645,18 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.Write(textPosBuf)
 
 						// Render the line
-						textPosBuf = appendTextForPDF(textPosBuf[:0], rowResolvedFonts[colIdx], byteString(line), pageManager.FontRegistry)
-						textPosBuf = append(textPosBuf, " Tj\n"...)
-						contentStream.Write(textPosBuf)
+						textTjBuf = appendTextForPDF(textTjBuf[:0], rowResolvedFonts[colIdx], byteString(line), pageManager.FontRegistry)
+						textTjBuf = append(textTjBuf, " Tj\n"...)
+						contentStream.Write(textTjBuf)
 					}
 					contentStream.WriteString("ET\n")
 				} else {
 					// Single-line text rendering (original behavior)
-					// Calculate approximate text width
 					resolvedName := rowResolvedFonts[colIdx]
-					textWidth := EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
+					textWidth := rowSingleLineTextWidths[colIdx]
+					if textWidth == 0 {
+						textWidth = EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
+					}
 
 					var textX float64
 					switch cellProps.Alignment {
@@ -1250,10 +1700,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.WriteString("Q\n")
 						// Start text object again
 						contentStream.WriteString("BT\n")
-						contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
-						contentStream.WriteString(" ")
-						contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
-						contentStream.WriteString(" Tf\n")
+						contentStream.Write(rowFontDecls[colIdx])
 						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
 						textPosBuf = textPosBuf[:0]
 						textPosBuf = appendFmtNum(textPosBuf, textX)
@@ -1263,9 +1710,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.Write(textPosBuf)
 					}
 
-					textPosBuf = appendTextForPDF(textPosBuf[:0], resolvedName, cell.Text, pageManager.FontRegistry)
-					textPosBuf = append(textPosBuf, " Tj\n"...)
-					contentStream.Write(textPosBuf)
+					textTjBuf = appendTextForPDF(textTjBuf[:0], resolvedName, cell.Text, pageManager.FontRegistry)
+					textTjBuf = append(textTjBuf, " Tj\n"...)
+					contentStream.Write(textTjBuf)
 					contentStream.WriteString("ET\n")
 				}
 			}
@@ -1273,61 +1720,79 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// Draw cell borders AFTER content (so they appear on top of images)
 			if cellProps.Borders[0] > 0 || cellProps.Borders[1] > 0 || cellProps.Borders[2] > 0 || cellProps.Borders[3] > 0 {
 				contentStream.WriteString("q\n")
-				if cellProps.Borders[0] > 0 { // left
+				if cellProps.Borders[0] == cellProps.Borders[1] &&
+					cellProps.Borders[1] == cellProps.Borders[2] &&
+					cellProps.Borders[2] == cellProps.Borders[3] &&
+					cellProps.Borders[0] > 0 {
 					borderBuf = borderBuf[:0]
 					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[0]), 10)
 					borderBuf = append(borderBuf, " w "...)
 					borderBuf = appendFmtNum(borderBuf, cellX)
 					borderBuf = append(borderBuf, ' ')
 					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
-					borderBuf = append(borderBuf, " m "...)
-					borderBuf = appendFmtNum(borderBuf, cellX)
 					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
-					borderBuf = append(borderBuf, " l S\n"...)
+					borderBuf = appendFmtNum(borderBuf, cellWidth)
+					borderBuf = append(borderBuf, ' ')
+					borderBuf = appendFmtNum(borderBuf, cellHeight)
+					borderBuf = append(borderBuf, " re S\n"...)
 					contentStream.Write(borderBuf)
-				}
-				if cellProps.Borders[1] > 0 { // right
-					borderBuf = borderBuf[:0]
-					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[1]), 10)
-					borderBuf = append(borderBuf, " w "...)
-					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
-					borderBuf = append(borderBuf, " m "...)
-					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
-					borderBuf = append(borderBuf, " l S\n"...)
-					contentStream.Write(borderBuf)
-				}
-				if cellProps.Borders[2] > 0 { // top
-					borderBuf = borderBuf[:0]
-					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[2]), 10)
-					borderBuf = append(borderBuf, " w "...)
-					borderBuf = appendFmtNum(borderBuf, cellX)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
-					borderBuf = append(borderBuf, " m "...)
-					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
-					borderBuf = append(borderBuf, " l S\n"...)
-					contentStream.Write(borderBuf)
-				}
-				if cellProps.Borders[3] > 0 { // bottom
-					borderBuf = borderBuf[:0]
-					borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[3]), 10)
-					borderBuf = append(borderBuf, " w "...)
-					borderBuf = appendFmtNum(borderBuf, cellX)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
-					borderBuf = append(borderBuf, " m "...)
-					borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
-					borderBuf = append(borderBuf, ' ')
-					borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
-					borderBuf = append(borderBuf, " l S\n"...)
-					contentStream.Write(borderBuf)
+				} else {
+					if cellProps.Borders[0] > 0 { // left
+						borderBuf = borderBuf[:0]
+						borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[0]), 10)
+						borderBuf = append(borderBuf, " w "...)
+						borderBuf = appendFmtNum(borderBuf, cellX)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
+						borderBuf = append(borderBuf, " m "...)
+						borderBuf = appendFmtNum(borderBuf, cellX)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
+						borderBuf = append(borderBuf, " l S\n"...)
+						contentStream.Write(borderBuf)
+					}
+					if cellProps.Borders[1] > 0 { // right
+						borderBuf = borderBuf[:0]
+						borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[1]), 10)
+						borderBuf = append(borderBuf, " w "...)
+						borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
+						borderBuf = append(borderBuf, " m "...)
+						borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
+						borderBuf = append(borderBuf, " l S\n"...)
+						contentStream.Write(borderBuf)
+					}
+					if cellProps.Borders[2] > 0 { // top
+						borderBuf = borderBuf[:0]
+						borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[2]), 10)
+						borderBuf = append(borderBuf, " w "...)
+						borderBuf = appendFmtNum(borderBuf, cellX)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
+						borderBuf = append(borderBuf, " m "...)
+						borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos)
+						borderBuf = append(borderBuf, " l S\n"...)
+						contentStream.Write(borderBuf)
+					}
+					if cellProps.Borders[3] > 0 { // bottom
+						borderBuf = borderBuf[:0]
+						borderBuf = strconv.AppendInt(borderBuf, int64(cellProps.Borders[3]), 10)
+						borderBuf = append(borderBuf, " w "...)
+						borderBuf = appendFmtNum(borderBuf, cellX)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
+						borderBuf = append(borderBuf, " m "...)
+						borderBuf = appendFmtNum(borderBuf, cellX+cellWidth)
+						borderBuf = append(borderBuf, ' ')
+						borderBuf = appendFmtNum(borderBuf, pageManager.CurrentYPos-cellHeight)
+						borderBuf = append(borderBuf, " l S\n"...)
+						contentStream.Write(borderBuf)
+					}
 				}
 				contentStream.WriteString("Q\n")
 			}
@@ -1419,7 +1884,7 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 
 // drawPageNumber renders page number in bottom right corner
 func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions, pageManager *PageManager) {
-	pageText := fmt.Sprintf("Page %d of %d", currentPage, totalPages)
+	pageText := buildPageNumberText(currentPage, totalPages)
 
 	// Track characters for font subsetting
 	registry := pageManager.FontRegistry
@@ -1467,6 +1932,15 @@ func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pa
 	contentStream.WriteString("EMC\n")
 }
 
+func buildPageNumberText(currentPage, totalPages int) string {
+	buf := make([]byte, 0, 32)
+	buf = append(buf, "Page "...)
+	buf = strconv.AppendInt(buf, int64(currentPage), 10)
+	buf = append(buf, " of "...)
+	buf = strconv.AppendInt(buf, int64(totalPages), 10)
+	return string(buf)
+}
+
 // drawImage renders an image in the PDF with automatic page breaks
 func drawImage(image models.Image, pageManager *PageManager, borderConfig, watermark string) {
 	// Skip if no image data
@@ -1486,7 +1960,7 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	if pageManager.CheckPageBreak(imageHeight + spacing) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+		appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, borderConfig, watermark)
 	}
 
 	// Get current content stream for this page
@@ -1595,7 +2069,7 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 	if pageManager.CheckPageBreak(imageHeight) {
 		// Create new page and initialize it
 		pageManager.AddNewPage()
-		initializePage(pageManager.GetCurrentContentStream(), borderConfig, watermark, pageManager.PageDimensions, pageManager.Margins, pageManager.FontRegistry)
+		appendPageInitialization(pageManager.GetCurrentContentStream(), pageManager, borderConfig, watermark)
 	}
 
 	// Get current content stream for this page

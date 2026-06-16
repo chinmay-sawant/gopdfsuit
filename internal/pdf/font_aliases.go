@@ -3,7 +3,7 @@
 // These type aliases maintain backward compatibility within the pdf package.
 package pdf
 
-import "github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
+import "github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 
 // Type aliases for backward compatibility within this package.
 // External consumers should use the font package directly.
@@ -60,13 +60,15 @@ var (
 	GetZlibWriter                        = font.GetZlibWriter
 	PutZlibWriter                        = font.PutZlibWriter
 	CompressBufPool                      = &font.CompressBufPool
+	WarmCompressionPools                 = font.WarmCompressionPools
 )
 
 // Internal aliases for lower-case names previously used in the pdf package
 var (
-	getCompressBuffer   = font.GetCompressBuffer
-	putCompressBuffer   = font.PutCompressBuffer
-	getZlibWriter       = font.GetZlibWriter
-	putZlibWriter       = font.PutZlibWriter // Note: remote code uses getZlibWriter/putZlibWriter names
-	generateCIDToGIDMap = font.GenerateCIDToGIDMap
+	getCompressBuffer     = font.GetCompressBuffer
+	putCompressBuffer     = font.PutCompressBuffer
+	getZlibWriter         = font.GetZlibWriter
+	putZlibWriter         = font.PutZlibWriter // Note: remote code uses getZlibWriter/putZlibWriter names
+	compressContentStream = font.CompressContentStreamCached
+	generateCIDToGIDMap   = font.GenerateCIDToGIDMap
 )

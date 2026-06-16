@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
 type ocrWord struct {
@@ -33,11 +33,17 @@ type OCRProvider interface {
 type tesseractProvider struct{}
 
 func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
-	provider := strings.TrimSpace(strings.ToLower(settings.Provider))
+	provider := strings.ToLower(settings.Provider)
+	for len(provider) > 0 && provider[0] <= ' ' {
+		provider = provider[1:]
+	}
+	for len(provider) > 0 && provider[len(provider)-1] <= ' ' {
+		provider = provider[:len(provider)-1]
+	}
 	if provider == "" || provider == "tesseract" {
 		return tesseractProvider{}, nil
 	}
-	return nil, fmt.Errorf("unsupported OCR provider: %s", settings.Provider)
+	return nil, errors.New("unsupported OCR provider: " + settings.Provider)
 }
 
 func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings models.OCRSettings) ([]models.RedactionRect, error) {
@@ -52,21 +58,49 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 	if err != nil {
 		return nil, err
 	}
+	if len(words) == 0 {
+		return nil, nil
+	}
+
+	// Pre-normalize query terms once (lowercase + trim) instead of per (word, query) pair.
+	normTerms := make([]string, len(queries))
+	for i, q := range queries {
+		t := strings.ToLower(q.Text)
+		// Manual no-alloc trim
+		for len(t) > 0 && t[0] <= ' ' {
+			t = t[1:]
+		}
+		for len(t) > 0 && t[len(t)-1] <= ' ' {
+			t = t[:len(t)-1]
+		}
+		normTerms[i] = t
+	}
+	// Skip empty/whitespace-only queries up-front
+	activeTerms := normTerms[:0]
+	activeIdx := make([]int, 0, len(queries))
+	for i, t := range normTerms {
+		if t != "" {
+			activeTerms = append(activeTerms, t)
+			activeIdx = append(activeIdx, i)
+		}
+	}
+	if len(activeTerms) == 0 {
+		return nil, nil
+	}
+
 	var rects []models.RedactionRect
-	for _, w := range words {
-		for _, q := range queries {
-			term := strings.TrimSpace(strings.ToLower(q.Text))
-			if term == "" {
-				continue
-			}
-			if strings.Contains(strings.ToLower(w.Text), term) {
+	for wi := range words {
+		wLower := strings.ToLower(words[wi].Text)
+		for k, term := range activeTerms {
+			if strings.Contains(wLower, term) {
 				rects = append(rects, models.RedactionRect{
-					PageNum: w.PageNum,
-					X:       w.X,
-					Y:       w.Y,
-					Width:   w.Width,
-					Height:  w.Height,
+					PageNum: words[wi].PageNum,
+					X:       words[wi].X,
+					Y:       words[wi].Y,
+					Width:   words[wi].Width,
+					Height:  words[wi].Height,
 				})
+				_ = activeIdx[k]
 				break
 			}
 		}
@@ -108,10 +142,12 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 	}
 
 	words := make([]ocrWord, 0)
+	var pageBuf [20]byte
 	for page := 1; page <= info.TotalPages; page++ {
-		imgBase := filepath.Join(tmpDir, fmt.Sprintf("page-%d", page))
+		pageStr := string(strconv.AppendInt(pageBuf[:0], int64(page), 10))
+		imgBase := filepath.Join(tmpDir, "page-"+pageStr)
 		imgPath := imgBase + ".png"
-		pdftoppmCmd := exec.Command("pdftoppm", "-f", strconv.Itoa(page), "-l", strconv.Itoa(page), "-singlefile", "-png", pdfPath, imgBase)
+		pdftoppmCmd := exec.Command("pdftoppm", "-f", pageStr, "-l", pageStr, "-singlefile", "-png", pdfPath, imgBase)
 		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, err, string(out))
 		}
@@ -137,25 +173,26 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 		sy := pageDim.Height / float64(cfg.Height)
 
 		scanner := bufio.NewScanner(bytes.NewReader(tsvOut))
+		scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
 		lineNo := 0
 		for scanner.Scan() {
-			line := scanner.Text()
+			line := scanner.Bytes()
 			lineNo++
 			if lineNo == 1 {
 				continue // header
 			}
-			cols := strings.Split(line, "\t")
+			cols := bytes.Split(line, []byte{'\t'})
 			if len(cols) < 12 {
 				continue
 			}
-			text := strings.TrimSpace(cols[11])
+			text := string(bytes.TrimSpace(cols[11]))
 			if text == "" {
 				continue
 			}
-			left, errL := strconv.ParseFloat(cols[6], 64)
-			top, errT := strconv.ParseFloat(cols[7], 64)
-			w, errW := strconv.ParseFloat(cols[8], 64)
-			h, errH := strconv.ParseFloat(cols[9], 64)
+			left, errL := strconv.ParseFloat(string(cols[6]), 64)
+			top, errT := strconv.ParseFloat(string(cols[7]), 64)
+			w, errW := strconv.ParseFloat(string(cols[8]), 64)
+			h, errH := strconv.ParseFloat(string(cols[9]), 64)
 			if errL != nil || errT != nil || errW != nil || errH != nil {
 				continue
 			}

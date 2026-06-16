@@ -18,12 +18,14 @@ We ran a benchmark simulating Zerodha's exact weighted workload:
 
 | Metric                    | Zerodha (Production Cluster)   | gopdflib (Single Node)   |
 | :------------------------ | :----------------------------- | :----------------------- |
-| **Throughput**            | **~1,000 PDFs/sec**            | **~585 PDFs/sec** (Mean) |
-| **Max Throughput**        | N/A                            | **637 PDFs/sec** (Peak)  |
+| **Throughput (peak)**     | **~1,000 PDFs/sec**            | **2,953 PDFs/sec** (30-run peak, Jun 14 2026) |
+| **Throughput (avg)**      | N/A                            | **2,646 PDFs/sec** (30-run mean, same session) |
 | **Infrastructure**        | **~40 Machines** (Distributed) | **1 Machine** (24 vCPUs) |
-| **Efficiency (Per Core)** | ~1.6 PDFs/sec/core             | **~24.4 PDFs/sec/core**  |
-| **Latency (Avg)**         | N/A                            | **~80 ms**               |
-| **Time for 1.5M PDFs**    | 25 Minutes (40 nodes)          | **~43 Minutes** (1 node) |
+| **Efficiency (Per Core)** | ~1.6 PDFs/sec/core             | **~110 PDFs/sec/core** (at 2,646 avg) |
+| **Latency (Avg)**         | N/A                            | **~18 ms** (ECDSA, PDF/UA-2) |
+| **Time for 1.5M PDFs**    | 25 Minutes (40 nodes)          | **~9.4 min** (avg) / **~8.5 min** (peak) |
+
+> **Historical:** Go 1.24-era runs reported **~586 PDFs/sec** mean / **637** peak. Current branch with `GeneratePDFBorrowed`, HFT fast path, and PDF/UA-2 TD hierarchy is **4×+** faster on the same hardware class.
 
 ## 💰 Cost Analysis
 
@@ -45,8 +47,10 @@ By moving from a heavy distributed architecture (CLI-based Typst/LaTeX) to a pur
 
 - **gopdflib Benchmark (Weighted Mix):**
   - Scenario: Real-world mix of small, medium, and massive (2000+ row) PDFs.
-  - Result: **585+ PDFs/sec** on a single 24-core machine.
-  - Scaling: To match 1,000 PDFs/sec, we need `1000 / 585 = 1.7` machines. (Rounding up to **2 machines**).
+  - Result (2026-06-14): **2,646 PDFs/sec** (30-run avg), peak **2,953 PDFs/sec** on a single 24-core machine — **exceeds** the Zerodha cluster rate on one node.
+  - Historical best (2026-06-13, idle): peak **3,604** / avg **2,787** ops/s.
+  - Prior (2026-06-11): **2,459 PDFs/sec** (2-run avg).
+  - Scaling: One node at **2,646 ops/s avg** (peak **2,953**) ≈ **2.6–3.0×** the 1,000 PDFs/sec cluster target.
 
 ## ⚡ Why is gopdflib so fast?
 

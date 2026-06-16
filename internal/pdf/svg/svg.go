@@ -4,10 +4,20 @@ package svg
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"strconv"
 	"strings"
 )
+
+var floatBuf [64]byte
+
+func writeFloats(b *bytes.Buffer, prec int, nums ...float64) {
+	for i, n := range nums {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		b.Write(strconv.AppendFloat(floatBuf[:0], n, 'f', prec, 64))
+	}
+}
 
 // SVG support for converting simple vector graphics to PDF commands
 
@@ -77,7 +87,10 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	// [  0   1   1 ]
 	// M = [1/w 0 0 -1/h 0 1]
 
-	fmt.Fprintf(&b, "%.6f 0 0 %.6f 0 1 cm\n", 1.0/width, -1.0/height)
+	b.Write(strconv.AppendFloat(floatBuf[:0], 1.0/width, 'f', 6, 64))
+	b.WriteString(" 0 0 ")
+	b.Write(strconv.AppendFloat(floatBuf[:0], -1.0/height, 'f', 6, 64))
+	b.WriteString(" 0 1 cm\n")
 
 	// State tracking
 	inDefs := 0
@@ -85,6 +98,8 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 
 	// Iterate children
 	decoder := xml.NewDecoder(bytes.NewReader(data))
+
+	attrs := make(map[string]string, 4)
 	for {
 		t, err := decoder.Token()
 		if err != nil {
@@ -107,7 +122,7 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 			if se.Name.Local == "g" {
 				b.WriteString("q\n")
 
-				attrs := make(map[string]string)
+				clear(attrs)
 				for _, a := range se.Attr {
 					attrs[a.Name.Local] = a.Value
 				}
@@ -121,13 +136,15 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 				if fill, ok := attrs["fill"]; ok {
 					r, g, bVal, ok := parseColor(fill)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f rg\n", r, g, bVal)
+						writeFloats(&b, 3, r, g, bVal)
+						b.WriteString(" rg\n")
 					}
 				}
 				if stroke, ok := attrs["stroke"]; ok {
 					r, g, bVal, ok := parseColor(stroke)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f RG\n", r, g, bVal)
+						writeFloats(&b, 3, r, g, bVal)
+						b.WriteString(" RG\n")
 					}
 				}
 			}
@@ -164,7 +181,9 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 
 						// Apply use-specific transform/translation
 						if x != 0 || y != 0 {
-							b.WriteString(fmt.Sprintf("1 0 0 1 %.6f %.6f cm\n", x, -y))
+							b.WriteString("1 0 0 1 ")
+							writeFloats(&b, 6, x, -y)
+							b.WriteString(" cm\n")
 						}
 						if transform != "" {
 							applyTransform(&b, transform) // Note: height might be irrelevant for purely relative transforms but needed for coordinate flip
@@ -202,7 +221,7 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 }
 
 func processElement(b *bytes.Buffer, se xml.StartElement) {
-	attrs := make(map[string]string)
+	attrs := make(map[string]string, 4)
 	for _, a := range se.Attr {
 		attrs[a.Name.Local] = a.Value
 	}
@@ -215,10 +234,10 @@ func processElement(b *bytes.Buffer, se xml.StartElement) {
 			if part == "" {
 				continue
 			}
-			kv := strings.SplitN(part, ":", 2)
-			if len(kv) == 2 {
-				k := strings.TrimSpace(kv[0])
-				v := strings.TrimSpace(kv[1])
+			k, v, ok := strings.Cut(part, ":")
+			if ok {
+				k = strings.TrimSpace(k)
+				v = strings.TrimSpace(v)
 				attrs[k] = v
 			}
 		}
@@ -249,22 +268,41 @@ func applyTransform(b *bytes.Buffer, t string) {
 			if len(args) >= 2 {
 				tx, _ := strconv.ParseFloat(args[0], 64)
 				ty, _ := strconv.ParseFloat(args[1], 64)
-				fmt.Fprintf(b, "1 0 0 1 %.2f %.2f cm\n", tx, ty)
+				b.WriteString("1 0 0 1 ")
+				writeFloats(b, 2, tx, ty)
+				b.WriteString(" cm\n")
 			}
 		case strings.HasPrefix(parts[i], "scale("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 2 {
 				sx, _ := strconv.ParseFloat(args[0], 64)
 				sy, _ := strconv.ParseFloat(args[1], 64)
-				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", sx, sy)
+				writeFloats(b, 4, sx)
+				b.WriteString(" 0 0 ")
+				writeFloats(b, 4, sy)
+				b.WriteString(" 0 0 cm\n")
 			} else if len(args) == 1 {
 				s, _ := strconv.ParseFloat(args[0], 64)
-				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", s, s)
+				writeFloats(b, 4, s)
+				b.WriteString(" 0 0 ")
+				writeFloats(b, 4, s)
+				b.WriteString(" 0 0 cm\n")
 			}
 		case strings.HasPrefix(parts[i], "matrix("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 6 {
-				fmt.Fprintf(b, "%s %s %s %s %s %s cm\n", args[0], args[1], args[2], args[3], args[4], args[5])
+				b.WriteString(args[0])
+				b.WriteByte(' ')
+				b.WriteString(args[1])
+				b.WriteByte(' ')
+				b.WriteString(args[2])
+				b.WriteByte(' ')
+				b.WriteString(args[3])
+				b.WriteByte(' ')
+				b.WriteString(args[4])
+				b.WriteByte(' ')
+				b.WriteString(args[5])
+				b.WriteString(" cm\n")
 			}
 		}
 	}
@@ -379,7 +417,8 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 
 	// Apply styles
 	if r, g, blue, ok := parseColor(stroke); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f RG\n", r, g, blue)
+		writeFloats(b, 2, r, g, blue)
+		b.WriteString(" RG\n")
 	}
 
 	// SVG default: fill is black if not specified, NOT transparent
@@ -387,19 +426,21 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 	if fill == "" {
 		// Default fill is black per SVG spec
 		fill = "black"
-		fmt.Fprintf(b, "0.00 0.00 0.00 rg\n") // Black fill
+		b.WriteString("0.00 0.00 0.00 rg\n") // Black fill
 	} else if fill == "none" || fill == "transparent" {
 		// Explicit no fill - keep as "none" for drawOp logic
 		fill = "none"
 	} else if r, g, blue, ok := parseColor(fill); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f rg\n", r, g, blue)
+		writeFloats(b, 2, r, g, blue)
+		b.WriteString(" rg\n")
 	} else {
 		// Unknown fill value - default to black
 		fill = "black"
-		fmt.Fprintf(b, "0.00 0.00 0.00 rg\n")
+		b.WriteString("0.00 0.00 0.00 rg\n")
 	}
 
-	fmt.Fprintf(b, "%.2f w\n", sw)
+	writeFloats(b, 2, sw)
+	b.WriteString(" w\n")
 
 	switch name {
 	case "rect":
@@ -407,7 +448,8 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y := parseDimension(attrs["y"])
 		w := parseDimension(attrs["width"])
 		h := parseDimension(attrs["height"])
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f re\n", x, y, w, h)
+		writeFloats(b, 2, x, y, w, h)
+		b.WriteString(" re\n")
 		drawOp(b, fill, stroke)
 
 	case "line":
@@ -415,7 +457,10 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y1 := parseDimension(attrs["y1"])
 		x2 := parseDimension(attrs["x2"])
 		y2 := parseDimension(attrs["y2"])
-		fmt.Fprintf(b, "%.2f %.2f m %.2f %.2f l\n", x1, y1, x2, y2)
+		writeFloats(b, 2, x1, y1)
+		b.WriteString(" m ")
+		writeFloats(b, 2, x2, y2)
+		b.WriteString(" l\n")
 		b.WriteString("S\n")
 
 	case "circle":
@@ -424,11 +469,16 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		r := parseDimension(attrs["r"])
 		magic := 0.551784
 		d := r * magic
-		fmt.Fprintf(b, "%.2f %.2f m\n", cx, cy-r)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx+d, cy-r, cx+r, cy-d, cx+r, cy)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx+r, cy+d, cx+d, cy+r, cx, cy+r)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx-d, cy+r, cx-r, cy+d, cx-r, cy)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx-r, cy-d, cx-d, cy-r, cx, cy-r)
+		writeFloats(b, 2, cx, cy-r)
+		b.WriteString(" m\n")
+		writeFloats(b, 2, cx+d, cy-r, cx+r, cy-d, cx+r, cy)
+		b.WriteString(" c\n")
+		writeFloats(b, 2, cx+r, cy+d, cx+d, cy+r, cx, cy+r)
+		b.WriteString(" c\n")
+		writeFloats(b, 2, cx-d, cy+r, cx-r, cy+d, cx-r, cy)
+		b.WriteString(" c\n")
+		writeFloats(b, 2, cx-r, cy-d, cx-d, cy-r, cx, cy-r)
+		b.WriteString(" c\n")
 		drawOp(b, fill, stroke)
 
 	case "path":
@@ -474,7 +524,8 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f m ", x, y)
+			writeFloats(b, 2, x, y)
+			b.WriteString(" m ")
 			cx, cy = x, y
 		case "m":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
@@ -483,14 +534,16 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			cx += dx
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f m ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" m ")
 
 		case "L":
 			x, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f l ", x, y)
+			writeFloats(b, 2, x, y)
+			b.WriteString(" l ")
 			cx, cy = x, y
 		case "l":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
@@ -499,29 +552,34 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			cx += dx
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
 		case "H":
 			x, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cx = x
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 		case "h":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cx += dx
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy) // Treat z inside h case? No, separate case.
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
 		case "V":
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cy = y
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 		case "v":
 			dy, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
 		case "C":
 			x1, _ := strconv.ParseFloat(tokens[i], 64)
@@ -536,7 +594,8 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", x1, y1, x2, y2, x, y)
+			writeFloats(b, 2, x1, y1, x2, y2, x, y)
+			b.WriteString(" c ")
 			cx, cy = x, y
 
 		case "c":
@@ -552,7 +611,8 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			dy, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cx+dx1, cy+dy1, cx+dx2, cy+dy2, cx+dx, cy+dy)
+			writeFloats(b, 2, cx+dx1, cy+dy1, cx+dx2, cy+dy2, cx+dx, cy+dy)
+			b.WriteString(" c ")
 			cx += dx
 			cy += dy
 
@@ -576,7 +636,8 @@ func parsePathData(b *bytes.Buffer, d string) {
 			cp2x := x + k*(x1-x)
 			cp2y := y + k*(y1-y)
 
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cp1x, cp1y, cp2x, cp2y, x, y)
+			writeFloats(b, 2, cp1x, cp1y, cp2x, cp2y, x, y)
+			b.WriteString(" c ")
 			cx, cy = x, y
 
 		case "q":
@@ -601,7 +662,8 @@ func parsePathData(b *bytes.Buffer, d string) {
 			cp2x := absX + k*(absX1-absX)
 			cp2y := absY + k*(absY1-absY)
 
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cp1x, cp1y, cp2x, cp2y, absX, absY)
+			writeFloats(b, 2, cp1x, cp1y, cp2x, cp2y, absX, absY)
+			b.WriteString(" c ")
 			cx, cy = absX, absY
 
 		case "Z", "z":

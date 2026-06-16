@@ -11,8 +11,8 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
 
 var (
@@ -757,7 +757,7 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}
 		gen := objGenNum(objGen, objNum)
 		origBody, ok := originalMap[objNum]
-		if !ok || !bytes.Equal(origBody, body) {
+		if !ok || len(origBody) != len(body) || !bytes.Equal(origBody, body) {
 			changed = append(changed, objMeta{id: objNum, gen: gen})
 		}
 	}
@@ -795,6 +795,7 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		gen    int
 	}, len(changed))
 
+	var objHeader [32]byte
 	for _, obj := range changed {
 		offsetByObject[obj.id] = struct {
 			offset int
@@ -802,7 +803,11 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}{offset: out.Len(), gen: obj.gen}
 
 		body := objMap[obj.id]
-		fmt.Fprintf(&out, "%d %d obj\n", obj.id, obj.gen)
+		header := strconv.AppendInt(objHeader[:0], int64(obj.id), 10)
+		header = append(header, ' ')
+		header = strconv.AppendInt(header, int64(obj.gen), 10)
+		header = append(header, ' ', 'o', 'b', 'j', '\n')
+		out.Write(header)
 		out.Write(body)
 		if !bytes.HasSuffix(body, []byte("\n")) {
 			out.WriteByte('\n')
@@ -832,7 +837,7 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		out.WriteString(fmt.Sprintf("%d %d\n", start, len(block)))
 		for _, id := range block {
 			entry := offsetByObject[id]
-			out.WriteString(fmt.Sprintf("%010d %05d n \n", entry.offset, entry.gen))
+			out.Write(xrefEntryBytes(entry.offset, entry.gen))
 		}
 	}
 
@@ -855,6 +860,30 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 	fmt.Fprintf(&out, "trailer\n<< /Size %d /Root %s R /Prev %d%s >>\nstartxref\n%d\n%%%%EOF\n", maxID+1, rootRefStr, prevStartXRef, trailerIDPart, xrefStart)
 
 	return out.Bytes(), nil
+}
+
+func xrefEntryBytes(offset, gen int) []byte {
+	var buf [20]byte
+	pos := 9
+	off := offset
+	for i := 0; i < 10; i++ {
+		buf[pos] = byte('0' + off%10)
+		off /= 10
+		pos--
+	}
+	buf[10] = ' '
+	pos = 15
+	g := gen
+	for i := 0; i < 5; i++ {
+		buf[pos] = byte('0' + g%10)
+		g /= 10
+		pos--
+	}
+	buf[16] = ' '
+	buf[17] = 'n'
+	buf[18] = ' '
+	buf[19] = '\n'
+	return buf[:]
 }
 
 func extractPrimaryTrailerID(pdfBytes []byte) string {

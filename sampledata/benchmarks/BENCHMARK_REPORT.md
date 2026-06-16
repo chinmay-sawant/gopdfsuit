@@ -53,8 +53,22 @@ This earlier benchmark mode drives a weighted 80/15/5 mix of retail, active-trad
 
 | Runtime | Workers | Throughput | Avg | Min | Max | Retail/Active/HFT |
 |---|---:|---:|---:|---:|---:|---:|
-| GoPDFLib | 48 | 1913.13 ops/sec | 24.558 ms | 2.280 ms | 505.087 ms | 4004 / 766 / 230 |
+| **GoPDFLib** (2026-06-14, 30-run) | 48 | peak **2953** / avg **2646** ops/sec | 17.67 ms | — | 726.15 ms | 4000 / 750 / 250 |
+| GoPDFLib (2026-06-11) | 48 | 1913.13 ops/sec | 24.558 ms | 2.280 ms | 505.087 ms | 4004 / 766 / 230 |
 | PyPDFSuit | 48 | 233.76 ops/sec | 185.517 ms | 2.657 ms | 3516.474 ms | 4015 / 767 / 218 |
+
+## k6 HTTP weighted workload — gopdfsuit vs Gotenberg (2026-06-13)
+
+48 VUs × 35s, `tagged_ecdsa`, back-to-back on WSL2 (i7-13700HX). Gotenberg: `gotenberg/gotenberg:8`, Chromium concurrency 6, `skipNetworkIdleEvent=true`.
+
+| Runtime | Harness | Peak | Latest avg | http med | http p99 | PDF/A + signing |
+|---|---|---:|---:|---:|---:|---|
+| **gopdfsuit** | `make bench-k6` | **859 req/s** | **825 req/s** (5-run) | 16.0 ms | 347 ms | Yes |
+| **Gotenberg** | `make bench-gotenberg` | — | **10.3 req/s** | 4.26 s | 8.22 s | No (HTML render) |
+
+**Finding:** gopdfsuit is **~70×** faster than Gotenberg on the equivalent weighted contract-note workload. Gotenberg throughput is limited by ~4 s per Chromium conversion and a 6-worker cap per container.
+
+Artifacts: `guides/cursor/baselines/gin_pprof_runs/k6_gin_20260613_215040.txt`, `guides/cursor/baselines/gotenberg_runs/k6_gotenberg_20260613_215127.txt`
 
 ## Commands Used
 

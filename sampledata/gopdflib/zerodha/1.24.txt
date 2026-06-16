@@ -1,7 +1,7 @@
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -35,7 +35,7 @@ Saved: zerodha_hft_output.pdf (2444649 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -69,7 +69,7 @@ Saved: zerodha_hft_output.pdf (2444649 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -103,7 +103,7 @@ Saved: zerodha_hft_output.pdf (2444649 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -137,7 +137,7 @@ Saved: zerodha_active_output.pdf (75543 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -171,7 +171,7 @@ Saved: zerodha_hft_output.pdf (2444649 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -205,7 +205,7 @@ Saved: zerodha_hft_output.pdf (2444649 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -239,7 +239,7 @@ Saved: zerodha_retail_output.pdf (60001 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -273,7 +273,7 @@ Saved: zerodha_hft_output.pdf (2444649 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -307,7 +307,7 @@ Saved: zerodha_hft_output.pdf (2444649 bytes)
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.24.0
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...

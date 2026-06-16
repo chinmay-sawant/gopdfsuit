@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/redact"
-	"github.com/chinmay-sawant/gopdfsuit/v5/typstsyntax"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/redact"
+	"github.com/chinmay-sawant/gopdfsuit/v6/typstsyntax"
 )
 
 func TestTypstMathStress_RenderToContentStream(t *testing.T) {

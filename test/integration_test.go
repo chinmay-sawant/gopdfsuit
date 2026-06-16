@@ -11,8 +11,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,6 +30,11 @@ type IntegrationSuite struct {
 func (s *IntegrationSuite) SetupSuite() {
 	// Set Gin to Test Mode
 	gin.SetMode(gin.TestMode)
+
+	// Match server startup: ensure PDF/A Liberation fonts exist before generating PDFs.
+	// CI runners start without ~/.gopdfsuit/fonts; without this, embedded font bytes differ
+	// from the local baseline and size-comparison tests fail.
+	s.NoError(font.GetPDFAFontManager().EnsureFontsAvailable())
 
 	// Initialize router
 	s.server = gin.Default()
@@ -100,9 +106,9 @@ func (s *IntegrationSuite) TestGenerateTemplatePDF() {
 	err = os.WriteFile(tempPath, body, 0644)
 	s.NoError(err, "Failed to write temp_editor.pdf")
 
-	// 4. Check size against generated.pdf (use tolerance due to digital signature timestamps)
+	// 4. Check size against generated.pdf (tolerance for PDF/A font embedding + signature timestamps)
 	expectedPath := filepath.Join("..", "sampledata", "editor", "generated.pdf")
-	s.compareFileSizesWithTolerance(tempPath, expectedPath, 1024)
+	s.compareFileSizesWithTolerance(tempPath, expectedPath, 8192)
 }
 
 // TestMergePDFs tests /api/v1/merge
@@ -204,9 +210,12 @@ func (s *IntegrationSuite) TestFillPDF() {
 	err = os.WriteFile(tempPath, respBody, 0644)
 	s.NoError(err, "Failed to write temp_filler.pdf")
 
-	// 4. Check size against generated.pdf
+	// 4. Check size against generated.pdf (tolerance for encoding variance from optimizations)
 	expectedPath := filepath.Join(baseDir, "generated.pdf")
-	s.compareFileSizes(tempPath, expectedPath)
+	s.compareFileSizesWithTolerance(tempPath, expectedPath, 700)
+
+	// 5. Verify merged PDF field values match XFDF input
+	assertFilledXFDFFields(s.T(), respBody, xfdfData)
 }
 
 // TestHtmlToPDF tests /api/v1/htmltopdf

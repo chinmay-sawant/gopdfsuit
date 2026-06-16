@@ -2,6 +2,7 @@
 package benchmarktemplates
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
 const (
@@ -86,9 +87,6 @@ func RunSingleDocumentBenchmark(name string) error {
 		sem <- struct{}{}
 		wg.Add(1)
 		go func(idx int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
 			start := time.Now()
 			if _, genErr := gopdflib.GeneratePDF(template); genErr == nil {
 				elapsedMs := float64(time.Since(start).Nanoseconds()) / 1_000_000
@@ -98,6 +96,8 @@ func RunSingleDocumentBenchmark(name string) error {
 				ops.Add(1)
 				fmt.Printf("Run %d: %.2f ms\n", idx, elapsedMs)
 			}
+			wg.Done()
+			<-sem
 		}(runIndex)
 	}
 	wg.Wait()
@@ -107,7 +107,7 @@ func RunSingleDocumentBenchmark(name string) error {
 	memWg.Wait()
 
 	if len(durations) == 0 {
-		return fmt.Errorf("no successful runs")
+		return errors.New("no successful runs")
 	}
 
 	sort.Float64s(durations)

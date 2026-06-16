@@ -2,6 +2,7 @@ package merge
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -9,10 +10,11 @@ import (
 
 // MergePDFs merges multiple PDF files into one
 // It properly handles form fields, widgets, appearance streams, and various PDF versions
+//
 //nolint:revive // exported
 func MergePDFs(files [][]byte) ([]byte, error) {
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no PDF files provided")
+		return nil, errors.New("no PDF files provided")
 	}
 
 	ctx := NewMergeContext()
@@ -21,7 +23,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	var fileContexts []*FileContext
 	for _, f := range files {
 		if hasEncrypt(f) {
-			return nil, fmt.Errorf("cannot merge encrypted PDF")
+			return nil, errors.New("cannot merge encrypted PDF")
 		}
 
 		fc := parseFile(f)
@@ -39,7 +41,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	}
 
 	if len(fileContexts) == 0 {
-		return nil, fmt.Errorf("no valid PDF files to merge")
+		return nil, errors.New("no valid PDF files to merge")
 	}
 
 	// Write PDF header
@@ -411,12 +413,12 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
 			xrefBuf = xrefBuf[:0]
-			// Format as 10-digit zero-padded number
-			offStr := strconv.FormatInt(int64(off), 10)
-			for j := 0; j < 10-len(offStr); j++ {
+			var offScratch [20]byte
+			digits := strconv.AppendInt(offScratch[:0], int64(off), 10)
+			for j := 0; j < 10-len(digits); j++ {
 				xrefBuf = append(xrefBuf, '0')
 			}
-			xrefBuf = append(xrefBuf, offStr...)
+			xrefBuf = append(xrefBuf, digits...)
 			xrefBuf = append(xrefBuf, " 00000 n\r\n"...)
 			out.Write(xrefBuf)
 		} else {

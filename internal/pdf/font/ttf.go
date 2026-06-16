@@ -60,7 +60,7 @@ type TableEntry struct {
 func LoadTTFFromFile(path string) (*TTFFont, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read font file: %w", err)
+		return nil, errors.New("failed to read font file: " + err.Error())
 	}
 	return ParseTTF(data)
 }
@@ -518,6 +518,7 @@ func (f *TTFFont) parseCmapFormat12(data []byte, offset uint32) error {
 }
 
 // parseName parses the 'name' table for font names
+//
 //nolint:gocyclo
 func (f *TTFFont) parseName(data []byte) error {
 	table, ok := f.Tables["name"]

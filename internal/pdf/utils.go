@@ -4,12 +4,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode"
 	"unsafe"
 
 	"unicode/utf8"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
 // hexNibble maps ASCII byte to hex value (0-15). 0xFF = invalid.
@@ -80,7 +81,18 @@ func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 }
 
 // propsCache memoizes parseProps results since the same prop strings are parsed repeatedly.
-var propsCache sync.Map // string -> models.Props
+const maxPropsCacheEntries = 8192
+
+var (
+	propsCache      sync.Map // string -> models.Props
+	propsCacheCount atomic.Int64
+)
+
+// ClearPropsCache drops all cached prop parses (tests / memory pressure).
+func ClearPropsCache() {
+	propsCache.Clear()
+	propsCacheCount.Store(0)
+}
 
 func parseProps(props string) models.Props {
 	// Fast path: check cache
@@ -158,7 +170,11 @@ func parseProps(props string) models.Props {
 		Borders:   borders,
 	}
 
-	// Cache for future calls
+	// Cache for future calls, with bounded size to avoid unbounded growth.
+	if propsCacheCount.Add(1) > maxPropsCacheEntries {
+		ClearPropsCache()
+		propsCacheCount.Store(1)
+	}
 	propsCache.Store(props, result)
 	return result
 }
@@ -220,6 +236,10 @@ func getFontReference(props models.Props, registry *CustomFontRegistry) string {
 	// Resolve usage to actual font name (handling fallbacks)
 	actualFontName := resolveFontName(props, registry)
 
+	return getFontReferenceByResolvedName(actualFontName, registry)
+}
+
+func getFontReferenceByResolvedName(actualFontName string, registry *CustomFontRegistry) string {
 	// If resolved font is custom (including PDF/A substitution), use it
 	if registry.HasFont(actualFontName) {
 		ref := registry.GetFontReference(actualFontName)

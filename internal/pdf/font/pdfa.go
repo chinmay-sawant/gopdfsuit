@@ -3,6 +3,7 @@ package font
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -162,16 +163,19 @@ func (m *PDFAFontManager) EnsureFontsAvailable() error {
 		if m.lastEnsureErr != nil {
 			return m.lastEnsureErr
 		}
-		return fmt.Errorf("liberation fonts are still unavailable")
+		return errors.New("liberation fonts are still unavailable")
 	}
 
 	if !m.config.AutoDownload {
 		m.ensureAttempted = true
-		m.lastEnsureErr = fmt.Errorf("liberation fonts not found. Please install them or enable auto-download.\n"+
-			"On Ubuntu/Debian: sudo apt-get install fonts-liberation\n"+
-			"On Fedora: sudo dnf install liberation-fonts\n"+
-			"On macOS: brew install font-liberation\n"+
-			"Or place TTF files in: %s", m.config.FontsDirectory)
+		var errBuf strings.Builder
+		errBuf.WriteString("liberation fonts not found. Please install them or enable auto-download.\n")
+		errBuf.WriteString("On Ubuntu/Debian: sudo apt-get install fonts-liberation\n")
+		errBuf.WriteString("On Fedora: sudo dnf install liberation-fonts\n")
+		errBuf.WriteString("On macOS: brew install font-liberation\n")
+		errBuf.WriteString("Or place TTF files in: ")
+		errBuf.WriteString(m.config.FontsDirectory)
+		m.lastEnsureErr = errors.New(errBuf.String())
 		return m.lastEnsureErr
 	}
 
@@ -337,7 +341,7 @@ func (m *PDFAFontManager) GetLiberationFont(standardFontName string) (*TTFFont, 
 	// Find fonts directory
 	fontsDir := m.findFontsDirectory()
 	if fontsDir == "" {
-		return nil, fmt.Errorf("liberation fonts not found. Run EnsureFontsAvailable() first")
+		return nil, errors.New("liberation fonts not found. Run EnsureFontsAvailable() first")
 	}
 
 	// Load the font

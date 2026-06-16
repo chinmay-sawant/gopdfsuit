@@ -57,7 +57,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 		t.Fatalf("expected status 200, got %d, body=%s", w.Code, w.Body.String())
 	}
 
-	if ct := w.Header().Get("Content-Type"); ct != "application/pdf" {
+	if ct := w.Header().Get("Content-Type"); ct != mimeTypePDF {
 		t.Fatalf("expected application/pdf response, got %q", ct)
 	}
 

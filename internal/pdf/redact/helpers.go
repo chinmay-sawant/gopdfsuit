@@ -10,8 +10,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
+
+var encryptBytes = []byte("/Encrypt")
+var wBytes = []byte("/W[")
+var indexBytes = []byte("/Index")
+var streamRe = regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+var objStartRe = regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
 
 // bytesIndex is a helper to find a subsequence in a []byte
 func bytesIndex(b, sub []byte) int {
@@ -22,11 +28,11 @@ func bytesIndex(b, sub []byte) int {
 func trailerHasEncrypt(data []byte) bool {
 	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
 	for _, m := range trRe.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], []byte(`/Encrypt`)) >= 0 {
+		if bytesIndex(m[1], encryptBytes) >= 0 {
 			return true
 		}
 	}
-	return bytesIndex(data, []byte(`/Encrypt`)) >= 0
+	return bytesIndex(data, encryptBytes) >= 0
 }
 
 // tryZlibDecompress attempts to decompress zlib data
@@ -124,10 +130,9 @@ func parseXRefStreams(data []byte, objMap map[int][]byte, objGen map[int]int) {
 			bodyEnd--
 		}
 		body := data[b.BodyStart:bodyEnd]
-		if bytesIndex(body, []byte(`/W[`)) < 0 || bytesIndex(body, []byte(`/Index`)) < 0 {
+		if bytesIndex(body, wBytes) < 0 || bytesIndex(body, indexBytes) < 0 {
 			continue
 		}
-		streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
 		sm := streamRe.FindSubmatch(body)
 		if sm == nil {
 			continue
@@ -161,7 +166,7 @@ func parseXRefStreams(data []byte, objMap map[int][]byte, objGen map[int]int) {
 					if endPos == -1 {
 						continue
 					}
-					objStartRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
+
 					loc := objStartRe.FindSubmatchIndex(data[off:endPos])
 					if loc == nil {
 						continue

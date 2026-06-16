@@ -49,13 +49,26 @@ func TestXFDFFillSample(t *testing.T) {
 	// }
 	// _ = os.WriteFile("filled_sample_advanced.pdf", out, 0644)
 
-	// Test original filling for comparison
-	out2, err := FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	out, err := FillPDFWithXFDF(pdfBytes, xfdfBytes)
 	if err != nil {
 		t.Fatalf("fill: %v", err)
 	}
-	if len(out2) == 0 {
+	if len(out) == 0 {
 		t.Fatalf("output empty")
 	}
-	_ = os.WriteFile("../../../sampledata/oldata/pdf+xfdf/filled_sample.pdf", out2, 0644)
+	_ = os.WriteFile("../../../sampledata/oldata/pdf+xfdf/filled_sample.pdf", out, 0644)
+
+	expected, err := ParseXFDF(xfdfBytes)
+	if err != nil {
+		t.Fatalf("parse xfdf: %v", err)
+	}
+	filled, err := DetectFormFieldsAdvanced(out)
+	if err != nil {
+		t.Fatalf("detect filled fields: %v", err)
+	}
+	for name, want := range expected {
+		if got := filled[name]; got != want {
+			t.Errorf("field %q: got %q want %q", name, got, want)
+		}
+	}
 }

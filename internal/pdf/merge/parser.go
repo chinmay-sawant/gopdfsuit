@@ -51,7 +51,7 @@ func CompareVersions(v1, v2 string) int {
 
 // FindObjectBoundaries finds all PDF objects in the data
 func FindObjectBoundaries(data []byte) []ObjectBoundary {
-	var results []ObjectBoundary
+	var results = make([]ObjectBoundary, 0, len(data)/200)
 	objStartRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
 
 	pos := 0

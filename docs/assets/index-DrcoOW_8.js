@@ -7470,11 +7470,11 @@ go mod download
 make run`}},{id:"gopdflib-install",title:"Install gopdflib Package",description:"Use gopdflib as a standalone Go library in your own projects.",content:`The [gopdflib](https://github.com/chinmay-sawant/gopdfsuit/tree/master/pkg/gopdflib) package allows you to generate PDFs programmatically without running the web server.
 View detailed sample data and examples [here](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/gopdflib).
 
-Import the package in your Go code to access all PDF generation features.`,code:{bash:"go get github.com/chinmay-sawant/gopdfsuit/v5@v5.0.0",go:`package main
+Import the package in your Go code to access all PDF generation features.`,code:{bash:"go get github.com/chinmay-sawant/gopdfsuit/v6@v6.0.0",go:`package main
 
 import (
     "fmt"
-    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
 func main() {
@@ -7492,7 +7492,7 @@ import (
     "encoding/json"
     "fmt"
     "os"
-    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
 func main() {
@@ -7530,7 +7530,7 @@ import (
     "fmt"
     "os"
     "time"
-    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
 func main() {
@@ -7628,7 +7628,7 @@ func buildFinancialReportTemplate() gopdflib.PDFTemplate {
 
 import (
     "os"
-    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
 func main() {
@@ -7782,7 +7782,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
 func main() {

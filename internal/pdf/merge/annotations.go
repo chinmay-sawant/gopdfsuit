@@ -6,6 +6,12 @@ import (
 	"strconv"
 )
 
+var (
+	depsRefRe       = regexp.MustCompile(`(\d+)\s+\d+\s+R`)
+	depsApRe        = regexp.MustCompile(`(?s)/AP\s*<<(.+?)>>`)
+	depsResourcesRe = regexp.MustCompile(`(?s)/Resources\s*<<(.+?)>>`)
+)
+
 // Annotation and form field handling for PDF merge
 
 // ExtractAnnotationsFromPage extracts annotation object references from a page object
@@ -287,16 +293,13 @@ func CollectAllDependencies(widgetNum int, objMap map[int][]byte) []int {
 
 // collectDepsRecursive recursively collects dependencies
 func collectDepsRecursive(body []byte, objMap map[int][]byte, deps *[]int, seen map[int]bool) {
-	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
-
 	// Only look in /AP dictionary to avoid false positives
-	apRe := regexp.MustCompile(`(?s)/AP\s*<<(.+?)>>`)
-	apMatch := apRe.FindSubmatch(body)
+	apMatch := depsApRe.FindSubmatch(body)
 	if apMatch == nil {
 		return
 	}
 
-	for _, ref := range refRe.FindAllSubmatch(apMatch[1], -1) {
+	for _, ref := range depsRefRe.FindAllSubmatch(apMatch[1], -1) {
 		num, err := strconv.Atoi(string(ref[1]))
 		if err != nil || seen[num] {
 			continue
@@ -307,9 +310,8 @@ func collectDepsRecursive(body []byte, objMap map[int][]byte, deps *[]int, seen 
 		// Recursively check this object (for nested resources)
 		if objBody, exists := objMap[num]; exists {
 			// For XObjects, also look at /Resources
-			resourcesRe := regexp.MustCompile(`(?s)/Resources\s*<<(.+?)>>`)
-			if resMatch := resourcesRe.FindSubmatch(objBody); resMatch != nil {
-				for _, nestedRef := range refRe.FindAllSubmatch(resMatch[1], -1) {
+			if resMatch := depsResourcesRe.FindSubmatch(objBody); resMatch != nil {
+				for _, nestedRef := range depsRefRe.FindAllSubmatch(resMatch[1], -1) {
 					nestedNum, err := strconv.Atoi(string(nestedRef[1]))
 					if err != nil || seen[nestedNum] {
 						continue

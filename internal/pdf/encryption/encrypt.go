@@ -8,10 +8,12 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
+	"unsafe"
 
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
 // PDFEncryption handles PDF document encryption using AES-128 (V=4, R=4)
@@ -35,7 +37,7 @@ var paddingBytes = []byte{
 // NewPDFEncryption creates a new encryption handler with AES-128
 func NewPDFEncryption(config *models.SecurityConfig, documentID []byte) (*PDFEncryption, error) {
 	if config == nil || config.OwnerPassword == "" {
-		return nil, fmt.Errorf("owner password is required for encryption")
+		return nil, errors.New("owner password is required for encryption")
 	}
 
 	enc := &PDFEncryption{
@@ -59,14 +61,13 @@ func NewPDFEncryption(config *models.SecurityConfig, documentID []byte) (*PDFEnc
 
 // padPassword pads or truncates password to 32 bytes
 func padPassword(password string) []byte {
-	pwd := []byte(password)
-	if len(pwd) >= 32 {
-		return pwd[:32]
+	if len(password) >= 32 {
+		return unsafe.Slice(unsafe.StringData(password), 32)
 	}
 	// Pad with standard padding bytes
 	result := make([]byte, 32)
-	copy(result, pwd)
-	copy(result[len(pwd):], paddingBytes[:32-len(pwd)])
+	copy(result, password)
+	copy(result[len(password):], paddingBytes[:32-len(password)])
 	return result
 }
 
@@ -95,8 +96,8 @@ func (enc *PDFEncryption) computeOwnerHash(userPassword, ownerPassword string) [
 	copy(result, userPwd)
 
 	// For R=4, we do 20 iterations with modified key
+	modifiedKey := make([]byte, len(key))
 	for i := 0; i <= 19; i++ {
-		modifiedKey := make([]byte, len(key))
 		for j := range key {
 			modifiedKey[j] = key[j] ^ byte(i)
 		}
@@ -150,8 +151,8 @@ func (enc *PDFEncryption) computeUserHash() []byte {
 	result := rc4Encrypt(enc.EncryptionKey, hash)
 
 	// Step 3: For R=4, do 19 additional iterations with modified key
+	modifiedKey := make([]byte, len(enc.EncryptionKey))
 	for i := 1; i <= 19; i++ {
-		modifiedKey := make([]byte, len(enc.EncryptionKey))
 		for j := range enc.EncryptionKey {
 			modifiedKey[j] = enc.EncryptionKey[j] ^ byte(i)
 		}
@@ -318,11 +319,15 @@ func (enc *PDFEncryption) GetEncryptDictionary(_ int) string {
 	dict.WriteString(" /CF << /StdCF << /Type /CryptFilter /CFM /AESV2 /Length 16 >> >>")
 
 	// Permission flags
-	dict.WriteString(fmt.Sprintf(" /P %d", enc.Permissions))
+	fmt.Fprintf(&dict, " /P %d", enc.Permissions)
 
 	// Password hashes (hex encoded)
-	dict.WriteString(fmt.Sprintf(" /U <%s>", hex.EncodeToString(enc.UserPasswordHash)))
-	dict.WriteString(fmt.Sprintf(" /O <%s>", hex.EncodeToString(enc.OwnerPasswordHash)))
+	dict.WriteString(" /U <")
+	dict.WriteString(hex.EncodeToString(enc.UserPasswordHash))
+	dict.WriteString(">")
+	dict.WriteString(" /O <")
+	dict.WriteString(hex.EncodeToString(enc.OwnerPasswordHash))
+	dict.WriteString(">")
 
 	// Encrypt metadata flag
 	dict.WriteString(" /EncryptMetadata true")
@@ -350,5 +355,5 @@ func GenerateDocumentID(data []byte) []byte {
 // FormatDocumentID formats the document ID for PDF trailer
 func FormatDocumentID(id []byte) string {
 	hexID := hex.EncodeToString(id)
-	return fmt.Sprintf("[<%s> <%s>]", hexID, hexID)
+	return "[<" + hexID + "> <" + hexID + ">]"
 }
