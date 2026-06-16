@@ -20,18 +20,6 @@ func benchDataWorkers() int {
 	return envInt("BENCH_WORKERS", defaultDataWorkers)
 }
 
-func benchZerodhaIterations() int {
-	return envInt("BENCH_ITERATIONS", defaultZerodhaIters)
-}
-
-func benchZerodhaWorkers() int {
-	return envInt("BENCH_WORKERS", numWorkersFromEnv())
-}
-
-func numWorkersFromEnv() int {
-	return envInt("BENCH_WORKERS", defaultDataWorkers)
-}
-
 func benchQuiet() bool {
 	return os.Getenv("BENCH_QUIET") == "1"
 }
