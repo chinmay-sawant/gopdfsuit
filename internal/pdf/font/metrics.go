@@ -2,9 +2,11 @@ package font
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math"
 	"sort"
 	"strings"
+	"sync"
 
 	"strconv"
 
@@ -13,6 +15,13 @@ import (
 
 // hexDigits is a lookup table for fast hex encoding, avoiding fmt.Sprintf("%04X") per character.
 const hexDigits = "0123456789ABCDEF"
+
+type compressedFontDataKey struct {
+	hash uint64
+	size int
+}
+
+var compressedFontDataCache sync.Map
 
 // PDF 2.0 compliant font definitions for the standard 14 fonts
 // These include FirstChar, LastChar, Widths, and FontDescriptor as required by Arlington Model
@@ -655,20 +664,7 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 		fontData = font.SubsetData
 	}
 
-	// Compress font data using pooled zlib writer
-	compressedBuf := GetCompressBuffer()
-	zlibWriter := GetZlibWriter(compressedBuf)
-	if _, err := zlibWriter.Write(fontData); err != nil {
-		_ = zlibWriter.Close()
-		PutZlibWriter(zlibWriter)
-		CompressBufPool.Put(compressedBuf)
-		return objects
-	}
-	_ = zlibWriter.Close()
-	PutZlibWriter(zlibWriter)
-	compressedData := compressedBuf.Bytes()
-
-	// Encrypt if needed
+	compressedData := compressedFontData(fontData)
 	if encryptor != nil {
 		compressedData = encryptor.EncryptStream(compressedData, font.FontFileID, 0)
 	}
@@ -683,7 +679,6 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	fontFileBuf.Write(compressedData)
 	fontFileBuf.WriteString("\nendstream")
 	objects[font.FontFileID] = fontFileBuf.String()
-	CompressBufPool.Put(compressedBuf)
 
 	// Generate CID widths array
 	widthsStr := generateCIDWidths(font)
@@ -705,6 +700,35 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	objects[font.ObjectID] = generateType0FontDict(font)
 
 	return objects
+}
+
+func compressedFontData(fontData []byte) []byte {
+	key := compressedFontDataKey{hash: hashFontData(fontData), size: len(fontData)}
+	if cached, ok := compressedFontDataCache.Load(key); ok {
+		return cached.([]byte)
+	}
+	compressedBuf := GetCompressBuffer()
+	zlibWriter := GetZlibWriter(compressedBuf)
+	if _, err := zlibWriter.Write(fontData); err != nil {
+		_ = zlibWriter.Close()
+		PutZlibWriter(zlibWriter)
+		CompressBufPool.Put(compressedBuf)
+		return nil
+	}
+	_ = zlibWriter.Close()
+	PutZlibWriter(zlibWriter)
+	compressedData := append([]byte(nil), compressedBuf.Bytes()...)
+	CompressBufPool.Put(compressedBuf)
+	if existing, loaded := compressedFontDataCache.LoadOrStore(key, compressedData); loaded {
+		return existing.([]byte)
+	}
+	return compressedData
+}
+
+func hashFontData(fontData []byte) uint64 {
+	h := fnv.New64a()
+	_, _ = h.Write(fontData)
+	return h.Sum64()
 }
 
 // generateType0FontDict generates the Type 0 (composite) font dictionary

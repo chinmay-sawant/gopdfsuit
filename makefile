@@ -110,7 +110,7 @@ K6_DIR := test/generate_template-pdf
 	bench-k6 bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \
 	bench-k6-smoke bench-k6-spike bench-k6-soak bench-k6-install \
 	bench-gotenberg bench-gotenberg-load bench-gotenberg-smoke bench-gotenberg-start \
-	bench-gopdflib-zerodha bench-gopdflib-zerodha-x2 bench-gopdflib-zerodha-x5 bench-gopdflib-zerodha-x10 \
+	bench-gopdflib-zerodha bench-gopdflib-zerodha-x2 bench-gopdflib-zerodha-x5 bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x10-pprof \
 	bench-gopdflib-data bench-gopdflib-data-pprof \
 	bench-gopdfsuit-zerodha bench-pypdfsuit-zerodha bench-pypdfsuit-zerodha-x2 bench-pypdfsuit-legacy \
 	bench-fpdf bench-jspdf bench-pdfkit-lib bench-pdflib bench-typst bench-all-libraries \
@@ -152,6 +152,7 @@ bench-help:
 	@echo "    make bench-gopdflib-zerodha-x2"
 	@echo "    make bench-gopdflib-zerodha-x5   # 5 runs + CPU/heap pprof"
 	@echo "    make bench-gopdflib-zerodha-x10  # 10 sequential timing runs"
+	@echo "    make bench-gopdflib-zerodha-x10-pprof # x10 timing + CPU/heap pprof"
 	@echo "    make bench-pypdfsuit-zerodha"
 	@echo "    make bench-pypdfsuit-zerodha-x2"
 	@echo ""
@@ -265,6 +266,8 @@ bench-gopdflib-zerodha-x5:
 
 bench-gopdflib-zerodha-x10:
 	bash $(ZERODHA_DIR)/run_bench_x10.sh
+
+bench-gopdflib-zerodha-x10-pprof: bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x5
 
 # ── GoPDFLib data-table (tabular workload) ───────────────────────────────────
 

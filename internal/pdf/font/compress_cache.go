@@ -2,6 +2,7 @@ package font
 
 import (
 	"bytes"
+	"hash/adler32"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -15,6 +16,7 @@ type pageCompressEntry struct {
 }
 
 const maxPageCompressCacheEntries = 2048
+const maxFingerprintCachedContentLen = 32 * 1024
 
 func maxEntriesPerShard() int64 {
 	per := int64(maxPageCompressCacheEntries / compressShardCount)
@@ -50,21 +52,15 @@ func compressShardIndex(fp uint64) int {
 }
 
 func pageContentFingerprint(raw []byte) (uint64, int) {
-	const (
-		offset64 = 14695981039346656037
-		prime64  = 1099511628211
-	)
-	h := uint64(offset64)
-	for _, b := range raw {
-		h ^= uint64(b)
-		h *= prime64
-	}
-	return h, len(raw)
+	return uint64(adler32.Checksum(raw)), len(raw)
 }
 
 // CompressContentStreamCached zlib-compresses page bytes, reusing prior results for
 // identical content streams (G2: HFT pages repeat across benchmark iterations).
 func CompressContentStreamCached(raw []byte) (compressed *bytes.Buffer, useFlate bool) {
+	if len(raw) > maxFingerprintCachedContentLen {
+		return CompressContentStream(raw)
+	}
 	fp, rawLen := pageContentFingerprint(raw)
 	shard := &compressShards[compressShardIndex(fp)]
 	if v, ok := shard.entries.Load(fp); ok {

@@ -6,30 +6,54 @@ import (
 	"sync"
 )
 
-var pageContentStreamPool = sync.Pool{
-	New: func() any {
-		return new(bytes.Buffer)
-	},
+const maxPooledPageContentStreamCap = 256 * 1024
+
+var pageContentStreamPools = [...]struct {
+	capacity int
+	pool     sync.Pool
+}{
+	{capacity: 64 * 1024},
+	{capacity: 128 * 1024},
+	{capacity: 256 * 1024},
 }
 
 func getPageContentStreamBuffer(initialCap int) *bytes.Buffer {
-	buf := pageContentStreamPool.Get().(*bytes.Buffer)
+	bucket := pageContentStreamBucket(initialCap)
+	pooled := pageContentStreamPools[bucket].pool.Get()
+	if pooled == nil {
+		pooled = new(bytes.Buffer)
+	}
+	buf := pooled.(*bytes.Buffer)
 	buf.Reset()
+	targetCap := pageContentStreamPools[bucket].capacity
+	if buf.Cap() < targetCap {
+		buf.Grow(targetCap - buf.Cap())
+	}
+	return buf
+}
+
+func pageContentStreamBucket(initialCap int) int {
 	if initialCap < 64*1024 {
 		initialCap = 64 * 1024
 	}
-	if cap(buf.Bytes()) < initialCap {
-		buf.Grow(initialCap)
+	for i, bucket := range pageContentStreamPools {
+		if initialCap <= bucket.capacity {
+			return i
+		}
 	}
-	return buf
+	return len(pageContentStreamPools) - 1
 }
 
 func putPageContentStreamBuffer(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
+	if buf.Cap() > maxPooledPageContentStreamCap {
+		return
+	}
+	bucket := pageContentStreamBucket(buf.Cap())
 	buf.Reset()
-	pageContentStreamPool.Put(buf)
+	pageContentStreamPools[bucket].pool.Put(buf)
 }
 
 // PageManager handles multi-page document generation

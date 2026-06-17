@@ -6,11 +6,16 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 )
+
+var compressedSRGBICCProfileCache = sync.OnceValue(func() []byte {
+	return compressSRGBICCProfile()
+})
 
 // PDFAHandler handles PDF/A compliance features, including metadata and color profiles.
 //
@@ -303,23 +308,13 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	iccData := getSRGBICCProfile()
 	sb.Grow(512 + len(iccData))
 
-	// Compress the ICC profile with zlib (FlateDecode)
-	compressedBuf := font.GetCompressBuffer()
-	zlibWriter := font.GetZlibWriter(compressedBuf)
-	if _, err := zlibWriter.Write(iccData); err != nil {
-		_ = zlibWriter.Close()
-		font.PutZlibWriter(zlibWriter)
-		font.PutCompressBuffer(compressedBuf)
-		return 0, nil, nil
-	}
-	_ = zlibWriter.Close()
-	font.PutZlibWriter(zlibWriter)
-	compressedData := make([]byte, compressedBuf.Len())
-	copy(compressedData, compressedBuf.Bytes())
-	font.PutCompressBuffer(compressedBuf)
-
-	// Encrypt compressed ICC profile stream if needed
-	if h.encryptor != nil {
+	var compressedData []byte
+	if h.encryptor == nil {
+		compressedData = compressedSRGBICCProfileCache()
+	} else {
+		// Encrypt compressed ICC profile stream if needed. The encrypted bytes are
+		// object-ID dependent, so only the unencrypted payload can be cached.
+		compressedData = compressSRGBICCProfile()
 		compressedData = h.encryptor.EncryptStream(compressedData, h.iccProfileObjID, 0)
 	}
 
@@ -369,6 +364,24 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	objects = append(objects, sb.String())
 
 	return h.outputIntentObjID, objects, compressedData
+}
+
+func compressSRGBICCProfile() []byte {
+	iccData := getSRGBICCProfile()
+	compressedBuf := font.GetCompressBuffer()
+	zlibWriter := font.GetZlibWriter(compressedBuf)
+	if _, err := zlibWriter.Write(iccData); err != nil {
+		_ = zlibWriter.Close()
+		font.PutZlibWriter(zlibWriter)
+		font.PutCompressBuffer(compressedBuf)
+		return nil
+	}
+	_ = zlibWriter.Close()
+	font.PutZlibWriter(zlibWriter)
+	compressedData := make([]byte, compressedBuf.Len())
+	copy(compressedData, compressedBuf.Bytes())
+	font.PutCompressBuffer(compressedBuf)
+	return compressedData
 }
 
 // GetMetadataObjID returns the metadata object ID

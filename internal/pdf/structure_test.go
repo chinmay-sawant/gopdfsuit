@@ -65,8 +65,8 @@ func TestBeginMarkedContentBufWithMCID_createsTDUnderTR(t *testing.T) {
 		if kid.Elem == nil || kid.Elem.Type != StructTD {
 			t.Fatalf("kid %d: expected TD struct element, got %+v", i, kid)
 		}
-		if len(kid.Elem.Kids) != 1 || kid.Elem.Kids[0].MCID != base+i {
-			t.Fatalf("kid %d: expected MCID on TD, got %+v", i, kid.Elem.Kids)
+		if mcid, ok := kid.Elem.LeafMCID(); !ok || mcid != base+i {
+			t.Fatalf("kid %d: expected MCID on TD, got kids=%+v inline=(%d,%v)", i, kid.Elem.Kids, kid.Elem.MCID, kid.Elem.HasMCID)
 		}
 	}
 }

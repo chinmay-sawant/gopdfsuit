@@ -263,6 +263,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// Build signature value dictionary
 	var sigValueDict strings.Builder
+	sigValueDict.Grow(17000)
 	sigValueDict.WriteString("<< /Type /Sig")
 	sigValueDict.WriteString(" /Filter /Adobe.PPKLite")
 	sigValueDict.WriteString(" /SubFilter /adbe.pkcs7.detached")
@@ -274,7 +275,9 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	// Contents placeholder - hex-encoded PKCS#7 signature
 	// Reserve space for signature (8192 bytes = 16384 hex chars)
 	sigValueDict.WriteString(" /Contents <")
-	sigValueDict.WriteString(strings.Repeat("0", 16384))
+	for range 16384 {
+		sigValueDict.WriteByte('0')
+	}
 	sigValueDict.WriteString(">")
 
 	if s.config.Reason != "" {
@@ -309,15 +312,13 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	if len(tzMinsStr) == 1 {
 		tzMinsStr = "0" + tzMinsStr
 	}
-	var timeBuf strings.Builder
-	timeBuf.WriteString(" /M (D:")
-	timeBuf.WriteString(now.Format("20060102150405"))
-	timeBuf.WriteString(tzSign)
-	timeBuf.WriteString(tzHoursStr)
-	timeBuf.WriteByte('\'')
-	timeBuf.WriteString(tzMinsStr)
-	timeBuf.WriteString("')")
-	sigValueDict.WriteString(timeBuf.String())
+	sigValueDict.WriteString(" /M (D:")
+	sigValueDict.WriteString(now.Format("20060102150405"))
+	sigValueDict.WriteString(tzSign)
+	sigValueDict.WriteString(tzHoursStr)
+	sigValueDict.WriteByte('\'')
+	sigValueDict.WriteString(tzMinsStr)
+	sigValueDict.WriteString("')")
 
 	sigValueDict.WriteString(" >>")
 
@@ -328,6 +329,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	ids.SigAnnotID = sigAnnotID
 
 	var annotDict strings.Builder
+	annotDict.Grow(512)
 	annotDict.WriteString("<< /Type /Annot /Subtype /Widget")
 	annotDict.WriteString(" /FT /Sig")
 	annotDict.WriteString(" /T (Signature1)")
@@ -790,13 +792,18 @@ func embedSignatureInPlace(pdfData []byte, signer *PDFSigner, sp signaturePlacem
 		return fmt.Errorf("failed to sign PDF: %w", err)
 	}
 
-	sigHex := strings.ToUpper(hex.EncodeToString(signature))
-	if len(sigHex) > 16384 {
-		return fmt.Errorf("signature too large: %d bytes (max 8192)", len(sigHex)/2)
+	contents := pdfData[sp.contentsStart:sp.contentsEnd]
+	if len(signature)*2 > len(contents) {
+		return fmt.Errorf("signature too large: %d bytes (max %d)", len(signature), len(contents)/2)
 	}
-	if pad := 16384 - len(sigHex); pad > 0 {
-		sigHex += strings.Repeat("0", pad)
+	hex.Encode(contents[:len(signature)*2], signature)
+	for i := 0; i < len(signature)*2; i++ {
+		if contents[i] >= 'a' && contents[i] <= 'f' {
+			contents[i] -= 'a' - 'A'
+		}
 	}
-	copy(pdfData[sp.contentsStart:sp.contentsEnd], sigHex)
+	for i := len(signature) * 2; i < len(contents); i++ {
+		contents[i] = '0'
+	}
 	return nil
 }

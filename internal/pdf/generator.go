@@ -46,17 +46,30 @@ func (d *BorrowedPDF) Release() {
 	if d == nil || d.buf == nil {
 		return
 	}
-	pdfBufferPool.Put(d.buf)
+	putPDFBuffer(d.buf)
 	d.buf = nil
 }
 
 // pdfBufferPool reuses bytes.Buffer across PDF generations to reduce GC pressure.
+const maxPooledPDFBufferCap = 2 * 1024 * 1024
+
 var pdfBufferPool = sync.Pool{
 	New: func() any {
 		buf := new(bytes.Buffer)
 		buf.Grow(256 * 1024) // 256KB initial capacity reduces final assembly growth for multi-page PDFs.
 		return buf
 	},
+}
+
+func putPDFBuffer(buf *bytes.Buffer) {
+	if buf == nil {
+		return
+	}
+	if buf.Cap() > maxPooledPDFBufferCap {
+		return
+	}
+	buf.Reset()
+	pdfBufferPool.Put(buf)
 }
 
 // pageCompressSlots limits concurrent per-page zlib compression (C4: reduces flate.NewWriter churn).
@@ -142,7 +155,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	ensurePDFBufferCapacity(pdfBuffer, estimateTemplatePDFBufferSize(template))
 	defer func() {
 		if err != nil {
-			pdfBufferPool.Put(pdfBuffer)
+			putPDFBuffer(pdfBuffer)
 		}
 	}()
 
@@ -319,7 +332,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjects, cellImageObjectIDs, elemImageObjects)
-	ensurePDFBufferCapacity(pdfBuffer, estimateFinalPDFSize(pageManager, imageDeduper.uniqueObjectCount()))
+	finalEstimate := estimateFinalPDFSize(pageManager, imageDeduper.uniqueObjectCount())
+	ensurePDFBufferCapacity(pdfBuffer, finalEstimate)
+	logPDFCapacityDebug("post-content", template, pdfBuffer, finalEstimate, pageManager)
 
 	// Generate font subsets MOVED to after signature generation to ensure signature chars are included
 
@@ -1474,7 +1489,14 @@ func writeStructElemByte(w structElemObjectWriter, b byte) {
 }
 
 func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx structElemFormatCtx) {
-	w.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
+	if formatSingleMCIDTableCellStructElem(w, elem, ctx) {
+		return
+	}
+	kidCount := len(elem.Kids)
+	if elem.HasMCID {
+		kidCount++
+	}
+	w.Grow(128 + kidCount*16 + len(elem.Title) + len(elem.Alt))
 	var scratch [24]byte
 	writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.ObjectID), 10))
 	writeStructElemString(w, " 0 obj\n<< /Type /StructElem /S /")
@@ -1511,7 +1533,7 @@ func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx st
 		writeStructElemByte(w, ')')
 	}
 
-	if len(elem.Kids) > 0 || elem.Type == StructLink {
+	if kidCount > 0 || elem.Type == StructLink {
 		writeStructElemString(w, " /K [")
 
 		if elem.Type == StructLink {
@@ -1527,6 +1549,11 @@ func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx st
 		}
 
 		var mcidScratch [16]byte
+		if elem.HasMCID {
+			writeStructElemByte(w, ' ')
+			mcid := strconv.AppendInt(mcidScratch[:0], int64(elem.MCID), 10)
+			writeStructElemBytes(w, mcid)
+		}
 		for _, kid := range elem.Kids {
 			if kid.Elem != nil {
 				appendObjRefToWriter(w, kid.Elem.ObjectID)
@@ -1547,6 +1574,39 @@ func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx st
 	}
 
 	writeStructElemString(w, " >>\nendobj\n")
+}
+
+func formatSingleMCIDTableCellStructElem(w structElemObjectWriter, elem *StructElem, ctx structElemFormatCtx) bool {
+	if elem == nil || len(elem.Kids) != 0 || !elem.HasMCID {
+		return false
+	}
+	if elem.Type != StructTD && elem.Type != StructTH {
+		return false
+	}
+	if elem.Title != "" || elem.Alt != "" || elem.Parent == nil {
+		return false
+	}
+	w.Grow(96)
+	var scratch [24]byte
+	writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.ObjectID), 10))
+	writeStructElemString(w, " 0 obj\n<< /Type /StructElem /S /")
+	writeStructElemString(w, string(elem.Type))
+	writeStructElemString(w, " /P ")
+	if elem.Parent == ctx.root {
+		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(ctx.structTreeRootID), 10))
+	} else {
+		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.Parent.ObjectID), 10))
+	}
+	writeStructElemString(w, " 0 R /K [ ")
+	writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.MCID), 10))
+	writeStructElemString(w, " ]")
+	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
+		writeStructElemString(w, " /Pg ")
+		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(ctx.pages[elem.PageID]), 10))
+		writeStructElemString(w, " 0 R")
+	}
+	writeStructElemString(w, " >>\nendobj\n")
+	return true
 }
 
 func appendObjRefToWriter(w structElemObjectWriter, objID int) {
@@ -1619,28 +1679,26 @@ func ensurePDFBufferCapacity(pdfBuffer *bytes.Buffer, want int) {
 }
 
 func estimateFinalPDFSize(pageManager *PageManager, uniqueImageObjects int) int {
-	estimate := 256 * 1024 // header, catalog, xref, trailer slack
-	estimate += len(pageManager.Pages) * 2048
-	estimate += len(pageManager.ExtraObjects) * 512
+	estimate := 96 * 1024 // header, catalog, xref, trailer slack
+	estimate += len(pageManager.Pages) * 1024
+	estimate += len(pageManager.ExtraObjects) * 256
 	estimate += uniqueImageObjects * 2048
 	for _, stream := range pageManager.ContentStreams {
 		if stream == nil {
 			continue
 		}
 		rawLen := stream.Len()
-		// F2: pessimistic upper bound — store-uncompressed pages are rawLen; compressed ~35%.
-		compressedEst := rawLen * 2 / 5
-		if rawLen > compressedEst {
+		if rawLen < 4*1024 {
 			estimate += rawLen + 512
 		} else {
-			estimate += compressedEst + 512
+			estimate += rawLen/2 + 512
 		}
 	}
 	for _, extra := range pageManager.ExtraObjects {
 		estimate += len(extra) + 128
 	}
 	if sm := pageManager.Structure; sm != nil && sm.Enabled {
-		estimate += len(sm.Elements) * 160
+		estimate += len(sm.Elements) * 96
 	}
 	return estimate
 }
@@ -1649,7 +1707,7 @@ func estimateInitialContentStreamCap(template models.PDFTemplate) int {
 	const (
 		minCap       = 64 * 1024
 		retailMaxCap = 128 * 1024
-		pageCap      = 256 * 1024
+		pageCap      = 128 * 1024
 	)
 
 	maxRows := 0
@@ -1687,7 +1745,7 @@ func estimateInitialContentStreamCap(template models.PDFTemplate) int {
 	}
 	if maxRows > 40 {
 		rowsPerPage := 40
-		perPage := rowsPerPage * maxCols * 512
+		perPage := rowsPerPage * maxCols * 192
 		if perPage > score {
 			score = perPage
 		}
@@ -1700,6 +1758,46 @@ func estimateInitialContentStreamCap(template models.PDFTemplate) int {
 		return retailMaxCap
 	}
 	return score
+}
+
+func logPDFCapacityDebug(stage string, template models.PDFTemplate, pdfBuffer *bytes.Buffer, estimate int, pageManager *PageManager) {
+	if os.Getenv("BENCH_DEBUG_CAPS") == "" {
+		return
+	}
+	streamLen := 0
+	streamCap := 0
+	pages := 0
+	if pageManager != nil {
+		pages = len(pageManager.Pages)
+		for _, stream := range pageManager.ContentStreams {
+			if stream == nil {
+				continue
+			}
+			streamLen += stream.Len()
+			streamCap += stream.Cap()
+		}
+	}
+	tier := "retail"
+	for _, elem := range template.Elements {
+		if elem.Table != nil && len(elem.Table.Rows) > 1000 {
+			tier = "hft"
+			break
+		}
+		if elem.Table != nil && len(elem.Table.Rows) > 40 {
+			tier = "active"
+		}
+	}
+	fmt.Fprintf(os.Stderr,
+		"pdf-cap stage=%s tier=%s estimate=%d len=%d cap=%d pages=%d stream_len=%d stream_cap=%d\n",
+		stage,
+		tier,
+		estimate,
+		pdfBuffer.Len(),
+		pdfBuffer.Cap(),
+		pages,
+		streamLen,
+		streamCap,
+	)
 }
 
 func estimateTemplatePDFBufferSize(template models.PDFTemplate) int {

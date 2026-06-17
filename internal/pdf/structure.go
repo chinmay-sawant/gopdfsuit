@@ -74,10 +74,25 @@ type StructElem struct {
 	Alt        string
 	Lang       string
 	Kids       []StructKid
+	MCID       int
+	HasMCID    bool
 	Parent     *StructElem
 	ObjectID   int // Assigned when writing to PDF
 	PageID     int // Reference to the page object ID where this element appears
 	AnnotObjID int // Annotation object ID for Link elements
+}
+
+func (elem *StructElem) LeafMCID() (int, bool) {
+	if elem == nil {
+		return 0, false
+	}
+	if elem.HasMCID {
+		return elem.MCID, true
+	}
+	if len(elem.Kids) == 1 && elem.Kids[0].Elem == nil {
+		return elem.Kids[0].MCID, true
+	}
+	return 0, false
 }
 
 // StructureManager handles the creation and management of the PDF structure tree
@@ -168,6 +183,26 @@ func releaseStructKids(kids []StructKid) {
 	structKidsSlicePool.Put(&kids)
 }
 
+func resetStructElemForPool(elem *StructElem) {
+	if elem == nil {
+		return
+	}
+	if len(elem.Kids) > 0 {
+		releaseStructKids(elem.Kids)
+	}
+	elem.Type = ""
+	elem.Title = ""
+	elem.Alt = ""
+	elem.Lang = ""
+	elem.Kids = nil
+	elem.MCID = 0
+	elem.HasMCID = false
+	elem.Parent = nil
+	elem.ObjectID = 0
+	elem.PageID = 0
+	elem.AnnotObjID = 0
+}
+
 func (sm *StructureManager) acquireStructElem() *StructElem {
 	if !sm.Enabled {
 		return &StructElem{}
@@ -192,14 +227,13 @@ func (sm *StructureManager) ReleaseStructElemsToPool() {
 		if elem == nil || elem == sm.Root {
 			continue
 		}
-		releaseStructKids(elem.Kids)
-		*elem = StructElem{}
+		resetStructElemForPool(elem)
 		structElemPool.Put(elem)
 	}
 	sm.Elements = []*StructElem{sm.Root}
 	sm.NextMCID = sm.NextMCID[:0]
 	sm.ParentTree = sm.ParentTree[:0]
-	sm.StructParents = make(map[int]int)
+	clear(sm.StructParents)
 	sm.LinkElements = nil
 }
 
@@ -285,7 +319,6 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	elem.Type = tag
 	elem.Parent = sm.CurrentParent
 	elem.PageID = pageIndex
-	elem.Kids = acquireStructKids(1)
 
 	if val, ok := props["Title"]; ok {
 		elem.Title = val
@@ -313,7 +346,8 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	// The Kid is an integer MCID, but it also needs to reference the page
 	// In the actual PDF structure, this is represented slightly differently,
 	// but for our internal representation:
-	elem.Kids = append(elem.Kids, StructKid{MCID: mcid})
+	elem.MCID = mcid
+	elem.HasMCID = true
 
 	// Write BMC/BDC operator — direct writes, no intermediate allocation
 	var intBuf [12]byte
@@ -362,7 +396,6 @@ func (sm *StructureManager) beginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	elem.Type = tag
 	elem.Parent = sm.CurrentParent
 	elem.PageID = pageIndex
-	elem.Kids = acquireStructKids(1)
 
 	if val, ok := props["Title"]; ok {
 		elem.Title = val
@@ -388,7 +421,8 @@ func (sm *StructureManager) beginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
 
 	// 5. Add KID for MCID
-	elem.Kids = append(elem.Kids, StructKid{MCID: mcid})
+	elem.MCID = mcid
+	elem.HasMCID = true
 
 	// Write BDC operator directly to bytes.Buffer
 	var intBuf [12]byte

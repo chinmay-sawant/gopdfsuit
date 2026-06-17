@@ -272,6 +272,7 @@ func drawSharedDeferRow(
 	rowResolvedFonts []string,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
+	batchMCIDCells bool,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
 	currentX := pageManager.Margins.Left
@@ -287,9 +288,13 @@ func drawSharedDeferRow(
 		cellX := currentX
 		currentX += cellWidth
 
-		pageManager.Structure.BeginMarkedContentBufWithMCID(
-			contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx,
-		)
+		if batchMCIDCells {
+			pageManager.Structure.WriteCellMarkedContentBDC(contentStream, StructTD, rowMCIDBase+colIdx)
+		} else {
+			pageManager.Structure.BeginMarkedContentBufWithMCID(
+				contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx,
+			)
+		}
 
 		if cell.BgColor != "" {
 			if r, g, b, _, valid := parseHexColor(cell.BgColor); valid {
@@ -339,7 +344,11 @@ func drawSharedDeferRow(
 			contentStream.Write(textTjBuf)
 		}
 
-		pageManager.Structure.EndMarkedContentBuf(contentStream)
+		if batchMCIDCells {
+			pageManager.Structure.EndCellMarkedContentBuf(contentStream)
+		} else {
+			pageManager.Structure.EndMarkedContentBuf(contentStream)
+		}
 	}
 
 	if borderW, uniform := sharedColsUniformBorder(sharedCols); uniform {
@@ -380,11 +389,12 @@ func drawSharedLayoutRow(
 	cellCount := min(len(row.Row), maxColumns)
 	pageManager.Structure.BeginStructureElementCap(StructTR, cellCount)
 	rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+	pageManager.Structure.AttachRowMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
 		rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
-		maxColumns,
+		maxColumns, true,
 	)
 	pageManager.Structure.EndStructureElement()
 	pageManager.CurrentYPos -= rowHeight
@@ -1320,11 +1330,12 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
 
 		if fastRow && len(sharedCols) > 0 {
+			pageManager.Structure.AttachRowMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
 			drawSharedDeferRow(
 				contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 				scratchBuf, textTjBuf, borderBuf,
 				rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
-				table.MaxColumns,
+				table.MaxColumns, true,
 			)
 			pageManager.Structure.EndStructureElement()
 			pageManager.CurrentYPos -= rowHeight
