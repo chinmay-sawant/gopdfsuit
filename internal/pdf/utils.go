@@ -521,6 +521,21 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 	return ws.lines
 }
 
+// cloneWrapLines copies wrapped line slices so they remain valid after the next WrapTextInto call.
+func cloneWrapLines(lines [][]byte) [][]byte {
+	if len(lines) == 0 {
+		return nil
+	}
+	out := make([][]byte, len(lines))
+	for i, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		out[i] = append([]byte(nil), line...)
+	}
+	return out
+}
+
 // wrapLongWordInto breaks a single word that's too long into multiple lines using ws.wordBuf.
 func wrapLongWordInto(ws *WrapState, word, resolvedFontName string, fontSize, maxWidth float64, registry *CustomFontRegistry) {
 	ws.wordBuf = append(ws.wordBuf[:0], word...)

@@ -1,0 +1,105 @@
+--- run 1/5 ---
+cd sampledata/benchmarks/fpdf && python3 bench.py
+=== FPDF2 Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 4197.11 ms
+Run 2: 4286.30 ms
+Run 3: 4257.98 ms
+Run 4: 4042.50 ms
+Run 5: 4520.30 ms
+Run 6: 4063.04 ms
+Run 7: 4444.20 ms
+Run 8: 4249.78 ms
+Run 9: 4096.97 ms
+Run 10: 4266.75 ms
+
+Min: 4042.50 ms
+Avg: 4242.49 ms
+P95: 4520.30 ms
+Max: 4520.30 ms
+Throughput: 2.20 ops/sec
+
+--- run 2/5 ---
+cd sampledata/benchmarks/fpdf && python3 bench.py
+=== FPDF2 Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 4025.72 ms
+Run 2: 4251.20 ms
+Run 3: 4546.24 ms
+Run 4: 4463.70 ms
+Run 5: 4177.58 ms
+Run 6: 4505.38 ms
+Run 7: 4113.71 ms
+Run 8: 4425.94 ms
+Run 9: 4197.73 ms
+Run 10: 4186.05 ms
+
+Min: 4025.72 ms
+Avg: 4289.33 ms
+P95: 4546.24 ms
+Max: 4546.24 ms
+Throughput: 2.19 ops/sec
+
+--- run 3/5 ---
+cd sampledata/benchmarks/fpdf && python3 bench.py
+=== FPDF2 Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 4399.82 ms
+Run 2: 4308.11 ms
+Run 3: 4254.06 ms
+Run 4: 4273.91 ms
+Run 5: 4099.62 ms
+Run 6: 4119.22 ms
+Run 7: 4139.03 ms
+Run 8: 4497.87 ms
+Run 9: 4407.37 ms
+Run 10: 4705.34 ms
+
+Min: 4099.62 ms
+Avg: 4320.44 ms
+P95: 4705.34 ms
+Max: 4705.34 ms
+Throughput: 2.11 ops/sec
+
+--- run 4/5 ---
+cd sampledata/benchmarks/fpdf && python3 bench.py
+=== FPDF2 Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 4434.31 ms
+Run 2: 4583.20 ms
+Run 3: 4370.34 ms
+Run 4: 4503.32 ms
+Run 5: 4403.55 ms
+Run 6: 4059.14 ms
+Run 7: 4664.57 ms
+Run 8: 4277.71 ms
+Run 9: 4411.56 ms
+Run 10: 4106.54 ms
+
+Min: 4059.14 ms
+Avg: 4381.42 ms
+P95: 4664.57 ms
+Max: 4664.57 ms
+Throughput: 2.13 ops/sec
+
+--- run 5/5 ---
+cd sampledata/benchmarks/fpdf && python3 bench.py
+=== FPDF2 Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 4192.37 ms
+Run 2: 4383.24 ms
+Run 3: 4451.83 ms
+Run 4: 4370.33 ms
+Run 5: 4198.00 ms
+Run 6: 4384.99 ms
+Run 7: 4316.28 ms
+Run 8: 4318.35 ms
+Run 9: 4241.61 ms
+Run 10: 4236.05 ms
+
+Min: 4192.37 ms
+Avg: 4309.30 ms
+P95: 4451.83 ms
+Max: 4451.83 ms
+Throughput: 2.24 ops/sec
+

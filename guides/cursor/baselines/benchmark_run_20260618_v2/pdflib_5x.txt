@@ -1,0 +1,110 @@
+--- run 1/5 ---
+cd sampledata/benchmarks/pdflib && node bench.js
+=== pdf-lib Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1313.20 ms
+Run 2: 1394.97 ms
+Run 3: 1316.55 ms
+Run 4: 1302.07 ms
+Run 5: 1392.27 ms
+Run 6: 1304.23 ms
+Run 7: 1288.19 ms
+Run 8: 1503.59 ms
+Run 9: 1431.67 ms
+Run 10: 1503.16 ms
+
+Min:        1288.19 ms
+Avg:        1374.99 ms
+P95:        1503.59 ms
+Max:        1503.59 ms
+Throughput: 5.77 ops/sec
+PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A natively)
+
+--- run 2/5 ---
+cd sampledata/benchmarks/pdflib && node bench.js
+=== pdf-lib Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1533.06 ms
+Run 2: 1344.61 ms
+Run 3: 1387.03 ms
+Run 4: 1372.55 ms
+Run 5: 1410.09 ms
+Run 6: 1408.06 ms
+Run 7: 1384.93 ms
+Run 8: 1337.51 ms
+Run 9: 1295.79 ms
+Run 10: 1399.43 ms
+
+Min:        1295.79 ms
+Avg:        1387.31 ms
+P95:        1533.06 ms
+Max:        1533.06 ms
+Throughput: 5.99 ops/sec
+PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A natively)
+
+--- run 3/5 ---
+cd sampledata/benchmarks/pdflib && node bench.js
+=== pdf-lib Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1523.88 ms
+Run 2: 1434.25 ms
+Run 3: 1414.60 ms
+Run 4: 1482.59 ms
+Run 5: 1486.10 ms
+Run 6: 1361.50 ms
+Run 7: 1332.79 ms
+Run 8: 1451.57 ms
+Run 9: 1610.70 ms
+Run 10: 1487.03 ms
+
+Min:        1332.79 ms
+Avg:        1458.50 ms
+P95:        1610.70 ms
+Max:        1610.70 ms
+Throughput: 5.42 ops/sec
+PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A natively)
+
+--- run 4/5 ---
+cd sampledata/benchmarks/pdflib && node bench.js
+=== pdf-lib Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1458.16 ms
+Run 2: 1677.20 ms
+Run 3: 1704.35 ms
+Run 4: 1396.65 ms
+Run 5: 1733.21 ms
+Run 6: 1410.00 ms
+Run 7: 1602.22 ms
+Run 8: 1545.90 ms
+Run 9: 1568.35 ms
+Run 10: 1403.81 ms
+
+Min:        1396.65 ms
+Avg:        1549.98 ms
+P95:        1733.21 ms
+Max:        1733.21 ms
+Throughput: 5.29 ops/sec
+PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A natively)
+
+--- run 5/5 ---
+cd sampledata/benchmarks/pdflib && node bench.js
+=== pdf-lib Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1528.17 ms
+Run 2: 1361.01 ms
+Run 3: 1712.24 ms
+Run 4: 1467.40 ms
+Run 5: 1534.63 ms
+Run 6: 1635.83 ms
+Run 7: 1451.88 ms
+Run 8: 1511.88 ms
+Run 9: 1511.41 ms
+Run 10: 1520.13 ms
+
+Min:        1361.01 ms
+Avg:        1523.46 ms
+P95:        1712.24 ms
+Max:        1712.24 ms
+Throughput: 4.86 ops/sec
+PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A natively)
+

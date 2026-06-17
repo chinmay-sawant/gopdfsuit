@@ -1,0 +1,105 @@
+--- run 1/5 ---
+cd sampledata/benchmarks/pypdfsuit && python3 bench.py
+=== PyPDFSuit Concurrent Zerodha Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 14.53 ms
+Run 2: 13.69 ms
+Run 3: 14.49 ms
+Run 4: 16.12 ms
+Run 5: 13.76 ms
+Run 6: 13.22 ms
+Run 7: 12.11 ms
+Run 8: 12.85 ms
+Run 9: 12.41 ms
+Run 10: 12.36 ms
+
+Min: 12.11 ms
+Avg: 13.55 ms
+P95: 16.12 ms
+Max: 16.12 ms
+Throughput: 244.33 ops/sec
+
+--- run 2/5 ---
+cd sampledata/benchmarks/pypdfsuit && python3 bench.py
+=== PyPDFSuit Concurrent Zerodha Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 18.23 ms
+Run 2: 16.41 ms
+Run 3: 16.29 ms
+Run 4: 15.56 ms
+Run 5: 15.81 ms
+Run 6: 14.73 ms
+Run 7: 14.10 ms
+Run 8: 13.17 ms
+Run 9: 14.56 ms
+Run 10: 18.17 ms
+
+Min: 13.17 ms
+Avg: 15.70 ms
+P95: 18.23 ms
+Max: 18.23 ms
+Throughput: 292.70 ops/sec
+
+--- run 3/5 ---
+cd sampledata/benchmarks/pypdfsuit && python3 bench.py
+=== PyPDFSuit Concurrent Zerodha Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 12.99 ms
+Run 2: 12.62 ms
+Run 3: 13.62 ms
+Run 4: 12.38 ms
+Run 5: 12.96 ms
+Run 6: 12.57 ms
+Run 7: 13.04 ms
+Run 8: 12.11 ms
+Run 9: 12.80 ms
+Run 10: 22.16 ms
+
+Min: 12.11 ms
+Avg: 13.72 ms
+P95: 22.16 ms
+Max: 22.16 ms
+Throughput: 243.26 ops/sec
+
+--- run 4/5 ---
+cd sampledata/benchmarks/pypdfsuit && python3 bench.py
+=== PyPDFSuit Concurrent Zerodha Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 11.94 ms
+Run 2: 11.88 ms
+Run 3: 12.77 ms
+Run 4: 13.23 ms
+Run 5: 12.90 ms
+Run 6: 17.25 ms
+Run 7: 14.05 ms
+Run 8: 14.02 ms
+Run 9: 13.33 ms
+Run 10: 12.94 ms
+
+Min: 11.88 ms
+Avg: 13.43 ms
+P95: 17.25 ms
+Max: 17.25 ms
+Throughput: 264.33 ops/sec
+
+--- run 5/5 ---
+cd sampledata/benchmarks/pypdfsuit && python3 bench.py
+=== PyPDFSuit Concurrent Zerodha Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 12.67 ms
+Run 2: 13.73 ms
+Run 3: 13.53 ms
+Run 4: 12.22 ms
+Run 5: 11.96 ms
+Run 6: 11.78 ms
+Run 7: 12.45 ms
+Run 8: 13.44 ms
+Run 9: 16.19 ms
+Run 10: 12.99 ms
+
+Min: 11.78 ms
+Avg: 13.10 ms
+P95: 16.19 ms
+Max: 16.19 ms
+Throughput: 290.49 ops/sec
+

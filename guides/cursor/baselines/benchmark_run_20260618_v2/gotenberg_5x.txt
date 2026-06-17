@@ -1,0 +1,1124 @@
+--- run 1/5 ---
+bash sampledata/benchmarks/gotenberg/run_gotenberg_load.sh
+==> Starting Gotenberg (gotenberg/gotenberg:8) on :3010 (chromium-max-concurrency=6)
+31a59de6ac56642429fa8cd28d964087ab40ffe510afa94da2566f0f68aad2e1
+==> Gotenberg ready at http://127.0.0.1:3010
+==> k6 Gotenberg load (48 VUs × 35s, scenario=tagged_ecdsa)
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-18T01:15:57+05:30" level=info msg="gotenberg load: 48 VUs × 35s, scenario=tagged_ecdsa, skipNetworkIdle=true" source=console
+
+running (0m01.0s), 48/48 VUs, 11 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 25 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 42 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 56 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 71 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 88 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.0s), 48/48 VUs, 99 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.0s/35s
+
+running (0m08.0s), 48/48 VUs, 103 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 118 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 137 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 152 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 169 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 186 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 199 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 209 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 224 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.0s), 48/48 VUs, 240 complete and 0 interrupted iterations
+steady   [  49% ] 48 VUs  17.0s/35s
+
+running (0m18.0s), 48/48 VUs, 256 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 274 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.0s), 48/48 VUs, 288 complete and 0 interrupted iterations
+steady   [  57% ] 48 VUs  20.0s/35s
+
+running (0m21.0s), 48/48 VUs, 301 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 318 complete and 0 interrupted iterations
+steady   [  63% ] 48 VUs  22.0s/35s
+
+running (0m23.0s), 48/48 VUs, 334 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.0s/35s
+
+running (0m24.0s), 48/48 VUs, 350 complete and 0 interrupted iterations
+steady   [  69% ] 48 VUs  24.0s/35s
+
+running (0m25.0s), 48/48 VUs, 364 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  25.0s/35s
+
+running (0m26.0s), 48/48 VUs, 379 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  26.0s/35s
+
+running (0m27.0s), 48/48 VUs, 397 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  27.0s/35s
+
+running (0m28.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+steady   [  80% ] 48 VUs  28.0s/35s
+
+running (0m29.0s), 48/48 VUs, 413 complete and 0 interrupted iterations
+steady   [  83% ] 48 VUs  29.0s/35s
+
+running (0m30.0s), 48/48 VUs, 428 complete and 0 interrupted iterations
+steady   [  86% ] 48 VUs  30.0s/35s
+
+running (0m31.0s), 48/48 VUs, 448 complete and 0 interrupted iterations
+steady   [  89% ] 48 VUs  31.0s/35s
+
+running (0m32.0s), 48/48 VUs, 461 complete and 0 interrupted iterations
+steady   [  91% ] 48 VUs  32.0s/35s
+
+running (0m33.0s), 48/48 VUs, 484 complete and 0 interrupted iterations
+steady   [  94% ] 48 VUs  33.0s/35s
+
+running (0m34.0s), 48/48 VUs, 501 complete and 0 interrupted iterations
+steady   [  97% ] 48 VUs  34.0s/35s
+
+running (0m35.0s), 48/48 VUs, 516 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35.0s/35s
+
+running (0m36.0s), 30/48 VUs, 534 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m37.0s), 11/48 VUs, 553 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m38.0s), 01/48 VUs, 563 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+time="2026-06-18T01:16:35+05:30" level=info msg="gotenberg load done (started 2026-06-17T19:45:57.472Z)" source=console
+
+
+  █ THRESHOLDS 
+
+    errors
+    ✓ 'rate<0.05' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(99)<30000' p(99)=5.88s
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 1692    44.384553/s
+    checks_succeeded...: 100.00% 1692 out of 1692
+    checks_failed......: 0.00%   0 out of 1692
+
+    ✓ status is 200
+    ✓ response is pdf
+    ✓ response has content
+
+    CUSTOM
+    active_latency.................: avg=3100        min=742      med=2961   max=6105  p(90)=4150.2 p(95)=4390.3 p(99)=6006.72
+    errors.........................: 0.00% 0 out of 564
+    hft_latency....................: avg=4166.533333 min=2196     med=4162.5 max=6606  p(90)=5257.4 p(95)=5415.2 p(99)=6295.12
+    pdf_generation_time............: avg=3064.721631 min=416      med=2981.5 max=6606  p(90)=4379.5 p(95)=4707.4 p(99)=5888.85
+    retail_latency.................: avg=2985.949451 min=416      med=2959   max=6048  p(90)=4357.6 p(95)=4699.1 p(99)=5763.9 
+
+    HTTP
+    http_req_duration..............: avg=3.05s       min=627.34µs med=2.98s  max=6.6s  p(90)=4.37s  p(95)=4.7s   p(99)=5.88s  
+      { expected_response:true }...: avg=3.05s       min=627.34µs med=2.98s  max=6.6s  p(90)=4.37s  p(95)=4.7s   p(99)=5.88s  
+    http_req_failed................: 0.00% 0 out of 565
+    http_reqs......................: 565   14.821083/s
+
+    EXECUTION
+    iteration_duration.............: avg=3.08s       min=419.97ms med=2.98s  max=6.99s p(90)=4.45s  p(95)=4.88s  p(99)=5.93s  
+    iterations.....................: 564   14.794851/s
+    vus............................: 1     min=1        max=48
+    vus_max........................: 48    min=48       max=48
+
+    NETWORK
+    data_received..................: 26 MB 672 kB/s
+    data_sent......................: 23 MB 590 kB/s
+
+
+
+
+running (0m38.1s), 00/48 VUs, 564 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s
+# Gotenberg k6 summary — 20260618_011555
+image: gotenberg/gotenberg:8
+base_url: http://127.0.0.1:3010
+chromium_max_concurrency: 6
+load_vus: 48 profile_seconds: 35 scenario: tagged_ecdsa
+skip_network_idle: 1
+
+## k6 throughput
+running (0m23.0s), 48/48 VUs, 334 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 350 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 364 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 379 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 397 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 413 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 428 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 448 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 461 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 484 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 501 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 516 complete and 0 interrupted iterations
+running (0m36.0s), 30/48 VUs, 534 complete and 0 interrupted iterations
+running (0m37.0s), 11/48 VUs, 553 complete and 0 interrupted iterations
+running (0m38.0s), 01/48 VUs, 563 complete and 0 interrupted iterations
+    http_req_duration
+    active_latency.................: avg=3100        min=742      med=2961   max=6105  p(90)=4150.2 p(95)=4390.3 p(99)=6006.72
+    hft_latency....................: avg=4166.533333 min=2196     med=4162.5 max=6606  p(90)=5257.4 p(95)=5415.2 p(99)=6295.12
+    pdf_generation_time............: avg=3064.721631 min=416      med=2981.5 max=6606  p(90)=4379.5 p(95)=4707.4 p(99)=5888.85
+    retail_latency.................: avg=2985.949451 min=416      med=2959   max=6048  p(90)=4357.6 p(95)=4699.1 p(99)=5763.9 
+    http_req_duration..............: avg=3.05s       min=627.34µs med=2.98s  max=6.6s  p(90)=4.37s  p(95)=4.7s   p(99)=5.88s  
+    http_reqs......................: 565   14.821083/s
+    iterations.....................: 564   14.794851/s
+running (0m38.1s), 00/48 VUs, 564 complete and 0 interrupted iterations
+
+Artifacts:
+  k6:      /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/k6_gotenberg_20260618_011555.txt
+  summary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/summary_20260618_011555.txt
+
+--- run 2/5 ---
+bash sampledata/benchmarks/gotenberg/run_gotenberg_load.sh
+==> Starting Gotenberg (gotenberg/gotenberg:8) on :3010 (chromium-max-concurrency=6)
+ad2187603bc6fadb5b34e792ce7608aafa4e96d17f609254513f4d4148e0d1af
+==> Gotenberg ready at http://127.0.0.1:3010
+==> k6 Gotenberg load (48 VUs × 35s, scenario=tagged_ecdsa)
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-18T01:16:37+05:30" level=info msg="gotenberg load: 48 VUs × 35s, scenario=tagged_ecdsa, skipNetworkIdle=true" source=console
+
+running (0m01.0s), 48/48 VUs, 7 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 25 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 42 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 56 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 66 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 80 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.0s), 48/48 VUs, 94 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.0s/35s
+
+running (0m08.0s), 48/48 VUs, 100 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 118 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 135 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 152 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 171 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 189 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 199 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 211 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 229 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.0s), 48/48 VUs, 249 complete and 0 interrupted iterations
+steady   [  49% ] 48 VUs  17.0s/35s
+
+running (0m18.0s), 48/48 VUs, 268 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 288 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.0s), 48/48 VUs, 304 complete and 0 interrupted iterations
+steady   [  57% ] 48 VUs  20.0s/35s
+
+running (0m21.0s), 48/48 VUs, 320 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 336 complete and 0 interrupted iterations
+steady   [  63% ] 48 VUs  22.0s/35s
+
+running (0m23.0s), 48/48 VUs, 354 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.0s/35s
+
+running (0m24.0s), 48/48 VUs, 371 complete and 0 interrupted iterations
+steady   [  69% ] 48 VUs  24.0s/35s
+
+running (0m25.0s), 48/48 VUs, 381 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  25.0s/35s
+
+running (0m26.0s), 48/48 VUs, 399 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  26.0s/35s
+
+running (0m27.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  27.0s/35s
+
+running (0m28.0s), 48/48 VUs, 418 complete and 0 interrupted iterations
+steady   [  80% ] 48 VUs  28.0s/35s
+
+running (0m29.0s), 48/48 VUs, 437 complete and 0 interrupted iterations
+steady   [  83% ] 48 VUs  29.0s/35s
+
+running (0m30.0s), 48/48 VUs, 452 complete and 0 interrupted iterations
+steady   [  86% ] 48 VUs  30.0s/35s
+
+running (0m31.0s), 48/48 VUs, 470 complete and 0 interrupted iterations
+steady   [  89% ] 48 VUs  31.0s/35s
+
+running (0m32.0s), 48/48 VUs, 488 complete and 0 interrupted iterations
+steady   [  91% ] 48 VUs  32.0s/35s
+
+running (0m33.0s), 48/48 VUs, 499 complete and 0 interrupted iterations
+steady   [  94% ] 48 VUs  33.0s/35s
+
+running (0m34.0s), 48/48 VUs, 506 complete and 0 interrupted iterations
+steady   [  97% ] 48 VUs  34.0s/35s
+
+running (0m35.0s), 48/48 VUs, 522 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35.0s/35s
+
+running (0m36.0s), 28/48 VUs, 542 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m37.0s), 08/48 VUs, 562 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+time="2026-06-18T01:17:14+05:30" level=info msg="gotenberg load done (started 2026-06-17T19:46:37.098Z)" source=console
+
+
+  █ THRESHOLDS 
+
+    errors
+    ✓ 'rate<0.05' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(99)<30000' p(99)=5.58s
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 1710    45.893345/s
+    checks_succeeded...: 100.00% 1710 out of 1710
+    checks_failed......: 0.00%   0 out of 1710
+
+    ✓ status is 200
+    ✓ response is pdf
+    ✓ response has content
+
+    CUSTOM
+    active_latency.................: avg=3098.888889 min=580      med=2863   max=5746  p(90)=4343   p(95)=4777    p(99)=5636.4 
+    errors.........................: 0.00% 0 out of 570
+    hft_latency....................: avg=4047.416667 min=1632     med=4095   max=5992  p(90)=4729.5 p(95)=4748.45 p(99)=5706.57
+    pdf_generation_time............: avg=3025.915789 min=496      med=2841.5 max=5992  p(90)=4304.3 p(95)=4767.85 p(99)=5582.78
+    retail_latency.................: avg=2960.48172  min=496      med=2797   max=5759  p(90)=4207   p(95)=4763.2  p(99)=5545.84
+
+    HTTP
+    http_req_duration..............: avg=3.01s       min=558.28µs med=2.84s  max=5.98s p(90)=4.29s  p(95)=4.76s   p(99)=5.58s  
+      { expected_response:true }...: avg=3.01s       min=558.28µs med=2.84s  max=5.98s p(90)=4.29s  p(95)=4.76s   p(99)=5.58s  
+    http_req_failed................: 0.00% 0 out of 571
+    http_reqs......................: 571   15.32462/s
+
+    EXECUTION
+    iteration_duration.............: avg=3.04s       min=496.81ms med=2.84s  max=6.38s p(90)=4.52s  p(95)=4.89s   p(99)=5.58s  
+    iterations.....................: 570   15.297782/s
+    vus............................: 8     min=8        max=48
+    vus_max........................: 48    min=48       max=48
+
+    NETWORK
+    data_received..................: 24 MB 645 kB/s
+    data_sent......................: 19 MB 499 kB/s
+
+
+
+
+running (0m37.3s), 00/48 VUs, 570 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s
+# Gotenberg k6 summary — 20260618_011636
+image: gotenberg/gotenberg:8
+base_url: http://127.0.0.1:3010
+chromium_max_concurrency: 6
+load_vus: 48 profile_seconds: 35 scenario: tagged_ecdsa
+skip_network_idle: 1
+
+## k6 throughput
+running (0m22.0s), 48/48 VUs, 336 complete and 0 interrupted iterations
+running (0m23.0s), 48/48 VUs, 354 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 371 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 381 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 399 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 418 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 437 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 452 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 470 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 488 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 499 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 506 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 522 complete and 0 interrupted iterations
+running (0m36.0s), 28/48 VUs, 542 complete and 0 interrupted iterations
+running (0m37.0s), 08/48 VUs, 562 complete and 0 interrupted iterations
+    http_req_duration
+    active_latency.................: avg=3098.888889 min=580      med=2863   max=5746  p(90)=4343   p(95)=4777    p(99)=5636.4 
+    hft_latency....................: avg=4047.416667 min=1632     med=4095   max=5992  p(90)=4729.5 p(95)=4748.45 p(99)=5706.57
+    pdf_generation_time............: avg=3025.915789 min=496      med=2841.5 max=5992  p(90)=4304.3 p(95)=4767.85 p(99)=5582.78
+    retail_latency.................: avg=2960.48172  min=496      med=2797   max=5759  p(90)=4207   p(95)=4763.2  p(99)=5545.84
+    http_req_duration..............: avg=3.01s       min=558.28µs med=2.84s  max=5.98s p(90)=4.29s  p(95)=4.76s   p(99)=5.58s  
+    http_reqs......................: 571   15.32462/s
+    iterations.....................: 570   15.297782/s
+running (0m37.3s), 00/48 VUs, 570 complete and 0 interrupted iterations
+
+Artifacts:
+  k6:      /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/k6_gotenberg_20260618_011636.txt
+  summary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/summary_20260618_011636.txt
+
+--- run 3/5 ---
+bash sampledata/benchmarks/gotenberg/run_gotenberg_load.sh
+==> Starting Gotenberg (gotenberg/gotenberg:8) on :3010 (chromium-max-concurrency=6)
+68cf36952cd83d2c6eaf2214108ad768ce8a5a1f661882cefb2dd6c0c8117d42
+==> Gotenberg ready at http://127.0.0.1:3010
+==> k6 Gotenberg load (48 VUs × 35s, scenario=tagged_ecdsa)
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-18T01:17:15+05:30" level=info msg="gotenberg load: 48 VUs × 35s, scenario=tagged_ecdsa, skipNetworkIdle=true" source=console
+
+running (0m01.0s), 48/48 VUs, 7 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 29 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 49 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 58 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 69 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 87 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.0s), 48/48 VUs, 100 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.0s/35s
+
+running (0m08.0s), 48/48 VUs, 115 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 129 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 145 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 163 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 180 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 199 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 200 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 219 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 238 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.0s), 48/48 VUs, 256 complete and 0 interrupted iterations
+steady   [  49% ] 48 VUs  17.0s/35s
+
+running (0m18.0s), 48/48 VUs, 271 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 288 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.0s), 48/48 VUs, 303 complete and 0 interrupted iterations
+steady   [  57% ] 48 VUs  20.0s/35s
+
+running (0m21.0s), 48/48 VUs, 318 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 333 complete and 0 interrupted iterations
+steady   [  63% ] 48 VUs  22.0s/35s
+
+running (0m23.0s), 48/48 VUs, 343 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.0s/35s
+
+running (0m24.0s), 48/48 VUs, 357 complete and 0 interrupted iterations
+steady   [  69% ] 48 VUs  24.0s/35s
+
+running (0m25.0s), 48/48 VUs, 369 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  25.0s/35s
+
+running (0m26.0s), 48/48 VUs, 383 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  26.0s/35s
+
+running (0m27.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  27.0s/35s
+
+running (0m28.0s), 48/48 VUs, 421 complete and 0 interrupted iterations
+steady   [  80% ] 48 VUs  28.0s/35s
+
+running (0m29.0s), 48/48 VUs, 439 complete and 0 interrupted iterations
+steady   [  83% ] 48 VUs  29.0s/35s
+
+running (0m30.0s), 48/48 VUs, 456 complete and 0 interrupted iterations
+steady   [  86% ] 48 VUs  30.0s/35s
+
+running (0m31.0s), 48/48 VUs, 475 complete and 0 interrupted iterations
+steady   [  89% ] 48 VUs  31.0s/35s
+
+running (0m32.0s), 48/48 VUs, 493 complete and 0 interrupted iterations
+steady   [  91% ] 48 VUs  32.0s/35s
+
+running (0m33.0s), 48/48 VUs, 500 complete and 0 interrupted iterations
+steady   [  94% ] 48 VUs  33.0s/35s
+
+running (0m34.0s), 48/48 VUs, 513 complete and 0 interrupted iterations
+steady   [  97% ] 48 VUs  34.0s/35s
+
+running (0m35.0s), 48/48 VUs, 535 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35.0s/35s
+
+running (0m36.0s), 29/48 VUs, 554 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m37.0s), 09/48 VUs, 574 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+time="2026-06-18T01:17:53+05:30" level=info msg="gotenberg load done (started 2026-06-17T19:47:15.767Z)" source=console
+
+
+  █ THRESHOLDS 
+
+    errors
+    ✓ 'rate<0.05' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(99)<30000' p(99)=5.22s
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 1749    46.828441/s
+    checks_succeeded...: 100.00% 1749 out of 1749
+    checks_failed......: 0.00%   0 out of 1749
+
+    ✓ status is 200
+    ✓ response is pdf
+    ✓ response has content
+
+    CUSTOM
+    active_latency.................: avg=2986.694118 min=1397     med=2818   max=4916  p(90)=3850.2 p(95)=4091.4  p(99)=4463.24
+    errors.........................: 0.00% 0 out of 583
+    hft_latency....................: avg=4260.5      min=3277     med=3996   max=5421  p(90)=5212   p(95)=5257.5  p(99)=5383   
+    pdf_generation_time............: avg=2962.19211  min=447      med=2863   max=5732  p(90)=4099.6 p(95)=4414.4  p(99)=5226.78
+    retail_latency.................: avg=2886.262712 min=447      med=2803.5 max=5732  p(90)=4077   p(95)=4327.25 p(99)=4907.5 
+
+    HTTP
+    http_req_duration..............: avg=2.95s       min=668.97µs med=2.85s  max=5.73s p(90)=4.09s  p(95)=4.41s   p(99)=5.22s  
+      { expected_response:true }...: avg=2.95s       min=668.97µs med=2.85s  max=5.73s p(90)=4.09s  p(95)=4.41s   p(99)=5.22s  
+    http_req_failed................: 0.00% 0 out of 584
+    http_reqs......................: 584   15.636255/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.98s       min=448.13ms med=2.86s  max=5.83s p(90)=4.13s  p(95)=4.52s   p(99)=5.54s  
+    iterations.....................: 583   15.60948/s
+    vus............................: 9     min=9        max=48
+    vus_max........................: 48    min=48       max=48
+
+    NETWORK
+    data_received..................: 25 MB 670 kB/s
+    data_sent......................: 20 MB 535 kB/s
+
+
+
+
+running (0m37.3s), 00/48 VUs, 583 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s
+# Gotenberg k6 summary — 20260618_011715
+image: gotenberg/gotenberg:8
+base_url: http://127.0.0.1:3010
+chromium_max_concurrency: 6
+load_vus: 48 profile_seconds: 35 scenario: tagged_ecdsa
+skip_network_idle: 1
+
+## k6 throughput
+running (0m22.0s), 48/48 VUs, 333 complete and 0 interrupted iterations
+running (0m23.0s), 48/48 VUs, 343 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 357 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 369 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 383 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 421 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 439 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 456 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 475 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 493 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 500 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 513 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 535 complete and 0 interrupted iterations
+running (0m36.0s), 29/48 VUs, 554 complete and 0 interrupted iterations
+running (0m37.0s), 09/48 VUs, 574 complete and 0 interrupted iterations
+    http_req_duration
+    active_latency.................: avg=2986.694118 min=1397     med=2818   max=4916  p(90)=3850.2 p(95)=4091.4  p(99)=4463.24
+    hft_latency....................: avg=4260.5      min=3277     med=3996   max=5421  p(90)=5212   p(95)=5257.5  p(99)=5383   
+    pdf_generation_time............: avg=2962.19211  min=447      med=2863   max=5732  p(90)=4099.6 p(95)=4414.4  p(99)=5226.78
+    retail_latency.................: avg=2886.262712 min=447      med=2803.5 max=5732  p(90)=4077   p(95)=4327.25 p(99)=4907.5 
+    http_req_duration..............: avg=2.95s       min=668.97µs med=2.85s  max=5.73s p(90)=4.09s  p(95)=4.41s   p(99)=5.22s  
+    http_reqs......................: 584   15.636255/s
+    iterations.....................: 583   15.60948/s
+running (0m37.3s), 00/48 VUs, 583 complete and 0 interrupted iterations
+
+Artifacts:
+  k6:      /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/k6_gotenberg_20260618_011715.txt
+  summary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/summary_20260618_011715.txt
+
+--- run 4/5 ---
+bash sampledata/benchmarks/gotenberg/run_gotenberg_load.sh
+==> Starting Gotenberg (gotenberg/gotenberg:8) on :3010 (chromium-max-concurrency=6)
+6f723e9853a3a56f8f1d8ba0a809ec9b1288bd61bd884c6d3d37c06c03662e2d
+==> Gotenberg ready at http://127.0.0.1:3010
+==> k6 Gotenberg load (48 VUs × 35s, scenario=tagged_ecdsa)
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-18T01:17:54+05:30" level=info msg="gotenberg load: 48 VUs × 35s, scenario=tagged_ecdsa, skipNetworkIdle=true" source=console
+
+running (0m01.0s), 48/48 VUs, 12 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 30 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 49 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 61 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 79 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 98 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.0s), 48/48 VUs, 100 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.0s/35s
+
+running (0m08.0s), 48/48 VUs, 117 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 134 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 152 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 170 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 187 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 200 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 213 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 228 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 244 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.0s), 48/48 VUs, 266 complete and 0 interrupted iterations
+steady   [  49% ] 48 VUs  17.0s/35s
+
+running (0m18.0s), 48/48 VUs, 285 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 301 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.0s), 48/48 VUs, 319 complete and 0 interrupted iterations
+steady   [  57% ] 48 VUs  20.0s/35s
+
+running (0m21.0s), 48/48 VUs, 333 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 353 complete and 0 interrupted iterations
+steady   [  63% ] 48 VUs  22.0s/35s
+
+running (0m23.0s), 48/48 VUs, 370 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.0s/35s
+
+running (0m24.0s), 48/48 VUs, 383 complete and 0 interrupted iterations
+steady   [  69% ] 48 VUs  24.0s/35s
+
+running (0m25.0s), 48/48 VUs, 401 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  25.0s/35s
+
+running (0m26.0s), 48/48 VUs, 413 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  26.0s/35s
+
+running (0m27.0s), 48/48 VUs, 429 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  27.0s/35s
+
+running (0m28.0s), 48/48 VUs, 449 complete and 0 interrupted iterations
+steady   [  80% ] 48 VUs  28.0s/35s
+
+running (0m29.0s), 48/48 VUs, 465 complete and 0 interrupted iterations
+steady   [  83% ] 48 VUs  29.0s/35s
+
+running (0m30.0s), 48/48 VUs, 478 complete and 0 interrupted iterations
+steady   [  86% ] 48 VUs  30.0s/35s
+
+running (0m31.0s), 48/48 VUs, 501 complete and 0 interrupted iterations
+steady   [  89% ] 48 VUs  31.0s/35s
+
+running (0m32.0s), 48/48 VUs, 515 complete and 0 interrupted iterations
+steady   [  91% ] 48 VUs  32.0s/35s
+
+running (0m33.0s), 48/48 VUs, 534 complete and 0 interrupted iterations
+steady   [  94% ] 48 VUs  33.0s/35s
+
+running (0m34.0s), 48/48 VUs, 551 complete and 0 interrupted iterations
+steady   [  97% ] 48 VUs  34.0s/35s
+
+running (0m35.0s), 48/48 VUs, 566 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35.0s/35s
+
+running (0m36.0s), 28/48 VUs, 586 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m37.0s), 12/48 VUs, 602 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m38.0s), 02/48 VUs, 612 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+time="2026-06-18T01:18:32+05:30" level=info msg="gotenberg load done (started 2026-06-17T19:47:54.480Z)" source=console
+
+
+  █ THRESHOLDS 
+
+    errors
+    ✓ 'rate<0.05' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(99)<30000' p(99)=5.55s
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 1842    48.107564/s
+    checks_succeeded...: 100.00% 1842 out of 1842
+    checks_failed......: 0.00%   0 out of 1842
+
+    ✓ status is 200
+    ✓ response is pdf
+    ✓ response has content
+
+    CUSTOM
+    active_latency.................: avg=2960.885714 min=650      med=2793   max=5608  p(90)=4208.4 p(95)=4499    p(99)=5558.56
+    errors.........................: 0.00% 0 out of 614
+    hft_latency....................: avg=3937.807692 min=3371     med=3674   max=5989  p(90)=5494.5 p(95)=5559.25 p(99)=5885.75
+    pdf_generation_time............: avg=2812.382736 min=412      med=2740.5 max=6416  p(90)=4189.2 p(95)=4612.05 p(99)=5567.29
+    retail_latency.................: avg=2719.517598 min=412      med=2691   max=6416  p(90)=4083.2 p(95)=4608.3  p(99)=5413.42
+
+    HTTP
+    http_req_duration..............: avg=2.8s        min=582.85µs med=2.73s  max=6.41s p(90)=4.18s  p(95)=4.61s   p(99)=5.55s  
+      { expected_response:true }...: avg=2.8s        min=582.85µs med=2.73s  max=6.41s p(90)=4.18s  p(95)=4.61s   p(99)=5.55s  
+    http_req_failed................: 0.00% 0 out of 615
+    http_reqs......................: 615   16.061972/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.83s       min=412.29ms med=2.74s  max=6.44s p(90)=4.25s  p(95)=4.61s   p(99)=5.74s  
+    iterations.....................: 614   16.035855/s
+    vus............................: 2     min=2        max=48
+    vus_max........................: 48    min=48       max=48
+
+    NETWORK
+    data_received..................: 26 MB 681 kB/s
+    data_sent......................: 20 MB 530 kB/s
+
+
+
+
+running (0m38.3s), 00/48 VUs, 614 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s
+# Gotenberg k6 summary — 20260618_011753
+image: gotenberg/gotenberg:8
+base_url: http://127.0.0.1:3010
+chromium_max_concurrency: 6
+load_vus: 48 profile_seconds: 35 scenario: tagged_ecdsa
+skip_network_idle: 1
+
+## k6 throughput
+running (0m23.0s), 48/48 VUs, 370 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 383 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 401 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 413 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 429 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 449 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 465 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 478 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 501 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 515 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 534 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 551 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 566 complete and 0 interrupted iterations
+running (0m36.0s), 28/48 VUs, 586 complete and 0 interrupted iterations
+running (0m37.0s), 12/48 VUs, 602 complete and 0 interrupted iterations
+running (0m38.0s), 02/48 VUs, 612 complete and 0 interrupted iterations
+    http_req_duration
+    active_latency.................: avg=2960.885714 min=650      med=2793   max=5608  p(90)=4208.4 p(95)=4499    p(99)=5558.56
+    hft_latency....................: avg=3937.807692 min=3371     med=3674   max=5989  p(90)=5494.5 p(95)=5559.25 p(99)=5885.75
+    pdf_generation_time............: avg=2812.382736 min=412      med=2740.5 max=6416  p(90)=4189.2 p(95)=4612.05 p(99)=5567.29
+    retail_latency.................: avg=2719.517598 min=412      med=2691   max=6416  p(90)=4083.2 p(95)=4608.3  p(99)=5413.42
+    http_req_duration..............: avg=2.8s        min=582.85µs med=2.73s  max=6.41s p(90)=4.18s  p(95)=4.61s   p(99)=5.55s  
+    http_reqs......................: 615   16.061972/s
+    iterations.....................: 614   16.035855/s
+running (0m38.3s), 00/48 VUs, 614 complete and 0 interrupted iterations
+
+Artifacts:
+  k6:      /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/k6_gotenberg_20260618_011753.txt
+  summary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/summary_20260618_011753.txt
+
+--- run 5/5 ---
+bash sampledata/benchmarks/gotenberg/run_gotenberg_load.sh
+==> Starting Gotenberg (gotenberg/gotenberg:8) on :3010 (chromium-max-concurrency=6)
+d8ee26efe7591c33ca297f92fb63c6bc816f1759cae9c057b2d8c8d89d986db1
+==> Gotenberg ready at http://127.0.0.1:3010
+==> k6 Gotenberg load (48 VUs × 35s, scenario=tagged_ecdsa)
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-18T01:18:34+05:30" level=info msg="gotenberg load: 48 VUs × 35s, scenario=tagged_ecdsa, skipNetworkIdle=true" source=console
+
+running (0m01.0s), 48/48 VUs, 16 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 36 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 55 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 69 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 90 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 106 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.0s), 48/48 VUs, 124 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.0s/35s
+
+running (0m08.0s), 48/48 VUs, 134 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 152 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 170 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 185 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 200 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 212 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 228 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 246 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 259 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.0s), 48/48 VUs, 279 complete and 0 interrupted iterations
+steady   [  49% ] 48 VUs  17.0s/35s
+
+running (0m18.0s), 48/48 VUs, 295 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 300 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.0s), 48/48 VUs, 318 complete and 0 interrupted iterations
+steady   [  57% ] 48 VUs  20.0s/35s
+
+running (0m21.0s), 48/48 VUs, 334 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 350 complete and 0 interrupted iterations
+steady   [  63% ] 48 VUs  22.0s/35s
+
+running (0m23.0s), 48/48 VUs, 369 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.0s/35s
+
+running (0m24.0s), 48/48 VUs, 389 complete and 0 interrupted iterations
+steady   [  69% ] 48 VUs  24.0s/35s
+
+running (0m25.0s), 48/48 VUs, 399 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  25.0s/35s
+
+running (0m26.0s), 48/48 VUs, 408 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  26.0s/35s
+
+running (0m27.0s), 48/48 VUs, 427 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  27.0s/35s
+
+running (0m28.0s), 48/48 VUs, 448 complete and 0 interrupted iterations
+steady   [  80% ] 48 VUs  28.0s/35s
+
+running (0m29.0s), 48/48 VUs, 462 complete and 0 interrupted iterations
+steady   [  83% ] 48 VUs  29.0s/35s
+
+running (0m30.0s), 48/48 VUs, 476 complete and 0 interrupted iterations
+steady   [  86% ] 48 VUs  30.0s/35s
+
+running (0m31.0s), 48/48 VUs, 497 complete and 0 interrupted iterations
+steady   [  89% ] 48 VUs  31.0s/35s
+
+running (0m32.0s), 48/48 VUs, 500 complete and 0 interrupted iterations
+steady   [  91% ] 48 VUs  32.0s/35s
+
+running (0m33.0s), 48/48 VUs, 515 complete and 0 interrupted iterations
+steady   [  94% ] 48 VUs  33.0s/35s
+
+running (0m34.0s), 48/48 VUs, 529 complete and 0 interrupted iterations
+steady   [  97% ] 48 VUs  34.0s/35s
+
+running (0m35.0s), 48/48 VUs, 544 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35.0s/35s
+
+running (0m36.0s), 27/48 VUs, 565 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m37.0s), 11/48 VUs, 581 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m38.0s), 01/48 VUs, 591 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+time="2026-06-18T01:19:12+05:30" level=info msg="gotenberg load done (started 2026-06-17T19:48:34.155Z)" source=console
+
+
+  █ THRESHOLDS 
+
+    errors
+    ✓ 'rate<0.05' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(99)<30000' p(99)=5.54s
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 1776    46.644129/s
+    checks_succeeded...: 100.00% 1776 out of 1776
+    checks_failed......: 0.00%   0 out of 1776
+
+    ✓ status is 200
+    ✓ response is pdf
+    ✓ response has content
+
+    CUSTOM
+    active_latency.................: avg=2972.846154 min=564      med=2830   max=5344  p(90)=4234   p(95)=4653    p(99)=5218   
+    errors.........................: 0.00% 0 out of 592
+    hft_latency....................: avg=4280.5      min=3122     med=3827   max=6794  p(90)=5930.8 p(95)=6098.45 p(99)=6626.09
+    pdf_generation_time............: avg=2916.768581 min=335      med=2808.5 max=6794  p(90)=4240.3 p(95)=4790.85 p(99)=5560.44
+    retail_latency.................: avg=2819.072187 min=335      med=2787   max=5666  p(90)=4139   p(95)=4705    p(99)=5089.5 
+
+    HTTP
+    http_req_duration..............: avg=2.91s       min=600.18µs med=2.8s   max=6.78s p(90)=4.23s  p(95)=4.79s   p(99)=5.54s  
+      { expected_response:true }...: avg=2.91s       min=600.18µs med=2.8s   max=6.78s p(90)=4.23s  p(95)=4.79s   p(99)=5.54s  
+    http_req_failed................: 0.00% 0 out of 593
+    http_reqs......................: 593   15.574307/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.93s       min=336.32ms med=2.8s   max=7.15s p(90)=4.29s  p(95)=4.79s   p(99)=5.69s  
+    iterations.....................: 592   15.548043/s
+    vus............................: 1     min=1        max=48
+    vus_max........................: 48    min=48       max=48
+
+    NETWORK
+    data_received..................: 27 MB 696 kB/s
+    data_sent......................: 23 MB 596 kB/s
+
+
+
+
+running (0m38.1s), 00/48 VUs, 592 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s
+# Gotenberg k6 summary — 20260618_011833
+image: gotenberg/gotenberg:8
+base_url: http://127.0.0.1:3010
+chromium_max_concurrency: 6
+load_vus: 48 profile_seconds: 35 scenario: tagged_ecdsa
+skip_network_idle: 1
+
+## k6 throughput
+running (0m23.0s), 48/48 VUs, 369 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 389 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 399 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 408 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 427 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 448 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 462 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 476 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 497 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 500 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 515 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 529 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 544 complete and 0 interrupted iterations
+running (0m36.0s), 27/48 VUs, 565 complete and 0 interrupted iterations
+running (0m37.0s), 11/48 VUs, 581 complete and 0 interrupted iterations
+running (0m38.0s), 01/48 VUs, 591 complete and 0 interrupted iterations
+    http_req_duration
+    active_latency.................: avg=2972.846154 min=564      med=2830   max=5344  p(90)=4234   p(95)=4653    p(99)=5218   
+    hft_latency....................: avg=4280.5      min=3122     med=3827   max=6794  p(90)=5930.8 p(95)=6098.45 p(99)=6626.09
+    pdf_generation_time............: avg=2916.768581 min=335      med=2808.5 max=6794  p(90)=4240.3 p(95)=4790.85 p(99)=5560.44
+    retail_latency.................: avg=2819.072187 min=335      med=2787   max=5666  p(90)=4139   p(95)=4705    p(99)=5089.5 
+    http_req_duration..............: avg=2.91s       min=600.18µs med=2.8s   max=6.78s p(90)=4.23s  p(95)=4.79s   p(99)=5.54s  
+    http_reqs......................: 593   15.574307/s
+    iterations.....................: 592   15.548043/s
+running (0m38.1s), 00/48 VUs, 592 complete and 0 interrupted iterations
+
+Artifacts:
+  k6:      /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/k6_gotenberg_20260618_011833.txt
+  summary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/summary_20260618_011833.txt
+

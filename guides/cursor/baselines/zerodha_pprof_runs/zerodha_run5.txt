@@ -12,18 +12,18 @@ Warm-up runs...
   Active PDF size:  76065 bytes (74.28 KB)
   HFT PDF size:     748163 bytes (730.63 KB)
 
-  Max Memory Allocated: 433.50 MB
+  Max Memory Allocated: 469.58 MB
 === Performance Summary ===
   Iterations:      5000
   Concurrency:     48 workers
   GOMAXPROCS:      24
   Retail signing:  ECDSA P-256
-  Total time:      0.448 s
-  Throughput:      11152.16 ops/sec
+  Total time:      0.427 s
+  Throughput:      11721.32 ops/sec
 
-  Avg Latency:     4.236 ms
-  Min Latency:     0.432 ms
-  Max Latency:     70.029 ms
+  Avg Latency:     4.031 ms
+  Min Latency:     0.397 ms
+  Max Latency:     102.110 ms
 
 === Workload Distribution ===
   Retail  (80%):   4000 iterations

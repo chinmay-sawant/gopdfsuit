@@ -1,0 +1,55 @@
+--- run 1/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF/Rows2000-24         	     454	  12746738 ns/op	 129.20 MB/s	 4779613 B/op	   39782 allocs/op
+BenchmarkGenerateTemplatePDF/Rows10000-24        	      80	  72485365 ns/op	 114.46 MB/s	39528614 B/op	  198192 allocs/op
+BenchmarkGenerateTemplatePDF/Rows25000-24        	      30	 191714119 ns/op	 109.41 MB/s	97245408 B/op	  494842 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	27.260s
+
+--- run 2/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF/Rows2000-24         	     476	  12777737 ns/op	 128.90 MB/s	 4718997 B/op	   39780 allocs/op
+BenchmarkGenerateTemplatePDF/Rows10000-24        	      81	  70390379 ns/op	 117.89 MB/s	39202008 B/op	  198179 allocs/op
+BenchmarkGenerateTemplatePDF/Rows25000-24        	      31	 208481867 ns/op	 100.59 MB/s	97423140 B/op	  494842 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	27.814s
+
+--- run 3/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF/Rows2000-24         	     447	  12863658 ns/op	 128.03 MB/s	 4684918 B/op	   39778 allocs/op
+BenchmarkGenerateTemplatePDF/Rows10000-24        	      81	  72612255 ns/op	 114.28 MB/s	39261805 B/op	  198181 allocs/op
+BenchmarkGenerateTemplatePDF/Rows25000-24        	      30	 193763663 ns/op	 108.25 MB/s	99445184 B/op	  494895 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	27.473s
+
+--- run 4/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF/Rows2000-24         	     487	  13069036 ns/op	 126.04 MB/s	 4676148 B/op	   39778 allocs/op
+BenchmarkGenerateTemplatePDF/Rows10000-24        	      81	  74290009 ns/op	 111.68 MB/s	39193680 B/op	  198181 allocs/op
+BenchmarkGenerateTemplatePDF/Rows25000-24        	      28	 199255876 ns/op	 105.32 MB/s	97407716 B/op	  494839 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	28.251s
+
+--- run 5/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF/Rows2000-24         	     482	  12565311 ns/op	 131.10 MB/s	 4684027 B/op	   39779 allocs/op
+BenchmarkGenerateTemplatePDF/Rows10000-24        	      82	  69449245 ns/op	 119.47 MB/s	39164321 B/op	  198182 allocs/op
+BenchmarkGenerateTemplatePDF/Rows25000-24        	      30	 186587040 ns/op	 112.47 MB/s	97204306 B/op	  494826 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	27.352s
+

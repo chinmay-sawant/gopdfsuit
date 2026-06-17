@@ -1,0 +1,45 @@
+--- run 1/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkTypst-24    	      12	 471689088 ns/op	   16181 B/op	      49 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	6.142s
+
+--- run 2/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkTypst-24    	      13	 469015552 ns/op	   16156 B/op	      49 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	6.546s
+
+--- run 3/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkTypst-24    	      12	 475937704 ns/op	   16152 B/op	      49 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	6.174s
+
+--- run 4/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkTypst-24    	      13	 479109560 ns/op	   16163 B/op	      49 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	6.678s
+
+--- run 5/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkTypst-24    	      12	 471365152 ns/op	   16122 B/op	      49 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	11.000s
+

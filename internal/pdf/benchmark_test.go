@@ -39,7 +39,7 @@ func pdfAConfig() models.Config {
 	return models.Config{
 		Page:                "A4",
 		PageAlignment:       1,
-		PageBorder:          "10:10:10:10",
+		PageBorder:          "0:0:0:0",
 		PdfTitle:            "User Report",
 		PDFACompliant:       true,
 		TaggedPDF:           true,
@@ -66,9 +66,9 @@ func getGoPdfSuitTemplate(records []BenchmarkRecord) models.PDFTemplate {
 			Row: []models.Cell{
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: fmt.Sprint(r.ID)},
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Name},
-				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Email},
+				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Email, Wrap: new(true)},
 				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Role},
-				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Desc},
+				{Props: "Helvetica:10:000:left:1:1:1:1", Text: r.Desc, Wrap: new(true)},
 			},
 		}
 	}
@@ -85,8 +85,7 @@ func BenchmarkGoPdfSuit(b *testing.B) {
 	records := loadBenchmarkData()
 	template := getGoPdfSuitTemplate(records)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		pdfBytes, err := GenerateTemplatePDF(template)
 		if err != nil {
 			b.Fatalf("Failed to generate PDF: %v", err)

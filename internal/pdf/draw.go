@@ -1396,7 +1396,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				if maxTextWidth < 10 {
 					maxTextWidth = 10 // Minimum width to avoid issues
 				}
-				wrappedTextLines[colIdx] = WrapTextInto(&wrapState, cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
+				wrappedTextLines[colIdx] = cloneWrapLines(WrapTextInto(&wrapState, cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry))
 			}
 
 			// Mark chars used for subsetting only when the resolved font is custom.

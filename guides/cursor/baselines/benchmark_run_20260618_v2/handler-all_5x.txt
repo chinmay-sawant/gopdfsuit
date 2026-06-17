@@ -1,0 +1,50 @@
+--- run 1/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport-24             	   22875	    270569 ns/op	 269.64 MB/s	  330440 B/op	     294 allocs/op
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  106754	     59723 ns/op	  346155 B/op	     295 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	15.873s
+
+--- run 2/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport-24             	   21885	    269101 ns/op	 271.11 MB/s	  330029 B/op	     294 allocs/op
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  109640	     55528 ns/op	  344521 B/op	     294 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	15.381s
+
+--- run 3/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport-24             	   21702	    266377 ns/op	 273.89 MB/s	  328555 B/op	     294 allocs/op
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  103812	     55644 ns/op	  344657 B/op	     295 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	15.012s
+
+--- run 4/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport-24             	   22710	    272365 ns/op	 267.86 MB/s	  330419 B/op	     294 allocs/op
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  104972	     56940 ns/op	  344908 B/op	     295 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	15.488s
+
+--- run 5/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport-24             	   23202	    270978 ns/op	 269.24 MB/s	  330168 B/op	     294 allocs/op
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  107122	     55541 ns/op	  344529 B/op	     294 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	15.496s
+

@@ -1,0 +1,114 @@
+BenchmarkGoPDFLib/text_short/workers_40-24         	--- run 1/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGoPDFKit/text_short/workers_40-24         	  285124	     17538 ns/op	     57021 pdf/s	      1505 pdf_bytes	      9100 total_MB	   33467 B/op	     185 allocs/op
+BenchmarkGoPDFKit/text_240_lines/workers_40-24     	 1000000	      6954 ns/op	    143798 pdf/s	      4303 pdf_bytes	     18225 total_MB	   19110 B/op	      99 allocs/op
+BenchmarkGoPDFLib/text_240_lines/workers_40-24     	  109395	     53410 ns/op	     18723 pdf/s	     13073 pdf_bytes	      2918 total_MB	   27971 B/op	     302 allocs/op
+BenchmarkGoPDFLib/table_180_rows/workers_40-24     	signal: killed
+FAIL	github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare	71.033s
+   49993	    164953 ns/op	      6062 pdf/s	      4706 pdf_bytes	     14467 total_MB	  303437 B/op	     568 allocs/op
+BenchmarkGoPDFKit/table_180_rows/workers_40-24     	   71816	     91429 ns/op	     10937 pdf/s	      8043 pdf_bytes	     25549 total_MB	  373040 B/op	     875 allocs/op
+BenchmarkGoPDFKit/table_900_rows/workers_40-24     	   15763	    419508 ns/op	      2384 pdf/s	     34997 pdf_bytes	     26795 total_MB	 1782441 B/op	    3686 allocs/op
+BenchmarkGoPDFKit/invoice_40_rows/workers_40-24    	  231698	     27363 ns/op	     36545 pdf/s	      3232 pdf_bytes	     22686 total_MB	  102668 B/op	     348 allocs/op
+BenchmarkGoPDFKit/png_table_180_rows/workers_40-24 	   40225	    147098 ns/op	      6798 pdf/s	     15784 pdf_bytes	     22424 total_MB	  584550 B/op	    1048 allocs/op
+BenchmarkGoPDFKit/png_rows_60/workers_40-24        	   27444	    207331 ns/op	      4823 pdf/s	     32082 pdf_bytes	     17271 total_MB	  659891 B/op	    2274 allocs/op
+BenchmarkGoPDFLib/text_short/workers_40-24         	 1376491	      4356 ns/op	    229546 pdf/s	      4303 pdf_bytes	     25024 total_MB	   19062 B/op	      99 allocs/op
+BenchmarkGoPDFLib/text_240_lines/workers_40-24     	  185314	     33307 ns/op	     30024 pdf/s	     13073 pdf_bytes	      4930 total_MB	   27898 B/op	     302 allocs/op
+BenchmarkGoPDFLib/table_180_rows/workers_40-24     	  268401	     23420 ns/op	     42699 pdf/s	     11721 pdf_bytes	      6048 total_MB	   23629 B/op	     211 allocs/op
+BenchmarkGoPDFLib/table_900_rows/workers_40-24     	   58650	    102647 ns/op	      9742 pdf/s	     42276 pdf_bytes	      2261 total_MB	   40415 B/op	     584 allocs/op
+BenchmarkGoPDFLib/invoice_40_rows/workers_40-24    	  788640	      8136 ns/op	    122907 pdf/s	      6069 pdf_bytes	     15786 total_MB	   20989 B/op	     139 allocs/op
+BenchmarkGoPDFLib/png_table_180_rows/workers_40-24 	  248413	     24012 ns/op	     41646 pdf/s	     17119 pdf_bytes	      7016 total_MB	   29614 B/op	     231 allocs/op
+BenchmarkGoPDFLib/png_rows_60/workers_40-24        	  294117	     20441 ns/op	     48921 pdf/s	     18298 pdf_bytes	     17017 total_MB	   60667 B/op	     479 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare	104.186s
+
+--- run 2/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGoPDFKit/text_short/workers_40-24         	  656666	      9555 ns/op	    104662 pdf/s	      1505 pdf_bytes	     20939 total_MB	   33435 B/op	     185 allocs/op
+BenchmarkGoPDFKit/text_240_lines/workers_40-24     	   78848	     73193 ns/op	     13662 pdf/s	      4706 pdf_bytes	     22827 total_MB	  303569 B/op	     569 allocs/op
+BenchmarkGoPDFKit/table_180_rows/workers_40-24     	   69457	     89468 ns/op	     11177 pdf/s	      8043 pdf_bytes	     24709 total_MB	  373024 B/op	     875 allocs/op
+BenchmarkGoPDFKit/table_900_rows/workers_40-24     	   15006	    401543 ns/op	      2490 pdf/s	     34997 pdf_bytes	     25503 total_MB	 1782089 B/op	    3686 allocs/op
+BenchmarkGoPDFKit/invoice_40_rows/workers_40-24    	  228380	     26292 ns/op	     38034 pdf/s	      3232 pdf_bytes	     22359 total_MB	  102658 B/op	     348 allocs/op
+BenchmarkGoPDFKit/png_table_180_rows/workers_40-24 	   42949	    142244 ns/op	      7030 pdf/s	     15784 pdf_bytes	     23945 total_MB	  584614 B/op	    1048 allocs/op
+BenchmarkGoPDFKit/png_rows_60/workers_40-24        	   29266	    200270 ns/op	      4993 pdf/s	     32082 pdf_bytes	     18417 total_MB	  659853 B/op	    2274 allocs/op
+BenchmarkGoPDFLib/text_short/workers_40-24         	 1371952	      4392 ns/op	    227699 pdf/s	      4303 pdf_bytes	     24962 total_MB	   19078 B/op	      99 allocs/op
+BenchmarkGoPDFLib/text_240_lines/workers_40-24     	  181076	     33302 ns/op	     30028 pdf/s	     13073 pdf_bytes	      4812 total_MB	   27866 B/op	     302 allocs/op
+BenchmarkGoPDFLib/table_180_rows/workers_40-24     	  237199	     23072 ns/op	     43343 pdf/s	     11733 pdf_bytes	      5339 total_MB	   23604 B/op	     211 allocs/op
+BenchmarkGoPDFLib/table_900_rows/workers_40-24     	   57891	    102470 ns/op	      9759 pdf/s	     42204 pdf_bytes	      2219 total_MB	   40187 B/op	     584 allocs/op
+BenchmarkGoPDFLib/invoice_40_rows/workers_40-24    	  764065	      8169 ns/op	    122413 pdf/s	      6069 pdf_bytes	     15325 total_MB	   21031 B/op	     139 allocs/op
+BenchmarkGoPDFLib/png_table_180_rows/workers_40-24 	  245034	     24582 ns/op	     40681 pdf/s	     17127 pdf_bytes	      6926 total_MB	   29636 B/op	     231 allocs/op
+BenchmarkGoPDFLib/png_rows_60/workers_40-24        	  269475	     22313 ns/op	     44817 pdf/s	     18298 pdf_bytes	     15612 total_MB	   60749 B/op	     479 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare	105.294s
+
+--- run 3/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGoPDFKit/text_short/workers_40-24         	  633710	      9254 ns/op	    108060 pdf/s	      1505 pdf_bytes	     20207 total_MB	   33436 B/op	     185 allocs/op
+BenchmarkGoPDFKit/text_240_lines/workers_40-24     	   76453	     76996 ns/op	     12988 pdf/s	      4706 pdf_bytes	     22133 total_MB	  303554 B/op	     568 allocs/op
+BenchmarkGoPDFKit/table_180_rows/workers_40-24     	   65014	     90866 ns/op	     11005 pdf/s	      8043 pdf_bytes	     23128 total_MB	  373019 B/op	     875 allocs/op
+BenchmarkGoPDFKit/table_900_rows/workers_40-24     	   15112	    396807 ns/op	      2520 pdf/s	     34997 pdf_bytes	     25687 total_MB	 1782321 B/op	    3686 allocs/op
+BenchmarkGoPDFKit/invoice_40_rows/workers_40-24    	  230964	     26177 ns/op	     38202 pdf/s	      3232 pdf_bytes	     22618 total_MB	  102685 B/op	     348 allocs/op
+BenchmarkGoPDFKit/png_table_180_rows/workers_40-24 	   42528	    139541 ns/op	      7166 pdf/s	     15784 pdf_bytes	     23718 total_MB	  584781 B/op	    1048 allocs/op
+BenchmarkGoPDFKit/png_rows_60/workers_40-24        	   30847	    192826 ns/op	      5186 pdf/s	     32082 pdf_bytes	     19416 total_MB	  660006 B/op	    2274 allocs/op
+BenchmarkGoPDFLib/text_short/workers_40-24         	 1447519	      4099 ns/op	    243987 pdf/s	      4303 pdf_bytes	     26338 total_MB	   19079 B/op	      99 allocs/op
+BenchmarkGoPDFLib/text_240_lines/workers_40-24     	  188677	     31525 ns/op	     31721 pdf/s	     13073 pdf_bytes	      4993 total_MB	   27749 B/op	     302 allocs/op
+BenchmarkGoPDFLib/table_180_rows/workers_40-24     	  281268	     22170 ns/op	     45107 pdf/s	     11739 pdf_bytes	      6326 total_MB	   23582 B/op	     211 allocs/op
+BenchmarkGoPDFLib/table_900_rows/workers_40-24     	   62004	     95674 ns/op	     10452 pdf/s	     42088 pdf_bytes	      2360 total_MB	   39917 B/op	     584 allocs/op
+BenchmarkGoPDFLib/invoice_40_rows/workers_40-24    	  776241	      7405 ns/op	    135052 pdf/s	      6069 pdf_bytes	     15568 total_MB	   21029 B/op	     139 allocs/op
+BenchmarkGoPDFLib/png_table_180_rows/workers_40-24 	  269674	     22174 ns/op	     45098 pdf/s	     17131 pdf_bytes	      7615 total_MB	   29611 B/op	     231 allocs/op
+BenchmarkGoPDFLib/png_rows_60/workers_40-24        	  320208	     18541 ns/op	     53935 pdf/s	     18298 pdf_bytes	     18524 total_MB	   60659 B/op	     479 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare	103.963s
+
+--- run 4/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGoPDFKit/text_short/workers_40-24         	  590972	      8696 ns/op	    114992 pdf/s	      1505 pdf_bytes	     18852 total_MB	   33449 B/op	     185 allocs/op
+BenchmarkGoPDFKit/text_240_lines/workers_40-24     	   85608	     68761 ns/op	     14543 pdf/s	      4706 pdf_bytes	     24788 total_MB	  303612 B/op	     569 allocs/op
+BenchmarkGoPDFKit/table_180_rows/workers_40-24     	   71336	     84153 ns/op	     11883 pdf/s	      8043 pdf_bytes	     25380 total_MB	  373059 B/op	     875 allocs/op
+BenchmarkGoPDFKit/table_900_rows/workers_40-24     	   15988	    379513 ns/op	      2635 pdf/s	     34997 pdf_bytes	     27176 total_MB	 1782361 B/op	    3686 allocs/op
+BenchmarkGoPDFKit/invoice_40_rows/workers_40-24    	  241188	     24910 ns/op	     40145 pdf/s	      3232 pdf_bytes	     23618 total_MB	  102679 B/op	     348 allocs/op
+BenchmarkGoPDFKit/png_table_180_rows/workers_40-24 	   44518	    133266 ns/op	      7504 pdf/s	     15784 pdf_bytes	     24836 total_MB	  584997 B/op	    1049 allocs/op
+BenchmarkGoPDFKit/png_rows_60/workers_40-24        	   32448	    182665 ns/op	      5474 pdf/s	     32082 pdf_bytes	     20423 total_MB	  659968 B/op	    2274 allocs/op
+BenchmarkGoPDFLib/text_short/workers_40-24         	 1540444	      3922 ns/op	    254986 pdf/s	      4303 pdf_bytes	     28009 total_MB	   19065 B/op	      99 allocs/op
+BenchmarkGoPDFLib/text_240_lines/workers_40-24     	  195398	     30814 ns/op	     32453 pdf/s	     13073 pdf_bytes	      5217 total_MB	   27996 B/op	     302 allocs/op
+BenchmarkGoPDFLib/table_180_rows/workers_40-24     	  279092	     20961 ns/op	     47707 pdf/s	     11739 pdf_bytes	      6281 total_MB	   23598 B/op	     211 allocs/op
+BenchmarkGoPDFLib/table_900_rows/workers_40-24     	   62725	     96358 ns/op	     10378 pdf/s	     42285 pdf_bytes	      2385 total_MB	   39866 B/op	     584 allocs/op
+BenchmarkGoPDFLib/invoice_40_rows/workers_40-24    	  802449	      7464 ns/op	    133976 pdf/s	      6069 pdf_bytes	     16080 total_MB	   21012 B/op	     139 allocs/op
+BenchmarkGoPDFLib/png_table_180_rows/workers_40-24 	  270020	     22851 ns/op	     43762 pdf/s	     17131 pdf_bytes	      7628 total_MB	   29620 B/op	     231 allocs/op
+BenchmarkGoPDFLib/png_rows_60/workers_40-24        	  347601	     18944 ns/op	     52786 pdf/s	     18298 pdf_bytes	     20114 total_MB	   60677 B/op	     479 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare	98.742s
+
+--- run 5/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGoPDFKit/text_short/workers_40-24         	  742772	      8336 ns/op	    119959 pdf/s	      1505 pdf_bytes	     23683 total_MB	   33433 B/op	     185 allocs/op
+BenchmarkGoPDFKit/text_240_lines/workers_40-24     	   87612	     67774 ns/op	     14755 pdf/s	      4706 pdf_bytes	     25364 total_MB	  303565 B/op	     569 allocs/op
+BenchmarkGoPDFKit/table_180_rows/workers_40-24     	   70438	     85169 ns/op	     11741 pdf/s	      8043 pdf_bytes	     25056 total_MB	  372994 B/op	     875 allocs/op
+BenchmarkGoPDFKit/table_900_rows/workers_40-24     	   15394	    390244 ns/op	      2563 pdf/s	     34997 pdf_bytes	     26165 total_MB	 1782237 B/op	    3686 allocs/op
+BenchmarkGoPDFKit/invoice_40_rows/workers_40-24    	  232108	     25532 ns/op	     39166 pdf/s	      3232 pdf_bytes	     22725 total_MB	  102662 B/op	     348 allocs/op
+BenchmarkGoPDFKit/png_table_180_rows/workers_40-24 	   44427	    141073 ns/op	      7089 pdf/s	     15784 pdf_bytes	     24764 total_MB	  584475 B/op	    1048 allocs/op
+BenchmarkGoPDFKit/png_rows_60/workers_40-24        	   30128	    198577 ns/op	      5036 pdf/s	     32082 pdf_bytes	     18961 total_MB	  659917 B/op	    2274 allocs/op
+BenchmarkGoPDFLib/text_short/workers_40-24         	 1356723	      4267 ns/op	    234369 pdf/s	      4303 pdf_bytes	     24670 total_MB	   19067 B/op	      99 allocs/op
+BenchmarkGoPDFLib/text_240_lines/workers_40-24     	  185874	     33103 ns/op	     30209 pdf/s	     13073 pdf_bytes	      4929 total_MB	   27806 B/op	     302 allocs/op
+BenchmarkGoPDFLib/table_180_rows/workers_40-24     	  258580	     23346 ns/op	     42835 pdf/s	     11721 pdf_bytes	      5829 total_MB	   23638 B/op	     211 allocs/op
+BenchmarkGoPDFLib/table_900_rows/workers_40-24     	   56136	    104486 ns/op	      9571 pdf/s	     42136 pdf_bytes	      2134 total_MB	   39864 B/op	     584 allocs/op
+BenchmarkGoPDFLib/invoice_40_rows/workers_40-24    	  703960	      8109 ns/op	    123325 pdf/s	      6069 pdf_bytes	     14109 total_MB	   21015 B/op	     139 allocs/op
+BenchmarkGoPDFLib/png_table_180_rows/workers_40-24 	  219908	     24081 ns/op	     41526 pdf/s	     17119 pdf_bytes	      6202 total_MB	   29573 B/op	     231 allocs/op
+BenchmarkGoPDFLib/png_rows_60/workers_40-24        	  298634	     20515 ns/op	     48745 pdf/s	     18298 pdf_bytes	     17266 total_MB	   60623 B/op	     479 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare	104.222s
+

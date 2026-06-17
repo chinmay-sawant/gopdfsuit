@@ -1,0 +1,38 @@
+go test -run='^$' -bench='BenchmarkGenerateTemplatePDF/Rows2000$|BenchmarkGoPdfSuit$' \
+	-benchmem -count=10 ./internal/pdf
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      91	  12291397 ns/op	 133.97 MB/s	 4800590 B/op	   39784 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      94	  12366978 ns/op	 133.15 MB/s	 4802167 B/op	   39781 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      96	  12805271 ns/op	 128.59 MB/s	 4739506 B/op	   39780 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      96	  12422689 ns/op	 132.55 MB/s	 4735680 B/op	   39778 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      98	  12807064 ns/op	 128.58 MB/s	 4764604 B/op	   39779 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      82	  12624089 ns/op	 130.44 MB/s	 4734056 B/op	   39780 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      86	  12686306 ns/op	 129.80 MB/s	 4758940 B/op	   39781 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      85	  12498645 ns/op	 131.75 MB/s	 4773982 B/op	   39780 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      85	  12661586 ns/op	 130.05 MB/s	 4750602 B/op	   39779 allocs/op
+BenchmarkGenerateTemplatePDF/Rows2000-24       	      94	  12341030 ns/op	 133.43 MB/s	 4763085 B/op	   39780 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      43	  27412893 ns/op	  64.71 MB/s	 8566506 B/op	   41209 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      37	  27826686 ns/op	  63.75 MB/s	 8537294 B/op	   41211 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      38	  27176885 ns/op	  65.28 MB/s	 8546161 B/op	   41204 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      43	  26603190 ns/op	  66.68 MB/s	 8559651 B/op	   41211 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      42	  26724770 ns/op	  66.38 MB/s	 8485052 B/op	   41205 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      39	  27314243 ns/op	  64.95 MB/s	 8536699 B/op	   41206 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      43	  27641540 ns/op	  64.18 MB/s	 8520618 B/op	   41206 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      42	  26585606 ns/op	  66.73 MB/s	 8516663 B/op	   41209 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      42	  26891701 ns/op	  65.97 MB/s	 8457902 B/op	   41204 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	      44	  27580162 ns/op	  64.32 MB/s	 8568010 B/op	   41205 allocs/op
+BenchmarkGoPdfSuit-24                                        	      98	  12478782 ns/op	 4639108 B/op	   39776 allocs/op
+BenchmarkGoPdfSuit-24                                        	      84	  12945689 ns/op	 4827730 B/op	   39785 allocs/op
+BenchmarkGoPdfSuit-24                                        	      93	  12171419 ns/op	 4777178 B/op	   39780 allocs/op
+BenchmarkGoPdfSuit-24                                        	      97	  12152084 ns/op	 4715739 B/op	   39777 allocs/op
+BenchmarkGoPdfSuit-24                                        	      96	  12041413 ns/op	 4820007 B/op	   39782 allocs/op
+BenchmarkGoPdfSuit-24                                        	      84	  12190211 ns/op	 4715219 B/op	   39779 allocs/op
+BenchmarkGoPdfSuit-24                                        	      99	  12027232 ns/op	 4629200 B/op	   39774 allocs/op
+BenchmarkGoPdfSuit-24                                        	      97	  11934163 ns/op	 4752419 B/op	   39779 allocs/op
+BenchmarkGoPdfSuit-24                                        	      99	  12064998 ns/op	 4744758 B/op	   39781 allocs/op
+BenchmarkGoPdfSuit-24                                        	      88	  12052504 ns/op	 4701722 B/op	   39777 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	46.237s

@@ -92,3 +92,34 @@ func TestWrapTextIntoReusesBuffers(t *testing.T) {
 		t.Fatalf("buffer capacity shrank: first=%d second=%d", firstCap, cap(ws.buf))
 	}
 }
+
+func TestWrapTextIntoStaleSlicesWithoutClone(t *testing.T) {
+	registry := NewFontRegistry()
+	var ws WrapState
+
+	email := WrapTextInto(&ws, "user1@example.com", wrapTestFontHelvetica, 10, 40, registry)
+	_ = WrapTextInto(&ws, "Lorem ipsum dolor sit amet, consectetur adipiscing elit.", wrapTestFontHelvetica, 10, 50, registry)
+
+	if len(email) == 0 {
+		t.Fatal("expected wrapped email line")
+	}
+	got := string(email[0])
+	if got == "user1@example.com" {
+		t.Fatal("expected reused WrapState to invalidate prior slice views")
+	}
+}
+
+func TestCloneWrapLinesSurvivesNextWrap(t *testing.T) {
+	registry := NewFontRegistry()
+	var ws WrapState
+
+	email := cloneWrapLines(WrapTextInto(&ws, "user1@example.com", wrapTestFontHelvetica, 10, 200, registry))
+	_ = WrapTextInto(&ws, "Lorem ipsum dolor sit amet, consectetur adipiscing elit.", wrapTestFontHelvetica, 10, 50, registry)
+
+	if len(email) == 0 {
+		t.Fatal("expected wrapped email line")
+	}
+	if got := string(email[0]); got != "user1@example.com" {
+		t.Fatalf("cloned lines should stay stable: got %q", got)
+	}
+}
