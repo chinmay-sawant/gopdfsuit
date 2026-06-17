@@ -3,6 +3,7 @@ package font
 import (
 	"fmt"
 	"hash/adler32"
+	"maps"
 	"math"
 	"sort"
 	"strings"
@@ -747,9 +748,7 @@ func buildTrueTypeFontObjectsKey(font *RegisteredFont, fontData []byte) trueType
 
 func cloneFontObjectMap(src map[int]string) map[int]string {
 	dst := make(map[int]string, len(src))
-	for id, content := range src {
-		dst[id] = content
-	}
+	maps.Copy(dst, src)
 	return dst
 }
 

@@ -13,9 +13,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 )
 
-var compressedSRGBICCProfileCache = sync.OnceValue(func() []byte {
-	return compressSRGBICCProfile()
-})
+var compressedSRGBICCProfileCache = sync.OnceValue(compressSRGBICCProfile)
 
 // PDFAHandler handles PDF/A compliance features, including metadata and color profiles.
 //

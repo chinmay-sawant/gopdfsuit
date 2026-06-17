@@ -36,8 +36,8 @@ func pageContentStreamBucket(initialCap int) int {
 	if initialCap < 64*1024 {
 		initialCap = 64 * 1024
 	}
-	for i, bucket := range pageContentStreamPools {
-		if initialCap <= bucket.capacity {
+	for i := range pageContentStreamPools {
+		if initialCap <= pageContentStreamPools[i].capacity {
 			return i
 		}
 	}

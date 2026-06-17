@@ -14,6 +14,12 @@ import (
 
 const sharedHexDigits = "0123456789ABCDEF"
 
+const (
+	alignLeft   = "left"
+	alignCenter = "center"
+	alignRight  = "right"
+)
+
 // fmtNum formats a float with 2 decimal places (standard PDF precision)
 func fmtNum(f float64) string {
 	var buf [24]byte
@@ -237,7 +243,7 @@ func prepSharedDeferRow(
 			break
 		}
 		sc := sharedCols[colIdx]
-		if cell.Text != "" && (sc.props.Alignment == "center" || sc.props.Alignment == "right") {
+		if cell.Text != "" && (sc.props.Alignment == alignCenter || sc.props.Alignment == alignRight) {
 			rowSingleLineTextWidths[colIdx] = float64(utf8.RuneCountInString(cell.Text)) *
 				float64(sc.props.FontSize) * sc.stdCharWidth
 		} else {
@@ -252,73 +258,13 @@ func prepSharedDeferRow(
 }
 
 func prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes [][]byte, maxColumns int) {
-	for colIdx := 0; colIdx < maxColumns; colIdx++ {
+	for colIdx := range maxColumns {
 		prefix := rowTextPrefixes[colIdx][:0]
 		prefix = append(prefix, rowFontDecls[colIdx]...)
 		prefix = append(prefix, rowTextColorCmds[colIdx]...)
 		prefix = append(prefix, "1 0 0 1 0 0 Tm\n"...)
 		rowTextPrefixes[colIdx] = prefix
 	}
-}
-
-type sharedCellMutationSig struct {
-	textLen      int
-	bgLen        int
-	textColorLen int
-	textEdge     uint16
-	bgEdge       uint16
-	colorEdge    uint16
-}
-
-type sharedRowMutationSig struct {
-	cells [8]sharedCellMutationSig
-	n     int
-	extra uint64
-}
-
-func sharedRowSignature(row models.Row, maxColumns int) sharedRowMutationSig {
-	var sig sharedRowMutationSig
-	n := min(len(row.Row), maxColumns)
-	if n > len(sig.cells) {
-		sig.n = len(sig.cells)
-	} else {
-		sig.n = n
-	}
-	for colIdx := 0; colIdx < n; colIdx++ {
-		cell := row.Row[colIdx]
-		if colIdx >= len(sig.cells) {
-			sig.extra = mixSharedSignatureString(sig.extra^uint64(colIdx), cell.Text)
-			sig.extra = mixSharedSignatureString(sig.extra, cell.BgColor)
-			sig.extra = mixSharedSignatureString(sig.extra, cell.TextColor)
-			continue
-		}
-		sig.cells[colIdx] = sharedCellMutationSig{
-			textLen:      len(cell.Text),
-			bgLen:        len(cell.BgColor),
-			textColorLen: len(cell.TextColor),
-			textEdge:     stringEdge(cell.Text),
-			bgEdge:       stringEdge(cell.BgColor),
-			colorEdge:    stringEdge(cell.TextColor),
-		}
-	}
-	return sig
-}
-
-func stringEdge(s string) uint16 {
-	if len(s) == 0 {
-		return 0
-	}
-	return uint16(s[0])<<8 | uint16(s[len(s)-1])
-}
-
-func mixSharedSignatureString(h uint64, s string) uint64 {
-	h ^= uint64(len(s))
-	h *= 1099511628211
-	for i := 0; i < len(s); i++ {
-		h ^= uint64(s[i])
-		h *= 1099511628211
-	}
-	return h
 }
 
 func scaledCoordKey(v float64) int64 {
@@ -419,7 +365,6 @@ func drawSharedDeferRow(
 	scratchBuf, textTjBuf, borderBuf []byte,
 	rowCellProps []models.Props,
 	rowTextPrefixes [][]byte,
-	rowResolvedFonts []string,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
 	batchMCIDCells bool,
@@ -473,9 +418,9 @@ func drawSharedDeferRow(
 			cellProps := rowCellProps[colIdx]
 			textWidth := rowSingleLineTextWidths[colIdx]
 			textX := cellX + 5
-			if cellProps.Alignment == "center" && textWidth > 0 { //nolint:goconst
+			if cellProps.Alignment == alignCenter && textWidth > 0 {
 				textX = cellX + (cellWidth-textWidth)/2
-			} else if cellProps.Alignment == "right" && textWidth > 0 { //nolint:goconst
+			} else if cellProps.Alignment == alignRight && textWidth > 0 {
 				textX = cellX + cellWidth - textWidth - 5
 			}
 			textY := pageManager.CurrentYPos - rowHeight/2 - float64(cellProps.FontSize)/2
@@ -532,7 +477,6 @@ func drawSharedLayoutRow(
 	rowFontDecls [][]byte,
 	rowTextColorCmds [][]byte,
 	rowTextPrefixes [][]byte,
-	rowResolvedFonts []string,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
 ) {
@@ -560,7 +504,7 @@ func drawSharedLayoutRow(
 		drawSharedDeferRow(
 			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 			scratchBuf, textTjBuf, borderBuf,
-			rowCellProps, rowTextPrefixes, rowResolvedFonts, rowSingleLineTextWidths,
+			rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
 			maxColumns, true,
 		)
 		rendered := append([]byte(nil), rowBuf.Bytes()...)
@@ -574,7 +518,7 @@ func drawSharedLayoutRow(
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
-		rowCellProps, rowTextPrefixes, rowResolvedFonts, rowSingleLineTextWidths,
+		rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
 		maxColumns, true,
 	)
 	pageManager.Structure.EndStructureElement()
@@ -769,10 +713,10 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 	var titleX float64
 	switch titleProps.Alignment {
-	case "center": //nolint:goconst
+	case alignCenter:
 		// Center the text within the available area (between margins)
 		titleX = pageManager.Margins.Left + (availableWidth-textWidth)/2
-	case "right": //nolint:goconst
+	case alignRight:
 		// Right align: position text so it ends at the right margin
 		titleX = pageManager.PageDimensions.Width - pageManager.Margins.Right - textWidth
 	default:
@@ -1083,9 +1027,9 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 
 				var textX float64
 				switch cellProps.Alignment {
-				case "center":
+				case alignCenter:
 					textX = cellX + (cellWidth-textWidth)/2
-				case "right":
+				case alignRight:
 					textX = cellX + cellWidth - textWidth - 5
 				default:
 					textX = cellX + 5
@@ -1346,7 +1290,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			drawSharedLayoutRow(
 				pageManager, pageManager.GetCurrentContentStream(), &table.Rows[rowIdx], row, colWidths, sharedCols, rowHeight,
 				scratchBuf, textTjBuf, borderBuf,
-				rowCellProps, rowFontDecls, rowTextColorCmds, rowTextPrefixes, rowResolvedFonts, rowSingleLineTextWidths,
+				rowCellProps, rowFontDecls, rowTextColorCmds, rowTextPrefixes, rowSingleLineTextWidths,
 				table.MaxColumns,
 			)
 			continue
@@ -1460,7 +1404,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				if rowUsesCustomFonts[colIdx] {
 					pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], cell.Text)
 				}
-				needsTextWidth := cellProps.Alignment == "center" || cellProps.Alignment == "right"
+				needsTextWidth := cellProps.Alignment == alignCenter || cellProps.Alignment == alignRight
 				if needsTextWidth && !isWrapEnabled && (cell.MathEnabled == nil || !*cell.MathEnabled || !typstsyntax.IsMathExpression(cell.Text)) {
 					rowSingleLineTextWidths[colIdx] = EstimateTextWidth(rowResolvedFonts[colIdx], cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 				}
@@ -1519,7 +1463,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			drawSharedDeferRow(
 				contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 				scratchBuf, textTjBuf, borderBuf,
-				rowCellProps, rowTextPrefixes, rowResolvedFonts, rowSingleLineTextWidths,
+				rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
 				table.MaxColumns, true,
 			)
 			pageManager.Structure.EndStructureElement()
@@ -1775,9 +1719,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				// Center the math expression within the cell
 				var mathX float64
 				switch cellProps.Alignment {
-				case "center":
+				case alignCenter:
 					mathX = cellX + (cellWidth-layout.Width)/2
-				case "right":
+				case alignRight:
 					mathX = cellX + cellWidth - layout.Width - 5
 				default:
 					mathX = cellX + 5
@@ -1818,9 +1762,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						// Calculate X position based on alignment
 						var textX float64
 						switch cellProps.Alignment {
-						case "center":
+						case alignCenter:
 							textX = cellX + (cellWidth-lineEstWidth)/2
-						case "right":
+						case alignRight:
 							textX = cellX + cellWidth - lineEstWidth - 5
 						default:
 							textX = cellX + 5
@@ -1853,10 +1797,10 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 					var textX float64
 					switch cellProps.Alignment {
-					case "center":
+					case alignCenter:
 						// Center the text within the cell
 						textX = cellX + (cellWidth-textWidth)/2
-					case "right":
+					case alignRight:
 						// Right align: position text so it ends near the right edge of cell
 						textX = cellX + cellWidth - textWidth - 5
 					default:
