@@ -360,6 +360,9 @@ go test ./internal/pdf/... ./internal/handlers/...
 # Full weighted benchmark (run 3–5 times and average)
 make bench-k6
 
+# Lighter harness when WSL OOMs or other benchmarks run in parallel (24 VU × 15s)
+make bench-k6-light
+
 # Quick retail-only gate
 make bench-k6-retail
 

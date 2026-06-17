@@ -75,6 +75,14 @@ go run cmd/gopdfsuit/main.go
 k6 run smoke_test.js
 ```
 
+Or via Makefile (starts server + captures pprof):
+
+```bash
+make bench-k6-smoke    # k6 only, 10s / 1 VU
+make bench-k6-light    # full harness: 24 VU × 15s, lower CPU/RAM (WSL-friendly)
+make bench-k6          # full harness: 48 VU × 35s + CPU/heap pprof
+```
+
 ### Load Test (Full Suite)
 
 ```bash
@@ -100,6 +108,10 @@ Override virtual users and duration:
 ```bash
 # Run with 20 VUs for 1 minute
 k6 run --vus 20 --duration 1m smoke_test.js
+
+# Makefile light harness (24 VU × 15s; override with K6_LIGHT_* vars)
+make bench-k6-light
+make bench-k6-light K6_LIGHT_VUS=16 K6_LIGHT_SECONDS=10
 ```
 
 Override base URL:
@@ -229,6 +241,7 @@ curl http://localhost:8080/gopdfsuit
 - Check server logs for errors
 - Verify the payload format is correct
 - Ensure server has sufficient resources
+- If the server dies mid-run (~70% progress) with `connection reset` / `connection refused`, use `make bench-k6-light` and avoid running other benchmarks in parallel
 
 ### Slow Response Times
 

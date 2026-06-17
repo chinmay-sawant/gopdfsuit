@@ -103,11 +103,16 @@ BENCHMARKS_DIR := sampledata/benchmarks
 GOPDFKIT_COMPARE_DIR := $(BENCHMARKS_DIR)/gopdfkit_compare
 GOTENBERG_DIR := $(BENCHMARKS_DIR)/gotenberg
 K6_DIR := test/generate_template-pdf
+# bench-k6-light defaults (override on CLI, e.g. K6_LIGHT_VUS=16 make bench-k6-light)
+K6_LIGHT_VUS ?= 24
+K6_LIGHT_SECONDS ?= 15
+K6_LIGHT_MAX_CONCURRENT ?= 24
+K6_LIGHT_GOMAXPROCS ?= 12
 
 .PHONY: build test install-verapdf test-verify-pdfs test-scan-pdfs clean run fmt vet mod lint \
 	load-pprof load-pprof-gate load-pprof-1k load-pprof-1500 \
 	bench-help bench-setup \
-	bench-k6 bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \
+	bench-k6 bench-k6-light bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \
 	bench-k6-smoke bench-k6-spike bench-k6-soak bench-k6-install \
 	bench-gotenberg bench-gotenberg-load bench-gotenberg-smoke bench-gotenberg-start \
 	bench-gopdflib-zerodha bench-gopdflib-zerodha-x2 bench-gopdflib-zerodha-x5 bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x10-pprof \
@@ -125,6 +130,7 @@ bench-help:
 	@echo ""
 	@echo "  Overrides: GO_BENCH GOMAXPROCS_BENCH BENCH_ITERATIONS BENCH_WORKERS BENCH_COUNT BENCH_TIME"
 	@echo "             LOAD_VUS PROFILE_SECONDS PAYLOAD_SCENARIO THROUGHPUT_GATE BASE_URL (k6/pprof script)"
+	@echo "             K6_LIGHT_VUS K6_LIGHT_SECONDS K6_LIGHT_MAX_CONCURRENT K6_LIGHT_GOMAXPROCS (bench-k6-light)"
 	@echo ""
 	@echo "  Setup:"
 	@echo "    make bench-setup                 # Typst binary + data.json (sampledata/benchmarks)"
@@ -133,6 +139,7 @@ bench-help:
 	@echo "  gopdfsuit HTTP (k6 + pprof — server started by script unless noted):"
 	@echo "    make load-pprof                  # weighted tagged_ecdsa, 48 VU x 35s + CPU/heap pprof"
 	@echo "    make bench-k6                    # alias for load-pprof"
+	@echo "    make bench-k6-light              # 24 VU x 15s, lighter CPU/RAM (WSL / shared machine)"
 	@echo "    make load-pprof-gate             # retail-only signed (bench-k6-retail)"
 	@echo "    make load-pprof-1k               # weighted, 1000 req/s gate"
 	@echo "    make load-pprof-1500             # weighted, 1500 req/s gate"
@@ -193,6 +200,12 @@ load-pprof: bench-k6
 
 bench-k6:
 	bash $(K6_DIR)/run_gin_pprof_load.sh
+
+# Reduced load for WSL / shared machines / running alongside other benchmarks
+bench-k6-light:
+	GOMAXPROCS=$(K6_LIGHT_GOMAXPROCS) MAX_CONCURRENT=$(K6_LIGHT_MAX_CONCURRENT) \
+		LOAD_VUS=$(K6_LIGHT_VUS) PROFILE_SECONDS=$(K6_LIGHT_SECONDS) \
+		bash $(K6_DIR)/run_gin_pprof_load.sh
 
 # Gate run: retail-only sanity (≥1500 req/s target on fast path)
 load-pprof-gate: bench-k6-retail

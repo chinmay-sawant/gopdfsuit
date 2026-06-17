@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Gin HTTP load test + CPU/heap pprof capture for /api/v1/generate/template-pdf.
+#
+# Full harness:  make bench-k6          (48 VU × 35s, MAX_CONCURRENT=48)
+# Light harness: make bench-k6-light    (24 VU × 15s, MAX_CONCURRENT=24, GOMAXPROCS=12)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

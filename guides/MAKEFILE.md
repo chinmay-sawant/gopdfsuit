@@ -38,6 +38,10 @@ Customize behavior using environment variables:
 | `BENCH_TIME` | `5s` | `go test -benchtime` for GoPDFKit compare |
 | `LOAD_VUS` | `48` | k6 virtual users (`run_gin_pprof_load.sh`) |
 | `PROFILE_SECONDS` | `35` | CPU profile duration during k6 load |
+| `K6_LIGHT_VUS` | `24` | Virtual users for `bench-k6-light` |
+| `K6_LIGHT_SECONDS` | `15` | Steady duration for `bench-k6-light` |
+| `K6_LIGHT_MAX_CONCURRENT` | `24` | Server concurrency cap for `bench-k6-light` |
+| `K6_LIGHT_GOMAXPROCS` | `12` | `GOMAXPROCS` for `bench-k6-light` server process |
 | `PAYLOAD_SCENARIO` | `tagged_ecdsa` | k6 payload mix (`retail_only_signed` for gate) |
 | `THROUGHPUT_GATE` | `0` | Minimum req/s gate for k6 script (0 = off) |
 | `BASE_URL` | `http://127.0.0.1:8080` | Target URL for k6 / pprof script |
@@ -254,9 +258,12 @@ For result interpretation and latest numbers, see [INTEGRATION_AND_BENCHMARK_TES
 
 The `load-pprof*` and `bench-k6*` targets (except `bench-k6-load`, `bench-k6-smoke`, `bench-k6-spike`, `bench-k6-soak`) build the server, start it on port 8080, run k6, and capture CPU/heap profiles under `guides/cursor/baselines/gin_pprof_runs/`.
 
+Use **`make bench-k6-light`** when running on WSL with limited RAM, alongside other benchmarks, or when the full **48 VU × 35s** run OOM-kills the server mid-run.
+
 | Target | Description |
 |--------|-------------|
 | `make load-pprof` | Weighted `tagged_ecdsa` workload, 48 VU × 35s + pprof (alias: `bench-k6`) |
+| `make bench-k6-light` | Same harness at **24 VU × 15s**, `MAX_CONCURRENT=24`, `GOMAXPROCS=12` — lower CPU/RAM |
 | `make load-pprof-gate` | Retail-only signed fast path, 1500 req/s gate (alias: `bench-k6-retail`) |
 | `make load-pprof-1k` | Weighted workload, 1000 req/s gate (alias: `bench-k6-1k`) |
 | `make load-pprof-1500` | Weighted workload, 1500 req/s gate (alias: `bench-k6-1500`) |
@@ -270,6 +277,14 @@ The `load-pprof*` and `bench-k6*` targets (except `bench-k6-load`, `bench-k6-smo
 ```bash
 go run ./cmd/gopdfsuit &
 make bench-k6-smoke
+```
+
+**Light run (WSL / shared machine):**
+
+```bash
+make bench-k6-light
+# or tune further:
+make bench-k6-light K6_LIGHT_VUS=16 K6_LIGHT_SECONDS=10
 ```
 
 **Custom gate example:**
@@ -384,6 +399,7 @@ Long-running; run when you want a full regression pass.
 | `make bench-help` | List all benchmark targets | Discover harnesses |
 | `make bench-suite` | Core benchmark regression | Performance check |
 | `make load-pprof` | k6 HTTP load + pprof | End-to-end throughput |
+| `make bench-k6-light` | k6 HTTP load + pprof (24 VU × 15s) | WSL / constrained runs |
 | `make bench-gopdflib-zerodha` | Zerodha gold standard | Library throughput |
 
 ---
@@ -424,6 +440,7 @@ make bench-gopdfkit-setup                    # GoPDFKit symlink (compare only)
 make bench-gopdflib-zerodha-x2               # Quick Zerodha check (2 runs)
 make bench-handler-all GO_BENCH=go1.26.4     # Handler micro-bench
 make load-pprof                              # Full HTTP + pprof (several minutes)
+make bench-k6-light                          # Same harness, lower load (WSL-friendly)
 ```
 
 For a full pass before publishing numbers:
@@ -467,6 +484,15 @@ make build
 ```
 
 ### Benchmark Failures
+
+**k6 stops at ~70% with `connection reset` / `connection refused`:**
+
+The gopdfsuit server process died mid-run (often OOM on WSL when other benchmarks run in parallel). Run k6 in isolation and use the lighter harness:
+
+```bash
+# stop competing jobs first, then:
+make bench-k6-light
+```
 
 **Port 8080 in use** (k6 / `load-pprof`):
 

@@ -59,6 +59,7 @@ Full comparison: [benchmark_suite_20260611_2128/comparison.md](./cursor/baseline
 | Target | Command | Latest run | Peak | Latest avg | Median | p99 |
 |--------|---------|------------|-----:|-----------:|-------:|----:|
 | Weighted steady | `make bench-k6` | `20260614_004108` (5-run) | **859 req/s** | **825 req/s** | 16.0 ms | 347 ms |
+| Weighted steady (light) | `make bench-k6-light` | — | — | — | — | — |
 | Weighted steady (best) | `make load-pprof` | `20260611_190806` | **1,054 req/s** | — | 15.5 ms | 143 ms |
 | Weighted steady (2-run avg) | `make load-pprof` | `20260611_220146` | 693 req/s | **652 req/s** | 20.1 ms | 467 ms |
 | Weighted ≥1k gate | `make load-pprof-1k` | `20260611_190935` | 953 req/s | — | — | 150 ms |

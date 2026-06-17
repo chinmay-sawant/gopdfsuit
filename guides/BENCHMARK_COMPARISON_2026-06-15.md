@@ -253,6 +253,7 @@ k6 latency breakdown (peak run — 972.74 req/s):
 | `bench-pdf-macro` | Extended synthetic table sizes |
 | `bench-pdf-typst` | Requires `compare` build tag |
 | `bench-gopdfkit-html` | Opt-in HTML subset, needs Chrome |
+| `bench-k6-light` | Reduced k6 + pprof: 24 VU × 15s, lower RAM (WSL / shared machine) |
 | `bench-k6-retail/1k/1500/smoke/spike/soak` | k6 scenario variants |
 | `bench-suite` / `bench-suite-full` | Meta-targets composing above |
 
@@ -266,6 +267,7 @@ k6 latency breakdown (peak run — 972.74 req/s):
 | `run_all_benchmarks.sh` needs `npm install` first | jsPDF/PDFKit/pdf-lib fail silently | Run `npm install` in `sampledata/benchmarks/` |
 | System `typst` in PATH may shadow bundled binary | Wrong version picked | Use explicit path to `typst-x86_64-unknown-linux-musl/typst` |
 | k6 run after full benchmark suite | Throughput drops ~20–30% (758 vs 973 req/s) | Run `make bench-k6` as a dedicated harness for headline HTTP numbers |
+| k6 server dies mid-run (~70%) on WSL | OOM / resource contention when parallel benchmarks run | Run `make bench-k6-light` in isolation; stop `run_all_benchmarks` and other heavy jobs first |
 
 ---
 
@@ -289,6 +291,7 @@ make bench-handler-all
 make bench-pdf-micro
 make bench-gopdfkit-compare
 make bench-k6
+make bench-k6-light   # 24 VU × 15s — use on WSL or when full run OOMs
 make bench-gotenberg
 
 # Multi-run validation

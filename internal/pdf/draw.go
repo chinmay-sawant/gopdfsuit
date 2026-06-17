@@ -156,7 +156,49 @@ type sharedRowRenderCacheKey struct {
 	y        int64
 }
 
-var sharedRowRenderCache sync.Map
+const (
+	sharedRowRenderCacheMaxEntries = 4096
+	sharedRowRenderCacheMaxBytes   = 64 * 1024 * 1024
+	sharedRowRenderCacheMaxValue   = 256 * 1024
+)
+
+type sharedRowRenderCacheStore struct {
+	mu      sync.RWMutex
+	entries map[sharedRowRenderCacheKey][]byte
+	bytes   int
+}
+
+var sharedRowRenderCache = &sharedRowRenderCacheStore{}
+
+func (c *sharedRowRenderCacheStore) Load(key sharedRowRenderCacheKey) ([]byte, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.entries == nil {
+		return nil, false
+	}
+	rendered, ok := c.entries[key]
+	return rendered, ok
+}
+
+func (c *sharedRowRenderCacheStore) Store(key sharedRowRenderCacheKey, rendered []byte) {
+	if len(rendered) == 0 || len(rendered) > sharedRowRenderCacheMaxValue {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.entries == nil {
+		c.entries = make(map[sharedRowRenderCacheKey][]byte, 512)
+	}
+	if existing, ok := c.entries[key]; ok {
+		c.bytes -= len(existing)
+	}
+	if len(c.entries) >= sharedRowRenderCacheMaxEntries || c.bytes+len(rendered) > sharedRowRenderCacheMaxBytes {
+		c.entries = make(map[sharedRowRenderCacheKey][]byte, 512)
+		c.bytes = 0
+	}
+	c.entries[key] = rendered
+	c.bytes += len(rendered)
+}
 
 func stdFontCharWidth(resolvedName string) float64 {
 	switch resolvedName {
@@ -505,7 +547,7 @@ func drawSharedLayoutRow(
 			y:        scaledCoordKey(pageManager.CurrentYPos),
 		}
 		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
-			contentStream.Write(cached.([]byte))
+			contentStream.Write(cached)
 			pageManager.Structure.EndStructureElement()
 			pageManager.CurrentYPos -= rowHeight
 			return
