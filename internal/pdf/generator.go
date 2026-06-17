@@ -106,6 +106,10 @@ func (a *signatureContextAdapter) SetExtraObject(id int, content string) {
 	a.pm.ExtraObjects[id] = []byte(content)
 }
 
+func (a *signatureContextAdapter) SetExtraObjectBytes(id int, content []byte) {
+	a.pm.ExtraObjects[id] = content
+}
+
 func (a *signatureContextAdapter) AppendPageAnnot(pageIndex int, annotID int) {
 	for len(a.pm.PageAnnots) <= pageIndex {
 		a.pm.PageAnnots = append(a.pm.PageAnnots, []int{})

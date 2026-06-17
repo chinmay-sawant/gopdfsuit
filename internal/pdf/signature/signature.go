@@ -262,7 +262,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	}
 
 	// Build signature value dictionary
-	var sigValueDict strings.Builder
+	var sigValueDict bytes.Buffer
 	sigValueDict.Grow(17000)
 	sigValueDict.WriteString("<< /Type /Sig")
 	sigValueDict.WriteString(" /Filter /Adobe.PPKLite")
@@ -322,7 +322,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	sigValueDict.WriteString(" >>")
 
-	pageManager.SetExtraObject(sigValueID, sigValueDict.String())
+	pageManager.SetExtraObjectBytes(sigValueID, sigValueDict.Bytes())
 
 	// Create signature field widget annotation
 	sigAnnotID := pageManager.AllocObjectID()

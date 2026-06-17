@@ -2,7 +2,7 @@ package font
 
 import (
 	"fmt"
-	"hash/fnv"
+	"hash/adler32"
 	"math"
 	"sort"
 	"strings"
@@ -21,7 +21,24 @@ type compressedFontDataKey struct {
 	size int
 }
 
-var compressedFontDataCache sync.Map
+type trueTypeFontObjectsKey struct {
+	fontHash      uint64
+	fontSize      int
+	usedHash      uint64
+	usedCount     int
+	objectID      int
+	cidFontID     int
+	descriptorID  int
+	fontFileID    int
+	widthsID      int
+	cidToGIDMapID int
+	toUnicodeID   int
+}
+
+var (
+	compressedFontDataCache  sync.Map
+	trueTypeFontObjectsCache sync.Map
+)
 
 // PDF 2.0 compliant font definitions for the standard 14 fonts
 // These include FirstChar, LastChar, Widths, and FontDescriptor as required by Arlington Model
@@ -656,14 +673,21 @@ func GetAvailableFonts() []models.FontInfo {
 // GenerateTrueTypeFontObjects generates all PDF objects needed for a custom TrueType font
 // Returns map of object ID to object content
 func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor) map[int]string {
-	objects := make(map[int]string)
-
 	// Get font data (subset if available, otherwise full font)
 	fontData := font.Font.RawData
 	if len(font.SubsetData) > 0 {
 		fontData = font.SubsetData
 	}
 
+	var cacheKey trueTypeFontObjectsKey
+	if encryptor == nil {
+		cacheKey = buildTrueTypeFontObjectsKey(font, fontData)
+		if cached, ok := trueTypeFontObjectsCache.Load(cacheKey); ok {
+			return cloneFontObjectMap(cached.(map[int]string))
+		}
+	}
+
+	objects := make(map[int]string)
 	compressedData := compressedFontData(fontData)
 	if encryptor != nil {
 		compressedData = encryptor.EncryptStream(compressedData, font.FontFileID, 0)
@@ -699,7 +723,34 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	// Generate Type 0 font dictionary
 	objects[font.ObjectID] = generateType0FontDict(font)
 
+	if encryptor == nil {
+		trueTypeFontObjectsCache.LoadOrStore(cacheKey, cloneFontObjectMap(objects))
+	}
 	return objects
+}
+
+func buildTrueTypeFontObjectsKey(font *RegisteredFont, fontData []byte) trueTypeFontObjectsKey {
+	return trueTypeFontObjectsKey{
+		fontHash:      hashFontData(fontData),
+		fontSize:      len(fontData),
+		usedHash:      hashUsedChars(font.UsedChars),
+		usedCount:     len(font.UsedChars),
+		objectID:      font.ObjectID,
+		cidFontID:     font.CIDFontID,
+		descriptorID:  font.DescriptorID,
+		fontFileID:    font.FontFileID,
+		widthsID:      font.WidthsID,
+		cidToGIDMapID: font.CIDToGIDMapID,
+		toUnicodeID:   font.ToUnicodeID,
+	}
+}
+
+func cloneFontObjectMap(src map[int]string) map[int]string {
+	dst := make(map[int]string, len(src))
+	for id, content := range src {
+		dst[id] = content
+	}
+	return dst
 }
 
 func compressedFontData(fontData []byte) []byte {
@@ -726,9 +777,23 @@ func compressedFontData(fontData []byte) []byte {
 }
 
 func hashFontData(fontData []byte) uint64 {
-	h := fnv.New64a()
-	_, _ = h.Write(fontData)
-	return h.Sum64()
+	return uint64(adler32.Checksum(fontData))
+}
+
+func hashUsedChars(chars map[rune]bool) uint64 {
+	var sum uint64
+	var xor uint64
+	for char := range chars {
+		v := uint64(char) + 0x9e3779b97f4a7c15
+		v ^= v >> 30
+		v *= 0xbf58476d1ce4e5b9
+		v ^= v >> 27
+		v *= 0x94d049bb133111eb
+		v ^= v >> 31
+		sum += v
+		xor ^= v
+	}
+	return sum ^ (xor + 0x9e3779b97f4a7c15 + (sum << 6) + (sum >> 2))
 }
 
 // generateType0FontDict generates the Type 0 (composite) font dictionary

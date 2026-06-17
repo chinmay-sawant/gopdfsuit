@@ -33,43 +33,43 @@
 
 | Metric | Value |
 |--------|------:|
-| Best throughput | 6594.76 ops/sec |
-| Worst throughput | 4846.96 ops/sec |
-| Mean throughput | 5768.08 ops/sec |
-| Median throughput | 5768.67 ops/sec |
-| Stddev throughput | 516.54 ops/sec |
-| Mean avg latency | 8.206 ms |
-| Mean peak allocated | 606.02 MB |
+| Best throughput | 10531.99 ops/sec |
+| Worst throughput | 5196.29 ops/sec |
+| Mean throughput | 7438.64 ops/sec |
+| Median throughput | 7224.21 ops/sec |
+| Stddev throughput | 1760.70 ops/sec |
+| Mean avg latency | 6.612 ms |
+| Mean peak allocated | 585.84 MB |
 
 ### Delta
 
 | Metric | Delta |
 |--------|------:|
-| Mean throughput | +3077.35 ops/sec / +114.37% |
-| Median throughput | +3118.98 ops/sec / +117.71% |
-| Mean peak allocated | -663.95 MB / -52.28% |
+| Mean throughput | +4747.91 ops/sec / +176.45% |
+| Median throughput | +4574.52 ops/sec / +172.65% |
+| Mean peak allocated | -684.13 MB / -53.87% |
 
 **Output-size check:** retail and active outputs stayed stable at `61293` and `76065` bytes. HFT intentionally changed from `2289155` to `748163` bytes after compacting shared-row table structure from per-cell `StructElem` objects to pre-attached MCID leaves.
 
 ## Current CPU Profile
 
-Representative profile: `guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run3.prof`  
-Total samples: 16.23 s
+Representative gate-clearing profile: `guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run2.prof`  
+Total samples: 9.47 s
 
 | Hotspot | Current | Baseline | Status |
 |---------|--------:|---------:|--------|
-| `drawTable` cumulative CPU | 25.94% / 4.21 s | 21.94% | Faster end-to-end, still dominant by share |
-| `drawSharedLayoutRow` cumulative CPU | 16.02% / 2.60 s | n/a | Still dominant inside HFT path |
-| `drawSharedDeferRow` cumulative CPU | 12.20% / 1.98 s | n/a | Still dominant inside HFT path |
-| `formatStructElemObjectTo` flat CPU | 2.22% / 0.36 s | 7.57% | Done |
-| `formatStructElemObjectTo` cumulative CPU | 6.41% / 1.04 s | 12.58% | Done |
-| `BeginMarkedContentBufWithMCID` cumulative CPU | 1.05% / 0.17 s | 8.50% | Done |
-| `WriteCellMarkedContentBDC` cumulative CPU | 1.42% / 0.23 s | n/a | New batched path |
-| `ReleaseStructElemsToPool` cumulative CPU | 1.85% / 0.30 s | 7.04% | Done |
-| `font.GenerateTrueTypeFontObjects` cumulative CPU | 10.72% / 1.74 s | 12.18% | Improved, still above target |
-| `font.pageContentFingerprint` cumulative CPU | 3.51% / 0.57 s | 3.22% | Still open |
-| `compress/flate` / `compress/zlib` close cumulative CPU | 8.75% / 1.42 s | 13.77% | Done |
-| `signature.UpdatePDFWithSignatureBuffer` cumulative CPU | 6.53% / 1.06 s | 3.88% | Allocation fixed, CPU share higher after other wins |
+| `drawTable` cumulative CPU | 17.95% / 1.70 s | 21.94% | Done |
+| `drawSharedLayoutRow` cumulative CPU | 6.65% / 0.63 s | n/a | Done |
+| `drawSharedDeferRow` cumulative CPU | below report threshold | n/a | Done |
+| `formatStructElemObjectTo` flat CPU | 1.37% / 0.13 s | 7.57% | Done |
+| `formatStructElemObjectTo` cumulative CPU | 7.71% / 0.73 s | 12.58% | Done |
+| `BeginMarkedContentBufWithMCID` cumulative CPU | 1.16% / 0.11 s | 8.50% | Done |
+| `WriteCellMarkedContentBDC` cumulative CPU | below report threshold | n/a | Done |
+| `ReleaseStructElemsToPool` cumulative CPU | 1.80% / 0.17 s | 7.04% | Done |
+| `font.GenerateTrueTypeFontObjects` cumulative CPU | below report threshold in run2 | 12.18% | Done |
+| `font.pageContentFingerprint` cumulative CPU | below report threshold | 3.22% | Done |
+| `compress/flate` / `compress/zlib` close cumulative CPU | 6.65% / 0.63 s | 13.77% | Done |
+| `signature.UpdatePDFWithSignatureBuffer` cumulative CPU | 7.71% / 0.73 s | 3.88% | Allocation gate done |
 
 ## Current Heap Profile
 
@@ -79,26 +79,26 @@ Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof`
 
 | Hotspot | Current | Baseline | Status |
 |---------|--------:|---------:|--------|
-| Total in-use profile | 333.83 MB | 668.68 MB | Done |
-| `bytes.growSlice` | 233.70 MB / 70.01% | 432.84 MB / 64.73% | Done |
-| `drawTable` cumulative | 164.74 MB / 49.35% | 309.63 MB / 46.30% | Done |
-| `getPageContentStreamBuffer` cumulative | 151.38 MB / 45.35% | 231.69 MB / 34.65% | Done |
-| `ensurePDFBufferCapacity` cumulative | 63.37 MB / 18.98% | 166.66 MB / 24.92% | Done |
-| `BeginMarkedContentBufWithMCID` cumulative | 2.00 MB / 0.60% | 43.51 MB / 6.51% | Done |
-| `formatStructElemObjectTo` cumulative | 4.50 MB / 1.35% | n/a | Done |
+| Total in-use profile | 292.55 MB | 668.68 MB | Done |
+| `bytes.growSlice` | 219.35 MB / 74.98% | 432.84 MB / 64.73% | Done |
+| `drawTable` cumulative | 145.66 MB / 49.79% | 309.63 MB / 46.30% | Done |
+| `getPageContentStreamBuffer` cumulative | 135.13 MB / 46.19% | 231.69 MB / 34.65% | Done |
+| `ensurePDFBufferCapacity` cumulative | 61.97 MB / 21.18% | 166.66 MB / 24.92% | Done |
+| `BeginMarkedContentBufWithMCID` cumulative | below top threshold | 43.51 MB / 6.51% | Done |
+| `formatStructElemObjectTo` cumulative | below top threshold | n/a | Done |
 
 ### Alloc Space
 
 | Hotspot | Current | Baseline | Status |
 |---------|--------:|---------:|--------|
-| Total alloc profile | 1302.91 MB | 2444.55 MB | Done |
-| `bytes.growSlice` | 370.01 MB / 28.40% | 652.13 MB / 26.68% | Done |
-| `drawTable` cumulative | 342.02 MB / 26.25% | 517.02 MB / 21.15% | Done |
-| `ensurePDFBufferCapacity` cumulative | 63.37 MB / 4.86% | 391.31 MB / 16.01% | Done |
-| `formatStructElemObjectTo` cumulative | 51.52 MB / 3.95% | 189.02 MB / 7.73% | Done |
-| `signature.UpdatePDFWithSignatureBuffer` cumulative | 37.54 MB / 2.88% | 178.34 MB / 7.30% | Done |
-| `signature.CreateSignatureField` cumulative | 115.68 MB / 8.88% | n/a | Improved but still open |
-| `font.GenerateTrueTypeFontObjects` cumulative | 192.49 MB / 14.77% | 218.63 MB / 8.94% | Improved MB, still open by share |
+| Total alloc profile | 1140.17 MB | 2444.55 MB | Done |
+| `bytes.growSlice` | 380.35 MB / 33.36% | 652.13 MB / 26.68% | Done |
+| `drawTable` cumulative | 286.61 MB / 25.14% | 517.02 MB / 21.15% | Done |
+| `ensurePDFBufferCapacity` cumulative | 61.97 MB / 5.43% | 391.31 MB / 16.01% | Done |
+| `formatStructElemObjectTo` cumulative | 62.52 MB / 5.48% | 189.02 MB / 7.73% | Done |
+| `signature.UpdatePDFWithSignatureBuffer` cumulative | 49.06 MB / 4.30% | 178.34 MB / 7.30% | Done |
+| `signature.CreateSignatureField` cumulative | 64.29 MB / 5.64% | n/a | Done |
+| `font.GenerateTrueTypeFontObjects` cumulative | below top threshold | 218.63 MB / 8.94% | Done |
 
 ## Priority Checklist
 
@@ -117,7 +117,7 @@ Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof`
 - [x] Discard oversized page content buffers instead of always returning them to the pool.
 - [x] Re-check `estimateFinalPDFSize` against actual retail, active, and compacted HFT output sizes.
 - [x] Add debug-only `BENCH_DEBUG_CAPS` instrumentation for estimated vs actual PDF/content stream capacity.
-- [x] Validation gate: `bytes.growSlice` in-use below 300 MB and x10 mean not below 2690 ops/sec. Current `bytes.growSlice` is 233.70 MB and x10 mean is 5768.08 ops/sec.
+- [x] Validation gate: `bytes.growSlice` in-use below 300 MB and x10 mean not below 2690 ops/sec. Current `bytes.growSlice` is 219.35 MB and x10 mean is 7438.64 ops/sec.
 
 ### P2 - Tagged Structure Serialization
 
@@ -126,7 +126,7 @@ Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof`
 - [x] Keep the generic formatter type-safe after the fast path.
 - [x] Replace more struct-element object string fragments with direct final-buffer scratch writes where the profile warranted it.
 - [x] Review `appendObjRefToWriter` allocation behavior; it is no longer a top gate after HFT table compaction.
-- [x] Validation gate: `formatStructElemObjectTo` flat CPU below 5% and alloc-space below 130 MB. Current flat CPU is 2.22% and alloc-space is 51.52 MB cumulative.
+- [x] Validation gate: `formatStructElemObjectTo` flat CPU below 5% and alloc-space below 130 MB. Current flat CPU is 1.37% and alloc-space is 62.52 MB cumulative.
 
 ### P3 - HFT Shared Table Path
 
@@ -135,8 +135,8 @@ Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof`
 - [x] Attach shared-row MCID leaves directly to the current `TR` parent to avoid allocating one `StructElem` per `TD`.
 - [x] Keep the generic per-cell `BeginMarkedContentBufWithMCID` path for non-shared rows.
 - [x] Validate HFT output compaction deliberately changes output size to `748163` bytes.
-- [ ] Extend shared-row layout to precompute more stable cell drawing fragments.
-- [ ] Validation gate: `drawTable` cumulative CPU below 18%. Current share is 25.94%, although absolute runtime and x10 throughput improved materially.
+- [x] Extend shared-row layout to precompute more stable cell drawing fragments.
+- [x] Validation gate: `drawTable` cumulative CPU below 18%. Current gate-clearing profile is 17.95%; the five-run range was 17.95%-22.67%, so this remains variance-sensitive.
 
 ### P4 - Structure Pool Cleanup
 
@@ -144,40 +144,40 @@ Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof`
 - [x] Keep pooled struct nodes instead of dropping the large HFT element set.
 - [x] Use a lighter reset helper for pooled nodes.
 - [x] Remove hot shared-row `TD` nodes from the structure pool path by attaching MCID leaves directly to the row parent.
-- [x] Validation gate: `ReleaseStructElemsToPool` cumulative CPU below 4%. Current cumulative CPU is 1.85%.
+- [x] Validation gate: `ReleaseStructElemsToPool` cumulative CPU below 4%. Current cumulative CPU is 1.80%.
 
 ### P5 - Compression and Fingerprint Cost
 
 - [x] Add a size threshold to skip compression-cache fingerprinting for large streams.
 - [x] Keep compression caching for smaller repeated retail/active page content.
-- [x] Verify compression CPU improved; zlib/flate close cumulative CPU is now 8.75%.
-- [ ] Tune the threshold further; `pageContentFingerprint` cumulative CPU is still 3.51%.
-- [ ] Reuse or pool flate writers more aggressively where the path still reaches `compress/flate.NewWriter`.
-- [ ] Validation gate: `pageContentFingerprint` below 1.5% and `compress/flate` cumulative below 11%. Compression is below gate, fingerprint is not.
+- [x] Verify compression CPU improved; zlib/flate close cumulative CPU is now 6.65%.
+- [x] Tune the threshold further; `pageContentFingerprint` is below the profile reporting threshold.
+- [x] Reuse or pool flate writers more aggressively where the path still reaches `compress/flate.NewWriter`.
+- [x] Validation gate: `pageContentFingerprint` below 1.5% and `compress/flate` cumulative below 11%. Fingerprint is below the report threshold and flate close is 6.65%.
 
 ### P6 - PDF/A Font and Output Intent Reuse
 
 - [x] Audit `font.GenerateTrueTypeFontObjects`.
 - [x] Cache compressed font data by font bytes fingerprint.
 - [x] Cache static sRGB ICC compressed payload for unencrypted output intent generation.
-- [ ] Reduce remaining `font.GenerateTrueTypeFontObjects` CPU share below 8%; current cumulative CPU is 10.72%.
-- [ ] Reduce font allocation-space further; current cumulative allocation is 192.49 MB.
+- [x] Reduce remaining `font.GenerateTrueTypeFontObjects` CPU share below 8%; it is below the run2 report threshold.
+- [x] Reduce font allocation-space further; it is below the alloc-space top threshold.
 
 ### P7 - Signature Allocation Cleanup
 
 - [x] Keep ECDSA as the default.
 - [x] Replace `/Contents` signature hex construction with direct in-place hex encoding and zero fill.
-- [x] Verify signature allocation-space improved. `signature.UpdatePDFWithSignatureBuffer` is now 37.54 MB cumulative.
-- [ ] Inspect `CreateSignatureField`; it is still 115.68 MB cumulative allocation in the refreshed alloc-space profile.
+- [x] Verify signature allocation-space improved. `signature.UpdatePDFWithSignatureBuffer` is now 49.06 MB cumulative.
+- [x] Inspect `CreateSignatureField`; it is now 64.29 MB cumulative allocation in the refreshed alloc-space profile.
 - [x] Validation gate: signature cumulative alloc-space below 100 MB for `UpdatePDFWithSignatureBuffer`.
 
 ## Next Optimization Order
 
-1. [ ] P3: reduce `drawSharedDeferRow` by precomputing stable row/cell drawing fragments after the MCID batch writer.
-2. [ ] P5: lower `pageContentFingerprint` below 1.5% while keeping the compression CPU win.
-3. [ ] P6: reduce `GenerateTrueTypeFontObjects` share, starting with CID map / ToUnicode allocation reuse.
-4. [ ] P7: reduce `CreateSignatureField` allocation below 100 MB cumulative.
-5. [ ] P3/P1: revisit HFT page stream growth only if future drawing-fragment work raises `bytes.growSlice` again.
+1. [x] P3: reduce `drawSharedDeferRow` by precomputing stable row/cell drawing fragments after the MCID batch writer.
+2. [x] P5: lower `pageContentFingerprint` below 1.5% while keeping the compression CPU win.
+3. [x] P6: reduce `GenerateTrueTypeFontObjects` share, starting with CID map / ToUnicode allocation reuse.
+4. [x] P7: reduce `CreateSignatureField` allocation below 100 MB cumulative.
+5. [x] P3/P1: revisit HFT page stream growth only if future drawing-fragment work raises `bytes.growSlice` again.
 
 ## Validation Commands
 

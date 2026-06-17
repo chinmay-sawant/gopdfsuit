@@ -74,6 +74,7 @@ type StructElem struct {
 	Alt        string
 	Lang       string
 	Kids       []StructKid
+	inlineKids [8]StructKid
 	MCID       int
 	HasMCID    bool
 	Parent     *StructElem
@@ -188,7 +189,9 @@ func resetStructElemForPool(elem *StructElem) {
 		return
 	}
 	if len(elem.Kids) > 0 {
-		releaseStructKids(elem.Kids)
+		if &elem.Kids[:1][0] != &elem.inlineKids[0] {
+			releaseStructKids(elem.Kids)
+		}
 	}
 	elem.Type = ""
 	elem.Title = ""
@@ -484,6 +487,31 @@ func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
 	for i := range count {
 		parent.Kids = append(parent.Kids, StructKid{MCID: startMCID + i})
 	}
+}
+
+func (sm *StructureManager) BeginRowStructureWithMCIDs(pageIndex, startMCID, count int) {
+	if !sm.Enabled {
+		return
+	}
+	elem := sm.acquireStructElem()
+	elem.Type = StructTR
+	elem.Parent = sm.CurrentParent
+	if count > 0 {
+		var kids []StructKid
+		if count <= len(elem.inlineKids) {
+			kids = elem.inlineKids[:0]
+		} else {
+			kids = acquireStructKids(count)
+		}
+		for i := range count {
+			kids = append(kids, StructKid{MCID: startMCID + i})
+		}
+		elem.Kids = kids
+		sm.appendParentTreeRefs(pageIndex, elem, count)
+	}
+	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, StructKid{Elem: elem})
+	sm.Elements = append(sm.Elements, elem)
+	sm.CurrentParent = elem
 }
 
 func (sm *StructureManager) appendParentTreeRefs(pageIndex int, parent *StructElem, count int) {

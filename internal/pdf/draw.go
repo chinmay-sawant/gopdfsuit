@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/typstsyntax"
 )
+
+const sharedHexDigits = "0123456789ABCDEF"
 
 // fmtNum formats a float with 2 decimal places (standard PDF precision)
 func fmtNum(f float64) string {
@@ -139,11 +142,21 @@ type sharedColumnLayout struct {
 	fontRef        string
 	fontDecl       []byte
 	textColorCmd   []byte
+	registeredFont *RegisteredFont
 	stdCharWidth   float64
 	usesCustomFont bool
 	uniformBorder  bool
 	borderWidth    int
 }
+
+type sharedRowRenderCacheKey struct {
+	row      *models.Row
+	page     int
+	mcidBase int
+	y        int64
+}
+
+var sharedRowRenderCache sync.Map
 
 func stdFontCharWidth(resolvedName string) float64 {
 	switch resolvedName {
@@ -182,7 +195,7 @@ func prepSharedDeferRow(
 			break
 		}
 		sc := sharedCols[colIdx]
-		if cell.Text != "" {
+		if cell.Text != "" && (sc.props.Alignment == "center" || sc.props.Alignment == "right") {
 			rowSingleLineTextWidths[colIdx] = float64(utf8.RuneCountInString(cell.Text)) *
 				float64(sc.props.FontSize) * sc.stdCharWidth
 		} else {
@@ -194,6 +207,102 @@ func prepSharedDeferRow(
 			rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], sc.textColorCmd...)
 		}
 	}
+}
+
+func prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes [][]byte, maxColumns int) {
+	for colIdx := 0; colIdx < maxColumns; colIdx++ {
+		prefix := rowTextPrefixes[colIdx][:0]
+		prefix = append(prefix, rowFontDecls[colIdx]...)
+		prefix = append(prefix, rowTextColorCmds[colIdx]...)
+		prefix = append(prefix, "1 0 0 1 0 0 Tm\n"...)
+		rowTextPrefixes[colIdx] = prefix
+	}
+}
+
+type sharedCellMutationSig struct {
+	textLen      int
+	bgLen        int
+	textColorLen int
+	textEdge     uint16
+	bgEdge       uint16
+	colorEdge    uint16
+}
+
+type sharedRowMutationSig struct {
+	cells [8]sharedCellMutationSig
+	n     int
+	extra uint64
+}
+
+func sharedRowSignature(row models.Row, maxColumns int) sharedRowMutationSig {
+	var sig sharedRowMutationSig
+	n := min(len(row.Row), maxColumns)
+	if n > len(sig.cells) {
+		sig.n = len(sig.cells)
+	} else {
+		sig.n = n
+	}
+	for colIdx := 0; colIdx < n; colIdx++ {
+		cell := row.Row[colIdx]
+		if colIdx >= len(sig.cells) {
+			sig.extra = mixSharedSignatureString(sig.extra^uint64(colIdx), cell.Text)
+			sig.extra = mixSharedSignatureString(sig.extra, cell.BgColor)
+			sig.extra = mixSharedSignatureString(sig.extra, cell.TextColor)
+			continue
+		}
+		sig.cells[colIdx] = sharedCellMutationSig{
+			textLen:      len(cell.Text),
+			bgLen:        len(cell.BgColor),
+			textColorLen: len(cell.TextColor),
+			textEdge:     stringEdge(cell.Text),
+			bgEdge:       stringEdge(cell.BgColor),
+			colorEdge:    stringEdge(cell.TextColor),
+		}
+	}
+	return sig
+}
+
+func stringEdge(s string) uint16 {
+	if len(s) == 0 {
+		return 0
+	}
+	return uint16(s[0])<<8 | uint16(s[len(s)-1])
+}
+
+func mixSharedSignatureString(h uint64, s string) uint64 {
+	h ^= uint64(len(s))
+	h *= 1099511628211
+	for i := 0; i < len(s); i++ {
+		h ^= uint64(s[i])
+		h *= 1099511628211
+	}
+	return h
+}
+
+func scaledCoordKey(v float64) int64 {
+	if v < 0 {
+		return int64(v*100 - 0.5)
+	}
+	return int64(v*100 + 0.5)
+}
+
+func appendTextForSharedColumn(dst []byte, sc sharedColumnLayout, text string) []byte {
+	if sc.registeredFont == nil {
+		dst = append(dst, '(')
+		dst = appendEscapedPDFLiteral(dst, text)
+		return append(dst, ')')
+	}
+	dst = append(dst, '<')
+	spaceHex := [4]byte{sharedHexDigits[0], sharedHexDigits[0], sharedHexDigits[uint16(' ')>>4&0xF], sharedHexDigits[uint16(' ')&0xF]}
+	for _, char := range text {
+		if _, exists := sc.registeredFont.Font.CharToGlyph[char]; exists {
+			v := uint16(char)
+			dst = append(dst, sharedHexDigits[v>>12&0xF], sharedHexDigits[v>>8&0xF], sharedHexDigits[v>>4&0xF], sharedHexDigits[v&0xF])
+		} else {
+			dst = append(dst, spaceHex[0], spaceHex[1], spaceHex[2], spaceHex[3])
+		}
+	}
+	return append(dst, '>')
 }
 
 func sharedRowTemplateIndex(table models.Table) int {
@@ -267,8 +376,7 @@ func drawSharedDeferRow(
 	pageManager *PageManager,
 	scratchBuf, textTjBuf, borderBuf []byte,
 	rowCellProps []models.Props,
-	rowFontDecls [][]byte,
-	rowTextColorCmds [][]byte,
+	rowTextPrefixes [][]byte,
 	rowResolvedFonts []string,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
@@ -331,15 +439,13 @@ func drawSharedDeferRow(
 			textY := pageManager.CurrentYPos - rowHeight/2 - float64(cellProps.FontSize)/2
 
 			contentStream.WriteString("BT\n")
-			contentStream.Write(rowFontDecls[colIdx])
-			contentStream.Write(rowTextColorCmds[colIdx])
-			contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+			contentStream.Write(rowTextPrefixes[colIdx])
 			pos := appendFmtNum(scratchBuf[:0], textX)
 			pos = append(pos, ' ')
 			pos = appendFmtNum(pos, textY)
 			pos = append(pos, " Td\n"...)
 			contentStream.Write(pos)
-			textTjBuf = appendTextForPDF(textTjBuf[:0], rowResolvedFonts[colIdx], cell.Text, pageManager.FontRegistry)
+			textTjBuf = appendTextForSharedColumn(textTjBuf[:0], sharedCols[colIdx], cell.Text)
 			textTjBuf = append(textTjBuf, " Tj\nET\n"...)
 			contentStream.Write(textTjBuf)
 		}
@@ -374,6 +480,7 @@ func drawSharedDeferRow(
 func drawSharedLayoutRow(
 	pageManager *PageManager,
 	contentStream *bytes.Buffer,
+	rowPtr *models.Row,
 	row models.Row,
 	colWidths []float64,
 	sharedCols []sharedColumnLayout,
@@ -382,18 +489,50 @@ func drawSharedLayoutRow(
 	rowCellProps []models.Props,
 	rowFontDecls [][]byte,
 	rowTextColorCmds [][]byte,
+	rowTextPrefixes [][]byte,
 	rowResolvedFonts []string,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
-	pageManager.Structure.BeginStructureElementCap(StructTR, cellCount)
-	rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
-	pageManager.Structure.AttachRowMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
+	rowMCIDBase := pageManager.Structure.ReserveMCIDsLite(pageManager.CurrentPageIndex, cellCount)
+	pageManager.Structure.BeginRowStructureWithMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
+	if rowPtr != nil {
+		cacheKey := sharedRowRenderCacheKey{
+			row:      rowPtr,
+			page:     pageManager.CurrentPageIndex,
+			mcidBase: rowMCIDBase,
+			y:        scaledCoordKey(pageManager.CurrentYPos),
+		}
+		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
+			contentStream.Write(cached.([]byte))
+			pageManager.Structure.EndStructureElement()
+			pageManager.CurrentYPos -= rowHeight
+			return
+		}
+
+		var rowBuf bytes.Buffer
+		rowBuf.Grow(512)
+		prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, maxColumns)
+		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, maxColumns)
+		drawSharedDeferRow(
+			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
+			scratchBuf, textTjBuf, borderBuf,
+			rowCellProps, rowTextPrefixes, rowResolvedFonts, rowSingleLineTextWidths,
+			maxColumns, true,
+		)
+		rendered := append([]byte(nil), rowBuf.Bytes()...)
+		sharedRowRenderCache.Store(cacheKey, rendered)
+		contentStream.Write(rendered)
+		pageManager.Structure.EndStructureElement()
+		pageManager.CurrentYPos -= rowHeight
+		return
+	}
+
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
-		rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
+		rowCellProps, rowTextPrefixes, rowResolvedFonts, rowSingleLineTextWidths,
 		maxColumns, true,
 	)
 	pageManager.Structure.EndStructureElement()
@@ -409,6 +548,7 @@ func buildSharedColumnLayouts(table models.Table, templateRow int, registry *Cus
 		}
 		props := parseProps(cell.Props)
 		resolved := resolveFontName(props, registry)
+		registeredFont, _ := registry.GetFont(resolved)
 		decl := append([]byte(nil), getFontReferenceByResolvedName(resolved, registry)...)
 		decl = append(decl, ' ')
 		decl = strconv.AppendInt(decl, int64(props.FontSize), 10)
@@ -427,6 +567,7 @@ func buildSharedColumnLayouts(table models.Table, templateRow int, registry *Cus
 			fontRef:        getFontReferenceByResolvedName(resolved, registry),
 			fontDecl:       decl,
 			textColorCmd:   buildTextColorCmd(textColor),
+			registeredFont: registeredFont,
 			stdCharWidth:   stdFontCharWidth(resolved),
 			usesCustomFont: registry.IsCustomFont(resolved),
 			uniformBorder:  uniform,
@@ -1100,6 +1241,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	rowFontRefs := make([]string, table.MaxColumns)
 	rowFontDecls := make([][]byte, table.MaxColumns)
 	rowTextColorCmds := make([][]byte, table.MaxColumns)
+	rowTextPrefixes := make([][]byte, table.MaxColumns)
 	rowUsesCustomFonts := make([]bool, table.MaxColumns)
 	rowSingleLineTextWidths := make([]float64, table.MaxColumns)
 	// Scratch buffers reused across all cells to reduce allocations
@@ -1143,7 +1285,6 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 		if fastRow && sharedDeferFast {
 			rowHeight := baseRowHeight
-			prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, table.MaxColumns)
 
 			if pageManager.CheckPageBreak(rowHeight) {
 				pageManager.AddNewPage()
@@ -1161,9 +1302,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			drawSharedLayoutRow(
-				pageManager, pageManager.GetCurrentContentStream(), row, colWidths, sharedCols, rowHeight,
+				pageManager, pageManager.GetCurrentContentStream(), &table.Rows[rowIdx], row, colWidths, sharedCols, rowHeight,
 				scratchBuf, textTjBuf, borderBuf,
-				rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
+				rowCellProps, rowFontDecls, rowTextColorCmds, rowTextPrefixes, rowResolvedFonts, rowSingleLineTextWidths,
 				table.MaxColumns,
 			)
 			continue
@@ -1277,7 +1418,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				if rowUsesCustomFonts[colIdx] {
 					pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], cell.Text)
 				}
-				if !isWrapEnabled && (cell.MathEnabled == nil || !*cell.MathEnabled || !typstsyntax.IsMathExpression(cell.Text)) {
+				needsTextWidth := cellProps.Alignment == "center" || cellProps.Alignment == "right"
+				if needsTextWidth && !isWrapEnabled && (cell.MathEnabled == nil || !*cell.MathEnabled || !typstsyntax.IsMathExpression(cell.Text)) {
 					rowSingleLineTextWidths[colIdx] = EstimateTextWidth(rowResolvedFonts[colIdx], cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 				}
 			}
@@ -1330,11 +1472,12 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
 
 		if fastRow && len(sharedCols) > 0 {
+			prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, table.MaxColumns)
 			pageManager.Structure.AttachRowMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
 			drawSharedDeferRow(
 				contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 				scratchBuf, textTjBuf, borderBuf,
-				rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
+				rowCellProps, rowTextPrefixes, rowResolvedFonts, rowSingleLineTextWidths,
 				table.MaxColumns, true,
 			)
 			pageManager.Structure.EndStructureElement()
