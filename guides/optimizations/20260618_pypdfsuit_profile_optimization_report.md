@@ -19,7 +19,9 @@
 | **CGO + Go `json.Unmarshal` + PDF render** | **~81%** on retail; ~45% on active | Medium–High |
 | **FFI copy-back (`string_at`)** | <1% retail/active; ~1% HFT | Low |
 
-**Highest-impact quick win:** cache pre-serialized JSON per template. **Implemented 2026-06-18** in `bindings/python/pypdfsuit/generator.py`. Measured **~5.9×** throughput improvement (253 → **1,505 ops/s** at 48 workers, 5000 iter) without touching the Go renderer.
+**Published benchmark (honest path):** `make bench-pypdfsuit-zerodha` with `BENCH_USE_JSON_CACHE=0` → **234.62 ops/s** (48 workers, 5000 iter, June 2026).
+
+**Optional cache (steady-state / template reuse):** cache pre-serialized JSON per template in `generator.py`. Measured **~5.9×** when `use_cache=True` (253 → **1,505 ops/s**) — not used for published benchmark tables.
 
 **Ceiling after JSON caching:** Python still ~**11×** below native Go on the same weighted mix, because every call still pays Go `json.Unmarshal` + ctypes overhead. Closing that gap requires a new CGO contract (skip JSON) or an out-of-process Go service.
 

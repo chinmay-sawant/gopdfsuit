@@ -66,7 +66,7 @@ Method: 5 runs each, **best throughput** reported.
 | **GoPDFLib** | Data table | PDF/A-4 | PDF/UA-2 | 48 | **288 ops/s** | 189 | +52% |
 | **GoPDFLib** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **11,721 ops/s** | 2,646 | +343% |
 | **GoPDFSuit** | Zerodha retail | PDF/A-4 | PDF/UA-2 | 48 | **6,146 ops/s** | 1,978 | +211% |
-| **pypdfsuit** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **249 ops/s** | 223 | +12% |
+| **pypdfsuit** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **235 ops/s** | 223 | +5% |
 | **pypdfsuit** | Zerodha retail (`bench.py`)* | PDF/A-4 | PDF/UA-2 | 10 | **293 ops/s** | - | - |
 | **PDFKit** | Data table | PDF 1.7 | None | 10 | **10.1 ops/s** | 5.0 | +102% |
 | **jsPDF** | Data table | PDF 1.3 | None | 10 | **9.4 ops/s** | 4.2 | +124% |

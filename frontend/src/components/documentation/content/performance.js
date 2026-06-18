@@ -67,7 +67,7 @@ This section measures the same retail contract-note document rendered serially i
 | Runtime | Iterations | Workers | Best Throughput | Avg Latency |
 | --- | ---: | ---: | ---: | ---: |
 | **GoPDFLib** | 5000 | 48 | **2061.33 ops/sec** | **22.680 ms** |
-| **pypdfsuit** | 5000 | 48 | 233.76 ops/sec | 185.517 ms |
+| **pypdfsuit** | 5000 | 48 | 234.62 ops/sec | 178.338 ms |
 
 ## GoPDFKit vs GoPDFLib (apples-to-apples)
 

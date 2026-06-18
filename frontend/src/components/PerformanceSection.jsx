@@ -23,7 +23,7 @@ const zerodhaBenchmarks = [
 const parallelWeightedBenchmarks = [
   { name: 'GoPDFLib', workers: '48', throughput: '2061.33 ops/sec', avg: '22.680 ms', min: '1.725 ms', max: '659.165 ms', mix: '4002 / 732 / 266' },
   { name: 'GoPDFLib (10-run avg)', workers: '48', throughput: '1704.95 ops/sec', avg: '27.647 ms', min: '1.967 ms', max: '883.804 ms', mix: '~4000 / ~750 / ~250' },
-  { name: 'PyPDFSuit', workers: '48', throughput: '233.76 ops/sec', avg: '185.517 ms', min: '2.657 ms', max: '3516.474 ms', mix: '4015 / 767 / 218' },
+  { name: 'PyPDFSuit', workers: '48', throughput: '234.62 ops/sec', avg: '178.338 ms', min: '1.602 ms', max: '3484.110 ms', mix: '4015 / 767 / 218' },
 ]
 
 const gopdfkitCompareBenchmarks = [

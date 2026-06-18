@@ -412,9 +412,15 @@ def build_hft_template() -> PDFTemplate:
     )
 
 
-def run_benchmark(iterations: int = 5000, workers: int = 48) -> None:
+def run_benchmark(
+    iterations: int = 5000,
+    workers: int = 48,
+    *,
+    use_json_cache: bool = False,
+) -> None:
     print("=== PyPDFSuit Zerodha Benchmark ===")
     print("Workload Mix: 80% Retail | 15% Active | 5% HFT")
+    print(f"JSON cache: {'enabled' if use_json_cache else 'disabled (full to_dict + json.dumps each call)'}")
     print()
     machine_info = get_machine_info()
     print(
@@ -437,9 +443,9 @@ def run_benchmark(iterations: int = 5000, workers: int = 48) -> None:
     print("Templates built.")
 
     print("Warm-up runs...")
-    retail_pdf = generate_pdf(retail_template)
-    active_pdf = generate_pdf(active_template)
-    hft_pdf = generate_pdf(hft_template)
+    retail_pdf = generate_pdf(retail_template, use_cache=use_json_cache)
+    active_pdf = generate_pdf(active_template, use_cache=use_json_cache)
+    hft_pdf = generate_pdf(hft_template, use_cache=use_json_cache)
     print(f"  Retail PDF size:  {len(retail_pdf)} bytes ({len(retail_pdf) / 1024.0:.2f} KB)")
     print(f"  Active PDF size:  {len(active_pdf)} bytes ({len(active_pdf) / 1024.0:.2f} KB)")
     print(f"  HFT PDF size:     {len(hft_pdf)} bytes ({len(hft_pdf) / 1024.0:.2f} KB)")
@@ -468,7 +474,7 @@ def run_benchmark(iterations: int = 5000, workers: int = 48) -> None:
             template = hft_template
 
         start = time.perf_counter()
-        generate_pdf(template)
+        generate_pdf(template, use_cache=use_json_cache)
         elapsed_ms = (time.perf_counter() - start) * 1000
         with lock:
             counts[kind] += 1
@@ -502,5 +508,23 @@ def run_benchmark(iterations: int = 5000, workers: int = 48) -> None:
     print("=== Done ===")
 
 
+def env_int(name: str, default: int) -> int:
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
+def env_bool(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 if __name__ == "__main__":
-    run_benchmark()
+    run_benchmark(
+        iterations=env_int("BENCH_ITERATIONS", 5000),
+        workers=env_int("BENCH_WORKERS", 48),
+        use_json_cache=env_bool("BENCH_USE_JSON_CACHE", False),
+    )

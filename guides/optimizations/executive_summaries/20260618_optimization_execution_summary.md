@@ -7,7 +7,8 @@ Profile and optimization work on the **PyPDFSuit Python binding** (`feat/optimiz
 ## Key Outcomes
 
 - **Root cause identified:** Python latency is dominated by `to_dict()` tree walks and JSON+CGO overhead — not the PDF renderer itself.
-- **P0 JSON cache implemented:** Throughput **253 → 1,505 ops/s** (~**5.9×**, **+494%**) at 48 workers, 5000 iterations.
+- **Honest benchmark (`BENCH_USE_JSON_CACHE=0`):** **234.62 ops/s** at 48 workers, 5000 iterations (full `to_dict` + `json.dumps` each call).
+- **P0 JSON cache implemented (opt-in):** Throughput **253 → 1,505 ops/s** (~**5.9×**) when `use_cache=True` — not used for published benchmark numbers.
 - **Cached JSON (concurrent):** **1,029 ops/s** (500 iter) / **870 ops/s** (200 iter) — **~4.1×** vs full path (**222 ops/s**).
 - **Single-thread cached JSON:** Retail **776 ops/s** (−29% latency), Active **1,160 ops/s** (−60%), HFT **32 ops/s** (−68%).
 - **Ceiling after P0:** Python remains **~11× below** native Go (11,721 ops/s) on the same weighted mix.

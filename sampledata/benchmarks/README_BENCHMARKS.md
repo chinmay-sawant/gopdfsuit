@@ -105,6 +105,6 @@ Each benchmark prints:
 |---|---:|---:|---:|---:|---:|---:|
 | **GoPDFLib** (2026-06-14, 30-run) | 48 | peak **2953** / avg **2646** ops/sec | 17.67 ms | — | 726.15 ms | 4000 / 750 / 250 |
 | GoPDFLib (2026-06-11) | 48 | 1913.13 ops/sec | 24.558 ms | 2.280 ms | 505.087 ms | 4004 / 766 / 230 |
-| PyPDFSuit | 48 | 233.76 ops/sec | 185.517 ms | 2.657 ms | 3516.474 ms | 4015 / 767 / 218 |
+| PyPDFSuit | 48 | 234.62 ops/sec | 178.338 ms | 1.602 ms | 3484.110 ms | 4015 / 767 / 218 |
 
 This table used a weighted 80/15/5 mix of retail, active-trader, and HFT documents. Use it to reason about mixed-workload concurrency capacity; use the per-benchmark tables in `BENCHMARK_REPORT.md` for single-library comparisons.
