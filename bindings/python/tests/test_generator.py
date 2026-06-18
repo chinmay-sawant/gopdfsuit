@@ -3,9 +3,13 @@ Tests for PDF generation functionality.
 """
 
 import pytest
+import json
+
 from pypdfsuit import (
     generate_pdf,
     get_available_fonts,
+    invalidate_template_cache,
+    serialize_template,
     PDFTemplate,
     Config,
     Title,
@@ -158,6 +162,89 @@ class TestGeneratePDF:
 
             assert pdf_bytes is not None
             assert pdf_bytes.startswith(b"%PDF-")
+
+    def test_template_json_cache_reuses_payload(self):
+        """Repeated calls should not re-serialize the same template."""
+        template = PDFTemplate(
+            config=Config(page="A4", page_alignment=1),
+            title=Title(
+                props="Helvetica:18:100:center:0:0:0:0",
+                text="Cache Test",
+            ),
+            elements=[],
+        )
+
+        first = serialize_template(template)
+        second = serialize_template(template)
+
+        assert first is second
+
+    def test_generate_pdf_uses_cached_json(self, monkeypatch):
+        """generate_pdf should serialize a template only once by default."""
+        template = PDFTemplate(
+            config=Config(page="A4", page_alignment=1),
+            title=Title(
+                props="Helvetica:18:100:center:0:0:0:0",
+                text="Cache Test",
+            ),
+            elements=[],
+        )
+        dumps_calls = 0
+        original_dumps = json.dumps
+
+        def counting_dumps(*args, **kwargs):
+            nonlocal dumps_calls
+            dumps_calls += 1
+            return original_dumps(*args, **kwargs)
+
+        monkeypatch.setattr(json, "dumps", counting_dumps)
+
+        pdf_one = generate_pdf(template)
+        pdf_two = generate_pdf(template)
+
+        assert pdf_one.startswith(b"%PDF-")
+        assert pdf_two.startswith(b"%PDF-")
+        assert dumps_calls == 1
+
+    def test_invalidate_template_cache_forces_reserialize(self, monkeypatch):
+        template = PDFTemplate(
+            config=Config(page="A4", page_alignment=1),
+            title=Title(
+                props="Helvetica:18:100:center:0:0:0:0",
+                text="Cache Test",
+            ),
+            elements=[],
+        )
+        dumps_calls = 0
+        original_dumps = json.dumps
+
+        def counting_dumps(*args, **kwargs):
+            nonlocal dumps_calls
+            dumps_calls += 1
+            return original_dumps(*args, **kwargs)
+
+        monkeypatch.setattr(json, "dumps", counting_dumps)
+
+        generate_pdf(template)
+        invalidate_template_cache(template)
+        generate_pdf(template)
+
+        assert dumps_calls == 2
+
+    def test_generate_pdf_accepts_pre_serialized_json(self):
+        template = PDFTemplate(
+            config=Config(page="A4", page_alignment=1),
+            title=Title(
+                props="Helvetica:18:100:center:0:0:0:0",
+                text="Pre-serialized Test",
+            ),
+            elements=[],
+        )
+        payload = serialize_template(template, use_cache=False)
+
+        pdf_bytes = generate_pdf(template, template_json=payload)
+
+        assert pdf_bytes.startswith(b"%PDF-")
 
 
 class TestGetAvailableFonts:

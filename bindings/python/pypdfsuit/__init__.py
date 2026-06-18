@@ -45,7 +45,12 @@ from .types import (
     SplitSpec,
 )
 
-from .generator import generate_pdf, get_available_fonts
+from .generator import (
+    generate_pdf,
+    get_available_fonts,
+    serialize_template,
+    invalidate_template_cache,
+)
 from .merge import merge_pdfs
 from .split import split_pdf, parse_page_spec
 from .fill import fill_pdf_with_xfdf
@@ -83,6 +88,8 @@ __all__ = [
     "SplitSpec",
     # Functions
     "generate_pdf",
+    "serialize_template",
+    "invalidate_template_cache",
     "get_available_fonts",
     "merge_pdfs",
     "split_pdf",

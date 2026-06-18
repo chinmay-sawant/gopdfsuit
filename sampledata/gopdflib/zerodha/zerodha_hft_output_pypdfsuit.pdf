@@ -2290,9 +2290,6 @@ EHˆ«oEüày(¨ØÀhlØ¯kÉjt@hˆË'8à*…é$¾Ö‰ôÚœü`h¯Ü­L8@ËKØYÒS_èÃG>®/»p¸¶2‹¬ôa2
 [ìİ˜O¼W«R(îGª%‘‹8x;4¬â €–Œ—JG2ÇÏ‡ÑàßöÇM°qòb]^òÑ÷b±Šõ’’áã8p¦û|î)½Oæ±L„ï+$x%‹ÒwñÎ-€ˆàı³46AüÚ øÔ¨ğ3‚ë9G.1MhZˆ¢Oâ°D‡ÏÓÑˆ¢Kç¦‘øXÇßŸS.Zãyš„î‡é–r”»h‡)òœÛ–£©á	v£q1â7Ö1 ®Ñ<á½«´ØÈû˜­@ö1sQğlÕ~XEˆùšBÁ^cZš¹øZ'È7Üƒdâj¾s¿Û!1¼¦s·5¼ÓQ´2Ì.û‰¦gâáÅÀ”Àw0ô­af‹'ã(u˜ù¸ö…$vc˜÷\Guõhpî†^iQ÷Dø2rzLQNˆ&î>$ÀdÇôx:ŸÜpDtJ{Õ]%XNşşûë×Ï{ÅŸ\¼}ıøÛ¿>ınşñğáÛëë·Ó?ÍÃñÿùdşşñË×??¾~ıö§é¼Ğšş®"ı<,K‚(3£¯²¾¤¡eÔ 1$¯·3ÀĞ£œšS§ ]QÏe‘Çù÷îğ;ğ†ÿŸ#¿ï`¼¤Ïğ@¸N¦X¾(”ë¸mT	è¥~€ïA/ğÈ~*ÅÀíæ?Gà¿ ù½«Õ ÈÌİë—Xú}Èä‹‰†ĞÌÜ”#¥&¬,ƒàIxg‡çŸÿ  ÿÿY2µ
 endstream
 endobj
-1001 0 obj
-<< /Type /Font /Subtype /CIDFontType2 /BaseFont /SUBSET+LiberationSans /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 1002 0 R /DW 278 /W 1003 0 R /CIDToGIDMap 1004 0 R >>
-endobj
 1005 0 obj
 << /Filter /FlateDecode /Length 510 >>
 stream
@@ -2371,32 +2368,35 @@ endobj
 1002 0 obj
 << /Type /FontDescriptor /FontName /SUBSET+LiberationSans /Flags 32 /FontBBox [-203 -303 1050 910] /ItalicAngle 0 /Ascent 905 /Descent -211 /CapHeight 687 /StemV 50 /XHeight 528 /FontFile2 1006 0 R >>
 endobj
-2000 0 obj
-<< /Type /Annot /Subtype /Link /Rect [72 705 184.75 730] /Border [0 0 0] /H /I /F 4 /StructParent 1000 /Dest (hft-client-info) >>
+1001 0 obj
+<< /Type /Font /Subtype /CIDFontType2 /BaseFont /SUBSET+LiberationSans /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor 1002 0 R /DW 278 /W 1003 0 R /CIDToGIDMap 1004 0 R >>
 endobj
 2001 0 obj
 << /Type /Annot /Subtype /Link /Rect [184.75 705 297.5 730] /Border [0 0 0] /H /I /F 4 /StructParent 1001 /Dest (hft-trades) >>
 endobj
+2011 0 obj
+<< /Type /Outlines /First 2003 0 R /Last 2003 0 R /Count 1 >>
+endobj
 2003 0 obj
 << /Title (HFT Contract Note - Algo Capital LLP) /Parent 2011 0 R /Dest (_bm_0) /First 2005 0 R /Last 2009 0 R /Count -3 >>
-endobj
-2005 0 obj
-<< /Title (Client Information) /Parent 2003 0 R /Dest (_bm_1) /Next 2007 0 R >>
 endobj
 2009 0 obj
 << /Title (Compliance Audit) /Parent 2003 0 R /Dest (_bm_3) /Prev 2007 0 R >>
 endobj
+2012 0 obj
+<< /Names [(_bm_0) << /D [3 0 R /XYZ null 770 null] /SD [2004 0 R /XYZ null 770 null] >> (_bm_1) << /D [3 0 R /XYZ null 705 null] /SD [2006 0 R /XYZ null 705 null] >> (_bm_2) << /D [3 0 R /XYZ null 630 null] /SD [2008 0 R /XYZ null 630 null] >> (_bm_3) << /D [77 0 R /XYZ null 545 null] /SD [2010 0 R /XYZ null 545 null] >> (hft-client-info) << /D [3 0 R /XYZ null 705 null] /SD [2006 0 R /XYZ null 705 null] >> (hft-compliance) << /D [77 0 R /XYZ null 545 null] /SD [2010 0 R /XYZ null 545 null] >> (hft-trades) << /D [3 0 R /XYZ null 630 null] /SD [2008 0 R /XYZ null 630 null] >>] >>
+endobj
+2000 0 obj
+<< /Type /Annot /Subtype /Link /Rect [72 705 184.75 730] /Border [0 0 0] /H /I /F 4 /StructParent 1000 /Dest (hft-client-info) >>
+endobj
 2002 0 obj
 << /Type /Annot /Subtype /Link /Rect [297.5 705 410.25 730] /Border [0 0 0] /H /I /F 4 /StructParent 1002 /Dest (hft-compliance) >>
 endobj
-2011 0 obj
-<< /Type /Outlines /First 2003 0 R /Last 2003 0 R /Count 1 >>
+2005 0 obj
+<< /Title (Client Information) /Parent 2003 0 R /Dest (_bm_1) /Next 2007 0 R >>
 endobj
 2007 0 obj
 << /Title (Trade Details \(2,000 Trades\)) /Parent 2003 0 R /Dest (_bm_2) /Prev 2005 0 R /Next 2009 0 R >>
-endobj
-2012 0 obj
-<< /Names [(_bm_0) << /D [3 0 R /XYZ null 770 null] /SD [2004 0 R /XYZ null 770 null] >> (_bm_1) << /D [3 0 R /XYZ null 705 null] /SD [2006 0 R /XYZ null 705 null] >> (_bm_2) << /D [3 0 R /XYZ null 630 null] /SD [2008 0 R /XYZ null 630 null] >> (_bm_3) << /D [77 0 R /XYZ null 545 null] /SD [2010 0 R /XYZ null 545 null] >> (hft-client-info) << /D [3 0 R /XYZ null 705 null] /SD [2006 0 R /XYZ null 705 null] >> (hft-compliance) << /D [77 0 R /XYZ null 545 null] /SD [2010 0 R /XYZ null 545 null] >> (hft-trades) << /D [3 0 R /XYZ null 630 null] /SD [2008 0 R /XYZ null 630 null] >>] >>
 endobj
 2013 0 obj
 << /Dests 2012 0 R >>
@@ -2445,9 +2445,9 @@ stream
       <pdfuaid:rev>2024</pdfuaid:rev>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/">
-      <xmp:CreateDate>2026-06-17T20:18:40Z</xmp:CreateDate>
-      <xmp:ModifyDate>2026-06-17T20:18:40Z</xmp:ModifyDate>
-      <xmp:MetadataDate>2026-06-17T20:18:40Z</xmp:MetadataDate>
+      <xmp:CreateDate>2026-06-17T20:59:07Z</xmp:CreateDate>
+      <xmp:ModifyDate>2026-06-17T20:59:07Z</xmp:ModifyDate>
+      <xmp:MetadataDate>2026-06-17T20:59:07Z</xmp:MetadataDate>
       <xmp:CreatorTool>GoPDFSuit</xmp:CreatorTool>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -2462,8 +2462,8 @@ stream
       <pdf:Producer>GoPDFSuit</pdf:Producer>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/">
-      <xmpMM:DocumentID>uuid:18b9f7bd74e64f05</xmpMM:DocumentID>
-      <xmpMM:InstanceID>uuid:18b9f7bd74e64f05</xmpMM:InstanceID>
+      <xmpMM:DocumentID>uuid:18b9f9f295ce3be2</xmpMM:DocumentID>
+      <xmpMM:InstanceID>uuid:18b9f9f295ce3be2</xmpMM:InstanceID>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>
@@ -50822,27 +50822,27 @@ xref
 0000445553 00000 n 
 0000451479 00000 n 
 1000 7
-0000454972 00000 n 
+0000454739 00000 n 
+0000473118 00000 n 
+0000472899 00000 n 
+0000472326 00000 n 
+0000472667 00000 n 
 0000454154 00000 n 
-0000473132 00000 n 
-0000472559 00000 n 
-0000472900 00000 n 
-0000454387 00000 n 
-0000455127 00000 n 
+0000454894 00000 n 
 2000 19
+0000474420 00000 n 
 0000473351 00000 n 
-0000473499 00000 n 
-0000473981 00000 n 
-0000473645 00000 n 
+0000474568 00000 n 
+0000473577 00000 n 
 0002099571 00000 n 
-0000473787 00000 n 
+0000474718 00000 n 
 0002099686 00000 n 
-0000474211 00000 n 
+0000474816 00000 n 
 0002099783 00000 n 
-0000473885 00000 n 
+0000473719 00000 n 
 0002099892 00000 n 
-0000474131 00000 n 
-0000474336 00000 n 
+0000473497 00000 n 
+0000473815 00000 n 
 0000474941 00000 n 
 0000474981 00000 n 
 0000485185 00000 n 
@@ -66903,7 +66903,7 @@ xref
 0000485291 00000 n 
 0000485113 00000 n 
 trailer
-<< /Size 18073 /Root 1 0 R /ID [<0537c5a44106362d3aed941a96056b6d> <88ddd1d7247bc9f412a6516d23ca565e>] >>
+<< /Size 18073 /Root 1 0 R /ID [<e241996269c45fba188aa3aed3799e9e> <089faf5af345fdd5095233f6b28cc3c6>] >>
 startxref
 2099987
 %%EOF

@@ -69,9 +69,26 @@ This section measures the same retail contract-note document rendered serially i
 | **GoPDFLib** | 5000 | 48 | **2061.33 ops/sec** | **22.680 ms** |
 | **pypdfsuit** | 5000 | 48 | 233.76 ops/sec | 185.517 ms |
 
+## GoPDFKit vs GoPDFLib (apples-to-apples)
+
+Harness: \`make bench-gopdfkit-compare\` in \`sampledata/benchmarks/gopdfkit_compare\`. Compares **GoPDFLib** (gopdfsuit engine) against external **GoPDFKit** v0.5.2 on equivalent PDF 1.7 templates (no PDF/A flags). **40 workers**, \`benchtime=5s\`, best-of-5 from June 2026 suite (i7-13700HX, 24 logical CPUs).
+
+| Workload | GoPDFKit pdf/s | GoPDFLib pdf/s | gopdflib lead |
+| --- | ---: | ---: | ---: |
+| text_short | 119,959 | **254,986** | **2.1x** |
+| text_240_lines | 14,755 | **32,453** | **2.2x** |
+| table_180_rows | 11,883 | **47,707** | **4.0x** |
+| table_900_rows | 2,635 | **10,452** | **4.0x** |
+| invoice_40_rows | 40,145 | **135,052** | **3.4x** |
+| png_table_180_rows | 7,504 | **45,098** | **6.0x** |
+| png_rows_60 | 5,474 | **53,935** | **9.9x** |
+
+**Result:** gopdflib wins **7/7** workloads. Lead ranges **2.1x** (text) to **9.9x** (PNG rows).
+
 **How to read this page:**
 • Use the **gold standard 5000×48 section** for realistic broker-mix concurrent throughput under PDF/A compliance.
 • Use the **single retail contract-note section** to compare per-document render speed on the same template across runtimes.
+• Use **GoPDFKit compare** for library-level apples-to-apples speed (PDF 1.7 only — production gopdfsuit also supports PDF/A-4 + PDF/UA-2).
 • **Do not** compare serial ops/sec directly with 5000×48 aggregate ops/sec — they measure different concurrency models.`,
             code: {
                 bash: `# Zerodha gold standard (5000 iterations, 48 workers)
@@ -79,6 +96,10 @@ cd sampledata/gopdflib/zerodha && go run .
 
 # 10 sequential timing runs
 bash sampledata/gopdflib/zerodha/run_bench_x10.sh
+
+# GoPDFKit vs GoPDFLib apples-to-apples compare
+make bench-gopdfkit-setup
+make bench-gopdfkit-compare
 
 # Single-document Zerodha retail benchmark runners
 cd sampledata/benchmarks/gopdfsuit && go run bench.go

@@ -303,6 +303,9 @@ bench-pypdfsuit-zerodha-x2:
 		$(MAKE) bench-pypdfsuit-zerodha; \
 	done
 
+bench-pypdfsuit-profile:
+	cd $(ZERODHA_DIR) && python3 pypdfsuit_profile.py
+
 # ── Multi-library benchmarks (sampledata/benchmarks) ───────────────────────
 
 bench-gopdfsuit-zerodha:

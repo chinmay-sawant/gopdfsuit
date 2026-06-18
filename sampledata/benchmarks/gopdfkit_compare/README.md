@@ -1,21 +1,38 @@
 # GoPDFKit vs gopdfsuit Benchmarks
 
-This directory is a separate Go module for apples-to-apples comparison against
-`github.com/chinmay-sawant/gopdfsuit/v5`.
+This directory is a separate Go module for apples-to-apples comparison of
+**GoPDFLib** (the PDF engine inside gopdfsuit) against external
+**GoPDFKit** (`github.com/cssbruno/gopdfkit` v0.5.2).
 
 The module pins:
 
-- GoPDFKit: local checkout through `replace github.com/cssbruno/gopdfkit => ../..`
-- gopdfsuit: `e61b05028120937d62408ca700d10a41f48e3899`
+- **gopdfsuit:** `github.com/chinmay-sawant/gopdfsuit/v6` (local `replace` to repo root)
+- **GoPDFKit:** real checkout via `replace` → `/tmp/gopdfkit-real/.../gopdfkit@v0.5.2`
 
-Run from this directory:
+## Quick start (from repo root)
 
 ```shell
-go test -run '^TestComparableOutputsArePDF$' -bench 'Benchmark(GoPDFKit|GoPDFLib)' -benchmem -count=3
+make bench-gopdfkit-setup        # download gopdfkit v0.5.2 + symlink (one-time)
+make bench-gopdfkit-compare-test # verify both libraries emit valid PDFs
+make bench-gopdfkit-compare      # timing run (default: benchtime=5s, count=1)
+make bench-gopdfkit-compare-x2   # two sequential runs for stability
 ```
 
-The comparable workloads intentionally use features both libraries expose
-through public API:
+Override defaults:
+
+```shell
+make bench-gopdfkit-compare BENCH_TIME=10s BENCH_COUNT=3 GOMAXPROCS_BENCH=24
+```
+
+Run directly from this directory:
+
+```shell
+go test -run '^TestComparableOutputsArePDF$' -bench 'BenchmarkGoPDF(Kit|Lib)$' -benchmem -count=3
+```
+
+## Workloads
+
+Comparable workloads use features both libraries expose through public API:
 
 - `table_180_rows`
 - `table_900_rows`
@@ -25,41 +42,46 @@ through public API:
 - `png_table_180_rows`
 - `png_rows_60`
 
-Each workload is run in `workers_40` mode. The harness reports
-`workers`, `pdf_bytes`, `pdf/s`, and `total_MB` custom metrics in addition to
-the standard Go benchmark timing and allocation metrics.
+Each workload runs in `workers_40` mode. The harness reports `workers`,
+`pdf_bytes`, `pdf/s`, and `total_MB` custom metrics in addition to standard Go
+benchmark timing and allocation metrics.
 
-HTML conversion is included as an opt-in benchmark because the implementations
-are not equivalent: GoPDFKit renders its supported HTML subset in-process, while
-gopdfsuit uses Chrome/Chromium. Enable it only on machines with Chrome:
+Templates intentionally use **PDF 1.7 without PDF/A flags** for fair speed
+comparison. Production gopdfsuit also supports PDF/A-4 + PDF/UA-2, which
+GoPDFKit does not match in this harness.
+
+## HTML (opt-in)
+
+HTML conversion is opt-in because implementations are not equivalent: GoPDFKit
+renders its supported HTML subset in-process; gopdfsuit uses Chrome/Chromium.
+Enable only on machines with Chrome:
 
 ```shell
+make bench-gopdfkit-html
+# or:
 GOPDFKIT_COMPARE_HTML=1 go test -run '^$' -bench 'HTML' -benchmem -count=3
 ```
 
-Compliance workloads are not included in the apples-to-apples table unless both
-libraries can be configured with equivalent PDF/A, PDF/UA, Arlington, metadata,
-font, signing, and external validation behavior. Document unsupported or
-non-equivalent features instead of mixing them into throughput rows.
+Compliance workloads (PDF/A, PDF/UA, Arlington, signing, etc.) are excluded
+from the apples-to-apples table unless both libraries can be configured with
+equivalent behavior.
 
-## Local Snapshot
+## Results (best-of-5, benchtime=5s, 40 workers)
 
-Run on `12th Gen Intel(R) Core(TM) i7-12700` with 20 logical CPUs. Rows are
-from `make bench-gopdfsuit`.
+**Environment:** WSL2, 13th Gen Intel(R) Core(TM) i7-13700HX, 24 logical CPUs,
+Go 1.26.4 — June 2026 suite (`make bench-gopdfkit-compare`, best pdf/s across 5 runs).
 
-| Workload | Library | Mode | ns/PDF | PDF/sec | Memory/PDF | Allocs/PDF | Output size | Total allocated |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| text_short | GoPDFKit | workers_40 | 4,355 | 229,606 | 33,430 B | 185 | 1,505 B | 8,574 MB |
-| text_short | gopdflib | workers_40 | 7,427 | 134,641 | 104,269 B | 126 | 4,303 B | 16,905 MB |
-| text_240_lines | GoPDFKit | workers_40 | 36,304 | 27,546 | 303,507 B | 568 | 4,706 B | 9,381 MB |
-| text_240_lines | gopdflib | workers_40 | 90,125 | 11,096 | 1,028,017 B | 811 | 13,074 B | 12,824 MB |
-| table_180_rows | GoPDFKit | workers_40 | 46,308 | 21,595 | 372,881 B | 874 | 8,043 B | 9,402 MB |
-| table_180_rows | gopdflib | workers_40 | 100,742 | 9,926 | 699,241 B | 940 | 22,885 B | 6,668 MB |
-| table_900_rows | GoPDFKit | workers_40 | 213,970 | 4,674 | 1,781,727 B | 3,685 | 34,997 B | 9,546 MB |
-| table_900_rows | gopdflib | workers_40 | 488,571 | 2,047 | 3,140,994 B | 4,247 | 97,915 B | 7,848 MB |
-| invoice_40_rows | GoPDFKit | workers_40 | 16,499 | 60,611 | 102,583 B | 348 | 3,232 B | 8,667 MB |
-| invoice_40_rows | gopdflib | workers_40 | 29,455 | 33,950 | 208,499 B | 303 | 8,633 B | 8,684 MB |
-| png_table_180_rows | GoPDFKit | workers_40 | 116,066 | 8,616 | 584,406 B | 1,048 | 15,784 B | 5,573 MB |
-| png_table_180_rows | gopdflib | workers_40 | 105,201 | 9,506 | 719,850 B | 963 | 28,500 B | 7,737 MB |
-| png_rows_60 | GoPDFKit | workers_40 | 176,534 | 5,665 | 660,280 B | 2,274 | 32,082 B | 4,758 MB |
-| png_rows_60 | gopdflib | workers_40 | 174,381 | 5,735 | 1,868,885 B | 1,025 | 322,532 B | 10,594 MB |
+| Workload | GoPDFKit pdf/s | GoPDFLib pdf/s | gopdflib lead | Baseline Lib | Delta |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `text_short` | 119,959 | **254,986** | 2.1x | 206,298 | +24% |
+| `text_240_lines` | 14,755 | **32,453** | 2.2x | 23,741 | +37% |
+| `table_180_rows` | 11,883 | **47,707** | 4.0x | 28,870 | +65% |
+| `table_900_rows` | 2,635 | **10,452** | 4.0x | 7,621 | +37% |
+| `invoice_40_rows` | 40,145 | **135,052** | 3.4x | 105,514 | +28% |
+| `png_table_180_rows` | 7,504 | **45,098** | 6.0x | 32,077 | +41% |
+| `png_rows_60` | 5,474 | **53,935** | 9.9x | 42,548 | +27% |
+
+**Winner:** GoPDFLib (gopdfsuit engine) on all 7 workloads. Lead ranges **2.1x**
+(text) to **9.9x** (PNG rows).
+
+Full benchmark report: [`guides/BENCHMARKS.md`](../../../guides/BENCHMARKS.md).

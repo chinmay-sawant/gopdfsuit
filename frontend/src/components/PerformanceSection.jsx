@@ -26,6 +26,16 @@ const parallelWeightedBenchmarks = [
   { name: 'PyPDFSuit', workers: '48', throughput: '233.76 ops/sec', avg: '185.517 ms', min: '2.657 ms', max: '3516.474 ms', mix: '4015 / 767 / 218' },
 ]
 
+const gopdfkitCompareBenchmarks = [
+  { name: 'text_short', workload: 'text_short', gopdfkit: '119,959', gopdflib: '254,986', lead: '2.1x' },
+  { name: 'text_240_lines', workload: 'text_240_lines', gopdfkit: '14,755', gopdflib: '32,453', lead: '2.2x' },
+  { name: 'table_180_rows', workload: 'table_180_rows', gopdfkit: '11,883', gopdflib: '47,707', lead: '4.0x' },
+  { name: 'table_900_rows', workload: 'table_900_rows', gopdfkit: '2,635', gopdflib: '10,452', lead: '4.0x' },
+  { name: 'invoice_40_rows', workload: 'invoice_40_rows', gopdfkit: '40,145', gopdflib: '135,052', lead: '3.4x' },
+  { name: 'png_table_180_rows', workload: 'png_table_180_rows', gopdfkit: '7,504', gopdflib: '45,098', lead: '6.0x' },
+  { name: 'png_rows_60', workload: 'png_rows_60', gopdfkit: '5,474', gopdflib: '53,935', lead: '9.9x' },
+]
+
 const machineProfile = [
   'Kernel: Linux 6.6.87.2-microsoft-standard-WSL2',
   'CPU: 13th Gen Intel(R) Core(TM) i7-13700HX',
@@ -137,6 +147,19 @@ const PerformanceSection = ({ isVisible }) => {
               { key: 'mix', label: 'Retail / Active / HFT' },
             ]}
             rows={parallelWeightedBenchmarks}
+          />
+
+          <BenchmarkPanel
+            wide
+            title="GoPDFKit vs GoPDFLib (apples-to-apples)"
+            description="make bench-gopdfkit-compare — PDF 1.7 templates without PDF/A flags, 40 workers, benchtime=5s, best-of-5 (June 2026 suite). gopdflib (GoPDFSuit engine) wins all 7 workloads; peak lead 9.9x on PNG rows."
+            columns={[
+              { key: 'workload', label: 'Workload' },
+              { key: 'gopdfkit', label: 'GoPDFKit pdf/s' },
+              { key: 'gopdflib', label: 'GoPDFLib pdf/s' },
+              { key: 'lead', label: 'gopdflib lead' },
+            ]}
+            rows={gopdfkitCompareBenchmarks}
           />
 
           <article className="glass-card performance-panel performance-machine-panel">
