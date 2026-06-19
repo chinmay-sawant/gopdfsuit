@@ -274,6 +274,9 @@ build_post_test_manifest() {
         "typstsyntax/typst_sample.pdf||0||pdf"
         "typstsyntax/typst_sample_python.pdf||0||pdf"
         "split/temp_split_maxperfile_python.pdf||0||pdf"
+        "gopdflib/zerodha/zerodha_hft_output.pdf||0|4,ua2|pdf"
+        "gopdflib/zerodha/zerodha_retail_output.pdf||0|4,ua2|pdf"
+        "gopdflib/zerodha/zerodha_active_output.pdf||0|4,ua2|pdf"
     )
     for entry in "${extra_entries[@]}"; do
         local key="${entry%%|*}"

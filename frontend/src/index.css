@@ -1161,6 +1161,15 @@ select option {
   font-weight: 600;
 }
 
+.hero-benchmark-footnote {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin: -1rem auto 2rem;
+  max-width: 780px;
+  opacity: 0.85;
+}
+
 /* Grouped feature pills */
 .hero-pills-container {
   display: flex;

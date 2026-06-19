@@ -81,6 +81,17 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
   return response
 }
 
+const PLACEHOLDER_GOOGLE_CLIENT_ID = 'your-google-oauth-client-id.apps.googleusercontent.com'
+
+/**
+ * Check if Google OAuth is configured with a real client ID.
+ * Local dev works without it; Cloud Run deployments should set VITE_GOOGLE_CLIENT_ID.
+ */
+export const isGoogleOAuthConfigured = () => {
+  const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim()
+  return Boolean(clientId && clientId !== PLACEHOLDER_GOOGLE_CLIENT_ID)
+}
+
 /**
  * Configuration object for easy access
  */
@@ -88,5 +99,6 @@ export const apiConfig = {
   isCloudRun: isCloudRunEnvironment(),
   baseUrl: getApiBaseUrl(),
   authRequired: isAuthRequired(),
-  googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+  googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+  googleOAuthEnabled: isGoogleOAuthConfigured(),
 }

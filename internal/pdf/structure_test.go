@@ -71,6 +71,30 @@ func TestBeginMarkedContentBufWithMCID_createsTDUnderTR(t *testing.T) {
 	}
 }
 
+func TestBeginTableRowWithTDMCIDs_createsTDUnderTR(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	table := sm.CurrentParent
+
+	sm.BeginTableRowWithTDMCIDs(0, 10, 3)
+	tr := sm.CurrentParent
+
+	if len(table.Kids) != 1 || table.Kids[0].Elem != tr {
+		t.Fatal("expected Table kid to be TR element")
+	}
+	if len(tr.Kids) != 3 {
+		t.Fatalf("expected 3 TD kids on TR, got %d", len(tr.Kids))
+	}
+	for i, kid := range tr.Kids {
+		if kid.Elem == nil || kid.Elem.Type != StructTD {
+			t.Fatalf("kid %d: expected TD struct element, got %+v", i, kid)
+		}
+		if mcid, ok := kid.Elem.LeafMCID(); !ok || mcid != 10+i {
+			t.Fatalf("kid %d: expected MCID %d, got %d ok=%v", i, 10+i, mcid, ok)
+		}
+	}
+}
+
 func TestReserveElementCapacityGrowsBackingSlice(t *testing.T) {
 	sm := NewStructureManager(true)
 	before := cap(sm.Elements)

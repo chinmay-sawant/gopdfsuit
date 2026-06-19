@@ -230,6 +230,22 @@ func buildTextColorCmd(textColor string) []byte {
 	return []byte("0 0 0 rg\n")
 }
 
+// markSharedTableCharsUsed registers every glyph in a shared-layout table before subsetting.
+// The HFT fast path skips the slow drawTable loop, so this pre-pass is required for PDF/A-4.
+func markSharedTableCharsUsed(table models.Table, sharedCols []sharedColumnLayout, maxColumns int, registry *CustomFontRegistry) {
+	for _, row := range table.Rows {
+		for colIdx, cell := range row.Row {
+			if colIdx >= maxColumns || colIdx >= len(sharedCols) {
+				break
+			}
+			sc := sharedCols[colIdx]
+			if cell.Text != "" && sc.usesCustomFont {
+				registry.MarkCharsUsed(sc.resolvedFont, cell.Text)
+			}
+		}
+	}
+}
+
 // prepSharedDeferRow updates only per-row varying fields (text width, optional text color).
 func prepSharedDeferRow(
 	row models.Row,
@@ -367,7 +383,6 @@ func drawSharedDeferRow(
 	rowTextPrefixes [][]byte,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
-	batchMCIDCells bool,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
 	currentX := pageManager.Margins.Left
@@ -383,13 +398,9 @@ func drawSharedDeferRow(
 		cellX := currentX
 		currentX += cellWidth
 
-		if batchMCIDCells {
-			pageManager.Structure.WriteCellMarkedContentBDC(contentStream, StructTD, rowMCIDBase+colIdx)
-		} else {
-			pageManager.Structure.BeginMarkedContentBufWithMCID(
-				contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx,
-			)
-		}
+		pageManager.Structure.BeginMarkedContentBufWithMCID(
+			contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx,
+		)
 
 		if cell.BgColor != "" {
 			if r, g, b, _, valid := parseHexColor(cell.BgColor); valid {
@@ -437,11 +448,7 @@ func drawSharedDeferRow(
 			contentStream.Write(textTjBuf)
 		}
 
-		if batchMCIDCells {
-			pageManager.Structure.EndCellMarkedContentBuf(contentStream)
-		} else {
-			pageManager.Structure.EndMarkedContentBuf(contentStream)
-		}
+		pageManager.Structure.EndMarkedContentBuf(contentStream)
 	}
 
 	if borderW, uniform := sharedColsUniformBorder(sharedCols); uniform {
@@ -482,15 +489,17 @@ func drawSharedLayoutRow(
 ) {
 	cellCount := min(len(row.Row), maxColumns)
 	rowMCIDBase := pageManager.Structure.ReserveMCIDsLite(pageManager.CurrentPageIndex, cellCount)
-	pageManager.Structure.BeginRowStructureWithMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
+	pageIndex := pageManager.CurrentPageIndex
+
 	if rowPtr != nil {
 		cacheKey := sharedRowRenderCacheKey{
 			row:      rowPtr,
-			page:     pageManager.CurrentPageIndex,
+			page:     pageIndex,
 			mcidBase: rowMCIDBase,
 			y:        scaledCoordKey(pageManager.CurrentYPos),
 		}
 		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
+			pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
 			contentStream.Write(cached)
 			pageManager.Structure.EndStructureElement()
 			pageManager.CurrentYPos -= rowHeight
@@ -501,11 +510,12 @@ func drawSharedLayoutRow(
 		rowBuf.Grow(512)
 		prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, maxColumns)
 		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, maxColumns)
+		pageManager.Structure.BeginStructureElementCap(StructTR, 0)
 		drawSharedDeferRow(
 			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 			scratchBuf, textTjBuf, borderBuf,
 			rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
-			maxColumns, true,
+			maxColumns,
 		)
 		rendered := append([]byte(nil), rowBuf.Bytes()...)
 		sharedRowRenderCache.Store(cacheKey, rendered)
@@ -515,11 +525,12 @@ func drawSharedLayoutRow(
 		return
 	}
 
+	pageManager.Structure.BeginStructureElementCap(StructTR, 0)
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
 		rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
-		maxColumns, true,
+		maxColumns,
 	)
 	pageManager.Structure.EndStructureElement()
 	pageManager.CurrentYPos -= rowHeight
@@ -1244,6 +1255,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	useSharedLayout := templateRow >= 0 && tableSupportsSharedRowLayout(table, templateRow)
 	if useSharedLayout {
 		sharedCols = buildSharedColumnLayouts(table, templateRow, pageManager.FontRegistry)
+		markSharedTableCharsUsed(table, sharedCols, table.MaxColumns, pageManager.FontRegistry)
 	}
 
 	largeTable := len(table.Rows) > 100
@@ -1454,22 +1466,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		// Get current content stream for this page
 		contentStream := pageManager.GetCurrentContentStream()
 
-		cellCount := min(len(row.Row), table.MaxColumns)
-		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
-
-		if fastRow && len(sharedCols) > 0 {
-			prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, table.MaxColumns)
-			pageManager.Structure.AttachRowMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
-			drawSharedDeferRow(
-				contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
-				scratchBuf, textTjBuf, borderBuf,
-				rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
-				table.MaxColumns, true,
-			)
-			pageManager.Structure.EndStructureElement()
-			pageManager.CurrentYPos -= rowHeight
-			continue
-		}
+		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, min(len(row.Row), table.MaxColumns))
 
 		// Draw row cells
 		currentX := pageManager.Margins.Left

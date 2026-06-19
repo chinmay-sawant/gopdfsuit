@@ -35,11 +35,12 @@ Output-size check:
 |--------|-------------:|-------|
 | Retail | 61293 bytes | Stable |
 | Active | 76065 bytes | Stable |
-| HFT | 748163 bytes | Intentional compaction from 2289155 bytes |
+| HFT | 748163 bytes | Intentional compaction from 2289155 bytes *(see compliance fix below)* |
 
-The HFT size change is expected. The shared-row table path now attaches MCID leaves
-directly to the row parent instead of allocating and serializing one `StructElem` per
-cell.
+The HFT size change was expected at the time. The shared-row table path attached MCID
+leaves directly to the row parent instead of allocating and serializing one
+`StructElem` per cell. **This compaction was later found non-compliant** (Phase 11 in
+`PR_DESCRIPTION.md`).
 
 ---
 
@@ -172,4 +173,27 @@ Validation outcome:
   `guides/cursor/baselines/`.
 - Several generated sample PDFs changed from validation and benchmark runs; those are
   expected generated artifacts from the executed test/benchmark workflow.
+
+---
+
+## Compliance fix — HFT shared-row structure (2026-06-19)
+
+veraPDF cross-check of `sampledata/gopdflib/zerodha/` found `zerodha_hft_output.pdf`
+**FAIL** on PDF/A-4 and PDF/UA-2 while retail/active passed. Root cause: the P3
+`SharedRowLayout` fast path skipped `MarkCharsUsed` on most rows and used bare MCID
+leaves under `TR` instead of `TD` `StructElem` children.
+
+**Fix:** `markSharedTableCharsUsed`, `BeginTableRowWithTDMCIDs`, compliant
+`drawSharedDeferRow` / `drawSharedLayoutRow` replay. See Phase 11 in
+`guides/optimizations/PR/PR_DESCRIPTION.md`.
+
+| Metric | Pre-fix (non-compliant) | Post-fix (compliant) |
+|--------|------------------------:|---------------------:|
+| HFT `zerodha_hft_output.pdf` size | 748,163 B | 2,291,955 B |
+| PDF/A-4 | FAIL | **PASS** |
+| PDF/UA-2 | FAIL | **PASS** |
+
+The 748 KB artifact traded compliance for structure-tree compaction. Restoring
+`TR → TD` hierarchy returns HFT size to the pre-optimization ballpark; throughput
+gains from shared-row content caching remain.
 

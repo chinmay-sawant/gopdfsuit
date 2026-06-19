@@ -515,3 +515,59 @@ ad946c9 Additional performance improvements as per the optimizations guides
 ## PR file provenance
 
 This document was **created** at commit `eb1b2c1` (2026-06-14) alongside `20260614_remaining_optimizations_checklist.md`. It originally captured Phases 1–6 only. This revision adds Phases 7–10 covering all work through `dd69309` (2026-06-16): cache bounds, tagged-PDF allocation reduction, veraPDF/XFDF validation, cross-stack benchmarks, v6 release prep, and CI hardening.
+
+---
+
+## Phase 11 — HFT shared-row PDF/A-4 + PDF/UA-2 compliance fix (2026-06-19)
+
+**Discovered by:** veraPDF validation of `sampledata/gopdflib/zerodha/zerodha_hft_output.pdf`  
+**Affected optimization:** P3 HFT shared table path (`guides/optimizations/PR/20260617_zerodha_x10_pprof_pr_description.md`, commit `fff4f16`)
+
+### Bug summary
+
+The June 2026 Zerodha x10 pprof optimizations introduced `SharedRowLayout` + `drawSharedLayoutRow` for the 2,000-row HFT table. Throughput and file size improved (HFT PDF **2.3 MB → 748 KB**, Zerodha weighted **~11,721 ops/s**), but **veraPDF failed** on the Go-native HFT artifact:
+
+| File | PDF/A-4 | PDF/UA-2 |
+|------|---------|----------|
+| `zerodha_retail_output.pdf` | PASS | PASS |
+| `zerodha_active_output.pdf` | PASS | PASS |
+| `zerodha_hft_output.pdf` | **FAIL** | **FAIL** |
+| `zerodha_hft_output_pypdfsuit.pdf` | PASS | PASS |
+
+pypdfsuit passed because its HFT template does **not** set `SharedRowLayout` and therefore used the compliant slow `drawTable` path.
+
+### Root causes
+
+1. **Font subsetting (PDF/A-4 §6.2.10.5):** The shared-row fast path called `drawSharedLayoutRow` directly and **skipped `MarkCharsUsed`** on ~1,999/2,001 rows. LiberationSans subsets were built from a single template row while the content stream drew all 2,000 rows → glyph `/Widths` mismatches (`365` vs `278` in veraPDF reports).
+
+2. **Structure tree (PDF/UA-2 §8.2.5.26):** `BeginRowStructureWithMCIDs` attached bare MCID leaves directly under `TR` (no `TD` `StructElem` children). The slow path and pypdfsuit used `TR → TD` hierarchy. Mixed row types in one table triggered “rows span different column counts”.
+
+3. **Missing validation gate:** P3 checklist validated throughput and HFT byte size (`748163` bytes) but did **not** run veraPDF on Zerodha HFT output.
+
+### Fix (2026-06-19)
+
+| File | Change |
+|------|--------|
+| `internal/pdf/draw.go` | `markSharedTableCharsUsed()` pre-scans all shared-layout rows before subsetting; `drawSharedDeferRow` always uses `BeginMarkedContentBufWithMCID` (creates `TD` elems); cache hits use compliant structure replay |
+| `internal/pdf/structure.go` | Replace `BeginRowStructureWithMCIDs` with `BeginTableRowWithTDMCIDs` (TR + TD children with MCIDs, no bare MCID leaves) |
+| `internal/pdf/structure_test.go` | Regression test for `BeginTableRowWithTDMCIDs` |
+| `test/verify_pdfs.sh` | Add Zerodha retail/active/HFT outputs to post-test manifest (`4,ua2`) |
+
+### Post-fix validation (2026-06-19)
+
+```bash
+cd sampledata/gopdflib/zerodha && go run .
+verapdf/verapdf -f 4  sampledata/gopdflib/zerodha/zerodha_hft_output.pdf
+verapdf/verapdf -f ua2 sampledata/gopdflib/zerodha/zerodha_hft_output.pdf
+go test ./internal/pdf/... -count=1
+```
+
+**Outcome:**
+
+| File | PDF/A-4 | PDF/UA-2 | Size (bytes) |
+|------|---------|----------|-------------:|
+| `zerodha_retail_output.pdf` | PASS | PASS | 61,293 |
+| `zerodha_active_output.pdf` | PASS | PASS | 76,065 |
+| `zerodha_hft_output.pdf` | **PASS** | **PASS** | 2,291,955 |
+
+HFT size reverts from the non-compliant **748,163 B** compaction to **2,291,955 B** (~pre-optimization 2,289,155 B) because PDF/UA-2 requires full `TR → TD` structure elements for all 2,000 data rows. Content-stream caching (`sharedRowRenderCache`) is retained; only the illegal bare-MCID-leaf structure shortcut is removed. Zerodha outputs are now in `test/verify_pdfs.sh` (`4,ua2`) so this regression cannot ship again.

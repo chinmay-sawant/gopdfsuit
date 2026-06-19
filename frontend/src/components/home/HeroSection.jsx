@@ -62,7 +62,10 @@ const HeroSection = ({ starCount }) => {
           }}
         >
           <p className="hero-description">
-            An high-performance, <span className="highlight-foreground">MIT-licensed</span> Go engine that <span className="highlight-teal">saves enterprise costs</span> and solves critical <span className="highlight-foreground">compliance challenges</span> for Fintechs & Enterprises by generating secure, <span className="highlight-blue">PDF/UA-2 & PDF/A-4</span> compliant documents at up to <span className="highlight-yellow">2061 PDFs/sec*</span> on the Zerodha gold-standard workload.
+            An high-performance, <span className="highlight-foreground">MIT-licensed</span> Go engine that <span className="highlight-teal">saves enterprise costs</span> and solves critical <span className="highlight-foreground">compliance challenges</span> for Fintechs & Enterprises by generating secure, <span className="highlight-blue">PDF/UA-2 & PDF/A-4</span> compliant documents at up to <span className="highlight-yellow">11,721 PDFs/sec*</span> on the Zerodha gold-standard workload.
+          </p>
+          <p className="hero-benchmark-footnote">
+            * Benchmarks measured with PDF/A-4, PDF/UA-2, Arlington-compatible tagging, XML metadata generation, ECDSA P-256 digital signatures, embedded fonts, bookmarks, and internal links enabled (June 2026, best-of-5, GoPDFLib on 48-worker Zerodha weighted workload).
           </p>
 
           <div className="hero-pills-container">

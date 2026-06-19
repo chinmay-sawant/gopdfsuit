@@ -489,29 +489,26 @@ func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
 	}
 }
 
-func (sm *StructureManager) BeginRowStructureWithMCIDs(pageIndex, startMCID, count int) {
+// BeginTableRowWithTDMCIDs starts a TR with one TD StructElem per column, each carrying
+// a pre-reserved MCID. Used when replaying cached shared-row content streams that already
+// contain matching BDC/EMC operators (PDF/UA-2 requires TR → TD, not bare MCID leaves).
+func (sm *StructureManager) BeginTableRowWithTDMCIDs(pageIndex, startMCID, count int) {
 	if !sm.Enabled {
 		return
 	}
-	elem := sm.acquireStructElem()
-	elem.Type = StructTR
-	elem.Parent = sm.CurrentParent
-	if count > 0 {
-		var kids []StructKid
-		if count <= len(elem.inlineKids) {
-			kids = elem.inlineKids[:0]
-		} else {
-			kids = acquireStructKids(count)
-		}
-		for i := range count {
-			kids = append(kids, StructKid{MCID: startMCID + i})
-		}
-		elem.Kids = kids
-		sm.appendParentTreeRefs(pageIndex, elem, count)
+	sm.BeginStructureElementCap(StructTR, 0)
+	tr := sm.CurrentParent
+	for i := range count {
+		td := sm.acquireStructElem()
+		td.Type = StructTD
+		td.Parent = tr
+		td.PageID = pageIndex
+		td.MCID = startMCID + i
+		td.HasMCID = true
+		tr.Kids = append(tr.Kids, StructKid{Elem: td})
+		sm.Elements = append(sm.Elements, td)
 	}
-	sm.CurrentParent.Kids = append(sm.CurrentParent.Kids, StructKid{Elem: elem})
-	sm.Elements = append(sm.Elements, elem)
-	sm.CurrentParent = elem
+	sm.appendParentTreeRefs(pageIndex, tr, count)
 }
 
 func (sm *StructureManager) appendParentTreeRefs(pageIndex int, parent *StructElem, count int) {

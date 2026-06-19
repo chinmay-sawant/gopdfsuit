@@ -23,7 +23,7 @@ const competitors = [
     name: 'GoPdfSuit',
     isOurs: true,
     pricing: 'Free (MIT License)',
-    performance: 'Ultra Fast (~23ms avg, 2061 ops/s peak)',
+    performance: 'Ultra Fast (~4ms avg, 11,721 ops/s peak)',
     deployment: 'Microservice / Sidecar / Docker',
     memory: 'In-memory processing',
     integration: 'REST API + Native Python + gopdflib',

@@ -28,7 +28,7 @@ const featureCategories = [
       { name: 'PDF/A-4 Compliance', desc: 'Archival standard with sRGB ICC profiles', color: '#4ecdc4' },
       { name: 'PDF/UA-2 Accessibility', desc: 'Universal accessibility compliance', color: '#007acc' },
       { name: 'AES-128 Encryption', desc: 'Password protection with permissions', color: '#f093fb' },
-      { name: 'Digital Signatures', desc: 'PKCS#7 certificates with visual appearance', color: '#ffc107' },
+      { name: 'Digital Signatures', desc: 'PKCS#7 with ECDSA P-256 / RSA and visual appearance', color: '#ffc107' },
     ],
   },
   {
