@@ -1,0 +1,36 @@
+PyPDFSuit P4 exact make bench-pypdfsuit-zerodha x5 summary
+Date: 2026-06-19
+Command: make bench-pypdfsuit-zerodha
+Configuration: BENCH_ITERATIONS=5000 BENCH_WORKERS=48
+Benchmark mode: full execution path, no JSON cache, fresh to_dict + json.dumps per operation
+Code state: compact UTF-8 JSON payloads with ensure_ascii=False and separators=(",", ":")
+
+Runs:
+
+| Run | Throughput | Avg latency | P50 | P95 | P99 | Max |
+|-----|-----------:|------------:|----:|----:|----:|----:|
+| 1 | 855.55 ops/sec | 50.343 ms | 30.936 ms | 161.608 ms | 258.910 ms | 477.563 ms |
+| 2 | 853.58 ops/sec | 50.120 ms | 31.475 ms | 169.211 ms | 260.317 ms | 505.509 ms |
+| 3 | 843.17 ops/sec | 50.950 ms | 31.195 ms | 166.494 ms | 268.432 ms | 459.677 ms |
+| 4 | 821.37 ops/sec | 52.784 ms | 32.556 ms | 178.168 ms | 267.385 ms | 465.571 ms |
+| 5 | 804.13 ops/sec | 53.903 ms | 32.629 ms | 175.807 ms | 290.945 ms | 625.355 ms |
+
+Summary:
+
+| Metric | Value |
+|--------|------:|
+| Best throughput | 855.55 ops/sec |
+| Worst throughput | 804.13 ops/sec |
+| Mean throughput | 835.56 ops/sec |
+| Median throughput | 843.17 ops/sec |
+| Stddev throughput | 22.20 ops/sec |
+| Mean avg latency | 51.620 ms |
+| Mean p50 latency | 31.758 ms |
+| Mean p95 latency | 170.258 ms |
+| Mean p99 latency | 269.198 ms |
+
+Notes:
+
+- This shell's five-run band is lower than the user's pasted 1108-1113 ops/sec runs, but it is a stable full-path no-cache band for the current code in this session.
+- The workload distribution stayed deterministic at 4015 retail, 767 active, and 218 HFT operations per run.
+- Output PDFs were regenerated on each run.

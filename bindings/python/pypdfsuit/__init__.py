@@ -49,7 +49,6 @@ from .generator import (
     generate_pdf,
     get_available_fonts,
     serialize_template,
-    invalidate_template_cache,
 )
 from .merge import merge_pdfs
 from .split import split_pdf, parse_page_spec
@@ -89,7 +88,6 @@ __all__ = [
     # Functions
     "generate_pdf",
     "serialize_template",
-    "invalidate_template_cache",
     "get_available_fonts",
     "merge_pdfs",
     "split_pdf",

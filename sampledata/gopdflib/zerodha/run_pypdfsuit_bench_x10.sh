@@ -33,12 +33,22 @@ runs = []
 for path in sorted(out.glob("pypdfsuit_run*.txt"), key=lambda p: int(re.search(r"(\d+)", p.stem).group(1))):
     text = path.read_text()
     throughput = re.search(r"Throughput:\s+([0-9.]+) ops/sec", text)
-    latency = re.search(r"Avg Latency:\s+([0-9.]+) ms", text)
+    avg_latency = re.search(r"Avg Latency:\s+([0-9.]+) ms", text)
+    p50_latency = re.search(r"P50 Latency:\s+([0-9.]+) ms", text)
+    p95_latency = re.search(r"P95 Latency:\s+([0-9.]+) ms", text)
+    p99_latency = re.search(r"P99 Latency:\s+([0-9.]+) ms", text)
+    min_latency = re.search(r"Min Latency:\s+([0-9.]+) ms", text)
+    max_latency = re.search(r"Max Latency:\s+([0-9.]+) ms", text)
     if throughput:
         runs.append((
             path.name,
             float(throughput.group(1)),
-            float(latency.group(1)) if latency else 0.0,
+            float(avg_latency.group(1)) if avg_latency else 0.0,
+            float(p50_latency.group(1)) if p50_latency else 0.0,
+            float(p95_latency.group(1)) if p95_latency else 0.0,
+            float(p99_latency.group(1)) if p99_latency else 0.0,
+            float(min_latency.group(1)) if min_latency else 0.0,
+            float(max_latency.group(1)) if max_latency else 0.0,
         ))
 
 lines = [
@@ -49,6 +59,11 @@ lines = [
 if runs:
     throughputs = [r[1] for r in runs]
     latencies = [r[2] for r in runs]
+    p50s = [r[3] for r in runs]
+    p95s = [r[4] for r in runs]
+    p99s = [r[5] for r in runs]
+    mins = [r[6] for r in runs]
+    maxes = [r[7] for r in runs]
     mean = stats.mean(throughputs)
     median = stats.median(throughputs)
     lines.extend([
@@ -58,13 +73,22 @@ if runs:
         f"Median throughput: {median:.2f} ops/sec",
         f"Stddev throughput: {(stats.stdev(throughputs) if len(throughputs) > 1 else 0.0):.2f} ops/sec",
         f"Mean avg latency: {stats.mean(latencies):.3f} ms",
+        f"Mean p50 latency: {stats.mean(p50s):.3f} ms",
+        f"Mean p95 latency: {stats.mean(p95s):.3f} ms",
+        f"Mean p99 latency: {stats.mean(p99s):.3f} ms",
+        f"Worst max latency: {max(maxes):.3f} ms",
+        f"Best min latency: {min(mins):.3f} ms",
         "",
-        "| Run | Throughput | Avg latency |",
-        "|-----|-----------:|------------:|",
+        "| Run | Throughput | Avg latency | P50 | P95 | P99 | Min | Max |",
+        "|-----|-----------:|------------:|----:|----:|----:|----:|----:|",
     ])
     lines.extend(
-        f"| {name} | {throughput:.2f} ops/sec | {latency:.3f} ms |"
-        for name, throughput, latency in runs
+        (
+            f"| {name} | {throughput:.2f} ops/sec | {avg:.3f} ms | "
+            f"{p50:.3f} ms | {p95:.3f} ms | {p99:.3f} ms | "
+            f"{min_latency:.3f} ms | {max_latency:.3f} ms |"
+        )
+        for name, throughput, avg, p50, p95, p99, min_latency, max_latency in runs
     )
 
 stats_path.write_text("\n".join(lines) + "\n")

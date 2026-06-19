@@ -1,0 +1,82 @@
+=== PyPDFSuit Phase Profiler ===
+Python: 3.13.10
+Repo:   /home/chinmay/ChinmayPersonalProjects/gopdfsuit
+
+=== RETAIL (50 iters, single-thread) ===
+  JSON payload (mean): 10,935 bytes
+  PDF output (mean):   61,290 bytes
+  End-to-end mean:     1.938 ms  (516.1 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  to_dict            0.049     0.038     0.096     2.5%
+  json_dumps         0.085     0.077     0.117     4.4%
+  cgo_call           1.784     1.691     2.438    92.1%
+  copy_back          0.016     0.013     0.028     0.8%
+  free_result        0.003     0.003     0.005     0.2%
+  serialize          0.134                         6.9%
+
+=== ACTIVE (50 iters, single-thread) ===
+  JSON payload (mean): 19,279 bytes
+  PDF output (mean):   76,072 bytes
+  End-to-end mean:     1.940 ms  (515.6 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  to_dict            0.163     0.133     0.271     8.4%
+  json_dumps         0.197     0.167     0.314    10.2%
+  cgo_call           1.544     1.342     2.605    79.6%
+  copy_back          0.024     0.021     0.044     1.3%
+  free_result        0.011     0.004     0.011     0.6%
+  serialize          0.360                        18.6%
+
+=== HFT (20 iters, single-thread) ===
+  JSON payload (mean): 1,042,811 bytes
+  PDF output (mean):   2,424,782 bytes
+  End-to-end mean:     68.503 ms  (14.6 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  to_dict            7.870     6.837    14.015    11.5%
+  json_dumps         9.345     8.694    12.919    13.6%
+  cgo_call          50.451    49.790    59.969    73.6%
+  copy_back          0.808     0.593     1.954     1.2%
+  free_result        0.028     0.016     0.047     0.0%
+  serialize         17.216                        25.1%
+
+=== Weighted Mix Estimate (80/15/5, single-thread) ===
+  Expected mean latency: 5.266 ms  (189.9 ops/s theoretical max, 1 thread)
+  Observed bench should be measured with make bench-pypdfsuit-zerodha.
+
+=== cProfile: weighted mix (full path) ===
+         184582 function calls (183982 primitive calls) in 1.109 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.014    0.014    1.109    1.109 pypdfsuit_profile.py:162(workload)
+      200    0.810    0.004    0.835    0.004 _bindings.py:164(call_bytes_result)
+      200    0.002    0.000    0.124    0.001 types.py:498(to_dict)
+     1370    0.001    0.000    0.118    0.000 types.py:415(to_dict)
+     1370    0.006    0.000    0.116    0.000 types.py:379(to_dict)
+      200    0.001    0.000    0.114    0.001 __init__.py:185(dumps)
+      200    0.001    0.000    0.113    0.001 encoder.py:185(encode)
+    23740    0.051    0.000    0.112    0.000 types.py:364(to_dict)
+      200    0.111    0.001    0.111    0.001 encoder.py:207(iterencode)
+   153740    0.061    0.000    0.061    0.000 types.py:328(to_dict)
+      200    0.025    0.000    0.025    0.000 __init__.py:542(string_at)
+      200    0.022    0.000    0.022    0.000 {method 'encode' of 'str' objects}
+      200    0.000    0.000    0.002    0.000 types.py:457(to_dict)
+      200    0.001    0.000    0.002    0.000 types.py:236(to_dict)
+      200    0.001    0.000    0.002    0.000 types.py:436(to_dict)
+  800/200    0.001    0.000    0.001    0.000 types.py:204(to_dict)
+      160    0.001    0.000    0.001    0.000 types.py:151(to_dict)
+      400    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
+      200    0.000    0.000    0.000    0.000 encoder.py:105(__init__)
+      200    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+      400    0.000    0.000    0.000    0.000 _bindings.py:156(get_lib)
+      200    0.000    0.000    0.000    0.000 types.py:478(to_dict)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+
+
+

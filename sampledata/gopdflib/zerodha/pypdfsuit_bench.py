@@ -416,11 +416,19 @@ def run_benchmark(
     iterations: int = 5000,
     workers: int = 48,
     *,
-    use_json_cache: bool = False,
+    payload_scenario: str = "weighted",
 ) -> None:
+    if payload_scenario not in {"weighted", "retail_only", "active_only", "hft_only"}:
+        raise ValueError(
+            "payload_scenario must be one of: weighted, retail_only, active_only, hft_only"
+        )
+
     print("=== PyPDFSuit Zerodha Benchmark ===")
-    print("Workload Mix: 80% Retail | 15% Active | 5% HFT")
-    print(f"JSON cache: {'enabled' if use_json_cache else 'disabled (full to_dict + json.dumps each call)'}")
+    if payload_scenario == "weighted":
+        print("Workload Mix: 80% Retail | 15% Active | 5% HFT")
+    else:
+        print(f"Workload Mix: {payload_scenario.replace('_', ' ')}")
+    print("JSON cache: removed (full to_dict + json.dumps each call)")
     print()
     machine_info = get_machine_info()
     print(
@@ -443,9 +451,9 @@ def run_benchmark(
     print("Templates built.")
 
     print("Warm-up runs...")
-    retail_pdf = generate_pdf(retail_template, use_cache=use_json_cache)
-    active_pdf = generate_pdf(active_template, use_cache=use_json_cache)
-    hft_pdf = generate_pdf(hft_template, use_cache=use_json_cache)
+    retail_pdf = generate_pdf(retail_template)
+    active_pdf = generate_pdf(active_template)
+    hft_pdf = generate_pdf(hft_template)
     print(f"  Retail PDF size:  {len(retail_pdf)} bytes ({len(retail_pdf) / 1024.0:.2f} KB)")
     print(f"  Active PDF size:  {len(active_pdf)} bytes ({len(active_pdf) / 1024.0:.2f} KB)")
     print(f"  HFT PDF size:     {len(hft_pdf)} bytes ({len(hft_pdf) / 1024.0:.2f} KB)")
@@ -460,21 +468,27 @@ def run_benchmark(
     counts = {"retail": 0, "active": 0, "hft": 0}
     lock = threading.Lock()
 
-    def one_run(seed: int) -> float:
+    def select_template(seed: int) -> tuple[str, PDFTemplate]:
+        if payload_scenario == "retail_only":
+            return "retail", retail_template
+        if payload_scenario == "active_only":
+            return "active", active_template
+        if payload_scenario == "hft_only":
+            return "hft", hft_template
+
         rng = random.Random(seed)
         roll = rng.randint(0, 99)
         if roll < 80:
-            kind = "retail"
-            template = retail_template
-        elif roll < 95:
-            kind = "active"
-            template = active_template
-        else:
-            kind = "hft"
-            template = hft_template
+            return "retail", retail_template
+        if roll < 95:
+            return "active", active_template
+        return "hft", hft_template
+
+    def one_run(seed: int) -> float:
+        kind, template = select_template(seed)
 
         start = time.perf_counter()
-        generate_pdf(template, use_cache=use_json_cache)
+        generate_pdf(template)
         elapsed_ms = (time.perf_counter() - start) * 1000
         with lock:
             counts[kind] += 1
@@ -493,6 +507,9 @@ def run_benchmark(
     print(f"  Throughput:      {iterations / total_seconds:.2f} ops/sec")
     print()
     print(f"  Avg Latency:     {statistics.mean(durations):.3f} ms")
+    print(f"  P50 Latency:     {percentile(durations, 50):.3f} ms")
+    print(f"  P95 Latency:     {percentile(durations, 95):.3f} ms")
+    print(f"  P99 Latency:     {percentile(durations, 99):.3f} ms")
     print(f"  Min Latency:     {min(durations):.3f} ms")
     print(f"  Max Latency:     {max(durations):.3f} ms")
     print()
@@ -515,16 +532,17 @@ def env_int(name: str, default: int) -> int:
     return int(value)
 
 
-def env_bool(name: str, default: bool) -> bool:
-    value = os.environ.get(name)
-    if value is None or value == "":
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+def percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = round((len(ordered) - 1) * pct / 100.0)
+    return ordered[index]
 
 
 if __name__ == "__main__":
     run_benchmark(
         iterations=env_int("BENCH_ITERATIONS", 5000),
         workers=env_int("BENCH_WORKERS", 48),
-        use_json_cache=env_bool("BENCH_USE_JSON_CACHE", False),
+        payload_scenario=os.environ.get("PAYLOAD_SCENARIO", "weighted"),
     )

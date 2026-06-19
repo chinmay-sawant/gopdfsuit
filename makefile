@@ -131,7 +131,6 @@ bench-help:
 	@echo "Benchmark targets (Go 1.26.4 recommended: GO_BENCH=go1.26.4)"
 	@echo ""
 	@echo "  Overrides: GO_BENCH GOMAXPROCS_BENCH BENCH_ITERATIONS BENCH_WORKERS BENCH_COUNT BENCH_TIME"
-	@echo "             BENCH_USE_JSON_CACHE=1 (pypdfsuit only; default 0 = full serialize path)"
 	@echo "             LOAD_VUS PROFILE_SECONDS PAYLOAD_SCENARIO THROUGHPUT_GATE BASE_URL (k6/pprof script)"
 	@echo "             K6_LIGHT_VUS K6_LIGHT_SECONDS K6_LIGHT_MAX_CONCURRENT K6_LIGHT_GOMAXPROCS (bench-k6-light)"
 	@echo ""
@@ -302,7 +301,7 @@ bench-gopdflib-data-pprof:
 # ── pypdfsuit: Zerodha gold standard (Python) ────────────────────────────────
 
 bench-pypdfsuit-zerodha:
-	cd $(ZERODHA_DIR) && BENCH_USE_JSON_CACHE=0 BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) python3 pypdfsuit_bench.py
+	cd $(ZERODHA_DIR) && BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) python3 pypdfsuit_bench.py
 
 bench-pypdfsuit-zerodha-x2:
 	@for i in 1 2; do \

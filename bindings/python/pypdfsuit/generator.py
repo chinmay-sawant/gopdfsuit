@@ -3,55 +3,27 @@ PDF generation functionality.
 """
 
 import json
-from typing import List, Optional
+from typing import List
 
 from .types import PDFTemplate, FontInfo
 from ._bindings import get_lib, call_bytes_result
 
-_JSON_CACHE_ATTR = "_pypdfsuit_json_cache"
+
+def serialize_template(template: PDFTemplate) -> bytes:
+    """Serialize a template to fresh UTF-8 JSON bytes for GeneratePDF."""
+    return json.dumps(
+        template.to_dict(),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
 
-def serialize_template(template: PDFTemplate, *, use_cache: bool = True) -> bytes:
-    """
-    Serialize a template to UTF-8 JSON bytes for GeneratePDF.
-
-    Results are cached on the template instance by default. Call
-    :func:`invalidate_template_cache` after mutating a template in place.
-    """
-    if use_cache:
-        cached: Optional[bytes] = getattr(template, _JSON_CACHE_ATTR, None)
-        if cached is not None:
-            return cached
-
-    payload = json.dumps(template.to_dict()).encode("utf-8")
-
-    if use_cache:
-        setattr(template, _JSON_CACHE_ATTR, payload)
-
-    return payload
-
-
-def invalidate_template_cache(template: PDFTemplate) -> None:
-    """Drop cached JSON for a template after in-place mutation."""
-    if hasattr(template, _JSON_CACHE_ATTR):
-        delattr(template, _JSON_CACHE_ATTR)
-
-
-def generate_pdf(
-    template: PDFTemplate,
-    *,
-    template_json: Optional[bytes] = None,
-    use_cache: bool = True,
-) -> bytes:
+def generate_pdf(template: PDFTemplate) -> bytes:
     """
     Generate a PDF from a template.
 
     Args:
         template: PDFTemplate object with configuration and content
-        template_json: Optional pre-serialized JSON bytes (skips to_dict/json.dumps)
-        use_cache: When True, reuse cached JSON bytes for repeated calls with the
-            same template object. Set False if the template was mutated without
-            calling :func:`invalidate_template_cache`.
 
     Returns:
         bytes: The generated PDF file content
@@ -71,11 +43,7 @@ def generate_pdf(
         ...     f.write(pdf_bytes)
     """
     lib = get_lib()
-    payload = (
-        template_json
-        if template_json is not None
-        else serialize_template(template, use_cache=use_cache)
-    )
+    payload = serialize_template(template)
     return call_bytes_result(lib.GeneratePDF, payload)
 
 

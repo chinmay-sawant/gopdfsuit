@@ -9,7 +9,7 @@ Phases measured per generate_pdf() call:
   4. copy_back    - ctypes.string_at from C buffer
   5. free_result  - FreeBytesResult
 
-Also runs cProfile on a weighted mix and a cached-JSON control (skips to_dict/json_dumps).
+Also runs cProfile on the actual weighted mix path.
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ def profile_generate(template: PDFTemplate, iterations: int) -> dict[str, PhaseS
         t0 = time.perf_counter()
         payload = template.to_dict()
         t1 = time.perf_counter()
-        template_json = json.dumps(payload).encode("utf-8")
+        template_json = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         t2 = time.perf_counter()
         result = lib.GeneratePDF(template_json)
         t3 = time.perf_counter()
@@ -120,54 +120,12 @@ def profile_generate(template: PDFTemplate, iterations: int) -> dict[str, PhaseS
 
 
 def _timed_generate(lib, template: PDFTemplate) -> bytes:
-    template_json = json.dumps(template.to_dict()).encode("utf-8")
+    template_json = json.dumps(
+        template.to_dict(),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
     return call_bytes_result(lib.GeneratePDF, template_json)
-
-
-def profile_cached_json(template: PDFTemplate, iterations: int) -> dict[str, PhaseStats]:
-    """Control: skip Python serialization; measure pure FFI + Go work."""
-    lib = get_lib()
-    cached = json.dumps(template.to_dict()).encode("utf-8")
-    phases = {
-        "cgo_call": PhaseStats("cgo_call", []),
-        "copy_back": PhaseStats("copy_back", []),
-        "free_result": PhaseStats("free_result", []),
-        "total": PhaseStats("total", []),
-    }
-
-    for _ in range(WARMUP):
-        _timed_cached(lib, cached)
-
-    for _ in range(iterations):
-        t0 = time.perf_counter()
-        result = lib.GeneratePDF(cached)
-        t1 = time.perf_counter()
-        if result.error:
-            raise RuntimeError(result.error.decode("utf-8"))
-        if result.data and result.length > 0:
-            ctypes.string_at(result.data, result.length)
-        t2 = time.perf_counter()
-        lib.FreeBytesResult(result)
-        t3 = time.perf_counter()
-
-        phases["cgo_call"].samples_ms.append((t1 - t0) * 1000)
-        phases["copy_back"].samples_ms.append((t2 - t1) * 1000)
-        phases["free_result"].samples_ms.append((t3 - t2) * 1000)
-        phases["total"].samples_ms.append((t3 - t0) * 1000)
-
-    return {"phases": phases, "json_bytes_mean": len(cached)}
-
-
-def _timed_cached(lib, cached: bytes) -> bytes:
-    result = lib.GeneratePDF(cached)
-    try:
-        if result.error:
-            raise RuntimeError(result.error.decode("utf-8"))
-        if result.data and result.length > 0:
-            return ctypes.string_at(result.data, result.length)
-        return b""
-    finally:
-        lib.FreeBytesResult(result)
 
 
 def print_phase_report(label: str, result: dict, iterations: int) -> None:
@@ -203,7 +161,12 @@ def run_cprofile_weighted(iterations: int) -> str:
 
     def workload() -> None:
         for template in templates[:iterations]:
-            call_bytes_result(get_lib().GeneratePDF, json.dumps(template.to_dict()).encode("utf-8"))
+            payload = json.dumps(
+                template.to_dict(),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            call_bytes_result(get_lib().GeneratePDF, payload)
 
     profiler = cProfile.Profile()
     profiler.enable()
@@ -215,42 +178,6 @@ def run_cprofile_weighted(iterations: int) -> str:
     stats.strip_dirs()
     stats.sort_stats("cumulative")
     stats.print_stats(25)
-    return stream.getvalue()
-
-
-def run_cprofile_cached(iterations: int) -> str:
-    retail = build_retail_template()
-    active = build_active_trader_template()
-    hft = build_hft_template()
-    cached = {
-        "retail": json.dumps(retail.to_dict()).encode("utf-8"),
-        "active": json.dumps(active.to_dict()).encode("utf-8"),
-        "hft": json.dumps(hft.to_dict()).encode("utf-8"),
-    }
-    lib = get_lib()
-
-    def workload() -> None:
-        rng = random.Random(0)
-        for _ in range(iterations):
-            roll = rng.randint(0, 99)
-            if roll < 80:
-                payload = cached["retail"]
-            elif roll < 95:
-                payload = cached["active"]
-            else:
-                payload = cached["hft"]
-            call_bytes_result(lib.GeneratePDF, payload)
-
-    profiler = cProfile.Profile()
-    profiler.enable()
-    workload()
-    profiler.disable()
-
-    stream = io.StringIO()
-    stats = pstats.Stats(profiler, stream=stream)
-    stats.strip_dirs()
-    stats.sort_stats("cumulative")
-    stats.print_stats(20)
     return stream.getvalue()
 
 
@@ -271,9 +198,6 @@ def main() -> None:
         results[name] = profile_generate(template, iters)
         print_phase_report(name.upper(), results[name], iters)
 
-        cached = profile_cached_json(template, iters)
-        print_phase_report(f"{name.upper()} (cached JSON control)", cached, iters)
-
     # Weighted mix estimate from per-template means
     print("\n=== Weighted Mix Estimate (80/15/5, single-thread) ===")
     retail_t = results["retail"]["phases"]["total"].mean
@@ -281,13 +205,10 @@ def main() -> None:
     hft_t = results["hft"]["phases"]["total"].mean
     weighted = 0.80 * retail_t + 0.15 * active_t + 0.05 * hft_t
     print(f"  Expected mean latency: {weighted:.3f} ms  ({1000 / weighted:.1f} ops/s theoretical max, 1 thread)")
-    print(f"  Observed bench (~253 ops/s @ 48 workers) implies ~{1000/253:.1f} ms effective + contention")
+    print("  Observed bench should be measured with make bench-pypdfsuit-zerodha.")
 
     print("\n=== cProfile: weighted mix (full path) ===")
     print(run_cprofile_weighted(PROFILE_ITERS))
-
-    print("\n=== cProfile: weighted mix (cached JSON) ===")
-    print(run_cprofile_cached(PROFILE_ITERS))
 
 
 if __name__ == "__main__":
