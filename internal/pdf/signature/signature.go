@@ -40,12 +40,12 @@ type PDFSigner struct {
 var pdfSignerCache sync.Map // signerPEMCacheKey -> *PDFSigner
 
 var (
-	marshaledOIDData       = mustMarshal(oidData)
-	sha256HasherPool       sync.Pool
-	authAttrsBytesPool     sync.Pool
+	marshaledOIDData        = mustMarshal(oidData)
+	sha256HasherPool        sync.Pool
+	authAttrsBytesPool      sync.Pool
 	pkcs7MarshalBuffersPool sync.Pool
-	signWorkerSlots        = make(chan struct{}, maxSignWorkers())
-	hexUpperDigits         = []byte("0123456789ABCDEF")
+	signWorkerSlots         = make(chan struct{}, maxSignWorkers())
+	hexUpperDigits          = []byte("0123456789ABCDEF")
 )
 
 type pkcs7MarshalBuffers struct {

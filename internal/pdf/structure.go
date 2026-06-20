@@ -79,9 +79,9 @@ type StructElem struct {
 	MCID       int
 	HasMCID    bool
 	Parent     *StructElem
-	ObjectID   int // Assigned when writing to PDF
-	PageID     int // Reference to the page object ID where this element appears
-	AnnotObjID int // Annotation object ID for Link elements
+	ObjectID   int  // Assigned when writing to PDF
+	PageID     int  // Reference to the page object ID where this element appears
+	AnnotObjID int  // Annotation object ID for Link elements
 	tdLeafFast bool // TD/TH MCID leaf eligible for appendStructElemTDLeaf fast path
 }
 
@@ -156,7 +156,7 @@ func NewStructureManager(enabled bool) *StructureManager {
 const (
 	arenaActivationThreshold = 512 // HFT-scale tables only; retail/active stay on sync.Pool
 	maxArenaSlabEntries      = 32 * 1024
-	maxInlineStructKids      = 8     // len(StructElem.inlineKids); TR rows use inline storage
+	maxInlineStructKids      = 8 // len(StructElem.inlineKids); TR rows use inline storage
 )
 
 var structElemPool = sync.Pool{
@@ -292,10 +292,6 @@ func (sm *StructureManager) activateArena(need int) {
 	if len(slab) < need && need <= cap(slab) {
 		*sm.arenaSlab = slab[:need]
 	}
-}
-
-func (sm *StructureManager) ensureArenaCapacity(need int) {
-	sm.activateArena(need)
 }
 
 func (sm *StructureManager) acquireStructElem() *StructElem {

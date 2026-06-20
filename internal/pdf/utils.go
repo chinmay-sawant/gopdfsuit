@@ -14,6 +14,12 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 )
 
+const (
+	helveticaBold        = "Helvetica-Bold"
+	helveticaOblique     = "Helvetica-Oblique"
+	helveticaBoldOblique = "Helvetica-BoldOblique"
+)
+
 // hexNibble maps ASCII byte to hex value (0-15). 0xFF = invalid.
 var hexNibble [256]byte
 
@@ -209,11 +215,11 @@ func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
 	case "Helvetica": //nolint:goconst
 		switch {
 		case props.Bold && props.Italic:
-			return "Helvetica-BoldOblique"
+			return helveticaBoldOblique
 		case props.Bold:
-			return "Helvetica-Bold"
+			return helveticaBold
 		case props.Italic:
-			return "Helvetica-Oblique"
+			return helveticaOblique
 		default:
 			return "Helvetica"
 		}
@@ -239,7 +245,7 @@ func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
 		default:
 			return "Courier"
 		}
-	case "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", //nolint:goconst
+	case helveticaBold, helveticaOblique, helveticaBoldOblique,
 		"Times-Bold", "Times-Italic", "Times-BoldItalic", //nolint:goconst
 		"Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", //nolint:goconst
 		"Symbol", "ZapfDingbats":
@@ -250,11 +256,11 @@ func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
 	var fallbackName string
 	switch {
 	case props.Bold && props.Italic:
-		fallbackName = "Helvetica-BoldOblique"
+		fallbackName = helveticaBoldOblique
 	case props.Bold:
-		fallbackName = "Helvetica-Bold"
+		fallbackName = helveticaBold
 	case props.Italic:
-		fallbackName = "Helvetica-Oblique"
+		fallbackName = helveticaOblique
 	default:
 		fallbackName = "Helvetica"
 	}
@@ -287,11 +293,11 @@ func getFontReferenceByResolvedName(actualFontName string, registry *CustomFontR
 	// Helvetica family (F1-F4)
 	case "Helvetica":
 		return "/F1" //nolint:goconst
-	case "Helvetica-Bold":
+	case helveticaBold:
 		return "/F2"
-	case "Helvetica-Oblique":
+	case helveticaOblique:
 		return "/F3"
-	case "Helvetica-BoldOblique":
+	case helveticaBoldOblique:
 		return "/F4"
 	// Times family (F5-F8)
 	case "Times-Roman":

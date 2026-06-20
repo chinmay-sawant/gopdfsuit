@@ -108,13 +108,13 @@ func putPDFBuffer(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
-	cap := buf.Cap()
+	bufCap := buf.Cap()
 	buf.Reset()
-	if cap >= 2*1024*1024 && cap <= maxPooledPDFBufferCap {
+	if bufCap >= 2*1024*1024 && bufCap <= maxPooledPDFBufferCap {
 		pdfBufferPoolLarge.Put(buf)
 		return
 	}
-	if cap >= 32*1024 && cap <= 512*1024 {
+	if bufCap >= 32*1024 && bufCap <= 512*1024 {
 		pdfBufferPoolSmall.Put(buf)
 	}
 }
@@ -1527,6 +1527,7 @@ type structElemFormatCtx struct {
 	root             *StructElem
 	pages            []int
 }
+
 func estimateXrefObjectCount(template models.PDFTemplate) int {
 	// NextObjectID starts at 2000; each structure element receives one object ID
 	// during the tagged write pass, plus a small fixed overhead for ParentTree,
