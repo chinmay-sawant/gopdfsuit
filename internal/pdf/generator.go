@@ -161,14 +161,19 @@ func xrefOffsetAt(xrefOffsets []int, id int) (int, bool) {
 }
 
 func collectUsedXrefObjectIDs(xrefOffsets []int) []int {
-	used := make([]int, 0, 64)
-	used = append(used, 0)
+	maxID := 0
 	for id, offset := range xrefOffsets {
-		if offset >= 0 {
+		if offset >= 0 && id > maxID {
+			maxID = id
+		}
+	}
+	used := make([]int, 0, maxID+2)
+	used = append(used, 0)
+	for id := 1; id <= maxID; id++ {
+		if id < len(xrefOffsets) && xrefOffsets[id] >= 0 {
 			used = append(used, id)
 		}
 	}
-	slices.Sort(used)
 	return used
 }
 
@@ -1692,15 +1697,20 @@ func appendDecimal(dst []byte, n int) []byte {
 	if n < 0 {
 		return strconv.AppendInt(dst, int64(n), 10)
 	}
-	if n >= 10000 {
+	if n >= 100000 {
 		return strconv.AppendInt(dst, int64(n), 10)
 	}
-	var tmp [4]byte
-	pos := 4
-	if n >= 1000 {
-		tmp[3] = digitTable[n%10]
+	var tmp [5]byte
+	pos := 5
+	if n >= 10000 {
+		tmp[4] = digitTable[n%10]
 		n /= 10
-		pos = 3
+		pos = 4
+	}
+	if n >= 1000 {
+		tmp[pos-1] = digitTable[n%10]
+		n /= 10
+		pos--
 	}
 	for n >= 10 {
 		tmp[pos-1] = digitTable[n%10]

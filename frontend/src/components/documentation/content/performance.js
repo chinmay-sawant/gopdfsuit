@@ -23,28 +23,28 @@ Primary end-to-end benchmark in **sampledata/gopdflib/zerodha** — **5000 itera
 
 | Metric | x10 peak | x10 mean |
 | --- | ---: | ---: |
-| **Throughput** | **8,327 ops/sec** | **7,432 ops/sec** |
-| **Avg latency** | **5.618 ms** | **6.205 ms** |
-| **Min latency (best run)** | **0.355 ms** | — |
-| **Max latency (best run)** | **158.202 ms** | — |
-| **Peak allocated (mean)** | — | **1,199 MB** |
+| **Throughput** | **10,005 ops/sec** | **9,594 ops/sec** |
+| **Avg latency** | **4.624 ms** | **4.877 ms** |
+| **Min latency (best run)** | **0.304 ms** | — |
+| **Max latency (best run)** | **212.140 ms** | — |
+| **Peak allocated (mean)** | — | **1,107 MB** |
 
-**vs June 2026 baseline (\`feat/performance-improvements\`):** **+215% x10 peak throughput** (2,646 → 8,327 ops/sec) under full PDF/A-4 + PDF/UA-2 compliance.
+**vs June 2026 baseline (\`feat/performance-improvements\`):** **+278% x10 peak throughput** (2,646 → 10,005 ops/sec) under full PDF/A-4 + PDF/UA-2 compliance.
 
 ### x10 detail (compliant timing runs)
 
 | Run | Throughput | Avg latency |
 | ---: | ---: | ---: |
-| 1 | 7,605 ops/sec | 6.184 ms |
-| 2 | 7,830 ops/sec | 5.984 ms |
-| 3 | 7,928 ops/sec | 5.873 ms |
-| 4 | 7,856 ops/sec | 5.943 ms |
-| 5 | **8,327 ops/sec** | **5.618 ms** |
-| 6 | 7,691 ops/sec | 6.135 ms |
-| 7 | 6,652 ops/sec | 7.050 ms |
-| 8 | 8,121 ops/sec | 5.770 ms |
-| 9 | 5,720 ops/sec | 6.353 ms |
-| 10 | 6,595 ops/sec | 7.136 ms |
+| 1 | 8,491 ops/sec | 5.528 ms |
+| 2 | 9,642 ops/sec | 4.901 ms |
+| 3 | 9,839 ops/sec | 4.731 ms |
+| 4 | 9,889 ops/sec | 4.670 ms |
+| 5 | 9,810 ops/sec | 4.698 ms |
+| 6 | **10,005 ops/sec** | **4.624 ms** |
+| 7 | 9,523 ops/sec | 4.941 ms |
+| 8 | 9,720 ops/sec | 4.801 ms |
+| 9 | 9,490 ops/sec | 4.946 ms |
+| 10 | 9,533 ops/sec | 4.929 ms |
 
 ## Zerodha Gold Standard — Non-Compliant (5000×48)
 
@@ -60,7 +60,7 @@ Same 80/15/5 workload with PDF/A, tagging, signing, and font embedding disabled 
 
 | Runtime | Harness | Workers | Best Throughput | Avg Latency | PDF/A | PDF/UA |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| **GoPDFLib** | Weighted 80/15/5 (compliant) | 48 | **8,327 ops/sec** | **5.618 ms** | PDF/A-4 | PDF/UA-2 |
+| **GoPDFLib** | Weighted 80/15/5 (compliant) | 48 | **10,005 ops/sec** | **4.624 ms** | PDF/A-4 | PDF/UA-2 |
 | **GoPDFLib** | Weighted 80/15/5 (nocomply) | 48 | **26,111 ops/sec** | **1.771 ms** | PDF 1.7 | None |
 | **GoPDFSuit** | Retail only | 48 | **6,146 ops/sec** | **6.29 ms** | PDF/A-4 | PDF/UA-2 |
 | **pypdfsuit** | Weighted 80/15/5 | 48 | 235 ops/sec | 169.07 ms | PDF/A-4 | PDF/UA-2 |

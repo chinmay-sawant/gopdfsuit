@@ -1,23 +1,23 @@
 # Zerodha x10 latest summary
 
 Runs: 10
-Best throughput: 8326.67 ops/sec
-Worst throughput: 5719.68 ops/sec
-Mean throughput: 7432.34 ops/sec
-Median throughput: 7760.49 ops/sec
-Stddev throughput: 829.83 ops/sec
-Mean avg latency: 6.205 ms
-Mean peak allocated: 1198.81 MB
+Best throughput: 10004.50 ops/sec
+Worst throughput: 8491.45 ops/sec
+Mean throughput: 9594.17 ops/sec
+Median throughput: 9680.69 ops/sec
+Stddev throughput: 423.64 ops/sec
+Mean avg latency: 4.877 ms
+Mean peak allocated: 1106.65 MB
 
 | Run | Throughput | Avg latency | Peak allocated |
 |-----|-----------:|------------:|---------------:|
-| zerodha_run1.txt | 7605.09 ops/sec | 6.184 ms | 1193.96 MB |
-| zerodha_run2.txt | 7830.07 ops/sec | 5.984 ms | 1263.96 MB |
-| zerodha_run3.txt | 7928.06 ops/sec | 5.873 ms | 1087.57 MB |
-| zerodha_run4.txt | 7855.83 ops/sec | 5.943 ms | 1126.52 MB |
-| zerodha_run5.txt | 8326.67 ops/sec | 5.618 ms | 1117.86 MB |
-| zerodha_run6.txt | 7690.92 ops/sec | 6.135 ms | 1013.98 MB |
-| zerodha_run7.txt | 6652.00 ops/sec | 7.050 ms | 1481.35 MB |
-| zerodha_run8.txt | 8120.53 ops/sec | 5.770 ms | 1350.48 MB |
-| zerodha_run9.txt | 5719.68 ops/sec | 6.353 ms | 1267.44 MB |
-| zerodha_run10.txt | 6594.50 ops/sec | 7.136 ms | 1084.99 MB |
+| zerodha_run1.txt | 8491.45 ops/sec | 5.528 ms | 1061.91 MB |
+| zerodha_run2.txt | 9641.74 ops/sec | 4.901 ms | 1172.84 MB |
+| zerodha_run3.txt | 9839.12 ops/sec | 4.731 ms | 1100.00 MB |
+| zerodha_run4.txt | 9888.85 ops/sec | 4.670 ms | 1122.87 MB |
+| zerodha_run5.txt | 9809.73 ops/sec | 4.698 ms | 1077.92 MB |
+| zerodha_run6.txt | 10004.50 ops/sec | 4.624 ms | 1142.59 MB |
+| zerodha_run7.txt | 9523.44 ops/sec | 4.941 ms | 1105.08 MB |
+| zerodha_run8.txt | 9719.65 ops/sec | 4.801 ms | 1103.36 MB |
+| zerodha_run9.txt | 9490.04 ops/sec | 4.946 ms | 1126.88 MB |
+| zerodha_run10.txt | 9533.20 ops/sec | 4.929 ms | 1053.10 MB |

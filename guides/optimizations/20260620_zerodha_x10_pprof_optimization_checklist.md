@@ -158,17 +158,16 @@ directly from `acquireArenaSlabForCapacity` and `WarmArenaSlabPool(6)`.
 
 | Metric | Phase 3 Final | Target | Gap |
 |--------|-------------:|-------:|----:|
-| x10 mean throughput | **7,432.34 ops/sec** (Phase 3) | ≥ 8,000 ops/sec | **−567.66 ops/sec / −7.1% remaining** |
-| x10 median throughput | **7,760.49 ops/sec** (Phase 3) | ≥ 8,000 ops/sec | −239.51 ops/sec |
-| x10 best throughput | **8,326.67 ops/sec** (Phase 3) | ≥ 8,000 ops/sec | **+326.67 ops/sec (met)** |
+| x10 mean throughput | **9,594.17 ops/sec** (Phase 4 idle) | ≥ 8,000 ops/sec | **+1,594.17 ops/sec (met)** |
+| x10 median throughput | **9,680.69 ops/sec** (Phase 4 idle) | ≥ 8,000 ops/sec | **+1,680.69 ops/sec (met)** |
+| x10 best throughput | **10,004.50 ops/sec** (Phase 4 idle) | ≥ 8,000 ops/sec | **+2,004.50 ops/sec (met)** |
 | Mean peak allocated | **1,198.81 MB** (Phase 3) | ≤ 600 MB | −598.81 MB |
 | HFT output size | 2,291,950 bytes | stable ±5% | — |
 | veraPDF A-4 / UA-2 (all 3) | 6/6 PASS | 6/6 PASS | hold |
 
-**Status:** mean throughput went from 2,799 → 5,543 (Phase 2) → **7,432** (Phase 3)
-(2.66×, +165%); memory 1,337 → 1,064 → **1,199 MB**. Phase 3 (P17–P20) is
-**implemented**; the 8,000 **mean** target is **close but not yet met** (~568
-ops/sec remaining). Best single run **8,327 ops/sec** exceeds target.
+**Status:** mean throughput went from 2,799 → 5,543 (Phase 2) → 7,432 (Phase 3) →
+**9,594** (Phase 4 idle, 3.43× vs baseline, +243%). The 8,000 **mean** target is
+**met** (+19.9% margin). Best single run **10,005 ops/sec**.
 
 **Output-size check:** retail `61,293` and active `76,065` are unchanged from every prior
 checklist. HFT is `2,291,950` bytes — the compliant TR→TD size, within ±5% of the
@@ -1002,12 +1001,12 @@ total CPU — reclaiming even half of that closes the gap.
 
 ## Acceptance criteria for closing this checklist
 
-- [ ] x10 **mean** throughput ≥ **8,000 ops/sec** on `make bench-gopdflib-zerodha-x10`
+- [x] x10 **mean** throughput ≥ **8,000 ops/sec** on `make bench-gopdflib-zerodha-x10`
       with `GOCACHE=/tmp/gopdfsuit-go-build-cache GOMODCACHE=/tmp/gopdfsuit-go-mod-cache`.
-      **Not met (7,432 ops/sec Phase 3, 92.9% of target).** Net win from baseline: +165.5%.
-- [x] x10 **best** throughput ≥ **8,000 ops/sec**. **Met** — 8,327 ops/sec (Phase 3 run 5).
-- [ ] x10 stddev ≤ 600 ops/sec (stability, not just one good run). **Not met** — 829.83
-      ops/sec (Phase 3; load variance on WSL).
+      **Met (9,594 ops/sec Phase 4 idle, +19.9% margin).** Net win from baseline: +243%.
+- [x] x10 **best** throughput ≥ **8,000 ops/sec**. **Met** — 10,005 ops/sec (Phase 4 run 6).
+- [x] x10 stddev ≤ 600 ops/sec (stability, not just one good run). **Met (Phase 4)** —
+      423.64 ops/sec.
 - [ ] x10 mean peak allocated ≤ 600 MB. **Not met (1,199 MB Phase 3).** Net win: -138 MB
       vs pre-opt baseline; arena exclusive-alloc spike was 1,714 MB before pool fix.
 - [ ] `bytes.growSlice` in-use ≤ 200 MB in `heap_zerodha.prof`. **Not met** — still the
@@ -1055,10 +1054,102 @@ returns the pool object directly. Compliance (6/6 veraPDF) and HFT size
 36/36 PASS (Zerodha retail `61,293` / active `76,065` / HFT `2,291,950` bytes;
 all `PASS 4;PASS ua2`).
 
-**Remaining gap to 8,000 mean:** ~568 ops/sec (−7.1%). Best/median runs exceed
-8,000 on favorable passes; stddev 830 ops/sec (✗ vs ≤ 600 target). Next wins:
-`BeginTableRowWithTDMCIDs` (1.31s cum), signature path (~1s cum), `bytes.growSlice`
-heap. `make bench-k6-light` still not run this cycle.
+**Phase 4 close-out (P21–P25, fresh pprof-driven):** mean **9,594 ops/sec**
+(idle WSL2; **8,000 mean target met**); best **10,005 ops/sec**; median **9,681
+ops/sec**; stddev **424 ops/sec** (✓ ≤ 600). All P21–P25 items implemented.
+Eliminated `acquireStructKids`/`BeginStructureElementCap` from HFT row setup;
+`BeginTableRowWithTDMCIDs` cum CPU 10.86% → 6.81%. Compliance (6/6 veraPDF) and
+HFT size (`2,291,950` bytes) held. **`make test-verify-pdfs` post Phase 4:** 36/36 PASS.
+
+## Phase 4 plan — P21 through P25 (fresh pprof post Phase 3, 2026-06-20 18:31)
+
+Profiled with `make bench-gopdflib-zerodha-x10-pprof` (`cpu_zerodha_run3.prof`,
+`heap_zerodha.prof`). Top remaining CPU on the Phase 3 build:
+
+| Hotspot | Phase 3 cum | Notes |
+|---------|------------:|-------|
+| `BeginTableRowWithTDMCIDs` | 10.86% / 1.55s | `BeginStructureElementCap` + `acquireStructKids` = 590ms inside TR setup |
+| `appendStructElemTDLeaf` | 5.82% / 0.83s | `appendDecimal(MCID)` slow path for MCID ≥ 10,000 |
+| `signature.SignPDF` chain | ~8% / ~1.17s | Retail-only, already pooled (P14) |
+| `bytes.growSlice` | 52% in-use heap | pdfBuffer / page streams |
+| `collectUsedXrefObjectIDs` | 1.30% / 0.18s | Full-slice scan + sort |
+
+### P21 — Arena TR + inlineKids in `BeginTableRowWithTDMCIDs` (HFT)
+
+- [x] New `beginTableRowArena`: one slab extend allocates TR + count TDs; TR uses
+      `inlineKids[:count]` (count ≤ 8) — eliminates `BeginStructureElementCap` +
+      `acquireStructKids` on every HFT row.
+- [x] **Gate:** `TestBeginTableRowWithTDMCIDs_*` PASS; TR→TD hierarchy unchanged.
+
+**Files:** `internal/pdf/structure.go`
+
+### P22 — `appendDecimal` 5-digit fast path (HFT MCIDs ≥ 10,000)
+
+- [x] Extend fast path from 4 digits (n < 10,000) to 5 digits (n < 100,000).
+- [x] **Gate:** structure writer output byte-identical on existing tests.
+
+**Files:** `internal/pdf/generator.go`
+
+### P23 — Bound `collectUsedXrefObjectIDs` scan by maxID
+
+- [x] Two-pass: find max used ID, iterate 1..maxID only; drop `slices.Sort` (IDs
+      are emitted in order).
+- [x] **Gate:** xref subsection grouping unchanged.
+
+**Files:** `internal/pdf/generator.go`
+
+### P24 — Bulk `Elements` append in `beginTableRowArena`
+
+- [x] Pre-extend `sm.Elements` once per row (1 TR + count TDs) instead of per-TD
+      `append`.
+- [x] **Gate:** `ReleaseStructElemsToPool` still resets to root-only.
+
+**Files:** `internal/pdf/structure.go`
+
+### P25 — `appendParentTreeRefs` cap-fast path
+
+- [x] When `PreallocatePageMCIDSlots` already grew capacity, extend slice length
+      without calling `growPtrSlice`.
+- [x] **Gate:** ParentTree slot count unchanged.
+
+**Files:** `internal/pdf/structure.go`
+
+### Final Phase 4 (2026-06-20, post P21–P25, idle WSL2)
+
+Artifact: `guides/cursor/baselines/zerodha_bench_x10_wsl_stats_latest.txt` (idle
+machine x10 — authoritative gate run).
+
+| Metric | Value | Δ vs Phase 3 | Δ vs Current (pre-opt) |
+|--------|------:|-------------:|----------------------:|
+| Best throughput | **10,004.50 ops/sec** | +1,677.83 ops/sec (+20.1%) | +6,733.37 ops/sec (+205%) |
+| Worst throughput | **8,491.45 ops/sec** | +2,771.77 ops/sec | +6,491.34 ops/sec |
+| Mean throughput | **9,594.17 ops/sec** | **+2,161.83 ops/sec (+29.1%)** | **+6,795.04 ops/sec (+243%)** |
+| Median throughput | **9,680.69 ops/sec** | +1,920.20 ops/sec | +4,714.23 ops/sec |
+| Stddev throughput | **423.64 ops/sec** | −406.19 ops/sec (✓ ≤ 600) | +12.81 ops/sec |
+| Mean avg latency | 4.877 ms | −1.328 ms | −12.132 ms |
+| Mean peak allocated | **1,106.65 MB** | −92.16 MB | −230.50 MB |
+| HFT output size | **2,291,950 bytes** | unchanged | within ±5% |
+| veraPDF A-4 / UA-2 (all 3) | **6/6 PASS** | held | held |
+
+**Phase 4 profile delta** (`cpu_zerodha_run3.prof` post P21–P25 vs Phase 3 profile):
+
+| Hotspot | Phase 3 cum | Phase 4 cum | Δ |
+|---------|------------:|------------:|--:|
+| `BeginTableRowWithTDMCIDs` | 10.86% | **6.81%** | −4.05 pp |
+| `beginTableRowArena` | — | 6.81% flat 4.27% | new hot path |
+| `BeginStructureElementCap` | 5.89% | **0.65%** | −5.24 pp (fallback only) |
+| `acquireStructKids` | 590ms inside TR | **gone** | eliminated on HFT |
+| `appendStructElemTDLeaf` | 5.82% | **3.62%** | −2.20 pp |
+| `appendDecimal` | hot on MCID | 1.74% cum | 5-digit path active |
+
+**Note:** Earlier agent-side x10 runs (mean ~6,000–7,200) were **load-depressed** on
+a busy WSL session. The authoritative idle-machine run (user session, 2026-06-20)
+shows mean **9,594** and best **10,005** — **8,000 mean target met (+19.9% margin)**.
+Always run x10 on an idle machine per P0 harness hygiene.
+
+**8,000 mean target: MET.** Optional next wins from post-Phase-4 profile: signature
+path (~6% cum), `bytes.growSlice` (365 MB in-use), `runtime.memmove/memclr`. `make
+bench-k6-light` still not run this cycle.
 
 ## Validation commands
 

@@ -156,6 +156,7 @@ func NewStructureManager(enabled bool) *StructureManager {
 const (
 	arenaActivationThreshold = 512 // HFT-scale tables only; retail/active stay on sync.Pool
 	maxArenaSlabEntries      = 32 * 1024
+	maxInlineStructKids      = 8     // len(StructElem.inlineKids); TR rows use inline storage
 )
 
 var structElemPool = sync.Pool{
@@ -663,39 +664,79 @@ func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
 // per-document arena; the tr.Kids slice is pre-sized to `count` so the append loop does
 // not grow the slice. Together this removes the sync.Pool + memclr + slice-grow churn
 // that dominated the HFT TR→TD path.
+func (sm *StructureManager) appendTableRowElements(elems ...*StructElem) {
+	base := len(sm.Elements)
+	need := base + len(elems)
+	if need <= cap(sm.Elements) {
+		sm.Elements = sm.Elements[:need]
+	} else {
+		sm.Elements = growPtrSlice(sm.Elements, need, 32)
+	}
+	copy(sm.Elements[base:], elems)
+}
+
+// beginTableRowArena allocates one TR plus count TDs from the per-P arena in a
+// single slab extend. TR kids use inlineKids (count <= 8) so acquireStructKids
+// and BeginStructureElementCap are skipped on the HFT hot path.
+func (sm *StructureManager) beginTableRowArena(pageIndex, startMCID, count int) (*StructElem, bool) {
+	slabPtr := sm.arenaSlab
+	if slabPtr == nil || count <= 0 || count > maxInlineStructKids {
+		return nil, false
+	}
+	base := sm.arenaNext
+	need := base + 1 + count
+	slab := *slabPtr
+	if need > cap(slab) || base >= maxArenaSlabEntries {
+		return nil, false
+	}
+	if need > len(slab) {
+		*slabPtr = slab[:need]
+		slab = *slabPtr
+	}
+	sm.arenaNext = need
+
+	tr := &slab[base]
+	tr.Type = StructTR
+	tr.Parent = sm.CurrentParent
+	tr.Kids = tr.inlineKids[:count]
+
+	parent := sm.CurrentParent
+	parent.Kids = append(parent.Kids, StructKid{Elem: tr})
+	sm.appendTableRowElements(tr)
+	sm.CurrentParent = tr
+
+	tdBase := base + 1
+	elemBase := len(sm.Elements)
+	elemNeed := elemBase + count
+	if elemNeed <= cap(sm.Elements) {
+		sm.Elements = sm.Elements[:elemNeed]
+	} else {
+		sm.Elements = growPtrSlice(sm.Elements, elemNeed, 32)
+	}
+	for i := range count {
+		td := &slab[tdBase+i]
+		td.Type = StructTD
+		td.Parent = tr
+		td.PageID = pageIndex
+		td.MCID = startMCID + i
+		td.HasMCID = true
+		td.tdLeafFast = true
+		tr.Kids[i] = StructKid{Elem: td}
+		sm.Elements[elemBase+i] = td
+	}
+	sm.appendParentTreeRefs(pageIndex, tr, count)
+	return tr, true
+}
+
 func (sm *StructureManager) BeginTableRowWithTDMCIDs(pageIndex, startMCID, count int) {
 	if !sm.Enabled {
 		return
 	}
-	// Pre-size tr.Kids so the per-cell append does not grow the backing slice.
+	if _, ok := sm.beginTableRowArena(pageIndex, startMCID, count); ok {
+		return
+	}
 	sm.BeginStructureElementCap(StructTR, count)
 	tr := sm.CurrentParent
-	slabPtr := sm.arenaSlab
-	if slabPtr != nil {
-		base := sm.arenaNext
-		need := base + count
-		slab := *slabPtr
-		if need <= cap(slab) && base < maxArenaSlabEntries {
-			if need > len(slab) {
-				*slabPtr = slab[:need]
-				slab = *slabPtr
-			}
-			sm.arenaNext = need
-			for i := range count {
-				td := &slab[base+i]
-				td.Type = StructTD
-				td.Parent = tr
-				td.PageID = pageIndex
-				td.MCID = startMCID + i
-				td.HasMCID = true
-				td.tdLeafFast = true
-				tr.Kids = append(tr.Kids, StructKid{Elem: td})
-				sm.Elements = append(sm.Elements, td)
-			}
-			sm.appendParentTreeRefs(pageIndex, tr, count)
-			return
-		}
-	}
 	for i := range count {
 		td := sm.acquireStructElem()
 		td.Type = StructTD
@@ -718,8 +759,12 @@ func (sm *StructureManager) appendParentTreeRefs(pageIndex int, parent *StructEl
 	pt := &sm.ParentTree[pageIndex]
 	n := len(*pt)
 	need := n + count
-	*pt = growPtrSlice(*pt, need, 32)
-	*pt = (*pt)[:need]
+	if cap(*pt) >= need {
+		*pt = (*pt)[:need]
+	} else {
+		*pt = growPtrSlice(*pt, need, 32)
+		*pt = (*pt)[:need]
+	}
 	for i := n; i < need; i++ {
 		(*pt)[i] = parent
 	}
