@@ -370,6 +370,11 @@ func sharedColsUniformBorder(cols []sharedColumnLayout) (width int, ok bool) {
 }
 
 // drawSharedDeferRow renders a uniform shared-layout data row (HFT fast path).
+// P6 (2026-06-20 checklist): the per-cell BDC/EMC is emitted via the
+// lightweight WriteCellMarkedContentBDC / EndCellMarkedContentBuf pair. The
+// caller (drawSharedLayoutRow) is expected to have already created the
+// TR + per-column TD struct elems via BeginTableRowWithTDMCIDs, so this
+// function does not allocate any struct-elem nodes.
 func drawSharedDeferRow(
 	contentStream *bytes.Buffer,
 	row models.Row,
@@ -388,6 +393,9 @@ func drawSharedDeferRow(
 	currentX := pageManager.Margins.Left
 	rowLeft := currentX
 	rowWidth := 0.0
+	emcLiteral := []byte("EMC\n")
+	btLiteral := []byte("BT\n")
+	tjETLiteral := []byte(" Tj\nET\n")
 
 	for colIdx, cell := range row.Row {
 		if colIdx >= maxColumns {
@@ -398,8 +406,8 @@ func drawSharedDeferRow(
 		cellX := currentX
 		currentX += cellWidth
 
-		pageManager.Structure.BeginMarkedContentBufWithMCID(
-			contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx,
+		pageManager.Structure.WriteCellMarkedContentBDC(
+			contentStream, StructTD, rowMCIDBase+colIdx,
 		)
 
 		if cell.BgColor != "" {
@@ -436,7 +444,7 @@ func drawSharedDeferRow(
 			}
 			textY := pageManager.CurrentYPos - rowHeight/2 - float64(cellProps.FontSize)/2
 
-			contentStream.WriteString("BT\n")
+			contentStream.Write(btLiteral)
 			contentStream.Write(rowTextPrefixes[colIdx])
 			pos := appendFmtNum(scratchBuf[:0], textX)
 			pos = append(pos, ' ')
@@ -444,11 +452,11 @@ func drawSharedDeferRow(
 			pos = append(pos, " Td\n"...)
 			contentStream.Write(pos)
 			textTjBuf = appendTextForSharedColumn(textTjBuf[:0], sharedCols[colIdx], cell.Text)
-			textTjBuf = append(textTjBuf, " Tj\nET\n"...)
+			textTjBuf = append(textTjBuf, tjETLiteral...)
 			contentStream.Write(textTjBuf)
 		}
 
-		pageManager.Structure.EndMarkedContentBuf(contentStream)
+		contentStream.Write(emcLiteral)
 	}
 
 	if borderW, uniform := sharedColsUniformBorder(sharedCols); uniform {
@@ -471,6 +479,11 @@ func drawSharedDeferRow(
 }
 
 // drawSharedLayoutRow draws a shared-layout data row with PDF/UA Table → TR → TD hierarchy.
+// P6 (2026-06-20 checklist): the HFT fast path now sets up the TR + 7 TD struct
+// elems in a single call to BeginTableRowWithTDMCIDs (arena path) and emits
+// the per-cell BDC/EMC through the lightweight WriteCellMarkedContentBDC /
+// EndCellMarkedContentBuf pair (no per-cell struct allocation, no per-cell
+// beginMarkedContentBuf grow).
 func drawSharedLayoutRow(
 	pageManager *PageManager,
 	contentStream *bytes.Buffer,
@@ -510,7 +523,10 @@ func drawSharedLayoutRow(
 		rowBuf.Grow(512)
 		prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, maxColumns)
 		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, maxColumns)
-		pageManager.Structure.BeginStructureElementCap(StructTR, 0)
+		// P6: build TR + 7 TD struct elems in a single arena pass; the per-cell
+		// BDC/EMC is then emitted by drawSharedDeferRow via the lightweight
+		// WriteCellMarkedContentBDC / EndCellMarkedContentBuf pair.
+		pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
 		drawSharedDeferRow(
 			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 			scratchBuf, textTjBuf, borderBuf,
@@ -525,7 +541,10 @@ func drawSharedLayoutRow(
 		return
 	}
 
-	pageManager.Structure.BeginStructureElementCap(StructTR, 0)
+	// P6: same fast path as the cached branch — set up TR + TDs up front
+	// (arena allocation, no sync.Pool churn) and let drawSharedDeferRow emit
+	// BDC/EMC per cell without re-allocating a struct elem each time.
+	pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,

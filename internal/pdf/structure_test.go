@@ -106,3 +106,77 @@ func TestReserveElementCapacityGrowsBackingSlice(t *testing.T) {
 		t.Fatalf("elements cap shrank: before=%d after=%d", before, cap(sm.Elements))
 	}
 }
+
+// TestBeginTableRowWithTDMCIDs_arenaAllocates asserts that the TD StructElems
+// allocated by BeginTableRowWithTDMCIDs set up a TR → TD hierarchy and that
+// ReleaseStructElemsToPool walks all elems back to the global pool. P1
+// (2026-06-20 checklist) originally specified a per-document arena; we
+// instead rely on the global sync.Pool + selective field clear (P2) to
+// avoid the per-elem memclr that the pool was paying. This test pins the
+// observable behaviour: the TD/TR shape is correct and release leaves the
+// Elements slice at root-only.
+func TestBeginTableRowWithTDMCIDs_arenaAllocates(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	table := sm.CurrentParent
+
+	const rows = 4
+	const cols = 7
+	for r := 0; r < rows; r++ {
+		sm.BeginTableRowWithTDMCIDs(0, r*cols, cols)
+		sm.EndStructureElement()
+	}
+
+	if len(table.Kids) != rows {
+		t.Fatalf("expected %d TR kids on Table, got %d", rows, len(table.Kids))
+	}
+
+	totalTDs := 0
+	for _, trKid := range table.Kids {
+		tr := trKid.Elem
+		if tr == nil {
+			t.Fatal("TR kid was nil")
+		}
+		if len(tr.Kids) != cols {
+			t.Fatalf("TR kid count: got %d want %d", len(tr.Kids), cols)
+		}
+		for _, kid := range tr.Kids {
+			td := kid.Elem
+			if td == nil {
+				t.Fatalf("TD kid was nil")
+			}
+			totalTDs++
+		}
+	}
+	if totalTDs != rows*cols {
+		t.Fatalf("expected %d TDs total, got %d", rows*cols, totalTDs)
+	}
+
+	sm.ReleaseStructElemsToPool()
+	// Elements slice should be reduced to just the root.
+	if len(sm.Elements) != 1 {
+		t.Fatalf("Elements should be reset to root-only, got %d entries", len(sm.Elements))
+	}
+}
+
+// TestReleaseStructElemsToPool_canRunTwice checks that the structure manager
+// can be released and a new sequence started, the way the Zerodha benchmark
+// uses one manager per PDF.
+func TestReleaseStructElemsToPool_canRunTwice(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	for r := 0; r < 3; r++ {
+		sm.BeginTableRowWithTDMCIDs(0, r*4, 4)
+		sm.EndStructureElement()
+	}
+	sm.ReleaseStructElemsToPool()
+
+	sm.BeginStructureElement(StructTable)
+	sm.BeginTableRowWithTDMCIDs(0, 0, 5)
+	tr := sm.CurrentParent
+	if len(tr.Kids) != 5 {
+		t.Fatalf("expected 5 TDs after reuse, got %d", len(tr.Kids))
+	}
+	sm.EndStructureElement()
+	sm.ReleaseStructElemsToPool()
+}

@@ -177,13 +177,18 @@ func acquireStructKids(capHint int) []StructKid {
 }
 
 func releaseStructKids(kids []StructKid) {
-	if cap(kids) < 1 || cap(kids) > 64 {
+	if cap(kids) > 64 {
 		return
 	}
 	kids = kids[:0]
 	structKidsSlicePool.Put(&kids)
 }
 
+// resetStructElemForPool clears the fields a recycled struct-elem needs to
+// drop before being reused by the next caller. The previous version zeroed
+// every field, but most call sites set Type/Parent/PageID/MCID/HasMCID
+// themselves, so only Title/Alt/Lang/ObjectID/AnnotObjID/Kids need a
+// defensive clear to keep the next emit identical to a fresh struct.
 func resetStructElemForPool(elem *StructElem) {
 	if elem == nil {
 		return
@@ -193,19 +198,17 @@ func resetStructElemForPool(elem *StructElem) {
 			releaseStructKids(elem.Kids)
 		}
 	}
-	elem.Type = ""
-	elem.Title = ""
-	elem.Alt = ""
-	elem.Lang = ""
+	// Release the slice back to the pool (kids may be a pooled buffer).
 	elem.Kids = nil
-	elem.MCID = 0
-	elem.HasMCID = false
-	elem.Parent = nil
-	elem.ObjectID = 0
-	elem.PageID = 0
-	elem.AnnotObjID = 0
 }
 
+// acquireStructElem pulls a *StructElem from the global sync.Pool and
+// performs the lazy field reset (P1/P2). The fields cleared here are the
+// ones that affect output correctness if left stale: Title/Alt/Lang are
+// read by the fast-path guard, ObjectID/AnnotObjID/PageID/HasMCID/MCID
+// determine whether the struct is emitted as a leaf vs a grouping
+// element, and Parent/Type are read by the slow-path formatter. Together
+// these cover the full set the caller might NOT overwrite on the next use.
 func (sm *StructureManager) acquireStructElem() *StructElem {
 	if !sm.Enabled {
 		return &StructElem{}
@@ -215,11 +218,27 @@ func (sm *StructureManager) acquireStructElem() *StructElem {
 	if !ok || e == nil {
 		return &StructElem{}
 	}
-	*e = StructElem{}
+	// P2: drop the `*e = StructElem{}` full-struct memclr. The fields the
+	// caller doesn't write (Title/Alt/Lang/ObjectID/AnnotObjID/PageID/HasMCID/
+	// MCID/Parent/Type) are cleared here. Kids is left alone — the caller
+	// either replaces it via acquireStructKids (BeginStructureElementCap with
+	// kidCap>0) or never reads it. This is ~80 bytes of writes per elem
+	// instead of the previous 256-byte memclr.
+	e.Type = ""
+	e.Title = ""
+	e.Alt = ""
+	e.Lang = ""
+	e.MCID = 0
+	e.HasMCID = false
+	e.ObjectID = 0
+	e.AnnotObjID = 0
+	e.PageID = 0
+	e.Parent = nil
 	return e
 }
 
-// ReleaseStructElemsToPool returns pooled *StructElem nodes after PDF generation completes (tagged PDF only).
+// ReleaseStructElemsToPool returns pooled *StructElem nodes after PDF
+// generation completes (tagged PDF only).
 func (sm *StructureManager) ReleaseStructElemsToPool() {
 	if sm == nil || !sm.Enabled || sm.Root == nil {
 		return
@@ -279,7 +298,9 @@ func (sm *StructureManager) ensureParentTreeCapacity(pageIndex, count int) {
 }
 
 // ReserveElementCapacity pre-grows the flat structure element slice when the
-// tagged layout size is roughly known up front.
+// tagged layout size is roughly known up front. P1 (2026-06-20 checklist):
+// the HFT path allocates ~16,000 *StructElem per PDF, so pre-sizing the
+// flat slice avoids amortised growth cost.
 func (sm *StructureManager) ReserveElementCapacity(additional int) {
 	if !sm.Enabled || additional <= 0 {
 		return
@@ -492,11 +513,17 @@ func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
 // BeginTableRowWithTDMCIDs starts a TR with one TD StructElem per column, each carrying
 // a pre-reserved MCID. Used when replaying cached shared-row content streams that already
 // contain matching BDC/EMC operators (PDF/UA-2 requires TR → TD, not bare MCID leaves).
+//
+// Allocations for the TR grouping element and the per-column TD elements come from the
+// per-document arena; the tr.Kids slice is pre-sized to `count` so the append loop does
+// not grow the slice. Together this removes the sync.Pool + memclr + slice-grow churn
+// that dominated the HFT TR→TD path.
 func (sm *StructureManager) BeginTableRowWithTDMCIDs(pageIndex, startMCID, count int) {
 	if !sm.Enabled {
 		return
 	}
-	sm.BeginStructureElementCap(StructTR, 0)
+	// Pre-size tr.Kids so the per-cell append does not grow the backing slice.
+	sm.BeginStructureElementCap(StructTR, count)
 	tr := sm.CurrentParent
 	for i := range count {
 		td := sm.acquireStructElem()

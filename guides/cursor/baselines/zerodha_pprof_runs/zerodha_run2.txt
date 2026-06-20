@@ -10,28 +10,28 @@ Templates built.
 Warm-up runs...
   Retail PDF size:  61293 bytes (59.86 KB)
   Active PDF size:  76065 bytes (74.28 KB)
-  HFT PDF size:     748163 bytes (730.63 KB)
+  HFT PDF size:     2291955 bytes (2238.24 KB)
 
-  Max Memory Allocated: 628.27 MB
+  Max Memory Allocated: 1267.57 MB
 === Performance Summary ===
   Iterations:      5000
   Concurrency:     48 workers
   GOMAXPROCS:      24
   Retail signing:  ECDSA P-256
-  Total time:      0.444 s
-  Throughput:      11264.66 ops/sec
+  Total time:      1.698 s
+  Throughput:      2944.16 ops/sec
 
-  Avg Latency:     4.181 ms
-  Min Latency:     0.409 ms
-  Max Latency:     109.807 ms
+  Avg Latency:     15.806 ms
+  Min Latency:     0.488 ms
+  Max Latency:     394.873 ms
 
 === Workload Distribution ===
   Retail  (80%):   4000 iterations
   Active  (15%):   750 iterations
   HFT      (5%):   250 iterations
 
+Saved: zerodha_hft_output.pdf (2291955 bytes)
 Saved: zerodha_retail_output.pdf (61293 bytes)
 Saved: zerodha_active_output.pdf (76065 bytes)
-Saved: zerodha_hft_output.pdf (748163 bytes)
 
 === Done ===

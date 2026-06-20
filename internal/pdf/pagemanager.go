@@ -6,12 +6,18 @@ import (
 	"sync"
 )
 
+// P5 (2026-06-20 checklist): the per-page content stream capacity buckets
+// are split by class. A retail 8KB page goes to the 64KB bucket; a compliant
+// HFT page (~90KB raw) goes to the 128KB bucket. Buffers above
+// maxPooledPageContentStreamCap are dropped instead of being returned to
+// the pool, which keeps the pool bounded under k6 light too.
 const maxPooledPageContentStreamCap = 256 * 1024
 
 var pageContentStreamPools = [...]struct {
 	capacity int
 	pool     sync.Pool
 }{
+	{capacity: 32 * 1024},
 	{capacity: 64 * 1024},
 	{capacity: 128 * 1024},
 	{capacity: 256 * 1024},
@@ -33,8 +39,8 @@ func getPageContentStreamBuffer(initialCap int) *bytes.Buffer {
 }
 
 func pageContentStreamBucket(initialCap int) int {
-	if initialCap < 64*1024 {
-		initialCap = 64 * 1024
+	if initialCap < 32*1024 {
+		initialCap = 32 * 1024
 	}
 	for i := range pageContentStreamPools {
 		if initialCap <= pageContentStreamPools[i].capacity {
@@ -48,6 +54,9 @@ func putPageContentStreamBuffer(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
+	// P5: discard oversized buffers instead of returning them to a too-small
+	// bucket. This keeps the pool bounded even when a single HFT page grows
+	// to >256KB during emission.
 	if buf.Cap() > maxPooledPageContentStreamCap {
 		return
 	}
