@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { FileText, Download, Upload, Play, RefreshCw, Sparkles } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { formatApiError, makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
@@ -11,9 +11,6 @@ const Viewer = () => {
   const [pdfUrl, setPdfUrl] = useState('')
   const fileInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
-
-  // Check if running on GitHub Pages
-  // Check if running on GitHub Pages
 
   const showError = (message) => {
     alert(message)
@@ -41,10 +38,11 @@ const Viewer = () => {
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (error) {
-      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+      const err = formatApiError(error)
+      if (err.message.includes("Authentication failed") || err.message.includes("401") || err.message.includes("403") || err.message.includes("Not authenticated")) {
         triggerLogin()
       } else {
-        showError('Error loading template: ' + error.message)
+        showError(err.message.startsWith('Online PDF') ? err.message : 'Error loading template: ' + err.message)
       }
     } finally {
       setIsLoading(false)
@@ -69,10 +67,11 @@ const Viewer = () => {
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
     } catch (error) {
-      if (error.message.includes("Authentication failed") || error.message.includes("401") || error.message.includes("403") || error.message.includes("Not authenticated")) {
+      const err = formatApiError(error)
+      if (err.message.includes("Authentication failed") || err.message.includes("401") || err.message.includes("403") || err.message.includes("Not authenticated")) {
         triggerLogin()
       } else {
-        showError('Error generating PDF: ' + error.message)
+        showError(err.message.startsWith('Online PDF') ? err.message : 'Error generating PDF: ' + err.message)
       }
     } finally {
       setIsLoading(false)

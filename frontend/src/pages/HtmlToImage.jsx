@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Image, Globe, Download, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { isGitHubPagesHost, makeAuthenticatedRequest, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
@@ -19,8 +19,9 @@ const HtmlToImage = () => {
   })
 
   const convertToImage = async () => {
-    if (window.location.href.includes('chinmay-sawant.github.io')) {
-      alert("Run the app locally using the dockerfile"); return
+    if (isGitHubPagesHost()) {
+      alert(OFFLINE_DEMO_MESSAGE)
+      return
     }
     if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
     setIsLoading(true)

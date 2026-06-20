@@ -2,7 +2,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
-import { makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
+import { formatApiError, makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
 import PdfPreview from '../components/PdfPreview'
 import Toast from '../components/Toast'
 
@@ -706,7 +706,7 @@ export default function Editor() {
       }
     } catch (err) {
       console.error(err)
-      alert(err.message)
+      alert(formatApiError(err).message)
     }
   }
 
