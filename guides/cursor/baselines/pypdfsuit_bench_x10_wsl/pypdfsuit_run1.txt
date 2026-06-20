@@ -15,15 +15,15 @@ Warm-up runs...
 === Performance Summary ===
   Iterations:      5000
   Concurrency:     48 workers
-  Total time:      6.524 s
-  Throughput:      766.39 ops/sec
+  Total time:      5.333 s
+  Throughput:      937.58 ops/sec
 
-  Avg Latency:     53.564 ms
-  P50 Latency:     32.512 ms
-  P95 Latency:     175.677 ms
-  P99 Latency:     280.109 ms
-  Min Latency:     1.158 ms
-  Max Latency:     528.294 ms
+  Avg Latency:     44.996 ms
+  P50 Latency:     27.929 ms
+  P95 Latency:     142.571 ms
+  P99 Latency:     235.827 ms
+  Min Latency:     1.265 ms
+  Max Latency:     411.642 ms
 
 === Workload Distribution ===
   Retail  (80%):   4015 iterations
