@@ -64,6 +64,8 @@ Same 80/15/5 workload outputs **PDF 2.0** with PDF/A, tagging, signing, and font
 | **GoPDFLib** | Weighted 80/15/5 (nocomply) | 48 | **26,111 ops/sec** | **1.771 ms** | PDF 2.0 (no PDF/A) | None |
 | **GoPDFSuit** | Retail only | 48 | **6,146 ops/sec** | **6.29 ms** | PDF/A-4 | PDF/UA-2 |
 | **pypdfsuit** | Weighted 80/15/5 | 48 | 235 ops/sec | 169.07 ms | PDF/A-4 | PDF/UA-2 |
+| **gpdf** | Weighted 80/15/5 (compliant) | 48 | **178 ops/sec** | **267.37 ms** | PDF/A-2b | None |
+| **gpdf** | Weighted 80/15/5 (nocomply) | 48 | **464 ops/sec** | **100.64 ms** | PDF 2.0 (no PDF/A) | None |
 
 ## Data Table Benchmark (2000 rows)
 

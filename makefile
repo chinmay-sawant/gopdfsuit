@@ -102,6 +102,7 @@ BENCH_WORKERS ?= 48
 BENCH_COUNT ?= 1
 BENCH_TIME ?= 5s
 ZERODHA_DIR := sampledata/gopdflib/zerodha
+GPDF_ZERODHA_DIR := sampledata/gpdf/zerodha
 BENCHMARKS_DIR := sampledata/benchmarks
 GOPDFKIT_COMPARE_DIR := $(BENCHMARKS_DIR)/gopdfkit_compare
 GOTENBERG_DIR := $(BENCHMARKS_DIR)/gotenberg
@@ -120,6 +121,7 @@ K6_LIGHT_GOMAXPROCS ?= 12
 	bench-gotenberg bench-gotenberg-load bench-gotenberg-smoke bench-gotenberg-start \
 	bench-gopdflib-zerodha bench-gopdflib-zerodha-nocomply bench-gopdflib-zerodha-x2 bench-gopdflib-zerodha-x5 bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x10-pprof \
 	bench-gopdflib-zerodha-nocomply-x10 \
+	bench-gpdf-zerodha bench-gpdf-zerodha-nocomply bench-gpdf-zerodha-x10 \
 	bench-gopdflib-data bench-gopdflib-data-pprof \
 	bench-gopdfsuit-zerodha bench-pypdfsuit-zerodha bench-pypdfsuit-zerodha-x2 \
 	bench-pypdfsuit-zerodha-x5 bench-pypdfsuit-zerodha-x10 bench-pypdfsuit-zerodha-x10-pprof \
@@ -174,6 +176,11 @@ bench-help:
 	@echo "    make bench-pypdfsuit-zerodha-x10  # 10 sequential timing runs"
 	@echo "    make bench-pypdfsuit-zerodha-x10-pprof # x10 timing + x5/profile"
 	@echo "    make bench-pypdfsuit-profile      # phase breakdown (pypdfsuit_profile.py)"
+	@echo ""
+	@echo "  gpdf Zerodha gold standard (sampledata/gpdf/zerodha):"
+	@echo "    make bench-gpdf-zerodha           # PDF/A-2b + ECDSA retail signing"
+	@echo "    make bench-gpdf-zerodha-nocomply  # same workload, compliance off"
+	@echo "    make bench-gpdf-zerodha-x10       # 10 sequential timing runs"
 	@echo ""
 	@echo "  GoPDFLib data-table + pprof (sampledata/benchmarks/gopdflib):"
 	@echo "    make bench-gopdflib-data"
@@ -299,6 +306,17 @@ bench-gopdflib-zerodha-x10:
 	bash $(ZERODHA_DIR)/run_bench_x10.sh
 
 bench-gopdflib-zerodha-x10-pprof: bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x5
+
+# ── gpdf: Zerodha gold standard ──────────────────────────────────────────────
+
+bench-gpdf-zerodha:
+	cd $(GPDF_ZERODHA_DIR) && GOMAXPROCS=$(GOMAXPROCS_BENCH) BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) $(GO_BENCH) run .
+
+bench-gpdf-zerodha-nocomply:
+	cd $(GPDF_ZERODHA_DIR) && GOMAXPROCS=$(GOMAXPROCS_BENCH) BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) $(GO_BENCH) run -tags nocomply .
+
+bench-gpdf-zerodha-x10:
+	bash $(GPDF_ZERODHA_DIR)/run_bench_x10.sh
 
 # ── GoPDFLib data-table (tabular workload) ───────────────────────────────────
 

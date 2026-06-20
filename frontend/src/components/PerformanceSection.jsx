@@ -58,6 +58,8 @@ const parallelWeightedBenchmarks = [
   { name: 'GoPDFLib (nocomply, x10 mean)', workers: '48', throughput: '21,564 ops/sec', avg: '2.19 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
   { name: 'GoPDFSuit (retail)', workers: '48', throughput: '6,146 ops/sec', avg: '6.29 ms', min: '1.36 ms', max: '95.13 ms', mix: '5000 retail' },
   { name: 'PyPDFSuit (weighted)', workers: '48', throughput: '235 ops/sec', avg: '169.07 ms', min: '-', max: '-', mix: '4000 / 750 / 250' },
+  { name: 'gpdf (PDF/A-2b, compliant)', workers: '48', throughput: '178 ops/sec', avg: '267.37 ms', min: '2.83 ms', max: '3182.41 ms', mix: '4000 / 750 / 250' },
+  { name: 'gpdf (nocomply)', workers: '48', throughput: '464 ops/sec', avg: '100.64 ms', min: '0.25 ms', max: '4886.26 ms', mix: '4000 / 750 / 250' },
 ]
 
 const httpBenchmarks = [
@@ -203,7 +205,7 @@ const PerformanceSection = ({ isVisible }) => {
         <div className="performance-panels-grid">
           <BenchmarkPanel
             title="Parallel Weighted Workload (5000×48)"
-            description="Mixed retail, active-trader, and HFT traffic. Compliant and nocomply rows from June 2026 x10 sequential runs (make bench-gopdflib-zerodha-x10 / -nocomply-x10)."
+            description="Mixed retail, active-trader, and HFT traffic. GoPDFLib rows from June 2026 x10 sequential runs; gpdf rows from make bench-gpdf-zerodha / -nocomply (same 5000×48 workload)."
             columns={[
               { key: 'name', label: 'Runtime' },
               { key: 'workers', label: 'Workers' },

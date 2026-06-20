@@ -20,6 +20,8 @@ Maximum supported standards per engine (used in all tables below):
 | **k6** (`tagged_ecdsa`) | **PDF/A-4** | **PDF/UA-2** | Weighted 80/15/5 + ECDSA P-256 signing |
 | **k6-retail** | **PDF/A-4** | **PDF/UA-2** | Retail-only signed fast path |
 | **bench-gopdflib-zerodha-nocomply** | PDF 2.0 (no PDF/A) | None | Same Zerodha workload; PDF/A, tagging, signing, fonts off |
+| **gpdf** (`bench-gpdf-zerodha`) | PDF/A-2b | None | Same Zerodha workload via [gpdf-dev/gpdf](https://github.com/gpdf-dev/gpdf); PDF/A-2b + ECDSA retail signing |
+| **gpdf** (`bench-gpdf-zerodha-nocomply`) | PDF 2.0 (no PDF/A) | None | Same Zerodha workload; PDF/A and signing off |
 | **gopdfkit_compare GoPDFLib** | PDF 1.7 | None | Compare template omits PDF/A flags (apples-to-apples speed) |
 | **gopdfkit_compare GoPDFKit** | PDF 1.7 | None | External library baseline |
 | **Handler** (`financial_report.json`) | PDF 1.7 | Arlington tags | `pdfaCompliant: false` in fixture JSON |
@@ -70,6 +72,8 @@ Method: 5 runs each, **best throughput** reported.
 | **GoPDFLib** | Zerodha weighted (nocomply) | PDF 2.0 (no PDF/A) | None | 48 | **26,111 ops/s** (x10 peak) | — | — |
 | **GoPDFSuit** | Zerodha retail | PDF/A-4 | PDF/UA-2 | 48 | **6,146 ops/s** | 1,978 | +211% |
 | **pypdfsuit** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **235 ops/s** | 223 | +5% |
+| **gpdf** | Zerodha weighted | PDF/A-2b | None | 48 | **178 ops/s** | — | — |
+| **gpdf** | Zerodha weighted (nocomply) | PDF 2.0 (no PDF/A) | None | 48 | **464 ops/s** | — | — |
 | **pypdfsuit** | Zerodha retail (`bench.py`)* | PDF/A-4 | PDF/UA-2 | 10 | **293 ops/s** | - | - |
 | **PDFKit** | Data table | PDF 1.7 | None | 10 | **10.1 ops/s** | 5.0 | +102% |
 | **jsPDF** | Data table | PDF 1.3 | None | 10 | **9.4 ops/s** | 4.2 | +124% |
