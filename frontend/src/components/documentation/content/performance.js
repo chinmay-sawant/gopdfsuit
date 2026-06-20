@@ -6,9 +6,9 @@ export const performanceSection = {
             title: 'Benchmark Results',
             description: 'Measured benchmark results for GoPDFLib, GoPDFSuit, and pypdfsuit on the weighted 48-worker Zerodha workload, data-table, HTTP, and GoPDFKit compare harnesses.',
             codePlacement: 'below',
-            content: `These measurements were captured on **June 18, 2026** on WSL2 (Intel i7-13700HX, 24 logical CPUs) on branch \`feat/optimization-5.5-medium\`. Method: **best-of-5 runs** per harness (highest throughput reported). Raw logs: \`guides/cursor/baselines/benchmark_run_20260618_v2/\`.
+            content: `These measurements were captured on **June 2026** on WSL2 (Intel i7-13700HX, 24 logical CPUs) on branch \`feat/optimization-5.5-medium\`. Zerodha headline numbers use **x10 sequential runs** (\`make bench-gopdflib-zerodha-x10\`); other harnesses use **best-of-5** from \`guides/cursor/baselines/benchmark_run_20260618_v2/\`.
 
-All GoPDFLib headline numbers run with **PDF/A-4**, **PDF/UA-2**, Arlington-compatible tagging, XML metadata generation, **ECDSA P-256** digital signatures, embedded fonts, bookmarks, and internal links enabled.
+All compliant GoPDFLib headline numbers run with **PDF/A-4**, **PDF/UA-2**, Arlington-compatible tagging, XML metadata generation, **ECDSA P-256** digital signatures, embedded fonts, bookmarks, and internal links enabled.
 
 **Machine Profile**
 
@@ -21,31 +21,47 @@ All GoPDFLib headline numbers run with **PDF/A-4**, **PDF/UA-2**, Arlington-comp
 
 Primary end-to-end benchmark in **sampledata/gopdflib/zerodha** — **5000 iterations**, **48 workers**, 80% Retail / 15% Active / 5% HFT, with ECDSA P-256 retail signing. **Throughput values are aggregate system throughput** across 48 concurrent workers — not per-core serial throughput.
 
-| Metric | Best-of-5 peak | 5-run average |
+| Metric | x10 peak | x10 mean |
 | --- | ---: | ---: |
-| **Throughput** | **11,721 ops/sec** | **11,276 ops/sec** |
-| **Avg latency** | **4.031 ms** | **4.196 ms** |
-| **Min latency** | **0.397 ms** | **0.417 ms** |
-| **Max latency** | **102.110 ms** | **96.451 ms** |
-| **Wall time (5000 docs)** | **0.427 s** | **0.444 s** |
+| **Throughput** | **8,327 ops/sec** | **7,432 ops/sec** |
+| **Avg latency** | **5.618 ms** | **6.205 ms** |
+| **Min latency (best run)** | **0.355 ms** | — |
+| **Max latency (best run)** | **158.202 ms** | — |
+| **Peak allocated (mean)** | — | **1,199 MB** |
 
-**vs June 2026 baseline (\`feat/performance-improvements\`):** **+343% throughput** (2,646 → 11,721 ops/sec).
+**vs June 2026 baseline (\`feat/performance-improvements\`):** **+215% x10 peak throughput** (2,646 → 8,327 ops/sec) under full PDF/A-4 + PDF/UA-2 compliance.
 
-### 5-run detail (timing runs)
+### x10 detail (compliant timing runs)
 
-| Run | Throughput | Avg | Wall (s) |
-| ---: | ---: | ---: | ---: |
-| 1 | 10,709 ops/sec | 4.434 ms | 0.467 |
-| 2 | 11,265 ops/sec | 4.181 ms | 0.444 |
-| 3 | 11,326 ops/sec | 4.165 ms | 0.441 |
-| 4 | 11,360 ops/sec | 4.171 ms | 0.440 |
-| 5 | **11,721 ops/sec** | **4.031 ms** | **0.427** |
+| Run | Throughput | Avg latency |
+| ---: | ---: | ---: |
+| 1 | 7,605 ops/sec | 6.184 ms |
+| 2 | 7,830 ops/sec | 5.984 ms |
+| 3 | 7,928 ops/sec | 5.873 ms |
+| 4 | 7,856 ops/sec | 5.943 ms |
+| 5 | **8,327 ops/sec** | **5.618 ms** |
+| 6 | 7,691 ops/sec | 6.135 ms |
+| 7 | 6,652 ops/sec | 7.050 ms |
+| 8 | 8,121 ops/sec | 5.770 ms |
+| 9 | 5,720 ops/sec | 6.353 ms |
+| 10 | 6,595 ops/sec | 7.136 ms |
+
+## Zerodha Gold Standard — Non-Compliant (5000×48)
+
+Same 80/15/5 workload with PDF/A, tagging, signing, and font embedding disabled (\`make bench-gopdflib-zerodha-nocomply-x10\`). HFT output shrinks to **227 KB** (vs **2.3 MB** compliant).
+
+| Metric | x10 peak | x10 mean |
+| --- | ---: | ---: |
+| **Throughput** | **26,111 ops/sec** | **21,564 ops/sec** |
+| **Avg latency** | **1.771 ms** | **2.194 ms** |
+| **Peak allocated (mean)** | — | **643 MB** |
 
 ### Weighted Workload — runtime comparison
 
 | Runtime | Harness | Workers | Best Throughput | Avg Latency | PDF/A | PDF/UA |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| **GoPDFLib** | Weighted 80/15/5 | 48 | **11,721 ops/sec** | **4.031 ms** | PDF/A-4 | PDF/UA-2 |
+| **GoPDFLib** | Weighted 80/15/5 (compliant) | 48 | **8,327 ops/sec** | **5.618 ms** | PDF/A-4 | PDF/UA-2 |
+| **GoPDFLib** | Weighted 80/15/5 (nocomply) | 48 | **26,111 ops/sec** | **1.771 ms** | PDF 1.7 | None |
 | **GoPDFSuit** | Retail only | 48 | **6,146 ops/sec** | **6.29 ms** | PDF/A-4 | PDF/UA-2 |
 | **pypdfsuit** | Weighted 80/15/5 | 48 | 235 ops/sec | 169.07 ms | PDF/A-4 | PDF/UA-2 |
 
@@ -112,7 +128,8 @@ bash guides/cursor/baselines/benchmark_run_20260618_v2/continue_one_by_one.sh
 python3 guides/cursor/baselines/benchmark_run_20260618_v2/parse_results.py
 
 # Zerodha gold standard (5000 iterations, 48 workers)
-make bench-gopdflib-zerodha-x5
+make bench-gopdflib-zerodha-x10
+make bench-gopdflib-zerodha-nocomply-x10
 
 # Data table (2000 rows)
 make bench-gopdflib-data

@@ -115,7 +115,8 @@ K6_LIGHT_GOMAXPROCS ?= 12
 	bench-k6 bench-k6-light bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \
 	bench-k6-smoke bench-k6-spike bench-k6-soak bench-k6-install \
 	bench-gotenberg bench-gotenberg-load bench-gotenberg-smoke bench-gotenberg-start \
-	bench-gopdflib-zerodha bench-gopdflib-zerodha-x2 bench-gopdflib-zerodha-x5 bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x10-pprof \
+	bench-gopdflib-zerodha bench-gopdflib-zerodha-nocomply bench-gopdflib-zerodha-x2 bench-gopdflib-zerodha-x5 bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x10-pprof \
+	bench-gopdflib-zerodha-nocomply-x10 \
 	bench-gopdflib-data bench-gopdflib-data-pprof \
 	bench-gopdfsuit-zerodha bench-pypdfsuit-zerodha bench-pypdfsuit-zerodha-x2 \
 	bench-pypdfsuit-zerodha-x5 bench-pypdfsuit-zerodha-x10 bench-pypdfsuit-zerodha-x10-pprof \
@@ -157,7 +158,9 @@ bench-help:
 	@echo "    make bench-gotenberg-start       # docker run Gotenberg on :3010"
 	@echo ""
 	@echo "  Zerodha gold standard (sampledata/gopdflib/zerodha):"
-	@echo "    make bench-gopdflib-zerodha"
+	@echo "    make bench-gopdflib-zerodha            # PDF/A-4 + PDF/UA-2 compliant"
+	@echo "    make bench-gopdflib-zerodha-nocomply   # same workload, compliance off"
+	@echo "    make bench-gopdflib-zerodha-nocomply-x10 # 10 sequential non-compliant runs"
 	@echo "    make bench-gopdflib-zerodha-x2"
 	@echo "    make bench-gopdflib-zerodha-x5   # 5 runs + CPU/heap pprof"
 	@echo "    make bench-gopdflib-zerodha-x10  # 10 sequential timing runs"
@@ -273,6 +276,12 @@ bench-setup:
 
 bench-gopdflib-zerodha:
 	cd $(ZERODHA_DIR) && GOMAXPROCS=$(GOMAXPROCS_BENCH) BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) $(GO_BENCH) run .
+
+bench-gopdflib-zerodha-nocomply:
+	cd $(ZERODHA_DIR) && GOMAXPROCS=$(GOMAXPROCS_BENCH) BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) $(GO_BENCH) run -tags nocomply .
+
+bench-gopdflib-zerodha-nocomply-x10:
+	bash $(ZERODHA_DIR)/run_bench_x10_nocomply.sh
 
 bench-gopdflib-zerodha-x2:
 	@for i in 1 2; do \

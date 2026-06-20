@@ -1,9 +1,10 @@
-//go:build !nocomply
+//go:build nocomply
 
-// Compliant Zerodha benchmark: PDF/A-4, PDF/UA-2 tagging, font embedding, retail signing.
+// Non-compliant Zerodha benchmark: same templates/workload with PDF/A, tagging,
+// Arlington, font embedding, and retail signing disabled (throughput ceiling reference).
 //
-// Run: make bench-gopdflib-zerodha
-//  or: go run .
+// Run: make bench-gopdflib-zerodha-nocomply
+//  or: go run -tags nocomply .
 package main
 
 import (
@@ -14,7 +15,7 @@ import (
 )
 
 func init() {
-	benchCompliant = true
+	benchCompliant = false
 }
 
 func main() {

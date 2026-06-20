@@ -1,8 +1,8 @@
 const headlineStats = [
-  { value: '11,721 ops/sec', label: 'Peak GoPDFLib Zerodha Throughput', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
-  { value: '288 ops/sec', label: 'Peak Data Table Throughput', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
-  { value: '4.0 ms', label: 'Best Avg Latency (Zerodha)', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-  { value: '0.40 ms', label: 'Best Min Latency (Zerodha)', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
+  { value: '8,327 ops/sec', label: 'Peak GoPDFLib Zerodha (PDF/A-4)', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
+  { value: '26,111 ops/sec', label: 'Peak Zerodha (no compliance)', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
+  { value: '7,432 ops/sec', label: 'x10 Mean (PDF/A-4 compliant)', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+  { value: '288 ops/sec', label: 'Peak Data Table Throughput', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
 ]
 
 const dataBenchmarks = [
@@ -15,8 +15,10 @@ const dataBenchmarks = [
 ]
 
 const parallelWeightedBenchmarks = [
-  { name: 'GoPDFLib (weighted)', workers: '48', throughput: '11,721 ops/sec', avg: '4.03 ms', min: '0.40 ms', max: '102.11 ms', mix: '4000 / 750 / 250' },
-  { name: 'GoPDFLib (5-run avg)', workers: '48', throughput: '11,276 ops/sec', avg: '4.20 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
+  { name: 'GoPDFLib (PDF/A-4, x10 peak)', workers: '48', throughput: '8,327 ops/sec', avg: '5.62 ms', min: '0.36 ms', max: '158.20 ms', mix: '4000 / 750 / 250' },
+  { name: 'GoPDFLib (PDF/A-4, x10 mean)', workers: '48', throughput: '7,432 ops/sec', avg: '6.21 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
+  { name: 'GoPDFLib (nocomply, x10 peak)', workers: '48', throughput: '26,111 ops/sec', avg: '1.77 ms', min: '-', max: '-', mix: '4000 / 750 / 250' },
+  { name: 'GoPDFLib (nocomply, x10 mean)', workers: '48', throughput: '21,564 ops/sec', avg: '2.19 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
   { name: 'GoPDFSuit (retail)', workers: '48', throughput: '6,146 ops/sec', avg: '6.29 ms', min: '1.36 ms', max: '95.13 ms', mix: '5000 retail' },
   { name: 'PyPDFSuit (weighted)', workers: '48', throughput: '235 ops/sec', avg: '169.07 ms', min: '-', max: '-', mix: '4000 / 750 / 250' },
 ]
@@ -87,7 +89,7 @@ const PerformanceSection = ({ isVisible }) => {
           </h2>
           <p className="section-subheading performance-intro">
             Captured on WSL2 (June 2026) from the Zerodha Gold Standard benchmark: 5000 iterations, 48 workers, 80% Retail / 15% Active / 5% HFT.
-            Headline GoPDFLib throughput is <strong>11,721 ops/sec</strong> (best-of-5). Numbers are aggregate concurrent throughput across 48 workers, not per-core serial throughput.
+            Headline GoPDFLib throughput is <strong>8,327 ops/sec</strong> (x10 peak, PDF/A-4 + PDF/UA-2). Non-compliant same workload reaches <strong>26,111 ops/sec</strong> (x10 peak). Numbers are aggregate concurrent throughput across 48 workers, not per-core serial throughput.
           </p>
         </div>
 
@@ -112,7 +114,7 @@ const PerformanceSection = ({ isVisible }) => {
         <div className="performance-panels-grid">
           <BenchmarkPanel
             title="Parallel Weighted Workload (5000×48)"
-            description="Mixed retail, active-trader, and HFT traffic. Peak row is the best observed run from a best-of-5 suite; avg row is the mean of all 5 timing runs."
+            description="Mixed retail, active-trader, and HFT traffic. Compliant and nocomply rows from June 2026 x10 sequential runs (make bench-gopdflib-zerodha-x10 / -nocomply-x10)."
             columns={[
               { key: 'name', label: 'Runtime' },
               { key: 'workers', label: 'Workers' },
