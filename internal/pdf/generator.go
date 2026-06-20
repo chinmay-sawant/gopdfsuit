@@ -121,6 +121,17 @@ func putPDFBuffer(buf *bytes.Buffer) {
 
 const xrefOffsetUnused = -1
 
+func newXrefOffsets(capHint int) []int {
+	if capHint <= 0 {
+		return nil
+	}
+	offsets := make([]int, capHint)
+	for i := range offsets {
+		offsets[i] = xrefOffsetUnused
+	}
+	return offsets
+}
+
 func growXrefOffsets(xrefOffsets *[]int, id int) {
 	if id < 0 {
 		return
@@ -236,6 +247,7 @@ func (a *signatureContextAdapter) EncodeTextForFont(fontName, text string) strin
 func WarmRuntimePools() {
 	initPDFBufferPools()
 	WarmCompressionPools(maxPageCompressWorkers())
+	WarmArenaSlabPool(6)
 }
 
 // GenerateTemplatePDF generates a PDF document with multi-page support and embedded images.
@@ -266,7 +278,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	b := (*scratchPtr)[:0]
 	defer func() { *scratchPtr = b[:0]; scratchBufPool.Put(scratchPtr) }()
 
-	var xrefOffsets []int
+	xrefOffsets := newXrefOffsets(estimateXrefObjectCount(template))
 
 	// Get page dimensions from config
 	pageConfig := template.Config
@@ -1393,7 +1405,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 				continue
 			}
 			setXrefOffset(&xrefOffsets, elem.ObjectID, pdfBuffer.Len())
-			if isTDLeafStructElem(elem) {
+			if elem.tdLeafFast {
 				appendStructElemTDLeaf(pdfBuffer, elem, structFmt)
 			} else {
 				formatStructElemObjectTo(pdfBuffer, elem, structFmt)
@@ -1510,6 +1522,20 @@ type structElemFormatCtx struct {
 	root             *StructElem
 	pages            []int
 }
+func estimateXrefObjectCount(template models.PDFTemplate) int {
+	// NextObjectID starts at 2000; each structure element receives one object ID
+	// during the tagged write pass, plus a small fixed overhead for ParentTree,
+	// namespace, metadata, and signature objects.
+	overhead := 48
+	if template.Config.Signature != nil && template.Config.Signature.Enabled {
+		overhead += 8
+	}
+	if !(template.Config.TaggedPDF || template.Config.PDFACompliant) {
+		return 256
+	}
+	return 2000 + estimateStructureElementCount(template) + overhead
+}
+
 func estimateStructureElementCount(template models.PDFTemplate) int {
 	count := 1 // Document
 
@@ -1730,8 +1756,10 @@ func appendStructElemTDLeaf(pdfBuffer *bytes.Buffer, elem *StructElem, ctx struc
 // all < 10000 in the HFT template) go through appendDecimal to avoid the
 // strconv.AppendInt call overhead.
 func formatSingleMCIDTableCellStructElem(pdfBuffer *bytes.Buffer, elem *StructElem, ctx structElemFormatCtx) bool {
-	if !isTDLeafStructElem(elem) {
-		return false
+	if elem == nil || !elem.tdLeafFast {
+		if !isTDLeafStructElem(elem) {
+			return false
+		}
 	}
 	appendStructElemTDLeaf(pdfBuffer, elem, ctx)
 	return true

@@ -167,7 +167,7 @@ func TestBeginTableRowWithTDMCIDs_arenaAllocates(t *testing.T) {
 		t.Fatal("arena slab should be returned to pool on release")
 	}
 	if slabBefore == nil || cap(*slabBefore) == 0 {
-		t.Fatal("released slab should retain backing capacity for reuse")
+		t.Fatal("released slab should retain backing capacity")
 	}
 }
 

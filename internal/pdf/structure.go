@@ -82,6 +82,7 @@ type StructElem struct {
 	ObjectID   int // Assigned when writing to PDF
 	PageID     int // Reference to the page object ID where this element appears
 	AnnotObjID int // Annotation object ID for Link elements
+	tdLeafFast bool // TD/TH MCID leaf eligible for appendStructElemTDLeaf fast path
 }
 
 func (elem *StructElem) LeafMCID() (int, bool) {
@@ -165,7 +166,7 @@ var structElemPool = sync.Pool{
 
 var arenaSlabPool = sync.Pool{
 	New: func() any {
-		slab := make([]StructElem, 0, 4096)
+		slab := make([]StructElem, 0, maxArenaSlabEntries)
 		return &slab
 	},
 }
@@ -184,33 +185,41 @@ func arenaCapForNeed(need int) int {
 	return capHint
 }
 
+// WarmArenaSlabPool pre-warms HFT-scale arena slabs at process start.
+func WarmArenaSlabPool(count int) {
+	for range count {
+		slab := make([]StructElem, 0, maxArenaSlabEntries)
+		arenaSlabPool.Put(&slab)
+	}
+}
+
 func acquireArenaSlabForCapacity(minCap int) *[]StructElem {
 	wantCap := arenaCapForNeed(minCap)
 	if wantCap == 0 {
 		return nil
 	}
-	v := arenaSlabPool.Get()
-	var slab []StructElem
-	if v != nil {
-		slab = *(v.(*[]StructElem))
+	// Return the pool object directly (not a copied slice header) so only one
+	// StructureManager owns each backing array at a time.
+	if v := arenaSlabPool.Get(); v != nil {
+		slabPtr := v.(*[]StructElem)
+		if cap(*slabPtr) >= wantCap {
+			*slabPtr = (*slabPtr)[:0]
+			return slabPtr
+		}
 	}
-	if cap(slab) < wantCap {
-		slab = make([]StructElem, 0, wantCap)
-	} else {
-		slab = slab[:0]
-	}
+	slab := make([]StructElem, 0, wantCap)
 	return &slab
 }
 
-func releaseArenaSlab(slab *[]StructElem) {
-	if slab == nil {
+func releaseArenaSlab(slabPtr *[]StructElem) {
+	if slabPtr == nil {
 		return
 	}
-	if cap(*slab) > maxArenaSlabEntries {
+	if cap(*slabPtr) > maxArenaSlabEntries {
 		return
 	}
-	*slab = (*slab)[:0]
-	arenaSlabPool.Put(slab)
+	*slabPtr = (*slabPtr)[:0]
+	arenaSlabPool.Put(slabPtr)
 }
 
 var structKidsSlicePool = sync.Pool{
@@ -288,27 +297,6 @@ func (sm *StructureManager) ensureArenaCapacity(need int) {
 	sm.activateArena(need)
 }
 
-// acquireArenaTD bumps the HFT arena slab for a TD leaf. Inlined hot path
-// for BeginTableRowWithTDMCIDs to avoid function-call overhead per cell.
-func (sm *StructureManager) acquireArenaTD() *StructElem {
-	slab := *sm.arenaSlab
-	if sm.arenaNext >= cap(slab) || sm.arenaNext >= maxArenaSlabEntries {
-		return sm.acquireStructElem()
-	}
-	if sm.arenaNext >= len(slab) {
-		*sm.arenaSlab = slab[:sm.arenaNext+1]
-		slab = *sm.arenaSlab
-	}
-	e := &slab[sm.arenaNext]
-	sm.arenaNext++
-	e.ObjectID = 0
-	e.Title = ""
-	e.Alt = ""
-	e.PageID = 0
-	e.Kids = nil
-	return e
-}
-
 func (sm *StructureManager) acquireStructElem() *StructElem {
 	if !sm.Enabled {
 		return &StructElem{}
@@ -331,6 +319,7 @@ func (sm *StructureManager) acquireStructElem() *StructElem {
 			e.AnnotObjID = 0
 			e.PageID = 0
 			e.Parent = nil
+			e.tdLeafFast = false
 			return e
 		}
 		if sm.arenaNext >= len(slab) {
@@ -345,6 +334,7 @@ func (sm *StructureManager) acquireStructElem() *StructElem {
 		e.Alt = ""
 		e.PageID = 0
 		e.Kids = nil
+		e.tdLeafFast = false
 		return e
 	}
 	v := structElemPool.Get()
@@ -362,6 +352,7 @@ func (sm *StructureManager) acquireStructElem() *StructElem {
 	e.AnnotObjID = 0
 	e.PageID = 0
 	e.Parent = nil
+	e.tdLeafFast = false
 	return e
 }
 
@@ -600,6 +591,7 @@ func (sm *StructureManager) beginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	// 5. Add KID for MCID
 	elem.MCID = mcid
 	elem.HasMCID = true
+	elem.tdLeafFast = (tag == StructTD || tag == StructTH) && elem.Title == "" && elem.Alt == ""
 
 	// Write BDC operator directly to bytes.Buffer
 	var intBuf [12]byte
@@ -678,26 +670,40 @@ func (sm *StructureManager) BeginTableRowWithTDMCIDs(pageIndex, startMCID, count
 	// Pre-size tr.Kids so the per-cell append does not grow the backing slice.
 	sm.BeginStructureElementCap(StructTR, count)
 	tr := sm.CurrentParent
-	useArena := sm.arenaSlab != nil
-	if useArena {
-		need := sm.arenaNext + count
-		slab := *sm.arenaSlab
-		if need > len(slab) && need <= cap(slab) {
-			*sm.arenaSlab = slab[:need]
+	slabPtr := sm.arenaSlab
+	if slabPtr != nil {
+		base := sm.arenaNext
+		need := base + count
+		slab := *slabPtr
+		if need <= cap(slab) && base < maxArenaSlabEntries {
+			if need > len(slab) {
+				*slabPtr = slab[:need]
+				slab = *slabPtr
+			}
+			sm.arenaNext = need
+			for i := range count {
+				td := &slab[base+i]
+				td.Type = StructTD
+				td.Parent = tr
+				td.PageID = pageIndex
+				td.MCID = startMCID + i
+				td.HasMCID = true
+				td.tdLeafFast = true
+				tr.Kids = append(tr.Kids, StructKid{Elem: td})
+				sm.Elements = append(sm.Elements, td)
+			}
+			sm.appendParentTreeRefs(pageIndex, tr, count)
+			return
 		}
 	}
 	for i := range count {
-		var td *StructElem
-		if useArena {
-			td = sm.acquireArenaTD()
-		} else {
-			td = sm.acquireStructElem()
-		}
+		td := sm.acquireStructElem()
 		td.Type = StructTD
 		td.Parent = tr
 		td.PageID = pageIndex
 		td.MCID = startMCID + i
 		td.HasMCID = true
+		td.tdLeafFast = true
 		tr.Kids = append(tr.Kids, StructKid{Elem: td})
 		sm.Elements = append(sm.Elements, td)
 	}

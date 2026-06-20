@@ -1925,14 +1925,26 @@ endobj
 1000 0 obj
 << /Type /Font /Subtype /Type0 /BaseFont /SUBSET+LiberationSans /Encoding /Identity-H /DescendantFonts [1001 0 R] /ToUnicode 1005 0 R >>
 endobj
+2011 0 obj
+<< /Type /Outlines /First 2003 0 R /Last 2003 0 R /Count 1 >>
+endobj
+2007 0 obj
+<< /Title (Trade Details \(2,000 Trades\)) /Parent 2003 0 R /Dest (_bm_2) /Prev 2005 0 R /Next 2009 0 R >>
+endobj
 2000 0 obj
 << /Type /Annot /Subtype /Link /Rect [72 705 184.75 730] /Border [0 0 0] /H /I /F 4 /StructParent 1000 /Dest (hft-client-info) >>
+endobj
+2001 0 obj
+<< /Type /Annot /Subtype /Link /Rect [184.75 705 297.5 730] /Border [0 0 0] /H /I /F 4 /StructParent 1001 /Dest (hft-trades) >>
 endobj
 2002 0 obj
 << /Type /Annot /Subtype /Link /Rect [297.5 705 410.25 730] /Border [0 0 0] /H /I /F 4 /StructParent 1002 /Dest (hft-compliance) >>
 endobj
-2011 0 obj
-<< /Type /Outlines /First 2003 0 R /Last 2003 0 R /Count 1 >>
+2003 0 obj
+<< /Title (HFT Contract Note - Algo Capital LLP) /Parent 2011 0 R /Dest (_bm_0) /First 2005 0 R /Last 2009 0 R /Count -3 >>
+endobj
+2005 0 obj
+<< /Title (Client Information) /Parent 2003 0 R /Dest (_bm_1) /Next 2007 0 R >>
 endobj
 2009 0 obj
 << /Title (Compliance Audit) /Parent 2003 0 R /Dest (_bm_3) /Prev 2007 0 R >>
@@ -1942,18 +1954,6 @@ endobj
 endobj
 2013 0 obj
 << /Dests 2012 0 R >>
-endobj
-2001 0 obj
-<< /Type /Annot /Subtype /Link /Rect [184.75 705 297.5 730] /Border [0 0 0] /H /I /F 4 /StructParent 1001 /Dest (hft-trades) >>
-endobj
-2003 0 obj
-<< /Title (HFT Contract Note - Algo Capital LLP) /Parent 2011 0 R /Dest (_bm_0) /First 2005 0 R /Last 2009 0 R /Count -3 >>
-endobj
-2005 0 obj
-<< /Title (Client Information) /Parent 2003 0 R /Dest (_bm_1) /Next 2007 0 R >>
-endobj
-2007 0 obj
-<< /Title (Trade Details \(2,000 Trades\)) /Parent 2003 0 R /Dest (_bm_2) /Prev 2005 0 R /Next 2009 0 R >>
 endobj
 2014 0 obj
 << /Type /Metadata /Subtype /XML /Length 4913 >>
@@ -1999,9 +1999,9 @@ stream
       <pdfuaid:rev>2024</pdfuaid:rev>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/">
-      <xmp:CreateDate>2026-06-20T09:59:13Z</xmp:CreateDate>
-      <xmp:ModifyDate>2026-06-20T09:59:13Z</xmp:ModifyDate>
-      <xmp:MetadataDate>2026-06-20T09:59:13Z</xmp:MetadataDate>
+      <xmp:CreateDate>2026-06-20T10:15:56Z</xmp:CreateDate>
+      <xmp:ModifyDate>2026-06-20T10:15:56Z</xmp:ModifyDate>
+      <xmp:MetadataDate>2026-06-20T10:15:56Z</xmp:MetadataDate>
       <xmp:CreatorTool>GoPDFSuit</xmp:CreatorTool>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -2016,8 +2016,8 @@ stream
       <pdf:Producer>GoPDFSuit</pdf:Producer>
     </rdf:Description>
     <rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/">
-      <xmpMM:DocumentID>uuid:18bac1ad921c93a5</xmpMM:DocumentID>
-      <xmpMM:InstanceID>uuid:18bac1ad921c93a5</xmpMM:InstanceID>
+      <xmpMM:DocumentID>uuid:18bac29706db41f8</xmpMM:DocumentID>
+      <xmpMM:InstanceID>uuid:18bac29706db41f8</xmpMM:InstanceID>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>
@@ -50384,20 +50384,20 @@ xref
 0000339784 00000 n 
 0000321327 00000 n 
 2000 19
-0000340524 00000 n 
-0000341643 00000 n 
-0000340672 00000 n 
-0000341789 00000 n 
+0000340729 00000 n 
+0000340877 00000 n 
+0000341023 00000 n 
+0000341173 00000 n 
 0001966739 00000 n 
-0000341931 00000 n 
+0000341315 00000 n 
 0001966854 00000 n 
-0000342029 00000 n 
+0000340604 00000 n 
 0001966951 00000 n 
-0000340902 00000 n 
+0000341413 00000 n 
 0001967060 00000 n 
-0000340822 00000 n 
-0000340998 00000 n 
-0000341603 00000 n 
+0000340524 00000 n 
+0000341509 00000 n 
+0000342114 00000 n 
 0000342154 00000 n 
 0000352358 00000 n 
 0000347152 00000 n 
@@ -66457,7 +66457,7 @@ xref
 0000352464 00000 n 
 0000352286 00000 n 
 trailer
-<< /Size 18073 /Root 1 0 R /ID [<0454e5dbabe30f4d9dd7fedf01e2d761> <899085f7f56bb2aa2a39cff9152f771d>] >>
+<< /Size 18073 /Root 1 0 R /ID [<12650a8eb033400dfdf26d7bada9d255> <9304ada1b1f2e80d4945e4860dfe00f2>] >>
 startxref
 1967155
 %%EOF
