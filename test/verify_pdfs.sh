@@ -2,8 +2,9 @@
 # veraPDF validity, optional PDF/A compliance, and PDF size variance checks.
 #
 # Usage:
-#   ./test/verify_pdfs.sh              # post-test validation (make test)
-#   ./test/verify_pdfs.sh --scan-all   # scan every PDF under sampledata/
+#   ./test/verify_pdfs.sh                      # post-test validation (make test)
+#   ./test/verify_pdfs.sh --scan-all             # scan every PDF under sampledata/
+#   ./test/verify_pdfs.sh --scan-all-compliance  # scan-all + PDF/A-4 and PDF/UA-2 table
 #
 # Environment:
 #   VERIFY_PDFS_JOBS  Max parallel veraPDF workers (default: nproc or 4)
@@ -19,6 +20,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SAMPLEDATA="${REPO_ROOT}/sampledata"
 VERAPDF="${VERAPDF_BIN:-${REPO_ROOT}/verapdf/verapdf}"
+VERAPDF_REPORT="${REPO_ROOT}/test/verapdf_report.py"
 PARALLEL_JOBS="${VERIFY_PDFS_JOBS:-$(
     if command -v nproc >/dev/null 2>&1; then
         nproc
@@ -32,6 +34,43 @@ if [[ ! -x "${VERAPDF}" ]]; then
     echo "Install with: make install-verapdf" >&2
     exit 1
 fi
+
+if [[ ! -f "${VERAPDF_REPORT}" ]]; then
+    echo "veraPDF report helper not found at ${VERAPDF_REPORT}" >&2
+    exit 1
+fi
+
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+    COLOR_RESET=$'\033[0m'
+    COLOR_BOLD=$'\033[1m'
+    COLOR_GREEN=$'\033[32m'
+    COLOR_RED=$'\033[31m'
+    COLOR_YELLOW=$'\033[33m'
+    COLOR_CYAN=$'\033[36m'
+else
+    COLOR_RESET=""
+    COLOR_BOLD=""
+    COLOR_GREEN=""
+    COLOR_RED=""
+    COLOR_YELLOW=""
+    COLOR_CYAN=""
+fi
+
+print_pass() {
+    printf '%bPASS%b %s\n' "${COLOR_GREEN}" "${COLOR_RESET}" "$*"
+}
+
+print_fail() {
+    printf '%bFAIL%b %s\n' "${COLOR_RED}${COLOR_BOLD}" "${COLOR_RESET}" "$*"
+}
+
+print_info() {
+    printf '%bINFO%b %s\n' "${COLOR_CYAN}" "${COLOR_RESET}" "$*"
+}
+
+print_skip() {
+    printf '%bSKIP%b %s\n' "${COLOR_YELLOW}" "${COLOR_RESET}" "$*"
+}
 
 human_size() {
     local bytes="$1"
@@ -129,27 +168,47 @@ check_valid_file() {
 
 check_verapdf_compliance() {
     local pdf="$1"
-    shift
+    local json_dir="$2"
+    shift 2
     local flavours=("$@")
 
     local ok=true
     local details=()
+    local json_files=()
+
+    mkdir -p "${json_dir}"
 
     for flavour in "${flavours[@]}"; do
+        local json_out="${json_dir}/$(basename "${pdf}")_${flavour}.json"
         local output
-        if output="$("${VERAPDF}" -f "${flavour}" --format text --loglevel 0 "${pdf}" 2>&1)"; then
+        local exit_code=0
+        output="$(
+            python3 "${VERAPDF_REPORT}" check \
+                --verapdf "${VERAPDF}" \
+                --pdf "${pdf}" \
+                --flavour "${flavour}" \
+                --json-out "${json_out}" \
+                --sampledata "${SAMPLEDATA}/" \
+                2>&1
+        )" || exit_code=$?
+
+        json_files+=("${json_out}")
+        if [[ -n "${output}" ]]; then
+            printf '%s\n' "${output}" >&2
+        fi
+
+        if ((exit_code == 0)); then
             details+=("PASS ${flavour}")
         else
             ok=false
-            local msg="${output//$'\n'/; }"
-            details+=("FAIL ${flavour}: ${msg}")
+            details+=("FAIL ${flavour}")
         fi
     done
 
     if [[ "${ok}" == true ]]; then
-        echo "compliant|$(IFS='; '; echo "${details[*]}")"
+        echo "compliant|$(IFS='; '; echo "${details[*]}")|$(IFS=','; echo "${json_files[*]}")"
     else
-        echo "not compliant|$(IFS='; '; echo "${details[*]}")"
+        echo "not compliant|$(IFS='; '; echo "${details[*]}")|$(IFS=','; echo "${json_files[*]}")"
     fi
 }
 
@@ -286,6 +345,7 @@ build_post_test_manifest() {
 
 verify_manifest_entry() {
     local entry="$1"
+    local json_dir="$2"
     local failures=0
 
     IFS='|' read -r generated_rel baseline_rel tolerance flavours_csv media <<< "${entry}"
@@ -293,10 +353,10 @@ verify_manifest_entry() {
     local generated="${SAMPLEDATA}/${generated_rel}"
 
     echo ""
-    echo "==> ${generated_rel}"
+    printf '%b==> %s%b\n' "${COLOR_BOLD}" "${generated_rel}" "${COLOR_RESET}"
 
     if [[ ! -f "${generated}" ]]; then
-        echo "SKIP ${generated_rel}: output not found (test may have been skipped)"
+        print_skip "${generated_rel}: output not found (test may have been skipped)"
         return 0
     fi
 
@@ -305,9 +365,9 @@ verify_manifest_entry() {
     validity_status="${validity_result%%|*}"
     validity_details="${validity_result#*|}"
     if [[ "${validity_status}" == "valid" ]]; then
-        echo "PASS valid ${media}: ${validity_details}"
+        print_pass "valid ${media}: ${validity_details}"
     else
-        echo "FAIL valid ${media}: ${validity_details}"
+        print_fail "valid ${media}: ${validity_details}"
         ((failures++)) || true
     fi
 
@@ -315,20 +375,20 @@ verify_manifest_entry() {
         if [[ "${tolerance}" == "skip" ]]; then
             local gen_size
             gen_size=$(stat -c '%s' "${generated}")
-            echo "INFO size: ${gen_size} bytes (baseline ${baseline_rel} present — size check skipped; live HTML output)"
+            print_info "size: ${gen_size} bytes (baseline ${baseline_rel} present — size check skipped; live HTML output)"
         else
             local baseline="${SAMPLEDATA}/${baseline_rel}"
             if [[ ! -f "${baseline}" ]]; then
-                echo "FAIL size: baseline ${baseline_rel} not found"
+                print_fail "size: baseline ${baseline_rel} not found"
                 ((failures++)) || true
             else
                 local size_result size_status gen_size base_size diff
                 size_result=$(size_within_tolerance "${generated}" "${baseline}" "${tolerance}")
                 IFS='|' read -r size_status gen_size base_size diff <<< "${size_result}"
                 if [[ "${size_status}" == "ok" ]]; then
-                    echo "PASS size: ${gen_size} bytes (baseline ${base_size}, diff ${diff}, tolerance ${tolerance})"
+                    print_pass "size: ${gen_size} bytes (baseline ${base_size}, diff ${diff}, tolerance ${tolerance})"
                 else
-                    echo "FAIL size: ${gen_size} bytes vs baseline ${base_size} (diff ${diff} > tolerance ${tolerance})"
+                    print_fail "size: ${gen_size} bytes vs baseline ${base_size} (diff ${diff} > tolerance ${tolerance})"
                     ((failures++)) || true
                 fi
             fi
@@ -336,20 +396,25 @@ verify_manifest_entry() {
     else
         local gen_size
         gen_size=$(stat -c '%s' "${generated}")
-        echo "INFO size: ${gen_size} bytes (no baseline — size variance check skipped)"
+        print_info "size: ${gen_size} bytes (no baseline — size variance check skipped)"
     fi
 
     if [[ -n "${flavours_csv}" && "${media}" == "pdf" ]]; then
         IFS=',' read -ra flavours <<< "${flavours_csv}"
-        local compliance_result status details
-        compliance_result=$(check_verapdf_compliance "${generated}" "${flavours[@]}")
+        local compliance_result status details json_list
+        compliance_result=$(check_verapdf_compliance "${generated}" "${json_dir}" "${flavours[@]}")
         status="${compliance_result%%|*}"
         details="${compliance_result#*|}"
+        json_list="${details##*|}"
+        details="${details%%|*}"
         if [[ "${status}" == "compliant" ]]; then
-            echo "PASS compliance: ${details}"
+            print_pass "compliance: ${details}"
         else
-            echo "FAIL compliance: ${details}"
+            print_fail "compliance: ${details}"
             ((failures++)) || true
+        fi
+        if [[ -n "${json_list}" ]]; then
+            printf 'COMPLIANCE_JSON:%s\n' "${json_list}"
         fi
     fi
 
@@ -393,12 +458,13 @@ post_test() {
 
     local idx=0
     local running=0
+    local -a compliance_json_files=()
 
     for entry in "${POST_TEST_MANIFEST[@]}"; do
         wait_for_slot running "${PARALLEL_JOBS}"
         (
             set +e
-            verify_manifest_entry "${entry}" > "${tmpdir}/${idx}.log"
+            verify_manifest_entry "${entry}" "${tmpdir}/compliance" > "${tmpdir}/${idx}.log" 2>&1
             echo $? > "${tmpdir}/${idx}.rc"
         ) &
         ((running++)) || true
@@ -413,20 +479,70 @@ post_test() {
     local failures=0
     local i
     for ((i = 0; i < idx; i++)); do
-        cat "${tmpdir}/${i}.log"
+        while IFS= read -r line; do
+            if [[ "${line}" == COMPLIANCE_JSON:* ]]; then
+                local json_list="${line#COMPLIANCE_JSON:}"
+                local json_path
+                IFS=',' read -ra json_paths <<< "${json_list}"
+                for json_path in "${json_paths[@]}"; do
+                    if [[ -f "${json_path}" ]]; then
+                        compliance_json_files+=("${json_path}")
+                    fi
+                done
+                continue
+            fi
+            printf '%s\n' "${line}"
+        done < "${tmpdir}/${i}.log"
         failures=$((failures + $(cat "${tmpdir}/${i}.rc")))
     done
 
+    if ((${#compliance_json_files[@]} > 0)); then
+        python3 "${VERAPDF_REPORT}" table --sampledata "${SAMPLEDATA}/" "${compliance_json_files[@]}"
+    fi
+
     echo ""
     if ((failures > 0)); then
-        echo "Post-test PDF validation failed (${failures} issue(s))"
+        print_fail "Post-test PDF validation failed (${failures} issue(s))"
         exit 1
     fi
-    echo "Post-test PDF validation passed"
+    print_pass "Post-test PDF validation passed"
+}
+
+scan_one_pdf_compliance() {
+    local pdf="$1"
+    local json_dir="$2"
+    local rel="${pdf#${SAMPLEDATA}/}"
+    local -a json_files=()
+    local flavours=("4" "ua2")
+    local flavour
+
+    mkdir -p "${json_dir}"
+
+    for flavour in "${flavours[@]}"; do
+        local json_out="${json_dir}/$(basename "${pdf}")_${flavour}.json"
+        python3 "${VERAPDF_REPORT}" check \
+            --verapdf "${VERAPDF}" \
+            --pdf "${pdf}" \
+            --flavour "${flavour}" \
+            --json-out "${json_out}" \
+            --sampledata "${SAMPLEDATA}/" \
+            >/dev/null 2>&1 || true
+        json_files+=("${json_out}")
+    done
+
+    printf 'COMPLIANCE_JSON:%s\n' "$(IFS=','; echo "${json_files[*]}")"
 }
 
 scan_all() {
+    local with_compliance=false
+    if [[ "${1:-}" == "--compliance" ]]; then
+        with_compliance=true
+    fi
+
     echo "Scanning PDFs under ${SAMPLEDATA} with veraPDF parse check (${PARALLEL_JOBS} workers)..."
+    if [[ "${with_compliance}" == true ]]; then
+        echo "Also checking PDF/A-4 and PDF/UA-2 compliance for each PDF."
+    fi
     echo ""
     printf "| PDF | Size | Valid | Details |\n"
     printf "|-----|------|-------|----------|\n"
@@ -443,6 +559,7 @@ scan_all() {
     local total=${#pdfs[@]}
     local idx=0
     local running=0
+    local -a compliance_json_files=()
 
     for pdf in "${pdfs[@]}"; do
         wait_for_slot running "${PARALLEL_JOBS}"
@@ -450,6 +567,9 @@ scan_all() {
             set +e
             scan_one_pdf "${pdf}" > "${tmpdir}/${idx}.row"
             echo $? > "${tmpdir}/${idx}.status"
+            if [[ "${with_compliance}" == true ]]; then
+                scan_one_pdf_compliance "${pdf}" "${tmpdir}/compliance" > "${tmpdir}/${idx}.compliance"
+            fi
         ) &
         ((running++)) || true
         ((idx++)) || true
@@ -469,9 +589,27 @@ scan_all() {
         else
             ((invalid++)) || true
         fi
+        if [[ "${with_compliance}" == true && -f "${tmpdir}/${i}.compliance" ]]; then
+            while IFS= read -r line; do
+                if [[ "${line}" == COMPLIANCE_JSON:* ]]; then
+                    local json_list="${line#COMPLIANCE_JSON:}"
+                    local json_path
+                    IFS=',' read -ra json_paths <<< "${json_list}"
+                    for json_path in "${json_paths[@]}"; do
+                        if [[ -f "${json_path}" ]]; then
+                            compliance_json_files+=("${json_path}")
+                        fi
+                    done
+                fi
+            done < "${tmpdir}/${i}.compliance"
+        fi
     done
 
     echo ""
+    if [[ "${with_compliance}" == true && ${#compliance_json_files[@]} -gt 0 ]]; then
+        python3 "${VERAPDF_REPORT}" table --sampledata "${SAMPLEDATA}/" "${compliance_json_files[@]}"
+        echo ""
+    fi
     echo "Summary: ${total} PDFs — ${valid} valid, ${invalid} invalid"
 }
 
@@ -479,9 +617,12 @@ case "${1:-}" in
     --scan-all)
         scan_all
         ;;
+    --scan-all-compliance)
+        scan_all --compliance
+        ;;
     --help|-h)
-        echo "Usage: $0 [--scan-all]"
-        echo "Environment: VERIFY_PDFS_JOBS, VERAPDF_BIN"
+        echo "Usage: $0 [--scan-all | --scan-all-compliance]"
+        echo "Environment: VERIFY_PDFS_JOBS, VERAPDF_BIN, NO_COLOR=1"
         ;;
     *)
         post_test

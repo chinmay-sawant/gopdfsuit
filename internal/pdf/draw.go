@@ -20,6 +20,28 @@ const (
 	alignRight  = "right"
 )
 
+// cellTextX computes the X origin for text inside a cell, clamping so glyphs
+// never start left of the cell origin when centering overestimates width.
+func cellTextX(cellX, cellWidth, textWidth float64, alignment string) float64 {
+	const pad = 5.0
+	switch alignment {
+	case alignCenter:
+		offset := (cellWidth - textWidth) / 2
+		if offset < 0 {
+			offset = 0
+		}
+		return cellX + offset
+	case alignRight:
+		offset := cellWidth - textWidth - pad
+		if offset < 0 {
+			offset = 0
+		}
+		return cellX + offset
+	default:
+		return cellX + pad
+	}
+}
+
 // fmtNum formats a float with 2 decimal places (standard PDF precision)
 func fmtNum(f float64) string {
 	var buf [24]byte
@@ -749,11 +771,9 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	var titleX float64
 	switch titleProps.Alignment {
 	case alignCenter:
-		// Center the text within the available area (between margins)
-		titleX = pageManager.Margins.Left + (availableWidth-textWidth)/2
+		titleX = cellTextX(pageManager.Margins.Left, availableWidth, textWidth, alignCenter)
 	case alignRight:
-		// Right align: position text so it ends at the right margin
-		titleX = pageManager.PageDimensions.Width - pageManager.Margins.Right - textWidth
+		titleX = cellTextX(pageManager.Margins.Left, availableWidth, textWidth, alignRight)
 	default:
 		titleX = pageManager.Margins.Left
 	}
@@ -1060,15 +1080,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				resolvedName := resolveFontName(cellProps, pageManager.FontRegistry)
 				textWidth := EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 
-				var textX float64
-				switch cellProps.Alignment {
-				case alignCenter:
-					textX = cellX + (cellWidth-textWidth)/2
-				case alignRight:
-					textX = cellX + cellWidth - textWidth - 5
-				default:
-					textX = cellX + 5
-				}
+				textX := cellTextX(cellX, cellWidth, textWidth, cellProps.Alignment)
 
 				textY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
 

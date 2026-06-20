@@ -504,6 +504,31 @@ func GetFontMetrics(fontName string) FontMetrics {
 	}
 }
 
+// StandardTextWidth returns the width of text in points for a standard Type 1 font
+// at the given size, using Adobe WinAnsi glyph metrics.
+func StandardTextWidth(fontName, text string, fontSize float64) float64 {
+	metrics := GetFontMetrics(fontName)
+	widths := metrics.Widths
+	if len(widths) == 0 || fontSize <= 0 {
+		return 0
+	}
+	first := metrics.FirstChar
+	last := metrics.LastChar
+	var total float64
+	for _, r := range text {
+		if r < 32 {
+			continue
+		}
+		idx := int(r) - first
+		if idx < 0 || idx >= len(widths) || int(r) > last {
+			total += 600 // missing-glyph fallback (font units)
+			continue
+		}
+		total += float64(widths[idx])
+	}
+	return total / 1000.0 * fontSize
+}
+
 // GenerateFontObject creates a complete PDF 2.0 compliant font object
 // Returns the font object string and the FontDescriptor object ID used
 func GenerateFontObject(fontName string, fontObjectID, fontDescriptorID, widthsArrayID int) string {

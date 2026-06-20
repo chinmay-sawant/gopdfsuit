@@ -34,6 +34,9 @@ test-verify-pdfs:
 test-scan-pdfs:
 	bash test/verify_pdfs.sh --scan-all
 
+test-scan-pdfs-compliance:
+	bash test/verify_pdfs.sh --scan-all-compliance
+
 test-integration: test
 	go test -count=1 -v ./test
 
@@ -109,7 +112,7 @@ K6_LIGHT_SECONDS ?= 15
 K6_LIGHT_MAX_CONCURRENT ?= 24
 K6_LIGHT_GOMAXPROCS ?= 12
 
-.PHONY: build test install-verapdf test-verify-pdfs test-scan-pdfs clean run fmt vet mod lint \
+.PHONY: build test install-verapdf test-verify-pdfs test-scan-pdfs test-scan-pdfs-compliance clean run fmt vet mod lint \
 	load-pprof load-pprof-gate load-pprof-1k load-pprof-1500 \
 	bench-help bench-setup \
 	bench-k6 bench-k6-light bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \
