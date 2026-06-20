@@ -16,15 +16,16 @@
 
 ## ⚡ Performance & Efficiency
 
-**92% Cost Reduction** vs traditional distributed architectures. All benchmarks below run with **PDF/A-4 (PDF 2.0)** compliance enabled - no shortcuts.
+Zerodha gold-standard workload (5000 iterations, 48 workers, 80% retail · 15% active · 5% HFT), measured with x10 sequential runs on WSL2 (Intel i7-13700HX, Go 1.26.4, June 2026). See [guides/BENCHMARKS.md](guides/BENCHMARKS.md) for full suite.
 
-| Metric               | Industry Standard (Typst/LaTeX) | gopdfsuit (Go 1.26)             |
-| :------------------- | :------------------------------ | :------------------------------ |
-| **Infrastructure**   | ~40 Node Cluster                | **2 Nodes** (95% Less)          |
-| **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
-| **Throughput**       | ~1k PDFs/sec (Cluster)          | **peak 2,953 / avg 2,646 PDFs/sec** (gopdflib Zerodha, 48 workers, 30-run, 2026-06-14) |
+| Harness | PDF/A | PDF/UA | x10 peak | x10 mean | x10 median | Avg latency | Peak alloc |
+| :------ | :---- | :----- | -------: | -------: | ---------: | :---------- | :--------- |
+| **`bench-gopdflib-zerodha`** (compliant) | PDF/A-4 | PDF/UA-2 | **10,005 ops/s** | **9,594 ops/s** | **9,681 ops/s** | 4.88 ms | 1,107 MB |
+| **`bench-gopdflib-zerodha-nocomply`** | PDF 2.0 (no PDF/A) | None | **26,111 ops/s** | **21,564 ops/s** | **21,621 ops/s** | 2.19 ms | 643 MB |
 
-> **Result**: Generates 1.5 million financial PDFs in **~9.4 minutes** at 30-run avg throughput (**~8.5 min** at peak) on a single machine (Intel i7-13700HX, 24 cores, Go 1.26.4). Historical best (idle machine, Jun 13): peak **3,604** / avg **2,787** ops/s.
+**Compliant** runs enable PDF/A-4, PDF/UA-2, Arlington-compatible tagging, ECDSA P-256 signing, and font embedding (HFT output **2.29 MB**, veraPDF 6/6 PASS). **Non-compliant** still outputs **PDF 2.0** but turns PDF/A, tagging, signing, and font embedding off for a throughput ceiling reference (HFT output **227 KB**).
+
+> **Headline:** Full compliance delivers **~10,000 ops/s** peak on one machine — **+278%** vs the June 2026 baseline (2,646 ops/s) — while the same workload without compliance reaches **~26,000 ops/s** peak (~2.6× faster).
 
 ---
 

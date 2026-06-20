@@ -48,7 +48,7 @@ Primary end-to-end benchmark in **sampledata/gopdflib/zerodha** — **5000 itera
 
 ## Zerodha Gold Standard — Non-Compliant (5000×48)
 
-Same 80/15/5 workload with PDF/A, tagging, signing, and font embedding disabled (\`make bench-gopdflib-zerodha-nocomply-x10\`). HFT output shrinks to **227 KB** (vs **2.3 MB** compliant).
+Same 80/15/5 workload outputs **PDF 2.0** with PDF/A, tagging, signing, and font embedding disabled (\`make bench-gopdflib-zerodha-nocomply-x10\`). HFT output shrinks to **227 KB** (vs **2.3 MB** compliant).
 
 | Metric | x10 peak | x10 mean |
 | --- | ---: | ---: |
@@ -61,7 +61,7 @@ Same 80/15/5 workload with PDF/A, tagging, signing, and font embedding disabled 
 | Runtime | Harness | Workers | Best Throughput | Avg Latency | PDF/A | PDF/UA |
 | --- | --- | ---: | ---: | ---: | --- | --- |
 | **GoPDFLib** | Weighted 80/15/5 (compliant) | 48 | **10,005 ops/sec** | **4.624 ms** | PDF/A-4 | PDF/UA-2 |
-| **GoPDFLib** | Weighted 80/15/5 (nocomply) | 48 | **26,111 ops/sec** | **1.771 ms** | PDF 1.7 | None |
+| **GoPDFLib** | Weighted 80/15/5 (nocomply) | 48 | **26,111 ops/sec** | **1.771 ms** | PDF 2.0 (no PDF/A) | None |
 | **GoPDFSuit** | Retail only | 48 | **6,146 ops/sec** | **6.29 ms** | PDF/A-4 | PDF/UA-2 |
 | **pypdfsuit** | Weighted 80/15/5 | 48 | 235 ops/sec | 169.07 ms | PDF/A-4 | PDF/UA-2 |
 

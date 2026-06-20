@@ -19,7 +19,7 @@ Maximum supported standards per engine (used in all tables below):
 | **pypdfsuit** (CGO) | **PDF/A-4** | **PDF/UA-2** | Same native stack via bindings |
 | **k6** (`tagged_ecdsa`) | **PDF/A-4** | **PDF/UA-2** | Weighted 80/15/5 + ECDSA P-256 signing |
 | **k6-retail** | **PDF/A-4** | **PDF/UA-2** | Retail-only signed fast path |
-| **bench-gopdflib-zerodha-nocomply** | PDF 1.7 | None | Same Zerodha workload; PDF/A, tagging, signing, fonts off |
+| **bench-gopdflib-zerodha-nocomply** | PDF 2.0 (no PDF/A) | None | Same Zerodha workload; PDF/A, tagging, signing, fonts off |
 | **gopdfkit_compare GoPDFLib** | PDF 1.7 | None | Compare template omits PDF/A flags (apples-to-apples speed) |
 | **gopdfkit_compare GoPDFKit** | PDF 1.7 | None | External library baseline |
 | **Handler** (`financial_report.json`) | PDF 1.7 | Arlington tags | `pdfaCompliant: false` in fixture JSON |
@@ -43,7 +43,7 @@ Prior report: [BENCHMARK_COMPARISON_2026-06-15.md](./BENCHMARK_COMPARISON_2026-0
 | Category | Benchmark | PDF/A | PDF/UA | Baseline | **Best-of-5** | Delta |
 |----------|-----------|-------|--------|----------|--------------:|------:|
 | Zerodha weighted (ECDSA) | `bench-gopdflib-zerodha` | PDF/A-4 | PDF/UA-2 | 2,646 ops/s | **10,005 ops/s** (x10 peak) | +278% |
-| Zerodha weighted (no compliance) | `bench-gopdflib-zerodha-nocomply` | PDF 1.7 | None | — | **26,111 ops/s** (x10 peak) | — |
+| Zerodha weighted (no compliance) | `bench-gopdflib-zerodha-nocomply` | PDF 2.0 (no PDF/A) | None | — | **26,111 ops/s** (x10 peak) | — |
 | Zerodha retail | `bench-gopdfsuit-zerodha` | PDF/A-4 | PDF/UA-2 | 1,978 ops/s | **6,146 ops/s** | +211% |
 | Data table (2000 rows) | `bench-gopdflib-data` | PDF/A-4 | PDF/UA-2 | 189 ops/s | **288 ops/s** | +52% |
 | HTTP weighted (48 VU x 35s) | `bench-k6` | PDF/A-4 | PDF/UA-2 | 910 req/s | **1,333 req/s** | +46% |
@@ -67,7 +67,7 @@ Method: 5 runs each, **best throughput** reported.
 |--------|---------|-------|--------|--------:|----------------:|---------:|------:|
 | **GoPDFLib** | Data table | PDF/A-4 | PDF/UA-2 | 48 | **288 ops/s** | 189 | +52% |
 | **GoPDFLib** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **10,005 ops/s** (x10 peak) | 2,646 | +278% |
-| **GoPDFLib** | Zerodha weighted (nocomply) | PDF 1.7 | None | 48 | **26,111 ops/s** (x10 peak) | — | — |
+| **GoPDFLib** | Zerodha weighted (nocomply) | PDF 2.0 (no PDF/A) | None | 48 | **26,111 ops/s** (x10 peak) | — | — |
 | **GoPDFSuit** | Zerodha retail | PDF/A-4 | PDF/UA-2 | 48 | **6,146 ops/s** | 1,978 | +211% |
 | **pypdfsuit** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **235 ops/s** | 223 | +5% |
 | **pypdfsuit** | Zerodha retail (`bench.py`)* | PDF/A-4 | PDF/UA-2 | 10 | **293 ops/s** | - | - |
@@ -158,9 +158,9 @@ Stats: [compliant](./cursor/baselines/zerodha_bench_x10_wsl_stats_latest.txt), [
 | Harness | PDF/A | PDF/UA | x10 peak | x10 mean | x10 median | Mean avg latency | Mean peak alloc |
 |---------|-------|--------|----------:|---------:|-----------:|-----------------:|----------------:|
 | `bench-gopdflib-zerodha` | PDF/A-4 | PDF/UA-2 | **10,005** | **9,594** | **9,681** | 4.877 ms | 1,107 MB |
-| `bench-gopdflib-zerodha-nocomply` | PDF 1.7 | None | **26,111** | **21,564** | **21,621** | 2.194 ms | 643 MB |
+| `bench-gopdflib-zerodha-nocomply` | PDF 2.0 (no PDF/A) | None | **26,111** | **21,564** | **21,621** | 2.194 ms | 643 MB |
 
-Compliant HFT output: **2,291,950 bytes** (veraPDF 6/6 PASS). Non-compliant HFT output: **226,752 bytes** (no PDF/A or tagging).
+Compliant HFT output: **2,291,950 bytes** (veraPDF 6/6 PASS). Non-compliant HFT output: **226,752 bytes** (PDF 2.0 base format; no PDF/A or tagging).
 
 **vs June 2026 baseline (`feat/performance-improvements`):** compliant x10 peak **10,005** / mean **9,594** (Phase 4, idle WSL2) under full PDF/A-4 + PDF/UA-2 + ECDSA signing — **+278% peak** vs the 2,646 ops/s baseline. Run on an idle machine; WSL load can depress x10 mean by 20–30%.
 

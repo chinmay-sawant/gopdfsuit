@@ -1,8 +1,45 @@
+const complianceModes = [
+  {
+    mode: 'Compliant',
+    harness: 'bench-gopdflib-zerodha',
+    pdfa: 'PDF/A-4',
+    pdfua: 'PDF/UA-2',
+    peak: '10,005',
+    mean: '9,594',
+    median: '9,681',
+    latency: '4.88 ms',
+    alloc: '1,107 MB',
+    hftSize: '2.29 MB',
+    hftNote: 'veraPDF 6/6 PASS',
+    enabled: ['ECDSA P-256 signing', 'Tagged PDF / PDF/UA-2', 'Font embedding', 'Arlington-compatible structure'],
+    color: '#10b981',
+    bg: 'rgba(16, 185, 129, 0.08)',
+    border: 'rgba(16, 185, 129, 0.35)',
+  },
+  {
+    mode: 'Non-compliant',
+    harness: 'bench-gopdflib-zerodha-nocomply',
+    pdfa: 'PDF 2.0',
+    pdfua: 'No PDF/A',
+    peak: '26,111',
+    mean: '21,564',
+    median: '21,621',
+    latency: '2.19 ms',
+    alloc: '643 MB',
+    hftSize: '227 KB',
+    hftNote: 'No PDF/A or tagging',
+    enabled: ['PDF 2.0 base format', 'PDF/A off', 'Tagging off', 'Signing off', 'Font embedding off'],
+    color: '#007acc',
+    bg: 'rgba(0, 122, 204, 0.08)',
+    border: 'rgba(0, 122, 204, 0.35)',
+  },
+]
+
 const headlineStats = [
-  { value: '10,005 ops/sec', label: 'Peak GoPDFLib Zerodha (PDF/A-4)', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
-  { value: '9,594 ops/sec', label: 'x10 Mean (PDF/A-4 compliant)', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
-  { value: '26,111 ops/sec', label: 'Peak Zerodha (no compliance)', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-  { value: '288 ops/sec', label: 'Peak Data Table Throughput', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
+  { value: '2.6×', label: 'Non-compliant peak vs compliant (26,111 / 10,005)', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+  { value: '+278%', label: 'Compliant peak vs June 2026 baseline (2,646 → 10,005)', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
+  { value: '48 workers', label: 'Zerodha mix: 80% retail · 15% active · 5% HFT', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
+  { value: '288 ops/sec', label: 'Peak data-table throughput (PDF/A-4 + PDF/UA-2)', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
 ]
 
 const dataBenchmarks = [
@@ -85,12 +122,64 @@ const PerformanceSection = ({ isVisible }) => {
         <div className="performance-header-block">
           <div className="comparison-eyebrow">Benchmarks</div>
           <h2 className="gradient-text section-heading" style={{ animationDelay: '0.4s' }}>
-            Measured Performance
+            Compliant vs Non-Compliant Throughput
           </h2>
           <p className="section-subheading performance-intro">
-            Captured on WSL2 (June 2026) from the Zerodha Gold Standard benchmark: 5000 iterations, 48 workers, 80% Retail / 15% Active / 5% HFT.
-            Headline GoPDFLib throughput is <strong>10,005 ops/sec</strong> (x10 peak) with <strong>9,594 ops/sec</strong> x10 mean (PDF/A-4 + PDF/UA-2). Non-compliant same workload reaches <strong>26,111 ops/sec</strong> (x10 peak). Numbers are aggregate concurrent throughput across 48 workers, not per-core serial throughput.
+            Same Zerodha gold-standard workload (5000 iterations, 48 workers, 80/15/5 mix) measured with{' '}
+            <code>make bench-gopdflib-zerodha-x10</code> (full compliance) and{' '}
+            <code>make bench-gopdflib-zerodha-nocomply-x10</code> (compliance off). WSL2, Intel i7-13700HX, Go 1.26.4 — June 2026 x10 sequential runs.
           </p>
+        </div>
+
+        <div className="compliance-compare-grid">
+          {complianceModes.map((item) => (
+            <article
+              key={item.mode}
+              className="compliance-compare-card"
+              style={{ background: item.bg, borderColor: item.border }}
+            >
+              <div className="compliance-compare-header">
+                <span className="compliance-compare-mode" style={{ color: item.color }}>
+                  {item.mode}
+                </span>
+                <code className="compliance-compare-harness">{item.harness}</code>
+              </div>
+
+              <div className="compliance-compare-badges">
+                <span className="compliance-badge">{item.pdfa}</span>
+                <span className="compliance-badge">{item.pdfua}</span>
+              </div>
+
+              <div className="compliance-compare-metrics">
+                <div>
+                  <div className="compliance-metric-value" style={{ color: item.color }}>
+                    {item.peak}
+                  </div>
+                  <div className="compliance-metric-label">x10 peak ops/sec</div>
+                </div>
+                <div>
+                  <div className="compliance-metric-value">{item.mean}</div>
+                  <div className="compliance-metric-label">x10 mean ops/sec</div>
+                </div>
+                <div>
+                  <div className="compliance-metric-value">{item.median}</div>
+                  <div className="compliance-metric-label">x10 median</div>
+                </div>
+              </div>
+
+              <div className="compliance-compare-details">
+                <div><strong>Avg latency:</strong> {item.latency}</div>
+                <div><strong>Peak alloc:</strong> {item.alloc}</div>
+                <div><strong>HFT output:</strong> {item.hftSize} ({item.hftNote})</div>
+              </div>
+
+              <ul className="compliance-feature-list">
+                {item.enabled.map((feature) => (
+                  <li key={feature}>{feature}</li>
+                ))}
+              </ul>
+            </article>
+          ))}
         </div>
 
         <div className="performance-stats-grid">
