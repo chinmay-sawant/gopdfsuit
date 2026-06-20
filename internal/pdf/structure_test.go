@@ -119,6 +119,7 @@ func TestBeginTableRowWithTDMCIDs_arenaAllocates(t *testing.T) {
 	sm := NewStructureManager(true)
 	sm.BeginStructureElement(StructTable)
 	table := sm.CurrentParent
+	sm.ReserveElementCapacity(arenaActivationThreshold)
 
 	const rows = 4
 	const cols = 7
@@ -152,10 +153,57 @@ func TestBeginTableRowWithTDMCIDs_arenaAllocates(t *testing.T) {
 		t.Fatalf("expected %d TDs total, got %d", rows*cols, totalTDs)
 	}
 
+	if sm.arenaSlab == nil {
+		t.Fatal("expected arena slab to be active for tagged structure manager")
+	}
+	slabBefore := sm.arenaSlab
+
 	sm.ReleaseStructElemsToPool()
 	// Elements slice should be reduced to just the root.
 	if len(sm.Elements) != 1 {
 		t.Fatalf("Elements should be reset to root-only, got %d entries", len(sm.Elements))
+	}
+	if sm.arenaSlab != nil {
+		t.Fatal("arena slab should be returned to pool on release")
+	}
+	if slabBefore == nil || cap(*slabBefore) == 0 {
+		t.Fatal("released slab should retain backing capacity for reuse")
+	}
+}
+
+func TestAssignStructIDsSequential(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	sm.BeginTableRowWithTDMCIDs(0, 0, 3)
+	sm.EndStructureElement()
+	sm.BeginTableRowWithTDMCIDs(0, 3, 3)
+	sm.EndStructureElement()
+
+	startID := 5000
+	nextID := startID
+	for i := 1; i < len(sm.Elements); i++ {
+		elem := sm.Elements[i]
+		if elem == nil || elem.ObjectID != 0 {
+			continue
+		}
+		elem.ObjectID = nextID
+		nextID++
+	}
+
+	want := nextID - startID
+	assigned := 0
+	for i := 1; i < len(sm.Elements); i++ {
+		elem := sm.Elements[i]
+		if elem == nil {
+			continue
+		}
+		if elem.ObjectID < startID {
+			t.Fatalf("elem %d has ObjectID %d before start %d", i, elem.ObjectID, startID)
+		}
+		assigned++
+	}
+	if assigned != want {
+		t.Fatalf("assigned %d elems, expected %d", assigned, want)
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 
 // GenerateBookmarks generates the outline hierarchy for the PDF
 // It returns the object ID of the Outlines dictionary (the root)
-func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffsets map[int]int, pdfBuffer *bytes.Buffer) int {
+func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffsets []int, pdfBuffer *bytes.Buffer) int {
 	if len(bookmarks) == 0 {
 		return 0
 	}
@@ -25,7 +25,7 @@ func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffset
 	// Write Outlines dictionary
 	// Pre-allocate capacity to prevent mid-flight resizing
 	// 64 bytes is plenty for these small PDF lines
-	xrefOffsets[outlinesID] = pdfBuffer.Len()
+	setXrefOffset(&xrefOffsets, outlinesID, pdfBuffer.Len())
 	b := make([]byte, 0, 64)
 	b = strconv.AppendInt(b, int64(outlinesID), 10)
 	b = append(b, " 0 obj\n<< /Type /Outlines"...)
@@ -53,7 +53,7 @@ func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffset
 }
 
 // generateBookmarkItems processes a list of bookmarks and returns (firstID, lastID, totalOpenDescendants)
-func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID int, xrefOffsets map[int]int, pdfBuffer *bytes.Buffer) (int, int, int) {
+func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID int, xrefOffsets []int, pdfBuffer *bytes.Buffer) (int, int, int) {
 	if len(items) == 0 {
 		return 0, 0, 0
 	}
@@ -81,7 +81,7 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 		// Pass currentID as parent for children
 		childFirst, childLast, childCount := pm.generateBookmarkItems(item.Children, currentID, xrefOffsets, pdfBuffer)
 
-		xrefOffsets[currentID] = pdfBuffer.Len()
+		setXrefOffset(&xrefOffsets, currentID, pdfBuffer.Len())
 
 		// Build complete bookmark entry in buffer before writing
 		b = b[:0] // Reuse buffer

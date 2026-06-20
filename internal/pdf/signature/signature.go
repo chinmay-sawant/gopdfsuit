@@ -40,11 +40,17 @@ type PDFSigner struct {
 var pdfSignerCache sync.Map // signerPEMCacheKey -> *PDFSigner
 
 var (
-	marshaledOIDData   = mustMarshal(oidData)
-	sha256HasherPool   sync.Pool
-	authAttrsBytesPool sync.Pool
-	signWorkerSlots    = make(chan struct{}, maxSignWorkers())
+	marshaledOIDData       = mustMarshal(oidData)
+	sha256HasherPool       sync.Pool
+	authAttrsBytesPool     sync.Pool
+	pkcs7MarshalBuffersPool sync.Pool
+	signWorkerSlots        = make(chan struct{}, maxSignWorkers())
+	hexUpperDigits         = []byte("0123456789ABCDEF")
 )
+
+type pkcs7MarshalBuffers struct {
+	attrs [3]attribute
+}
 
 func maxSignWorkers() int {
 	n := runtime.NumCPU() * 2
@@ -59,6 +65,9 @@ func init() {
 	authAttrsBytesPool.New = func() any {
 		b := make([]byte, 0, 256)
 		return &b
+	}
+	pkcs7MarshalBuffersPool.New = func() any {
+		return &pkcs7MarshalBuffers{}
 	}
 }
 
@@ -503,33 +512,34 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 
 	// Authenticated attributes MUST be in DER-sorted order for SET encoding
 	// OIDs: ContentType (1.9.3), MessageDigest (1.9.4), SigningTime (1.9.5)
-	authenticatedAttrs := []attribute{
-		{
-			Type: oidContentType,
-			Value: asn1.RawValue{
-				Class:      asn1.ClassUniversal,
-				Tag:        asn1.TagSet,
-				IsCompound: true,
-				Bytes:      marshaledOIDData,
-			},
+	bufs := pkcs7MarshalBuffersPool.Get().(*pkcs7MarshalBuffers)
+	defer pkcs7MarshalBuffersPool.Put(bufs)
+	authenticatedAttrs := bufs.attrs[:]
+	authenticatedAttrs[0] = attribute{
+		Type: oidContentType,
+		Value: asn1.RawValue{
+			Class:      asn1.ClassUniversal,
+			Tag:        asn1.TagSet,
+			IsCompound: true,
+			Bytes:      marshaledOIDData,
 		},
-		{
-			Type: oidMessageDigest,
-			Value: asn1.RawValue{
-				Class:      asn1.ClassUniversal,
-				Tag:        asn1.TagSet,
-				IsCompound: true,
-				Bytes:      mustMarshal(messageDigest),
-			},
+	}
+	authenticatedAttrs[1] = attribute{
+		Type: oidMessageDigest,
+		Value: asn1.RawValue{
+			Class:      asn1.ClassUniversal,
+			Tag:        asn1.TagSet,
+			IsCompound: true,
+			Bytes:      mustMarshal(messageDigest),
 		},
-		{
-			Type: oidSigningTime,
-			Value: asn1.RawValue{
-				Class:      asn1.ClassUniversal,
-				Tag:        asn1.TagSet,
-				IsCompound: true,
-				Bytes:      mustMarshal(signingTime),
-			},
+	}
+	authenticatedAttrs[2] = attribute{
+		Type: oidSigningTime,
+		Value: asn1.RawValue{
+			Class:      asn1.ClassUniversal,
+			Tag:        asn1.TagSet,
+			IsCompound: true,
+			Bytes:      mustMarshal(signingTime),
 		},
 	}
 
@@ -778,9 +788,38 @@ func UpdatePDFWithSignatureBuffer(pdfBuf *bytes.Buffer, signer *PDFSigner) error
 	return embedSignatureInPlace(pdfBuf.Bytes(), signer, sp)
 }
 
+func appendByteRangeMarker(dst []byte, byteRange [4]int) []byte {
+	dst = append(dst, "/ByteRange [0 "...)
+	dst = appendPaddedInt(dst, byteRange[1], 10)
+	dst = append(dst, ' ')
+	dst = appendPaddedInt(dst, byteRange[2], 10)
+	dst = append(dst, ' ')
+	dst = appendPaddedInt(dst, byteRange[3], 10)
+	return append(dst, ']')
+}
+
+func appendPaddedInt(dst []byte, n int, width int) []byte {
+	var tmp [16]byte
+	b := strconv.AppendInt(tmp[:0], int64(n), 10)
+	padding := width - len(b)
+	if padding > 0 {
+		for range padding {
+			dst = append(dst, '0')
+		}
+	}
+	return append(dst, b...)
+}
+
+func encodeHexUpper(dst, src []byte) {
+	for i, b := range src {
+		dst[i*2] = hexUpperDigits[b>>4]
+		dst[i*2+1] = hexUpperDigits[b&0x0f]
+	}
+}
+
 func embedSignatureInPlace(pdfData []byte, signer *PDFSigner, sp signaturePlacement) error {
-	newByteRange := fmt.Sprintf("/ByteRange [0 %010d %010d %010d]",
-		sp.byteRange[1], sp.byteRange[2], sp.byteRange[3])
+	var byteRangeScratch [48]byte
+	newByteRange := appendByteRangeMarker(byteRangeScratch[:0], sp.byteRange)
 	if len(newByteRange) != len(sp.byteRangeMarker) {
 		return fmt.Errorf("ByteRange length mismatch: new=%d, placeholder=%d", len(newByteRange), len(sp.byteRangeMarker))
 	}
@@ -796,12 +835,7 @@ func embedSignatureInPlace(pdfData []byte, signer *PDFSigner, sp signaturePlacem
 	if len(signature)*2 > len(contents) {
 		return fmt.Errorf("signature too large: %d bytes (max %d)", len(signature), len(contents)/2)
 	}
-	hex.Encode(contents[:len(signature)*2], signature)
-	for i := 0; i < len(signature)*2; i++ {
-		if contents[i] >= 'a' && contents[i] <= 'f' {
-			contents[i] -= 'a' - 'A'
-		}
-	}
+	encodeHexUpper(contents[:len(signature)*2], signature)
 	for i := len(signature) * 2; i < len(contents); i++ {
 		contents[i] = '0'
 	}

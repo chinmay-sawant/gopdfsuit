@@ -5,6 +5,10 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 )
 
+func init() {
+	pdf.WarmRuntimePools()
+}
+
 type BorrowedPDF = pdf.BorrowedPDF
 
 // GeneratePDF creates a PDF document from a template and returns the PDF bytes.

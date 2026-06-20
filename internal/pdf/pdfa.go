@@ -11,6 +11,34 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 )
 
+// P9 (2026-06-20 checklist): static ICC profiles are identical across PDFs;
+// pre-compress once at init to avoid 1024× math.Pow per PDF.
+var (
+	grayICCProfileCompressed []byte
+	srgbICCProfileCompressed []byte
+)
+
+func compressICCProfileBytes(profile []byte) []byte {
+	cb := font.GetCompressBuffer()
+	zw := font.GetZlibWriter(cb)
+	if _, err := zw.Write(profile); err != nil {
+		_ = zw.Close()
+		font.PutZlibWriter(zw)
+		font.PutCompressBuffer(cb)
+		return nil
+	}
+	_ = zw.Close()
+	font.PutZlibWriter(zw)
+	compressed := append([]byte(nil), cb.Bytes()...)
+	font.PutCompressBuffer(cb)
+	return compressed
+}
+
+func init() {
+	grayICCProfileCompressed = compressICCProfileBytes(buildGrayICCProfile())
+	srgbICCProfileCompressed = compressICCProfileBytes(buildSRGBICCProfile())
+}
+
 // ConvertPDFDateToXMP converts a PDF date string (D:YYYYMMDDHHmmSSOHH'mm') to XMP format (YYYY-MM-DDTHH:mm:ss+HH:MM)
 func ConvertPDFDateToXMP(pdfDate string) string {
 	// PDF format: D:20060102150405-07'00' or D:20060102150405+05'30'
@@ -311,22 +339,7 @@ func GetSRGBICCProfile() []byte {
 // GenerateICCProfileObject generates the ICC profile stream object for sRGB
 // Returns the bytes to write to the PDF buffer
 func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
-	// Get the complete sRGB ICC profile
-	iccProfile := GetSRGBICCProfile()
-
-	// Compress the ICC profile
-	cb := font.GetCompressBuffer()
-	zw := font.GetZlibWriter(cb)
-	if _, err := zw.Write(iccProfile); err != nil {
-		_ = zw.Close()
-		font.PutZlibWriter(zw)
-		font.PutCompressBuffer(cb)
-		return nil
-	}
-	_ = zw.Close()
-	font.PutZlibWriter(zw)
-	compressedData := append([]byte(nil), cb.Bytes()...)
-	font.PutCompressBuffer(cb)
+	compressedData := append([]byte(nil), srgbICCProfileCompressed...)
 
 	// Encrypt if needed
 	if encryptor != nil {
@@ -346,22 +359,7 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 // GenerateGrayICCProfileObject generates the ICC profile stream object for DeviceGray
 // Returns the bytes to write to the PDF buffer
 func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
-	// Build a simple Gray ICC profile
-	grayProfile := buildGrayICCProfile()
-
-	// Compress the ICC profile
-	cb := font.GetCompressBuffer()
-	zw := font.GetZlibWriter(cb)
-	if _, err := zw.Write(grayProfile); err != nil {
-		_ = zw.Close()
-		font.PutZlibWriter(zw)
-		font.PutCompressBuffer(cb)
-		return nil
-	}
-	_ = zw.Close()
-	font.PutZlibWriter(zw)
-	compressedData := append([]byte(nil), cb.Bytes()...)
-	font.PutCompressBuffer(cb)
+	compressedData := append([]byte(nil), grayICCProfileCompressed...)
 
 	// Encrypt if needed
 	if encryptor != nil {

@@ -388,6 +388,7 @@ func drawSharedDeferRow(
 	rowTextPrefixes [][]byte,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
+	charsPreScanned bool,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
 	currentX := pageManager.Margins.Left
@@ -434,6 +435,9 @@ func drawSharedDeferRow(
 		}
 
 		if cell.Text != "" {
+			if !charsPreScanned && colIdx < len(sharedCols) && sharedCols[colIdx].usesCustomFont {
+				pageManager.FontRegistry.MarkCharsUsed(sharedCols[colIdx].resolvedFont, cell.Text)
+			}
 			cellProps := rowCellProps[colIdx]
 			textWidth := rowSingleLineTextWidths[colIdx]
 			textX := cellX + 5
@@ -499,6 +503,7 @@ func drawSharedLayoutRow(
 	rowTextPrefixes [][]byte,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
+	charsPreScanned bool,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
 	rowMCIDBase := pageManager.Structure.ReserveMCIDsLite(pageManager.CurrentPageIndex, cellCount)
@@ -531,7 +536,7 @@ func drawSharedLayoutRow(
 			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 			scratchBuf, textTjBuf, borderBuf,
 			rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
-			maxColumns,
+			maxColumns, charsPreScanned,
 		)
 		rendered := append([]byte(nil), rowBuf.Bytes()...)
 		sharedRowRenderCache.Store(cacheKey, rendered)
@@ -549,7 +554,7 @@ func drawSharedLayoutRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
 		rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
-		maxColumns,
+		maxColumns, charsPreScanned,
 	)
 	pageManager.Structure.EndStructureElement()
 	pageManager.CurrentYPos -= rowHeight
@@ -1271,10 +1276,12 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 	templateRow := sharedRowTemplateIndex(table)
 	var sharedCols []sharedColumnLayout
+	charsPreScanned := false
 	useSharedLayout := templateRow >= 0 && tableSupportsSharedRowLayout(table, templateRow)
 	if useSharedLayout {
 		sharedCols = buildSharedColumnLayouts(table, templateRow, pageManager.FontRegistry)
 		markSharedTableCharsUsed(table, sharedCols, table.MaxColumns, pageManager.FontRegistry)
+		charsPreScanned = true
 	}
 
 	largeTable := len(table.Rows) > 100
@@ -1322,7 +1329,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				pageManager, pageManager.GetCurrentContentStream(), &table.Rows[rowIdx], row, colWidths, sharedCols, rowHeight,
 				scratchBuf, textTjBuf, borderBuf,
 				rowCellProps, rowFontDecls, rowTextColorCmds, rowTextPrefixes, rowSingleLineTextWidths,
-				table.MaxColumns,
+				table.MaxColumns, charsPreScanned,
 			)
 			continue
 		}

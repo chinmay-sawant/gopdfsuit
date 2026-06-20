@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unsafe"
 )
 
 // StructureType represents the standard structure types in PDF/UA
@@ -106,6 +107,9 @@ type StructureManager struct {
 	ParentTree    [][]*StructElem     // Page Index -> Array of struct elements (parents of MCIDs)
 	StructParents map[int]int         // Page Object ID -> StructParents index (in ParentTree)
 	LinkElements  map[int]*StructElem // PDF/UA-2: Annotation Object ID -> Link StructElem
+	// P12 (2026-06-20 checklist): per-worker arena slab reused via sync.Pool.
+	arenaSlab *[]StructElem
+	arenaNext int
 }
 
 func growPtrSlice[T any](s []T, need, minCap int) []T {
@@ -148,10 +152,65 @@ func NewStructureManager(enabled bool) *StructureManager {
 	return sm
 }
 
+const (
+	arenaActivationThreshold = 512 // HFT-scale tables only; retail/active stay on sync.Pool
+	maxArenaSlabEntries      = 32 * 1024
+)
+
 var structElemPool = sync.Pool{
 	New: func() any {
 		return &StructElem{}
 	},
+}
+
+var arenaSlabPool = sync.Pool{
+	New: func() any {
+		slab := make([]StructElem, 0, 4096)
+		return &slab
+	},
+}
+
+func arenaCapForNeed(need int) int {
+	if need < arenaActivationThreshold {
+		return 0
+	}
+	capHint := 4096
+	for capHint < need && capHint < maxArenaSlabEntries {
+		capHint *= 2
+	}
+	if capHint > maxArenaSlabEntries {
+		capHint = maxArenaSlabEntries
+	}
+	return capHint
+}
+
+func acquireArenaSlabForCapacity(minCap int) *[]StructElem {
+	wantCap := arenaCapForNeed(minCap)
+	if wantCap == 0 {
+		return nil
+	}
+	v := arenaSlabPool.Get()
+	var slab []StructElem
+	if v != nil {
+		slab = *(v.(*[]StructElem))
+	}
+	if cap(slab) < wantCap {
+		slab = make([]StructElem, 0, wantCap)
+	} else {
+		slab = slab[:0]
+	}
+	return &slab
+}
+
+func releaseArenaSlab(slab *[]StructElem) {
+	if slab == nil {
+		return
+	}
+	if cap(*slab) > maxArenaSlabEntries {
+		return
+	}
+	*slab = (*slab)[:0]
+	arenaSlabPool.Put(slab)
 }
 
 var structKidsSlicePool = sync.Pool{
@@ -209,21 +268,90 @@ func resetStructElemForPool(elem *StructElem) {
 // determine whether the struct is emitted as a leaf vs a grouping
 // element, and Parent/Type are read by the slow-path formatter. Together
 // these cover the full set the caller might NOT overwrite on the next use.
+func (sm *StructureManager) activateArena(need int) {
+	if !sm.Enabled || need < arenaActivationThreshold {
+		return
+	}
+	if sm.arenaSlab == nil {
+		sm.arenaSlab = acquireArenaSlabForCapacity(need)
+	}
+	if sm.arenaSlab == nil {
+		return
+	}
+	slab := *sm.arenaSlab
+	if len(slab) < need && need <= cap(slab) {
+		*sm.arenaSlab = slab[:need]
+	}
+}
+
+func (sm *StructureManager) ensureArenaCapacity(need int) {
+	sm.activateArena(need)
+}
+
+// acquireArenaTD bumps the HFT arena slab for a TD leaf. Inlined hot path
+// for BeginTableRowWithTDMCIDs to avoid function-call overhead per cell.
+func (sm *StructureManager) acquireArenaTD() *StructElem {
+	slab := *sm.arenaSlab
+	if sm.arenaNext >= cap(slab) || sm.arenaNext >= maxArenaSlabEntries {
+		return sm.acquireStructElem()
+	}
+	if sm.arenaNext >= len(slab) {
+		*sm.arenaSlab = slab[:sm.arenaNext+1]
+		slab = *sm.arenaSlab
+	}
+	e := &slab[sm.arenaNext]
+	sm.arenaNext++
+	e.ObjectID = 0
+	e.Title = ""
+	e.Alt = ""
+	e.PageID = 0
+	e.Kids = nil
+	return e
+}
+
 func (sm *StructureManager) acquireStructElem() *StructElem {
 	if !sm.Enabled {
 		return &StructElem{}
+	}
+	if sm.arenaSlab != nil {
+		slab := *sm.arenaSlab
+		if sm.arenaNext >= cap(slab) || sm.arenaNext >= maxArenaSlabEntries {
+			v := structElemPool.Get()
+			e, ok := v.(*StructElem)
+			if !ok || e == nil {
+				return &StructElem{}
+			}
+			e.Type = ""
+			e.Title = ""
+			e.Alt = ""
+			e.Lang = ""
+			e.MCID = 0
+			e.HasMCID = false
+			e.ObjectID = 0
+			e.AnnotObjID = 0
+			e.PageID = 0
+			e.Parent = nil
+			return e
+		}
+		if sm.arenaNext >= len(slab) {
+			*sm.arenaSlab = slab[:sm.arenaNext+1]
+			slab = (*sm.arenaSlab)
+		}
+		e := &slab[sm.arenaNext]
+		sm.arenaNext++
+		// Arena slots are fresh within a PDF; callers overwrite Type/Parent/MCID/HasMCID.
+		e.ObjectID = 0
+		e.Title = ""
+		e.Alt = ""
+		e.PageID = 0
+		e.Kids = nil
+		return e
 	}
 	v := structElemPool.Get()
 	e, ok := v.(*StructElem)
 	if !ok || e == nil {
 		return &StructElem{}
 	}
-	// P2: drop the `*e = StructElem{}` full-struct memclr. The fields the
-	// caller doesn't write (Title/Alt/Lang/ObjectID/AnnotObjID/PageID/HasMCID/
-	// MCID/Parent/Type) are cleared here. Kids is left alone — the caller
-	// either replaces it via acquireStructKids (BeginStructureElementCap with
-	// kidCap>0) or never reads it. This is ~80 bytes of writes per elem
-	// instead of the previous 256-byte memclr.
 	e.Type = ""
 	e.Title = ""
 	e.Alt = ""
@@ -239,14 +367,36 @@ func (sm *StructureManager) acquireStructElem() *StructElem {
 
 // ReleaseStructElemsToPool returns pooled *StructElem nodes after PDF
 // generation completes (tagged PDF only).
+func elemInArenaRange(base, end uintptr, elem *StructElem) bool {
+	if base == 0 || elem == nil {
+		return false
+	}
+	p := uintptr(unsafe.Pointer(elem))
+	return p >= base && p < end
+}
+
 func (sm *StructureManager) ReleaseStructElemsToPool() {
 	if sm == nil || !sm.Enabled || sm.Root == nil {
 		return
 	}
 	sm.Root.Kids = nil
 	sm.CurrentParent = sm.Root
+	slabPtr := sm.arenaSlab
+	var arenaBase, arenaEnd uintptr
+	if slabPtr != nil && sm.arenaNext > 0 && len(*slabPtr) > 0 {
+		arenaBase = uintptr(unsafe.Pointer(&(*slabPtr)[0]))
+		arenaEnd = arenaBase + uintptr(sm.arenaNext)*unsafe.Sizeof(StructElem{})
+	}
+	if slabPtr != nil {
+		releaseArenaSlab(slabPtr)
+		sm.arenaSlab = nil
+		sm.arenaNext = 0
+	}
 	for _, elem := range sm.Elements {
 		if elem == nil || elem == sm.Root {
+			continue
+		}
+		if elemInArenaRange(arenaBase, arenaEnd, elem) {
 			continue
 		}
 		resetStructElemForPool(elem)
@@ -307,6 +457,9 @@ func (sm *StructureManager) ReserveElementCapacity(additional int) {
 	}
 	need := len(sm.Elements) + additional
 	sm.Elements = growPtrSlice(sm.Elements, need, 32)
+	if additional >= arenaActivationThreshold {
+		sm.activateArena(sm.arenaNext + additional)
+	}
 }
 
 // ReserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
@@ -525,8 +678,21 @@ func (sm *StructureManager) BeginTableRowWithTDMCIDs(pageIndex, startMCID, count
 	// Pre-size tr.Kids so the per-cell append does not grow the backing slice.
 	sm.BeginStructureElementCap(StructTR, count)
 	tr := sm.CurrentParent
+	useArena := sm.arenaSlab != nil
+	if useArena {
+		need := sm.arenaNext + count
+		slab := *sm.arenaSlab
+		if need > len(slab) && need <= cap(slab) {
+			*sm.arenaSlab = slab[:need]
+		}
+	}
 	for i := range count {
-		td := sm.acquireStructElem()
+		var td *StructElem
+		if useArena {
+			td = sm.acquireArenaTD()
+		} else {
+			td = sm.acquireStructElem()
+		}
 		td.Type = StructTD
 		td.Parent = tr
 		td.PageID = pageIndex
