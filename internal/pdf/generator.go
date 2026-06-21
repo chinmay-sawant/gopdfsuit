@@ -1177,7 +1177,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	if pdfaHandler != nil {
 		// Generate XMP metadata content (but use our pre-reserved metadataObjectID for consistency with Catalog)
 		docIDForXMP := strconv.FormatInt(genTime.UnixNano(), 16)
-		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
+		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP, genTime)
 		// Write metadata object using the pre-reserved ID that's already in the Catalog
 		setXrefOffset(&xrefOffsets, metadataObjectID, pdfBuffer.Len())
 		b = b[:0]
@@ -2337,6 +2337,17 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 // collectAllStandardFontsInTemplate returns all standard font names used in the template
 // This does NOT check the font registry - used for determining which Liberation fonts to load
 func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]bool {
+	if precomputed := template.PrecomputedStandardFonts(); len(precomputed) > 0 {
+		used := make(map[string]bool, len(precomputed))
+		for _, fontName := range precomputed {
+			if fontName != "" {
+				used[fontName] = true
+			}
+		}
+		used["Helvetica"] = true
+		return used
+	}
+
 	used := make(map[string]bool)
 
 	// Helper to mark font

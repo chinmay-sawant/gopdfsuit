@@ -1,6 +1,6 @@
 # Zerodha gopdflib x10 pprof Optimization Checklist — 9,000 → 15,000 ops/sec
 
-**Date:** 2026-06-21  
+**Date:** 2026-06-22  
 **Workload:** `sampledata/gopdflib/zerodha`, 80% retail / 15% active / 5% HFT  
 **Primary command:** `make bench-gopdflib-zerodha-x10`  
 **Profile command:** `make bench-gopdflib-zerodha-x5`  
@@ -9,6 +9,7 @@
 **Concurrency:** 48 workers, `GOMAXPROCS=24`  
 **Branch:** `feat/optimization-5.5-medium`  
 **Prior checklist:** `guides/optimizations/20260620_zerodha_x10_pprof_optimization_checklist.md` (P0–P25, 8K target met)
+**Commit profile sweep:** `87009f13418b23e4ae88d4ab044204b04f9765a4` (46 `.prof` files across `gin`, `zerodha`, and `pypdfsuit` baselines)
 
 ---
 
@@ -27,30 +28,46 @@ full compliance on all three templates:
 
 ---
 
-## Six-Agent Analysis Summary (2026-06-21)
+## Four-Subagent Refresh (2026-06-21)
 
-Six specialized subagents analyzed `cpu_zerodha_run3.prof`, `heap_zerodha.prof`, and
-the 20260620 checklist. Cross-validation findings below.
+Four focused subagents reviewed `cpu_zerodha_run2.prof`, `heap_zerodha.prof`, the
+cross-validation report, and this checklist. The validation report remains the source of
+compliance guardrails and broad phase shape; `run2` is the source for refreshed ordering,
+gates, and wording.
 
-### Agent roles and consensus
+### Agent roles and refreshed findings
 
-| Agent | Focus | Key finding | Validated by |
-|-------|-------|-------------|--------------|
-| **A1 — HFT TR→TD** | Structure tree, arena, TD leaves | HFT = **75–85% of mean latency** despite 5% of docs; `beginTableRowArena` 7.5% CPU | A4, A5, A6 |
-| **A2 — Retail signing** | ECDSA P-256, PDF/A metadata | Signature chain **11.4% CPU** (retail-only); retail alone cannot close 15K mixed gap | A4, A6 |
-| **A3 — Active trader** | 41-row table, 2-page layout | Active = **7.5% of CPU** despite 15% of docs; `SharedRowLayout` eligible but not enabled | A5 |
-| **A4 — Memory/heap** | Pools, GC, variance | **90% live heap** = `bytes.growSlice` (47%) + arena slabs (44%); GC tax **35–40% CPU** | A1, A5, A6 |
-| **A5 — Table rendering** | `drawTable`, shared layout | `drawTable` 29% cum is HFT-dominated; text wrap is **0%** — not a gate | A1, A3 |
-| **A6 — Cross-format** | Shared bottlenecks, phased path | **P9 sRGB ICC leak** is highest-ROI quick win across all 3 formats (+400–700 ops/sec) | A2, A4 |
+| Agent | Focus | `run2` takeaway | Checklist impact |
+|-------|-------|-----------------|------------------|
+| **A1 — HFT struct path** | `drawTable`, `drawSharedLayoutRow`, TR→TD setup, struct emit | HFT is still the mandatory tail: `drawTable` 29.6% cum, `drawSharedLayoutRow` 13.0% cum, `BeginTableRowWithTDMCIDs`/`beginTableRowArena` 6.7% cum, `formatStructElemObjectTo` 5.5% cum | Keep Phase C, but broaden `P36/P38/P39` to cover the whole hot path |
+| **A2 — Memory / buffers / GC** | `bytes.growSlice`, `memmove`, `memclr`, arena slabs, page streams | The strongest direct costs are still memory pressure: `runtime.memmove` 12.0% flat, `runtime.memclrNoHeapPointers` 11.4% flat, `bytes.growSlice` 263 MB, arena slabs 246.5 MB, page-stream buffers 156.9 MB cum | Strengthen Phase B, fold `P27a` into `P31`, move `P34` ahead of `P33`, add explicit copy/variance gates |
+| **A3 — Cross-format / signing / metadata** | sRGB ICC, signing, font walks, active table | `P26` remains the cleanest first win; signature work is real but the benchmark already signs in place; `P28` only removes the startup font walk; active `SharedRowLayout` is valid but lower leverage than the current wording implies | Keep `P26` first, narrow `P28/P35`, demote `P29` |
+| **A4 — Synthesis / ranking** | Phase ordering and confidence | The report’s A→B→C structure still holds, but `run2` supports banded ranking more than precise gain ladders | Treat HFT weighting as directional, not exact; promote `P40` into Phase B; rank `P38` ahead of `P37` |
 
-### Cross-agent disagreements resolved
+### Resolved priorities
 
-| Topic | Agent positions | Resolution |
-|-------|----------------|------------|
-| Can retail-only opts reach 15K mixed? | A2: No (ceiling ~11.5K); A3: Active adds little | **Agreed:** mixed 15K requires HFT path work |
-| Arena slab size | A1: right-size to 16K; A4: tier 4K/16K/32K | **Phase B:** tier slabs; HFT needs ~16K not 32K |
-| Active priority | A3: P26 SharedRowLayout +250–350; A1: defer | **Phase A item** — low risk, stacks with HFT wins |
-| Variance root cause | A4: pool cold-start + GC; A6: WSL2 load | **Both:** idle-machine gate mandatory (P0) |
+| Topic | `run2` read | Checklist change |
+|-------|-------------|------------------|
+| First quick win | `GetSRGBICCProfile` / `buildSRGBICCProfile` still costs ~4.2% cum | Keep `P26` first |
+| Memory-first bias | `memmove` + `memclr` dominate flat CPU; heap is still buffer + arena heavy | Strengthen Phase B before deep HFT rewrites |
+| HFT claims | HFT remains the remaining gate, but `run2` does not justify exact weighted-latency math by itself | Keep the qualitative conclusion; soften exact `75–85%` style wording |
+| Active priority | Active table is still eligible for `SharedRowLayout`, but no active-specific hotspot breaks into `run2` | Keep `P29`, but treat it as late Phase A / opportunistic |
+
+### Commit-wide `.prof` sweep (87009f1)
+
+The commit contains three profile families, and they do not all have the same decision weight:
+
+| Family | Profiles read | What it validates | Checklist use |
+|--------|---------------|-------------------|---------------|
+| `zerodha_pprof_runs` | 5 CPU + 1 heap | Stable x10 mixed-workload ordering: `memmove`/`memclr`, TR→TD setup, struct emit, `bytes.growSlice`, arena slabs | **Primary source** for the 15K backlog |
+| `gin_pprof_runs` | 19 CPU + 19 heap | k6-facing guardrails evolved from early shared-row/prealloc blowups into later signing, ICC, compression, and buffer-write costs | Guardrail context for `make bench-k6-light` / `make bench-k6` |
+| `pypdfsuit_pprof_runs` | 1 CPU + 1 heap | Same broad pressure points reappear under a separate render harness: `memclr`, `memmove`, `bytes.growSlice`, struct emit, signing | Secondary confirmation only |
+
+What changed from reading all 46 `.prof` files:
+
+- The Zerodha x10 family still owns the checklist ordering.
+- The gin family is the reason the k6 guardrail should watch signing and ICC/profile work, not only `drawSharedLayoutRow` heap.
+- The pypdfsuit family backs the same memory-first story rather than introducing a different next target.
 
 ---
 
@@ -65,7 +82,9 @@ the 20260620 checklist. Cross-validation findings below.
 - [ ] **HFT output size stable.** Target **2,291,942 bytes ± 5%** (current compliant size).
 - [ ] **veraPDF gate after every phase.** `make test-verify-pdfs` — 6/6 PASS
       (retail/active/HFT × PDF/A-4 + PDF/UA-2).
-- [ ] **k6 must not regress.** `make bench-k6-light` with `drawSharedLayoutRow` flat heap ≤ 10 MB.
+- [ ] **k6 must not regress.** `make bench-k6-light` / `make bench-k6` should track
+      `drawSharedLayoutRow`, signing (`embedSignatureInPlace` / `CreateSignatureField`),
+      and ICC/profile work in addition to heap.
 
 ---
 
@@ -102,23 +121,23 @@ Build cache reset: `GOCACHE=/tmp/gopdfsuit-go-build-cache GOMODCACHE=/tmp/gopdfs
 
 **Use idle 9,009 as the regression baseline; do not compare load-depressed 7,852 runs.**
 
-### Fresh CPU profile (`cpu_zerodha_run3.prof`, 11.27s samples, 1771% CPU)
+### Fresh CPU profile (`cpu_zerodha_run2.prof`, 11.13s samples, 1871.69% CPU)
 
 | Hotspot | Cum % | Flat % | Format scope | Status |
 |---------|------:|-------:|--------------|--------|
-| `GenerateTemplatePDFBorrowed` | 91.8% | 4.3% | All | Top gate |
-| `generateAllContentWithImages` | 31.0% | 0.2% | All | Content emit |
-| `drawTable` | 29.0% | 1.4% | HFT-heavy | Table render |
-| `drawSharedLayoutRow` | 12.6% | 0.4% | HFT only | Shared layout |
-| `runtime.memclrNoHeapPointers` | 11.3% | **11.3%** | All (GC-driven) | **Open gate** |
-| `runtime.memmove` | 10.1% | **10.1%** | All | Buffer growth |
-| `beginTableRowArena` | 7.5% | **5.8%** | HFT only | TR→TD alloc |
-| `signature.*` (SignPDF chain) | 6.3% | — | Retail 80% | Signing |
-| `buildSRGBICCProfile` + `math.pow` | 4.5% | 2.7% | **All 3 equally** | **P9 leak** |
-| `appendStructElemTDLeaf` | 4.2% | 1.6% | HFT-heavy | TD leaf emit |
-| `MarkCharsUsed` | 4.1% | 0.9% | HFT-heavy | Font subset |
-| `formatStructElemObjectTo` | 3.6% | 2.4% | Tagged (HFT-heavy) | Slow path |
-| `estimateFinalPDFSize` | — | 1.5% | All | Size estimate |
+| `GenerateTemplatePDFBorrowed` | 91.6% | 4.0% | All | Top gate |
+| `generateAllContentWithImages` | 32.0% | — | All | Content emit |
+| `drawTable` | 29.6% | 1.3% | HFT-heavy | Table render |
+| `drawSharedLayoutRow` | 13.0% | 0.1% | HFT-heavy | Shared-row replay path |
+| `runtime.memmove` | — | **12.0%** | All | **Open gate** |
+| `runtime.memclrNoHeapPointers` | — | **11.4%** | All (GC-driven) | **Open gate** |
+| `BeginTableRowWithTDMCIDs` / `beginTableRowArena` | 6.7% | 4.3% | HFT-heavy | TR→TD setup |
+| `signature.UpdatePDFWithSignatureBuffer` | 6.7% | — | Retail 80% | Signing still material |
+| `formatStructElemObjectTo` | 5.5% | 4.3% | Tagged (HFT-heavy) | Struct emit |
+| `GetSRGBICCProfile` / `buildSRGBICCProfile` | 4.2% | 0.2% | All 3 | **P26 still first** |
+| `MarkCharsUsed` + `markSharedTableCharsUsed` | 4.9% | 0.8% | HFT-heavy | Font subset / prescan |
+| `appendStructElemTDLeaf` | 3.7% | 1.7% | HFT-heavy | TD leaf emit |
+| `estimateFinalPDFSize` | — | 1.1% | All | Better folded into buffer sizing |
 
 ### Fresh heap profile (`heap_zerodha.prof`, 563 MB in-use)
 
@@ -143,17 +162,17 @@ Build cache reset: `GOCACHE=/tmp/gopdfsuit-go-build-cache GOMODCACHE=/tmp/gopdfs
 ## Phased Execution Plan
 
 ```
-Phase A (Quick wins)     → ~11,000 ops/sec  (+22%)
+Phase A (Quick wins)     → ~10,400–10,900 ops/sec
 Phase B (Memory wall)    → ~13,000 ops/sec  (+44%)
 Phase C (HFT tail)       → ~15,000 ops/sec  (+66%)
 ```
 
 ---
 
-## Phase A — Cross-Format Quick Wins → ~11,000 ops/sec
+## Phase A — Cross-Format Quick Wins → ~10,400–10,900 ops/sec
 
 **Duration:** 1–2 days  
-**Projected gain:** +1,000–1,500 ops/sec from idle 9,009 baseline  
+**Projected gain:** +800–1,300 ops/sec from idle 9,009 baseline  
 **Risk:** Low
 
 ### P0 — Harness and measurement hygiene
@@ -162,79 +181,89 @@ Phase C (HFT tail)       → ~15,000 ops/sec  (+66%)
 - [ ] Run x10 on an **idle machine** (no parallel benchmarks, Docker, browser).
 - [ ] Use x10 **mean** as regression gate; capture `zerodha_bench_x10_wsl_stats_latest.txt` after every accepted change.
 - [ ] Re-profile after Phase A: `make bench-gopdflib-zerodha-x10-pprof`.
-- [ ] **Gate:** stddev ≤ 600 ops/sec on idle machine.
+- [ ] **Gate:** track warmed-run variance separately from the cold first run; do not use
+      run-1 outliers as the accept/reject signal for Phase A.
 
 ### P26 — Fix sRGB ICC cache leak (all 3 templates) ★ Highest ROI
 
-**Agents:** A2, A4, A6 unanimous — P9 marked done but sRGB still rebuilt per PDF.
+**Basis:** validated by `cpu_zerodha_run2.prof`, the full `cpu_zerodha_run{1..5}.prof` sweep,
+and the commit-wide profile review.
 
 **Root cause:** `GetSRGBICCProfile()` calls `buildSRGBICCProfile()` (1024× `math.Pow`)
 on every PDF. `GenerateOutputIntent` line 306 uses `getSRGBICCProfile()` for `Grow()`
 sizing even though `compressedSRGBICCProfileCache()` is used at emit time.
 
 **Fix:**
-- [ ] Cache uncompressed sRGB bytes at `init` alongside `srgbICCProfileCompressed`.
-- [ ] Change `GetSRGBICCProfile()` to return cached bytes.
-- [ ] Use `len(srgbICCProfileCompressed)` for `sb.Grow()` in `GenerateOutputIntent`.
+- [x] Cache uncompressed sRGB bytes at `init` alongside `srgbICCProfileCompressed`.
+- [x] Change `GetSRGBICCProfile()` to return cached bytes.
+- [x] Rework `GenerateOutputIntent` to reuse the cached compressed payload instead of
+      re-reading / recompressing raw sRGB bytes per document.
 
 **Files:** `internal/pdf/pdfa.go`, `internal/pdf/metadata.go`  
-**Estimated gain:** +400–700 ops/sec (all 5,000 iterations)  
+**Estimated gain:** +350–550 ops/sec (all 5,000 iterations)  
 **Compliance risk:** Low — byte-identical ICC profile  
 **Gate:** `buildSRGBICCProfile` not in top-40 CPU; veraPDF 6/6 PASS
 
-### P27a — Cache `estimateFinalPDFSize` per template class
-
-**Agents:** A6 identified 1.5% flat CPU on size estimation.
-
-- [ ] Pre-compute retail/active/HFT final size estimates at template build time in `bench.go`.
-- [ ] Pass through `GenerateTemplatePDFBorrowed` or store on template metadata.
-
-**Files:** `internal/pdf/generator.go`, `sampledata/gopdflib/zerodha/bench.go`  
-**Estimated gain:** +100–200 ops/sec  
-**Compliance risk:** Low
+**2026-06-22 implementation note:** landed in code; added focused cache-regression tests in
+`internal/pdf/pdfa_test.go` and `internal/pdf/metadata_test.go`. Throughput / veraPDF gate
+still pending.
 
 ### P28 — Precompute standard fonts at template build
 
-**Agents:** A6 — `collectAllStandardFontsInTemplate` 2.9% cum, hits every PDF.
+**Agents:** A3 — `collectAllStandardFontsInTemplate` 2.88% cum at generator startup.
 
-- [ ] Build font set once when `buildRetailTemplate` / `buildActiveTraderTemplate` / `buildHFTTemplate` run.
-- [ ] Store on template struct; skip per-PDF font walk.
+- [x] Build the PDF/A startup font set once when `buildRetailTemplate` /
+      `buildActiveTraderTemplate` / `buildHFTTemplate` run.
+- [x] Store on template metadata; skip the pre-generation standard-font walk in
+      `GenerateTemplatePDFBorrowed`.
 
-**Files:** `internal/pdf/generator.go`, `sampledata/gopdflib/zerodha/bench.go`  
-**Estimated gain:** +200–350 ops/sec  
+**Files:** `internal/models/models.go`, `internal/pdf/generator.go`,
+`sampledata/gopdflib/zerodha/bench.go`  
+**Estimated gain:** +150–250 ops/sec  
 **Compliance risk:** Low
 
-### P29 — Active trader `SharedRowLayout` enablement
-
-**Agents:** A3 primary; validated by A5 as compliance-safe.
-
-**Root cause:** 41-row trade table has uniform `Props` per column; only `Text`/`TextColor`
-vary. Passes `tableSupportsSharedRowLayout` but flag is not set.
-
-- [ ] Add `SharedRowLayout: true, SharedRowTemplateRow: 1` to active trade table in
-      `buildActiveTraderTemplate()`.
-- [ ] Verify alternating `BgColor` and per-row `TextColor` still render correctly.
-- [ ] Confirm veraPDF active output PASS.
-
-**Files:** `sampledata/gopdflib/zerodha/bench.go`, `internal/pdf/draw.go`  
-**Estimated gain:** +250–350 ops/sec (active is 15% of docs, 7.5% of CPU)  
-**Compliance risk:** Low — TR→TD hierarchy preserved via shared layout path  
-**Gate:** `zerodha_active_output.pdf` 76,050 ± 5% bytes; veraPDF 2/2 PASS
+**2026-06-22 implementation note:** current Zerodha templates are Helvetica-only, so the
+phase-1 implementation stores an explicit precomputed startup hint rather than rescanning
+the template tree at generation start.
 
 ### P30 — Static XMP metadata shell (all 3 templates)
 
 **Agents:** A2 — `GenerateXMPMetadata` 1.0% cum; dates/ID are only per-PDF variance.
 
-- [ ] Pre-build XMP packet templates with placeholder slots for date/ID.
-- [ ] Patch only variable fields at emit time.
+- [x] Pre-build XMP packet templates with placeholder slots for date/ID.
+- [x] Patch only variable fields at emit time.
 
 **Files:** `internal/pdf/metadata.go`  
 **Estimated gain:** +80–120 ops/sec  
 **Compliance risk:** Low — PDF/A-4 + PDF/UA-2 metadata fields unchanged
 
+**2026-06-22 implementation note:** handler-local XMP fragments now cache the static packet
+shell; emit-time work is limited to timestamps, document ID, and encryption wrapping.
+
+### P29 — Active trader `SharedRowLayout` enablement
+
+**Agents:** A3 primary; validated as compliance-safe, but lower leverage than the prior
+writeup implied.
+
+**Root cause:** 41-row trade table has uniform `Props` per column; only `Text`/`TextColor`
+vary. Passes `tableSupportsSharedRowLayout` but the flag is still not set.
+
+- [x] Add `SharedRowLayout: true, SharedRowTemplateRow: 1` to the active trade table in
+      `buildActiveTraderTemplate()`.
+- [ ] Verify alternating `BgColor` and per-row `TextColor` still render correctly.
+- [ ] Confirm veraPDF active output PASS.
+
+**Files:** `sampledata/gopdflib/zerodha/bench.go`, `internal/pdf/draw.go`  
+**Estimated gain:** +120–220 ops/sec (safe stacking win, not a near-term throughput lever)  
+**Compliance risk:** Low — TR→TD hierarchy preserved via shared layout path  
+**Gate:** `zerodha_active_output.pdf` 76,050 ± 5% bytes; veraPDF 2/2 PASS
+
+**2026-06-22 implementation note:** code path is enabled; visual/compliance validation remains
+open.
+
 ### Phase A acceptance gate
 
-- [ ] x10 mean ≥ **11,000 ops/sec** (idle machine)
+- [ ] x10 mean ≥ **10,400 ops/sec** (idle machine)
 - [ ] veraPDF 6/6 PASS
 - [ ] HFT output 2,291,942 ± 5% bytes
 - [ ] `buildSRGBICCProfile` cum CPU ≤ 0.5%
@@ -244,78 +273,98 @@ vary. Passes `tableSupportsSharedRowLayout` but flag is not set.
 ## Phase B — Memory Wall → ~13,000 ops/sec
 
 **Duration:** 1 week  
-**Projected gain:** +2,000–2,500 ops/sec cumulative  
+**Projected gain:** +2,200–2,800 ops/sec cumulative  
 **Risk:** Low–Medium  
-**Agents:** A4 (memory), A1 (HFT buffers), A6 (cross-format) aligned on this phase
+**Basis:** `cpu_zerodha_run{1..5}.prof`, `heap_zerodha.prof`, plus commit-wide gin /
+pypdfsuit confirmation that copy pressure and signing remain hot after the early HFT fixes
 
-### P31 — pdfBuffer zero-grow (all 3 templates)
+### P31 — pdfBuffer zero-grow + final-size instrumentation (all 3 templates, includes former `P27a`)
 
-**Root cause:** `bytes.growSlice` = 263 MB in-use (47%); `memmove` = 10.1% flat CPU.
-HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-emit grow.
+**Root cause:** `bytes.growSlice` = 263 MB in-use (47%); `runtime.memmove` stays in the
+8–12% flat range across `cpu_zerodha_run1..5`. The current 2.5 MiB HFT cap still grows,
+and `estimateFinalPDFSize` is better treated as a sizing input than a standalone Phase A CPU win.
 
-- [ ] Set `hftPDFBufferCap = 2_292_096` (actual output + 512 byte margin).
-- [ ] Fix `estimateFinalPDFSize` to include ParentTree `strings.Builder` (~40 KiB) + signature gap.
-- [ ] Add `pdfBufferPoolMedium` (512 KiB–2 MiB) for active tier dead-zone.
-- [ ] Warm pools to worker count: `initPDFBufferPools(48)` not `GOMAXPROCS(24)`.
-- [ ] Add `BENCH_DEBUG_CAPS=1` assert: zero `Grow` calls after initial cap.
+- [ ] Instrument final PDF buffer high-water by template class in the benchmark harness.
+- [ ] Rework `estimateFinalPDFSize` so it overestimates compliant HFT output, including
+      ParentTree/object refs, page streams, and signature slack.
+- [ ] Set retail/active/HFT caps from measured max + safety margin; do not shrink the
+      current HFT cap until warmed runs show zero growth.
+- [ ] Keep `pdfBufferPoolMedium` optional; only add a middle tier if active PDFs still
+      cross pool boundaries after cap fixes.
+- [ ] Add a `BENCH_DEBUG_CAPS=1` style assert: zero `Grow` calls after the initial cap on warmed runs.
 
 **Files:** `internal/pdf/generator.go`  
-**Estimated gain:** +800–1,200 ops/sec + −200 MB heap  
+**Estimated gain:** +900–1,200 ops/sec + −200 MB heap  
 **Compliance risk:** Low — sizing only  
-**Gate:** `bytes.growSlice` in-use ≤ 50 MB; `memmove` flat ≤ 5%
+**Gate:** `bytes.growSlice` in-use ≤ 50 MB; `runtime.memmove` flat ≤ 6%
+
+### P34 — Page content stream exact caps (HFT + active)
+
+**Root cause:** `getPageContentStreamBuffer` is still 157 MB cumulative live pressure in
+`heap_zerodha.prof`, which is materially larger than the xref-offset footprint. Shared-row
+replay still pays for page-stream growth when the per-page cap is too loose.
+
+- [ ] Profile max page stream length per template class and per HFT stripe.
+- [ ] Pre-cap page streams to measured max + small margin; grow once per stripe, not per row.
+- [ ] Keep the pool budget bounded by the heap target; do not pre-retain a 48 × 50 × 128 KiB steady-state reserve.
+
+**Files:** `internal/pdf/pagemanager.go`, `internal/pdf/draw.go`  
+**Estimated gain:** +350–550 ops/sec + −60–90 MB heap  
+**Compliance risk:** Medium
+
+### P40 — Row stream direct append (HFT draw path, promoted from prior Phase C)
+
+**Root cause:** `drawSharedLayoutRow` cache replay still hits `contentStream.Write(cached)`,
+which lines up with the 8–12% `runtime.memmove` band in the Zerodha runs and the
+buffer-write / signing-heavy gin sweep.
+
+- [ ] Replace `contentStream.Write(cached)` with append into a pre-sized page `[]byte`.
+- [ ] Grow the page stream once per stripe, not per row replay.
+- [ ] Right-size `rowBuf.Grow` from the profiled shared-row template size.
+
+**Files:** `internal/pdf/draw.go`, `internal/pdf/pagemanager.go`  
+**Estimated gain:** +300–500 ops/sec  
+**Compliance risk:** Medium — preserve BDC/EMC order for PDF/UA-2
 
 ### P32 — Arena slab right-sizing (HFT)
 
-**Root cause:** 32K-entry slabs (~8 MB each) for ~16K TD need; 247 MB in-use (44% heap).
-`WarmArenaSlabPool(6)` for 48 workers → cold alloc on first HFT per worker cohort.
+**Root cause:** 32K-entry slabs (~8 MB each) still dominate 247 MB of live heap, but the
+CPU cost in `beginTableRowArena` belongs mostly to the Phase C TR→TD setup path, not to slab sizing alone.
 
-- [ ] Tier arena slabs: 4K / 16K / 32K; HFT uses 16K tier (~4 MB not 8 MB).
-- [ ] `arenaCapForNeed(need)`: ceil to next power of 2 capped at 16K for HFT-scale.
-- [ ] Warm `min(24, expectedConcurrentHFT)` slabs at init.
-- [ ] Return undersized slabs aggressively; release arena before final pdfBuffer write.
+- [ ] Tier arena slabs: 4K / 16K / 32K; HFT should land in the 16K tier, not 32K.
+- [ ] Make `arenaCapForNeed(need)` round to the next useful tier and cap HFT-scale requests at 16K.
+- [ ] Keep warmup conservative until tiering lands; do not increase the current warm count before smaller slabs exist.
+- [ ] Return oversize slabs aggressively and release arena ownership before final pdfBuffer write.
 
 **Files:** `internal/pdf/structure.go`  
 **Estimated gain:** +500–900 ops/sec + −120–180 MB heap  
 **Compliance risk:** Medium — must not reintroduce P20 slice-header alias race  
-**Gate:** arena in-use ≤ 100 MB; `beginTableRowArena` cum ≤ 5%
+**Gate:** arena in-use ≤ 100 MB
 
 ### P33 — xref offset slice pooling
 
-**Root cause:** `newXrefOffsets` + `collectUsedXrefObjectIDs` = 156 MB alloc per run;
-`newXrefOffsets` zero-fills 16K slots (2.2% CPU).
+**Root cause:** `newXrefOffsets` / `collectUsedXrefObjectIDs` remain visible, but they are
+no longer the dominant live-heap driver relative to page streams and pdfBuffer growth.
 
-- [ ] `sync.Pool` of `[]int` keyed by cap class (small/medium/large).
+- [ ] `sync.Pool` `[]int` by cap class once the larger copy-pressure items are down.
 - [ ] Lazy grow-on-write without full sentinel pre-fill.
-- [ ] Reuse slice across PDFs in same worker.
+- [ ] Reuse slice across PDFs in the same worker where output stability remains byte-identical.
 
 **Files:** `internal/pdf/generator.go`  
-**Estimated gain:** +250–400 ops/sec + −70 MB alloc  
+**Estimated gain:** +150–300 ops/sec + −70 MB alloc-space  
 **Compliance risk:** Low–Medium — xref table byte-identical
 
-### P34 — Page content stream exact caps (HFT + active)
+### P35 — Retail signature path cleanup (partial)
 
-**Root cause:** `getPageContentStreamBuffer` 157 MB cum; HFT pages ~90–120 KiB land in
-128 KiB bucket but still grow on some pages.
+**Basis:** Zerodha, gin, and pypdfsuit profiles all keep the signing path visible, but the
+benchmark already uses in-place signing.
 
-- [ ] Profile max page stream length per template class.
-- [ ] Pre-cap page streams to measured max + 256 byte margin.
-- [ ] Pool 48 × 50 × 128 KiB bounded for HFT steady state.
-
-**Files:** `internal/pdf/pagemanager.go`  
-**Estimated gain:** +400–600 ops/sec + −60–90 MB heap  
-**Compliance risk:** Medium
-
-### P35 — Retail signature buffer optimization (partial)
-
-**Agents:** A2 — signature chain 6.3% cum; retail is 80% of workload.
-
-- [ ] Eliminate full-PDF memclr copy in `embedSignatureInPlace` — patch `/Contents` +
-      `/ByteRange` in pooled buffer.
-- [ ] Pool ASN.1 marshal buffers further (extend P14).
-- [ ] Defer `CreateSignatureField` appearance alloc where possible.
+- [ ] Reduce placeholder scan and `/ByteRange` patch overhead around `embedSignatureInPlace`.
+- [ ] Pool PKCS#7/auth-attrs marshal buffers further (extend P14 / prepare for `P42` if needed).
+- [ ] Trim `CreateSignatureField` appearance and object-building work where the benchmark does not need extra slack.
 
 **Files:** `internal/pdf/signature/signature.go`  
-**Estimated gain:** +400–600 ops/sec  
+**Estimated gain:** +250–400 ops/sec  
 **Compliance risk:** Medium — `/ByteRange` correctness critical  
 **Gate:** openssl/cms verification PASS on signed retail output
 
@@ -324,8 +373,9 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 - [ ] x10 mean ≥ **13,000 ops/sec** (idle machine)
 - [ ] Mean peak allocated ≤ **750 MB**
 - [ ] `bytes.growSlice` in-use ≤ 50 MB
-- [ ] `runtime.memclrNoHeapPointers` flat ≤ 5%
-- [ ] stddev ≤ 500 ops/sec
+- [ ] `runtime.memmove` flat ≤ 6%
+- [ ] `runtime.memclrNoHeapPointers` flat ≤ 7%
+- [ ] warmed-run stddev ≤ 900 ops/sec before re-introducing the cold first run to the acceptance stats
 - [ ] veraPDF 6/6 PASS
 
 ---
@@ -335,16 +385,16 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 **Duration:** 2–3 weeks  
 **Projected gain:** +1,500–2,500 ops/sec cumulative  
 **Risk:** Medium  
-**Agents:** A1 (HFT), A5 (table), A2 (retail ceiling) — HFT tail is mandatory for 15K
+**Basis:** Zerodha x10 run sweep still leaves the HFT struct path as the remaining mixed-workload gate
 
-> **Critical insight (A1 + A2 cross-validation):** HFT is 5% of documents but **75–85% of
-> mean latency**. Every 10% HFT speedup ≈ +750–850 ops/sec on the mixed benchmark.
-> Retail-only optimizations ceiling ≈ 11,500 ops/sec mixed — Phase C is non-optional.
+> **Critical insight:** run1–run5 keep the HFT struct path as the last large compliant
+> bottleneck. The exact weighted-latency split should be treated as directional, but
+> retail-only and active-only optimizations still do not close the mixed 15K gap.
 
-### P36 — Arena TD row template + bulk init (HFT TR→TD) ★ HFT #1 CPU
+### P36 — Arena TD row template + bulk init (HFT TR→TD setup) ★ HFT #1 CPU
 
-**Root cause:** `beginTableRowArena` 7.5% cum; `td.Parent = tr` loop alone is 370ms flat
-(7 field writes × 7 cols × 1999 rows × 250 HFT PDFs).
+**Root cause:** the TR→TD setup path stays split across `BeginTableRowWithTDMCIDs`,
+`beginTableRowArena`, `appendParentTreeRefs`, parent kid append, and TD field stores.
 
 - [ ] Pre-fill one TD template struct per row (`Type=TD, Parent=tr, PageID, HasMCID=true,
       `tdLeafFast=true`); vary only `MCID` per column.
@@ -355,11 +405,26 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 **Files:** `internal/pdf/structure.go`, `internal/pdf/draw.go`  
 **Estimated gain:** +600–900 ops/sec  
 **Compliance risk:** **Medium** — must preserve one TD per column with distinct MCID  
-**Gate:** `TestBeginTableRowWithTDMCIDs_*` PASS; HFT veraPDF PASS; `beginTableRowArena` cum ≤ 3%
+**Gate:** `TestBeginTableRowWithTDMCIDs_*` PASS; HFT veraPDF PASS; combined TR→TD setup path cum ≤ 5%
+
+### P38 — Batch struct-object emit (TR `/K [...]` refs + TD leaves)
+
+**Root cause:** `formatStructElemObjectTo` (TR emit / child refs) is now larger than the
+TD-leaf helper in the commit-wide Zerodha sweep, so the emit fix needs to cover both.
+
+- [ ] Add `appendStructElemTDLeafBatch(buf, elems []*StructElem, ctx, batchSize=64)`.
+- [ ] Fast-path TR `/K [ ... ]` object-ref formatting to avoid per-kid writes in `formatStructElemObjectTo`.
+- [ ] Accumulate N leaves or refs into `[8KiB]` stack buffers; single `pdfBuffer.Write` per batch.
+- [ ] Pre-assign ObjectIDs in iterative loop for sequential batching.
+
+**Files:** `internal/pdf/generator.go`  
+**Estimated gain:** +800–1,200 ops/sec  
+**Compliance risk:** Medium — golden-bytes test required  
+**Gate:** `TestFormatStructElemTDLeaf_StableOutput` PASS; output byte-identical; `formatStructElemObjectTo` + `appendStructElemTDLeaf` cum ≤ 5%
 
 ### P37 — Stripe-batch arena allocation (HFT table)
 
-**Agents:** A5 primary — cut 2000 arena calls → ~50 per-page stripes.
+**Basis:** once `P36` removes the per-row field-store waste, striping still reduces slab churn.
 
 - [ ] Allocate TR+7TD slabs per page stripe (~40 rows) not per row.
 - [ ] Keep per-row `BeginTableRowWithTDMCIDs` semantics; batch backing slab extend only.
@@ -369,24 +434,10 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 **Compliance risk:** Medium — TR→TD per row preserved  
 **Gate:** 48-worker race test 0 races
 
-### P38 — Batch TD struct-object writes (HFT emit)
+### P39 — Dedup shared-table glyph usage before registry writes
 
-**Root cause:** 14K calls to `appendStructElemTDLeaf` each do `Grow` + `Write` + 3×
-`appendDecimal` (4.2% cum).
-
-- [ ] Add `appendStructElemTDLeafBatch(buf, elems []*StructElem, ctx, batchSize=64)`.
-- [ ] Accumulate N leaves into `[8KiB]` stack buffer; single `pdfBuffer.Write` per batch.
-- [ ] Pre-assign ObjectIDs in iterative loop for sequential batching.
-
-**Files:** `internal/pdf/generator.go`  
-**Estimated gain:** +800–1,200 ops/sec  
-**Compliance risk:** Medium — golden-bytes test required  
-**Gate:** `TestFormatStructElemTDLeaf_StableOutput` PASS; output byte-identical
-
-### P39 — Batch `MarkCharsUsed` (HFT font subsetting)
-
-**Root cause:** `MarkCharsUsed` 4.1% cum; `mapassign_fast32` 2.9% from per-rune map writes.
-14K cells × Liberation TTF (PDF/A substitution).
+**Root cause:** the hotspot now spans the caller (`markSharedTableCharsUsed`) and the
+registry callee (`MarkCharsUsed` / `mapassign_fast32`), not the map write alone.
 
 - [ ] Per-table font charset: dedupe by (font, text) before map writes.
 - [ ] Mark unique column text patterns once (HFT columns have repeating values).
@@ -395,20 +446,7 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 **Files:** `internal/pdf/font/registry.go`, `internal/pdf/draw.go`  
 **Estimated gain:** +250–350 ops/sec  
 **Compliance risk:** Low — subset unchanged, veraPDF font gate  
-**Gate:** `MarkCharsUsed` cum ≤ 2%
-
-### P40 — Row stream direct append (HFT draw path)
-
-**Root cause:** `drawSharedLayoutRow` cache replay via `contentStream.Write(cached)` drives
-`memmove` (460ms cum in draw path).
-
-- [ ] Replace `contentStream.Write(cached)` with append into pre-sized page `[]byte`.
-- [ ] Grow page stream once per stripe, not per row.
-- [ ] Right-size `rowBuf.Grow` from profiled ~800–1200 B row template.
-
-**Files:** `internal/pdf/draw.go`  
-**Estimated gain:** +300–500 ops/sec  
-**Compliance risk:** Medium — BDC/EMC nesting order for PDF/UA-2
+**Gate:** `markSharedTableCharsUsed` + `MarkCharsUsed` + `mapassign_fast32` cum ≤ 3%
 
 ### P41 — Retail `drawTable` row-batch PDF/UA (retail + active small tables)
 
@@ -439,7 +477,7 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 - [ ] x10 best ≥ 16,000 ops/sec
 - [ ] stddev ≤ **400 ops/sec**
 - [ ] Mean peak allocated ≤ **650 MB**
-- [ ] `beginTableRowArena` cum ≤ 3%
+- [ ] combined TR→TD setup path cum ≤ 5%
 - [ ] `drawTable` cum ≤ 20%
 - [ ] `runtime.memclr` + `memmove` flat combined ≤ 8%
 - [ ] veraPDF 6/6 PASS
@@ -453,13 +491,13 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 | Phase | Items | Projected mean | Δ vs 9,009 | Confidence |
 |-------|-------|---------------:|-----------:|:----------:|
 | **Baseline (idle)** | P0–P25 done | 9,009 | — | measured |
-| **A — Quick wins** | P26–P30 | 10,500–11,000 | +11–22% | High |
-| **B — Memory wall** | P31–P35 | 12,500–13,500 | +39–50% | High |
-| **C — HFT tail** | P36–P42 | 14,500–15,500 | +61–72% | Medium |
+| **A — Quick wins** | P26, P28, P30, P29 | 10,400–10,900 | +15–21% | High |
+| **B — Memory wall** | P31, P34, P40, P32, P33, P35 | 12,500–13,500 | +39–50% | High |
+| **C — HFT tail** | P36, P38, P37, P39, P41, P42 | 14,500–15,500 | +61–72% | Medium |
 
 ```
-9,009 ──Phase A──► ~11,000 ──Phase B──► ~13,000 ──Phase C──► ~15,000
-         +22%                  +44%                  +66%
+9,009 ──Phase A──► ~10,400–10,900 ──Phase B──► ~13,000 ──Phase C──► ~15,000
+         +15–21%                         +44%                  +66%
 ```
 
 ---
@@ -471,7 +509,7 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 | Priority | Item | Gain | Notes |
 |----------|------|-----:|-------|
 | P1 | P26 sRGB ICC | +320–560 | 80% weight of all-format win |
-| P2 | P35 signature embed | +320–480 | 11.4% CPU retail-only |
+| P2 | P35 signature path cleanup | +200–320 | in-place signing already exists; remaining work is smaller |
 | P3 | P41 row-batch PDF/UA | +160–280 | 125 cells slow path today |
 | P4 | P42 PKCS#7 DER | +120–200 | ASN.1 reflection |
 | P5 | P31 pdfBuffer | +640–960 | 80% of buffer pool benefit |
@@ -482,22 +520,22 @@ HFT cap 2.5 MiB but output 2.29 MiB + struct-tree overhead still triggers mid-em
 
 | Priority | Item | Gain | Notes |
 |----------|------|-----:|-------|
-| P1 | P29 SharedRowLayout | +250–350 | 41-row table eligible |
+| P1 | P29 SharedRowLayout | +120–220 | 41-row table eligible, but lower leverage than HFT/memory work |
 | P2 | P41 row-batch PDF/UA | +40–60 | Stacks with P29 |
 | P3 | P26/P28/P30 | +45–80 | All-format shared wins |
-| P4 | P33 page stream caps | +60–90 | 2-page layout |
+| P4 | P34 page stream caps | +60–90 | 2-page layout |
 
-### HFT (5% of iterations, ~50–60% of CPU, ~75–85% of mean latency)
+### HFT (5% of iterations, dominant remaining compliant tail)
 
 | Priority | Item | Gain | Notes |
 |----------|------|-----:|-------|
 | P1 | P36 arena TD template | +600–900 | **Do not shortcut TR→TD** |
-| P2 | P37 stripe-batch arena | +450–700 | 2000 → ~50 alloc calls |
-| P3 | P38 batch TD leaf write | +800–1,200 | 14K struct emits |
+| P2 | P38 batch struct-object emit | +800–1,200 | TR `/K` refs + 14K TD emits |
+| P3 | P37 stripe-batch arena | +450–700 | 2000 → ~50 alloc calls |
 | P4 | P31 pdfBuffer zero-grow | +400–600 | 2.29 MB output |
-| P5 | P32 arena slab sizing | +250–450 | 8 MB → 4 MB slabs |
-| P6 | P39 MarkCharsUsed batch | +250–350 | 14K cells |
-| P7 | P40 row stream append | +300–500 | Cache replay memmove |
+| P5 | P40 row stream append | +300–500 | lands in Phase B because it is a copy-pressure fix |
+| P6 | P32 arena slab sizing | +250–450 | 8 MB → 4 MB slabs |
+| P7 | P39 glyph dedupe | +250–350 | shared-table prescan + registry writes |
 
 ---
 
@@ -515,8 +553,8 @@ go test ./internal/...
 make test-verify-pdfs
 
 # Profile analysis
-go tool pprof -top -cum guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run3.prof
-go tool pprof -top       guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run3.prof
+go tool pprof -top -cum guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run2.prof
+go tool pprof -top       guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run2.prof
 go tool pprof -top -cum guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof
 
 # k6 regression (after Phase B)

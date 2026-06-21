@@ -201,7 +201,7 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 	if benchCompliant {
 		retailCfg.Signature = retailSignatureConfig()
 	}
-	return gopdflib.PDFTemplate{
+	template := gopdflib.PDFTemplate{
 		Config: retailCfg,
 		Title: gopdflib.Title{
 			Props: "Helvetica:24:100:center:0:0:0:0",
@@ -345,6 +345,8 @@ func buildRetailTemplate() gopdflib.PDFTemplate {
 			},
 		},
 	}
+	template.SetPrecomputedStandardFonts("Helvetica")
+	return template
 }
 
 // ──────────────────────────────────────────────
@@ -388,7 +390,7 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 		totalTurnover += t.Total
 	}
 
-	return gopdflib.PDFTemplate{
+	template := gopdflib.PDFTemplate{
 		Config: basePDFConfig("Contract Note - Active Trader", "CONFIDENTIAL"),
 		Title: gopdflib.Title{
 			Props: "Helvetica:24:100:center:0:0:0:0",
@@ -457,9 +459,11 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 			}},
 			// Trade Table (40 rows + header)
 			{Type: "table", Table: &gopdflib.Table{
-				MaxColumns:   5,
-				ColumnWidths: []float64{2.5, 1, 1, 1.5, 1.5},
-				Rows:         tradeRows,
+				MaxColumns:           5,
+				ColumnWidths:         []float64{2.5, 1, 1, 1.5, 1.5},
+				Rows:                 tradeRows,
+				SharedRowLayout:      true,
+				SharedRowTemplateRow: 1,
 			}},
 			// Summary Header with dest anchor
 			{Type: "table", Table: &gopdflib.Table{
@@ -507,6 +511,8 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 			},
 		},
 	}
+	template.SetPrecomputedStandardFonts("Helvetica")
+	return template
 }
 
 // ──────────────────────────────────────────────
@@ -547,7 +553,7 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 		}})
 	}
 
-	return gopdflib.PDFTemplate{
+	template := gopdflib.PDFTemplate{
 		Config: basePDFConfig("Contract Note - HFT Algo Capital LLP", ""),
 		Title: gopdflib.Title{
 			Props: "Helvetica:24:100:center:0:0:0:0",
@@ -662,6 +668,8 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 			},
 		},
 	}
+	template.SetPrecomputedStandardFonts("Helvetica")
+	return template
 }
 
 // ──────────────────────────────────────────────

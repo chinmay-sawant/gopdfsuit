@@ -1,7 +1,6 @@
 package pdf
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -14,6 +13,17 @@ import (
 )
 
 var compressedSRGBICCProfileCache = sync.OnceValue(compressSRGBICCProfile)
+var xmpPacketPadding = strings.Repeat(" ", 2000)
+
+type xmpMetadataTemplate struct {
+	prefix                   string
+	betweenCreateAndModify   string
+	betweenModifyAndMetadata string
+	beforeDocumentID         string
+	betweenDocumentIDs       string
+	suffix                   string
+	sizeHint                 int
+}
 
 // PDFAHandler handles PDF/A compliance features, including metadata and color profiles.
 //
@@ -25,6 +35,7 @@ type PDFAHandler struct {
 	outputIntentObjID int
 	iccProfileObjID   int
 	encryptor         ObjectEncryptor
+	xmpTemplate       xmpMetadataTemplate
 }
 
 // NewPDFAHandler creates a new PDF/A handler
@@ -33,12 +44,21 @@ func NewPDFAHandler(config *models.PDFAConfig, pm *PageManager, encryptor Object
 		config:      config,
 		pageManager: pm,
 		encryptor:   encryptor,
+		xmpTemplate: buildXMPMetadataTemplate(config),
 	}
 }
 
 // GetConformanceLevel returns the PDF/A part and conformance level
 func (h *PDFAHandler) GetConformanceLevel() (part int, conformance string) {
-	switch h.config.Conformance {
+	return getPDFAConformanceLevel(h.config)
+}
+
+func getPDFAConformanceLevel(config *models.PDFAConfig) (part int, conformance string) {
+	if config == nil {
+		return 4, ""
+	}
+
+	switch config.Conformance {
 	case "1b":
 		return 1, "B"
 	case "1a":
@@ -66,27 +86,33 @@ func (h *PDFAHandler) GetConformanceLevel() (part int, conformance string) {
 	}
 }
 
-// GenerateXMPMetadata generates the XMP metadata stream for PDF/A
-func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
-	part, conformance := h.GetConformanceLevel()
+func buildXMPMetadataTemplate(config *models.PDFAConfig) xmpMetadataTemplate {
+	part, conformance := getPDFAConformanceLevel(config)
 
-	// Get current time in ISO 8601 format
-	now := time.Now().UTC()
-	createDate := now.Format("2006-01-02T15:04:05Z")
-	modifyDate := createDate
+	title := ""
+	author := ""
+	subject := ""
+	keywords := ""
+	creatorTool := "GoPDFSuit"
+	if config != nil {
+		title = config.Title
+		author = config.Author
+		subject = config.Subject
+		keywords = config.Keywords
+		if config.Creator != "" {
+			creatorTool = config.Creator
+		}
+	}
 
-	// Build XMP packet
-	var xmp bytes.Buffer
-	xmp.Grow(8192 + len(h.config.Title) + len(h.config.Author) + len(h.config.Subject) + len(h.config.Keywords))
-	xmp.WriteString(`<?xpacket begin="` + "\xef\xbb\xbf" + `" id="W5M0MpCehiHzreSzNTczkc9d"?>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`<x:xmpmeta xmlns:x="adobe:ns:meta/">`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">`)
-	xmp.WriteString("\n")
-
-	// PDF/UA Extension Schema definition
-	xmp.WriteString(`    <rdf:Description rdf:about=""
+	var prefix strings.Builder
+	prefix.Grow(6144 + len(title) + len(author) + len(subject) + len(keywords) + len(creatorTool))
+	prefix.WriteString(`<?xpacket begin="` + "\xef\xbb\xbf" + `" id="W5M0MpCehiHzreSzNTczkc9d"?>`)
+	prefix.WriteString("\n")
+	prefix.WriteString(`<x:xmpmeta xmlns:x="adobe:ns:meta/">`)
+	prefix.WriteString("\n")
+	prefix.WriteString(`  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">`)
+	prefix.WriteString("\n")
+	prefix.WriteString(`    <rdf:Description rdf:about=""
 		xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/"
 		xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#"
 		xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">
@@ -116,150 +142,175 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 		</rdf:Bag>
 	  </pdfaExtension:schemas>
 	</rdf:Description>`)
-	xmp.WriteString("\n")
-
-	// PDF/A and PDF/UA identification
-	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/">`)
-	xmp.WriteString("\n")
-	xmp.WriteString("      <pdfaid:part>")
-	xmp.WriteString(strconv.Itoa(part))
-	xmp.WriteString("</pdfaid:part>")
-	xmp.WriteString("\n")
+	prefix.WriteString("\n")
+	prefix.WriteString(`    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/">`)
+	prefix.WriteString("\n")
+	prefix.WriteString("      <pdfaid:part>")
+	prefix.WriteString(strconv.Itoa(part))
+	prefix.WriteString("</pdfaid:part>")
+	prefix.WriteString("\n")
 	if part == 4 {
-		xmp.WriteString(`      <pdfaid:rev>2020</pdfaid:rev>`)
-		xmp.WriteString("\n")
+		prefix.WriteString(`      <pdfaid:rev>2020</pdfaid:rev>`)
+		prefix.WriteString("\n")
 	} else if conformance != "" {
-		xmp.WriteString("      <pdfaid:conformance>" + conformance + "</pdfaid:conformance>")
-		xmp.WriteString("\n")
+		prefix.WriteString("      <pdfaid:conformance>" + conformance + "</pdfaid:conformance>")
+		prefix.WriteString("\n")
 	}
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <pdfuaid:part>2</pdfuaid:part>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <pdfuaid:rev>2024</pdfuaid:rev>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`    </rdf:Description>`)
-	xmp.WriteString("\n")
+	prefix.WriteString("\n")
+	prefix.WriteString(`      <pdfuaid:part>2</pdfuaid:part>`)
+	prefix.WriteString("\n")
+	prefix.WriteString(`      <pdfuaid:rev>2024</pdfuaid:rev>`)
+	prefix.WriteString("\n")
+	prefix.WriteString(`    </rdf:Description>`)
+	prefix.WriteString("\n")
+	prefix.WriteString(`    <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/">`)
+	prefix.WriteString("\n")
+	prefix.WriteString(`      <xmp:CreateDate>`)
 
-	// XMP basic properties
-	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/">`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <xmp:CreateDate>` + createDate + `</xmp:CreateDate>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <xmp:ModifyDate>` + modifyDate + `</xmp:ModifyDate>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <xmp:MetadataDate>` + modifyDate + `</xmp:MetadataDate>`)
-	xmp.WriteString("\n")
-	if h.config.Creator != "" {
-		xmp.WriteString(`      <xmp:CreatorTool>` + escapeXML(h.config.Creator) + `</xmp:CreatorTool>`)
-		xmp.WriteString("\n")
-	} else {
-		xmp.WriteString(`      <xmp:CreatorTool>GoPDFSuit</xmp:CreatorTool>`)
-		xmp.WriteString("\n")
-	}
-	xmp.WriteString(`    </rdf:Description>`)
-	xmp.WriteString("\n")
+	const betweenCreateAndModify = `</xmp:CreateDate>
+      <xmp:ModifyDate>`
+	const betweenModifyAndMetadata = `</xmp:ModifyDate>
+      <xmp:MetadataDate>`
+	const betweenDocumentIDs = `</xmpMM:DocumentID>
+      <xmpMM:InstanceID>uuid:`
 
-	// Dublin Core properties
-	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <dc:format>application/pdf</dc:format>`)
-	xmp.WriteString("\n")
-	if h.config.Title != "" {
-		xmp.WriteString(`      <dc:title>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`        <rdf:Alt>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`          <rdf:li xml:lang="x-default">` + escapeXML(h.config.Title) + `</rdf:li>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`        </rdf:Alt>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`      </dc:title>`)
-		xmp.WriteString("\n")
+	var beforeDocumentID strings.Builder
+	beforeDocumentID.Grow(2048 + len(title) + len(author) + len(subject) + len(keywords) + len(creatorTool))
+	beforeDocumentID.WriteString(`</xmp:MetadataDate>`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`      <xmp:CreatorTool>`)
+	beforeDocumentID.WriteString(escapeXML(creatorTool))
+	beforeDocumentID.WriteString(`</xmp:CreatorTool>`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`    </rdf:Description>`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`    <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`      <dc:format>application/pdf</dc:format>`)
+	beforeDocumentID.WriteString("\n")
+	if title != "" {
+		beforeDocumentID.WriteString(`      <dc:title>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`        <rdf:Alt>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`          <rdf:li xml:lang="x-default">`)
+		beforeDocumentID.WriteString(escapeXML(title))
+		beforeDocumentID.WriteString(`</rdf:li>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`        </rdf:Alt>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`      </dc:title>`)
+		beforeDocumentID.WriteString("\n")
 	}
-	if h.config.Author != "" {
-		xmp.WriteString(`      <dc:creator>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`        <rdf:Seq>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`          <rdf:li>` + escapeXML(h.config.Author) + `</rdf:li>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`        </rdf:Seq>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`      </dc:creator>`)
-		xmp.WriteString("\n")
+	if author != "" {
+		beforeDocumentID.WriteString(`      <dc:creator>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`        <rdf:Seq>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`          <rdf:li>`)
+		beforeDocumentID.WriteString(escapeXML(author))
+		beforeDocumentID.WriteString(`</rdf:li>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`        </rdf:Seq>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`      </dc:creator>`)
+		beforeDocumentID.WriteString("\n")
 	}
-	if h.config.Subject != "" {
-		xmp.WriteString(`      <dc:description>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`        <rdf:Alt>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`          <rdf:li xml:lang="x-default">` + escapeXML(h.config.Subject) + `</rdf:li>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`        </rdf:Alt>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`      </dc:description>`)
-		xmp.WriteString("\n")
+	if subject != "" {
+		beforeDocumentID.WriteString(`      <dc:description>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`        <rdf:Alt>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`          <rdf:li xml:lang="x-default">`)
+		beforeDocumentID.WriteString(escapeXML(subject))
+		beforeDocumentID.WriteString(`</rdf:li>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`        </rdf:Alt>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`      </dc:description>`)
+		beforeDocumentID.WriteString("\n")
 	}
-	if h.config.Keywords != "" {
-		xmp.WriteString(`      <dc:subject>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`        <rdf:Bag>`)
-		xmp.WriteString("\n")
-		keywords := strings.SplitSeq(h.config.Keywords, ",")
-		for kw := range keywords {
-			if len(kw) > 0 {
-				start, end := 0, len(kw)
-				for start < end && kw[start] == ' ' {
-					start++
-				}
-				for start < end && kw[end-1] == ' ' {
-					end--
-				}
-				kw = kw[start:end]
+	if keywords != "" {
+		beforeDocumentID.WriteString(`      <dc:subject>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`        <rdf:Bag>`)
+		beforeDocumentID.WriteString("\n")
+		for kw := range strings.SplitSeq(keywords, ",") {
+			kw = strings.TrimSpace(kw)
+			if kw == "" {
+				continue
 			}
-			if kw != "" {
-				xmp.WriteString(`          <rdf:li>` + escapeXML(kw) + `</rdf:li>`)
-				xmp.WriteString("\n")
-			}
+			beforeDocumentID.WriteString(`          <rdf:li>`)
+			beforeDocumentID.WriteString(escapeXML(kw))
+			beforeDocumentID.WriteString(`</rdf:li>`)
+			beforeDocumentID.WriteString("\n")
 		}
-		xmp.WriteString(`        </rdf:Bag>`)
-		xmp.WriteString("\n")
-		xmp.WriteString(`      </dc:subject>`)
-		xmp.WriteString("\n")
+		beforeDocumentID.WriteString(`        </rdf:Bag>`)
+		beforeDocumentID.WriteString("\n")
+		beforeDocumentID.WriteString(`      </dc:subject>`)
+		beforeDocumentID.WriteString("\n")
 	}
-	xmp.WriteString(`    </rdf:Description>`)
-	xmp.WriteString("\n")
+	beforeDocumentID.WriteString(`    </rdf:Description>`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`    <rdf:Description rdf:about="" xmlns:pdf="http://ns.adobe.com/pdf/1.3/">`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`      <pdf:Producer>GoPDFSuit</pdf:Producer>`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`    </rdf:Description>`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`    <rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/">`)
+	beforeDocumentID.WriteString("\n")
+	beforeDocumentID.WriteString(`      <xmpMM:DocumentID>uuid:`)
 
-	// PDF properties
-	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:pdf="http://ns.adobe.com/pdf/1.3/">`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <pdf:Producer>GoPDFSuit</pdf:Producer>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`    </rdf:Description>`)
-	xmp.WriteString("\n")
+	var suffix strings.Builder
+	suffix.Grow(256 + len(xmpPacketPadding))
+	suffix.WriteString(`</xmpMM:InstanceID>`)
+	suffix.WriteString("\n")
+	suffix.WriteString(`    </rdf:Description>`)
+	suffix.WriteString("\n")
+	suffix.WriteString(`  </rdf:RDF>`)
+	suffix.WriteString("\n")
+	suffix.WriteString(`</x:xmpmeta>`)
+	suffix.WriteString("\n")
+	suffix.WriteString(xmpPacketPadding)
+	suffix.WriteString("\n")
+	suffix.WriteString(`<?xpacket end="w"?>`)
 
-	// XMP Media Management
-	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/">`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <xmpMM:DocumentID>uuid:` + documentID + `</xmpMM:DocumentID>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`      <xmpMM:InstanceID>uuid:` + documentID + `</xmpMM:InstanceID>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`    </rdf:Description>`)
-	xmp.WriteString("\n")
+	prefixStr := prefix.String()
+	beforeDocumentIDStr := beforeDocumentID.String()
+	suffixStr := suffix.String()
 
-	xmp.WriteString(`  </rdf:RDF>`)
-	xmp.WriteString("\n")
-	xmp.WriteString(`</x:xmpmeta>`)
-	xmp.WriteString("\n")
+	return xmpMetadataTemplate{
+		prefix:                   prefixStr,
+		betweenCreateAndModify:   betweenCreateAndModify,
+		betweenModifyAndMetadata: betweenModifyAndMetadata,
+		beforeDocumentID:         beforeDocumentIDStr,
+		betweenDocumentIDs:       betweenDocumentIDs,
+		suffix:                   suffixStr,
+		sizeHint: len(prefixStr) + len(betweenCreateAndModify) + len(betweenModifyAndMetadata) +
+			len(beforeDocumentIDStr) + len(betweenDocumentIDs) + len(suffixStr),
+	}
+}
 
-	// Add padding for future editing (required by XMP spec)
-	padding := strings.Repeat(" ", 2000)
-	xmp.WriteString(padding)
-	xmp.WriteString("\n")
-	xmp.WriteString(`<?xpacket end="w"?>`)
+// GenerateXMPMetadata generates the XMP metadata stream for PDF/A
+func (h *PDFAHandler) GenerateXMPMetadata(documentID string, generatedAt time.Time) (int, string) {
+	createDate := generatedAt.UTC().Format("2006-01-02T15:04:05Z")
+	template := h.xmpTemplate
+	var xmp strings.Builder
+	xmp.Grow(template.sizeHint + len(createDate)*3 + len(documentID)*2)
+	xmp.WriteString(template.prefix)
+	xmp.WriteString(createDate)
+	xmp.WriteString(template.betweenCreateAndModify)
+	xmp.WriteString(createDate)
+	xmp.WriteString(template.betweenModifyAndMetadata)
+	xmp.WriteString(createDate)
+	xmp.WriteString(template.beforeDocumentID)
+	xmp.WriteString(documentID)
+	xmp.WriteString(template.betweenDocumentIDs)
+	xmp.WriteString(documentID)
+	xmp.WriteString(template.suffix)
 
-	xmpContent := xmp.Bytes()
+	xmpContent := []byte(xmp.String())
 
 	// Create metadata stream object
 	h.metadataObjID = h.pageManager.NextObjectID
@@ -293,6 +344,7 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []string, []byte) {
 	objects := make([]string, 0, 2)
 	var sb strings.Builder
+	sb.Grow(160)
 
 	// Create ICC profile object (sRGB)
 	// This is a minimal sRGB ICC profile for PDF/A compliance
@@ -303,16 +355,10 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 		h.pageManager.NextObjectID++
 	}
 
-	iccData := getSRGBICCProfile()
-	sb.Grow(512 + len(iccData))
-
-	var compressedData []byte
-	if h.encryptor == nil {
-		compressedData = compressedSRGBICCProfileCache()
-	} else {
-		// Encrypt compressed ICC profile stream if needed. The encrypted bytes are
-		// object-ID dependent, so only the unencrypted payload can be cached.
-		compressedData = compressSRGBICCProfile()
+	compressedData := compressedSRGBICCProfileCache()
+	if h.encryptor != nil {
+		// Encryption is object-ID dependent, but it can reuse the cached
+		// compressed ICC stream as the input payload.
 		compressedData = h.encryptor.EncryptStream(compressedData, h.iccProfileObjID, 0)
 	}
 
@@ -410,7 +456,7 @@ func escapeXML(s string) string {
 // getSRGBICCProfile returns the complete sRGB ICC profile for PDF/A compliance
 // Uses the properly built profile from pdfa.go to ensure validity
 func getSRGBICCProfile() []byte {
-	return GetSRGBICCProfile()
+	return srgbICCProfileRaw
 }
 
 // GenerateCatalogExtras returns additional catalog entries for PDF/A

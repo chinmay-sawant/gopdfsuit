@@ -15,6 +15,7 @@ import (
 // pre-compress once at init to avoid 1024× math.Pow per PDF.
 var (
 	grayICCProfileCompressed []byte
+	srgbICCProfileRaw        []byte
 	srgbICCProfileCompressed []byte
 )
 
@@ -36,7 +37,8 @@ func compressICCProfileBytes(profile []byte) []byte {
 
 func init() {
 	grayICCProfileCompressed = compressICCProfileBytes(buildGrayICCProfile())
-	srgbICCProfileCompressed = compressICCProfileBytes(buildSRGBICCProfile())
+	srgbICCProfileRaw = buildSRGBICCProfile()
+	srgbICCProfileCompressed = compressICCProfileBytes(srgbICCProfileRaw)
 }
 
 // ConvertPDFDateToXMP converts a PDF date string (D:YYYYMMDDHHmmSSOHH'mm') to XMP format (YYYY-MM-DDTHH:mm:ss+HH:MM)
@@ -333,7 +335,7 @@ func buildSRGBICCProfile() []byte {
 
 // GetSRGBICCProfile returns the complete sRGB ICC profile
 func GetSRGBICCProfile() []byte {
-	return buildSRGBICCProfile()
+	return append([]byte(nil), srgbICCProfileRaw...)
 }
 
 // GenerateICCProfileObject generates the ICC profile stream object for sRGB

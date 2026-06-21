@@ -116,6 +116,29 @@ func (t *PDFTemplate) ResetForReuse() {
 	t.Image = t.Image[:0]
 	t.Elements = t.Elements[:0]
 	t.Bookmarks = t.Bookmarks[:0]
+	t.precomputedStandardFonts = t.precomputedStandardFonts[:0]
+}
+
+// SetPrecomputedStandardFonts stores a startup PDF/A font-registration hint.
+func (t *PDFTemplate) SetPrecomputedStandardFonts(fonts ...string) {
+	if t == nil {
+		return
+	}
+	if len(fonts) == 0 {
+		t.precomputedStandardFonts = t.precomputedStandardFonts[:0]
+		return
+	}
+	if cap(t.precomputedStandardFonts) < len(fonts) {
+		t.precomputedStandardFonts = make([]string, len(fonts))
+	} else {
+		t.precomputedStandardFonts = t.precomputedStandardFonts[:len(fonts)]
+	}
+	copy(t.precomputedStandardFonts, fonts)
+}
+
+// PrecomputedStandardFonts returns the startup PDF/A font-registration hint.
+func (t PDFTemplate) PrecomputedStandardFonts() []string {
+	return t.precomputedStandardFonts
 }
 
 func resetElementForReuse(elem *Element) {
@@ -170,6 +193,8 @@ type PDFTemplate struct {
 	Elements  []Element  `json:"elements,omitempty"` // Ordered elements (tables, spacers, images)
 	Footer    Footer     `json:"footer"`
 	Bookmarks []Bookmark `json:"bookmarks,omitempty"` // Hierarchical bookmarks/outlines
+
+	precomputedStandardFonts []string `json:"-"`
 }
 
 // Bookmark represents a PDF outline entry for document navigation
