@@ -71,6 +71,43 @@ func TestBeginMarkedContentBufWithMCID_createsTDUnderTR(t *testing.T) {
 	}
 }
 
+func TestBeginTableRowWithTDMCIDs_parentTreeReferencesTD(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	sm.BeginTableRowWithTDMCIDs(0, 10, 3)
+	tr := sm.CurrentParent
+
+	if len(sm.ParentTree[0]) != 3 {
+		t.Fatalf("expected 3 parent tree entries, got %d", len(sm.ParentTree[0]))
+	}
+	for i, ref := range sm.ParentTree[0] {
+		if ref.Type != StructTD {
+			t.Fatalf("ParentTree[%d] type=%s, want TD", i, ref.Type)
+		}
+		if mcid, ok := ref.LeafMCID(); !ok || mcid != 10+i {
+			t.Fatalf("ParentTree[%d] MCID=%d ok=%v, want %d", i, mcid, ok, 10+i)
+		}
+		if ref.Parent != tr {
+			t.Fatalf("ParentTree[%d] parent=%p, want TR %p", i, ref.Parent, tr)
+		}
+	}
+}
+
+func TestBeginTableRowWithTDMCIDs_trPageID(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	sm.BeginTableRowWithTDMCIDs(2, 0, 4)
+	tr := sm.CurrentParent
+	if tr.PageID != 2 {
+		t.Fatalf("TR PageID=%d, want 2", tr.PageID)
+	}
+	for i, kid := range tr.Kids {
+		if kid.Elem == nil || kid.Elem.PageID != 2 {
+			t.Fatalf("TD %d PageID=%v, want 2", i, kid.Elem)
+		}
+	}
+}
+
 func TestBeginTableRowWithTDMCIDs_createsTDUnderTR(t *testing.T) {
 	sm := NewStructureManager(true)
 	sm.BeginStructureElement(StructTable)

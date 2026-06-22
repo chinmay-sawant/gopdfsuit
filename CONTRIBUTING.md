@@ -11,7 +11,8 @@ Thank you for your interest in contributing to **GoPdfSuit**. This guide covers 
 | **Google Chrome** | Required for HTML→PDF/Image conversion |
 | **Node.js + npm** | Frontend build (Node 18+ recommended) |
 | **Python 3.8+** | Python bindings tests (`pypdfsuit`) |
-| **Java 11+** | Optional — needed to install veraPDF for PDF/A validation |
+| **Java 11+** | Optional — needed for veraPDF (PDF/A-4 + PDF/UA-2 validation) |
+| **Python 3 + venv** | Optional — `make install-pdf-validators` installs avalpdf into `.pdf-validators/` |
 | **golangci-lint** | v1.64.8+ (matches CI) |
 
 ### Windows
@@ -30,7 +31,7 @@ bash setup-auth.sh
 # Or manual setup:
 go mod tidy
 cd frontend && npm ci && cp .env.example .env && cd ..
-make install-verapdf   # optional, for PDF/A validation in tests
+make install-pdf-validators   # veraPDF + avalpdf (see guides/PDF_VALIDATORS.md)
 ```
 
 Install Google Chrome on Linux:
@@ -132,6 +133,8 @@ python3 -m pytest bindings/python/tests -v
 | HTTP integration | `test/` package | `go test -count=1 -v ./test` |
 | Python bindings | `bindings/python/tests/` | `python3 -m pytest bindings/python/tests` |
 | PDF validation | `test/verify_pdfs.sh` | `make test-verify-pdfs` |
+
+PDF compliance uses a layered stack: **veraPDF** (PDF/A-4 + PDF/UA-2), **structure_tree_check.py** (ParentTree consistency — catches bugs veraPDF misses), and **avalpdf** (accessibility heuristics, warnings by default). See [guides/PDF_VALIDATORS.md](guides/PDF_VALIDATORS.md).
 
 Fixtures live under `sampledata/`. Tests write artifacts back with `temp_*` or `*_python.pdf` suffixes.
 

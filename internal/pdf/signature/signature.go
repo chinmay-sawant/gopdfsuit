@@ -35,6 +35,7 @@ type PDFSigner struct {
 	precomputedCertBytes []byte
 	issuerAndSerial      issuerAndSerial
 	digestSigAlgorithm   asn1.ObjectIdentifier
+	derParts             pkcs7DERParts
 	cachedPlacement      signaturePlacement
 	hasCachedPlacement   bool
 }
@@ -236,6 +237,7 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	for _, chainCert := range chain {
 		signer.precomputedCertBytes = append(signer.precomputedCertBytes, chainCert.Raw...)
 	}
+	signer.derParts = buildPKCS7DERParts(signer)
 
 	if existing, loaded := pdfSignerCache.LoadOrStore(cacheKey, signer); loaded {
 		cached := existing.(*PDFSigner)
@@ -523,73 +525,16 @@ func (s *PDFSigner) SignPDF(pdfData []byte, byteRange [4]int) ([]byte, error) {
 	return signedData, nil
 }
 
-// createPKCS7SignedData creates a PKCS#7 SignedData structure
+// createPKCS7SignedData creates a PKCS#7 SignedData structure using hand-built DER (P42).
 func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) {
-	// Build authenticated attributes
 	signingTime := time.Now().UTC()
+	authAttrsBytes := buildAuthenticatedAttributesSET(s.derParts, messageDigest, signingTime)
 
-	// Authenticated attributes MUST be in DER-sorted order for SET encoding
-	// OIDs: ContentType (1.9.3), MessageDigest (1.9.4), SigningTime (1.9.5)
-	bufs := pkcs7MarshalBuffersPool.Get().(*pkcs7MarshalBuffers)
-	defer pkcs7MarshalBuffersPool.Put(bufs)
-	authenticatedAttrs := bufs.attrs[:]
-	authenticatedAttrs[0] = attribute{
-		Type: oidContentType,
-		Value: asn1.RawValue{
-			Class:      asn1.ClassUniversal,
-			Tag:        asn1.TagSet,
-			IsCompound: true,
-			Bytes:      marshaledOIDData,
-		},
-	}
-	authenticatedAttrs[1] = attribute{
-		Type: oidMessageDigest,
-		Value: asn1.RawValue{
-			Class:      asn1.ClassUniversal,
-			Tag:        asn1.TagSet,
-			IsCompound: true,
-			Bytes:      mustMarshal(messageDigest),
-		},
-	}
-	authenticatedAttrs[2] = attribute{
-		Type: oidSigningTime,
-		Value: asn1.RawValue{
-			Class:      asn1.ClassUniversal,
-			Tag:        asn1.TagSet,
-			IsCompound: true,
-			Bytes:      mustMarshal(signingTime),
-		},
-	}
-
-	// Marshal authenticated attributes for signing
-	// Go defaults to SEQUENCE for slice, but we need SET for Attributes
-	// Attributes are already in DER-sorted order (ContentType < MessageDigest < SigningTime by OID)
-	seqBytes, err := asn1.Marshal(authenticatedAttrs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal authenticated attributes: %w", err)
-	}
-
-	// Change SEQUENCE tag (0x30) to SET tag (0x31)
-	authPtr := authAttrsBytesPool.Get().(*[]byte)
-	authAttrsBytes := (*authPtr)[:len(seqBytes)]
-	if cap(authAttrsBytes) < len(seqBytes) {
-		authAttrsBytes = make([]byte, len(seqBytes))
-	} else {
-		authAttrsBytes = authAttrsBytes[:len(seqBytes)]
-	}
-	copy(authAttrsBytes, seqBytes)
-	if len(authAttrsBytes) > 0 {
-		authAttrsBytes[0] = asn1.TagSet
-	}
-	defer func() {
-		*authPtr = authAttrsBytes[:0]
-		authAttrsBytesPool.Put(authPtr)
-	}()
-
-	// Sign the authenticated attributes (must be the SET encoding)
 	authAttrsHash := sha256.Sum256(authAttrsBytes)
+	contentBytes := stripOuterTLV(authAttrsBytes)
 
 	var signature []byte
+	var err error
 	switch key := s.privateKey.(type) {
 	case *rsa.PrivateKey:
 		signature, err = rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, authAttrsHash[:])
@@ -605,79 +550,9 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 		return nil, errors.New("unsupported key type")
 	}
 
-	// Extract content bytes for SignerInfo (strip SET tag and length)
-	// because RawValue will add the [0] IMPLICIT tag and new length
-	var contentBytes []byte
-	if len(authAttrsBytes) > 1 {
-		offset := 1 // Skip Tag
-		// Check length byte
-		if authAttrsBytes[offset]&0x80 == 0 {
-			// Short form length
-			offset++
-		} else {
-			// Long form length
-			numBytes := int(authAttrsBytes[offset] & 0x7F)
-			offset += 1 + numBytes
-		}
-		if offset <= len(authAttrsBytes) {
-			contentBytes = authAttrsBytes[offset:]
-		}
-	}
-
-	// Build SignerInfo
-	sInfo := signerInfo{
-		Version:         1,
-		IssuerAndSerial: s.issuerAndSerial,
-		DigestAlgorithm: pkixAlgorithmIdentifier{
-			Algorithm: oidSHA256,
-		},
-		AuthenticatedAttributes: asn1.RawValue{
-			Class:      asn1.ClassContextSpecific,
-			Tag:        0,
-			IsCompound: true,
-			Bytes:      contentBytes,
-		},
-		DigestEncryptionAlgorithm: pkixAlgorithmIdentifier{
-			Algorithm: s.digestSigAlgorithm,
-		},
-		EncryptedDigest: signature,
-	}
-
-	// Build SignedData
-	sData := signedData{
-		Version: 1,
-		DigestAlgorithms: []pkixAlgorithmIdentifier{
-			{Algorithm: oidSHA256},
-		},
-		ContentInfo: contentInfo{
-			ContentType: oidData,
-		},
-		Certificates: asn1.RawValue{
-			Class:      asn1.ClassContextSpecific,
-			Tag:        0,
-			IsCompound: true,
-			Bytes:      s.precomputedCertBytes,
-		},
-		SignerInfos: []signerInfo{sInfo},
-	}
-
-	signedDataBytes, err := asn1.Marshal(sData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal signedData: %w", err)
-	}
-
-	// Wrap in ContentInfo
-	cInfo := contentInfo{
-		ContentType: oidSignedData,
-		Content: asn1.RawValue{
-			Class:      asn1.ClassContextSpecific,
-			Tag:        0,
-			IsCompound: true,
-			Bytes:      signedDataBytes,
-		},
-	}
-
-	return asn1.Marshal(cInfo)
+	signerInfo := buildSignerInfoDER(s.derParts, contentBytes, signature)
+	signedData := buildSignedDataDER(s.derParts, signerInfo)
+	return buildContentInfoDER(signedData), nil
 }
 
 // ASN.1 structures for PKCS#7

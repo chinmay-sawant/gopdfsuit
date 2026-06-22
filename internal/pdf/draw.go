@@ -18,6 +18,8 @@ const (
 	alignLeft   = "left"
 	alignCenter = "center"
 	alignRight  = "right"
+
+	rowBatchTableMaxRows = 20 // retail/active tables; P41 row-batch PDF/UA path
 )
 
 // cellTextX computes the X origin for text inside a cell, clamping so glyphs
@@ -256,15 +258,26 @@ func buildTextColorCmd(textColor string) []byte {
 // markSharedTableCharsUsed registers every glyph in a shared-layout table before subsetting.
 // The HFT fast path skips the slow drawTable loop, so this pre-pass is required for PDF/A-4.
 func markSharedTableCharsUsed(table models.Table, sharedCols []sharedColumnLayout, maxColumns int, registry *CustomFontRegistry) {
+	type fontTextKey struct {
+		font string
+		text string
+	}
+	seen := make(map[fontTextKey]struct{}, 256)
 	for _, row := range table.Rows {
 		for colIdx, cell := range row.Row {
 			if colIdx >= maxColumns || colIdx >= len(sharedCols) {
 				break
 			}
 			sc := sharedCols[colIdx]
-			if cell.Text != "" && sc.usesCustomFont {
-				registry.MarkCharsUsed(sc.resolvedFont, cell.Text)
+			if cell.Text == "" || !sc.usesCustomFont {
+				continue
 			}
+			key := fontTextKey{font: sc.resolvedFont, text: cell.Text}
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			registry.MarkCharsUsed(sc.resolvedFont, cell.Text)
 		}
 	}
 }
@@ -1296,6 +1309,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	var sharedCols []sharedColumnLayout
 	charsPreScanned := false
 	useSharedLayout := templateRow >= 0 && tableSupportsSharedRowLayout(table, templateRow)
+	useRowBatchUA := len(table.Rows) <= rowBatchTableMaxRows && table.MaxColumns <= maxInlineStructKids
 	if useSharedLayout {
 		sharedCols = buildSharedColumnLayouts(table, templateRow, pageManager.FontRegistry)
 		markSharedTableCharsUsed(table, sharedCols, table.MaxColumns, pageManager.FontRegistry)
@@ -1307,6 +1321,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	if largeTable {
 		stripeRows = pageManager.RowsFitOnCurrentPage(baseRowHeight)
 		pageManager.GrowCurrentStreamForStripe(stripeRows, table.MaxColumns)
+		pageManager.Structure.PrepareArenaStripe(stripeRows, table.MaxColumns)
 		pageManager.Structure.PreallocatePageMCIDSlots(pageManager.CurrentPageIndex, stripeRows*table.MaxColumns)
 	}
 
@@ -1338,6 +1353,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						stripeRows = remaining
 					}
 					pageManager.GrowCurrentStreamForStripe(stripeRows, table.MaxColumns)
+					pageManager.Structure.PrepareArenaStripe(stripeRows, table.MaxColumns)
 					pageManager.Structure.PreallocatePageMCIDSlots(
 						pageManager.CurrentPageIndex,
 						stripeRows*table.MaxColumns,
@@ -1353,10 +1369,6 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			)
 			continue
 		}
-
-		// PDF/UA: Start Row Structure
-		kidCap := min(len(row.Row), table.MaxColumns)
-		pageManager.Structure.BeginStructureElementCap(StructTR, kidCap)
 
 		// Pre-calculate column widths and parsed props
 		// We need to know each cell's width before calculating wrapped text height
@@ -1512,7 +1524,13 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		// Get current content stream for this page
 		contentStream := pageManager.GetCurrentContentStream()
 
-		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, min(len(row.Row), table.MaxColumns))
+		cellCount := min(len(row.Row), table.MaxColumns)
+		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+		if useRowBatchUA {
+			pageManager.Structure.BeginTableRowWithTDMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
+		} else {
+			pageManager.Structure.BeginStructureElementCap(StructTR, cellCount)
+		}
 
 		// Draw row cells
 		currentX := pageManager.Margins.Left
@@ -1524,7 +1542,11 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// PDF/UA: Start Cell Structure (TH for header if first row, else TD)
 			cellType := StructTD
 			mcid := rowMCIDBase + colIdx
-			pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, mcid)
+			if useRowBatchUA {
+				pageManager.Structure.WriteCellMarkedContentBDC(contentStream, cellType, mcid)
+			} else {
+				pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, mcid)
+			}
 
 			cellProps := rowCellProps[colIdx] // Use cached props
 			cellX := currentX
@@ -1990,7 +2012,11 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			// PDF/UA: End Cell Structure
-			pageManager.Structure.EndMarkedContentBuf(contentStream)
+			if useRowBatchUA {
+				pageManager.Structure.EndCellMarkedContentBuf(contentStream)
+			} else {
+				pageManager.Structure.EndMarkedContentBuf(contentStream)
+			}
 		}
 
 		// PDF/UA: End Row Structure

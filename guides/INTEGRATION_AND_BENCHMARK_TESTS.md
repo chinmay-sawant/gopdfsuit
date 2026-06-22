@@ -108,6 +108,22 @@ Unit tests (`handlers_gomock_test.go`) verify handler wiring without real PDF ge
 | Fonts | `TestGetFonts`, `TestUploadFontInvalidExtension` | — |
 | Template data | `TestGetTemplateData` | `financial_report.json` |
 
+## PDF compliance validation
+
+Layered validators for PDF/A-4 and PDF/UA-2 (see [PDF_VALIDATORS.md](./PDF_VALIDATORS.md)):
+
+```bash
+make install-pdf-validators   # veraPDF + avalpdf (gitignored under verapdf/, .pdf-validators/)
+make test-verify-pdfs         # full manifest
+make test-zerodha-compliance  # Zerodha retail/active/HFT only
+```
+
+| Tool | Role |
+|------|------|
+| veraPDF | ISO PDF/A-4 + PDF/UA-2 profiles (primary CI gate) |
+| `test/structure_tree_check.py` | ParentTree → TD consistency (catches PAC/Adobe-style structural bugs) |
+| avalpdf | Tag-tree / WCAG heuristics (warnings by default) |
+
 ## Python integration parity
 
 | Feature | File |

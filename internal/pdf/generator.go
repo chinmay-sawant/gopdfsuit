@@ -1497,18 +1497,39 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			root:             pageManager.Structure.Root,
 			pages:            pageManager.Pages,
 		}
+		var tdLeafBatch [8192]byte
+		tdBatch := tdLeafBatch[:0]
+		flushTDLeafBatch := func() {
+			if len(tdBatch) == 0 {
+				return
+			}
+			pdfBuffer.Grow(len(tdBatch))
+			_, _ = pdfBuffer.Write(tdBatch)
+			tdBatch = tdBatch[:0]
+		}
 		for i := 1; i < len(pageManager.Structure.Elements); i++ {
 			elem := pageManager.Structure.Elements[i]
 			if elem == nil {
 				continue
 			}
-			setXrefOffset(xrefOffsets, elem.ObjectID, pdfBuffer.Len())
 			if elem.tdLeafFast {
-				appendStructElemTDLeaf(pdfBuffer, elem, structFmt)
-			} else {
-				formatStructElemObjectTo(pdfBuffer, elem, structFmt)
+				// Record each TD object's xref at its final byte offset before appending
+				// to the batch buffer (P38: batch write, per-object xref).
+				if len(tdBatch) > 0 && len(tdBatch)+128 > cap(tdLeafBatch) {
+					flushTDLeafBatch()
+				}
+				setXrefOffset(xrefOffsets, elem.ObjectID, pdfBuffer.Len()+len(tdBatch))
+				tdBatch = appendStructElemTDLeafBytes(tdBatch, elem, structFmt)
+				continue
 			}
+			flushTDLeafBatch()
+			setXrefOffset(xrefOffsets, elem.ObjectID, pdfBuffer.Len())
+			if formatTRStructElemObjectTo(pdfBuffer, elem, structFmt) {
+				continue
+			}
+			formatStructElemObjectTo(pdfBuffer, elem, structFmt)
 		}
+		flushTDLeafBatch()
 
 		pageManager.Structure.ReleaseStructElemsToPool()
 	}
@@ -1695,6 +1716,9 @@ func formatStructElemObjectTo(pdfBuffer *bytes.Buffer, elem *StructElem, ctx str
 	if formatSingleMCIDTableCellStructElem(pdfBuffer, elem, ctx) {
 		return
 	}
+	if formatTRStructElemObjectTo(pdfBuffer, elem, ctx) {
+		return
+	}
 	kidCount := len(elem.Kids)
 	if elem.HasMCID {
 		kidCount++
@@ -1834,12 +1858,7 @@ func isTDLeafStructElem(elem *StructElem) bool {
 	return elem.Title == "" && elem.Alt == "" && elem.Parent != nil
 }
 
-// appendStructElemTDLeaf writes a TD/TH leaf without the fast-path guard.
-// P16 (2026-06-20 checklist): called directly from the iterative struct
-// writer when isTDLeafStructElem is true.
-func appendStructElemTDLeaf(pdfBuffer *bytes.Buffer, elem *StructElem, ctx structElemFormatCtx) {
-	var scratch [128]byte
-	buf := scratch[:0]
+func appendStructElemTDLeafBytes(buf []byte, elem *StructElem, ctx structElemFormatCtx) []byte {
 	buf = appendDecimal(buf, elem.ObjectID)
 	buf = append(buf, " 0 obj\n<< /Type /StructElem /S /"...)
 	buf = append(buf, string(elem.Type)...)
@@ -1857,10 +1876,59 @@ func appendStructElemTDLeaf(pdfBuffer *bytes.Buffer, elem *StructElem, ctx struc
 		buf = appendDecimal(buf, ctx.pages[elem.PageID])
 		buf = append(buf, " 0 R"...)
 	}
+	return append(buf, " >>\nendobj\n"...)
+}
+
+// appendStructElemTDLeaf writes a TD/TH leaf without the fast-path guard.
+// P16 (2026-06-20 checklist): called directly from the iterative struct
+// writer when isTDLeafStructElem is true.
+func appendStructElemTDLeaf(pdfBuffer *bytes.Buffer, elem *StructElem, ctx structElemFormatCtx) {
+	body := appendStructElemTDLeafBytes(nil, elem, ctx)
+	pdfBuffer.Grow(len(body))
+	_, _ = pdfBuffer.Write(body)
+}
+
+// formatTRStructElemObjectTo emits arena TR rows with only element-ref kids (P38).
+func formatTRStructElemObjectTo(pdfBuffer *bytes.Buffer, elem *StructElem, ctx structElemFormatCtx) bool {
+	if elem == nil || !elem.groupEmitFast || elem.Type != StructTR || elem.HasMCID || elem.Title != "" || elem.Alt != "" {
+		return false
+	}
+	kidCount := len(elem.Kids)
+	if kidCount == 0 {
+		return false
+	}
+	for _, kid := range elem.Kids {
+		if kid.Elem == nil {
+			return false
+		}
+	}
+
+	var scratch [512]byte
+	buf := scratch[:0]
+	buf = appendDecimal(buf, elem.ObjectID)
+	buf = append(buf, " 0 obj\n<< /Type /StructElem /S /TR /P "...)
+	if elem.Parent == ctx.root {
+		buf = appendDecimal(buf, ctx.structTreeRootID)
+	} else {
+		buf = appendDecimal(buf, elem.Parent.ObjectID)
+	}
+	buf = append(buf, " 0 R /K ["...)
+	for _, kid := range elem.Kids {
+		buf = append(buf, ' ')
+		buf = appendDecimal(buf, kid.Elem.ObjectID)
+		buf = append(buf, " 0 R"...)
+	}
+	buf = append(buf, " ]"...)
+	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
+		buf = append(buf, " /Pg "...)
+		buf = appendDecimal(buf, ctx.pages[elem.PageID])
+		buf = append(buf, " 0 R"...)
+	}
 	buf = append(buf, " >>\nendobj\n"...)
 
 	pdfBuffer.Grow(len(buf))
 	_, _ = pdfBuffer.Write(buf)
+	return true
 }
 
 // formatSingleMCIDTableCellStructElem is the HFT TD-leaf fast path. P3:

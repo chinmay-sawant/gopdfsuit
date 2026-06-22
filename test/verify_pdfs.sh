@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
-# veraPDF validity, optional PDF/A compliance, and PDF size variance checks.
+# PDF validation: veraPDF (PDF/A-4, PDF/UA-2), structure-tree consistency,
+# avalpdf heuristics, validity parse checks, and size variance.
 #
 # Usage:
 #   ./test/verify_pdfs.sh                      # post-test validation (make test)
 #   ./test/verify_pdfs.sh --scan-all             # scan every PDF under sampledata/
 #   ./test/verify_pdfs.sh --scan-all-compliance  # scan-all + PDF/A-4 and PDF/UA-2 table
+#   ./test/verify_pdfs.sh --zerodha-only         # Zerodha retail/active/HFT PDF/A-4 + PDF/UA-2
 #
 # Environment:
 #   VERIFY_PDFS_JOBS  Max parallel veraPDF workers (default: nproc or 4)
 #   VERAPDF_BIN       Path to veraPDF CLI (default: <repo>/verapdf/verapdf)
+#   AVALPDF_BIN       Path to avalpdf CLI (default: <repo>/.pdf-validators/venv/bin/avalpdf)
+#   VERIFY_STRUCTURE_TREE  Run structure_tree_check.py on compliance PDFs (default: 1)
+#   VERIFY_AVALPDF    Run avalpdf on compliance PDFs (default: 1)
+#   VERIFY_AVALPDF_STRICT  Fail on avalpdf issues (default: 0 — warnings only)
 #
 # Post-test manifest is built from:
 #   - Every sampledata/**/generated.* baseline (excluding oldata/)
@@ -21,6 +27,11 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SAMPLEDATA="${REPO_ROOT}/sampledata"
 VERAPDF="${VERAPDF_BIN:-${REPO_ROOT}/verapdf/verapdf}"
 VERAPDF_REPORT="${REPO_ROOT}/test/verapdf_report.py"
+STRUCTURE_TREE_CHECK="${REPO_ROOT}/test/structure_tree_check.py"
+AVALPDF="${AVALPDF_BIN:-${REPO_ROOT}/.pdf-validators/venv/bin/avalpdf}"
+VERIFY_STRUCTURE_TREE="${VERIFY_STRUCTURE_TREE:-1}"
+VERIFY_AVALPDF="${VERIFY_AVALPDF:-1}"
+VERIFY_AVALPDF_STRICT="${VERIFY_AVALPDF_STRICT:-0}"
 PARALLEL_JOBS="${VERIFY_PDFS_JOBS:-$(
     if command -v nproc >/dev/null 2>&1; then
         nproc
@@ -164,6 +175,79 @@ check_valid_file() {
             fi
             ;;
     esac
+}
+
+check_structure_tree() {
+    local pdf="$1"
+
+    if [[ "${VERIFY_STRUCTURE_TREE}" != "1" ]]; then
+        echo "skip|structure-tree checks disabled"
+        return 0
+    fi
+    if [[ ! -f "${STRUCTURE_TREE_CHECK}" ]]; then
+        echo "skip|structure_tree_check.py not found"
+        return 0
+    fi
+
+    local output exit_code=0
+    output="$(python3 "${STRUCTURE_TREE_CHECK}" "${pdf}" 2>&1)" || exit_code=$?
+    if ((exit_code == 0)); then
+        echo "ok|$(printf '%s\n' "${output}" | tail -1)"
+    else
+        echo "fail|${output}"
+    fi
+}
+
+check_avalpdf() {
+    local pdf="$1"
+
+    if [[ "${VERIFY_AVALPDF}" != "1" ]]; then
+        echo "skip|avalpdf checks disabled"
+        return 0
+    fi
+    if [[ ! -x "${AVALPDF}" ]]; then
+        echo "skip|avalpdf not installed (make install-pdf-validators)"
+        return 0
+    fi
+
+    local tmpdir report_json exit_code=0
+    tmpdir="$(mktemp -d)"
+    "${AVALPDF}" "${pdf}" --report -o "${tmpdir}" --quiet 2>/dev/null || exit_code=$?
+    report_json="$(find "${tmpdir}" -maxdepth 1 -name '*validation_report.json' -print -quit 2>/dev/null || true)"
+
+    if ((exit_code != 0)); then
+        rm -rf "${tmpdir}"
+        echo "fail|avalpdf exited ${exit_code}"
+        return
+    fi
+    if [[ -z "${report_json}" ]]; then
+        rm -rf "${tmpdir}"
+        echo "fail|avalpdf produced no validation report"
+        return
+    fi
+
+    local counts
+    counts="$(python3 - "${report_json}" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+results = payload.get("validation_results", payload)
+issues = len(results.get("issues") or [])
+warnings = len(results.get("warnings") or [])
+print(f"{issues} {warnings}")
+PY
+)"
+    rm -rf "${tmpdir}"
+    local issues="${counts%% *}"
+    local warnings="${counts##* }"
+
+    if [[ "${VERIFY_AVALPDF_STRICT}" == "1" && "${issues}" -gt 0 ]]; then
+        echo "fail|avalpdf ${issues} issue(s), ${warnings} warning(s)"
+    elif [[ "${issues}" -gt 0 || "${warnings}" -gt 0 ]]; then
+        echo "warn|avalpdf ${issues} issue(s), ${warnings} warning(s) (non-blocking)"
+    else
+        echo "ok|avalpdf clean"
+    fi
 }
 
 check_verapdf_compliance() {
@@ -325,6 +409,7 @@ build_post_test_manifest() {
     done
 
     # 3) Other integration outputs without generated.* baselines
+    zerodha_compliance_entries
     local extra_entries=(
         "financialreport/financial_report.pdf||0||pdf"
         "financialreport/temp_financial_report_redacted.pdf||0||pdf"
@@ -333,9 +418,7 @@ build_post_test_manifest() {
         "typstsyntax/typst_sample.pdf||0||pdf"
         "typstsyntax/typst_sample_python.pdf||0||pdf"
         "split/temp_split_maxperfile_python.pdf||0||pdf"
-        "gopdflib/zerodha/zerodha_hft_output.pdf||0|4,ua2|pdf"
-        "gopdflib/zerodha/zerodha_retail_output.pdf||0|4,ua2|pdf"
-        "gopdflib/zerodha/zerodha_active_output.pdf||0|4,ua2|pdf"
+        "${ZERODHA_MANIFEST[@]}"
     )
     for entry in "${extra_entries[@]}"; do
         local key="${entry%%|*}"
@@ -416,6 +499,43 @@ verify_manifest_entry() {
         if [[ -n "${json_list}" ]]; then
             printf 'COMPLIANCE_JSON:%s\n' "${json_list}"
         fi
+
+        local struct_result struct_status struct_details
+        struct_result=$(check_structure_tree "${generated}")
+        struct_status="${struct_result%%|*}"
+        struct_details="${struct_result#*|}"
+        case "${struct_status}" in
+            ok)
+                print_pass "structure-tree: ${struct_details}"
+                ;;
+            fail)
+                print_fail "structure-tree: ${struct_details}"
+                ((failures++)) || true
+                ;;
+            skip)
+                print_skip "structure-tree: ${struct_details}"
+                ;;
+        esac
+
+        local aval_result aval_status aval_details
+        aval_result=$(check_avalpdf "${generated}")
+        aval_status="${aval_result%%|*}"
+        aval_details="${aval_result#*|}"
+        case "${aval_status}" in
+            ok)
+                print_pass "avalpdf: ${aval_details}"
+                ;;
+            warn)
+                print_info "avalpdf: ${aval_details}"
+                ;;
+            fail)
+                print_fail "avalpdf: ${aval_details}"
+                ((failures++)) || true
+                ;;
+            skip)
+                print_skip "avalpdf: ${aval_details}"
+                ;;
+        esac
     fi
 
     return "${failures}"
@@ -445,6 +565,74 @@ scan_one_pdf() {
         return 0
     fi
     return 1
+}
+
+zerodha_compliance_entries() {
+    ZERODHA_MANIFEST=(
+        "gopdflib/zerodha/zerodha_hft_output.pdf||0|4,ua2|pdf"
+        "gopdflib/zerodha/zerodha_retail_output.pdf||0|4,ua2|pdf"
+        "gopdflib/zerodha/zerodha_active_output.pdf||0|4,ua2|pdf"
+    )
+}
+
+zerodha_only() {
+    zerodha_compliance_entries
+    echo "Zerodha PDF compliance validation (${#ZERODHA_MANIFEST[@]} PDFs, PDF/A-4 + PDF/UA-2, ${PARALLEL_JOBS} workers)..."
+
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "${tmpdir}"' RETURN
+
+    local idx=0
+    local running=0
+    local -a compliance_json_files=()
+
+    for entry in "${ZERODHA_MANIFEST[@]}"; do
+        wait_for_slot running "${PARALLEL_JOBS}"
+        (
+            set +e
+            verify_manifest_entry "${entry}" "${tmpdir}/compliance" > "${tmpdir}/${idx}.log" 2>&1
+            echo $? > "${tmpdir}/${idx}.rc"
+        ) &
+        ((running++)) || true
+        ((idx++)) || true
+    done
+
+    while ((running > 0)); do
+        wait -n 2>/dev/null || wait || true
+        ((running--)) || true
+    done
+
+    local failures=0
+    local i
+    for ((i = 0; i < idx; i++)); do
+        while IFS= read -r line; do
+            if [[ "${line}" == COMPLIANCE_JSON:* ]]; then
+                local json_list="${line#COMPLIANCE_JSON:}"
+                local json_path
+                IFS=',' read -ra json_paths <<< "${json_list}"
+                for json_path in "${json_paths[@]}"; do
+                    if [[ -f "${json_path}" ]]; then
+                        compliance_json_files+=("${json_path}")
+                    fi
+                done
+                continue
+            fi
+            printf '%s\n' "${line}"
+        done < "${tmpdir}/${i}.log"
+        failures=$((failures + $(cat "${tmpdir}/${i}.rc")))
+    done
+
+    if ((${#compliance_json_files[@]} > 0)); then
+        python3 "${VERAPDF_REPORT}" table --sampledata "${SAMPLEDATA}/" "${compliance_json_files[@]}"
+    fi
+
+    echo ""
+    if ((failures > 0)); then
+        print_fail "Zerodha PDF compliance validation failed (${failures} issue(s))"
+        exit 1
+    fi
+    print_pass "Zerodha PDF compliance validation passed"
 }
 
 post_test() {
@@ -620,9 +808,13 @@ case "${1:-}" in
     --scan-all-compliance)
         scan_all --compliance
         ;;
+    --zerodha-only)
+        zerodha_only
+        ;;
     --help|-h)
-        echo "Usage: $0 [--scan-all | --scan-all-compliance]"
-        echo "Environment: VERIFY_PDFS_JOBS, VERAPDF_BIN, NO_COLOR=1"
+        echo "Usage: $0 [--scan-all | --scan-all-compliance | --zerodha-only]"
+        echo "Environment: VERIFY_PDFS_JOBS, VERAPDF_BIN, AVALPDF_BIN,"
+        echo "             VERIFY_STRUCTURE_TREE, VERIFY_AVALPDF, VERIFY_AVALPDF_STRICT, NO_COLOR=1"
         ;;
     *)
         post_test

@@ -82,7 +82,7 @@ Zerodha gold-standard workload (5000 iterations, 48 workers, 80% retail · 15% a
 | **Google Chrome** | Required for HTML→PDF/Image conversion |
 | **Node.js + npm** | Frontend build (Node 18+ recommended) |
 | **Python 3.8+** | Python bindings tests (`pypdfsuit`) |
-| **Java 11+** | Optional — needed to install veraPDF for PDF/A validation in tests |
+| **Java 11+** | Optional — needed for veraPDF PDF/A-4 + PDF/UA-2 validation (`make install-pdf-validators`) |
 
 ### Windows
 
