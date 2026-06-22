@@ -35,6 +35,8 @@ type PDFSigner struct {
 	precomputedCertBytes []byte
 	issuerAndSerial      issuerAndSerial
 	digestSigAlgorithm   asn1.ObjectIdentifier
+	cachedPlacement      signaturePlacement
+	hasCachedPlacement   bool
 }
 
 var pdfSignerCache sync.Map // signerPEMCacheKey -> *PDFSigner
@@ -89,10 +91,17 @@ func digestByteRanges(pdfData []byte, byteRange [4]int) []byte {
 type SignatureIDs struct {
 	SigFieldID     int
 	SigAnnotID     int
+	SigValueID     int
 	AppearanceID   int
-	ByteRangeStart int // Position of ByteRange placeholder in PDF
-	ContentsStart  int // Position of Contents placeholder in PDF
+	ByteRangeRel   int // ByteRange placeholder offset inside sig value object body
+	ContentsDataStartRel int // hex payload start inside sig value object body
+	ContentsDataEndRel   int // hex payload end inside sig value object body
 }
+
+const (
+	sigByteRangePlaceholder = "/ByteRange [0 0000000000 0000000000 0000000000]"
+	sigContentsHexLen       = 16384
+)
 
 // OID values for CMS/PKCS#7
 var (
@@ -188,7 +197,9 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 
 	cacheKey := signerPEMCacheKey(config.CertificatePEM, config.PrivateKeyPEM, config.CertificateChain)
 	if v, ok := pdfSignerCache.Load(cacheKey); ok {
-		return v.(*PDFSigner), nil
+		signer := v.(*PDFSigner)
+		signer.hasCachedPlacement = false
+		return signer, nil
 	}
 
 	cert, privateKey, chain, err := parseSignerPEMMaterials(
@@ -227,7 +238,9 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	}
 
 	if existing, loaded := pdfSignerCache.LoadOrStore(cacheKey, signer); loaded {
-		return existing.(*PDFSigner), nil
+		cached := existing.(*PDFSigner)
+		cached.hasCachedPlacement = false
+		return cached, nil
 	}
 	return signer, nil
 }
@@ -279,14 +292,18 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// ByteRange placeholder - will be replaced during actual signing
 	// Format: [0 offset1 offset2 length] where offset1 is start of /Contents, offset2 is end of /Contents
-	sigValueDict.WriteString(" /ByteRange [0 0000000000 0000000000 0000000000]")
+	sigValueDict.WriteByte(' ')
+	ids.ByteRangeRel = sigValueDict.Len()
+	sigValueDict.WriteString(sigByteRangePlaceholder)
 
 	// Contents placeholder - hex-encoded PKCS#7 signature
 	// Reserve space for signature (8192 bytes = 16384 hex chars)
 	sigValueDict.WriteString(" /Contents <")
-	for range 16384 {
+	ids.ContentsDataStartRel = sigValueDict.Len()
+	for range sigContentsHexLen {
 		sigValueDict.WriteByte('0')
 	}
+	ids.ContentsDataEndRel = sigValueDict.Len()
 	sigValueDict.WriteString(">")
 
 	if s.config.Reason != "" {
@@ -332,6 +349,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	sigValueDict.WriteString(" >>")
 
 	pageManager.SetExtraObjectBytes(sigValueID, sigValueDict.Bytes())
+	ids.SigValueID = sigValueID
 
 	// Create signature field widget annotation
 	sigAnnotID := pageManager.AllocObjectID()
@@ -727,9 +745,43 @@ type signaturePlacement struct {
 	byteRange       [4]int
 }
 
+func buildSignaturePlacement(objBodyStart int, ids *SignatureIDs, pdfLen int) signaturePlacement {
+	sp := signaturePlacement{
+		byteRangeMarker: []byte(sigByteRangePlaceholder),
+		byteRangePos:    objBodyStart + ids.ByteRangeRel,
+		contentsStart:   objBodyStart + ids.ContentsDataStartRel,
+		contentsEnd:     objBodyStart + ids.ContentsDataEndRel,
+	}
+	beforeContents := sp.contentsStart - 1
+	afterContents := sp.contentsEnd + 1
+	sp.byteRange = [4]int{0, beforeContents, afterContents, pdfLen - afterContents}
+	return sp
+}
+
+// CacheSignaturePlacement records absolute placeholder offsets while the sig value
+// object is written, avoiding a full-PDF scan during signing (P35).
+func (s *PDFSigner) CacheSignaturePlacement(objBodyStart int, ids *SignatureIDs) {
+	if s == nil || ids == nil || ids.SigValueID == 0 {
+		return
+	}
+	s.cachedPlacement = buildSignaturePlacement(objBodyStart, ids, 0)
+	s.hasCachedPlacement = true
+}
+
+func (s *PDFSigner) signaturePlacementForPDF(pdfData []byte) (signaturePlacement, error) {
+	if s != nil && s.hasCachedPlacement {
+		sp := s.cachedPlacement
+		beforeContents := sp.contentsStart - 1
+		afterContents := sp.contentsEnd + 1
+		sp.byteRange = [4]int{0, beforeContents, afterContents, len(pdfData) - afterContents}
+		return sp, nil
+	}
+	return locateSignaturePlacement(pdfData)
+}
+
 func locateSignaturePlacement(pdfData []byte) (signaturePlacement, error) {
 	var sp signaturePlacement
-	sp.byteRangeMarker = []byte("/ByteRange [0 0000000000 0000000000 0000000000]")
+	sp.byteRangeMarker = []byte(sigByteRangePlaceholder)
 	sp.byteRangePos = bytes.Index(pdfData, sp.byteRangeMarker)
 	if sp.byteRangePos < 0 {
 		return sp, errors.New("byteRange placeholder not found")
@@ -753,8 +805,8 @@ func locateSignaturePlacement(pdfData []byte) (signaturePlacement, error) {
 	sp.contentsEnd = sp.contentsStart + contentsEndRel
 
 	placeholderSize := sp.contentsEnd - sp.contentsStart
-	if placeholderSize != 16384 {
-		return sp, fmt.Errorf("contents placeholder has unexpected size: %d (expected 16384)", placeholderSize)
+	if placeholderSize != sigContentsHexLen {
+		return sp, fmt.Errorf("contents placeholder has unexpected size: %d (expected %d)", placeholderSize, sigContentsHexLen)
 	}
 
 	beforeContents := sp.contentsStart - 1
@@ -781,7 +833,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 
 // UpdatePDFWithSignatureBuffer embeds the signature directly into pdfBuf without allocating a second PDF copy.
 func UpdatePDFWithSignatureBuffer(pdfBuf *bytes.Buffer, signer *PDFSigner) error {
-	sp, err := locateSignaturePlacement(pdfBuf.Bytes())
+	sp, err := signer.signaturePlacementForPDF(pdfBuf.Bytes())
 	if err != nil {
 		return err
 	}

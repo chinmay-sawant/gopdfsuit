@@ -188,6 +188,7 @@ const (
 	sharedRowRenderCacheMaxEntries = 4096
 	sharedRowRenderCacheMaxBytes   = 64 * 1024 * 1024
 	sharedRowRenderCacheMaxValue   = 256 * 1024
+	sharedRowBufInitialCap         = 768 // profiled compliant 7-col HFT row emit
 )
 
 type sharedRowRenderCacheStore struct {
@@ -540,14 +541,18 @@ func drawSharedLayoutRow(
 		}
 		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
 			pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
-			contentStream.Write(cached)
+			appendContentStream(contentStream, cached)
 			pageManager.Structure.EndStructureElement()
 			pageManager.CurrentYPos -= rowHeight
 			return
 		}
 
 		var rowBuf bytes.Buffer
-		rowBuf.Grow(512)
+		rowGrow := sharedRowBufInitialCap
+		if pageManager.sharedRowBytes > 0 {
+			rowGrow = pageManager.sharedRowBytes
+		}
+		rowBuf.Grow(rowGrow)
 		prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, maxColumns)
 		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, maxColumns)
 		// P6: build TR + 7 TD struct elems in a single arena pass; the per-cell
@@ -561,8 +566,9 @@ func drawSharedLayoutRow(
 			maxColumns, charsPreScanned,
 		)
 		rendered := append([]byte(nil), rowBuf.Bytes()...)
+		pageManager.NoteSharedRowBytes(len(rendered))
 		sharedRowRenderCache.Store(cacheKey, rendered)
-		contentStream.Write(rendered)
+		appendContentStream(contentStream, rendered)
 		pageManager.Structure.EndStructureElement()
 		pageManager.CurrentYPos -= rowHeight
 		return
@@ -1300,6 +1306,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	stripeRows := 0
 	if largeTable {
 		stripeRows = pageManager.RowsFitOnCurrentPage(baseRowHeight)
+		pageManager.GrowCurrentStreamForStripe(stripeRows, table.MaxColumns)
 		pageManager.Structure.PreallocatePageMCIDSlots(pageManager.CurrentPageIndex, stripeRows*table.MaxColumns)
 	}
 
@@ -1330,6 +1337,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					if remaining < stripeRows {
 						stripeRows = remaining
 					}
+					pageManager.GrowCurrentStreamForStripe(stripeRows, table.MaxColumns)
 					pageManager.Structure.PreallocatePageMCIDSlots(
 						pageManager.CurrentPageIndex,
 						stripeRows*table.MaxColumns,

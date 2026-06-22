@@ -155,6 +155,9 @@ func NewStructureManager(enabled bool) *StructureManager {
 
 const (
 	arenaActivationThreshold = 512 // HFT-scale tables only; retail/active stay on sync.Pool
+	arenaTierSmall           = 4 * 1024
+	arenaTierMedium          = 16 * 1024
+	arenaTierLarge           = 32 * 1024
 	maxArenaSlabEntries      = 32 * 1024
 	maxInlineStructKids      = 8 // len(StructElem.inlineKids); TR rows use inline storage
 )
@@ -167,7 +170,7 @@ var structElemPool = sync.Pool{
 
 var arenaSlabPool = sync.Pool{
 	New: func() any {
-		slab := make([]StructElem, 0, maxArenaSlabEntries)
+		slab := make([]StructElem, 0, arenaTierMedium)
 		return &slab
 	},
 }
@@ -176,20 +179,20 @@ func arenaCapForNeed(need int) int {
 	if need < arenaActivationThreshold {
 		return 0
 	}
-	capHint := 4096
-	for capHint < need && capHint < maxArenaSlabEntries {
-		capHint *= 2
+	switch {
+	case need <= arenaTierSmall:
+		return arenaTierSmall
+	case need <= arenaTierMedium:
+		return arenaTierMedium
+	default:
+		return arenaTierLarge
 	}
-	if capHint > maxArenaSlabEntries {
-		capHint = maxArenaSlabEntries
-	}
-	return capHint
 }
 
 // WarmArenaSlabPool pre-warms HFT-scale arena slabs at process start.
 func WarmArenaSlabPool(count int) {
 	for range count {
-		slab := make([]StructElem, 0, maxArenaSlabEntries)
+		slab := make([]StructElem, 0, arenaTierMedium)
 		arenaSlabPool.Put(&slab)
 	}
 }

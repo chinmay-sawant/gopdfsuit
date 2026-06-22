@@ -740,6 +740,16 @@ func runBenchmark() error {
 		fmt.Printf("  Retail PDF size:  %d bytes (%.2f KB)\n", len(retailPDF), float64(len(retailPDF))/1024.0)
 		fmt.Printf("  Active PDF size:  %d bytes (%.2f KB)\n", len(activePDF), float64(len(activePDF))/1024.0)
 		fmt.Printf("  HFT PDF size:     %d bytes (%.2f KB)\n", len(hftPDF), float64(len(hftPDF))/1024.0)
+		if os.Getenv("BENCH_DEBUG_CAPS") == "1" {
+			hw := gopdflib.SnapshotPDFCapacityHighWater()
+			fmt.Println()
+			fmt.Println("=== PDF buffer high-water (warm-up) ===")
+			fmt.Printf("  Retail: len=%d cap=%d\n", hw.RetailLen, hw.RetailCap)
+			fmt.Printf("  Active: len=%d cap=%d\n", hw.ActiveLen, hw.ActiveCap)
+			fmt.Printf("  HFT:    len=%d cap=%d\n", hw.HFTLen, hw.HFTCap)
+			fmt.Printf("  Grow calls: %d (post-content resize: %d)\n", hw.GrowCount, hw.PostCapGrow)
+			gopdflib.ResetPDFCapacityHighWater()
+		}
 		fmt.Println()
 	} else {
 		fmt.Println("Warm-up skipped (BENCH_WARMUP=0).")
