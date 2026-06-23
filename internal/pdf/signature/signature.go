@@ -35,16 +35,23 @@ type PDFSigner struct {
 	precomputedCertBytes []byte
 	issuerAndSerial      issuerAndSerial
 	digestSigAlgorithm   asn1.ObjectIdentifier
+	derParts             pkcs7DERParts
+	cachedPlacement      signaturePlacement
+	hasCachedPlacement   bool
 }
 
 var pdfSignerCache sync.Map // signerPEMCacheKey -> *PDFSigner
 
 var (
-	marshaledOIDData   = mustMarshal(oidData)
-	sha256HasherPool   sync.Pool
-	authAttrsBytesPool sync.Pool
-	signWorkerSlots    = make(chan struct{}, maxSignWorkers())
+	marshaledOIDData        = mustMarshal(oidData)
+	sha256HasherPool        sync.Pool
+	authAttrsBytesPool      sync.Pool
+	pkcs7MarshalBuffersPool sync.Pool
+	signWorkerSlots         = make(chan struct{}, maxSignWorkers())
+	hexUpperDigits          = []byte("0123456789ABCDEF")
 )
+
+type pkcs7MarshalBuffers struct{}
 
 func maxSignWorkers() int {
 	n := runtime.NumCPU() * 2
@@ -59,6 +66,9 @@ func init() {
 	authAttrsBytesPool.New = func() any {
 		b := make([]byte, 0, 256)
 		return &b
+	}
+	pkcs7MarshalBuffersPool.New = func() any {
+		return &pkcs7MarshalBuffers{}
 	}
 }
 
@@ -78,12 +88,19 @@ func digestByteRanges(pdfData []byte, byteRange [4]int) []byte {
 //
 //nolint:revive // exported
 type SignatureIDs struct {
-	SigFieldID     int
-	SigAnnotID     int
-	AppearanceID   int
-	ByteRangeStart int // Position of ByteRange placeholder in PDF
-	ContentsStart  int // Position of Contents placeholder in PDF
+	SigFieldID           int
+	SigAnnotID           int
+	SigValueID           int
+	AppearanceID         int
+	ByteRangeRel         int // ByteRange placeholder offset inside sig value object body
+	ContentsDataStartRel int // hex payload start inside sig value object body
+	ContentsDataEndRel   int // hex payload end inside sig value object body
 }
+
+const (
+	sigByteRangePlaceholder = "/ByteRange [0 0000000000 0000000000 0000000000]"
+	sigContentsHexLen       = 16384
+)
 
 // OID values for CMS/PKCS#7
 var (
@@ -179,7 +196,9 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 
 	cacheKey := signerPEMCacheKey(config.CertificatePEM, config.PrivateKeyPEM, config.CertificateChain)
 	if v, ok := pdfSignerCache.Load(cacheKey); ok {
-		return v.(*PDFSigner), nil
+		signer := v.(*PDFSigner)
+		signer.hasCachedPlacement = false
+		return signer, nil
 	}
 
 	cert, privateKey, chain, err := parseSignerPEMMaterials(
@@ -216,9 +235,12 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	for _, chainCert := range chain {
 		signer.precomputedCertBytes = append(signer.precomputedCertBytes, chainCert.Raw...)
 	}
+	signer.derParts = buildPKCS7DERParts(signer)
 
 	if existing, loaded := pdfSignerCache.LoadOrStore(cacheKey, signer); loaded {
-		return existing.(*PDFSigner), nil
+		cached := existing.(*PDFSigner)
+		cached.hasCachedPlacement = false
+		return cached, nil
 	}
 	return signer, nil
 }
@@ -262,19 +284,26 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	}
 
 	// Build signature value dictionary
-	var sigValueDict strings.Builder
+	var sigValueDict bytes.Buffer
+	sigValueDict.Grow(17000)
 	sigValueDict.WriteString("<< /Type /Sig")
 	sigValueDict.WriteString(" /Filter /Adobe.PPKLite")
 	sigValueDict.WriteString(" /SubFilter /adbe.pkcs7.detached")
 
 	// ByteRange placeholder - will be replaced during actual signing
 	// Format: [0 offset1 offset2 length] where offset1 is start of /Contents, offset2 is end of /Contents
-	sigValueDict.WriteString(" /ByteRange [0 0000000000 0000000000 0000000000]")
+	sigValueDict.WriteByte(' ')
+	ids.ByteRangeRel = sigValueDict.Len()
+	sigValueDict.WriteString(sigByteRangePlaceholder)
 
 	// Contents placeholder - hex-encoded PKCS#7 signature
 	// Reserve space for signature (8192 bytes = 16384 hex chars)
 	sigValueDict.WriteString(" /Contents <")
-	sigValueDict.WriteString(strings.Repeat("0", 16384))
+	ids.ContentsDataStartRel = sigValueDict.Len()
+	for range sigContentsHexLen {
+		sigValueDict.WriteByte('0')
+	}
+	ids.ContentsDataEndRel = sigValueDict.Len()
 	sigValueDict.WriteString(">")
 
 	if s.config.Reason != "" {
@@ -309,25 +338,25 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	if len(tzMinsStr) == 1 {
 		tzMinsStr = "0" + tzMinsStr
 	}
-	var timeBuf strings.Builder
-	timeBuf.WriteString(" /M (D:")
-	timeBuf.WriteString(now.Format("20060102150405"))
-	timeBuf.WriteString(tzSign)
-	timeBuf.WriteString(tzHoursStr)
-	timeBuf.WriteByte('\'')
-	timeBuf.WriteString(tzMinsStr)
-	timeBuf.WriteString("')")
-	sigValueDict.WriteString(timeBuf.String())
+	sigValueDict.WriteString(" /M (D:")
+	sigValueDict.WriteString(now.Format("20060102150405"))
+	sigValueDict.WriteString(tzSign)
+	sigValueDict.WriteString(tzHoursStr)
+	sigValueDict.WriteByte('\'')
+	sigValueDict.WriteString(tzMinsStr)
+	sigValueDict.WriteString("')")
 
 	sigValueDict.WriteString(" >>")
 
-	pageManager.SetExtraObject(sigValueID, sigValueDict.String())
+	pageManager.SetExtraObjectBytes(sigValueID, sigValueDict.Bytes())
+	ids.SigValueID = sigValueID
 
 	// Create signature field widget annotation
 	sigAnnotID := pageManager.AllocObjectID()
 	ids.SigAnnotID = sigAnnotID
 
 	var annotDict strings.Builder
+	annotDict.Grow(512)
 	annotDict.WriteString("<< /Type /Annot /Subtype /Widget")
 	annotDict.WriteString(" /FT /Sig")
 	annotDict.WriteString(" /T (Signature1)")
@@ -494,72 +523,16 @@ func (s *PDFSigner) SignPDF(pdfData []byte, byteRange [4]int) ([]byte, error) {
 	return signedData, nil
 }
 
-// createPKCS7SignedData creates a PKCS#7 SignedData structure
+// createPKCS7SignedData creates a PKCS#7 SignedData structure using hand-built DER (P42).
 func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) {
-	// Build authenticated attributes
 	signingTime := time.Now().UTC()
+	authAttrsBytes := buildAuthenticatedAttributesSET(s.derParts, messageDigest, signingTime)
 
-	// Authenticated attributes MUST be in DER-sorted order for SET encoding
-	// OIDs: ContentType (1.9.3), MessageDigest (1.9.4), SigningTime (1.9.5)
-	authenticatedAttrs := []attribute{
-		{
-			Type: oidContentType,
-			Value: asn1.RawValue{
-				Class:      asn1.ClassUniversal,
-				Tag:        asn1.TagSet,
-				IsCompound: true,
-				Bytes:      marshaledOIDData,
-			},
-		},
-		{
-			Type: oidMessageDigest,
-			Value: asn1.RawValue{
-				Class:      asn1.ClassUniversal,
-				Tag:        asn1.TagSet,
-				IsCompound: true,
-				Bytes:      mustMarshal(messageDigest),
-			},
-		},
-		{
-			Type: oidSigningTime,
-			Value: asn1.RawValue{
-				Class:      asn1.ClassUniversal,
-				Tag:        asn1.TagSet,
-				IsCompound: true,
-				Bytes:      mustMarshal(signingTime),
-			},
-		},
-	}
-
-	// Marshal authenticated attributes for signing
-	// Go defaults to SEQUENCE for slice, but we need SET for Attributes
-	// Attributes are already in DER-sorted order (ContentType < MessageDigest < SigningTime by OID)
-	seqBytes, err := asn1.Marshal(authenticatedAttrs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal authenticated attributes: %w", err)
-	}
-
-	// Change SEQUENCE tag (0x30) to SET tag (0x31)
-	authPtr := authAttrsBytesPool.Get().(*[]byte)
-	authAttrsBytes := (*authPtr)[:len(seqBytes)]
-	if cap(authAttrsBytes) < len(seqBytes) {
-		authAttrsBytes = make([]byte, len(seqBytes))
-	} else {
-		authAttrsBytes = authAttrsBytes[:len(seqBytes)]
-	}
-	copy(authAttrsBytes, seqBytes)
-	if len(authAttrsBytes) > 0 {
-		authAttrsBytes[0] = asn1.TagSet
-	}
-	defer func() {
-		*authPtr = authAttrsBytes[:0]
-		authAttrsBytesPool.Put(authPtr)
-	}()
-
-	// Sign the authenticated attributes (must be the SET encoding)
 	authAttrsHash := sha256.Sum256(authAttrsBytes)
+	contentBytes := stripOuterTLV(authAttrsBytes)
 
 	var signature []byte
+	var err error
 	switch key := s.privateKey.(type) {
 	case *rsa.PrivateKey:
 		signature, err = rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, authAttrsHash[:])
@@ -575,105 +548,9 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 		return nil, errors.New("unsupported key type")
 	}
 
-	// Extract content bytes for SignerInfo (strip SET tag and length)
-	// because RawValue will add the [0] IMPLICIT tag and new length
-	var contentBytes []byte
-	if len(authAttrsBytes) > 1 {
-		offset := 1 // Skip Tag
-		// Check length byte
-		if authAttrsBytes[offset]&0x80 == 0 {
-			// Short form length
-			offset++
-		} else {
-			// Long form length
-			numBytes := int(authAttrsBytes[offset] & 0x7F)
-			offset += 1 + numBytes
-		}
-		if offset <= len(authAttrsBytes) {
-			contentBytes = authAttrsBytes[offset:]
-		}
-	}
-
-	// Build SignerInfo
-	sInfo := signerInfo{
-		Version:         1,
-		IssuerAndSerial: s.issuerAndSerial,
-		DigestAlgorithm: pkixAlgorithmIdentifier{
-			Algorithm: oidSHA256,
-		},
-		AuthenticatedAttributes: asn1.RawValue{
-			Class:      asn1.ClassContextSpecific,
-			Tag:        0,
-			IsCompound: true,
-			Bytes:      contentBytes,
-		},
-		DigestEncryptionAlgorithm: pkixAlgorithmIdentifier{
-			Algorithm: s.digestSigAlgorithm,
-		},
-		EncryptedDigest: signature,
-	}
-
-	// Build SignedData
-	sData := signedData{
-		Version: 1,
-		DigestAlgorithms: []pkixAlgorithmIdentifier{
-			{Algorithm: oidSHA256},
-		},
-		ContentInfo: contentInfo{
-			ContentType: oidData,
-		},
-		Certificates: asn1.RawValue{
-			Class:      asn1.ClassContextSpecific,
-			Tag:        0,
-			IsCompound: true,
-			Bytes:      s.precomputedCertBytes,
-		},
-		SignerInfos: []signerInfo{sInfo},
-	}
-
-	signedDataBytes, err := asn1.Marshal(sData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal signedData: %w", err)
-	}
-
-	// Wrap in ContentInfo
-	cInfo := contentInfo{
-		ContentType: oidSignedData,
-		Content: asn1.RawValue{
-			Class:      asn1.ClassContextSpecific,
-			Tag:        0,
-			IsCompound: true,
-			Bytes:      signedDataBytes,
-		},
-	}
-
-	return asn1.Marshal(cInfo)
-}
-
-// ASN.1 structures for PKCS#7
-
-type contentInfo struct {
-	ContentType asn1.ObjectIdentifier
-	Content     asn1.RawValue `asn1:"explicit,optional,tag:0"`
-}
-
-type signedData struct {
-	Version          int
-	DigestAlgorithms []pkixAlgorithmIdentifier `asn1:"set"`
-	ContentInfo      contentInfo
-	Certificates     asn1.RawValue `asn1:"optional,tag:0"`
-	CRLs             asn1.RawValue `asn1:"optional,tag:1"`
-	SignerInfos      []signerInfo  `asn1:"set"`
-}
-
-type signerInfo struct {
-	Version                   int
-	IssuerAndSerial           issuerAndSerial
-	DigestAlgorithm           pkixAlgorithmIdentifier
-	AuthenticatedAttributes   asn1.RawValue `asn1:"optional,tag:0"`
-	DigestEncryptionAlgorithm pkixAlgorithmIdentifier
-	EncryptedDigest           []byte
-	UnauthenticatedAttributes asn1.RawValue `asn1:"optional,tag:1"`
+	signerInfo := buildSignerInfoDER(s.derParts, contentBytes, signature)
+	signedData := buildSignedDataDER(s.derParts, signerInfo)
+	return buildContentInfoDER(signedData), nil
 }
 
 type issuerAndSerial struct {
@@ -684,11 +561,6 @@ type issuerAndSerial struct {
 type pkixAlgorithmIdentifier struct {
 	Algorithm  asn1.ObjectIdentifier
 	Parameters asn1.RawValue `asn1:"optional"`
-}
-
-type attribute struct {
-	Type  asn1.ObjectIdentifier
-	Value asn1.RawValue `asn1:"set"`
 }
 
 func mustMarshal(v any) []byte {
@@ -715,9 +587,43 @@ type signaturePlacement struct {
 	byteRange       [4]int
 }
 
+func buildSignaturePlacement(objBodyStart int, ids *SignatureIDs, pdfLen int) signaturePlacement {
+	sp := signaturePlacement{
+		byteRangeMarker: []byte(sigByteRangePlaceholder),
+		byteRangePos:    objBodyStart + ids.ByteRangeRel,
+		contentsStart:   objBodyStart + ids.ContentsDataStartRel,
+		contentsEnd:     objBodyStart + ids.ContentsDataEndRel,
+	}
+	beforeContents := sp.contentsStart - 1
+	afterContents := sp.contentsEnd + 1
+	sp.byteRange = [4]int{0, beforeContents, afterContents, pdfLen - afterContents}
+	return sp
+}
+
+// CacheSignaturePlacement records absolute placeholder offsets while the sig value
+// object is written, avoiding a full-PDF scan during signing (P35).
+func (s *PDFSigner) CacheSignaturePlacement(objBodyStart int, ids *SignatureIDs) {
+	if s == nil || ids == nil || ids.SigValueID == 0 {
+		return
+	}
+	s.cachedPlacement = buildSignaturePlacement(objBodyStart, ids, 0)
+	s.hasCachedPlacement = true
+}
+
+func (s *PDFSigner) signaturePlacementForPDF(pdfData []byte) (signaturePlacement, error) {
+	if s != nil && s.hasCachedPlacement {
+		sp := s.cachedPlacement
+		beforeContents := sp.contentsStart - 1
+		afterContents := sp.contentsEnd + 1
+		sp.byteRange = [4]int{0, beforeContents, afterContents, len(pdfData) - afterContents}
+		return sp, nil
+	}
+	return locateSignaturePlacement(pdfData)
+}
+
 func locateSignaturePlacement(pdfData []byte) (signaturePlacement, error) {
 	var sp signaturePlacement
-	sp.byteRangeMarker = []byte("/ByteRange [0 0000000000 0000000000 0000000000]")
+	sp.byteRangeMarker = []byte(sigByteRangePlaceholder)
 	sp.byteRangePos = bytes.Index(pdfData, sp.byteRangeMarker)
 	if sp.byteRangePos < 0 {
 		return sp, errors.New("byteRange placeholder not found")
@@ -741,8 +647,8 @@ func locateSignaturePlacement(pdfData []byte) (signaturePlacement, error) {
 	sp.contentsEnd = sp.contentsStart + contentsEndRel
 
 	placeholderSize := sp.contentsEnd - sp.contentsStart
-	if placeholderSize != 16384 {
-		return sp, fmt.Errorf("contents placeholder has unexpected size: %d (expected 16384)", placeholderSize)
+	if placeholderSize != sigContentsHexLen {
+		return sp, fmt.Errorf("contents placeholder has unexpected size: %d (expected %d)", placeholderSize, sigContentsHexLen)
 	}
 
 	beforeContents := sp.contentsStart - 1
@@ -769,16 +675,45 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 
 // UpdatePDFWithSignatureBuffer embeds the signature directly into pdfBuf without allocating a second PDF copy.
 func UpdatePDFWithSignatureBuffer(pdfBuf *bytes.Buffer, signer *PDFSigner) error {
-	sp, err := locateSignaturePlacement(pdfBuf.Bytes())
+	sp, err := signer.signaturePlacementForPDF(pdfBuf.Bytes())
 	if err != nil {
 		return err
 	}
 	return embedSignatureInPlace(pdfBuf.Bytes(), signer, sp)
 }
 
+func appendByteRangeMarker(dst []byte, byteRange [4]int) []byte {
+	dst = append(dst, "/ByteRange [0 "...)
+	dst = appendPaddedInt(dst, byteRange[1], 10)
+	dst = append(dst, ' ')
+	dst = appendPaddedInt(dst, byteRange[2], 10)
+	dst = append(dst, ' ')
+	dst = appendPaddedInt(dst, byteRange[3], 10)
+	return append(dst, ']')
+}
+
+func appendPaddedInt(dst []byte, n int, width int) []byte {
+	var tmp [16]byte
+	b := strconv.AppendInt(tmp[:0], int64(n), 10)
+	padding := width - len(b)
+	if padding > 0 {
+		for range padding {
+			dst = append(dst, '0')
+		}
+	}
+	return append(dst, b...)
+}
+
+func encodeHexUpper(dst, src []byte) {
+	for i, b := range src {
+		dst[i*2] = hexUpperDigits[b>>4]
+		dst[i*2+1] = hexUpperDigits[b&0x0f]
+	}
+}
+
 func embedSignatureInPlace(pdfData []byte, signer *PDFSigner, sp signaturePlacement) error {
-	newByteRange := fmt.Sprintf("/ByteRange [0 %010d %010d %010d]",
-		sp.byteRange[1], sp.byteRange[2], sp.byteRange[3])
+	var byteRangeScratch [48]byte
+	newByteRange := appendByteRangeMarker(byteRangeScratch[:0], sp.byteRange)
 	if len(newByteRange) != len(sp.byteRangeMarker) {
 		return fmt.Errorf("ByteRange length mismatch: new=%d, placeholder=%d", len(newByteRange), len(sp.byteRangeMarker))
 	}
@@ -790,13 +725,13 @@ func embedSignatureInPlace(pdfData []byte, signer *PDFSigner, sp signaturePlacem
 		return fmt.Errorf("failed to sign PDF: %w", err)
 	}
 
-	sigHex := strings.ToUpper(hex.EncodeToString(signature))
-	if len(sigHex) > 16384 {
-		return fmt.Errorf("signature too large: %d bytes (max 8192)", len(sigHex)/2)
+	contents := pdfData[sp.contentsStart:sp.contentsEnd]
+	if len(signature)*2 > len(contents) {
+		return fmt.Errorf("signature too large: %d bytes (max %d)", len(signature), len(contents)/2)
 	}
-	if pad := 16384 - len(sigHex); pad > 0 {
-		sigHex += strings.Repeat("0", pad)
+	encodeHexUpper(contents[:len(signature)*2], signature)
+	for i := len(signature) * 2; i < len(contents); i++ {
+		contents[i] = '0'
 	}
-	copy(pdfData[sp.contentsStart:sp.contentsEnd], sigHex)
 	return nil
 }

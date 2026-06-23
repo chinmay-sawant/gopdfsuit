@@ -1,0 +1,38 @@
+=== Zerodha Gold Standard Benchmark ===
+Mode: non-compliant (PDF/A, tagging, Arlington, embed-fonts, signing off)
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
+GOMAXPROCS: 24
+Running 5000 iterations using 48 workers (retail signing: disabled)...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  7139 bytes (6.97 KB)
+  Active PDF size:  10075 bytes (9.84 KB)
+  HFT PDF size:     226774 bytes (221.46 KB)
+
+  Max Memory Allocated: 300.53 MB
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  GOMAXPROCS:      24
+  Retail signing:  disabled
+  Total time:      0.150 s
+  Throughput:      33370.03 ops/sec
+
+  Avg Latency:     1.389 ms
+  Min Latency:     0.043 ms
+  Max Latency:     129.889 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4000 iterations
+  Active  (15%):   750 iterations
+  HFT      (5%):   250 iterations
+
+Saved: zerodha_retail_nocomply_output.pdf (7139 bytes)
+Saved: zerodha_active_nocomply_output.pdf (10075 bytes)
+Saved: zerodha_hft_nocomply_output.pdf (226774 bytes)
+
+=== Done ===

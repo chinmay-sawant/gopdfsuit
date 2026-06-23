@@ -1,0 +1,33 @@
+# Gotenberg k6 summary - 20260618_011555
+image: gotenberg/gotenberg:8
+base_url: http://127.0.0.1:3010
+chromium_max_concurrency: 6
+load_vus: 48 profile_seconds: 35 scenario: tagged_ecdsa
+skip_network_idle: 1
+
+## k6 throughput
+running (0m23.0s), 48/48 VUs, 334 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 350 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 364 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 379 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 397 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 413 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 428 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 448 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 461 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 484 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 501 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 516 complete and 0 interrupted iterations
+running (0m36.0s), 30/48 VUs, 534 complete and 0 interrupted iterations
+running (0m37.0s), 11/48 VUs, 553 complete and 0 interrupted iterations
+running (0m38.0s), 01/48 VUs, 563 complete and 0 interrupted iterations
+    http_req_duration
+    active_latency.................: avg=3100        min=742      med=2961   max=6105  p(90)=4150.2 p(95)=4390.3 p(99)=6006.72
+    hft_latency....................: avg=4166.533333 min=2196     med=4162.5 max=6606  p(90)=5257.4 p(95)=5415.2 p(99)=6295.12
+    pdf_generation_time............: avg=3064.721631 min=416      med=2981.5 max=6606  p(90)=4379.5 p(95)=4707.4 p(99)=5888.85
+    retail_latency.................: avg=2985.949451 min=416      med=2959   max=6048  p(90)=4357.6 p(95)=4699.1 p(99)=5763.9 
+    http_req_duration..............: avg=3.05s       min=627.34µs med=2.98s  max=6.6s  p(90)=4.37s  p(95)=4.7s   p(99)=5.88s  
+    http_reqs......................: 565   14.821083/s
+    iterations.....................: 564   14.794851/s
+running (0m38.1s), 00/48 VUs, 564 complete and 0 interrupted iterations

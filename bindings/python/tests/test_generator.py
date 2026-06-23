@@ -3,9 +3,12 @@ Tests for PDF generation functionality.
 """
 
 import pytest
+import json
+
 from pypdfsuit import (
     generate_pdf,
     get_available_fonts,
+    serialize_template,
     PDFTemplate,
     Config,
     Title,
@@ -158,6 +161,50 @@ class TestGeneratePDF:
 
             assert pdf_bytes is not None
             assert pdf_bytes.startswith(b"%PDF-")
+
+    def test_serialize_template_returns_fresh_payload(self):
+        """Repeated serialization should rebuild JSON instead of caching it."""
+        template = PDFTemplate(
+            config=Config(page="A4", page_alignment=1),
+            title=Title(
+                props="Helvetica:18:100:center:0:0:0:0",
+                text="Cache Test",
+            ),
+            elements=[],
+        )
+
+        first = serialize_template(template)
+        second = serialize_template(template)
+
+        assert first == second
+        assert first is not second
+
+    def test_generate_pdf_serializes_each_call(self, monkeypatch):
+        """generate_pdf should serialize on every call."""
+        template = PDFTemplate(
+            config=Config(page="A4", page_alignment=1),
+            title=Title(
+                props="Helvetica:18:100:center:0:0:0:0",
+                text="Cache Test",
+            ),
+            elements=[],
+        )
+        dumps_calls = 0
+        original_dumps = json.dumps
+
+        def counting_dumps(*args, **kwargs):
+            nonlocal dumps_calls
+            dumps_calls += 1
+            return original_dumps(*args, **kwargs)
+
+        monkeypatch.setattr(json, "dumps", counting_dumps)
+
+        pdf_one = generate_pdf(template)
+        pdf_two = generate_pdf(template)
+
+        assert pdf_one.startswith(b"%PDF-")
+        assert pdf_two.startswith(b"%PDF-")
+        assert dumps_calls == 2
 
 
 class TestGetAvailableFonts:

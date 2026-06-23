@@ -232,8 +232,8 @@ CPU in the three-workload focused profile (`table_180_rows`, `table_900_rows`,
 
 Allocation pressure is concentrated in:
 
-- `bytes.growSlice` — residual buffer growth in `pdfBuffer` and content streams
-- `compress/flate.NewWriter` — compression internal tables
+- `bytes.growSlice` - residual buffer growth in `pdfBuffer` and content streams
+- `compress/flate.NewWriter` - compression internal tables
 - `github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf.CreateImageXObject`
 - `github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf.GenerateXMPMetadataObject`
 

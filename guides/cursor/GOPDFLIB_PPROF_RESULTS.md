@@ -1,7 +1,7 @@
-# GoPDFLib — 5000× pprof Benchmark Results (PDF/A)
+# GoPDFLib - 5000× pprof Benchmark Results (PDF/A)
 
 **Date:** 2026-05-25  
-**Entry point:** `sampledata/benchmarks/gopdflib/` — `go run -mod=mod . data`  
+**Entry point:** `sampledata/benchmarks/gopdflib/` - `go run -mod=mod . data`  
 **Workload:** 2000-row data table (`data.json`), PDF/A + tagged PDF, wrap on Email/Description  
 **Concurrency:** 5000 iterations, 48 worker goroutines  
 
@@ -47,12 +47,12 @@ Each run generates **5000 PDFs** with 48 concurrent workers.
 | Metric | Best | Worst | **Average** | σ |
 |--------|------|-------|-------------|---|
 | **Avg latency** | **389.54 ms** | **583.86 ms** | **498.65 ms** | 72.79 ms |
-| **Throughput** | **121.69 ops/s** | **80.96 ops/s** | **~97 ops/s** | — |
-| **P95 latency** | **643.43 ms** | **938.63 ms** | — | — |
-| **Max memory** | 1713 MB | 1902 MB | ~1800 MB peak | — |
+| **Throughput** | **121.69 ops/s** | **80.96 ops/s** | **~97 ops/s** | - |
+| **P95 latency** | **643.43 ms** | **938.63 ms** | - | - |
+| **Max memory** | 1713 MB | 1902 MB | ~1800 MB peak | - |
 
-**Best run:** timing-only (`bench_gopdflib_5000_timing.txt`) — **389.54 ms avg**, **121.69 ops/s**  
-**Worst run:** CPU profile run 2 — **583.86 ms avg**, **80.96 ops/s**, **1793 ms max**
+**Best run:** timing-only (`bench_gopdflib_5000_timing.txt`) - **389.54 ms avg**, **121.69 ops/s**  
+**Worst run:** CPU profile run 2 - **583.86 ms avg**, **80.96 ops/s**, **1793 ms max**
 
 ---
 
@@ -92,7 +92,7 @@ Profile: [baselines/gopdflib_pprof_runs/heap_gopdflib_data.prof](./baselines/gop
 
 ## Comparison with `internal/pdf` pprof (Pass 4 PDF/A)
 
-Different workloads — compare trends, not absolute numbers.
+Different workloads - compare trends, not absolute numbers.
 
 | Context | Workload | Avg time | `memclr` CPU | `drawTable` cum | Heap pressure |
 |---------|----------|----------|--------------|-----------------|---------------|
@@ -103,7 +103,7 @@ Different workloads — compare trends, not absolute numbers.
 ### Interpretation
 
 1. **GoPDFLib data bench is heavier** than `BenchmarkGenerateTemplatePDF/Rows2000` because it enables **text wrapping** on Email/Description columns and runs **48 concurrent** generators (queueing + GC pressure → **~390–584 ms** avg vs **~36 ms** single-thread).
-2. **`memclr` is low (~1.9%)** in GoPDFLib pprof despite high concurrency — Pass 4 buffer pre-grow and pooling help; **`drawTable` (~40%)** dominates CPU (wrap + PDF/UA cells).
+2. **`memclr` is low (~1.9%)** in GoPDFLib pprof despite high concurrency - Pass 4 buffer pre-grow and pooling help; **`drawTable` (~40%)** dominates CPU (wrap + PDF/UA cells).
 3. **Peak heap ~1.8 GB** during 5000×48 reflects **sustained concurrent allocation**; HTTP load test showed **~55 MB in-use** at a snapshot after requests complete (different measurement).
 4. vs **May 25 pre-Pass-4 load** (`memclr` **49.7%**, heap **442 MB**): Pass 4 optimizations reduced load-test hotspots substantially; GoPDFLib sustained bench confirms **`drawTable` + buffer growth** remain the next targets for wrap-heavy PDF/A tables.
 
@@ -122,5 +122,5 @@ Different workloads — compare trends, not absolute numbers.
 
 ## Related
 
-- [PASS4_PDFA_RESULTS.md](./PASS4_PDFA_RESULTS.md) — internal/pdf + HTTP load comparison
-- [PASS4_OPTIMIZATION_PLAN.md](./PASS4_OPTIMIZATION_PLAN.md) — optimization backlog
+- [PASS4_PDFA_RESULTS.md](./PASS4_PDFA_RESULTS.md) - internal/pdf + HTTP load comparison
+- [PASS4_OPTIMIZATION_PLAN.md](./PASS4_OPTIMIZATION_PLAN.md) - optimization backlog

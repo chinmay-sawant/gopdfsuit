@@ -379,14 +379,14 @@ Cross-referenced against P1 (226) and P2 (140) findings. Many were already fixed
 | P3-56 | PERF-15 | `internal/pdf/redact/visual.go:58` | FIXED | Same as 55 |
 | P3-57 | PERF-15 | `internal/pdf/redact/visual.go:60` | FIXED | Same as 55 |
 | P3-58 | PERF-15 | `internal/pdf/redact/visual.go:62` | FIXED | Same as 55 |
-| P3-59 | PERF-32 | `internal/pdf/signature/signature.go:66` | OK | `h.Write([]byte(certPEM))` — unavoidable `hash.Hash` API |
+| P3-59 | PERF-32 | `internal/pdf/signature/signature.go:66` | OK | `h.Write([]byte(certPEM))` - unavoidable `hash.Hash` API |
 | P3-60 | PERF-32 | `internal/pdf/signature/signature.go:68` | OK | Same as 59 |
 | P3-61 | PERF-32 | `internal/pdf/signature/signature.go:71` | OK | Same pattern, `[]byte` conversion |
-| P3-62 | PERF-32 | `internal/pdf/signature/signature.go:83` | OK | `pem.Decode([]byte(certPEM))` — necessary API |
+| P3-62 | PERF-32 | `internal/pdf/signature/signature.go:83` | OK | `pem.Decode([]byte(certPEM))` - necessary API |
 | P3-63 | PERF-35 | `internal/pdf/signature/signature.go:89` | SKIP | Uses `%w` |
-| P3-64 | PERF-32 | `internal/pdf/signature/signature.go:92` | OK | `pem.Decode([]byte(keyPEM))` — necessary API |
+| P3-64 | PERF-32 | `internal/pdf/signature/signature.go:92` | OK | `pem.Decode([]byte(keyPEM))` - necessary API |
 | P3-65 | PERF-42 | `internal/pdf/signature/signature.go:94` | OK | Already fixed to `errors.New` |
-| P3-66 | PERF-32 | `internal/pdf/signature/signature.go:111` | OK | `pem.Decode([]byte(chainPEM))` — necessary API |
+| P3-66 | PERF-32 | `internal/pdf/signature/signature.go:111` | OK | `pem.Decode([]byte(chainPEM))` - necessary API |
 | P3-67 | PERF-40 | `internal/pdf/signature/signature.go:221` | FIXED | `fmt.Sprintf` → `strings.Builder` + manual formatting |
 | P3-68 | PERF-32 | `internal/pdf/signature/signature.go:701` | OK | `copy` requires `[]byte` target |
 | P3-69 | PERF-32 | `internal/pdf/signature/signature.go:719` | OK | Same as 68 |
@@ -438,7 +438,7 @@ Source: `/home/chinmay/ChinmayPersonalProjects/slopguard/scripts/chunks/` (subse
 | P4-20 | PERF-35 | `internal/pdf/merge/split.go:100` | FIXED | `fmt.Errorf("page out of range: %d", p)` → `errors.New("page out of range: " + strconv.Itoa(p))` |
 | P4-21 | PERF-35 | `internal/pdf/metadata.go:269` | FIXED | `fmt.Sprintf` for metadata dict → `strings.Builder` + `strconv.Itoa` |
 | P4-41 | PERF-42 | `internal/pdf/signature/signature.go:493` | FIXED | `fmt.Errorf("unsupported key type")` → `errors.New("unsupported key type")` |
-| P4-rest | — | — | DUPL/OK | All other 62 P4 findings already properly handled in prior batches |
+| P4-rest | - | - | DUPL/OK | All other 62 P4 findings already properly handled in prior batches |
 
 ### P5 (65 findings - 3 newly fixed, same as P4 findings)
 
@@ -460,7 +460,7 @@ Cross-referenced against P1-P5. **4 newly fixed**, **62 verified as already hand
 |---|------|-----------|-----|
 | P6-21 | PERF-35 | `internal/pdf/merge/split.go:108` | `fmt.Errorf("invalid range: %v", r)` → `errors.New("invalid range: [" + strconv.Itoa(r[0]) + "," + strconv.Itoa(r[1]) + "]")` |
 | P6-22 | PERF-35 | `internal/pdf/metadata.go:326` | `fmt.Sprintf("<< /N 3 /Length %d /Filter ...", len(...))` → `strings.Builder` + `strconv.Itoa` |
-| P6-26 | PERF-46 | `internal/pdf/redact/ocr_adapter.go:64` | **Real hot-path fix** — Hoisted `strings.ToLower` + `strings.TrimSpace` out of nested `runOCRSearch` word/query loop into one-time pre-normalization. Each query is normalized once, each word is lowercased once per outer iteration. |
+| P6-26 | PERF-46 | `internal/pdf/redact/ocr_adapter.go:64` | **Real hot-path fix** - Hoisted `strings.ToLower` + `strings.TrimSpace` out of nested `runOCRSearch` word/query loop into one-time pre-normalization. Each query is normalized once, each word is lowercased once per outer iteration. |
 | P6-42 | PERF-42 | `internal/pdf/signature/signature.go:645` | `fmt.Errorf("byteRange placeholder not found")` → `errors.New("byteRange placeholder not found")` |
 
 ### P6 Unfixable / False Positives (kept as-is)
@@ -468,14 +468,14 @@ Cross-referenced against P1-P5. **4 newly fixed**, **62 verified as already hand
 | # | Rule | File:Line | Reason cannot fix |
 |---|------|-----------|---------------------|
 | P6-1, P6-6, P6-7, P6-23, P6-24, P6-46, P6-51, P6-55 | CWE-497, CWE-328, CWE-916 | various | **Security/encryption rules**, not performance. Out of scope for this perf remediation pass. |
-| P6-9, P6-10, P6-11, P6-12, P6-16, P6-27, P6-29, P6-33, P6-38 | PERF-35 | `pdfa.go:185`, `registry.go:168`, `ttf.go:91`, `xfdf.go:1133`, `generator.go:814`, `ocr_adapter.go:124`, `redactor.go:97`, `visual.go:49`, `signature.go:89` | `fmt.Errorf("...: %w", err)` — **`%w` verb is required for error-chain unwrapping**. Cannot replace with `errors.New`. |
+| P6-9, P6-10, P6-11, P6-12, P6-16, P6-27, P6-29, P6-33, P6-38 | PERF-35 | `pdfa.go:185`, `registry.go:168`, `ttf.go:91`, `xfdf.go:1133`, `generator.go:814`, `ocr_adapter.go:124`, `redactor.go:97`, `visual.go:49`, `signature.go:89` | `fmt.Errorf("...: %w", err)` - **`%w` verb is required for error-chain unwrapping**. Cannot replace with `errors.New`. |
 | P6-14, P6-15 | PERF-32 | `generator.go:81`, `generator.go:308` | `[]byte(string)` is standard Go idiom in this `copy()` context. Go 1.22+ optimizes `append`/`copy` to avoid allocation. |
 | P6-20 | PERF-15 | `split.go:100` | Already uses `strconv.Itoa(p)` (single allocation per error path). Acceptable. |
-| P6-34, P6-35, P6-36, P6-37, P6-39, P6-40 | PERF-32 | `signature.go:66, 68, 71, 83, 92, 111` | `h.Write([]byte(certPEM))` and `pem.Decode([]byte(certPEM))` — **`hash.Hash` and `pem.Decode` APIs require `[]byte`**. No way to avoid conversion without unsafe pointer tricks (which add complexity without measurable benefit). |
-| P6-43, P6-49, P6-50, P6-53, P6-64 | PERF-7 | `fontutils.go:149`, `databench_gopdflib.go:146,147`, `financial_report/main.go:88`, `zerodha/main.go:752` | **`defer wg.Done()` / `defer func() { <-sem }()` inside a goroutine closure** — required for correctness, scoped to goroutine exit not loop iteration. |
-| P6-44, P6-45, P6-47, P6-56, P6-57, P6-58, P6-59, P6-60, P6-61, P6-62 | PERF-15 | `gen_data.go:25,26`, `databench_gopdflib.go:68`, `zerodha/main.go:339,340,341,509,513,514,515` | `strconv.Itoa(...)` and `strconv.FormatFloat(...)` in benchmark data generators — **single allocation per iteration, only runs at benchmark setup time**. Not a production hot path. |
-| P6-48, P6-54, P6-65 | PERF-40 | `databench_gopdflib.go:140`, `financial_report/main.go:90`, `zerodha/main.go:753` | `time.Now()` used for **per-goroutine seed timing or per-iteration latency measurement** — intentional. |
-| P6-52, P6-63 | PERF-36 | `financial_report/main.go:87`, `zerodha/main.go:751` | `for range numWorkers` — **no loop variable** to capture. False positive. |
-| P6-66 | PERF-3 | `typstsyntax/renderer.go:477` | `gridCells[r] = make([]*MathLayout, cols)` — outer slice preallocated at line 471 with `rowCount`. Inner slices are `cols`-sized fixed allocation per row, **not a "rebuild"** (re-allocating a working slice). Standard Go 2D slice pattern. |
+| P6-34, P6-35, P6-36, P6-37, P6-39, P6-40 | PERF-32 | `signature.go:66, 68, 71, 83, 92, 111` | `h.Write([]byte(certPEM))` and `pem.Decode([]byte(certPEM))` - **`hash.Hash` and `pem.Decode` APIs require `[]byte`**. No way to avoid conversion without unsafe pointer tricks (which add complexity without measurable benefit). |
+| P6-43, P6-49, P6-50, P6-53, P6-64 | PERF-7 | `fontutils.go:149`, `databench_gopdflib.go:146,147`, `financial_report/main.go:88`, `zerodha/main.go:752` | **`defer wg.Done()` / `defer func() { <-sem }()` inside a goroutine closure** - required for correctness, scoped to goroutine exit not loop iteration. |
+| P6-44, P6-45, P6-47, P6-56, P6-57, P6-58, P6-59, P6-60, P6-61, P6-62 | PERF-15 | `gen_data.go:25,26`, `databench_gopdflib.go:68`, `zerodha/main.go:339,340,341,509,513,514,515` | `strconv.Itoa(...)` and `strconv.FormatFloat(...)` in benchmark data generators - **single allocation per iteration, only runs at benchmark setup time**. Not a production hot path. |
+| P6-48, P6-54, P6-65 | PERF-40 | `databench_gopdflib.go:140`, `financial_report/main.go:90`, `zerodha/main.go:753` | `time.Now()` used for **per-goroutine seed timing or per-iteration latency measurement** - intentional. |
+| P6-52, P6-63 | PERF-36 | `financial_report/main.go:87`, `zerodha/main.go:751` | `for range numWorkers` - **no loop variable** to capture. False positive. |
+| P6-66 | PERF-3 | `typstsyntax/renderer.go:477` | `gridCells[r] = make([]*MathLayout, cols)` - outer slice preallocated at line 471 with `rowCount`. Inner slices are `cols`-sized fixed allocation per row, **not a "rebuild"** (re-allocating a working slice). Standard Go 2D slice pattern. |
 
 **Total P6: 66 findings → 4 newly fixed, 62 unfixable/false-positive/duplicate**

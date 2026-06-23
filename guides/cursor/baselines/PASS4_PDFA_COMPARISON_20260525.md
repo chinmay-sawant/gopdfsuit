@@ -1,4 +1,4 @@
-# Pass 4 PDF/A — Benchmark & Load Test Comparison
+# Pass 4 PDF/A - Benchmark & Load Test Comparison
 
 **Date:** 2026-05-25  
 **Config:** `pdfaCompliant: true`, `taggedPDF: true`, `arlingtonCompatible: true`  
@@ -16,7 +16,7 @@
 | Wrap time/op | ~46–47 ms | **~51–59 ms** | ~similar/slightly slower |
 | Wrap allocs | ~327K | **~164K** | **~50% fewer** |
 
-**Untagged Pass 4 (reference only):** ~11 ms, ~1.3K allocs — not used for compliance workloads.
+**Untagged Pass 4 (reference only):** ~11 ms, ~1.3K allocs - not used for compliance workloads.
 
 Artifacts: `bench_pass4_pdfa_20260525.txt`, `bench_pass3_20260525.txt`
 
@@ -28,7 +28,7 @@ Artifacts: `bench_pass4_pdfa_20260525.txt`, `bench_pass3_20260525.txt`
 |--------|--------------------------|--------------|--------|
 | **Total requests** | 1,277 | **4,317** | **+238%** |
 | **Throughput** | ~25 req/s | **~143 req/s** | **~5.7×** |
-| **HTTP failures** | 0% | **0%** | — |
+| **HTTP failures** | 0% | **0%** | - |
 | **Median latency** | 94 ms | **11 ms** | **~8.5× faster** |
 | **p95 latency** | 3.11 s | **314 ms** | **~10× faster** |
 | **p99 latency** | 27.45 s ✗ | **1.53 s ✓** | **~18× faster** (threshold met) |
@@ -42,7 +42,7 @@ Artifacts:
 
 ## pprof comparison
 
-### CPU — flat `memclrNoHeapPointers`
+### CPU - flat `memclrNoHeapPointers`
 
 | Run | memclr flat | memmove flat | flate.deflate cum |
 |-----|-------------|--------------|-------------------|
@@ -51,7 +51,7 @@ Artifacts:
 
 **−46% relative** memclr CPU despite PDF/A tagging enabled.
 
-### Heap — in-use during load
+### Heap - in-use during load
 
 | Run | Total in-use | `BeginMarkedContentBuf` | `bytes.growSlice` |
 |-----|--------------|-------------------------|-------------------|

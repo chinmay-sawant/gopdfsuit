@@ -1,0 +1,116 @@
+{
+  "gopdflib-data": {
+    "best_ops_per_s": 288.12,
+    "runs": 5
+  },
+  "gopdfsuit-zerodha": {
+    "best_ops_per_s": 6146.12,
+    "runs": 5
+  },
+  "pypdfsuit-zerodha": {
+    "best_ops_per_s": 248.95,
+    "runs": 5
+  },
+  "pypdfsuit-legacy": {
+    "best_ops_per_s": 292.7,
+    "runs": 5
+  },
+  "fpdf": {
+    "best_ops_per_s": 2.24,
+    "runs": 5
+  },
+  "jspdf": {
+    "best_ops_per_s": 9.41,
+    "runs": 5
+  },
+  "pdfkit-lib": {
+    "best_ops_per_s": 10.07,
+    "runs": 5
+  },
+  "pdflib": {
+    "best_ops_per_s": 5.99,
+    "runs": 5
+  },
+  "gopdflib-zerodha": {
+    "best_ops_per_s": 11721.32,
+    "runs": 5,
+    "source": "bench-gopdflib-zerodha-x5"
+  },
+  "k6": {
+    "best_req_per_s": 1332.537355,
+    "runs": 5
+  },
+  "k6-light": {
+    "best_req_per_s": 1176.537819,
+    "runs": 5
+  },
+  "k6-retail": {
+    "best_req_per_s": 7515.345473,
+    "runs": 5
+  },
+  "gotenberg": {
+    "best_req_per_s": 16.061972,
+    "runs": 5
+  },
+  "handler-serial": {
+    "ns_per_op": 55528.0,
+    "mb_per_s": null,
+    "b_per_op": 344521.0,
+    "allocs_per_op": 294.0,
+    "ops_per_s": 18008.93243048552,
+    "runs": 5
+  },
+  "handler-parallel": {
+    "ns_per_op": 54814.0,
+    "mb_per_s": null,
+    "b_per_op": 342475.0,
+    "allocs_per_op": 294.0,
+    "ops_per_s": 18243.514430619914,
+    "runs": 5
+  },
+  "pdf-macro": {
+    "ns_per_op": 12565311.0,
+    "mb_per_s": 131.1,
+    "b_per_op": 4684027.0,
+    "allocs_per_op": 39779.0,
+    "ops_per_s": 79.58418219811671,
+    "runs": 5
+  },
+  "pdf-wrap": {
+    "ns_per_op": 26697809.0,
+    "mb_per_s": 66.44,
+    "b_per_op": 8630473.0,
+    "allocs_per_op": 41212.0,
+    "ops_per_s": 37.45625717825759,
+    "runs": 5
+  },
+  "pdf-gopdfsuit": {
+    "ns_per_op": 12294360.0,
+    "mb_per_s": null,
+    "b_per_op": 4676635.0,
+    "allocs_per_op": 39778.0,
+    "ops_per_s": 81.33810950712359,
+    "runs": 5
+  },
+  "pdf-typst": {
+    "ns_per_op": 469015552.0,
+    "mb_per_s": null,
+    "b_per_op": 16156.0,
+    "allocs_per_op": 49.0,
+    "ops_per_s": 2.1321254609484677,
+    "runs": 5
+  },
+  "typst-manual": {
+    "best_ops_per_s": 2.2015278603350725,
+    "runs": 5
+  },
+  "pdf-micro": {
+    "ns_per_op": 11934163.0,
+    "mb_per_s": null,
+    "b_per_op": 4752419.0,
+    "allocs_per_op": 39779.0,
+    "ops_per_s": 83.79305695757633,
+    "runs": 10,
+    "note": "Rows2000 + GoPdfSuit, count=10"
+  }
+}

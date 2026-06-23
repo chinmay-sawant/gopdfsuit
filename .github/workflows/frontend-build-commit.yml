@@ -64,8 +64,8 @@ jobs:
             fonts-liberation fonts-dejavu-core fonts-noto-core
       - name: Install Python test dependencies
         run: pip install pytest
-      - name: Install veraPDF
-        run: make install-verapdf
+      - name: Install PDF validators
+        run: make install-pdf-validators
       - name: Run make test
         run: make test
 

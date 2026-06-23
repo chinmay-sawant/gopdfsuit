@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors, Book, Eraser, Gauge } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
-import { isAuthRequired } from '../utils/apiConfig'
+import { isAuthRequired, isGitHubPagesHost, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -21,8 +21,7 @@ const Navbar = () => {
     return true
   }
 
-  // Check if running on GitHub Pages
-  const isGitHubPages = window.location.hostname.includes('chinmay-sawant.github.io')
+  const isGitHubPages = isGitHubPagesHost()
 
   const navItems = [
     { path: '/', label: 'Home', icon: FileText },
@@ -46,7 +45,7 @@ const Navbar = () => {
       {isGitHubPages && (
         <div
           className="preview-ribbon"
-          title="Run the app locally to generate the PDF"
+          title={OFFLINE_DEMO_MESSAGE}
         >
           Preview
         </div>

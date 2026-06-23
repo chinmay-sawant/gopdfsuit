@@ -65,7 +65,7 @@ func ParseMath(text string) *Node {
 }
 
 // RenderMathToText converts a Typst math expression to Unicode text.
-// This is the simplest rendering mode — useful for standard font output.
+// This is the simplest rendering mode - useful for standard font output.
 //
 // Example:
 //

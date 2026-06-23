@@ -406,7 +406,7 @@ const Redaction = () => {
 
       if (report && report.generatedRects === 0) {
         setSuccessMsg(
-          'No redactable text content was found in this PDF — the downloaded file is unchanged. ' +
+          'No redactable text content was found in this PDF - the downloaded file is unchanged. ' +
           'This usually means the PDF is scanned/image-based and its text is not embedded as selectable text. ' +
           'Try drawing redaction boxes manually instead, or use a PDF with embedded text.'
         )

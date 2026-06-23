@@ -64,7 +64,7 @@ function runOnce() {
         drawTextFallback(doc);
     }
 
-    doc.output('arraybuffer'); // Generate bytes in-memory — no disk I/O in hot path
+    doc.output('arraybuffer'); // Generate bytes in-memory - no disk I/O in hot path
     return performance.now() - start;
 }
 

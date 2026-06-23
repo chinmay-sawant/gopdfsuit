@@ -1,36 +1,93 @@
+const complianceModes = [
+  {
+    mode: 'Compliant',
+    harness: 'bench-gopdflib-zerodha',
+    pdfa: 'PDF/A-4',
+    pdfua: 'PDF/UA-2',
+    peak: '6,611',
+    mean: '6,203',
+    median: '6,362',
+    latency: '7.54 ms',
+    alloc: '798 MB',
+    hftSize: '2.29 MB',
+    hftNote: 'veraPDF 6/6 PASS',
+    enabled: ['ECDSA P-256 signing', 'Tagged PDF / PDF/UA-2', 'Font embedding', 'Arlington-compatible structure'],
+    color: '#10b981',
+    bg: 'rgba(16, 185, 129, 0.08)',
+    border: 'rgba(16, 185, 129, 0.35)',
+  },
+  {
+    mode: 'Non-compliant',
+    harness: 'bench-gopdflib-zerodha-nocomply',
+    pdfa: 'PDF 2.0',
+    pdfua: 'No PDF/A',
+    peak: '37,853',
+    mean: '34,035',
+    median: '35,181',
+    latency: '1.38 ms',
+    alloc: '310 MB',
+    hftSize: '221 KB',
+    hftNote: 'No PDF/A or tagging',
+    enabled: ['PDF 2.0 base format', 'PDF/A off', 'Tagging off', 'Signing off', 'Font embedding off'],
+    color: '#007acc',
+    bg: 'rgba(0, 122, 204, 0.08)',
+    border: 'rgba(0, 122, 204, 0.35)',
+  },
+]
+
 const headlineStats = [
-  { value: '2061 ops/sec', label: 'Peak Zerodha Throughput', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
-  { value: '1705 ops/sec', label: '10-Run Avg Throughput', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
-  { value: '22.7 ms', label: 'Best Avg Latency', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-  { value: '1.73 ms', label: 'Best Min Latency', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
+  { value: '5.7×', label: 'Non-compliant peak vs compliant (37,853 / 6,611)', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+  { value: '+150%', label: 'Compliant peak vs June 2026 baseline (2,646 → 6,611)', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
+  { value: '48 workers', label: 'Zerodha mix: 80% retail · 15% active · 5% HFT', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
+  { value: '288 ops/sec', label: 'Peak data-table throughput (PDF/A-4 + PDF/UA-2)', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
 ]
 
 const dataBenchmarks = [
-  { name: 'GoPDFLib', avg: '119.48 ms', min: '112.51 ms', max: '127.17 ms', throughput: '77.81 ops/sec' },
-  { name: 'PDFKit', avg: '905.61 ms', min: '820.49 ms', max: '1002.08 ms', throughput: '8.58 ops/sec' },
-  { name: 'jsPDF', avg: '1120.94 ms', min: '1058.14 ms', max: '1187.31 ms', throughput: '7.74 ops/sec' },
-  { name: 'Typst', avg: '1323.77 ms', min: '1306.09 ms', max: '1378.97 ms', throughput: '7.22 ops/sec' },
-  { name: 'pdf-lib', avg: '2041.23 ms', min: '1904.82 ms', max: '2157.59 ms', throughput: '4.13 ops/sec' },
-  { name: 'FPDF2', avg: '4829.08 ms', min: '4734.69 ms', max: '4927.40 ms', throughput: '2.02 ops/sec' },
-]
-
-const zerodhaBenchmarks = [
-  { name: 'GoPDFLib', throughput: '783.34 ops/sec', avg: '10.88 ms', min: '9.47 ms', max: '12.53 ms' },
-  { name: 'GoPDFSuit', throughput: '720.33 ops/sec', avg: '11.70 ms', min: '10.52 ms', max: '12.77 ms' },
-  { name: 'PyPDFSuit', throughput: '157.26 ops/sec', avg: '39.53 ms', min: '38.33 ms', max: '40.71 ms' },
+  { name: 'GoPDFLib', avg: '~156 ms', min: '-', max: '-', throughput: '288 ops/sec' },
+  { name: 'PDFKit', avg: '~721 ms', min: '-', max: '-', throughput: '10.1 ops/sec' },
+  { name: 'jsPDF', avg: '~946 ms', min: '-', max: '-', throughput: '9.4 ops/sec' },
+  { name: 'pdf-lib', avg: '~1,484 ms', min: '-', max: '-', throughput: '6.0 ops/sec' },
+  { name: 'FPDF2', avg: '~4,492 ms', min: '-', max: '-', throughput: '2.2 ops/sec' },
+  { name: 'Typst', avg: '~549 ms', min: '-', max: '-', throughput: '2.2 ops/sec' },
 ]
 
 const parallelWeightedBenchmarks = [
-  { name: 'GoPDFLib', workers: '48', throughput: '2061.33 ops/sec', avg: '22.680 ms', min: '1.725 ms', max: '659.165 ms', mix: '4002 / 732 / 266' },
-  { name: 'GoPDFLib (10-run avg)', workers: '48', throughput: '1704.95 ops/sec', avg: '27.647 ms', min: '1.967 ms', max: '883.804 ms', mix: '~4000 / ~750 / ~250' },
-  { name: 'PyPDFSuit', workers: '48', throughput: '233.76 ops/sec', avg: '185.517 ms', min: '2.657 ms', max: '3516.474 ms', mix: '4015 / 767 / 218' },
+  { name: 'GoPDFLib (PDF/A-4, x10 peak)', workers: '48', throughput: '6,611 ops/sec', avg: '6.96 ms', min: '0.31 ms', max: '205.86 ms', mix: '4000 / 750 / 250' },
+  { name: 'GoPDFLib (PDF/A-4, x10 mean)', workers: '48', throughput: '6,203 ops/sec', avg: '7.54 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
+  { name: 'GoPDFLib (nocomply, x10 peak)', workers: '48', throughput: '37,853 ops/sec', avg: '1.23 ms', min: '-', max: '-', mix: '4000 / 750 / 250' },
+  { name: 'GoPDFLib (nocomply, x10 mean)', workers: '48', throughput: '34,035 ops/sec', avg: '1.38 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
+  { name: 'GoPDFSuit (retail)', workers: '48', throughput: '6,146 ops/sec', avg: '6.29 ms', min: '1.36 ms', max: '95.13 ms', mix: '5000 retail' },
+  { name: 'PyPDFSuit (compliant, x10 peak)', workers: '48', throughput: '937 ops/sec', avg: '45.80 ms', min: '0.86 ms', max: '743.45 ms', mix: '4000 / 750 / 250' },
+  { name: 'PyPDFSuit (compliant, x10 mean)', workers: '48', throughput: '916 ops/sec', avg: '46.93 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
+  { name: 'PyPDFSuit (nocomply, x10 peak)', workers: '48', throughput: '1,284 ops/sec', avg: '32.82 ms', min: '0.23 ms', max: '355.60 ms', mix: '4000 / 750 / 250' },
+  { name: 'PyPDFSuit (nocomply, x10 mean)', workers: '48', throughput: '1,242 ops/sec', avg: '33.78 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
+  { name: 'gpdf (PDF/A-2b, compliant)', workers: '48', throughput: '178 ops/sec', avg: '267.37 ms', min: '2.83 ms', max: '3182.41 ms', mix: '4000 / 750 / 250' },
+  { name: 'gpdf (nocomply)', workers: '48', throughput: '464 ops/sec', avg: '100.64 ms', min: '0.25 ms', max: '4886.26 ms', mix: '4000 / 750 / 250' },
+]
+
+const httpBenchmarks = [
+  { name: 'k6 weighted (ECDSA)', vus: '48 x 35s', throughput: '1,333 req/s', compliance: 'PDF/A-4, PDF/UA-2' },
+  { name: 'k6 retail-only', vus: '48 x 35s', throughput: '7,515 req/s', compliance: 'PDF/A-4, PDF/UA-2' },
+  { name: 'k6 light', vus: '24 x 15s', throughput: '1,177 req/s', compliance: 'PDF/A-4, PDF/UA-2' },
+  { name: 'Gotenberg (same harness)', vus: '48 x 35s', throughput: '16.1 req/s', compliance: 'None' },
+]
+
+const gopdfkitCompareBenchmarks = [
+  { name: 'text_short', workload: 'text_short', gopdfkit: '119,959', gopdflib: '254,986', lead: '2.1x' },
+  { name: 'text_240_lines', workload: 'text_240_lines', gopdfkit: '14,755', gopdflib: '32,453', lead: '2.2x' },
+  { name: 'table_180_rows', workload: 'table_180_rows', gopdfkit: '11,883', gopdflib: '47,707', lead: '4.0x' },
+  { name: 'table_900_rows', workload: 'table_900_rows', gopdfkit: '2,635', gopdflib: '10,452', lead: '4.0x' },
+  { name: 'invoice_40_rows', workload: 'invoice_40_rows', gopdfkit: '40,145', gopdflib: '135,052', lead: '3.4x' },
+  { name: 'png_table_180_rows', workload: 'png_table_180_rows', gopdfkit: '7,504', gopdflib: '45,098', lead: '6.0x' },
+  { name: 'png_rows_60', workload: 'png_rows_60', gopdfkit: '5,474', gopdflib: '53,935', lead: '9.9x' },
 ]
 
 const machineProfile = [
   'Kernel: Linux 6.6.87.2-microsoft-standard-WSL2',
   'CPU: 13th Gen Intel(R) Core(TM) i7-13700HX',
   'Topology: 12 cores, 24 logical CPUs, 2 threads per core',
-  'Memory: 7.6 GiB RAM',
+  'Go 1.26.4, Python 3, Node v22.20.0, k6 v1.4.2',
+  'Branch: feat/optimization-5.5-medium (June 2026)',
 ]
 
 const BenchmarkPanel = ({ title, description, columns, rows, wide = false }) => (
@@ -70,12 +127,64 @@ const PerformanceSection = ({ isVisible }) => {
         <div className="performance-header-block">
           <div className="comparison-eyebrow">Benchmarks</div>
           <h2 className="gradient-text section-heading" style={{ animationDelay: '0.4s' }}>
-            Measured Performance
+            Compliant vs Non-Compliant Throughput
           </h2>
           <p className="section-subheading performance-intro">
-            Captured on WSL2 (May 2026) from the Zerodha Gold Standard benchmark: 5000 iterations, 48 workers, 80% Retail / 15% Active / 5% HFT, PDF/A + tagged PDF + digital signatures.
-            Headline numbers are aggregate concurrent throughput (not per-core). Serial 48-iteration retail comparisons and cross-library data-table benchmarks are shown separately below.
+            Same Zerodha gold-standard workload (5000 iterations, 48 workers, 80/15/5 mix) measured with{' '}
+            <code>make bench-gopdflib-zerodha-x10</code> (full compliance) and{' '}
+            <code>make bench-gopdflib-zerodha-nocomply-x10</code> (compliance off). WSL2, Intel i7-13700HX, Go 1.26.4 - June 2026 x10 sequential runs.
           </p>
+        </div>
+
+        <div className="compliance-compare-grid">
+          {complianceModes.map((item) => (
+            <article
+              key={item.mode}
+              className="compliance-compare-card"
+              style={{ background: item.bg, borderColor: item.border }}
+            >
+              <div className="compliance-compare-header">
+                <span className="compliance-compare-mode" style={{ color: item.color }}>
+                  {item.mode}
+                </span>
+                <code className="compliance-compare-harness">{item.harness}</code>
+              </div>
+
+              <div className="compliance-compare-badges">
+                <span className="compliance-badge">{item.pdfa}</span>
+                <span className="compliance-badge">{item.pdfua}</span>
+              </div>
+
+              <div className="compliance-compare-metrics">
+                <div>
+                  <div className="compliance-metric-value" style={{ color: item.color }}>
+                    {item.peak}
+                  </div>
+                  <div className="compliance-metric-label">x10 peak ops/sec</div>
+                </div>
+                <div>
+                  <div className="compliance-metric-value">{item.mean}</div>
+                  <div className="compliance-metric-label">x10 mean ops/sec</div>
+                </div>
+                <div>
+                  <div className="compliance-metric-value">{item.median}</div>
+                  <div className="compliance-metric-label">x10 median</div>
+                </div>
+              </div>
+
+              <div className="compliance-compare-details">
+                <div><strong>Avg latency:</strong> {item.latency}</div>
+                <div><strong>Peak alloc:</strong> {item.alloc}</div>
+                <div><strong>HFT output:</strong> {item.hftSize} ({item.hftNote})</div>
+              </div>
+
+              <ul className="compliance-feature-list">
+                {item.enabled.map((feature) => (
+                  <li key={feature}>{feature}</li>
+                ))}
+              </ul>
+            </article>
+          ))}
         </div>
 
         <div className="performance-stats-grid">
@@ -98,35 +207,9 @@ const PerformanceSection = ({ isVisible }) => {
 
         <div className="performance-panels-grid">
           <BenchmarkPanel
-            title="Zerodha Contract Note (48× serial)"
-            description="Single retail contract note rendered 48 times in-process (March 2026 harness). Serial throughput only — not comparable to the 5000×48 gold standard above."
-            columns={[
-              { key: 'name', label: 'Runtime' },
-              { key: 'avg', label: 'Avg' },
-              { key: 'min', label: 'Min' },
-              { key: 'max', label: 'Max' },
-              { key: 'throughput', label: 'Throughput' },
-            ]}
-            rows={zerodhaBenchmarks}
-          />
-
-          <BenchmarkPanel
             wide
-            title="Data Table Benchmark"
-            description="Single-document serial benchmark covering PDF generation with embedded fonts, internal links, bookmarks, and signing support where the runner enables them."
-            columns={[
-              { key: 'name', label: 'Library' },
-              { key: 'avg', label: 'Best Avg' },
-              { key: 'min', label: 'Best Min' },
-              { key: 'max', label: 'Best Max' },
-              { key: 'throughput', label: 'Peak Serial Throughput' },
-            ]}
-            rows={dataBenchmarks}
-          />
-
-          <BenchmarkPanel
             title="Parallel Weighted Workload (5000×48)"
-            description="Mixed retail, active-trader, and HFT traffic with PDF/A compliance. Peak row is the best observed WSL run; avg row is the mean of 10 sequential runs. Throughput is aggregate system throughput across 48 workers."
+            description="Mixed retail, active-trader, and HFT traffic. GoPDFLib and PyPDFSuit rows from June 2026 x10 sequential runs; gpdf rows from make bench-gpdf-zerodha / -nocomply (same 5000×48 workload)."
             columns={[
               { key: 'name', label: 'Runtime' },
               { key: 'workers', label: 'Workers' },
@@ -137,6 +220,46 @@ const PerformanceSection = ({ isVisible }) => {
               { key: 'mix', label: 'Retail / Active / HFT' },
             ]}
             rows={parallelWeightedBenchmarks}
+          />
+
+          <BenchmarkPanel
+            wide
+            title="Data Table Benchmark (2000 rows)"
+            description="Single-document serial benchmark from sampledata/benchmarks/data.json. GoPDFLib runs with PDF/A-4 and PDF/UA-2; other libraries generate PDF 1.7 without accessibility tagging."
+            columns={[
+              { key: 'name', label: 'Library' },
+              { key: 'avg', label: 'Avg Latency' },
+              { key: 'min', label: 'Min' },
+              { key: 'max', label: 'Max' },
+              { key: 'throughput', label: 'Peak Throughput' },
+            ]}
+            rows={dataBenchmarks}
+          />
+
+          <BenchmarkPanel
+            wide
+            title="HTTP Load Tests (k6)"
+            description="End-to-end HTTP benchmarks via make bench-k6 targets. gopdfsuit vs Gotenberg uses the same k6 harness (~83× faster on weighted workload)."
+            columns={[
+              { key: 'name', label: 'Harness' },
+              { key: 'vus', label: 'VUs x Duration' },
+              { key: 'throughput', label: 'Peak req/s' },
+              { key: 'compliance', label: 'PDF/A / PDF/UA' },
+            ]}
+            rows={httpBenchmarks}
+          />
+
+          <BenchmarkPanel
+            wide
+            title="GoPDFKit vs GoPDFLib (apples-to-apples)"
+            description="make bench-gopdfkit-compare - PDF 1.7 templates without PDF/A flags, 40 workers, benchtime=5s, best-of-5 (June 2026 suite). gopdflib (GoPDFSuit engine) wins all 7 workloads; peak lead 9.9x on PNG rows."
+            columns={[
+              { key: 'workload', label: 'Workload' },
+              { key: 'gopdfkit', label: 'GoPDFKit pdf/s' },
+              { key: 'gopdflib', label: 'GoPDFLib pdf/s' },
+              { key: 'lead', label: 'gopdflib lead' },
+            ]}
+            rows={gopdfkitCompareBenchmarks}
           />
 
           <article className="glass-card performance-panel performance-machine-panel">
@@ -154,13 +277,13 @@ const PerformanceSection = ({ isVisible }) => {
             </div>
 
             <div className="performance-note-box">
-              Serial tables measure one benchmark process at a time. The parallel weighted table measures aggregate throughput across 48 workers, so it should be read as concurrent system throughput rather than single-document latency.
+              Serial data-table numbers measure one document at a time. Parallel Zerodha and HTTP tables measure aggregate throughput across 48 workers, so they should be read as concurrent system throughput rather than single-document latency.
             </div>
           </article>
         </div>
 
         <p className="performance-disclaimer">
-          Benchmarks cover PDF generation with PDF/A settings, embedded fonts, bookmarks, internal links, and digital signatures where the runner enables them.
+          * All GoPDFLib headline benchmarks run with PDF/A-4, PDF/UA-2, Arlington-compatible tagging, XML metadata generation, ECDSA P-256 digital signatures, embedded fonts, bookmarks, and internal links enabled. GoPDFKit compare templates omit PDF/A flags for fair speed comparison. See guides/BENCHMARKS.md for raw logs and reproduction steps.
         </p>
       </div>
     </div>

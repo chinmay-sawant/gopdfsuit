@@ -1,0 +1,111 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-17T23:25:30+05:30" level=info msg="pprof load: 48 VUs × 35s, scenario=tagged_ecdsa" source=console
+
+running (0m01.0s), 48/48 VUs, 1410 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 2645 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 3796 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 4728 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 5423 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 6275 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.1s), 48/48 VUs, 7395 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.1s/35s
+
+running (0m08.0s), 48/48 VUs, 8421 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 9295 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 9703 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 10360 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 11393 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 11726 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 12234 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 12376 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 12693 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.5s), 48/48 VUs, 12763 complete and 0 interrupted iterations
+steady   [  50% ] 48 VUs  17.5s/35s
+
+running (0m18.0s), 48/48 VUs, 13251 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 14182 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.0s), 48/48 VUs, 15152 complete and 0 interrupted iterations
+steady   [  57% ] 48 VUs  20.0s/35s
+
+running (0m21.0s), 48/48 VUs, 16006 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 16056 complete and 0 interrupted iterations
+steady   [  64% ] 48 VUs  22.2s/35s
+
+running (0m23.1s), 48/48 VUs, 16058 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.2s/35s
+
+running (0m24.2s), 48/48 VUs, 16058 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  24.7s/35s
+
+running (0m25.8s), 48/48 VUs, 16062 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  25.9s/35s
+
+running (0m26.7s), 48/48 VUs, 16064 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  26.9s/35s
+
+running (0m28.0s), 48/48 VUs, 16064 complete and 0 interrupted iterations
+steady   [  81% ] 48 VUs  28.5s/35s
+
+running (0m31.7s), 48/48 VUs, 16064 complete and 0 interrupted iterations
+steady   [  93% ] 48 VUs  32.6s/35s
+
+running (0m34.8s), 48/48 VUs, 16064 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35s
+
+running (0m41.4s), 48/48 VUs, 16064 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m53.9s), 48/48 VUs, 16064 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s
+
+running (1m21.3s), 48/48 VUs, 16064 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s

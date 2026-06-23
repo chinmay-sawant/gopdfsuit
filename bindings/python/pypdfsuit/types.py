@@ -5,7 +5,66 @@ These types mirror the Go types in gopdfsuit/internal/models/models.go.
 """
 
 from dataclasses import dataclass, field, asdict
+from functools import lru_cache
 from typing import Optional, List, Dict, Any, Tuple
+
+
+_JSON_KEY_MAPPING = {
+    "page_border": "pageBorder",
+    "page_alignment": "pageAlignment",
+    "pdf_title": "pdfTitle",
+    "arlington_compatible": "arlingtonCompatible",
+    "embed_fonts": "embedFonts",
+    "custom_fonts": "customFonts",
+    "pdfa_compliant": "pdfaCompliant",
+    "user_password": "userPassword",
+    "owner_password": "ownerPassword",
+    "allow_printing": "allowPrinting",
+    "allow_modifying": "allowModifying",
+    "allow_copying": "allowCopying",
+    "allow_annotations": "allowAnnotations",
+    "allow_form_filling": "allowFormFilling",
+    "allow_accessibility": "allowAccessibility",
+    "allow_assembly": "allowAssembly",
+    "allow_high_quality_print": "allowHighQualityPrint",
+    "certificate_pem": "certificatePem",
+    "private_key_pem": "privateKeyPem",
+    "certificate_chain": "certificateChain",
+    "contact_info": "contactInfo",
+    "max_columns": "maxcolumns",
+    "column_widths": "columnwidths",
+    "row_heights": "rowheights",
+    "bg_color": "bgcolor",
+    "text_color": "textcolor",
+    "image_name": "imagename",
+    "image_data": "imagedata",
+    "form_field": "form_field",
+    "group_name": "group_name",
+    "file_path": "filePath",
+    "font_data": "fontData",
+    "output_path": "output_path",
+    "page_size": "page_size",
+    "margin_top": "margin_top",
+    "margin_right": "margin_right",
+    "margin_bottom": "margin_bottom",
+    "margin_left": "margin_left",
+    "low_quality": "low_quality",
+    "crop_width": "crop_width",
+    "crop_height": "crop_height",
+    "crop_x": "crop_x",
+    "crop_y": "crop_y",
+    "display_name": "displayName",
+    "max_per_file": "MaxPerFile",
+    "math_enabled": "mathEnabled",
+}
+
+
+@lru_cache(maxsize=None)
+def _dataclass_json_fields(cls: type) -> Tuple[Tuple[str, str], ...]:
+    return tuple(
+        (field_name, _python_to_json_key(field_name))
+        for field_name in cls.__dataclass_fields__
+    )
 
 
 def _to_dict(obj: Any, remove_none: bool = True) -> Any:
@@ -20,12 +79,10 @@ def _to_dict(obj: Any, remove_none: bool = True) -> Any:
         return {k: _to_dict(v, remove_none) for k, v in obj.items()}
     if hasattr(obj, "__dataclass_fields__"):
         result = {}
-        for f in obj.__dataclass_fields__:
-            value = getattr(obj, f)
+        for field_name, json_key in _dataclass_json_fields(type(obj)):
+            value = getattr(obj, field_name)
             if value is None and remove_none:
                 continue
-            # Handle field name mapping (Python snake_case -> JSON camelCase)
-            json_key = _python_to_json_key(f)
             result[json_key] = _to_dict(value, remove_none)
         return result
     return obj
@@ -33,56 +90,7 @@ def _to_dict(obj: Any, remove_none: bool = True) -> Any:
 
 def _python_to_json_key(key: str) -> str:
     """Convert Python snake_case to JSON camelCase where needed."""
-    # Map Python field names to JSON field names
-    mapping = {
-        "page_border": "pageBorder",
-        "page_alignment": "pageAlignment",
-        "pdf_title": "pdfTitle",
-        "arlington_compatible": "arlingtonCompatible",
-        "embed_fonts": "embedFonts",
-        "custom_fonts": "customFonts",
-        "pdfa_compliant": "pdfaCompliant",
-        "user_password": "userPassword",
-        "owner_password": "ownerPassword",
-        "allow_printing": "allowPrinting",
-        "allow_modifying": "allowModifying",
-        "allow_copying": "allowCopying",
-        "allow_annotations": "allowAnnotations",
-        "allow_form_filling": "allowFormFilling",
-        "allow_accessibility": "allowAccessibility",
-        "allow_assembly": "allowAssembly",
-        "allow_high_quality_print": "allowHighQualityPrint",
-        "certificate_pem": "certificatePem",
-        "private_key_pem": "privateKeyPem",
-        "certificate_chain": "certificateChain",
-        "contact_info": "contactInfo",
-        "max_columns": "maxcolumns",
-        "column_widths": "columnwidths",
-        "row_heights": "rowheights",
-        "bg_color": "bgcolor",
-        "text_color": "textcolor",
-        "image_name": "imagename",
-        "image_data": "imagedata",
-        "form_field": "form_field",
-        "group_name": "group_name",
-        "file_path": "filePath",
-        "font_data": "fontData",
-        "output_path": "output_path",
-        "page_size": "page_size",
-        "margin_top": "margin_top",
-        "margin_right": "margin_right",
-        "margin_bottom": "margin_bottom",
-        "margin_left": "margin_left",
-        "low_quality": "low_quality",
-        "crop_width": "crop_width",
-        "crop_height": "crop_height",
-        "crop_x": "crop_x",
-        "crop_y": "crop_y",
-        "display_name": "displayName",
-        "max_per_file": "MaxPerFile",
-        "math_enabled": "mathEnabled",
-    }
-    return mapping.get(key, key)
+    return _JSON_KEY_MAPPING.get(key, key)
 
 
 @dataclass
@@ -141,7 +149,28 @@ class SignatureConfig:
     name: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return _to_dict(self)
+        result = {
+            "enabled": self.enabled,
+            "certificatePem": self.certificate_pem,
+            "privateKeyPem": self.private_key_pem,
+            "visible": self.visible,
+            "page": self.page,
+            "x": self.x,
+            "y": self.y,
+            "width": self.width,
+            "height": self.height,
+        }
+        if self.certificate_chain is not None:
+            result["certificateChain"] = self.certificate_chain
+        if self.reason is not None:
+            result["reason"] = self.reason
+        if self.location is not None:
+            result["location"] = self.location
+        if self.contact_info is not None:
+            result["contactInfo"] = self.contact_info
+        if self.name is not None:
+            result["name"] = self.name
+        return result
 
 
 @dataclass
@@ -153,7 +182,12 @@ class CustomFontConfig:
     font_data: Optional[str] = None  # Base64-encoded font data
 
     def to_dict(self) -> Dict[str, Any]:
-        return _to_dict(self)
+        result = {"name": self.name}
+        if self.file_path is not None:
+            result["filePath"] = self.file_path
+        if self.font_data is not None:
+            result["fontData"] = self.font_data
+        return result
 
 
 @dataclass
@@ -168,7 +202,17 @@ class Bookmark:
     open: bool = False  # Whether children are expanded by default
 
     def to_dict(self) -> Dict[str, Any]:
-        return _to_dict(self)
+        result = {
+            "title": self.title,
+            "page": self.page,
+            "y": self.y,
+            "open": self.open,
+        }
+        if self.dest is not None:
+            result["dest"] = self.dest
+        if self.children is not None:
+            result["children"] = [child.to_dict() for child in self.children]
+        return result
 
 
 @dataclass
@@ -190,7 +234,30 @@ class Config:
     pdfa_compliant: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
-        return _to_dict(self)
+        result = {
+            "page": self.page,
+            "pageAlignment": self.page_alignment,
+            "pageBorder": self.page_border,
+            "pdfaCompliant": self.pdfa_compliant,
+        }
+        if self.embed_fonts is not None:
+            result["embedFonts"] = self.embed_fonts
+        if self.watermark is not None:
+            result["watermark"] = self.watermark
+        if self.pdf_title is not None:
+            result["pdfTitle"] = self.pdf_title
+        result["arlingtonCompatible"] = self.arlington_compatible
+        if self.bookmarks is not None:
+            result["bookmarks"] = [bookmark.to_dict() for bookmark in self.bookmarks]
+        if self.security is not None:
+            result["security"] = self.security.to_dict()
+        if self.pdfa is not None:
+            result["pdfa"] = self.pdfa.to_dict()
+        if self.signature is not None:
+            result["signature"] = self.signature.to_dict()
+        if self.custom_fonts is not None:
+            result["customFonts"] = [font.to_dict() for font in self.custom_fonts]
+        return result
 
 
 @dataclass
@@ -204,7 +271,15 @@ class Image:
     link: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return _to_dict(self)
+        result = {
+            "imagename": self.image_name,
+            "imagedata": self.image_data,
+            "width": self.width,
+            "height": self.height,
+        }
+        if self.link is not None:
+            result["link"] = self.link
+        return result
 
 
 @dataclass
@@ -219,7 +294,17 @@ class FormField:
     shape: Optional[str] = None  # "round" or "square" (for radio)
 
     def to_dict(self) -> Dict[str, Any]:
-        return _to_dict(self)
+        result = {
+            "type": self.type,
+            "name": self.name,
+            "value": self.value,
+            "checked": self.checked,
+        }
+        if self.group_name is not None:
+            result["group_name"] = self.group_name
+        if self.shape is not None:
+            result["shape"] = self.shape
+        return result
 
 
 @dataclass
@@ -241,10 +326,32 @@ class Cell:
     math_enabled: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        result = _to_dict(self)
-        # Rename checkbox to chequebox for Go compatibility
-        if "checkbox" in result:
-            result["chequebox"] = result.pop("checkbox")
+        result = {
+            "props": self.props,
+            "text": self.text,
+        }
+        if self.checkbox is not None:
+            result["chequebox"] = self.checkbox
+        if self.image is not None:
+            result["image"] = self.image.to_dict()
+        if self.width is not None:
+            result["width"] = self.width
+        if self.height is not None:
+            result["height"] = self.height
+        if self.form_field is not None:
+            result["form_field"] = self.form_field.to_dict()
+        if self.bg_color is not None:
+            result["bgcolor"] = self.bg_color
+        if self.text_color is not None:
+            result["textcolor"] = self.text_color
+        if self.link is not None:
+            result["link"] = self.link
+        if self.wrap is not None:
+            result["wrap"] = self.wrap
+        if self.dest is not None:
+            result["dest"] = self.dest
+        if self.math_enabled is not None:
+            result["mathEnabled"] = self.math_enabled
         return result
 
 

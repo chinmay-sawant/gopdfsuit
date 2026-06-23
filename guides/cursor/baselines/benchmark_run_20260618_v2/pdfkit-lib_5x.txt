@@ -1,0 +1,105 @@
+--- run 1/5 ---
+cd sampledata/benchmarks/pdfkit && node bench.js
+=== PDFKit Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 712.49 ms
+Run 2: 716.31 ms
+Run 3: 638.07 ms
+Run 4: 652.33 ms
+Run 5: 872.48 ms
+Run 6: 713.72 ms
+Run 7: 617.52 ms
+Run 8: 772.39 ms
+Run 9: 666.96 ms
+Run 10: 712.15 ms
+
+Min:        617.52 ms
+Avg:        707.44 ms
+P95:        872.48 ms
+Max:        872.48 ms
+Throughput: 9.70 ops/sec
+
+--- run 2/5 ---
+cd sampledata/benchmarks/pdfkit && node bench.js
+=== PDFKit Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1242.23 ms
+Run 2: 1324.10 ms
+Run 3: 1454.89 ms
+Run 4: 1517.17 ms
+Run 5: 1306.72 ms
+Run 6: 1242.52 ms
+Run 7: 1324.53 ms
+Run 8: 1222.18 ms
+Run 9: 1236.53 ms
+Run 10: 1366.65 ms
+
+Min:        1222.18 ms
+Avg:        1323.75 ms
+P95:        1517.17 ms
+Max:        1517.17 ms
+Throughput: 6.14 ops/sec
+
+--- run 3/5 ---
+cd sampledata/benchmarks/pdfkit && node bench.js
+=== PDFKit Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 737.38 ms
+Run 2: 774.02 ms
+Run 3: 729.73 ms
+Run 4: 732.42 ms
+Run 5: 759.29 ms
+Run 6: 634.36 ms
+Run 7: 651.84 ms
+Run 8: 727.77 ms
+Run 9: 643.59 ms
+Run 10: 669.49 ms
+
+Min:        634.36 ms
+Avg:        705.99 ms
+P95:        774.02 ms
+Max:        774.02 ms
+Throughput: 8.89 ops/sec
+
+--- run 4/5 ---
+cd sampledata/benchmarks/pdfkit && node bench.js
+=== PDFKit Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 731.62 ms
+Run 2: 813.58 ms
+Run 3: 726.36 ms
+Run 4: 697.17 ms
+Run 5: 746.14 ms
+Run 6: 721.08 ms
+Run 7: 706.20 ms
+Run 8: 770.54 ms
+Run 9: 694.53 ms
+Run 10: 691.80 ms
+
+Min:        691.80 ms
+Avg:        729.90 ms
+P95:        813.58 ms
+Max:        813.58 ms
+Throughput: 10.02 ops/sec
+
+--- run 5/5 ---
+cd sampledata/benchmarks/pdfkit && node bench.js
+=== PDFKit Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 727.23 ms
+Run 2: 604.93 ms
+Run 3: 683.70 ms
+Run 4: 715.30 ms
+Run 5: 686.47 ms
+Run 6: 763.09 ms
+Run 7: 728.91 ms
+Run 8: 609.32 ms
+Run 9: 660.07 ms
+Run 10: 823.33 ms
+
+Min:        604.93 ms
+Avg:        700.24 ms
+P95:        823.33 ms
+Max:        823.33 ms
+Throughput: 10.07 ops/sec
+

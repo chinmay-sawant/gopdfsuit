@@ -2,7 +2,7 @@ import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function AuthGuard({ children }) {
-  const { isAuthenticated, login } = useAuth()
+  const { isAuthenticated, login, googleOAuthEnabled } = useAuth()
 
   if (!isAuthenticated) {
     return (
@@ -41,18 +41,29 @@ export default function AuthGuard({ children }) {
             border: '1px solid hsl(var(--border))',
             boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
           }}>
-            <GoogleLogin
-              onSuccess={login}
-              onError={() => {
-                console.error('Login Failed')
-                alert('Login failed. Please try again.')
-              }}
-              useOneTap
-              theme="outline"
-              size="large"
-              text="signin_with"
-              shape="rectangular"
-            />
+            {googleOAuthEnabled ? (
+              <GoogleLogin
+                onSuccess={login}
+                onError={() => {
+                  console.error('Login Failed')
+                  alert('Login failed. Please try again.')
+                }}
+                useOneTap
+                theme="outline"
+                size="large"
+                text="signin_with"
+                shape="rectangular"
+              />
+            ) : (
+              <p style={{
+                fontSize: '0.95rem',
+                color: 'hsl(var(--muted-foreground))',
+                margin: 0,
+                lineHeight: 1.6,
+              }}>
+                Google OAuth is not configured. Set <code>VITE_GOOGLE_CLIENT_ID</code> in <code>frontend/.env</code> to enable sign-in.
+              </p>
+            )}
           </div>
 
           <p style={{ 

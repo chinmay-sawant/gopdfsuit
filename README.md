@@ -16,15 +16,16 @@
 
 ## ⚡ Performance & Efficiency
 
-**92% Cost Reduction** vs traditional distributed architectures. All benchmarks below run with **PDF/A-4 (PDF 2.0)** compliance enabled - no shortcuts.
+Zerodha gold-standard workload (5000 iterations, 48 workers, 80% retail · 15% active · 5% HFT), measured with x10 sequential runs on WSL2 (Intel i7-13700HX, Go 1.26.4, June 2026). See [guides/BENCHMARKS.md](guides/BENCHMARKS.md) for full suite.
 
-| Metric               | Industry Standard (Typst/LaTeX) | gopdfsuit (Go 1.26)             |
-| :------------------- | :------------------------------ | :------------------------------ |
-| **Infrastructure**   | ~40 Node Cluster                | **2 Nodes** (95% Less)          |
-| **Cost (1.5M PDFs)** | ~$10.20 / day                   | **~$0.77 / day**                |
-| **Throughput**       | ~1k PDFs/sec (Cluster)          | **peak 2,953 / avg 2,646 PDFs/sec** (gopdflib Zerodha, 48 workers, 30-run, 2026-06-14) |
+| Harness | PDF/A | PDF/UA | x10 peak | x10 mean | x10 median | Avg latency | Peak alloc |
+| :------ | :---- | :----- | -------: | -------: | ---------: | :---------- | :--------- |
+| **`bench-gopdflib-zerodha`** (compliant) | PDF/A-4 | PDF/UA-2 | **6,611 ops/s** | **6,203 ops/s** | **6,362 ops/s** | 7.54 ms | 798 MB |
+| **`bench-gopdflib-zerodha-nocomply`** | PDF 2.0 (no PDF/A) | None | **37,853 ops/s** | **34,035 ops/s** | **35,181 ops/s** | 1.38 ms | 310 MB |
 
-> **Result**: Generates 1.5 million financial PDFs in **~9.4 minutes** at 30-run avg throughput (**~8.5 min** at peak) on a single machine (Intel i7-13700HX, 24 cores, Go 1.26.4). Historical best (idle machine, Jun 13): peak **3,604** / avg **2,787** ops/s.
+**Compliant** runs enable PDF/A-4, PDF/UA-2, Arlington-compatible tagging, ECDSA P-256 signing, and font embedding (HFT output **2.29 MB**, veraPDF 6/6 PASS). **Non-compliant** still outputs **PDF 2.0** but turns PDF/A, tagging, signing, and font embedding off for a throughput ceiling reference (HFT output **221 KB**).
+
+> **Headline:** Full compliance delivers **~6,600 ops/s** peak on one machine - **+150%** vs the June 2026 baseline (2,646 ops/s) - while the same workload without compliance reaches **~37,900 ops/s** peak (**5.7×** faster).
 
 ---
 
@@ -76,12 +77,12 @@
 
 | Requirement | Version / notes |
 |-------------|-----------------|
-| **Go** | **1.26.4** (required — matches `go.mod`) |
+| **Go** | **1.26.4** (required - matches `go.mod`) |
 | **Make** | Required for `make build`, `make test`, `make run`, and other targets |
 | **Google Chrome** | Required for HTML→PDF/Image conversion |
 | **Node.js + npm** | Frontend build (Node 18+ recommended) |
 | **Python 3.8+** | Python bindings tests (`pypdfsuit`) |
-| **Java 11+** | Optional — needed to install veraPDF for PDF/A validation in tests |
+| **Java 11+** | Optional - needed for veraPDF PDF/A-4 + PDF/UA-2 validation (`make install-pdf-validators`) |
 
 ### Windows
 
@@ -109,7 +110,7 @@ go1.26.4 version
 
 Go 1.26.4 is recommended for runtime performance improvements (better GC, goroutine scheduling, hardware-accelerated crypto). The code does not rely on unreleased language features, but the module and dependencies are tested against **1.26.4** only.
 
-**For older Go toolchains:** You can try changing the `go` directive in `go.mod` and running `go mod tidy`, but this is unsupported — official releases track Go 1.26.4.
+**For older Go toolchains:** You can try changing the `go` directive in `go.mod` and running `go mod tidy`, but this is unsupported - official releases track Go 1.26.4.
 
 </details>
 
@@ -182,22 +183,26 @@ Benchmarked on **Intel i7-13700HX (24 cores), WSL2, Go 1.26.4**. Zerodha workloa
 
 | Engine | Harness | Peak | Latest avg | Notes |
 |--------|---------|-----:|-----------:|-------|
-| **gopdflib** | Zerodha `go run .` | **2,953 ops/s** | **2,646 ops/s** (30-run, 2026-06-14) | Library in-process |
-| **gopdfsuit** | k6 `tagged_ecdsa` | **859 req/s** | **825 req/s** (5-run, 2026-06-14) | HTTP + Gin |
-| **pypdfsuit** | `pypdfsuit_bench.py` | 228 ops/s | 219 ops/s (2-run, 2026-06-11) | Python CGO |
-| **Gotenberg** | k6 HTML→PDF | — | **10.3 req/s** (2026-06-13) | Chromium, no PDF/A |
+| **gopdflib** | Zerodha x10 (compliant) | **6,611 ops/s** | **6,203 ops/s** (x10, 2026-06-24) | PDF/A-4 + PDF/UA-2, library in-process |
+| **gopdflib** | Zerodha x10 (nocomply) | **37,853 ops/s** | **34,035 ops/s** (x10, 2026-06-24) | PDF 2.0, compliance off |
+| **gopdfsuit** | k6 `tagged_ecdsa` | **1,333 req/s** | best-of-5 (2026-06-18) | HTTP + Gin |
+| **pypdfsuit** | Zerodha x10 (compliant) | **937 ops/s** | **916 ops/s** (x10, 2026-06-24) | PDF/A-4 + PDF/UA-2, Python CGO |
+| **pypdfsuit** | Zerodha x10 (nocomply) | **1,284 ops/s** | **1,242 ops/s** (x10, 2026-06-24) | PDF 2.0, compliance off |
+| **Gotenberg** | k6 HTML→PDF | **16.1 req/s** | best-of-5 (2026-06-18) | Chromium, no PDF/A |
 
 Reproduce:
 
 ```bash
-# gopdflib
-cd sampledata/gopdflib/zerodha && GOMAXPROCS=24 go1.26.4 run .
+# gopdflib Zerodha gold standard (5000×48)
+make bench-gopdflib-zerodha-x10
+make bench-gopdflib-zerodha-nocomply-x10
 
 # gopdfsuit (k6 + Gin)
-make load-pprof
+make bench-k6
 
-# pypdfsuit
-cd sampledata/gopdflib/zerodha && python3 pypdfsuit_bench.py
+# pypdfsuit (rebuild bindings first: cd bindings/python && ./build.sh)
+make bench-pypdfsuit-zerodha-x10
+make bench-pypdfsuit-zerodha-nocomply-x10
 ```
 
 All processing is in-memory with zero external runtime dependencies.
@@ -208,7 +213,7 @@ All processing is in-memory with zero external runtime dependencies.
 
 ## 🛠️ Development
 
-> **Windows users:** Use WSL — Make and shell scripts are required. See [Prerequisites](#-prerequisites).
+> **Windows users:** Use WSL - Make and shell scripts are required. See [Prerequisites](#-prerequisites).
 
 ```bash
 # Build

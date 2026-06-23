@@ -11,6 +11,13 @@ import (
 	"unicode/utf8"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
+)
+
+const (
+	helveticaBold        = "Helvetica-Bold"
+	helveticaOblique     = "Helvetica-Oblique"
+	helveticaBoldOblique = "Helvetica-BoldOblique"
 )
 
 // hexNibble maps ASCII byte to hex value (0-15). 0xFF = invalid.
@@ -203,11 +210,44 @@ func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
 		return props.FontName
 	}
 
-	// 2. Check if it's a known standard font name
+	// 2. Map base standard fonts with style flags to styled variants.
 	switch props.FontName {
-	case "Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", //nolint:goconst
-		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic", //nolint:goconst
-		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", //nolint:goconst
+	case "Helvetica": //nolint:goconst
+		switch {
+		case props.Bold && props.Italic:
+			return helveticaBoldOblique
+		case props.Bold:
+			return helveticaBold
+		case props.Italic:
+			return helveticaOblique
+		default:
+			return "Helvetica"
+		}
+	case "Times-Roman": //nolint:goconst
+		switch {
+		case props.Bold && props.Italic:
+			return "Times-BoldItalic"
+		case props.Bold:
+			return "Times-Bold"
+		case props.Italic:
+			return "Times-Italic"
+		default:
+			return "Times-Roman"
+		}
+	case "Courier": //nolint:goconst
+		switch {
+		case props.Bold && props.Italic:
+			return "Courier-BoldOblique"
+		case props.Bold:
+			return "Courier-Bold"
+		case props.Italic:
+			return "Courier-Oblique"
+		default:
+			return "Courier"
+		}
+	case helveticaBold, helveticaOblique, helveticaBoldOblique,
+		"Times-Bold", "Times-Italic", "Times-BoldItalic", //nolint:goconst
+		"Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", //nolint:goconst
 		"Symbol", "ZapfDingbats":
 		return props.FontName
 	}
@@ -216,11 +256,11 @@ func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
 	var fallbackName string
 	switch {
 	case props.Bold && props.Italic:
-		fallbackName = "Helvetica-BoldOblique"
+		fallbackName = helveticaBoldOblique
 	case props.Bold:
-		fallbackName = "Helvetica-Bold"
+		fallbackName = helveticaBold
 	case props.Italic:
-		fallbackName = "Helvetica-Oblique"
+		fallbackName = helveticaOblique
 	default:
 		fallbackName = "Helvetica"
 	}
@@ -253,11 +293,11 @@ func getFontReferenceByResolvedName(actualFontName string, registry *CustomFontR
 	// Helvetica family (F1-F4)
 	case "Helvetica":
 		return "/F1" //nolint:goconst
-	case "Helvetica-Bold":
+	case helveticaBold:
 		return "/F2"
-	case "Helvetica-Oblique":
+	case helveticaOblique:
 		return "/F3"
-	case "Helvetica-BoldOblique":
+	case helveticaBoldOblique:
 		return "/F4"
 	// Times family (F5-F8)
 	case "Times-Roman":
@@ -383,16 +423,18 @@ func EstimateTextWidth(resolvedName string, text string, fontSize float64, regis
 		return registry.GetScaledTextWidth(resolvedName, text, fontSize)
 	}
 
-	// Approximation for standard fonts (average character width ~0.5-0.6 em)
+	if w := font.StandardTextWidth(resolvedName, text, fontSize); w > 0 {
+		return w
+	}
+
+	// Fallback approximation for unknown standard names.
 	avgCharWidth := 0.5
 	switch resolvedName {
 	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
-		avgCharWidth = 0.6 // Monospace is wider
+		avgCharWidth = 0.6
 	case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
-		avgCharWidth = 0.45 // Times is slightly narrower
+		avgCharWidth = 0.45
 	}
-
-	// Use utf8.RuneCountInString to avoid allocating rune slice
 	return float64(utf8.RuneCountInString(text)) * fontSize * avgCharWidth
 }
 
@@ -519,6 +561,21 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 	}
 
 	return ws.lines
+}
+
+// cloneWrapLines copies wrapped line slices so they remain valid after the next WrapTextInto call.
+func cloneWrapLines(lines [][]byte) [][]byte {
+	if len(lines) == 0 {
+		return nil
+	}
+	out := make([][]byte, len(lines))
+	for i, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		out[i] = append([]byte(nil), line...)
+	}
+	return out
 }
 
 // wrapLongWordInto breaks a single word that's too long into multiple lines using ws.wordBuf.

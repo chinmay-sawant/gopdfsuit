@@ -1,0 +1,140 @@
+=== PyPDFSuit Phase Profiler ===
+Python: 3.13.10
+Repo:   /home/chinmay/ChinmayPersonalProjects/gopdfsuit
+
+=== RETAIL (50 iters, single-thread) ===
+  JSON payload (mean): 11,389 bytes
+  PDF output (mean):   61,290 bytes
+  End-to-end mean:     1.809 ms  (552.7 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  to_dict            0.270     0.256     0.335    14.9%
+  json_dumps         0.055     0.051     0.074     3.0%
+  cgo_call           1.469     1.195     2.552    81.2%
+  copy_back          0.013     0.007     0.025     0.7%
+  free_result        0.002     0.002     0.003     0.1%
+  serialize          0.325                        18.0%
+
+=== RETAIL (cached JSON control) (50 iters, single-thread) ===
+  JSON payload (mean): 11,389 bytes
+  End-to-end mean:     1.289 ms  (776.0 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  cgo_call           1.279     1.134     2.034    99.2%
+  copy_back          0.008     0.006     0.007     0.6%
+  free_result        0.002     0.002     0.002     0.1%
+
+=== ACTIVE (50 iters, single-thread) ===
+  JSON payload (mean): 20,977 bytes
+  PDF output (mean):   76,072 bytes
+  End-to-end mean:     2.168 ms  (461.2 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  to_dict            1.076     1.041     1.242    49.6%
+  json_dumps         0.105     0.103     0.124     4.9%
+  cgo_call           0.975     0.857     1.626    45.0%
+  copy_back          0.010     0.009     0.012     0.5%
+  free_result        0.003     0.002     0.003     0.1%
+  serialize          1.181                        54.5%
+
+=== ACTIVE (cached JSON control) (50 iters, single-thread) ===
+  JSON payload (mean): 20,977 bytes
+  End-to-end mean:     0.862 ms  (1159.8 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  cgo_call           0.852     0.730     1.383    98.8%
+  copy_back          0.007     0.007     0.007     0.8%
+  free_result        0.004     0.002     0.003     0.5%
+
+=== HFT (20 iters, single-thread) ===
+  JSON payload (mean): 1,131,142 bytes
+  PDF output (mean):   2,424,782 bytes
+  End-to-end mean:     97.701 ms  (10.2 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  to_dict           60.335    60.150    63.604    61.8%
+  json_dumps         4.739     4.552     5.553     4.9%
+  cgo_call          31.783    31.415    35.526    32.5%
+  copy_back          0.825     0.812     1.940     0.8%
+  free_result        0.020     0.010     0.033     0.0%
+  serialize         65.074                        66.6%
+
+=== HFT (cached JSON control) (20 iters, single-thread) ===
+  JSON payload (mean): 1,131,142 bytes
+  End-to-end mean:     31.175 ms  (32.1 ops/s)
+
+  Phase            Mean ms    P50 ms    P95 ms  % total
+  -------------- --------- --------- --------- --------
+  cgo_call          30.093    30.295    31.886    96.5%
+  copy_back          0.932     0.850     1.387     3.0%
+  free_result        0.150     0.148     0.171     0.5%
+
+=== Weighted Mix Estimate (80/15/5, single-thread) ===
+  Expected mean latency: 6.658 ms  (150.2 ops/s theoretical max, 1 thread)
+  Observed bench (~253 ops/s @ 48 workers) implies ~4.0 ms effective + contention
+
+=== cProfile: weighted mix (full path) ===
+         4637822 function calls (4219212 primitive calls) in 2.117 seconds
+
+   Ordered by: cumulative time
+   List reduced from 26 to 25 due to restriction <25>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.008    0.008    2.117    2.117 pypdfsuit_profile.py:204(workload)
+      200    0.001    0.000    1.480    0.007 types.py:391(to_dict)
+    23740    0.028    0.000    1.450    0.000 types.py:257(to_dict)
+     1370    0.001    0.000    1.450    0.001 types.py:308(to_dict)
+     1370    0.005    0.000    1.449    0.001 types.py:272(to_dict)
+   153740    0.034    0.000    1.422    0.000 types.py:243(to_dict)
+572750/154140    0.556    0.000    1.410    0.000 types.py:11(_to_dict)
+   417690    0.567    0.000    0.610    0.000 types.py:34(_python_to_json_key)
+      200    0.555    0.003    0.565    0.003 _bindings.py:164(call_bytes_result)
+  2008260    0.153    0.000    0.153    0.000 {built-in method builtins.getattr}
+   883310    0.078    0.000    0.078    0.000 {built-in method builtins.isinstance}
+      200    0.000    0.000    0.059    0.000 __init__.py:185(dumps)
+      200    0.000    0.000    0.059    0.000 encoder.py:185(encode)
+      200    0.058    0.000    0.058    0.000 encoder.py:207(iterencode)
+   417690    0.043    0.000    0.043    0.000 {method 'get' of 'dict' objects}
+   154900    0.014    0.000    0.014    0.000 {built-in method builtins.hasattr}
+      200    0.000    0.000    0.012    0.000 types.py:192(to_dict)
+      200    0.000    0.000    0.011    0.000 types.py:170(to_dict)
+      200    0.010    0.000    0.010    0.000 __init__.py:542(string_at)
+      200    0.000    0.000    0.007    0.000 types.py:350(to_dict)
+      200    0.000    0.000    0.006    0.000 types.py:329(to_dict)
+      200    0.004    0.000    0.004    0.000 {method 'encode' of 'str' objects}
+      200    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}
+      400    0.000    0.000    0.000    0.000 _bindings.py:156(get_lib)
+      200    0.000    0.000    0.000    0.000 types.py:371(to_dict)
+
+
+
+
+=== cProfile: weighted mix (cached JSON) ===
+         2283 function calls in 0.338 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.001    0.001    0.338    0.338 pypdfsuit_profile.py:232(workload)
+      200    0.332    0.002    0.336    0.002 _bindings.py:164(call_bytes_result)
+      200    0.005    0.000    0.005    0.000 __init__.py:542(string_at)
+      200    0.000    0.000    0.001    0.000 random.py:336(randint)
+      200    0.000    0.000    0.001    0.000 random.py:295(randrange)
+      200    0.000    0.000    0.000    0.000 random.py:245(_randbelow_with_getrandbits)
+      600    0.000    0.000    0.000    0.000 {built-in method _operator.index}
+      200    0.000    0.000    0.000    0.000 {method 'bit_length' of 'int' objects}
+      276    0.000    0.000    0.000    0.000 {method 'getrandbits' of '_random.Random' objects}
+        1    0.000    0.000    0.000    0.000 random.py:119(__init__)
+        1    0.000    0.000    0.000    0.000 random.py:128(seed)
+      200    0.000    0.000    0.000    0.000 _bindings.py:156(get_lib)
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        1    0.000    0.000    0.000    0.000 {function Random.seed at 0x700b21a67c40}
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}
+
+
+

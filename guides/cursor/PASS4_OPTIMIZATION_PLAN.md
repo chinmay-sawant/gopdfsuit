@@ -1,4 +1,4 @@
-# Pass 4 — Load-Test Hotspot Optimization Plan
+# Pass 4 - Load-Test Hotspot Optimization Plan
 
 **Date:** 2026-05-25  
 **Trigger:** k6 load test (48 VUs) + pprof CPU/heap profiles  
@@ -22,7 +22,7 @@
 | Heap under load | ~442 MB in-use | ⚠️ Room to cut ~30–50% |
 | CPU profile | 50% memclr, 28% buffer growth | ⚠️ Expected for buffer-heavy path; optimizable |
 
-**Bottom line:** Production-ready for correctness and median latency. Pass 4 targets **tail latency (p99)**, **heap per request**, and **CPU efficiency under saturation** — not raw single-thread bench speed.
+**Bottom line:** Production-ready for correctness and median latency. Pass 4 targets **tail latency (p99)**, **heap per request**, and **CPU efficiency under saturation** - not raw single-thread bench speed.
 
 ---
 
@@ -36,7 +36,7 @@ All on **Rows2000 / BenchmarkGoPdfSuit**, 24 CPUs, same machine.
 | **Pass 1** | **35–45 ms** | ~14.9 MB | ~292K | Alloc count unchanged on Helvetica path |
 | **Pass 2** | **~29 ms** | ~15.5 MB | ~292K | **Best serial time** (~15–20% vs Pass 1) |
 | **Pass 3** | **~42–44 ms** | ~17.6 MB | ~303K | Possible regression or bench variance; wrap path −8.6% allocs |
-| **Pass 4 snapshot** (`benchtime=3x`) | **~73 ms** | ~18.9 MB | ~303K | **Not comparable** — only 3 iterations; rerun with `-count=5` for stat |
+| **Pass 4 snapshot** (`benchtime=3x`) | **~73 ms** | ~18.9 MB | ~303K | **Not comparable** - only 3 iterations; rerun with `-count=5` for stat |
 
 | Parallel (Pass 1) | **~7–9 ms/op** | ~14.3 MB | ~292K | ~4–5× vs serial |
 | **Typst compare** | **1123 ms/op** | 19 KB | 51 | External process; different workload semantics |
@@ -44,7 +44,7 @@ All on **Rows2000 / BenchmarkGoPdfSuit**, 24 CPUs, same machine.
 **Improvement summary (trust Pass 2 as peak serial):**
 
 - **Latency:** ~35–56 ms → **~29 ms** ≈ **15–35% faster** (best case ~48% vs slowest pre-opt run)
-- **Parallel:** **~7–9 ms/op** — not re-measured in Pass 3/4; retain Pass 1 numbers
+- **Parallel:** **~7–9 ms/op** - not re-measured in Pass 3/4; retain Pass 1 numbers
 - **Allocs:** ~292K → ~303K on Rows2000 (**+3–4%**, not improved on main path)
 - **Wrap path allocs:** ~357K → **~327K** (−8.6%, Pass 3 win)
 
@@ -96,17 +96,17 @@ go test -run='^$' -bench='BenchmarkGenerateTemplatePDF/Rows2000|BenchmarkGenerat
 
 Tasks ordered by **impact × confidence**. Subagent owners noted for traceability.
 
-### P0 — Highest leverage
+### P0 - Highest leverage
 
-#### P4-01 — Gate PDF/UA structure tagging *(subagent: JSON/heap)*
+#### P4-01 - Gate PDF/UA structure tagging *(subagent: JSON/heap)*
 
 - **Files:** `internal/pdf/pagemanager.go`, `internal/pdf/structure.go`, `internal/pdf/draw.go`, `internal/pdf/generator.go` (catalog `/MarkInfo`, `StructTreeRoot`)
 - **Change:** Add explicit `taggedPDF` / derive from `pdfaCompliant`; no-op `StructureManager` when off; skip `BeginMarkedContentBuf` per cell
 - **Impact:** **~50–80 MB heap**, **~500K fewer objects**/request on table-heavy loads
-- **Risk:** Medium — product/docs must define when tagging is required
+- **Risk:** Medium - product/docs must define when tagging is required
 - **Validate:** k6 heap profile; PDF/UA validator when flag on
 
-#### P4-02 — Pre-grow per-page content streams *(subagent: buffer)*
+#### P4-02 - Pre-grow per-page content streams *(subagent: buffer)*
 
 - **Files:** `internal/pdf/pagemanager.go` (`NewPageManager`, `AddNewPage`)
 - **Change:** `ContentStreams[i].Grow(32–64 KiB)` on page creation
@@ -114,100 +114,100 @@ Tasks ordered by **impact × confidence**. Subagent owners noted for traceabilit
 - **Risk:** Low
 - **Validate:** `BenchmarkGenerateTemplatePDF/Rows2000`, pprof `bytes.(*Buffer).grow`
 
-#### P4-03 — Eliminate redundant zero-fill on final PDF return *(subagent: buffer)*
+#### P4-03 - Eliminate redundant zero-fill on final PDF return *(subagent: buffer)*
 
 - **Files:** `internal/pdf/generator.go` (~1316–1328)
 - **Change:** Tiered `[]byte` pool or `append(dst[:0], pdfBuffer.Bytes()...)` with sufficient cap; copy only when signing mutates
 - **Impact:** **5–12%** flat memclr on multi-MB outputs
-- **Risk:** Medium — ownership + signature path
+- **Risk:** Medium - ownership + signature path
 - **Validate:** sign/no-sign tests; load test memclr %
 
-### P1 — High value, moderate effort
+### P1 - High value, moderate effort
 
-#### P4-04 — Hoist reusable `[]byte` scratch in `drawTable` *(subagent: buffer + drawTable)*
+#### P4-04 - Hoist reusable `[]byte` scratch in `drawTable` *(subagent: buffer + drawTable)*
 
 - **Files:** `internal/pdf/draw.go` (`drawTable` ~735+)
 - **Change:** Replace per-branch `var borderBuf []byte` with table-scoped buffers (extend existing `scratchBuf`)
 - **Impact:** **3–10%** growslice under `drawTable`
 - **Risk:** Low
 
-#### P4-05 — `appendTextForPDF` — zero-alloc text operands *(subagent: drawTable)*
+#### P4-05 - `appendTextForPDF` - zero-alloc text operands *(subagent: drawTable)*
 
 - **Files:** `internal/pdf/utils.go`, `internal/pdf/draw.go`, `internal/pdf/font/metrics.go`
 - **Change:** Append PDF text literals/hex into caller `[]byte`; remove `formatTextForPDF` → `string` per `Tj`; fix wrapped path `string(line)` 
 - **Impact:** **5–12%** heap objects in text-heavy tables
-- **Risk:** Medium — bit-identical PDF escaping
+- **Risk:** Medium - bit-identical PDF escaping
 
-#### P4-06 — Incremental width in `WrapTextInto` *(subagent: drawTable)*
+#### P4-06 - Incremental width in `WrapTextInto` *(subagent: drawTable)*
 
 - **Files:** `internal/pdf/utils.go` (`WrapTextInto`, `wrapLongWordInto`)
 - **Change:** Running width instead of re-measuring full line prefix each word
 - **Impact:** High on wrap-enabled workloads; small on k6 default mix
 - **Risk:** Medium
 
-#### P4-08 — Pre-size `CompressBufPool` + extend zlib pooling *(subagent: compression)*
+#### P4-08 - Pre-size `CompressBufPool` + extend zlib pooling *(subagent: compression)*
 
 - **Files:** `internal/pdf/font/compression.go`, `internal/pdf/font/subset.go`, `internal/pdf/metadata.go`, `internal/pdf/pdfa.go`
 - **Change:** `Grow(64 KiB)` in pool `New`; migrate `CompressFontData` and ICC paths to `GetZlibWriter`/`GetCompressBuffer`
 - **Impact:** **5–15%** buffer growth; less `flate.NewWriter` heap
 - **Risk:** Low–Med
 
-#### P4-10 — Sonic / JSON decode pre-sizing *(subagent: JSON/heap)*
+#### P4-10 - Sonic / JSON decode pre-sizing *(subagent: JSON/heap)*
 
 - **Files:** `internal/handlers/handlers.go`, optionally `internal/models/models.go`
 - **Change:** Two-phase decode (row count hint) or `sync.Pool` for `PDFTemplate` shells; consider slimmer struct for known schemas
 - **Impact:** **20–40%** of sonic-related growth on large payloads
 - **Risk:** Med
 
-#### P4-12 — HTTP concurrency vs CPU count *(subagent: compression + load)*
+#### P4-12 - HTTP concurrency vs CPU count *(subagent: compression + load)*
 
 - **Files:** `cmd/gopdfsuit/main.go` (currently `maxConcurrent := 48`, `NumCPU() == 24`)
 - **Change:** Default to `runtime.NumCPU()` or `2 * NumCPU()`; document tuning; separate load-test scenarios
 - **Impact:** Lower p99 queue wait; may reduce pool thrashing
-- **Risk:** Low — config change
+- **Risk:** Low - config change
 
-### P2 — Optional / higher complexity
+### P2 - Optional / higher complexity
 
-#### P4-07 — Pre-grow compression buffer from stream length *(subagent: buffer)*
+#### P4-07 - Pre-grow compression buffer from stream length *(subagent: buffer)*
 
 - **Files:** `internal/pdf/generator.go` (~740–782)
 - **Change:** `compressedBuf.Grow(contentStream.Len()/4)` before zlib write
 - **Impact:** 5–15% zlib buffer growth
 - **Risk:** Low
 
-#### P4-09 — Parallel page-stream zlib *(subagent: compression)*
+#### P4-09 - Parallel page-stream zlib *(subagent: compression)*
 
 - **Files:** `internal/pdf/generator.go`
 - **Change:** `errgroup` compress pages in parallel; single-threaded object write + encrypt in order
 - **Impact:** Wall-clock win on many-page docs; CPU may stay similar
-- **Risk:** **High** — ordering, encryption, determinism
+- **Risk:** **High** - ordering, encryption, determinism
 
-#### P4-11 — k6 scenario split *(subagent: JSON/heap)*
+#### P4-11 - k6 scenario split *(subagent: JSON/heap)*
 
 - **Files:** `test/generate_template-pdf/payload_generator.js`, new `load_test_unsigned.js`
 - **Change:** Scenarios: unsigned / signed / HFT-only / PDF/UA-on; clearer pprof attribution
 - **Impact:** Measurement (required for honest before/after)
 - **Risk:** Low
 
-#### P4-13 — Cache parsed signer PEM/certs *(subagent: JSON/heap)*
+#### P4-13 - Cache parsed signer PEM/certs *(subagent: JSON/heap)*
 
 - **Files:** `internal/pdf/signature/signature.go`
 - **Change:** Cache parsed keys by config hash
 - **Impact:** CPU + parse allocs; not the ECDSA P384 stack (that is JWT/TLS, not PDF sign)
 - **Risk:** Low–Med
 
-#### P4-14 — Structure element pooling / row-level tagging *(subagent: buffer + drawTable)*
+#### P4-14 - Structure element pooling / row-level tagging *(subagent: buffer + drawTable)*
 
 - **Files:** `internal/pdf/structure.go`
 - **Change:** Pool `StructElem` or tag at row level when UA required
 - **Impact:** Medium GC win when P4-01 cannot disable tagging
-- **Risk:** High — PDF/UA semantics
+- **Risk:** High - PDF/UA semantics
 
 ---
 
 ## Implementation phases
 
-### Phase A — Quick wins (1–2 days)
+### Phase A - Quick wins (1–2 days)
 
 1. P4-01 Gate PDF/UA (feature flag + docs)
 2. P4-02 Pre-grow page streams
@@ -216,7 +216,7 @@ Tasks ordered by **impact × confidence**. Subagent owners noted for traceabilit
 
 **Expected:** Largest heap drop; measurable p99 improvement.
 
-### Phase B — drawTable / text path (2–3 days)
+### Phase B - drawTable / text path (2–3 days)
 
 5. P4-04 Hoist scratch buffers
 6. P4-05 `appendTextForPDF`
@@ -224,16 +224,16 @@ Tasks ordered by **impact × confidence**. Subagent owners noted for traceabilit
 
 **Expected:** Lower allocs/op in macro benches; less `drawTable` cum CPU.
 
-### Phase C — Return path + JSON (2–3 days)
+### Phase C - Return path + JSON (2–3 days)
 
 8. P4-03 Final PDF copy elimination
 9. P4-10 JSON pre-sizing / template pool
 10. P4-11 Load-test scenario split
 
-### Phase D — Advanced (optional)
+### Phase D - Advanced (optional)
 
-11. P4-09 Parallel page zlib — **done**
-12. P4-14 Structure pooling — **done**
+11. P4-09 Parallel page zlib - **done**
+12. P4-14 Structure pooling - **done**
 
 **Status:** Pass 4 implemented 2026-05-25. Post bench: `baselines/bench_pass4_post_20260525.txt`
 
@@ -309,7 +309,7 @@ go tool pprof -top guides/cursor/baselines/loadtest_cpu_after.prof
 
 ## Related artifacts
 
-- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — Pass 1–3 (complete)
-- [PR_PERFORMANCE_OPTIMIZATION.md](./PR_PERFORMANCE_OPTIMIZATION.md) — PR summary
+- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) - Pass 1–3 (complete)
+- [PR_PERFORMANCE_OPTIMIZATION.md](./PR_PERFORMANCE_OPTIMIZATION.md) - PR summary
 - [baselines/loadtest_pprof_summary_20260525.txt](./baselines/loadtest_pprof_summary_20260525.txt)
 - [baselines/loadtest_k6_20260525.txt](./baselines/loadtest_k6_20260525.txt)

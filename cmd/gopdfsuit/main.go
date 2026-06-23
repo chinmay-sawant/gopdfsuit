@@ -36,7 +36,7 @@ func main() {
 	// Use release mode to disable debug overhead
 	gin.SetMode(gin.ReleaseMode)
 
-	// gin.New() instead of gin.Default() — avoids the Logger middleware
+	// gin.New() instead of gin.Default() - avoids the Logger middleware
 	// which serializes stdout writes under a mutex on every request.
 	router := gin.New()
 

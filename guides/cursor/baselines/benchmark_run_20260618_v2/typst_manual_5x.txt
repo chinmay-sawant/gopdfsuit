@@ -1,0 +1,10 @@
+--- run 1/5 ---
+Elapsed: 689.73 ms (~1.45 ops/s single-doc)
+--- run 2/5 ---
+Elapsed: 469.68 ms (~2.13 ops/s single-doc)
+--- run 3/5 ---
+Elapsed: 502.74 ms (~1.99 ops/s single-doc)
+--- run 4/5 ---
+Elapsed: 454.23 ms (~2.20 ops/s single-doc)
+--- run 5/5 ---
+Elapsed: 470.17 ms (~2.13 ops/s single-doc)

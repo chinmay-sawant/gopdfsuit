@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Gin HTTP load test + CPU/heap pprof capture for /api/v1/generate/template-pdf.
+#
+# Full harness:  make bench-k6          (48 VU × 35s, MAX_CONCURRENT=48)
+# Light harness: make bench-k6-light    (24 VU × 15s, MAX_CONCURRENT=24, GOMAXPROCS=12)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -81,7 +84,7 @@ curl -sf -o "$HEAP_PROF" "${BASE_URL}/debug/pprof/heap"
 
 echo "==> pprof text summary"
 {
-  echo "# Gin pprof summary — ${DATE_TAG}"
+  echo "# Gin pprof summary - ${DATE_TAG}"
   echo "binary: $BIN"
   echo "k6_log: $K6_LOG"
   echo "GOMAXPROCS=$GOMAXPROCS_VAL MAX_CONCURRENT=$MAX_CONCURRENT_VAL BENCH_MODE=$BENCH_MODE_VAL GIN_FAST_API=$GIN_FAST_API_VAL LOAD_VUS=$LOAD_VUS PROFILE_SECONDS=$PROFILE_SECONDS PAYLOAD_SCENARIO=$PAYLOAD_SCENARIO"

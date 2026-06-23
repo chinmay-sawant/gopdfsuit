@@ -1,0 +1,27 @@
+# PyPDFSuit Zerodha x10 latest summary
+
+Runs: 10
+Best throughput: 936.70 ops/sec
+Worst throughput: 857.84 ops/sec
+Mean throughput: 915.54 ops/sec
+Median throughput: 924.85 ops/sec
+Stddev throughput: 24.33 ops/sec
+Mean avg latency: 46.930 ms
+Mean p50 latency: 28.786 ms
+Mean p95 latency: 150.448 ms
+Mean p99 latency: 236.342 ms
+Worst max latency: 743.446 ms
+Best min latency: 0.856 ms
+
+| Run | Throughput | Avg latency | P50 | P95 | P99 | Min | Max |
+|-----|-----------:|------------:|----:|----:|----:|----:|----:|
+| pypdfsuit_run1.txt | 936.67 ops/sec | 45.942 ms | 27.977 ms | 146.766 ms | 224.916 ms | 0.856 ms | 426.309 ms |
+| pypdfsuit_run2.txt | 893.35 ops/sec | 48.407 ms | 29.210 ms | 152.281 ms | 245.741 ms | 0.918 ms | 743.446 ms |
+| pypdfsuit_run3.txt | 936.70 ops/sec | 45.804 ms | 29.537 ms | 143.924 ms | 220.764 ms | 0.921 ms | 473.923 ms |
+| pypdfsuit_run4.txt | 921.28 ops/sec | 45.736 ms | 27.110 ms | 148.480 ms | 228.646 ms | 0.913 ms | 423.546 ms |
+| pypdfsuit_run5.txt | 928.48 ops/sec | 46.139 ms | 29.070 ms | 149.727 ms | 235.265 ms | 0.970 ms | 418.321 ms |
+| pypdfsuit_run6.txt | 929.45 ops/sec | 46.185 ms | 28.011 ms | 149.105 ms | 239.339 ms | 0.878 ms | 460.023 ms |
+| pypdfsuit_run7.txt | 914.84 ops/sec | 46.988 ms | 28.016 ms | 149.934 ms | 239.381 ms | 0.951 ms | 508.712 ms |
+| pypdfsuit_run8.txt | 857.84 ops/sec | 49.564 ms | 30.082 ms | 165.239 ms | 250.102 ms | 0.859 ms | 456.809 ms |
+| pypdfsuit_run9.txt | 928.42 ops/sec | 47.130 ms | 29.945 ms | 147.543 ms | 236.954 ms | 0.880 ms | 464.088 ms |
+| pypdfsuit_run10.txt | 908.34 ops/sec | 47.401 ms | 28.906 ms | 151.478 ms | 242.314 ms | 1.001 ms | 521.851 ms |

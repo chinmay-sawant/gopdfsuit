@@ -1,0 +1,2 @@
+Skipped at user request: BenchmarkGenerateTemplatePDF (Rows10000/25000) too slow for 5x runs.
+Use bench-pdf-micro (Rows2000, count=10) instead.

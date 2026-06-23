@@ -1,4 +1,4 @@
-# Benchmark Suite — 2026-06-11 (Go 1.26.4)
+# Benchmark Suite - 2026-06-11 (Go 1.26.4)
 
 **Environment:** WSL2, i7-13700HX, 24 logical CPUs, `GOMAXPROCS=24`  
 **Go:** `go1.26.4` (`/home/chinmay/go/bin/go1.26.4`)  
@@ -7,7 +7,7 @@
 
 ---
 
-## 1. gopdfsuit — k6 HTTP load (`tagged_ecdsa`, 48 VUs × 35s)
+## 1. gopdfsuit - k6 HTTP load (`tagged_ecdsa`, 48 VUs × 35s)
 
 Harness: `test/generate_template-pdf/run_gin_pprof_load.sh`
 
@@ -22,13 +22,13 @@ Harness: `test/generate_template-pdf/run_gin_pprof_load.sh`
 
 ---
 
-## 2. gopdflib — Zerodha gold standard (`sampledata/gopdflib/zerodha`, 5000 iter, 48 workers)
+## 2. gopdflib - Zerodha gold standard (`sampledata/gopdflib/zerodha`, 5000 iter, 48 workers)
 
 | Run | Throughput (ops/s) | Avg latency | Retail PDF |
 |-----|-------------------:|------------:|-----------:|
 | 1 | **3,323** | 14.0 ms | 61,293 B |
 | 2 | **3,583** | 13.1 ms | 61,293 B |
-| **2-run mean** | **3,453** | 13.6 ms | — |
+| **2-run mean** | **3,453** | 13.6 ms | - |
 
 **Prior baselines** (same harness, same machine class):
 
@@ -41,24 +41,24 @@ Harness: `test/generate_template-pdf/run_gin_pprof_load.sh`
 
 ---
 
-## 3. pypdfsuit — Zerodha (`pypdfsuit_bench.py`, 5000 iter, 48 workers)
+## 3. pypdfsuit - Zerodha (`pypdfsuit_bench.py`, 5000 iter, 48 workers)
 
 | Run | Throughput (ops/s) | Avg latency | HFT PDF |
 |-----|-------------------:|------------:|--------:|
 | 1 | **233** | 180.6 ms | 2,424,782 B |
 | 2 | **235** | 177.7 ms | 2,424,782 B |
-| **2-run mean** | **234** | 179.2 ms | — |
+| **2-run mean** | **234** | 179.2 ms | - |
 
 **vs gopdflib (2-run mean 3,453):** pypdfsuit ≈ **6.8%** of native Go throughput (CGO + Python overhead).
 
 ---
 
-## 4. gopdfkit_compare — apples-to-apples (`compare_benchmark_test.go`, benchtime=5s, workers_40)
+## 4. gopdfkit_compare - apples-to-apples (`compare_benchmark_test.go`, benchtime=5s, workers_40)
 
 Harness: `sampledata/benchmarks/gopdfkit_compare`  
 Prior reference: `guides/optimizations/20260611_gopdfkit_fixed_compare_results.md` (3-run median, same Go 1.26.4)
 
-### Throughput (pdf/s) — 2-run mean
+### Throughput (pdf/s) - 2-run mean
 
 | Workload | GoPDFKit (now) | gopdflib (now) | GoPDFKit (prior) | gopdflib (prior) | gopdflib Δ vs prior |
 |----------|---------------:|---------------:|-----------------:|-----------------:|--------------------:|
@@ -73,7 +73,7 @@ Prior reference: `guides/optimizations/20260611_gopdfkit_fixed_compare_results.m
 **Winner:** gopdflib on **all 7 workloads** (same as prior comparison).  
 **gopdflib lead (2-run mean):** +87% (`text_short`) to +783% (`png_rows_60`) over GoPDFKit.
 
-### Allocation (B/op) — run 1 snapshot
+### Allocation (B/op) - run 1 snapshot
 
 | Workload | GoPDFKit | gopdflib |
 |----------|--------:|---------:|

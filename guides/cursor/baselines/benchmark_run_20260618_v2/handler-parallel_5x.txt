@@ -1,0 +1,45 @@
+--- run 1/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  102818	     55721 ns/op	  345580 B/op	     295 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	6.394s
+
+--- run 2/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  104912	     56408 ns/op	  345188 B/op	     295 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	6.574s
+
+--- run 3/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  105177	     54814 ns/op	  342475 B/op	     294 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	6.417s
+
+--- run 4/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  105781	     56907 ns/op	  343985 B/op	     294 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	6.668s
+
+--- run 5/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	  104838	     57762 ns/op	  341422 B/op	     294 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	6.704s
+

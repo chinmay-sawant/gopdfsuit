@@ -2,12 +2,16 @@
  * Steady-state k6 load for Gin HTTP pprof capture.
  *
  * Env:
- *   BASE_URL          — default http://localhost:8080
- *   PAYLOAD_SCENARIO  — tagged_ecdsa (default) | tagged_rsa | retail_only_signed | retail_active_signed | unsigned
- *   PROFILE_SECONDS   — steady VU duration (default 35)
- *   LOAD_VUS          — concurrent VUs (default 48)
- *   SKIP_SMOKE        — set "1" to skip 1-VU smoke phase
- *   THROUGHPUT_GATE   — min req/s for http_reqs threshold (default 0 = disabled)
+ *   BASE_URL          - default http://localhost:8080
+ *   PAYLOAD_SCENARIO  - tagged_ecdsa (default) | tagged_rsa | retail_only_signed | retail_active_signed | unsigned
+ *   PROFILE_SECONDS   - steady VU duration (default 35)
+ *   LOAD_VUS          - concurrent VUs (default 48)
+ *   SKIP_SMOKE        - set "1" to skip 1-VU smoke phase
+ *   THROUGHPUT_GATE   - min req/s for http_reqs threshold (default 0 = disabled)
+ *
+ * Makefile targets:
+ *   make bench-k6       - 48 VU × 35s (full harness)
+ *   make bench-k6-light - 24 VU × 15s, MAX_CONCURRENT=24, GOMAXPROCS=12
  */
 import http from 'k6/http';
 import { check } from 'k6';

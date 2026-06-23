@@ -8,7 +8,7 @@ HTML→PDF load tests for [Gotenberg](https://gotenberg.dev), mirroring the gopd
 |-----------|-----------|
 | JSON `POST /api/v1/generate/template-pdf` | `POST /forms/chromium/convert/html` (multipart HTML) |
 | 80% retail / 15% active / 5% HFT | Same distribution via `html_payload_generator.js` |
-| ECDSA signing + PDF/A + PDF/UA | **Not available** — visual HTML render only |
+| ECDSA signing + PDF/A + PDF/UA | **Not available** - visual HTML render only |
 
 Use the same `PAYLOAD_SCENARIO` env vars as gopdfsuit (`tagged_ecdsa`, `retail_only_signed`, `retail_active_signed`).
 
@@ -27,7 +27,7 @@ cd sampledata/benchmarks/gotenberg && k6 run smoke_test.js
 # Full weighted load (starts/stops Gotenberg container)
 make bench-gotenberg
 
-# k6 only — start Gotenberg yourself
+# k6 only - start Gotenberg yourself
 make bench-gotenberg-load
 ```
 
@@ -61,7 +61,7 @@ Artifacts: `guides/cursor/baselines/gotenberg_runs/`
 
 | Metric | Gotenberg (`215127`) | gopdfsuit (`215040`) |
 |--------|---------------------:|---------------------:|
-| **Throughput (peak)** | — | **859 req/s** (5-run, `20260614_004108`) |
+| **Throughput (peak)** | - | **859 req/s** (5-run, `20260614_004108`) |
 | **Throughput (avg)** | **10.3 req/s** | **825 req/s** (5-run) |
 | **http median** | 4.26 s | 16.9 ms |
 | **http p99** | 8.22 s | 374 ms |

@@ -35,7 +35,7 @@ const Home = () => {
       <APIOverviewSection isVisible={isVisible} />
       <div className="section-divider container" />
       <section id="section-performance" style={{ padding: '4rem 0' }}>
-        <div className="container">
+        <div className="container performance-wide-container">
           <PerformanceSection isVisible={isVisible['section-performance']} />
         </div>
       </section>

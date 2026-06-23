@@ -1,4 +1,4 @@
-# PDF Benchmark Comparison — 2026-06-15
+# PDF Benchmark Comparison - 2026-06-15
 
 **Date:** June 15, 2026  
 **Machine:** WSL2, Intel i7-13700HX, 24 logical CPUs, 7.6 GiB RAM  
@@ -38,7 +38,7 @@ Command: `bash sampledata/benchmarks/run_all_benchmarks.sh`
 | **jsPDF** | Data table | 10 | 10 | 1896.27 | 2034.31 | 2235.80 | 2235.80 | **4.16** |
 | **PDFKit** | Data table | 10 | 10 | 1270.23 | 1334.29 | 1403.72 | 1403.72 | **5.04** |
 | **pdf-lib** | Data table | 10 | 10 | 1726.79 | 1820.55 | 1933.00 | 1933.00 | **4.73** |
-| **Typst** | Data table | 10 | 10 | 898.41 | 991.37 | — | 1052.62 | **9.42** |
+| **Typst** | Data table | 10 | 10 | 898.41 | 991.37 | - | 1052.62 | **9.42** |
 
 > **Typst note:** `typst/bench.sh` failed because the bundled binary is **typst 0.11.0**, which does not support `--pdf-standard a-2b`. Results above are from a manual rerun without the PDF/A flag. See [Known Issues](#known-issues).
 
@@ -46,24 +46,24 @@ Command: `bash sampledata/benchmarks/run_all_benchmarks.sh`
 
 ### Data-Table Ranking (throughput)
 
-1. GoPDFLib — **180 ops/sec** (92× faster than FPDF2)
-2. Typst — **9.4 ops/sec**
-3. PDFKit — **5.0 ops/sec**
-4. pdf-lib — **4.7 ops/sec**
-5. jsPDF — **4.2 ops/sec**
-6. FPDF2 — **2.0 ops/sec**
+1. GoPDFLib - **180 ops/sec** (92× faster than FPDF2)
+2. Typst - **9.4 ops/sec**
+3. PDFKit - **5.0 ops/sec**
+4. pdf-lib - **4.7 ops/sec**
+5. jsPDF - **4.2 ops/sec**
+6. FPDF2 - **2.0 ops/sec**
 
 ### Zerodha Single-Document Ranking (throughput)
 
-1. GoPDFSuit — **1,978 ops/sec** (10-run mean)
-2. GoPDFLib — **1,782 ops/sec**
-3. pypdfsuit — **113 ops/sec** (10-worker harness; CGO + Python overhead)
+1. GoPDFSuit - **1,978 ops/sec** (10-run mean)
+2. GoPDFLib - **1,782 ops/sec**
+3. pypdfsuit - **113 ops/sec** (10-worker harness; CGO + Python overhead)
 
 ---
 
-## 2. Zerodha Gold Standard — Multi-Run Validation
+## 2. Zerodha Gold Standard - Multi-Run Validation
 
-### 2a. GoPDFLib weighted — 10 runs (`make bench-gopdflib-zerodha`)
+### 2a. GoPDFLib weighted - 10 runs (`make bench-gopdflib-zerodha`)
 
 Workload: 80% Retail / 15% Active / 5% HFT, 5000 iterations, 48 workers, ECDSA P-256 signing.
 
@@ -82,11 +82,11 @@ Workload: 80% Retail / 15% Active / 5% HFT, 5000 iterations, 48 workers, ECDSA P
 | **Mean** | **2,645.78** | **17.66** |
 | **Median** | **2,600.68** | **17.63** |
 | **σ** | **192.09** | **1.33** |
-| **Peak** | **2,898.07** | — |
+| **Peak** | **2,898.07** | - |
 
 > The initial single-run value of **1,321 ops/sec** (during the full benchmark suite) was a cold-start outlier. After dedicated 10-run validation, sustained throughput is **~2,500–2,900 ops/sec**.
 
-### 2b. GoPDFSuit Zerodha retail — 10 runs (`make bench-gopdfsuit-zerodha`)
+### 2b. GoPDFSuit Zerodha retail - 10 runs (`make bench-gopdfsuit-zerodha`)
 
 Workload: single retail contract note, 48 iterations, 48 workers.
 
@@ -105,7 +105,7 @@ Workload: single retail contract note, 48 iterations, 48 workers.
 | **Mean** | **1,977.51** | **17.85** |
 | **Median** | **1,922.43** | **18.00** |
 | **σ** | **166.19** | **1.62** |
-| **Peak** | **2,234.24** | — |
+| **Peak** | **2,234.24** | - |
 
 ### 2c. pypdfsuit weighted (single run, reference)
 
@@ -130,20 +130,20 @@ Workload: single retail contract note, 48 iterations, 48 workers.
 
 ### 3b. Go test micro-benchmarks
 
-**`make bench-handler-all`** — Gin handler, `financial_report.json`:
+**`make bench-handler-all`** - Gin handler, `financial_report.json`:
 
 | Benchmark | ns/op | MB/s | B/op | allocs/op | ~ops/sec |
 |-----------|------:|-----:|-----:|----------:|---------:|
 | `FinancialReport` (serial) | 321,648 | 226.82 | 333,392 | 289 | **~3,109** |
-| `FinancialReport_Parallel` | 59,994 | — | 339,895 | 289 | **~16,669** |
+| `FinancialReport_Parallel` | 59,994 | - | 339,895 | 289 | **~16,669** |
 
-**`make bench-pdf-micro`** — `internal/pdf`, Rows2000 (10-run average):
+**`make bench-pdf-micro`** - `internal/pdf`, Rows2000 (10-run average):
 
 | Benchmark | ns/op | MB/s | B/op | allocs/op | ~ops/sec |
 |-----------|------:|-----:|-----:|----------:|---------:|
 | `GenerateTemplatePDF/Rows2000` | ~15.3M | ~108 | ~5.8M | ~59,900 | **~65** |
 | `GenerateTemplatePDF_WrapEnabled/Rows2000` | ~30.8M | ~57 | ~6.0M | ~61,300 | **~32** |
-| `GoPdfSuit` | ~15.4M | — | ~5.8M | ~59,900 | **~65** |
+| `GoPdfSuit` | ~15.4M | - | ~5.8M | ~59,900 | **~65** |
 
 ### 3c. GoPDFKit apples-to-apples (`make bench-gopdfkit-compare`)
 
@@ -165,15 +165,15 @@ benchtime=5s, 40 workers, Go 1.26.4:
 
 k6 throughput varies with run order and system load. Dedicated `make bench-k6` runs (2-run validation) averaged **910 req/s** (peak **973 req/s**). Runs executed back-to-back during the full multi-library suite measured **~747–769 req/s**.
 
-#### k6 — 2-run validation (headline numbers)
+#### k6 - 2-run validation (headline numbers)
 
 | Run | Timestamp | http_reqs/s | http med | http p99 | pdf_gen med | pdf_gen p99 | Retail avg | HFT avg |
 |----:|-----------|------------:|---------:|---------:|------------:|------------:|-----------:|--------:|
 | 1 | 2026-06-15 01:14 IST | **972.74** | 13.57 ms | 276.11 ms | 15 ms | 444 ms | 17.3 ms | 375.6 ms |
 | 2 | 2026-06-15 01:15 IST | **846.37** | 15.38 ms | 337.18 ms | 17 ms | 527 ms | 19.4 ms | 440.9 ms |
-| **Mean** | — | **909.56** | 14.48 ms | 306.65 ms | 16 ms | 485.5 ms | 18.4 ms | 408.3 ms |
+| **Mean** | - | **909.56** | 14.48 ms | 306.65 ms | 16 ms | 485.5 ms | 18.4 ms | 408.3 ms |
 
-#### k6 — runs during full benchmark suite (reference)
+#### k6 - runs during full benchmark suite (reference)
 
 | Run | http_reqs/s | http med | http p99 |
 |----:|------------:|---------:|---------:|
@@ -191,7 +191,7 @@ k6 throughput varies with run order and system load. Dedicated `make bench-k6` r
 **gopdfsuit vs Gotenberg (2-run mean):** 909.56 ÷ 10.17 = **89.4×** higher HTTP throughput.  
 **Peak run:** 972.74 ÷ 10.17 = **95.6×**.
 
-k6 latency breakdown (peak run — 972.74 req/s):
+k6 latency breakdown (peak run - 972.74 req/s):
 
 | Segment | avg | p99 |
 |---------|----:|----:|
@@ -227,13 +227,13 @@ k6 latency breakdown (peak run — 972.74 req/s):
 
 ## 5. Key Findings
 
-1. **GoPDFLib dominates in-process workloads.** On the Zerodha weighted gold standard (10-run validated) it averages **2,646 ops/sec** (peak **2,898**) — roughly **12× faster** than pypdfsuit on the same harness and **1,300× faster** than FPDF2 on the data-table task.
+1. **GoPDFLib dominates in-process workloads.** On the Zerodha weighted gold standard (10-run validated) it averages **2,646 ops/sec** (peak **2,898**) - roughly **12× faster** than pypdfsuit on the same harness and **1,300× faster** than FPDF2 on the data-table task.
 
 2. **pypdfsuit is viable for Python production use.** At **223 ops/sec** on the full weighted Zerodha mix (signed PDF/A contract notes including 2.4 MB HFT documents), it far exceeds pure-Python libraries (FPDF2 at 2 ops/sec) while retaining the full gopdfsuit feature set.
 
-3. **HTTP API is production-grade.** `make bench-k6` sustains **910 req/sec** (2-run mean) with a peak of **973 req/sec**, 0% errors, **~14 ms** median HTTP latency, and **~307 ms** p99 — aligned with historical **~825 req/s** averages. Runs executed during the full benchmark suite averaged **~758 req/s**.
+3. **HTTP API is production-grade.** `make bench-k6` sustains **910 req/sec** (2-run mean) with a peak of **973 req/sec**, 0% errors, **~14 ms** median HTTP latency, and **~307 ms** p99 - aligned with historical **~825 req/s** averages. Runs executed during the full benchmark suite averaged **~758 req/s**.
 
-4. **Gotenberg is not competitive for this workload.** Chromium-based HTML rendering caps at **~10 req/sec** vs gopdfsuit's **~910 req/sec** — an **89× gap** on identical k6 scenarios (peak: **96×**).
+4. **Gotenberg is not competitive for this workload.** Chromium-based HTML rendering caps at **~10 req/sec** vs gopdfsuit's **~910 req/sec** - an **89× gap** on identical k6 scenarios (peak: **96×**).
 
 5. **Single-shot benchmarks can underreport.** The first GoPDFLib weighted run during the full suite measured only **1,321 ops/sec**; dedicated 10-run validation showed the true steady-state band is **2,400–2,900 ops/sec**. The same effect applies to k6 when run back-to-back with other harnesses. Prefer dedicated multi-run validation for headline numbers.
 
@@ -253,6 +253,7 @@ k6 latency breakdown (peak run — 972.74 req/s):
 | `bench-pdf-macro` | Extended synthetic table sizes |
 | `bench-pdf-typst` | Requires `compare` build tag |
 | `bench-gopdfkit-html` | Opt-in HTML subset, needs Chrome |
+| `bench-k6-light` | Reduced k6 + pprof: 24 VU × 15s, lower RAM (WSL / shared machine) |
 | `bench-k6-retail/1k/1500/smoke/spike/soak` | k6 scenario variants |
 | `bench-suite` / `bench-suite-full` | Meta-targets composing above |
 
@@ -266,6 +267,7 @@ k6 latency breakdown (peak run — 972.74 req/s):
 | `run_all_benchmarks.sh` needs `npm install` first | jsPDF/PDFKit/pdf-lib fail silently | Run `npm install` in `sampledata/benchmarks/` |
 | System `typst` in PATH may shadow bundled binary | Wrong version picked | Use explicit path to `typst-x86_64-unknown-linux-musl/typst` |
 | k6 run after full benchmark suite | Throughput drops ~20–30% (758 vs 973 req/s) | Run `make bench-k6` as a dedicated harness for headline HTTP numbers |
+| k6 server dies mid-run (~70%) on WSL | OOM / resource contention when parallel benchmarks run | Run `make bench-k6-light` in isolation; stop `run_all_benchmarks` and other heavy jobs first |
 
 ---
 
@@ -289,6 +291,7 @@ make bench-handler-all
 make bench-pdf-micro
 make bench-gopdfkit-compare
 make bench-k6
+make bench-k6-light   # 24 VU × 15s - use on WSL or when full run OOMs
 make bench-gotenberg
 
 # Multi-run validation

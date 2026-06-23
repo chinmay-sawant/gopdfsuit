@@ -1,0 +1,158 @@
+# Gin pprof summary - 20260618_010924
+binary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/gopdfsuit_20260618_010924
+k6_log: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_010924.txt
+GOMAXPROCS=24 MAX_CONCURRENT=48 BENCH_MODE=1 GIN_FAST_API=1 LOAD_VUS=48 PROFILE_SECONDS=35 PAYLOAD_SCENARIO=tagged_ecdsa
+
+## k6 throughput (grep)
+running (0m22.0s), 48/48 VUs, 27132 complete and 0 interrupted iterations
+running (0m23.0s), 48/48 VUs, 28426 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 29701 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 31194 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 32407 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 33857 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 35352 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 36924 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 38211 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 39302 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 40419 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 41709 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 43114 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 44450 complete and 0 interrupted iterations
+    http_req_duration
+    pdf_generation_time............: avg=30.781897  min=1        med=4      max=1026     p(90)=18      p(95)=108.95   p(99)=620     
+    http_req_duration..............: avg=26.24ms    min=418.23µs med=3.39ms max=986.98ms p(90)=16.84ms p(95)=89.86ms  p(99)=547.61ms
+    http_reqs......................: 44503  1261.033111/s
+    iterations.....................: 44502  1261.004775/s
+running (0m35.3s), 00/48 VUs, 44502 complete and 0 interrupted iterations
+
+## CPU top (flat)
+File: gopdfsuit_20260618_010924
+Build ID: 1e1f066cc50f03a219d84c2d9ab50f2af492b5fc
+Type: cpu
+Time: 2026-06-18 01:09:26 IST
+Duration: 35s, Total samples = 234.36s (669.54%)
+Showing nodes accounting for 117.28s, 50.04% of 234.36s total
+Dropped 1235 nodes (cum <= 1.17s)
+Showing top 25 nodes out of 241
+      flat  flat%   sum%        cum   cum%
+    15.56s  6.64%  6.64%     15.56s  6.64%  runtime.memmove
+    10.04s  4.28% 10.92%     19.03s  8.12%  compress/flate.(*deflateFast).encode
+     9.66s  4.12% 15.05%      9.66s  4.12%  internal/runtime/syscall/linux.Syscall6
+     8.35s  3.56% 18.61%      8.35s  3.56%  runtime.memclrNoHeapPointers
+     6.40s  2.73% 21.34%     11.16s  4.76%  runtime.scanObject
+     5.94s  2.53% 23.87%      6.11s  2.61%  compress/flate.(*deflateFast).matchLen
+     5.70s  2.43% 26.31%      7.33s  3.13%  compress/flate.(*huffmanEncoder).bitCounts
+     5.50s  2.35% 28.65%     12.59s  5.37%  compress/flate.(*huffmanBitWriter).writeTokens
+     4.73s  2.02% 30.67%      4.73s  2.02%  crypto/internal/fips140/sha256.blockSHANI
+     4.24s  1.81% 32.48%     13.11s  5.59%  decode_
+     3.88s  1.66% 34.14%      3.89s  1.66%  runtime.asyncPreempt
+     3.70s  1.58% 35.71%      3.76s  1.60%  hash/adler32.update
+     3.48s  1.48% 37.20%      3.48s  1.48%  _skip_one
+     3.46s  1.48% 38.68%      3.62s  1.54%  compress/flate.(*huffmanBitWriter).writeCode
+     3.31s  1.41% 40.09%      5.53s  2.36%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.prepSharedDeferRow
+     3.02s  1.29% 41.38%      3.02s  1.29%  math.archExp
+     2.88s  1.23% 42.61%      2.88s  1.23%  runtime.nextFreeFast (inline)
+     2.40s  1.02% 43.63%    118.81s 50.70%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed
+     2.36s  1.01% 44.64%      3.88s  1.66%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.collectUsedStandardFonts
+     2.22s  0.95% 45.58%     16.34s  6.97%  compress/flate.(*huffmanBitWriter).indexTokens
+     2.21s  0.94% 46.53%      2.21s  0.94%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     2.19s  0.93% 47.46%      2.19s  0.93%  aeshashbody
+     2.15s  0.92% 48.38%      2.15s  0.92%  _vstring
+     2.02s  0.86% 49.24%     18.43s  7.86%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawSharedDeferRow
+     1.88s   0.8% 50.04%      5.08s  2.17%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.appendFmtNum
+
+## CPU top (cum)
+File: gopdfsuit_20260618_010924
+Build ID: 1e1f066cc50f03a219d84c2d9ab50f2af492b5fc
+Type: cpu
+Time: 2026-06-18 01:09:26 IST
+Duration: 35s, Total samples = 234.36s (669.54%)
+Showing nodes accounting for 15.41s, 6.58% of 234.36s total
+Dropped 1235 nodes (cum <= 1.17s)
+Showing top 25 nodes out of 241
+      flat  flat%   sum%        cum   cum%
+     0.10s 0.043% 0.043%    155.89s 66.52%  net/http.(*conn).serve
+         0     0% 0.043%    152.72s 65.16%  github.com/gin-gonic/gin.(*Engine).ServeHTTP
+         0     0% 0.043%    152.72s 65.16%  net/http.serverHandler.ServeHTTP
+     0.02s 0.0085% 0.051%    152.65s 65.13%  github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+     0.04s 0.017% 0.068%    152.60s 65.11%  github.com/gin-gonic/gin.(*Context).Next (inline)
+     0.03s 0.013% 0.081%    152.59s 65.11%  github.com/gin-gonic/gin.CustomRecoveryWithWriter.func1
+         0     0% 0.081%    152.54s 65.09%  main.main.func3
+     0.05s 0.021%   0.1%    152.45s 65.05%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.handleGenerateTemplatePDF
+     2.40s  1.02%  1.13%    118.81s 50.70%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed
+     0.14s  0.06%  1.19%     53.22s 22.71%  golang.org/x/sync/errgroup.(*Group).Go.func1
+     0.04s 0.017%  1.20%     53.01s 22.62%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed.func5
+     0.02s 0.0085%  1.21%     52.82s 22.54%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font.CompressContentStreamCached
+     0.01s 0.0043%  1.22%     51.37s 21.92%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font.CompressContentStream
+     0.06s 0.026%  1.24%     51.28s 21.88%  compress/zlib.(*Writer).Close
+         0     0%  1.24%     51.19s 21.84%  compress/flate.(*Writer).Close (inline)
+     0.01s 0.0043%  1.25%     51.19s 21.84%  compress/flate.(*compressor).close
+     0.05s 0.021%  1.27%     51.11s 21.81%  compress/flate.(*compressor).encSpeed
+     0.03s 0.013%  1.28%     49.83s 21.26%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.generateAllContentWithImages
+     1.36s  0.58%  1.86%     47.09s 20.09%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawTable
+     0.35s  0.15%  2.01%     38.38s 16.38%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawSharedLayoutRow
+     0.04s 0.017%  2.03%     32.03s 13.67%  compress/flate.(*huffmanBitWriter).writeBlockDynamic
+     0.06s 0.026%  2.05%     24.23s 10.34%  runtime.systemstack
+     0.02s 0.0085%  2.06%     22.57s  9.63%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.decodeTemplateJSON
+     0.54s  0.23%  2.29%     19.85s  8.47%  runtime.mallocgc
+    10.04s  4.28%  6.58%     19.03s  8.12%  compress/flate.(*deflateFast).encode
+
+## Heap top (inuse_space)
+File: gopdfsuit_20260618_010924
+Build ID: 1e1f066cc50f03a219d84c2d9ab50f2af492b5fc
+Type: inuse_space
+Time: 2026-06-18 01:10:04 IST
+Showing nodes accounting for 523.28MB, 97.70% of 535.59MB total
+Dropped 98 nodes (cum <= 2.68MB)
+Showing top 20 nodes out of 63
+      flat  flat%   sum%        cum   cum%
+  254.34MB 47.49% 47.49%   254.34MB 47.49%  bytes.growSlice
+   78.16MB 14.59% 62.08%    78.16MB 14.59%  github.com/chinmay-sawant/gopdfsuit/v6/internal/models.(*PDFTemplate).preallocInlineTableRows
+   64.93MB 12.12% 74.20%    70.71MB 13.20%  github.com/bytedance/sonic.frozenConfig.Unmarshal
+   34.63MB  6.47% 80.67%    34.63MB  6.47%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.init.func3
+   26.44MB  4.94% 85.61%    44.32MB  8.27%  compress/flate.NewWriter (inline)
+   12.83MB  2.39% 88.00%    17.87MB  3.34%  compress/flate.(*compressor).init
+   11.50MB  2.15% 90.15%    11.50MB  2.15%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.init.func4
+    8.53MB  1.59% 91.74%    55.23MB 10.31%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font.CompressContentStreamCached
+    6.90MB  1.29% 93.03%     6.90MB  1.29%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.growPtrSlice[go.shape.*uint8] (inline)
+    6.51MB  1.21% 94.25%    28.10MB  5.25%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawSharedLayoutRow
+    5.05MB  0.94% 95.19%     5.05MB  0.94%  compress/flate.newDeflateFast (inline)
+    5.02MB  0.94% 96.13%     5.02MB  0.94%  runtime.mallocgc
+    4.26MB  0.79% 96.92%     4.26MB  0.79%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.init.func2
+    3.68MB  0.69% 97.61%     3.68MB  0.69%  encoding/json.(*RawMessage).UnmarshalJSON
+    0.50MB 0.093% 97.70%     4.68MB  0.87%  decode_
+         0     0% 97.70%   246.33MB 45.99%  bytes.(*Buffer).Grow (inline)
+         0     0% 97.70%     7.01MB  1.31%  bytes.(*Buffer).Write
+         0     0% 97.70%   254.34MB 47.49%  bytes.(*Buffer).grow
+         0     0% 97.70%    44.32MB  8.27%  compress/flate.NewWriterDict
+         0     0% 97.70%    44.32MB  8.27%  compress/zlib.(*Writer).Write
+
+## Heap top (alloc_space)
+File: gopdfsuit_20260618_010924
+Build ID: 1e1f066cc50f03a219d84c2d9ab50f2af492b5fc
+Type: alloc_space
+Time: 2026-06-18 01:10:04 IST
+Showing nodes accounting for 39.27GB, 91.92% of 42.72GB total
+Dropped 475 nodes (cum <= 0.21GB)
+Showing top 20 nodes out of 79
+      flat  flat%   sum%        cum   cum%
+   14.44GB 33.80% 33.80%    14.44GB 33.80%  bytes.growSlice
+    4.99GB 11.67% 45.48%     7.66GB 17.93%  github.com/bytedance/sonic.frozenConfig.Unmarshal
+    4.16GB  9.74% 55.22%    16.25GB 38.04%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawSharedLayoutRow
+    4.04GB  9.45% 64.67%     4.04GB  9.45%  github.com/chinmay-sawant/gopdfsuit/v6/internal/models.(*PDFTemplate).preallocInlineTableRows
+    2.31GB  5.40% 70.07%     2.31GB  5.40%  encoding/json.(*RawMessage).UnmarshalJSON
+    2.17GB  5.09% 75.15%     2.17GB  5.09%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.init.func3
+    1.22GB  2.85% 78.01%     1.22GB  2.85%  strings.(*Builder).WriteString (inline)
+    0.99GB  2.32% 80.33%     0.99GB  2.32%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.growPtrSlice[go.shape.*uint8] (inline)
+    0.96GB  2.26% 82.59%     0.96GB  2.26%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.(*sharedRowRenderCacheStore).Store
+    0.71GB  1.66% 84.25%     1.27GB  2.96%  compress/flate.NewWriter (inline)
+    0.65GB  1.52% 85.77%     1.75GB  4.11%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font.CompressContentStreamCached
+    0.58GB  1.36% 87.13%     0.58GB  1.36%  internal/bytealg.MakeNoZero
+    0.53GB  1.24% 88.36%     0.93GB  2.18%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed.func7
+    0.35GB  0.82% 89.18%     0.56GB  1.30%  compress/flate.(*compressor).init
+    0.24GB  0.57% 89.75%     0.41GB  0.97%  encoding/asn1.MarshalWithParams
+    0.21GB  0.48% 90.23%    26.83GB 62.81%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed
+    0.20GB  0.47% 90.69%     0.69GB  1.62%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.(*StructureManager).BeginRowStructureWithMCIDs
+    0.19GB  0.44% 91.14%     0.40GB  0.95%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.formatStructElemObjectTo
+    0.17GB  0.39% 91.53%     0.23GB  0.54%  decode_models.PDFTemplate
+    0.17GB  0.39% 91.92%    18.25GB 42.71%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawTable

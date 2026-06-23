@@ -10,6 +10,8 @@ type SignaturePageContext interface {
 	AllocObjectID() int
 	// SetExtraObject stores an extra PDF object dictionary by ID.
 	SetExtraObject(id int, content string)
+	// SetExtraObjectBytes stores an already-built extra PDF object dictionary by ID.
+	SetExtraObjectBytes(id int, content []byte)
 	// AppendPageAnnot appends an annotation object ID to the given page index.
 	AppendPageAnnot(pageIndex int, annotID int)
 	// GetMargins returns the page margins.

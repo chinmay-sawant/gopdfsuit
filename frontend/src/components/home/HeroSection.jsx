@@ -6,7 +6,6 @@ import {
   Github,
   ChevronDown,
   ArrowRight,
-  Sparkles
 } from 'lucide-react'
 
 const pillRows = [
@@ -33,15 +32,9 @@ const HeroSection = ({ starCount }) => {
     <section
       id="section-hero"
       className="hero-section"
-      style={{ padding: '6rem 0 4rem', textAlign: 'center' }}
+      style={{ padding: '1rem 0 3rem', textAlign: 'center' }}
     >
       <div className="container">
-        {/* Sparkle badge */}
-        <div className="hero-badge animate-fadeInUp">
-          <Sparkles size={16} />
-          Open Source PDF Generation Engine
-        </div>
-
         {/* Main Title */}
         <h1
           className="hero-title gradient-text animate-fadeInUp"
@@ -54,7 +47,7 @@ const HeroSection = ({ starCount }) => {
         <div
           className="hero-subtitle animate-fadeInUp"
           style={{
-            marginBottom: '3rem',
+            marginBottom: '2rem',
             animationDelay: '0.2s',
             maxWidth: '800px',
             marginLeft: 'auto',
@@ -62,7 +55,10 @@ const HeroSection = ({ starCount }) => {
           }}
         >
           <p className="hero-description">
-            An high-performance, <span className="highlight-foreground">MIT-licensed</span> Go engine that <span className="highlight-teal">saves enterprise costs</span> and solves critical <span className="highlight-foreground">compliance challenges</span> for Fintechs & Enterprises by generating secure, <span className="highlight-blue">PDF/UA-2 & PDF/A-4</span> compliant documents at up to <span className="highlight-yellow">2061 PDFs/sec*</span> on the Zerodha gold-standard workload.
+            An high-performance, <span className="highlight-foreground">MIT-licensed</span> Go engine that <span className="highlight-teal">saves enterprise costs</span> and solves critical <span className="highlight-foreground">compliance challenges</span> for Fintechs & Enterprises by generating secure, <span className="highlight-blue">PDF/UA-2 & PDF/A-4</span> compliant documents at up to <span className="highlight-yellow">6,000+ PDFs/sec*</span> or <span className="highlight-teal">37,000+ PDFs/sec</span> without compliance overhead on the Zerodha gold-standard workload.
+          </p>
+          <p className="hero-benchmark-footnote">
+            * Compliant (PDF/A-4, PDF/UA-2, Arlington tagging, ECDSA P-256 signing, embedded fonts): x10 peak 6,611 ops/sec, x10 mean 6,203 ops/sec. Non-compliant (PDF 2.0, compliance off): x10 peak 37,853 ops/sec, x10 mean 34,035 ops/sec. June 2026, 48-worker Zerodha weighted workload (5000×48, 80/15/5 mix).
           </p>
 
           <div className="hero-pills-container">
@@ -80,7 +76,6 @@ const HeroSection = ({ starCount }) => {
           </div>
         </div>
 
-        {/* CTA Buttons */}
         <div className="hero-cta-group animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
           <Link
             to="/editor"

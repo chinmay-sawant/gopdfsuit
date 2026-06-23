@@ -1,0 +1,8 @@
+=== Go Retail Phase Profile (100 iters) ===
+Native struct path:
+  native GeneratePDF mean: 1.168 ms (856.3 ops/s)
+JSON round-trip path (simulates CGO export):
+  JSON payload size: 10801 bytes
+  json.Unmarshal mean:     0.116 ms
+  GeneratePDF mean:        1.132 ms
+  combined mean:             1.248 ms (801.0 ops/s)

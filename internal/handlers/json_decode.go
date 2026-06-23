@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	maxPooledDecodeBody = 512 << 10 // 512 KiB — retail/active payloads only
-	maxHFTEncodeBody    = 8 << 20   // 8 MiB — stream-decode fallback limit
+	maxPooledDecodeBody = 512 << 10 // 512 KiB - retail/active payloads only
+	maxHFTEncodeBody    = 8 << 20   // 8 MiB - stream-decode fallback limit
 )
 
 var (
@@ -44,7 +44,7 @@ func WarmJSONDecode() {
 
 func decodeTemplateJSON(r io.Reader, contentLength int, tier string, template *models.PDFTemplate) error {
 	// HFT (~5% traffic): read once + NoCopy unmarshal when Content-Length known.
-	// Only ~2–3 concurrent HFT requests at 48 VUs — bounded heap vs StreamDecoder CPU.
+	// Only ~2–3 concurrent HFT requests at 48 VUs - bounded heap vs StreamDecoder CPU.
 	if tier == "hft" {
 		if contentLength > 0 && contentLength <= maxHFTEncodeBody {
 			bufPtr := hftBodyBufPool.Get().(*[]byte)
@@ -87,7 +87,7 @@ func decodeTemplateJSON(r io.Reader, contentLength int, tier string, template *m
 }
 
 func putBodyBuf(bufPtr *[]byte, buf []byte) {
-	// Never return large backing arrays to the pool — keeps heap bounded under 48 workers.
+	// Never return large backing arrays to the pool - keeps heap bounded under 48 workers.
 	if cap(buf) > 128<<10 {
 		*bufPtr = make([]byte, 0, 64*1024)
 	} else {

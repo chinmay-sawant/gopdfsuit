@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gotenberg k6 load test — mirrors test/generate_template-pdf/run_gin_pprof_load.sh.
+# Gotenberg k6 load test - mirrors test/generate_template-pdf/run_gin_pprof_load.sh.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -44,7 +44,7 @@ echo "==> k6 Gotenberg load (${LOAD_VUS} VUs × ${PROFILE_SECONDS}s, scenario=${
 ) 2>&1 | tee "$K6_LOG"
 
 {
-  echo "# Gotenberg k6 summary — ${DATE_TAG}"
+  echo "# Gotenberg k6 summary - ${DATE_TAG}"
   echo "image: ${GOTENBERG_IMAGE:-gotenberg/gotenberg:8}"
   echo "base_url: ${BASE_URL}"
   echo "chromium_max_concurrency: ${CHROMIUM_MAX_CONCURRENCY}"

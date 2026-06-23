@@ -13,7 +13,7 @@ Four-phase performance program for GoPdfSuit PDF generation, based on a 6-agent 
 | **Pass 3** | Advanced | 5 | Allocation-free wrap, typed structure tree, unified redact parser |
 | **Pass 4** | Load-test hotspots | 14 | PDF/UA gating, buffer pre-grow, parallel zlib, template pool, p99 fixes |
 
-**Headline (Zerodha gold-standard, PDF/A):** **2061 ops/s peak** (10-run avg **1705 ops/s**) on 48 concurrent workers — **~197% faster than Go 1.24** and **~3.4× faster than Go 1.26**, with PDF/A-compliant tagged output.
+**Headline (Zerodha gold-standard, PDF/A):** **2061 ops/s peak** (10-run avg **1705 ops/s**) on 48 concurrent workers - **~197% faster than Go 1.24** and **~3.4× faster than Go 1.26**, with PDF/A-compliant tagged output.
 
 ---
 
@@ -28,7 +28,7 @@ The **2061 ops/s** peak (and **1705 ops/s** 10-run average) are **aggregate mach
 | **Throughput (2061 ops/s)** | `5000 ÷ wall-clock seconds` | Total PDFs completed per second **across the whole run** |
 | **Avg latency (~23–28 ms)** | Per-document `GeneratePDF` time | How long **one** PDF takes on average |
 
-**How they relate:** With 48 workers and ~23 ms average per PDF on a good run, theoretical ceiling is roughly `48 ÷ 0.023 ≈ 2090 ops/s` — close to the observed **2061 ops/s** peak.
+**How they relate:** With 48 workers and ~23 ms average per PDF on a good run, theoretical ceiling is roughly `48 ÷ 0.023 ≈ 2090 ops/s` - close to the observed **2061 ops/s** peak.
 
 **Per-core rough efficiency:** `2061 ÷ 24 ≈ 86 PDFs/sec/core` (upper bound). This is **not** “one core generates 2061 PDFs/sec.”
 
@@ -46,9 +46,9 @@ The **2061 ops/s** peak (and **1705 ops/s** 10-run average) are **aggregate mach
 |-----------|------------------|-------------|-------------|-----------------|-------|
 | `Rows2000` serial | 35–56 ms/op | **~29 ms/op** | ~42 ms/op | **~36 ms/op avg** (best **~32 ms**) | ~16% faster vs Pass 3; **~46% fewer allocs** |
 | `Rows2000` allocs | ~292K/op | ~292K/op | ~303K/op | **~163K/op** | Pass 4 tagging + pooling win |
-| `Rows2000` parallel | — | **~7–9 ms/op** | — | — | ~4–5× vs serial (Pass 2) |
-| `WrapEnabled/Rows2000` allocs | — | ~357K/op | **~327K/op** | **~164K/op** | −50% vs Pass 3 |
-| `Rows10000` / `Rows25000` | — | ~129 ms / ~342 ms | — | — | Macro benchmarks (Pass 2) |
+| `Rows2000` parallel | - | **~7–9 ms/op** | - | - | ~4–5× vs serial (Pass 2) |
+| `WrapEnabled/Rows2000` allocs | - | ~357K/op | **~327K/op** | **~164K/op** | −50% vs Pass 3 |
+| `Rows10000` / `Rows25000` | - | ~129 ms / ~342 ms | - | - | Macro benchmarks (Pass 2) |
 
 ### HTTP load test (k6, 48 VUs, PDF/A tagged payloads)
 
@@ -62,7 +62,7 @@ The **2061 ops/s** peak (and **1705 ops/s** 10-run average) are **aggregate mach
 
 ---
 
-## Zerodha Gold Standard — End-to-End Workload (Pass 4 vs Go 1.24 / 1.26)
+## Zerodha Gold Standard - End-to-End Workload (Pass 4 vs Go 1.24 / 1.26)
 
 **Entry:** `sampledata/gopdflib/zerodha/main.go`  
 **Config:** 5000 iterations, **48 workers**, 80% Retail / 15% Active / 5% HFT, **PDF/A + tagged PDF + digital signatures**  
@@ -108,7 +108,7 @@ Pass 4 **peak** beats Go 1.24 **best** by **~223%** and Go 1.26 **best** by **~3
 |-----------|------|-------|-------------|---|
 | **Throughput** | 2020.59 ops/s* | 1542.39 ops/s | **1704.95 ops/s** | 151.25 |
 | **Avg latency** | 22.99 ms | 30.47 ms | **27.65 ms** | 2.55 ms |
-| **Max latency** | 592.15 ms | 883.80 ms | **746.51 ms** | — |
+| **Max latency** | 592.15 ms | 883.80 ms | **746.51 ms** | - |
 | **Wall time** | 2.48 s | 3.24 s | **2.95 s** | 0.28 s |
 | **Peak memory** | 1074 MB | 1254 MB | **1170 MB** | 58 MB |
 
@@ -118,9 +118,9 @@ Pass 4 **peak** beats Go 1.24 **best** by **~223%** and Go 1.26 **best** by **~3
 
 | Column | What it measures |
 |--------|------------------|
-| **Throughput (ops/s)** | `5000 ÷ wall-clock seconds` — total PDFs/sec with 48 workers in flight. **System aggregate, not per-core.** |
+| **Throughput (ops/s)** | `5000 ÷ wall-clock seconds` - total PDFs/sec with 48 workers in flight. **System aggregate, not per-core.** |
 | **Avg latency (ms)** | Mean time for one `GeneratePDF` across all 5000 docs (Retail + Active + HFT mix). Dominated by fast Retail docs (~80%). |
-| **Max latency (ms)** | Slowest single PDF in the run — almost always an **HFT** doc (2000 rows) under worker contention. Tail behavior, not typical user latency. |
+| **Max latency (ms)** | Slowest single PDF in the run - almost always an **HFT** doc (2000 rows) under worker contention. Tail behavior, not typical user latency. |
 | **Total time (s)** | Wall clock for the full 5000-iteration batch. Equals `5000 ÷ throughput`. |
 | **Peak mem (MB)** | Highest `runtime.MemStats.Alloc` sampled during the run. HFT docs (~2.4 MB each) drive peaks (~1.1–1.3 GB). |
 
@@ -146,7 +146,7 @@ Retail-heavy mix → high throughput, lower `drawTable` share than pure 2000-row
 
 ---
 
-## Pass 1 — Low-Hanging Fruit (10/10)
+## Pass 1 - Low-Hanging Fruit (10/10)
 
 Eliminate per-cell allocations and reduce syscall/write overhead on the content-stream hot path.
 
@@ -154,16 +154,16 @@ Eliminate per-cell allocations and reduce syscall/write overhead on the content-
 
 | ID | Change | Files |
 |----|--------|-------|
-| P1-01 | **`appendTextForPDF`** — zero-alloc text encoding into `[]byte` (no `string` return on `Tj` path) | `utils.go`, `font/metrics.go`, `draw.go` |
-| P1-02 | **`RuneSet` bitmap** — replace `UsedChars map[rune]bool` with dense 64 KiB bitmap | `font/runeset.go`, `registry.go`, `metrics.go` |
-| P1-03 | **Batched cell PDF commands** — one `Write` per table cell instead of ~10 | `draw.go` |
+| P1-01 | **`appendTextForPDF`** - zero-alloc text encoding into `[]byte` (no `string` return on `Tj` path) | `utils.go`, `font/metrics.go`, `draw.go` |
+| P1-02 | **`RuneSet` bitmap** - replace `UsedChars map[rune]bool` with dense 64 KiB bitmap | `font/runeset.go`, `registry.go`, `metrics.go` |
+| P1-03 | **Batched cell PDF commands** - one `Write` per table cell instead of ~10 | `draw.go` |
 | P1-04 | **Extended zlib pool** to PDF/A, metadata, font subset paths | `pdfa.go`, `metadata.go`, `subset.go` |
 | P1-05 | **Pre-grow page content streams** (32 KB initial capacity) | `pagemanager.go` |
 | P1-06 | **Pre-grow `CompressBufPool`** (64 KB) | `font/compression.go` |
 | P1-07 | **Respect `noLock`** on cloned font registries in `GenerateSubsets` / `AssignObjectIDs` | `font/registry.go` |
-| P1-08 | **Fix pprof HTTP routes** — `/heap`, `/block`, `/mutex` serve correct profiles | `handlers/handlers.go` |
-| P1-09 | **Benchmark improvements** — `ReportAllocs`, `SetBytes`, parallel variant | `benchmark_test.go` |
-| P1-10 | **Image cache singleflight** — dedupe concurrent decode of same image hash | `image.go` |
+| P1-08 | **Fix pprof HTTP routes** - `/heap`, `/block`, `/mutex` serve correct profiles | `handlers/handlers.go` |
+| P1-09 | **Benchmark improvements** - `ReportAllocs`, `SetBytes`, parallel variant | `benchmark_test.go` |
+| P1-10 | **Image cache singleflight** - dedupe concurrent decode of same image hash | `image.go` |
 
 ### Impact
 
@@ -173,7 +173,7 @@ Eliminate per-cell allocations and reduce syscall/write overhead on the content-
 
 ---
 
-## Pass 2 — Architecture Changes (12/12)
+## Pass 2 - Architecture Changes (12/12)
 
 Structural changes for throughput, memory bandwidth, and observability.
 
@@ -181,18 +181,18 @@ Structural changes for throughput, memory bandwidth, and observability.
 
 | ID | Change | Files |
 |----|--------|-------|
-| P2-01 | **`WriteImageXObject`** — direct buffer write, no intermediate `string` | `image.go`, `generator.go` |
-| P2-02 | **`WriteTrueTypeFontObjects`** — stream 7 font objects directly to PDF buffer | `font/metrics.go`, `generator.go` |
+| P2-01 | **`WriteImageXObject`** - direct buffer write, no intermediate `string` | `image.go`, `generator.go` |
+| P2-02 | **`WriteTrueTypeFontObjects`** - stream 7 font objects directly to PDF buffer | `font/metrics.go`, `generator.go` |
 | P2-03 | **Parallel image decode** via bounded `errgroup` (`runtime.NumCPU()`) | `generator.go` |
-| P2-04 | **Parallel page stream compression** — parallel zlib, serial write phase | `generator.go` |
-| P2-05 | **Incremental MD5** — hash as we write, no full-buffer re-read at document ID | `generator.go` |
+| P2-04 | **Parallel page stream compression** - parallel zlib, serial write phase | `generator.go` |
+| P2-05 | **Incremental MD5** - hash as we write, no full-buffer re-read at document ID | `generator.go` |
 | P2-06 | **Compact xref** shared helper for merge + XFDF | `xref/xref.go`, `merge/merger.go`, `form/xfdf.go` |
-| P2-07 | **TTF bulk slice parsing** — `parseHmtx`, `parseCmapFormat4` via direct indexing | `font/ttf.go` |
-| P2-08 | **Sparse CIDToGIDMap** — stream sparse map when `maxCID > 8192` without 256 KB+ alloc | `font/metrics.go` |
-| P2-09 | **Macro benchmark suite** — 2K / 10K / 25K rows + wrap variant; Typst behind `//go:build compare` | `benchmark_macro_test.go`, `benchmark_compare_test.go` |
-| P2-10 | **Pooled encryption buffers** — `encScratchPool` in `EncryptStream` | `encryption/encrypt.go` |
-| P2-11 | **`maxConcurrent := runtime.NumCPU()`** — replace hardcoded 48 workers | `cmd/gopdfsuit/main.go` |
-| P2-12 | **PDF/A font manager lock fixes** — download/load outside mutex, double-check cache | `font/pdfa.go` |
+| P2-07 | **TTF bulk slice parsing** - `parseHmtx`, `parseCmapFormat4` via direct indexing | `font/ttf.go` |
+| P2-08 | **Sparse CIDToGIDMap** - stream sparse map when `maxCID > 8192` without 256 KB+ alloc | `font/metrics.go` |
+| P2-09 | **Macro benchmark suite** - 2K / 10K / 25K rows + wrap variant; Typst behind `//go:build compare` | `benchmark_macro_test.go`, `benchmark_compare_test.go` |
+| P2-10 | **Pooled encryption buffers** - `encScratchPool` in `EncryptStream` | `encryption/encrypt.go` |
+| P2-11 | **`maxConcurrent := runtime.NumCPU()`** - replace hardcoded 48 workers | `cmd/gopdfsuit/main.go` |
+| P2-12 | **PDF/A font manager lock fixes** - download/load outside mutex, double-check cache | `font/pdfa.go` |
 
 ### Impact
 
@@ -203,14 +203,14 @@ Structural changes for throughput, memory bandwidth, and observability.
 
 ### New packages / files
 
-- `internal/pdf/xref/` — shared compact xref writer
+- `internal/pdf/xref/` - shared compact xref writer
 - `internal/pdf/benchmark_macro_test.go`
 - `internal/pdf/benchmark_compare_test.go`
 - `internal/pdf/font/metrics_cidmap_test.go`
 
 ---
 
-## Pass 3 — Advanced Optimizations (5/5)
+## Pass 3 - Advanced Optimizations (5/5)
 
 Memory layout, parser unification, and typed data structures.
 
@@ -218,11 +218,11 @@ Memory layout, parser unification, and typed data structures.
 
 | ID | Change | Files |
 |----|--------|-------|
-| P3-01 | **`WrapTextInto` + `WrapState`** — reusable buffers, no `strings.Fields` / string concat | `utils.go`, `draw.go`, `utils_wrap_test.go` |
-| P3-02 | **`ExtraObjects map[int][]byte`** — zero-copy write at finalize | `pagemanager.go`, `generator.go`, `outline.go` |
-| P3-03 | **Redact parser unification** — `merge.FindObjectBoundaries`, `map[int][]byte`, hoisted regex | `redact/*.go`, `redact_parser_test.go` |
-| P3-04 | **`ImageObject` struct packing** — reordered fields for better cache layout | `image.go` |
-| P3-05 | **`StructKid` typed slice** — replaces `Kids []interface{}` in PDF/UA tree | `structure.go`, `generator.go` |
+| P3-01 | **`WrapTextInto` + `WrapState`** - reusable buffers, no `strings.Fields` / string concat | `utils.go`, `draw.go`, `utils_wrap_test.go` |
+| P3-02 | **`ExtraObjects map[int][]byte`** - zero-copy write at finalize | `pagemanager.go`, `generator.go`, `outline.go` |
+| P3-03 | **Redact parser unification** - `merge.FindObjectBoundaries`, `map[int][]byte`, hoisted regex | `redact/*.go`, `redact_parser_test.go` |
+| P3-04 | **`ImageObject` struct packing** - reordered fields for better cache layout | `image.go` |
+| P3-05 | **`StructKid` typed slice** - replaces `Kids []interface{}` in PDF/UA tree | `structure.go`, `generator.go` |
 
 ### Impact
 
@@ -238,7 +238,7 @@ Memory layout, parser unification, and typed data structures.
 
 ---
 
-## Pass 4 — Load-Test Hotspots (14/14)
+## Pass 4 - Load-Test Hotspots (14/14)
 
 Targets tail latency, heap under saturation, and CPU efficiency while preserving PDF/A compliance.
 
@@ -246,20 +246,20 @@ Targets tail latency, heap under saturation, and CPU efficiency while preserving
 
 | ID | Change | Files |
 |----|--------|-------|
-| P4-01 | **Gate PDF/UA tagging** — `TaggedPDF` config; no-op `StructureManager` when off | `pagemanager.go`, `structure.go`, `draw.go`, `generator.go` |
-| P4-02 | **Pre-grow page streams** — 64 KiB `Grow` on new pages | `pagemanager.go` |
-| P4-03 | **Final PDF slice pool** — `finalPDFSlicePool` + `slices.Clone` | `generator.go` |
-| P4-04 | **Hoist drawTable scratch** — border/xobj/color/placeholder/checkbox buffers | `draw.go` |
+| P4-01 | **Gate PDF/UA tagging** - `TaggedPDF` config; no-op `StructureManager` when off | `pagemanager.go`, `structure.go`, `draw.go`, `generator.go` |
+| P4-02 | **Pre-grow page streams** - 64 KiB `Grow` on new pages | `pagemanager.go` |
+| P4-03 | **Final PDF slice pool** - `finalPDFSlicePool` + `slices.Clone` | `generator.go` |
+| P4-04 | **Hoist drawTable scratch** - border/xobj/color/placeholder/checkbox buffers | `draw.go` |
 | P4-05 | **`appendTextForPDF`** on hot drawTable paths | `utils.go`, `font/metrics.go`, `draw.go` |
-| P4-06 | **Incremental wrap width** — running `lineWidth` in `WrapTextInto` | `utils.go` |
-| P4-07 | **Compress buffer Grow** — `max(4096, len/4)` before zlib | `generator.go` |
-| P4-08 | **Compression pooling** — 64 KiB pool; subset/metadata/pdfa migrated | `font/compression.go`, `subset.go`, `metadata.go`, `pdfa.go` |
-| P4-09 | **Parallel page zlib** — `errgroup` in finalize | `generator.go` |
-| P4-10 | **Handler template pool** — `templatePDFPool` | `handlers/handlers.go` |
-| P4-11 | **k6 scenario split** — tagged / unsigned load scripts | `test/generate_template-pdf/` |
-| P4-12 | **Concurrency tuning** — `maxConcurrent = runtime.NumCPU()` | `cmd/gopdfsuit/main.go` |
-| P4-13 | **Signer PEM cache** — hash-keyed `sync.Map` | `signature/signature.go` |
-| P4-14 | **StructElem pool** — `acquireStructElem` / `ReleaseStructElemsToPool` | `structure.go` |
+| P4-06 | **Incremental wrap width** - running `lineWidth` in `WrapTextInto` | `utils.go` |
+| P4-07 | **Compress buffer Grow** - `max(4096, len/4)` before zlib | `generator.go` |
+| P4-08 | **Compression pooling** - 64 KiB pool; subset/metadata/pdfa migrated | `font/compression.go`, `subset.go`, `metadata.go`, `pdfa.go` |
+| P4-09 | **Parallel page zlib** - `errgroup` in finalize | `generator.go` |
+| P4-10 | **Handler template pool** - `templatePDFPool` | `handlers/handlers.go` |
+| P4-11 | **k6 scenario split** - tagged / unsigned load scripts | `test/generate_template-pdf/` |
+| P4-12 | **Concurrency tuning** - `maxConcurrent = runtime.NumCPU()` | `cmd/gopdfsuit/main.go` |
+| P4-13 | **Signer PEM cache** - hash-keyed `sync.Map` | `signature/signature.go` |
+| P4-14 | **StructElem pool** - `acquireStructElem` / `ReleaseStructElemsToPool` | `structure.go` |
 
 ### Impact
 
@@ -274,14 +274,14 @@ Targets tail latency, heap under saturation, and CPU efficiency while preserving
 
 Added under `guides/cursor/`:
 
-- `PERFORMANCE_AUDIT.md` — full 6-agent audit report
-- `IMPLEMENTATION_PLAN.md` — phased roadmap and status
-- `PASS1_BLUEPRINTS.md` / `PASS3_BLUEPRINTS.md` — before/after code
-- `PASS4_OPTIMIZATION_PLAN.md` / `PASS4_PDFA_RESULTS.md` — Pass 4 plan and results
-- `ZERODHA_BENCHMARK_RESULTS.md` / `GOPDFLIB_PPROF_RESULTS.md` — end-to-end benchmarks
-- `baselines/bench_pass{1,2,3,4}_20260525.txt` — benchmark snapshots
-- `baselines/zerodha_bench_x10_wsl/` — Zerodha 10-run WSL raw output
-- `baselines/zerodha_bench_x10_wsl_stats_20260525.txt` — Zerodha 10-run WSL stats
+- `PERFORMANCE_AUDIT.md` - full 6-agent audit report
+- `IMPLEMENTATION_PLAN.md` - phased roadmap and status
+- `PASS1_BLUEPRINTS.md` / `PASS3_BLUEPRINTS.md` - before/after code
+- `PASS4_OPTIMIZATION_PLAN.md` / `PASS4_PDFA_RESULTS.md` - Pass 4 plan and results
+- `ZERODHA_BENCHMARK_RESULTS.md` / `GOPDFLIB_PPROF_RESULTS.md` - end-to-end benchmarks
+- `baselines/bench_pass{1,2,3,4}_20260525.txt` - benchmark snapshots
+- `baselines/zerodha_bench_x10_wsl/` - Zerodha 10-run WSL raw output
+- `baselines/zerodha_bench_x10_wsl_stats_20260525.txt` - Zerodha 10-run WSL stats
 
 ---
 

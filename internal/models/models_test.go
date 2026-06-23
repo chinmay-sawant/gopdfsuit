@@ -89,3 +89,18 @@ func TestResetForReusePreservesHFTBackingArrays(t *testing.T) {
 		t.Fatalf("second table rows len = %d, want 0", got)
 	}
 }
+
+func TestSetPrecomputedStandardFontsPreservedUntilReset(t *testing.T) {
+	var tmpl PDFTemplate
+	tmpl.SetPrecomputedStandardFonts("Helvetica", "Times-Roman")
+
+	got := tmpl.PrecomputedStandardFonts()
+	if len(got) != 2 || got[0] != "Helvetica" || got[1] != "Times-Roman" {
+		t.Fatalf("precomputed fonts = %#v, want []string{\"Helvetica\", \"Times-Roman\"}", got)
+	}
+
+	tmpl.ResetForReuse()
+	if got := tmpl.PrecomputedStandardFonts(); len(got) != 0 {
+		t.Fatalf("precomputed fonts after reset = %#v, want empty", got)
+	}
+}

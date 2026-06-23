@@ -1,4 +1,4 @@
-# Pass 4 PDF/A — Results & Baseline Comparison
+# Pass 4 PDF/A - Results & Baseline Comparison
 
 **Date:** 2026-05-25  
 **Scope:** Post-Pass-4 load test + pprof vs May 25 pre-Pass-4 baseline, with **PDF/A compliance as the primary configuration**.
@@ -11,8 +11,8 @@ Pass 4 introduced optional untagged PDFs when neither `taggedPDF` nor `pdfaCompl
 
 | Surface | PDF/A config |
 |---------|----------------|
-| **Micro-benchmarks** | `pdfAConfig()` in `benchmark_test.go` / `benchmark_macro_test.go` — `pdfaCompliant: true`, `taggedPDF: true`, `arlingtonCompatible: true` |
-| **Default k6 load test** | `load_test.js` uses `getPayloadOptions('tagged')` — PDF/A + tagged + signed |
+| **Micro-benchmarks** | `pdfAConfig()` in `benchmark_test.go` / `benchmark_macro_test.go` - `pdfaCompliant: true`, `taggedPDF: true`, `arlingtonCompatible: true` |
+| **Default k6 load test** | `load_test.js` uses `getPayloadOptions('tagged')` - PDF/A + tagged + signed |
 | **API** | `"pdfaCompliant": true` enables PDF/A; tagging via `taggedPDF \|\| pdfaCompliant` in generator |
 
 Unsigned / non-PDF-A scenarios are kept only for optional perf regression: `load_test_unsigned.js`.
@@ -41,7 +41,7 @@ When PDF/A is on: structure tree, MarkInfo, ICC profile, embedded fonts, and mar
 
 **Artifact:** [baselines/bench_pass4_pdfa_20260525.txt](./baselines/bench_pass4_pdfa_20260525.txt)
 
-### 5-run statistics (PDF/A, `-count=5`) — authoritative
+### 5-run statistics (PDF/A, `-count=5`) - authoritative
 
 **Command:**
 
@@ -59,8 +59,8 @@ go test -run='^$' \
 | | Best (fastest) | Worst (slowest) | Average | σ |
 |---|----------------|-----------------|---------|---|
 | **Time/op** | **31.74 ms** (run 2) | **39.50 ms** (run 3) | **36.09 ms** | 3.10 ms |
-| **Bytes/op** | 16.83 MB | 18.87 MB | 17.86 MB | — |
-| **Allocs/op** | 163,177 | 163,402 | 163,257 | — |
+| **Bytes/op** | 16.83 MB | 18.87 MB | 17.86 MB | - |
+| **Allocs/op** | 163,177 | 163,402 | 163,257 | - |
 
 Individual runs (ms): `38.56, 31.74, 39.50, 34.77, 35.87`
 
@@ -69,8 +69,8 @@ Individual runs (ms): `38.56, 31.74, 39.50, 34.77, 35.87`
 | | Best | Worst | Average | σ |
 |---|------|-------|---------|---|
 | **Time/op** | **28.35 ms** (run 3) | **32.50 ms** (run 1) | **30.90 ms** | 1.77 ms |
-| **Bytes/op** | 16.72 MB | 18.08 MB | 17.14 MB | — |
-| **Allocs/op** | 163,175 | 163,537 | 163,251 | — |
+| **Bytes/op** | 16.72 MB | 18.08 MB | 17.14 MB | - |
+| **Allocs/op** | 163,175 | 163,537 | 163,251 | - |
 
 Individual runs (ms): `32.50, 29.98, 28.35, 32.46, 31.22`
 
@@ -79,14 +79,14 @@ Individual runs (ms): `32.50, 29.98, 28.35, 32.46, 31.22`
 | | Best | Worst | Average | σ |
 |---|------|-------|---------|---|
 | **Time/op** | **49.57 ms** (run 2) | **53.04 ms** (run 4) | **50.87 ms** | 1.34 ms |
-| **Bytes/op** | 23.03 MB | 28.05 MB | 25.01 MB | — |
-| **Allocs/op** | 163,552 | 164,184 | 163,774 | — |
+| **Bytes/op** | 23.03 MB | 28.05 MB | 25.01 MB | - |
+| **Allocs/op** | 163,552 | 164,184 | 163,774 | - |
 
 Individual runs (ms): `50.16, 49.57, 51.11, 53.04, 50.45`
 
 **Takeaway:** PDF/A Rows2000 averages **~36 ms** (best **~32 ms**, worst **~40 ms**) with **~163K allocs/op** stable across runs. Pass 3 baseline **~43 ms / ~303K allocs** → **~16% faster avg time**, **~46% fewer allocs** vs Pass 3.
 
-**Reference (not for compliance workloads):** Pass 4 untagged bench ~11 ms, ~1.3K allocs — useful only to isolate tagging cost.
+**Reference (not for compliance workloads):** Pass 4 untagged bench ~11 ms, ~1.3K allocs - useful only to isolate tagging cost.
 
 ---
 
@@ -98,7 +98,7 @@ Both runs: 48 VUs, ramp load scenario, `POST /api/v1/generate/template-pdf`.
 |--------|-----------------|--------------|--------|
 | **Total requests** | 1,277 | **4,317** | **+238%** |
 | **Throughput** | ~25 req/s | **~143 req/s** | **~5.7×** |
-| **HTTP failures** | 0% | **0%** | — |
+| **HTTP failures** | 0% | **0%** | - |
 | **Median latency** | 94 ms | **11 ms** | **~8.5× faster** |
 | **p95 latency** | 3.11 s | **314 ms** | **~10× faster** ✓ |
 | **p99 latency** | 27.45 s ✗ | **1.53 s ✓** | **~18× faster** |
@@ -116,7 +116,7 @@ Both runs: 48 VUs, ramp load scenario, `POST /api/v1/generate/template-pdf`.
 
 ### HTTP load test (single capture, 48 VUs, 35 s)
 
-#### CPU — flat hotspots
+#### CPU - flat hotspots
 
 | Hotspot | May 25 baseline | Pass 4 PDF/A (load) |
 |---------|-----------------|---------------------|
@@ -124,7 +124,7 @@ Both runs: 48 VUs, ramp load scenario, `POST /api/v1/generate/template-pdf`.
 | **`runtime.memmove`** | 9.8% | 22.2% |
 | **`compress/flate.deflate`** (cum) | 14.5% | lower in top flat |
 
-#### Heap — in-use under load
+#### Heap - in-use under load
 
 | Hotspot | May 25 baseline | Pass 4 PDF/A (load) |
 |---------|-----------------|----------------------|
@@ -198,8 +198,8 @@ curl -o guides/cursor/baselines/loadtest_heap_pass4_pdfa.prof \
 ```
 
 Alternative scenarios:
-- `k6 run load_test_tagged.js` — explicit PDF/A + tagged
-- `k6 run load_test_unsigned.js` — perf regression only (no PDF/A)
+- `k6 run load_test_tagged.js` - explicit PDF/A + tagged
+- `k6 run load_test_unsigned.js` - perf regression only (no PDF/A)
 
 ---
 

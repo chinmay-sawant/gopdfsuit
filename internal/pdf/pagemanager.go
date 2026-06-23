@@ -6,30 +6,86 @@ import (
 	"sync"
 )
 
-var pageContentStreamPool = sync.Pool{
-	New: func() any {
-		return new(bytes.Buffer)
-	},
+// P5/P34 (2026-06-20/22 checklists): per-page content stream buckets are sized
+// from measured Zerodha output (retail 8.7 KiB/page, active ~18 KiB/page,
+// HFT stripe ~28–35 KiB/page). Buffers above maxPooledPageContentStreamCap are
+// dropped instead of being returned to the pool.
+const (
+	maxPooledPageContentStreamCap = 128 * 1024
+	pageStreamRetailCap           = 32 * 1024 // measured 8,755 B
+	pageStreamActiveCap           = 48 * 1024 // measured ~18 KiB/page
+	pageStreamHFTRowBytes         = 120       // compliant BDC/EMC + text per cell
+	pageStreamStripeSlack         = 4096      // border/watermark/page-init headroom
+	pageStreamMinCap              = 32 * 1024
+)
+
+var pageContentStreamPools = [...]struct {
+	capacity int
+	pool     sync.Pool
+}{
+	{capacity: 32 * 1024},
+	{capacity: 48 * 1024},
+	{capacity: 64 * 1024},
+	{capacity: 96 * 1024},
+	{capacity: 128 * 1024},
 }
 
-func getPageContentStreamBuffer(initialCap int) *bytes.Buffer {
-	buf := pageContentStreamPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	if initialCap < 64*1024 {
-		initialCap = 64 * 1024
+func alignPageStreamCap(want int) int {
+	if want < pageStreamMinCap {
+		return pageStreamMinCap
 	}
-	if cap(buf.Bytes()) < initialCap {
-		buf.Grow(initialCap)
+	bucket := pageContentStreamBucket(want)
+	return pageContentStreamPools[bucket].capacity
+}
+
+func estimateSharedRowStripeCap(rows, cols int) int {
+	if rows <= 0 || cols <= 0 {
+		return pageStreamMinCap
+	}
+	est := rows*cols*pageStreamHFTRowBytes + pageStreamStripeSlack
+	return alignPageStreamCap(est)
+}
+
+func getPageContentStreamBuffer(wantCap int) *bytes.Buffer {
+	wantCap = alignPageStreamCap(wantCap)
+	bucket := pageContentStreamBucket(wantCap)
+	pooled := pageContentStreamPools[bucket].pool.Get()
+	if pooled == nil {
+		pooled = new(bytes.Buffer)
+	}
+	buf := pooled.(*bytes.Buffer)
+	buf.Reset()
+	if buf.Cap() < wantCap {
+		buf.Grow(wantCap - buf.Cap())
 	}
 	return buf
+}
+
+func pageContentStreamBucket(initialCap int) int {
+	if initialCap < 32*1024 {
+		initialCap = 32 * 1024
+	}
+	for i := range pageContentStreamPools {
+		if initialCap <= pageContentStreamPools[i].capacity {
+			return i
+		}
+	}
+	return len(pageContentStreamPools) - 1
 }
 
 func putPageContentStreamBuffer(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
+	// P5: discard oversized buffers instead of returning them to a too-small
+	// bucket. This keeps the pool bounded even when a single HFT page grows
+	// to >256KB during emission.
+	if buf.Cap() > maxPooledPageContentStreamCap {
+		return
+	}
+	bucket := pageContentStreamBucket(buf.Cap())
 	buf.Reset()
-	pageContentStreamPool.Put(buf)
+	pageContentStreamPools[bucket].pool.Put(buf)
 }
 
 // PageManager handles multi-page document generation
@@ -50,6 +106,7 @@ type PageManager struct {
 	NamedDests              map[string]NamedDest // Map of named destinations for internal linking
 	FontRegistry            *CustomFontRegistry  // Per-generation font registry for thread-safe font access
 	InitialStreamCap        int                  // Initial capacity for pooled page content streams
+	sharedRowBytes          int                  // profiled shared-layout row emit size (P40)
 	cachedPageInit          []byte               // Reused border/watermark init bytes for continuation pages (C3)
 	cachedPageInitBorder    string
 	cachedPageInitWatermark string
@@ -72,8 +129,8 @@ type NamedDest struct {
 // NewPageManager creates a new page manager with initial page.
 // When taggedPDF is false, marked content and structure-tree bookkeeping are disabled.
 func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompatible bool, fontRegistry *CustomFontRegistry, taggedPDF bool, initialStreamCap int) *PageManager {
-	if initialStreamCap < 64*1024 {
-		initialStreamCap = 64 * 1024
+	if initialStreamCap < pageStreamMinCap {
+		initialStreamCap = pageStreamMinCap
 	}
 	firstStream := getPageContentStreamBuffer(initialStreamCap)
 	pm := &PageManager{
@@ -204,15 +261,54 @@ func (pm *PageManager) PrepareLargeTableStripe(rowHeight float64, cols int) {
 		return
 	}
 	rowsPerPage := max(int((pm.CurrentYPos-pm.Margins.Bottom)/rowHeight), 1)
-	est := rowsPerPage * cols * 512
+	est := estimateSharedRowStripeCap(rowsPerPage, cols)
 	if est <= pm.InitialStreamCap {
 		return
 	}
-	const maxPageStreamCap = 256 * 1024
-	if est > maxPageStreamCap {
-		est = maxPageStreamCap
-	}
 	pm.InitialStreamCap = est
+}
+
+// NoteSharedRowBytes records the measured shared-layout row emit size for later stripes.
+func (pm *PageManager) NoteSharedRowBytes(n int) {
+	if n <= 0 {
+		return
+	}
+	if pm.sharedRowBytes == 0 || n > pm.sharedRowBytes {
+		pm.sharedRowBytes = n
+	}
+}
+
+// GrowCurrentStreamForStripe pre-sizes the active page stream once per stripe.
+func (pm *PageManager) GrowCurrentStreamForStripe(rows, cols int) {
+	if rows <= 0 || cols <= 0 {
+		return
+	}
+	perRow := cols * pageStreamHFTRowBytes
+	if pm.sharedRowBytes > 0 {
+		perRow = pm.sharedRowBytes
+	}
+	need := pm.GetCurrentContentStream().Len() + rows*perRow + pageStreamStripeSlack
+	stream := pm.GetCurrentContentStream()
+	if stream.Cap() < need {
+		stream.Grow(need - stream.Cap())
+	}
+}
+
+// PageStreamProfile returns max per-page stream len/cap after generation.
+func (pm *PageManager) PageStreamProfile() (maxLen, maxCap, totalCap int) {
+	for _, stream := range pm.ContentStreams {
+		if stream == nil {
+			continue
+		}
+		if stream.Len() > maxLen {
+			maxLen = stream.Len()
+		}
+		if stream.Cap() > maxCap {
+			maxCap = stream.Cap()
+		}
+		totalCap += stream.Cap()
+	}
+	return maxLen, maxCap, totalCap
 }
 
 // ContentWidth returns the available width for content on the current page.
@@ -223,6 +319,18 @@ func (pm *PageManager) ContentWidth() float64 {
 // GetCurrentContentStream returns the current page's content stream
 func (pm *PageManager) GetCurrentContentStream() *bytes.Buffer {
 	return pm.ContentStreams[pm.CurrentPageIndex]
+}
+
+// appendContentStream appends bytes to a page stream with a single upfront grow.
+func appendContentStream(stream *bytes.Buffer, b []byte) {
+	if len(b) == 0 {
+		return
+	}
+	need := stream.Len() + len(b)
+	if need > stream.Cap() {
+		stream.Grow(need - stream.Cap())
+	}
+	_, _ = stream.Write(b)
 }
 
 // GetCurrentPageID returns the current page object ID

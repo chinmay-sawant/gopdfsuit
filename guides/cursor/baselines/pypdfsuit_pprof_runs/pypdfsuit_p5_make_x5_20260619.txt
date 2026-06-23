@@ -1,0 +1,195 @@
+=== P5 run 1 / 5 ===
+cd sampledata/gopdflib/zerodha && BENCH_ITERATIONS=5000 BENCH_WORKERS=48 python3 pypdfsuit_bench.py
+=== PyPDFSuit Zerodha Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+JSON cache: removed (full to_dict + json.dumps each call)
+
+Machine: kernel=Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35, cpu=13th Gen Intel(R) Core(TM) i7-13700HX, cores=12, threads_per_core=2, sockets=1, logical_cpus=24, memory=7.6Gi, python=3.13.10
+Running 5000 iterations using 48 workers...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61290 bytes (59.85 KB)
+  Active PDF size:  76072 bytes (74.29 KB)
+  HFT PDF size:     2424782 bytes (2367.95 KB)
+
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  Total time:      6.789 s
+  Throughput:      736.47 ops/sec
+
+  Avg Latency:     57.654 ms
+  P50 Latency:     33.213 ms
+  P95 Latency:     193.699 ms
+  P99 Latency:     314.513 ms
+  Min Latency:     1.353 ms
+  Max Latency:     493.608 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4015 iterations
+  Active  (15%):   767 iterations
+  HFT      (5%):   218 iterations
+
+Saved: zerodha_retail_output_pypdfsuit.pdf (61290 bytes)
+Saved: zerodha_active_output_pypdfsuit.pdf (76072 bytes)
+Saved: zerodha_hft_output_pypdfsuit.pdf (2424782 bytes)
+
+=== Done ===
+=== P5 run 2 / 5 ===
+cd sampledata/gopdflib/zerodha && BENCH_ITERATIONS=5000 BENCH_WORKERS=48 python3 pypdfsuit_bench.py
+=== PyPDFSuit Zerodha Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+JSON cache: removed (full to_dict + json.dumps each call)
+
+Machine: kernel=Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35, cpu=13th Gen Intel(R) Core(TM) i7-13700HX, cores=12, threads_per_core=2, sockets=1, logical_cpus=24, memory=7.6Gi, python=3.13.10
+Running 5000 iterations using 48 workers...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61290 bytes (59.85 KB)
+  Active PDF size:  76072 bytes (74.29 KB)
+  HFT PDF size:     2424782 bytes (2367.95 KB)
+
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  Total time:      5.375 s
+  Throughput:      930.22 ops/sec
+
+  Avg Latency:     45.510 ms
+  P50 Latency:     27.292 ms
+  P95 Latency:     145.399 ms
+  P99 Latency:     246.970 ms
+  Min Latency:     1.181 ms
+  Max Latency:     574.723 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4015 iterations
+  Active  (15%):   767 iterations
+  HFT      (5%):   218 iterations
+
+Saved: zerodha_retail_output_pypdfsuit.pdf (61290 bytes)
+Saved: zerodha_active_output_pypdfsuit.pdf (76072 bytes)
+Saved: zerodha_hft_output_pypdfsuit.pdf (2424782 bytes)
+
+=== Done ===
+=== P5 run 3 / 5 ===
+cd sampledata/gopdflib/zerodha && BENCH_ITERATIONS=5000 BENCH_WORKERS=48 python3 pypdfsuit_bench.py
+=== PyPDFSuit Zerodha Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+JSON cache: removed (full to_dict + json.dumps each call)
+
+Machine: kernel=Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35, cpu=13th Gen Intel(R) Core(TM) i7-13700HX, cores=12, threads_per_core=2, sockets=1, logical_cpus=24, memory=7.6Gi, python=3.13.10
+Running 5000 iterations using 48 workers...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61290 bytes (59.85 KB)
+  Active PDF size:  76072 bytes (74.29 KB)
+  HFT PDF size:     2424782 bytes (2367.95 KB)
+
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  Total time:      6.004 s
+  Throughput:      832.75 ops/sec
+
+  Avg Latency:     52.865 ms
+  P50 Latency:     31.043 ms
+  P95 Latency:     184.116 ms
+  P99 Latency:     296.620 ms
+  Min Latency:     1.258 ms
+  Max Latency:     769.755 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4015 iterations
+  Active  (15%):   767 iterations
+  HFT      (5%):   218 iterations
+
+Saved: zerodha_retail_output_pypdfsuit.pdf (61290 bytes)
+Saved: zerodha_active_output_pypdfsuit.pdf (76072 bytes)
+Saved: zerodha_hft_output_pypdfsuit.pdf (2424782 bytes)
+
+=== Done ===
+=== P5 run 4 / 5 ===
+cd sampledata/gopdflib/zerodha && BENCH_ITERATIONS=5000 BENCH_WORKERS=48 python3 pypdfsuit_bench.py
+=== PyPDFSuit Zerodha Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+JSON cache: removed (full to_dict + json.dumps each call)
+
+Machine: kernel=Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35, cpu=13th Gen Intel(R) Core(TM) i7-13700HX, cores=12, threads_per_core=2, sockets=1, logical_cpus=24, memory=7.6Gi, python=3.13.10
+Running 5000 iterations using 48 workers...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61290 bytes (59.85 KB)
+  Active PDF size:  76072 bytes (74.29 KB)
+  HFT PDF size:     2424782 bytes (2367.95 KB)
+
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  Total time:      6.117 s
+  Throughput:      817.35 ops/sec
+
+  Avg Latency:     52.562 ms
+  P50 Latency:     32.284 ms
+  P95 Latency:     174.373 ms
+  P99 Latency:     278.642 ms
+  Min Latency:     1.183 ms
+  Max Latency:     477.626 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4015 iterations
+  Active  (15%):   767 iterations
+  HFT      (5%):   218 iterations
+
+Saved: zerodha_retail_output_pypdfsuit.pdf (61290 bytes)
+Saved: zerodha_active_output_pypdfsuit.pdf (76072 bytes)
+Saved: zerodha_hft_output_pypdfsuit.pdf (2424782 bytes)
+
+=== Done ===
+=== P5 run 5 / 5 ===
+cd sampledata/gopdflib/zerodha && BENCH_ITERATIONS=5000 BENCH_WORKERS=48 python3 pypdfsuit_bench.py
+=== PyPDFSuit Zerodha Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+JSON cache: removed (full to_dict + json.dumps each call)
+
+Machine: kernel=Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35, cpu=13th Gen Intel(R) Core(TM) i7-13700HX, cores=12, threads_per_core=2, sockets=1, logical_cpus=24, memory=7.6Gi, python=3.13.10
+Running 5000 iterations using 48 workers...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61290 bytes (59.85 KB)
+  Active PDF size:  76072 bytes (74.29 KB)
+  HFT PDF size:     2424782 bytes (2367.95 KB)
+
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  Total time:      6.862 s
+  Throughput:      728.67 ops/sec
+
+  Avg Latency:     58.942 ms
+  P50 Latency:     33.865 ms
+  P95 Latency:     198.019 ms
+  P99 Latency:     324.209 ms
+  Min Latency:     1.381 ms
+  Max Latency:     617.794 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4015 iterations
+  Active  (15%):   767 iterations
+  HFT      (5%):   218 iterations
+
+Saved: zerodha_retail_output_pypdfsuit.pdf (61290 bytes)
+Saved: zerodha_active_output_pypdfsuit.pdf (76072 bytes)
+Saved: zerodha_hft_output_pypdfsuit.pdf (2424782 bytes)
+
+=== Done ===

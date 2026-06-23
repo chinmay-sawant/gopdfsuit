@@ -823,20 +823,21 @@ select:focus {
 
 /* Hero-specific styles */
 .hero-section {
-  min-height: 90vh;
+  min-height: auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   position: relative;
   overflow: hidden;
+  padding-top: 3rem;
 }
 
 .hero-title {
   font-size: clamp(3rem, 8vw, 5rem);
   font-weight: 900;
   letter-spacing: -0.02em;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .hero-subtitle {
@@ -1123,7 +1124,7 @@ select option {
   background: rgba(78, 205, 196, 0.1);
   border: 1px solid rgba(78, 205, 196, 0.3);
   border-radius: 50px;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   color: #4ecdc4;
   font-size: 0.9rem;
   font-weight: 500;
@@ -1133,8 +1134,8 @@ select option {
 .hero-description {
   color: hsl(var(--muted-foreground));
   font-size: 1.25rem;
-  line-height: 1.8;
-  margin-bottom: 2rem;
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
   font-weight: 400;
   max-width: 850px;
   margin-left: auto;
@@ -1161,11 +1162,20 @@ select option {
   font-weight: 600;
 }
 
+.hero-benchmark-footnote {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.82rem;
+  line-height: 1.55;
+  margin: -0.5rem auto 1.5rem;
+  max-width: 780px;
+  opacity: 0.85;
+}
+
 /* Grouped feature pills */
 .hero-pills-container {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.65rem;
   align-items: center;
 }
 
@@ -1222,7 +1232,7 @@ select option {
   gap: 1.5rem;
   justify-content: center;
   flex-wrap: wrap;
-  margin-bottom: 4rem;
+  margin-bottom: 3rem;
 }
 
 .star-badge {
@@ -1470,6 +1480,11 @@ select option {
   margin-bottom: 0.55rem;
 }
 
+.performance-wide-container,
+.comparison-benchmark-container {
+  max-width: min(1680px, calc(100vw - 2rem));
+}
+
 .performance-wrapper {
   text-align: center;
 }
@@ -1479,12 +1494,110 @@ select option {
 }
 
 .performance-header-block {
-  max-width: 70rem;
+  max-width: 100%;
   margin: 0 auto 2rem;
 }
 
 .performance-intro {
   margin-bottom: 0;
+}
+
+.compliance-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.compliance-compare-card {
+  padding: 1.5rem;
+  border-radius: 14px;
+  border: 1px solid;
+  text-align: left;
+}
+
+.compliance-compare-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.compliance-compare-mode {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.compliance-compare-harness {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+}
+
+.compliance-compare-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.compliance-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.compliance-compare-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.compliance-metric-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.compliance-metric-label {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.2rem;
+}
+
+.compliance-compare-details {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 1rem;
+}
+
+.compliance-feature-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: hsl(var(--muted-foreground));
+  display: grid;
+  gap: 0.25rem;
+}
+
+@media (max-width: 900px) {
+  .compliance-compare-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compliance-compare-metrics {
+    grid-template-columns: 1fr;
+  }
 }
 
 .performance-stats-grid {
@@ -1519,7 +1632,7 @@ select option {
 
 .performance-panels-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 1.25rem;
   align-items: start;
 }
@@ -1532,12 +1645,9 @@ select option {
   text-align: left;
 }
 
-.performance-panel-wide {
-  grid-column: span 2;
-}
-
+.performance-panel-wide,
 .performance-machine-panel {
-  grid-column: span 2;
+  grid-column: auto;
 }
 
 .performance-panel-header h3 {
@@ -1559,7 +1669,7 @@ select option {
   min-width: 0;
   border-collapse: collapse;
   font-size: 0.84rem;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .performance-table th,
@@ -1588,6 +1698,7 @@ select option {
 
 .performance-machine-list {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 0.75rem;
 }
 

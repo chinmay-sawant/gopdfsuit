@@ -5,7 +5,23 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 )
 
+func init() {
+	pdf.WarmRuntimePools()
+}
+
 type BorrowedPDF = pdf.BorrowedPDF
+type PDFCapacityHighWater = pdf.CapacityHighWater
+
+// ResetPDFCapacityHighWater clears per-tier buffer high-water counters. Active when
+// BENCH_DEBUG_CAPS=1 during generation.
+func ResetPDFCapacityHighWater() {
+	pdf.ResetPDFCapacityHighWater()
+}
+
+// SnapshotPDFCapacityHighWater returns the peak final len/cap per template tier.
+func SnapshotPDFCapacityHighWater() PDFCapacityHighWater {
+	return pdf.SnapshotPDFCapacityHighWater()
+}
 
 // GeneratePDF creates a PDF document from a template and returns the PDF bytes.
 //

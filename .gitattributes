@@ -1,11 +1,139 @@
+# Auto-detect text files and normalize line endings where appropriate
+* text=auto
+
+# Force LF for shell scripts and Makefiles
+*.sh text eol=lf
+makefile text eol=lf
+Makefile text eol=lf
+
+# Force CRLF for PowerShell scripts on Windows
+*.ps1 text eol=crlf
+
+# Mark common binary formats
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.tar binary
+*.gz binary
+*.bz2 binary
+*.7z binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.wasm binary
+*.prof binary
+*.icc binary
+*.snap binary
+
+# Exclude vendored/generated directories from language statistics
+/frontend/** linguist-vendored
+/frontend/node_modules/** linguist-vendored
+/frontend/dist/** linguist-vendored
+/guides/** linguist-vendored
+/docs/** linguist-vendored
+/screenshots/** linguist-vendored
+/certs/** linguist-vendored
+/dockerfolder/** linguist-vendored
+/.github/** linguist-vendored
+/bindings/python/** linguist-vendored
+/bindings/python/cgo/*.go -linguist-vendored
+/sampledata/**/*.pdf linguist-vendored
+/sampledata/**/*.json linguist-vendored
+/sampledata/**/*.txt linguist-vendored
+/sampledata/**/*.png linguist-vendored
+/sampledata/**/*.zip linguist-vendored
+/sampledata/**/*.xfdf linguist-vendored
+/sampledata/**/*.typ linguist-vendored
+/sampledata/**/*.pem linguist-vendored
+/sampledata/**/*.key linguist-vendored
+/sampledata/**/*.html linguist-vendored
+/sampledata/**/*.svg linguist-vendored
+/sampledata/**/*.sh linguist-vendored
+/sampledata/**/*.py linguist-vendored
+/sampledata/**/*.js linguist-vendored
+/sampledata/**/*.bat linguist-vendored
+/sampledata/**/*.csr linguist-vendored
+/sampledata/**/gopdflib linguist-vendored
+/test/**/*.js linguist-vendored
+/test/**/*.sh linguist-vendored
+/test/**/*.json linguist-vendored
+/test/**/*.pdf linguist-vendored
+/test/**/*.html linguist-vendored
+/test/**/*.pem linguist-vendored
+/test/**/*.key linguist-vendored
+
+# Hide non-Go languages from GitHub linguist (Go remains the primary language)
 *.js linguist-vendored
 *.jsx linguist-vendored
+*.mjs linguist-vendored
+*.cjs linguist-vendored
 *.ts linguist-vendored
 *.tsx linguist-vendored
+*.mts linguist-vendored
+*.cts linguist-vendored
 *.css linguist-vendored
+*.scss linguist-vendored
 *.html linguist-vendored
 *.json linguist-vendored
+*.yaml linguist-vendored
+*.yml linguist-vendored
+*.toml linguist-vendored
+*.lock linguist-vendored
 *.py linguist-vendored
+*.pyi linguist-vendored
+*.pyc linguist-vendored
+*.pyx linguist-vendored
+*.sh linguist-vendored
+*.ps1 linguist-vendored
+*.bat linguist-vendored
+*.fish linguist-vendored
+*.md linguist-vendored
+*.txt linguist-vendored
+*.rst linguist-vendored
+*.xml linguist-vendored
+*.svg linguist-vendored
+*.typ linguist-vendored
+*.xfdf linguist-vendored
+*.h linguist-vendored
+*.c linguist-vendored
+*.cpp linguist-vendored
+*.java linguist-vendored
+*.rs linguist-vendored
+*.rb linguist-vendored
+*.php linguist-vendored
+*.lua linguist-vendored
+*.coffee linguist-vendored
+*.mod linguist-vendored
+*.sum linguist-vendored
+*.prof linguist-vendored
+*.pem linguist-vendored
+*.key linguist-vendored
+*.csr linguist-vendored
+*.csv linguist-vendored
+*.log linguist-vendored
+*.map linguist-vendored
+*.dockerignore linguist-vendored
+*.gitignore linguist-vendored
+*.gitattributes linguist-vendored
+*.gitkeep linguist-vendored
+*.gcloudignore linguist-vendored
+*.editorconfig linguist-vendored
+*.eslintrc linguist-vendored
+*.prettierrc linguist-vendored
+*.babelrc linguist-vendored
+*.nvmrc linguist-vendored
+Dockerfile linguist-vendored
+Dockerfile_* linguist-vendored
+app.yaml linguist-vendored
+policy.json linguist-vendored
 
-/docs/ linguist-vendored
-/docs/ linguist-vendored
+# Ensure exported archives don't include local development files
+/.vscode/** export-ignore
+/.venv/** export-ignore
+*.md export-ignore

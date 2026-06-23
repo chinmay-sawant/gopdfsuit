@@ -1,0 +1,42 @@
+--- run 1/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	     224	  26697809 ns/op	  66.44 MB/s	 8630473 B/op	   41212 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows10000-24        	      40	 143658235 ns/op	  62.12 MB/s	41879675 B/op	  205411 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows25000-24        	      15	 365741770 ns/op	  62.91 MB/s	105661526 B/op	  517411 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	34.015s
+
+--- run 2/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	     218	  26727320 ns/op	  66.37 MB/s	 8494659 B/op	   41206 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows10000-24        	      40	 139805450 ns/op	  63.82 MB/s	41854039 B/op	  205412 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows25000-24        	      14	 395405951 ns/op	  58.19 MB/s	140831156 B/op	  534121 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	28.928s
+
+--- run 3/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	     220	  26824770 ns/op	  66.12 MB/s	 8647036 B/op	   41211 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows10000-24        	      40	 142781687 ns/op	  62.49 MB/s	41822839 B/op	  205411 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows25000-24        	      14	 390317216 ns/op	  58.95 MB/s	116345992 B/op	  518798 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	28.835s
+
+--- run 4/5 ---
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	     219	  27093735 ns/op	  65.48 MB/s	 8456091 B/op	   41204 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows10000-24        	      39	 142239725 ns/op	  62.74 MB/s	41866020 B/op	  205414 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows25000-24        	      14	 400511408 ns/op	  57.46 MB/s	140872483 B/op	  534180 allocs/op
+PASS

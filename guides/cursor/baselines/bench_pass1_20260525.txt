@@ -15,4 +15,4 @@ PASS
 ok  	github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf	91.118s
 
 # Post-Pass-1 snapshot (2000-row Helvetica table, 24 CPUs)
-# Note: alloc count unchanged on this workload — custom-font bench needed to measure P1-01/P1-02 wins
+# Note: alloc count unchanged on this workload - custom-font bench needed to measure P1-01/P1-02 wins

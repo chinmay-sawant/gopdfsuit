@@ -5,11 +5,44 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/typstsyntax"
 )
+
+const sharedHexDigits = "0123456789ABCDEF"
+
+const (
+	alignLeft   = "left"
+	alignCenter = "center"
+	alignRight  = "right"
+
+	rowBatchTableMaxRows = 20 // retail/active tables; P41 row-batch PDF/UA path
+)
+
+// cellTextX computes the X origin for text inside a cell, clamping so glyphs
+// never start left of the cell origin when centering overestimates width.
+func cellTextX(cellX, cellWidth, textWidth float64, alignment string) float64 {
+	const pad = 5.0
+	switch alignment {
+	case alignCenter:
+		offset := (cellWidth - textWidth) / 2
+		if offset < 0 {
+			offset = 0
+		}
+		return cellX + offset
+	case alignRight:
+		offset := cellWidth - textWidth - pad
+		if offset < 0 {
+			offset = 0
+		}
+		return cellX + offset
+	default:
+		return cellX + pad
+	}
+}
 
 // fmtNum formats a float with 2 decimal places (standard PDF precision)
 func fmtNum(f float64) string {
@@ -139,10 +172,63 @@ type sharedColumnLayout struct {
 	fontRef        string
 	fontDecl       []byte
 	textColorCmd   []byte
+	registeredFont *RegisteredFont
 	stdCharWidth   float64
 	usesCustomFont bool
 	uniformBorder  bool
 	borderWidth    int
+}
+
+type sharedRowRenderCacheKey struct {
+	row      *models.Row
+	page     int
+	mcidBase int
+	y        int64
+}
+
+const (
+	sharedRowRenderCacheMaxEntries = 4096
+	sharedRowRenderCacheMaxBytes   = 64 * 1024 * 1024
+	sharedRowRenderCacheMaxValue   = 256 * 1024
+	sharedRowBufInitialCap         = 768 // profiled compliant 7-col HFT row emit
+)
+
+type sharedRowRenderCacheStore struct {
+	mu      sync.RWMutex
+	entries map[sharedRowRenderCacheKey][]byte
+	bytes   int
+}
+
+var sharedRowRenderCache = &sharedRowRenderCacheStore{}
+
+func (c *sharedRowRenderCacheStore) Load(key sharedRowRenderCacheKey) ([]byte, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.entries == nil {
+		return nil, false
+	}
+	rendered, ok := c.entries[key]
+	return rendered, ok
+}
+
+func (c *sharedRowRenderCacheStore) Store(key sharedRowRenderCacheKey, rendered []byte) {
+	if len(rendered) == 0 || len(rendered) > sharedRowRenderCacheMaxValue {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.entries == nil {
+		c.entries = make(map[sharedRowRenderCacheKey][]byte, 512)
+	}
+	if existing, ok := c.entries[key]; ok {
+		c.bytes -= len(existing)
+	}
+	if len(c.entries) >= sharedRowRenderCacheMaxEntries || c.bytes+len(rendered) > sharedRowRenderCacheMaxBytes {
+		c.entries = make(map[sharedRowRenderCacheKey][]byte, 512)
+		c.bytes = 0
+	}
+	c.entries[key] = rendered
+	c.bytes += len(rendered)
 }
 
 func stdFontCharWidth(resolvedName string) float64 {
@@ -169,6 +255,33 @@ func buildTextColorCmd(textColor string) []byte {
 	return []byte("0 0 0 rg\n")
 }
 
+// markSharedTableCharsUsed registers every glyph in a shared-layout table before subsetting.
+// The HFT fast path skips the slow drawTable loop, so this pre-pass is required for PDF/A-4.
+func markSharedTableCharsUsed(table models.Table, sharedCols []sharedColumnLayout, maxColumns int, registry *CustomFontRegistry) {
+	type fontTextKey struct {
+		font string
+		text string
+	}
+	seen := make(map[fontTextKey]struct{}, 256)
+	for _, row := range table.Rows {
+		for colIdx, cell := range row.Row {
+			if colIdx >= maxColumns || colIdx >= len(sharedCols) {
+				break
+			}
+			sc := sharedCols[colIdx]
+			if cell.Text == "" || !sc.usesCustomFont {
+				continue
+			}
+			key := fontTextKey{font: sc.resolvedFont, text: cell.Text}
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			registry.MarkCharsUsed(sc.resolvedFont, cell.Text)
+		}
+	}
+}
+
 // prepSharedDeferRow updates only per-row varying fields (text width, optional text color).
 func prepSharedDeferRow(
 	row models.Row,
@@ -182,7 +295,7 @@ func prepSharedDeferRow(
 			break
 		}
 		sc := sharedCols[colIdx]
-		if cell.Text != "" {
+		if cell.Text != "" && (sc.props.Alignment == alignCenter || sc.props.Alignment == alignRight) {
 			rowSingleLineTextWidths[colIdx] = float64(utf8.RuneCountInString(cell.Text)) *
 				float64(sc.props.FontSize) * sc.stdCharWidth
 		} else {
@@ -194,6 +307,42 @@ func prepSharedDeferRow(
 			rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], sc.textColorCmd...)
 		}
 	}
+}
+
+func prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes [][]byte, maxColumns int) {
+	for colIdx := range maxColumns {
+		prefix := rowTextPrefixes[colIdx][:0]
+		prefix = append(prefix, rowFontDecls[colIdx]...)
+		prefix = append(prefix, rowTextColorCmds[colIdx]...)
+		prefix = append(prefix, "1 0 0 1 0 0 Tm\n"...)
+		rowTextPrefixes[colIdx] = prefix
+	}
+}
+
+func scaledCoordKey(v float64) int64 {
+	if v < 0 {
+		return int64(v*100 - 0.5)
+	}
+	return int64(v*100 + 0.5)
+}
+
+func appendTextForSharedColumn(dst []byte, sc sharedColumnLayout, text string) []byte {
+	if sc.registeredFont == nil {
+		dst = append(dst, '(')
+		dst = appendEscapedPDFLiteral(dst, text)
+		return append(dst, ')')
+	}
+	dst = append(dst, '<')
+	spaceHex := [4]byte{sharedHexDigits[0], sharedHexDigits[0], sharedHexDigits[uint16(' ')>>4&0xF], sharedHexDigits[uint16(' ')&0xF]}
+	for _, char := range text {
+		if _, exists := sc.registeredFont.Font.CharToGlyph[char]; exists {
+			v := uint16(char)
+			dst = append(dst, sharedHexDigits[v>>12&0xF], sharedHexDigits[v>>8&0xF], sharedHexDigits[v>>4&0xF], sharedHexDigits[v&0xF])
+		} else {
+			dst = append(dst, spaceHex[0], spaceHex[1], spaceHex[2], spaceHex[3])
+		}
+	}
+	return append(dst, '>')
 }
 
 func sharedRowTemplateIndex(table models.Table) int {
@@ -211,7 +360,7 @@ func sharedRowTemplateIndex(table models.Table) int {
 }
 
 func tableSupportsSharedRowLayout(table models.Table, templateRow int) bool {
-	// Explicit template row skips O(rows×cols) validation — caller attests uniformity.
+	// Explicit template row skips O(rows×cols) validation - caller attests uniformity.
 	if table.SharedRowTemplateRow > 0 {
 		return true
 	}
@@ -257,6 +406,11 @@ func sharedColsUniformBorder(cols []sharedColumnLayout) (width int, ok bool) {
 }
 
 // drawSharedDeferRow renders a uniform shared-layout data row (HFT fast path).
+// P6 (2026-06-20 checklist): the per-cell BDC/EMC is emitted via the
+// lightweight WriteCellMarkedContentBDC / EndCellMarkedContentBuf pair. The
+// caller (drawSharedLayoutRow) is expected to have already created the
+// TR + per-column TD struct elems via BeginTableRowWithTDMCIDs, so this
+// function does not allocate any struct-elem nodes.
 func drawSharedDeferRow(
 	contentStream *bytes.Buffer,
 	row models.Row,
@@ -267,16 +421,18 @@ func drawSharedDeferRow(
 	pageManager *PageManager,
 	scratchBuf, textTjBuf, borderBuf []byte,
 	rowCellProps []models.Props,
-	rowFontDecls [][]byte,
-	rowTextColorCmds [][]byte,
-	rowResolvedFonts []string,
+	rowTextPrefixes [][]byte,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
+	charsPreScanned bool,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
 	currentX := pageManager.Margins.Left
 	rowLeft := currentX
 	rowWidth := 0.0
+	emcLiteral := []byte("EMC\n")
+	btLiteral := []byte("BT\n")
+	tjETLiteral := []byte(" Tj\nET\n")
 
 	for colIdx, cell := range row.Row {
 		if colIdx >= maxColumns {
@@ -287,8 +443,8 @@ func drawSharedDeferRow(
 		cellX := currentX
 		currentX += cellWidth
 
-		pageManager.Structure.BeginMarkedContentBufWithMCID(
-			contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx,
+		pageManager.Structure.WriteCellMarkedContentBDC(
+			contentStream, StructTD, rowMCIDBase+colIdx,
 		)
 
 		if cell.BgColor != "" {
@@ -315,31 +471,32 @@ func drawSharedDeferRow(
 		}
 
 		if cell.Text != "" {
+			if !charsPreScanned && colIdx < len(sharedCols) && sharedCols[colIdx].usesCustomFont {
+				pageManager.FontRegistry.MarkCharsUsed(sharedCols[colIdx].resolvedFont, cell.Text)
+			}
 			cellProps := rowCellProps[colIdx]
 			textWidth := rowSingleLineTextWidths[colIdx]
 			textX := cellX + 5
-			if cellProps.Alignment == "center" && textWidth > 0 { //nolint:goconst
+			if cellProps.Alignment == alignCenter && textWidth > 0 {
 				textX = cellX + (cellWidth-textWidth)/2
-			} else if cellProps.Alignment == "right" && textWidth > 0 { //nolint:goconst
+			} else if cellProps.Alignment == alignRight && textWidth > 0 {
 				textX = cellX + cellWidth - textWidth - 5
 			}
 			textY := pageManager.CurrentYPos - rowHeight/2 - float64(cellProps.FontSize)/2
 
-			contentStream.WriteString("BT\n")
-			contentStream.Write(rowFontDecls[colIdx])
-			contentStream.Write(rowTextColorCmds[colIdx])
-			contentStream.WriteString("1 0 0 1 0 0 Tm\n")
+			contentStream.Write(btLiteral)
+			contentStream.Write(rowTextPrefixes[colIdx])
 			pos := appendFmtNum(scratchBuf[:0], textX)
 			pos = append(pos, ' ')
 			pos = appendFmtNum(pos, textY)
 			pos = append(pos, " Td\n"...)
 			contentStream.Write(pos)
-			textTjBuf = appendTextForPDF(textTjBuf[:0], rowResolvedFonts[colIdx], cell.Text, pageManager.FontRegistry)
-			textTjBuf = append(textTjBuf, " Tj\nET\n"...)
+			textTjBuf = appendTextForSharedColumn(textTjBuf[:0], sharedCols[colIdx], cell.Text)
+			textTjBuf = append(textTjBuf, tjETLiteral...)
 			contentStream.Write(textTjBuf)
 		}
 
-		pageManager.Structure.EndMarkedContentBuf(contentStream)
+		contentStream.Write(emcLiteral)
 	}
 
 	if borderW, uniform := sharedColsUniformBorder(sharedCols); uniform {
@@ -362,9 +519,15 @@ func drawSharedDeferRow(
 }
 
 // drawSharedLayoutRow draws a shared-layout data row with PDF/UA Table → TR → TD hierarchy.
+// P6 (2026-06-20 checklist): the HFT fast path now sets up the TR + 7 TD struct
+// elems in a single call to BeginTableRowWithTDMCIDs (arena path) and emits
+// the per-cell BDC/EMC through the lightweight WriteCellMarkedContentBDC /
+// EndCellMarkedContentBuf pair (no per-cell struct allocation, no per-cell
+// beginMarkedContentBuf grow).
 func drawSharedLayoutRow(
 	pageManager *PageManager,
 	contentStream *bytes.Buffer,
+	rowPtr *models.Row,
 	row models.Row,
 	colWidths []float64,
 	sharedCols []sharedColumnLayout,
@@ -373,18 +536,66 @@ func drawSharedLayoutRow(
 	rowCellProps []models.Props,
 	rowFontDecls [][]byte,
 	rowTextColorCmds [][]byte,
-	rowResolvedFonts []string,
+	rowTextPrefixes [][]byte,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
+	charsPreScanned bool,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
-	pageManager.Structure.BeginStructureElementCap(StructTR, cellCount)
-	rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+	rowMCIDBase := pageManager.Structure.ReserveMCIDsLite(pageManager.CurrentPageIndex, cellCount)
+	pageIndex := pageManager.CurrentPageIndex
+
+	if rowPtr != nil {
+		cacheKey := sharedRowRenderCacheKey{
+			row:      rowPtr,
+			page:     pageIndex,
+			mcidBase: rowMCIDBase,
+			y:        scaledCoordKey(pageManager.CurrentYPos),
+		}
+		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
+			pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
+			appendContentStream(contentStream, cached)
+			pageManager.Structure.EndStructureElement()
+			pageManager.CurrentYPos -= rowHeight
+			return
+		}
+
+		var rowBuf bytes.Buffer
+		rowGrow := sharedRowBufInitialCap
+		if pageManager.sharedRowBytes > 0 {
+			rowGrow = pageManager.sharedRowBytes
+		}
+		rowBuf.Grow(rowGrow)
+		prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, maxColumns)
+		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, maxColumns)
+		// P6: build TR + 7 TD struct elems in a single arena pass; the per-cell
+		// BDC/EMC is then emitted by drawSharedDeferRow via the lightweight
+		// WriteCellMarkedContentBDC / EndCellMarkedContentBuf pair.
+		pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
+		drawSharedDeferRow(
+			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
+			scratchBuf, textTjBuf, borderBuf,
+			rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
+			maxColumns, charsPreScanned,
+		)
+		rendered := append([]byte(nil), rowBuf.Bytes()...)
+		pageManager.NoteSharedRowBytes(len(rendered))
+		sharedRowRenderCache.Store(cacheKey, rendered)
+		appendContentStream(contentStream, rendered)
+		pageManager.Structure.EndStructureElement()
+		pageManager.CurrentYPos -= rowHeight
+		return
+	}
+
+	// P6: same fast path as the cached branch - set up TR + TDs up front
+	// (arena allocation, no sync.Pool churn) and let drawSharedDeferRow emit
+	// BDC/EMC per cell without re-allocating a struct elem each time.
+	pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
-		rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
-		maxColumns,
+		rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
+		maxColumns, charsPreScanned,
 	)
 	pageManager.Structure.EndStructureElement()
 	pageManager.CurrentYPos -= rowHeight
@@ -399,6 +610,7 @@ func buildSharedColumnLayouts(table models.Table, templateRow int, registry *Cus
 		}
 		props := parseProps(cell.Props)
 		resolved := resolveFontName(props, registry)
+		registeredFont, _ := registry.GetFont(resolved)
 		decl := append([]byte(nil), getFontReferenceByResolvedName(resolved, registry)...)
 		decl = append(decl, ' ')
 		decl = strconv.AppendInt(decl, int64(props.FontSize), 10)
@@ -417,6 +629,7 @@ func buildSharedColumnLayouts(table models.Table, templateRow int, registry *Cus
 			fontRef:        getFontReferenceByResolvedName(resolved, registry),
 			fontDecl:       decl,
 			textColorCmd:   buildTextColorCmd(textColor),
+			registeredFont: registeredFont,
 			stdCharWidth:   stdFontCharWidth(resolved),
 			usesCustomFont: registry.IsCustomFont(resolved),
 			uniformBorder:  uniform,
@@ -576,12 +789,10 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 	var titleX float64
 	switch titleProps.Alignment {
-	case "center": //nolint:goconst
-		// Center the text within the available area (between margins)
-		titleX = pageManager.Margins.Left + (availableWidth-textWidth)/2
-	case "right": //nolint:goconst
-		// Right align: position text so it ends at the right margin
-		titleX = pageManager.PageDimensions.Width - pageManager.Margins.Right - textWidth
+	case alignCenter:
+		titleX = cellTextX(pageManager.Margins.Left, availableWidth, textWidth, alignCenter)
+	case alignRight:
+		titleX = cellTextX(pageManager.Margins.Left, availableWidth, textWidth, alignRight)
 	default:
 		titleX = pageManager.Margins.Left
 	}
@@ -888,15 +1099,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				resolvedName := resolveFontName(cellProps, pageManager.FontRegistry)
 				textWidth := EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 
-				var textX float64
-				switch cellProps.Alignment {
-				case "center":
-					textX = cellX + (cellWidth-textWidth)/2
-				case "right":
-					textX = cellX + cellWidth - textWidth - 5
-				default:
-					textX = cellX + 5
-				}
+				textX := cellTextX(cellX, cellWidth, textWidth, cellProps.Alignment)
 
 				textY := pageManager.CurrentYPos - cellHeight/2 - float64(cellProps.FontSize)/2
 
@@ -1090,6 +1293,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	rowFontRefs := make([]string, table.MaxColumns)
 	rowFontDecls := make([][]byte, table.MaxColumns)
 	rowTextColorCmds := make([][]byte, table.MaxColumns)
+	rowTextPrefixes := make([][]byte, table.MaxColumns)
 	rowUsesCustomFonts := make([]bool, table.MaxColumns)
 	rowSingleLineTextWidths := make([]float64, table.MaxColumns)
 	// Scratch buffers reused across all cells to reduce allocations
@@ -1103,15 +1307,21 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 	templateRow := sharedRowTemplateIndex(table)
 	var sharedCols []sharedColumnLayout
+	charsPreScanned := false
 	useSharedLayout := templateRow >= 0 && tableSupportsSharedRowLayout(table, templateRow)
+	useRowBatchUA := len(table.Rows) <= rowBatchTableMaxRows && table.MaxColumns <= maxInlineStructKids
 	if useSharedLayout {
 		sharedCols = buildSharedColumnLayouts(table, templateRow, pageManager.FontRegistry)
+		markSharedTableCharsUsed(table, sharedCols, table.MaxColumns, pageManager.FontRegistry)
+		charsPreScanned = true
 	}
 
 	largeTable := len(table.Rows) > 100
 	stripeRows := 0
 	if largeTable {
 		stripeRows = pageManager.RowsFitOnCurrentPage(baseRowHeight)
+		pageManager.GrowCurrentStreamForStripe(stripeRows, table.MaxColumns)
+		pageManager.Structure.PrepareArenaStripe(stripeRows, table.MaxColumns)
 		pageManager.Structure.PreallocatePageMCIDSlots(pageManager.CurrentPageIndex, stripeRows*table.MaxColumns)
 	}
 
@@ -1133,7 +1343,6 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 		if fastRow && sharedDeferFast {
 			rowHeight := baseRowHeight
-			prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, table.MaxColumns)
 
 			if pageManager.CheckPageBreak(rowHeight) {
 				pageManager.AddNewPage()
@@ -1143,6 +1352,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 					if remaining < stripeRows {
 						stripeRows = remaining
 					}
+					pageManager.GrowCurrentStreamForStripe(stripeRows, table.MaxColumns)
+					pageManager.Structure.PrepareArenaStripe(stripeRows, table.MaxColumns)
 					pageManager.Structure.PreallocatePageMCIDSlots(
 						pageManager.CurrentPageIndex,
 						stripeRows*table.MaxColumns,
@@ -1151,17 +1362,13 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			drawSharedLayoutRow(
-				pageManager, pageManager.GetCurrentContentStream(), row, colWidths, sharedCols, rowHeight,
+				pageManager, pageManager.GetCurrentContentStream(), &table.Rows[rowIdx], row, colWidths, sharedCols, rowHeight,
 				scratchBuf, textTjBuf, borderBuf,
-				rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
-				table.MaxColumns,
+				rowCellProps, rowFontDecls, rowTextColorCmds, rowTextPrefixes, rowSingleLineTextWidths,
+				table.MaxColumns, charsPreScanned,
 			)
 			continue
 		}
-
-		// PDF/UA: Start Row Structure
-		kidCap := min(len(row.Row), table.MaxColumns)
-		pageManager.Structure.BeginStructureElementCap(StructTR, kidCap)
 
 		// Pre-calculate column widths and parsed props
 		// We need to know each cell's width before calculating wrapped text height
@@ -1224,7 +1431,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			cellProps := parseProps(cell.Props)
 			rowCellProps[colIdx] = cellProps
 
-			// Resolve font name once per cell — used for text width, wrapping, and rendering
+			// Resolve font name once per cell - used for text width, wrapping, and rendering
 			rowResolvedFonts[colIdx] = resolveFontName(cellProps, pageManager.FontRegistry)
 			rowFontRefs[colIdx] = getFontReferenceByResolvedName(rowResolvedFonts[colIdx], pageManager.FontRegistry)
 			rowFontDecls[colIdx] = append(rowFontDecls[colIdx][:0], rowFontRefs[colIdx]...)
@@ -1259,7 +1466,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				if maxTextWidth < 10 {
 					maxTextWidth = 10 // Minimum width to avoid issues
 				}
-				wrappedTextLines[colIdx] = WrapTextInto(&wrapState, cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry)
+				wrappedTextLines[colIdx] = cloneWrapLines(WrapTextInto(&wrapState, cell.Text, rowResolvedFonts[colIdx], float64(cellProps.FontSize), maxTextWidth, pageManager.FontRegistry))
 			}
 
 			// Mark chars used for subsetting only when the resolved font is custom.
@@ -1267,7 +1474,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				if rowUsesCustomFonts[colIdx] {
 					pageManager.FontRegistry.MarkCharsUsed(rowResolvedFonts[colIdx], cell.Text)
 				}
-				if !isWrapEnabled && (cell.MathEnabled == nil || !*cell.MathEnabled || !typstsyntax.IsMathExpression(cell.Text)) {
+				needsTextWidth := cellProps.Alignment == alignCenter || cellProps.Alignment == alignRight
+				if needsTextWidth && !isWrapEnabled && (cell.MathEnabled == nil || !*cell.MathEnabled || !typstsyntax.IsMathExpression(cell.Text)) {
 					rowSingleLineTextWidths[colIdx] = EstimateTextWidth(rowResolvedFonts[colIdx], cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 				}
 			}
@@ -1318,17 +1526,10 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 		cellCount := min(len(row.Row), table.MaxColumns)
 		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
-
-		if fastRow && len(sharedCols) > 0 {
-			drawSharedDeferRow(
-				contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
-				scratchBuf, textTjBuf, borderBuf,
-				rowCellProps, rowFontDecls, rowTextColorCmds, rowResolvedFonts, rowSingleLineTextWidths,
-				table.MaxColumns,
-			)
-			pageManager.Structure.EndStructureElement()
-			pageManager.CurrentYPos -= rowHeight
-			continue
+		if useRowBatchUA {
+			pageManager.Structure.BeginTableRowWithTDMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
+		} else {
+			pageManager.Structure.BeginStructureElementCap(StructTR, cellCount)
 		}
 
 		// Draw row cells
@@ -1341,7 +1542,11 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			// PDF/UA: Start Cell Structure (TH for header if first row, else TD)
 			cellType := StructTD
 			mcid := rowMCIDBase + colIdx
-			pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, mcid)
+			if useRowBatchUA {
+				pageManager.Structure.WriteCellMarkedContentBDC(contentStream, cellType, mcid)
+			} else {
+				pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, mcid)
+			}
 
 			cellProps := rowCellProps[colIdx] // Use cached props
 			cellX := currentX
@@ -1579,9 +1784,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				// Center the math expression within the cell
 				var mathX float64
 				switch cellProps.Alignment {
-				case "center":
+				case alignCenter:
 					mathX = cellX + (cellWidth-layout.Width)/2
-				case "right":
+				case alignRight:
 					mathX = cellX + cellWidth - layout.Width - 5
 				default:
 					mathX = cellX + 5
@@ -1622,9 +1827,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						// Calculate X position based on alignment
 						var textX float64
 						switch cellProps.Alignment {
-						case "center":
+						case alignCenter:
 							textX = cellX + (cellWidth-lineEstWidth)/2
-						case "right":
+						case alignRight:
 							textX = cellX + cellWidth - lineEstWidth - 5
 						default:
 							textX = cellX + 5
@@ -1657,10 +1862,10 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 					var textX float64
 					switch cellProps.Alignment {
-					case "center":
+					case alignCenter:
 						// Center the text within the cell
 						textX = cellX + (cellWidth-textWidth)/2
-					case "right":
+					case alignRight:
 						// Right align: position text so it ends near the right edge of cell
 						textX = cellX + cellWidth - textWidth - 5
 					default:
@@ -1807,7 +2012,11 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			// PDF/UA: End Cell Structure
-			pageManager.Structure.EndMarkedContentBuf(contentStream)
+			if useRowBatchUA {
+				pageManager.Structure.EndCellMarkedContentBuf(contentStream)
+			} else {
+				pageManager.Structure.EndMarkedContentBuf(contentStream)
+			}
 		}
 
 		// PDF/UA: End Row Structure

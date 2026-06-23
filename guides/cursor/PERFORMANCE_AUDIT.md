@@ -1,7 +1,7 @@
 # GoPdfSuit Performance Architecture & Profiling Audit
 
 **Date:** 2026-05-25  
-**Scope:** Full codebase — `internal/pdf/`, font pipeline, merge, redact, HTTP server, benchmarks
+**Scope:** Full codebase - `internal/pdf/`, font pipeline, merge, redact, HTTP server, benchmarks
 
 ---
 
@@ -21,7 +21,7 @@ Three **structural bottlenecks** dominate throughput and p99 latency:
 
 ---
 
-## Agent 1 — Memory (Allocation Eliminator)
+## Agent 1 - Memory (Allocation Eliminator)
 
 ### Existing Pools
 
@@ -35,32 +35,32 @@ Three **structural bottlenecks** dominate throughput and p99 latency:
 
 ### Critical Findings
 
-1. **`formatTextForPDF` → string** — `utils.go:368-373`, every `Tj` in `draw.go`
-2. **`EncodeTextForCustomFont` → `string(buf)`** — `font/metrics.go:1035-1057`
-3. **`WrapText` string churn** — `utils.go:378-474`
-4. **PDF objects as `map[int]string`** — finalize spike
-5. **`EncryptStream` 3–4 allocs per stream** — when encryption enabled
-6. **Page buffers zero-capacity start** — `pagemanager.go:70`
+1. **`formatTextForPDF` → string** - `utils.go:368-373`, every `Tj` in `draw.go`
+2. **`EncodeTextForCustomFont` → `string(buf)`** - `font/metrics.go:1035-1057`
+3. **`WrapText` string churn** - `utils.go:378-474`
+4. **PDF objects as `map[int]string`** - finalize spike
+5. **`EncryptStream` 3–4 allocs per stream** - when encryption enabled
+6. **Page buffers zero-capacity start** - `pagemanager.go:70`
 
 ### Top Optimizations
 
-- `appendTextOperand(dst []byte, ...)` — zero-alloc text encoding
-- `RuneSet` bitmap — replace `UsedChars map[rune]bool`
+- `appendTextOperand(dst []byte, ...)` - zero-alloc text encoding
+- `RuneSet` bitmap - replace `UsedChars map[rune]bool`
 - Pooled encryption scratch
 - Pre-grow page content streams
 
 ---
 
-## Agent 2 — I/O & CPU (Hotpath Optimizer)
+## Agent 2 - I/O & CPU (Hotpath Optimizer)
 
 ### Bottleneck Ranking
 
-1. String intermediates for binary streams — `image.go:441-490`, `font/metrics.go:647-705`
-2. Fragmented content-stream writes — `draw.go:1125-1197` (~25K Write calls / 5K cells)
-3. Unpooled `zlib.NewWriter` — `pdfa.go`, `metadata.go`, `subset.go`, `form/xfdf.go`
-4. Full-buffer MD5 — `generator.go:1004-1007`
-5. TTF `parseHmtx` per-glyph `binary.Read` — `font/ttf.go:284-301`
-6. Sparse `CIDToGIDMap` — `font/metrics.go:857`
+1. String intermediates for binary streams - `image.go:441-490`, `font/metrics.go:647-705`
+2. Fragmented content-stream writes - `draw.go:1125-1197` (~25K Write calls / 5K cells)
+3. Unpooled `zlib.NewWriter` - `pdfa.go`, `metadata.go`, `subset.go`, `form/xfdf.go`
+4. Full-buffer MD5 - `generator.go:1004-1007`
+5. TTF `parseHmtx` per-glyph `binary.Read` - `font/ttf.go:284-301`
+6. Sparse `CIDToGIDMap` - `font/metrics.go:857`
 
 ### Existing Optimizations (Preserve)
 
@@ -70,7 +70,7 @@ Three **structural bottlenecks** dominate throughput and p99 latency:
 
 ---
 
-## Agent 3 — Concurrency Auditor
+## Agent 3 - Concurrency Auditor
 
 ### Model
 
@@ -94,7 +94,7 @@ Three **structural bottlenecks** dominate throughput and p99 latency:
 
 ---
 
-## Agent 4 — Data Structure Evaluator
+## Agent 4 - Data Structure Evaluator
 
 ### Map Replacements
 
@@ -114,7 +114,7 @@ Redact FindTextOccurrences: O(P × (|content| + N²))
 
 ---
 
-## Agent 5 — Profiling Strategy
+## Agent 5 - Profiling Strategy
 
 ### Existing Benchmarks
 
@@ -133,7 +133,7 @@ Redact FindTextOccurrences: O(P × (|content| + N²))
 
 ---
 
-## Agent 6 — Synthesis (Impact vs Effort)
+## Agent 6 - Synthesis (Impact vs Effort)
 
 See [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) for the phased roadmap.
 
@@ -160,6 +160,6 @@ benchstat /tmp/bench_before.txt /tmp/bench_after.txt
 
 ## Related Docs
 
-- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) — phased execution plan
-- [PASS1_BLUEPRINTS.md](./PASS1_BLUEPRINTS.md) — before/after code for Pass 1
-- [../additionalnotes/PERFORMANCE_OPTIMIZATIONS.md](../additionalnotes/PERFORMANCE_OPTIMIZATIONS.md) — prior pprof analysis
+- [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) - phased execution plan
+- [PASS1_BLUEPRINTS.md](./PASS1_BLUEPRINTS.md) - before/after code for Pass 1
+- [../additionalnotes/PERFORMANCE_OPTIMIZATIONS.md](../additionalnotes/PERFORMANCE_OPTIMIZATIONS.md) - prior pprof analysis

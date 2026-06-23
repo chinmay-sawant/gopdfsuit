@@ -1,0 +1,172 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-18T01:08:48+05:30" level=info msg="pprof load: 48 VUs × 35s, scenario=tagged_ecdsa" source=console
+
+running (0m01.0s), 48/48 VUs, 1093 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 1902 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 3090 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 4390 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 5697 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 6977 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.0s), 48/48 VUs, 8270 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.0s/35s
+
+running (0m08.0s), 48/48 VUs, 9630 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 10863 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 12556 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 13974 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 15113 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 16583 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 18114 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 19468 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 20726 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.0s), 48/48 VUs, 22160 complete and 0 interrupted iterations
+steady   [  49% ] 48 VUs  17.0s/35s
+
+running (0m18.0s), 48/48 VUs, 23240 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 24624 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.1s), 48/48 VUs, 25909 complete and 0 interrupted iterations
+steady   [  58% ] 48 VUs  20.1s/35s
+
+running (0m21.0s), 48/48 VUs, 27200 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 28546 complete and 0 interrupted iterations
+steady   [  63% ] 48 VUs  22.0s/35s
+
+running (0m23.0s), 48/48 VUs, 29752 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.0s/35s
+
+running (0m24.0s), 48/48 VUs, 31127 complete and 0 interrupted iterations
+steady   [  69% ] 48 VUs  24.0s/35s
+
+running (0m25.0s), 48/48 VUs, 32364 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  25.0s/35s
+
+running (0m26.0s), 48/48 VUs, 33590 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  26.0s/35s
+
+running (0m27.0s), 48/48 VUs, 34620 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  27.0s/35s
+
+running (0m28.0s), 48/48 VUs, 36155 complete and 0 interrupted iterations
+steady   [  80% ] 48 VUs  28.0s/35s
+
+running (0m29.0s), 48/48 VUs, 37724 complete and 0 interrupted iterations
+steady   [  83% ] 48 VUs  29.0s/35s
+
+running (0m30.0s), 48/48 VUs, 38975 complete and 0 interrupted iterations
+steady   [  86% ] 48 VUs  30.0s/35s
+
+running (0m31.0s), 48/48 VUs, 40424 complete and 0 interrupted iterations
+steady   [  89% ] 48 VUs  31.0s/35s
+
+running (0m32.0s), 48/48 VUs, 41977 complete and 0 interrupted iterations
+steady   [  91% ] 48 VUs  32.0s/35s
+
+running (0m33.0s), 48/48 VUs, 43231 complete and 0 interrupted iterations
+steady   [  94% ] 48 VUs  33.0s/35s
+
+running (0m34.0s), 48/48 VUs, 44532 complete and 0 interrupted iterations
+steady   [  97% ] 48 VUs  34.0s/35s
+
+running (0m35.0s), 48/48 VUs, 45527 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35.0s/35s
+time="2026-06-18T01:09:23+05:30" level=info msg="pprof load done (started 2026-06-17T19:38:48.036Z)" source=console
+
+
+  █ THRESHOLDS 
+
+    errors
+    ✓ 'rate<0.05' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(99)<5000' p(99)=547.45ms
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 91158   2584.665257/s
+    checks_succeeded...: 100.00% 91158 out of 91158
+    checks_failed......: 0.00%   0 out of 91158
+
+    ✓ status is 200
+    ✓ response has content
+
+    CUSTOM
+    active_latency.................: avg=9.045157   min=2        med=6      max=139     p(90)=17      p(95)=24       p(99)=43      
+    errors.........................: 0.00%  0 out of 45579
+    hft_latency....................: avg=491.891689 min=137      med=491    max=1146    p(90)=666     p(95)=717      p(99)=843.17  
+    pdf_generation_time............: avg=30.226486  min=1        med=4      max=1146    p(90)=18      p(95)=109.2    p(99)=612     
+    retail_latency.................: avg=5.579937   min=1        med=3      max=204     p(90)=11      p(95)=17       p(99)=36      
+
+    HTTP
+    http_req_duration..............: avg=25.87ms    min=448.88µs med=3.21ms max=937.4ms p(90)=15.85ms p(95)=81.66ms  p(99)=547.45ms
+      { expected_response:true }...: avg=25.87ms    min=448.88µs med=3.21ms max=937.4ms p(90)=15.85ms p(95)=81.66ms  p(99)=547.45ms
+    http_req_failed................: 0.00%  0 out of 45580
+    http_reqs......................: 45580  1292.360982/s
+
+    EXECUTION
+    iteration_duration.............: avg=36.97ms    min=1.45ms   med=5.46ms max=1.24s   p(90)=21.46ms p(95)=118.36ms p(99)=709ms   
+    iterations.....................: 45579  1292.332629/s
+    vus............................: 48     min=48         max=48
+    vus_max........................: 48     min=48         max=48
+
+    NETWORK
+    data_received..................: 4.3 GB 123 MB/s
+    data_sent......................: 3.0 GB 85 MB/s
+
+
+
+
+running (0m35.3s), 00/48 VUs, 45579 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s

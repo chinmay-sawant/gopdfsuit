@@ -46,17 +46,231 @@ func (d *BorrowedPDF) Release() {
 	if d == nil || d.buf == nil {
 		return
 	}
-	pdfBufferPool.Put(d.buf)
+	putPDFBuffer(d.buf)
 	d.buf = nil
 }
 
 // pdfBufferPool reuses bytes.Buffer across PDF generations to reduce GC pressure.
-var pdfBufferPool = sync.Pool{
-	New: func() any {
+// Caps are sized from measured compliant Zerodha outputs (2026-06-22): retail 61,301 B,
+// active 73,835 B, HFT 2,291,942 B - each with headroom for post-content emit.
+const (
+	retailPDFBufferCap    = 96 * 1024
+	activePDFBufferCap    = 128 * 1024
+	hftPDFBufferCap       = 2816 * 1024 // 2.75 MiB: zero-grow for estimateFinalPDFSize on HFT
+	maxPooledPDFBufferCap = 3 * 1024 * 1024
+
+	capacityTierRetail = "retail"
+	capacityTierActive = "active"
+	capacityTierHFT    = "hft"
+)
+
+// CapacityHighWater tracks per-tier final buffer len/cap peaks when capacity
+// debug is enabled (BENCH_DEBUG_CAPS=1).
+type CapacityHighWater struct {
+	RetailLen   int
+	RetailCap   int
+	ActiveLen   int
+	ActiveCap   int
+	HFTLen      int
+	HFTCap      int
+	GrowCount   uint64
+	PostCapGrow uint64
+}
+
+var pdfCapacityHighWater CapacityHighWater
+
+var (
+	pdfBufferPoolSmall = sync.Pool{
+		New: func() any {
+			buf := new(bytes.Buffer)
+			buf.Grow(retailPDFBufferCap)
+			return buf
+		},
+	}
+	pdfBufferPoolLarge = sync.Pool{
+		New: func() any {
+			buf := new(bytes.Buffer)
+			buf.Grow(hftPDFBufferCap)
+			return buf
+		},
+	}
+)
+
+func getPDFBuffer(want int) *bytes.Buffer {
+	if want >= 1024*1024 {
+		if v := pdfBufferPoolLarge.Get(); v != nil {
+			return v.(*bytes.Buffer)
+		}
 		buf := new(bytes.Buffer)
-		buf.Grow(256 * 1024) // 256KB initial capacity reduces final assembly growth for multi-page PDFs.
+		buf.Grow(hftPDFBufferCap)
 		return buf
-	},
+	}
+	if v := pdfBufferPoolSmall.Get(); v != nil {
+		return v.(*bytes.Buffer)
+	}
+	buf := new(bytes.Buffer)
+	buf.Grow(retailPDFBufferCap)
+	return buf
+}
+
+func initPDFBufferPools() {
+	n := runtime.GOMAXPROCS(0)
+	for range n {
+		small := new(bytes.Buffer)
+		small.Grow(activePDFBufferCap)
+		pdfBufferPoolSmall.Put(small)
+		large := new(bytes.Buffer)
+		large.Grow(hftPDFBufferCap)
+		pdfBufferPoolLarge.Put(large)
+	}
+}
+
+func putPDFBuffer(buf *bytes.Buffer) {
+	if buf == nil {
+		return
+	}
+	bufCap := buf.Cap()
+	buf.Reset()
+	if bufCap >= 2*1024*1024 && bufCap <= maxPooledPDFBufferCap {
+		pdfBufferPoolLarge.Put(buf)
+		return
+	}
+	if bufCap >= 32*1024 && bufCap <= 512*1024 {
+		pdfBufferPoolSmall.Put(buf)
+	}
+}
+
+const xrefOffsetUnused = -1
+
+var (
+	xrefOffsetsSlicePool = sync.Pool{
+		New: func() any {
+			s := make([]int, 0, 2048)
+			return &s
+		},
+	}
+	usedXrefIDsPool = sync.Pool{
+		New: func() any {
+			s := make([]int, 0, 64)
+			return &s
+		},
+	}
+)
+
+type xrefOffsetsHandle struct {
+	buf *[]int
+}
+
+func newXrefOffsetsHandle(capHint int) xrefOffsetsHandle {
+	if capHint < 512 {
+		capHint = 512
+	}
+	slot := xrefOffsetsSlicePool.Get().(*[]int)
+	if cap(*slot) < capHint {
+		s := make([]int, 0, capHint)
+		slot = &s
+	} else {
+		*slot = (*slot)[:0]
+	}
+	return xrefOffsetsHandle{buf: slot}
+}
+
+func (h xrefOffsetsHandle) ptr() *[]int {
+	return h.buf
+}
+
+func (h xrefOffsetsHandle) release() {
+	if h.buf == nil {
+		return
+	}
+	s := *h.buf
+	if cap(s) > 64*1024 {
+		return
+	}
+	for i := range s {
+		s[i] = xrefOffsetUnused
+	}
+	*h.buf = s[:0]
+	xrefOffsetsSlicePool.Put(h.buf)
+}
+
+func growXrefOffsets(xrefOffsets *[]int, id int) {
+	if id < 0 {
+		return
+	}
+	need := id + 1
+	s := *xrefOffsets
+	if len(s) >= need {
+		return
+	}
+	if cap(s) >= need {
+		oldLen := len(s)
+		s = s[:need]
+		for i := oldLen; i < need; i++ {
+			s[i] = xrefOffsetUnused
+		}
+		*xrefOffsets = s
+		return
+	}
+	newCap := need
+	if newCap < cap(s)*2 {
+		newCap = cap(s) * 2
+	}
+	if newCap < need {
+		newCap = need
+	}
+	grown := make([]int, need, newCap)
+	copy(grown, s)
+	for i := len(s); i < need; i++ {
+		grown[i] = xrefOffsetUnused
+	}
+	*xrefOffsets = grown
+}
+
+func setXrefOffset(xrefOffsets *[]int, id, offset int) {
+	growXrefOffsets(xrefOffsets, id)
+	(*xrefOffsets)[id] = offset
+}
+
+func xrefOffsetAt(xrefOffsets []int, id int) (int, bool) {
+	if id < 0 || id >= len(xrefOffsets) || xrefOffsets[id] < 0 {
+		return 0, false
+	}
+	return xrefOffsets[id], true
+}
+
+func collectUsedXrefObjectIDs(xrefOffsets []int) []int {
+	maxID := 0
+	for id, offset := range xrefOffsets {
+		if offset >= 0 && id > maxID {
+			maxID = id
+		}
+	}
+	slot := usedXrefIDsPool.Get().(*[]int)
+	used := (*slot)[:0]
+	if cap(used) < maxID+2 {
+		used = make([]int, 0, maxID+2)
+	}
+	used = append(used, 0)
+	for id := 1; id <= maxID; id++ {
+		if id < len(xrefOffsets) && xrefOffsets[id] >= 0 {
+			used = append(used, id)
+		}
+	}
+	out := slices.Clone(used)
+	*slot = used[:0]
+	usedXrefIDsPool.Put(slot)
+	return out
+}
+
+func maxXrefObjectID(xrefOffsets []int, floor int) int {
+	maxID := floor
+	for id, offset := range xrefOffsets {
+		if offset >= 0 && id > maxID {
+			maxID = id
+		}
+	}
+	return maxID
 }
 
 // pageCompressSlots limits concurrent per-page zlib compression (C4: reduces flate.NewWriter churn).
@@ -93,6 +307,10 @@ func (a *signatureContextAdapter) SetExtraObject(id int, content string) {
 	a.pm.ExtraObjects[id] = []byte(content)
 }
 
+func (a *signatureContextAdapter) SetExtraObjectBytes(id int, content []byte) {
+	a.pm.ExtraObjects[id] = content
+}
+
 func (a *signatureContextAdapter) AppendPageAnnot(pageIndex int, annotID int) {
 	for len(a.pm.PageAnnots) <= pageIndex {
 		a.pm.PageAnnots = append(a.pm.PageAnnots, []int{})
@@ -118,7 +336,9 @@ func (a *signatureContextAdapter) EncodeTextForFont(fontName, text string) strin
 
 // WarmRuntimePools pre-warms compression and buffer pools at process start.
 func WarmRuntimePools() {
+	initPDFBufferPools()
 	WarmCompressionPools(maxPageCompressWorkers())
+	WarmArenaSlabPool(6)
 }
 
 // GenerateTemplatePDF generates a PDF document with multi-page support and embedded images.
@@ -136,13 +356,12 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 //nolint:gocyclo // large template renderer with many element-type branches
 func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF, err error) {
-	pdfBufferPtr := pdfBufferPool.Get().(*bytes.Buffer)
-	pdfBufferPtr.Reset()
-	pdfBuffer := pdfBufferPtr // use directly as *bytes.Buffer
-	ensurePDFBufferCapacity(pdfBuffer, estimateTemplatePDFBufferSize(template))
+	initialCap := estimateTemplatePDFBufferSize(template)
+	pdfBuffer := getPDFBuffer(initialCap)
+	ensurePDFBufferCapacity(pdfBuffer, initialCap)
 	defer func() {
 		if err != nil {
-			pdfBufferPool.Put(pdfBuffer)
+			putPDFBuffer(pdfBuffer)
 		}
 	}()
 
@@ -150,7 +369,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	b := (*scratchPtr)[:0]
 	defer func() { *scratchPtr = b[:0]; scratchBufPool.Put(scratchPtr) }()
 
-	xrefOffsets := make(map[int]int)
+	xrefHandle := newXrefOffsetsHandle(estimateXrefObjectCount(template))
+	defer xrefHandle.release()
+	xrefOffsets := xrefHandle.ptr()
 
 	// Get page dimensions from config
 	pageConfig := template.Config
@@ -319,7 +540,14 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
 	generateAllContentWithImages(template, pageManager, imageObjects, cellImageObjectIDs, elemImageObjects)
-	ensurePDFBufferCapacity(pdfBuffer, estimateFinalPDFSize(pageManager, imageDeduper.uniqueObjectCount()))
+	preContentCap := pdfBuffer.Cap()
+	finalEstimate := estimateFinalPDFSize(pageManager, imageDeduper.uniqueObjectCount())
+	ensurePDFBufferCapacity(pdfBuffer, finalEstimate)
+	if benchCapacityDebugEnabled() && pdfBuffer.Cap() > preContentCap {
+		pdfCapacityHighWater.PostCapGrow++
+	}
+	postContentFinalCap := pdfBuffer.Cap()
+	logPDFCapacityDebug("post-content", template, pdfBuffer, finalEstimate, pageManager)
 
 	// Generate font subsets MOVED to after signature generation to ensure signature chars are included
 
@@ -526,7 +754,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// outlineRootID := pageManager.GenerateBookmarks(template.Bookmarks, xrefOffsets, &pdfBuffer)
 
 	// Object 1: Catalog
-	xrefOffsets[1] = pdfBuffer.Len()
+	setXrefOffset(xrefOffsets, 1, pdfBuffer.Len())
 	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
 	// Add language tag for accessibility (PDF/UA requirement)
 	pdfBuffer.WriteString(" /Lang (en-US)")
@@ -628,7 +856,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	pdfBuffer.WriteString(" >>\nendobj\n")
 
 	// Object 2: Pages (will be updated after we know total page count)
-	xrefOffsets[2] = pdfBuffer.Len()
+	setXrefOffset(xrefOffsets, 2, pdfBuffer.Len())
 	pdfBuffer.WriteString("2 0 obj\n")
 	pdfBuffer.WriteString("<< /Type /Pages /Kids [")
 	pdfBuffer.WriteString(formatPageKids(pageManager.Pages))
@@ -735,7 +963,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 	// Generate page objects
 	for i, pageID := range pageManager.Pages {
-		xrefOffsets[pageID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, pageID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(pageID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -841,7 +1069,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	}
 	for i := range pageManager.ContentStreams {
 		objectID := contentObjectStart + i
-		xrefOffsets[objectID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, objectID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(objectID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -904,7 +1132,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			group := widthGroups[name]
 			if !generatedGroupWidths[group] {
 				widthsID := fontWidthsIDs[group]
-				xrefOffsets[widthsID] = pdfBuffer.Len()
+				setXrefOffset(xrefOffsets, widthsID, pdfBuffer.Len())
 				pdfBuffer.WriteString(GenerateWidthsArrayObject(name, widthsID))
 				generatedGroupWidths[group] = true
 			}
@@ -921,11 +1149,11 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			widthsObjID := fontWidthsIDs[widthGroups[name]]
 
 			// Generate Font Dictionary
-			xrefOffsets[fontObjID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, fontObjID, pdfBuffer.Len())
 			pdfBuffer.WriteString(GenerateFontObject(name, fontObjID, fdObjID, widthsObjID))
 
 			// Generate Font Descriptor
-			xrefOffsets[fdObjID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, fdObjID, pdfBuffer.Len())
 			pdfBuffer.WriteString(GenerateFontDescriptorObject(name, fdObjID))
 		}
 	} else {
@@ -936,7 +1164,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			}
 
 			fontObjID := fontObjectIDs[name]
-			xrefOffsets[fontObjID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, fontObjID, pdfBuffer.Len())
 			pdfBuffer.WriteString(GenerateSimpleFontObject(name, fontRefs[i], fontObjID))
 		}
 	}
@@ -963,7 +1191,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			imgObj.ColorSpace = iccColorSpace
 		}
 
-		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, imgObj.ObjectID, pdfBuffer.Len())
 		if enc != nil {
 			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
 		} else {
@@ -982,7 +1210,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			imgObj.ColorSpace = iccColorSpace
 		}
 
-		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, imgObj.ObjectID, pdfBuffer.Len())
 		if enc != nil {
 			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
 		} else {
@@ -1001,7 +1229,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			imgObj.ColorSpace = iccColorSpace
 		}
 
-		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, imgObj.ObjectID, pdfBuffer.Len())
 		if enc != nil {
 			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
 		} else {
@@ -1014,7 +1242,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	for _, font := range usedFonts {
 		fontObjects := GenerateTrueTypeFontObjects(font, encryptor)
 		for objID, content := range fontObjects {
-			xrefOffsets[objID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, objID, pdfBuffer.Len())
 			b = b[:0]
 			b = strconv.AppendInt(b, int64(objID), 10)
 			b = append(b, " 0 obj\n"...)
@@ -1026,12 +1254,16 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 	// Generate Extra Objects (Widgets, Appearance Streams, AcroForm)
 	for id, content := range pageManager.ExtraObjects {
-		xrefOffsets[id] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, id, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(id), 10)
 		b = append(b, " 0 obj\n"...)
 		pdfBuffer.Write(b)
+		objBodyStart := pdfBuffer.Len()
 		pdfBuffer.Write(content)
+		if sigIDs != nil && pdfSigner != nil && id == sigIDs.SigValueID {
+			pdfSigner.CacheSignaturePlacement(objBodyStart, sigIDs)
+		}
 		pdfBuffer.WriteString("\nendobj\n")
 	}
 
@@ -1042,9 +1274,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	if pdfaHandler != nil {
 		// Generate XMP metadata content (but use our pre-reserved metadataObjectID for consistency with Catalog)
 		docIDForXMP := strconv.FormatInt(genTime.UnixNano(), 16)
-		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
+		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP, genTime)
 		// Write metadata object using the pre-reserved ID that's already in the Catalog
-		xrefOffsets[metadataObjectID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, metadataObjectID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(metadataObjectID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1058,7 +1290,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 		// Write ICC profile object (with stream)
 		if len(outputIntentObjs) > 0 {
-			xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, iccProfileObjectID, pdfBuffer.Len())
 			// Write ICC profile dictionary header and compressed data
 			pdfBuffer.WriteString(outputIntentObjs[0])
 			pdfBuffer.Write(compressedICCData)
@@ -1067,13 +1299,13 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 		// Write Gray ICC profile object for DeviceGray color space compliance
 		if grayICCProfileObjID > 0 {
-			xrefOffsets[grayICCProfileObjID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, grayICCProfileObjID, pdfBuffer.Len())
 			pdfBuffer.Write(GenerateGrayICCProfileObject(grayICCProfileObjID, encryptor))
 		}
 
 		// Write OutputIntent object
 		if len(outputIntentObjs) > 1 {
-			xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, outputIntentObjectID, pdfBuffer.Len())
 			pdfBuffer.WriteString(outputIntentObjs[1])
 			pdfBuffer.WriteString("\n")
 		}
@@ -1101,7 +1333,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Info key shall not be present in trailer unless PieceInfo exists in catalog
 	// All metadata should be in XMP stream instead
 	if !template.Config.PDFACompliant {
-		xrefOffsets[infoObjectID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, infoObjectID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(infoObjectID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1119,7 +1351,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	if enc != nil {
 		encryptObjID = pageManager.NextObjectID
 		pageManager.NextObjectID++
-		xrefOffsets[encryptObjID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, encryptObjID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(encryptObjID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1128,7 +1360,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		pdfBuffer.WriteString("\nendobj\n")
 	}
 
-	// Generate Document ID (SHA-256 content hash + random hash — PDF spec requires
+	// Generate Document ID (SHA-256 content hash + random hash - PDF spec requires
 	// a content-based permanent identifier and a per-generation random identifier).
 	// SHA-256 is chosen over MD5 because modern amd64 CPUs provide AVX2 acceleration
 	// for SHA-256 that makes it ~2x faster than MD5 for bulk hashing.
@@ -1153,23 +1385,23 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Always generate metadata (for document info)
 	// Only generate if not already generated by pdfaHandler
 	if pdfaHandler == nil {
-		xrefOffsets[metadataObjectID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, metadataObjectID, pdfBuffer.Len())
 		pdfBuffer.WriteString(GenerateXMPMetadataObject(metadataObjectID, hex.EncodeToString(contentHashArr[:]), creationDate, encryptor))
 
 		// Only generate ICC profile and OutputIntent for PDF/A mode
 		// This is the key fix: without these, Adobe Acrobat won't apply color management
 		// and colors will appear as intended (same as in Chrome/browser)
 		if template.Config.PDFACompliant {
-			xrefOffsets[iccProfileObjectID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, iccProfileObjectID, pdfBuffer.Len())
 			pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID, encryptor))
 
 			// Write Gray ICC profile object for DeviceGray color space compliance
 			if grayICCProfileObjID > 0 {
-				xrefOffsets[grayICCProfileObjID] = pdfBuffer.Len()
+				setXrefOffset(xrefOffsets, grayICCProfileObjID, pdfBuffer.Len())
 				pdfBuffer.Write(GenerateGrayICCProfileObject(grayICCProfileObjID, encryptor))
 			}
 
-			xrefOffsets[outputIntentObjectID] = pdfBuffer.Len()
+			setXrefOffset(xrefOffsets, outputIntentObjectID, pdfBuffer.Len())
 			pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID, encryptor))
 		}
 	}
@@ -1179,27 +1411,15 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		// 1. Assign Object IDs to all elements
 		// structTreeRootID is already reserved
 
-		// Recursively assign IDs to all children
-
-		// Recursively assign IDs to all children
-		var assignStructIDs func(elem *StructElem)
-		assignStructIDs = func(elem *StructElem) {
-			// Only assign ID if not already assigned (e.g. by bookmarks or links logic)
-			if elem.ObjectID == 0 {
-				elem.ObjectID = pageManager.NextObjectID
-				pageManager.NextObjectID++
+		// P10 (2026-06-20 checklist): assign ObjectIDs via the flat Elements
+		// slice (parent-before-children order) instead of a recursive walk.
+		for i := 1; i < len(pageManager.Structure.Elements); i++ {
+			elem := pageManager.Structure.Elements[i]
+			if elem == nil || elem.ObjectID != 0 {
+				continue
 			}
-			for _, kid := range elem.Kids {
-				if kid.Elem != nil {
-					assignStructIDs(kid.Elem)
-				}
-			}
-		}
-		// Start from root's children (Root itself has structTreeRootID, its children are elements)
-		for _, kid := range pageManager.Structure.Root.Kids {
-			if kid.Elem != nil {
-				assignStructIDs(kid.Elem)
-			}
+			elem.ObjectID = pageManager.NextObjectID
+			pageManager.NextObjectID++
 		}
 
 		// 2. Generate ParentTree
@@ -1210,13 +1430,13 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		namespaceID := pageManager.NextObjectID
 		pageManager.NextObjectID++
 
-		xrefOffsets[namespaceID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, namespaceID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(namespaceID), 10)
 		b = append(b, " 0 obj\n<< /Type /Namespace /NS (http://iso.org/pdf2/ssn) >>\nendobj\n"...)
 		pdfBuffer.Write(b)
 
-		xrefOffsets[structTreeRootID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, structTreeRootID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(structTreeRootID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1225,7 +1445,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		pdfBuffer.WriteString("\nendobj\n")
 
 		// Write ParentTree
-		xrefOffsets[parentTreeID] = pdfBuffer.Len()
+		setXrefOffset(xrefOffsets, parentTreeID, pdfBuffer.Len())
 
 		// Build ParentTree Nums map
 		// Maps StructParents key (page index) to Array of IndirectRefs to StructElems
@@ -1269,27 +1489,51 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		ptBuilder.WriteString(" ] >>\nendobj\n")
 		pdfBuffer.WriteString(ptBuilder.String())
 
-		// Write all Structure Elements
-		var writeStructElems func(elem *StructElem)
-		writeStructElems = func(elem *StructElem) {
-			xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
-			formatStructElemObjectTo(pdfBuffer, elem, structElemFormatCtx{
-				namespaceID:      namespaceID,
-				structTreeRootID: structTreeRootID,
-				root:             pageManager.Structure.Root,
-				pages:            pageManager.Pages,
-			})
-			for _, k := range elem.Kids {
-				if k.Elem != nil {
-					writeStructElems(k.Elem)
+		// Write all Structure Elements. The flat sm.Elements slice is in
+		// parent-before-children order (we append on every Begin call), so an
+		// iterative pre-order walk replaces the previous recursive walk
+		// without changing the output. The iterative form avoids 16K+ Go
+		// function-call frames per HFT PDF and keeps the xrefOffsets map
+		// store hot in cache. P3 follow-up (2026-06-20 checklist).
+		structFmt := structElemFormatCtx{
+			namespaceID:      namespaceID,
+			structTreeRootID: structTreeRootID,
+			root:             pageManager.Structure.Root,
+			pages:            pageManager.Pages,
+		}
+		var tdLeafBatch [8192]byte
+		tdBatch := tdLeafBatch[:0]
+		flushTDLeafBatch := func() {
+			if len(tdBatch) == 0 {
+				return
+			}
+			pdfBuffer.Grow(len(tdBatch))
+			_, _ = pdfBuffer.Write(tdBatch)
+			tdBatch = tdBatch[:0]
+		}
+		for i := 1; i < len(pageManager.Structure.Elements); i++ {
+			elem := pageManager.Structure.Elements[i]
+			if elem == nil {
+				continue
+			}
+			if elem.tdLeafFast {
+				// Record each TD object's xref at its final byte offset before appending
+				// to the batch buffer (P38: batch write, per-object xref).
+				if len(tdBatch) > 0 && len(tdBatch)+128 > cap(tdLeafBatch) {
+					flushTDLeafBatch()
 				}
+				setXrefOffset(xrefOffsets, elem.ObjectID, pdfBuffer.Len()+len(tdBatch))
+				tdBatch = appendStructElemTDLeafBytes(tdBatch, elem, structFmt)
+				continue
 			}
-		}
-		for _, kid := range pageManager.Structure.Root.Kids {
-			if kid.Elem != nil {
-				writeStructElems(kid.Elem)
+			flushTDLeafBatch()
+			setXrefOffset(xrefOffsets, elem.ObjectID, pdfBuffer.Len())
+			if formatTRStructElemObjectTo(pdfBuffer, elem, structFmt) {
+				continue
 			}
+			formatStructElemObjectTo(pdfBuffer, elem, structFmt)
 		}
+		flushTDLeafBatch()
 
 		pageManager.Structure.ReleaseStructElemsToPool()
 	}
@@ -1297,25 +1541,10 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Buffer replacement logic removed as we use reserved ID now
 
 	// Build compact XRef table - collect all used object IDs and sort them
-	usedObjects := make([]int, 0, len(xrefOffsets)+1)
-	usedObjects = append(usedObjects, 0) // Object 0 is always the free list head
-	for objID := range xrefOffsets {
-		usedObjects = append(usedObjects, objID)
-	}
-
-	// Sort the used objects
-	slices.Sort(usedObjects)
+	usedObjects := collectUsedXrefObjectIDs(*xrefOffsets)
 
 	// Find max object ID for Size field
-	maxObjID := 0
-	for objID := range xrefOffsets {
-		if objID > maxObjID {
-			maxObjID = objID
-		}
-	}
-	if infoObjectID > maxObjID {
-		maxObjID = infoObjectID
-	}
+	maxObjID := maxXrefObjectID(*xrefOffsets, infoObjectID)
 	totalObjects := maxObjID + 1
 
 	// Write compact XRef table using subsections
@@ -1346,7 +1575,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			objID := sub.start + j
 			if objID == 0 {
 				pdfBuffer.WriteString("0000000000 65535 f \n")
-			} else if offset, exists := xrefOffsets[objID]; exists {
+			} else if offset, exists := xrefOffsetAt(*xrefOffsets, objID); exists {
 				// Manual zero-padded 10-digit integer (replaces fmt.Sprintf("%010d 00000 n \n", offset))
 				b = b[:0]
 				b = strconv.AppendInt(b, int64(offset), 10)
@@ -1397,8 +1626,17 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 	if pdfSigner != nil && sigIDs != nil {
 		if err := signature.UpdatePDFWithSignatureBuffer(pdfBuffer, pdfSigner); err != nil {
+			logPDFCapacityDebug("final", template, pdfBuffer, finalEstimate, pageManager)
+			recordPDFCapacityHighWater(templateCapacityTier(template), pdfBuffer)
 			return &BorrowedPDF{buf: pdfBuffer}, nil
 		}
+	}
+
+	logPDFCapacityDebug("final", template, pdfBuffer, finalEstimate, pageManager)
+	recordPDFCapacityHighWater(templateCapacityTier(template), pdfBuffer)
+	if benchCapacityDebugEnabled() && pdfBuffer.Cap() > postContentFinalCap {
+		return nil, fmt.Errorf("pdf buffer grew during emit: cap %d -> %d (tier=%s len=%d estimate=%d)",
+			postContentFinalCap, pdfBuffer.Cap(), templateCapacityTier(template), pdfBuffer.Len(), finalEstimate)
 	}
 
 	return &BorrowedPDF{buf: pdfBuffer}, nil
@@ -1415,6 +1653,20 @@ type structElemFormatCtx struct {
 	structTreeRootID int
 	root             *StructElem
 	pages            []int
+}
+
+func estimateXrefObjectCount(template models.PDFTemplate) int {
+	// NextObjectID starts at 2000; each structure element receives one object ID
+	// during the tagged write pass, plus a small fixed overhead for ParentTree,
+	// namespace, metadata, and signature objects.
+	overhead := 48
+	if template.Config.Signature != nil && template.Config.Signature.Enabled {
+		overhead += 8
+	}
+	if !(template.Config.TaggedPDF || template.Config.PDFACompliant) {
+		return 256
+	}
+	return 2000 + estimateStructureElementCount(template) + overhead
 }
 
 func estimateStructureElementCount(template models.PDFTemplate) int {
@@ -1454,106 +1706,248 @@ func estimateStructureElementCount(template models.PDFTemplate) int {
 	return count
 }
 
-type structElemObjectWriter interface {
-	Grow(int)
-	WriteString(string) (int, error)
-	Write([]byte) (int, error)
-	WriteByte(byte) error
-}
-
-func writeStructElemBytes(w structElemObjectWriter, b []byte) {
-	_, _ = w.Write(b)
-}
-
-func writeStructElemString(w structElemObjectWriter, s string) {
-	_, _ = w.WriteString(s)
-}
-
-func writeStructElemByte(w structElemObjectWriter, b byte) {
-	_ = w.WriteByte(b)
-}
-
-func formatStructElemObjectTo(w structElemObjectWriter, elem *StructElem, ctx structElemFormatCtx) {
-	w.Grow(128 + len(elem.Kids)*16 + len(elem.Title) + len(elem.Alt))
-	var scratch [24]byte
-	writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.ObjectID), 10))
-	writeStructElemString(w, " 0 obj\n<< /Type /StructElem /S /")
-	writeStructElemString(w, string(elem.Type))
+// formatStructElemObjectTo writes the struct-elem object body to w.
+// P3/P4: the body is built into a single stack-backed []byte and flushed
+// to w in one Write, eliminating the per-Integer/byte/string interface
+// dispatch (which was the dominant cost in the HFT TR→TD path). The
+// appendObjRefToWriter loop is inlined into the kid-walk so the hot path
+// does not pay for the function call layer.
+// P3+ (2026-06-20): the format functions take *bytes.Buffer directly so
+// the compiler can devirtualise the Grow/Write calls (the previous
+// structElemObjectWriter interface added ~5% overhead per call). The only
+// caller passes the pdfBuffer.
+func formatStructElemObjectTo(pdfBuffer *bytes.Buffer, elem *StructElem, ctx structElemFormatCtx) {
+	if formatSingleMCIDTableCellStructElem(pdfBuffer, elem, ctx) {
+		return
+	}
+	if formatTRStructElemObjectTo(pdfBuffer, elem, ctx) {
+		return
+	}
+	kidCount := len(elem.Kids)
+	if elem.HasMCID {
+		kidCount++
+	}
+	estimate := 128 + kidCount*16 + len(elem.Title) + len(elem.Alt)
+	var bodyScratch [1024]byte
+	buf := bodyScratch[:0]
+	if estimate > cap(bodyScratch) {
+		buf = make([]byte, 0, estimate)
+	}
+	buf = appendDecimal(buf, elem.ObjectID)
+	buf = append(buf, " 0 obj\n<< /Type /StructElem /S /"...)
+	buf = append(buf, string(elem.Type)...)
 
 	if elem.Type == StructDocument {
-		writeStructElemString(w, " /NS ")
-		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(ctx.namespaceID), 10))
-		writeStructElemString(w, " 0 R")
+		buf = append(buf, " /NS "...)
+		buf = appendDecimal(buf, ctx.namespaceID)
+		buf = append(buf, " 0 R"...)
 	}
 
 	if elem.Parent == ctx.root {
-		writeStructElemString(w, " /P ")
-		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(ctx.structTreeRootID), 10))
-		writeStructElemString(w, " 0 R")
+		buf = append(buf, " /P "...)
+		buf = appendDecimal(buf, ctx.structTreeRootID)
+		buf = append(buf, " 0 R"...)
 	} else if elem.Parent != nil {
-		writeStructElemString(w, " /P ")
-		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.Parent.ObjectID), 10))
-		writeStructElemString(w, " 0 R")
+		buf = append(buf, " /P "...)
+		buf = appendDecimal(buf, elem.Parent.ObjectID)
+		buf = append(buf, " 0 R"...)
 	}
 
 	if elem.Title != "" {
-		writeStructElemString(w, " /T (")
-		var titleScratch [1024]byte
-		escaped := appendEscapedPDFLiteral(titleScratch[:0], elem.Title)
-		writeStructElemBytes(w, escaped)
-		writeStructElemByte(w, ')')
+		buf = append(buf, " /T ("...)
+		buf = appendEscapedPDFLiteral(buf, elem.Title)
+		buf = append(buf, ')')
 	}
 	if elem.Alt != "" {
-		writeStructElemString(w, " /Alt (")
-		var altScratch [1024]byte
-		escaped := appendEscapedPDFLiteral(altScratch[:0], elem.Alt)
-		writeStructElemBytes(w, escaped)
-		writeStructElemByte(w, ')')
+		buf = append(buf, " /Alt ("...)
+		buf = appendEscapedPDFLiteral(buf, elem.Alt)
+		buf = append(buf, ')')
 	}
 
-	if len(elem.Kids) > 0 || elem.Type == StructLink {
-		writeStructElemString(w, " /K [")
+	if kidCount > 0 || elem.Type == StructLink {
+		buf = append(buf, " /K ["...)
 
 		if elem.Type == StructLink {
 			pageObjID := 3
 			if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
 				pageObjID = ctx.pages[elem.PageID]
 			}
-			writeStructElemString(w, " << /Type /OBJR /Obj ")
-			writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(elem.AnnotObjID), 10))
-			writeStructElemString(w, " 0 R /Pg ")
-			writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(pageObjID), 10))
-			writeStructElemString(w, " 0 R >>")
+			buf = append(buf, " << /Type /OBJR /Obj "...)
+			buf = appendDecimal(buf, elem.AnnotObjID)
+			buf = append(buf, " 0 R /Pg "...)
+			buf = appendDecimal(buf, pageObjID)
+			buf = append(buf, " 0 R >>"...)
 		}
 
-		var mcidScratch [16]byte
+		if elem.HasMCID {
+			buf = append(buf, ' ')
+			buf = appendDecimal(buf, elem.MCID)
+		}
+		// Inlined kid-walk: write " <id> 0 R" for elem refs and " <mcid>" for
+		// MCID-only leaves in a single pass. This removes the 305,841 in-use
+		// objects that appendObjRefToWriter used to allocate per call.
 		for _, kid := range elem.Kids {
 			if kid.Elem != nil {
-				appendObjRefToWriter(w, kid.Elem.ObjectID)
+				buf = append(buf, ' ')
+				buf = appendDecimal(buf, kid.Elem.ObjectID)
+				buf = append(buf, " 0 R"...)
 			} else {
-				writeStructElemByte(w, ' ')
-				mcid := strconv.AppendInt(mcidScratch[:0], int64(kid.MCID), 10)
-				writeStructElemBytes(w, mcid)
+				buf = append(buf, ' ')
+				buf = appendDecimal(buf, kid.MCID)
 			}
 		}
-		writeStructElemString(w, " ]")
+		buf = append(buf, " ]"...)
 	}
 
 	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
 		pageObjID := ctx.pages[elem.PageID]
-		writeStructElemString(w, " /Pg ")
-		writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(pageObjID), 10))
-		writeStructElemString(w, " 0 R")
+		buf = append(buf, " /Pg "...)
+		buf = appendDecimal(buf, pageObjID)
+		buf = append(buf, " 0 R"...)
 	}
 
-	writeStructElemString(w, " >>\nendobj\n")
+	buf = append(buf, " >>\nendobj\n"...)
+
+	// Single write to flush the assembled body. Grow the destination to fit
+	// so the underlying bytes.Buffer does not need to re-allocate during the
+	// write.
+	pdfBuffer.Grow(len(buf))
+	_, _ = pdfBuffer.Write(buf)
 }
 
-func appendObjRefToWriter(w structElemObjectWriter, objID int) {
-	writeStructElemByte(w, ' ')
-	var scratch [24]byte
-	writeStructElemBytes(w, strconv.AppendInt(scratch[:0], int64(objID), 10))
-	writeStructElemString(w, " 0 R")
+// appendDecimal appends the decimal representation of n to dst. For
+// values 0–9999 the implementation is branch-free: a per-digit lookup
+// over a 10-byte digit table. For larger values it falls back to
+// strconv.AppendInt. Used by the structure writer hot path to shave the
+// ~30 ns/call that strconv.AppendInt costs. The HFT template emits
+// ObjectID/MCID/PageID all below 10000, so the fast path covers the
+// common case.
+const digitTable = "0123456789"
+
+func appendDecimal(dst []byte, n int) []byte {
+	if n < 0 {
+		return strconv.AppendInt(dst, int64(n), 10)
+	}
+	if n >= 100000 {
+		return strconv.AppendInt(dst, int64(n), 10)
+	}
+	var tmp [5]byte
+	pos := 5
+	if n >= 10000 {
+		tmp[4] = digitTable[n%10]
+		n /= 10
+		pos = 4
+	}
+	if n >= 1000 {
+		tmp[pos-1] = digitTable[n%10]
+		n /= 10
+		pos--
+	}
+	for n >= 10 {
+		tmp[pos-1] = digitTable[n%10]
+		n /= 10
+		pos--
+	}
+	tmp[pos-1] = digitTable[n]
+	return append(dst, tmp[pos-1:]...)
+}
+
+func isTDLeafStructElem(elem *StructElem) bool {
+	if elem == nil || len(elem.Kids) != 0 || !elem.HasMCID {
+		return false
+	}
+	if elem.Type != StructTD && elem.Type != StructTH {
+		return false
+	}
+	return elem.Title == "" && elem.Alt == "" && elem.Parent != nil
+}
+
+func appendStructElemTDLeafBytes(buf []byte, elem *StructElem, ctx structElemFormatCtx) []byte {
+	buf = appendDecimal(buf, elem.ObjectID)
+	buf = append(buf, " 0 obj\n<< /Type /StructElem /S /"...)
+	buf = append(buf, string(elem.Type)...)
+	buf = append(buf, " /P "...)
+	if elem.Parent == ctx.root {
+		buf = appendDecimal(buf, ctx.structTreeRootID)
+	} else {
+		buf = appendDecimal(buf, elem.Parent.ObjectID)
+	}
+	buf = append(buf, " 0 R /K [ "...)
+	buf = appendDecimal(buf, elem.MCID)
+	buf = append(buf, " ]"...)
+	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
+		buf = append(buf, " /Pg "...)
+		buf = appendDecimal(buf, ctx.pages[elem.PageID])
+		buf = append(buf, " 0 R"...)
+	}
+	return append(buf, " >>\nendobj\n"...)
+}
+
+// appendStructElemTDLeaf writes a TD/TH leaf without the fast-path guard.
+// P16 (2026-06-20 checklist): called directly from the iterative struct
+// writer when isTDLeafStructElem is true.
+func appendStructElemTDLeaf(pdfBuffer *bytes.Buffer, elem *StructElem, ctx structElemFormatCtx) {
+	body := appendStructElemTDLeafBytes(nil, elem, ctx)
+	pdfBuffer.Grow(len(body))
+	_, _ = pdfBuffer.Write(body)
+}
+
+// formatTRStructElemObjectTo emits arena TR rows with only element-ref kids (P38).
+func formatTRStructElemObjectTo(pdfBuffer *bytes.Buffer, elem *StructElem, ctx structElemFormatCtx) bool {
+	if elem == nil || !elem.groupEmitFast || elem.Type != StructTR || elem.HasMCID || elem.Title != "" || elem.Alt != "" {
+		return false
+	}
+	kidCount := len(elem.Kids)
+	if kidCount == 0 {
+		return false
+	}
+	for _, kid := range elem.Kids {
+		if kid.Elem == nil {
+			return false
+		}
+	}
+
+	var scratch [512]byte
+	buf := scratch[:0]
+	buf = appendDecimal(buf, elem.ObjectID)
+	buf = append(buf, " 0 obj\n<< /Type /StructElem /S /TR /P "...)
+	if elem.Parent == ctx.root {
+		buf = appendDecimal(buf, ctx.structTreeRootID)
+	} else {
+		buf = appendDecimal(buf, elem.Parent.ObjectID)
+	}
+	buf = append(buf, " 0 R /K ["...)
+	for _, kid := range elem.Kids {
+		buf = append(buf, ' ')
+		buf = appendDecimal(buf, kid.Elem.ObjectID)
+		buf = append(buf, " 0 R"...)
+	}
+	buf = append(buf, " ]"...)
+	if elem.PageID >= 0 && elem.PageID < len(ctx.pages) {
+		buf = append(buf, " /Pg "...)
+		buf = appendDecimal(buf, ctx.pages[elem.PageID])
+		buf = append(buf, " 0 R"...)
+	}
+	buf = append(buf, " >>\nendobj\n"...)
+
+	pdfBuffer.Grow(len(buf))
+	_, _ = pdfBuffer.Write(buf)
+	return true
+}
+
+// formatSingleMCIDTableCellStructElem is the HFT TD-leaf fast path. P3:
+// all 5 integers are written into a single stack-backed buffer that is
+// flushed in one w.Write. P3+: small integers (ObjectID/MCID/PageID are
+// all < 10000 in the HFT template) go through appendDecimal to avoid the
+// strconv.AppendInt call overhead.
+func formatSingleMCIDTableCellStructElem(pdfBuffer *bytes.Buffer, elem *StructElem, ctx structElemFormatCtx) bool {
+	if elem == nil || !elem.tdLeafFast {
+		if !isTDLeafStructElem(elem) {
+			return false
+		}
+	}
+	appendStructElemTDLeaf(pdfBuffer, elem, ctx)
+	return true
 }
 
 type imageObjectKey struct {
@@ -1608,6 +2002,71 @@ func (d *imageObjectDeduper) uniqueObjectCount() int {
 	return d.unique
 }
 
+func benchCapacityDebugEnabled() bool {
+	return os.Getenv("BENCH_DEBUG_CAPS") != ""
+}
+
+func ResetPDFCapacityHighWater() {
+	pdfCapacityHighWater = CapacityHighWater{}
+}
+
+func SnapshotPDFCapacityHighWater() CapacityHighWater {
+	return pdfCapacityHighWater
+}
+
+func recordPDFCapacityHighWater(tier string, pdfBuffer *bytes.Buffer) {
+	if !benchCapacityDebugEnabled() || pdfBuffer == nil {
+		return
+	}
+	finalLen := pdfBuffer.Len()
+	finalCap := pdfBuffer.Cap()
+	switch tier {
+	case capacityTierRetail:
+		if finalLen > pdfCapacityHighWater.RetailLen {
+			pdfCapacityHighWater.RetailLen = finalLen
+		}
+		if finalCap > pdfCapacityHighWater.RetailCap {
+			pdfCapacityHighWater.RetailCap = finalCap
+		}
+	case capacityTierActive:
+		if finalLen > pdfCapacityHighWater.ActiveLen {
+			pdfCapacityHighWater.ActiveLen = finalLen
+		}
+		if finalCap > pdfCapacityHighWater.ActiveCap {
+			pdfCapacityHighWater.ActiveCap = finalCap
+		}
+	case capacityTierHFT:
+		if finalLen > pdfCapacityHighWater.HFTLen {
+			pdfCapacityHighWater.HFTLen = finalLen
+		}
+		if finalCap > pdfCapacityHighWater.HFTCap {
+			pdfCapacityHighWater.HFTCap = finalCap
+		}
+	}
+}
+
+func templateCapacityTier(template models.PDFTemplate) string {
+	for _, elem := range template.Elements {
+		if elem.Table != nil && len(elem.Table.Rows) > 1000 {
+			return capacityTierHFT
+		}
+	}
+	for _, elem := range template.Elements {
+		if elem.Table != nil && len(elem.Table.Rows) > 40 {
+			return capacityTierActive
+		}
+	}
+	for _, table := range template.Table {
+		if len(table.Rows) > 1000 {
+			return capacityTierHFT
+		}
+		if len(table.Rows) > 40 {
+			return capacityTierActive
+		}
+	}
+	return capacityTierRetail
+}
+
 func ensurePDFBufferCapacity(pdfBuffer *bytes.Buffer, want int) {
 	if want <= 0 {
 		return
@@ -1615,102 +2074,180 @@ func ensurePDFBufferCapacity(pdfBuffer *bytes.Buffer, want int) {
 	if pdfBuffer.Cap() >= want {
 		return
 	}
+	if benchCapacityDebugEnabled() {
+		pdfCapacityHighWater.GrowCount++
+	}
 	pdfBuffer.Grow(want - pdfBuffer.Cap())
 }
 
+// estimateFinalPDFSize sizes the final PDF buffer from page streams, struct
+// elements, and supporting objects so the bytes.Buffer does not have to
+// grow mid-emit. P5 (2026-06-20 checklist): the compliant TR→TD structure
+// tree expands each TD cell to a full StructElem object (~120 bytes), so
+// the per-element allowance is larger than the legacy 96 bytes that
+// targeted the 748,163-byte non-compliant HFT output.
 func estimateFinalPDFSize(pageManager *PageManager, uniqueImageObjects int) int {
-	estimate := 256 * 1024 // header, catalog, xref, trailer slack
-	estimate += len(pageManager.Pages) * 2048
-	estimate += len(pageManager.ExtraObjects) * 512
+	estimate := 96 * 1024 // header, catalog, xref, trailer slack
+	estimate += len(pageManager.Pages) * 1536
+	estimate += len(pageManager.ExtraObjects) * 256
 	estimate += uniqueImageObjects * 2048
+	estimate += 48 * 1024 // metadata, output intent, parent tree, signature slack
+	hftCompliant := false
+	if sm := pageManager.Structure; sm != nil && sm.Enabled {
+		// Detect compliant TR→TD: many elements + nested kids => HFT shape.
+		// Each TR has 7 TD kids; a structure tree of >2000 elements with
+		// average >3 kids per parent implies a large per-PDF compliant tree.
+		if len(sm.Elements) > 1500 {
+			avgKids := 0
+			for _, e := range sm.Elements {
+				if e == nil {
+					continue
+				}
+				avgKids += len(e.Kids)
+			}
+			if len(sm.Elements) > 0 {
+				avgKids /= len(sm.Elements)
+			}
+			if avgKids >= 3 {
+				hftCompliant = true
+			}
+		}
+	}
 	for _, stream := range pageManager.ContentStreams {
 		if stream == nil {
 			continue
 		}
 		rawLen := stream.Len()
-		// F2: pessimistic upper bound — store-uncompressed pages are rawLen; compressed ~35%.
-		compressedEst := rawLen * 2 / 5
-		if rawLen > compressedEst {
+		if rawLen < 4*1024 {
 			estimate += rawLen + 512
 		} else {
-			estimate += compressedEst + 512
+			estimate += rawLen/2 + 512
 		}
 	}
 	for _, extra := range pageManager.ExtraObjects {
 		estimate += len(extra) + 128
 	}
 	if sm := pageManager.Structure; sm != nil && sm.Enabled {
-		estimate += len(sm.Elements) * 160
+		perElem := 96
+		if hftCompliant {
+			// Compliant TR→TD TD leaf: " <id> 0 obj\n<< /Type /StructElem /S /TD /P <pid> 0 R /K [ <mcid> ] /Pg <pgid> 0 R >>\nendobj\n"
+			// ≈ 100 bytes per TD. TR grouping element carries 7 kid refs ≈ 175 bytes.
+			// Average across TR (175) and TD (100) weighted by 1:7 ≈ 110 bytes.
+			perElem = 128
+		}
+		estimate += len(sm.Elements) * perElem
+		if hftCompliant {
+			estimate = max(estimate, hftPDFBufferCap)
+		}
 	}
 	return estimate
 }
 
+// estimateInitialContentStreamCap sizes the per-page content buffer from measured
+// Zerodha page-stream profiles (P34, 2026-06-22 checklist).
 func estimateInitialContentStreamCap(template models.PDFTemplate) int {
-	const (
-		minCap       = 64 * 1024
-		retailMaxCap = 128 * 1024
-		pageCap      = 256 * 1024
-	)
-
 	maxRows := 0
 	maxCols := 1
-	score := 0
 	for _, table := range template.Table {
-		rows := len(table.Rows)
-		cols := max(table.MaxColumns, 1)
-		score += rows * cols * 8
-		if rows > maxRows {
-			maxRows = rows
-			maxCols = cols
+		if len(table.Rows) > maxRows {
+			maxRows = len(table.Rows)
+			maxCols = max(table.MaxColumns, 1)
 		}
-	}
-	if template.Title.Text != "" {
-		score += 1024
-	}
-	if template.Footer.Text != "" {
-		score += 1024
 	}
 	for _, elem := range template.Elements {
-		score += 512
-		if elem.Table != nil {
-			rows := len(elem.Table.Rows)
-			cols := max(elem.Table.MaxColumns, 1)
-			score += rows * cols * 8
-			if rows > maxRows {
-				maxRows = rows
-				maxCols = cols
+		if elem.Table != nil && len(elem.Table.Rows) > maxRows {
+			maxRows = len(elem.Table.Rows)
+			maxCols = max(elem.Table.MaxColumns, 1)
+		}
+	}
+	switch {
+	case maxRows > 1000:
+		return estimateSharedRowStripeCap(40, maxCols)
+	case maxRows > 40:
+		return pageStreamActiveCap
+	default:
+		return pageStreamRetailCap
+	}
+}
+
+func logPDFCapacityDebug(stage string, template models.PDFTemplate, pdfBuffer *bytes.Buffer, estimate int, pageManager *PageManager) {
+	if os.Getenv("BENCH_DEBUG_CAPS") == "" {
+		return
+	}
+	streamLen := 0
+	streamCap := 0
+	maxPageLen := 0
+	maxPageCap := 0
+	pages := 0
+	if pageManager != nil {
+		pages = len(pageManager.Pages)
+		maxPageLen, maxPageCap, streamCap = pageManager.PageStreamProfile()
+		for _, stream := range pageManager.ContentStreams {
+			if stream == nil {
+				continue
 			}
+			streamLen += stream.Len()
 		}
 	}
-	if score < minCap {
-		score = minCap
+	tier := templateCapacityTier(template)
+	fmt.Fprintf(os.Stderr,
+		"pdf-cap stage=%s tier=%s estimate=%d len=%d cap=%d pages=%d stream_len=%d stream_cap=%d max_page_len=%d max_page_cap=%d\n",
+		stage,
+		tier,
+		estimate,
+		pdfBuffer.Len(),
+		pdfBuffer.Cap(),
+		pages,
+		streamLen,
+		streamCap,
+		maxPageLen,
+		maxPageCap,
+	)
+}
+
+// estimateTemplatePDFBufferSize gives the *initial* capacity of the final
+// PDF buffer before any content/structure emission. P5 (2026-06-20
+// checklist): the compliant HFT path emits one StructElem object per TD
+// (~100 bytes), so for tagged + large-table templates we budget a per-cell
+// allowance of 192 bytes (covers both the content stream cell and its
+// struct-elem object). The final capacity is later enforced via
+// estimateFinalPDFSize which is exact.
+func isLargeTaggedTemplate(template models.PDFTemplate) bool {
+	if !(template.Config.TaggedPDF || template.Config.PDFACompliant) {
+		return false
 	}
-	if maxRows > 40 {
-		rowsPerPage := 40
-		perPage := rowsPerPage * maxCols * 512
-		if perPage > score {
-			score = perPage
+	maxRows := 0
+	for _, table := range template.Table {
+		if len(table.Rows) > maxRows {
+			maxRows = len(table.Rows)
 		}
-		if score > pageCap {
-			score = pageCap
+	}
+	for _, elem := range template.Elements {
+		if elem.Table != nil && len(elem.Table.Rows) > maxRows {
+			maxRows = len(elem.Table.Rows)
 		}
-		return score
 	}
-	if score > retailMaxCap {
-		return retailMaxCap
-	}
-	return score
+	return maxRows > 1000
 }
 
 func estimateTemplatePDFBufferSize(template models.PDFTemplate) int {
+	if isLargeTaggedTemplate(template) {
+		return hftPDFBufferCap
+	}
 	estimate := 192 * 1024
+	perCell := 96
+	if template.Config.TaggedPDF || template.Config.PDFACompliant {
+		// Tagged PDFs emit one StructElem per cell on the compliant path -
+		// budget accordingly to avoid a mid-emit growSlice.
+		perCell = 192
+	}
 	for _, table := range template.Table {
-		estimate += len(table.Rows) * max(table.MaxColumns, 1) * 96
+		estimate += len(table.Rows) * max(table.MaxColumns, 1) * perCell
 	}
 	for _, elem := range template.Elements {
 		estimate += 2048
 		if elem.Table != nil {
-			estimate += len(elem.Table.Rows) * max(elem.Table.MaxColumns, 1) * 96
+			estimate += len(elem.Table.Rows) * max(elem.Table.MaxColumns, 1) * perCell
 		}
 	}
 	if template.Config.TaggedPDF || template.Config.PDFACompliant {
@@ -2000,6 +2537,17 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 // collectAllStandardFontsInTemplate returns all standard font names used in the template
 // This does NOT check the font registry - used for determining which Liberation fonts to load
 func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]bool {
+	if precomputed := template.PrecomputedStandardFonts(); len(precomputed) > 0 {
+		used := make(map[string]bool, len(precomputed))
+		for _, fontName := range precomputed {
+			if fontName != "" {
+				used[fontName] = true
+			}
+		}
+		used["Helvetica"] = true
+		return used
+	}
+
 	used := make(map[string]bool)
 
 	// Helper to mark font

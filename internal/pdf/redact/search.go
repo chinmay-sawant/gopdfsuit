@@ -275,7 +275,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 			}
 			refY := lines[li].spans[0].pos.Y
 			if math.Abs(pos.Y-refY) < lineH*0.75 {
-				// Same line  — append token
+				// Same line  - append token
 				part := strings.TrimSpace(pos.Text)
 				if part == "" {
 					placed = true
@@ -340,7 +340,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 				if s.start >= matchEnd || s.end <= matchStart {
 					continue
 				}
-				// URL token: redact the whole token — proportional offset is
+				// URL token: redact the whole token - proportional offset is
 				// unreliable for these, but the token itself must be covered.
 				if r.isURLToken(s.pos.Text) {
 					if s.pos.X < minX {

@@ -10,9 +10,9 @@ This guide explains what gopdfsuit/gopdflib **actually caches**, what **expires*
 
 | Term | What it is | Cached across requests? |
 |------|------------|-------------------------|
-| **Request JSON** (`PDFTemplate` from POST body) | Your per-document data (trades, text, etc.) | **No** — decoded per request, then cleared |
-| **Shared row template row** (`sharedRowTemplateRow`) | One table row whose `props` define column layout for the HFT fast path | **No** — metadata inside one request’s JSON, not a server cache |
-| **Zerodha benchmark templates** (`main.go` / `pypdfsuit_bench.py`) | Pre-built `PDFTemplate` structs for load tests | **No** — built once per benchmark **process**, not shared by the Gin server |
+| **Request JSON** (`PDFTemplate` from POST body) | Your per-document data (trades, text, etc.) | **No** - decoded per request, then cleared |
+| **Shared row template row** (`sharedRowTemplateRow`) | One table row whose `props` define column layout for the HFT fast path | **No** - metadata inside one request’s JSON, not a server cache |
+| **Zerodha benchmark templates** (`main.go` / `pypdfsuit_bench.py`) | Pre-built `PDFTemplate` structs for load tests | **No** - built once per benchmark **process**, not shared by the Gin server |
 
 Generating millions of unique PDFs does **not** store millions of templates in RAM. Each HTTP request gets a fresh decode into a reused struct shell, generates the PDF, then resets that shell.
 
@@ -29,7 +29,7 @@ Generating millions of unique PDFs does **not** store millions of templates in R
 6. resetTemplate() + Put()   → drop large slice backing arrays
 ```
 
-**Expiration:** none (time-based). Memory is **request-scoped** — after the handler returns, payload slices are eligible for GC. The pool only keeps a small number of empty struct shells for allocation reuse.
+**Expiration:** none (time-based). Memory is **request-scoped** - after the handler returns, payload slices are eligible for GC. The pool only keeps a small number of empty struct shells for allocation reuse.
 
 **Code:** `internal/handlers/handlers.go` (`templatePDFPool`, `resetTemplate`), `internal/handlers/json_decode.go`
 
@@ -39,7 +39,7 @@ Generating millions of unique PDFs does **not** store millions of templates in R
 
 These are the caches that matter for long-running servers and high cardinality workloads.
 
-### 1. Page compression cache — **bounded, count-based eviction**
+### 1. Page compression cache - **bounded, count-based eviction**
 
 | Property | Value |
 |----------|-------|
@@ -56,13 +56,13 @@ These are the caches that matter for long-running servers and high cardinality w
 
 ---
 
-### 2. Font subset cache — **unbounded, no expiration**
+### 2. Font subset cache - **unbounded, no expiration**
 
 | Property | Value |
 |----------|-------|
 | **Purpose** | Reuse TTF subset bytes when the same font + glyph set appears again |
 | **Key** | FNV fingerprint of PostScript name + sorted glyph IDs |
-| **Eviction** | **None** — entries live until process exit |
+| **Eviction** | **None** - entries live until process exit |
 | **TTL** | **None** |
 | **Manual clear** | **No public API today** |
 
@@ -72,7 +72,7 @@ These are the caches that matter for long-running servers and high cardinality w
 
 ---
 
-### 3. Image decode cache — **unbounded, no expiration**
+### 3. Image decode cache - **unbounded, no expiration**
 
 | Property | Value |
 |----------|-------|
@@ -88,7 +88,7 @@ These are the caches that matter for long-running servers and high cardinality w
 
 ---
 
-### 4. Template JSON file cache (`GET /template-data`) — **unbounded, no expiration**
+### 4. Template JSON file cache (`GET /template-data`) - **unbounded, no expiration**
 
 | Property | Value |
 |----------|-------|
@@ -96,7 +96,7 @@ These are the caches that matter for long-running servers and high cardinality w
 | **Key** | Absolute file path |
 | **Eviction** | **None** |
 | **TTL** | **None** |
-| **Scope** | Dev/demo endpoint only — not used by `POST /generate/template-pdf` |
+| **Scope** | Dev/demo endpoint only - not used by `POST /generate/template-pdf` |
 
 **Code:** `internal/handlers/handlers.go` (`templateDataCache sync.Map`)
 
@@ -144,11 +144,11 @@ These reuse allocations but **do not retain your data** across requests in a pre
 
 ## Recommendations at high volume
 
-1. **Unique text-only PDFs (e.g. millions of contract notes):** default architecture is fine — payload JSON is not retained.
+1. **Unique text-only PDFs (e.g. millions of contract notes):** default architecture is fine - payload JSON is not retained.
 2. **Unique images per PDF:** call `pdf.ResetImageCache()` periodically, or restart workers on a schedule, or add a max-size eviction policy (not implemented today).
 3. **Many custom fonts with unique glyph sets per doc:** monitor heap; subset cache is the main growth risk.
 4. **Long-lived Gin pods:** compression cache self-caps; image/subset caches are the ones to watch in `debug/pprof/heap`.
-5. **Do not confuse** Zerodha benchmark “Building templates…” with server caching — that only pre-builds structs inside the benchmark binary.
+5. **Do not confuse** Zerodha benchmark “Building templates…” with server caching - that only pre-builds structs inside the benchmark binary.
 
 ---
 
@@ -170,7 +170,7 @@ There is currently **no** public API to clear `subsetCache` or `templateDataCach
 
 ## Related docs
 
-- [CROSS_REQUEST_CACHING_FAQ.md](./CROSS_REQUEST_CACHING_FAQ.md) — does layout bleed across PDFs? (FAQ)
-- [PERFORMANCE_OPTIMIZATIONS.md](./additionalnotes/PERFORMANCE_OPTIMIZATIONS.md) — zlib pooling, image cache overview
-- [PDF_GENERATION_INTERNALS.md](./additionalnotes/PDF_GENERATION_INTERNALS.md) — assets and streams
-- [TEMPLATE_REFERENCE.md](./TEMPLATE_REFERENCE.md) — `sharedRowLayout` / `sharedRowTemplateRow` fields
+- [CROSS_REQUEST_CACHING_FAQ.md](./CROSS_REQUEST_CACHING_FAQ.md) - does layout bleed across PDFs? (FAQ)
+- [PERFORMANCE_OPTIMIZATIONS.md](./additionalnotes/PERFORMANCE_OPTIMIZATIONS.md) - zlib pooling, image cache overview
+- [PDF_GENERATION_INTERNALS.md](./additionalnotes/PDF_GENERATION_INTERNALS.md) - assets and streams
+- [TEMPLATE_REFERENCE.md](./TEMPLATE_REFERENCE.md) - `sharedRowLayout` / `sharedRowTemplateRow` fields

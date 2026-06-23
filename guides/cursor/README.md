@@ -11,7 +11,7 @@ Performance architecture audit and implementation tracking for GoPdfSuit.
 | [PASS1_BLUEPRINTS.md](./PASS1_BLUEPRINTS.md) | Before/after code for Pass 1 |
 | [baselines/bench_pass1_20260525.txt](./baselines/bench_pass1_20260525.txt) | Post-Pass-1 benchmark |
 | [baselines/bench_pass2_20260525.txt](./baselines/bench_pass2_20260525.txt) | Post-Pass-2 benchmark |
-| [PASS4_OPTIMIZATION_PLAN.md](./PASS4_OPTIMIZATION_PLAN.md) | Pass 4 — load-test hotspot plan |
+| [PASS4_OPTIMIZATION_PLAN.md](./PASS4_OPTIMIZATION_PLAN.md) | Pass 4 - load-test hotspot plan |
 | [PASS4_PDFA_RESULTS.md](./PASS4_PDFA_RESULTS.md) | **Pass 4 PDF/A results vs May 25 baseline** |
 | [baselines/loadtest_pprof_summary_20260525.txt](./baselines/loadtest_pprof_summary_20260525.txt) | k6 load test pprof summary (pre-P4) |
 | [baselines/bench_pass4_pdfa_x5_20260525.txt](./baselines/bench_pass4_pdfa_x5_20260525.txt) | PDF/A benchmark ×5 raw |
@@ -19,11 +19,11 @@ Performance architecture audit and implementation tracking for GoPdfSuit.
 | [baselines/pprof_runs/](./baselines/pprof_runs/) | CPU pprof ×5 during Rows2000 bench |
 | [GOPDFLIB_PPROF_RESULTS.md](./GOPDFLIB_PPROF_RESULTS.md) | GoPDFLib 5000× pprof + PDF/A bench |
 | [baselines/gopdflib_pprof_stats_20260525.txt](./baselines/gopdflib_pprof_stats_20260525.txt) | GoPDFLib stats summary |
-| [ZERODHA_BENCHMARK_RESULTS.md](./ZERODHA_BENCHMARK_RESULTS.md) | Zerodha 5000×30-run — peak **2,953** / avg **2,646** ops/s (2026-06-14) |
+| [ZERODHA_BENCHMARK_RESULTS.md](./ZERODHA_BENCHMARK_RESULTS.md) | Zerodha 5000×30-run - peak **2,953** / avg **2,646** ops/s (2026-06-14) |
 | [baselines/zerodha_bench_x30_20260614_stats.txt](./baselines/zerodha_bench_x30_20260614_stats.txt) | Zerodha 30-run peak + mean stats (Go 1.26.4) |
 | [baselines/zerodha_bench_x10_wsl_stats_20260525.txt](./baselines/zerodha_bench_x10_wsl_stats_20260525.txt) | Zerodha 10-run WSL stats |
 | [baselines/zerodha_bench_x10_wsl/](./baselines/zerodha_bench_x10_wsl/) | Zerodha raw output (10 WSL runs) |
-| [baselines/gin_pprof_runs/comparison_20260614.md](./baselines/gin_pprof_runs/comparison_20260614.md) | gopdfsuit k6 5-run — peak **859** / avg **825** req/s |
+| [baselines/gin_pprof_runs/comparison_20260614.md](./baselines/gin_pprof_runs/comparison_20260614.md) | gopdfsuit k6 5-run - peak **859** / avg **825** req/s |
 | [baselines/gin_pprof_runs/k6_gin_x5_20260614_stats.txt](./baselines/gin_pprof_runs/k6_gin_x5_20260614_stats.txt) | gopdfsuit k6 5-run stats |
 
 ## Quick Commands

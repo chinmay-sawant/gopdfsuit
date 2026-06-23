@@ -1,0 +1,6122 @@
+=== Environment ===
+2026-06-18T00:05:45+05:30
+go version go1.26.4 linux/amd64
+GOMAXPROCS=24
+Linux Chinmay 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux
+
+=== A: BenchmarkGenerateTemplatePDF (internal/pdf) ===
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF/Rows2000-24         	     477	  12158743 ns/op	 135.46 MB/s	 4672971 B/op	   39777 allocs/op
+BenchmarkGenerateTemplatePDF/Rows10000-24        	      82	  70976979 ns/op	 116.90 MB/s	39220902 B/op	  198183 allocs/op
+BenchmarkGenerateTemplatePDF/Rows25000-24        	      31	 183149269 ns/op	 114.57 MB/s	97216573 B/op	  494834 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	26.558s
+=== B: BenchmarkGenerateTemplatePDF_FinancialReport (test) ===
+[GIN] 2026/06/18 - 00:06:12 | 200 |   13.489718ms |       127.0.0.1 | POST     "/api/v1/fill"
+[GIN] 2026/06/18 - 00:06:12 | 200 |    1.601142ms |       127.0.0.1 | POST     "/api/v1/fill"
+[GIN] 2026/06/18 - 00:06:12 | 200 |   15.118639ms |       127.0.0.1 | POST     "/api/v1/fill"
+[GIN] 2026/06/18 - 00:06:12 | 200 |   42.452467ms |       127.0.0.1 | POST     "/api/v1/generate/template-pdf"
+[GIN] 2026/06/18 - 00:06:12 | 200 |   11.084388ms |       127.0.0.1 | POST     "/api/v1/generate/template-pdf"
+[GIN] 2026/06/18 - 00:06:13 | 200 |    3.748036ms |       127.0.0.1 | POST     "/api/v1/generate/template-pdf"
+[GIN] 2026/06/18 - 00:06:13 | 200 |    4.323033ms |       127.0.0.1 | POST     "/api/v1/generate/template-pdf"
+[GIN] 2026/06/18 - 00:06:13 | 200 |      26.543µs |       127.0.0.1 | GET      "/api/v1/fonts"
+[GIN] 2026/06/18 - 00:06:13 | 200 |     326.488µs |       127.0.0.1 | GET      "/api/v1/template-data?file=financial_report.json"
+2026/06/18 00:06:13 ConvertHTMLToImage: Starting conversion. HTML length: 0, URL: https://en.wikipedia.org/wiki/Ana_de_Armas, Format: png
+2026/06/18 00:06:13 ConvertHTMLToImage: Options prepared - Format: png, Width: 0, Height: 0, Quality: 94
+2026/06/18 00:06:13 ConvertHTMLToImage: Converting URL: https://en.wikipedia.org/wiki/Ana_de_Armas
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:13 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:14 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:15 ConvertHTMLToImage: Conversion successful. Image size: 4644742 bytes
+[GIN] 2026/06/18 - 00:06:15 | 200 |  2.636028018s |       127.0.0.1 | POST     "/api/v1/htmltoimage"
+2026/06/18 00:06:15 ConvertHTMLToPDF: Starting conversion. HTML length: 0, URL: https://en.wikipedia.org/wiki/Ana_de_Armas
+2026/06/18 00:06:15 ConvertHTMLToPDF: Options prepared - PageSize: A4, Orientation: Portrait, Grayscale: false
+2026/06/18 00:06:15 ConvertHTMLToPDF: Converting URL: https://en.wikipedia.org/wiki/Ana_de_Armas
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:16 ConvertHTMLToPDF: Conversion successful. PDF size: 1405677 bytes
+[GIN] 2026/06/18 - 00:06:16 | 200 |  1.343163899s |       127.0.0.1 | POST     "/api/v1/htmltopdf"
+[GIN] 2026/06/18 - 00:06:17 | 200 |    7.953572ms |       127.0.0.1 | POST     "/api/v1/merge"
+[GIN] 2026/06/18 - 00:06:17 | 200 |    5.866008ms |       127.0.0.1 | POST     "/api/v1/redact/apply"
+[GIN] 2026/06/18 - 00:06:17 | 200 |    1.008247ms |       127.0.0.1 | POST     "/api/v1/redact/capabilities"
+[GIN] 2026/06/18 - 00:06:17 | 200 |     410.963µs |       127.0.0.1 | POST     "/api/v1/redact/page-info"
+[GIN] 2026/06/18 - 00:06:17 | 200 |    1.596326ms |       127.0.0.1 | POST     "/api/v1/redact/search"
+[GIN] 2026/06/18 - 00:06:17 | 200 |    1.110967ms |       127.0.0.1 | POST     "/api/v1/redact/text-positions"
+[GIN] 2026/06/18 - 00:06:17 | 200 |    14.69049ms |       127.0.0.1 | POST     "/api/v1/split"
+[GIN] 2026/06/18 - 00:06:17 | 200 |   29.207667ms |       127.0.0.1 | POST     "/api/v1/split"
+[GIN] 2026/06/18 - 00:06:17 | 200 |   14.583922ms |       127.0.0.1 | POST     "/api/v1/split"
+[GIN] 2026/06/18 - 00:06:17 | 400 |      19.362µs |       127.0.0.1 | POST     "/api/v1/fonts"
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport-24    	   22042	    265457 ns/op	 274.84 MB/s	  324349 B/op	     293 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	12.847s
+=== C: BenchmarkGenerateTemplatePDF_FinancialReport_Parallel (test) ===
+[GIN] 2026/06/18 - 00:06:26 | 200 |   14.042149ms |       127.0.0.1 | POST     "/api/v1/fill"
+[GIN] 2026/06/18 - 00:06:26 | 200 |     1.14708ms |       127.0.0.1 | POST     "/api/v1/fill"
+[GIN] 2026/06/18 - 00:06:26 | 200 |   12.715488ms |       127.0.0.1 | POST     "/api/v1/fill"
+[GIN] 2026/06/18 - 00:06:26 | 200 |   42.052343ms |       127.0.0.1 | POST     "/api/v1/generate/template-pdf"
+[GIN] 2026/06/18 - 00:06:26 | 200 |   10.440128ms |       127.0.0.1 | POST     "/api/v1/generate/template-pdf"
+[GIN] 2026/06/18 - 00:06:26 | 200 |    3.173823ms |       127.0.0.1 | POST     "/api/v1/generate/template-pdf"
+[GIN] 2026/06/18 - 00:06:26 | 200 |    4.214192ms |       127.0.0.1 | POST     "/api/v1/generate/template-pdf"
+[GIN] 2026/06/18 - 00:06:26 | 200 |      37.138µs |       127.0.0.1 | GET      "/api/v1/fonts"
+[GIN] 2026/06/18 - 00:06:26 | 200 |     216.301µs |       127.0.0.1 | GET      "/api/v1/template-data?file=financial_report.json"
+2026/06/18 00:06:26 ConvertHTMLToImage: Starting conversion. HTML length: 0, URL: https://en.wikipedia.org/wiki/Ana_de_Armas, Format: png
+2026/06/18 00:06:26 ConvertHTMLToImage: Options prepared - Format: png, Width: 0, Height: 0, Quality: 94
+2026/06/18 00:06:26 ConvertHTMLToImage: Converting URL: https://en.wikipedia.org/wiki/Ana_de_Armas
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:27 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:28 ConvertHTMLToImage: Conversion successful. Image size: 4644742 bytes
+[GIN] 2026/06/18 - 00:06:28 | 200 |  1.926294389s |       127.0.0.1 | POST     "/api/v1/htmltoimage"
+2026/06/18 00:06:28 ConvertHTMLToPDF: Starting conversion. HTML length: 0, URL: https://en.wikipedia.org/wiki/Ana_de_Armas
+2026/06/18 00:06:28 ConvertHTMLToPDF: Options prepared - PageSize: A4, Orientation: Portrait, Grayscale: false
+2026/06/18 00:06:28 ConvertHTMLToPDF: Converting URL: https://en.wikipedia.org/wiki/Ana_de_Armas
+2026/06/18 00:06:28 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:28 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:28 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:28 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:28 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:28 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ERROR: could not unmarshal event: unknown PrivateNetworkRequestPolicy value: PermissionBlock
+2026/06/18 00:06:29 ConvertHTMLToPDF: Conversion successful. PDF size: 1405677 bytes
+[GIN] 2026/06/18 - 00:06:29 | 200 |  1.312175004s |       127.0.0.1 | POST     "/api/v1/htmltopdf"
+[GIN] 2026/06/18 - 00:06:29 | 200 |    5.317852ms |       127.0.0.1 | POST     "/api/v1/merge"
+[GIN] 2026/06/18 - 00:06:29 | 200 |    6.285346ms |       127.0.0.1 | POST     "/api/v1/redact/apply"
+[GIN] 2026/06/18 - 00:06:29 | 200 |    1.168159ms |       127.0.0.1 | POST     "/api/v1/redact/capabilities"
+[GIN] 2026/06/18 - 00:06:29 | 200 |     443.349µs |       127.0.0.1 | POST     "/api/v1/redact/page-info"
+[GIN] 2026/06/18 - 00:06:29 | 200 |     976.526µs |       127.0.0.1 | POST     "/api/v1/redact/search"
+[GIN] 2026/06/18 - 00:06:29 | 200 |    1.790946ms |       127.0.0.1 | POST     "/api/v1/redact/text-positions"
+[GIN] 2026/06/18 - 00:06:29 | 200 |   14.177296ms |       127.0.0.1 | POST     "/api/v1/split"
+[GIN] 2026/06/18 - 00:06:29 | 200 |   29.523894ms |       127.0.0.1 | POST     "/api/v1/split"
+[GIN] 2026/06/18 - 00:06:29 | 200 |   15.719856ms |       127.0.0.1 | POST     "/api/v1/split"
+[GIN] 2026/06/18 - 00:06:29 | 400 |      18.526µs |       127.0.0.1 | POST     "/api/v1/fonts"
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/test
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_FinancialReport_Parallel-24    	   86518	     59718 ns/op	  341188 B/op	     294 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/test	9.362s
+=== D: BenchmarkGenerateTemplatePDF_WrapEnabled (internal/pdf) ===
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows2000-24         	     217	  27102687 ns/op	  65.45 MB/s	 8659464 B/op	   41211 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows10000-24        	      39	 143891285 ns/op	  62.02 MB/s	41982077 B/op	  205420 allocs/op
+BenchmarkGenerateTemplatePDF_WrapEnabled/Rows25000-24        	      13	 393828431 ns/op	  58.42 MB/s	120576721 B/op	  535067 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	28.659s
+=== E: BenchmarkGoPdfSuit (internal/pdf) ===
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGoPdfSuit-24    	     456	  13203292 ns/op	 4716598 B/op	   39781 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	7.389s
+=== F: BenchmarkTypst (internal/pdf, compare tag) ===
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkTypst-24    	      12	 483050541 ns/op	   15664 B/op	      49 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf	9.964s
+=== G: BenchmarkGoPDFKit + BenchmarkGoPDFLib (gopdfkit_compare) ===
+mkdir -p /tmp/gopdfkit-real/github.com/cssbruno
+ln -sfn "$(go list -m -f '{{.Dir}}' github.com/cssbruno/gopdfkit@v0.5.2)" \
+	/tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2
+goos: linux
+goarch: amd64
+pkg: github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare
+cpu: 13th Gen Intel(R) Core(TM) i7-13700HX
+BenchmarkGoPDFKit/text_short/workers_40-24         	  635839	      8494 ns/op	    117731 pdf/s	      1505 pdf_bytes	     20281 total_MB	   33446 B/op	     185 allocs/op
+BenchmarkGoPDFKit/text_240_lines/workers_40-24     	   91908	     67380 ns/op	     14841 pdf/s	      4706 pdf_bytes	     26611 total_MB	  303609 B/op	     569 allocs/op
+BenchmarkGoPDFKit/table_180_rows/workers_40-24     	   73617	     82069 ns/op	     12185 pdf/s	      8043 pdf_bytes	     26193 total_MB	  373079 B/op	     875 allocs/op
+BenchmarkGoPDFKit/table_900_rows/workers_40-24     	   15886	    374997 ns/op	      2667 pdf/s	     34997 pdf_bytes	     27003 total_MB	 1782383 B/op	    3687 allocs/op
+BenchmarkGoPDFKit/invoice_40_rows/workers_40-24    	  244009	     24574 ns/op	     40694 pdf/s	      3232 pdf_bytes	     23895 total_MB	  102685 B/op	     348 allocs/op
+BenchmarkGoPDFKit/png_table_180_rows/workers_40-24 	   45926	    133321 ns/op	      7501 pdf/s	     15784 pdf_bytes	     25617 total_MB	  584891 B/op	    1049 allocs/op
+BenchmarkGoPDFKit/png_rows_60/workers_40-24        	   32094	    186876 ns/op	      5351 pdf/s	     32082 pdf_bytes	     20205 total_MB	  660138 B/op	    2274 allocs/op
+BenchmarkGoPDFLib/text_short/workers_40-24         	 1491321	      3968 ns/op	    252037 pdf/s	      4303 pdf_bytes	     27121 total_MB	   19068 B/op	      99 allocs/op
+BenchmarkGoPDFLib/text_240_lines/workers_40-24     	  200498	     30066 ns/op	     33260 pdf/s	     13076 pdf_bytes	      5329 total_MB	   27872 B/op	     302 allocs/op
+BenchmarkGoPDFLib/table_180_rows/workers_40-24     	  286846	     20525 ns/op	     48720 pdf/s	     11733 pdf_bytes	      6468 total_MB	   23644 B/op	     211 allocs/op
+BenchmarkGoPDFLib/table_900_rows/workers_40-24     	   64527	     92415 ns/op	     10821 pdf/s	     42096 pdf_bytes	      2479 total_MB	   40276 B/op	     584 allocs/op
+BenchmarkGoPDFLib/invoice_40_rows/workers_40-24    	  816991	      7141 ns/op	    140029 pdf/s	      6069 pdf_bytes	     16381 total_MB	   21024 B/op	     139 allocs/op
+BenchmarkGoPDFLib/png_table_180_rows/workers_40-24 	  273286	     21523 ns/op	     46461 pdf/s	     17127 pdf_bytes	      7739 total_MB	   29694 B/op	     231 allocs/op
+BenchmarkGoPDFLib/png_rows_60/workers_40-24        	  315860	     20113 ns/op	     49720 pdf/s	     18298 pdf_bytes	     18295 total_MB	   60733 B/op	     479 allocs/op
+PASS
+ok  	github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare	98.674s
+=== H: BenchmarkGoPDFKitHTMLSubset + BenchmarkGoPDFLibHTMLChrome ===
+panic: runtime error: index out of range [67] with length 0
+
+goroutine 34 [running]:
+github.com/cssbruno/gopdfkit/document.htmlSplitStringLineCount(0x3ab748824008, {0x3ab74883c660, 0xc38c38?}, 0x40805a3d70a3d70a)
+	/tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2/document/html_tables.go:1193 +0x23c
+github.com/cssbruno/gopdfkit/document.htmlSplitLineCount(0x3ab748824008, {0x3ab74883c660, 0xf}, 0x40805a3d70a3d70a)
+	/tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2/document/html_tables.go:1129 +0x9c
+github.com/cssbruno/gopdfkit/document.(*HTML).compiledTextBlockHeight(0x3ab7488726a0, 0x3ab7489a2000, 0x0, {0x3ab748a02528, _, _}, {0x1, 0x0, 0x0, 0x0, ...}, ...)
+	/tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2/document/html_layout.go:505 +0x311
+github.com/cssbruno/gopdfkit/document.(*HTML).keepCompiledHeadingWithNext(0x3ab7488726a0, _, {_, _, _}, _, _, {0x0, 0x0, 0x0, ...}, ...)
+	/tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2/document/html_layout.go:408 +0x576
+github.com/cssbruno/gopdfkit/document.(*HTML).WriteCompiled(0x3ab7488726a0, 0x4028000000000000, 0x3ab7489a2000)
+	/tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2/document/html.go:459 +0x100c
+github.com/cssbruno/gopdfkit/document.(*HTML).Write(0x3ab7488726a0, 0x4028000000000000, {0x3ab748930c00?, 0x2?})
+	/tmp/gopdfkit-real/github.com/cssbruno/gopdfkit@v0.5.2/document/html.go:109 +0xbf
+github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare.renderGoPDFKitHTML(0x3ab748964a50)
+	/home/chinmay/ChinmayPersonalProjects/gopdfsuit/sampledata/benchmarks/gopdfkit_compare/compare_benchmark_test.go:635 +0x20a
+github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare.benchmarkOptionalHTML(0x3ab748b7c308, {0xbf1eec, 0x8}, 0xc35668)
+	/home/chinmay/ChinmayPersonalProjects/gopdfsuit/sampledata/benchmarks/gopdfkit_compare/compare_benchmark_test.go:611 +0x213
+github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare.BenchmarkGoPDFKitHTMLSubset(0x3ab748b7c308)
+	/home/chinmay/ChinmayPersonalProjects/gopdfsuit/sampledata/benchmarks/gopdfkit_compare/compare_benchmark_test.go:591 +0x78
+testing.(*B).runN(0x3ab748b7c308, 0x1)
+	/home/chinmay/sdk/go1.26.4/src/testing/benchmark.go:219 +0x190
+testing.(*B).run1.func1()
+	/home/chinmay/sdk/go1.26.4/src/testing/benchmark.go:245 +0x48
+created by testing.(*B).run1 in goroutine 1
+	/home/chinmay/sdk/go1.26.4/src/testing/benchmark.go:238 +0x90
+exit status 2
+FAIL	github.com/chinmay-sawant/gopdfsuit/v6/sampledata/benchmarks/gopdfkit_compare	0.010s
+=== I: bench-gopdflib-zerodha ===
+cd sampledata/gopdflib/zerodha && GOMAXPROCS=24 BENCH_ITERATIONS=5000 BENCH_WORKERS=48 go run .
+=== Zerodha Gold Standard Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+
+OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
+GOMAXPROCS: 24
+Running 5000 iterations using 48 workers (retail sign: ECDSA P-256)...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61293 bytes (59.86 KB)
+  Active PDF size:  76065 bytes (74.28 KB)
+  HFT PDF size:     748163 bytes (730.63 KB)
+
+  Max Memory Allocated: 546.50 MB
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  GOMAXPROCS:      24
+  Retail signing:  ECDSA P-256
+  Total time:      0.502 s
+  Throughput:      9954.38 ops/sec
+
+  Avg Latency:     4.741 ms
+  Min Latency:     0.401 ms
+  Max Latency:     104.639 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4000 iterations
+  Active  (15%):   750 iterations
+  HFT      (5%):   250 iterations
+
+Saved: zerodha_active_output.pdf (76065 bytes)
+Saved: zerodha_hft_output.pdf (748163 bytes)
+Saved: zerodha_retail_output.pdf (61293 bytes)
+
+=== Done ===
+=== J: bench-gopdflib-data ===
+cd sampledata/benchmarks/gopdflib && GOMAXPROCS=24 GOWORK=off \
+	BENCH_ITERATIONS=5000 BENCH_WORKERS=48 \
+	go run . data
+=== GoPDFLib Data Benchmark ===
+Iterations: 5000 | Workers: 48 | PDF/A: true
+Run 36: 356.89 ms
+Run 25: 358.40 ms
+Run 23: 359.53 ms
+Run 40: 367.06 ms
+Run 47: 367.41 ms
+Run 27: 381.41 ms
+Run 18: 389.21 ms
+Run 6: 401.94 ms
+Run 14: 402.59 ms
+Run 3: 405.47 ms
+Run 41: 404.92 ms
+Run 46: 405.02 ms
+Run 12: 406.82 ms
+Run 26: 409.28 ms
+Run 7: 416.65 ms
+Run 16: 415.90 ms
+Run 8: 416.45 ms
+Run 30: 415.75 ms
+Run 31: 418.79 ms
+Run 42: 422.39 ms
+Run 5: 424.61 ms
+Run 11: 429.69 ms
+Run 4: 434.91 ms
+Run 10: 436.38 ms
+Run 1: 439.31 ms
+Run 24: 439.20 ms
+Run 29: 441.76 ms
+Run 35: 437.55 ms
+Run 48: 454.17 ms
+Run 33: 454.06 ms
+Run 15: 455.33 ms
+Run 9: 465.55 ms
+Run 43: 478.46 ms
+Run 2: 481.47 ms
+Run 32: 483.40 ms
+Run 39: 496.28 ms
+Run 49: 119.43 ms
+Run 13: 508.29 ms
+Run 61: 93.40 ms
+Run 55: 133.91 ms
+Run 54: 155.02 ms
+Run 57: 139.89 ms
+Run 63: 133.20 ms
+Run 53: 174.95 ms
+Run 56: 143.24 ms
+Run 60: 162.84 ms
+Run 70: 140.48 ms
+Run 34: 576.37 ms
+Run 62: 160.87 ms
+Run 45: 577.94 ms
+Run 68: 157.15 ms
+Run 67: 163.60 ms
+Run 65: 152.62 ms
+Run 58: 140.65 ms
+Run 22: 586.65 ms
+Run 37: 589.83 ms
+Run 19: 591.19 ms
+Run 59: 139.02 ms
+Run 77: 141.72 ms
+Run 20: 596.54 ms
+Run 79: 143.49 ms
+Run 82: 119.08 ms
+Run 64: 172.22 ms
+Run 81: 122.36 ms
+Run 44: 602.93 ms
+Run 74: 163.82 ms
+Run 50: 240.33 ms
+Run 72: 177.36 ms
+Run 66: 228.59 ms
+Run 71: 224.71 ms
+Run 28: 663.47 ms
+Run 76: 197.11 ms
+Run 52: 247.39 ms
+Run 85: 184.33 ms
+Run 80: 221.96 ms
+Run 89: 165.20 ms
+Run 75: 267.98 ms
+Run 93: 151.46 ms
+Run 92: 162.87 ms
+Run 73: 212.85 ms
+Run 83: 233.74 ms
+Run 21: 717.75 ms
+Run 51: 288.15 ms
+Run 88: 202.21 ms
+Run 78: 268.47 ms
+Run 69: 313.04 ms
+Run 91: 195.22 ms
+Run 84: 253.22 ms
+Run 86: 243.30 ms
+Run 96: 185.33 ms
+Run 90: 221.86 ms
+Run 94: 203.36 ms
+Run 87: 266.53 ms
+Run 38: 784.48 ms
+Run 97: 210.35 ms
+Run 115: 142.23 ms
+Run 107: 207.97 ms
+Run 119: 129.40 ms
+Run 108: 217.65 ms
+Run 109: 213.86 ms
+Run 111: 156.38 ms
+Run 114: 220.79 ms
+Run 17: 826.91 ms
+Run 117: 183.64 ms
+Run 98: 234.29 ms
+Run 95: 194.04 ms
+Run 101: 153.92 ms
+Run 118: 182.28 ms
+Run 102: 150.52 ms
+Run 120: 181.71 ms
+Run 113: 168.62 ms
+Run 123: 171.31 ms
+Run 116: 234.99 ms
+Run 99: 224.79 ms
+Run 132: 160.93 ms
+Run 121: 210.37 ms
+Run 110: 242.89 ms
+Run 124: 201.81 ms
+Run 122: 219.45 ms
+Run 137: 157.75 ms
+Run 128: 198.23 ms
+Run 135: 168.17 ms
+Run 143: 156.23 ms
+Run 136: 157.58 ms
+Run 129: 177.13 ms
+Run 141: 177.65 ms
+Run 104: 201.80 ms
+Run 147: 149.86 ms
+Run 126: 253.33 ms
+Run 139: 199.64 ms
+Run 125: 254.72 ms
+Run 142: 182.06 ms
+Run 140: 212.79 ms
+Run 100: 319.46 ms
+Run 138: 245.21 ms
+Run 112: 338.01 ms
+Run 106: 215.56 ms
+Run 148: 204.04 ms
+Run 133: 292.04 ms
+Run 130: 229.15 ms
+Run 160: 167.65 ms
+Run 103: 311.85 ms
+Run 105: 269.96 ms
+Run 150: 220.68 ms
+Run 154: 210.77 ms
+Run 151: 225.79 ms
+Run 156: 213.75 ms
+Run 131: 240.42 ms
+Run 145: 262.55 ms
+Run 146: 259.87 ms
+Run 127: 361.85 ms
+Run 152: 250.51 ms
+Run 153: 228.16 ms
+Run 164: 197.40 ms
+Run 167: 185.14 ms
+Run 163: 208.42 ms
+Run 149: 275.09 ms
+Run 162: 209.58 ms
+Run 155: 254.09 ms
+Run 144: 310.49 ms
+Run 165: 203.14 ms
+Run 166: 196.97 ms
+Run 159: 240.92 ms
+Run 157: 215.49 ms
+Run 134: 369.41 ms
+Run 169: 206.04 ms
+Run 158: 269.95 ms
+Run 171: 190.56 ms
+Run 179: 169.50 ms
+Run 161: 220.58 ms
+Run 168: 229.70 ms
+Run 170: 188.20 ms
+Run 186: 153.33 ms
+Run 175: 216.90 ms
+Run 182: 182.34 ms
+Run 183: 174.12 ms
+Run 172: 250.62 ms
+Run 178: 243.79 ms
+Run 177: 245.07 ms
+Run 190: 167.83 ms
+Run 195: 153.03 ms
+Run 197: 145.45 ms
+Run 184: 202.24 ms
+Run 180: 251.58 ms
+Run 189: 197.16 ms
+Run 174: 281.92 ms
+Run 191: 205.04 ms
+Run 173: 304.69 ms
+Run 192: 212.16 ms
+Run 208: 179.73 ms
+Run 187: 251.13 ms
+Run 193: 228.95 ms
+Run 200: 194.84 ms
+Run 196: 215.78 ms
+Run 210: 180.48 ms
+Run 211: 183.65 ms
+Run 209: 186.40 ms
+Run 216: 151.85 ms
+Run 214: 168.82 ms
+Run 194: 235.87 ms
+Run 203: 197.31 ms
+Run 185: 275.42 ms
+Run 199: 218.01 ms
+Run 198: 173.31 ms
+Run 181: 256.90 ms
+Run 202: 207.75 ms
+Run 176: 352.51 ms
+Run 219: 178.81 ms
+Run 188: 219.51 ms
+Run 201: 235.12 ms
+Run 220: 178.71 ms
+Run 224: 149.05 ms
+Run 206: 244.10 ms
+Run 222: 166.24 ms
+Run 218: 204.74 ms
+Run 213: 204.99 ms
+Run 217: 213.32 ms
+Run 207: 257.05 ms
+Run 204: 268.04 ms
+Run 232: 145.37 ms
+Run 212: 264.67 ms
+Run 221: 195.58 ms
+Run 205: 275.55 ms
+Run 236: 115.31 ms
+Run 228: 164.34 ms
+Run 243: 104.90 ms
+Run 223: 190.65 ms
+Run 225: 173.68 ms
+Run 230: 158.15 ms
+Run 241: 117.39 ms
+Run 215: 268.05 ms
+Run 229: 197.39 ms
+Run 235: 160.70 ms
+Run 247: 130.42 ms
+Run 226: 208.83 ms
+Run 253: 127.19 ms
+Run 239: 145.80 ms
+Run 237: 170.19 ms
+Run 233: 195.02 ms
+Run 244: 143.97 ms
+Run 249: 159.46 ms
+Run 264: 109.88 ms
+Run 250: 174.95 ms
+Run 259: 141.67 ms
+Run 240: 201.67 ms
+Run 246: 196.61 ms
+Run 252: 187.48 ms
+Run 251: 193.50 ms
+Run 260: 152.03 ms
+Run 254: 193.58 ms
+Run 270: 124.48 ms
+Run 261: 157.93 ms
+Run 255: 164.13 ms
+Run 245: 220.95 ms
+Run 262: 169.08 ms
+Run 263: 152.60 ms
+Run 234: 261.38 ms
+Run 276: 125.99 ms
+Run 231: 298.36 ms
+Run 248: 227.76 ms
+Run 271: 161.19 ms
+Run 227: 322.30 ms
+Run 285: 108.79 ms
+Run 277: 145.69 ms
+Run 242: 257.77 ms
+Run 269: 175.92 ms
+Run 267: 183.57 ms
+Run 281: 140.38 ms
+Run 273: 188.10 ms
+Run 266: 211.14 ms
+Run 287: 134.04 ms
+Run 278: 168.43 ms
+Run 256: 209.53 ms
+Run 282: 151.35 ms
+Run 265: 232.02 ms
+Run 275: 194.27 ms
+Run 272: 210.41 ms
+Run 288: 137.04 ms
+Run 289: 135.84 ms
+Run 238: 318.93 ms
+Run 286: 168.85 ms
+Run 279: 202.43 ms
+Run 296: 142.55 ms
+Run 290: 185.30 ms
+Run 298: 151.74 ms
+Run 283: 230.86 ms
+Run 274: 263.33 ms
+Run 257: 283.50 ms
+Run 294: 166.34 ms
+Run 292: 196.70 ms
+Run 268: 310.13 ms
+Run 305: 164.20 ms
+Run 302: 175.54 ms
+Run 303: 173.42 ms
+Run 295: 210.48 ms
+Run 313: 156.87 ms
+Run 306: 182.06 ms
+Run 291: 229.30 ms
+Run 284: 272.56 ms
+Run 312: 162.34 ms
+Run 300: 203.65 ms
+Run 258: 311.43 ms
+Run 317: 244.52 ms
+Run 316: 275.59 ms
+Run 297: 341.92 ms
+Run 323: 252.53 ms
+Run 326: 253.51 ms
+Run 315: 298.36 ms
+Run 280: 411.37 ms
+Run 301: 349.88 ms
+Run 309: 320.10 ms
+Run 330: 249.20 ms
+Run 308: 346.56 ms
+Run 325: 281.05 ms
+Run 328: 269.01 ms
+Run 340: 196.27 ms
+Run 324: 255.29 ms
+Run 332: 237.43 ms
+Run 319: 268.11 ms
+Run 320: 314.39 ms
+Run 293: 403.11 ms
+Run 322: 321.07 ms
+Run 341: 212.78 ms
+Run 342: 214.28 ms
+Run 337: 232.62 ms
+Run 331: 280.42 ms
+Run 321: 353.65 ms
+Run 329: 328.46 ms
+Run 327: 336.08 ms
+Run 338: 273.00 ms
+Run 333: 296.26 ms
+Run 349: 248.60 ms
+Run 310: 420.40 ms
+Run 311: 419.65 ms
+Run 335: 315.04 ms
+Run 299: 483.67 ms
+Run 334: 333.68 ms
+Run 336: 320.67 ms
+Run 350: 277.91 ms
+Run 318: 425.28 ms
+Run 339: 317.06 ms
+Run 307: 454.92 ms
+Run 352: 258.32 ms
+Run 348: 425.89 ms
+Run 354: 320.48 ms
+Run 314: 644.72 ms
+Run 358: 340.75 ms
+Run 304: 681.78 ms
+Run 356: 351.44 ms
+Run 368: 319.37 ms
+Run 367: 328.99 ms
+Run 343: 389.52 ms
+Run 359: 388.00 ms
+Run 355: 407.26 ms
+Run 365: 375.25 ms
+Run 376: 326.13 ms
+Run 357: 407.99 ms
+Run 353: 425.35 ms
+Run 375: 335.26 ms
+Run 351: 452.03 ms
+Run 344: 383.50 ms
+Run 345: 389.42 ms
+Run 363: 400.09 ms
+Run 361: 384.64 ms
+Run 346: 387.12 ms
+Run 366: 422.77 ms
+Run 362: 379.37 ms
+Run 377: 372.85 ms
+Run 373: 409.06 ms
+Run 379: 370.37 ms
+Run 380: 363.82 ms
+Run 370: 424.35 ms
+Run 378: 374.31 ms
+Run 360: 477.47 ms
+Run 381: 394.00 ms
+Run 369: 453.91 ms
+Run 392: 236.09 ms
+Run 382: 410.90 ms
+Run 383: 390.14 ms
+Run 364: 492.78 ms
+Run 372: 482.00 ms
+Run 388: 390.43 ms
+Run 347: 411.95 ms
+Run 371: 434.93 ms
+Run 396: 198.32 ms
+Run 374: 482.10 ms
+Run 391: 329.46 ms
+Run 395: 259.09 ms
+Run 386: 468.20 ms
+Run 385: 301.94 ms
+Run 390: 358.69 ms
+Run 411: 195.74 ms
+Run 406: 216.57 ms
+Run 410: 206.52 ms
+Run 387: 485.57 ms
+Run 407: 220.50 ms
+Run 399: 272.14 ms
+Run 397: 280.45 ms
+Run 389: 491.31 ms
+Run 401: 248.02 ms
+Run 384: 354.74 ms
+Run 408: 236.02 ms
+Run 400: 262.32 ms
+Run 404: 256.05 ms
+Run 415: 207.26 ms
+Run 393: 295.12 ms
+Run 416: 204.51 ms
+Run 412: 265.16 ms
+Run 425: 184.09 ms
+Run 398: 347.21 ms
+Run 405: 264.66 ms
+Run 402: 273.45 ms
+Run 414: 223.68 ms
+Run 427: 183.17 ms
+Run 420: 237.08 ms
+Run 403: 279.78 ms
+Run 421: 222.65 ms
+Run 413: 246.83 ms
+Run 394: 325.42 ms
+Run 426: 209.01 ms
+Run 417: 206.46 ms
+Run 423: 171.95 ms
+Run 430: 196.83 ms
+Run 433: 191.03 ms
+Run 409: 253.78 ms
+Run 419: 204.54 ms
+Run 432: 201.67 ms
+Run 443: 114.50 ms
+Run 436: 136.13 ms
+Run 437: 135.31 ms
+Run 418: 282.03 ms
+Run 429: 218.42 ms
+Run 434: 207.31 ms
+Run 439: 136.96 ms
+Run 431: 220.23 ms
+Run 438: 144.41 ms
+Run 442: 132.50 ms
+Run 424: 249.90 ms
+Run 435: 179.68 ms
+Run 445: 138.40 ms
+Run 428: 257.79 ms
+Run 449: 141.57 ms
+Run 441: 166.20 ms
+Run 447: 157.06 ms
+Run 440: 182.22 ms
+Run 448: 160.81 ms
+Run 446: 174.50 ms
+Run 444: 183.42 ms
+Run 422: 249.34 ms
+Run 450: 172.53 ms
+Run 451: 175.37 ms
+Run 452: 175.41 ms
+Run 466: 119.48 ms
+Run 462: 136.41 ms
+Run 454: 156.90 ms
+Run 464: 146.99 ms
+Run 455: 164.15 ms
+Run 457: 174.03 ms
+Run 453: 189.05 ms
+Run 465: 145.67 ms
+Run 486: 123.85 ms
+Run 474: 158.01 ms
+Run 476: 158.10 ms
+Run 485: 149.16 ms
+Run 477: 165.85 ms
+Run 456: 217.69 ms
+Run 461: 206.89 ms
+Run 492: 119.09 ms
+Run 467: 178.60 ms
+Run 459: 222.05 ms
+Run 468: 172.08 ms
+Run 484: 176.21 ms
+Run 469: 159.30 ms
+Run 483: 186.52 ms
+Run 491: 156.22 ms
+Run 489: 180.78 ms
+Run 480: 209.74 ms
+Run 487: 193.96 ms
+Run 498: 143.03 ms
+Run 471: 140.06 ms
+Run 490: 178.51 ms
+Run 481: 216.10 ms
+Run 497: 157.86 ms
+Run 479: 231.21 ms
+Run 473: 245.52 ms
+Run 494: 181.70 ms
+Run 460: 282.88 ms
+Run 495: 177.60 ms
+Run 478: 242.75 ms
+Run 475: 253.47 ms
+Run 463: 288.62 ms
+Run 458: 292.38 ms
+Run 496: 182.52 ms
+Run 507: 125.76 ms
+Run 499: 177.76 ms
+Run 502: 165.45 ms
+Run 503: 166.42 ms
+Run 482: 260.62 ms
+Run 493: 216.12 ms
+Run 488: 233.04 ms
+Run 509: 148.83 ms
+Run 504: 196.41 ms
+Run 472: 205.87 ms
+Run 505: 201.40 ms
+Run 520: 122.33 ms
+Run 500: 223.81 ms
+Run 512: 153.80 ms
+Run 514: 174.15 ms
+Run 470: 279.09 ms
+Run 515: 178.83 ms
+Run 517: 175.55 ms
+Run 508: 216.76 ms
+Run 521: 153.35 ms
+Run 519: 176.37 ms
+Run 511: 210.32 ms
+Run 510: 222.82 ms
+Run 523: 168.58 ms
+Run 522: 181.73 ms
+Run 518: 202.07 ms
+Run 528: 170.23 ms
+Run 529: 169.99 ms
+Run 531: 159.61 ms
+Run 527: 177.37 ms
+Run 539: 150.18 ms
+Run 533: 163.41 ms
+Run 525: 183.21 ms
+Run 535: 160.11 ms
+Run 506: 272.94 ms
+Run 501: 313.68 ms
+Run 536: 169.44 ms
+Run 537: 192.55 ms
+Run 541: 183.82 ms
+Run 532: 202.17 ms
+Run 534: 198.04 ms
+Run 524: 225.10 ms
+Run 516: 302.55 ms
+Run 540: 222.81 ms
+Run 545: 207.23 ms
+Run 548: 195.46 ms
+Run 546: 205.95 ms
+Run 526: 228.42 ms
+Run 549: 187.29 ms
+Run 544: 219.33 ms
+Run 554: 163.85 ms
+Run 555: 165.00 ms
+Run 542: 226.33 ms
+Run 547: 118.81 ms
+Run 550: 201.01 ms
+Run 530: 148.76 ms
+Run 513: 347.75 ms
+Run 561: 150.96 ms
+Run 565: 163.55 ms
+Run 570: 142.97 ms
+Run 538: 292.92 ms
+Run 553: 239.92 ms
+Run 552: 239.35 ms
+Run 577: 149.88 ms
+Run 567: 181.50 ms
+Run 578: 154.30 ms
+Run 566: 184.88 ms
+Run 562: 204.00 ms
+Run 569: 180.58 ms
+Run 568: 189.97 ms
+Run 557: 213.24 ms
+Run 563: 135.66 ms
+Run 564: 216.05 ms
+Run 574: 193.33 ms
+Run 560: 243.20 ms
+Run 576: 206.16 ms
+Run 556: 249.41 ms
+Run 575: 211.25 ms
+Run 583: 169.58 ms
+Run 543: 363.40 ms
+Run 588: 180.34 ms
+Run 597: 149.74 ms
+Run 579: 232.79 ms
+Run 581: 171.02 ms
+Run 589: 201.31 ms
+Run 594: 203.45 ms
+Run 604: 142.12 ms
+Run 586: 234.37 ms
+Run 587: 258.94 ms
+Run 590: 257.04 ms
+Run 596: 237.09 ms
+Run 582: 303.05 ms
+Run 593: 259.07 ms
+Run 551: 439.64 ms
+Run 572: 349.36 ms
+Run 558: 403.07 ms
+Run 601: 216.20 ms
+Run 595: 250.85 ms
+Run 580: 321.82 ms
+Run 600: 221.48 ms
+Run 571: 364.17 ms
+Run 585: 291.93 ms
+Run 573: 373.22 ms
+Run 603: 229.95 ms
+Run 584: 316.89 ms
+Run 599: 290.36 ms
+Run 559: 454.87 ms
+Run 610: 234.15 ms
+Run 608: 241.43 ms
+Run 591: 339.99 ms
+Run 602: 273.26 ms
+Run 607: 261.00 ms
+Run 592: 278.50 ms
+Run 620: 212.54 ms
+Run 605: 276.89 ms
+Run 614: 244.44 ms
+Run 613: 249.42 ms
+Run 598: 323.75 ms
+Run 609: 267.85 ms
+Run 611: 263.96 ms
+Run 617: 236.48 ms
+Run 606: 286.90 ms
+Run 612: 267.41 ms
+Run 621: 235.29 ms
+Run 622: 220.45 ms
+Run 623: 225.05 ms
+Run 619: 279.72 ms
+Run 615: 304.23 ms
+Run 624: 228.92 ms
+Run 618: 284.82 ms
+Run 631: 188.93 ms
+Run 633: 182.54 ms
+Run 626: 251.31 ms
+Run 630: 201.29 ms
+Run 628: 235.86 ms
+Run 629: 233.44 ms
+Run 625: 268.17 ms
+Run 627: 235.24 ms
+Run 632: 204.90 ms
+Run 634: 221.34 ms
+Run 646: 176.18 ms
+Run 644: 206.79 ms
+Run 661: 209.14 ms
+Run 642: 215.80 ms
+Run 655: 191.59 ms
+Run 662: 207.34 ms
+Run 652: 214.49 ms
+Run 650: 220.17 ms
+Run 666: 209.43 ms
+Run 648: 244.45 ms
+Run 616: 473.27 ms
+Run 676: 168.48 ms
+Run 641: 267.47 ms
+Run 649: 262.12 ms
+Run 671: 178.80 ms
+Run 660: 253.53 ms
+Run 668: 201.74 ms
+Run 669: 198.14 ms
+Run 643: 255.62 ms
+Run 667: 186.77 ms
+Run 636: 239.26 ms
+Run 670: 211.68 ms
+Run 664: 259.84 ms
+Run 637: 274.95 ms
+Run 663: 228.31 ms
+Run 656: 264.03 ms
+Run 677: 181.58 ms
+Run 640: 286.32 ms
+Run 654: 274.01 ms
+Run 647: 285.21 ms
+Run 653: 280.14 ms
+Run 645: 291.66 ms
+Run 658: 220.74 ms
+Run 651: 290.22 ms
+Run 665: 279.77 ms
+Run 657: 284.31 ms
+Run 679: 195.90 ms
+Run 672: 198.73 ms
+Run 683: 110.85 ms
+Run 678: 215.76 ms
+Run 673: 243.31 ms
+Run 635: 302.52 ms
+Run 685: 123.96 ms
+Run 680: 175.42 ms
+Run 659: 203.73 ms
+Run 682: 171.72 ms
+Run 675: 256.11 ms
+Run 639: 311.54 ms
+Run 638: 358.73 ms
+Run 684: 147.99 ms
+Run 674: 220.96 ms
+Run 687: 145.54 ms
+Run 686: 158.02 ms
+Run 691: 128.31 ms
+Run 689: 134.96 ms
+Run 681: 257.79 ms
+Run 688: 168.09 ms
+Run 707: 105.88 ms
+Run 692: 137.89 ms
+Run 704: 127.87 ms
+Run 693: 152.73 ms
+Run 711: 138.86 ms
+Run 710: 147.69 ms
+Run 719: 121.78 ms
+Run 713: 147.38 ms
+Run 709: 156.82 ms
+Run 718: 140.34 ms
+Run 715: 149.50 ms
+Run 722: 120.09 ms
+Run 708: 165.85 ms
+Run 696: 133.51 ms
+Run 698: 140.03 ms
+Run 694: 190.49 ms
+Run 690: 212.67 ms
+Run 706: 185.71 ms
+Run 714: 177.60 ms
+Run 725: 134.23 ms
+Run 700: 149.98 ms
+Run 697: 179.83 ms
+Run 740: 90.33 ms
+Run 705: 206.48 ms
+Run 717: 188.32 ms
+Run 732: 125.88 ms
+Run 739: 101.69 ms
+Run 735: 115.44 ms
+Run 701: 153.41 ms
+Run 733: 142.08 ms
+Run 728: 156.74 ms
+Run 723: 182.73 ms
+Run 736: 138.62 ms
+Run 695: 189.59 ms
+Run 716: 218.43 ms
+Run 727: 185.81 ms
+Run 721: 216.73 ms
+Run 720: 221.30 ms
+Run 724: 201.75 ms
+Run 744: 109.86 ms
+Run 754: 87.45 ms
+Run 734: 170.21 ms
+Run 741: 150.43 ms
+Run 730: 198.05 ms
+Run 712: 288.43 ms
+Run 764: 88.78 ms
+Run 699: 247.04 ms
+Run 726: 233.23 ms
+Run 758: 100.20 ms
+Run 769: 75.33 ms
+Run 756: 125.76 ms
+Run 703: 231.75 ms
+Run 738: 209.02 ms
+Run 753: 152.29 ms
+Run 760: 127.29 ms
+Run 750: 165.06 ms
+Run 729: 270.63 ms
+Run 749: 179.89 ms
+Run 752: 174.17 ms
+Run 767: 130.64 ms
+Run 755: 186.93 ms
+Run 772: 131.49 ms
+Run 743: 226.56 ms
+Run 702: 290.25 ms
+Run 742: 237.90 ms
+Run 771: 140.64 ms
+Run 751: 207.02 ms
+Run 775: 123.06 ms
+Run 759: 181.95 ms
+Run 779: 120.97 ms
+Run 762: 176.92 ms
+Run 731: 304.28 ms
+Run 745: 228.12 ms
+Run 773: 151.57 ms
+Run 777: 133.25 ms
+Run 766: 187.05 ms
+Run 770: 171.95 ms
+Run 747: 256.55 ms
+Run 783: 122.64 ms
+Run 781: 143.89 ms
+Run 776: 179.16 ms
+Run 763: 224.80 ms
+Run 789: 126.20 ms
+Run 784: 143.57 ms
+Run 788: 138.06 ms
+Run 782: 169.25 ms
+Run 786: 156.22 ms
+Run 737: 357.40 ms
+Run 793: 136.09 ms
+Run 765: 260.83 ms
+Run 787: 176.58 ms
+Run 761: 275.42 ms
+Run 792: 155.76 ms
+Run 768: 258.02 ms
+Run 785: 195.92 ms
+Run 778: 231.90 ms
+Run 796: 164.77 ms
+Run 790: 205.01 ms
+Run 780: 194.37 ms
+Run 798: 191.38 ms
+Run 757: 353.17 ms
+Run 791: 234.30 ms
+Run 748: 391.31 ms
+Run 797: 169.80 ms
+Run 812: 166.57 ms
+Run 809: 170.19 ms
+Run 816: 146.06 ms
+Run 814: 165.73 ms
+Run 774: 261.08 ms
+Run 801: 160.19 ms
+Run 799: 219.23 ms
+Run 813: 171.43 ms
+Run 746: 349.73 ms
+Run 818: 284.59 ms
+Run 795: 225.34 ms
+Run 794: 241.00 ms
+Run 823: 281.15 ms
+Run 819: 286.15 ms
+Run 802: 292.53 ms
+Run 815: 321.22 ms
+Run 822: 287.76 ms
+Run 806: 191.88 ms
+Run 825: 269.75 ms
+Run 811: 355.61 ms
+Run 803: 294.09 ms
+Run 833: 256.01 ms
+Run 817: 312.55 ms
+Run 808: 366.12 ms
+Run 804: 280.98 ms
+Run 807: 351.20 ms
+Run 826: 297.67 ms
+Run 827: 296.31 ms
+Run 810: 380.29 ms
+Run 835: 258.47 ms
+Run 832: 296.59 ms
+Run 820: 347.12 ms
+Run 837: 257.37 ms
+Run 830: 314.19 ms
+Run 824: 324.79 ms
+Run 828: 346.15 ms
+Run 836: 298.59 ms
+Run 849: 238.79 ms
+Run 850: 124.55 ms
+Run 805: 306.60 ms
+Run 846: 261.69 ms
+Run 839: 288.43 ms
+Run 831: 352.85 ms
+Run 840: 285.49 ms
+Run 821: 295.85 ms
+Run 855: 125.84 ms
+Run 841: 298.56 ms
+Run 842: 275.82 ms
+Run 847: 279.94 ms
+Run 829: 322.82 ms
+Run 856: 136.09 ms
+Run 843: 270.13 ms
+Run 853: 148.02 ms
+Run 844: 151.72 ms
+Run 848: 282.38 ms
+Run 834: 303.39 ms
+Run 838: 333.74 ms
+Run 852: 160.80 ms
+Run 851: 173.87 ms
+Run 845: 141.97 ms
+Run 873: 106.17 ms
+Run 870: 123.23 ms
+Run 800: 415.95 ms
+Run 854: 212.95 ms
+Run 858: 208.43 ms
+Run 869: 181.45 ms
+Run 860: 198.89 ms
+Run 859: 218.24 ms
+Run 867: 194.52 ms
+Run 866: 199.15 ms
+Run 857: 228.44 ms
+Run 863: 217.23 ms
+Run 862: 237.31 ms
+Run 877: 171.60 ms
+Run 864: 237.81 ms
+Run 874: 202.22 ms
+Run 879: 167.29 ms
+Run 876: 194.81 ms
+Run 875: 237.66 ms
+Run 872: 255.29 ms
+Run 882: 197.03 ms
+Run 861: 325.47 ms
+Run 883: 237.73 ms
+Run 892: 221.77 ms
+Run 881: 256.92 ms
+Run 891: 237.91 ms
+Run 885: 257.13 ms
+Run 884: 261.79 ms
+Run 871: 335.72 ms
+Run 868: 357.76 ms
+Run 890: 262.56 ms
+Run 893: 258.25 ms
+Run 889: 272.39 ms
+Run 895: 192.87 ms
+Run 901: 255.32 ms
+Run 909: 198.81 ms
+Run 888: 294.13 ms
+Run 887: 303.18 ms
+Run 912: 199.55 ms
+Run 878: 332.77 ms
+Run 865: 382.48 ms
+Run 902: 271.37 ms
+Run 894: 292.80 ms
+Run 911: 213.06 ms
+Run 903: 264.86 ms
+Run 880: 350.33 ms
+Run 904: 215.68 ms
+Run 910: 247.08 ms
+Run 907: 209.77 ms
+Run 915: 229.01 ms
+Run 914: 244.84 ms
+Run 917: 215.92 ms
+Run 913: 257.42 ms
+Run 918: 226.46 ms
+Run 930: 126.58 ms
+Run 886: 387.60 ms
+Run 922: 194.83 ms
+Run 906: 234.21 ms
+Run 905: 239.75 ms
+Run 898: 242.72 ms
+Run 924: 170.54 ms
+Run 908: 251.95 ms
+Run 921: 221.66 ms
+Run 927: 166.41 ms
+Run 946: 99.95 ms
+Run 900: 270.15 ms
+Run 896: 319.74 ms
+Run 926: 194.50 ms
+Run 943: 123.86 ms
+Run 942: 126.48 ms
+Run 923: 229.15 ms
+Run 934: 164.15 ms
+Run 897: 321.46 ms
+Run 936: 164.55 ms
+Run 944: 144.82 ms
+Run 929: 206.05 ms
+Run 920: 214.22 ms
+Run 925: 279.90 ms
+Run 932: 236.63 ms
+Run 935: 228.23 ms
+Run 941: 117.54 ms
+Run 945: 204.25 ms
+Run 949: 180.68 ms
+Run 952: 156.73 ms
+Run 916: 379.74 ms
+Run 953: 164.70 ms
+Run 931: 272.91 ms
+Run 961: 148.35 ms
+Run 939: 241.53 ms
+Run 962: 154.98 ms
+Run 954: 182.12 ms
+Run 899: 408.22 ms
+Run 956: 188.66 ms
+Run 938: 269.95 ms
+Run 950: 215.47 ms
+Run 947: 249.53 ms
+Run 948: 243.23 ms
+Run 933: 306.26 ms
+Run 957: 207.91 ms
+Run 966: 177.85 ms
+Run 940: 282.55 ms
+Run 955: 220.49 ms
+Run 964: 188.66 ms
+Run 969: 170.25 ms
+Run 965: 191.38 ms
+Run 968: 176.22 ms
+Run 960: 215.20 ms
+Run 937: 316.67 ms
+Run 919: 421.56 ms
+Run 958: 247.12 ms
+Run 976: 185.98 ms
+Run 973: 180.41 ms
+Run 928: 372.17 ms
+Run 977: 163.24 ms
+Run 972: 213.32 ms
+Run 987: 124.41 ms
+Run 978: 193.76 ms
+Run 951: 259.82 ms
+Run 975: 299.82 ms
+Run 983: 235.71 ms
+Run 985: 228.75 ms
+Run 979: 289.36 ms
+Run 970: 348.72 ms
+Run 971: 359.29 ms
+Run 959: 411.53 ms
+Run 980: 274.84 ms
+Run 981: 294.68 ms
+Run 988: 277.38 ms
+Run 974: 372.24 ms
+Run 991: 273.31 ms
+Run 984: 296.10 ms
+Run 982: 276.81 ms
+Run 994: 262.91 ms
+Run 963: 429.33 ms
+Run 967: 406.62 ms
+Run 989: 292.86 ms
+Run 1009: 231.61 ms
+Run 996: 267.04 ms
+Run 997: 267.28 ms
+Run 990: 297.81 ms
+Run 986: 319.89 ms
+Run 992: 309.26 ms
+Run 998: 279.86 ms
+Run 1011: 228.81 ms
+Run 1012: 229.28 ms
+Run 1004: 277.64 ms
+Run 995: 307.66 ms
+Run 1010: 287.99 ms
+Run 1017: 252.61 ms
+Run 1016: 258.55 ms
+Run 1022: 158.87 ms
+Run 999: 331.14 ms
+Run 1005: 319.40 ms
+Run 1008: 315.55 ms
+Run 1000: 335.18 ms
+Run 1023: 166.10 ms
+Run 1001: 328.13 ms
+Run 1003: 329.15 ms
+Run 1021: 174.41 ms
+Run 1028: 119.80 ms
+Run 1006: 330.34 ms
+Run 1015: 285.03 ms
+Run 1002: 343.79 ms
+Run 1018: 284.41 ms
+Run 1014: 299.28 ms
+Run 1024: 198.47 ms
+Run 1038: 125.66 ms
+Run 1030: 145.62 ms
+Run 1029: 153.59 ms
+Run 1007: 359.71 ms
+Run 1041: 133.09 ms
+Run 993: 421.45 ms
+Run 1034: 176.63 ms
+Run 1031: 169.15 ms
+Run 1045: 159.16 ms
+Run 1025: 226.40 ms
+Run 1048: 148.25 ms
+Run 1047: 157.63 ms
+Run 1058: 102.45 ms
+Run 1040: 189.47 ms
+Run 1066: 91.97 ms
+Run 1039: 193.84 ms
+Run 1043: 140.35 ms
+Run 1036: 160.09 ms
+Run 1049: 160.01 ms
+Run 1050: 131.73 ms
+Run 1064: 103.93 ms
+Run 1063: 107.78 ms
+Run 1054: 128.13 ms
+Run 1035: 155.11 ms
+Run 1051: 139.53 ms
+Run 1033: 226.25 ms
+Run 1061: 127.37 ms
+Run 1067: 104.03 ms
+Run 1044: 143.38 ms
+Run 1026: 263.78 ms
+Run 1019: 332.14 ms
+Run 1027: 284.70 ms
+Run 1056: 167.84 ms
+Run 1059: 170.41 ms
+Run 1020: 249.13 ms
+Run 1042: 153.58 ms
+Run 1055: 185.13 ms
+Run 1062: 119.49 ms
+Run 1070: 154.45 ms
+Run 1032: 297.05 ms
+Run 1052: 209.13 ms
+Run 1068: 141.47 ms
+Run 1074: 121.04 ms
+Run 1060: 200.76 ms
+Run 1053: 213.98 ms
+Run 1071: 165.56 ms
+Run 1057: 210.37 ms
+Run 1065: 155.55 ms
+Run 1072: 175.20 ms
+Run 1075: 138.71 ms
+Run 1046: 280.88 ms
+Run 1081: 145.65 ms
+Run 1083: 143.81 ms
+Run 1069: 217.65 ms
+Run 1078: 158.65 ms
+Run 1037: 157.72 ms
+Run 1094: 144.05 ms
+Run 1093: 148.51 ms
+Run 1087: 147.84 ms
+Run 1013: 358.54 ms
+Run 1082: 168.93 ms
+Run 1104: 108.01 ms
+Run 1091: 168.32 ms
+Run 1096: 157.50 ms
+Run 1077: 170.42 ms
+Run 1080: 168.26 ms
+Run 1092: 173.79 ms
+Run 1079: 211.96 ms
+Run 1088: 196.66 ms
+Run 1076: 223.36 ms
+Run 1086: 210.24 ms
+Run 1090: 207.86 ms
+Run 1110: 131.15 ms
+Run 1084: 223.63 ms
+Run 1118: 115.07 ms
+Run 1102: 153.22 ms
+Run 1073: 210.13 ms
+Run 1106: 149.23 ms
+Run 1116: 129.36 ms
+Run 1085: 232.91 ms
+Run 1100: 181.51 ms
+Run 1089: 293.34 ms
+Run 1101: 247.76 ms
+Run 1108: 222.51 ms
+Run 1111: 123.12 ms
+Run 1103: 251.09 ms
+Run 1099: 263.84 ms
+Run 1117: 211.46 ms
+Run 1105: 249.29 ms
+Run 1107: 237.48 ms
+Run 1119: 218.09 ms
+Run 1115: 231.55 ms
+Run 1098: 321.33 ms
+Run 1095: 333.28 ms
+Run 1114: 264.96 ms
+Run 1123: 216.55 ms
+Run 1128: 202.75 ms
+Run 1126: 205.54 ms
+Run 1121: 230.14 ms
+Run 1127: 209.87 ms
+Run 1097: 391.20 ms
+Run 1113: 325.13 ms
+Run 1120: 287.10 ms
+Run 1124: 305.09 ms
+Run 1125: 308.93 ms
+Run 1133: 284.99 ms
+Run 1122: 323.65 ms
+Run 1139: 258.05 ms
+Run 1138: 267.30 ms
+Run 1140: 271.05 ms
+Run 1146: 264.48 ms
+Run 1141: 274.18 ms
+Run 1129: 330.25 ms
+Run 1143: 272.80 ms
+Run 1134: 313.70 ms
+Run 1112: 410.02 ms
+Run 1109: 418.02 ms
+Run 1130: 339.37 ms
+Run 1137: 313.19 ms
+Run 1132: 340.54 ms
+Run 1131: 347.39 ms
+Run 1135: 310.81 ms
+Run 1148: 200.51 ms
+Run 1154: 221.34 ms
+Run 1156: 223.38 ms
+Run 1157: 220.85 ms
+Run 1163: 181.70 ms
+Run 1145: 316.34 ms
+Run 1153: 234.53 ms
+Run 1136: 233.63 ms
+Run 1155: 239.80 ms
+Run 1162: 206.78 ms
+Run 1161: 212.58 ms
+Run 1144: 342.73 ms
+Run 1158: 247.78 ms
+Run 1142: 350.82 ms
+Run 1152: 217.61 ms
+Run 1160: 264.42 ms
+Run 1165: 226.44 ms
+Run 1168: 225.47 ms
+Run 1150: 241.55 ms
+Run 1149: 242.45 ms
+Run 1164: 237.91 ms
+Run 1176: 134.86 ms
+Run 1167: 238.08 ms
+Run 1182: 145.49 ms
+Run 1179: 151.51 ms
+Run 1186: 128.95 ms
+Run 1177: 178.76 ms
+Run 1172: 193.75 ms
+Run 1185: 152.45 ms
+Run 1189: 134.53 ms
+Run 1169: 245.10 ms
+Run 1180: 172.47 ms
+Run 1188: 154.55 ms
+Run 1178: 189.73 ms
+Run 1181: 181.39 ms
+Run 1159: 349.97 ms
+Run 1197: 134.83 ms
+Run 1184: 178.56 ms
+Run 1175: 217.11 ms
+Run 1183: 194.34 ms
+Run 1147: 458.59 ms
+Run 1166: 334.25 ms
+Run 1173: 237.51 ms
+Run 1191: 176.36 ms
+Run 1204: 135.07 ms
+Run 1199: 157.09 ms
+Run 1205: 135.90 ms
+Run 1194: 176.64 ms
+Run 1195: 178.62 ms
+Run 1209: 122.37 ms
+Run 1201: 159.82 ms
+Run 1198: 176.20 ms
+Run 1151: 372.63 ms
+Run 1211: 131.31 ms
+Run 1203: 166.87 ms
+Run 1170: 284.02 ms
+Run 1187: 222.64 ms
+Run 1192: 209.70 ms
+Run 1196: 203.99 ms
+Run 1208: 153.60 ms
+Run 1171: 332.25 ms
+Run 1202: 187.80 ms
+Run 1174: 288.03 ms
+Run 1219: 105.17 ms
+Run 1225: 91.37 ms
+Run 1207: 177.50 ms
+Run 1190: 247.25 ms
+Run 1214: 139.54 ms
+Run 1193: 246.75 ms
+Run 1210: 203.32 ms
+Run 1223: 131.12 ms
+Run 1200: 244.81 ms
+Run 1217: 154.37 ms
+Run 1222: 138.57 ms
+Run 1224: 134.76 ms
+Run 1221: 151.85 ms
+Run 1215: 170.18 ms
+Run 1212: 212.09 ms
+Run 1213: 211.09 ms
+Run 1231: 135.26 ms
+Run 1233: 135.34 ms
+Run 1220: 184.24 ms
+Run 1236: 117.42 ms
+Run 1227: 168.76 ms
+Run 1245: 115.83 ms
+Run 1240: 140.77 ms
+Run 1232: 164.03 ms
+Run 1218: 195.59 ms
+Run 1229: 180.31 ms
+Run 1234: 171.42 ms
+Run 1258: 95.66 ms
+Run 1216: 236.05 ms
+Run 1248: 140.33 ms
+Run 1242: 160.57 ms
+Run 1251: 132.84 ms
+Run 1249: 149.27 ms
+Run 1230: 204.32 ms
+Run 1244: 165.98 ms
+Run 1247: 162.89 ms
+Run 1228: 219.57 ms
+Run 1253: 150.32 ms
+Run 1241: 190.57 ms
+Run 1264: 110.02 ms
+Run 1262: 116.48 ms
+Run 1226: 243.34 ms
+Run 1255: 161.03 ms
+Run 1257: 159.60 ms
+Run 1250: 183.67 ms
+Run 1243: 195.13 ms
+Run 1206: 347.37 ms
+Run 1266: 132.58 ms
+Run 1260: 141.28 ms
+Run 1254: 192.35 ms
+Run 1237: 212.04 ms
+Run 1235: 234.70 ms
+Run 1268: 153.11 ms
+Run 1273: 127.34 ms
+Run 1265: 164.11 ms
+Run 1261: 170.39 ms
+Run 1272: 132.33 ms
+Run 1275: 125.71 ms
+Run 1279: 110.52 ms
+Run 1282: 97.32 ms
+Run 1252: 225.04 ms
+Run 1256: 218.07 ms
+Run 1238: 273.41 ms
+Run 1269: 171.62 ms
+Run 1271: 160.73 ms
+Run 1281: 125.42 ms
+Run 1263: 198.64 ms
+Run 1246: 274.05 ms
+Run 1239: 199.84 ms
+Run 1267: 209.66 ms
+Run 1278: 163.43 ms
+Run 1259: 246.96 ms
+Run 1288: 101.93 ms
+Run 1280: 171.29 ms
+Run 1296: 119.60 ms
+Run 1285: 153.43 ms
+Run 1295: 124.15 ms
+Run 1284: 173.17 ms
+Run 1286: 133.64 ms
+Run 1287: 147.40 ms
+Run 1300: 127.26 ms
+Run 1289: 107.55 ms
+Run 1297: 160.39 ms
+Run 1302: 149.21 ms
+Run 1306: 123.48 ms
+Run 1283: 208.70 ms
+Run 1316: 102.85 ms
+Run 1303: 143.38 ms
+Run 1320: 96.22 ms
+Run 1277: 236.73 ms
+Run 1270: 277.35 ms
+Run 1301: 169.07 ms
+Run 1318: 113.64 ms
+Run 1304: 159.57 ms
+Run 1274: 270.55 ms
+Run 1294: 200.17 ms
+Run 1317: 151.42 ms
+Run 1307: 157.27 ms
+Run 1325: 128.16 ms
+Run 1319: 164.37 ms
+Run 1329: 117.81 ms
+Run 1315: 181.44 ms
+Run 1308: 160.04 ms
+Run 1322: 161.48 ms
+Run 1324: 147.73 ms
+Run 1305: 175.83 ms
+Run 1290: 140.29 ms
+Run 1321: 142.31 ms
+Run 1291: 276.13 ms
+Run 1299: 216.33 ms
+Run 1298: 264.99 ms
+Run 1293: 286.88 ms
+Run 1326: 164.59 ms
+Run 1331: 147.28 ms
+Run 1334: 143.64 ms
+Run 1330: 160.19 ms
+Run 1276: 257.83 ms
+Run 1328: 176.03 ms
+Run 1310: 175.19 ms
+Run 1323: 203.83 ms
+Run 1309: 197.33 ms
+Run 1333: 165.03 ms
+Run 1337: 164.23 ms
+Run 1292: 347.16 ms
+Run 1341: 167.74 ms
+Run 1336: 177.13 ms
+Run 1332: 210.81 ms
+Run 1346: 143.10 ms
+Run 1339: 187.63 ms
+Run 1311: 210.59 ms
+Run 1314: 173.68 ms
+Run 1340: 194.77 ms
+Run 1312: 197.11 ms
+Run 1327: 245.66 ms
+Run 1338: 207.98 ms
+Run 1348: 179.23 ms
+Run 1349: 122.15 ms
+Run 1343: 158.34 ms
+Run 1345: 222.81 ms
+Run 1342: 248.29 ms
+Run 1370: 143.99 ms
+Run 1350: 211.22 ms
+Run 1359: 190.49 ms
+Run 1361: 187.31 ms
+Run 1354: 202.49 ms
+Run 1347: 193.70 ms
+Run 1360: 196.61 ms
+Run 1372: 151.23 ms
+Run 1353: 214.33 ms
+Run 1335: 322.66 ms
+Run 1374: 173.45 ms
+Run 1366: 196.82 ms
+Run 1362: 232.18 ms
+Run 1357: 240.80 ms
+Run 1352: 258.57 ms
+Run 1356: 248.25 ms
+Run 1378: 159.35 ms
+Run 1368: 228.08 ms
+Run 1313: 327.55 ms
+Run 1355: 274.92 ms
+Run 1373: 222.88 ms
+Run 1351: 291.31 ms
+Run 1344: 348.34 ms
+Run 1367: 250.94 ms
+Run 1376: 205.47 ms
+Run 1386: 182.58 ms
+Run 1363: 280.65 ms
+Run 1382: 199.26 ms
+Run 1358: 307.12 ms
+Run 1365: 285.30 ms
+Run 1371: 266.09 ms
+Run 1377: 232.15 ms
+Run 1383: 212.53 ms
+Run 1391: 176.65 ms
+Run 1390: 201.25 ms
+Run 1394: 146.81 ms
+Run 1393: 164.40 ms
+Run 1385: 227.92 ms
+Run 1392: 181.62 ms
+Run 1375: 289.74 ms
+Run 1369: 312.91 ms
+Run 1380: 236.82 ms
+Run 1381: 270.26 ms
+Run 1379: 288.46 ms
+Run 1398: 190.50 ms
+Run 1364: 290.49 ms
+Run 1397: 200.97 ms
+Run 1395: 207.05 ms
+Run 1401: 202.20 ms
+Run 1389: 285.74 ms
+Run 1399: 216.33 ms
+Run 1406: 175.75 ms
+Run 1387: 300.87 ms
+Run 1400: 218.37 ms
+Run 1402: 213.88 ms
+Run 1384: 309.99 ms
+Run 1396: 229.97 ms
+Run 1411: 165.20 ms
+Run 1415: 155.09 ms
+Run 1410: 191.20 ms
+Run 1408: 201.03 ms
+Run 1422: 137.34 ms
+Run 1416: 168.45 ms
+Run 1388: 325.17 ms
+Run 1432: 115.70 ms
+Run 1407: 216.78 ms
+Run 1425: 184.47 ms
+Run 1405: 195.43 ms
+Run 1417: 219.17 ms
+Run 1429: 175.38 ms
+Run 1433: 176.76 ms
+Run 1404: 296.74 ms
+Run 1421: 223.55 ms
+Run 1414: 256.47 ms
+Run 1434: 191.69 ms
+Run 1420: 244.85 ms
+Run 1423: 237.35 ms
+Run 1439: 164.70 ms
+Run 1409: 310.93 ms
+Run 1412: 293.69 ms
+Run 1403: 337.87 ms
+Run 1431: 220.83 ms
+Run 1445: 152.98 ms
+Run 1424: 256.81 ms
+Run 1448: 160.93 ms
+Run 1443: 173.63 ms
+Run 1435: 176.13 ms
+Run 1440: 166.37 ms
+Run 1459: 131.37 ms
+Run 1447: 173.07 ms
+Run 1454: 148.02 ms
+Run 1461: 97.23 ms
+Run 1444: 195.80 ms
+Run 1451: 182.92 ms
+Run 1427: 291.08 ms
+Run 1428: 284.48 ms
+Run 1455: 176.46 ms
+Run 1450: 198.67 ms
+Run 1426: 305.00 ms
+Run 1430: 261.98 ms
+Run 1441: 187.83 ms
+Run 1437: 253.91 ms
+Run 1452: 206.44 ms
+Run 1462: 138.70 ms
+Run 1446: 226.07 ms
+Run 1460: 145.85 ms
+Run 1463: 135.98 ms
+Run 1438: 261.71 ms
+Run 1418: 363.60 ms
+Run 1442: 247.27 ms
+Run 1467: 134.42 ms
+Run 1464: 146.64 ms
+Run 1413: 396.74 ms
+Run 1419: 376.83 ms
+Run 1457: 223.95 ms
+Run 1436: 302.15 ms
+Run 1477: 109.81 ms
+Run 1465: 171.17 ms
+Run 1458: 235.93 ms
+Run 1476: 133.64 ms
+Run 1453: 266.42 ms
+Run 1456: 261.32 ms
+Run 1468: 165.86 ms
+Run 1449: 289.03 ms
+Run 1471: 116.41 ms
+Run 1485: 122.40 ms
+Run 1482: 139.30 ms
+Run 1483: 136.47 ms
+Run 1466: 204.53 ms
+Run 1475: 181.08 ms
+Run 1486: 134.48 ms
+Run 1484: 153.03 ms
+Run 1480: 161.16 ms
+Run 1487: 138.31 ms
+Run 1478: 171.16 ms
+Run 1472: 138.47 ms
+Run 1489: 144.53 ms
+Run 1502: 123.19 ms
+Run 1493: 150.79 ms
+Run 1474: 116.34 ms
+Run 1488: 168.38 ms
+Run 1491: 164.07 ms
+Run 1479: 201.49 ms
+Run 1503: 130.64 ms
+Run 1508: 113.95 ms
+Run 1509: 113.50 ms
+Run 1490: 176.80 ms
+Run 1500: 156.31 ms
+Run 1481: 218.35 ms
+Run 1494: 184.49 ms
+Run 1492: 190.39 ms
+Run 1501: 168.15 ms
+Run 1505: 149.93 ms
+Run 1504: 152.25 ms
+Run 1498: 174.27 ms
+Run 1511: 127.85 ms
+Run 1517: 124.35 ms
+Run 1506: 170.39 ms
+Run 1514: 133.34 ms
+Run 1526: 104.68 ms
+Run 1470: 252.95 ms
+Run 1516: 145.63 ms
+Run 1499: 209.51 ms
+Run 1527: 107.38 ms
+Run 1515: 150.56 ms
+Run 1473: 227.05 ms
+Run 1497: 233.36 ms
+Run 1512: 173.72 ms
+Run 1507: 198.92 ms
+Run 1518: 166.29 ms
+Run 1495: 238.71 ms
+Run 1510: 204.87 ms
+Run 1520: 164.03 ms
+Run 1522: 131.32 ms
+Run 1496: 259.32 ms
+Run 1524: 160.16 ms
+Run 1530: 134.38 ms
+Run 1521: 180.07 ms
+Run 1532: 135.15 ms
+Run 1529: 158.63 ms
+Run 1528: 160.56 ms
+Run 1519: 192.19 ms
+Run 1536: 126.76 ms
+Run 1469: 337.57 ms
+Run 1523: 177.26 ms
+Run 1537: 134.09 ms
+Run 1542: 116.19 ms
+Run 1538: 136.86 ms
+Run 1513: 227.18 ms
+Run 1539: 139.74 ms
+Run 1546: 117.42 ms
+Run 1549: 115.25 ms
+Run 1543: 126.60 ms
+Run 1525: 198.22 ms
+Run 1533: 168.11 ms
+Run 1547: 132.22 ms
+Run 1550: 124.30 ms
+Run 1541: 169.04 ms
+Run 1540: 177.25 ms
+Run 1531: 203.74 ms
+Run 1545: 168.26 ms
+Run 1535: 199.58 ms
+Run 1544: 174.19 ms
+Run 1555: 135.85 ms
+Run 1551: 163.07 ms
+Run 1556: 147.15 ms
+Run 1559: 156.46 ms
+Run 1548: 211.35 ms
+Run 1558: 174.06 ms
+Run 1560: 154.08 ms
+Run 1568: 141.35 ms
+Run 1578: 125.11 ms
+Run 1569: 149.22 ms
+Run 1572: 147.13 ms
+Run 1566: 166.63 ms
+Run 1563: 179.59 ms
+Run 1552: 213.35 ms
+Run 1567: 171.19 ms
+Run 1582: 137.73 ms
+Run 1561: 189.97 ms
+Run 1589: 121.05 ms
+Run 1577: 158.14 ms
+Run 1581: 150.53 ms
+Run 1554: 224.69 ms
+Run 1557: 221.69 ms
+Run 1576: 173.72 ms
+Run 1588: 142.73 ms
+Run 1570: 186.43 ms
+Run 1583: 160.77 ms
+Run 1571: 184.16 ms
+Run 1565: 207.79 ms
+Run 1573: 196.64 ms
+Run 1594: 138.64 ms
+Run 1596: 135.13 ms
+Run 1597: 135.25 ms
+Run 1574: 211.99 ms
+Run 1598: 124.20 ms
+Run 1579: 205.01 ms
+Run 1575: 214.57 ms
+Run 1590: 184.27 ms
+Run 1586: 171.96 ms
+Run 1591: 157.85 ms
+Run 1584: 165.66 ms
+Run 1602: 135.01 ms
+Run 1599: 164.04 ms
+Run 1601: 140.01 ms
+Run 1614: 102.48 ms
+Run 1592: 198.29 ms
+Run 1562: 232.85 ms
+Run 1604: 142.01 ms
+Run 1587: 240.62 ms
+Run 1553: 284.40 ms
+Run 1564: 303.33 ms
+Run 1600: 161.12 ms
+Run 1603: 160.02 ms
+Run 1613: 123.73 ms
+Run 1595: 209.78 ms
+Run 1605: 155.84 ms
+Run 1585: 125.18 ms
+Run 1534: 350.69 ms
+Run 1580: 191.18 ms
+Run 1607: 145.34 ms
+Run 1608: 146.73 ms
+Run 1609: 145.55 ms
+Run 1610: 146.12 ms
+Run 1593: 136.91 ms
+Run 1617: 147.68 ms
+Run 1612: 161.85 ms
+Run 1619: 156.73 ms
+Run 1624: 160.87 ms
+Run 1631: 127.39 ms
+Run 1634: 113.40 ms
+Run 1616: 183.99 ms
+Run 1630: 136.53 ms
+Run 1637: 95.83 ms
+Run 1628: 140.13 ms
+Run 1621: 172.67 ms
+Run 1633: 133.05 ms
+Run 1625: 161.91 ms
+Run 1632: 144.74 ms
+Run 1626: 164.51 ms
+Run 1623: 215.54 ms
+Run 1638: 153.27 ms
+Run 1643: 141.45 ms
+Run 1606: 268.89 ms
+Run 1620: 238.40 ms
+Run 1627: 207.13 ms
+Run 1659: 117.56 ms
+Run 1644: 149.83 ms
+Run 1618: 268.69 ms
+Run 1611: 291.10 ms
+Run 1653: 137.12 ms
+Run 1636: 196.62 ms
+Run 1622: 267.83 ms
+Run 1660: 138.63 ms
+Run 1662: 120.77 ms
+Run 1639: 196.82 ms
+Run 1635: 218.71 ms
+Run 1646: 148.96 ms
+Run 1615: 311.40 ms
+Run 1652: 181.42 ms
+Run 1670: 139.06 ms
+Run 1668: 146.72 ms
+Run 1645: 201.06 ms
+Run 1666: 156.48 ms
+Run 1667: 154.87 ms
+Run 1665: 163.62 ms
+Run 1647: 157.71 ms
+Run 1648: 137.44 ms
+Run 1640: 253.40 ms
+Run 1641: 256.48 ms
+Run 1669: 169.12 ms
+Run 1629: 310.45 ms
+Run 1651: 143.50 ms
+Run 1661: 207.75 ms
+Run 1656: 134.73 ms
+Run 1649: 165.75 ms
+Run 1654: 197.23 ms
+Run 1664: 205.37 ms
+Run 1663: 167.73 ms
+Run 1672: 167.43 ms
+Run 1675: 165.65 ms
+Run 1650: 187.65 ms
+Run 1681: 156.05 ms
+Run 1678: 164.50 ms
+Run 1691: 102.74 ms
+Run 1671: 200.99 ms
+Run 1642: 315.37 ms
+Run 1673: 188.82 ms
+Run 1676: 172.83 ms
+Run 1655: 219.63 ms
+Run 1686: 139.10 ms
+Run 1657: 179.38 ms
+Run 1684: 156.06 ms
+Run 1690: 147.61 ms
+Run 1693: 136.81 ms
+Run 1677: 200.54 ms
+Run 1658: 202.22 ms
+Run 1682: 193.68 ms
+Run 1685: 175.54 ms
+Run 1696: 125.94 ms
+Run 1683: 193.44 ms
+Run 1701: 121.62 ms
+Run 1694: 165.94 ms
+Run 1679: 239.81 ms
+Run 1703: 146.61 ms
+Run 1708: 141.22 ms
+Run 1698: 163.81 ms
+Run 1697: 171.51 ms
+Run 1704: 153.59 ms
+Run 1714: 115.14 ms
+Run 1710: 145.97 ms
+Run 1692: 207.57 ms
+Run 1713: 121.90 ms
+Run 1674: 303.18 ms
+Run 1688: 230.60 ms
+Run 1700: 173.75 ms
+Run 1695: 197.44 ms
+Run 1680: 271.44 ms
+Run 1722: 113.93 ms
+Run 1719: 123.90 ms
+Run 1709: 177.33 ms
+Run 1726: 117.36 ms
+Run 1702: 191.75 ms
+Run 1721: 128.12 ms
+Run 1689: 260.67 ms
+Run 1712: 163.16 ms
+Run 1718: 143.39 ms
+Run 1716: 151.06 ms
+Run 1725: 139.58 ms
+Run 1734: 103.66 ms
+Run 1707: 204.15 ms
+Run 1705: 213.50 ms
+Run 1720: 156.64 ms
+Run 1699: 236.50 ms
+Run 1733: 119.36 ms
+Run 1730: 136.48 ms
+Run 1687: 300.95 ms
+Run 1711: 210.24 ms
+Run 1738: 101.41 ms
+Run 1728: 159.71 ms
+Run 1724: 182.82 ms
+Run 1729: 165.04 ms
+Run 1723: 196.48 ms
+Run 1742: 108.40 ms
+Run 1727: 183.80 ms
+Run 1732: 169.77 ms
+Run 1739: 129.08 ms
+Run 1706: 269.58 ms
+Run 1737: 139.14 ms
+Run 1715: 236.32 ms
+Run 1745: 124.91 ms
+Run 1750: 132.00 ms
+Run 1747: 140.43 ms
+Run 1751: 133.02 ms
+Run 1753: 125.09 ms
+Run 1760: 117.17 ms
+Run 1756: 127.53 ms
+Run 1755: 129.21 ms
+Run 1748: 159.21 ms
+Run 1768: 98.22 ms
+Run 1757: 133.97 ms
+Run 1770: 93.88 ms
+Run 1754: 113.36 ms
+Run 1752: 153.09 ms
+Run 1758: 135.27 ms
+Run 1767: 108.69 ms
+Run 1749: 167.35 ms
+Run 1773: 95.15 ms
+Run 1744: 188.46 ms
+Run 1759: 137.68 ms
+Run 1736: 232.83 ms
+Run 1743: 197.23 ms
+Run 1765: 145.71 ms
+Run 1779: 91.22 ms
+Run 1746: 199.59 ms
+Run 1764: 152.55 ms
+Run 1740: 217.64 ms
+Run 1777: 106.26 ms
+Run 1771: 136.71 ms
+Run 1776: 113.69 ms
+Run 1735: 263.70 ms
+Run 1762: 174.31 ms
+Run 1741: 229.44 ms
+Run 1763: 174.21 ms
+Run 1769: 162.59 ms
+Run 1717: 331.81 ms
+Run 1774: 152.64 ms
+Run 1731: 309.63 ms
+Run 1772: 178.86 ms
+Run 1786: 118.56 ms
+Run 1782: 123.47 ms
+Run 1787: 139.59 ms
+Run 1778: 187.52 ms
+Run 1775: 202.30 ms
+Run 1807: 100.49 ms
+Run 1781: 183.40 ms
+Run 1810: 95.03 ms
+Run 1798: 132.97 ms
+Run 1766: 241.13 ms
+Run 1805: 108.40 ms
+Run 1788: 154.40 ms
+Run 1801: 135.40 ms
+Run 1789: 156.58 ms
+Run 1802: 137.73 ms
+Run 1783: 202.14 ms
+Run 1814: 112.67 ms
+Run 1803: 139.46 ms
+Run 1780: 218.28 ms
+Run 1815: 115.86 ms
+Run 1809: 132.25 ms
+Run 1790: 157.47 ms
+Run 1800: 173.12 ms
+Run 1792: 120.96 ms
+Run 1808: 148.23 ms
+Run 1791: 154.58 ms
+Run 1821: 136.75 ms
+Run 1784: 255.45 ms
+Run 1818: 156.26 ms
+Run 1813: 172.70 ms
+Run 1817: 159.76 ms
+Run 1804: 168.42 ms
+Run 1799: 189.57 ms
+Run 1819: 161.45 ms
+Run 1811: 158.42 ms
+Run 1828: 104.32 ms
+Run 1793: 159.61 ms
+Run 1816: 142.99 ms
+Run 1823: 151.60 ms
+Run 1812: 200.60 ms
+Run 1822: 165.22 ms
+Run 1824: 155.71 ms
+Run 1838: 114.40 ms
+Run 1820: 200.18 ms
+Run 1826: 136.13 ms
+Run 1806: 167.55 ms
+Run 1840: 116.81 ms
+Run 1831: 127.92 ms
+Run 1829: 153.78 ms
+Run 1835: 151.42 ms
+Run 1839: 101.18 ms
+Run 1794: 192.03 ms
+Run 1844: 130.57 ms
+Run 1834: 119.42 ms
+Run 1797: 141.83 ms
+Run 1837: 158.34 ms
+Run 1761: 237.40 ms
+Run 1796: 125.37 ms
+Run 1830: 182.47 ms
+Run 1846: 142.16 ms
+Run 1836: 176.62 ms
+Run 1795: 204.42 ms
+Run 1842: 168.66 ms
+Run 1785: 372.69 ms
+Run 1825: 142.14 ms
+Run 1827: 210.30 ms
+Run 1856: 122.40 ms
+Run 1841: 169.68 ms
+Run 1859: 114.89 ms
+Run 1854: 132.52 ms
+Run 1849: 125.92 ms
+Run 1850: 146.22 ms
+Run 1833: 195.69 ms
+Run 1845: 191.07 ms
+Run 1843: 215.86 ms
+Run 1852: 180.22 ms
+Run 1861: 191.59 ms
+Run 1855: 213.31 ms
+Run 1847: 254.48 ms
+Run 1868: 166.54 ms
+Run 1867: 174.73 ms
+Run 1848: 259.78 ms
+Run 1866: 184.53 ms
+Run 1858: 217.82 ms
+Run 1851: 234.31 ms
+Run 1853: 232.91 ms
+Run 1874: 164.97 ms
+Run 1870: 178.01 ms
+Run 1860: 196.21 ms
+Run 1857: 233.39 ms
+Run 1869: 179.67 ms
+Run 1864: 217.47 ms
+Run 1876: 179.68 ms
+Run 1832: 352.37 ms
+Run 1878: 184.24 ms
+Run 1877: 191.29 ms
+Run 1865: 233.97 ms
+Run 1871: 221.63 ms
+Run 1863: 257.74 ms
+Run 1862: 259.03 ms
+Run 1885: 171.92 ms
+Run 1881: 199.26 ms
+Run 1872: 224.46 ms
+Run 1884: 199.35 ms
+Run 1879: 216.05 ms
+Run 1875: 230.47 ms
+Run 1883: 210.83 ms
+Run 1891: 184.80 ms
+Run 1880: 221.79 ms
+Run 1873: 251.91 ms
+Run 1882: 227.71 ms
+Run 1888: 209.01 ms
+Run 1893: 212.46 ms
+Run 1890: 232.64 ms
+Run 1903: 143.88 ms
+Run 1895: 219.39 ms
+Run 1902: 150.66 ms
+Run 1907: 139.76 ms
+Run 1911: 137.09 ms
+Run 1896: 233.76 ms
+Run 1887: 263.98 ms
+Run 1892: 250.17 ms
+Run 1886: 272.54 ms
+Run 1920: 113.83 ms
+Run 1916: 132.16 ms
+Run 1894: 260.68 ms
+Run 1899: 216.58 ms
+Run 1897: 249.89 ms
+Run 1904: 175.41 ms
+Run 1913: 166.44 ms
+Run 1914: 165.98 ms
+Run 1923: 126.78 ms
+Run 1929: 112.12 ms
+Run 1919: 142.96 ms
+Run 1922: 146.39 ms
+Run 1926: 138.82 ms
+Run 1912: 198.06 ms
+Run 1931: 123.24 ms
+Run 1930: 127.41 ms
+Run 1917: 174.66 ms
+Run 1901: 229.20 ms
+Run 1906: 216.15 ms
+Run 1918: 178.98 ms
+Run 1898: 290.64 ms
+Run 1909: 211.70 ms
+Run 1933: 142.10 ms
+Run 1921: 161.28 ms
+Run 1932: 161.91 ms
+Run 1938: 125.25 ms
+Run 1900: 272.07 ms
+Run 1925: 200.15 ms
+Run 1941: 126.77 ms
+Run 1944: 119.11 ms
+Run 1910: 250.55 ms
+Run 1927: 200.71 ms
+Run 1951: 109.23 ms
+Run 1889: 389.11 ms
+Run 1935: 185.12 ms
+Run 1939: 150.16 ms
+Run 1936: 171.95 ms
+Run 1949: 128.60 ms
+Run 1908: 302.37 ms
+Run 1945: 155.78 ms
+Run 1924: 253.25 ms
+Run 1960: 112.58 ms
+Run 1946: 146.78 ms
+Run 1952: 162.42 ms
+Run 1940: 195.96 ms
+Run 1950: 169.93 ms
+Run 1942: 181.34 ms
+Run 1928: 263.04 ms
+Run 1958: 136.95 ms
+Run 1953: 160.26 ms
+Run 1948: 179.44 ms
+Run 1957: 157.03 ms
+Run 1934: 248.12 ms
+Run 1959: 146.07 ms
+Run 1905: 359.40 ms
+Run 1964: 144.05 ms
+Run 1966: 140.43 ms
+Run 1968: 134.32 ms
+Run 1967: 148.91 ms
+Run 1937: 250.57 ms
+Run 1956: 197.53 ms
+Run 1947: 225.35 ms
+Run 1915: 375.36 ms
+Run 1962: 184.96 ms
+Run 1969: 162.33 ms
+Run 1970: 161.70 ms
+Run 1954: 214.30 ms
+Run 1965: 199.20 ms
+Run 1961: 211.48 ms
+Run 1982: 144.08 ms
+Run 1980: 151.34 ms
+Run 1943: 288.32 ms
+Run 1955: 141.29 ms
+Run 1992: 107.11 ms
+Run 1981: 161.59 ms
+Run 1989: 118.98 ms
+Run 1985: 142.36 ms
+Run 1972: 199.84 ms
+Run 2000: 110.07 ms
+Run 1998: 137.27 ms
+Run 1987: 172.30 ms
+Run 1978: 209.34 ms
+Run 1977: 198.61 ms
+Run 1975: 221.02 ms
+Run 1983: 204.52 ms
+Run 1971: 246.34 ms
+Run 1988: 180.45 ms
+Run 1984: 207.58 ms
+Run 1995: 165.14 ms
+Run 1979: 226.20 ms
+Run 1996: 169.22 ms
+Run 1963: 300.04 ms
+Run 1990: 184.97 ms
+Run 1976: 249.26 ms
+Run 1991: 186.67 ms
+Run 2007: 136.69 ms
+Run 1999: 180.66 ms
+Run 2004: 166.20 ms
+Run 2001: 177.99 ms
+Run 2014: 118.56 ms
+Run 2002: 184.37 ms
+Run 2013: 136.28 ms
+Run 1994: 211.19 ms
+Run 1986: 242.20 ms
+Run 2010: 159.20 ms
+Run 2006: 184.92 ms
+Run 1974: 218.53 ms
+Run 2003: 211.23 ms
+Run 1973: 321.91 ms
+Run 1997: 235.98 ms
+Run 2032: 91.86 ms
+Run 2008: 204.50 ms
+Run 2011: 195.56 ms
+Run 2012: 211.62 ms
+Run 2024: 156.10 ms
+Run 2035: 110.05 ms
+Run 2027: 133.67 ms
+Run 2023: 176.23 ms
+Run 2036: 119.78 ms
+Run 2018: 186.43 ms
+Run 2026: 144.76 ms
+Run 2031: 134.76 ms
+Run 2020: 193.35 ms
+Run 2033: 137.50 ms
+Run 2039: 122.44 ms
+Run 2028: 160.21 ms
+Run 2037: 136.67 ms
+Run 2021: 201.82 ms
+Run 2005: 275.88 ms
+Run 2022: 210.98 ms
+Run 2015: 243.27 ms
+Run 2019: 226.90 ms
+Run 2009: 278.41 ms
+Run 2034: 173.23 ms
+Run 2025: 209.02 ms
+Run 2041: 165.79 ms
+Run 2017: 257.78 ms
+Run 2050: 140.68 ms
+Run 2046: 178.91 ms
+Run 2038: 201.05 ms
+Run 2053: 146.02 ms
+Run 2054: 140.04 ms
+Run 2048: 170.29 ms
+Run 2045: 185.21 ms
+Run 2029: 238.25 ms
+Run 2040: 207.27 ms
+Run 2052: 159.41 ms
+Run 2016: 305.32 ms
+Run 2044: 209.30 ms
+Run 2056: 159.97 ms
+Run 2062: 126.08 ms
+Run 2060: 133.69 ms
+Run 2049: 200.37 ms
+Run 2043: 227.83 ms
+Run 2057: 166.52 ms
+Run 2042: 233.91 ms
+Run 2059: 183.61 ms
+Run 2051: 140.48 ms
+Run 2067: 164.29 ms
+Run 2066: 167.35 ms
+Run 2071: 155.30 ms
+Run 2073: 151.49 ms
+Run 2070: 158.74 ms
+Run 2064: 175.43 ms
+Run 2069: 165.39 ms
+Run 2055: 225.56 ms
+Run 2061: 192.68 ms
+Run 2072: 166.00 ms
+Run 2047: 269.13 ms
+Run 2076: 157.27 ms
+Run 2065: 191.92 ms
+Run 2075: 164.36 ms
+Run 2080: 143.11 ms
+Run 2074: 179.65 ms
+Run 2079: 155.49 ms
+Run 2082: 144.28 ms
+Run 1993: 494.51 ms
+Run 2068: 207.41 ms
+Run 2083: 147.37 ms
+Run 2085: 130.54 ms
+Run 2058: 120.99 ms
+Run 2030: 309.56 ms
+Run 2081: 171.90 ms
+Run 2088: 147.09 ms
+Run 2087: 152.71 ms
+Run 2095: 132.84 ms
+Run 2063: 261.26 ms
+Run 2077: 163.44 ms
+Run 2091: 185.97 ms
+Run 2086: 168.80 ms
+Run 2111: 118.73 ms
+Run 2105: 134.83 ms
+Run 2097: 129.53 ms
+Run 2094: 197.81 ms
+Run 2093: 204.15 ms
+Run 2078: 239.42 ms
+Run 2103: 140.34 ms
+Run 2096: 201.15 ms
+Run 2084: 216.84 ms
+Run 2089: 201.63 ms
+Run 2114: 139.82 ms
+Run 2125: 122.99 ms
+Run 2109: 163.63 ms
+Run 2118: 146.23 ms
+Run 2106: 173.97 ms
+Run 2108: 179.14 ms
+Run 2110: 177.72 ms
+Run 2120: 152.12 ms
+Run 2116: 166.52 ms
+Run 2117: 166.37 ms
+Run 2113: 177.73 ms
+Run 2092: 182.85 ms
+Run 2119: 164.66 ms
+Run 2115: 184.07 ms
+Run 2126: 152.67 ms
+Run 2090: 236.02 ms
+Run 2098: 179.84 ms
+Run 2130: 145.60 ms
+Run 2099: 171.30 ms
+Run 2127: 175.65 ms
+Run 2133: 145.01 ms
+Run 2124: 178.25 ms
+Run 2100: 155.84 ms
+Run 2131: 154.55 ms
+Run 2129: 169.15 ms
+Run 2132: 156.35 ms
+Run 2104: 133.66 ms
+Run 2122: 209.14 ms
+Run 2107: 118.84 ms
+Run 2128: 204.14 ms
+Run 2112: 176.70 ms
+Run 2123: 219.28 ms
+Run 2101: 185.61 ms
+Run 2140: 148.04 ms
+Run 2142: 145.06 ms
+Run 2144: 147.08 ms
+Run 2147: 149.29 ms
+Run 2121: 280.01 ms
+Run 2141: 179.34 ms
+Run 2148: 157.53 ms
+Run 2138: 190.77 ms
+Run 2135: 217.13 ms
+Run 2137: 205.99 ms
+Run 2146: 187.57 ms
+Run 2139: 211.71 ms
+Run 2151: 180.19 ms
+Run 2152: 173.15 ms
+Run 2102: 253.98 ms
+Run 2149: 207.07 ms
+Run 2153: 189.85 ms
+Run 2154: 189.17 ms
+Run 2158: 154.37 ms
+Run 2157: 179.70 ms
+Run 2159: 191.23 ms
+Run 2156: 195.24 ms
+Run 2165: 159.82 ms
+Run 2145: 233.11 ms
+Run 2143: 250.20 ms
+Run 2163: 192.10 ms
+Run 2155: 217.67 ms
+Run 2162: 202.15 ms
+Run 2175: 149.38 ms
+Run 2169: 169.57 ms
+Run 2150: 251.68 ms
+Run 2164: 203.75 ms
+Run 2160: 221.91 ms
+Run 2167: 197.43 ms
+Run 2173: 192.48 ms
+Run 2168: 199.45 ms
+Run 2176: 155.35 ms
+Run 2161: 218.36 ms
+Run 2134: 323.17 ms
+Run 2174: 185.32 ms
+Run 2172: 176.54 ms
+Run 2171: 220.42 ms
+Run 2179: 86.77 ms
+Run 2196: 89.38 ms
+Run 2194: 97.00 ms
+Run 2136: 290.50 ms
+Run 2197: 94.09 ms
+Run 2166: 242.82 ms
+Run 2199: 90.58 ms
+Run 2180: 92.04 ms
+Run 2178: 108.74 ms
+Run 2204: 94.11 ms
+Run 2170: 272.95 ms
+Run 2195: 134.73 ms
+Run 2198: 124.52 ms
+Run 2200: 141.31 ms
+Run 2209: 104.91 ms
+Run 2177: 157.61 ms
+Run 2211: 110.98 ms
+Run 2189: 99.94 ms
+Run 2202: 148.87 ms
+Run 2201: 156.67 ms
+Run 2181: 163.96 ms
+Run 2185: 123.44 ms
+Run 2205: 156.45 ms
+Run 2186: 115.83 ms
+Run 2182: 140.88 ms
+Run 2183: 118.55 ms
+Run 2203: 181.32 ms
+Run 2207: 163.42 ms
+Run 2188: 140.52 ms
+Run 2210: 157.17 ms
+Run 2224: 116.40 ms
+Run 2187: 121.43 ms
+Run 2208: 176.45 ms
+Run 2206: 191.71 ms
+Run 2190: 144.73 ms
+Run 2231: 122.74 ms
+Run 2229: 141.49 ms
+Run 2230: 136.75 ms
+Run 2220: 181.97 ms
+Run 2191: 143.06 ms
+Run 2226: 163.76 ms
+Run 2227: 167.64 ms
+Run 2228: 174.91 ms
+Run 2222: 182.25 ms
+Run 2223: 185.92 ms
+Run 2225: 189.79 ms
+Run 2212: 137.02 ms
+Run 2184: 157.69 ms
+Run 2221: 215.34 ms
+Run 2251: 93.46 ms
+Run 2193: 144.05 ms
+Run 2233: 174.63 ms
+Run 2232: 181.46 ms
+Run 2213: 147.96 ms
+Run 2244: 142.00 ms
+Run 2252: 123.90 ms
+Run 2245: 147.67 ms
+Run 2236: 186.52 ms
+Run 2249: 144.47 ms
+Run 2247: 154.65 ms
+Run 2192: 210.34 ms
+Run 2253: 131.77 ms
+Run 2242: 181.18 ms
+Run 2250: 155.70 ms
+Run 2235: 202.64 ms
+Run 2216: 133.47 ms
+Run 2256: 134.37 ms
+Run 2214: 183.12 ms
+Run 2238: 217.10 ms
+Run 2246: 201.77 ms
+Run 2241: 235.99 ms
+Run 2254: 191.86 ms
+Run 2240: 256.13 ms
+Run 2237: 239.32 ms
+Run 2243: 239.10 ms
+Run 2263: 124.23 ms
+Run 2259: 184.70 ms
+Run 2215: 227.05 ms
+Run 2261: 177.56 ms
+Run 2267: 158.07 ms
+Run 2266: 166.65 ms
+Run 2270: 150.92 ms
+Run 2260: 141.93 ms
+Run 2265: 179.32 ms
+Run 2262: 195.20 ms
+Run 2218: 178.06 ms
+Run 2239: 238.95 ms
+Run 2248: 265.88 ms
+Run 2275: 146.36 ms
+Run 2234: 312.43 ms
+Run 2264: 198.55 ms
+Run 2255: 249.63 ms
+Run 2219: 201.75 ms
+Run 2272: 178.55 ms
+Run 2217: 234.76 ms
+Run 2280: 156.05 ms
+Run 2277: 163.78 ms
+Run 2258: 257.39 ms
+Run 2276: 183.93 ms
+Run 2257: 270.22 ms
+Run 2286: 154.58 ms
+Run 2279: 187.46 ms
+Run 2285: 175.99 ms
+Run 2268: 248.52 ms
+Run 2288: 160.70 ms
+Run 2295: 119.51 ms
+Run 2290: 164.08 ms
+Run 2283: 195.08 ms
+Run 2282: 201.41 ms
+Run 2274: 236.12 ms
+Run 2281: 207.45 ms
+Run 2297: 124.48 ms
+Run 2289: 190.23 ms
+Run 2308: 115.10 ms
+Run 2271: 275.35 ms
+Run 2302: 131.37 ms
+Run 2303: 135.27 ms
+Run 2287: 219.96 ms
+Run 2269: 307.93 ms
+Run 2273: 286.72 ms
+Run 2310: 131.18 ms
+Run 2311: 137.24 ms
+Run 2296: 194.34 ms
+Run 2301: 175.90 ms
+Run 2293: 212.56 ms
+Run 2315: 144.43 ms
+Run 2292: 224.00 ms
+Run 2318: 134.23 ms
+Run 2312: 162.78 ms
+Run 2309: 175.99 ms
+Run 2319: 138.71 ms
+Run 2298: 206.67 ms
+Run 2314: 159.78 ms
+Run 2313: 167.21 ms
+Run 2278: 309.65 ms
+Run 2304: 200.56 ms
+Run 2322: 137.03 ms
+Run 2284: 276.83 ms
+Run 2317: 157.91 ms
+Run 2300: 220.82 ms
+Run 2325: 125.29 ms
+Run 2329: 132.81 ms
+Run 2316: 183.21 ms
+Run 2299: 243.58 ms
+Run 2307: 228.65 ms
+Run 2327: 153.60 ms
+Run 2326: 158.15 ms
+Run 2328: 157.26 ms
+Run 2333: 154.21 ms
+Run 2294: 285.18 ms
+Run 2305: 256.02 ms
+Run 2330: 161.00 ms
+Run 2291: 310.29 ms
+Run 2336: 138.03 ms
+Run 2335: 145.52 ms
+Run 2332: 170.13 ms
+Run 2306: 266.49 ms
+Run 2324: 199.21 ms
+Run 2338: 150.43 ms
+Run 2339: 144.40 ms
+Run 2321: 228.53 ms
+Run 2334: 181.02 ms
+Run 2340: 166.49 ms
+Run 2344: 149.33 ms
+Run 2346: 142.71 ms
+Run 2355: 130.68 ms
+Run 2331: 223.85 ms
+Run 2352: 138.67 ms
+Run 2353: 141.38 ms
+Run 2323: 246.90 ms
+Run 2350: 155.51 ms
+Run 2365: 122.03 ms
+Run 2320: 252.95 ms
+Run 2354: 166.72 ms
+Run 2358: 154.98 ms
+Run 2349: 180.50 ms
+Run 2347: 186.74 ms
+Run 2351: 180.66 ms
+Run 2362: 160.96 ms
+Run 2342: 225.58 ms
+Run 2374: 120.79 ms
+Run 2341: 237.09 ms
+Run 2368: 149.47 ms
+Run 2375: 133.41 ms
+Run 2360: 192.68 ms
+Run 2343: 240.87 ms
+Run 2359: 194.89 ms
+Run 2372: 143.36 ms
+Run 2345: 234.26 ms
+Run 2363: 177.18 ms
+Run 2361: 197.91 ms
+Run 2348: 169.61 ms
+Run 2381: 130.06 ms
+Run 2373: 158.70 ms
+Run 2370: 162.24 ms
+Run 2367: 185.24 ms
+Run 2337: 297.66 ms
+Run 2356: 173.43 ms
+Run 2371: 171.28 ms
+Run 2364: 203.14 ms
+Run 2383: 136.02 ms
+Run 2376: 166.79 ms
+Run 2382: 163.47 ms
+Run 2357: 270.99 ms
+Run 2389: 145.71 ms
+Run 2378: 201.87 ms
+Run 2387: 155.43 ms
+Run 2392: 140.51 ms
+Run 2386: 166.35 ms
+Run 2388: 162.18 ms
+Run 2395: 132.81 ms
+Run 2391: 155.55 ms
+Run 2380: 213.07 ms
+Run 2377: 222.89 ms
+Run 2396: 137.98 ms
+Run 2398: 140.48 ms
+Run 2406: 120.94 ms
+Run 2415: 109.88 ms
+Run 2400: 157.80 ms
+Run 2408: 139.18 ms
+Run 2390: 212.80 ms
+Run 2394: 131.56 ms
+Run 2366: 316.33 ms
+Run 2403: 168.61 ms
+Run 2384: 241.03 ms
+Run 2421: 122.55 ms
+Run 2399: 190.67 ms
+Run 2404: 133.25 ms
+Run 2393: 210.44 ms
+Run 2401: 200.78 ms
+Run 2379: 297.36 ms
+Run 2413: 177.29 ms
+Run 2407: 188.43 ms
+Run 2422: 161.18 ms
+Run 2402: 212.55 ms
+Run 2419: 172.55 ms
+Run 2397: 246.58 ms
+Run 2423: 185.16 ms
+Run 2433: 131.98 ms
+Run 2369: 377.08 ms
+Run 2416: 212.20 ms
+Run 2385: 320.57 ms
+Run 2426: 165.93 ms
+Run 2417: 214.63 ms
+Run 2414: 235.41 ms
+Run 2411: 252.17 ms
+Run 2424: 194.84 ms
+Run 2410: 262.64 ms
+Run 2427: 192.65 ms
+Run 2420: 240.25 ms
+Run 2418: 242.99 ms
+Run 2434: 177.42 ms
+Run 2405: 283.29 ms
+Run 2409: 281.24 ms
+Run 2429: 196.08 ms
+Run 2437: 176.55 ms
+Run 2412: 282.17 ms
+Run 2436: 196.70 ms
+Run 2431: 205.21 ms
+Run 2428: 220.72 ms
+Run 2443: 200.57 ms
+Run 2456: 155.29 ms
+Run 2448: 194.78 ms
+Run 2466: 104.63 ms
+Run 2430: 215.91 ms
+Run 2449: 156.44 ms
+Run 2453: 175.79 ms
+Run 2454: 175.76 ms
+Run 2451: 190.00 ms
+Run 2446: 216.58 ms
+Run 2460: 145.98 ms
+Run 2452: 194.89 ms
+Run 2455: 178.14 ms
+Run 2432: 208.74 ms
+Run 2457: 178.96 ms
+Run 2458: 177.44 ms
+Run 2447: 148.86 ms
+Run 2425: 247.31 ms
+Run 2444: 173.79 ms
+Run 2463: 157.24 ms
+Run 2438: 175.07 ms
+Run 2468: 137.20 ms
+Run 2440: 272.24 ms
+Run 2462: 170.69 ms
+Run 2445: 157.86 ms
+Run 2475: 139.74 ms
+Run 2435: 238.59 ms
+Run 2478: 138.94 ms
+Run 2480: 132.26 ms
+Run 2442: 164.36 ms
+Run 2469: 164.07 ms
+Run 2464: 192.41 ms
+Run 2441: 165.93 ms
+Run 2481: 106.65 ms
+Run 2476: 161.01 ms
+Run 2450: 244.67 ms
+Run 2473: 177.33 ms
+Run 2482: 107.83 ms
+Run 2465: 165.84 ms
+Run 2439: 189.21 ms
+Run 2472: 209.65 ms
+Run 2470: 215.87 ms
+Run 2486: 127.82 ms
+Run 2495: 114.13 ms
+Run 2467: 234.05 ms
+Run 2505: 91.06 ms
+Run 2490: 126.80 ms
+Run 2491: 127.99 ms
+Run 2489: 139.70 ms
+Run 2485: 147.94 ms
+Run 2498: 116.54 ms
+Run 2477: 173.45 ms
+Run 2488: 142.84 ms
+Run 2459: 292.95 ms
+Run 2500: 124.70 ms
+Run 2471: 190.41 ms
+Run 2474: 139.43 ms
+Run 2502: 142.74 ms
+Run 2506: 116.60 ms
+Run 2494: 169.78 ms
+Run 2496: 150.40 ms
+Run 2497: 166.41 ms
+Run 2517: 108.18 ms
+Run 2479: 172.11 ms
+Run 2483: 169.15 ms
+Run 2461: 240.28 ms
+Run 2518: 132.56 ms
+Run 2484: 229.87 ms
+Run 2503: 185.97 ms
+Run 2492: 214.78 ms
+Run 2514: 146.89 ms
+Run 2509: 163.85 ms
+Run 2507: 167.03 ms
+Run 2519: 136.53 ms
+Run 2508: 145.58 ms
+Run 2501: 172.55 ms
+Run 2513: 164.72 ms
+Run 2512: 169.61 ms
+Run 2521: 130.26 ms
+Run 2504: 172.97 ms
+Run 2487: 218.79 ms
+Run 2511: 182.56 ms
+Run 2515: 168.36 ms
+Run 2499: 182.51 ms
+Run 2524: 147.41 ms
+Run 2522: 153.35 ms
+Run 2528: 119.66 ms
+Run 2527: 153.47 ms
+Run 2516: 201.60 ms
+Run 2534: 138.88 ms
+Run 2525: 165.15 ms
+Run 2531: 151.61 ms
+Run 2538: 123.01 ms
+Run 2493: 287.52 ms
+Run 2523: 184.46 ms
+Run 2537: 148.25 ms
+Run 2532: 166.13 ms
+Run 2510: 254.76 ms
+Run 2535: 159.23 ms
+Run 2555: 94.53 ms
+Run 2526: 195.74 ms
+Run 2544: 145.90 ms
+Run 2542: 163.12 ms
+Run 2548: 129.53 ms
+Run 2541: 174.43 ms
+Run 2557: 126.72 ms
+Run 2539: 185.61 ms
+Run 2545: 174.77 ms
+Run 2540: 195.13 ms
+Run 2558: 139.41 ms
+Run 2564: 127.18 ms
+Run 2530: 235.82 ms
+Run 2553: 129.56 ms
+Run 2567: 111.74 ms
+Run 2563: 136.03 ms
+Run 2550: 163.69 ms
+Run 2554: 157.99 ms
+Run 2543: 196.50 ms
+Run 2551: 170.82 ms
+Run 2562: 156.02 ms
+Run 2571: 112.41 ms
+Run 2546: 153.09 ms
+Run 2529: 263.65 ms
+Run 2520: 296.23 ms
+Run 2549: 124.56 ms
+Run 2568: 143.54 ms
+Run 2565: 160.22 ms
+Run 2575: 129.69 ms
+Run 2566: 160.20 ms
+Run 2572: 149.39 ms
+Run 2570: 158.14 ms
+Run 2576: 139.62 ms
+Run 2552: 224.02 ms
+Run 2547: 237.85 ms
+Run 2533: 240.83 ms
+Run 2560: 193.77 ms
+Run 2581: 132.14 ms
+Run 2577: 158.11 ms
+Run 2561: 183.28 ms
+Run 2587: 112.79 ms
+Run 2579: 153.20 ms
+Run 2574: 187.09 ms
+Run 2573: 190.00 ms
+Run 2589: 117.69 ms
+Run 2584: 139.27 ms
+Run 2586: 139.19 ms
+Run 2536: 338.22 ms
+Run 2582: 176.70 ms
+Run 2580: 182.39 ms
+Run 2556: 280.70 ms
+Run 2578: 205.67 ms
+Run 2593: 140.68 ms
+Run 2608: 98.54 ms
+Run 2612: 75.45 ms
+Run 2596: 138.67 ms
+Run 2585: 156.15 ms
+Run 2603: 129.67 ms
+Run 2594: 152.87 ms
+Run 2583: 173.77 ms
+Run 2591: 140.23 ms
+Run 2606: 125.11 ms
+Run 2598: 159.53 ms
+Run 2601: 149.63 ms
+Run 2595: 166.88 ms
+Run 2613: 95.16 ms
+Run 2600: 169.80 ms
+Run 2604: 169.88 ms
+Run 2619: 111.94 ms
+Run 2590: 229.54 ms
+Run 2614: 153.69 ms
+Run 2597: 198.29 ms
+Run 2610: 180.67 ms
+Run 2617: 158.14 ms
+Run 2620: 122.69 ms
+Run 2622: 146.16 ms
+Run 2615: 133.08 ms
+Run 2588: 269.23 ms
+Run 2569: 299.47 ms
+Run 2599: 247.33 ms
+Run 2635: 119.17 ms
+Run 2629: 142.54 ms
+Run 2628: 149.34 ms
+Run 2621: 162.38 ms
+Run 2611: 209.52 ms
+Run 2625: 164.17 ms
+Run 2633: 131.83 ms
+Run 2640: 110.77 ms
+Run 2607: 233.22 ms
+Run 2636: 131.44 ms
+Run 2623: 175.71 ms
+Run 2638: 134.98 ms
+Run 2602: 193.32 ms
+Run 2616: 134.81 ms
+Run 2631: 165.62 ms
+Run 2644: 135.09 ms
+Run 2559: 357.21 ms
+Run 2642: 141.87 ms
+Run 2643: 142.52 ms
+Run 2637: 167.73 ms
+Run 2592: 238.97 ms
+Run 2609: 180.44 ms
+Run 2630: 197.22 ms
+Run 2645: 156.65 ms
+Run 2618: 157.28 ms
+Run 2627: 145.30 ms
+Run 2624: 242.83 ms
+Run 2648: 157.98 ms
+Run 2655: 114.27 ms
+Run 2626: 248.86 ms
+Run 2653: 123.88 ms
+Run 2652: 131.63 ms
+Run 2605: 207.46 ms
+Run 2663: 107.87 ms
+Run 2659: 122.08 ms
+Run 2639: 178.10 ms
+Run 2646: 206.63 ms
+Run 2666: 130.45 ms
+Run 2650: 148.19 ms
+Run 2632: 224.25 ms
+Run 2654: 170.84 ms
+Run 2658: 158.53 ms
+Run 2641: 176.39 ms
+Run 2656: 172.52 ms
+Run 2649: 127.11 ms
+Run 2634: 207.50 ms
+Run 2668: 111.01 ms
+Run 2667: 116.30 ms
+Run 2673: 124.31 ms
+Run 2662: 158.84 ms
+Run 2660: 165.03 ms
+Run 2657: 181.39 ms
+Run 2669: 151.17 ms
+Run 2647: 145.59 ms
+Run 2651: 149.31 ms
+Run 2684: 108.84 ms
+Run 2675: 141.04 ms
+Run 2677: 145.57 ms
+Run 2672: 185.24 ms
+Run 2679: 188.37 ms
+Run 2664: 234.28 ms
+Run 2665: 236.34 ms
+Run 2691: 154.47 ms
+Run 2676: 216.44 ms
+Run 2688: 174.47 ms
+Run 2680: 212.20 ms
+Run 2693: 159.40 ms
+Run 2692: 169.67 ms
+Run 2682: 218.10 ms
+Run 2686: 194.27 ms
+Run 2689: 187.02 ms
+Run 2687: 192.61 ms
+Run 2670: 266.00 ms
+Run 2683: 217.94 ms
+Run 2696: 159.87 ms
+Run 2678: 240.14 ms
+Run 2661: 292.34 ms
+Run 2681: 239.95 ms
+Run 2671: 282.74 ms
+Run 2690: 210.09 ms
+Run 2674: 278.17 ms
+Run 2698: 192.51 ms
+Run 2694: 222.95 ms
+Run 2700: 172.03 ms
+Run 2715: 171.83 ms
+Run 2697: 213.97 ms
+Run 2695: 228.62 ms
+Run 2711: 182.34 ms
+Run 2699: 222.64 ms
+Run 2719: 159.88 ms
+Run 2716: 207.02 ms
+Run 2705: 207.96 ms
+Run 2703: 191.19 ms
+Run 2701: 214.16 ms
+Run 2702: 198.83 ms
+Run 2730: 101.26 ms
+Run 2706: 218.51 ms
+Run 2720: 188.33 ms
+Run 2713: 260.98 ms
+Run 2709: 266.95 ms
+Run 2704: 261.91 ms
+Run 2738: 139.32 ms
+Run 2721: 201.22 ms
+Run 2741: 136.30 ms
+Run 2722: 217.33 ms
+Run 2685: 381.46 ms
+Run 2735: 182.02 ms
+Run 2718: 276.22 ms
+Run 2736: 183.13 ms
+Run 2712: 317.40 ms
+Run 2708: 293.83 ms
+Run 2714: 323.57 ms
+Run 2724: 181.85 ms
+Run 2742: 163.01 ms
+Run 2726: 196.04 ms
+Run 2723: 247.88 ms
+Run 2739: 199.61 ms
+Run 2725: 201.27 ms
+Run 2710: 342.48 ms
+Run 2747: 162.38 ms
+Run 2744: 172.55 ms
+Run 2707: 228.58 ms
+Run 2728: 215.97 ms
+Run 2733: 211.26 ms
+Run 2746: 184.17 ms
+Run 2734: 249.83 ms
+Run 2743: 202.04 ms
+Run 2745: 199.36 ms
+Run 2727: 238.35 ms
+Run 2751: 159.60 ms
+Run 2740: 251.42 ms
+Run 2717: 377.82 ms
+Run 2729: 263.29 ms
+Run 2750: 200.23 ms
+Run 2731: 267.60 ms
+Run 2755: 177.51 ms
+Run 2737: 288.53 ms
+Run 2732: 276.73 ms
+Run 2749: 217.30 ms
+Run 2748: 248.68 ms
+Run 2760: 185.67 ms
+Run 2756: 207.92 ms
+Run 2752: 238.74 ms
+Run 2757: 207.17 ms
+Run 2753: 250.47 ms
+Run 2759: 222.05 ms
+Run 2761: 225.41 ms
+Run 2765: 194.39 ms
+Run 2767: 192.50 ms
+Run 2754: 242.09 ms
+Run 2775: 161.24 ms
+Run 2763: 210.31 ms
+Run 2773: 170.80 ms
+Run 2758: 241.54 ms
+Run 2776: 172.83 ms
+Run 2788: 132.59 ms
+Run 2779: 170.21 ms
+Run 2762: 239.74 ms
+Run 2764: 221.65 ms
+Run 2768: 218.80 ms
+Run 2772: 206.36 ms
+Run 2783: 178.52 ms
+Run 2774: 202.09 ms
+Run 2791: 150.61 ms
+Run 2784: 187.34 ms
+Run 2780: 202.88 ms
+Run 2770: 228.13 ms
+Run 2786: 192.74 ms
+Run 2777: 236.46 ms
+Run 2787: 202.72 ms
+Run 2771: 260.12 ms
+Run 2782: 230.08 ms
+Run 2797: 165.91 ms
+Run 2769: 219.18 ms
+Run 2794: 197.86 ms
+Run 2778: 267.23 ms
+Run 2802: 156.23 ms
+Run 2790: 237.75 ms
+Run 2816: 110.54 ms
+Run 2796: 203.58 ms
+Run 2805: 151.06 ms
+Run 2800: 204.97 ms
+Run 2781: 290.79 ms
+Run 2814: 141.36 ms
+Run 2804: 169.19 ms
+Run 2789: 270.38 ms
+Run 2798: 230.74 ms
+Run 2785: 293.13 ms
+Run 2818: 142.04 ms
+Run 2825: 111.13 ms
+Run 2813: 156.48 ms
+Run 2820: 143.49 ms
+Run 2821: 138.70 ms
+Run 2801: 223.89 ms
+Run 2806: 192.60 ms
+Run 2807: 190.48 ms
+Run 2815: 187.81 ms
+Run 2793: 295.93 ms
+Run 2826: 159.54 ms
+Run 2799: 284.31 ms
+Run 2766: 412.10 ms
+Run 2808: 217.00 ms
+Run 2827: 168.18 ms
+Run 2803: 246.51 ms
+Run 2824: 175.22 ms
+Run 2819: 207.65 ms
+Run 2809: 229.29 ms
+Run 2795: 315.20 ms
+Run 2812: 151.68 ms
+Run 2823: 209.44 ms
+Run 2831: 166.89 ms
+Run 2837: 140.69 ms
+Run 2830: 171.83 ms
+Run 2822: 178.18 ms
+Run 2811: 183.53 ms
+Run 2833: 178.64 ms
+Run 2828: 199.35 ms
+Run 2834: 189.92 ms
+Run 2840: 164.80 ms
+Run 2838: 170.18 ms
+Run 2810: 236.17 ms
+Run 2829: 226.14 ms
+Run 2847: 149.70 ms
+Run 2832: 226.43 ms
+Run 2844: 165.27 ms
+Run 2846: 168.64 ms
+Run 2842: 184.71 ms
+Run 2853: 159.59 ms
+Run 2792: 435.96 ms
+Run 2817: 321.13 ms
+Run 2845: 188.26 ms
+Run 2843: 195.80 ms
+Run 2839: 220.46 ms
+Run 2836: 233.39 ms
+Run 2841: 167.08 ms
+Run 2864: 143.89 ms
+Run 2869: 123.58 ms
+Run 2859: 159.22 ms
+Run 2856: 187.44 ms
+Run 2858: 170.28 ms
+Run 2852: 216.17 ms
+Run 2848: 234.07 ms
+Run 2855: 214.13 ms
+Run 2857: 202.23 ms
+Run 2874: 143.76 ms
+Run 2861: 188.52 ms
+Run 2877: 139.28 ms
+Run 2860: 199.13 ms
+Run 2875: 149.95 ms
+Run 2872: 162.37 ms
+Run 2866: 166.94 ms
+Run 2851: 262.03 ms
+Run 2868: 193.52 ms
+Run 2862: 217.15 ms
+Run 2835: 333.46 ms
+Run 2867: 212.58 ms
+Run 2876: 179.75 ms
+Run 2890: 119.46 ms
+Run 2870: 212.14 ms
+Run 2886: 139.84 ms
+Run 2863: 243.29 ms
+Run 2891: 136.35 ms
+Run 2854: 299.18 ms
+Run 2871: 230.56 ms
+Run 2865: 261.35 ms
+Run 2897: 118.90 ms
+Run 2849: 332.64 ms
+Run 2873: 157.25 ms
+Run 2889: 157.41 ms
+Run 2883: 193.27 ms
+Run 2850: 345.59 ms
+Run 2880: 223.97 ms
+Run 2887: 192.26 ms
+Run 2903: 123.91 ms
+Run 2898: 155.02 ms
+Run 2901: 136.29 ms
+Run 2895: 172.12 ms
+Run 2896: 165.59 ms
+Run 2892: 198.28 ms
+Run 2900: 163.02 ms
+Run 2899: 168.38 ms
+Run 2911: 123.72 ms
+Run 2888: 209.78 ms
+Run 2907: 145.81 ms
+Run 2878: 275.81 ms
+Run 2882: 253.49 ms
+Run 2902: 167.15 ms
+Run 2906: 158.28 ms
+Run 2879: 277.30 ms
+Run 2904: 167.07 ms
+Run 2884: 267.20 ms
+Run 2913: 155.73 ms
+Run 2881: 289.11 ms
+Run 2914: 152.94 ms
+Run 2905: 209.29 ms
+Run 2917: 169.60 ms
+Run 2908: 210.25 ms
+Run 2915: 183.64 ms
+Run 2893: 286.62 ms
+Run 2910: 179.86 ms
+Run 2924: 155.03 ms
+Run 2923: 159.46 ms
+Run 2928: 149.32 ms
+Run 2919: 183.67 ms
+Run 2916: 189.84 ms
+Run 2926: 164.96 ms
+Run 2885: 275.55 ms
+Run 2921: 198.42 ms
+Run 2909: 254.03 ms
+Run 2922: 220.08 ms
+Run 2925: 217.00 ms
+Run 2931: 208.44 ms
+Run 2918: 257.13 ms
+Run 2943: 169.39 ms
+Run 2948: 154.45 ms
+Run 2912: 298.48 ms
+Run 2934: 200.66 ms
+Run 2947: 170.10 ms
+Run 2950: 163.18 ms
+Run 2927: 248.11 ms
+Run 2955: 132.63 ms
+Run 2939: 192.75 ms
+Run 2949: 200.88 ms
+Run 2929: 277.64 ms
+Run 2946: 221.98 ms
+Run 2952: 200.30 ms
+Run 2958: 166.29 ms
+Run 2894: 450.64 ms
+Run 2942: 267.09 ms
+Run 2930: 314.04 ms
+Run 2935: 293.70 ms
+Run 2932: 305.48 ms
+Run 2936: 294.40 ms
+Run 2971: 129.68 ms
+Run 2938: 301.06 ms
+Run 2944: 280.00 ms
+Run 2937: 305.19 ms
+Run 2920: 374.62 ms
+Run 2961: 212.57 ms
+Run 2941: 307.05 ms
+Run 2972: 139.81 ms
+Run 2974: 145.80 ms
+Run 2973: 148.65 ms
+Run 2959: 233.51 ms
+Run 2953: 267.26 ms
+Run 2945: 311.08 ms
+Run 2951: 295.18 ms
+Run 2954: 263.01 ms
+Run 2967: 196.79 ms
+Run 2977: 166.17 ms
+Run 2933: 373.67 ms
+Run 2980: 153.54 ms
+Run 2970: 199.95 ms
+Run 2969: 240.63 ms
+Run 2956: 294.74 ms
+Run 2960: 281.81 ms
+Run 2963: 286.61 ms
+Run 2957: 323.33 ms
+Run 2965: 288.12 ms
+Run 2978: 217.27 ms
+Run 2940: 416.82 ms
+Run 2987: 164.71 ms
+Run 2979: 225.04 ms
+Run 2991: 144.34 ms
+Run 2982: 223.05 ms
+Run 2985: 198.24 ms
+Run 2962: 353.91 ms
+Run 3006: 132.09 ms
+Run 2984: 229.82 ms
+Run 2983: 210.95 ms
+Run 2992: 183.35 ms
+Run 2976: 285.65 ms
+Run 2968: 360.33 ms
+Run 2994: 195.83 ms
+Run 3000: 182.39 ms
+Run 2986: 195.97 ms
+Run 2998: 198.17 ms
+Run 2993: 214.58 ms
+Run 2995: 207.37 ms
+Run 3001: 186.22 ms
+Run 2988: 245.80 ms
+Run 2981: 302.28 ms
+Run 3005: 187.34 ms
+Run 3002: 173.60 ms
+Run 2975: 263.03 ms
+Run 3009: 190.96 ms
+Run 3003: 202.92 ms
+Run 3013: 171.53 ms
+Run 3014: 150.31 ms
+Run 3015: 161.17 ms
+Run 3008: 198.42 ms
+Run 2996: 224.94 ms
+Run 2966: 419.37 ms
+Run 2999: 211.44 ms
+Run 3018: 142.20 ms
+Run 3004: 227.28 ms
+Run 2964: 451.78 ms
+Run 3016: 182.63 ms
+Run 3007: 229.85 ms
+Run 2990: 256.89 ms
+Run 3020: 156.41 ms
+Run 3010: 218.15 ms
+Run 3021: 157.09 ms
+Run 2989: 291.70 ms
+Run 3022: 162.83 ms
+Run 3017: 192.51 ms
+Run 3011: 166.74 ms
+Run 2997: 300.98 ms
+Run 3019: 190.95 ms
+Run 3030: 139.35 ms
+Run 3026: 158.32 ms
+Run 3025: 167.66 ms
+Run 3032: 144.18 ms
+Run 3038: 122.27 ms
+Run 3027: 181.94 ms
+Run 3033: 149.44 ms
+Run 3039: 135.83 ms
+Run 3031: 174.27 ms
+Run 3043: 128.24 ms
+Run 3048: 116.50 ms
+Run 3012: 294.63 ms
+Run 3024: 232.89 ms
+Run 3034: 172.56 ms
+Run 3051: 131.10 ms
+Run 3040: 164.98 ms
+Run 3029: 203.03 ms
+Run 3047: 143.82 ms
+Run 3050: 143.04 ms
+Run 3055: 130.01 ms
+Run 3049: 149.80 ms
+Run 3036: 196.67 ms
+Run 3023: 286.85 ms
+Run 3061: 141.03 ms
+Run 3064: 132.16 ms
+Run 3066: 124.10 ms
+Run 3052: 172.12 ms
+Run 3073: 97.77 ms
+Run 3042: 173.32 ms
+Run 3044: 199.45 ms
+Run 3037: 228.25 ms
+Run 3028: 268.23 ms
+Run 3068: 143.23 ms
+Run 3062: 175.33 ms
+Run 3063: 169.91 ms
+Run 3054: 202.03 ms
+Run 3041: 241.72 ms
+Run 3060: 183.95 ms
+Run 3046: 224.84 ms
+Run 3067: 168.07 ms
+Run 3071: 150.72 ms
+Run 3057: 203.65 ms
+Run 3070: 158.00 ms
+Run 3056: 210.53 ms
+Run 3074: 143.30 ms
+Run 3075: 130.04 ms
+Run 3065: 185.66 ms
+Run 3072: 175.09 ms
+Run 3079: 145.46 ms
+Run 3045: 268.80 ms
+Run 3059: 142.21 ms
+Run 3035: 312.81 ms
+Run 3076: 170.64 ms
+Run 3069: 213.52 ms
+Run 3086: 110.71 ms
+Run 3089: 136.43 ms
+Run 3090: 134.12 ms
+Run 3082: 162.49 ms
+Run 3077: 188.70 ms
+Run 3053: 290.90 ms
+Run 3081: 188.06 ms
+Run 3093: 131.72 ms
+Run 3080: 195.20 ms
+Run 3078: 199.81 ms
+Run 3088: 166.04 ms
+Run 3058: 297.05 ms
+Run 3096: 155.64 ms
+Run 3084: 186.30 ms
+Run 3095: 163.34 ms
+Run 3116: 106.43 ms
+Run 3094: 166.62 ms
+Run 3101: 150.37 ms
+Run 3099: 158.51 ms
+Run 3115: 125.39 ms
+Run 3092: 188.98 ms
+Run 3100: 172.27 ms
+Run 3107: 149.95 ms
+Run 3118: 111.96 ms
+Run 3091: 210.57 ms
+Run 3085: 212.88 ms
+Run 3083: 232.16 ms
+Run 3087: 192.05 ms
+Run 3097: 213.73 ms
+Run 3106: 178.98 ms
+Run 3108: 177.21 ms
+Run 3119: 144.64 ms
+Run 3110: 183.72 ms
+Run 3111: 183.44 ms
+Run 3123: 133.93 ms
+Run 3113: 184.66 ms
+Run 3109: 195.32 ms
+Run 3122: 143.63 ms
+Run 3104: 208.41 ms
+Run 3127: 135.47 ms
+Run 3098: 166.34 ms
+Run 3131: 136.39 ms
+Run 3124: 164.74 ms
+Run 3129: 148.59 ms
+Run 3128: 158.98 ms
+Run 3126: 169.62 ms
+Run 3117: 202.57 ms
+Run 3103: 248.30 ms
+Run 3135: 136.14 ms
+Run 3138: 128.43 ms
+Run 3102: 259.86 ms
+Run 3120: 151.50 ms
+Run 3105: 256.49 ms
+Run 3134: 164.36 ms
+Run 3136: 143.04 ms
+Run 3114: 247.13 ms
+Run 3112: 249.10 ms
+Run 3121: 145.72 ms
+Run 3143: 127.03 ms
+Run 3125: 203.08 ms
+Run 3133: 187.97 ms
+Run 3140: 158.61 ms
+Run 3142: 158.94 ms
+Run 3130: 211.44 ms
+Run 3148: 145.68 ms
+Run 3147: 151.31 ms
+Run 3145: 153.53 ms
+Run 3139: 194.17 ms
+Run 3149: 155.33 ms
+Run 3141: 193.47 ms
+Run 3146: 175.67 ms
+Run 3144: 179.56 ms
+Run 3157: 143.68 ms
+Run 3158: 148.21 ms
+Run 3160: 148.07 ms
+Run 3159: 150.06 ms
+Run 3132: 213.82 ms
+Run 3152: 143.69 ms
+Run 3162: 155.74 ms
+Run 3137: 194.59 ms
+Run 3163: 160.88 ms
+Run 3161: 167.78 ms
+Run 3153: 146.97 ms
+Run 3156: 133.25 ms
+Run 3151: 216.60 ms
+Run 3150: 236.79 ms
+Run 3180: 143.81 ms
+Run 3172: 163.06 ms
+Run 3174: 159.32 ms
+Run 3166: 182.98 ms
+Run 3167: 186.93 ms
+Run 3165: 194.94 ms
+Run 3188: 129.51 ms
+Run 3186: 144.47 ms
+Run 3171: 193.15 ms
+Run 3154: 203.94 ms
+Run 3164: 236.94 ms
+Run 3173: 211.07 ms
+Run 3168: 234.05 ms
+Run 3177: 220.12 ms
+Run 3175: 230.92 ms
+Run 3197: 154.30 ms
+Run 3191: 183.74 ms
+Run 3196: 161.10 ms
+Run 3193: 185.41 ms
+Run 3194: 188.81 ms
+Run 3187: 215.48 ms
+Run 3199: 172.13 ms
+Run 3178: 267.59 ms
+Run 3208: 147.31 ms
+Run 3189: 228.58 ms
+Run 3192: 215.52 ms
+Run 3195: 210.66 ms
+Run 3179: 259.49 ms
+Run 3182: 283.71 ms
+Run 3202: 193.76 ms
+Run 3204: 184.55 ms
+Run 3181: 295.49 ms
+Run 3185: 281.58 ms
+Run 3209: 178.35 ms
+Run 3169: 343.86 ms
+Run 3183: 320.02 ms
+Run 3198: 245.36 ms
+Run 3184: 316.07 ms
+Run 3205: 227.30 ms
+Run 3170: 356.78 ms
+Run 3207: 231.03 ms
+Run 3212: 200.42 ms
+Run 3201: 260.27 ms
+Run 3200: 264.21 ms
+Run 3221: 155.38 ms
+Run 3176: 367.92 ms
+Run 3155: 406.16 ms
+Run 3203: 284.18 ms
+Run 3211: 239.65 ms
+Run 3216: 220.48 ms
+Run 3210: 257.68 ms
+Run 3240: 110.54 ms
+Run 3226: 165.75 ms
+Run 3228: 160.64 ms
+Run 3222: 201.33 ms
+Run 3227: 171.95 ms
+Run 3214: 257.99 ms
+Run 3238: 127.67 ms
+Run 3218: 229.58 ms
+Run 3220: 222.63 ms
+Run 3231: 165.10 ms
+Run 3224: 207.20 ms
+Run 3219: 248.87 ms
+Run 3217: 263.59 ms
+Run 3234: 167.29 ms
+Run 3229: 188.47 ms
+Run 3223: 240.17 ms
+Run 3246: 127.39 ms
+Run 3237: 176.11 ms
+Run 3250: 118.52 ms
+Run 3233: 198.80 ms
+Run 3232: 206.28 ms
+Run 3190: 381.74 ms
+Run 3255: 112.73 ms
+Run 3242: 172.63 ms
+Run 3253: 123.84 ms
+Run 3247: 154.58 ms
+Run 3206: 382.45 ms
+Run 3230: 242.36 ms
+Run 3239: 210.95 ms
+Run 3254: 149.40 ms
+Run 3241: 208.81 ms
+Run 3259: 121.07 ms
+Run 3245: 181.36 ms
+Run 3235: 238.74 ms
+Run 3213: 361.32 ms
+Run 3236: 248.54 ms
+Run 3264: 117.63 ms
+Run 3256: 148.79 ms
+Run 3257: 148.98 ms
+Run 3262: 126.78 ms
+Run 3252: 183.27 ms
+Run 3263: 129.39 ms
+Run 3270: 115.10 ms
+Run 3243: 230.15 ms
+Run 3215: 392.72 ms
+Run 3248: 218.16 ms
+Run 3275: 119.94 ms
+Run 3266: 149.42 ms
+Run 3258: 179.54 ms
+Run 3225: 338.68 ms
+Run 3271: 154.88 ms
+Run 3269: 162.65 ms
+Run 3268: 167.65 ms
+Run 3244: 270.39 ms
+Run 3274: 154.75 ms
+Run 3278: 134.53 ms
+Run 3277: 140.96 ms
+Run 3282: 134.66 ms
+Run 3281: 138.40 ms
+Run 3285: 107.82 ms
+Run 3280: 142.09 ms
+Run 3290: 111.60 ms
+Run 3279: 139.51 ms
+Run 3272: 193.05 ms
+Run 3283: 154.18 ms
+Run 3261: 232.63 ms
+Run 3251: 286.93 ms
+Run 3249: 303.78 ms
+Run 3265: 233.65 ms
+Run 3287: 159.83 ms
+Run 3273: 220.45 ms
+Run 3295: 149.60 ms
+Run 3303: 122.93 ms
+Run 3267: 246.99 ms
+Run 3296: 146.60 ms
+Run 3306: 119.17 ms
+Run 3293: 164.02 ms
+Run 3305: 124.57 ms
+Run 3301: 141.44 ms
+Run 3300: 143.88 ms
+Run 3289: 175.00 ms
+Run 3299: 145.27 ms
+Run 3288: 184.30 ms
+Run 3260: 280.23 ms
+Run 3298: 152.98 ms
+Run 3276: 231.90 ms
+Run 3284: 211.99 ms
+Run 3304: 142.83 ms
+Run 3292: 182.16 ms
+Run 3311: 111.13 ms
+Run 3314: 104.53 ms
+Run 3294: 195.08 ms
+Run 3313: 117.97 ms
+Run 3320: 103.60 ms
+Run 3307: 154.43 ms
+Run 3286: 191.24 ms
+Run 3291: 212.31 ms
+Run 3312: 145.53 ms
+Run 3316: 139.62 ms
+Run 3317: 134.89 ms
+Run 3302: 200.90 ms
+Run 3297: 212.04 ms
+Run 3318: 137.76 ms
+Run 3308: 183.58 ms
+Run 3315: 162.35 ms
+Run 3310: 179.68 ms
+Run 3319: 147.86 ms
+Run 3332: 109.94 ms
+Run 3340: 104.23 ms
+Run 3334: 117.97 ms
+Run 3339: 106.86 ms
+Run 3345: 99.20 ms
+Run 3348: 95.64 ms
+Run 3331: 129.49 ms
+Run 3330: 133.84 ms
+Run 3341: 110.76 ms
+Run 3347: 130.47 ms
+Run 3336: 146.60 ms
+Run 3350: 125.01 ms
+Run 3335: 149.95 ms
+Run 3353: 116.54 ms
+Run 3342: 145.01 ms
+Run 3354: 104.48 ms
+Run 3333: 135.40 ms
+Run 3351: 143.44 ms
+Run 3357: 117.82 ms
+Run 3363: 98.54 ms
+Run 3344: 162.81 ms
+Run 3359: 113.37 ms
+Run 3338: 171.36 ms
+Run 3361: 117.35 ms
+Run 3364: 108.77 ms
+Run 3322: 126.49 ms
+Run 3362: 120.08 ms
+Run 3324: 88.93 ms
+Run 3356: 178.18 ms
+Run 3366: 143.72 ms
+Run 3378: 81.06 ms
+Run 3379: 80.91 ms
+Run 3368: 131.61 ms
+Run 3365: 151.40 ms
+Run 3321: 124.58 ms
+Run 3370: 125.10 ms
+Run 3369: 130.46 ms
+Run 3374: 126.78 ms
+Run 3367: 160.20 ms
+Run 3309: 225.57 ms
+Run 3386: 109.52 ms
+Run 3390: 100.92 ms
+Run 3343: 182.06 ms
+Run 3389: 113.87 ms
+Run 3388: 118.58 ms
+Run 3375: 181.32 ms
+Run 3385: 131.78 ms
+Run 3382: 147.56 ms
+Run 3325: 140.40 ms
+Run 3349: 175.11 ms
+Run 3384: 135.54 ms
+Run 3355: 256.97 ms
+Run 3346: 176.80 ms
+Run 3372: 149.73 ms
+Run 3337: 131.29 ms
+Run 3383: 146.33 ms
+Run 3358: 140.70 ms
+Run 3387: 135.69 ms
+Run 3381: 154.75 ms
+Run 3376: 169.57 ms
+Run 3323: 195.73 ms
+Run 3326: 132.30 ms
+Run 3327: 122.12 ms
+Run 3391: 134.54 ms
+Run 3360: 206.63 ms
+Run 3377: 172.25 ms
+Run 3394: 109.78 ms
+Run 3393: 119.55 ms
+Run 3352: 191.08 ms
+Run 3402: 105.13 ms
+Run 3371: 133.10 ms
+Run 3380: 194.06 ms
+Run 3399: 115.14 ms
+Run 3400: 112.87 ms
+Run 3395: 124.36 ms
+Run 3329: 111.16 ms
+Run 3328: 134.42 ms
+Run 3396: 127.35 ms
+Run 3398: 133.17 ms
+Run 3373: 242.80 ms
+Run 3392: 165.06 ms
+Run 3409: 98.38 ms
+Run 3401: 143.69 ms
+Run 3397: 124.94 ms
+Run 3406: 136.22 ms
+Run 3407: 112.16 ms
+Run 3403: 150.70 ms
+Run 3404: 148.23 ms
+Run 3405: 149.83 ms
+Run 3411: 104.12 ms
+Run 3413: 99.90 ms
+Run 3408: 126.43 ms
+Run 3410: 130.78 ms
+Run 3412: 132.57 ms
+Run 3433: 108.39 ms
+Run 3434: 114.29 ms
+Run 3444: 90.29 ms
+Run 3443: 101.67 ms
+Run 3441: 104.27 ms
+Run 3438: 110.35 ms
+Run 3440: 114.65 ms
+Run 3436: 127.12 ms
+Run 3435: 128.11 ms
+Run 3453: 85.60 ms
+Run 3414: 137.53 ms
+Run 3442: 126.61 ms
+Run 3449: 102.11 ms
+Run 3446: 120.21 ms
+Run 3439: 147.11 ms
+Run 3459: 87.90 ms
+Run 3451: 120.10 ms
+Run 3415: 144.67 ms
+Run 3416: 123.69 ms
+Run 3455: 114.03 ms
+Run 3452: 123.76 ms
+Run 3450: 129.16 ms
+Run 3460: 101.93 ms
+Run 3445: 165.28 ms
+Run 3417: 121.58 ms
+Run 3458: 128.00 ms
+Run 3437: 185.01 ms
+Run 3448: 158.76 ms
+Run 3461: 107.03 ms
+Run 3456: 150.49 ms
+Run 3447: 176.22 ms
+Run 3465: 117.69 ms
+Run 3419: 122.24 ms
+Run 3467: 116.21 ms
+Run 3464: 134.53 ms
+Run 3466: 125.34 ms
+Run 3454: 189.58 ms
+Run 3418: 126.92 ms
+Run 3420: 118.32 ms
+Run 3482: 89.38 ms
+Run 3470: 137.57 ms
+Run 3469: 159.46 ms
+Run 3462: 190.22 ms
+Run 3475: 139.39 ms
+Run 3474: 143.70 ms
+Run 3481: 120.92 ms
+Run 3471: 156.72 ms
+Run 3457: 231.80 ms
+Run 3472: 160.87 ms
+Run 3485: 108.77 ms
+Run 3476: 142.41 ms
+Run 3473: 163.01 ms
+Run 3421: 142.95 ms
+Run 3468: 187.22 ms
+Run 3477: 159.41 ms
+Run 3422: 131.71 ms
+Run 3480: 154.19 ms
+Run 3486: 133.06 ms
+Run 3463: 169.79 ms
+Run 3478: 149.16 ms
+Run 3484: 153.80 ms
+Run 3479: 148.94 ms
+Run 3483: 168.75 ms
+Run 3492: 157.66 ms
+Run 3487: 189.85 ms
+Run 3491: 175.15 ms
+Run 3493: 153.80 ms
+Run 3498: 145.43 ms
+Run 3495: 154.68 ms
+Run 3488: 207.92 ms
+Run 3426: 139.51 ms
+Run 3423: 196.73 ms
+Run 3425: 168.38 ms
+Run 3424: 189.81 ms
+Run 3428: 139.77 ms
+Run 3427: 142.54 ms
+Run 3502: 145.65 ms
+Run 3494: 198.97 ms
+Run 3512: 143.08 ms
+Run 3497: 205.27 ms
+Run 3489: 247.87 ms
+Run 3501: 186.46 ms
+Run 3429: 154.03 ms
+Run 3514: 150.97 ms
+Run 3500: 201.95 ms
+Run 3499: 214.16 ms
+Run 3430: 152.24 ms
+Run 3509: 134.93 ms
+Run 3517: 152.79 ms
+Run 3490: 276.84 ms
+Run 3513: 174.45 ms
+Run 3507: 137.96 ms
+Run 3516: 168.65 ms
+Run 3510: 146.32 ms
+Run 3503: 182.94 ms
+Run 3515: 176.87 ms
+Run 3496: 241.85 ms
+Run 3504: 185.28 ms
+Run 3518: 196.30 ms
+Run 3505: 197.65 ms
+Run 3432: 210.97 ms
+Run 3520: 211.64 ms
+Run 3522: 215.54 ms
+Run 3506: 218.26 ms
+Run 3538: 149.00 ms
+Run 3537: 150.75 ms
+Run 3508: 236.93 ms
+Run 3546: 116.76 ms
+Run 3540: 139.94 ms
+Run 3511: 238.10 ms
+Run 3524: 148.14 ms
+Run 3542: 147.61 ms
+Run 3431: 258.59 ms
+Run 3519: 271.22 ms
+Run 3525: 141.41 ms
+Run 3536: 181.04 ms
+Run 3544: 154.10 ms
+Run 3541: 160.88 ms
+Run 3547: 137.69 ms
+Run 3539: 161.77 ms
+Run 3545: 162.09 ms
+Run 3549: 155.83 ms
+Run 3553: 149.75 ms
+Run 3543: 188.78 ms
+Run 3523: 131.05 ms
+Run 3550: 167.25 ms
+Run 3551: 170.66 ms
+Run 3559: 137.31 ms
+Run 3558: 151.09 ms
+Run 3548: 185.08 ms
+Run 3521: 328.50 ms
+Run 3556: 177.73 ms
+Run 3555: 183.48 ms
+Run 3552: 196.73 ms
+Run 3554: 189.70 ms
+Run 3526: 166.54 ms
+Run 3562: 130.20 ms
+Run 3561: 153.32 ms
+Run 3564: 138.40 ms
+Run 3560: 188.88 ms
+Run 3528: 157.00 ms
+Run 3570: 137.02 ms
+Run 3576: 135.23 ms
+Run 3527: 212.96 ms
+Run 3565: 196.04 ms
+Run 3572: 163.12 ms
+Run 3574: 159.19 ms
+Run 3569: 179.12 ms
+Run 3580: 153.35 ms
+Run 3582: 142.10 ms
+Run 3568: 189.29 ms
+Run 3557: 279.04 ms
+Run 3571: 187.00 ms
+Run 3530: 188.47 ms
+Run 3581: 167.62 ms
+Run 3583: 153.43 ms
+Run 3563: 235.54 ms
+Run 3579: 180.86 ms
+Run 3532: 139.99 ms
+Run 3584: 161.35 ms
+Run 3575: 188.67 ms
+Run 3529: 228.96 ms
+Run 3577: 203.79 ms
+Run 3566: 172.43 ms
+Run 3531: 192.33 ms
+Run 3573: 234.40 ms
+Run 3533: 161.60 ms
+Run 3567: 226.68 ms
+Run 3598: 157.01 ms
+Run 3590: 188.53 ms
+Run 3578: 240.71 ms
+Run 3586: 211.51 ms
+Run 3599: 163.98 ms
+Run 3596: 178.46 ms
+Run 3595: 183.26 ms
+Run 3591: 143.06 ms
+Run 3585: 229.17 ms
+Run 3534: 173.62 ms
+Run 3592: 199.40 ms
+Run 3589: 221.98 ms
+Run 3597: 203.27 ms
+Run 3588: 218.05 ms
+Run 3613: 118.46 ms
+Run 3601: 186.60 ms
+Run 3611: 134.02 ms
+Run 3606: 148.18 ms
+Run 3587: 262.38 ms
+Run 3609: 151.86 ms
+Run 3607: 161.25 ms
+Run 3605: 175.99 ms
+Run 3624: 123.52 ms
+Run 3620: 146.33 ms
+Run 3622: 139.88 ms
+Run 3604: 208.85 ms
+Run 3612: 185.85 ms
+Run 3594: 280.47 ms
+Run 3615: 177.17 ms
+Run 3618: 145.03 ms
+Run 3616: 181.09 ms
+Run 3614: 155.59 ms
+Run 3602: 221.62 ms
+Run 3610: 204.38 ms
+Run 3640: 93.96 ms
+Run 3639: 97.93 ms
+Run 3626: 146.05 ms
+Run 3638: 108.60 ms
+Run 3535: 198.07 ms
+Run 3621: 184.32 ms
+Run 3600: 289.29 ms
+Run 3629: 146.23 ms
+Run 3625: 158.38 ms
+Run 3593: 316.14 ms
+Run 3631: 152.85 ms
+Run 3603: 286.01 ms
+Run 3617: 226.75 ms
+Run 3627: 182.55 ms
+Run 3643: 129.07 ms
+Run 3645: 122.56 ms
+Run 3647: 118.32 ms
+Run 3641: 154.39 ms
+Run 3637: 165.05 ms
+Run 3608: 276.75 ms
+Run 3623: 228.81 ms
+Run 3634: 182.29 ms
+Run 3619: 240.76 ms
+Run 3644: 146.09 ms
+Run 3633: 191.71 ms
+Run 3652: 123.75 ms
+Run 3635: 202.03 ms
+Run 3642: 181.45 ms
+Run 3651: 138.08 ms
+Run 3646: 172.06 ms
+Run 3664: 104.66 ms
+Run 3654: 135.50 ms
+Run 3630: 182.71 ms
+Run 3653: 145.14 ms
+Run 3648: 184.47 ms
+Run 3628: 259.00 ms
+Run 3657: 139.82 ms
+Run 3659: 137.21 ms
+Run 3655: 150.00 ms
+Run 3668: 104.55 ms
+Run 3663: 135.18 ms
+Run 3658: 147.78 ms
+Run 3650: 187.61 ms
+Run 3649: 195.80 ms
+Run 3656: 156.29 ms
+Run 3632: 271.87 ms
+Run 3666: 157.04 ms
+Run 3662: 166.83 ms
+Run 3676: 124.63 ms
+Run 3673: 148.78 ms
+Run 3661: 175.70 ms
+Run 3660: 178.21 ms
+Run 3671: 167.60 ms
+Run 3680: 130.31 ms
+Run 3665: 183.26 ms
+Run 3636: 305.03 ms
+Run 3688: 121.47 ms
+Run 3669: 156.08 ms
+Run 3672: 198.39 ms
+Run 3686: 145.12 ms
+Run 3674: 188.62 ms
+Run 3667: 208.06 ms
+Run 3685: 149.21 ms
+Run 3670: 206.07 ms
+Run 3683: 160.28 ms
+Run 3679: 175.13 ms
+Run 3681: 165.40 ms
+Run 3689: 144.57 ms
+Run 3687: 165.05 ms
+Run 3693: 136.75 ms
+Run 3692: 146.47 ms
+Run 3705: 113.16 ms
+Run 3697: 136.62 ms
+Run 3706: 115.52 ms
+Run 3707: 120.46 ms
+Run 3696: 153.61 ms
+Run 3704: 129.66 ms
+Run 3695: 157.98 ms
+Run 3691: 175.71 ms
+Run 3675: 232.71 ms
+Run 3702: 147.40 ms
+Run 3682: 218.76 ms
+Run 3678: 235.69 ms
+Run 3690: 198.47 ms
+Run 3713: 127.06 ms
+Run 3718: 115.60 ms
+Run 3717: 121.73 ms
+Run 3703: 174.00 ms
+Run 3709: 151.02 ms
+Run 3677: 270.46 ms
+Run 3710: 160.65 ms
+Run 3684: 258.13 ms
+Run 3708: 182.13 ms
+Run 3720: 153.80 ms
+Run 3730: 125.80 ms
+Run 3727: 141.91 ms
+Run 3715: 186.47 ms
+Run 3719: 180.80 ms
+Run 3721: 167.07 ms
+Run 3694: 294.09 ms
+Run 3716: 223.15 ms
+Run 3734: 168.12 ms
+Run 3740: 155.34 ms
+Run 3736: 171.97 ms
+Run 3714: 249.74 ms
+Run 3712: 258.55 ms
+Run 3737: 175.95 ms
+Run 3742: 159.22 ms
+Run 3699: 306.96 ms
+Run 3731: 199.55 ms
+Run 3700: 314.46 ms
+Run 3738: 181.93 ms
+Run 3728: 215.82 ms
+Run 3733: 213.25 ms
+Run 3722: 211.08 ms
+Run 3746: 191.77 ms
+Run 3723: 202.41 ms
+Run 3698: 353.41 ms
+Run 3729: 252.54 ms
+Run 3741: 212.08 ms
+Run 3732: 246.79 ms
+Run 3711: 326.29 ms
+Run 3754: 172.59 ms
+Run 3739: 229.96 ms
+Run 3724: 205.45 ms
+Run 3749: 202.33 ms
+Run 3743: 231.10 ms
+Run 3725: 186.93 ms
+Run 3744: 231.92 ms
+Run 3735: 268.96 ms
+Run 3757: 166.68 ms
+Run 3750: 215.73 ms
+Run 3748: 211.96 ms
+Run 3752: 165.76 ms
+Run 3747: 235.85 ms
+Run 3760: 163.53 ms
+Run 3756: 210.74 ms
+Run 3758: 186.05 ms
+Run 3701: 415.50 ms
+Run 3755: 228.79 ms
+Run 3751: 244.95 ms
+Run 3745: 279.55 ms
+Run 3768: 142.05 ms
+Run 3763: 166.97 ms
+Run 3770: 140.14 ms
+Run 3765: 153.34 ms
+Run 3775: 135.40 ms
+Run 3753: 267.58 ms
+Run 3774: 149.49 ms
+Run 3782: 120.39 ms
+Run 3766: 187.07 ms
+Run 3764: 210.86 ms
+Run 3791: 108.79 ms
+Run 3769: 190.73 ms
+Run 3767: 194.36 ms
+Run 3780: 146.41 ms
+Run 3772: 192.86 ms
+Run 3788: 132.25 ms
+Run 3762: 233.59 ms
+Run 3771: 206.93 ms
+Run 3779: 162.73 ms
+Run 3773: 184.63 ms
+Run 3790: 144.70 ms
+Run 3789: 147.04 ms
+Run 3726: 312.63 ms
+Run 3797: 132.41 ms
+Run 3793: 136.10 ms
+Run 3792: 147.71 ms
+Run 3776: 213.87 ms
+Run 3795: 138.75 ms
+Run 3759: 298.77 ms
+Run 3777: 206.78 ms
+Run 3800: 139.40 ms
+Run 3798: 152.44 ms
+Run 3794: 166.51 ms
+Run 3796: 168.15 ms
+Run 3761: 316.62 ms
+Run 3781: 218.70 ms
+Run 3807: 131.49 ms
+Run 3784: 216.29 ms
+Run 3806: 138.92 ms
+Run 3802: 127.86 ms
+Run 3809: 139.80 ms
+Run 3778: 242.67 ms
+Run 3799: 214.50 ms
+Run 3811: 163.56 ms
+Run 3819: 126.77 ms
+Run 3786: 255.60 ms
+Run 3785: 259.50 ms
+Run 3804: 135.30 ms
+Run 3810: 132.35 ms
+Run 3814: 155.47 ms
+Run 3816: 149.57 ms
+Run 3817: 152.37 ms
+Run 3787: 264.82 ms
+Run 3812: 166.54 ms
+Run 3832: 100.15 ms
+Run 3824: 151.47 ms
+Run 3822: 156.47 ms
+Run 3818: 172.87 ms
+Run 3834: 140.03 ms
+Run 3821: 172.42 ms
+Run 3838: 121.57 ms
+Run 3831: 151.30 ms
+Run 3823: 177.33 ms
+Run 3835: 153.42 ms
+Run 3805: 181.09 ms
+Run 3836: 147.75 ms
+Run 3803: 227.21 ms
+Run 3808: 256.83 ms
+Run 3839: 146.16 ms
+Run 3783: 356.84 ms
+Run 3844: 132.45 ms
+Run 3840: 145.24 ms
+Run 3820: 218.91 ms
+Run 3801: 218.61 ms
+Run 3813: 249.61 ms
+Run 3843: 157.50 ms
+Run 3827: 208.49 ms
+Run 3837: 183.76 ms
+Run 3842: 166.66 ms
+Run 3826: 221.97 ms
+Run 3846: 164.09 ms
+Run 3825: 241.28 ms
+Run 3847: 168.05 ms
+Run 3851: 136.74 ms
+Run 3828: 235.79 ms
+Run 3853: 136.37 ms
+Run 3849: 144.05 ms
+Run 3830: 241.40 ms
+Run 3833: 240.40 ms
+Run 3852: 158.42 ms
+Run 3855: 149.36 ms
+Run 3815: 301.11 ms
+Run 3854: 156.77 ms
+Run 3856: 159.71 ms
+Run 3848: 189.18 ms
+Run 3862: 146.06 ms
+Run 3859: 162.46 ms
+Run 3829: 285.97 ms
+Run 3863: 150.23 ms
+Run 3861: 159.88 ms
+Run 3841: 257.00 ms
+Run 3858: 180.21 ms
+Run 3865: 159.93 ms
+Run 3845: 255.40 ms
+Run 3870: 147.93 ms
+Run 3879: 129.27 ms
+Run 3860: 192.09 ms
+Run 3868: 178.63 ms
+Run 3877: 149.47 ms
+Run 3881: 138.59 ms
+Run 3869: 180.92 ms
+Run 3871: 177.26 ms
+Run 3882: 140.01 ms
+Run 3885: 134.38 ms
+Run 3874: 173.13 ms
+Run 3888: 132.35 ms
+Run 3850: 266.24 ms
+Run 3873: 191.51 ms
+Run 3886: 145.00 ms
+Run 3864: 212.11 ms
+Run 3866: 219.33 ms
+Run 3887: 145.05 ms
+Run 3872: 204.67 ms
+Run 3884: 167.34 ms
+Run 3867: 227.66 ms
+Run 3892: 150.35 ms
+Run 3883: 181.00 ms
+Run 3876: 203.56 ms
+Run 3890: 161.21 ms
+Run 3857: 271.55 ms
+Run 3875: 216.62 ms
+Run 3891: 174.35 ms
+Run 3878: 220.13 ms
+Run 3895: 153.43 ms
+Run 3893: 173.84 ms
+Run 3897: 157.68 ms
+Run 3896: 159.68 ms
+Run 3880: 233.40 ms
+Run 3901: 149.75 ms
+Run 3899: 157.50 ms
+Run 3900: 164.74 ms
+Run 3904: 162.76 ms
+Run 3903: 166.64 ms
+Run 3902: 173.79 ms
+Run 3889: 228.93 ms
+Run 3913: 123.93 ms
+Run 3894: 220.24 ms
+Run 3898: 206.43 ms
+Run 3914: 156.34 ms
+Run 3912: 163.20 ms
+Run 3925: 146.30 ms
+Run 3930: 145.98 ms
+Run 3917: 155.87 ms
+Run 3922: 168.57 ms
+Run 3918: 190.58 ms
+Run 3915: 170.77 ms
+Run 3926: 173.38 ms
+Run 3923: 184.02 ms
+Run 3924: 183.23 ms
+Run 3927: 178.33 ms
+Run 3929: 172.07 ms
+Run 3916: 208.38 ms
+Run 3921: 193.92 ms
+Run 3920: 201.01 ms
+Run 3905: 200.15 ms
+Run 3939: 153.48 ms
+Run 3928: 191.40 ms
+Run 3933: 180.66 ms
+Run 3942: 157.01 ms
+Run 3941: 161.57 ms
+Run 3932: 145.08 ms
+Run 3919: 159.96 ms
+Run 3944: 154.68 ms
+Run 3936: 187.17 ms
+Run 3943: 162.64 ms
+Run 3950: 134.63 ms
+Run 3934: 203.10 ms
+Run 3940: 191.69 ms
+Run 3935: 200.94 ms
+Run 3947: 169.64 ms
+Run 3952: 154.69 ms
+Run 3951: 160.22 ms
+Run 3911: 155.12 ms
+Run 3931: 208.60 ms
+Run 3946: 183.06 ms
+Run 3937: 181.13 ms
+Run 3948: 178.61 ms
+Run 3907: 221.09 ms
+Run 3908: 208.16 ms
+Run 3938: 169.42 ms
+Run 3954: 143.09 ms
+Run 3909: 204.78 ms
+Run 3955: 139.59 ms
+Run 3949: 196.18 ms
+Run 3956: 146.53 ms
+Run 3945: 222.04 ms
+Run 3910: 209.85 ms
+Run 3906: 299.24 ms
+Run 3959: 149.12 ms
+Run 3963: 133.29 ms
+Run 3969: 125.53 ms
+Run 3968: 134.26 ms
+Run 3966: 119.61 ms
+Run 3977: 107.70 ms
+Run 3958: 162.89 ms
+Run 3962: 150.29 ms
+Run 3953: 227.47 ms
+Run 3971: 132.13 ms
+Run 3970: 171.31 ms
+Run 3961: 197.06 ms
+Run 3983: 134.78 ms
+Run 3990: 121.56 ms
+Run 3982: 150.20 ms
+Run 3991: 119.77 ms
+Run 3965: 199.01 ms
+Run 3978: 164.35 ms
+Run 3957: 226.42 ms
+Run 3996: 119.21 ms
+Run 3989: 136.21 ms
+Run 3972: 173.95 ms
+Run 3987: 153.19 ms
+Run 3998: 125.75 ms
+Run 3981: 194.87 ms
+Run 3985: 191.43 ms
+Run 3999: 157.10 ms
+Run 3967: 263.48 ms
+Run 3975: 186.46 ms
+Run 3992: 200.59 ms
+Run 4006: 162.02 ms
+Run 4010: 157.93 ms
+Run 3976: 190.80 ms
+Run 3993: 226.52 ms
+Run 4000: 201.33 ms
+Run 4009: 174.70 ms
+Run 4008: 175.93 ms
+Run 3986: 248.88 ms
+Run 4002: 199.54 ms
+Run 3997: 225.89 ms
+Run 3973: 263.09 ms
+Run 4003: 203.26 ms
+Run 3960: 346.08 ms
+Run 3980: 291.59 ms
+Run 3995: 248.68 ms
+Run 3964: 336.62 ms
+Run 3988: 263.99 ms
+Run 4007: 208.17 ms
+Run 3979: 323.89 ms
+Run 4004: 232.67 ms
+Run 4005: 233.33 ms
+Run 4012: 226.10 ms
+Run 4001: 253.83 ms
+Run 4011: 226.68 ms
+Run 4013: 247.97 ms
+Run 4014: 216.67 ms
+Run 4015: 200.21 ms
+Run 3974: 290.45 ms
+Run 4017: 181.34 ms
+Run 3984: 340.25 ms
+Run 3994: 292.74 ms
+Run 4027: 184.61 ms
+Run 4016: 224.86 ms
+Run 4021: 186.76 ms
+Run 4018: 226.51 ms
+Run 4026: 197.93 ms
+Run 4024: 221.92 ms
+Run 4020: 215.33 ms
+Run 4025: 222.24 ms
+Run 4042: 113.89 ms
+Run 4029: 182.76 ms
+Run 4035: 146.20 ms
+Run 4031: 192.98 ms
+Run 4044: 132.70 ms
+Run 4046: 129.83 ms
+Run 4050: 129.23 ms
+Run 4048: 131.67 ms
+Run 4038: 150.99 ms
+Run 4036: 171.87 ms
+Run 4033: 193.53 ms
+Run 4040: 161.35 ms
+Run 4028: 241.12 ms
+Run 4022: 230.56 ms
+Run 4047: 165.89 ms
+Run 4062: 97.60 ms
+Run 4045: 170.00 ms
+Run 4052: 142.35 ms
+Run 4023: 226.90 ms
+Run 4034: 210.60 ms
+Run 4066: 98.81 ms
+Run 4056: 143.79 ms
+Run 4030: 241.65 ms
+Run 4032: 263.95 ms
+Run 4057: 148.74 ms
+Run 4054: 184.33 ms
+Run 4068: 123.68 ms
+Run 4072: 96.07 ms
+Run 4049: 222.66 ms
+Run 4019: 366.46 ms
+Run 4069: 140.51 ms
+Run 4075: 123.97 ms
+Run 4041: 251.99 ms
+Run 4070: 138.96 ms
+Run 4073: 137.45 ms
+Run 4074: 133.63 ms
+Run 4063: 177.35 ms
+Run 4078: 121.17 ms
+Run 4065: 169.04 ms
+Run 4064: 180.93 ms
+Run 4051: 247.01 ms
+Run 4053: 221.52 ms
+Run 4071: 179.70 ms
+Run 4086: 127.59 ms
+Run 4091: 111.59 ms
+Run 4055: 243.22 ms
+Run 4058: 133.42 ms
+Run 4090: 121.03 ms
+Run 4084: 147.79 ms
+Run 4067: 206.57 ms
+Run 4039: 292.51 ms
+Run 4077: 171.49 ms
+Run 4089: 131.77 ms
+Run 4087: 134.73 ms
+Run 4085: 153.36 ms
+Run 4082: 166.62 ms
+Run 4088: 141.05 ms
+Run 4092: 138.10 ms
+Run 4076: 191.67 ms
+Run 4060: 146.40 ms
+Run 4080: 184.20 ms
+Run 4099: 132.28 ms
+Run 4108: 101.76 ms
+Run 4061: 130.92 ms
+Run 4059: 179.63 ms
+Run 4095: 171.26 ms
+Run 4094: 174.69 ms
+Run 4097: 156.99 ms
+Run 4081: 140.78 ms
+Run 4083: 227.97 ms
+Run 4037: 396.16 ms
+Run 4110: 124.17 ms
+Run 4112: 115.17 ms
+Run 4114: 99.02 ms
+Run 4113: 117.81 ms
+Run 4096: 174.67 ms
+Run 4043: 270.52 ms
+Run 4100: 160.20 ms
+Run 4093: 139.05 ms
+Run 4102: 164.23 ms
+Run 4116: 114.79 ms
+Run 4118: 114.92 ms
+Run 4123: 100.08 ms
+Run 4103: 168.57 ms
+Run 4105: 167.54 ms
+Run 4079: 209.71 ms
+Run 4109: 163.36 ms
+Run 4128: 122.02 ms
+Run 4120: 139.80 ms
+Run 4106: 191.47 ms
+Run 4117: 150.75 ms
+Run 4115: 159.15 ms
+Run 4127: 139.58 ms
+Run 4111: 139.27 ms
+Run 4098: 233.23 ms
+Run 4119: 169.54 ms
+Run 4133: 113.45 ms
+Run 4131: 130.24 ms
+Run 4107: 213.66 ms
+Run 4130: 149.49 ms
+Run 4101: 236.11 ms
+Run 4135: 116.76 ms
+Run 4126: 165.87 ms
+Run 4122: 173.91 ms
+Run 4136: 131.26 ms
+Run 4104: 256.78 ms
+Run 4147: 115.41 ms
+Run 4139: 134.44 ms
+Run 4137: 139.67 ms
+Run 4149: 117.54 ms
+Run 4129: 176.57 ms
+Run 4146: 128.96 ms
+Run 4141: 141.98 ms
+Run 4132: 173.97 ms
+Run 4121: 175.06 ms
+Run 4150: 149.52 ms
+Run 4125: 230.72 ms
+Run 4155: 133.92 ms
+Run 4124: 237.90 ms
+Run 4134: 191.75 ms
+Run 4152: 144.25 ms
+Run 4143: 169.46 ms
+Run 4154: 151.82 ms
+Run 4156: 149.27 ms
+Run 4145: 182.01 ms
+Run 4144: 184.09 ms
+Run 4157: 155.12 ms
+Run 4153: 143.87 ms
+Run 4151: 179.16 ms
+Run 4158: 165.81 ms
+Run 4166: 134.96 ms
+Run 4171: 120.83 ms
+Run 4163: 147.13 ms
+Run 4148: 201.30 ms
+Run 4165: 139.83 ms
+Run 4140: 220.22 ms
+Run 4138: 228.93 ms
+Run 4174: 125.08 ms
+Run 4161: 166.85 ms
+Run 4162: 168.87 ms
+Run 4142: 232.01 ms
+Run 4169: 157.33 ms
+Run 4164: 174.54 ms
+Run 4167: 172.64 ms
+Run 4185: 115.24 ms
+Run 4160: 162.04 ms
+Run 4170: 168.50 ms
+Run 4173: 165.92 ms
+Run 4175: 172.52 ms
+Run 4172: 179.64 ms
+Run 4180: 151.89 ms
+Run 4184: 178.73 ms
+Run 4201: 116.43 ms
+Run 4205: 109.45 ms
+Run 4159: 239.67 ms
+Run 4194: 150.20 ms
+Run 4196: 143.62 ms
+Run 4204: 117.68 ms
+Run 4208: 116.05 ms
+Run 4189: 167.95 ms
+Run 4203: 121.83 ms
+Run 4176: 194.55 ms
+Run 4209: 129.76 ms
+Run 4211: 120.27 ms
+Run 4206: 137.52 ms
+Run 4215: 102.85 ms
+Run 4179: 198.45 ms
+Run 4199: 164.43 ms
+Run 4216: 107.08 ms
+Run 4193: 113.03 ms
+Run 4187: 156.05 ms
+Run 4219: 109.46 ms
+Run 4210: 125.34 ms
+Run 4207: 139.14 ms
+Run 4192: 202.50 ms
+Run 4188: 138.12 ms
+Run 4221: 113.11 ms
+Run 4191: 185.82 ms
+Run 4202: 184.14 ms
+Run 4186: 247.34 ms
+Run 4195: 161.11 ms
+Run 4178: 155.35 ms
+Run 4197: 103.27 ms
+Run 4214: 87.62 ms
+Run 4218: 145.08 ms
+Run 4223: 92.21 ms
+Run 4212: 130.14 ms
+Run 4168: 194.52 ms
+Run 4190: 178.78 ms
+Run 4226: 97.25 ms
+Run 4220: 135.63 ms
+Run 4183: 247.59 ms
+Run 4181: 172.56 ms
+Run 4213: 131.61 ms
+Run 4227: 101.70 ms
+Run 4224: 116.21 ms
+Run 4233: 100.47 ms
+Run 4231: 104.11 ms
+Run 4198: 123.29 ms
+Run 4200: 103.37 ms
+Run 4182: 171.01 ms
+Run 4230: 135.57 ms
+Run 4244: 100.73 ms
+Run 4177: 189.23 ms
+Run 4222: 201.42 ms
+Run 4247: 103.84 ms
+Run 4228: 154.45 ms
+Run 4235: 131.54 ms
+Run 4229: 156.51 ms
+Run 4217: 230.08 ms
+Run 4232: 155.21 ms
+Run 4238: 137.15 ms
+Run 4240: 131.00 ms
+Run 4239: 135.62 ms
+Run 4234: 140.57 ms
+Run 4225: 173.57 ms
+Run 4242: 152.81 ms
+Run 4248: 138.09 ms
+Run 4253: 122.90 ms
+Run 4236: 176.04 ms
+Run 4246: 161.14 ms
+Run 4245: 175.94 ms
+Run 4266: 119.26 ms
+Run 4241: 186.84 ms
+Run 4269: 113.00 ms
+Run 4254: 131.17 ms
+Run 4249: 162.94 ms
+Run 4250: 167.66 ms
+Run 4243: 191.85 ms
+Run 4252: 166.49 ms
+Run 4272: 104.23 ms
+Run 4257: 171.62 ms
+Run 4265: 156.13 ms
+Run 4251: 195.97 ms
+Run 4256: 200.77 ms
+Run 4263: 190.99 ms
+Run 4237: 261.88 ms
+Run 4273: 165.96 ms
+Run 4271: 206.28 ms
+Run 4267: 221.22 ms
+Run 4270: 216.99 ms
+Run 4282: 197.63 ms
+Run 4276: 210.46 ms
+Run 4283: 195.43 ms
+Run 4280: 202.02 ms
+Run 4281: 201.00 ms
+Run 4274: 220.01 ms
+Run 4264: 265.36 ms
+Run 4279: 208.85 ms
+Run 4255: 292.93 ms
+Run 4262: 277.07 ms
+Run 4297: 153.05 ms
+Run 4286: 210.96 ms
+Run 4288: 209.60 ms
+Run 4259: 195.23 ms
+Run 4298: 163.09 ms
+Run 4290: 196.14 ms
+Run 4277: 240.75 ms
+Run 4291: 192.62 ms
+Run 4293: 185.93 ms
+Run 4296: 172.34 ms
+Run 4278: 222.40 ms
+Run 4261: 307.33 ms
+Run 4300: 162.69 ms
+Run 4295: 178.16 ms
+Run 4268: 290.14 ms
+Run 4301: 165.53 ms
+Run 4275: 258.94 ms
+Run 4258: 255.69 ms
+Run 4304: 174.32 ms
+Run 4306: 168.28 ms
+Run 4285: 275.08 ms
+Run 4309: 151.33 ms
+Run 4260: 232.68 ms
+Run 4284: 279.09 ms
+Run 4287: 276.74 ms
+Run 4305: 192.78 ms
+Run 4303: 211.83 ms
+Run 4308: 169.72 ms
+Run 4325: 87.26 ms
+Run 4292: 271.57 ms
+Run 4289: 281.47 ms
+Run 4307: 200.05 ms
+Run 4331: 90.27 ms
+Run 4315: 122.55 ms
+Run 4323: 110.48 ms
+Run 4318: 124.69 ms
+Run 4299: 258.27 ms
+Run 4337: 87.66 ms
+Run 4333: 93.37 ms
+Run 4314: 132.47 ms
+Run 4311: 168.38 ms
+Run 4335: 95.55 ms
+Run 4326: 117.45 ms
+Run 4302: 260.52 ms
+Run 4316: 145.42 ms
+Run 4324: 117.52 ms
+Run 4328: 125.22 ms
+Run 4327: 133.05 ms
+Run 4334: 122.15 ms
+Run 4330: 131.41 ms
+Run 4329: 139.49 ms
+Run 4319: 172.31 ms
+Run 4310: 234.83 ms
+Run 4332: 147.35 ms
+Run 4294: 320.84 ms
+Run 4312: 218.95 ms
+Run 4320: 172.25 ms
+Run 4317: 131.17 ms
+Run 4313: 231.12 ms
+Run 4363: 80.31 ms
+Run 4357: 93.84 ms
+Run 4336: 85.00 ms
+Run 4367: 84.59 ms
+Run 4361: 98.67 ms
+Run 4321: 221.16 ms
+Run 4364: 99.09 ms
+Run 4338: 108.14 ms
+Run 4362: 104.66 ms
+Run 4322: 189.41 ms
+Run 4356: 126.56 ms
+Run 4358: 126.46 ms
+Run 4355: 138.24 ms
+Run 4370: 102.85 ms
+Run 4380: 85.04 ms
+Run 4374: 103.53 ms
+Run 4365: 119.01 ms
+Run 4373: 112.90 ms
+Run 4379: 95.23 ms
+Run 4341: 109.32 ms
+Run 4366: 150.79 ms
+Run 4383: 85.10 ms
+Run 4371: 140.63 ms
+Run 4372: 141.03 ms
+Run 4375: 128.01 ms
+Run 4360: 178.26 ms
+Run 4359: 179.32 ms
+Run 4339: 172.49 ms
+Run 4376: 134.25 ms
+Run 4382: 115.58 ms
+Run 4368: 95.74 ms
+Run 4386: 102.99 ms
+Run 4340: 185.42 ms
+Run 4354: 209.79 ms
+Run 4369: 186.10 ms
+Run 4377: 154.66 ms
+Run 4342: 140.73 ms
+Run 4388: 111.65 ms
+Run 4389: 108.32 ms
+Run 4390: 128.72 ms
+Run 4391: 131.45 ms
+Run 4400: 105.80 ms
+Run 4384: 166.34 ms
+Run 4394: 130.60 ms
+Run 4399: 112.24 ms
+Run 4403: 99.99 ms
+Run 4381: 194.55 ms
+Run 4392: 165.52 ms
+Run 4397: 134.68 ms
+Run 4344: 144.74 ms
+Run 4385: 189.46 ms
+Run 4396: 145.82 ms
+Run 4343: 178.81 ms
+Run 4387: 189.24 ms
+Run 4402: 133.53 ms
+Run 4410: 117.49 ms
+Run 4393: 184.02 ms
+Run 4395: 180.89 ms
+Run 4401: 162.12 ms
+Run 4409: 137.45 ms
+Run 4345: 166.75 ms
+Run 4406: 155.05 ms
+Run 4398: 180.93 ms
+Run 4412: 150.14 ms
+Run 4346: 172.12 ms
+Run 4347: 151.41 ms
+Run 4404: 178.77 ms
+Run 4417: 144.82 ms
+Run 4416: 150.86 ms
+Run 4408: 179.75 ms
+Run 4411: 181.44 ms
+Run 4413: 173.33 ms
+Run 4423: 133.09 ms
+Run 4418: 168.06 ms
+Run 4424: 123.96 ms
+Run 4407: 178.39 ms
+Run 4420: 179.93 ms
+Run 4428: 131.62 ms
+Run 4348: 162.89 ms
+Run 4437: 109.14 ms
+Run 4426: 147.85 ms
+Run 4422: 175.76 ms
+Run 4414: 210.60 ms
+Run 4405: 244.42 ms
+Run 4427: 159.06 ms
+Run 4415: 175.06 ms
+Run 4378: 366.54 ms
+Run 4349: 169.65 ms
+Run 4430: 146.05 ms
+Run 4421: 195.37 ms
+Run 4353: 105.77 ms
+Run 4452: 95.12 ms
+Run 4425: 196.83 ms
+Run 4419: 247.05 ms
+Run 4350: 187.79 ms
+Run 4445: 125.54 ms
+Run 4351: 169.06 ms
+Run 4352: 142.58 ms
+Run 4446: 128.32 ms
+Run 4436: 178.43 ms
+Run 4442: 154.70 ms
+Run 4441: 157.78 ms
+Run 4438: 175.00 ms
+Run 4444: 146.60 ms
+Run 4451: 121.88 ms
+Run 4431: 178.28 ms
+Run 4450: 134.85 ms
+Run 4456: 114.51 ms
+Run 4443: 172.56 ms
+Run 4435: 211.62 ms
+Run 4453: 134.84 ms
+Run 4440: 190.63 ms
+Run 4433: 231.33 ms
+Run 4434: 236.37 ms
+Run 4429: 260.88 ms
+Run 4454: 158.60 ms
+Run 4449: 180.72 ms
+Run 4447: 191.10 ms
+Run 4460: 148.00 ms
+Run 4448: 188.37 ms
+Run 4455: 172.69 ms
+Run 4458: 163.00 ms
+Run 4462: 150.96 ms
+Run 4466: 139.01 ms
+Run 4468: 133.91 ms
+Run 4459: 168.64 ms
+Run 4476: 109.69 ms
+Run 4463: 169.62 ms
+Run 4464: 175.62 ms
+Run 4457: 206.50 ms
+Run 4471: 161.51 ms
+Run 4432: 315.42 ms
+Run 4465: 189.05 ms
+Run 4493: 99.56 ms
+Run 4487: 125.15 ms
+Run 4472: 161.21 ms
+Run 4479: 145.17 ms
+Run 4473: 162.83 ms
+Run 4477: 163.27 ms
+Run 4461: 227.92 ms
+Run 4491: 133.87 ms
+Run 4439: 330.66 ms
+Run 4480: 172.28 ms
+Run 4492: 138.72 ms
+Run 4483: 171.75 ms
+Run 4489: 162.78 ms
+Run 4494: 147.32 ms
+Run 4486: 179.21 ms
+Run 4496: 135.91 ms
+Run 4467: 216.48 ms
+Run 4495: 148.57 ms
+Run 4474: 210.29 ms
+Run 4484: 187.87 ms
+Run 4485: 192.64 ms
+Run 4478: 209.14 ms
+Run 4469: 253.49 ms
+Run 4488: 194.17 ms
+Run 4475: 223.72 ms
+Run 4482: 215.76 ms
+Run 4481: 217.72 ms
+Run 4497: 162.37 ms
+Run 4503: 149.91 ms
+Run 4505: 145.32 ms
+Run 4490: 216.75 ms
+Run 4499: 229.02 ms
+Run 4506: 215.61 ms
+Run 4501: 237.28 ms
+Run 4513: 193.06 ms
+Run 4511: 210.07 ms
+Run 4532: 136.18 ms
+Run 4510: 221.98 ms
+Run 4498: 277.76 ms
+Run 4470: 384.27 ms
+Run 4508: 247.59 ms
+Run 4527: 166.49 ms
+Run 4522: 188.08 ms
+Run 4517: 216.61 ms
+Run 4521: 190.54 ms
+Run 4500: 287.97 ms
+Run 4525: 195.11 ms
+Run 4519: 182.88 ms
+Run 4514: 234.02 ms
+Run 4507: 281.19 ms
+Run 4518: 233.71 ms
+Run 4512: 254.32 ms
+Run 4509: 272.05 ms
+Run 4537: 173.64 ms
+Run 4540: 172.87 ms
+Run 4523: 226.64 ms
+Run 4520: 184.64 ms
+Run 4515: 260.85 ms
+Run 4528: 218.45 ms
+Run 4529: 216.00 ms
+Run 4538: 195.55 ms
+Run 4504: 328.52 ms
+Run 4542: 187.96 ms
+Run 4502: 334.43 ms
+Run 4536: 217.39 ms
+Run 4531: 226.11 ms
+Run 4516: 288.33 ms
+Run 4539: 190.82 ms
+Run 4533: 234.61 ms
+Run 4530: 244.20 ms
+Run 4543: 207.72 ms
+Run 4526: 261.91 ms
+Run 4535: 236.01 ms
+Run 4524: 265.26 ms
+Run 4534: 273.08 ms
+Run 4541: 266.38 ms
+Run 4549: 176.59 ms
+Run 4557: 153.67 ms
+Run 4562: 132.01 ms
+Run 4546: 257.75 ms
+Run 4550: 187.33 ms
+Run 4564: 139.66 ms
+Run 4569: 124.63 ms
+Run 4551: 178.96 ms
+Run 4568: 134.11 ms
+Run 4547: 218.09 ms
+Run 4559: 158.10 ms
+Run 4545: 282.55 ms
+Run 4565: 123.50 ms
+Run 4554: 155.17 ms
+Run 4582: 105.54 ms
+Run 4587: 97.33 ms
+Run 4552: 200.41 ms
+Run 4553: 198.16 ms
+Run 4548: 211.32 ms
+Run 4560: 186.73 ms
+Run 4574: 94.67 ms
+Run 4589: 108.88 ms
+Run 4558: 195.48 ms
+Run 4561: 182.07 ms
+Run 4578: 144.29 ms
+Run 4581: 141.44 ms
+Run 4579: 157.27 ms
+Run 4571: 162.15 ms
+Run 4544: 323.81 ms
+Run 4576: 121.34 ms
+Run 4572: 176.34 ms
+Run 4585: 183.14 ms
+Run 4593: 118.43 ms
+Run 4586: 183.90 ms
+Run 4600: 108.00 ms
+Run 4573: 217.62 ms
+Run 4588: 184.40 ms
+Run 4566: 122.55 ms
+Run 4583: 197.60 ms
+Run 4598: 119.62 ms
+Run 4595: 129.16 ms
+Run 4601: 122.04 ms
+Run 4567: 174.65 ms
+Run 4592: 143.17 ms
+Run 4610: 106.59 ms
+Run 4575: 129.51 ms
+Run 4563: 229.93 ms
+Run 4605: 130.96 ms
+Run 4611: 117.44 ms
+Run 4555: 241.87 ms
+Run 4612: 121.55 ms
+Run 4615: 118.77 ms
+Run 4570: 266.47 ms
+Run 4580: 179.54 ms
+Run 4596: 170.42 ms
+Run 4613: 128.04 ms
+Run 4603: 158.60 ms
+Run 4597: 167.77 ms
+Run 4590: 204.14 ms
+Run 4556: 241.93 ms
+Run 4584: 249.86 ms
+Run 4617: 124.15 ms
+Run 4591: 160.37 ms
+Run 4609: 164.21 ms
+Run 4577: 151.15 ms
+Run 4616: 154.45 ms
+Run 4618: 143.24 ms
+Run 4619: 134.02 ms
+Run 4608: 193.28 ms
+Run 4599: 219.11 ms
+Run 4622: 117.06 ms
+Run 4604: 218.76 ms
+Run 4602: 228.72 ms
+Run 4629: 120.02 ms
+Run 4626: 133.61 ms
+Run 4607: 221.66 ms
+Run 4625: 121.17 ms
+Run 4606: 225.89 ms
+Run 4614: 188.79 ms
+Run 4649: 151.50 ms
+Run 4632: 196.84 ms
+Run 4620: 179.46 ms
+Run 4646: 157.55 ms
+Run 4636: 186.97 ms
+Run 4624: 217.49 ms
+Run 4664: 91.53 ms
+Run 4653: 150.69 ms
+Run 4623: 127.10 ms
+Run 4657: 134.40 ms
+Run 4637: 189.47 ms
+Run 4651: 162.76 ms
+Run 4658: 135.03 ms
+Run 4635: 159.54 ms
+Run 4668: 97.25 ms
+Run 4643: 185.81 ms
+Run 4648: 180.22 ms
+Run 4669: 90.07 ms
+Run 4666: 111.02 ms
+Run 4631: 199.14 ms
+Run 4644: 153.95 ms
+Run 4621: 200.62 ms
+Run 4654: 114.00 ms
+Run 4638: 148.22 ms
+Run 4650: 145.02 ms
+Run 4652: 135.34 ms
+Run 4663: 145.74 ms
+Run 4640: 191.29 ms
+Run 4665: 152.47 ms
+Run 4633: 156.63 ms
+Run 4674: 73.75 ms
+Run 4673: 80.86 ms
+Run 4628: 158.64 ms
+Run 4672: 85.39 ms
+Run 4656: 109.20 ms
+Run 4634: 187.55 ms
+Run 4594: 293.18 ms
+Run 4675: 107.47 ms
+Run 4655: 174.87 ms
+Run 4677: 114.25 ms
+Run 4684: 98.85 ms
+Run 4661: 112.61 ms
+Run 4685: 102.14 ms
+Run 4691: 92.49 ms
+Run 4696: 77.24 ms
+Run 4697: 75.13 ms
+Run 4670: 134.19 ms
+Run 4683: 112.75 ms
+Run 4660: 125.14 ms
+Run 4639: 137.77 ms
+Run 4682: 94.96 ms
+Run 4690: 105.28 ms
+Run 4671: 146.15 ms
+Run 4695: 99.23 ms
+Run 4693: 110.17 ms
+Run 4678: 69.08 ms
+Run 4688: 121.16 ms
+Run 4681: 142.18 ms
+Run 4680: 143.44 ms
+Run 4662: 143.91 ms
+Run 4659: 156.53 ms
+Run 4692: 109.72 ms
+Run 4645: 145.93 ms
+Run 4687: 135.93 ms
+Run 4700: 98.88 ms
+Run 4642: 202.79 ms
+Run 4641: 188.31 ms
+Run 4686: 152.75 ms
+Run 4701: 110.54 ms
+Run 4702: 112.85 ms
+Run 4694: 158.77 ms
+Run 4705: 111.48 ms
+Run 4667: 113.25 ms
+Run 4679: 200.72 ms
+Run 4630: 160.47 ms
+Run 4647: 200.52 ms
+Run 4706: 125.62 ms
+Run 4704: 146.16 ms
+Run 4728: 80.46 ms
+Run 4699: 169.78 ms
+Run 4710: 121.27 ms
+Run 4703: 120.03 ms
+Run 4719: 110.61 ms
+Run 4731: 93.65 ms
+Run 4708: 142.45 ms
+Run 4711: 131.92 ms
+Run 4722: 113.97 ms
+Run 4627: 177.16 ms
+Run 4726: 119.60 ms
+Run 4732: 119.13 ms
+Run 4689: 167.68 ms
+Run 4735: 117.04 ms
+Run 4737: 116.81 ms
+Run 4730: 138.40 ms
+Run 4713: 170.04 ms
+Run 4724: 155.83 ms
+Run 4709: 160.43 ms
+Run 4744: 98.63 ms
+Run 4717: 178.26 ms
+Run 4676: 83.77 ms
+Run 4698: 139.49 ms
+Run 4734: 150.65 ms
+Run 4738: 140.32 ms
+Run 4712: 200.88 ms
+Run 4746: 112.19 ms
+Run 4739: 148.39 ms
+Run 4727: 184.53 ms
+Run 4742: 135.70 ms
+Run 4745: 120.70 ms
+Run 4729: 184.19 ms
+Run 4723: 198.03 ms
+Run 4721: 207.96 ms
+Run 4750: 117.71 ms
+Run 4740: 163.65 ms
+Run 4751: 119.38 ms
+Run 4736: 192.03 ms
+Run 4720: 227.19 ms
+Run 4714: 240.07 ms
+Run 4716: 238.70 ms
+Run 4741: 161.74 ms
+Run 4743: 178.02 ms
+Run 4749: 148.31 ms
+Run 4756: 132.00 ms
+Run 4753: 138.91 ms
+Run 4707: 284.91 ms
+Run 4758: 137.16 ms
+Run 4733: 235.47 ms
+Run 4752: 156.32 ms
+Run 4754: 152.81 ms
+Run 4755: 152.20 ms
+Run 4771: 96.34 ms
+Run 4748: 178.38 ms
+Run 4718: 277.43 ms
+Run 4747: 188.61 ms
+Run 4768: 109.31 ms
+Run 4766: 118.78 ms
+Run 4769: 110.00 ms
+Run 4761: 147.81 ms
+Run 4759: 163.49 ms
+Run 4775: 103.37 ms
+Run 4764: 145.32 ms
+Run 4776: 105.78 ms
+Run 4760: 131.99 ms
+Run 4725: 314.59 ms
+Run 4780: 161.51 ms
+Run 4794: 123.40 ms
+Run 4715: 391.52 ms
+Run 4777: 183.82 ms
+Run 4796: 127.16 ms
+Run 4779: 194.19 ms
+Run 4757: 278.48 ms
+Run 4774: 210.80 ms
+Run 4762: 249.06 ms
+Run 4765: 244.08 ms
+Run 4781: 199.12 ms
+Run 4763: 254.30 ms
+Run 4772: 231.50 ms
+Run 4790: 178.96 ms
+Run 4778: 213.88 ms
+Run 4793: 166.47 ms
+Run 4801: 155.12 ms
+Run 4770: 234.51 ms
+Run 4767: 265.88 ms
+Run 4773: 254.05 ms
+Run 4802: 171.51 ms
+Run 4804: 171.03 ms
+Run 4791: 200.83 ms
+Run 4799: 179.16 ms
+Run 4798: 181.47 ms
+Run 4797: 190.55 ms
+Run 4803: 179.09 ms
+Run 4812: 148.58 ms
+Run 4800: 188.75 ms
+Run 4782: 247.24 ms
+Run 4786: 148.98 ms
+Run 4792: 222.75 ms
+Run 4787: 166.16 ms
+Run 4785: 177.41 ms
+Run 4784: 173.95 ms
+Run 4795: 243.42 ms
+Run 4813: 190.14 ms
+Run 4805: 218.77 ms
+Run 4806: 224.81 ms
+Run 4789: 197.77 ms
+Run 4808: 232.64 ms
+Run 4783: 217.32 ms
+Run 4814: 205.28 ms
+Run 4820: 107.83 ms
+Run 4833: 102.33 ms
+Run 4807: 225.16 ms
+Run 4830: 140.37 ms
+Run 4819: 139.23 ms
+Run 4822: 111.11 ms
+Run 4818: 140.84 ms
+Run 4846: 100.46 ms
+Run 4831: 145.88 ms
+Run 4840: 121.49 ms
+Run 4811: 270.46 ms
+Run 4821: 137.94 ms
+Run 4809: 281.19 ms
+Run 4836: 133.09 ms
+Run 4841: 128.60 ms
+Run 4816: 206.92 ms
+Run 4835: 143.09 ms
+Run 4815: 190.58 ms
+Run 4788: 288.81 ms
+Run 4838: 157.51 ms
+Run 4845: 146.23 ms
+Run 4844: 154.58 ms
+Run 4810: 319.25 ms
+Run 4823: 143.94 ms
+Run 4851: 124.88 ms
+Run 4843: 174.44 ms
+Run 4837: 186.61 ms
+Run 4842: 189.12 ms
+Run 4825: 125.07 ms
+Run 4853: 135.18 ms
+Run 4824: 146.30 ms
+Run 4834: 175.88 ms
+Run 4832: 228.20 ms
+Run 4860: 120.98 ms
+Run 4847: 178.63 ms
+Run 4855: 144.10 ms
+Run 4827: 110.70 ms
+Run 4852: 170.03 ms
+Run 4826: 133.29 ms
+Run 4857: 147.72 ms
+Run 4858: 149.79 ms
+Run 4850: 190.98 ms
+Run 4849: 172.07 ms
+Run 4854: 184.26 ms
+Run 4870: 119.80 ms
+Run 4871: 120.92 ms
+Run 4874: 113.59 ms
+Run 4859: 175.60 ms
+Run 4869: 139.52 ms
+Run 4856: 128.95 ms
+Run 4848: 226.74 ms
+Run 4839: 273.90 ms
+Run 4872: 146.80 ms
+Run 4817: 313.26 ms
+Run 4868: 157.06 ms
+Run 4876: 144.11 ms
+Run 4886: 103.81 ms
+Run 4879: 135.79 ms
+Run 4861: 193.93 ms
+Run 4863: 191.47 ms
+Run 4866: 189.31 ms
+Run 4888: 117.87 ms
+Run 4890: 108.15 ms
+Run 4889: 114.28 ms
+Run 4864: 201.97 ms
+Run 4862: 212.54 ms
+Run 4878: 172.93 ms
+Run 4828: 199.16 ms
+Run 4892: 117.46 ms
+Run 4875: 188.32 ms
+Run 4867: 212.37 ms
+Run 4883: 159.07 ms
+Run 4891: 122.40 ms
+Run 4873: 225.94 ms
+Run 4885: 164.08 ms
+Run 4882: 181.98 ms
+Run 4865: 240.24 ms
+Run 4877: 209.92 ms
+Run 4887: 173.96 ms
+Run 4893: 152.85 ms
+Run 4894: 175.11 ms
+Run 4906: 133.03 ms
+Run 4911: 117.25 ms
+Run 4907: 132.31 ms
+Run 4912: 120.96 ms
+Run 4895: 190.84 ms
+Run 4881: 242.00 ms
+Run 4829: 266.69 ms
+Run 4901: 123.13 ms
+Run 4898: 186.93 ms
+Run 4880: 252.02 ms
+Run 4909: 152.46 ms
+Run 4899: 186.71 ms
+Run 4900: 154.52 ms
+Run 4916: 132.35 ms
+Run 4897: 219.47 ms
+Run 4905: 205.94 ms
+Run 4919: 143.58 ms
+Run 4928: 141.38 ms
+Run 4923: 157.42 ms
+Run 4917: 182.26 ms
+Run 4914: 195.59 ms
+Run 4903: 152.81 ms
+Run 4913: 202.45 ms
+Run 4927: 165.34 ms
+Run 4915: 201.47 ms
+Run 4884: 267.16 ms
+Run 4902: 183.01 ms
+Run 4908: 233.65 ms
+Run 4920: 184.91 ms
+Run 4922: 180.35 ms
+Run 4936: 137.28 ms
+Run 4930: 155.02 ms
+Run 4904: 138.73 ms
+Run 4896: 289.30 ms
+Run 4918: 202.13 ms
+Run 4943: 115.24 ms
+Run 4941: 137.02 ms
+Run 4949: 119.30 ms
+Run 4931: 186.48 ms
+Run 4944: 130.41 ms
+Run 4929: 206.63 ms
+Run 4935: 186.07 ms
+Run 4910: 275.47 ms
+Run 4921: 230.80 ms
+Run 4924: 227.15 ms
+Run 4926: 226.41 ms
+Run 4937: 185.24 ms
+Run 4945: 142.01 ms
+Run 4933: 205.04 ms
+Run 4940: 165.69 ms
+Run 4938: 171.79 ms
+Run 4942: 162.87 ms
+Run 4954: 112.67 ms
+Run 4952: 148.77 ms
+Run 4946: 167.53 ms
+Run 4925: 256.05 ms
+Run 4950: 166.48 ms
+Run 4947: 175.14 ms
+Run 4969: 94.83 ms
+Run 4960: 106.47 ms
+Run 4932: 244.22 ms
+Run 4972: 94.86 ms
+Run 4953: 152.46 ms
+Run 4971: 102.70 ms
+Run 4964: 114.25 ms
+Run 4958: 121.76 ms
+Run 4956: 137.84 ms
+Run 4939: 224.09 ms
+Run 4963: 123.64 ms
+Run 4948: 212.99 ms
+Run 4955: 166.71 ms
+Run 4934: 273.72 ms
+Run 4975: 95.54 ms
+Run 4965: 143.32 ms
+Run 4973: 130.82 ms
+Run 4978: 103.95 ms
+Run 4968: 151.33 ms
+Run 4970: 147.66 ms
+Run 4957: 107.79 ms
+Run 4977: 125.33 ms
+Run 4988: 105.85 ms
+Run 4976: 127.70 ms
+Run 4967: 173.43 ms
+Run 4962: 178.62 ms
+Run 4989: 111.03 ms
+Run 4979: 104.17 ms
+Run 4966: 182.88 ms
+Run 4961: 188.78 ms
+Run 4959: 193.66 ms
+Run 4996: 94.75 ms
+Run 4990: 118.95 ms
+Run 4995: 97.71 ms
+Run 4987: 132.41 ms
+Run 5000: 90.13 ms
+Run 4997: 96.71 ms
+Run 4974: 171.29 ms
+Run 4994: 113.75 ms
+Run 4998: 104.09 ms
+Run 4991: 130.91 ms
+Run 4992: 127.93 ms
+Run 4999: 107.17 ms
+Run 4951: 278.57 ms
+Run 4980: 116.07 ms
+Run 4981: 95.67 ms
+Run 4985: 61.07 ms
+Run 4984: 73.39 ms
+Run 4982: 82.09 ms
+Run 4986: 59.22 ms
+Run 4983: 54.61 ms
+Run 4993: 136.34 ms
+  Max Memory Allocated: 2461.16 MB
+
+Min:        54.61 ms
+Avg:        193.06 ms
+P95:        322.82 ms
+Max:        826.91 ms
+Throughput: 232.69 ops/sec
+Output: output_databench_gopdflib.pdf
+=== K: bench-gopdfsuit-zerodha ===
+cd sampledata/benchmarks/gopdfsuit && GOMAXPROCS=24 go run .
+=== GoPDFSuit Single Zerodha Benchmark ===
+Iterations: 48 | Workers: 48
+Run 22: 7.62 ms
+Run 34: 6.23 ms
+Run 27: 6.27 ms
+Run 25: 6.30 ms
+Run 4: 7.79 ms
+Run 28: 6.33 ms
+Run 48: 7.77 ms
+Run 42: 8.41 ms
+Run 2: 9.82 ms
+Run 14: 9.84 ms
+Run 32: 9.62 ms
+Run 11: 10.48 ms
+Run 1: 11.39 ms
+Run 6: 10.52 ms
+Run 12: 10.77 ms
+Run 8: 10.44 ms
+Run 29: 11.31 ms
+Run 38: 11.68 ms
+Run 16: 11.80 ms
+Run 9: 11.95 ms
+Run 23: 12.57 ms
+Run 30: 11.62 ms
+Run 15: 12.89 ms
+Run 46: 13.56 ms
+Run 47: 13.65 ms
+Run 13: 14.25 ms
+Run 37: 15.18 ms
+Run 31: 14.94 ms
+Run 45: 15.29 ms
+Run 33: 15.43 ms
+Run 20: 15.69 ms
+Run 26: 15.83 ms
+Run 36: 17.07 ms
+Run 41: 17.15 ms
+Run 35: 17.22 ms
+Run 19: 21.26 ms
+Run 21: 21.68 ms
+Run 5: 22.91 ms
+Run 44: 22.98 ms
+Run 7: 22.48 ms
+Run 10: 22.59 ms
+Run 43: 22.59 ms
+Run 17: 22.38 ms
+Run 24: 23.42 ms
+Run 40: 23.71 ms
+Run 3: 24.42 ms
+Run 39: 24.07 ms
+Run 18: 25.76 ms
+  Max Memory Allocated: 0.00 MB
+
+Min:        6.23 ms
+Avg:        14.77 ms
+P95:        24.07 ms
+Max:        25.76 ms
+Throughput: 1762.72 ops/sec
+=== L: bench-pypdfsuit-zerodha ===
+cd sampledata/gopdflib/zerodha && BENCH_ITERATIONS=5000 BENCH_WORKERS=48 python3 pypdfsuit_bench.py
+=== PyPDFSuit Zerodha Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+
+Machine: kernel=Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35, cpu=13th Gen Intel(R) Core(TM) i7-13700HX, cores=12, threads_per_core=2, sockets=1, logical_cpus=24, memory=7.6Gi, python=3.13.10
+Running 5000 iterations using 48 workers...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61290 bytes (59.85 KB)
+  Active PDF size:  76072 bytes (74.29 KB)
+  HFT PDF size:     2424782 bytes (2367.95 KB)
+
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  Total time:      21.010 s
+  Throughput:      237.99 ops/sec
+
+  Avg Latency:     177.033 ms
+  Min Latency:     1.593 ms
+  Max Latency:     3158.837 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   4015 iterations
+  Active  (15%):   767 iterations
+  HFT      (5%):   218 iterations
+
+Saved: zerodha_retail_output_pypdfsuit.pdf (61290 bytes)
+Saved: zerodha_active_output_pypdfsuit.pdf (76072 bytes)
+Saved: zerodha_hft_output_pypdfsuit.pdf (2424782 bytes)
+
+=== Done ===
+=== M: bench-fpdf ===
+cd sampledata/benchmarks/fpdf && python3 bench.py
+=== FPDF2 Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 4360.47 ms
+Run 2: 4766.05 ms
+Run 3: 4878.21 ms
+Run 4: 4571.85 ms
+Run 5: 4274.53 ms
+Run 6: 4467.02 ms
+Run 7: 4537.93 ms
+Run 8: 4281.22 ms
+Run 9: 4464.84 ms
+Run 10: 4316.75 ms
+
+Min: 4274.53 ms
+Avg: 4491.89 ms
+P95: 4878.21 ms
+Max: 4878.21 ms
+Throughput: 2.04 ops/sec
+=== N: bench-jspdf ===
+cd sampledata/benchmarks/jspdf && node bench.js
+=== jsPDF Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1006.89 ms
+Run 2: 938.78 ms
+Run 3: 952.23 ms
+Run 4: 958.83 ms
+Run 5: 897.95 ms
+Run 6: 955.19 ms
+Run 7: 985.16 ms
+Run 8: 973.44 ms
+Run 9: 869.07 ms
+Run 10: 923.16 ms
+
+Min:        869.07 ms
+Avg:        946.07 ms
+P95:        1006.89 ms
+Max:        1006.89 ms
+Throughput: 9.05 ops/sec
+=== O: bench-pdfkit-lib ===
+cd sampledata/benchmarks/pdfkit && node bench.js
+=== PDFKit Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 713.61 ms
+Run 2: 674.61 ms
+Run 3: 755.91 ms
+Run 4: 691.54 ms
+Run 5: 745.29 ms
+Run 6: 722.35 ms
+Run 7: 698.90 ms
+Run 8: 745.21 ms
+Run 9: 732.74 ms
+Run 10: 731.23 ms
+
+Min:        674.61 ms
+Avg:        721.14 ms
+P95:        755.91 ms
+Max:        755.91 ms
+Throughput: 10.66 ops/sec
+=== P: bench-pdflib ===
+cd sampledata/benchmarks/pdflib && node bench.js
+=== pdf-lib Data Benchmark ===
+Iterations: 10 | Workers: 10
+Run 1: 1843.08 ms
+Run 2: 1516.66 ms
+Run 3: 1410.56 ms
+Run 4: 1471.87 ms
+Run 5: 1495.42 ms
+Run 6: 1429.29 ms
+Run 7: 1370.99 ms
+Run 8: 1396.11 ms
+Run 9: 1430.10 ms
+Run 10: 1476.73 ms
+
+Min:        1370.99 ms
+Avg:        1484.08 ms
+P95:        1843.08 ms
+Max:        1843.08 ms
+Throughput: 5.02 ops/sec
+PDF Standard: PDF 1.7 (pdf-lib does not support PDF/A natively)
+=== Q: bench-typst ===
+bash sampledata/benchmarks/setup_benchmarks.sh
+✅ Typst already installed.
+📊 Generating dataset (data.json)...
+Generated benchmarks/data.json with 2000 records
+🎉 Setup complete! You can now run the benchmarks using:
+   go test -bench=Benchmark -benchmem -v ./internal/pdf
+cd sampledata/benchmarks/typst && bash bench.sh
+=== Typst Data Benchmark ===
+Iterations: 10 | Workers: 10 (parallel)
+make: *** [makefile:327: bench-typst] Error 2
+=== R: bench-k6 (HTTP load) ===
+bash test/generate_template-pdf/run_gin_pprof_load.sh
+==> Building server binary
+==> Starting server (GOMAXPROCS=24, MAX_CONCURRENT=48, BENCH_MODE=1, GIN_FAST_API=1)
+==> CPU profile (35s) during k6 steady load
+==> k6 load (48 VUs, scenario=tagged_ecdsa)
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-18T00:10:18+05:30" level=info msg="pprof load: 48 VUs × 35s, scenario=tagged_ecdsa" source=console
+
+running (0m01.0s), 48/48 VUs, 892 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 1623 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 2722 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 4072 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 5264 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 6718 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.0s), 48/48 VUs, 7847 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.0s/35s
+
+running (0m08.0s), 48/48 VUs, 9077 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 10260 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 11571 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 12662 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 13832 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 15169 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 16188 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 17233 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 18354 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.0s), 48/48 VUs, 19638 complete and 0 interrupted iterations
+steady   [  49% ] 48 VUs  17.0s/35s
+
+running (0m18.0s), 48/48 VUs, 20840 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 21914 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.0s), 48/48 VUs, 23150 complete and 0 interrupted iterations
+steady   [  57% ] 48 VUs  20.0s/35s
+
+running (0m21.0s), 48/48 VUs, 24333 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 25574 complete and 0 interrupted iterations
+steady   [  63% ] 48 VUs  22.0s/35s
+
+running (0m23.0s), 48/48 VUs, 26917 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.0s/35s
+
+running (0m24.0s), 48/48 VUs, 28251 complete and 0 interrupted iterations
+steady   [  69% ] 48 VUs  24.0s/35s
+
+running (0m25.0s), 48/48 VUs, 29345 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  25.0s/35s
+
+running (0m26.0s), 48/48 VUs, 30648 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  26.0s/35s
+
+running (0m27.0s), 48/48 VUs, 32067 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  27.0s/35s
+
+running (0m28.0s), 48/48 VUs, 33639 complete and 0 interrupted iterations
+steady   [  80% ] 48 VUs  28.0s/35s
+
+running (0m29.0s), 48/48 VUs, 34634 complete and 0 interrupted iterations
+steady   [  83% ] 48 VUs  29.0s/35s
+
+running (0m30.0s), 48/48 VUs, 35798 complete and 0 interrupted iterations
+steady   [  86% ] 48 VUs  30.0s/35s
+
+running (0m31.0s), 48/48 VUs, 37028 complete and 0 interrupted iterations
+steady   [  89% ] 48 VUs  31.0s/35s
+
+running (0m32.0s), 48/48 VUs, 38084 complete and 0 interrupted iterations
+steady   [  91% ] 48 VUs  32.0s/35s
+
+running (0m33.0s), 48/48 VUs, 39350 complete and 0 interrupted iterations
+steady   [  94% ] 48 VUs  33.0s/35s
+
+running (0m34.0s), 48/48 VUs, 40695 complete and 0 interrupted iterations
+steady   [  97% ] 48 VUs  34.0s/35s
+
+running (0m35.0s), 48/48 VUs, 41990 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35.0s/35s
+time="2026-06-18T00:10:53+05:30" level=info msg="pprof load done (started 2026-06-17T18:40:18.588Z)" source=console
+
+
+  █ THRESHOLDS 
+
+    errors
+    ✓ 'rate<0.05' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(99)<5000' p(99)=586.31ms
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 84154   2387.371953/s
+    checks_succeeded...: 100.00% 84154 out of 84154
+    checks_failed......: 0.00%   0 out of 84154
+
+    ✓ status is 200
+    ✓ response has content
+
+    CUSTOM
+    active_latency.................: avg=8.157109  min=2        med=6      max=192     p(90)=15      p(95)=20       p(99)=34      
+    errors.........................: 0.00%  0 out of 42077
+    hft_latency....................: avg=543.11535 min=148      med=543    max=1059    p(90)=716     p(95)=777.95   p(99)=859.95  
+    pdf_generation_time............: avg=33.455166 min=1        med=4      max=1059    p(90)=15      p(95)=320.2    p(99)=656.24  
+    retail_latency.................: avg=4.776772  min=1        med=3      max=206     p(90)=9       p(95)=13       p(99)=26      
+
+    HTTP
+    http_req_duration..............: avg=29.21ms   min=823.46µs med=2.99ms max=980.1ms p(90)=13.47ms p(95)=253.02ms p(99)=586.31ms
+      { expected_response:true }...: avg=29.21ms   min=823.46µs med=2.99ms max=980.1ms p(90)=13.47ms p(95)=253.02ms p(99)=586.31ms
+    http_req_failed................: 0.00%  0 out of 42078
+    http_reqs......................: 42078  1193.714346/s
+
+    EXECUTION
+    iteration_duration.............: avg=40.05ms   min=1.63ms   med=5.06ms max=1.28s   p(90)=18.36ms p(95)=406.7ms  p(99)=754.39ms
+    iterations.....................: 42077  1193.685977/s
+    vus............................: 48     min=48         max=48
+    vus_max........................: 48     min=48         max=48
+
+    NETWORK
+    data_received..................: 4.1 GB 116 MB/s
+    data_sent......................: 2.9 GB 82 MB/s
+
+
+
+
+running (0m35.2s), 00/48 VUs, 42077 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s
+==> Heap profile (post-load)
+==> pprof text summary
+# Gin pprof summary - 20260618_001013
+binary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/gopdfsuit_20260618_001013
+k6_log: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_001013.txt
+GOMAXPROCS=24 MAX_CONCURRENT=48 BENCH_MODE=1 GIN_FAST_API=1 LOAD_VUS=48 PROFILE_SECONDS=35 PAYLOAD_SCENARIO=tagged_ecdsa
+
+## k6 throughput (grep)
+running (0m22.0s), 48/48 VUs, 25574 complete and 0 interrupted iterations
+running (0m23.0s), 48/48 VUs, 26917 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 28251 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 29345 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 30648 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 32067 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 33639 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 34634 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 35798 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 37028 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 38084 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 39350 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 40695 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 41990 complete and 0 interrupted iterations
+    http_req_duration
+    pdf_generation_time............: avg=33.455166 min=1        med=4      max=1059    p(90)=15      p(95)=320.2    p(99)=656.24  
+    http_req_duration..............: avg=29.21ms   min=823.46µs med=2.99ms max=980.1ms p(90)=13.47ms p(95)=253.02ms p(99)=586.31ms
+    http_reqs......................: 42078  1193.714346/s
+    iterations.....................: 42077  1193.685977/s
+running (0m35.2s), 00/48 VUs, 42077 complete and 0 interrupted iterations
+
+## CPU top (flat)
+File: gopdfsuit_20260618_001013
+Build ID: 1e1f066cc50f03a219d84c2d9ab50f2af492b5fc
+Type: cpu
+Time: 2026-06-18 00:10:16 IST
+Duration: 35.01s, Total samples = 239.71s (684.77%)
+Showing nodes accounting for 121.08s, 50.51% of 239.71s total
+Dropped 1228 nodes (cum <= 1.20s)
+Showing top 25 nodes out of 240
+      flat  flat%   sum%        cum   cum%
+    16.60s  6.93%  6.93%     16.60s  6.93%  runtime.memmove
+    10.89s  4.54% 11.47%     19.35s  8.07%  compress/flate.(*deflateFast).encode
+     9.64s  4.02% 15.49%      9.64s  4.02%  internal/runtime/syscall/linux.Syscall6
+     8.12s  3.39% 18.88%      8.12s  3.39%  runtime.memclrNoHeapPointers
+     7.58s  3.16% 22.04%     12.86s  5.36%  runtime.scanObject
+     5.91s  2.47% 24.50%      7.25s  3.02%  compress/flate.(*huffmanEncoder).bitCounts
+     5.84s  2.44% 26.94%     13.11s  5.47%  compress/flate.(*huffmanBitWriter).writeTokens
+     5.42s  2.26% 29.20%      5.52s  2.30%  compress/flate.(*deflateFast).matchLen
+     4.80s  2.00% 31.20%      4.80s  2.00%  crypto/internal/fips140/sha256.blockSHANI
+     4.41s  1.84% 33.04%     13.17s  5.49%  decode_
+     3.85s  1.61% 34.65%      6.02s  2.51%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.prepSharedDeferRow
+     3.57s  1.49% 36.14%      3.73s  1.56%  compress/flate.(*huffmanBitWriter).writeCode
+     3.46s  1.44% 37.58%      3.47s  1.45%  hash/adler32.update
+     3.42s  1.43% 39.01%      3.42s  1.43%  _skip_one
+     3.33s  1.39% 40.40%      3.33s  1.39%  runtime.asyncPreempt
+     3.08s  1.28% 41.68%      3.08s  1.28%  runtime.nextFreeFast (inline)
+     2.93s  1.22% 42.91%      4.72s  1.97%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.collectUsedStandardFonts
+     2.77s  1.16% 44.06%      2.77s  1.16%  math.archExp
+     2.61s  1.09% 45.15%    120.72s 50.36%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed
+     2.32s  0.97% 46.12%      2.51s  1.05%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.collectUnregisteredMathFontNames
+     2.25s  0.94% 47.06%      2.25s  0.94%  aeshashbody
+     2.17s  0.91% 47.96%      5.16s  2.15%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.collectAllStandardFontsInTemplate
+     2.17s  0.91% 48.87%     18.48s  7.71%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawSharedDeferRow
+     1.98s  0.83% 49.69%      2.35s  0.98%  runtime.findObject
+     1.96s  0.82% 50.51%      1.96s  0.82%  _vstring
+
+## CPU top (cum)
+File: gopdfsuit_20260618_001013
+Build ID: 1e1f066cc50f03a219d84c2d9ab50f2af492b5fc
+Type: cpu
+Time: 2026-06-18 00:10:16 IST
+Duration: 35.01s, Total samples = 239.71s (684.77%)
+Showing nodes accounting for 16.57s, 6.91% of 239.71s total
+Dropped 1228 nodes (cum <= 1.20s)
+Showing top 25 nodes out of 240
+      flat  flat%   sum%        cum   cum%
+     0.09s 0.038% 0.038%    158.53s 66.13%  net/http.(*conn).serve
+     0.02s 0.0083% 0.046%    155.26s 64.77%  net/http.serverHandler.ServeHTTP
+     0.01s 0.0042%  0.05%    155.24s 64.76%  github.com/gin-gonic/gin.(*Engine).ServeHTTP
+         0     0%  0.05%    155.15s 64.72%  github.com/gin-gonic/gin.(*Engine).handleHTTPRequest
+     0.03s 0.013% 0.063%    155.13s 64.72%  github.com/gin-gonic/gin.(*Context).Next (inline)
+     0.01s 0.0042% 0.067%    155.12s 64.71%  github.com/gin-gonic/gin.CustomRecoveryWithWriter.func1
+         0     0% 0.067%    155.09s 64.70%  main.main.func3
+     0.08s 0.033%   0.1%    155.07s 64.69%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.handleGenerateTemplatePDF
+     2.61s  1.09%  1.19%    120.72s 50.36%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed
+     0.04s 0.017%  1.21%     54.01s 22.53%  golang.org/x/sync/errgroup.(*Group).Go.func1
+     0.03s 0.013%  1.22%     53.93s 22.50%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed.func5
+     0.01s 0.0042%  1.22%     53.68s 22.39%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font.CompressContentStreamCached
+     0.01s 0.0042%  1.23%     52.07s 21.72%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font.CompressContentStream
+     0.01s 0.0042%  1.23%     51.38s 21.43%  compress/zlib.(*Writer).Close
+         0     0%  1.23%     51.33s 21.41%  compress/flate.(*Writer).Close (inline)
+     0.02s 0.0083%  1.24%     51.33s 21.41%  compress/flate.(*compressor).close
+     0.05s 0.021%  1.26%     51.26s 21.38%  compress/flate.(*compressor).encSpeed
+     0.10s 0.042%  1.30%     50.37s 21.01%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.generateAllContentWithImages
+     1.36s  0.57%  1.87%     47.76s 19.92%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawTable
+     0.33s  0.14%  2.01%     39.20s 16.35%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawSharedLayoutRow
+     0.06s 0.025%  2.03%     31.86s 13.29%  compress/flate.(*huffmanBitWriter).writeBlockDynamic
+     0.10s 0.042%  2.07%     26.74s 11.16%  runtime.systemstack
+     0.04s 0.017%  2.09%     22.84s  9.53%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.decodeTemplateJSON
+     0.67s  0.28%  2.37%     20.90s  8.72%  runtime.mallocgc
+    10.89s  4.54%  6.91%     19.35s  8.07%  compress/flate.(*deflateFast).encode
+
+## Heap top (inuse_space)
+File: gopdfsuit_20260618_001013
+Build ID: 1e1f066cc50f03a219d84c2d9ab50f2af492b5fc
+Type: inuse_space
+Time: 2026-06-18 00:10:54 IST
+Showing nodes accounting for 587.30MB, 97.26% of 603.84MB total
+Dropped 144 nodes (cum <= 3.02MB)
+Showing top 20 nodes out of 64
+      flat  flat%   sum%        cum   cum%
+  310.13MB 51.36% 51.36%   310.13MB 51.36%  bytes.growSlice
+   92.19MB 15.27% 66.63%    92.19MB 15.27%  github.com/chinmay-sawant/gopdfsuit/v6/internal/models.(*PDFTemplate).preallocInlineTableRows
+   70.35MB 11.65% 78.28%    79.91MB 13.23%  github.com/bytedance/sonic.frozenConfig.Unmarshal
+   30.56MB  5.06% 83.34%    30.56MB  5.06%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.init.func3
+   18.51MB  3.07% 86.40%    36.93MB  6.12%  compress/flate.NewWriter (inline)
+      11MB  1.82% 88.23%       11MB  1.82%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.init.func4
+   10.06MB  1.67% 89.89%    18.42MB  3.05%  compress/flate.(*compressor).init
+    9.54MB  1.58% 91.47%    55.91MB  9.26%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font.CompressContentStreamCached
+    8.35MB  1.38% 92.86%     8.35MB  1.38%  compress/flate.newDeflateFast (inline)
+    7.35MB  1.22% 94.07%     7.35MB  1.22%  encoding/json.(*RawMessage).UnmarshalJSON
+    7.01MB  1.16% 95.23%    28.11MB  4.65%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawSharedLayoutRow
+    6.52MB  1.08% 96.31%     6.52MB  1.08%  runtime.mallocgc
+    5.20MB  0.86% 97.18%     5.20MB  0.86%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.growPtrSlice[go.shape.*uint8] (inline)
+    0.51MB 0.085% 97.26%     9.52MB  1.58%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.(*StructureManager).BeginRowStructureWithMCIDs
+         0     0% 97.26%   302.12MB 50.03%  bytes.(*Buffer).Grow (inline)
+         0     0% 97.26%     8.01MB  1.33%  bytes.(*Buffer).Write
+         0     0% 97.26%   310.13MB 51.36%  bytes.(*Buffer).grow
+         0     0% 97.26%    36.93MB  6.12%  compress/flate.NewWriterDict
+         0     0% 97.26%    36.93MB  6.12%  compress/zlib.(*Writer).Write
+         0     0% 97.26%    36.93MB  6.12%  compress/zlib.(*Writer).writeHeader
+
+## Heap top (alloc_space)
+File: gopdfsuit_20260618_001013
+Build ID: 1e1f066cc50f03a219d84c2d9ab50f2af492b5fc
+Type: alloc_space
+Time: 2026-06-18 00:10:54 IST
+Showing nodes accounting for 38.31GB, 92.21% of 41.55GB total
+Dropped 501 nodes (cum <= 0.21GB)
+Showing top 20 nodes out of 79
+      flat  flat%   sum%        cum   cum%
+   14.06GB 33.84% 33.84%    14.06GB 33.84%  bytes.growSlice
+    5.01GB 12.07% 45.91%     7.70GB 18.53%  github.com/bytedance/sonic.frozenConfig.Unmarshal
+    4.12GB  9.92% 55.83%    16.27GB 39.15%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawSharedLayoutRow
+    3.92GB  9.44% 65.27%     3.92GB  9.44%  github.com/chinmay-sawant/gopdfsuit/v6/internal/models.(*PDFTemplate).preallocInlineTableRows
+    2.33GB  5.61% 70.88%     2.33GB  5.61%  encoding/json.(*RawMessage).UnmarshalJSON
+    2.14GB  5.16% 76.05%     2.14GB  5.16%  github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers.init.func3
+    1.21GB  2.91% 78.95%     1.21GB  2.91%  strings.(*Builder).WriteString (inline)
+    0.97GB  2.35% 81.30%     0.97GB  2.35%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.growPtrSlice[go.shape.*uint8] (inline)
+    0.93GB  2.24% 83.54%     0.93GB  2.24%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.(*sharedRowRenderCacheStore).Store
+    0.66GB  1.60% 85.14%     1.60GB  3.84%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font.CompressContentStreamCached
+    0.53GB  1.28% 86.42%     0.99GB  2.38%  compress/flate.NewWriter (inline)
+    0.52GB  1.26% 87.68%     0.52GB  1.26%  internal/bytealg.MakeNoZero
+    0.49GB  1.18% 88.86%     0.88GB  2.11%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed.func7
+    0.28GB  0.67% 89.53%     0.46GB  1.10%  compress/flate.(*compressor).init
+    0.24GB  0.59% 90.11%     0.40GB  0.97%  encoding/asn1.MarshalWithParams
+    0.21GB   0.5% 90.61%     0.69GB  1.65%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.(*StructureManager).BeginRowStructureWithMCIDs
+    0.18GB  0.44% 91.05%    25.96GB 62.48%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.GenerateTemplatePDFBorrowed
+    0.18GB  0.43% 91.48%     0.39GB  0.93%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.formatStructElemObjectTo
+    0.16GB   0.4% 91.87%     0.22GB  0.53%  decode_models.PDFTemplate
+    0.14GB  0.34% 92.21%    17.94GB 43.17%  github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf.drawTable
+
+Artifacts:
+  CPU:     /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/cpu_gin_20260618_001013.prof
+  Heap:    /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/heap_gin_20260618_001013.prof
+  Summary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/pprof_summary_20260618_001013.txt
+  k6:      /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_001013.txt
+=== S: bench-gotenberg (HTML load) ===
+bash sampledata/benchmarks/gotenberg/run_gotenberg_load.sh
+==> Starting Gotenberg (gotenberg/gotenberg:8) on :3010 (chromium-max-concurrency=6)
+3ff05a15fa45df76af2fe4d7336e5edc019b98a27e6279fae28e27f008bd7dd7
+==> Gotenberg ready at http://127.0.0.1:3010
+==> k6 Gotenberg load (48 VUs × 35s, scenario=tagged_ecdsa)
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: load_test_pprof.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 48 max VUs, 1m5s max duration (incl. graceful stop):
+              * steady: 48 looping VUs for 35s (gracefulStop: 30s)
+
+time="2026-06-18T00:11:00+05:30" level=info msg="gotenberg load: 48 VUs × 35s, scenario=tagged_ecdsa, skipNetworkIdle=true" source=console
+
+running (0m01.0s), 48/48 VUs, 6 complete and 0 interrupted iterations
+steady   [   3% ] 48 VUs  01.0s/35s
+
+running (0m02.0s), 48/48 VUs, 23 complete and 0 interrupted iterations
+steady   [   6% ] 48 VUs  02.0s/35s
+
+running (0m03.0s), 48/48 VUs, 32 complete and 0 interrupted iterations
+steady   [   9% ] 48 VUs  03.0s/35s
+
+running (0m04.0s), 48/48 VUs, 47 complete and 0 interrupted iterations
+steady   [  11% ] 48 VUs  04.0s/35s
+
+running (0m05.0s), 48/48 VUs, 57 complete and 0 interrupted iterations
+steady   [  14% ] 48 VUs  05.0s/35s
+
+running (0m06.0s), 48/48 VUs, 67 complete and 0 interrupted iterations
+steady   [  17% ] 48 VUs  06.0s/35s
+
+running (0m07.0s), 48/48 VUs, 79 complete and 0 interrupted iterations
+steady   [  20% ] 48 VUs  07.0s/35s
+
+running (0m08.0s), 48/48 VUs, 86 complete and 0 interrupted iterations
+steady   [  23% ] 48 VUs  08.0s/35s
+
+running (0m09.0s), 48/48 VUs, 99 complete and 0 interrupted iterations
+steady   [  26% ] 48 VUs  09.0s/35s
+
+running (0m10.0s), 48/48 VUs, 109 complete and 0 interrupted iterations
+steady   [  29% ] 48 VUs  10.0s/35s
+
+running (0m11.0s), 48/48 VUs, 126 complete and 0 interrupted iterations
+steady   [  31% ] 48 VUs  11.0s/35s
+
+running (0m12.0s), 48/48 VUs, 144 complete and 0 interrupted iterations
+steady   [  34% ] 48 VUs  12.0s/35s
+
+running (0m13.0s), 48/48 VUs, 161 complete and 0 interrupted iterations
+steady   [  37% ] 48 VUs  13.0s/35s
+
+running (0m14.0s), 48/48 VUs, 174 complete and 0 interrupted iterations
+steady   [  40% ] 48 VUs  14.0s/35s
+
+running (0m15.0s), 48/48 VUs, 191 complete and 0 interrupted iterations
+steady   [  43% ] 48 VUs  15.0s/35s
+
+running (0m16.0s), 48/48 VUs, 204 complete and 0 interrupted iterations
+steady   [  46% ] 48 VUs  16.0s/35s
+
+running (0m17.0s), 48/48 VUs, 222 complete and 0 interrupted iterations
+steady   [  49% ] 48 VUs  17.0s/35s
+
+running (0m18.0s), 48/48 VUs, 240 complete and 0 interrupted iterations
+steady   [  51% ] 48 VUs  18.0s/35s
+
+running (0m19.0s), 48/48 VUs, 255 complete and 0 interrupted iterations
+steady   [  54% ] 48 VUs  19.0s/35s
+
+running (0m20.0s), 48/48 VUs, 267 complete and 0 interrupted iterations
+steady   [  57% ] 48 VUs  20.0s/35s
+
+running (0m21.0s), 48/48 VUs, 285 complete and 0 interrupted iterations
+steady   [  60% ] 48 VUs  21.0s/35s
+
+running (0m22.0s), 48/48 VUs, 301 complete and 0 interrupted iterations
+steady   [  63% ] 48 VUs  22.0s/35s
+
+running (0m23.0s), 48/48 VUs, 318 complete and 0 interrupted iterations
+steady   [  66% ] 48 VUs  23.0s/35s
+
+running (0m24.0s), 48/48 VUs, 330 complete and 0 interrupted iterations
+steady   [  69% ] 48 VUs  24.0s/35s
+
+running (0m25.0s), 48/48 VUs, 346 complete and 0 interrupted iterations
+steady   [  71% ] 48 VUs  25.0s/35s
+
+running (0m26.0s), 48/48 VUs, 363 complete and 0 interrupted iterations
+steady   [  74% ] 48 VUs  26.0s/35s
+
+running (0m27.0s), 48/48 VUs, 377 complete and 0 interrupted iterations
+steady   [  77% ] 48 VUs  27.0s/35s
+
+running (0m28.0s), 48/48 VUs, 392 complete and 0 interrupted iterations
+steady   [  80% ] 48 VUs  28.0s/35s
+
+running (0m29.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+steady   [  83% ] 48 VUs  29.0s/35s
+
+running (0m30.0s), 48/48 VUs, 407 complete and 0 interrupted iterations
+steady   [  86% ] 48 VUs  30.0s/35s
+
+running (0m31.0s), 48/48 VUs, 426 complete and 0 interrupted iterations
+steady   [  89% ] 48 VUs  31.0s/35s
+
+running (0m32.0s), 48/48 VUs, 439 complete and 0 interrupted iterations
+steady   [  91% ] 48 VUs  32.0s/35s
+
+running (0m33.0s), 48/48 VUs, 453 complete and 0 interrupted iterations
+steady   [  94% ] 48 VUs  33.0s/35s
+
+running (0m34.0s), 48/48 VUs, 467 complete and 0 interrupted iterations
+steady   [  97% ] 48 VUs  34.0s/35s
+
+running (0m35.0s), 48/48 VUs, 482 complete and 0 interrupted iterations
+steady   [ 100% ] 48 VUs  35.0s/35s
+
+running (0m36.0s), 35/48 VUs, 495 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m37.0s), 20/48 VUs, 510 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+
+running (0m38.0s), 04/48 VUs, 526 complete and 0 interrupted iterations
+steady ↓ [ 100% ] 48 VUs  35s
+time="2026-06-18T00:11:38+05:30" level=info msg="gotenberg load done (started 2026-06-17T18:41:00.687Z)" source=console
+
+
+  █ THRESHOLDS 
+
+    errors
+    ✓ 'rate<0.05' rate=0.00%
+
+    http_req_duration
+    ✓ 'p(99)<30000' p(99)=6.45s
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 1590    41.675226/s
+    checks_succeeded...: 100.00% 1590 out of 1590
+    checks_failed......: 0.00%   0 out of 1590
+
+    ✓ status is 200
+    ✓ response is pdf
+    ✓ response has content
+
+    CUSTOM
+    active_latency.................: avg=3332.275    min=1253     med=3237   max=6193 p(90)=4311.1 p(95)=5169.9  p(99)=5875.42
+    errors.........................: 0.00% 0 out of 530
+    hft_latency....................: avg=4607.526316 min=2215     med=4808   max=6632 p(90)=5352.2 p(95)=5646.5  p(99)=6434.9 
+    pdf_generation_time............: avg=3299.34717  min=492      med=3200.5 max=7705 p(90)=4706.1 p(95)=5475.75 p(99)=6451.78
+    retail_latency.................: avg=3235.566125 min=492      med=3172   max=7705 p(90)=4555   p(95)=5435.5  p(99)=6451.6 
+
+    HTTP
+    http_req_duration..............: avg=3.29s       min=611.04µs med=3.19s  max=7.7s p(90)=4.7s   p(95)=5.47s   p(99)=6.45s  
+      { expected_response:true }...: avg=3.29s       min=611.04µs med=3.19s  max=7.7s p(90)=4.7s   p(95)=5.47s   p(99)=6.45s  
+    http_req_failed................: 0.00% 0 out of 531
+    http_reqs......................: 531   13.917953/s
+
+    EXECUTION
+    iteration_duration.............: avg=3.32s       min=493.47ms med=3.2s   max=7.7s p(90)=4.85s  p(95)=5.66s   p(99)=6.45s  
+    iterations.....................: 530   13.891742/s
+    vus............................: 4     min=4        max=48
+    vus_max........................: 48    min=48       max=48
+
+    NETWORK
+    data_received..................: 21 MB 561 kB/s
+    data_sent......................: 15 MB 398 kB/s
+
+
+
+
+running (0m38.2s), 00/48 VUs, 530 complete and 0 interrupted iterations
+steady ✓ [ 100% ] 48 VUs  35s
+# Gotenberg k6 summary - 20260618_001058
+image: gotenberg/gotenberg:8
+base_url: http://127.0.0.1:3010
+chromium_max_concurrency: 6
+load_vus: 48 profile_seconds: 35 scenario: tagged_ecdsa
+skip_network_idle: 1
+
+## k6 throughput
+running (0m23.0s), 48/48 VUs, 318 complete and 0 interrupted iterations
+running (0m24.0s), 48/48 VUs, 330 complete and 0 interrupted iterations
+running (0m25.0s), 48/48 VUs, 346 complete and 0 interrupted iterations
+running (0m26.0s), 48/48 VUs, 363 complete and 0 interrupted iterations
+running (0m27.0s), 48/48 VUs, 377 complete and 0 interrupted iterations
+running (0m28.0s), 48/48 VUs, 392 complete and 0 interrupted iterations
+running (0m29.0s), 48/48 VUs, 400 complete and 0 interrupted iterations
+running (0m30.0s), 48/48 VUs, 407 complete and 0 interrupted iterations
+running (0m31.0s), 48/48 VUs, 426 complete and 0 interrupted iterations
+running (0m32.0s), 48/48 VUs, 439 complete and 0 interrupted iterations
+running (0m33.0s), 48/48 VUs, 453 complete and 0 interrupted iterations
+running (0m34.0s), 48/48 VUs, 467 complete and 0 interrupted iterations
+running (0m35.0s), 48/48 VUs, 482 complete and 0 interrupted iterations
+running (0m36.0s), 35/48 VUs, 495 complete and 0 interrupted iterations
+running (0m37.0s), 20/48 VUs, 510 complete and 0 interrupted iterations
+running (0m38.0s), 04/48 VUs, 526 complete and 0 interrupted iterations
+    http_req_duration
+    active_latency.................: avg=3332.275    min=1253     med=3237   max=6193 p(90)=4311.1 p(95)=5169.9  p(99)=5875.42
+    hft_latency....................: avg=4607.526316 min=2215     med=4808   max=6632 p(90)=5352.2 p(95)=5646.5  p(99)=6434.9 
+    pdf_generation_time............: avg=3299.34717  min=492      med=3200.5 max=7705 p(90)=4706.1 p(95)=5475.75 p(99)=6451.78
+    retail_latency.................: avg=3235.566125 min=492      med=3172   max=7705 p(90)=4555   p(95)=5435.5  p(99)=6451.6 
+    http_req_duration..............: avg=3.29s       min=611.04µs med=3.19s  max=7.7s p(90)=4.7s   p(95)=5.47s   p(99)=6.45s  
+    http_reqs......................: 531   13.917953/s
+    iterations.....................: 530   13.891742/s
+running (0m38.2s), 00/48 VUs, 530 complete and 0 interrupted iterations
+
+Artifacts:
+  k6:      /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/k6_gotenberg_20260618_001058.txt
+  summary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gotenberg_runs/summary_20260618_001058.txt

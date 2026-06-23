@@ -12,20 +12,20 @@ This guide maps Go 1.26.x language, runtime, compiler, and standard-library chan
 
 | Category | Impact for gopdfsuit | Action |
 |----------|----------------------|--------|
-| Green Tea GC (default) | High — PDF work is allocation-heavy | Already active when built with Go 1.26.4; validate with existing k6 + pprof harness |
-| Stack-backed slice allocation | Medium–High — many hot `make`/`append` paths | Already active; watch for rare miscompiles via bisect |
-| Faster `io.ReadAll` | Medium — upload/redact handlers | Already active on stdlib call sites |
-| Faster `image/jpeg` | Medium — base64 JPEG rows in templates | Already active; re-run image-heavy integration tests |
-| Faster cgo | Low–Medium — indirect via chromedp stack | Automatic if cgo is linked |
-| `go fix` modernizers | Medium — codebase hygiene | Run once, review diff |
-| `B.Loop` benchmarks | Medium — more trustworthy bench numbers | Migrate remaining `b.N` loops |
-| `runtime/secret` (experimental) | Medium — signing key handling | Evaluate for `internal/pdf/signature` |
-| `goroutineleak` profile (experimental) | Medium — worker pools under load | Enable in CI/staging load tests |
-| `new(expr)` | Low — readability in models/tests | Optional cleanup |
-| `simd/archsimd` (experimental) | Unknown — SIMD for scan/compress paths | Research only; not production-ready |
+| Green Tea GC (default) | High - PDF work is allocation-heavy | Already active when built with Go 1.26.4; validate with existing k6 + pprof harness |
+| Stack-backed slice allocation | Medium–High - many hot `make`/`append` paths | Already active; watch for rare miscompiles via bisect |
+| Faster `io.ReadAll` | Medium - upload/redact handlers | Already active on stdlib call sites |
+| Faster `image/jpeg` | Medium - base64 JPEG rows in templates | Already active; re-run image-heavy integration tests |
+| Faster cgo | Low–Medium - indirect via chromedp stack | Automatic if cgo is linked |
+| `go fix` modernizers | Medium - codebase hygiene | Run once, review diff |
+| `B.Loop` benchmarks | Medium - more trustworthy bench numbers | Migrate remaining `b.N` loops |
+| `runtime/secret` (experimental) | Medium - signing key handling | Evaluate for `internal/pdf/signature` |
+| `goroutineleak` profile (experimental) | Medium - worker pools under load | Enable in CI/staging load tests |
+| `new(expr)` | Low - readability in models/tests | Optional cleanup |
+| `simd/archsimd` (experimental) | Unknown - SIMD for scan/compress paths | Research only; not production-ready |
 | `crypto/hpke`, ML-KEM TLS | Low today | Relevant if adding HPKE or hardening outbound TLS |
 
-**Bottom line:** The largest wins require no code changes — you are already on Go 1.26.4 and this workload (pooled buffers, caches, short-lived slices, JSON/PDF bytes) is exactly what Green Tea and the improved `io.ReadAll` target. Focus next on validation (`make bench-k6`), benchmark modernization, and selective experiments (`goroutineleak`, `runtime/secret`).
+**Bottom line:** The largest wins require no code changes - you are already on Go 1.26.4 and this workload (pooled buffers, caches, short-lived slices, JSON/PDF bytes) is exactly what Green Tea and the improved `io.ReadAll` target. Focus next on validation (`make bench-k6`), benchmark modernization, and selective experiments (`goroutineleak`, `runtime/secret`).
 
 ---
 
@@ -43,7 +43,7 @@ Build and run with Go 1.26.4 and these improvements apply automatically.
 - Per-request short-lived slices during PDF assembly, structure trees, and table rendering.
 - Cross-request caches (`subsetCache`, `imgCache`, `propsCache`, `pdfSignerCache`) that retain heap objects between requests.
 
-These patterns create many small, short-lived allocations — the profile Green Tea improves most.
+These patterns create many small, short-lived allocations - the profile Green Tea improves most.
 
 **How to validate:**
 
@@ -66,9 +66,9 @@ Look for reduced time in `runtime.gcBgMarkWorker`, `mallocgc`, and `scanobject` 
 
 **Relevant code paths:**
 
-- `internal/pdf/generator.go` — extensive `append`/`make` for AcroForm content, structure output, scratch buffers.
-- `internal/pdf/draw.go`, `internal/pdf/font/metrics.go` — formatting and layout temporaries.
-- `typstsyntax/renderer.go` — grid layout slices and point arrays for math rendering.
+- `internal/pdf/generator.go` - extensive `append`/`make` for AcroForm content, structure output, scratch buffers.
+- `internal/pdf/draw.go`, `internal/pdf/font/metrics.go` - formatting and layout temporaries.
+- `typstsyntax/renderer.go` - grid layout slices and point arrays for math rendering.
 
 **Expected effect:** Small per-operation savings that compound under 1000+ req/s load. Hard to see in macro benchmarks but should nudge `alloc_space` down in pprof.
 
@@ -89,13 +89,13 @@ Look for reduced time in `runtime.gcBgMarkWorker`, `mallocgc`, and `scanobject` 
 
 Redact endpoints read full uploaded PDFs via `io.ReadAll`. Under load, this reduces allocator pressure before PDF parsing even starts.
 
-**Note:** JSON decode for `/generate/template-pdf` uses pooled `io.ReadFull` in `internal/handlers/json_decode.go` — that path is already optimized and bypasses `ReadAll` for known `Content-Length`. The stdlib win applies to redact/multipart and test helpers.
+**Note:** JSON decode for `/generate/template-pdf` uses pooled `io.ReadFull` in `internal/handlers/json_decode.go` - that path is already optimized and bypasses `ReadAll` for known `Content-Length`. The stdlib win applies to redact/multipart and test helpers.
 
 ---
 
 ### 1.4 Faster `image/jpeg` encoder/decoder (stdlib)
 
-**What it does:** New JPEG implementation — faster and more accurate. Bit-exact output with the old encoder is not guaranteed.
+**What it does:** New JPEG implementation - faster and more accurate. Bit-exact output with the old encoder is not guaranteed.
 
 **Relevant code:** `internal/pdf/image.go` registers `image/jpeg` and decodes base64 JPEG rows from templates.
 
@@ -117,7 +117,7 @@ Relevant to signing and encryption in this repo:
 
 | Package / change | gopdfsuit usage | Benefit |
 |------------------|-----------------|---------|
-| `crypto/ecdsa`, `crypto/rsa` signing | `internal/pdf/signature/signature.go` — `rsa.SignPKCS1v15`, `ecdsa.SignASN1` | Cleaner RNG handling; `rand` param ignored (always secure source) |
+| `crypto/ecdsa`, `crypto/rsa` signing | `internal/pdf/signature/signature.go` - `rsa.SignPKCS1v15`, `ecdsa.SignASN1` | Cleaner RNG handling; `rand` param ignored (always secure source) |
 | `crypto/mlkem` ~18% faster | Not used directly | Future PQ work |
 | `crypto/tls` ML-KEM hybrids default | Only if you terminate TLS in-process | Stronger default handshakes |
 | `testing/cryptotest.SetGlobalRandom` | `internal/pdf/signature/signature_test.go` | Deterministic signature tests without passing custom `rand` |
@@ -143,7 +143,7 @@ go fix ./internal/... ./pkg/... ./cmd/...
 **Suggested workflow:**
 
 1. Run on a clean branch.
-2. Review the diff — modernizers should not change behavior.
+2. Review the diff - modernizers should not change behavior.
 3. Run `make test` (or your usual `go test ./...`) and a quick `make bench-k6` spot check.
 
 Use `//go:fix inline` on any deprecated internal helpers you want callers migrated away from automatically.
@@ -160,7 +160,7 @@ Go 1.26 fixed `B.Loop` so loop bodies can inline correctly (older `B.Loop` preve
 - `internal/pdf/benchmark_macro_test.go`
 - `internal/pdf/benchmark_compare_test.go`
 - `sampledata/benchmarks/gopdfkit_compare/compare_benchmark_test.go`
-- `test/benchmark_handlers_test.go` (partial — also uses `pb.Next()`)
+- `test/benchmark_handlers_test.go` (partial - also uses `pb.Next()`)
 
 **Before:**
 
@@ -204,7 +204,7 @@ Graph view remains under **View → Graph** if you need the old layout.
 
 ### 2.4 `errors.AsType` for typed error handling
 
-Go 1.26 adds `errors.AsType[T](err) (T, bool)` — type-safe and faster than `errors.As`.
+Go 1.26 adds `errors.AsType[T](err) (T, bool)` - type-safe and faster than `errors.As`.
 
 **Today:** The codebase rarely uses `errors.As`. As error wrapping grows (merge, redact, signature, encryption), prefer:
 
@@ -222,13 +222,13 @@ Most useful in handler error mapping and library boundaries (`pkg/gopdflib`).
 
 ### 2.5 `fmt.Errorf` allocation reduction
 
-Static format strings like `fmt.Errorf("missing PDF header")` now allocate similarly to `errors.New`. Many validation errors in benchmarks and handlers use static strings — no migration required; they already benefit.
+Static format strings like `fmt.Errorf("missing PDF header")` now allocate similarly to `errors.New`. Many validation errors in benchmarks and handlers use static strings - no migration required; they already benefit.
 
 ---
 
 ## 3. Language features (readability, limited performance impact)
 
-### 3.1 `new(expression)` — initialize pointer fields in one step
+### 3.1 `new(expression)` - initialize pointer fields in one step
 
 Go 1.26 allows `new(expr)` instead of helper variables.
 
@@ -238,7 +238,7 @@ Go 1.26 allows `new(expr)` instead of helper variables.
 - `Checkbox *bool`, `Wrap *bool`, `MathEnabled *bool`
 - `Width *float64`, `Height *float64`
 
-**Example — building a test fixture or default config:**
+**Example - building a test fixture or default config:**
 
 ```go
 // Before
@@ -269,9 +269,9 @@ sig := models.SignatureConfig{
 
 Generic types can now refer to themselves in constraints, e.g. `type Adder[A Adder[A]] interface { Add(A) A }`.
 
-**Relevance to gopdfsuit:** Limited today — the codebase is not generic-heavy. A prior generic structure-writer experiment in `internal/pdf/generator.go` **regressed** throughput (shape-based dispatch, not monomorphization) and was reverted (`guides/optimizations/20260614_remaining_optimizations_checklist.md`).
+**Relevance to gopdfsuit:** Limited today - the codebase is not generic-heavy. A prior generic structure-writer experiment in `internal/pdf/generator.go` **regressed** throughput (shape-based dispatch, not monomorphization) and was reverted (`guides/optimizations/20260614_remaining_optimizations_checklist.md`).
 
-**Guidance:** Do **not** reintroduce generics for PDF hot paths based on this feature alone. Self-referential constraints are useful if you later model tree-shaped layout IR or pluggable element types — not for micro-optimizations.
+**Guidance:** Do **not** reintroduce generics for PDF hot paths based on this feature alone. Self-referential constraints are useful if you later model tree-shaped layout IR or pluggable element types - not for micro-optimizations.
 
 ---
 
@@ -295,11 +295,11 @@ GOEXPERIMENT=goroutineleakprofile go build -o bin/gopdfsuit ./cmd/gopdfsuit
 
 **Use case:** Run under k6 load, then capture `goroutineleak` profile after sustained traffic. Helps catch stuck workers that hold memory and slots, depressing throughput toward the ~1500 req/s target.
 
-Expected to become default in Go 1.27 — validating now reduces surprise later.
+Expected to become default in Go 1.27 - validating now reduces surprise later.
 
 ---
 
-### 4.2 `runtime/secret` — secure erasure of key material
+### 4.2 `runtime/secret` - secure erasure of key material
 
 **Enable at build:**
 
@@ -309,13 +309,13 @@ GOEXPERIMENT=runtimesecret go build ./...
 
 **Relevant code:** `internal/pdf/signature/signature.go` parses PEM private keys into `crypto.PrivateKey` and signs PDFs; `internal/models/models.go` carries `PrivateKeyPEM` in JSON config.
 
-**Potential use:** Wrap signing operations so key bytes and temporaries are cleared from stack/registers/heap after use. Important for forward secrecy and compliance narratives — not a throughput optimization.
+**Potential use:** Wrap signing operations so key bytes and temporaries are cleared from stack/registers/heap after use. Important for forward secrecy and compliance narratives - not a throughput optimization.
 
 **Status:** Experimental, amd64/arm64 Linux only. Evaluate in staging before production signing paths.
 
 ---
 
-### 4.3 `simd/archsimd` — architecture-specific SIMD
+### 4.3 `simd/archsimd` - architecture-specific SIMD
 
 **Enable:** `GOEXPERIMENT=simd`  
 **Status:** Experimental, amd64 only, API unstable.
@@ -360,22 +360,22 @@ GOEXPERIMENT=runtimesecret go build ./...
 
 Align with existing benchmark culture in `guides/INTEGRATION_AND_BENCHMARK_TESTS.md` and `guides/optimizations/`.
 
-### Phase A — Confirm runtime wins (no code diff)
+### Phase A - Confirm runtime wins (no code diff)
 
 1. Build with Go 1.26.4: `go build -o bin/gopdfsuit ./cmd/gopdfsuit`
 2. Run `make bench-k6` twice; compare to baselines in `guides/cursor/baselines/gin_pprof_runs/`
 3. Check CPU profile for GC/mark shrinkage; check `alloc_space` on heap profile
 
-### Phase B — Tooling and benchmarks
+### Phase B - Tooling and benchmarks
 
-1. `go fix ./...` — review and commit idiomatic updates
+1. `go fix ./...` - review and commit idiomatic updates
 2. Convert `b.N` → `b.Loop` in `internal/pdf/benchmark_*.go`
 3. Re-run `go test -bench=. ./internal/pdf/...` and note delta (expect small, directionally trustworthy)
 
-### Phase C — Experiments (optional branch)
+### Phase C - Experiments (optional branch)
 
-1. `GOEXPERIMENT=goroutineleakprofile` — load test + leak profile
-2. `GOEXPERIMENT=runtimesecret` — signing integration tests + security review
+1. `GOEXPERIMENT=goroutineleakprofile` - load test + leak profile
+2. `GOEXPERIMENT=runtimesecret` - signing integration tests + security review
 3. A/B `GOEXPERIMENT=nogreenteagc` only to quantify Green Tea benefit; do not ship opt-out
 
 ---

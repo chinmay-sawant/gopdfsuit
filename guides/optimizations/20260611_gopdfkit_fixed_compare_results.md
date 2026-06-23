@@ -142,7 +142,7 @@ where gopdflib leads by 51% and 40% respectively. The smallest lead is
 
 ---
 
-## Re-run — 2026-06-11 22:08 IST (2-run mean, post PDF/UA-2 TD fix)
+## Re-run - 2026-06-11 22:08 IST (2-run mean, post PDF/UA-2 TD fix)
 
 **Harness:** same module, `benchtime=5s`, Go 1.26.4, i7-13700HX  
 **Artifacts:** `guides/cursor/baselines/benchmark_suite_20260611_2128/gopdfkit_run*.txt`

@@ -9,6 +9,15 @@ from .types import PDFTemplate, FontInfo
 from ._bindings import get_lib, call_bytes_result
 
 
+def serialize_template(template: PDFTemplate) -> bytes:
+    """Serialize a template to fresh UTF-8 JSON bytes for GeneratePDF."""
+    return json.dumps(
+        template.to_dict(),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
 def generate_pdf(template: PDFTemplate) -> bytes:
     """
     Generate a PDF from a template.
@@ -34,8 +43,8 @@ def generate_pdf(template: PDFTemplate) -> bytes:
         ...     f.write(pdf_bytes)
     """
     lib = get_lib()
-    template_json = json.dumps(template.to_dict()).encode("utf-8")
-    return call_bytes_result(lib.GeneratePDF, template_json)
+    payload = serialize_template(template)
+    return call_bytes_result(lib.GeneratePDF, payload)
 
 
 def get_available_fonts() -> List[FontInfo]:

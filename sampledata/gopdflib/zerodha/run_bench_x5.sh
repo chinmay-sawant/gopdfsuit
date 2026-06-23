@@ -14,8 +14,8 @@ export BENCH_WORKERS="${BENCH_WORKERS:-48}"
 echo "Zerodha benchmark: iterations=$BENCH_ITERATIONS workers=$BENCH_WORKERS"
 echo "Output: $OUT"
 
-cd "$REPO_ROOT"
-go build -o "$BIN" ./sampledata/gopdflib/zerodha/main.go
+cd "$ZERODHA"
+go build -o "$BIN" .
 
 for i in 1 2 3 4 5; do
   echo "=== Run $i / 5 (timing) ==="

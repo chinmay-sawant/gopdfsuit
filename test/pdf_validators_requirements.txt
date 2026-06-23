@@ -1,0 +1,2 @@
+# Supplementary PDF accessibility validators (project-local venv: .pdf-validators/)
+avalpdf==0.1.10

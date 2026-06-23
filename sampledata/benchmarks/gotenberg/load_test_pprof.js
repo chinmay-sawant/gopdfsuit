@@ -3,13 +3,13 @@
  * Mirrors test/generate_template-pdf/load_test_pprof.js structure.
  *
  * Env:
- *   BASE_URL              — default http://127.0.0.1:3000
- *   PAYLOAD_SCENARIO      — tagged_ecdsa (default) | retail_only_signed | retail_active_signed | unsigned
- *   PROFILE_SECONDS       — steady VU duration (default 35)
- *   LOAD_VUS              — concurrent VUs (default 48)
- *   SKIP_SMOKE            — set "1" to skip 1-VU smoke phase
- *   THROUGHPUT_GATE       — min req/s for http_reqs threshold (default 0 = disabled)
- *   SKIP_NETWORK_IDLE     — set "1" to pass skipNetworkIdleEvent=true (faster, default on)
+ *   BASE_URL              - default http://127.0.0.1:3000
+ *   PAYLOAD_SCENARIO      - tagged_ecdsa (default) | retail_only_signed | retail_active_signed | unsigned
+ *   PROFILE_SECONDS       - steady VU duration (default 35)
+ *   LOAD_VUS              - concurrent VUs (default 48)
+ *   SKIP_SMOKE            - set "1" to skip 1-VU smoke phase
+ *   THROUGHPUT_GATE       - min req/s for http_reqs threshold (default 0 = disabled)
+ *   SKIP_NETWORK_IDLE     - set "1" to pass skipNetworkIdleEvent=true (faster, default on)
  */
 import http from 'k6/http';
 import { check } from 'k6';
