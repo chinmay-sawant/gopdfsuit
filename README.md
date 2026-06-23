@@ -186,7 +186,8 @@ Benchmarked on **Intel i7-13700HX (24 cores), WSL2, Go 1.26.4**. Zerodha workloa
 | **gopdflib** | Zerodha x10 (compliant) | **6,611 ops/s** | **6,203 ops/s** (x10, 2026-06-24) | PDF/A-4 + PDF/UA-2, library in-process |
 | **gopdflib** | Zerodha x10 (nocomply) | **37,853 ops/s** | **34,035 ops/s** (x10, 2026-06-24) | PDF 2.0, compliance off |
 | **gopdfsuit** | k6 `tagged_ecdsa` | **1,333 req/s** | best-of-5 (2026-06-18) | HTTP + Gin |
-| **pypdfsuit** | Zerodha weighted | **235 ops/s** | best-of-5 (2026-06-18) | Python CGO |
+| **pypdfsuit** | Zerodha x10 (compliant) | **937 ops/s** | **916 ops/s** (x10, 2026-06-24) | PDF/A-4 + PDF/UA-2, Python CGO |
+| **pypdfsuit** | Zerodha x10 (nocomply) | **1,284 ops/s** | **1,242 ops/s** (x10, 2026-06-24) | PDF 2.0, compliance off |
 | **Gotenberg** | k6 HTML→PDF | **16.1 req/s** | best-of-5 (2026-06-18) | Chromium, no PDF/A |
 
 Reproduce:
@@ -199,8 +200,9 @@ make bench-gopdflib-zerodha-nocomply-x10
 # gopdfsuit (k6 + Gin)
 make bench-k6
 
-# pypdfsuit
-make bench-pypdfsuit-zerodha
+# pypdfsuit (rebuild bindings first: cd bindings/python && ./build.sh)
+make bench-pypdfsuit-zerodha-x10
+make bench-pypdfsuit-zerodha-nocomply-x10
 ```
 
 All processing is in-memory with zero external runtime dependencies.

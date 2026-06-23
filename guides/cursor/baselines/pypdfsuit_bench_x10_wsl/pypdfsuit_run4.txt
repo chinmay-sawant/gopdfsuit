@@ -8,30 +8,30 @@ Running 5000 iterations using 48 workers...
 Building templates...
 Templates built.
 Warm-up runs...
-  Retail PDF size:  61290 bytes (59.85 KB)
-  Active PDF size:  76072 bytes (74.29 KB)
-  HFT PDF size:     2424782 bytes (2367.95 KB)
+  Retail PDF size:  61298 bytes (59.86 KB)
+  Active PDF size:  76052 bytes (74.27 KB)
+  HFT PDF size:     2424773 bytes (2367.94 KB)
 
 === Performance Summary ===
   Iterations:      5000
   Concurrency:     48 workers
-  Total time:      5.447 s
-  Throughput:      917.90 ops/sec
+  Total time:      5.427 s
+  Throughput:      921.28 ops/sec
 
-  Avg Latency:     46.846 ms
-  P50 Latency:     27.965 ms
-  P95 Latency:     155.323 ms
-  P99 Latency:     247.006 ms
-  Min Latency:     1.231 ms
-  Max Latency:     507.869 ms
+  Avg Latency:     45.736 ms
+  P50 Latency:     27.110 ms
+  P95 Latency:     148.480 ms
+  P99 Latency:     228.646 ms
+  Min Latency:     0.913 ms
+  Max Latency:     423.546 ms
 
 === Workload Distribution ===
   Retail  (80%):   4015 iterations
   Active  (15%):   767 iterations
   HFT      (5%):   218 iterations
 
-Saved: zerodha_retail_output_pypdfsuit.pdf (61290 bytes)
-Saved: zerodha_active_output_pypdfsuit.pdf (76072 bytes)
-Saved: zerodha_hft_output_pypdfsuit.pdf (2424782 bytes)
+Saved: zerodha_retail_output_pypdfsuit.pdf (61298 bytes)
+Saved: zerodha_active_output_pypdfsuit.pdf (76052 bytes)
+Saved: zerodha_hft_output_pypdfsuit.pdf (2424773 bytes)
 
 === Done ===

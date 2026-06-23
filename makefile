@@ -130,6 +130,7 @@ K6_LIGHT_GOMAXPROCS ?= 12
 	bench-gpdf-zerodha bench-gpdf-zerodha-nocomply bench-gpdf-zerodha-x10 \
 	bench-gopdflib-data bench-gopdflib-data-pprof \
 	bench-gopdfsuit-zerodha bench-pypdfsuit-zerodha bench-pypdfsuit-zerodha-x2 \
+	bench-pypdfsuit-zerodha-nocomply bench-pypdfsuit-zerodha-nocomply-x10 \
 	bench-pypdfsuit-zerodha-x5 bench-pypdfsuit-zerodha-x10 bench-pypdfsuit-zerodha-x10-pprof \
 	bench-pypdfsuit-profile bench-pypdfsuit-legacy \
 	bench-fpdf bench-jspdf bench-pdfkit-lib bench-pdflib bench-typst bench-all-libraries \
@@ -177,6 +178,8 @@ bench-help:
 	@echo "    make bench-gopdflib-zerodha-x10  # 10 sequential timing runs"
 	@echo "    make bench-gopdflib-zerodha-x10-pprof # x10 timing + CPU/heap pprof"
 	@echo "    make bench-pypdfsuit-zerodha"
+	@echo "    make bench-pypdfsuit-zerodha-nocomply   # same workload, compliance off"
+	@echo "    make bench-pypdfsuit-zerodha-nocomply-x10 # 10 sequential non-compliant runs"
 	@echo "    make bench-pypdfsuit-zerodha-x2"
 	@echo "    make bench-pypdfsuit-zerodha-x5   # 5 runs + phase profile (run_pypdfsuit_bench_x5.sh)"
 	@echo "    make bench-pypdfsuit-zerodha-x10  # 10 sequential timing runs"
@@ -338,6 +341,12 @@ bench-gopdflib-data-pprof:
 
 bench-pypdfsuit-zerodha:
 	cd $(ZERODHA_DIR) && BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) python3 pypdfsuit_bench.py
+
+bench-pypdfsuit-zerodha-nocomply:
+	cd $(ZERODHA_DIR) && BENCH_NOCOMPLY=1 BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) python3 pypdfsuit_bench.py
+
+bench-pypdfsuit-zerodha-nocomply-x10:
+	bash $(ZERODHA_DIR)/run_pypdfsuit_bench_x10_nocomply.sh
 
 bench-pypdfsuit-zerodha-x2:
 	@for i in 1 2; do \

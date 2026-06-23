@@ -56,6 +56,10 @@ def read_chain() -> list[str]:
     return chain
 
 
+def bench_compliant() -> bool:
+    return os.environ.get("BENCH_NOCOMPLY", "").lower() not in {"1", "true", "yes"}
+
+
 def retail_signature() -> SignatureConfig:
     return SignatureConfig(
         enabled=True,
@@ -68,6 +72,39 @@ def retail_signature() -> SignatureConfig:
         certificate_pem=read_text(REPO_ROOT / "certs" / "leaf.pem"),
         certificate_chain=read_chain(),
     )
+
+
+def base_pdf_config(
+    *,
+    pdf_title: str,
+    watermark: str | None = None,
+    signature: SignatureConfig | None = None,
+) -> Config:
+    cfg = Config(
+        page_border="0:0:0:0",
+        page="A4",
+        page_alignment=1,
+        pdf_title=pdf_title,
+    )
+    if watermark:
+        cfg.watermark = watermark
+    if bench_compliant():
+        cfg.pdfa_compliant = True
+        cfg.arlington_compatible = True
+        cfg.embed_fonts = True
+        if signature is not None:
+            cfg.signature = signature
+    else:
+        cfg.pdfa_compliant = False
+        cfg.arlington_compatible = False
+        cfg.embed_fonts = False
+    return cfg
+
+
+def output_pdf_name(base: str) -> str:
+    if bench_compliant():
+        return base
+    return base.replace("_output_pypdfsuit.pdf", "_nocomply_output_pypdfsuit.pdf")
 
 
 def generate_trades(count: int, seed: int) -> list[dict]:
@@ -155,16 +192,11 @@ def get_machine_info() -> dict[str, str]:
 
 
 def build_retail_template() -> PDFTemplate:
+    signature = retail_signature() if bench_compliant() else None
     return PDFTemplate(
-        config=Config(
-            page_border="0:0:0:0",
-            page="A4",
-            page_alignment=1,
+        config=base_pdf_config(
             pdf_title="Contract Note - CN2024001",
-            pdfa_compliant=True,
-            arlington_compatible=True,
-            embed_fonts=True,
-            signature=retail_signature(),
+            signature=signature,
         ),
         title=Title(
             props="Helvetica:24:100:center:0:0:0:0",
@@ -271,15 +303,9 @@ def build_active_trader_template() -> PDFTemplate:
         ]))
 
     return PDFTemplate(
-        config=Config(
-            page_border="0:0:0:0",
-            page="A4",
-            page_alignment=1,
-            watermark="CONFIDENTIAL",
+        config=base_pdf_config(
             pdf_title="Contract Note - Active Trader",
-            pdfa_compliant=True,
-            arlington_compatible=True,
-            embed_fonts=True,
+            watermark="CONFIDENTIAL",
         ),
         title=Title(
             props="Helvetica:24:100:center:0:0:0:0",
@@ -356,15 +382,7 @@ def build_hft_template() -> PDFTemplate:
         ]))
 
     return PDFTemplate(
-        config=Config(
-            page_border="0:0:0:0",
-            page="A4",
-            page_alignment=1,
-            pdf_title="Contract Note - HFT Algo Capital LLP",
-            pdfa_compliant=True,
-            arlington_compatible=True,
-            embed_fonts=True,
-        ),
+        config=base_pdf_config(pdf_title="Contract Note - HFT Algo Capital LLP"),
         title=Title(
             props="Helvetica:24:100:center:0:0:0:0",
             text="HFT CONTRACT NOTE",
@@ -428,6 +446,10 @@ def run_benchmark(
         print("Workload Mix: 80% Retail | 15% Active | 5% HFT")
     else:
         print(f"Workload Mix: {payload_scenario.replace('_', ' ')}")
+    if bench_compliant():
+        print("Compliance: PDF/A-4 + PDF/UA-2 + ECDSA P-256 retail signing")
+    else:
+        print("Compliance: OFF (PDF 2.0 base; PDF/A, tagging, signing, font embedding disabled)")
     print("JSON cache: removed (full to_dict + json.dumps each call)")
     print()
     machine_info = get_machine_info()
@@ -460,9 +482,12 @@ def run_benchmark(
     print()
 
     output_dir = Path(__file__).resolve().parent
-    (output_dir / "zerodha_retail_output_pypdfsuit.pdf").write_bytes(retail_pdf)
-    (output_dir / "zerodha_active_output_pypdfsuit.pdf").write_bytes(active_pdf)
-    (output_dir / "zerodha_hft_output_pypdfsuit.pdf").write_bytes(hft_pdf)
+    retail_name = output_pdf_name("zerodha_retail_output_pypdfsuit.pdf")
+    active_name = output_pdf_name("zerodha_active_output_pypdfsuit.pdf")
+    hft_name = output_pdf_name("zerodha_hft_output_pypdfsuit.pdf")
+    (output_dir / retail_name).write_bytes(retail_pdf)
+    (output_dir / active_name).write_bytes(active_pdf)
+    (output_dir / hft_name).write_bytes(hft_pdf)
 
     durations = []
     counts = {"retail": 0, "active": 0, "hft": 0}
@@ -518,9 +543,9 @@ def run_benchmark(
     print(f"  Active  (15%):   {counts['active']} iterations")
     print(f"  HFT      (5%):   {counts['hft']} iterations")
     print()
-    print(f"Saved: zerodha_retail_output_pypdfsuit.pdf ({len(retail_pdf)} bytes)")
-    print(f"Saved: zerodha_active_output_pypdfsuit.pdf ({len(active_pdf)} bytes)")
-    print(f"Saved: zerodha_hft_output_pypdfsuit.pdf ({len(hft_pdf)} bytes)")
+    print(f"Saved: {retail_name} ({len(retail_pdf)} bytes)")
+    print(f"Saved: {active_name} ({len(active_pdf)} bytes)")
+    print(f"Saved: {hft_name} ({len(hft_pdf)} bytes)")
     print()
     print("=== Done ===")
 

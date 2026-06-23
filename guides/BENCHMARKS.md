@@ -71,7 +71,8 @@ Method: 5 runs each, **best throughput** reported.
 | **GoPDFLib** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **6,611 ops/s** (x10 peak) | 2,646 | +150% |
 | **GoPDFLib** | Zerodha weighted (nocomply) | PDF 2.0 (no PDF/A) | None | 48 | **37,853 ops/s** (x10 peak) | - | - |
 | **GoPDFSuit** | Zerodha retail | PDF/A-4 | PDF/UA-2 | 48 | **6,146 ops/s** | 1,978 | +211% |
-| **pypdfsuit** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **235 ops/s** | 223 | +5% |
+| **pypdfsuit** | Zerodha weighted | PDF/A-4 | PDF/UA-2 | 48 | **937 ops/s** (x10 peak) | 235 | +290% |
+| **pypdfsuit** | Zerodha weighted (nocomply) | PDF 2.0 (no PDF/A) | None | 48 | **1,284 ops/s** (x10 peak) | - | - |
 | **gpdf** | Zerodha weighted | PDF/A-2b | None | 48 | **178 ops/s** | - | - |
 | **gpdf** | Zerodha weighted (nocomply) | PDF 2.0 (no PDF/A) | None | 48 | **464 ops/s** | - | - |
 | **pypdfsuit** | Zerodha retail (`bench.py`)* | PDF/A-4 | PDF/UA-2 | 10 | **293 ops/s** | - | - |
@@ -170,6 +171,24 @@ Compliant HFT output: **2,293,768 bytes** (veraPDF 6/6 PASS). Non-compliant HFT 
 
 ---
 
+## Zerodha Gold Standard - PyPDFSuit x10 Sequential (2026-06-24)
+
+Harness: `make bench-pypdfsuit-zerodha-x10` / `make bench-pypdfsuit-zerodha-nocomply-x10` (rebuild CGO first: `cd bindings/python && ./build.sh`)  
+Environment: WSL2, Intel i7-13700HX, 48 workers, 5000 iterations, 80/15/5 mix, honest full path (`to_dict` + `json.dumps` each call).  
+Raw logs: [compliant](./cursor/baselines/pypdfsuit_bench_x10_wsl/), [nocomply](./cursor/baselines/pypdfsuit_bench_x10_nocomply_wsl/)  
+Stats: [compliant](./cursor/baselines/pypdfsuit_bench_x10_wsl_stats_latest.txt), [nocomply](./cursor/baselines/pypdfsuit_bench_x10_nocomply_wsl_stats_latest.txt)
+
+| Harness | PDF/A | PDF/UA | x10 peak | x10 mean | x10 median | Mean avg latency | Mean p95 latency |
+|---------|-------|--------|----------:|---------:|-----------:|-----------------:|-----------------:|
+| `bench-pypdfsuit-zerodha` | PDF/A-4 | PDF/UA-2 | **937** | **916** | **925** | 46.93 ms | 150.45 ms |
+| `bench-pypdfsuit-zerodha-nocomply` | PDF 2.0 (no PDF/A) | None | **1,284** | **1,242** | **1,241** | 33.78 ms | 103.46 ms |
+
+Compliant HFT output: **2,424,773 bytes**. Non-compliant HFT output: **344,468 bytes** (PDF 2.0 base format; no PDF/A, tagging, signing, or font embedding).
+
+**vs June 2026 best-of-5 baseline (235 ops/s):** compliant x10 mean **916** - **+290%** after Python serializer optimizations and CGO rebuild. Non-compliant x10 peak **1,284** / mean **1,242** - **~1.4×** compliant peak throughput with compliance features disabled (Python CGO overhead limits the nocomply ceiling vs native Go).
+
+---
+
 ## Completed Makefile Targets
 
 | Target | Runs | Status |
@@ -180,6 +199,8 @@ Compliant HFT output: **2,293,768 bytes** (veraPDF 6/6 PASS). Non-compliant HFT 
 | `bench-gopdflib-data` | 5 | Done |
 | `bench-gopdfsuit-zerodha` | 5 | Done |
 | `bench-pypdfsuit-zerodha` | 5 | Done |
+| `bench-pypdfsuit-zerodha-x10` | 10 | Done (2026-06-24) |
+| `bench-pypdfsuit-zerodha-nocomply-x10` | 10 | Done (2026-06-24) |
 | `bench-pypdfsuit-legacy` | 5 | Done |
 | `bench-fpdf` | 5 | Done |
 | `bench-jspdf` | 5 | Done |

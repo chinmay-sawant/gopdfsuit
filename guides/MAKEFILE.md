@@ -310,7 +310,11 @@ High-volume contract-note workload in `sampledata/gopdflib/zerodha` (80% retail 
 | `make bench-gopdflib-zerodha-x5` | Five timing runs + CPU/heap pprof (`run_bench_x5.sh`) |
 | `make bench-gopdflib-zerodha-x10` | Ten sequential timing runs (`run_bench_x10.sh`) |
 | `make bench-pypdfsuit-zerodha` | Python parity via `pypdfsuit_bench.py` |
+| `make bench-pypdfsuit-zerodha-nocomply` | Same workload with `BENCH_NOCOMPLY=1` |
+| `make bench-pypdfsuit-zerodha-nocomply-x10` | Ten sequential non-compliant runs (`run_pypdfsuit_bench_x10_nocomply.sh`) |
 | `make bench-pypdfsuit-zerodha-x2` | Two sequential runs |
+| `make bench-pypdfsuit-zerodha-x5` | Five timing runs + phase profile (`run_pypdfsuit_bench_x5.sh`) |
+| `make bench-pypdfsuit-zerodha-x10` | Ten sequential timing runs (`run_pypdfsuit_bench_x10.sh`) |
 
 **Override iterations/workers:**
 

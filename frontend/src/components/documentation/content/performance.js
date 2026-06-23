@@ -6,7 +6,7 @@ export const performanceSection = {
             title: 'Benchmark Results',
             description: 'Measured benchmark results for GoPDFLib, GoPDFSuit, and pypdfsuit on the weighted 48-worker Zerodha workload, data-table, HTTP, and GoPDFKit compare harnesses.',
             codePlacement: 'below',
-            content: `These measurements were captured on **June 2026** on WSL2 (Intel i7-13700HX, 24 logical CPUs) on branch \`feat/optimization-5.5-medium\`. Zerodha headline numbers use **x10 sequential runs** (\`make bench-gopdflib-zerodha-x10\`); other harnesses use **best-of-5** from \`guides/cursor/baselines/benchmark_run_20260618_v2/\`.
+            content: `These measurements were captured on **June 2026** on WSL2 (Intel i7-13700HX, 24 logical CPUs) on branch \`feat/optimization-5.5-medium\`. Zerodha headline numbers for **GoPDFLib** and **pypdfsuit** use **x10 sequential runs** (\`make bench-gopdflib-zerodha-x10\`, \`make bench-pypdfsuit-zerodha-x10\`, and their \`-nocomply\` variants); other harnesses use **best-of-5** from \`guides/cursor/baselines/benchmark_run_20260618_v2/\`.
 
 All compliant GoPDFLib headline numbers run with **PDF/A-4**, **PDF/UA-2**, Arlington-compatible tagging, XML metadata generation, **ECDSA P-256** digital signatures, embedded fonts, bookmarks, and internal links enabled.
 
@@ -56,6 +56,66 @@ Same 80/15/5 workload outputs **PDF 2.0** with PDF/A, tagging, signing, and font
 | **Avg latency** | **1.227 ms** | **1.376 ms** |
 | **Peak allocated (mean)** | - | **310 MB** |
 
+## PyPDFSuit Zerodha Gold Standard (5000×48, PDF/A-4 + PDF/UA-2)
+
+Same 80/15/5 workload via **pypdfsuit** CGO bindings (\`make bench-pypdfsuit-zerodha-x10\`). Rebuild the shared library first: \`cd bindings/python && ./build.sh\`. Honest full path: \`to_dict\` + \`json.dumps\` on every call (no JSON cache).
+
+| Metric | x10 peak | x10 mean |
+| --- | ---: | ---: |
+| **Throughput** | **937 ops/sec** | **916 ops/sec** |
+| **Avg latency** | **45.80 ms** | **46.93 ms** |
+| **P50 latency (mean)** | **29.54 ms** | **28.79 ms** |
+| **P95 latency (mean)** | **143.92 ms** | **150.45 ms** |
+| **Min latency (best run)** | **0.86 ms** | - |
+| **Max latency (worst run)** | **743.45 ms** | - |
+
+**vs June 2026 best-of-5 baseline (235 ops/sec):** **+290% x10 mean throughput** after Python serializer optimizations.
+
+### x10 detail (pypdfsuit compliant timing runs)
+
+| Run | Throughput | Avg latency |
+| ---: | ---: | ---: |
+| 1 | 937 ops/sec | 45.94 ms |
+| 2 | 893 ops/sec | 48.41 ms |
+| 3 | **937 ops/sec** | 45.80 ms |
+| 4 | 921 ops/sec | 45.74 ms |
+| 5 | 928 ops/sec | 46.14 ms |
+| 6 | 929 ops/sec | 46.19 ms |
+| 7 | 915 ops/sec | 46.99 ms |
+| 8 | 858 ops/sec | 49.56 ms |
+| 9 | 928 ops/sec | 47.13 ms |
+| 10 | 908 ops/sec | 47.40 ms |
+
+## PyPDFSuit Zerodha Gold Standard - Non-Compliant (5000×48)
+
+Same 80/15/5 workload via **pypdfsuit** with PDF/A, tagging, signing, and font embedding disabled (\`make bench-pypdfsuit-zerodha-nocomply-x10\`, \`BENCH_NOCOMPLY=1\`). HFT output shrinks to **336 KB** (vs **2.4 MB** compliant).
+
+| Metric | x10 peak | x10 mean |
+| --- | ---: | ---: |
+| **Throughput** | **1,284 ops/sec** | **1,242 ops/sec** |
+| **Avg latency** | **32.82 ms** | **33.78 ms** |
+| **P50 latency (mean)** | **21.07 ms** | **22.61 ms** |
+| **P95 latency (mean)** | **98.80 ms** | **103.46 ms** |
+| **Min latency (best run)** | **0.23 ms** | - |
+| **Max latency (worst run)** | **355.60 ms** | - |
+
+**vs compliant pypdfsuit x10 peak (937 ops/sec):** non-compliant peak **1,284** - **~1.4×** faster (Python CGO overhead limits the nocomply ceiling vs native Go's 5.7×).
+
+### x10 detail (pypdfsuit non-compliant timing runs)
+
+| Run | Throughput | Avg latency |
+| ---: | ---: | ---: |
+| 1 | 1,217 ops/sec | 34.69 ms |
+| 2 | **1,284 ops/sec** | **32.82 ms** |
+| 3 | 1,243 ops/sec | 33.72 ms |
+| 4 | 1,235 ops/sec | 34.11 ms |
+| 5 | 1,251 ops/sec | 33.28 ms |
+| 6 | 1,261 ops/sec | 33.08 ms |
+| 7 | 1,250 ops/sec | 33.46 ms |
+| 8 | 1,199 ops/sec | 34.58 ms |
+| 9 | 1,239 ops/sec | 34.10 ms |
+| 10 | 1,238 ops/sec | 33.94 ms |
+
 ### Weighted Workload - runtime comparison
 
 | Runtime | Harness | Workers | Best Throughput | Avg Latency | PDF/A | PDF/UA |
@@ -63,7 +123,10 @@ Same 80/15/5 workload outputs **PDF 2.0** with PDF/A, tagging, signing, and font
 | **GoPDFLib** | Weighted 80/15/5 (compliant) | 48 | **6,611 ops/sec** | **6.962 ms** | PDF/A-4 | PDF/UA-2 |
 | **GoPDFLib** | Weighted 80/15/5 (nocomply) | 48 | **37,853 ops/sec** | **1.227 ms** | PDF 2.0 (no PDF/A) | None |
 | **GoPDFSuit** | Retail only | 48 | **6,146 ops/sec** | **6.29 ms** | PDF/A-4 | PDF/UA-2 |
-| **pypdfsuit** | Weighted 80/15/5 | 48 | 235 ops/sec | 169.07 ms | PDF/A-4 | PDF/UA-2 |
+| **pypdfsuit** | Weighted 80/15/5 (compliant, x10 peak) | 48 | **937 ops/sec** | **45.80 ms** | PDF/A-4 | PDF/UA-2 |
+| **pypdfsuit** | Weighted 80/15/5 (compliant, x10 mean) | 48 | **916 ops/sec** | **46.93 ms** | PDF/A-4 | PDF/UA-2 |
+| **pypdfsuit** | Weighted 80/15/5 (nocomply, x10 peak) | 48 | **1,284 ops/sec** | **32.82 ms** | PDF 2.0 (no PDF/A) | None |
+| **pypdfsuit** | Weighted 80/15/5 (nocomply, x10 mean) | 48 | **1,242 ops/sec** | **33.78 ms** | PDF 2.0 (no PDF/A) | None |
 | **gpdf** | Weighted 80/15/5 (compliant) | 48 | **178 ops/sec** | **267.37 ms** | PDF/A-2b | None |
 | **gpdf** | Weighted 80/15/5 (nocomply) | 48 | **464 ops/sec** | **100.64 ms** | PDF 2.0 (no PDF/A) | None |
 
@@ -139,8 +202,10 @@ make bench-gopdflib-data
 # GoPDFSuit retail-only Zerodha path
 make bench-gopdfsuit-zerodha
 
-# Python weighted Zerodha
-make bench-pypdfsuit-zerodha
+# Python weighted Zerodha (rebuild bindings first)
+cd bindings/python && ./build.sh && cd ../..
+make bench-pypdfsuit-zerodha-x10
+make bench-pypdfsuit-zerodha-nocomply-x10
 
 # HTTP load tests
 make bench-k6
