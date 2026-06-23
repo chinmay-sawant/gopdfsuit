@@ -70,19 +70,19 @@ type StructKid struct {
 
 // StructElem represents a node in the structure tree
 type StructElem struct {
-	Type       StructureType
-	Title      string
-	Alt        string
-	Lang       string
-	Kids       []StructKid
-	inlineKids [8]StructKid
-	MCID       int
-	HasMCID    bool
-	Parent     *StructElem
-	ObjectID   int  // Assigned when writing to PDF
-	PageID     int  // Reference to the page object ID where this element appears
-	AnnotObjID int  // Annotation object ID for Link elements
-	tdLeafFast bool // TD/TH MCID leaf eligible for appendStructElemTDLeaf fast path
+	Type          StructureType
+	Title         string
+	Alt           string
+	Lang          string
+	Kids          []StructKid
+	inlineKids    [8]StructKid
+	MCID          int
+	HasMCID       bool
+	Parent        *StructElem
+	ObjectID      int  // Assigned when writing to PDF
+	PageID        int  // Reference to the page object ID where this element appears
+	AnnotObjID    int  // Annotation object ID for Link elements
+	tdLeafFast    bool // TD/TH MCID leaf eligible for appendStructElemTDLeaf fast path
 	groupEmitFast bool // TR grouping element eligible for formatTRStructElemObjectTo
 }
 

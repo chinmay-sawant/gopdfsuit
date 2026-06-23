@@ -12,11 +12,11 @@ import (
 // dropped instead of being returned to the pool.
 const (
 	maxPooledPageContentStreamCap = 128 * 1024
-	pageStreamRetailCap             = 32 * 1024  // measured 8,755 B
-	pageStreamActiveCap             = 48 * 1024  // measured ~18 KiB/page
-	pageStreamHFTRowBytes           = 120        // compliant BDC/EMC + text per cell
-	pageStreamStripeSlack           = 4096       // border/watermark/page-init headroom
-	pageStreamMinCap                = 32 * 1024
+	pageStreamRetailCap           = 32 * 1024 // measured 8,755 B
+	pageStreamActiveCap           = 48 * 1024 // measured ~18 KiB/page
+	pageStreamHFTRowBytes         = 120       // compliant BDC/EMC + text per cell
+	pageStreamStripeSlack         = 4096      // border/watermark/page-init headroom
+	pageStreamMinCap              = 32 * 1024
 )
 
 var pageContentStreamPools = [...]struct {

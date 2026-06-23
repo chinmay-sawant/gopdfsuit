@@ -51,9 +51,7 @@ var (
 	hexUpperDigits          = []byte("0123456789ABCDEF")
 )
 
-type pkcs7MarshalBuffers struct {
-	attrs [3]attribute
-}
+type pkcs7MarshalBuffers struct{}
 
 func maxSignWorkers() int {
 	n := runtime.NumCPU() * 2
@@ -90,11 +88,11 @@ func digestByteRanges(pdfData []byte, byteRange [4]int) []byte {
 //
 //nolint:revive // exported
 type SignatureIDs struct {
-	SigFieldID     int
-	SigAnnotID     int
-	SigValueID     int
-	AppearanceID   int
-	ByteRangeRel   int // ByteRange placeholder offset inside sig value object body
+	SigFieldID           int
+	SigAnnotID           int
+	SigValueID           int
+	AppearanceID         int
+	ByteRangeRel         int // ByteRange placeholder offset inside sig value object body
 	ContentsDataStartRel int // hex payload start inside sig value object body
 	ContentsDataEndRel   int // hex payload end inside sig value object body
 }
@@ -555,32 +553,6 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 	return buildContentInfoDER(signedData), nil
 }
 
-// ASN.1 structures for PKCS#7
-
-type contentInfo struct {
-	ContentType asn1.ObjectIdentifier
-	Content     asn1.RawValue `asn1:"explicit,optional,tag:0"`
-}
-
-type signedData struct {
-	Version          int
-	DigestAlgorithms []pkixAlgorithmIdentifier `asn1:"set"`
-	ContentInfo      contentInfo
-	Certificates     asn1.RawValue `asn1:"optional,tag:0"`
-	CRLs             asn1.RawValue `asn1:"optional,tag:1"`
-	SignerInfos      []signerInfo  `asn1:"set"`
-}
-
-type signerInfo struct {
-	Version                   int
-	IssuerAndSerial           issuerAndSerial
-	DigestAlgorithm           pkixAlgorithmIdentifier
-	AuthenticatedAttributes   asn1.RawValue `asn1:"optional,tag:0"`
-	DigestEncryptionAlgorithm pkixAlgorithmIdentifier
-	EncryptedDigest           []byte
-	UnauthenticatedAttributes asn1.RawValue `asn1:"optional,tag:1"`
-}
-
 type issuerAndSerial struct {
 	Issuer       asn1.RawValue
 	SerialNumber *big.Int
@@ -589,11 +561,6 @@ type issuerAndSerial struct {
 type pkixAlgorithmIdentifier struct {
 	Algorithm  asn1.ObjectIdentifier
 	Parameters asn1.RawValue `asn1:"optional"`
-}
-
-type attribute struct {
-	Type  asn1.ObjectIdentifier
-	Value asn1.RawValue `asn1:"set"`
 }
 
 func mustMarshal(v any) []byte {

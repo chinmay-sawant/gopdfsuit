@@ -10,7 +10,7 @@ func init() {
 }
 
 type BorrowedPDF = pdf.BorrowedPDF
-type PDFCapacityHighWater = pdf.PDFCapacityHighWater
+type PDFCapacityHighWater = pdf.CapacityHighWater
 
 // ResetPDFCapacityHighWater clears per-tier buffer high-water counters. Active when
 // BENCH_DEBUG_CAPS=1 during generation.

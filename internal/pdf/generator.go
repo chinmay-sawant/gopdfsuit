@@ -58,11 +58,15 @@ const (
 	activePDFBufferCap    = 128 * 1024
 	hftPDFBufferCap       = 2816 * 1024 // 2.75 MiB: zero-grow for estimateFinalPDFSize on HFT
 	maxPooledPDFBufferCap = 3 * 1024 * 1024
+
+	capacityTierRetail = "retail"
+	capacityTierActive = "active"
+	capacityTierHFT    = "hft"
 )
 
-// PDFCapacityHighWater tracks per-tier final buffer len/cap peaks when capacity
+// CapacityHighWater tracks per-tier final buffer len/cap peaks when capacity
 // debug is enabled (BENCH_DEBUG_CAPS=1).
-type PDFCapacityHighWater struct {
+type CapacityHighWater struct {
 	RetailLen   int
 	RetailCap   int
 	ActiveLen   int
@@ -73,7 +77,7 @@ type PDFCapacityHighWater struct {
 	PostCapGrow uint64
 }
 
-var pdfCapacityHighWater PDFCapacityHighWater
+var pdfCapacityHighWater CapacityHighWater
 
 var (
 	pdfBufferPoolSmall = sync.Pool{
@@ -2003,10 +2007,10 @@ func benchCapacityDebugEnabled() bool {
 }
 
 func ResetPDFCapacityHighWater() {
-	pdfCapacityHighWater = PDFCapacityHighWater{}
+	pdfCapacityHighWater = CapacityHighWater{}
 }
 
-func SnapshotPDFCapacityHighWater() PDFCapacityHighWater {
+func SnapshotPDFCapacityHighWater() CapacityHighWater {
 	return pdfCapacityHighWater
 }
 
@@ -2017,21 +2021,21 @@ func recordPDFCapacityHighWater(tier string, pdfBuffer *bytes.Buffer) {
 	finalLen := pdfBuffer.Len()
 	finalCap := pdfBuffer.Cap()
 	switch tier {
-	case "retail":
+	case capacityTierRetail:
 		if finalLen > pdfCapacityHighWater.RetailLen {
 			pdfCapacityHighWater.RetailLen = finalLen
 		}
 		if finalCap > pdfCapacityHighWater.RetailCap {
 			pdfCapacityHighWater.RetailCap = finalCap
 		}
-	case "active":
+	case capacityTierActive:
 		if finalLen > pdfCapacityHighWater.ActiveLen {
 			pdfCapacityHighWater.ActiveLen = finalLen
 		}
 		if finalCap > pdfCapacityHighWater.ActiveCap {
 			pdfCapacityHighWater.ActiveCap = finalCap
 		}
-	case "hft":
+	case capacityTierHFT:
 		if finalLen > pdfCapacityHighWater.HFTLen {
 			pdfCapacityHighWater.HFTLen = finalLen
 		}
@@ -2044,23 +2048,23 @@ func recordPDFCapacityHighWater(tier string, pdfBuffer *bytes.Buffer) {
 func templateCapacityTier(template models.PDFTemplate) string {
 	for _, elem := range template.Elements {
 		if elem.Table != nil && len(elem.Table.Rows) > 1000 {
-			return "hft"
+			return capacityTierHFT
 		}
 	}
 	for _, elem := range template.Elements {
 		if elem.Table != nil && len(elem.Table.Rows) > 40 {
-			return "active"
+			return capacityTierActive
 		}
 	}
 	for _, table := range template.Table {
 		if len(table.Rows) > 1000 {
-			return "hft"
+			return capacityTierHFT
 		}
 		if len(table.Rows) > 40 {
-			return "active"
+			return capacityTierActive
 		}
 	}
-	return "retail"
+	return capacityTierRetail
 }
 
 func ensurePDFBufferCapacity(pdfBuffer *bytes.Buffer, want int) {

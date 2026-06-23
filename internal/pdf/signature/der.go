@@ -34,7 +34,8 @@ func buildPKCS7DERParts(s *PDFSigner) pkcs7DERParts {
 		IsCompound: true,
 		Bytes:      marshaledOIDData,
 	})
-	attr1Content := append(contentTypeOID, dataOIDSET...)
+	attr1Content := contentTypeOID
+	attr1Content = append(attr1Content, dataOIDSET...)
 	contentTypeAttr := wrapDERTag(asn1.TagSequence, attr1Content)
 
 	digestAlgID := marshalAlgorithmIdentifier(oidSHA256)
@@ -98,7 +99,8 @@ func buildMessageDigestAttr(messageDigest []byte) []byte {
 	digestOID := mustMarshal(oidMessageDigest)
 	octet := wrapDERTag(asn1.TagOctetString, messageDigest)
 	digestSET := wrapDERTag(asn1.TagSet, octet)
-	attrContent := append(digestOID, digestSET...)
+	attrContent := digestOID
+	attrContent = append(attrContent, digestSET...)
 	return wrapDERTag(asn1.TagSequence, attrContent)
 }
 
@@ -107,7 +109,8 @@ func buildSigningTimeAttr(signingTime time.Time) []byte {
 	var utcBuf [32]byte
 	utc := appendUTCTime(utcBuf[:0], signingTime)
 	timeSET := wrapDERTag(asn1.TagSet, utc)
-	attrContent := append(timeOID, timeSET...)
+	attrContent := timeOID
+	attrContent = append(attrContent, timeSET...)
 	return wrapDERTag(asn1.TagSequence, attrContent)
 }
 
