@@ -1,4 +1,4 @@
-# Six-Agent Cross-Validation Report — Zerodha 15K Optimization
+# Six-Agent Cross-Validation Report - Zerodha 15K Optimization
 
 **Date:** 2026-06-21  
 **Profile:** `cpu_zerodha_run3.prof` (11.27s, 1771% CPU), `heap_zerodha.prof` (563 MB)  
@@ -28,10 +28,10 @@
 |-------|---------------------------:|----------------------:|
 | A1 | 75–85% of mean latency | 50–60% of CPU samples |
 | A2 | (implicit via mixed math) | ~42% from HFT tail |
-| A3 | — | HFT vs active 17× per-doc |
-| A4 | — | Arena + pdfBuffer HFT-weighted |
-| A5 | — | drawTable 93.7% HFT |
-| A6 | — | 40–50% of total CPU time |
+| A3 | - | HFT vs active 17× per-doc |
+| A4 | - | Arena + pdfBuffer HFT-weighted |
+| A5 | - | drawTable 93.7% HFT |
+| A6 | - | 40–50% of total CPU time |
 
 **Validated conclusion:** Phase C (HFT tail) is **mandatory** for 15K. No agent disputes this.
 
@@ -81,7 +81,7 @@ All six agents independently flagged:
 | A5 | #1 child of drawTable | 7.45% |
 | A4 | GC correlate | 5.8% flat |
 | A6 | S3 shared ranking | 7.5% |
-| A2 | Noted as HFT-only | — |
+| A2 | Noted as HFT-only | - |
 | A3 | Below 512 threshold for active | 0% |
 
 **Validated:** P36 + P37 are the highest-impact HFT CPU items in Phase C.
@@ -92,10 +92,10 @@ All six agents independently flagged:
 |-------|----------------:|:------------------------:|
 | A2 | 11.4% | No (~11.5K mixed ceiling) |
 | A6 | 6.3% | No |
-| A4 | In alloc (PKCS7 21 MB) | — |
-| A1 | Retail-only, doesn't block HFT | — |
-| A3 | Active has no signing | — |
-| A5 | Not in drawTable path | — |
+| A4 | In alloc (PKCS7 21 MB) | - |
+| A1 | Retail-only, doesn't block HFT | - |
+| A3 | Active has no signing | - |
+| A5 | Not in drawTable path | - |
 
 **Validated:** P35 + P42 in Phase B/C; retail opts are necessary but not sufficient.
 
@@ -105,10 +105,10 @@ All six agents independently flagged:
 |-------|-----------------:|-----------------|
 | A3 | 7.5% | P29 SharedRowLayout +250–350 |
 | A5 | P22 extension safe | +20–50 from active SharedRowLayout |
-| A1 | Defer vs HFT | — |
-| A2 | 15% docs, faster than retail | — |
-| A4 | Minor buffer grow | — |
-| A6 | P28 font precompute helps all | — |
+| A1 | Defer vs HFT | - |
+| A2 | 15% docs, faster than retail | - |
+| A4 | Minor buffer grow | - |
+| A6 | P28 font precompute helps all | - |
 
 **Validated:** P29 is worth doing in Phase A (low risk, stacks with other wins) but
 will not move the 15K needle alone.
@@ -125,10 +125,10 @@ Active:  ~0.5 ms/doc × 750  = 0.4 ms weighted
 HFT:    ~80 ms/doc  × 250   = 20.0 ms weighted  ← 83% of mean
 ```
 
-**Cross-check A2:** Serial proxy gives HFT 41.9% of CPU time — consistent with
+**Cross-check A2:** Serial proxy gives HFT 41.9% of CPU time - consistent with
 latency-weighted model (HFT docs are slower but fewer).
 
-**Cross-check A4:** Peak memory >1,200 MB correlates with runs <7,500 ops/sec — HFT
+**Cross-check A4:** Peak memory >1,200 MB correlates with runs <7,500 ops/sec - HFT
 cold-start pattern confirmed.
 
 ### A2 unique: Signature pipeline breakdown
@@ -141,7 +141,7 @@ cold-start pattern confirmed.
 | ASN.1 Marshal | 48 µs | 15% |
 
 **Cross-check A4:** `encoding/asn1.MarshalWithParams` 21.54 MB alloc in 20260620
-heap — confirms A2's PKCS#7 alloc concern. P42 validated.
+heap - confirms A2's PKCS#7 alloc concern. P42 validated.
 
 ### A3 unique: Active SharedRowLayout eligibility
 
@@ -153,7 +153,7 @@ heap — confirms A2's PKCS#7 alloc concern. P42 validated.
 **Cross-check A5:** `tableSupportsSharedRowLayout` code confirms; `BgColor`/`TextColor`
 handled in `drawSharedDeferRow`. **P29 is safe.**
 
-**Cross-check A1:** Active at 292 struct elems stays below arena threshold (512) —
+**Cross-check A1:** Active at 292 struct elems stays below arena threshold (512) -
 SharedRowLayout routes through HFT fast draw path but uses pool-based TR→TD, not arena.
 Compliance preserved.
 
@@ -164,14 +164,14 @@ Compliance preserved.
 | >1,220 MB | 5,573–7,414 ops/sec |
 | <1,000 MB | 8,384–9,182 ops/sec |
 
-**Cross-check A6:** WSL2 load tax ~12% (7,852 loaded vs 9,009 idle) — both factors
+**Cross-check A6:** WSL2 load tax ~12% (7,852 loaded vs 9,009 idle) - both factors
 contribute. **P0 idle-machine gate is mandatory.**
 
 ### A5 unique: Text wrap is not a gate
 
 `WrapTextInto` = 0% in top 400 pprof nodes. HFT explicitly disables wrap.
 
-**Cross-check A1, A3:** Confirmed — table optimization = structure + font + stream copy,
+**Cross-check A1, A3:** Confirmed - table optimization = structure + font + stream copy,
 not wrapping.
 
 ### A6 unique: Phased throughput model
@@ -182,7 +182,7 @@ not wrapping.
 | 13,000 | P30, P31, P32 | 12,500–13,500 |
 | 15,000 | P36–P40 | 14,500–15,500 |
 
-**Cross-check all agents:** Individual gain estimates sum to 5,500–7,100 ops/sec —
+**Cross-check all agents:** Individual gain estimates sum to 5,500–7,100 ops/sec -
 sufficient to close 5,991 gap with ~10% overlap discount.
 
 ---
@@ -233,7 +233,7 @@ Compare all phase gates against **idle 9,009**, not load-depressed 7,852.
 
 ## Next Action
 
-1. Start **P26** (sRGB ICC cache fix) — 6/6 agent consensus, lowest risk, all formats.
+1. Start **P26** (sRGB ICC cache fix) - 6/6 agent consensus, lowest risk, all formats.
 2. Run idle-machine x10 to confirm 9,009 baseline before measuring Phase A wins.
 3. Implement Phase A items P26 → P28 → P29 → P30 sequentially with veraPDF gate.
 4. Re-profile after Phase A; expect `buildSRGBICCProfile` eliminated from top-40 CPU.

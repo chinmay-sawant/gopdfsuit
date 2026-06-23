@@ -522,7 +522,7 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 
 	var elements []MathElement
 
-	// Column X positions (no delimiter offset — grid starts at x=0)
+	// Column X positions (no delimiter offset - grid starts at x=0)
 	padding := fontSize * 0.12
 	colX := make([]float64, cols)
 	x := padding

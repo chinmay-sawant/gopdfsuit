@@ -1,4 +1,4 @@
-# Optimization Execution Summary — 2026-06-19
+# Optimization Execution Summary - 2026-06-19
 
 ## Date & Scope
 
@@ -10,7 +10,7 @@ Honest full-execution PyPDFSuit benchmark work on `feat/optimization-5.5-medium`
 - **P0 serializers + cache removal:** **565.16 ops/s** single run; HFT `to_dict` dropped **60.34 → 19.74 ms** per call.
 - **P2 direct row/cell serializers:** **736.55 ops/s** single run; Python serialization no longer dominates cProfile.
 - **P3 x10 honest band:** **750.78 ops/s** mean, best **927.19 ops/s** (640–930 operating range).
-- **P4 compact UTF-8 JSON (canonical x5):** **835.56 ops/s** mean, best **855.55 ops/s** — publishable no-cache number.
+- **P4 compact UTF-8 JSON (canonical x5):** **835.56 ops/s** mean, best **855.55 ops/s** - publishable no-cache number.
 - **Bottleneck shift:** FFI/render (`cgo_call`) now **73–92%** of per-template latency; further Python-only gains are incremental.
 
 ## Work Completed

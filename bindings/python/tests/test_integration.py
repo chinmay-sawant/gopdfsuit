@@ -1,5 +1,5 @@
 """
-Integration tests for pypdfsuit — mirrors the Go integration_test.go.
+Integration tests for pypdfsuit - mirrors the Go integration_test.go.
 
 Each test uses the same sample data as the Go suite and writes output
 files with a _python.pdf (or _python.zip / _python.png) suffix into
@@ -72,7 +72,7 @@ requires_chrome = pytest.mark.skipif(
 
 
 def _skip_if_chrome_runtime_error(exc: GoPDFSuitError) -> None:
-    """Skip (not fail) when headless Chrome cannot start — common on CI sandboxes."""
+    """Skip (not fail) when headless Chrome cannot start - common on CI sandboxes."""
     msg = str(exc).lower()
     if "chrome failed to start" in msg or "sandbox" in msg or "no usable sandbox" in msg:
         pytest.skip(f"Chrome cannot run in this environment: {exc}")

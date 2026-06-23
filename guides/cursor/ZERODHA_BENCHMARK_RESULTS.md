@@ -1,6 +1,6 @@
-# Zerodha Gold Standard Benchmark — gopdflib
+# Zerodha Gold Standard Benchmark - gopdflib
 
-## Latest — 30-run results (2026-06-14, Go 1.26.4)
+## Latest - 30-run results (2026-06-14, Go 1.26.4)
 
 **Date:** 2026-06-14  
 **Entry:** `sampledata/gopdflib/zerodha/main.go`  
@@ -14,10 +14,10 @@
 | Metric | Best | Worst | **Average** | σ |
 |--------|------|-------|-------------|---|
 | **Throughput** | **2952.88 ops/s** | 2183.43 ops/s | **2645.74 ops/s** | 187.28 |
-| **Avg latency** | **15.86 ms** | 21.04 ms | **17.67 ms** | — |
-| **Max latency** | 305.38 ms | **726.15 ms** | — | — |
-| **Wall time (5000)** | **1.69 s** | 2.29 s | **1.90 s** | — |
-| **Peak memory** | 1212.77 MB | **1491.17 MB** | **1330 MB** | — |
+| **Avg latency** | **15.86 ms** | 21.04 ms | **17.67 ms** | - |
+| **Max latency** | 305.38 ms | **726.15 ms** | - | - |
+| **Wall time (5000)** | **1.69 s** | 2.29 s | **1.90 s** | - |
+| **Peak memory** | 1212.77 MB | **1491.17 MB** | **1330 MB** | - |
 
 **Headline:** **2953 ops/s peak**, **2646 ops/s** 30-run mean.
 
@@ -27,7 +27,7 @@
 
 ---
 
-## Prior session — 13-run results (2026-06-13, Go 1.26.4, historical best)
+## Prior session - 13-run results (2026-06-13, Go 1.26.4, historical best)
 
 **Date:** 2026-06-13  
 **Entry:** `sampledata/gopdflib/zerodha/main.go`  
@@ -56,10 +56,10 @@
 | Metric | Best | Worst | **Average** | σ |
 |--------|------|-------|-------------|---|
 | **Throughput** | **3603.53 ops/s** | 2367.88 ops/s | **2786.80 ops/s** | 373.31 |
-| **Avg latency** | **12.99 ms** | 19.80 ms | **17.05 ms** | — |
-| **Max latency** | 356.80 ms | **687.50 ms** | — | — |
-| **Wall time (5000)** | **1.39 s** | 2.11 s | **1.80 s** | — |
-| **Peak memory** | 1251.65 MB | **1408.00 MB** | **1314 MB** | — |
+| **Avg latency** | **12.99 ms** | 19.80 ms | **17.05 ms** | - |
+| **Max latency** | 356.80 ms | **687.50 ms** | - | - |
+| **Wall time (5000)** | **1.39 s** | 2.11 s | **1.80 s** | - |
+| **Peak memory** | 1251.65 MB | **1408.00 MB** | **1314 MB** | - |
 
 **Headline:** **3604 ops/s peak**, **2787 ops/s** 13-run mean.
 
@@ -70,7 +70,7 @@
 
 ---
 
-## Historical — 10-Run Results (Pass 4, PDF/A)
+## Historical - 10-Run Results (Pass 4, PDF/A)
 
 **Date:** 2026-05-25 (revised, WSL native)
 **Entry:** `sampledata/gopdflib/zerodha/main.go`  
@@ -116,7 +116,7 @@ bash sampledata/gopdflib/zerodha/run_bench_x5.sh
 |--------|------|-------|-------------|---|
 | **Throughput** | **2020.59 ops/s** | 1542.39 ops/s | **1704.95 ops/s** | 151.25 |
 | **Avg latency** | **22.99 ms** | 30.47 ms | **27.65 ms** | 2.55 ms |
-| **Max latency** | **592.15 ms** | 883.80 ms | **746.51 ms** | — |
+| **Max latency** | **592.15 ms** | 883.80 ms | **746.51 ms** | - |
 | **Wall time** | **2.48 s** | 3.24 s | **2.95 s** | 0.28 s |
 | **Peak memory** | **1074 MB** | 1254 MB | **1170 MB** | 58 MB |
 
@@ -148,7 +148,7 @@ Pass 4 **peak** beats Go 1.24 **best** (638 ops/s) by **~223%** and matches/exce
 
 | Column | What it measures |
 |--------|------------------|
-| **Throughput (ops/s)** | `5000 ÷ wall-clock seconds` — aggregate with 48 workers. **Not per-core.** |
+| **Throughput (ops/s)** | `5000 ÷ wall-clock seconds` - aggregate with 48 workers. **Not per-core.** |
 | **Avg latency (ms)** | Mean `GeneratePDF` time across all 5000 docs. |
 | **Max latency (ms)** | Slowest single PDF (usually HFT under contention). |
 | **Total time (s)** | Wall clock for the full batch. |
@@ -157,6 +157,6 @@ Pass 4 **peak** beats Go 1.24 **best** (638 ops/s) by **~223%** and matches/exce
 
 ## Related
 
-- [PR_PERFORMANCE_OPTIMIZATION.md](./PR_PERFORMANCE_OPTIMIZATION.md) — full PR summary
-- [PASS4_PDFA_RESULTS.md](./PASS4_PDFA_RESULTS.md) — micro-bench + HTTP load
-- [GOPDFLIB_PPROF_RESULTS.md](./GOPDFLIB_PPROF_RESULTS.md) — data-table bench
+- [PR_PERFORMANCE_OPTIMIZATION.md](./PR_PERFORMANCE_OPTIMIZATION.md) - full PR summary
+- [PASS4_PDFA_RESULTS.md](./PASS4_PDFA_RESULTS.md) - micro-bench + HTTP load
+- [GOPDFLIB_PPROF_RESULTS.md](./GOPDFLIB_PPROF_RESULTS.md) - data-table bench

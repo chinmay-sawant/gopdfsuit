@@ -36,10 +36,10 @@ Spike test ramps to 200 VUs, which on a local machine creates artificial content
 #### [MODIFY] `main.go`
 
 1. **Set semaphore to `runtime.NumCPU()`** instead of hardcoded 100
-   - This is the most impactful change — prevents 100 goroutines fighting for 24 cores
+   - This is the most impactful change - prevents 100 goroutines fighting for 24 cores
    - CPU-bound workloads perform best when concurrency matches available cores
 
-2. **Default profiling to DISABLED** — flip the logic so profiling is opt-in via `ENABLE_PROFILING=1`
+2. **Default profiling to DISABLED** - flip the logic so profiling is opt-in via `ENABLE_PROFILING=1`
    - Removes heap profiling instrumentation overhead during benchmarks
 
 3. **Replace `gin.Recovery()` with a lightweight custom recovery** middleware
@@ -52,7 +52,7 @@ Spike test ramps to 200 VUs, which on a local machine creates artificial content
 
 #### [MODIFY] `auth.go`
 
-4. **Cache `IsCloudRun()` result** — evaluate once at startup, store in a package-level variable
+4. **Cache `IsCloudRun()` result** - evaluate once at startup, store in a package-level variable
    - Eliminates 2x `os.Getenv` calls per request
 
 ---
@@ -61,7 +61,7 @@ Spike test ramps to 200 VUs, which on a local machine creates artificial content
 
 #### [MODIFY] `handlers.go`
 
-5. **Use `io.ReadAll` instead of `c.GetRawData()`** — the `GetRawData()` method does an extra copy internally. Using `io.ReadAll(c.Request.Body)` directly avoids that.
+5. **Use `io.ReadAll` instead of `c.GetRawData()`** - the `GetRawData()` method does an extra copy internally. Using `io.ReadAll(c.Request.Body)` directly avoids that.
 
 ---
 
@@ -73,11 +73,11 @@ Spike test ramps to 200 VUs, which on a local machine creates artificial content
 
 #### [MODIFY] `soak_test.js`
 
-7. Lower soak VUs (currently 10 but `sleep(2)` limits throughput) — remove sleep to allow real throughput measurement
+7. Lower soak VUs (currently 10 but `sleep(2)` limits throughput) - remove sleep to allow real throughput measurement
 
 #### [MODIFY] `load_test.js`
 
-8. Cap load test ramp to 100 VUs (currently 5, which is fine — leave as-is or bump slightly for meaningful load)
+8. Cap load test ramp to 100 VUs (currently 5, which is fine - leave as-is or bump slightly for meaningful load)
 
 ---
 

@@ -201,5 +201,5 @@ Min: 1306.09 ms
 Avg: 1323.77 ms
 Max: 1378.97 ms
 Throughput: 7.22 ops/sec
-PDF Standard: PDF/A-2b (ISO 19005-2:2011) — highest supported by bundled typst 0.12.0
+PDF Standard: PDF/A-2b (ISO 19005-2:2011) - highest supported by bundled typst 0.12.0
 

@@ -1,8 +1,8 @@
-# Optimization Execution Summary — Cross-Cutting
+# Optimization Execution Summary - Cross-Cutting
 
 ## Scope
 
-Cross-cutting performance work on `feat/performance-improvements` (undated in source docs; PR spans **2026-06-10 → 2026-06-16**). Covers the PDF engine, HTTP handlers, signing, benchmarks, validation, and release/CI — driven by SlopGuard static analysis and profile-guided optimization across the stack.
+Cross-cutting performance work on `feat/performance-improvements` (undated in source docs; PR spans **2026-06-10 → 2026-06-16**). Covers the PDF engine, HTTP handlers, signing, benchmarks, validation, and release/CI - driven by SlopGuard static analysis and profile-guided optimization across the stack.
 
 ## Key Outcomes
 

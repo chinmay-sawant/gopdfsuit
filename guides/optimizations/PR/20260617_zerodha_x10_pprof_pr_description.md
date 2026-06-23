@@ -176,7 +176,7 @@ Validation outcome:
 
 ---
 
-## Compliance fix — HFT shared-row structure (2026-06-19)
+## Compliance fix - HFT shared-row structure (2026-06-19)
 
 veraPDF cross-check of `sampledata/gopdflib/zerodha/` found `zerodha_hft_output.pdf`
 **FAIL** on PDF/A-4 and PDF/UA-2 while retail/active passed. Root cause: the P3

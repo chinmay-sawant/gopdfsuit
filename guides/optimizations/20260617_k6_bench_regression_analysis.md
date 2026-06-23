@@ -1,4 +1,4 @@
-# k6 benchmark regression analysis — feature branch vs master
+# k6 benchmark regression analysis - feature branch vs master
 
 **Date:** 2026-06-17  
 **Branch (failing):** `feat/optimization-5.5-medium`  
@@ -12,7 +12,7 @@
 
 Master completes full `make bench-k6` on the same machine. The feature branch hangs or crashes mid-run. Side-by-side artifacts show **~2.7× higher live heap** on the feature branch and throughput freezing when all 48 server slots block.
 
-The primary culprit is an **unbounded global `sharedRowRenderCache`** added in `internal/pdf/draw.go` — optimized for in-process Zerodha benchmarks, not validated under concurrent HTTP k6 load.
+The primary culprit is an **unbounded global `sharedRowRenderCache`** added in `internal/pdf/draw.go` - optimized for in-process Zerodha benchmarks, not validated under concurrent HTTP k6 load.
 
 ---
 
@@ -20,7 +20,7 @@ The primary culprit is an **unbounded global `sharedRowRenderCache`** added in `
 
 | | **master** (`t2/gopdfsuit`) | **feature branch** (`feat/optimization-5.5-medium`) |
 |---|---|---|
-| Run artifact | `20260617_233247` — **completed** | `20260617_232525` — **hung ~22s** |
+| Run artifact | `20260617_233247` - **completed** | `20260617_232525` - **hung ~22s** |
 | Harness | 48 VU × 35s | 48 VU × 35s |
 | Iterations | **23,969** | **16,064** then frozen |
 | Throughput | **674 req/s** | ~730 req/s then **0** |
@@ -58,7 +58,7 @@ Lower concurrency avoids the hang but heap is still far above master.
 ### 2. Server hang (~50–65%, run `20260617_232525`)
 
 - k6 timer reaches 100% but iteration count freezes (~16,064)
-- No connection-refused spam — server process alive but not completing requests
+- No connection-refused spam - server process alive but not completing requests
 - All 48 VUs blocked; graceful shutdown took 80+ seconds
 - No `pprof_summary` or heap/cpu profiles saved for this run
 
@@ -123,7 +123,7 @@ sharedRowRenderCache.Store(cacheKey, rendered)
 
 ### Why this breaks under k6
 
-1. **Global `sync.Map` with no eviction** — every stored row lives forever for the process lifetime.
+1. **Global `sync.Map` with no eviction** - every stored row lives forever for the process lifetime.
 2. **Cache key includes `mcidBase` and `y`**, which change on almost every row draw → **stores on nearly every row, almost no hits**.
 3. Under **48 concurrent HTTP requests**, each HFT doc has ~2001 shared rows → thousands of cached `[]byte` blobs pile up per request.
 4. Heap profile confirms it: `drawSharedLayoutRow` **497 MB** and `preallocInlineTableRows` **592 MB** on the feature branch vs **46 MB** prealloc on master.
@@ -152,9 +152,9 @@ Artifacts: `guides/cursor/baselines/gin_pprof_runs/k6_gin_20260617_233247.txt`
 
 The optimization is sound for Zerodha micro-bench but broken for production/k6. Options:
 
-1. **Remove `sharedRowRenderCache`** — safest; restores master k6 behavior.
-2. **Fix the cache key** — key only on row content signature, not `mcidBase`/`y` (MCIDs must still be emitted per draw).
-3. **Scope cache per-request** — attach cache to `PageManager` or `BorrowedPDF`, cleared when PDF is released.
+1. **Remove `sharedRowRenderCache`** - safest; restores master k6 behavior.
+2. **Fix the cache key** - key only on row content signature, not `mcidBase`/`y` (MCIDs must still be emitted per draw).
+3. **Scope cache per-request** - attach cache to `PageManager` or `BorrowedPDF`, cleared when PDF is released.
 4. **Add LRU + size cap** if keeping a global cache.
 
 ---
@@ -165,7 +165,7 @@ The optimization is sound for Zerodha micro-bench but broken for production/k6. 
 # Completes on feature branch today
 make bench-k6-light
 
-# Full harness — use master or fix branch first
+# Full harness - use master or fix branch first
 make bench-k6   # hangs/crashes on feat/optimization-5.5-medium
 ```
 
@@ -187,6 +187,6 @@ Run k6 in isolation (no parallel `run_all_benchmarks`, zerodha x10, Gotenberg). 
 
 ## Related docs
 
-- `guides/optimizations/PR/20260617_zerodha_x10_pprof_pr_description.md` — optimization PR that introduced shared-row caching
-- `guides/optimizations/20260617_zerodha_x10_pprof_optimization_checklist.md` — Zerodha validation checklist
-- `guides/cursor/baselines/gin_pprof_runs/comparison_20260614.md` — historical k6 5-run baseline (825 req/s avg)
+- `guides/optimizations/PR/20260617_zerodha_x10_pprof_pr_description.md` - optimization PR that introduced shared-row caching
+- `guides/optimizations/20260617_zerodha_x10_pprof_optimization_checklist.md` - Zerodha validation checklist
+- `guides/cursor/baselines/gin_pprof_runs/comparison_20260614.md` - historical k6 5-run baseline (825 req/s avg)

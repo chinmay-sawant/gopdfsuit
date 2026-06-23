@@ -9,30 +9,30 @@ Running 5000 iterations using 48 workers (retail signing: disabled)...
 Building templates...
 Templates built.
 Warm-up runs...
-  Retail PDF size:  7102 bytes (6.94 KB)
-  Active PDF size:  12071 bytes (11.79 KB)
-  HFT PDF size:     226752 bytes (221.44 KB)
+  Retail PDF size:  7139 bytes (6.97 KB)
+  Active PDF size:  10075 bytes (9.84 KB)
+  HFT PDF size:     226774 bytes (221.46 KB)
 
-  Max Memory Allocated: 614.00 MB
+  Max Memory Allocated: 317.64 MB
 === Performance Summary ===
   Iterations:      5000
   Concurrency:     48 workers
   GOMAXPROCS:      24
   Retail signing:  disabled
-  Total time:      0.210 s
-  Throughput:      23842.20 ops/sec
+  Total time:      0.147 s
+  Throughput:      34066.66 ops/sec
 
-  Avg Latency:     1.962 ms
-  Min Latency:     0.048 ms
-  Max Latency:     170.695 ms
+  Avg Latency:     1.356 ms
+  Min Latency:     0.039 ms
+  Max Latency:     102.708 ms
 
 === Workload Distribution ===
   Retail  (80%):   4000 iterations
   Active  (15%):   750 iterations
   HFT      (5%):   250 iterations
 
-Saved: zerodha_retail_nocomply_output.pdf (7102 bytes)
-Saved: zerodha_active_nocomply_output.pdf (12071 bytes)
-Saved: zerodha_hft_nocomply_output.pdf (226752 bytes)
+Saved: zerodha_retail_nocomply_output.pdf (7139 bytes)
+Saved: zerodha_active_nocomply_output.pdf (10075 bytes)
+Saved: zerodha_hft_nocomply_output.pdf (226774 bytes)
 
 === Done ===

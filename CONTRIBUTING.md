@@ -6,13 +6,13 @@ Thank you for your interest in contributing to **GoPdfSuit**. This guide covers 
 
 | Requirement | Version / notes |
 |-------------|-----------------|
-| **Go** | **1.26.4** (required — matches `go.mod`) |
+| **Go** | **1.26.4** (required - matches `go.mod`) |
 | **Make** | Required for build, test, and lint targets |
 | **Google Chrome** | Required for HTML→PDF/Image conversion |
 | **Node.js + npm** | Frontend build (Node 18+ recommended) |
 | **Python 3.8+** | Python bindings tests (`pypdfsuit`) |
-| **Java 11+** | Optional — needed for veraPDF (PDF/A-4 + PDF/UA-2 validation) |
-| **Python 3 + venv** | Optional — `make install-pdf-validators` installs avalpdf into `.pdf-validators/` |
+| **Java 11+** | Optional - needed for veraPDF (PDF/A-4 + PDF/UA-2 validation) |
+| **Python 3 + venv** | Optional - `make install-pdf-validators` installs avalpdf into `.pdf-validators/` |
 | **golangci-lint** | v1.64.8+ (matches CI) |
 
 ### Windows
@@ -111,7 +111,7 @@ python3 -m pytest bindings/python/tests -v
 - **Lint**: `make lint` runs `golangci-lint run -E revive,gocritic,gocyclo,goconst ./...`
 - **Layout**: Standard `cmd/` / `internal/` / `pkg/` structure
 - **JSON hot paths**: Use [bytedance/sonic](https://github.com/bytedance/sonic), not stdlib `encoding/json`
-- **Performance**: `sync.Pool`, tier-based preallocation, and buffer pooling are used in hot paths — preserve these patterns when adding code
+- **Performance**: `sync.Pool`, tier-based preallocation, and buffer pooling are used in hot paths - preserve these patterns when adding code
 
 ### Frontend
 
@@ -134,7 +134,7 @@ python3 -m pytest bindings/python/tests -v
 | Python bindings | `bindings/python/tests/` | `python3 -m pytest bindings/python/tests` |
 | PDF validation | `test/verify_pdfs.sh` | `make test-verify-pdfs` |
 
-PDF compliance uses a layered stack: **veraPDF** (PDF/A-4 + PDF/UA-2), **structure_tree_check.py** (ParentTree consistency — catches bugs veraPDF misses), and **avalpdf** (accessibility heuristics, warnings by default). See [guides/PDF_VALIDATORS.md](guides/PDF_VALIDATORS.md).
+PDF compliance uses a layered stack: **veraPDF** (PDF/A-4 + PDF/UA-2), **structure_tree_check.py** (ParentTree consistency - catches bugs veraPDF misses), and **avalpdf** (accessibility heuristics, warnings by default). See [guides/PDF_VALIDATORS.md](guides/PDF_VALIDATORS.md).
 
 Fixtures live under `sampledata/`. Tests write artifacts back with `temp_*` or `*_python.pdf` suffixes.
 

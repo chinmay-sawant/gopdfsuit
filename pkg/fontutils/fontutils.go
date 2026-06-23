@@ -125,7 +125,7 @@ func MathFontCandidates() []string {
 
 // EnsureMathFonts checks if math fonts exist on the system and downloads
 // any missing ones in parallel. This should be called at server startup.
-// It logs progress and errors but does not return errors — missing fonts
+// It logs progress and errors but does not return errors - missing fonts
 // are non-fatal (math rendering will degrade gracefully).
 func EnsureMathFonts() {
 	var wg sync.WaitGroup

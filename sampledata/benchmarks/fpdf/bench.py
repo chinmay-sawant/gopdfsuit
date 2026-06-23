@@ -69,7 +69,7 @@ def run_once(run_index):
             row.cell(r["role"])
             row.cell(r["desc"])
 
-    pdf.output()  # Generate bytes in-memory — avoids file-write races in parallel runs
+    pdf.output()  # Generate bytes in-memory - avoids file-write races in parallel runs
     return (time.perf_counter() - start) * 1000
 
 

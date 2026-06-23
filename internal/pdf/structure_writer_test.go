@@ -99,7 +99,7 @@ func TestFormatStructElemTDLeaf_StableOutput(t *testing.T) {
 			if err := os.WriteFile(refPath, got, 0o644); err != nil {
 				t.Fatalf("write golden: %v", err)
 			}
-			t.Logf("Created golden file: %s (%d bytes) — re-run to verify", refPath, len(got))
+			t.Logf("Created golden file: %s (%d bytes) - re-run to verify", refPath, len(got))
 			return
 		}
 		t.Fatalf("read golden: %v", err)

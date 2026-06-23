@@ -1,4 +1,4 @@
-# Digital Signatures — RSA vs ECDSA (gopdfsuit)
+# Digital Signatures - RSA vs ECDSA (gopdfsuit)
 
 **Date:** 2026-06-11  
 **Applies to:** `internal/pdf/signature/`, `SignatureConfig` in API/JSON templates  
@@ -8,7 +8,7 @@
 
 ## Summary
 
-gopdfsuit supports **both RSA and ECDSA P-256** for PDF digital signatures. Adding ECDSA is **opt-in** — it does **not** break or replace existing RSA-2048 keys. You choose the algorithm by which PEM files you pass in `signature.privateKeyPem` and `signature.certificatePem`.
+gopdfsuit supports **both RSA and ECDSA P-256** for PDF digital signatures. Adding ECDSA is **opt-in** - it does **not** break or replace existing RSA-2048 keys. You choose the algorithm by which PEM files you pass in `signature.privateKeyPem` and `signature.certificatePem`.
 
 | Algorithm | Key strength | Sample files | Typical use |
 |-----------|--------------|--------------|-------------|
@@ -32,8 +32,8 @@ ECDSA was added as an **additional** signing path for performance. Sample payloa
 
 ### Terminology
 
-- **RSA-2048** — 2048-bit RSA key. This is what `certs/generate_certs.sh` creates for `leaf.key`.
-- **ECDSA P-256** (`prime256v1`) — elliptic-curve key with roughly **128-bit security strength**. It is **not** a “128-bit RSA key” (which would be insecure). It is a different algorithm family entirely.
+- **RSA-2048** - 2048-bit RSA key. This is what `certs/generate_certs.sh` creates for `leaf.key`.
+- **ECDSA P-256** (`prime256v1`) - elliptic-curve key with roughly **128-bit security strength**. It is **not** a “128-bit RSA key” (which would be insecure). It is a different algorithm family entirely.
 
 ---
 
@@ -70,7 +70,7 @@ The private key and leaf certificate **must be the same algorithm**. The library
 
 Your intermediate CA can remain **RSA**. Only the **leaf signer** needs to be ECDSA. This matches the layout in `certs/ec_leaf.*`.
 
-### Option A — ECDSA leaf with existing intermediate CA
+### Option A - ECDSA leaf with existing intermediate CA
 
 Run from the repo root after you already have `certs/intermediate.pem` and `certs/intermediate.key` (from `generate_certs.sh` or your own PKI):
 
@@ -97,7 +97,7 @@ openssl x509 -in ec_leaf.pem -noout -text | grep -A2 "Public Key Algorithm"
 # Expected: id-ecPublicKey, ASN1 OID: prime256v1
 ```
 
-### Option B — Full chain from scratch (RSA CA + ECDSA leaf)
+### Option B - Full chain from scratch (RSA CA + ECDSA leaf)
 
 1. Generate the RSA CA chain and RSA leaf (existing script):
 
@@ -185,7 +185,7 @@ template.Config.Signature = &gopdflib.SignatureConfig{
 | PDF output | PKCS#7 detached signature | PKCS#7 detached signature |
 | Adobe / PDF readers | Widely supported | Widely supported (P-256) |
 | Signing CPU (benchmark) | Higher (~10–16% machine CPU in RSA profile) | Lower (~3–5% with ECDSA) |
-| Breaks existing deploy? | — | **No** (opt-in PEM swap) |
+| Breaks existing deploy? | - | **No** (opt-in PEM swap) |
 
 ---
 

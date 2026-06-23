@@ -1,4 +1,4 @@
-# Optimization Execution Summary — 2026-06-21 Cross-Validation
+# Optimization Execution Summary - 2026-06-21 Cross-Validation
 
 ## Date & Scope
 
@@ -7,9 +7,9 @@ Six-agent cross-validation of the **Zerodha 15K optimization plan** on **2026-06
 ## Key Outcomes
 
 - **6/6 agent consensus:** Phase C (HFT struct tail) is **mandatory** for 15K; retail-only or active-only work cannot close the mixed-workload gap.
-- **First implementation item locked:** **P26** (sRGB ICC cache fix) — unanimous quick win, ~+550 ops/sec mid estimate, lowest risk, all three formats.
+- **First implementation item locked:** **P26** (sRGB ICC cache fix) - unanimous quick win, ~+550 ops/sec mid estimate, lowest risk, all three formats.
 - **Benchmark discipline clarified:** Measure all phase gates against **idle 9,009 ops/sec**, not the load-depressed **7,852 ops/sec** from the 2026-06-21 loaded x10 run (~12% WSL2 load tax).
-- **Phased throughput model validated:** A6 milestone math (with ~10% overlap discount) closes the 5,991 gap — **11K** after Phase A, **13K** after Phase B, **15K** after Phase C.
+- **Phased throughput model validated:** A6 milestone math (with ~10% overlap discount) closes the 5,991 gap - **11K** after Phase A, **13K** after Phase B, **15K** after Phase C.
 - **Compliance red lines confirmed:** No TR→TD collapse, no key-based cross-request caches, HFT output must remain ~2,291,942 bytes, veraPDF 6/6 after every change.
 - **Seven approaches ruled out** as insufficient or non-compliant (retail-only ceiling ~11.5K, wrap optimizations at 0% CPU, etc.).
 
@@ -42,7 +42,7 @@ Six-agent cross-validation of the **Zerodha 15K optimization plan** on **2026-06
 | # | Finding | Key evidence | Implication |
 |---|---------|--------------|-------------|
 | 1 | **HFT dominates despite 5% doc share** | 75–85% mean latency; 40–60% CPU; 17× per-doc vs active; `drawTable` 93.7% HFT-weighted | Phase C mandatory |
-| 2 | **sRGB ICC cache leak — P9 incomplete → P26** | `buildSRGBICCProfile` 4.17% cum; hits all PDFs; #1 quick win per A6 | **Start P26 first** |
+| 2 | **sRGB ICC cache leak - P9 incomplete → P26** | `buildSRGBICCProfile` 4.17% cum; hits all PDFs; #1 quick win per A6 | **Start P26 first** |
 | 3 | **Memory bandwidth wall blocks next tier** | 90% heap = `growSlice` (47%) + arena (44%); `memmove` 10.1%; pdfBuffer 263 MB + arena 247 MB | Phase B (P31–P35, P40) before Phase C realizes full gain |
 | 4 | **Compliance shortcuts off the table** | No TR→TD collapse; no key-based caches; HFT ~2,291,942 B; veraPDF 6/6 gate | Constrains all backlog items |
 
@@ -69,9 +69,9 @@ HFT:    ~80 ms/doc  ×  250 = 20.0 ms weighted  ← 83% of mean
 | **A1** | HFT per-doc latency model (83% weighted mean) | Consistent with A2 serial proxy (41.9% CPU) and A4 cold-start memory pattern (>1,200 MB → <7,500 ops/sec) |
 | **A2** | Signature pipeline: `embedSignatureInPlace` 51%, `CreateSignatureField` 39%, ECDSA 22% | A4 confirms `asn1.MarshalWithParams` 21.54 MB alloc → **P42 validated** |
 | **A3** | Active 41-row table eligible for `tableSupportsSharedRowLayout` | A5 code review confirms; A1 confirms compliance preserved (pool TR→TD, not arena) → **P29 safe** |
-| **A4** | Peak alloc >1,220 MB → 5,573–7,414 ops/sec; <1,000 MB → 8,384–9,182 | A6 WSL2 load tax ~12% (7,852 vs 9,009) — **P0 idle-machine gate mandatory** |
-| **A5** | `WrapTextInto` = 0% in top 400 nodes | A1/A3 confirm — table opt = structure + font + stream copy, not wrapping |
-| **A6** | Phased model: 11K → 13K → 15K with P26–P40 | All agents' gains sum to 5,500–7,100 ops/sec — sufficient with overlap discount |
+| **A4** | Peak alloc >1,220 MB → 5,573–7,414 ops/sec; <1,000 MB → 8,384–9,182 | A6 WSL2 load tax ~12% (7,852 vs 9,009) - **P0 idle-machine gate mandatory** |
+| **A5** | `WrapTextInto` = 0% in top 400 nodes | A1/A3 confirm - table opt = structure + font + stream copy, not wrapping |
+| **A6** | Phased model: 11K → 13K → 15K with P26–P40 | All agents' gains sum to 5,500–7,100 ops/sec - sufficient with overlap discount |
 
 ### What Will NOT Get Us to 15K
 
@@ -97,7 +97,7 @@ HFT:    ~80 ms/doc  ×  250 = 20.0 ms weighted  ← 83% of mean
 
 ### Immediate Actions
 
-1. **Start P26** (sRGB ICC cache fix) — 6/6 consensus, lowest risk, all formats.
+1. **Start P26** (sRGB ICC cache fix) - 6/6 consensus, lowest risk, all formats.
 2. **Re-run idle-machine x10** to confirm 9,009 baseline before measuring Phase A wins.
 3. **Implement Phase A sequentially:** P26 → P28 → P29 → P30 with veraPDF gate after each item.
 4. **Re-profile after Phase A;** expect `buildSRGBICCProfile` eliminated from top-40 CPU.
@@ -116,10 +116,10 @@ HFT:    ~80 ms/doc  ×  250 = 20.0 ms weighted  ← 83% of mean
 | 8 | **P29** active SharedRowLayout | A | +300 | 3/6 | Low |
 | 9 | **P39** MarkCharsUsed batch | C | +300 | 3/6 | Low |
 | 10 | **P28** font precompute | A | +275 | 2/6 | Low |
-| — | **P30** (Phase A quick win) | A | — | — | Low |
-| — | **P34** page content stream caps | B | +350–550 | — | Med |
-| — | **P40** row stream direct append | B | +300–500 | — | Med |
-| — | **P33** xref offset slice pooling | B | +150–300 | — | Low–Med |
+| - | **P30** (Phase A quick win) | A | - | - | Low |
+| - | **P34** page content stream caps | B | +350–550 | - | Med |
+| - | **P40** row stream direct append | B | +300–500 | - | Med |
+| - | **P33** xref offset slice pooling | B | +150–300 | - | Low–Med |
 
 ### Phased Milestones (A6 Model)
 
@@ -146,7 +146,7 @@ HFT:    ~80 ms/doc  ×  250 = 20.0 ms weighted  ← 83% of mean
 
 | File | Role |
 |------|------|
-| `21062026_optimization/21062026_subagent_cross_validation_report.md` | Primary report — agent roster, unanimous/majority/unique findings, unified backlog, benchmark comparison |
+| `21062026_optimization/21062026_subagent_cross_validation_report.md` | Primary report - agent roster, unanimous/majority/unique findings, unified backlog, benchmark comparison |
 | `21062026_optimization/21062026_zerodha_15k_optimization_checklist.md` | Full P26–P42 implementation checklist, per-format maps, phase gates, verification commands |
 | `guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run3.prof` | CPU profile (11.27s, 1771% CPU) |
 | `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof` | Heap profile (563 MB) |

@@ -1,4 +1,4 @@
-# Optimization Execution Summary — 2026-06-22
+# Optimization Execution Summary - 2026-06-22
 
 ## Date & Scope
 
@@ -18,9 +18,9 @@ Planning and partial implementation for **Zerodha x10 mean ≥ 15,000 ops/s** on
 
 | Phase | Items | Projected mean | Δ vs 9,009 |
 |-------|-------|---------------:|-----------:|
-| A — Quick wins | P26, P28, P30, P29 | 10,400–10,900 | +15–21% |
-| B — Memory wall | P31, P34, P40, P32, P33, P35 | 12,500–13,500 | +39–50% |
-| C — HFT tail | P36, P38, P37, P39, P41, P42 | 14,500–15,500 | +61–72% |
+| A - Quick wins | P26, P28, P30, P29 | 10,400–10,900 | +15–21% |
+| B - Memory wall | P31, P34, P40, P32, P33, P35 | 12,500–13,500 | +39–50% |
+| C - HFT tail | P36, P38, P37, P39, P41, P42 | 14,500–15,500 | +61–72% |
 
 **Phase A implementation (2026-06-22, code landed; gates pending)**
 

@@ -14,7 +14,7 @@
 #   AVALPDF_BIN       Path to avalpdf CLI (default: <repo>/.pdf-validators/venv/bin/avalpdf)
 #   VERIFY_STRUCTURE_TREE  Run structure_tree_check.py on compliance PDFs (default: 1)
 #   VERIFY_AVALPDF    Run avalpdf on compliance PDFs (default: 1)
-#   VERIFY_AVALPDF_STRICT  Fail on avalpdf issues (default: 0 — warnings only)
+#   VERIFY_AVALPDF_STRICT  Fail on avalpdf issues (default: 0 - warnings only)
 #
 # Post-test manifest is built from:
 #   - Every sampledata/**/generated.* baseline (excluding oldata/)
@@ -458,7 +458,7 @@ verify_manifest_entry() {
         if [[ "${tolerance}" == "skip" ]]; then
             local gen_size
             gen_size=$(stat -c '%s' "${generated}")
-            print_info "size: ${gen_size} bytes (baseline ${baseline_rel} present — size check skipped; live HTML output)"
+            print_info "size: ${gen_size} bytes (baseline ${baseline_rel} present - size check skipped; live HTML output)"
         else
             local baseline="${SAMPLEDATA}/${baseline_rel}"
             if [[ ! -f "${baseline}" ]]; then
@@ -479,7 +479,7 @@ verify_manifest_entry() {
     else
         local gen_size
         gen_size=$(stat -c '%s' "${generated}")
-        print_info "size: ${gen_size} bytes (no baseline — size variance check skipped)"
+        print_info "size: ${gen_size} bytes (no baseline - size variance check skipped)"
     fi
 
     if [[ -n "${flavours_csv}" && "${media}" == "pdf" ]]; then
@@ -798,7 +798,7 @@ scan_all() {
         python3 "${VERAPDF_REPORT}" table --sampledata "${SAMPLEDATA}/" "${compliance_json_files[@]}"
         echo ""
     fi
-    echo "Summary: ${total} PDFs — ${valid} valid, ${invalid} invalid"
+    echo "Summary: ${total} PDFs - ${valid} valid, ${invalid} invalid"
 }
 
 case "${1:-}" in

@@ -10,5 +10,5 @@ PASS
 ok  	github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf	21.215s
 
 # Post-Pass-2 snapshot (2026-05-25)
-# Rows2000: ~29 ms/op (Pass 1 baseline ~35-56 ms/op) — ~15-20% faster
+# Rows2000: ~29 ms/op (Pass 1 baseline ~35-56 ms/op) - ~15-20% faster
 # WrapEnabled: ~35-38 ms/op, 357K allocs (validates wrap path separately)

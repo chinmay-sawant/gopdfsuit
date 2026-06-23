@@ -52,7 +52,7 @@ func (d *BorrowedPDF) Release() {
 
 // pdfBufferPool reuses bytes.Buffer across PDF generations to reduce GC pressure.
 // Caps are sized from measured compliant Zerodha outputs (2026-06-22): retail 61,301 B,
-// active 73,835 B, HFT 2,291,942 B — each with headroom for post-content emit.
+// active 73,835 B, HFT 2,291,942 B - each with headroom for post-content emit.
 const (
 	retailPDFBufferCap    = 96 * 1024
 	activePDFBufferCap    = 128 * 1024
@@ -1360,7 +1360,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		pdfBuffer.WriteString("\nendobj\n")
 	}
 
-	// Generate Document ID (SHA-256 content hash + random hash — PDF spec requires
+	// Generate Document ID (SHA-256 content hash + random hash - PDF spec requires
 	// a content-based permanent identifier and a per-generation random identifier).
 	// SHA-256 is chosen over MD5 because modern amd64 CPUs provide AVX2 acceleration
 	// for SHA-256 that makes it ~2x faster than MD5 for bulk hashing.
@@ -2237,7 +2237,7 @@ func estimateTemplatePDFBufferSize(template models.PDFTemplate) int {
 	estimate := 192 * 1024
 	perCell := 96
 	if template.Config.TaggedPDF || template.Config.PDFACompliant {
-		// Tagged PDFs emit one StructElem per cell on the compliant path —
+		// Tagged PDFs emit one StructElem per cell on the compliant path -
 		// budget accordingly to avoid a mid-emit growSlice.
 		perCell = 192
 	}

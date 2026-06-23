@@ -51,7 +51,7 @@ Workload Mix: 80% Retail (1-page) | 15% Active Trader (2-3 page) | 5% HFT (50+ p
 | Throughput | 573.64 ops/sec | 1,134.71 ops/sec | **+98%** |
 | Avg Latency | 80.67 ms | 41.33 ms | **-49%** |
 | Min Latency | 71.88 ms | 2.02 ms | **-97%** |
-| Max Memory | N/A | 1,243.74 MB | — |
+| Max Memory | N/A | 1,243.74 MB | - |
 
 ## Comparison vs Zerodha Production
 
@@ -106,6 +106,6 @@ Workload Mix: 80% Retail (1-page) | 15% Active Trader (2-3 page) | 5% HFT (50+ p
 
 ## Summary
 
-`gopdflib` running on Go 1.26.4 achieves **1,134.71 ops/sec** on a single 24-core machine — nearly **double** the previous Go 1.24 throughput (573.64 ops/sec) and actually **surpasses** Zerodha's entire ~40-node production cluster (~1,000 ops/sec). Per-core efficiency is **~47.3 ops/sec/core** vs ~1.56 ops/sec/core for Typst.
+`gopdflib` running on Go 1.26.4 achieves **1,134.71 ops/sec** on a single 24-core machine - nearly **double** the previous Go 1.24 throughput (573.64 ops/sec) and actually **surpasses** Zerodha's entire ~40-node production cluster (~1,000 ops/sec). Per-core efficiency is **~47.3 ops/sec/core** vs ~1.56 ops/sec/core for Typst.
 
-Run 3 had a outlier max latency (3s) likely from GC or OS scheduling — the median throughput across 3 runs is still 1,134.71 ops/sec with 41.33 ms average latency.
+Run 3 had a outlier max latency (3s) likely from GC or OS scheduling - the median throughput across 3 runs is still 1,134.71 ops/sec with 41.33 ms average latency.

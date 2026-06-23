@@ -1,4 +1,4 @@
-# Zerodha gopdflib x10 pprof Optimization Checklist — compliant TR→TD path to 8000 ops/sec
+# Zerodha gopdflib x10 pprof Optimization Checklist - compliant TR→TD path to 8000 ops/sec
 
 **Date:** 2026-06-20
 **Workload:** `sampledata/gopdflib/zerodha`, 80% retail / 15% active / 5% HFT
@@ -21,7 +21,7 @@ regression documented in `20260617_k6_bench_regression_analysis.md`).
 - [x] **No compliance shortcuts.** HFT must keep emitting `TR → TD` with one `TD` per
       column, each carrying its own MCID. Do not collapse TDs into bare MCID leaves
       attached to `TR` (the `748163`-byte HFT output from the 2026-06-17 checklist is
-      explicitly out of scope — it skipped the hierarchy).
+      explicitly out of scope - it skipped the hierarchy).
 - [x] **No new key-based caches.** Do not add `sync.Map` / `map[structKey]…` caches keyed
       by `{row pointer, page, mcidBase, y}` or any equivalent content/output-affecting
       key. The existing bounded `sharedRowRenderCache` may stay as-is but must not be
@@ -33,7 +33,7 @@ regression documented in `20260617_k6_bench_regression_analysis.md`).
       `Signature` (ECDSA P-256 for retail).
 - [x] **HFT output size stays in the compliant band.** The current compliant HFT output
       is `2,291,955` bytes. Optimizations may shrink it only via better stream
-      compression or structure-tree compactness that veraPDF still accepts — never by
+      compression or structure-tree compactness that veraPDF still accepts - never by
       removing objects.
 - [x] **k6 must not regress.** Any change that passes x10 must also pass
       `make bench-k6-light` without heap growth above the 2026-06-17 recovery baseline
@@ -41,11 +41,11 @@ regression documented in `20260617_k6_bench_regression_analysis.md`).
 
 ## Compliance baseline (captured 2026-06-20, must hold after every item)
 
-**Latest gate (2026-06-20, post Phase 3):** `make test-verify-pdfs` — **36/36 PASS**
+**Latest gate (2026-06-20, post Phase 3):** `make test-verify-pdfs` - **36/36 PASS**
 (exit 0, ~29 s, 24 parallel workers). Zerodha 6/6 (retail/active/HFT × PDF/A-4 +
 PDF/UA-2). Editor temps 4/4 (2 PDFs × A-4/UA-2).
 
-veraPDF 1.30.2 (`./verapdf/verapdf`) — all three Zerodha outputs **PASS** today:
+veraPDF 1.30.2 (`./verapdf/verapdf`) - all three Zerodha outputs **PASS** today:
 
 | Output | Size (bytes) | PDF/A-4 | PDF/UA-2 |
 |--------|-------------:|:-------:|:--------:|
@@ -56,7 +56,7 @@ veraPDF 1.30.2 (`./verapdf/verapdf`) — all three Zerodha outputs **PASS** toda
 Final HFT size: **2,291,950 bytes** (5 bytes smaller than the 2026-06-20 baseline of
 `2,291,955`; the 5-byte drift is from the per-cell `appendDecimal` producing a 1-digit
 MCID for page 0 instead of the legacy `strconv.AppendInt` two-digit form on a few page-0
-TDs — within the ±5% tolerance and still 6/6 veraPDF). All six cells are green after
+TDs - within the ±5% tolerance and still 6/6 veraPDF). All six cells are green after
 every implemented P-item (see **P8 veraPDF validation gate**).
 
 ## Artifacts (fresh run, 2026-06-20)
@@ -73,12 +73,12 @@ GOMODCACHE=/tmp/gopdfsuit-go-mod-cache`) so the numbers reflect cold build + war
 
 ## Measurement summary
 
-### Baseline (2026-06-17 checklist, pre TR→TD hardening — non-compliant HFT)
+### Baseline (2026-06-17 checklist, pre TR→TD hardening - non-compliant HFT)
 
 | Metric | Value | Notes |
 |--------|------:|-------|
 | Best throughput | 10,531.99 ops/sec | HFT output `748,163` bytes (skipped TR→TD) |
-| Mean throughput | 7,438.64 ops/sec | **Not acceptable** as a target — compliance was skipped |
+| Mean throughput | 7,438.64 ops/sec | **Not acceptable** as a target - compliance was skipped |
 | Median throughput | 7,224.21 ops/sec | |
 | Mean peak allocated | 585.84 MB | |
 
@@ -162,7 +162,7 @@ directly from `acquireArenaSlabForCapacity` and `WarmArenaSlabPool(6)`.
 | x10 median throughput | **9,680.69 ops/sec** (Phase 4 idle) | ≥ 8,000 ops/sec | **+1,680.69 ops/sec (met)** |
 | x10 best throughput | **10,004.50 ops/sec** (Phase 4 idle) | ≥ 8,000 ops/sec | **+2,004.50 ops/sec (met)** |
 | Mean peak allocated | **1,198.81 MB** (Phase 3) | ≤ 600 MB | −598.81 MB |
-| HFT output size | 2,291,950 bytes | stable ±5% | — |
+| HFT output size | 2,291,950 bytes | stable ±5% | - |
 | veraPDF A-4 / UA-2 (all 3) | 6/6 PASS | 6/6 PASS | hold |
 
 **Status:** mean throughput went from 2,799 → 5,543 (Phase 2) → 7,432 (Phase 3) →
@@ -170,7 +170,7 @@ directly from `acquireArenaSlabForCapacity` and `WarmArenaSlabPool(6)`.
 **met** (+19.9% margin). Best single run **10,005 ops/sec**.
 
 **Output-size check:** retail `61,293` and active `76,065` are unchanged from every prior
-checklist. HFT is `2,291,950` bytes — the compliant TR→TD size, within ±5% of the
+checklist. HFT is `2,291,950` bytes - the compliant TR→TD size, within ±5% of the
 2026-06-20 baseline. This is the size to keep stable (±5%) for every item below.
 
 ## Current CPU profile (representative, **post-optimization**)
@@ -179,56 +179,56 @@ Representative profile: `guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_
 (Baseline captured 2026-06-20 before any code change; `cpu_zerodha_run3.prof` after
 applying P2/P3/P4/P5/P6 + the P3+ extras. Re-captured 2026-06-20 14:21 with
 `make bench-gopdflib-zerodha-x10-pprof` after the close-out pass.)
-Total samples: 22.93 s over 1.20 s wall (1913% — 24-core saturation)
+Total samples: 22.93 s over 1.20 s wall (1913% - 24-core saturation)
 
 | Hotspot | Baseline cum | Baseline flat | Post-opt cum (fresh) | Post-opt flat (fresh) | Status |
 |---------|-------------:|--------------:|---------------------:|----------------------:|--------|
-| `GenerateTemplatePDFBorrowed` | — | — | 93.24% / 21.38 s | 3.18% / 0.73 s | Top-level (retail+active+HFT) |
-| `generateAllContentWithImages` | 20.90% / 6.18 s | 0% | 22.81% / 5.23 s | 0.09% | Holds — top cum gate (content emit) |
-| `drawTable` | 19.72% / 5.83 s | 0.54% / 0.16 s | 21.46% / 4.92 s | 0.61% / 0.14 s | Holds — HFT table render |
-| `formatStructElemObjectTo` | 21.61% / 6.39 s | 8.49% / 2.51 s | **14.04% / 3.22 s** | **4.71% / 1.08 s** | **Improved** (devirtualised + `appendDecimal`) — still top gate |
-| `drawSharedLayoutRow` | 12.01% / 3.55 s | 0.03% | 12.52% / 2.87 s | 0.09% | Holds — HFT row render |
-| `formatSingleMCIDTableCellStructElem` | 10.52% / 3.11 s | 5.55% / 1.64 s | **8.55% / 1.96 s** | **6.89% / 1.58 s** | **Improved** (fast path + `appendDecimal`) — guard is now the flat cost (930 ms on `elem==nil/Kids/HasMCID`) |
-| `BeginTableRowWithTDMCIDs` | 9.13% / 2.70 s | 0.61% / 0.18 s | 9.29% / 2.13 s | 0.52% / 0.12 s | Holds — HFT TR→TD allocator |
-| `acquireStructElem` | 7.20% / 2.13 s | 0.27% | 7.54% / 1.73 s | 1.79% / 0.41 s | **`structElemPool.Get()` alone is 1.23 s — the single biggest line in the profile** |
-| `GenerateGrayICCProfileObject` | n/a | n/a | **5.49% / 1.26 s** | 0% | **New gate** — rebuilds static ICC profile per PDF (`math.Pow` × 1024). Hits all 3 templates. |
-| `ReleaseStructElemsToPool` | 7.64% / 2.26 s | 0.01% | 7.20% / 1.65 s | 0.17% | Holds — pool Put walk |
-| `math.pow` (via ICC profile) | n/a | n/a | 3.62% / 0.83 s | 1.10% / 0.11 s | **New gate** — `math.Pow(x, 1.0/2.4)` × 1024 per PDF in `buildGrayICCProfile` + `buildSRGBICCProfile` |
+| `GenerateTemplatePDFBorrowed` | - | - | 93.24% / 21.38 s | 3.18% / 0.73 s | Top-level (retail+active+HFT) |
+| `generateAllContentWithImages` | 20.90% / 6.18 s | 0% | 22.81% / 5.23 s | 0.09% | Holds - top cum gate (content emit) |
+| `drawTable` | 19.72% / 5.83 s | 0.54% / 0.16 s | 21.46% / 4.92 s | 0.61% / 0.14 s | Holds - HFT table render |
+| `formatStructElemObjectTo` | 21.61% / 6.39 s | 8.49% / 2.51 s | **14.04% / 3.22 s** | **4.71% / 1.08 s** | **Improved** (devirtualised + `appendDecimal`) - still top gate |
+| `drawSharedLayoutRow` | 12.01% / 3.55 s | 0.03% | 12.52% / 2.87 s | 0.09% | Holds - HFT row render |
+| `formatSingleMCIDTableCellStructElem` | 10.52% / 3.11 s | 5.55% / 1.64 s | **8.55% / 1.96 s** | **6.89% / 1.58 s** | **Improved** (fast path + `appendDecimal`) - guard is now the flat cost (930 ms on `elem==nil/Kids/HasMCID`) |
+| `BeginTableRowWithTDMCIDs` | 9.13% / 2.70 s | 0.61% / 0.18 s | 9.29% / 2.13 s | 0.52% / 0.12 s | Holds - HFT TR→TD allocator |
+| `acquireStructElem` | 7.20% / 2.13 s | 0.27% | 7.54% / 1.73 s | 1.79% / 0.41 s | **`structElemPool.Get()` alone is 1.23 s - the single biggest line in the profile** |
+| `GenerateGrayICCProfileObject` | n/a | n/a | **5.49% / 1.26 s** | 0% | **New gate** - rebuilds static ICC profile per PDF (`math.Pow` × 1024). Hits all 3 templates. |
+| `ReleaseStructElemsToPool` | 7.64% / 2.26 s | 0.01% | 7.20% / 1.65 s | 0.17% | Holds - pool Put walk |
+| `math.pow` (via ICC profile) | n/a | n/a | 3.62% / 0.83 s | 1.10% / 0.11 s | **New gate** - `math.Pow(x, 1.0/2.4)` × 1024 per PDF in `buildGrayICCProfile` + `buildSRGBICCProfile` |
 | `runtime.memmove` | (in `bytes.growSlice`) | n/a | 5.63% / 1.29 s | 5.63% | pdfBuffer grow + slab copy |
-| `resetStructElemForPool` | 5.95% / 1.76 s | 4.80% / 1.42 s | 5.58% / 1.28 s | 4.93% / 1.13 s | Holds — selective field clear |
-| `GenerateTemplatePDFBorrowed.func6` (assignStructIDs) | n/a | n/a | **9.46% / 2.17 s** | 4.67% / 1.07 s | **New gate** — recursive `assignStructIDs` walk (same pattern as the already-fixed `writeStructElems` walk) |
-| `runtime.mapassign_fast64` (xrefOffsets) | n/a | n/a | 5.58% / 1.28 s | 0.35% | **New gate** — 16K map writes per HFT for `xrefOffsets[elem.ObjectID] = pdfBuffer.Len()` |
+| `resetStructElemForPool` | 5.95% / 1.76 s | 4.80% / 1.42 s | 5.58% / 1.28 s | 4.93% / 1.13 s | Holds - selective field clear |
+| `GenerateTemplatePDFBorrowed.func6` (assignStructIDs) | n/a | n/a | **9.46% / 2.17 s** | 4.67% / 1.07 s | **New gate** - recursive `assignStructIDs` walk (same pattern as the already-fixed `writeStructElems` walk) |
+| `runtime.mapassign_fast64` (xrefOffsets) | n/a | n/a | 5.58% / 1.28 s | 0.35% | **New gate** - 16K map writes per HFT for `xrefOffsets[elem.ObjectID] = pdfBuffer.Len()` |
 | `runtime.memclrNoHeapPointers` | 5.99% / 1.77 s | 5.99% | 4.67% / 1.07 s | 4.67% | Improved (was 7.77% in earlier capture) |
-| `MarkCharsUsed` (font subsetting) | n/a | n/a | 2.53% / 0.58 s | 1.13% / 0.26 s | **New gate** — mutex + map writes, called twice per cell (once in `markSharedTableCharsUsed`, once in `drawSharedDeferRow`) |
-| `signature.SignPDF` + `embedSignatureInPlace` + `createPKCS7SignedData` | n/a | n/a | 3.66% + 3.58% + 2.44% / ~1.6 s | — | **New gate (retail-only, 80% of workload)** — ECDSA P-256 + PKCS7 ASN.1 marshal per retail PDF |
-| `compress/flate` close + init | ~6% / ~1.78 s | — | 3.18% / 0.73 s | — | Holds (P7) |
+| `MarkCharsUsed` (font subsetting) | n/a | n/a | 2.53% / 0.58 s | 1.13% / 0.26 s | **New gate** - mutex + map writes, called twice per cell (once in `markSharedTableCharsUsed`, once in `drawSharedDeferRow`) |
+| `signature.SignPDF` + `embedSignatureInPlace` + `createPKCS7SignedData` | n/a | n/a | 3.66% + 3.58% + 2.44% / ~1.6 s | - | **New gate (retail-only, 80% of workload)** - ECDSA P-256 + PKCS7 ASN.1 marshal per retail PDF |
+| `compress/flate` close + init | ~6% / ~1.78 s | - | 3.18% / 0.73 s | - | Holds (P7) |
 | `strconv.AppendInt` | 4.63% / 1.37 s | 2.13% / 0.63 s | <1% | <1% | **Eliminated** in the structure writer |
 
 **Single biggest insight (revised after fresh profile):** the per-PDF CPU is now
 dominated by four independent clusters, each addressable without breaking
 compliance:
 
-1. **`structElemPool.Get()` = 1.23 s** — sync.Pool atomic + per-call overhead on
+1. **`structElemPool.Get()` = 1.23 s** - sync.Pool atomic + per-call overhead on
    3.5M `acquireStructElem` calls (HFT TR→TD). The P1 arena was reverted for
    memory reasons; the right fix is a **per-worker (per-P) arena slab pool** so
    the slab is pinned to the local P and never contends.
-2. **`assignStructIDs` recursive walk = 2.17 s** — the second recursive
+2. **`assignStructIDs` recursive walk = 2.17 s** - the second recursive
    structure-tree walk that was *not* converted in the P3+ pass. Same fix as
    `writeStructElems`: iterate over the flat `sm.Elements` slice.
-3. **`GenerateGrayICCProfileObject` + `math.pow` = ~2.1 s combined** — a
+3. **`GenerateGrayICCProfileObject` + `math.pow` = ~2.1 s combined** - a
    *static* 4 KB ICC profile is recomputed for every PDF via 1024 `math.Pow`
    calls + zlib compression. **This hits retail, active, AND HFT** (every
    PDF/A-4 needs the ICC profile). Trivial fix: cache the compressed bytes
    once at `init`.
-4. **`xrefOffsets` map = 1.28 s** — 16K `map[int]int` writes per HFT. Replace
+4. **`xrefOffsets` map = 1.28 s** - 16K `map[int]int` writes per HFT. Replace
    with a pre-sized `[]int` indexed by `ObjectID` (ObjectIDs are sequential).
 
 Plus two smaller but clear wins:
 
-5. **`MarkCharsUsed` double-scan = 580 ms** — `markSharedTableCharsUsed` walks
+5. **`MarkCharsUsed` double-scan = 580 ms** - `markSharedTableCharsUsed` walks
    every cell once, then `drawSharedDeferRow` walks every cell again. Drop the
    per-row call when the pre-pass already ran.
-6. **Signature path = ~1.6 s (retail only)** — `SignPDF` does SHA-256 + ECDSA
+6. **Signature path = ~1.6 s (retail only)** - `SignPDF` does SHA-256 + ECDSA
    P-256 + PKCS7 ASN.1 marshal per retail PDF. Retail is 80% of the workload
    (4000 of 5000 iterations), so this is a significant total-CPU contributor
    even though it doesn't touch HFT. Pool the ASN.1 marshal buffers.
@@ -238,11 +238,11 @@ Plus two smaller but clear wins:
 Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof` (re-captured
 2026-06-20 14:21 with the close-out build).
 
-### In-use space (509.54 MB total — down from 719 MB baseline)
+### In-use space (509.54 MB total - down from 719 MB baseline)
 
 | Hotspot | In-use | % | Status |
 |---------|-------:|---:|--------|
-| `bytes.growSlice` | **313.10 MB** | 61.45% | **Top gate** — pdfBuffer growth (all 3 templates) |
+| `bytes.growSlice` | **313.10 MB** | 61.45% | **Top gate** - pdfBuffer growth (all 3 templates) |
 | `init.func4` | 73.02 MB | 14.33% | Static ICC/font payload |
 | `compress/flate.NewWriter` | 19.39 MB | 3.81% | Holds (P7) |
 | `sync.(*poolChain).pushHead` | 11.43 MB | 2.24% | Pool overhead |
@@ -253,15 +253,15 @@ Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof` (re-capt
 | `BeginStructureElementCap` | 3.56 MB | 0.70% | TR grouping elems |
 | `drawSharedLayoutRow` | 3.00 MB | 0.59% | Holds (P6) |
 | `drawTable` cum | 282.21 MB | 55.39% | Content + struct tree |
-| `GenerateGrayICCProfileObject` cum | 35.73 MB | 7.01% | **New gate** — ICC profile per PDF |
+| `GenerateGrayICCProfileObject` cum | 35.73 MB | 7.01% | **New gate** - ICC profile per PDF |
 | `font.CompressContentStreamCached` cum | 28.06 MB | 5.51% | Holds |
 | `signature.createPKCS7SignedData` cum | 4.50 MB | 0.88% | Retail PKCS7 |
 
-### Alloc space (1,742.17 MB total — down from 2,473 MB baseline)
+### Alloc space (1,742.17 MB total - down from 2,473 MB baseline)
 
 | Hotspot | Alloc | % | Status |
 |---------|------:|---:|--------|
-| `bytes.growSlice` | **784.62 MB** | 45.04% | **Top gate** — pdfBuffer (all 3 templates) |
+| `bytes.growSlice` | **784.62 MB** | 45.04% | **Top gate** - pdfBuffer (all 3 templates) |
 | `GenerateTemplatePDFBorrowed` cum | 1,660.27 MB | 95.30% | Top-level |
 | `strings.(*Builder).WriteString` | 98.98 MB | 5.68% | Slow-path structure writer |
 | `init.func4` | 75.02 MB | 4.31% | Static |
@@ -272,24 +272,24 @@ Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof` (re-capt
 | `drawTable` cum | 394.87 MB | 22.67% | Content + struct tree |
 | `BeginStructureElementCap` | 30.93 MB | 1.78% | TR grouping |
 | `encoding/asn1.MarshalWithParams` | 21.54 MB | 1.24% | **Retail signature PKCS7** |
-| `GenerateGrayICCProfileObject` cum | 106.80 MB | 6.13% | **New gate** — ICC profile rebuilt per PDF |
+| `GenerateGrayICCProfileObject` cum | 106.80 MB | 6.13% | **New gate** - ICC profile rebuilt per PDF |
 | `buildSRGBICCProfile` | 12.03 MB | 0.69% | sRGB ICC profile (also per-PDF) |
 | `signature.createPKCS7SignedData` cum | 39.04 MB | 2.24% | Retail PKCS7 |
 | `font.MarkCharsUsed` | 11.51 MB | 0.66% | Font subsetting map writes |
 | `font.AppendTextForCustomFont` | 11.50 MB | 0.66% | HFT text emit |
 
-### In-use objects (741,028 total — down from 1,894,311 baseline)
+### In-use objects (741,028 total - down from 1,894,311 baseline)
 
 | Hotspot | Objects | % | Status |
 |---------|--------:|---:|--------|
 | `init.func4` | 265,852 | 35.88% | Static |
 | `drawTable` cum | 87,629 | 11.83% | Per-cell allocations |
-| `internal/strconv.AppendUint` | 65,537 | 8.84% | **New gate** — `strconv.AppendUint` in non-hot paths |
+| `internal/strconv.AppendUint` | 65,537 | 8.84% | **New gate** - `strconv.AppendUint` in non-hot paths |
 | `resetStructElemForPool` | 43,691 | 5.90% | Holds (P2) |
 | `buildHFTTemplate` | 34,134 | 4.61% | HFT template rows (one-time) |
 | `encoding/asn1.makeField` | 32,769 | 4.42% | **Retail signature PKCS7** |
 | `signature.createSignatureAppearance` | 32,768 | 4.42% | **Retail signature appearance** |
-| `internal/strconv.FormatInt` | 32,768 | 4.42% | **New gate** — `strconv.FormatInt` in non-hot paths |
+| `internal/strconv.FormatInt` | 32,768 | 4.42% | **New gate** - `strconv.FormatInt` in non-hot paths |
 | `acquireStructKids` | 18,726 | 2.53% | TR Kids slice pool |
 | `font.MarkCharsUsed` | 18,204 | 2.46% | Font subsetting |
 | `signature.createPKCS7SignedData` cum | 50,470 | 6.81% | Retail PKCS7 |
@@ -297,17 +297,17 @@ Profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof` (re-capt
 
 ## Priority checklist
 
-### P0 — Harness and measurement hygiene
+### P0 - Harness and measurement hygiene
 
 - [x] Keep `bench-gopdflib-zerodha-x10-pprof` as the single make target for timing + profile.
 - [x] Always run with `GOCACHE=/tmp/gopdfsuit-go-build-cache GOMODCACHE=/tmp/gopdfsuit-go-mod-cache` to avoid stale build cache skewing x10.
 - [x] Use x10 **mean** as the regression gate; x10 best is informational only.
 - [x] After every code change, re-run x10 (not just x5) before claiming a win.
 - [x] Capture `zerodha_bench_x10_wsl_stats_latest.txt` after every accepted change so the file reflects the current commit, not a stale run.
-- [x] Run x10 on an idle machine (no parallel benchmarks, no browser, no Docker). The 2026-06-20 mean of 2,799 is partly load-depressed vs the 2026-06-19 mean of 3,590 — do not compare across load conditions.
-- [ ] **Gate:** x10 mean ≥ 8,000 ops/sec, stddev ≤ 600 ops/sec, mean peak allocated ≤ 600 MB. **Partially met (Phase 2)** — stddev 114.77 (✓ ≤ 600), mean 5,543 (✗, target 8,000, **−30.7%**), peak 1,064 MB (✗, target 600, **+464 MB over**).
+- [x] Run x10 on an idle machine (no parallel benchmarks, no browser, no Docker). The 2026-06-20 mean of 2,799 is partly load-depressed vs the 2026-06-19 mean of 3,590 - do not compare across load conditions.
+- [ ] **Gate:** x10 mean ≥ 8,000 ops/sec, stddev ≤ 600 ops/sec, mean peak allocated ≤ 600 MB. **Partially met (Phase 2)** - stddev 114.77 (✓ ≤ 600), mean 5,543 (✗, target 8,000, **−30.7%**), peak 1,064 MB (✗, target 600, **+464 MB over**).
 
-### P1 — HFT TR→TD struct-element allocation (highest impact, no compliance shortcut)
+### P1 - HFT TR→TD struct-element allocation (highest impact, no compliance shortcut)
 
 **Goal:** Make `BeginTableRowWithTDMCIDs` allocate ~14,000 TD `*StructElem` per HFT PDF
 without going through `sync.Pool` Get/Put churn.
@@ -316,13 +316,13 @@ without going through `sync.Pool` Get/Put churn.
 and a 9-field selective reset; `ReleaseStructElemsToPool` walks every elem and calls
 `resetStructElemForPool`. For HFT this is the single largest CPU + alloc cost.
 
-**Status: implemented in two parts — pool with selective reset, plus a reverted arena
+**Status: implemented in two parts - pool with selective reset, plus a reverted arena
 prototype.** Final: per-PDF arena prototype was implemented (per-SM slab, bump
 allocator, lazy field reset, pre-sized `Elements`/`tr.Kids`); it was reverted because
 each per-SM 4 MB slab caused 1 GB of live-heap pressure across 48 workers between
 GCPause cycles (the global `sync.Pool` does not have this problem because it pins the
 slab in `localP` for the lifetime of the worker). The **per-element selective reset
-remains** — only the per-SM slab was reverted. The test
+remains** - only the per-SM slab was reverted. The test
 `TestBeginTableRowWithTDMCIDs_arenaAllocates` covers the structural assertions
 (TR → TD shape, `tr.Kids` count, `ReleaseStructElemsToPool` resets `Elements` to
 root-only).
@@ -330,22 +330,22 @@ root-only).
 - [x] Add a **per-document struct-element arena** (a `[]StructElem` slab plus a free
       index) owned by `*StructureManager`. Allocate TD cells from the arena in
       `BeginTableRowWithTDMCIDs` instead of `structElemPool.Get()`. **Implemented and
-      reverted** — see status note.
+      reverted** - see status note.
 - [x] Keep the arena scoped to one PDF: allocate on `StructureManager` init, free on
       `ReleaseStructElemsToPool`. No global state, no key-based cache, no cross-request
       retention. **Implemented and reverted.**
 - [x] Pre-size the arena from the template shape (sum of `len(table.Rows) ×
       table.MaxColumns` for SharedRowLayout tables, plus a constant for non-shared
-      elements). Use `ReserveElementCapacity` as the entry point. **Partially** — the
+      elements). Use `ReserveElementCapacity` as the entry point. **Partially** - the
       per-SM `Elements` slice is pre-sized by `ReserveElementCapacity`; the slab
       pre-sizing was reverted with the arena.
 - [x] Replace the `*e = StructElem{}` zero in `acquireStructElem` with a lazy reset
-      that only clears fields the caller is about to set. **Done** — the Get-side reset
+      that only clears fields the caller is about to set. **Done** - the Get-side reset
       clears `Type, Title, Alt, Lang, MCID, HasMCID, ObjectID, AnnotObjID, PageID,
       Parent` (9 fields, ≈80 bytes/elem) instead of the 256-byte `StructElem{}` memclr.
 - [x] In `ReleaseStructElemsToPool`, skip the per-elem `resetStructElemForPool` walk for
       arena-owned nodes; just drop the whole arena. Keep the existing walk only for the
-      small number of non-arena (pool) nodes used by retail/active. **Partially** —
+      small number of non-arena (pool) nodes used by retail/active. **Partially** -
       arena path reverted; the pool-path walk is still in place.
 - [x] Keep `StructKid` slice pooling (`acquireStructKids` / `releaseStructKids`) for TR
       Kids; pre-size `tr.Kids` to `count` in `BeginTableRowWithTDMCIDs` so the 7-appends
@@ -355,51 +355,51 @@ root-only).
       slab. **Done** (asserts shape + `ReleaseStructElemsToPool` resets `Elements` to
       root-only).
 - [ ] **Gate:** `BeginTableRowWithTDMCIDs` cum CPU ≤ 3%, alloc-space ≤ 60 MB,
-      in-use-objects ≤ 50,000. **Not met** — 8.61% cum (improved from 9.13% but still
+      in-use-objects ≤ 50,000. **Not met** - 8.61% cum (improved from 9.13% but still
       above the 3% target).
 
 **Files:** `internal/pdf/structure.go`, `internal/pdf/structure_test.go`
 **Estimated gain:** +2,500–3,500 ops/sec (removes the largest single regression)
-**Risk:** Medium — must keep `TR → TD` veraPDF-valid; arena must not alias across
+**Risk:** Medium - must keep `TR → TD` veraPDF-valid; arena must not alias across
 concurrent PDFs (one `StructureManager` per PDF already guarantees this).
 **Actual gain:** +~1,000 ops/sec (selective reset only; arena reverted).
 
-### P2 — Struct-element pool reset cost (memclr reduction)
+### P2 - Struct-element pool reset cost (memclr reduction)
 
 **Goal:** Remove the 1.42 s flat `runtime.memclrNoHeapPointers` cost in
 `resetStructElemForPool`.
 
 - [x] Audit `resetStructElemForPool` (line 187): the field-by-field assignment is
-      compiled to individual stores, not a single memclr — but `acquireStructElem`'s
+      compiled to individual stores, not a single memclr - but `acquireStructElem`'s
       `*e = StructElem{}` IS a memclr. Eliminate the Get-side zero (P1 handles the
       arena path; for the remaining pool path, only zero fields the caller will read
-      before writing). **Done** — the Get-side zero is gone; `acquireStructElem` now
+      before writing). **Done** - the Get-side zero is gone; `acquireStructElem` now
       does 9 field stores (≈80 bytes/elem) instead of a 256-byte memclr.
 - [x] For pool-retained nodes (retail/active), change `resetStructElemForPool` to clear
-      only `Kids`, `Parent`, `ObjectID`, `PageID`, `AnnotObjID`, `HasMCID` — leave
+      only `Kids`, `Parent`, `ObjectID`, `PageID`, `AnnotObjID`, `HasMCID` - leave
       `Type/Title/Alt/Lang/MCID` to be overwritten by the next `BeginStructureElement*`
       caller. Add a debug-mode invariant test that asserts no stale fields leak.
-      **Partially done** — `resetStructElemForPool` now clears only the `Kids` slice
+      **Partially done** - `resetStructElemForPool` now clears only the `Kids` slice
       and releases it to the pool; the per-field clear moved to the Get side. No
       invariant test yet (the existing `TestBeginTableRowWithTDMCIDs_arenaAllocates`
       test exercises the same path and would catch a regression).
 - [x] Drop the `releaseStructKids` cap band (`cap < 1 || cap > 64`) to a single
       threshold and avoid the double-bound check on every release. **Done**.
 - [ ] **Gate:** `resetStructElemForPool` flat CPU ≤ 1.5%, `runtime.memclrNoHeapPointers`
-      flat CPU ≤ 2%. **Not met** — `resetStructElemForPool` flat is 4.26%, and
+      flat CPU ≤ 2%. **Not met** - `resetStructElemForPool` flat is 4.26%, and
       `memclrNoHeapPointers` flat is 7.77% (up from 5.99%; the increase is GC-side
       zeroing of freed pages, not our explicit `*e = StructElem{}` calls).
 
 **Files:** `internal/pdf/structure.go`, `internal/pdf/structure_test.go`
 **Estimated gain:** +600–1,000 ops/sec
-**Risk:** Low–Medium — must not leak stale `Title`/`Alt`/`Lang` into the next PDF. Cover
+**Risk:** Low–Medium - must not leak stale `Title`/`Alt`/`Lang` into the next PDF. Cover
 with a test that reuses a pool node across two generations and checks output bytes are
 identical.
 **Actual gain:** ~+500 ops/sec (selective clear reduced per-elem write traffic; the
 remaining 4.26% is the field-by-field clear on Put, which the checklist's gate would
 need to drop further).
 
-### P3 — Structure-tree writer direct buffer writes
+### P3 - Structure-tree writer direct buffer writes
 
 **Goal:** Cut `formatStructElemObjectTo` (21.61% cum) and
 `formatSingleMCIDTableCellStructElem` (10.52% cum) by writing TD leaves directly to the
@@ -410,38 +410,38 @@ final PDF buffer without per-call `strconv.AppendInt` to a stack scratch.
       `0 R` suffixes). Replace the 5× `strconv.AppendInt(scratch[:0], …)` +
       `writeStructElemBytes` calls with a single `appendStructElemTDLeaf(buf, elem, ctx)`
       that appends all integers in one pass using a shared `[64]byte` scratch on the
-      caller's stack. **Done** — single `[128]byte` scratch + `appendDecimal` + one
+      caller's stack. **Done** - single `[128]byte` scratch + `appendDecimal` + one
       `pdfBuffer.Write` flush.
 - [x] Pre-compute the `/P <rootID> 0 R` prefix once per `formatStructElemObjectTo`
       call batch and reuse for all TDs that share the same parent (HFT rows share one
-      `TR` parent for 7 TDs). **Done** — the parent ID is inlined per TD via
+      `TR` parent for 7 TDs). **Done** - the parent ID is inlined per TD via
       `appendDecimal(elem.Parent.ObjectID)`; the ` /P ` and ` 0 R /K [ ` literals are
       compile-time constants.
 - [x] In `formatStructElemObjectTo` (line 1495), replace the per-kid
       `appendObjRefToWriter` (which does its own `strconv.AppendInt` + `WriteString`)
       with a batched loop that writes `" <id> 0 R"` for all kids into one
       `[]byte` then a single `w.Write`. This removes the 305,841 in-use objects from
-      `appendObjRefToWriter`. **Done** — kid-walk inlined in the same stack-backed
+      `appendObjRefToWriter`. **Done** - kid-walk inlined in the same stack-backed
       buffer; `appendObjRefToWriter` deleted.
 - [x] Keep the `formatSingleMCIDTableCellStructElem` fast-path guard exactly as-is
       (`len(Kids) == 0 && HasMCID && (TD||TH) && no Title/Alt && Parent != nil`) so the
       generic formatter is never reached for HFT cells. **Done**.
 - [ ] **Gate:** `formatStructElemObjectTo` cum CPU ≤ 9%, flat ≤ 4%.
       `formatSingleMCIDTableCellStructElem` cum CPU ≤ 5%, flat ≤ 2.5%.
-      `appendObjRefToWriter` in-use-objects ≤ 30,000. **Partially met** —
+      `appendObjRefToWriter` in-use-objects ≤ 30,000. **Partially met** -
       `formatSingleMCIDTableCellStructElem` cum 7.40% (was 10.52%, improved but still
       > 5%), flat 5.88% (> 2.5%); `formatStructElemObjectTo` cum 13.68% (> 9%);
       `appendObjRefToWriter` is **gone from the top 25 tables** (✓).
 
 **Files:** `internal/pdf/generator.go`, `internal/pdf/structure_writer_test.go` (new)
 **Estimated gain:** +1,500–2,200 ops/sec
-**Risk:** Medium — output bytes must be byte-identical to current. Add a golden-bytes
+**Risk:** Medium - output bytes must be byte-identical to current. Add a golden-bytes
 test `TestFormatStructElemTDLeaf_StableOutput` comparing the full struct-tree stream
 before/after.
-**Actual gain:** ~+800 ops/sec (the cumulative win is captured across P3/P4/P5/P6 —
+**Actual gain:** ~+800 ops/sec (the cumulative win is captured across P3/P4/P5/P6 -
 cumulative +2,469 ops/sec total).
 
-### P4 — `appendObjRefToWriter` allocation cleanup
+### P4 - `appendObjRefToWriter` allocation cleanup
 
 **Goal:** Remove the 71 MB alloc-space / 305,841 in-use objects from
 `appendObjRefToWriter`.
@@ -449,22 +449,22 @@ cumulative +2,469 ops/sec total).
 - [x] Inline `appendObjRefToWriter` at its three call sites in
       `formatStructElemObjectTo` and use the caller's existing `scratch [24]byte`
       instead of allocating a new one each call (line 1618 declares a fresh scratch per
-      call). **Done** — kid-walk inlined.
+      call). **Done** - kid-walk inlined.
 - [x] Convert the `writeStructElemBytes(w, scratch[:0])` pattern to
       `w.Write(strconv.AppendInt(scratch[:0], …))` directly, dropping the
-      `writeStructElemBytes` indirection for the hot integer path. **Done** — the
+      `writeStructElemBytes` indirection for the hot integer path. **Done** - the
       whole body now goes through one stack-backed `[]byte` + one `pdfBuffer.Write`.
 - [x] After inlining, remove `appendObjRefToWriter` if no other callers remain (grep
-      first). **Done** — deleted.
+      first). **Done** - deleted.
 - [x] **Gate:** `appendObjRefToWriter` no longer appears in the top 25 alloc-space or
-      in-use-objects tables. **Met** — confirmed in `heap_zerodha.prof` post-opt.
+      in-use-objects tables. **Met** - confirmed in `heap_zerodha.prof` post-opt.
 
 **Files:** `internal/pdf/generator.go`
 **Estimated gain:** +400–700 ops/sec (mostly GC pressure relief)
-**Risk:** Low — mechanical inlining; output unchanged.
+**Risk:** Low - mechanical inlining; output unchanged.
 **Actual gain:** folded into the cumulative +2,469 ops/sec.
 
-### P5 — HFT-aware buffer capacity estimation (bytes.growSlice 420 MB in-use)
+### P5 - HFT-aware buffer capacity estimation (bytes.growSlice 420 MB in-use)
 
 **Goal:** Cut `bytes.growSlice` in-use from 420 MB to ≤ 200 MB and alloc-space from
 1,137 MB to ≤ 500 MB by sizing the final PDF buffer and page content streams to the
@@ -472,61 +472,61 @@ cumulative +2,469 ops/sec total).
 
 **Root cause:** The 2026-06-17 checklist tuned `estimateFinalPDFSize` and
 `estimateInitialContentStreamCap` against a `748,163`-byte HFT output. The compliant
-HFT output is `2,291,955` bytes — 3.06× larger. Every HFT generation now grows its
+HFT output is `2,291,955` bytes - 3.06× larger. Every HFT generation now grows its
 buffers multiple times.
 
 - [x] Re-measure per-template final PDF sizes for the **compliant** outputs:
       retail `61,293`, active `76,065`, HFT `2,291,955`. Update the size table in
-      `estimateFinalPDFSize` (`internal/pdf/generator.go`). **Done** — detects HFT via
+      `estimateFinalPDFSize` (`internal/pdf/generator.go`). **Done** - detects HFT via
       `len(elements) > 1500 && avg kids >= 3` and bumps the per-element allowance to
       128 bytes.
 - [x] Update `estimateInitialContentStreamCap(template)` to account for the per-page
       TD struct-element overhead in the content stream BDC/EMC emission. The HFT
       content stream now carries one BDC/EMC pair per TD cell, not one per row.
-      **Done** — raised to 320 bytes/row and the page-cap to 256 KiB.
+      **Done** - raised to 320 bytes/row and the page-cap to 256 KiB.
 - [x] Split the page content stream pool buckets by capacity class so a 2 MB HFT page
       buffer does not get returned to the 256 KB retail bucket (and vice versa). The
-      2026-06-17 checklist already split buckets — re-check the thresholds against the
-      compliant HFT page size. **Done** — buckets now 32 KiB / 64 KiB / 128 KiB /
+      2026-06-17 checklist already split buckets - re-check the thresholds against the
+      compliant HFT page size. **Done** - buckets now 32 KiB / 64 KiB / 128 KiB /
       256 KiB, `maxPooledPageContentStreamCap` enforced.
 - [x] Discard oversized page content buffers above the HFT class cap instead of
-      returning them to the pool (keeps the pool bounded under k6 too). **Done** —
+      returning them to the pool (keeps the pool bounded under k6 too). **Done** -
       `putPageContentStreamBuffer` drops buffers above `maxPooledPageContentStreamCap`.
 - [x] Add `BENCH_DEBUG_CAPS=1` instrumentation (debug-only) that prints estimated vs
       actual PDF/content-stream capacity per template. Gate the print behind
       `os.Getenv("BENCH_DEBUG_CAPS") == "1"` so it never ships in production. **Done**
-      — `logPDFCapacityDebug` exists; was already there.
+      - `logPDFCapacityDebug` exists; was already there.
 - [ ] **Gate:** `bytes.growSlice` in-use ≤ 200 MB, alloc-space ≤ 500 MB. x10 mean not
       below current 2,799 ops/sec while capacity is being tuned (regression guard).
-      **Not met** — `bytes.growSlice` is still the dominant live-heap consumer in the
+      **Not met** - `bytes.growSlice` is still the dominant live-heap consumer in the
       captured profile, and the bench-stats mean peak allocated is 1,101 MB (not the
       600 MB target). x10 mean is 5,268 (well above 2,799 regression guard).
 
 **Files:** `internal/pdf/generator.go`, `internal/pdf/pagemanager.go`,
 `internal/pdf/draw.go`
 **Estimated gain:** +800–1,200 ops/sec + large heap reduction
-**Risk:** Medium — incorrect pre-sizing wastes memory; must not change PDF output bytes.
+**Risk:** Medium - incorrect pre-sizing wastes memory; must not change PDF output bytes.
 Verify with `cmp` against pre-change PDFs.
 **Actual gain:** ~+200 ops/sec + 236 MB heap reduction; remaining 1,101 MB is
 `bytes.growSlice` from the per-PDF pdfBuffer.
 
-### P6 — Compliant `drawSharedLayoutRow` MCID emission
+### P6 - Compliant `drawSharedLayoutRow` MCID emission
 
 **Goal:** Reduce `drawSharedLayoutRow` from 12.01% cum / 142 MB in-use to ≤ 7% cum /
 ≤ 60 MB in-use without re-introducing the key-based `sharedRowRenderCache` expansion.
 
 - [x] Keep the bounded `sharedRowRenderCache` exactly as-is (max 4096 entries, 64 MB).
       Do **not** raise `sharedRowRenderCacheMaxEntries` or `sharedRowRenderCacheMaxBytes`
-      — that is the key-based system this checklist is explicitly forbidden from
+      - that is the key-based system this checklist is explicitly forbidden from
       relying on. **Kept as-is.**
 - [x] Precompute the stable per-row drawing fragments (cell border commands, font
       selection, color set) once per `Table` and replay them per row. The 2026-06-17
       checklist started this; finish it so the per-row hot path only writes the
-      varying text and the BDC/EMC wrappers. **Done** — `rowFontDecls`,
+      varying text and the BDC/EMC wrappers. **Done** - `rowFontDecls`,
       `rowTextColorCmds`, `rowTextPrefixes` are reused.
 - [x] Batch the BDC/EMC emission for the 7 TD cells in a shared row into a single
       `rowBuf.Write` of a pre-built `[]byte` template with the MCID integers spliced
-      in. This is per-request work, not a key-based cache. **Partially done** —
+      in. This is per-request work, not a key-based cache. **Partially done** -
       `drawSharedDeferRow` now uses `WriteCellMarkedContentBDC` + `EndCellMarkedContentBuf`
       (no per-cell struct allocation). The 7 BDCs/EMCs are still per-cell
       because BDC/EMC must bracket each cell's content; we cannot batch them all
@@ -534,23 +534,23 @@ Verify with `cmp` against pre-change PDFs.
 - [x] Move the `appendParentTreeRefs` call in `BeginTableRowWithTDMCIDs` to a
       per-stripe bulk fill (use `FillDeferredParentTreePage` / `PreallocatePageMCIDSlots`
       that already exist) so the parent tree is grown once per page stripe, not once
-      per row. **Done** — `PreallocatePageMCIDSlots` is called per-stripe from
+      per row. **Done** - `PreallocatePageMCIDSlots` is called per-stripe from
       `drawTable`; `appendParentTreeRefs` only appends into the pre-allocated
       capacity.
 - [ ] **Gate:** `drawSharedLayoutRow` cum CPU ≤ 7%, in-use ≤ 60 MB. HFT output size
-      stable at `2,291,955 ± 5%`. **Partially met** — cum 11.71% (> 7%, was 12.01%),
+      stable at `2,291,955 ± 5%`. **Partially met** - cum 11.71% (> 7%, was 12.01%),
       in-use dropped out of the top 25, and HFT size `2,291,950` (within ±5%, ✓).
 
 **Files:** `internal/pdf/draw.go`, `internal/pdf/structure.go`
 **Estimated gain:** +700–1,000 ops/sec
-**Risk:** Medium — layout and pagination must not change. Run
+**Risk:** Medium - layout and pagination must not change. Run
 `go test ./internal/pdf/...` and compare HFT output byte-for-byte against the
 pre-change file.
 **Actual gain:** ~+200 ops/sec; the cache-hit path now costs 2.14 s vs 2.55 s
 pre-opt (mostly because `BeginTableRowWithTDMCIDs` is faster on the pre-sized
 `tr.Kids`).
 
-### P7 — Compression and flate writer pooling
+### P7 - Compression and flate writer pooling
 
 **Goal:** Keep `compress/flate` close+init at ≤ 6% cum CPU and ≤ 25 MB in-use without
 adding fingerprint hashing cost.
@@ -562,24 +562,24 @@ adding fingerprint hashing cost.
       `internal/pdf/font/compression.go`); verified still correct for the compliant
       HFT page count.
 - [x] Keep the compression-cache fingerprint threshold from the 2026-06-17 checklist
-      (`pageContentFingerprint` is below the report threshold — do not re-add hashing
+      (`pageContentFingerprint` is below the report threshold - do not re-add hashing
       cost). **Kept as-is.**
 - [x] Verify the existing `pageCompressSlots` cap (`NumCPU`) is still correct for the
       compliant HFT page count (50+ pages × 24 cores). If HFT page streams are evicting
       each other, raise the cap to `2 * NumCPU` only if hit-rate metrics justify it.
-      **Verified** — cap unchanged.
+      **Verified** - cap unchanged.
 - [x] **Gate:** `compress/flate` close+init cum CPU ≤ 6%, `compress/flate.NewWriter`
-      in-use ≤ 20 MB. **Met** — flate is now `<3%` of CPU and `NewWriter` is no
+      in-use ≤ 20 MB. **Met** - flate is now `<3%` of CPU and `NewWriter` is no
       longer in the top of the profile.
 
 **Files:** `internal/pdf/font/compression.go`, `internal/pdf/font/compress_cache.go`,
 `internal/pdf/generator.go`
 **Estimated gain:** +400–700 ops/sec
-**Risk:** Low — `flate.Writer.Reset` is documented stable; output bytes unchanged.
+**Risk:** Low - `flate.Writer.Reset` is documented stable; output bytes unchanged.
 **Actual gain:** mostly already in place from 2026-06-17; small additional ~+50 ops/sec
 from no HFT page count regression.
 
-## P8 — veraPDF validation gate (mandatory after every item)
+## P8 - veraPDF validation gate (mandatory after every item)
 
 **Tool:** veraPDF 1.30.2 at `<repo>/verapdf/verapdf` (already installed via
 `test/install_verapdf.sh`).
@@ -589,7 +589,7 @@ from no HFT page count regression.
 `internal/pdf/signature/`, and as a final acceptance barrier before closing this
 checklist.
 
-**Step 1 — regenerate the three Zerodha outputs:**
+**Step 1 - regenerate the three Zerodha outputs:**
 
 ```bash
 cd <repo>
@@ -599,7 +599,7 @@ GOCACHE=/tmp/gopdfsuit-go-build-cache GOMODCACHE=/tmp/gopdfsuit-go-mod-cache \
 
 This writes `sampledata/gopdflib/zerodha/zerodha_{retail,active,hft}_output.pdf`.
 
-**Step 2 — veraPDF parse + compliance for each output:**
+**Step 2 - veraPDF parse + compliance for each output:**
 
 ```bash
 VERAPDF=./verapdf/verapdf
@@ -614,7 +614,7 @@ for f in zerodha_retail_output.pdf zerodha_active_output.pdf zerodha_hft_output.
 done
 ```
 
-**Step 3 — leverage the existing harness for the full post-test manifest:**
+**Step 3 - leverage the existing harness for the full post-test manifest:**
 
 ```bash
 make test-verify-pdfs          # bash test/verify_pdfs.sh
@@ -652,30 +652,30 @@ implemented in two stages (selective reset kept; per-SM arena prototype implemen
 and reverted for memory reasons). Cumulative Phase 1 win: **+2,469 ops/sec (88%)**
 in the close-out run; a fresh 2026-06-20 14:21 re-run with
 `make bench-gopdflib-zerodha-x10-pprof` measured **4,275 ops/sec mean** (stddev 434,
-peak 1,088 MB, 6/6 veraPDF PASS) — see the **Phase 2 plan (P9–P16)** below for the
+peak 1,088 MB, 6/6 veraPDF PASS) - see the **Phase 2 plan (P9–P16)** below for the
 fresh-profile-based improvement plan that builds on this baseline.
 
 | Item | Status | Δ ops/sec (est → actual) | Δ memory | Notes |
 |------|--------|--------------------------|----------|-------|
-| P0 (harness) | ✓ Done | — | — | `bench-gopdflib-zerodha-x10-pprof` is the single timing+profile target. |
-| P1 (TR→TD arena) | Superseded by P12 | +2,500–3,500 → +~1,000 | — | Selective Get-side reset kept; per-SM slab reverted. **P12** delivers lazy per-P arena (HFT-only). |
-| P2 (pool reset) | ✓ Done | +600–1,000 → +~500 | — | `resetStructElemForPool` clears only `Kids`; the per-elem write traffic moved to `acquireStructElem` with 9-field selective reset. |
-| P3 (direct writes) | ✓ Done | +1,500–2,200 → +~800 | — | Stack-backed `[1024]byte` / `[128]byte` + `appendDecimal`; `*bytes.Buffer` devirtualised. |
-| P4 (`appendObjRefToWriter`) | ✓ Done | +400–700 → folded in | — | Inlined into the kid-walk; the function is deleted. |
+| P0 (harness) | ✓ Done | - | - | `bench-gopdflib-zerodha-x10-pprof` is the single timing+profile target. |
+| P1 (TR→TD arena) | Superseded by P12 | +2,500–3,500 → +~1,000 | - | Selective Get-side reset kept; per-SM slab reverted. **P12** delivers lazy per-P arena (HFT-only). |
+| P2 (pool reset) | ✓ Done | +600–1,000 → +~500 | - | `resetStructElemForPool` clears only `Kids`; the per-elem write traffic moved to `acquireStructElem` with 9-field selective reset. |
+| P3 (direct writes) | ✓ Done | +1,500–2,200 → +~800 | - | Stack-backed `[1024]byte` / `[128]byte` + `appendDecimal`; `*bytes.Buffer` devirtualised. |
+| P4 (`appendObjRefToWriter`) | ✓ Done | +400–700 → folded in | - | Inlined into the kid-walk; the function is deleted. |
 | P5 (capacity estimation) | ✓ Done | +800–1,200 → +~200 | -236 MB | Per-element allowance bumped to 128 B for HFT; 4 page-stream buckets; oversized buffers dropped. |
-| P6 (`drawSharedLayoutRow`) | ✓ Done | +700–1,000 → +~200 | — | `WriteCellMarkedContentBDC` + `EndCellMarkedContentBuf`; pre-sized `tr.Kids`; per-stripe `PreallocatePageMCIDSlots`. |
-| P7 (flate pooling) | ✓ Already in place | +400–700 → +~50 | — | No regression. |
-| P8 (veraPDF) | ✓ 6/6 PASS | — | — | HFT output drifted by 5 bytes (`2,291,950` vs `2,291,955`); within ±5%. |
-| P9 (ICC cache) | ✓ Done | +600–900 → folded in | — | `grayICCProfileCompressed` / `srgbICCProfileCompressed` at init; `pdfa_test.go`. |
-| P10 (`assignStructIDs`) | ✓ Done | +400–600 → folded in | — | Iterative `sm.Elements` loop; `TestAssignStructIDsSequential`. |
-| P11 (`xrefOffsets` slice) | ✓ Done | +300–500 → folded in | — | `setXrefOffset` / `xrefOffsetAt`; `bookmarks.go` updated. |
-| P12 (per-P arena) | ✓ Done (fixed) | +1,000–1,500 → +~275 mean | -37 MB | Lazy activation at `arenaActivationThreshold=512`; `acquireArenaTD()`; first landing regressed to 4,547 mean — fixed. |
-| P13 (`MarkCharsUsed`) | ✓ Done | +200–300 → folded in | — | `charsPreScanned` in `drawTable` → `drawSharedDeferRow`. |
-| P14 (signature pool) | ✓ Done | +300–500 → folded in | — | `pkcs7MarshalBuffersPool`; `appendByteRangeMarker`; `encodeHexUpper`. |
+| P6 (`drawSharedLayoutRow`) | ✓ Done | +700–1,000 → +~200 | - | `WriteCellMarkedContentBDC` + `EndCellMarkedContentBuf`; pre-sized `tr.Kids`; per-stripe `PreallocatePageMCIDSlots`. |
+| P7 (flate pooling) | ✓ Already in place | +400–700 → +~50 | - | No regression. |
+| P8 (veraPDF) | ✓ 6/6 PASS | - | - | HFT output drifted by 5 bytes (`2,291,950` vs `2,291,955`); within ±5%. |
+| P9 (ICC cache) | ✓ Done | +600–900 → folded in | - | `grayICCProfileCompressed` / `srgbICCProfileCompressed` at init; `pdfa_test.go`. |
+| P10 (`assignStructIDs`) | ✓ Done | +400–600 → folded in | - | Iterative `sm.Elements` loop; `TestAssignStructIDsSequential`. |
+| P11 (`xrefOffsets` slice) | ✓ Done | +300–500 → folded in | - | `setXrefOffset` / `xrefOffsetAt`; `bookmarks.go` updated. |
+| P12 (per-P arena) | ✓ Done (fixed) | +1,000–1,500 → +~275 mean | -37 MB | Lazy activation at `arenaActivationThreshold=512`; `acquireArenaTD()`; first landing regressed to 4,547 mean - fixed. |
+| P13 (`MarkCharsUsed`) | ✓ Done | +200–300 → folded in | - | `charsPreScanned` in `drawTable` → `drawSharedDeferRow`. |
+| P14 (signature pool) | ✓ Done | +300–500 → folded in | - | `pkcs7MarshalBuffersPool`; `appendByteRangeMarker`; `encodeHexUpper`. |
 | P15 (pdfBuffer pool) | ✓ Done | +200–400 → folded in | -37 MB | Split small/large pools; HFT `2.5 MiB` estimate; `getPDFBuffer`. |
-| P16 (TD-leaf hoist) | ✓ Done | +100–200 → folded in | — | `isTDLeafStructElem` + `appendStructElemTDLeaf` in struct writer. |
+| P16 (TD-leaf hoist) | ✓ Done | +100–200 → folded in | - | `isTDLeafStructElem` + `appendStructElemTDLeaf` in struct writer. |
 
-## Phase 2 plan — P9 through P16 (built on the fresh 2026-06-20 14:21 profile)
+## Phase 2 plan - P9 through P16 (built on the fresh 2026-06-20 14:21 profile)
 
 The fresh `make bench-gopdflib-zerodha-x10-pprof` re-run (mean 4,275 ops/sec, stddev
 434, peak 1,088 MB; 6/6 veraPDF PASS) shows the remaining ~3,700 ops/sec gap to 8,000
@@ -685,11 +685,11 @@ guardrail (no compliance shortcuts, no new key-based caches, no disabling of
 tagging/signing/PDF-A). Each phase has a gate; phases are ordered by
 (gain × breadth) / (risk × effort).
 
-### P9 — ICC profile caching (hits all 3 templates, trivial, +600–900 ops/sec)
+### P9 - ICC profile caching (hits all 3 templates, trivial, +600–900 ops/sec)
 
 **Goal:** Eliminate the per-PDF `GenerateGrayICCProfileObject` (1.26 s cum, 5.49%)
 and `buildSRGBICCProfile` rebuild. Every PDF/A-4 PDF rebuilds a *static* 4 KB ICC
-profile from scratch — 1024 `math.Pow(x, 1.0/2.4)` calls + zlib compress — even
+profile from scratch - 1024 `math.Pow(x, 1.0/2.4)` calls + zlib compress - even
 though the bytes are identical across all PDFs.
 
 **Root cause:** `internal/pdf/pdfa.go:382` `buildGrayICCProfile` and
@@ -708,18 +708,18 @@ compressed bytes never change. `math.pow` is 3.62% cum on its own.
 - [x] Keep the `encryptor.EncryptStream` call *after* the cache lookup so encrypted
       PDFs still get a per-PDF encrypted copy.
 - [x] **Gate:** `GenerateGrayICCProfileObject` cum CPU ≤ 0.5%, `math.pow` flat ≤
-      0.2%. x10 mean ≥ 4,800 ops/sec. **Met** — Phase 2 mean 5,543 (pprof gate TBD).
+      0.2%. x10 mean ≥ 4,800 ops/sec. **Met** - Phase 2 mean 5,543 (pprof gate TBD).
 
 **Files:** `internal/pdf/pdfa.go`, `internal/pdf/pdfa_test.go` (golden-bytes test)
 **Estimated gain:** +600–900 ops/sec (removes ~2.1 s of CPU per benchmark run; hits
 all 5000 iterations, not just HFT)
-**Risk:** Low — the ICC bytes are deterministic; the only per-PDF variable is the
+**Risk:** Low - the ICC bytes are deterministic; the only per-PDF variable is the
 object ID prefix and the (optional) encryption. Validate with veraPDF on all 3
 outputs.
 
-### P10 — Iterative `assignStructIDs` walk (HFT, +400–600 ops/sec)
+### P10 - Iterative `assignStructIDs` walk (HFT, +400–600 ops/sec)
 
-**Goal:** Eliminate the recursive `assignStructIDs` walk (2.17 s cum, 9.46% — the
+**Goal:** Eliminate the recursive `assignStructIDs` walk (2.17 s cum, 9.46% - the
 second-biggest single hotspot after `formatStructElemObjectTo`). This is the exact
 same pattern as the `writeStructElems` walk that was already converted to an
 iterative `sm.Elements` loop in the P3+ pass.
@@ -739,18 +739,18 @@ check is 790 ms; the recursion itself is 1.08 s.
       a unit test that asserts ObjectIDs are sequential starting from
       `pageManager.NextObjectID` for a small template.
 - [x] **Gate:** `GenerateTemplatePDFBorrowed.func6` (assignStructIDs) cum CPU ≤ 3%,
-      flat ≤ 1%. x10 mean ≥ 4,600 ops/sec. **Met** — Phase 2 mean 5,543 (pprof gate TBD).
+      flat ≤ 1%. x10 mean ≥ 4,600 ops/sec. **Met** - Phase 2 mean 5,543 (pprof gate TBD).
 
 **Files:** `internal/pdf/generator.go`, `internal/pdf/structure_test.go`
 **Estimated gain:** +400–600 ops/sec (removes ~1.5 s of CPU per benchmark run; HFT
 only, but HFT is the slowest tier so the mean lifts disproportionately)
-**Risk:** Low — the `Elements` slice order is already relied on by the iterative
+**Risk:** Low - the `Elements` slice order is already relied on by the iterative
 `writeStructElems` loop added in P3+; same invariant.
 
-### P11 — `xrefOffsets` map → pre-sized slice (HFT, +300–500 ops/sec)
+### P11 - `xrefOffsets` map → pre-sized slice (HFT, +300–500 ops/sec)
 
 **Goal:** Eliminate the `runtime.mapassign_fast64` cost (1.28 s cum, 5.58%) from the
-`xrefOffsets[elem.ObjectID] = pdfBuffer.Len()` writes — 16K map writes per HFT PDF.
+`xrefOffsets[elem.ObjectID] = pdfBuffer.Len()` writes - 16K map writes per HFT PDF.
 
 **Root cause:** `internal/pdf/generator.go:170` `xrefOffsets := make(map[int]int)`.
 ObjectIDs are assigned sequentially from `pageManager.NextObjectID` (which starts at
@@ -767,19 +767,19 @@ is O(1) with zero map overhead.
 - [x] Update the xref-table writer (which reads `xrefOffsets`) to iterate the
       slice and skip `-1` slots.
 - [x] **Gate:** `runtime.mapassign_fast64` cum CPU ≤ 1%. x10 mean ≥ 4,500 ops/sec.
-      **Met** — Phase 2 mean 5,543 (pprof gate TBD).
+      **Met** - Phase 2 mean 5,543 (pprof gate TBD).
 
 **Files:** `internal/pdf/generator.go`
 **Estimated gain:** +300–500 ops/sec (removes ~1 s of CPU per benchmark run; HFT
-only — retail/active have ~100 object IDs so the map is cheap there)
-**Risk:** Low–Medium — must handle the ObjectID range correctly (image objects,
+only - retail/active have ~100 object IDs so the map is cheap there)
+**Risk:** Low–Medium - must handle the ObjectID range correctly (image objects,
 fonts, annotations all share the same ID space). The slice may be sparse (image
 IDs are >2000, struct IDs are >4000) so use `-1` sentinel, not `0`. Verify xref
 table byte-identical to current via `cmp` on all 3 outputs.
 
-### P12 — Per-worker (per-P) struct-elem arena (HFT, +1,000–1,500 ops/sec)
+### P12 - Per-worker (per-P) struct-elem arena (HFT, +1,000–1,500 ops/sec)
 
-**Goal:** Eliminate the `structElemPool.Get()` cost (1.23 s — the single biggest
+**Goal:** Eliminate the `structElemPool.Get()` cost (1.23 s - the single biggest
 line in the profile) by reviving the P1 arena with the **per-P shard** fix that
 avoids the memory regression that forced the revert.
 
@@ -806,18 +806,18 @@ makes this effectively goroutine-local). Bound the pooled slab cap at 32 KiB ent
       elems still walk `resetStructElemForPool`.
 - [x] `TestBeginTableRowWithTDMCIDs_arenaAllocates` asserts slab drop on release.
 - [x] **Gate:** x10 mean ≥ 5,500 ops/sec, mean peak allocated ≤ 900 MB.
-      **Partially met** — mean 5,543 (✓), peak 1,064 MB (✗). First P12 landing
-      without lazy activation regressed to mean 4,547 / peak 1,572 — fixed.
+      **Partially met** - mean 5,543 (✓), peak 1,064 MB (✗). First P12 landing
+      without lazy activation regressed to mean 4,547 / peak 1,572 - fixed.
 
 **Files:** `internal/pdf/structure.go`, `internal/pdf/structure_test.go`
 **Estimated gain:** +1,000–1,500 ops/sec (removes ~1.2 s of CPU + the
-`resetStructElemForPool` 1.13 s flat — total ~2.3 s reclaimed)
-**Risk:** Medium — the earlier revert was for memory; the per-P shard fix is
+`resetStructElemForPool` 1.13 s flat - total ~2.3 s reclaimed)
+**Risk:** Medium - the earlier revert was for memory; the per-P shard fix is
 specifically designed to avoid that. Must verify with `make bench-k6-light` that
 the k6 heap does not regress (the slab is per-worker, so k6's lighter concurrency
 should see *lower* heap than the global pool, not higher).
 
-### P13 — `MarkCharsUsed` double-scan elimination (HFT, +200–300 ops/sec)
+### P13 - `MarkCharsUsed` double-scan elimination (HFT, +200–300 ops/sec)
 
 **Goal:** Eliminate the duplicate `MarkCharsUsed` scan (580 ms cum, 2.53%).
 `markSharedTableCharsUsed` walks every cell of the HFT table once at the start of
@@ -828,7 +828,7 @@ the pre-pass already ran.
 **Root cause:** `internal/pdf/draw.go:235` `markSharedTableCharsUsed` +
 `internal/pdf/draw.go:1384` `pageManager.FontRegistry.MarkCharsUsed(sc.resolvedFont,
 cell.Text)` in the per-row path. The pre-pass exists because the HFT fast path
-skips the slow `drawTable` loop, but the per-row path *also* marks chars — the two
+skips the slow `drawTable` loop, but the per-row path *also* marks chars - the two
 were not coordinated when the fast path was added.
 
 - [x] In `drawSharedDeferRow`, skip the `MarkCharsUsed` call when the table has
@@ -836,16 +836,16 @@ were not coordinated when the fast path was added.
       `drawSharedLayoutRow`).
 - [x] Keep `markSharedTableCharsUsed` pre-pass (safer option).
 - [x] **Gate:** `MarkCharsUsed` cum CPU ≤ 1.2%. x10 mean ≥ 4,400 ops/sec.
-      **Met** — Phase 2 mean 5,543 (pprof gate TBD).
+      **Met** - Phase 2 mean 5,543 (pprof gate TBD).
 
 **Files:** `internal/pdf/draw.go`, `internal/pdf/font/registry.go`
 **Estimated gain:** +200–300 ops/sec (removes ~300 ms of CPU + mutex contention
 per benchmark run; HFT only)
-**Risk:** Low — must verify the HFT subset font is byte-identical (the subset is
+**Risk:** Low - must verify the HFT subset font is byte-identical (the subset is
 what embeds in the PDF; a missing char would fail veraPDF). Add a test that
 generates an HFT PDF with the skip and `cmp`s against the current output.
 
-### P14 — Retail signature path: pool ASN.1 marshal buffers (retail, +300–500 ops/sec)
+### P14 - Retail signature path: pool ASN.1 marshal buffers (retail, +300–500 ops/sec)
 
 **Goal:** Reduce the retail signature cost (`SignPDF` 720 ms + `createPKCS7SignedData`
 560 ms + `embedSignatureInPlace` 820 ms ≈ 1.6 s cum, ~7% of total CPU). Retail is
@@ -855,7 +855,7 @@ contributor even though it does not touch HFT.
 **Root cause:** `internal/pdf/signature/signature.go:500` `createPKCS7SignedData`
 calls `asn1.MarshalWithParams` per attribute per signature (21.54 MB alloc-space,
 32,769 in-use objects from `asn1.makeField`). `encoding/asn1` allocates a fresh
-field slice per call. The PKCS7 structure is nearly identical across retail PDFs —
+field slice per call. The PKCS7 structure is nearly identical across retail PDFs -
 only the message digest and signing time change.
 
 - [x] Pool the `[]attribute` slice via per-P `pkcs7MarshalBuffersPool` (`attrs [3]attribute`).
@@ -870,14 +870,14 @@ only the message digest and signing time change.
 **Estimated gain:** +300–500 ops/sec (retail-only, but retail dominates the mean
 because it is 80% of the workload). Removes ~500 ms of CPU + ~50K in-use objects
 per benchmark run.
-**Risk:** Low–Medium — the signature bytes must remain byte-identical (the
+**Risk:** Low–Medium - the signature bytes must remain byte-identical (the
 `/ByteRange` and `/Contents` hex are what Acrobat validates). Add a test that
 signs a retail PDF with the pooled buffers and verifies the signature against the
 current output via `openssl pkcs7 -verify` or the existing signature test.
 
-### P15 — pdfBuffer per-P shard + pre-sizing (all 3 templates, +200–400 ops/sec + 600 MB heap)
+### P15 - pdfBuffer per-P shard + pre-sizing (all 3 templates, +200–400 ops/sec + 600 MB heap)
 
-**Goal:** Cut `bytes.growSlice` (313 MB in-use / 784 MB alloc — the top heap gate)
+**Goal:** Cut `bytes.growSlice` (313 MB in-use / 784 MB alloc - the top heap gate)
 by (a) pooling the `pdfBuffer` per-worker so the 2.3 MB HFT buffer is reused instead
 of grown+freed per PDF, and (b) tightening the `estimateFinalPDFSize` /
 `estimateTemplatePDFBufferSize` estimates so the buffer never grows mid-emit.
@@ -895,15 +895,15 @@ enough).
       pre-warms per `GOMAXPROCS`; called from `gopdflib` `init()`.
 - [x] `putPDFBuffer` returns buffers only to the matching size-class pool.
 - [ ] **Gate:** `bytes.growSlice` in-use ≤ 100 MB; x10 mean peak ≤ 700 MB.
-      **Not met** — peak 1,064 MB (improved vs Phase 1 1,101 MB and regression 1,572 MB).
+      **Not met** - peak 1,064 MB (improved vs Phase 1 1,101 MB and regression 1,572 MB).
 
 **Files:** `internal/pdf/generator.go`, `internal/pdf/pagemanager.go`
 **Estimated gain:** +200–400 ops/sec + ~600 MB heap reduction (removes the
 `runtime.memmove` 1.29 s from buffer growth + the `bytes.growSlice` 313 MB in-use)
-**Risk:** Low — the buffer pool already exists; this is tightening the estimates
+**Risk:** Low - the buffer pool already exists; this is tightening the estimates
 and adding pre-warm. Must verify the buffer is `Reset()` not `nil`'d between PDFs.
 
-### P16 — `formatSingleMCIDTableCellStructElem` guard hoist (HFT, +100–200 ops/sec)
+### P16 - `formatSingleMCIDTableCellStructElem` guard hoist (HFT, +100–200 ops/sec)
 
 **Goal:** Cut the 930 ms flat cost on the
 `if elem == nil || len(elem.Kids) != 0 || !elem.HasMCID` guard (line 1618). The
@@ -912,37 +912,37 @@ flat cost.
 
 **Root cause:** The fast-path guard runs in a function that is called once per
 struct elem. The iterative `writeStructElems` loop already knows which elems are
-TD leaves (they were created by `BeginTableRowWithTDMCIDs`) — the guard is
+TD leaves (they were created by `BeginTableRowWithTDMCIDs`) - the guard is
 redundant for those.
 
 - [x] `isTDLeafStructElem` + `appendStructElemTDLeaf` called directly from the
       iterative struct writer; `formatSingleMCIDTableCellStructElem` delegates.
 - [x] **Gate:** `formatSingleMCIDTableCellStructElem` flat CPU ≤ 4%. x10 mean ≥
-      4,400 ops/sec. **Met** — Phase 2 mean 5,543 (pprof gate TBD).
+      4,400 ops/sec. **Met** - Phase 2 mean 5,543 (pprof gate TBD).
 
 **Files:** `internal/pdf/generator.go`
 **Estimated gain:** +100–200 ops/sec (removes ~400 ms of function-entry overhead
 per benchmark run; HFT only)
-**Risk:** Low — the fast-path body is already a single stack-buffer build + one
+**Risk:** Low - the fast-path body is already a single stack-buffer build + one
 `Write`. Inlining it duplicates ~30 lines of code; the golden-bytes test
 `TestFormatStructElemTDLeaf_StableOutput` pins the output.
 
-## Phase 3 plan — P17 through P20 (fresh pprof on Phase 2 build, 2026-06-20)
+## Phase 3 plan - P17 through P20 (fresh pprof on Phase 2 build, 2026-06-20)
 
 Profiled after Phase 2 close-out (`cpu_zerodha_run3.prof`, `heap_zerodha.prof`).
 Top remaining CPU: `acquireArenaTD` (0.86s), `isTDLeafStructElem` (0.52s flat /
 3.5M calls), `growXrefOffsets` (0.73s cum), signature (~1.2s cum). Top heap:
 `bytes.growSlice` (226 MB), `acquireArenaSlabForCapacity` (103 MB).
 
-### P17 — Batch arena TD allocation in `BeginTableRowWithTDMCIDs` (HFT)
+### P17 - Batch arena TD allocation in `BeginTableRowWithTDMCIDs` (HFT)
 
 - [x] Single slab `[:need]` extend per row (7 cells); loop writes TD fields inline
       without per-cell `acquireArenaTD()` calls.
-- [x] **Gate:** no race under 48 workers; x10 mean ≥ 5,800. **Met** — Phase 3 mean 7,432.
+- [x] **Gate:** no race under 48 workers; x10 mean ≥ 5,800. **Met** - Phase 3 mean 7,432.
 
 **Files:** `internal/pdf/structure.go`
 
-### P18 — `tdLeafFast` flag on `StructElem` (HFT + retail TD leaves)
+### P18 - `tdLeafFast` flag on `StructElem` (HFT + retail TD leaves)
 
 - [x] `tdLeafFast bool` set in `BeginTableRowWithTDMCIDs` and `beginMarkedContentBuf`.
 - [x] Iterative struct writer calls `appendStructElemTDLeaf` directly when set;
@@ -951,7 +951,7 @@ Top remaining CPU: `acquireArenaTD` (0.86s), `isTDLeafStructElem` (0.52s flat /
 
 **Files:** `internal/pdf/structure.go`, `internal/pdf/generator.go`
 
-### P19 — xref slice pre-sizing (HFT)
+### P19 - xref slice pre-sizing (HFT)
 
 - [x] `newXrefOffsets(estimateXrefObjectCount(template))` at PDF start; sentinel
       `xrefOffsetUnused = -1` for unused slots.
@@ -959,7 +959,7 @@ Top remaining CPU: `acquireArenaTD` (0.86s), `isTDLeafStructElem` (0.52s flat /
 
 **Files:** `internal/pdf/generator.go`
 
-### P20 — Arena slab pool race fix (HFT, correctness + throughput)
+### P20 - Arena slab pool race fix (HFT, correctness + throughput)
 
 **Root cause:** `acquireArenaSlabForCapacity` copied the pool slice header into a
 local and returned `&localSlab`. Concurrent workers could alias the same backing
@@ -967,7 +967,7 @@ array with independent `arenaNext` counters → data race, nil-`TR` panics.
 
 - [x] Return pool object pointer directly (`return slabPtr`); no header copy.
 - [x] `WarmArenaSlabPool(6)` in `WarmRuntimePools()`; undersized slabs discarded.
-- [x] **Gate:** `go run -race` with 48 workers × 300 iterations — 0 races; x10 stable.
+- [x] **Gate:** `go run -race` with 48 workers × 300 iterations - 0 races; x10 stable.
 
 **Files:** `internal/pdf/structure.go`, `internal/pdf/generator.go`
 
@@ -976,19 +976,19 @@ array with independent `arenaNext` counters → data race, nil-`TR` panics.
 Do the phases in this order (each builds on the prior; each is independently
 verifiable with the P8 veraPDF gate):
 
-1. [x] **P9** — ICC profile caching (all 3 templates, trivial, +600–900)
-2. [x] **P10** — iterative `assignStructIDs` (HFT, +400–600)
-3. [x] **P11** — `xrefOffsets` slice (HFT, +300–500)
-4. [x] **P12** — per-worker struct-elem arena (HFT, +1,000–1,500) — **lazy activation fix**
-5. [x] **P13** — `MarkCharsUsed` double-scan (HFT, +200–300)
-6. [x] **P14** — retail signature buffer pooling (retail, +300–500)
-7. [x] **P15** — pdfBuffer per-P shard + pre-sizing (all 3, +200–400 + heap)
-8. [x] **P16** — TD-leaf guard hoist (HFT, +100–200)
+1. [x] **P9** - ICC profile caching (all 3 templates, trivial, +600–900)
+2. [x] **P10** - iterative `assignStructIDs` (HFT, +400–600)
+3. [x] **P11** - `xrefOffsets` slice (HFT, +300–500)
+4. [x] **P12** - per-worker struct-elem arena (HFT, +1,000–1,500) - **lazy activation fix**
+5. [x] **P13** - `MarkCharsUsed` double-scan (HFT, +200–300)
+6. [x] **P14** - retail signature buffer pooling (retail, +300–500)
+7. [x] **P15** - pdfBuffer per-P shard + pre-sizing (all 3, +200–400 + heap)
+8. [x] **P16** - TD-leaf guard hoist (HFT, +100–200)
 9. [x] After every phase: **P8 veraPDF gate** + `go test ./internal/...` +
        `make bench-gopdflib-zerodha-x10` (stats in `zerodha_bench_x10_wsl_stats_latest.txt`).
 
 **Projected total Phase 2:** +3,100–4,900 ops/sec. Combined with the 4,275 mean
-from the fresh re-run, the projected mean is **7,375–9,175 ops/sec** — the
+from the fresh re-run, the projected mean is **7,375–9,175 ops/sec** - the
 optimistic end clears the 8,000 target with margin; the pessimistic end lands at
 ~7,400 (92% of target). The 8,000 target is **closeable within Phase 2** if P9 +
 P10 + P12 land at the midpoint of their estimates.
@@ -997,19 +997,19 @@ P10 + P12 land at the midpoint of their estimates.
 prior projection missed the ICC profile cache (P9, ~2.1 s of CPU across all 3
 templates), the `assignStructIDs` recursive walk (P10, 2.17 s), and the retail
 signature path (P14, ~1.6 s). Those three alone account for ~6 s of the 22.93 s
-total CPU — reclaiming even half of that closes the gap.
+total CPU - reclaiming even half of that closes the gap.
 
 ## Acceptance criteria for closing this checklist
 
 - [x] x10 **mean** throughput ≥ **8,000 ops/sec** on `make bench-gopdflib-zerodha-x10`
       with `GOCACHE=/tmp/gopdfsuit-go-build-cache GOMODCACHE=/tmp/gopdfsuit-go-mod-cache`.
       **Met (9,594 ops/sec Phase 4 idle, +19.9% margin).** Net win from baseline: +243%.
-- [x] x10 **best** throughput ≥ **8,000 ops/sec**. **Met** — 10,005 ops/sec (Phase 4 run 6).
-- [x] x10 stddev ≤ 600 ops/sec (stability, not just one good run). **Met (Phase 4)** —
+- [x] x10 **best** throughput ≥ **8,000 ops/sec**. **Met** - 10,005 ops/sec (Phase 4 run 6).
+- [x] x10 stddev ≤ 600 ops/sec (stability, not just one good run). **Met (Phase 4)** -
       423.64 ops/sec.
 - [ ] x10 mean peak allocated ≤ 600 MB. **Not met (1,199 MB Phase 3).** Net win: -138 MB
       vs pre-opt baseline; arena exclusive-alloc spike was 1,714 MB before pool fix.
-- [ ] `bytes.growSlice` in-use ≤ 200 MB in `heap_zerodha.prof`. **Not met** — still the
+- [ ] `bytes.growSlice` in-use ≤ 200 MB in `heap_zerodha.prof`. **Not met** - still the
       dominant live-heap consumer; a per-P pdfBuffer pool is the next step (see item 2
       above).
 - [ ] `formatStructElemObjectTo` cum CPU ≤ 9% in `cpu_zerodha_run3.prof`. **Not met
@@ -1018,20 +1018,20 @@ total CPU — reclaiming even half of that closes the gap.
 - [ ] `BeginTableRowWithTDMCIDs` cum CPU ≤ 3% and alloc-space ≤ 60 MB. **Not met
       (8.61% cum post-opt).** Improvement: 9.13% → 8.61%. Arena path is the missing
       piece.
-- [ ] `formatSingleMCIDTableCellStructElem` cum CPU ≤ 5%. **Not met** — 7.40% cum
+- [ ] `formatSingleMCIDTableCellStructElem` cum CPU ≤ 5%. **Not met** - 7.40% cum
       (improved from 10.52% but still above 5%; the gate of 5% was missed by 2.4 pp).
       Flat 5.88% is above the 2.5% target.
 - [x] `appendObjRefToWriter` not in the top 25 alloc-space or in-use-objects tables.
-      **Met** — function deleted.
+      **Met** - function deleted.
 - [ ] `runtime.memclrNoHeapPointers` flat CPU ≤ 2%. **Not met (7.77%).** The increase
       is GC-side clearing of freed pages, not our explicit `*e = StructElem{}` calls.
 - [x] `go test ./internal/...` passes. **Met.**
-- [x] **veraPDF P8 gate: 6/6 PASS** (retail/active/HFT × A-4/UA-2). **Met** —
+- [x] **veraPDF P8 gate: 6/6 PASS** (retail/active/HFT × A-4/UA-2). **Met** -
       `make test-verify-pdfs` post Phase 3 (2026-06-20): exit 0, 36/36 entries PASS.
-- [x] HFT output size `2,291,955 ± 5%` (no compliance shortcut). **Met** — actual
+- [x] HFT output size `2,291,955 ± 5%` (no compliance shortcut). **Met** - actual
       2,291,950 (5-byte drift, within ±5%).
 - [ ] `make bench-k6-light` completes with `drawSharedLayoutRow` flat heap ≤ 10 MB
-      (no k6 regression — no key-based cache re-introduced). **Not run** in this
+      (no k6 regression - no key-based cache re-introduced). **Not run** in this
       checklist cycle (requires the k6 server harness). The bounded
       `sharedRowRenderCache` is unchanged, so the k6 regression gate is structurally
       protected.
@@ -1048,7 +1048,7 @@ Compliance (6/6 veraPDF) and HFT size (`2,291,950` bytes) held throughout.
 (+34.1% vs Phase 2, +165% vs baseline); best **8,327 ops/sec** (first run above
 8,000); median **7,760 ops/sec**. All P17–P20 items implemented. P20 fixed a
 **concurrent arena slab data race** (slice-header copy aliased backing arrays across
-48 workers — caused nil-`TR` panics and race-detector failures). Arena pool now
+48 workers - caused nil-`TR` panics and race-detector failures). Arena pool now
 returns the pool object directly. Compliance (6/6 veraPDF) and HFT size
 (`2,291,950` bytes) held throughout. **`make test-verify-pdfs` re-run post Phase 3:**
 36/36 PASS (Zerodha retail `61,293` / active `76,065` / HFT `2,291,950` bytes;
@@ -1061,7 +1061,7 @@ Eliminated `acquireStructKids`/`BeginStructureElementCap` from HFT row setup;
 `BeginTableRowWithTDMCIDs` cum CPU 10.86% → 6.81%. Compliance (6/6 veraPDF) and
 HFT size (`2,291,950` bytes) held. **`make test-verify-pdfs` post Phase 4:** 36/36 PASS.
 
-## Phase 4 plan — P21 through P25 (fresh pprof post Phase 3, 2026-06-20 18:31)
+## Phase 4 plan - P21 through P25 (fresh pprof post Phase 3, 2026-06-20 18:31)
 
 Profiled with `make bench-gopdflib-zerodha-x10-pprof` (`cpu_zerodha_run3.prof`,
 `heap_zerodha.prof`). Top remaining CPU on the Phase 3 build:
@@ -1074,23 +1074,23 @@ Profiled with `make bench-gopdflib-zerodha-x10-pprof` (`cpu_zerodha_run3.prof`,
 | `bytes.growSlice` | 52% in-use heap | pdfBuffer / page streams |
 | `collectUsedXrefObjectIDs` | 1.30% / 0.18s | Full-slice scan + sort |
 
-### P21 — Arena TR + inlineKids in `BeginTableRowWithTDMCIDs` (HFT)
+### P21 - Arena TR + inlineKids in `BeginTableRowWithTDMCIDs` (HFT)
 
 - [x] New `beginTableRowArena`: one slab extend allocates TR + count TDs; TR uses
-      `inlineKids[:count]` (count ≤ 8) — eliminates `BeginStructureElementCap` +
+      `inlineKids[:count]` (count ≤ 8) - eliminates `BeginStructureElementCap` +
       `acquireStructKids` on every HFT row.
 - [x] **Gate:** `TestBeginTableRowWithTDMCIDs_*` PASS; TR→TD hierarchy unchanged.
 
 **Files:** `internal/pdf/structure.go`
 
-### P22 — `appendDecimal` 5-digit fast path (HFT MCIDs ≥ 10,000)
+### P22 - `appendDecimal` 5-digit fast path (HFT MCIDs ≥ 10,000)
 
 - [x] Extend fast path from 4 digits (n < 10,000) to 5 digits (n < 100,000).
 - [x] **Gate:** structure writer output byte-identical on existing tests.
 
 **Files:** `internal/pdf/generator.go`
 
-### P23 — Bound `collectUsedXrefObjectIDs` scan by maxID
+### P23 - Bound `collectUsedXrefObjectIDs` scan by maxID
 
 - [x] Two-pass: find max used ID, iterate 1..maxID only; drop `slices.Sort` (IDs
       are emitted in order).
@@ -1098,7 +1098,7 @@ Profiled with `make bench-gopdflib-zerodha-x10-pprof` (`cpu_zerodha_run3.prof`,
 
 **Files:** `internal/pdf/generator.go`
 
-### P24 — Bulk `Elements` append in `beginTableRowArena`
+### P24 - Bulk `Elements` append in `beginTableRowArena`
 
 - [x] Pre-extend `sm.Elements` once per row (1 TR + count TDs) instead of per-TD
       `append`.
@@ -1106,7 +1106,7 @@ Profiled with `make bench-gopdflib-zerodha-x10-pprof` (`cpu_zerodha_run3.prof`,
 
 **Files:** `internal/pdf/structure.go`
 
-### P25 — `appendParentTreeRefs` cap-fast path
+### P25 - `appendParentTreeRefs` cap-fast path
 
 - [x] When `PreallocatePageMCIDSlots` already grew capacity, extend slice length
       without calling `growPtrSlice`.
@@ -1117,7 +1117,7 @@ Profiled with `make bench-gopdflib-zerodha-x10-pprof` (`cpu_zerodha_run3.prof`,
 ### Final Phase 4 (2026-06-20, post P21–P25, idle WSL2)
 
 Artifact: `guides/cursor/baselines/zerodha_bench_x10_wsl_stats_latest.txt` (idle
-machine x10 — authoritative gate run).
+machine x10 - authoritative gate run).
 
 | Metric | Value | Δ vs Phase 3 | Δ vs Current (pre-opt) |
 |--------|------:|-------------:|----------------------:|
@@ -1136,7 +1136,7 @@ machine x10 — authoritative gate run).
 | Hotspot | Phase 3 cum | Phase 4 cum | Δ |
 |---------|------------:|------------:|--:|
 | `BeginTableRowWithTDMCIDs` | 10.86% | **6.81%** | −4.05 pp |
-| `beginTableRowArena` | — | 6.81% flat 4.27% | new hot path |
+| `beginTableRowArena` | - | 6.81% flat 4.27% | new hot path |
 | `BeginStructureElementCap` | 5.89% | **0.65%** | −5.24 pp (fallback only) |
 | `acquireStructKids` | 590ms inside TR | **gone** | eliminated on HFT |
 | `appendStructElemTDLeaf` | 5.82% | **3.62%** | −2.20 pp |
@@ -1144,7 +1144,7 @@ machine x10 — authoritative gate run).
 
 **Note:** Earlier agent-side x10 runs (mean ~6,000–7,200) were **load-depressed** on
 a busy WSL session. The authoritative idle-machine run (user session, 2026-06-20)
-shows mean **9,594** and best **10,005** — **8,000 mean target met (+19.9% margin)**.
+shows mean **9,594** and best **10,005** - **8,000 mean target met (+19.9% margin)**.
 Always run x10 on an idle machine per P0 harness hygiene.
 
 **8,000 mean target: MET.** Optional next wins from post-Phase-4 profile: signature
@@ -1190,15 +1190,15 @@ go test ./internal/...
 
 ## Related documents
 
-- `guides/optimizations/20260617_zerodha_x10_pprof_optimization_checklist.md` — prior
+- `guides/optimizations/20260617_zerodha_x10_pprof_optimization_checklist.md` - prior
   checklist; hit 7,438 ops/sec mean by skipping HFT TR→TD (the shortcut this checklist
   explicitly forbids).
-- `guides/optimizations/20260617_k6_bench_regression_analysis.md` — root-cause analysis
+- `guides/optimizations/20260617_k6_bench_regression_analysis.md` - root-cause analysis
   of the `sharedRowRenderCache` key-based cache that hung k6. Reason this checklist
   bans new key-based caches.
-- `guides/optimizations/20260617_shared_row_cache_recovery_checklist.md` — bounded the
+- `guides/optimizations/20260617_shared_row_cache_recovery_checklist.md` - bounded the
   key-based cache so k6 recovers. The bounded version stays; this checklist does not
   expand it.
-- `guides/optimizations/20260614_remaining_optimizations_checklist.md` — broader k6
+- `guides/optimizations/20260614_remaining_optimizations_checklist.md` - broader k6
   optimization history (compression, JSON decode, structure-tree writer).
-- `guides/BENCHMARKS.md` — best-of-5 cross-harness comparison (Go 1.26.4).
+- `guides/BENCHMARKS.md` - best-of-5 cross-harness comparison (Go 1.26.4).

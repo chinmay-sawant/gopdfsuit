@@ -1083,7 +1083,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 		cmap.Write(strconv.AppendInt(ibuf[:0], int64(len(chunk)), 10))
 		cmap.WriteString(" beginbfchar\n")
 		for _, m := range chunk {
-			// CID as hex, Unicode code point as hex — using lookup table
+			// CID as hex, Unicode code point as hex - using lookup table
 			if m.char <= 0xFFFF {
 				cmap.WriteByte('<')
 				writeHex4(&cmap, m.cid)

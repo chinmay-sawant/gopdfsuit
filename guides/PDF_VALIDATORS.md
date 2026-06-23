@@ -15,7 +15,7 @@ make test-zerodha-compliance  # Zerodha retail/active/HFT only
 | Tool | Type | PDF/A-4 | PDF/UA-2 | Install | CI | Catches ParentTree bugs |
 |------|------|---------|----------|---------|----|-------------------------|
 | **veraPDF** | ISO profiles (primary gate) | Yes (`-f 4`) | Yes (`-f ua2`) | `make install-verapdf` | Yes | No |
-| **structure_tree_check.py** | Custom strict structural checks | — | — | Built-in (Python 3) | Yes | **Yes** |
+| **structure_tree_check.py** | Custom strict structural checks | - | - | Built-in (Python 3) | Yes | **Yes** |
 | **avalpdf** | Tag-tree heuristics (supplementary) | No | No (WCAG-style) | `make install-pdf-validators` | Yes | Partial |
 | **PAC 2026** (axes4) | Matterhorn / PDF/UA reference checker | Indirect | Yes (PDF/UA + WCAG) | Windows GUI only | Manual | **Yes** |
 | **callas pdfToolbox CLI** | Commercial preflight | Yes (profile) | PDF/UA-1 syntax | Docker + license | Optional | **Yes** |
@@ -97,7 +97,7 @@ Stricter PDF/A-4 and PDF/UA checks; requires a **callas license**.
 ```bash
 docker pull callassoftware/pdftoolbox-cli:latest
 
-# Example (requires activation — set CALLAS_LICENSE or use license server)
+# Example (requires activation - set CALLAS_LICENSE or use license server)
 docker run --rm --entrypoint /bin/bash \
   -v "$PWD/sampledata:/pdfs" -v "$PWD/.pdftoolbox-reports:/out" \
   callassoftware/pdftoolbox-cli:latest -c \
@@ -110,7 +110,7 @@ Profiles in the image include `Verify compliance with PDFA-4.kfpx` and `Verify c
 
 ### PAC 2026 (axes4)
 
-Free Windows GUI — the checker that reported the Zerodha structure-tree failure. Download: [pac.pdf-accessibility.org](https://pac.pdf-accessibility.org/en/download). No Linux CLI; use on Windows for pre-release manual sign-off.
+Free Windows GUI - the checker that reported the Zerodha structure-tree failure. Download: [pac.pdf-accessibility.org](https://pac.pdf-accessibility.org/en/download). No Linux CLI; use on Windows for pre-release manual sign-off.
 
 ## CI integration
 
@@ -124,7 +124,7 @@ Zerodha compliance PDFs are always checked for PDF/A-4 and PDF/UA-2:
 
 ## Pre-release checklist
 
-1. `make test` — unit + integration + PDF validation
-2. `make test-zerodha-compliance` — fast Zerodha gate
+1. `make test` - unit + integration + PDF validation
+2. `make test-zerodha-compliance` - fast Zerodha gate
 3. Optional: PAC on Windows for Matterhorn Protocol manual checkpoints
 4. Optional: pdfToolbox with license for client-mandated preflight reports

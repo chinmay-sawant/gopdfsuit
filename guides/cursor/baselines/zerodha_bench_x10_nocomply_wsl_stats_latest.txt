@@ -1,23 +1,23 @@
 # Zerodha x10 non-compliant latest summary
 
 Runs: 10
-Best throughput: 26980.25 ops/sec
-Worst throughput: 18280.84 ops/sec
-Mean throughput: 22415.95 ops/sec
-Median throughput: 22306.48 ops/sec
-Stddev throughput: 2370.83 ops/sec
-Mean avg latency: 2.091 ms
-Mean peak allocated: 669.28 MB
+Best throughput: 37853.42 ops/sec
+Worst throughput: 26077.43 ops/sec
+Mean throughput: 34035.02 ops/sec
+Median throughput: 35180.67 ops/sec
+Stddev throughput: 3946.76 ops/sec
+Mean avg latency: 1.376 ms
+Mean peak allocated: 310.23 MB
 
 | Run | Throughput | Avg latency | Peak allocated |
 |-----|-----------:|------------:|---------------:|
-| zerodha_nocomply_run1.txt | 23842.20 ops/sec | 1.962 ms | 614.00 MB |
-| zerodha_nocomply_run2.txt | 22863.80 ops/sec | 2.048 ms | 712.38 MB |
-| zerodha_nocomply_run3.txt | 21747.70 ops/sec | 2.136 ms | 751.29 MB |
-| zerodha_nocomply_run4.txt | 20732.14 ops/sec | 2.254 ms | 727.67 MB |
-| zerodha_nocomply_run5.txt | 18280.84 ops/sec | 2.572 ms | 675.15 MB |
-| zerodha_nocomply_run6.txt | 21749.16 ops/sec | 2.167 ms | 691.25 MB |
-| zerodha_nocomply_run7.txt | 26980.25 ops/sec | 1.685 ms | 531.40 MB |
-| zerodha_nocomply_run8.txt | 24094.47 ops/sec | 1.944 ms | 601.19 MB |
-| zerodha_nocomply_run9.txt | 23240.82 ops/sec | 1.997 ms | 869.43 MB |
-| zerodha_nocomply_run10.txt | 20628.08 ops/sec | 2.142 ms | 519.04 MB |
+| zerodha_nocomply_run1.txt | 34066.66 ops/sec | 1.356 ms | 317.64 MB |
+| zerodha_nocomply_run2.txt | 37853.42 ops/sec | 1.227 ms | 301.48 MB |
+| zerodha_nocomply_run3.txt | 33370.03 ops/sec | 1.389 ms | 300.53 MB |
+| zerodha_nocomply_run4.txt | 26077.43 ops/sec | 1.748 ms | 318.30 MB |
+| zerodha_nocomply_run5.txt | 28158.21 ops/sec | 1.664 ms | 289.47 MB |
+| zerodha_nocomply_run6.txt | 34487.71 ops/sec | 1.307 ms | 358.09 MB |
+| zerodha_nocomply_run7.txt | 37336.32 ops/sec | 1.262 ms | 281.01 MB |
+| zerodha_nocomply_run8.txt | 36423.15 ops/sec | 1.269 ms | 353.18 MB |
+| zerodha_nocomply_run9.txt | 35873.63 ops/sec | 1.303 ms | 283.34 MB |
+| zerodha_nocomply_run10.txt | 36703.65 ops/sec | 1.239 ms | 299.21 MB |

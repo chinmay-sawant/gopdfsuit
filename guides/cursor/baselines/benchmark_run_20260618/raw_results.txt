@@ -5731,7 +5731,7 @@ running (0m35.2s), 00/48 VUs, 42077 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
 ==> Heap profile (post-load)
 ==> pprof text summary
-# Gin pprof summary — 20260618_001013
+# Gin pprof summary - 20260618_001013
 binary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/gopdfsuit_20260618_001013
 k6_log: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_001013.txt
 GOMAXPROCS=24 MAX_CONCURRENT=48 BENCH_MODE=1 GIN_FAST_API=1 LOAD_VUS=48 PROFILE_SECONDS=35 PAYLOAD_SCENARIO=tagged_ecdsa
@@ -6083,7 +6083,7 @@ time="2026-06-18T00:11:38+05:30" level=info msg="gotenberg load done (started 20
 
 running (0m38.2s), 00/48 VUs, 530 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
-# Gotenberg k6 summary — 20260618_001058
+# Gotenberg k6 summary - 20260618_001058
 image: gotenberg/gotenberg:8
 base_url: http://127.0.0.1:3010
 chromium_max_concurrency: 6

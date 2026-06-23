@@ -61,7 +61,7 @@
             "row": [
               {
                 "props": "MathUnicode:12:100:left:1:1:1:1",
-                "text": "  SECTION 1 — BASIC ARITHMETIC & SYMBOLS",
+                "text": "  SECTION 1 - BASIC ARITHMETIC & SYMBOLS",
                 "bgcolor": "#161B22",
                 "textcolor": "#58A6FF",
                 "height": 28
@@ -276,7 +276,7 @@
             "row": [
               {
                 "props": "MathUnicode:12:100:left:1:1:1:1",
-                "text": "  SECTION 2 — SUPERSCRIPTS & SUBSCRIPTS",
+                "text": "  SECTION 2 - SUPERSCRIPTS & SUBSCRIPTS",
                 "bgcolor": "#161B22",
                 "textcolor": "#58A6FF",
                 "height": 28
@@ -477,7 +477,7 @@
             "row": [
               {
                 "props": "MathUnicode:12:100:left:1:1:1:1",
-                "text": "  SECTION 3 — FRACTIONS & ROOTS",
+                "text": "  SECTION 3 - FRACTIONS & ROOTS",
                 "bgcolor": "#161B22",
                 "textcolor": "#58A6FF",
                 "height": 28
@@ -692,7 +692,7 @@
             "row": [
               {
                 "props": "MathUnicode:12:100:left:1:1:1:1",
-                "text": "  SECTION 4 — CALCULUS & INTEGRALS",
+                "text": "  SECTION 4 - CALCULUS & INTEGRALS",
                 "bgcolor": "#161B22",
                 "textcolor": "#58A6FF",
                 "height": 28
@@ -979,7 +979,7 @@
             "row": [
               {
                 "props": "MathUnicode:12:100:left:1:1:1:1",
-                "text": "  SECTION 5 — SUMS, PRODUCTS & LIMITS",
+                "text": "  SECTION 5 - SUMS, PRODUCTS & LIMITS",
                 "bgcolor": "#161B22",
                 "textcolor": "#58A6FF",
                 "height": 28
@@ -1122,7 +1122,7 @@
             "row": [
               {
                 "props": "MathUnicode:12:100:left:1:1:1:1",
-                "text": "  SECTION 6 — FUNCTIONS, DELIMITERS & ACCENTS",
+                "text": "  SECTION 6 - FUNCTIONS, DELIMITERS & ACCENTS",
                 "bgcolor": "#161B22",
                 "textcolor": "#58A6FF",
                 "height": 28
@@ -1434,7 +1434,7 @@
             "row": [
               {
                 "props": "MathUnicode:12:100:left:1:1:1:1",
-                "text": "  SECTION 7 — ADVANCED EXPRESSIONS",
+                "text": "  SECTION 7 - ADVANCED EXPRESSIONS",
                 "bgcolor": "#161B22",
                 "textcolor": "#58A6FF",
                 "height": 28

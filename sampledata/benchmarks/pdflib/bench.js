@@ -176,7 +176,7 @@ async function runOnce() {
     // such as HummusJS with specialized PDF/A generation capabilities
 
     const pdfBytes = await pdfDoc.save();
-    // Generate bytes in-memory — no disk I/O in hot path
+    // Generate bytes in-memory - no disk I/O in hot path
 
     return performance.now() - start;
 }

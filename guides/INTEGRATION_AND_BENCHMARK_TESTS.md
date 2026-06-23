@@ -33,11 +33,11 @@ python3 -m pytest bindings/python/tests -v
 | Benchmark | ns/op | MB/s | B/op | allocs/op | Prior (morning) |
 |-----------|------:|-----:|-----:|----------:|----------------:|
 | `BenchmarkGenerateTemplatePDF_FinancialReport` | **1,045,205** | 106.8 | 599,561 | 990 | 6,067,362 |
-| `BenchmarkGenerateTemplatePDF_FinancialReport_Parallel` | **133,124** | — | 561,881 | 990 | 816,872 |
+| `BenchmarkGenerateTemplatePDF_FinancialReport_Parallel` | **133,124** | - | 561,881 | 990 | 816,872 |
 
 ## End-to-end stack benchmarks
 
-### gopdflib Zerodha (latest — 30-run, 2026-06-14)
+### gopdflib Zerodha (latest - 30-run, 2026-06-14)
 
 | Engine | Harness | Peak | **30-run mean** | Prior (13-run `20260613`) |
 |--------|---------|-----:|----------------:|--------------------------:|
@@ -59,12 +59,12 @@ Full comparison: [benchmark_suite_20260611_2128/comparison.md](./cursor/baseline
 | Target | Command | Latest run | Peak | Latest avg | Median | p99 |
 |--------|---------|------------|-----:|-----------:|-------:|----:|
 | Weighted steady | `make bench-k6` | `20260614_004108` (5-run) | **859 req/s** | **825 req/s** | 16.0 ms | 347 ms |
-| Weighted steady (light) | `make bench-k6-light` | — | — | — | — | — |
-| Weighted steady (best) | `make load-pprof` | `20260611_190806` | **1,054 req/s** | — | 15.5 ms | 143 ms |
+| Weighted steady (light) | `make bench-k6-light` | - | - | - | - | - |
+| Weighted steady (best) | `make load-pprof` | `20260611_190806` | **1,054 req/s** | - | 15.5 ms | 143 ms |
 | Weighted steady (2-run avg) | `make load-pprof` | `20260611_220146` | 693 req/s | **652 req/s** | 20.1 ms | 467 ms |
-| Weighted ≥1k gate | `make load-pprof-1k` | `20260611_190935` | 953 req/s | — | — | 150 ms |
-| Weighted ≥1.5k gate | `make load-pprof-1500` | `20260611_191020` | 871 req/s | — | 18.6 ms | 176 ms |
-| Retail-only ≥1.5k gate | `make load-pprof-gate` | `20260611_190850` | **3,965 req/s** | — | 7.8 ms | 29 ms |
+| Weighted ≥1k gate | `make load-pprof-1k` | `20260611_190935` | 953 req/s | - | - | 150 ms |
+| Weighted ≥1.5k gate | `make load-pprof-1500` | `20260611_191020` | 871 req/s | - | 18.6 ms | 176 ms |
+| Retail-only ≥1.5k gate | `make load-pprof-gate` | `20260611_190850` | **3,965 req/s** | - | 7.8 ms | 29 ms |
 
 ## Gotenberg HTML→PDF k6 (`make bench-gotenberg`)
 
@@ -72,7 +72,7 @@ Same weighted 80/15/5 mix as gopdfsuit, rendered via Gotenberg Chromium (`skipNe
 
 | Target | Command | Latest run | Peak | Latest avg | Median | p99 |
 |--------|---------|------------|-----:|-----------:|-------:|----:|
-| Weighted steady | `make bench-gotenberg` | `20260613_215127` | — | **10.3 req/s** | 4.26 s | 8.22 s |
+| Weighted steady | `make bench-gotenberg` | `20260613_215127` | - | **10.3 req/s** | 4.26 s | 8.22 s |
 
 **vs gopdfsuit** (peak **859** / avg **825** req/s, 5-run `20260614`): ~**80×** higher avg throughput on the same k6 harness.  
 Full comparison: [gotenberg_runs/comparison_20260613.md](./cursor/baselines/gotenberg_runs/comparison_20260613.md)
@@ -81,7 +81,7 @@ Output PDF from integration test: `sampledata/financialreport/financial_report.p
 
 ## Caching & memory (long-running servers)
 
-Request JSON is **not** retained after `POST /generate/template-pdf`. Process-global caches (compression, images, font subsets) have **no TTL** — see [CACHING_AND_MEMORY_LIFECYCLE.md](./CACHING_AND_MEMORY_LIFECYCLE.md).
+Request JSON is **not** retained after `POST /generate/template-pdf`. Process-global caches (compression, images, font subsets) have **no TTL** - see [CACHING_AND_MEMORY_LIFECYCLE.md](./CACHING_AND_MEMORY_LIFECYCLE.md).
 
 ## gomock handler tests
 
@@ -105,7 +105,7 @@ Unit tests (`handlers_gomock_test.go`) verify handler wiring without real PDF ge
 | Split | `TestSplitPDF*`` | `sampledata/split/em.pdf` |
 | HTML→PDF/Image | `TestHtmlToPDF`, `TestHtmlToImage` | Wikipedia URL (requires Chrome) |
 | Redact | `TestRedactPageInfo`, `TestRedactCapabilities`, `TestRedactTextPositions`, `TestRedactSearch`, `TestRedactApply` | `financial_report.pdf` |
-| Fonts | `TestGetFonts`, `TestUploadFontInvalidExtension` | — |
+| Fonts | `TestGetFonts`, `TestUploadFontInvalidExtension` | - |
 | Template data | `TestGetTemplateData` | `financial_report.json` |
 
 ## PDF compliance validation

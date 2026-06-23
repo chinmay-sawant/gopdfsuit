@@ -263,11 +263,11 @@ Use **`make bench-k6-light`** when running on WSL with limited RAM, alongside ot
 | Target | Description |
 |--------|-------------|
 | `make load-pprof` | Weighted `tagged_ecdsa` workload, 48 VU × 35s + pprof (alias: `bench-k6`) |
-| `make bench-k6-light` | Same harness at **24 VU × 15s**, `MAX_CONCURRENT=24`, `GOMAXPROCS=12` — lower CPU/RAM |
+| `make bench-k6-light` | Same harness at **24 VU × 15s**, `MAX_CONCURRENT=24`, `GOMAXPROCS=12` - lower CPU/RAM |
 | `make load-pprof-gate` | Retail-only signed fast path, 1500 req/s gate (alias: `bench-k6-retail`) |
 | `make load-pprof-1k` | Weighted workload, 1000 req/s gate (alias: `bench-k6-1k`) |
 | `make load-pprof-1500` | Weighted workload, 1500 req/s gate (alias: `bench-k6-1500`) |
-| `make bench-k6-load` | k6 `load_test.js` only — start server yourself |
+| `make bench-k6-load` | k6 `load_test.js` only - start server yourself |
 | `make bench-k6-smoke` | Quick `smoke_test.js` (10s, 1 VU) |
 | `make bench-k6-spike` | Traffic spike simulation (`spike_test.js`) |
 | `make bench-k6-soak` | 30-minute stability test (`soak_test.js`) |

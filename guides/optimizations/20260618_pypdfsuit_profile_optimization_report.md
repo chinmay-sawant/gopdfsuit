@@ -1,9 +1,9 @@
-# PyPDFSuit Python Binding — Phase Profile & Optimization Report
+# PyPDFSuit Python Binding - Phase Profile & Optimization Report
 
 **Date:** 2026-06-18  
 **Branch:** `feat/optimization-5.5-medium`  
 **Machine:** WSL2, Intel i7-13700HX, 24 logical CPUs, Python 3.13.10, Go 1.26.x  
-**Workload:** Zerodha gold standard — 80% retail / 15% active / 5% HFT (`pypdfsuit_bench.py`)  
+**Workload:** Zerodha gold standard - 80% retail / 15% active / 5% HFT (`pypdfsuit_bench.py`)  
 **Profile harness:** `sampledata/gopdflib/zerodha/pypdfsuit_profile.py`  
 **Raw log:** `guides/cursor/baselines/pypdfsuit_profile_20260618.txt`
 
@@ -21,7 +21,7 @@
 
 **Published benchmark (honest path):** `make bench-pypdfsuit-zerodha` with `BENCH_USE_JSON_CACHE=0` → **234.62 ops/s** (48 workers, 5000 iter, June 2026).
 
-**Optional cache (steady-state / template reuse):** cache pre-serialized JSON per template in `generator.py`. Measured **~5.9×** when `use_cache=True` (253 → **1,505 ops/s**) — not used for published benchmark tables.
+**Optional cache (steady-state / template reuse):** cache pre-serialized JSON per template in `generator.py`. Measured **~5.9×** when `use_cache=True` (253 → **1,505 ops/s**) - not used for published benchmark tables.
 
 **Ceiling after JSON caching:** Python still ~**11×** below native Go on the same weighted mix, because every call still pays Go `json.Unmarshal` + ctypes overhead. Closing that gap requires a new CGO contract (skip JSON) or an out-of-process Go service.
 
@@ -39,11 +39,11 @@ python3 sampledata/gopdflib/zerodha/pypdfsuit_go_profile.go  # Go JSON vs native
 
 ### Phases instrumented (per `generate_pdf()` call)
 
-1. **`to_dict`** — Python dataclass → nested dict (`types._to_dict`)
-2. **`json_dumps`** — `json.dumps(...).encode("utf-8")`
-3. **`cgo_call`** — `lib.GeneratePDF()` (Go: `C.GoString` + `json.Unmarshal` + `gopdflib.GeneratePDF` + `malloc`)
-4. **`copy_back`** — `ctypes.string_at(result.data, result.length)`
-5. **`free_result`** — `FreeBytesResult`
+1. **`to_dict`** - Python dataclass → nested dict (`types._to_dict`)
+2. **`json_dumps`** - `json.dumps(...).encode("utf-8")`
+3. **`cgo_call`** - `lib.GeneratePDF()` (Go: `C.GoString` + `json.Unmarshal` + `gopdflib.GeneratePDF` + `malloc`)
+4. **`copy_back`** - `ctypes.string_at(result.data, result.length)`
+5. **`free_result`** - `FreeBytesResult`
 
 A **cached JSON control** skips phases 1–2 and reuses pre-built UTF-8 payloads.
 
@@ -66,7 +66,7 @@ A **cached JSON control** skips phases 1–2 and reuses pre-built UTF-8 payloads
 | HFT | **31.18** | −68% | 32 |
 
 **Weighted mix estimate (80/15/5, 1 thread):** **6.66 ms** → **150 ops/s** theoretical max.  
-**Observed 48-thread bench:** **253 ops/s** (~4.0 ms effective) — threads help, but serialization + HFT tail latency cap scaling.
+**Observed 48-thread bench:** **253 ops/s** (~4.0 ms effective) - threads help, but serialization + HFT tail latency cap scaling.
 
 ---
 
@@ -87,11 +87,11 @@ A **cached JSON control** skips phases 1–2 and reuses pre-built UTF-8 payloads
 | Path | Mean latency | ops/s |
 |------|-------------:|------:|
 | Native `gopdflib.GeneratePDF(struct)` | **1.35 ms** | 739 |
-| `json.Unmarshal` only | **0.15 ms** | — |
-| `GeneratePDF` after unmarshal | **1.61 ms** | — |
+| `json.Unmarshal` only | **0.15 ms** | - |
+| `GeneratePDF` after unmarshal | **1.61 ms** | - |
 | Combined JSON round-trip | **1.76 ms** | 567 |
 
-Go JSON unmarshaling adds only **~0.15 ms** on retail. Python `to_dict` adds **~0.27 ms** — comparable. The Python penalty at scale is **rebuilding the dict tree on every call** (especially 2,000-row HFT) plus **lack of true parallelism** during that CPU-bound Python work.
+Go JSON unmarshaling adds only **~0.15 ms** on retail. Python `to_dict` adds **~0.27 ms** - comparable. The Python penalty at scale is **rebuilding the dict tree on every call** (especially 2,000-row HFT) plus **lack of true parallelism** during that CPU-bound Python work.
 
 ---
 
@@ -153,7 +153,7 @@ Items with **negligible** cost: `copy_back` (<1 ms retail), `free_result`, ctype
 
 ## Optimization Plan (prioritized)
 
-### P0 — JSON payload cache ✅ **DONE** (measured **+494% throughput**)
+### P0 - JSON payload cache ✅ **DONE** (measured **+494% throughput**)
 
 **Problem:** `generate_pdf()` always ran `json.dumps(template.to_dict())` even when the template was static.
 
@@ -171,13 +171,13 @@ pdf_bytes = generate_pdf(template, template_json=payload)  # explicit bytes
 
 ---
 
-### P0 — Pre-serialize in `pypdfsuit_bench.py` (est. same as above, 1 hour)
+### P0 - Pre-serialize in `pypdfsuit_bench.py` (est. same as above, 1 hour)
 
 For the benchmark harness specifically, build templates once and store `retail_json`, `active_json`, `hft_json` bytes. Pass directly to `call_bytes_result`. This separates **binding overhead** from **bench harness overhead** in CI.
 
 ---
 
-### P1 — Fast `to_dict` path (est. **+50–100%** on active/HFT serialize, 2–3 days)
+### P1 - Fast `to_dict` path (est. **+50–100%** on active/HFT serialize, 2–3 days)
 
 | Action | Rationale |
 |--------|-----------|
@@ -186,11 +186,11 @@ For the benchmark harness specifically, build templates once and store `retail_j
 | Add `slots=True` on `Cell`, `Row`, `Table` | Reduce `getattr` overhead (2M+ calls per 200 iterations) |
 | `to_dict_once()` + store on template | `template._json_dict_cache` invalidated only on mutation |
 
-**HFT-specific:** build the 2,000-row table once in Go (template ID `"zerodha_hft"`) or accept raw JSON fixture file — avoid 60 ms Python tree walk entirely.
+**HFT-specific:** build the 2,000-row table once in Go (template ID `"zerodha_hft"`) or accept raw JSON fixture file - avoid 60 ms Python tree walk entirely.
 
 ---
 
-### P1 — Skip Go `json.Unmarshal` (est. **+10–30%** post-cache, 3–5 days)
+### P1 - Skip Go `json.Unmarshal` (est. **+10–30%** post-cache, 3–5 days)
 
 Add a second CGO export:
 
@@ -205,30 +205,30 @@ Alternative: **msgpack** or **cap'n proto** binary template encoding with a sing
 
 ---
 
-### P2 — Concurrency model (est. **+20–40%** on serialize-heavy paths, 2 days)
+### P2 - Concurrency model (est. **+20–40%** on serialize-heavy paths, 2 days)
 
 | Approach | When to use |
 |----------|-------------|
-| **Keep ThreadPoolExecutor** | After P0 cache — native Go work dominates, GIL less relevant |
+| **Keep ThreadPoolExecutor** | After P0 cache - native Go work dominates, GIL less relevant |
 | **ProcessPool per worker with cached JSON** | If templates are dynamic and serialize-bound; high fork cost on WSL (not recommended as default) |
 | **asyncio + thread pool** | I/O-bound HTTP wrappers only |
 
-Measured: retail-only threads at **1,323 ops/s** (24 workers) vs weighted **222 ops/s** — the mix matters more than pool type.
+Measured: retail-only threads at **1,323 ops/s** (24 workers) vs weighted **222 ops/s** - the mix matters more than pool type.
 
 ---
 
-### P2 — Zero-copy PDF return (est. **+5%** on HFT, 1–2 days)
+### P2 - Zero-copy PDF return (est. **+5%** on HFT, 1–2 days)
 
 Return a `memoryview` over C memory with explicit `free()` context manager instead of `ctypes.string_at` copy (0.8 ms on HFT). Requires careful lifetime docs.
 
 ---
 
-### P3 — Production architecture (match Go native throughput)
+### P3 - Production architecture (match Go native throughput)
 
 For services needing **>2,000 ops/s** with PDF/A-4 + signing:
 
 1. Run the existing Gin/gopdfsuit HTTP handler (`bench-k6-retail` → **7,515 req/s** retail HTTP)
-2. Python client sends **pre-built JSON fixture** or template ID — no local CGO
+2. Python client sends **pre-built JSON fixture** or template ID - no local CGO
 3. Keep `pypdfsuit` for single-process scripting / low-QPS integrations
 
 ---
@@ -242,7 +242,7 @@ For services needing **>2,000 ops/s** with PDF/A-4 + signing:
 | **P0 + P1: fast to_dict / orjson** | ~1,200–1,400 | 5× | 0.10× |
 | **P0 + P1 + skip Go unmarshal** | ~1,500–2,000 | 6–8× | 0.13–0.17× |
 | **Go native (`bench-gopdflib-zerodha`)** | 11,721 | 46× | 1× |
-| **HTTP k6 retail** | 7,515 req/s | — | different harness |
+| **HTTP k6 retail** | 7,515 req/s | - | different harness |
 
 ---
 

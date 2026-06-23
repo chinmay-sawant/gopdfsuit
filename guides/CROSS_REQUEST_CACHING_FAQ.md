@@ -68,11 +68,11 @@ The “template row” is a row index (e.g. `1`) **inside that request’s table
 
 | Scenario | Risk |
 |----------|------|
-| Same layout, different text (millions of contract notes) | **Safe** — intended use |
-| Different layouts per PDF | **Safe** — each JSON decoded fresh |
-| Millions of **unique images** | **Memory growth** (image cache has no eviction) — not wrong PDF content |
-| Millions of **unique font glyph sets** | **Memory growth** (subset cache has no eviction) — not wrong layout |
-| `sharedRowLayout: true` but data rows **don’t** have uniform `props` | **Wrong rendering within that one PDF** — not cross-PDF contamination |
+| Same layout, different text (millions of contract notes) | **Safe** - intended use |
+| Different layouts per PDF | **Safe** - each JSON decoded fresh |
+| Millions of **unique images** | **Memory growth** (image cache has no eviction) - not wrong PDF content |
+| Millions of **unique font glyph sets** | **Memory growth** (subset cache has no eviction) - not wrong layout |
+| `sharedRowLayout: true` but data rows **don’t** have uniform `props` | **Wrong rendering within that one PDF** - not cross-PDF contamination |
 | Hypothetical hash collision on page content | **Theoretically possible, practically negligible** |
 
 ---
@@ -86,7 +86,7 @@ The “template row” is a row index (e.g. `1`) **inside that request’s table
 | Clears per-request template data after each generate call | **Yes** |
 | HFT fast path is opt-in per table in JSON | **Yes** |
 
-For long-lived servers with huge variety: periodic `pdf.ResetImageCache()` and `font.ClearPageCompressCache()`, or worker restarts — controls **memory**, not layout correctness.
+For long-lived servers with huge variety: periodic `pdf.ResetImageCache()` and `font.ClearPageCompressCache()`, or worker restarts - controls **memory**, not layout correctness.
 
 ```go
 import (
@@ -102,6 +102,6 @@ pdf.ResetImageCache()
 
 ## Related docs
 
-- [CACHING_AND_MEMORY_LIFECYCLE.md](./CACHING_AND_MEMORY_LIFECYCLE.md) — full cache list, eviction, millions-of-records guidance
-- [TEMPLATE_REFERENCE.md](./TEMPLATE_REFERENCE.md) — `sharedRowLayout` / `sharedRowTemplateRow` JSON fields
-- [INTEGRATION_AND_BENCHMARK_TESTS.md](./INTEGRATION_AND_BENCHMARK_TESTS.md) — benchmarks and ops notes
+- [CACHING_AND_MEMORY_LIFECYCLE.md](./CACHING_AND_MEMORY_LIFECYCLE.md) - full cache list, eviction, millions-of-records guidance
+- [TEMPLATE_REFERENCE.md](./TEMPLATE_REFERENCE.md) - `sharedRowLayout` / `sharedRowTemplateRow` JSON fields
+- [INTEGRATION_AND_BENCHMARK_TESTS.md](./INTEGRATION_AND_BENCHMARK_TESTS.md) - benchmarks and ops notes

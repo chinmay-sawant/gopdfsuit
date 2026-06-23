@@ -1,4 +1,4 @@
-# Optimization Execution Summary — 2026-06-14
+# Optimization Execution Summary - 2026-06-14
 
 ## Date & Scope
 
@@ -6,7 +6,7 @@ Multi-pass performance work on gopdfsuit's weighted `tagged_ecdsa` benchmark (`m
 
 ## Key Outcomes
 
-- **Fresh 2-run mean (latest):** **1,025.7 req/s** (runs: 998.7, 1,052.7) — up from **916.8 req/s** pre-pass (+12%) and **825 req/s** prior-session 5-run avg (+24%)
+- **Fresh 2-run mean (latest):** **1,025.7 req/s** (runs: 998.7, 1,052.7) - up from **916.8 req/s** pre-pass (+12%) and **825 req/s** prior-session 5-run avg (+24%)
 - **Best fresh run:** **1,052.7 req/s**, p99 **236.9 ms**, HFT avg **323.4 ms**, **0% errors**
 - **Historical 5-run mean (committed HI-2 + MI-3 + MI-1):** **1,005.6 req/s**, p99 **269.6 ms**
 - **Gap to targets:** ~87% of post-revert baseline (1,054), ~74% of Phase 11 peak (1,232), ~61% of **1,500 req/s** goal
@@ -16,14 +16,14 @@ Multi-pass performance work on gopdfsuit's weighted `tagged_ecdsa` benchmark (`m
 ## Work Completed
 
 **Shipped / committed:**
-- **HI-2** — Bounded unbounded caches: `subsetCache` (1,024), `imgCache` (256), `propsCache` (8,192)
-- **MI-3** — `strconv.AppendInt` + stack scratch buffers in structure-tree writer
-- **MI-1 (partial)** — `appendEscapedPDFLiteral` + `Write([]byte)` for Title/Alt
+- **HI-2** - Bounded unbounded caches: `subsetCache` (1,024), `imgCache` (256), `propsCache` (8,192)
+- **MI-3** - `strconv.AppendInt` + stack scratch buffers in structure-tree writer
+- **MI-1 (partial)** - `appendEscapedPDFLiteral` + `Write([]byte)` for Title/Alt
 
 **Additional same-session passes:**
-- **HI-1/HI-3 support** — Stable shard selection for `CompressContentStreamCached`; removed per-call `hash/fnv` alloc
-- **HI-4** — HFT table row preallocation; pooled `PDFTemplate` reset retains hot HFT arrays across `sync.Pool` reuse
-- **Structure follow-up** — Pre-sized tagged structure-element backing storage from template shape
+- **HI-1/HI-3 support** - Stable shard selection for `CompressContentStreamCached`; removed per-call `hash/fnv` alloc
+- **HI-4** - HFT table row preallocation; pooled `PDFTemplate` reset retains hot HFT arrays across `sync.Pool` reuse
+- **Structure follow-up** - Pre-sized tagged structure-element backing storage from template shape
 
 ## Findings / Bottlenecks
 
@@ -41,13 +41,13 @@ Cache bounds and structure-writer micro-opts improved stability, but **compressi
 ## Open Items / Next Steps
 
 **High impact:**
-- **HI-1** — Flate compression tuning — est. **+5–8%**
-- **HI-3** — Smarter buffer pre-sizing / page content buffer pooling — est. **+5–7%**, target `bytes.growSlice` **< 200 MB**
-- **HI-4** — Codegen sonic AST decoder for `PDFTemplate` — est. **+5–10%** E2E on HFT
+- **HI-1** - Flate compression tuning - est. **+5–8%**
+- **HI-3** - Smarter buffer pre-sizing / page content buffer pooling - est. **+5–7%**, target `bytes.growSlice` **< 200 MB**
+- **HI-4** - Codegen sonic AST decoder for `PDFTemplate` - est. **+5–10%** E2E on HFT
 
 **Medium impact:**
-- **MI-1** — Pool `StructKid` slices, concrete buffer path — est. **+3–5%**
-- **MI-2** — HFT draw path (text-width cache, batched MCIDs) — est. **+3–5%**
+- **MI-1** - Pool `StructKid` slices, concrete buffer path - est. **+3–5%**
+- **MI-2** - HFT draw path (text-width cache, batched MCIDs) - est. **+3–5%**
 
 **Acceptance criteria still open:** stable 5-run avg **~1,500+ req/s**, p99 **< 500 ms**, `bytes.growSlice` **< 200 MB**.
 

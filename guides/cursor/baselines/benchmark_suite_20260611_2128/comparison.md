@@ -1,4 +1,4 @@
-# Benchmark Suite — 2026-06-11 22:01 IST (Go 1.26.4)
+# Benchmark Suite - 2026-06-11 22:01 IST (Go 1.26.4)
 
 **Environment:** WSL2, i7-13700HX, 24 logical CPUs, `GOMAXPROCS=24`  
 **Go:** `go1.26.4`  
@@ -15,9 +15,9 @@
 |-------|---------|----------------:|-----------------------------:|------------------------------:|-----------:|
 | **gopdfsuit** | k6 `tagged_ecdsa` | **652 req/s** | 893 req/s | 1,054 req/s | −27% |
 | **gopdflib** | Zerodha 5k/48w | **2,459 ops/s** | 3,453 ops/s | ~586 ops/s (Jun old) | −29% |
-| **pypdfsuit** | Zerodha 5k/48w | **219 ops/s** | 236 ops/s | — | −7% |
-| **gopdflib** | handler bench serial | **1.05 ms/op** | — | 6.07 ms/op (doc) | −83% |
-| **gopdflib** | handler bench parallel | **0.133 ms/op** | — | 0.817 ms/op (doc) | −84% |
+| **pypdfsuit** | Zerodha 5k/48w | **219 ops/s** | 236 ops/s | - | −7% |
+| **gopdflib** | handler bench serial | **1.05 ms/op** | - | 6.07 ms/op (doc) | −83% |
+| **gopdflib** | handler bench parallel | **0.133 ms/op** | - | 0.817 ms/op (doc) | −84% |
 
 ### k6 detail (48 VU × 35s, `tagged_ecdsa`)
 
@@ -80,4 +80,4 @@ Prior doc values (2026-06-11 morning): serial **6,067,362** ns/op, parallel **81
 | gopdflib | `gopdflib_run1.txt` | `gopdflib_run2.txt` |
 | pypdfsuit | `pypdfsuit_run1.txt` | `pypdfsuit_run2.txt` |
 | gopdfkit | `gopdfkit_run1.txt` | `gopdfkit_run2.txt` |
-| handler | `handler_bench.txt` | — |
+| handler | `handler_bench.txt` | - |

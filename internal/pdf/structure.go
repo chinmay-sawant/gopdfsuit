@@ -526,7 +526,7 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	elem.MCID = mcid
 	elem.HasMCID = true
 
-	// Write BMC/BDC operator — direct writes, no intermediate allocation
+	// Write BMC/BDC operator - direct writes, no intermediate allocation
 	var intBuf [12]byte
 	streamBuilder.WriteByte('/')
 	streamBuilder.WriteString(string(tag))

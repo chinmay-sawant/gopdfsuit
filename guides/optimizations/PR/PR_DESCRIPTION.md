@@ -1,4 +1,4 @@
-# Performance Improvements — `feat/performance-improvements`
+# Performance Improvements - `feat/performance-improvements`
 
 **Branch:** `feat/performance-improvements`  
 **Base:** `master` at `484b991`  
@@ -22,10 +22,10 @@ This PR is a profile-driven performance program for gopdfsuit spanning the PDF g
 | GoPDFKit compare harness (7 workloads) | gopdflib wins 5/7 | **gopdflib wins 7/7** | Up to **+788%** on `png_rows_60` (Jun 15 re-run) |
 | Gin HTTP weighted (`tagged_ecdsa`) | ~593 req/s | **~910–1,232 req/s** (run-dependent) | **+54–108%** vs pre-opt; ≥1,000 gate ✅ |
 | Gin HTTP post-60399e1 (2-run mean) | 916.8 req/s | **1,025.7 req/s** | **+11.9%** in same session |
-| Gin HTTP retail-only | — | **~3,965 req/s** | ≥1,500 gate ✅ |
+| Gin HTTP retail-only | - | **~3,965 req/s** | ≥1,500 gate ✅ |
 | Zerodha in-process weighted (48 workers) | ~573 ops/s (Go 1.24) | **~2,646 avg / 2,898 peak ops/s** | **+362% vs 1.24 gold std** (10-run validated) |
-| Zerodha retail single-doc (GoPDFSuit) | — | **~1,978 avg / 2,234 peak ops/s** | 10-run validated |
-| vs Gotenberg (same k6 harness) | — | **~89× faster** | 910 vs 10 req/s |
+| Zerodha retail single-doc (GoPDFSuit) | - | **~1,978 avg / 2,234 peak ops/s** | 10-run validated |
+| vs Gotenberg (same k6 harness) | - | **~89× faster** | 910 vs 10 req/s |
 | SlopGuard actionable findings | 218 open | **218 fixed** | 100% remediation |
 | `make test` compliance gate | go test + pytest | **+ veraPDF post-test validation** | PDF/A-4 + PDF/UA-2 for editor outputs |
 
@@ -46,15 +46,15 @@ This PR is a profile-driven performance program for gopdfsuit spanning the PDF g
 | [`20260611_gin_1500_ops_pprof_report.md`](../20260611_gin_1500_ops_pprof_report.md) | Gin HTTP path to 1,000+ req/s (Phases 0–12, k6 + pprof) |
 | [`20260611_zerodha_3000_ops_pprof_report.md`](../20260611_zerodha_3000_ops_pprof_report.md) | Zerodha harness path to 3,000 ops/s (Phases A–G) |
 | [`20260611_zerodha_gold_standard_benchmark.md`](../20260611_zerodha_gold_standard_benchmark.md) | Gold-standard 80/15/5 workload on Go 1.26.4 vs Go 1.24 |
-| [`20260614_remaining_optimizations_checklist.md`](../20260614_remaining_optimizations_checklist.md) | **New (eb1b2c1)** — cache bounds, structure writer, allocation churn follow-ups; updated through 60399e1 |
-| [`../../BENCHMARK_COMPARISON_2026-06-15.md`](../../BENCHMARK_COMPARISON_2026-06-15.md) | **New (d50dfd3)** — cross-stack benchmark validation (10-run Zerodha, k6, GoPDFKit, Gotenberg) |
-| [`../../release-prep.md`](../../release-prep.md) | **New (925a691)** — v6 release checklist (version bump, lint, mocks, PyPI, Docker smoke) |
+| [`20260614_remaining_optimizations_checklist.md`](../20260614_remaining_optimizations_checklist.md) | **New (eb1b2c1)** - cache bounds, structure writer, allocation churn follow-ups; updated through 60399e1 |
+| [`../../BENCHMARK_COMPARISON_2026-06-15.md`](../../BENCHMARK_COMPARISON_2026-06-15.md) | **New (d50dfd3)** - cross-stack benchmark validation (10-run Zerodha, k6, GoPDFKit, Gotenberg) |
+| [`../../release-prep.md`](../../release-prep.md) | **New (925a691)** - v6 release checklist (version bump, lint, mocks, PyPI, Docker smoke) |
 
 ---
 
 ## Implementation phases
 
-### Phase 1 — PDF engine buffer & compression (execution plan)
+### Phase 1 - PDF engine buffer & compression (execution plan)
 
 **Source:** `20260610_master_performance_execution_plan.md`
 
@@ -75,7 +75,7 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 | `BenchmarkGoPdfSuit` | 26,047,411 | 23,531,821 | **−9.7%** |
 | `BenchmarkGenerateTemplatePDF/Rows2000` | 28,903,973 | 24,053,195 | **−16.8%** |
 
-### Phase 2 — Structure tree & table pressure
+### Phase 2 - Structure tree & table pressure
 
 **Source:** `20260610_master_performance_execution_plan.md`, `20260610_phase2_pprof_report.md`
 
@@ -96,7 +96,7 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 
 **Remaining (documented, partially addressed in later commits):** hot-path `fmt.Sprintf` in structure serialization, page content-buffer reuse, `drawTable` / `GetTextWidth` pressure.
 
-### Phase 3 — SlopGuard remediation (218 findings)
+### Phase 3 - SlopGuard remediation (218 findings)
 
 **Source:** `slopguard-findings.md`, `20260610_slopguard_fixes_report.md`
 
@@ -111,9 +111,9 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 | PERF-15 | 30+ | `strconv.Itoa` → `strconv.AppendInt` with scratch buffers |
 | PERF-31 | 13 | Remove `defer` from font registry hot path; explicit unlock |
 | PERF-32 | 40+ | Eliminate redundant `string`/`[]byte` conversions; `unsafe.Slice` where safe |
-| PERF-41/43 | — | `gin.CustomRecovery`; non-blocking stderr logging |
-| PERF-46/48 | — | Cheap guards before `TrimSpace` / `bytes.Equal` |
-| PERF-4 | — | Map pre-sizing; hoisted `visited` map with `clear()` reuse |
+| PERF-41/43 | - | `gin.CustomRecovery`; non-blocking stderr logging |
+| PERF-46/48 | - | Cheap guards before `TrimSpace` / `bytes.Equal` |
+| PERF-4 | - | Map pre-sizing; hoisted `visited` map with `clear()` reuse |
 
 **Validation (GoPDFKit compare harness, 10-run avg):**
 
@@ -123,7 +123,7 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 | `table_180_rows` | 11,548 | **13,051** | **+13.0%** |
 | `table_900_rows` | 2,563 | **2,680** | **+4.6%** |
 
-### Phase 4 — GoPDFKit comparison & deep engine wins
+### Phase 4 - GoPDFKit comparison & deep engine wins
 
 **Source:** `20260610_gopdfkit_compare_results.md`, `20260611_gopdfkit_fixed_compare_results.md`
 
@@ -132,7 +132,7 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 - Pooled page content stream buffers; fairer compare harness (cached templates)
 - `drawTable`: font-ref cache per cell, standard-font subset skip, precomputed text widths
 - Image dedup: shared XObject per repeated cell PNG
-- `GeneratePDFBorrowed` / `Release()` — skip final `slices.Clone` on hot path
+- `GeneratePDFBorrowed` / `Release()` - skip final `slices.Clone` on hot path
 - `DecodeImageData` MRU fast path; `crypto/md5` → `crypto/sha256` for document-ID hash
 - `drawTable` border fast path (uniform borders → single `re S`)
 - PDF/UA-2 Table→TR→TD hierarchy restored (no batch-MC shortcut on TR)
@@ -165,7 +165,7 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 | `png_table_180_rows` | 6,949 | **32,077** | +362% |
 | `png_rows_60` | 4,792 | **42,548** | +788% |
 
-### Phase 5 — Gin HTTP path to 1,000+ req/s
+### Phase 5 - Gin HTTP path to 1,000+ req/s
 
 **Source:** `20260611_gin_1500_ops_pprof_report.md`
 
@@ -192,20 +192,20 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 | 7 | 1,000 gate | Pretouch, tier prealloc, direct struct write, batch MC, HFT deferral, buffer grow, page striping |
 | 8–9 | Decode + draw | Pooled sonic unmarshal, bulk ParentTree, `drawSharedDeferRow` |
 | 10–11 | HFT ultra-fast | Split HFT decode (`hft_decode.go`), flate single-pass >32 KiB |
-| 12 | ❌ Reverted | CRC32 fingerprint, in-place sig hex, store-uncompressed — no E2E gain |
+| 12 | ❌ Reverted | CRC32 fingerprint, in-place sig hex, store-uncompressed - no E2E gain |
 
 **Primary files:** `cmd/gopdfsuit/main.go`, `internal/handlers/handlers.go`, `json_decode.go`, `hft_decode.go`, `internal/pdf/generator.go`, `draw.go`, `structure.go`, `compress_cache.go`, `makefile` (`load-pprof`, `load-pprof-1k`, `load-pprof-1500`)
 
-### Phase 6 — Zerodha harness path to 3,000 ops/s
+### Phase 6 - Zerodha harness path to 3,000 ops/s
 
 **Source:** `20260611_zerodha_3000_ops_pprof_report.md`, `20260611_zerodha_gold_standard_benchmark.md`
 
-**Harness:** `sampledata/gopdflib/zerodha/main.go` — 5,000 iterations, 48 workers, 80/15/5 mix
+**Harness:** `sampledata/gopdflib/zerodha/main.go` - 5,000 iterations, 48 workers, 80/15/5 mix
 
 | Milestone | Peak ops/s | 5-run avg | Avg latency |
 |-----------|----------:|----------:|------------:|
-| Pre-opt (RSA, Go 1.24 gold std) | — | **573 ops/s** | 80.7 ms |
-| Go 1.26.4 gold std (3-run median) | — | **1,135 ops/s** | 41.3 ms |
+| Pre-opt (RSA, Go 1.24 gold std) | - | **573 ops/s** | 80.7 ms |
+| Go 1.26.4 gold std (3-run median) | - | **1,135 ops/s** | 41.3 ms |
 | Post-A7 (ECDSA) | 2,701 | 2,520 | ~17 ms |
 | Post Phase F + G2 (full regen) | **2,751** | **2,476** | ~18.9 ms |
 | **June 15 10-run validation** | **2,898** | **2,646** | 17.7 ms |
@@ -225,7 +225,7 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 
 **3000 ops/s target:** Not yet reached (~8% below peak at Phase F). June 15 10-run validation shows sustained **~2,500–2,900 ops/s** (cold single-run outlier was 1,321). Dominant costs: HFT `drawTable` + zlib (~40% CPU from 5% of jobs), retail ECDSA signing.
 
-### Phase 7 — Cache bounds & structure-tree writer (`eb1b2c1`, 2026-06-14)
+### Phase 7 - Cache bounds & structure-tree writer (`eb1b2c1`, 2026-06-14)
 
 **Source:** `20260614_remaining_optimizations_checklist.md`  
 **Commit:** `eb1b2c1 perf(pdf): bound unbounded caches, optimize structure-tree writer`  
@@ -233,7 +233,7 @@ Profiled hotspots on `go1.26.4`: `bytes.growSlice` (21%), `compress/flate.NewWri
 
 **Problem:** Three `sync.Map`-backed caches could grow without limit on long-lived pods. Structure-tree serialization (`formatStructElemObjectTo`) was still allocating per integer and per Title/Alt field. A pre-session 5-run k6 regression had dropped to **825 req/s** mean (peak 859).
 
-#### HI-2 — Bound previously unbounded caches
+#### HI-2 - Bound previously unbounded caches
 
 | Cache | File | Max entries | Clear API |
 |-------|------|-------------|-----------|
@@ -245,7 +245,7 @@ Overflow semantics: full map clear + counter reset (same pattern as `compress_ca
 
 **New tests:** `subset_cache_test.go`, `image_cache_test.go`, `props_cache_test.go`.
 
-#### MI-3 + MI-1 (partial) — Structure-tree writer allocation cleanup
+#### MI-3 + MI-1 (partial) - Structure-tree writer allocation cleanup
 
 In `generator.go` (`formatStructElemObjectTo`, `appendObjRefToWriter`):
 
@@ -264,11 +264,11 @@ In `generator.go` (`formatStructElemObjectTo`, `appendObjRefToWriter`):
 
 | Experiment | Result |
 |------------|--------|
-| HI-3 — larger buffer estimates + pool retention caps (8 MB / 1 MB) | 993 → 962 req/s; `bytes.growSlice` in-use 256 → 338 MB |
-| MI-1 — generic `formatStructElemObjectToGeneric[T]()` | 998 → 916 req/s (Go shape-based dispatch) |
-| EW-2 — `Load` before `Store` in `storePageCompressEntry` | Single run 808 req/s; HFT latency ~461 ms |
+| HI-3 - larger buffer estimates + pool retention caps (8 MB / 1 MB) | 993 → 962 req/s; `bytes.growSlice` in-use 256 → 338 MB |
+| MI-1 - generic `formatStructElemObjectToGeneric[T]()` | 998 → 916 req/s (Go shape-based dispatch) |
+| EW-2 - `Load` before `Store` in `storePageCompressEntry` | Single run 808 req/s; HFT latency ~461 ms |
 
-### Phase 7 (continued) — Tagged-PDF allocation churn (`60399e1`, 2026-06-14)
+### Phase 7 (continued) - Tagged-PDF allocation churn (`60399e1`, 2026-06-14)
 
 **Source:** `20260614_remaining_optimizations_checklist.md`  
 **Commit:** `60399e1 perf: reduce tagged-pdf allocation churn and refresh benchmark evidence`
@@ -289,7 +289,7 @@ Four allocation-focused passes building on Phase 7 cache bounds:
 
 | Stage | Mean req/s | Δ vs prior |
 |-------|----------:|-----------|
-| Pre-pass baseline | 916.8 | — |
+| Pre-pass baseline | 916.8 | - |
 | Post cache sharding + row prealloc | 989.3 | +7.9% |
 | Post pooled template reuse | 1,009.0 | +2.0% |
 | Post structure preallocation | **1,025.7** | +1.6% |
@@ -297,28 +297,28 @@ Four allocation-focused passes building on Phase 7 cache bounds:
 
 **Remaining bottlenecks (documented):** `bytes.growSlice` (~50% in-use heap), `compress/flate` (~20% CPU), `drawTable` (~15%), sonic JSON decode (~16% alloc_space). **1,500 req/s gate still open** (~61% of target).
 
-### Phase 8 — PDF validation & XFDF correctness (`4d0b573`, 2026-06-14)
+### Phase 8 - PDF validation & XFDF correctness (`4d0b573`, 2026-06-14)
 
 **Commit:** `4d0b573 feat(test): add veraPDF post-test validation and fix XFDF-filled PDF structure`
 
 #### veraPDF post-test gate
 
-- **`test/verify_pdfs.sh`** (486 lines) — parallel veraPDF workers; auto-discover `sampledata/**/generated.*` baselines
-- **`test/install_verapdf.sh`** — installer for veraPDF CLI
+- **`test/verify_pdfs.sh`** (486 lines) - parallel veraPDF workers; auto-discover `sampledata/**/generated.*` baselines
+- **`test/install_verapdf.sh`** - installer for veraPDF CLI
 - **`make test`** now runs Go tests + pytest + veraPDF validation
 - New makefile targets: `install-verapdf`, `test-verify-pdfs`, `test-scan-pdfs`
 - Editor outputs require **PDF/A-4** and **PDF/UA-2** compliance; htmltopdf/htmltoimg skip size checks (live HTML variance)
-- `financialreport/financial_report.json`: `pdfaCompliant: false` — validated as normal PDF, not PDF/A
+- `financialreport/financial_report.json`: `pdfaCompliant: false` - validated as normal PDF, not PDF/A
 
 #### XFDF startxref fix (`internal/pdf/form/xfdf.go`)
 
-- **`setAcroFormNeedAppearancesTrue`** extracted; called **before** xref/trailer write (was after — broke `startxref`)
+- **`setAcroFormNeedAppearancesTrue`** extracted; called **before** xref/trailer write (was after - broke `startxref`)
 - **`repairStartxref`**: for object-stream-only fills, rewrites trailer offset to point at XRef stream or `xref` table
 - New regex `reXRefStreamObj` for xref stream detection
 - Early return path for no-op fills now returns `repairStartxref(out)` instead of raw bytes
 - Regression tests: `xfdf_hospital_test.go`, `xfdf_compressed_test.go` assert startxref points at xref table or xref stream
 
-### Phase 9 — Cross-stack benchmark validation (`d50dfd3`, 2026-06-15)
+### Phase 9 - Cross-stack benchmark validation (`d50dfd3`, 2026-06-15)
 
 **Source:** `guides/BENCHMARK_COMPARISON_2026-06-15.md`  
 **Machine:** WSL2, Intel i7-13700HX, 24 logical CPUs, Go 1.26.4
@@ -336,7 +336,7 @@ Four allocation-focused passes building on Phase 7 cache bounds:
 
 Also added Gotenberg benchmark harness (`18d6137`) and removed duplicate Zerodha benchmarks (`72aee02`) in favor of makefile targets.
 
-### Phase 10 — Release v6, docs, and CI hardening (`925a691` → `dd69309`, 2026-06-15–16)
+### Phase 10 - Release v6, docs, and CI hardening (`925a691` → `dd69309`, 2026-06-15–16)
 
 #### v6.0.0 release prep (`925a691`)
 
@@ -391,14 +391,14 @@ Documented explicitly to avoid re-introducing regressions:
 
 | Experiment | Outcome | Source |
 |------------|---------|--------|
-| Phase 12 CRC32 + in-place sig hex (Gin) | Reverted — CPU win, no E2E throughput gain | `20260611_gin_1500_ops_pprof_report.md` |
-| Store-uncompressed pages ≥96 KiB (Gin) | Reverted — 810 req/s, larger PDFs | same |
-| G3 parallel structure-tree build (Zerodha) | Reverted — ~970 ops/s vs ~2,500 | `20260611_zerodha_3000_ops_pprof_report.md` |
-| G4 template PDF cache (Zerodha) | Removed — each request must produce unique PDF | same |
-| `ReserveMCIDs` ParentTree pre-grow | Fixed (F1) — was 328 MB alloc regression | same |
-| HI-3 aggressive buffer/pool caps (8 MB / 1 MB) | Reverted — 993 → 962 req/s, heap growth | `20260614_remaining_optimizations_checklist.md` |
-| MI-1 generic structure writer | Reverted — 998 → 916 req/s | same |
-| EW-2 compress-cache pre-store `Load` check | Reverted — 808 req/s single run | same |
+| Phase 12 CRC32 + in-place sig hex (Gin) | Reverted - CPU win, no E2E throughput gain | `20260611_gin_1500_ops_pprof_report.md` |
+| Store-uncompressed pages ≥96 KiB (Gin) | Reverted - 810 req/s, larger PDFs | same |
+| G3 parallel structure-tree build (Zerodha) | Reverted - ~970 ops/s vs ~2,500 | `20260611_zerodha_3000_ops_pprof_report.md` |
+| G4 template PDF cache (Zerodha) | Removed - each request must produce unique PDF | same |
+| `ReserveMCIDs` ParentTree pre-grow | Fixed (F1) - was 328 MB alloc regression | same |
+| HI-3 aggressive buffer/pool caps (8 MB / 1 MB) | Reverted - 993 → 962 req/s, heap growth | `20260614_remaining_optimizations_checklist.md` |
+| MI-1 generic structure writer | Reverted - 998 → 916 req/s | same |
+| EW-2 compress-cache pre-store `Load` check | Reverted - 808 req/s single run | same |
 
 ---
 
@@ -518,7 +518,7 @@ This document was **created** at commit `eb1b2c1` (2026-06-14) alongside `202606
 
 ---
 
-## Phase 11 — HFT shared-row PDF/A-4 + PDF/UA-2 compliance fix (2026-06-19)
+## Phase 11 - HFT shared-row PDF/A-4 + PDF/UA-2 compliance fix (2026-06-19)
 
 **Discovered by:** veraPDF validation of `sampledata/gopdflib/zerodha/zerodha_hft_output.pdf`  
 **Affected optimization:** P3 HFT shared table path (`guides/optimizations/PR/20260617_zerodha_x10_pprof_pr_description.md`, commit `fff4f16`)

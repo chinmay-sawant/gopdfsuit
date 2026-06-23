@@ -41,7 +41,7 @@ function escapeHtml(value) {
 }
 
 function formatINR(amount) {
-    // k6/goja has no locale-aware Number.toLocaleString — use fixed decimals like payload_generator.js.
+    // k6/goja has no locale-aware Number.toLocaleString - use fixed decimals like payload_generator.js.
     return `₹${Number(amount).toFixed(2)}`;
 }
 

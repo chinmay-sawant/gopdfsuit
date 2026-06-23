@@ -37,7 +37,7 @@ Manual publish (without tag):
 | **Sample data modules** | `sampledata/go.mod`, `sampledata/benchmarks/gopdfkit_compare/go.mod` |
 | **Nested Go modules** | `frontend/go.mod`, `guides/go.mod`, `certs/go.mod`, `dockerfolder/go.mod`, `bkp/go.mod`, `screenshots/go.mod` |
 | **Docs (source)** | `guides/GETTING_STARTED_GOPDFLIB.md`, `guides/MAKEFILE.md`, `frontend/src/components/documentation/content/getting-started.js` |
-| **Docs (built)** | `docs/**` — regenerate via frontend build (do not hand-edit) |
+| **Docs (built)** | `docs/**` - regenerate via frontend build (do not hand-edit) |
 | **Generated** | `internal/handlers/mocks/mock_services.go`, `bindings/python/pypdfsuit/lib/libgopdfsuit.so` |
 
 ### Bulk module-path migration (v5 → v6 example)
@@ -262,7 +262,7 @@ make lint
 
 ## Related docs
 
-- [RELEASE_CHECKLIST_5.0.0.md](RELEASE_CHECKLIST_5.0.0.md) — v5 major-version checklist (template for v6+)
-- [MAKEFILE.md](MAKEFILE.md) — build, test, Docker, benchmark targets
-- [GETTING_STARTED_GOPDFLIB.md](GETTING_STARTED_GOPDFLIB.md) — Go library install examples
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — dev setup and PR workflow
+- [RELEASE_CHECKLIST_5.0.0.md](RELEASE_CHECKLIST_5.0.0.md) - v5 major-version checklist (template for v6+)
+- [MAKEFILE.md](MAKEFILE.md) - build, test, Docker, benchmark targets
+- [GETTING_STARTED_GOPDFLIB.md](GETTING_STARTED_GOPDFLIB.md) - Go library install examples
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - dev setup and PR workflow

@@ -4,11 +4,11 @@ const complianceModes = [
     harness: 'bench-gopdflib-zerodha',
     pdfa: 'PDF/A-4',
     pdfua: 'PDF/UA-2',
-    peak: '10,005',
-    mean: '9,594',
-    median: '9,681',
-    latency: '4.88 ms',
-    alloc: '1,107 MB',
+    peak: '6,611',
+    mean: '6,203',
+    median: '6,362',
+    latency: '7.54 ms',
+    alloc: '798 MB',
     hftSize: '2.29 MB',
     hftNote: 'veraPDF 6/6 PASS',
     enabled: ['ECDSA P-256 signing', 'Tagged PDF / PDF/UA-2', 'Font embedding', 'Arlington-compatible structure'],
@@ -21,12 +21,12 @@ const complianceModes = [
     harness: 'bench-gopdflib-zerodha-nocomply',
     pdfa: 'PDF 2.0',
     pdfua: 'No PDF/A',
-    peak: '26,111',
-    mean: '21,564',
-    median: '21,621',
-    latency: '2.19 ms',
-    alloc: '643 MB',
-    hftSize: '227 KB',
+    peak: '37,853',
+    mean: '34,035',
+    median: '35,181',
+    latency: '1.38 ms',
+    alloc: '310 MB',
+    hftSize: '221 KB',
     hftNote: 'No PDF/A or tagging',
     enabled: ['PDF 2.0 base format', 'PDF/A off', 'Tagging off', 'Signing off', 'Font embedding off'],
     color: '#007acc',
@@ -36,8 +36,8 @@ const complianceModes = [
 ]
 
 const headlineStats = [
-  { value: '2.6×', label: 'Non-compliant peak vs compliant (26,111 / 10,005)', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
-  { value: '+278%', label: 'Compliant peak vs June 2026 baseline (2,646 → 10,005)', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
+  { value: '5.7×', label: 'Non-compliant peak vs compliant (37,853 / 6,611)', color: '#007acc', bg: 'rgba(0, 122, 204, 0.1)', border: 'rgba(0, 122, 204, 0.3)' },
+  { value: '+150%', label: 'Compliant peak vs June 2026 baseline (2,646 → 6,611)', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)' },
   { value: '48 workers', label: 'Zerodha mix: 80% retail · 15% active · 5% HFT', color: '#4ecdc4', bg: 'rgba(78, 205, 196, 0.1)', border: 'rgba(78, 205, 196, 0.3)' },
   { value: '288 ops/sec', label: 'Peak data-table throughput (PDF/A-4 + PDF/UA-2)', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.1)', border: 'rgba(255, 193, 7, 0.3)' },
 ]
@@ -52,10 +52,10 @@ const dataBenchmarks = [
 ]
 
 const parallelWeightedBenchmarks = [
-  { name: 'GoPDFLib (PDF/A-4, x10 peak)', workers: '48', throughput: '10,005 ops/sec', avg: '4.62 ms', min: '0.30 ms', max: '212.14 ms', mix: '4000 / 750 / 250' },
-  { name: 'GoPDFLib (PDF/A-4, x10 mean)', workers: '48', throughput: '9,594 ops/sec', avg: '4.88 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
-  { name: 'GoPDFLib (nocomply, x10 peak)', workers: '48', throughput: '26,111 ops/sec', avg: '1.77 ms', min: '-', max: '-', mix: '4000 / 750 / 250' },
-  { name: 'GoPDFLib (nocomply, x10 mean)', workers: '48', throughput: '21,564 ops/sec', avg: '2.19 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
+  { name: 'GoPDFLib (PDF/A-4, x10 peak)', workers: '48', throughput: '6,611 ops/sec', avg: '6.96 ms', min: '0.31 ms', max: '205.86 ms', mix: '4000 / 750 / 250' },
+  { name: 'GoPDFLib (PDF/A-4, x10 mean)', workers: '48', throughput: '6,203 ops/sec', avg: '7.54 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
+  { name: 'GoPDFLib (nocomply, x10 peak)', workers: '48', throughput: '37,853 ops/sec', avg: '1.23 ms', min: '-', max: '-', mix: '4000 / 750 / 250' },
+  { name: 'GoPDFLib (nocomply, x10 mean)', workers: '48', throughput: '34,035 ops/sec', avg: '1.38 ms', min: '-', max: '-', mix: '~4000 / ~750 / ~250' },
   { name: 'GoPDFSuit (retail)', workers: '48', throughput: '6,146 ops/sec', avg: '6.29 ms', min: '1.36 ms', max: '95.13 ms', mix: '5000 retail' },
   { name: 'PyPDFSuit (weighted)', workers: '48', throughput: '235 ops/sec', avg: '169.07 ms', min: '-', max: '-', mix: '4000 / 750 / 250' },
   { name: 'gpdf (PDF/A-2b, compliant)', workers: '48', throughput: '178 ops/sec', avg: '267.37 ms', min: '2.83 ms', max: '3182.41 ms', mix: '4000 / 750 / 250' },
@@ -129,7 +129,7 @@ const PerformanceSection = ({ isVisible }) => {
           <p className="section-subheading performance-intro">
             Same Zerodha gold-standard workload (5000 iterations, 48 workers, 80/15/5 mix) measured with{' '}
             <code>make bench-gopdflib-zerodha-x10</code> (full compliance) and{' '}
-            <code>make bench-gopdflib-zerodha-nocomply-x10</code> (compliance off). WSL2, Intel i7-13700HX, Go 1.26.4 — June 2026 x10 sequential runs.
+            <code>make bench-gopdflib-zerodha-nocomply-x10</code> (compliance off). WSL2, Intel i7-13700HX, Go 1.26.4 - June 2026 x10 sequential runs.
           </p>
         </div>
 
@@ -247,7 +247,7 @@ const PerformanceSection = ({ isVisible }) => {
           <BenchmarkPanel
             wide
             title="GoPDFKit vs GoPDFLib (apples-to-apples)"
-            description="make bench-gopdfkit-compare — PDF 1.7 templates without PDF/A flags, 40 workers, benchtime=5s, best-of-5 (June 2026 suite). gopdflib (GoPDFSuit engine) wins all 7 workloads; peak lead 9.9x on PNG rows."
+            description="make bench-gopdfkit-compare - PDF 1.7 templates without PDF/A flags, 40 workers, benchtime=5s, best-of-5 (June 2026 suite). gopdflib (GoPDFSuit engine) wins all 7 workloads; peak lead 9.9x on PNG rows."
             columns={[
               { key: 'workload', label: 'Workload' },
               { key: 'gopdfkit', label: 'GoPDFKit pdf/s' },

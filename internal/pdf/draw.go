@@ -360,7 +360,7 @@ func sharedRowTemplateIndex(table models.Table) int {
 }
 
 func tableSupportsSharedRowLayout(table models.Table, templateRow int) bool {
-	// Explicit template row skips O(rows×cols) validation — caller attests uniformity.
+	// Explicit template row skips O(rows×cols) validation - caller attests uniformity.
 	if table.SharedRowTemplateRow > 0 {
 		return true
 	}
@@ -587,7 +587,7 @@ func drawSharedLayoutRow(
 		return
 	}
 
-	// P6: same fast path as the cached branch — set up TR + TDs up front
+	// P6: same fast path as the cached branch - set up TR + TDs up front
 	// (arena allocation, no sync.Pool churn) and let drawSharedDeferRow emit
 	// BDC/EMC per cell without re-allocating a struct elem each time.
 	pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
@@ -1431,7 +1431,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			cellProps := parseProps(cell.Props)
 			rowCellProps[colIdx] = cellProps
 
-			// Resolve font name once per cell — used for text width, wrapping, and rendering
+			// Resolve font name once per cell - used for text width, wrapping, and rendering
 			rowResolvedFonts[colIdx] = resolveFontName(cellProps, pageManager.FontRegistry)
 			rowFontRefs[colIdx] = getFontReferenceByResolvedName(rowResolvedFonts[colIdx], pageManager.FontRegistry)
 			rowFontDecls[colIdx] = append(rowFontDecls[colIdx][:0], rowFontRefs[colIdx]...)

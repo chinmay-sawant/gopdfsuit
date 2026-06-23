@@ -179,7 +179,7 @@ running (0m35.0s), 00/48 VUs, 262176 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
 ==> Heap profile (post-load)
 ==> pprof text summary
-# Gin pprof summary — 20260618_011233
+# Gin pprof summary - 20260618_011233
 binary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/gopdfsuit_20260618_011233
 k6_log: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_011233.txt
 GOMAXPROCS=24 MAX_CONCURRENT=48 BENCH_MODE=1 GIN_FAST_API=1 LOAD_VUS=48 PROFILE_SECONDS=35 PAYLOAD_SCENARIO=retail_only_signed
@@ -524,7 +524,7 @@ running (0m35.0s), 00/48 VUs, 262424 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
 ==> Heap profile (post-load)
 ==> pprof text summary
-# Gin pprof summary — 20260618_011314
+# Gin pprof summary - 20260618_011314
 binary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/gopdfsuit_20260618_011314
 k6_log: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_011314.txt
 GOMAXPROCS=24 MAX_CONCURRENT=48 BENCH_MODE=1 GIN_FAST_API=1 LOAD_VUS=48 PROFILE_SECONDS=35 PAYLOAD_SCENARIO=retail_only_signed
@@ -869,7 +869,7 @@ running (0m35.0s), 00/48 VUs, 263091 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
 ==> Heap profile (post-load)
 ==> pprof text summary
-# Gin pprof summary — 20260618_011354
+# Gin pprof summary - 20260618_011354
 binary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/gopdfsuit_20260618_011354
 k6_log: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_011354.txt
 GOMAXPROCS=24 MAX_CONCURRENT=48 BENCH_MODE=1 GIN_FAST_API=1 LOAD_VUS=48 PROFILE_SECONDS=35 PAYLOAD_SCENARIO=retail_only_signed
@@ -1214,7 +1214,7 @@ running (0m35.0s), 00/48 VUs, 261638 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
 ==> Heap profile (post-load)
 ==> pprof text summary
-# Gin pprof summary — 20260618_011434
+# Gin pprof summary - 20260618_011434
 binary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/gopdfsuit_20260618_011434
 k6_log: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_011434.txt
 GOMAXPROCS=24 MAX_CONCURRENT=48 BENCH_MODE=1 GIN_FAST_API=1 LOAD_VUS=48 PROFILE_SECONDS=35 PAYLOAD_SCENARIO=retail_only_signed
@@ -1559,7 +1559,7 @@ running (0m35.0s), 00/48 VUs, 261569 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
 ==> Heap profile (post-load)
 ==> pprof text summary
-# Gin pprof summary — 20260618_011514
+# Gin pprof summary - 20260618_011514
 binary: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/gopdfsuit_20260618_011514
 k6_log: /home/chinmay/ChinmayPersonalProjects/gopdfsuit/guides/cursor/baselines/gin_pprof_runs/k6_gin_20260618_011514.txt
 GOMAXPROCS=24 MAX_CONCURRENT=48 BENCH_MODE=1 GIN_FAST_API=1 LOAD_VUS=48 PROFILE_SECONDS=35 PAYLOAD_SCENARIO=retail_only_signed

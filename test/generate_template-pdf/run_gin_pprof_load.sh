@@ -84,7 +84,7 @@ curl -sf -o "$HEAP_PROF" "${BASE_URL}/debug/pprof/heap"
 
 echo "==> pprof text summary"
 {
-  echo "# Gin pprof summary — ${DATE_TAG}"
+  echo "# Gin pprof summary - ${DATE_TAG}"
   echo "binary: $BIN"
   echo "k6_log: $K6_LOG"
   echo "GOMAXPROCS=$GOMAXPROCS_VAL MAX_CONCURRENT=$MAX_CONCURRENT_VAL BENCH_MODE=$BENCH_MODE_VAL GIN_FAST_API=$GIN_FAST_API_VAL LOAD_VUS=$LOAD_VUS PROFILE_SECONDS=$PROFILE_SECONDS PAYLOAD_SCENARIO=$PAYLOAD_SCENARIO"

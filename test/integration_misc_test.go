@@ -47,7 +47,7 @@ func (s *IntegrationSuite) TestGetTemplateData() {
 // TestUploadFontInvalidExtension tests POST /api/v1/fonts rejects non-font files.
 func (s *IntegrationSuite) TestUploadFontInvalidExtension() {
 	body := &bytes.Buffer{}
-	// Minimal invalid upload without real multipart font — expect 400
+	// Minimal invalid upload without real multipart font - expect 400
 	resp, err := s.client.Post(s.ts.URL+"/api/v1/fonts", "application/octet-stream", body)
 	s.NoError(err)
 	defer func() { _ = resp.Body.Close() }()

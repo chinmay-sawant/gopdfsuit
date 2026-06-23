@@ -1,4 +1,4 @@
-# gopdfsuit — Remaining Optimization Checklist
+# gopdfsuit - Remaining Optimization Checklist
 
 **Date:** 2026-06-14  
 **Baseline:** `make bench-k6` weighted `tagged_ecdsa` (80% retail / 15% active / 5% HFT), 48 VUs × 35s  
@@ -9,16 +9,16 @@
 **Previous session 5-run (before this work):** avg 825 req/s, peak 859 req/s
 
 **Implemented in this session:**
-- HI-2 — bounded the unbounded caches (subsetCache, imgCache, propsCache) + clear APIs.
-- MI-3 — replaced `strconv.Itoa` with `strconv.AppendInt` in structure-tree writer.
-- MI-1 (partial) — replaced `escapeText` with `appendEscapedPDFLiteral` + `Write([]byte)` in structure-tree writer for Title/Alt.
-- HI-1/HI-3 support — fixed `CompressContentStreamCached` shard selection so identical page streams hash into a stable shard instead of round-robin misses; also removed per-call `hash/fnv` object allocation in `pageContentFingerprint`.
-- HI-4/HI-3 support — changed HFT table row preallocation to keep `Rows` length at `0` while preserving backing capacity and per-row cell capacity.
-- MI-1 follow-up — removed `escapeText` string allocation from `BeginMarkedContent` / `BeginMarkedContentBuf` `/Alt` writing in the tagged-content BDC path.
-- HI-4 follow-up — changed pooled `PDFTemplate` reset to preserve hot HFT backing arrays across requests instead of dropping them on every `sync.Pool` reuse, with tests proving reused row/cell backing storage.
-- MI-1/structure follow-up — pre-sized tagged structure-element backing storage from the input template shape and centralized slice-growth logic for `StructureManager` / parent-tree backing arrays.
-- HI-3 — a first attempt with larger estimates + pool retention caps (8 MB / 1 MB) regressed throughput 993 → 962 req/s and increased `bytes.growSlice` in-use 256 → 338 MB. Reverted.
-- MI-1 (partial) — a generic structure-writer experiment regressed throughput 998 → 916 req/s (Go used shape-based dispatch, not monomorphization). Reverted.
+- HI-2 - bounded the unbounded caches (subsetCache, imgCache, propsCache) + clear APIs.
+- MI-3 - replaced `strconv.Itoa` with `strconv.AppendInt` in structure-tree writer.
+- MI-1 (partial) - replaced `escapeText` with `appendEscapedPDFLiteral` + `Write([]byte)` in structure-tree writer for Title/Alt.
+- HI-1/HI-3 support - fixed `CompressContentStreamCached` shard selection so identical page streams hash into a stable shard instead of round-robin misses; also removed per-call `hash/fnv` object allocation in `pageContentFingerprint`.
+- HI-4/HI-3 support - changed HFT table row preallocation to keep `Rows` length at `0` while preserving backing capacity and per-row cell capacity.
+- MI-1 follow-up - removed `escapeText` string allocation from `BeginMarkedContent` / `BeginMarkedContentBuf` `/Alt` writing in the tagged-content BDC path.
+- HI-4 follow-up - changed pooled `PDFTemplate` reset to preserve hot HFT backing arrays across requests instead of dropping them on every `sync.Pool` reuse, with tests proving reused row/cell backing storage.
+- MI-1/structure follow-up - pre-sized tagged structure-element backing storage from the input template shape and centralized slice-growth logic for `StructureManager` / parent-tree backing arrays.
+- HI-3 - a first attempt with larger estimates + pool retention caps (8 MB / 1 MB) regressed throughput 993 → 962 req/s and increased `bytes.growSlice` in-use 256 → 338 MB. Reverted.
+- MI-1 (partial) - a generic structure-writer experiment regressed throughput 998 → 916 req/s (Go used shape-based dispatch, not monomorphization). Reverted.
 
 **Bottom line:** Across the last three implementation passes, the fresh 2-run mean improved from **916.8 req/s** to **1025.7 req/s** and the sample is far tighter than the original `794.5` / `1039.1` spread. The latest structure preallocation pass was small but positive; it still did not materially change the overall `~1500+ req/s` outlook.
 
@@ -28,7 +28,7 @@
 
 The following code changes are committed and were previously reflected in a `5-run mean 1005.6 req/s` run set. See the **Commit message** at the bottom of this file. Treat that result as historical, not the active baseline.
 
-### HI-2 — Bounded the unbounded caches
+### HI-2 - Bounded the unbounded caches
 
 - **`internal/pdf/font/subset_cache.go`**
   - Added `maxSubsetCacheEntries = 1024` + `atomic.Int64` counter.
@@ -44,27 +44,27 @@ The following code changes are committed and were previously reflected in a `5-r
   - New exported `ClearPropsCache()` API.
 
 **New tests:**
-- `internal/pdf/font/subset_cache_test.go` — reuse, bounds, clear.
-- `internal/pdf/image_cache_test.go` — reuse, bounds, clear.
-- `internal/pdf/props_cache_test.go` — reuse, bounds, clear.
+- `internal/pdf/font/subset_cache_test.go` - reuse, bounds, clear.
+- `internal/pdf/image_cache_test.go` - reuse, bounds, clear.
+- `internal/pdf/props_cache_test.go` - reuse, bounds, clear.
 
-### MI-3 — Structure-tree integer formatting
+### MI-3 - Structure-tree integer formatting
 
-- **`internal/pdf/generator.go`** — `formatStructElemObjectTo` and `appendObjRefToWriter`:
+- **`internal/pdf/generator.go`** - `formatStructElemObjectTo` and `appendObjRefToWriter`:
   - Replaced `strconv.Itoa(int)` with `strconv.AppendInt(scratch[:0], int64(n), 10)` to a stack `[24]byte` scratch.
-  - `w.Write([]byte)` instead of `w.WriteString(string)` — avoids the string allocation.
+  - `w.Write([]byte)` instead of `w.WriteString(string)` - avoids the string allocation.
 
-### MI-1 (partial) — Structure-tree text escaping
+### MI-1 (partial) - Structure-tree text escaping
 
-- **`internal/pdf/generator.go`** — `formatStructElemObjectTo` Title/Alt writing:
+- **`internal/pdf/generator.go`** - `formatStructElemObjectTo` Title/Alt writing:
   - Replaced `escapeText(string)` + `WriteString` with `appendEscapedPDFLiteral(scratch[:0], s)` + `Write([]byte)`.
   - Stack `[1024]byte` scratch; falls back to heap if escaped output exceeds 1024 bytes.
 
 ### Experiments tried and reverted (not in this commit)
 
-- **HI-3 — Aggressive estimate + pool retention caps (8 MB / 1 MB)**: regressed 993 → 962 req/s, increased `bytes.growSlice` in-use 256 → 338 MB. Reverted.
-- **MI-1 — Generic `formatStructElemObjectToGeneric[T]()`**: regressed 998 → 916 req/s (Go used shape-based dispatch). Reverted.
-- **EW-2 — `Load` check before `Store` in `storePageCompressEntry`**: single-run dropped to 808 req/s, HFT latency spiked to 461 ms. Reverted.
+- **HI-3 - Aggressive estimate + pool retention caps (8 MB / 1 MB)**: regressed 993 → 962 req/s, increased `bytes.growSlice` in-use 256 → 338 MB. Reverted.
+- **MI-1 - Generic `formatStructElemObjectToGeneric[T]()`**: regressed 998 → 916 req/s (Go used shape-based dispatch). Reverted.
+- **EW-2 - `Load` check before `Store` in `storePageCompressEntry`**: single-run dropped to 808 req/s, HFT latency spiked to 461 ms. Reverted.
 
 ### Post-session 5-run (after EW-2 revert)
 
@@ -142,12 +142,12 @@ Observed effect:
 
 The caches introduced so far (page compression, font subset, image decode, props, page-init) are narrow helpers and do **not** shortcut full PDF generation. The latest fresh pprof runs show the same bottlenecks as the active limiters:
 
-1. `bytes.growSlice` — still ~50-54% in-use heap and ~13% alloc_space in the latest fresh runs.
-2. `compress/flate` (`compress/zlib.(*Writer).Close` / `CompressContentStreamCached`) — ~20-21% cumulative CPU.
-3. `drawTable` / `drawSharedLayoutRow` / `drawSharedDeferRow` — ~15-16% cumulative CPU.
-4. `formatStructElemObjectTo` — ~9.8-10.5% cumulative CPU and ~3-5% alloc_space.
-5. `sonic` + JSON decode (`sonic.Unmarshal`, `RawMessage.UnmarshalJSON`) — ~16-18% alloc_space.
-6. `PDFTemplate.preallocInlineTableRows` — reuse helped only modestly; it still shows about `9%` alloc_space and `7-8%` in-use heap in the newest pair.
+1. `bytes.growSlice` - still ~50-54% in-use heap and ~13% alloc_space in the latest fresh runs.
+2. `compress/flate` (`compress/zlib.(*Writer).Close` / `CompressContentStreamCached`) - ~20-21% cumulative CPU.
+3. `drawTable` / `drawSharedLayoutRow` / `drawSharedDeferRow` - ~15-16% cumulative CPU.
+4. `formatStructElemObjectTo` - ~9.8-10.5% cumulative CPU and ~3-5% alloc_space.
+5. `sonic` + JSON decode (`sonic.Unmarshal`, `RawMessage.UnmarshalJSON`) - ~16-18% alloc_space.
+6. `PDFTemplate.preallocInlineTableRows` - reuse helped only modestly; it still shows about `9%` alloc_space and `7-8%` in-use heap in the newest pair.
 7. Structure preallocation is no longer free: `growPtrSlice[...]` now shows up as a visible allocator in the newest pair, so future structure work should avoid generic helper churn unless it clearly displaces larger allocations.
 7. `pageContentFingerprint` is now visible at ~2.1-2.3% flat CPU, so future compression-cache work should avoid adding more hashing cost unless hit rate climbs enough to pay for it.
 
@@ -174,7 +174,7 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 **Files:** `internal/pdf/font/compression.go`, `internal/pdf/generator.go`  
 **Priority note:** Fresh pprof still shows compression as the single largest non-handler cumulative CPU bucket. This is the safest high-impact path because it should preserve tagging/signing semantics if output bytes remain valid.  
 **Estimated gain:** +5–8% throughput  
-**Risk:** Medium — output size may increase; must keep PDF/A compatibility.
+**Risk:** Medium - output size may increase; must keep PDF/A compatibility.
 
 ---
 
@@ -189,7 +189,7 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 - [x] Run `go test ./internal/pdf/...` and existing cache tests to ensure no regressions.
 - [x] Re-run `make bench-k6` to confirm throughput is neutral or improved.
 
-**Result:** All tests pass. Final 5-run `make bench-k6` (after HI-2 + MI-3 + MI-1 partial) — runs 1–5:
+**Result:** All tests pass. Final 5-run `make bench-k6` (after HI-2 + MI-3 + MI-1 partial) - runs 1–5:
 
 | Run | Throughput | p99 |
 |---|---:|---:|
@@ -207,7 +207,7 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 
 **Files:** `internal/pdf/font/subset_cache.go`, `internal/pdf/image.go`, `internal/pdf/utils.go`  
 **Estimated gain:** Indirect (GC pressure / memory stability), +1–3% throughput on long runs  
-**Risk:** Low — follow the same bounded pattern used in `compress_cache.go`.
+**Risk:** Low - follow the same bounded pattern used in `compress_cache.go`.
 
 ---
 
@@ -226,7 +226,7 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 
 **Files:** `internal/pdf/generator.go`, `internal/pdf/pagemanager.go`, `internal/pdf/draw.go`  
 **Estimated gain:** +5–7% throughput, significant heap reduction  
-**Risk:** Medium — incorrect pre-sizing can waste memory; must not change PDF output.
+**Risk:** Medium - incorrect pre-sizing can waste memory; must not change PDF output.
 
 ---
 
@@ -242,7 +242,7 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 **Files:** `internal/models/template_decode.go` (new), `internal/handlers/json_decode.go`  
 **Priority note:** Fresh runs confirm JSON decode is still one of the few hotspots large enough to matter to a `1500+` target without touching compliance-sensitive PDF logic.  
 **Estimated gain:** +30–40% JSON decode reduction, potentially +5–10% end-to-end on HFT  
-**Risk:** High — codegen adds maintenance; must preserve all field semantics.
+**Risk:** High - codegen adds maintenance; must preserve all field semantics.
 
 ---
 
@@ -264,7 +264,7 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 
 **Files:** `internal/pdf/structure.go`, `internal/pdf/generator.go`  
 **Estimated gain:** +3–5% throughput  
-**Risk:** Low–Medium — must keep PDF/UA-2 hierarchy intact.
+**Risk:** Low–Medium - must keep PDF/UA-2 hierarchy intact.
 
 ---
 
@@ -280,7 +280,7 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 **Files:** `internal/pdf/draw.go`  
 **Priority note:** This is still worth doing, but it is secondary to compression + JSON decode + heap-growth work because its ceiling is smaller.  
 **Estimated gain:** +3–5% throughput  
-**Risk:** Medium — layout logic is complex; must preserve pagination.
+**Risk:** Medium - layout logic is complex; must preserve pagination.
 
 ---
 
@@ -296,7 +296,7 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 
 **Files:** `internal/pdf/generator.go`, `internal/pdf/draw.go`, `internal/pdf/pagemanager.go`  
 **Estimated gain:** +1–3% throughput  
-**Risk:** Low — mechanical changes.
+**Risk:** Low - mechanical changes.
 
 ---
 
@@ -330,12 +330,12 @@ This file tracks the next implementation passes with the `~1500+ req/s` goal in 
 
 ---
 
-## Reverted experiments — do not repeat without strong evidence
+## Reverted experiments - do not repeat without strong evidence
 
-- [ ] ~~Parallel structure-tree build (G3)~~ — reverted; caused ~60% regression.
-- [ ] ~~Template PDF cache (G4)~~ — removed; violates unique-PDF requirement.
-- [ ] ~~CRC32 fingerprint + in-place signature hex~~ — reverted; CPU win, no E2E gain.
-- [ ] ~~Store-uncompressed pages ≥96 KiB~~ — reverted; larger PDFs, slower signing.
+- [ ] ~~Parallel structure-tree build (G3)~~ - reverted; caused ~60% regression.
+- [ ] ~~Template PDF cache (G4)~~ - removed; violates unique-PDF requirement.
+- [ ] ~~CRC32 fingerprint + in-place signature hex~~ - reverted; CPU win, no E2E gain.
+- [ ] ~~Store-uncompressed pages ≥96 KiB~~ - reverted; larger PDFs, slower signing.
 
 ---
 

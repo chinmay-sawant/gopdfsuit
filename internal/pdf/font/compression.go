@@ -76,7 +76,7 @@ const (
 
 // CompressContentStream zlib-compresses raw page bytes when smaller than raw.
 // C5: if the first 4KB does not compress, skips the full pass (store-uncompressed).
-// P11: streams >32 KiB skip the trial pass (HFT pages — avoids double zlib).
+// P11: streams >32 KiB skip the trial pass (HFT pages - avoids double zlib).
 func CompressContentStream(raw []byte) (compressed *bytes.Buffer, useFlate bool) {
 	rawLen := len(raw)
 	if rawLen == 0 {

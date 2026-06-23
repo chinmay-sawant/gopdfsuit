@@ -1,4 +1,4 @@
-# Optimization Execution Summary — 2026-06-10
+# Optimization Execution Summary - 2026-06-10
 
 ## Date & Scope
 
@@ -31,14 +31,14 @@ Profile-driven performance work on **`master` at `484b991`** using **Go 1.26.4**
 
 ## Work Completed
 
-**Phase 1 — Buffer & compression**
+**Phase 1 - Buffer & compression**
 - Increased pooled final PDF buffer capacity
 - Removed extra scratch-slice hop at final assembly
 - Streamed page content directly into zlib (no `contentStream.Bytes()`)
 - Replaced `append([]byte(nil), …)` with explicit `slices.Clone`
 - Pre-sized initial page content streams from template complexity
 
-**Phase 2 — Structure tree & table pressure**
+**Phase 2 - Structure tree & table pressure**
 - `StructureManager` page-index maps → slices
 - `BeginStructureElementCap` for known table/row child counts
 - Pre-grew XMP metadata builders; stored annotation object IDs on Link elements

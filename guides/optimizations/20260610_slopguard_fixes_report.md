@@ -144,14 +144,14 @@
 ## Analysis
 
 ### Wins
-- **table_180_rows: +13.0%** — The draw.go `strconv.AppendInt` fix and font registry `defer` removal directly benefit the table rendering hot path. Every cell in the table calls `drawTitleTable` which was using `strconv.Itoa` (heap-allocating) and hitting the font registry lock with defer overhead.
-- **text_240_lines: +9.0%** — Similar benefit from draw.go optimizations on multi-line text rendering.
-- **table_900_rows: +4.6%** — The deepest table workload also benefits, though proportionally less due to compression costs dominating at this scale.
+- **table_180_rows: +13.0%** - The draw.go `strconv.AppendInt` fix and font registry `defer` removal directly benefit the table rendering hot path. Every cell in the table calls `drawTitleTable` which was using `strconv.Itoa` (heap-allocating) and hitting the font registry lock with defer overhead.
+- **text_240_lines: +9.0%** - Similar benefit from draw.go optimizations on multi-line text rendering.
+- **table_900_rows: +4.6%** - The deepest table workload also benefits, though proportionally less due to compression costs dominating at this scale.
 
 ### Neutral
-- **invoice_40_rows: -1.0%** — Within noise band. Effectively unchanged.
-- **text_short: -6.6%** — The static asset cache header wrapper in handlers.go adds a small handler overhead that's visible on the fastest benchmark. The absolute ns/op is still excellent.
-- **png_table_180_rows: -3.7%** — Minor regression, likely noise from system variability.
+- **invoice_40_rows: -1.0%** - Within noise band. Effectively unchanged.
+- **text_short: -6.6%** - The static asset cache header wrapper in handlers.go adds a small handler overhead that's visible on the fastest benchmark. The absolute ns/op is still excellent.
+- **png_table_180_rows: -3.7%** - Minor regression, likely noise from system variability.
 
 ### Allocation Growth
 All workloads show modest B/op increases (2-15%). This is expected because:

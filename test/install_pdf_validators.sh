@@ -5,7 +5,7 @@
 #   - veraPDF CLI  -> <repo>/verapdf/          (PDF/A-4, PDF/UA-2 ISO profiles)
 #   - avalpdf      -> <repo>/.pdf-validators/  (structure/accessibility heuristics)
 #
-# Optional (not installed here — license required):
+# Optional (not installed here - license required):
 #   - callas pdfToolbox CLI (Docker: callassoftware/pdftoolbox-cli)
 #   - axes4 PAC (Windows GUI only)
 #

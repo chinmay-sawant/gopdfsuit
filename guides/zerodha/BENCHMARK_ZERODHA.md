@@ -47,7 +47,7 @@ By moving from a heavy distributed architecture (CLI-based Typst/LaTeX) to a pur
 
 - **gopdflib Benchmark (Weighted Mix):**
   - Scenario: Real-world mix of small, medium, and massive (2000+ row) PDFs.
-  - Result (2026-06-14): **2,646 PDFs/sec** (30-run avg), peak **2,953 PDFs/sec** on a single 24-core machine — **exceeds** the Zerodha cluster rate on one node.
+  - Result (2026-06-14): **2,646 PDFs/sec** (30-run avg), peak **2,953 PDFs/sec** on a single 24-core machine - **exceeds** the Zerodha cluster rate on one node.
   - Historical best (2026-06-13, idle): peak **3,604** / avg **2,787** ops/s.
   - Prior (2026-06-11): **2,459 PDFs/sec** (2-run avg).
   - Scaling: One node at **2,646 ops/s avg** (peak **2,953**) ≈ **2.6–3.0×** the 1,000 PDFs/sec cluster target.

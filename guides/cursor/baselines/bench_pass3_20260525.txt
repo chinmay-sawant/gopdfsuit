@@ -10,5 +10,5 @@ PASS
 ok  	github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf	15.739s
 
 # Post-Pass-3 snapshot (2026-05-25)
-# WrapEnabled Rows2000: 326,514 allocs/op (Pass 2: ~357,070) — ~8.6% reduction
+# WrapEnabled Rows2000: 326,514 allocs/op (Pass 2: ~357,070) - ~8.6% reduction
 # Rows2000: 302,689 allocs/op

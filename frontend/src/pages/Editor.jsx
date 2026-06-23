@@ -19,7 +19,7 @@ import Toolbar from '../components/editor/Toolbar'
 import ContextMenu from '../components/shortcut/ContextMenu'
 import useContextMenu from '../components/shortcut/useContextMenu'
 
-// Module-level font cache — cleared on any page refresh (hard or soft)
+// Module-level font cache - cleared on any page refresh (hard or soft)
 let _fontsCache = null
 let _fontsFetchPromise = null
 
@@ -327,11 +327,11 @@ export default function Editor() {
     const clone = structuredClone(el)
 
     if (id === 'title') {
-      showToast('Cannot duplicate title — only one allowed', 'error', 2000)
+      showToast('Cannot duplicate title - only one allowed', 'error', 2000)
       return
     }
     if (id === 'footer') {
-      showToast('Cannot duplicate footer — only one allowed', 'error', 2000)
+      showToast('Cannot duplicate footer - only one allowed', 'error', 2000)
       return
     }
 

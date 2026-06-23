@@ -19,10 +19,10 @@ function buildTableRows() {
 function runOnce() {
     return new Promise((resolve, reject) => {
         const start = performance.now();
-        // pdfVersion: '1.7' — highest PDF version supported by PDFKit
+        // pdfVersion: '1.7' - highest PDF version supported by PDFKit
         const doc = new PDFDocument({ margin: 30, size: 'A4', pdfVersion: '1.7' });
 
-        // Drain output to memory — no disk I/O in hot path
+        // Drain output to memory - no disk I/O in hot path
         const chunks = [];
         const sink = new Writable({
             write(chunk, _enc, cb) {

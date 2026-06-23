@@ -1,11 +1,11 @@
 # GoPdfSuit Performance Implementation Plan
 
 **Source audit:** [PERFORMANCE_AUDIT.md](./PERFORMANCE_AUDIT.md)  
-**Status:** Pass 1 ✅ | Pass 2 ✅ | Pass 3 ✅ — All phases complete
+**Status:** Pass 1 ✅ | Pass 2 ✅ | Pass 3 ✅ - All phases complete
 
 ---
 
-## Pass 3 — Advanced ✅ COMPLETE
+## Pass 3 - Advanced ✅ COMPLETE
 
 | ID | Task | Files | Status |
 |----|------|-------|--------|
@@ -27,13 +27,13 @@
 
 ---
 
-## Pass 1 — Low-Hanging Fruit ✅ (10/10)
+## Pass 1 - Low-Hanging Fruit ✅ (10/10)
 
 See [PASS1_BLUEPRINTS.md](./PASS1_BLUEPRINTS.md). Baseline: [baselines/bench_pass1_20260525.txt](./baselines/bench_pass1_20260525.txt).
 
 ---
 
-## Pass 2 — Architecture Changes ✅ (12/12)
+## Pass 2 - Architecture Changes ✅ (12/12)
 
 Baseline: [baselines/bench_pass2_20260525.txt](./baselines/bench_pass2_20260525.txt).
 

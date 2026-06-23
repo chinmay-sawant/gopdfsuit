@@ -69,7 +69,7 @@ equivalent behavior.
 ## Results (best-of-5, benchtime=5s, 40 workers)
 
 **Environment:** WSL2, 13th Gen Intel(R) Core(TM) i7-13700HX, 24 logical CPUs,
-Go 1.26.4 — June 2026 suite (`make bench-gopdfkit-compare`, best pdf/s across 5 runs).
+Go 1.26.4 - June 2026 suite (`make bench-gopdfkit-compare`, best pdf/s across 5 runs).
 
 | Workload | GoPDFKit pdf/s | GoPDFLib pdf/s | gopdflib lead | Baseline Lib | Delta |
 | --- | ---: | ---: | ---: | ---: | ---: |

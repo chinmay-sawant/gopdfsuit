@@ -66,7 +66,7 @@ const ComparisonPreviewSection = ({ isVisible }) => {
             Why Choose GoPdfSuit?
           </h2>
           <p className="section-subheading" style={{ maxWidth: '700px' }}>
-            Enterprise features at zero cost — compare with iTextPDF, PDFLib, and commercial solutions
+            Enterprise features at zero cost - compare with iTextPDF, PDFLib, and commercial solutions
           </p>
         </div>
 

@@ -1,4 +1,4 @@
-# Gotenberg k6 summary — 20260618_011715
+# Gotenberg k6 summary - 20260618_011715
 image: gotenberg/gotenberg:8
 base_url: http://127.0.0.1:3010
 chromium_max_concurrency: 6

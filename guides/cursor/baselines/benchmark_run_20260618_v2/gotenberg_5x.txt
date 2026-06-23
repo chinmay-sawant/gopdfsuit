@@ -186,7 +186,7 @@ time="2026-06-18T01:16:35+05:30" level=info msg="gotenberg load done (started 20
 
 running (0m38.1s), 00/48 VUs, 564 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
-# Gotenberg k6 summary — 20260618_011555
+# Gotenberg k6 summary - 20260618_011555
 image: gotenberg/gotenberg:8
 base_url: http://127.0.0.1:3010
 chromium_max_concurrency: 6
@@ -409,7 +409,7 @@ time="2026-06-18T01:17:14+05:30" level=info msg="gotenberg load done (started 20
 
 running (0m37.3s), 00/48 VUs, 570 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
-# Gotenberg k6 summary — 20260618_011636
+# Gotenberg k6 summary - 20260618_011636
 image: gotenberg/gotenberg:8
 base_url: http://127.0.0.1:3010
 chromium_max_concurrency: 6
@@ -632,7 +632,7 @@ time="2026-06-18T01:17:53+05:30" level=info msg="gotenberg load done (started 20
 
 running (0m37.3s), 00/48 VUs, 583 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
-# Gotenberg k6 summary — 20260618_011715
+# Gotenberg k6 summary - 20260618_011715
 image: gotenberg/gotenberg:8
 base_url: http://127.0.0.1:3010
 chromium_max_concurrency: 6
@@ -858,7 +858,7 @@ time="2026-06-18T01:18:32+05:30" level=info msg="gotenberg load done (started 20
 
 running (0m38.3s), 00/48 VUs, 614 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
-# Gotenberg k6 summary — 20260618_011753
+# Gotenberg k6 summary - 20260618_011753
 image: gotenberg/gotenberg:8
 base_url: http://127.0.0.1:3010
 chromium_max_concurrency: 6
@@ -1084,7 +1084,7 @@ time="2026-06-18T01:19:12+05:30" level=info msg="gotenberg load done (started 20
 
 running (0m38.1s), 00/48 VUs, 592 complete and 0 interrupted iterations
 steady ✓ [ 100% ] 48 VUs  35s
-# Gotenberg k6 summary — 20260618_011833
+# Gotenberg k6 summary - 20260618_011833
 image: gotenberg/gotenberg:8
 base_url: http://127.0.0.1:3010
 chromium_max_concurrency: 6

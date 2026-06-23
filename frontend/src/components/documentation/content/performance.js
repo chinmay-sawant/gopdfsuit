@@ -19,49 +19,49 @@ All compliant GoPDFLib headline numbers run with **PDF/A-4**, **PDF/UA-2**, Arli
 
 ## Zerodha Gold Standard (5000×48, PDF/A-4 + PDF/UA-2)
 
-Primary end-to-end benchmark in **sampledata/gopdflib/zerodha** — **5000 iterations**, **48 workers**, 80% Retail / 15% Active / 5% HFT, with ECDSA P-256 retail signing. **Throughput values are aggregate system throughput** across 48 concurrent workers — not per-core serial throughput.
+Primary end-to-end benchmark in **sampledata/gopdflib/zerodha** - **5000 iterations**, **48 workers**, 80% Retail / 15% Active / 5% HFT, with ECDSA P-256 retail signing. **Throughput values are aggregate system throughput** across 48 concurrent workers - not per-core serial throughput.
 
 | Metric | x10 peak | x10 mean |
 | --- | ---: | ---: |
-| **Throughput** | **10,005 ops/sec** | **9,594 ops/sec** |
-| **Avg latency** | **4.624 ms** | **4.877 ms** |
-| **Min latency (best run)** | **0.304 ms** | — |
-| **Max latency (best run)** | **212.140 ms** | — |
-| **Peak allocated (mean)** | — | **1,107 MB** |
+| **Throughput** | **6,611 ops/sec** | **6,203 ops/sec** |
+| **Avg latency** | **6.962 ms** | **7.544 ms** |
+| **Min latency (best run)** | **0.305 ms** | - |
+| **Max latency (best run)** | **205.857 ms** | - |
+| **Peak allocated (mean)** | - | **798 MB** |
 
-**vs June 2026 baseline (\`feat/performance-improvements\`):** **+278% x10 peak throughput** (2,646 → 10,005 ops/sec) under full PDF/A-4 + PDF/UA-2 compliance.
+**vs June 2026 baseline (\`feat/performance-improvements\`):** **+150% x10 peak throughput** (2,646 → 6,611 ops/sec) under full PDF/A-4 + PDF/UA-2 compliance.
 
 ### x10 detail (compliant timing runs)
 
 | Run | Throughput | Avg latency |
 | ---: | ---: | ---: |
-| 1 | 8,491 ops/sec | 5.528 ms |
-| 2 | 9,642 ops/sec | 4.901 ms |
-| 3 | 9,839 ops/sec | 4.731 ms |
-| 4 | 9,889 ops/sec | 4.670 ms |
-| 5 | 9,810 ops/sec | 4.698 ms |
-| 6 | **10,005 ops/sec** | **4.624 ms** |
-| 7 | 9,523 ops/sec | 4.941 ms |
-| 8 | 9,720 ops/sec | 4.801 ms |
-| 9 | 9,490 ops/sec | 4.946 ms |
-| 10 | 9,533 ops/sec | 4.929 ms |
+| 1 | 5,545 ops/sec | 8.417 ms |
+| 2 | 6,069 ops/sec | 7.612 ms |
+| 3 | 5,965 ops/sec | 7.687 ms |
+| 4 | 6,492 ops/sec | 7.205 ms |
+| 5 | 6,536 ops/sec | 7.115 ms |
+| 6 | 5,578 ops/sec | 8.485 ms |
+| 7 | 6,508 ops/sec | 7.162 ms |
+| 8 | 6,408 ops/sec | 7.345 ms |
+| 9 | 6,315 ops/sec | 7.447 ms |
+| 10 | **6,611 ops/sec** | **6.962 ms** |
 
-## Zerodha Gold Standard — Non-Compliant (5000×48)
+## Zerodha Gold Standard - Non-Compliant (5000×48)
 
-Same 80/15/5 workload outputs **PDF 2.0** with PDF/A, tagging, signing, and font embedding disabled (\`make bench-gopdflib-zerodha-nocomply-x10\`). HFT output shrinks to **227 KB** (vs **2.3 MB** compliant).
+Same 80/15/5 workload outputs **PDF 2.0** with PDF/A, tagging, signing, and font embedding disabled (\`make bench-gopdflib-zerodha-nocomply-x10\`). HFT output shrinks to **221 KB** (vs **2.3 MB** compliant).
 
 | Metric | x10 peak | x10 mean |
 | --- | ---: | ---: |
-| **Throughput** | **26,111 ops/sec** | **21,564 ops/sec** |
-| **Avg latency** | **1.771 ms** | **2.194 ms** |
-| **Peak allocated (mean)** | — | **643 MB** |
+| **Throughput** | **37,853 ops/sec** | **34,035 ops/sec** |
+| **Avg latency** | **1.227 ms** | **1.376 ms** |
+| **Peak allocated (mean)** | - | **310 MB** |
 
-### Weighted Workload — runtime comparison
+### Weighted Workload - runtime comparison
 
 | Runtime | Harness | Workers | Best Throughput | Avg Latency | PDF/A | PDF/UA |
 | --- | --- | ---: | ---: | ---: | --- | --- |
-| **GoPDFLib** | Weighted 80/15/5 (compliant) | 48 | **10,005 ops/sec** | **4.624 ms** | PDF/A-4 | PDF/UA-2 |
-| **GoPDFLib** | Weighted 80/15/5 (nocomply) | 48 | **26,111 ops/sec** | **1.771 ms** | PDF 2.0 (no PDF/A) | None |
+| **GoPDFLib** | Weighted 80/15/5 (compliant) | 48 | **6,611 ops/sec** | **6.962 ms** | PDF/A-4 | PDF/UA-2 |
+| **GoPDFLib** | Weighted 80/15/5 (nocomply) | 48 | **37,853 ops/sec** | **1.227 ms** | PDF 2.0 (no PDF/A) | None |
 | **GoPDFSuit** | Retail only | 48 | **6,146 ops/sec** | **6.29 ms** | PDF/A-4 | PDF/UA-2 |
 | **pypdfsuit** | Weighted 80/15/5 | 48 | 235 ops/sec | 169.07 ms | PDF/A-4 | PDF/UA-2 |
 | **gpdf** | Weighted 80/15/5 (compliant) | 48 | **178 ops/sec** | **267.37 ms** | PDF/A-2b | None |
@@ -69,7 +69,7 @@ Same 80/15/5 workload outputs **PDF 2.0** with PDF/A, tagging, signing, and font
 
 ## Data Table Benchmark (2000 rows)
 
-Dataset: **sampledata/benchmarks/data.json** — 2,000 user records. Best-of-5 peak throughput.
+Dataset: **sampledata/benchmarks/data.json** - 2,000 user records. Best-of-5 peak throughput.
 
 | Rank | Engine | Workers | Best ops/s | Avg latency | PDF/A | PDF/UA |
 | ---: | --- | ---: | ---: | ---: | --- | --- |
@@ -121,8 +121,8 @@ Harness: \`make bench-gopdfkit-compare\` in \`sampledata/benchmarks/gopdfkit_com
 • Use the **Zerodha 5000×48 section** for realistic broker-mix concurrent throughput under full PDF/A-4 + PDF/UA-2 compliance.
 • Use the **data-table section** for large-table PDF generation across libraries.
 • Use **HTTP k6** for end-to-end API throughput including signing.
-• Use **GoPDFKit compare** for library-level apples-to-apples speed (PDF 1.7 only — production gopdfsuit also supports PDF/A-4 + PDF/UA-2).
-• **Do not** compare data-table serial ops/sec directly with 5000×48 aggregate ops/sec — they measure different concurrency models.`,
+• Use **GoPDFKit compare** for library-level apples-to-apples speed (PDF 1.7 only - production gopdfsuit also supports PDF/A-4 + PDF/UA-2).
+• **Do not** compare data-table serial ops/sec directly with 5000×48 aggregate ops/sec - they measure different concurrency models.`,
             code: {
                 bash: `# Full benchmark suite (best-of-5, June 2026 harness)
 cd /path/to/gopdfsuit

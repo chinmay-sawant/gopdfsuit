@@ -1,4 +1,4 @@
-# Gin HTTP — Path to 1500+ req/s (pprof Analysis)
+# Gin HTTP - Path to 1500+ req/s (pprof Analysis)
 
 **Date:** 2026-06-11 (re-profiled after implementation)
 **Go:** `go1.26.4`  
@@ -25,12 +25,12 @@
 | **Full-suite re-run** | `20260611_220146` weighted (2-run avg) | **~652 req/s** | 20.1 ms | 467 ms | 0% |
 | **Retail-only** | `20260611_190850` | **~3,965 req/s** | 7.8 ms | 29 ms | 0% |
 | **Retail+active** | `retail_active_signed` | **~3,945 req/s** | 7.5 ms | 28 ms | 0% |
-| **Zerodha in-process** | 48 workers, ECDSA | **~2,476 ops/s** avg | ~19 ms | — | — |
+| **Zerodha in-process** | 48 workers, ECDSA | **~2,476 ops/s** avg | ~19 ms | - | - |
 | **Weighted target** | Gin HTTP | **≥1,000 req/s** | <20 ms | <500 ms | 0% ✅ |
 
-**Verdict (Phase 7):** Weighted throughput reached **1,118 req/s** (`20260611_025518`) — **above the 1,000 req/s gate**. Median latency **16.2 ms**, p99 **208 ms**.
+**Verdict (Phase 7):** Weighted throughput reached **1,118 req/s** (`20260611_025518`) - **above the 1,000 req/s gate**. Median latency **16.2 ms**, p99 **208 ms**.
 
-**Path to 1,500+:** Weighted gate at **~1,054 req/s** (post-P12-revert validation `190806`) — still above 1,000 req/s gate. HFT avg **262 ms**, p99 **143 ms**. Phase 12 (CRC32 fingerprint, in-place sig hex) **reverted** — no significant end-to-end gain. Remaining gap: flate **~35%** CPU cum, signing.
+**Path to 1,500+:** Weighted gate at **~1,054 req/s** (post-P12-revert validation `190806`) - still above 1,000 req/s gate. HFT avg **262 ms**, p99 **143 ms**. Phase 12 (CRC32 fingerprint, in-place sig hex) **reverted** - no significant end-to-end gain. Remaining gap: flate **~35%** CPU cum, signing.
 
 ---
 
@@ -55,7 +55,7 @@ ls -t guides/cursor/baselines/gin_pprof_runs/pprof_summary_*.txt | head -1 | xar
 
 ---
 
-## Latest pprof run — `20260611_190806` (Phase 11, P12 reverted)
+## Latest pprof run - `20260611_190806` (Phase 11, P12 reverted)
 
 **Config:** Phase 11 (HFT split decode, flate single-pass >32 KiB). Phase 12 changes **reverted** after validation showed no significant throughput gain.
 
@@ -77,7 +77,7 @@ ls -t guides/cursor/baselines/gin_pprof_runs/pprof_summary_*.txt | head -1 | xar
 | **active** (15%) | 26 ms | 22 ms | 101 ms |
 | **hft** (5%) | **262 ms** | 254 ms | 464 ms |
 
-### Retail-only gate — `20260611_190850`
+### Retail-only gate - `20260611_190850`
 
 | Metric | Value |
 |--------|------:|
@@ -91,7 +91,7 @@ ls -t guides/cursor/baselines/gin_pprof_runs/pprof_summary_*.txt | head -1 | xar
 | Benchmark | ns/op | MB/s | B/op | allocs/op |
 |-----------|------:|-----:|-----:|----------:|
 | `BenchmarkGenerateTemplatePDF_FinancialReport` | 6,067,362 | 17.53 | 647,840 | 792 |
-| `BenchmarkGenerateTemplatePDF_FinancialReport_Parallel` | 816,872 | — | 554,262 | 789 |
+| `BenchmarkGenerateTemplatePDF_FinancialReport_Parallel` | 816,872 | - | 554,262 | 789 |
 
 ### Gate re-runs (same evening, run variance)
 
@@ -101,19 +101,19 @@ ls -t guides/cursor/baselines/gin_pprof_runs/pprof_summary_*.txt | head -1 | xar
 | ≥1,000 req/s weighted | `190935` | 953 req/s | ❌ (variance) |
 | ≥1,500 req/s weighted | `191020` | 871 req/s | ❌ |
 
-**Note:** Peak Phase 11 run `185414` at **1,232 req/s**; replaying that binary later yielded **981 req/s** — ±20% swing on the same machine. Treat `190806` as the post-revert baseline.
+**Note:** Peak Phase 11 run `185414` at **1,232 req/s**; replaying that binary later yielded **981 req/s** - ±20% swing on the same machine. Treat `190806` as the post-revert baseline.
 
-### Phase 12 — reverted (not shipped)
+### Phase 12 - reverted (not shipped)
 
 | Experiment | Run | Throughput | Outcome |
 |------------|-----|----------:|---------|
-| CRC32 fingerprint + in-place sig hex | `190405` | 1,098 req/s | Reverted — no significant gain vs P11 |
-| Store-uncompressed pages ≥96 KiB | `185831` | 810 req/s | Reverted — larger PDFs, slower signing |
-| 2× page-compress workers | `185949` | 992 req/s | Reverted — no gain |
+| CRC32 fingerprint + in-place sig hex | `190405` | 1,098 req/s | Reverted - no significant gain vs P11 |
+| Store-uncompressed pages ≥96 KiB | `185831` | 810 req/s | Reverted - larger PDFs, slower signing |
+| 2× page-compress workers | `185949` | 992 req/s | Reverted - no gain |
 
 ---
 
-## Prior pprof run — `20260611_185414` (Phase 11 peak)
+## Prior pprof run - `20260611_185414` (Phase 11 peak)
 
 **Config:** Phase 10 + HFT split decode (`json.RawMessage` rows), flate single-pass (>32 KiB), skip compress-cache hash (>256 KiB)
 
@@ -151,7 +151,7 @@ HFT remains the weighted-throughput ceiling: 5% × 222 ms ≈ 11.1 ms added to p
 
 ---
 
-## Prior pprof run — `20260611_184939` (Phase 10)
+## Prior pprof run - `20260611_184939` (Phase 10)
 
 **Config:** Phase 9 + in-place HFT row prealloc, pooled HFT read+unmarshal, ultra-fast `prepSharedDeferRow` draw loop
 
@@ -182,11 +182,11 @@ HFT remains the weighted-throughput ceiling: 5% × 222 ms ≈ 11.1 ms added to p
 | HFT avg latency | 277 ms | **267 ms** | **−4%** |
 | `drawTable` CPU (cum) | 13.9% | **11.4%** | **−18%** |
 
-**Note:** Initial Phase 10 run used `CopyString: false` with early buffer pool return — caused string aliasing races (HFT p99 spiked to 1,384 ms). Fixed before final benchmark.
+**Note:** Initial Phase 10 run used `CopyString: false` with early buffer pool return - caused string aliasing races (HFT p99 spiked to 1,384 ms). Fixed before final benchmark.
 
 ---
 
-## Prior pprof run — `20260611_030401` (Phase 9)
+## Prior pprof run - `20260611_030401` (Phase 9)
 
 **Config:** Phase 8 + tier-split JSON (HFT stream-only), bulk ParentTree fill, HFT `drawSharedDeferRow` fast path
 
@@ -220,7 +220,7 @@ HFT remains the weighted-throughput ceiling: 5% × 222 ms ≈ 11.1 ms added to p
 
 ---
 
-## Prior pprof run — `20260611_025956` (Phase 8)
+## Prior pprof run - `20260611_025956` (Phase 8)
 
 **Config:** same as Phase 7 + pooled `sonic.Unmarshal` fast path, deep tier row prealloc, per-page MCID stripe prealloc
 
@@ -253,7 +253,7 @@ HFT remains the weighted-throughput ceiling: 5% × 222 ms ≈ 11.1 ms added to p
 
 ---
 
-## Prior pprof run — `20260611_025518` (Phase 7)
+## Prior pprof run - `20260611_025518` (Phase 7)
 
 **Config:** `GOMAXPROCS=24`, `MAX_CONCURRENT=48`, `BENCH_MODE=1`, `GIN_FAST_API=1`, `PAYLOAD_SCENARIO=tagged_ecdsa`, 48 VUs × 35 s
 
@@ -271,11 +271,11 @@ HFT remains the weighted-throughput ceiling: 5% × 222 ms ≈ 11.1 ms added to p
 
 | Hotspot | Flat % | Cum % | vs `024802` | Notes |
 |---------|-------:|------:|-------------|-------|
-| `runtime.memmove` | **9.25%** | — | ↑ | Still significant; struct direct-write reduced `formatStructElemObjectInto` cum |
-| `runtime.memclrNoHeapPointers` | **7.10%** | — | ↑ | Buffer growth under load |
+| `runtime.memmove` | **9.25%** | - | ↑ | Still significant; struct direct-write reduced `formatStructElemObjectInto` cum |
+| `runtime.memclrNoHeapPointers` | **7.10%** | - | ↑ | Buffer growth under load |
 | `drawTable` | 2.27% | **16.05%** | similar | HFT tail; deferred MC tagging cuts struct alloc |
-| `decodeTemplateJSON` / sonic | — | **~10.6%** | ↓ vs 41% alloc | Pretouch + tier prealloc + `X-Payload-Tier` |
-| `formatStructElemObjectInto` | — | **gone from top** | ✅ | Direct `pdfBuffer` write (P7-B1) |
+| `decodeTemplateJSON` / sonic | - | **~10.6%** | ↓ vs 41% alloc | Pretouch + tier prealloc + `X-Payload-Tier` |
+| `formatStructElemObjectInto` | - | **gone from top** | ✅ | Direct `pdfBuffer` write (P7-B1) |
 
 ### Heap profile (post-load)
 
@@ -287,7 +287,7 @@ HFT remains the weighted-throughput ceiling: 5% × 222 ms ≈ 11.1 ms added to p
 
 ---
 
-## Prior pprof run — `20260611_024802`
+## Prior pprof run - `20260611_024802`
 
 **Config:** `GOMAXPROCS=24`, `MAX_CONCURRENT=48`, `BENCH_MODE=1`, `GIN_FAST_API=1`, `PAYLOAD_SCENARIO=tagged_ecdsa`, 48 VUs × 35 s
 
@@ -305,25 +305,25 @@ HFT remains the weighted-throughput ceiling: 5% × 222 ms ≈ 11.1 ms added to p
 
 | Hotspot | Flat % | Cum % | vs pre-opt (`023739`) | Root cause |
 |---------|-------:|------:|----------------------|------------|
-| `runtime.memmove` | **7.56%** | — | ↑ (was 7.40%) | PDF buffer copies, struct string assembly |
-| `runtime.memclrNoHeapPointers` | **6.53%** | — | ↑ (was 5.22%) | Buffer growth under 48-way load |
+| `runtime.memmove` | **7.56%** | - | ↑ (was 7.40%) | PDF buffer copies, struct string assembly |
+| `runtime.memclrNoHeapPointers` | **6.53%** | - | ↑ (was 5.22%) | Buffer growth under 48-way load |
 | `formatStructElemObjectInto` | **6.28%** | **10.73%** | **new top-3** | PDF/UA struct serialization (`sb.String()` copy) |
 | `drawTable` | 1.31% | **15.87%** | similar | HFT 2000-row tables dominate cum |
 | `flate` / zlib | ~3.8% flat | **~14%** | similar | Per-page compression |
 | `beginMarkedContentBuf` | 1.37% | **6.61%** | similar | Per-cell PDF/UA tagging |
 | `ReleaseStructElemsToPool` | 2.54% | **4.96%** | similar | Structure tree teardown |
-| **RSA / `bigmod`** | **0%** | — | ✅ gone | ECDSA working |
-| **ECDSA / signature** | **~3.5%** flat | — | ✅ (was ~15%) | No longer a bottleneck |
+| **RSA / `bigmod`** | **0%** | - | ✅ gone | ECDSA working |
+| **ECDSA / signature** | **~3.5%** flat | - | ✅ (was ~15%) | No longer a bottleneck |
 
 ### Heap profile (post-load)
 
 | Hotspot | inuse | alloc_space | Notes |
 |---------|------:|------------:|-------|
-| **`bytes.growSlice`** | **317 MB (52%)** | 3.18 GB (11%) | #1 inuse — PDF stream growth |
-| **sonic `StreamDecoder`** | 133 MB cum | **11.3 GB (41%)** | #1 alloc — JSON still dominant |
+| **`bytes.growSlice`** | **317 MB (52%)** | 3.18 GB (11%) | #1 inuse - PDF stream growth |
+| **sonic `StreamDecoder`** | 133 MB cum | **11.3 GB (41%)** | #1 alloc - JSON still dominant |
 | `CompressContentStreamCached` | 51 MB | 0.45 GB | ✅ down from 442 MB |
 | `beginMarkedContentBuf` | 40 MB cum | 0.87 GB | Tagged cells |
-| `func7` final assembly | — | 4.15 GB (15%) | Xref/stream write |
+| `func7` final assembly | - | 4.15 GB (15%) | Xref/stream write |
 
 ### Key shifts since baseline (`023739`)
 
@@ -348,7 +348,7 @@ net/http → Gin → handleGenerateTemplatePDF     77.6%
        └─ signature (ECDSA)                  ~3.5%
 ```
 
-**Gin/HTTP tax:** ~12% cumulative — already lean with `GIN_FAST_API=1`.
+**Gin/HTTP tax:** ~12% cumulative - already lean with `GIN_FAST_API=1`.
 
 ### Theoretical ceiling (why 1,000 req/s is close)
 
@@ -358,11 +358,11 @@ throughput ≈ MAX_CONCURRENT ÷ weighted_avg_service_seconds
 48 workers ÷ 0.030 s ≈ 1,600 req/s   ← target after Phase 7
 ```
 
-We are **within ~37% of theory** on weighted avg — not CPU-starved, but **HFT tail + alloc/GC** inflate the average.
+We are **within ~37% of theory** on weighted avg - not CPU-starved, but **HFT tail + alloc/GC** inflate the average.
 
 ---
 
-## Phase 7 — Path to 1,000+ req/s (new, from latest pprof)
+## Phase 7 - Path to 1,000+ req/s (new, from latest pprof)
 
 **Validation gate:**
 
@@ -372,7 +372,7 @@ make load-pprof
 # Optional: THROUGHPUT_GATE=1000 bash test/generate_template-pdf/run_gin_pprof_load.sh
 ```
 
-### P7-A — JSON ingress (highest-confidence, Gin-only) → **~720–800 req/s**
+### P7-A - JSON ingress (highest-confidence, Gin-only) → **~720–800 req/s**
 
 | # | Task | File(s) | Change | Est. gain |
 |---|------|---------|--------|----------|
@@ -382,7 +382,7 @@ make load-pprof
 
 **pprof gate:** sonic `StreamDecoder` alloc **<25%** (from 41%); `io.ReadAll` stays at 0%.
 
-### P7-B — Structure tree (shared `internal/pdf`) → **~800–900 req/s**
+### P7-B - Structure tree (shared `internal/pdf`) → **~800–900 req/s**
 
 | # | Task | File(s) | Change | Est. gain |
 |---|------|---------|--------|----------|
@@ -392,7 +392,7 @@ make load-pprof
 
 **pprof gate:** `formatStructElemObjectInto` cum **<6%** (from 10.7%); `beginMarkedContentBuf` cum **<4%**.
 
-### P7-C — Buffer / compression (shared `internal/pdf`) → **~900–950 req/s**
+### P7-C - Buffer / compression (shared `internal/pdf`) → **~900–950 req/s**
 
 | # | Task | File(s) | Change | Est. gain |
 |---|------|---------|--------|----------|
@@ -402,11 +402,11 @@ make load-pprof
 
 **pprof gate:** `bytes.growSlice` inuse **<200 MB**; `memclr`+`memmove` flat **<10%** combined.
 
-### P7-D — Measurement & SLO (Gin + k6) → **validate 1,000+**
+### P7-D - Measurement & SLO (Gin + k6) → **validate 1,000+**
 
 | # | Task | File(s) | Change | Est. gain |
 |---|------|---------|--------|----------|
-| P7-D1 | **`retail_active_signed` scenario** | `payload_generator.js` | 85% retail + 15% active, 0% HFT — realistic prod SLO | expect **~1,200+ req/s** |
+| P7-D1 | **`retail_active_signed` scenario** | `payload_generator.js` | 85% retail + 15% active, 0% HFT - realistic prod SLO | expect **~1,200+ req/s** |
 | P7-D2 | **Weighted gate with HFT cap** | `load_test_pprof.js` | Track `http_reqs` + custom `hft_latency` trend separately | clean regression signal |
 | P7-D3 | **`make load-pprof-1k`** | `makefile` | `THROUGHPUT_GATE=1000` on weighted or `retail_active` | CI nightly |
 
@@ -416,7 +416,7 @@ make load-pprof
 P7-B1 → P7-A1 → P7-B2 → P7-C1 → P7-C2 → P7-B3 → P7-D1 → validate
 ```
 
-**Rationale:** B1 is a small diff with immediate CPU win. A1 attacks the #1 alloc source. C2 is the only item that materially cuts HFT tail (the main drag on weighted avg). B3 is higher risk — do after measurement confirms HFT share.
+**Rationale:** B1 is a small diff with immediate CPU win. A1 attacks the #1 alloc source. C2 is the only item that materially cuts HFT tail (the main drag on weighted avg). B3 is higher risk - do after measurement confirms HFT share.
 
 ### Expected outcome matrix
 
@@ -430,19 +430,19 @@ P7-B1 → P7-A1 → P7-B2 → P7-C1 → P7-C2 → P7-B3 → P7-D1 → validate
 
 ---
 
-## Implementation checklist — Phases 0–6 (complete)
+## Implementation checklist - Phases 0–6 (complete)
 
-### Phase 0 — Measurement harness ✅
+### Phase 0 - Measurement harness ✅
 
-- [x] Add `load_test_pprof.js` — steady VUs, env-driven `PAYLOAD_SCENARIO`, `LOAD_VUS`, `PROFILE_SECONDS`
-- [x] Add `run_gin_pprof_load.sh` — build, server, CPU+heap capture, text summary
+- [x] Add `load_test_pprof.js` - steady VUs, env-driven `PAYLOAD_SCENARIO`, `LOAD_VUS`, `PROFILE_SECONDS`
+- [x] Add `run_gin_pprof_load.sh` - build, server, CPU+heap capture, text summary
 - [x] Capture baseline: `gin_pprof_runs/20260611_023739` (~593 req/s steady)
 - [x] Add `make load-pprof` target wrapping the shell script
 - [x] Record ramping baseline in `guides/cursor/baselines/k6_ramping_20260611.txt`
 
 ---
 
-### Phase 1 — Concurrency alignment ✅
+### Phase 1 - Concurrency alignment ✅
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
@@ -455,20 +455,20 @@ P7-B1 → P7-A1 → P7-B2 → P7-C1 → P7-C2 → P7-B3 → P7-D1 → validate
 
 ---
 
-### Phase 2 — ECDSA signing in HTTP workload ✅
+### Phase 2 - ECDSA signing in HTTP workload ✅
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
 | 2.1 | **ECDSA P-256 key in k6 payload** | ✅ | `RETAIL_SIGNATURE_CONFIG_ECDSA` in `payload_generator.js` |
 | 2.2 | **Default load tests to ECDSA** | ✅ | `tagged` / `tagged_ecdsa` / `load_test.js` default |
 | 2.3 | **Signer PEM parse cache** | ✅ | Already present: `signerPEMMaterialCache`, `pdfSignerCache` in `signature.go` |
-| 2.4 | **Re-profile** | ✅ | `cpu_gin_20260611_024509.prof` — RSA absent from top flat |
+| 2.4 | **Re-profile** | ✅ | `cpu_gin_20260611_024509.prof` - RSA absent from top flat |
 
 **Gate result:** Signature path de-prioritized in CPU; weighted **653 req/s** @ 48 VUs
 
 ---
 
-### Phase 3 — JSON / HTTP ingress ✅
+### Phase 3 - JSON / HTTP ingress ✅
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
@@ -481,7 +481,7 @@ P7-B1 → P7-A1 → P7-B2 → P7-C1 → P7-C2 → P7-B3 → P7-D1 → validate
 
 ---
 
-### Phase 4 — PDF hot path ✅
+### Phase 4 - PDF hot path ✅
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
@@ -495,7 +495,7 @@ P7-B1 → P7-A1 → P7-B2 → P7-C1 → P7-C2 → P7-B3 → P7-D1 → validate
 
 ---
 
-### Phase 5 — Saturation tuning ✅
+### Phase 5 - Saturation tuning ✅
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
@@ -504,19 +504,19 @@ P7-B1 → P7-A1 → P7-B2 → P7-C1 → P7-C2 → P7-B3 → P7-D1 → validate
 | 5.3 | **HFT isolation** | ✅ | `retail_only_signed` k6 scenario |
 | 5.4 | **Fast handler route** | ✅ | `GIN_FAST_API=1` registers template-pdf without CORS/auth middleware |
 
-**Gate (primary) weighted:** 653 req/s — **not yet 1,500** (HFT 5% dominates)  
+**Gate (primary) weighted:** 653 req/s - **not yet 1,500** (HFT 5% dominates)  
 **Gate (retail-only):** **3,730 req/s** ✅ (target ≥2,000)
 
 ---
 
-### Phase 6 — Regression & CI ✅
+### Phase 6 - Regression & CI ✅
 
 - [x] pprof artifacts under `guides/cursor/baselines/gin_pprof_runs/` (`20260611_024802` latest)
 - [x] k6 throughput gate via `THROUGHPUT_GATE` + `make load-pprof-gate`
 - [x] Latest summary: `pprof_summary_20260611_024802.txt`
 - [x] All `go test ./internal/handlers/... ./internal/pdf/...` pass
 
-### Phase 7 — Path to 1,000+ req/s ✅
+### Phase 7 - Path to 1,000+ req/s ✅
 
 - [x] P7-A1 Sonic pretouch + decoder pool (`handlers/json_decode.go`, `WarmJSONDecode`)
 - [x] P7-A2 Tier-aware prealloc (`X-Payload-Tier` header, `models.PreallocForDecode`)
@@ -529,43 +529,43 @@ P7-B1 → P7-A1 → P7-B2 → P7-C1 → P7-C2 → P7-B3 → P7-D1 → validate
 - [x] P7-D1 `retail_active_signed` k6 scenario (85/15, no HFT → **~3,945 req/s**)
 - [x] P7-D3 `make load-pprof-1k` gate (weighted **1,118 req/s** passes `THROUGHPUT_GATE=1000`)
 
-### Phase 8 — Path to 1,500+ req/s ✅
+### Phase 8 - Path to 1,500+ req/s ✅
 
 - [x] P8-A1 Pooled body + `sonic.Unmarshal` when `Content-Length` known (`json_decode.go`)
 - [x] P8-A2 Deep tier row prealloc (HFT 2001 rows, active 41 rows on inline table)
 - [x] P8-B1 Per-page MCID stripe prealloc for tables >100 rows (`PreallocatePageMCIDSlots`)
 - [x] P8-D2 Per-tier k6 trends (`hft_latency`, `retail_latency`, `active_latency`)
-- [x] P8-D3 `make load-pprof-1500` gate (**1,082 req/s** — not yet 1,500)
-- [ ] P8-A3 Codegen unmarshaler (optional — next if HFT JSON parse still dominates)
+- [x] P8-D3 `make load-pprof-1500` gate (**1,082 req/s** - not yet 1,500)
+- [ ] P8-A3 Codegen unmarshaler (optional - next if HFT JSON parse still dominates)
 
-### Phase 9 — HFT draw + ingress specialization ✅
+### Phase 9 - HFT draw + ingress specialization ✅
 
 - [x] P9-A Tier-split JSON: HFT → `StreamDecoder` only; retail/active → pooled unmarshal ≤512 KiB; pool cap 128 KiB (`json_decode.go`, `handlers.go`)
 - [x] P9-B Bulk ParentTree: `ReserveMCIDsLite` + per-page `FillDeferredParentTreePage` (replaces per-row `AttachDeferredMCIDs`)
 - [x] P9-C HFT fast row: `drawSharedDeferRow` + uniform border batch; `sharedColsUniformBorder` guard
-- [x] P9-D `PageMCIDStart` — safe MCID cursor on multi-page HFT tables
-- [x] P9-E `make load-pprof-1500` re-run (**1,059 req/s** — `drawTable` −14% CPU, gate still fails)
+- [x] P9-D `PageMCIDStart` - safe MCID cursor on multi-page HFT tables
+- [x] P9-E `make load-pprof-1500` re-run (**1,059 req/s** - `drawTable` −14% CPU, gate still fails)
 
-### Phase 10 — HFT decode + draw ultra-fast path ✅
+### Phase 10 - HFT decode + draw ultra-fast path ✅
 
 - [x] P10-A In-place HFT row/cell prealloc (`preallocInlineTableRows` len=2001, sonic unmarshals without GrowSlice)
 - [x] P10-B HFT pooled read + `sonic.Unmarshal` when `Content-Length` known (`hftBodyBufPool`, ≤8 MiB)
 - [x] P10-C Ultra-fast defer row loop: `prepSharedDeferRow` + one-time `sharedCols` init; skips TR/height/wrap paths
 - [x] P10-D Precomputed `textColorCmd` + `stdCharWidth` in `sharedColumnLayout`
-- [x] P10-E `make load-pprof-1500` re-run (**1,009 req/s** — HFT avg **267 ms**, p99 **135 ms**, `drawTable` **11.4%** cum)
+- [x] P10-E `make load-pprof-1500` re-run (**1,009 req/s** - HFT avg **267 ms**, p99 **135 ms**, `drawTable` **11.4%** cum)
 
-### Phase 11 — Split HFT decode + flate tuning ✅
+### Phase 11 - Split HFT decode + flate tuning ✅
 
 - [x] P11-A HFT split decode: shell via `json.RawMessage` rows + second-pass `sonic.Unmarshal` (`hft_decode.go`)
 - [x] P11-B Flate single-pass for streams >32 KiB (skip trial 4 KiB compress on HFT pages)
 - [x] P11-C Skip compress-cache FNV fingerprint for streams >256 KiB (unique HFT pages)
-- [x] P11-D `make load-pprof-1500` re-run (**1,232 req/s** — HFT avg **222 ms**, +22% throughput vs P10)
+- [x] P11-D `make load-pprof-1500` re-run (**1,232 req/s** - HFT avg **222 ms**, +22% throughput vs P10)
 
-### Phase 12 — Compress-cache + signature embed ❌ reverted
+### Phase 12 - Compress-cache + signature embed ❌ reverted
 
-- [ ] P12-A CRC32 fingerprint + skip cache >256 KiB — **reverted** (CPU win, no E2E throughput gain)
-- [ ] P12-B In-place signature hex embed — **reverted**
-- [ ] P12-C Store-uncompressed large HFT pages — **reverted** (810 req/s, `185831`)
+- [ ] P12-A CRC32 fingerprint + skip cache >256 KiB - **reverted** (CPU win, no E2E throughput gain)
+- [ ] P12-B In-place signature hex embed - **reverted**
+- [ ] P12-C Store-uncompressed large HFT pages - **reverted** (810 req/s, `185831`)
 - [x] P12-D Post-revert validation `make load-pprof` (**1,054 req/s** weighted, `190806`)
 
 ---
@@ -574,13 +574,13 @@ P7-B1 → P7-A1 → P7-B2 → P7-C1 → P7-C2 → P7-B3 → P7-D1 → validate
 
 | Area | Files |
 |------|-------|
-| Server | `cmd/gopdfsuit/main.go` — `resolveMaxConcurrent`, `WarmRuntimePools`, `WarmJSONDecode` |
-| Handler | `internal/handlers/handlers.go`, `json_decode.go`, `hft_decode.go` — pretouch, tier decode, HFT split decode |
-| Models | `internal/models/models.go` — `PreallocForDecode(contentLength, tier)` |
+| Server | `cmd/gopdfsuit/main.go` - `resolveMaxConcurrent`, `WarmRuntimePools`, `WarmJSONDecode` |
+| Handler | `internal/handlers/handlers.go`, `json_decode.go`, `hft_decode.go` - pretouch, tier decode, HFT split decode |
+| Models | `internal/models/models.go` - `PreallocForDecode(contentLength, tier)` |
 | PDF engine | `internal/pdf/generator.go`, `draw.go`, `structure.go`, `pagemanager.go` |
 | Compression | `internal/pdf/font/compression.go`, `compress_cache.go` (sharded, P11 skip-sample) |
-| k6 | `payload_generator.js`, `load_test_pprof.js` — `retail_active_signed`, `X-Payload-Tier` |
-| Build | `makefile` — `load-pprof`, `load-pprof-gate`, `load-pprof-1k`, `load-pprof-1500` |
+| k6 | `payload_generator.js`, `load_test_pprof.js` - `retail_active_signed`, `X-Payload-Tier` |
+| Build | `makefile` - `load-pprof`, `load-pprof-gate`, `load-pprof-1k`, `load-pprof-1500` |
 
 ---
 
@@ -592,11 +592,11 @@ Phase 7 did not add CPU cores or raise `MAX_CONCURRENT`. The gain is almost enti
 
 | Metric | `024802` (pre-P7) | `025518` (post-P7) | Effect |
 |--------|------------------:|-------------------:|--------|
-| **Avg latency** | 46.8 ms | 27.7 ms | **−41%** — directly increases sustainable req/s |
+| **Avg latency** | 46.8 ms | 27.7 ms | **−41%** - directly increases sustainable req/s |
 | **Median** | 18.8 ms | 16.2 ms | Retail/active path already fast; room from tail |
-| **p99** | 577 ms | 208 ms | **−64%** — HFT tail no longer stalls worker pool |
+| **p99** | 577 ms | 208 ms | **−64%** - HFT tail no longer stalls worker pool |
 
-At 48 workers: `48 ÷ 0.0468 ≈ 1,026 req/s` (theoretical pre-P7) vs `48 ÷ 0.0277 ≈ 1,733 req/s` (theoretical post-P7). Measured **1,118 req/s** is ~65% of the new theory — remaining gap is GC/flate under saturation, not worker starvation.
+At 48 workers: `48 ÷ 0.0468 ≈ 1,026 req/s` (theoretical pre-P7) vs `48 ÷ 0.0277 ≈ 1,733 req/s` (theoretical post-P7). Measured **1,118 req/s** is ~65% of the new theory - remaining gap is GC/flate under saturation, not worker starvation.
 
 ### 2. Per-optimization causal chain
 
@@ -605,7 +605,7 @@ At 48 workers: `48 ÷ 0.0468 ≈ 1,026 req/s` (theoretical pre-P7) vs `48 ÷ 0.0
 | **P7-A1 Pretouch** | JIT-compiles `PDFTemplate` decode graph at startup; removes first-request compile stalls and reduces decode CPU in the hot loop | `decodeTemplateJSON` cum **~10.6%** CPU (was scattered JIT + decode); fewer latency spikes |
 | **P7-A2 Tier prealloc + `X-Payload-Tier`** | k6 sends tier header; `Elements`/`Table` slices sized before unmarshal → fewer `GrowSlice` during sonic parse | Contributed to higher throughput at same VU count (less GC pause) |
 | **P7-B1 Direct struct write** | `formatStructElemObjectTo(pdfBuffer)` eliminates `sb.String()` copy per struct elem | **`formatStructElemObjectInto` fell off CPU top-25** (was **10.7% cum**); less `memmove` |
-| **P7-B2 Batch MC (≤20 rows)** | Retail tables: `WriteCellMarkedContentBDC` + `AttachRowMCIDs` — one TR parent, no per-cell `StructElem` alloc | Cuts `beginMarkedContentBuf` structure churn on **80%** of requests |
+| **P7-B2 Batch MC (≤20 rows)** | Retail tables: `WriteCellMarkedContentBDC` + `AttachRowMCIDs` - one TR parent, no per-cell `StructElem` alloc | Cuts `beginMarkedContentBuf` structure churn on **80%** of requests |
 | **P7-B3 HFT structure deferral** | Shared-layout data rows skip `StructTR`; MCIDs registered on table parent only | HFT p99 **577 → 208 ms**; largest contributor to avg latency drop (5% of traffic, ~40% of tail) |
 | **P7-C1 Early `pdfBuffer.Grow`** | `estimateTemplatePDFBufferSize` before generation | Heap inuse **317 → 181 MB**; fewer mid-flight `bytes.growSlice` |
 | **P7-C2 Page striping** | `PrepareLargeTableStripe` + raised per-page stream cap for >40-row tables | HFT draws in page-sized chunks; less single-pass buffer pressure |
@@ -615,17 +615,17 @@ At 48 workers: `48 ÷ 0.0468 ≈ 1,026 req/s` (theoretical pre-P7) vs `48 ÷ 0.0
 
 The weighted mix is **80% retail / 15% active / 5% HFT**. Phase 7 optimized all three tiers, but:
 
-- **Retail** was already near ceiling (~19 ms med) — limited upside.
+- **Retail** was already near ceiling (~19 ms med) - limited upside.
 - **HFT** improved most in p99, but still dominates **avg** when it hits (~37 ms pdf_generation avg includes HFT spikes).
-- **Sonic decode** remains **~51% alloc_space** — GC still caps sustained throughput below theory.
+- **Sonic decode** remains **~51% alloc_space** - GC still caps sustained throughput below theory.
 
 Hence +75% measured vs +69% theoretical avg-latency improvement: consistent with GC + flate remaining bottlenecks.
 
 ### 4. What did *not* drive the gain
 
-- ECDSA signing (already optimized in Phase 2) — unchanged CPU share.
-- Gin/HTTP middleware (`GIN_FAST_API=1` from Phase 5) — no change in Phase 7.
-- Concurrency (`MAX_CONCURRENT=48`) — unchanged.
+- ECDSA signing (already optimized in Phase 2) - unchanged CPU share.
+- Gin/HTTP middleware (`GIN_FAST_API=1` from Phase 5) - no change in Phase 7.
+- Concurrency (`MAX_CONCURRENT=48`) - unchanged.
 
 ---
 

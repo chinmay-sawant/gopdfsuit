@@ -37,7 +37,7 @@ When `mathEnabled` is `false`, the raw text is rendered as-is without parsing.
 
 ## Reference Files
 
-- [SYNTAX_REFERENCE.md](./SYNTAX_REFERENCE.md) — Complete Typst math syntax reference with all functions, parameters, and examples
+- [SYNTAX_REFERENCE.md](./SYNTAX_REFERENCE.md) - Complete Typst math syntax reference with all functions, parameters, and examples
 
 ## Source Documentation
 

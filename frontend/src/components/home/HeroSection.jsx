@@ -62,10 +62,10 @@ const HeroSection = ({ starCount }) => {
           }}
         >
           <p className="hero-description">
-            An high-performance, <span className="highlight-foreground">MIT-licensed</span> Go engine that <span className="highlight-teal">saves enterprise costs</span> and solves critical <span className="highlight-foreground">compliance challenges</span> for Fintechs & Enterprises by generating secure, <span className="highlight-blue">PDF/UA-2 & PDF/A-4</span> compliant documents at up to <span className="highlight-yellow">9,000+ PDFs/sec*</span> on the Zerodha gold-standard workload.
+            An high-performance, <span className="highlight-foreground">MIT-licensed</span> Go engine that <span className="highlight-teal">saves enterprise costs</span> and solves critical <span className="highlight-foreground">compliance challenges</span> for Fintechs & Enterprises by generating secure, <span className="highlight-blue">PDF/UA-2 & PDF/A-4</span> compliant documents at up to <span className="highlight-yellow">6,000+ PDFs/sec*</span> or <span className="highlight-teal">37,000+ PDFs/sec</span> without compliance overhead on the Zerodha gold-standard workload.
           </p>
           <p className="hero-benchmark-footnote">
-            * Benchmarks measured with PDF/A-4, PDF/UA-2, Arlington-compatible tagging, XML metadata generation, ECDSA P-256 digital signatures, embedded fonts, bookmarks, and internal links enabled (June 2026, x10 sequential runs, GoPDFLib on 48-worker Zerodha weighted workload; x10 peak 10,005 ops/sec, x10 mean 9,594 ops/sec).
+            * Compliant (PDF/A-4, PDF/UA-2, Arlington tagging, ECDSA P-256 signing, embedded fonts): x10 peak 6,611 ops/sec, x10 mean 6,203 ops/sec. Non-compliant (PDF 2.0, compliance off): x10 peak 37,853 ops/sec, x10 mean 34,035 ops/sec. June 2026, 48-worker Zerodha weighted workload (5000×48, 80/15/5 mix).
           </p>
 
           <div className="hero-pills-container">
