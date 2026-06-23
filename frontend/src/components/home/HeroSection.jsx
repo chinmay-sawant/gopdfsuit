@@ -6,7 +6,6 @@ import {
   Github,
   ChevronDown,
   ArrowRight,
-  Sparkles
 } from 'lucide-react'
 
 const pillRows = [
@@ -33,15 +32,9 @@ const HeroSection = ({ starCount }) => {
     <section
       id="section-hero"
       className="hero-section"
-      style={{ padding: '6rem 0 4rem', textAlign: 'center' }}
+      style={{ padding: '5rem 0 3rem', textAlign: 'center' }}
     >
       <div className="container">
-        {/* Sparkle badge */}
-        <div className="hero-badge animate-fadeInUp">
-          <Sparkles size={16} />
-          Open Source PDF Generation Engine
-        </div>
-
         {/* Main Title */}
         <h1
           className="hero-title gradient-text animate-fadeInUp"
@@ -54,7 +47,7 @@ const HeroSection = ({ starCount }) => {
         <div
           className="hero-subtitle animate-fadeInUp"
           style={{
-            marginBottom: '3rem',
+            marginBottom: '2rem',
             animationDelay: '0.2s',
             maxWidth: '800px',
             marginLeft: 'auto',
@@ -83,7 +76,6 @@ const HeroSection = ({ starCount }) => {
           </div>
         </div>
 
-        {/* CTA Buttons */}
         <div className="hero-cta-group animate-fadeInUp" style={{ animationDelay: '0.3s' }}>
           <Link
             to="/editor"

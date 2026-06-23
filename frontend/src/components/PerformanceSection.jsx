@@ -204,6 +204,7 @@ const PerformanceSection = ({ isVisible }) => {
 
         <div className="performance-panels-grid">
           <BenchmarkPanel
+            wide
             title="Parallel Weighted Workload (5000×48)"
             description="Mixed retail, active-trader, and HFT traffic. GoPDFLib rows from June 2026 x10 sequential runs; gpdf rows from make bench-gpdf-zerodha / -nocomply (same 5000×48 workload)."
             columns={[
@@ -233,6 +234,7 @@ const PerformanceSection = ({ isVisible }) => {
           />
 
           <BenchmarkPanel
+            wide
             title="HTTP Load Tests (k6)"
             description="End-to-end HTTP benchmarks via make bench-k6 targets. gopdfsuit vs Gotenberg uses the same k6 harness (~83× faster on weighted workload)."
             columns={[

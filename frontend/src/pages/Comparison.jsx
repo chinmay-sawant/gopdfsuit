@@ -585,7 +585,7 @@ const Comparison = () => {
       </section>
 
       <section id="section-benchmarks" style={{ padding: '2rem 0' }}>
-        <div className="container comparison-wide-container comparison-benchmark-container">
+        <div className="container comparison-wide-container comparison-benchmark-container performance-wide-container">
           <div
             className={`animate-fadeInScale stagger-animation ${isVisible['section-benchmarks'] ? 'visible' : ''}`}
             style={{ animationDelay: '0.2s' }}
@@ -743,7 +743,7 @@ const Comparison = () => {
           }
 
           .comparison-benchmark-container {
-            max-width: min(1580px, calc(100vw - 2rem));
+            max-width: min(1680px, calc(100vw - 2rem));
           }
 
           .comparison-highlight-grid {

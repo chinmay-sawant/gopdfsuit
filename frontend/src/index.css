@@ -823,7 +823,7 @@ select:focus {
 
 /* Hero-specific styles */
 .hero-section {
-  min-height: 90vh;
+  min-height: 88vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -836,7 +836,7 @@ select:focus {
   font-size: clamp(3rem, 8vw, 5rem);
   font-weight: 900;
   letter-spacing: -0.02em;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .hero-subtitle {
@@ -1123,7 +1123,7 @@ select option {
   background: rgba(78, 205, 196, 0.1);
   border: 1px solid rgba(78, 205, 196, 0.3);
   border-radius: 50px;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   color: #4ecdc4;
   font-size: 0.9rem;
   font-weight: 500;
@@ -1133,8 +1133,8 @@ select option {
 .hero-description {
   color: hsl(var(--muted-foreground));
   font-size: 1.25rem;
-  line-height: 1.8;
-  margin-bottom: 2rem;
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
   font-weight: 400;
   max-width: 850px;
   margin-left: auto;
@@ -1165,7 +1165,7 @@ select option {
   color: hsl(var(--muted-foreground));
   font-size: 0.82rem;
   line-height: 1.55;
-  margin: -1rem auto 2rem;
+  margin: -0.5rem auto 1.5rem;
   max-width: 780px;
   opacity: 0.85;
 }
@@ -1174,7 +1174,7 @@ select option {
 .hero-pills-container {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.65rem;
   align-items: center;
 }
 
@@ -1231,7 +1231,7 @@ select option {
   gap: 1.5rem;
   justify-content: center;
   flex-wrap: wrap;
-  margin-bottom: 4rem;
+  margin-bottom: 3rem;
 }
 
 .star-badge {
@@ -1479,6 +1479,11 @@ select option {
   margin-bottom: 0.55rem;
 }
 
+.performance-wide-container,
+.comparison-benchmark-container {
+  max-width: min(1680px, calc(100vw - 2rem));
+}
+
 .performance-wrapper {
   text-align: center;
 }
@@ -1488,7 +1493,7 @@ select option {
 }
 
 .performance-header-block {
-  max-width: 70rem;
+  max-width: 100%;
   margin: 0 auto 2rem;
 }
 
@@ -1626,7 +1631,7 @@ select option {
 
 .performance-panels-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 1.25rem;
   align-items: start;
 }
@@ -1639,12 +1644,9 @@ select option {
   text-align: left;
 }
 
-.performance-panel-wide {
-  grid-column: span 2;
-}
-
+.performance-panel-wide,
 .performance-machine-panel {
-  grid-column: span 2;
+  grid-column: auto;
 }
 
 .performance-panel-header h3 {
@@ -1666,7 +1668,7 @@ select option {
   min-width: 0;
   border-collapse: collapse;
   font-size: 0.84rem;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .performance-table th,
@@ -1695,6 +1697,7 @@ select option {
 
 .performance-machine-list {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 0.75rem;
 }
 
