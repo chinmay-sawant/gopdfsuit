@@ -823,13 +823,14 @@ select:focus {
 
 /* Hero-specific styles */
 .hero-section {
-  min-height: 88vh;
+  min-height: auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   position: relative;
   overflow: hidden;
+  padding-top: 3rem;
 }
 
 .hero-title {

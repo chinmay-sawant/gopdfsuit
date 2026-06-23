@@ -32,7 +32,7 @@ const HeroSection = ({ starCount }) => {
     <section
       id="section-hero"
       className="hero-section"
-      style={{ padding: '5rem 0 3rem', textAlign: 'center' }}
+      style={{ padding: '1rem 0 3rem', textAlign: 'center' }}
     >
       <div className="container">
         {/* Main Title */}
