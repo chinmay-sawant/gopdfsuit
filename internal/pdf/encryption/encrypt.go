@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -59,14 +60,12 @@ func NewPDFEncryption(config *models.SecurityConfig, documentID []byte) (*PDFEnc
 
 // padPassword pads or truncates password to 32 bytes
 func padPassword(password string) []byte {
-	pwd := []byte(password)
-	if len(pwd) >= 32 {
-		return pwd[:32]
-	}
-	// Pad with standard padding bytes
 	result := make([]byte, 32)
-	copy(result, pwd)
-	copy(result[len(pwd):], paddingBytes[:32-len(pwd)])
+	n := copy(result, password)
+	if n >= 32 {
+		return result[:32]
+	}
+	copy(result[n:], paddingBytes[:32-n])
 	return result
 }
 
@@ -76,10 +75,12 @@ func (enc *PDFEncryption) computeOwnerHash(userPassword, ownerPassword string) [
 	ownerPwd := padPassword(ownerPassword)
 
 	// Step 2: MD5 hash the padded owner password
+	//nolint:gosec // PDF Standard Security Handler (ISO 32000-1 §7.6.3.3) requires MD5 for R=4; cannot substitute.
 	hash := md5.Sum(ownerPwd)
 
 	// Step 3: For R=4, do 50 iterations of MD5
 	for i := 0; i < 50; i++ {
+		//nolint:gosec // ISO 32000-1 mandates iterated MD5 for owner-password key derivation.
 		hash = md5.Sum(hash[:])
 	}
 
@@ -112,6 +113,7 @@ func (enc *PDFEncryption) computeEncryptionKey(userPassword string) []byte {
 	userPwd := padPassword(userPassword)
 
 	// Step 2: Create MD5 hash of: padded password + O value + P value + document ID
+	//nolint:gosec // PDF Standard Security Handler (ISO 32000-1 §7.6.3.3) requires MD5 for encryption-key derivation.
 	hasher := md5.New()
 	hasher.Write(userPwd)
 	hasher.Write(enc.OwnerPasswordHash)
@@ -130,6 +132,7 @@ func (enc *PDFEncryption) computeEncryptionKey(userPassword string) []byte {
 
 	// Step 3: For R=4, do 50 additional MD5 iterations on first 16 bytes
 	for i := 0; i < 50; i++ {
+		//nolint:gosec // ISO 32000-1 mandates iterated MD5 for file encryption key derivation.
 		h := md5.Sum(hash[:16])
 		hash = h[:]
 	}
@@ -141,6 +144,7 @@ func (enc *PDFEncryption) computeEncryptionKey(userPassword string) []byte {
 // computeUserHash computes the /U (user) hash value per PDF spec Algorithm 5
 func (enc *PDFEncryption) computeUserHash() []byte {
 	// Step 1: Create MD5 hash of padding + document ID
+	//nolint:gosec // PDF Standard Security Handler (ISO 32000-1 §7.6.3.3) requires MD5 for /U hash computation.
 	hasher := md5.New()
 	hasher.Write(paddingBytes)
 	hasher.Write(enc.DocumentID)
@@ -272,6 +276,7 @@ func (enc *PDFEncryption) EncryptString(data []byte, objNum, genNum int) []byte 
 // computeObjectKey computes the encryption key for a specific object
 func (enc *PDFEncryption) computeObjectKey(objNum, genNum int) []byte {
 	// Create key by hashing: file key + object number + generation number
+	//nolint:gosec // PDF Standard Security Handler (ISO 32000-1 §7.6.3.3) requires MD5 for per-object keys.
 	hasher := md5.New()
 	hasher.Write(enc.EncryptionKey)
 
@@ -318,11 +323,17 @@ func (enc *PDFEncryption) GetEncryptDictionary(_ int) string {
 	dict.WriteString(" /CF << /StdCF << /Type /CryptFilter /CFM /AESV2 /Length 16 >> >>")
 
 	// Permission flags
-	dict.WriteString(fmt.Sprintf(" /P %d", enc.Permissions))
+	dict.WriteString(" /P ")
+	var intBuf [16]byte
+	dict.Write(strconv.AppendInt(intBuf[:0], int64(enc.Permissions), 10))
 
 	// Password hashes (hex encoded)
-	dict.WriteString(fmt.Sprintf(" /U <%s>", hex.EncodeToString(enc.UserPasswordHash)))
-	dict.WriteString(fmt.Sprintf(" /O <%s>", hex.EncodeToString(enc.OwnerPasswordHash)))
+	dict.WriteString(" /U <")
+	dict.WriteString(hex.EncodeToString(enc.UserPasswordHash))
+	dict.WriteString(">")
+	dict.WriteString(" /O <")
+	dict.WriteString(hex.EncodeToString(enc.OwnerPasswordHash))
+	dict.WriteString(">")
 
 	// Encrypt metadata flag
 	dict.WriteString(" /EncryptMetadata true")
@@ -335,6 +346,7 @@ func (enc *PDFEncryption) GetEncryptDictionary(_ int) string {
 // GenerateDocumentID generates a unique document ID
 func GenerateDocumentID(data []byte) []byte {
 	// Create MD5 hash of document content + timestamp
+	//nolint:gosec // PDF document ID (ISO 32000-1 §14.4) uses MD5 of file bytes; spec-mandated.
 	hasher := md5.New()
 	hasher.Write(data)
 
@@ -350,5 +362,12 @@ func GenerateDocumentID(data []byte) []byte {
 // FormatDocumentID formats the document ID for PDF trailer
 func FormatDocumentID(id []byte) string {
 	hexID := hex.EncodeToString(id)
-	return fmt.Sprintf("[<%s> <%s>]", hexID, hexID)
+	var sb strings.Builder
+	sb.Grow(len(hexID)*2 + 8)
+	sb.WriteString("[<")
+	sb.WriteString(hexID)
+	sb.WriteString("> <")
+	sb.WriteString(hexID)
+	sb.WriteString(">]")
+	return sb.String()
 }

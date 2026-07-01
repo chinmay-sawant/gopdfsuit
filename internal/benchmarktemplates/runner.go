@@ -23,16 +23,18 @@ func RunSingleDocumentBenchmark(name string) error {
 	fmt.Printf("Iterations: %d\n", iterations)
 
 	totalStart := time.Now()
+	runMark := totalStart
 	for runIndex := 1; runIndex <= iterations; runIndex++ {
-		start := time.Now()
 		if _, err := gopdflib.GeneratePDF(template); err != nil {
 			return fmt.Errorf("generate pdf run %d: %w", runIndex, err)
 		}
-		elapsedMs := float64(time.Since(start).Nanoseconds()) / 1_000_000
+		runEnd := time.Now()
+		elapsedMs := float64(runEnd.Sub(runMark).Nanoseconds()) / 1_000_000
 		durations = append(durations, elapsedMs)
 		fmt.Printf("Run %d: %.2f ms\n", runIndex, elapsedMs)
+		runMark = runEnd
 	}
-	totalSeconds := time.Since(totalStart).Seconds()
+	totalSeconds := runMark.Sub(totalStart).Seconds()
 
 	minDuration := durations[0]
 	maxDuration := durations[0]

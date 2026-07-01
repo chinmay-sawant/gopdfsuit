@@ -4,6 +4,7 @@ package font
 import (
 	"bytes"
 	"compress/zlib"
+	"fmt"
 	"io"
 	"sync"
 )
@@ -12,10 +13,11 @@ import (
 // Each zlib.NewWriter allocates ~256KB for compression tables
 var ZlibWriterPool = sync.Pool{
 	New: func() any {
-		// Create writer that will be reset with actual buffer later
+		// Create writer that will be reset with actual buffer later.
+		// NewWriterLevel can fail only for invalid levels; fall back to default.
 		w, err := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed)
 		if err != nil {
-			panic("zlib writer pool init failed: " + err.Error())
+			return zlib.NewWriter(io.Discard)
 		}
 		return w
 	},
@@ -42,9 +44,12 @@ func PutZlibWriter(w *zlib.Writer) {
 
 // CloseZlibWriter closes the writer and returns it to the pool.
 func CloseZlibWriter(w *zlib.Writer) error {
-	err := w.Close()
+	if err := w.Close(); err != nil {
+		PutZlibWriter(w)
+		return fmt.Errorf("close zlib writer: %w", err)
+	}
 	PutZlibWriter(w)
-	return err
+	return nil
 }
 
 // GetCompressBuffer returns a pooled compression buffer

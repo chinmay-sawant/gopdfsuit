@@ -1,9 +1,11 @@
 package pdf
 
 import (
+	"log"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"unicode/utf8"
 
@@ -75,6 +77,12 @@ func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 	}
 
 	return r, g, b, a, true
+}
+
+// parseHexColorRGB parses a hex color and returns RGB only (alpha discarded).
+func parseHexColorRGB(hexColor string) (r, g, b float64, valid bool) {
+	r, g, b, _, valid = parseHexColor(hexColor)
+	return r, g, b, valid
 }
 
 // propsCache memoizes parseProps results since the same prop strings are parsed repeatedly.
@@ -320,6 +328,73 @@ func appendPDFIndirectRef(sb *strings.Builder, id int) {
 	sb.WriteByte(' ')
 	sb.Write(strconv.AppendInt(buf[:0], int64(id), 10))
 	sb.WriteString(" 0 R")
+}
+
+// appendObjMapKey formats "num 0" PDF object map keys without fmt.Sprintf.
+func appendObjMapKey(buf []byte, objNum int) []byte {
+	buf = strconv.AppendInt(buf, int64(objNum), 10)
+	return append(buf, ' ', '0')
+}
+
+// splitASCIIFields splits on ASCII whitespace without strings.Fields allocation.
+func splitASCIIFields(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var parts []string
+	start := -1
+	for i := 0; i < len(s); i++ {
+		if s[i] <= ' ' {
+			if start >= 0 {
+				parts = append(parts, s[start:i])
+				start = -1
+			}
+			continue
+		}
+		if start < 0 {
+			start = i
+		}
+	}
+	if start >= 0 {
+		parts = append(parts, s[start:])
+	}
+	return parts
+}
+
+// formatPDFDate formats a time as a PDF date string (D:YYYYMMDDHHmmSSOHH'mm').
+func formatPDFDate(now time.Time) string {
+	_, tzOffset := now.Zone()
+	tzSign := "+"
+	if tzOffset < 0 {
+		tzSign = "-"
+		tzOffset = -tzOffset
+	}
+	tzHours := tzOffset / 3600
+	tzMinutes := (tzOffset % 3600) / 60
+
+	var sb strings.Builder
+	sb.Grow(24)
+	sb.WriteString("D:")
+	sb.WriteString(now.Format("20060102150405"))
+	sb.WriteString(tzSign)
+	if tzHours < 10 {
+		sb.WriteByte('0')
+	}
+	sb.WriteString(strconv.Itoa(tzHours))
+	sb.WriteByte('\'')
+	if tzMinutes < 10 {
+		sb.WriteByte('0')
+	}
+	sb.WriteString(strconv.Itoa(tzMinutes))
+	sb.WriteByte('\'')
+	return sb.String()
+}
+
+// logZlibCloseErr logs non-nil errors from zlib writer close (BP-1).
+func logZlibCloseErr(err error) {
+	if err != nil {
+		log.Printf("warning: zlib writer close failed: %v", err)
+	}
 }
 
 // formatXObjectNameRef returns "/{prefix}{idx}" for image XObject references.

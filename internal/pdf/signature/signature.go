@@ -64,9 +64,12 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	// Parse certificate
 	certPEM := make([]byte, len(config.CertificatePEM))
 	copy(certPEM, config.CertificatePEM)
-	block, _ := pem.Decode(certPEM)
+	block, remainder := pem.Decode(certPEM)
 	if block == nil {
 		return nil, errors.New("failed to parse certificate PEM")
+	}
+	if len(remainder) > 0 {
+		// Only the first PEM block is used for the signer certificate.
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
@@ -78,9 +81,12 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	// Parse private key
 	keyPEM := make([]byte, len(config.PrivateKeyPEM))
 	copy(keyPEM, config.PrivateKeyPEM)
-	keyBlock, _ := pem.Decode(keyPEM)
+	keyBlock, keyRemainder := pem.Decode(keyPEM)
 	if keyBlock == nil {
 		return nil, errors.New("failed to parse private key PEM")
+	}
+	if len(keyRemainder) > 0 {
+		// Only the first PEM block is used for the private key.
 	}
 
 	// Try parsing as PKCS#8 first, then PKCS#1
@@ -101,8 +107,11 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	for _, chainPEM := range config.CertificateChain {
 		chainBuf := make([]byte, len(chainPEM))
 		copy(chainBuf, chainPEM)
-		chainBlock, _ := pem.Decode(chainBuf)
+		chainBlock, chainRemainder := pem.Decode(chainBuf)
 		if chainBlock != nil {
+			if len(chainRemainder) > 0 {
+				// Only the first PEM block per chain entry is used.
+			}
 			chainCert, err := x509.ParseCertificate(chainBlock.Bytes)
 			if err == nil {
 				signer.certChain = append(signer.certChain, chainCert)
@@ -138,9 +147,11 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 		sigY = pageManager.GetMargins().Bottom
 	}
 
+	signingTime := time.Now()
+
 	// Create appearance stream for visible signature
 	if s.config.Visible {
-		ids.AppearanceID = s.createSignatureAppearance(pageManager, sigW, sigH, fontID)
+		ids.AppearanceID = s.createSignatureAppearance(pageManager, sigW, sigH, fontID, signingTime)
 	}
 
 	// Create signature value dictionary (will be filled during signing)
@@ -168,22 +179,21 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	sigValueDict.WriteString(">")
 
 	if s.config.Reason != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Reason (%s)", escapeText(s.config.Reason)))
+		writePDFDictText(&sigValueDict, " /Reason", s.config.Reason)
 	}
 	if s.config.Location != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Location (%s)", escapeText(s.config.Location)))
+		writePDFDictText(&sigValueDict, " /Location", s.config.Location)
 	}
 	if s.config.ContactInfo != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /ContactInfo (%s)", escapeText(s.config.ContactInfo)))
+		writePDFDictText(&sigValueDict, " /ContactInfo", s.config.ContactInfo)
 	}
 	if signerName != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Name (%s)", escapeText(signerName)))
+		writePDFDictText(&sigValueDict, " /Name", signerName)
 	}
 
 	// Signing time - PDF date format: D:YYYYMMDDHHmmSSOHH'mm'
 	// where O is + or -, HH is timezone hours, mm is timezone minutes
-	now := time.Now()
-	_, tzOffset := now.Zone()
+	_, tzOffset := signingTime.Zone()
 	tzSign := "+"
 	if tzOffset < 0 {
 		tzSign = "-"
@@ -191,7 +201,13 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	}
 	tzHours := tzOffset / 3600
 	tzMinutes := (tzOffset % 3600) / 60
-	sigValueDict.WriteString(fmt.Sprintf(" /M (D:%s%s%02d'%02d')", now.Format("20060102150405"), tzSign, tzHours, tzMinutes))
+	sigValueDict.WriteString(" /M (D:")
+	sigValueDict.WriteString(signingTime.Format("20060102150405"))
+	sigValueDict.WriteString(tzSign)
+	writePadded2(&sigValueDict, tzHours)
+	sigValueDict.WriteByte('\'')
+	writePadded2(&sigValueDict, tzMinutes)
+	sigValueDict.WriteString("')")
 
 	sigValueDict.WriteString(" >>")
 
@@ -218,10 +234,11 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// Rectangle for visible/invisible signature
 	if s.config.Visible {
-		annotDict.WriteString(fmt.Sprintf(" /Rect [%s %s %s %s]",
-			fmtNum(sigX), fmtNum(sigY), fmtNum(sigX+sigW), fmtNum(sigY+sigH)))
+		writePDFRect(&annotDict, sigX, sigY, sigW, sigH)
 		if ids.AppearanceID > 0 {
-			annotDict.WriteString(fmt.Sprintf(" /AP << /N %d 0 R >>", ids.AppearanceID))
+			annotDict.WriteString(" /AP << /N ")
+			writeObjRef(&annotDict, ids.AppearanceID)
+			annotDict.WriteString(" >>")
 		}
 	} else {
 		// Invisible signature - zero-size rectangle
@@ -234,7 +251,8 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 		targetPage = 1
 	}
 	pageObjID := 3 + (targetPage - 1) // Pages start at object 3
-	annotDict.WriteString(fmt.Sprintf(" /P %d 0 R", pageObjID))
+	annotDict.WriteString(" /P ")
+	writeObjRef(&annotDict, pageObjID)
 
 	annotDict.WriteString(" >>")
 
@@ -253,15 +271,15 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 }
 
 // createSignatureAppearance creates the visual appearance for a visible signature
-func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, width, height float64, fontID int) int {
+func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, width, height float64, fontID int, signingTime time.Time) int {
 	var appearance strings.Builder
 
 	// Yellow background with black border
 	appearance.WriteString("q\n")
 	appearance.WriteString("1 1 0.8 rg\n") // Light yellow background (RGB: 255, 255, 204)
-	appearance.WriteString(fmt.Sprintf("0 0 %s %s re f\n", fmtNum(width), fmtNum(height)))
+	writeFormRectCmd(&appearance, width, height, "f\n")
 	appearance.WriteString("0 0 0 RG 1 w\n") // Black border
-	appearance.WriteString(fmt.Sprintf("0 0 %s %s re S\n", fmtNum(width), fmtNum(height)))
+	writeFormRectCmd(&appearance, width, height, "S\n")
 	appearance.WriteString("Q\n")
 
 	// Text content
@@ -288,8 +306,11 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	}
 
 	// "Digitally signed by" line
-	appearance.WriteString(fmt.Sprintf("5 %s Td\n", fmtNum(height-15)))
-	appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText("Digitally signed by:")))
+	appearance.WriteString("5 ")
+	appearance.WriteString(fmtNum(height - 15))
+	appearance.WriteString(" Td\n")
+	appearance.WriteString(formatText("Digitally signed by:"))
+	appearance.WriteString(" Tj\n")
 
 	// Mark font usage for subsetting
 	if useHexEncoding {
@@ -298,16 +319,17 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 
 	// Signer name
 	appearance.WriteString("0 -12 Td\n")
-	appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(signerName)))
+	appearance.WriteString(formatText(signerName))
+	appearance.WriteString(" Tj\n")
 	if useHexEncoding {
 		pageManager.FontMarkChars("Helvetica", signerName)
 	}
 
 	// Date
-	now := time.Now()
-	dateStr := "Date: " + now.Format("2006-01-02 15:04:05")
+	dateStr := "Date: " + signingTime.Format("2006-01-02 15:04:05")
 	appearance.WriteString("0 -12 Td\n")
-	appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(dateStr)))
+	appearance.WriteString(formatText(dateStr))
+	appearance.WriteString(" Tj\n")
 	if useHexEncoding {
 		pageManager.FontMarkChars("Helvetica", dateStr)
 	}
@@ -316,7 +338,8 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	if s.config.Reason != "" {
 		reasonStr := "Reason: " + s.config.Reason
 		appearance.WriteString("0 -12 Td\n")
-		appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(reasonStr)))
+		appearance.WriteString(formatText(reasonStr))
+		appearance.WriteString(" Tj\n")
 		if useHexEncoding {
 			pageManager.FontMarkChars("Helvetica", reasonStr)
 		}
@@ -326,7 +349,8 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	if s.config.Location != "" {
 		locationStr := "Location: " + s.config.Location
 		appearance.WriteString("0 -12 Td\n")
-		appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(locationStr)))
+		appearance.WriteString(formatText(locationStr))
+		appearance.WriteString(" Tj\n")
 		if useHexEncoding {
 			pageManager.FontMarkChars("Helvetica", locationStr)
 		}
@@ -340,19 +364,28 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	appearanceID := pageManager.AllocObjectID()
 
 	// Construct resources dictionary using the embedded font ID
-	var resourcesDict string
+	var appearanceDict strings.Builder
+	appearanceDict.Grow(len(appearanceContent) + 128)
+	appearanceDict.WriteString("<< /Type /XObject /Subtype /Form /BBox [0 0 ")
+	appearanceDict.WriteString(fmtNum(width))
+	appearanceDict.WriteByte(' ')
+	appearanceDict.WriteString(fmtNum(height))
+	appearanceDict.WriteString("] /Resources ")
 	if fontID > 0 {
-		// Use reference to existing embedded font
-		resourcesDict = fmt.Sprintf("<< /Font << /F1 %d 0 R >> >>", fontID)
+		appearanceDict.WriteString("<< /Font << /F1 ")
+		writeObjRef(&appearanceDict, fontID)
+		appearanceDict.WriteString(" >> >>")
 	} else {
-		// Fallback for non-embedded (should be avoided for PDF/A)
-		resourcesDict = "<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>"
+		appearanceDict.WriteString("<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>")
 	}
+	appearanceDict.WriteString(" /Length ")
+	var lenBuf [16]byte
+	appearanceDict.Write(strconv.AppendInt(lenBuf[:0], int64(len(appearanceContent)), 10))
+	appearanceDict.WriteString(" >>\nstream\n")
+	appearanceDict.WriteString(appearanceContent)
+	appearanceDict.WriteString("\nendstream")
 
-	appearanceDict := fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources %s /Length %d >>\nstream\n%s\nendstream",
-		fmtNum(width), fmtNum(height), resourcesDict, len(appearanceContent), appearanceContent)
-
-	pageManager.SetExtraObject(appearanceID, appearanceDict)
+	pageManager.SetExtraObject(appearanceID, appearanceDict.String())
 
 	return appearanceID
 }
@@ -642,8 +675,24 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	byteRange := [4]int{0, beforeContents, afterContents, totalLength - afterContents}
 
 	// Update ByteRange in PDF
-	newByteRange := fmt.Sprintf("/ByteRange [0 %010d %010d %010d]",
-		byteRange[1], byteRange[2], byteRange[3])
+	var byteRangeBuf strings.Builder
+	byteRangeBuf.Grow(len(byteRangeMarker))
+	byteRangeBuf.WriteString("/ByteRange [0 ")
+	var brIntBuf [16]byte
+	appendPadded10 := func(v int) {
+		s := strconv.AppendInt(brIntBuf[:0], int64(v), 10)
+		for n := 10 - len(s); n > 0; n-- {
+			byteRangeBuf.WriteByte('0')
+		}
+		byteRangeBuf.Write(s)
+	}
+	appendPadded10(byteRange[1])
+	byteRangeBuf.WriteByte(' ')
+	appendPadded10(byteRange[2])
+	byteRangeBuf.WriteByte(' ')
+	appendPadded10(byteRange[3])
+	byteRangeBuf.WriteByte(']')
+	newByteRange := byteRangeBuf.String()
 
 	// Validate new ByteRange has same length as placeholder
 	if len(newByteRange) != len(byteRangeMarker) {

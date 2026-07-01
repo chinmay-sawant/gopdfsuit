@@ -39,14 +39,14 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 	for pageNum, rects := range redactionsByPage {
 		pageRef, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			warnings = append(warnings, "page "+strconv.Itoa(pageNum)+": "+err.Error())
+			warnings = append(warnings, appendPageWarning(pageNum, err.Error()))
 			continue
 		}
 		pageBody := objMap[pageRef]
 		keys := extractContentKeys(pageBody)
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
-			warnings = append(warnings, "page "+strconv.Itoa(pageNum)+": no content streams")
+			warnings = append(warnings, appendPageWarning(pageNum, "no content streams"))
 			continue
 		}
 
@@ -443,7 +443,8 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			estWidth := estimateStringWidth(seg.removed, 1000)
 			// Negative value = advance cursor to the right.
 			kern := -int(math.Round(estWidth))
-			out.WriteString(strconv.Itoa(kern))
+			var kernBuf [16]byte
+			out.Write(strconv.AppendInt(kernBuf[:0], int64(kern), 10))
 			out.WriteByte(' ')
 		} else {
 			if isHex {

@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/bytedance/sonic"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
@@ -355,12 +356,12 @@ func handleFillPDF(c *gin.Context) {
 	// If files not provided, try to read raw body fields.
 	if len(pdfBytes) == 0 {
 		if b := c.PostForm("pdf_bytes"); b != "" {
-			pdfBytes = []byte(b)
+			pdfBytes = byteconv.StringToBytes(b)
 		}
 	}
 	if len(xfdfBytes) == 0 {
 		if b := c.PostForm("xfdf_bytes"); b != "" {
-			xfdfBytes = []byte(b)
+			xfdfBytes = byteconv.StringToBytes(b)
 		}
 	}
 

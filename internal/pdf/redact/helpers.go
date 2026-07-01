@@ -140,13 +140,11 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 			}
 			if f1 == 2 {
 				objstm := f2
-				index := f3
 				var keyBuf []byte
 				keyBuf = appendObjMapKey(keyBuf[:0], objstm)
 				key := string(keyBuf)
-				if stm, ok := objMap[key]; ok {
-					_ = index
-					_ = stm
+				if _, ok := objMap[key]; ok {
+					// ObjStm cross-reference entry (index f3) reserved for future expansion.
 				}
 			}
 		}

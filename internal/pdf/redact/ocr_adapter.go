@@ -95,10 +95,8 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 		return nil, err
 	}
 	defer func() {
-		if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
-			// Best-effort temp cleanup after OCR pipeline.
-			_ = rmErr
-		}
+		// Best-effort temp cleanup after OCR pipeline; failure is non-fatal.
+		_ = os.RemoveAll(tmpDir) //nolint:errcheck // best-effort temp cleanup
 	}()
 
 	pdfPath := filepath.Join(tmpDir, "input.pdf")
@@ -113,9 +111,10 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 
 	words := make([]ocrWord, 0, info.TotalPages*32)
 	for page := 1; page <= info.TotalPages; page++ {
-		imgBase := filepath.Join(tmpDir, "page-"+strconv.Itoa(page))
+		var pageBuf [16]byte
+		pageStr := string(strconv.AppendInt(pageBuf[:0], int64(page), 10))
+		imgBase := filepath.Join(tmpDir, "page-"+pageStr)
 		imgPath := imgBase + ".png"
-		pageStr := strconv.Itoa(page)
 		pdftoppmCmd := exec.Command("pdftoppm", "-f", pageStr, "-l", pageStr, "-singlefile", "-png", pdfPath, imgBase)
 		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, err, string(out))

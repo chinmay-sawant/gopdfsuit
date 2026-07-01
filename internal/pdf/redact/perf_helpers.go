@@ -285,13 +285,32 @@ func countUTF8Runes(s string) int {
 
 // appendXrefEntry formats a PDF xref subsection entry line.
 func appendXrefEntry(offset, gen int) string {
-	off := strconv.Itoa(offset)
-	if n := 10 - len(off); n > 0 {
-		off = strings.Repeat("0", n) + off
+	var b strings.Builder
+	b.Grow(20)
+	var scratch [16]byte
+	off := strconv.AppendInt(scratch[:0], int64(offset), 10)
+	for n := 10 - len(off); n > 0; n-- {
+		b.WriteByte('0')
 	}
-	g := strconv.Itoa(gen)
-	if n := 5 - len(g); n > 0 {
-		g = strings.Repeat("0", n) + g
+	b.Write(off)
+	b.WriteByte(' ')
+	g := strconv.AppendInt(scratch[:0], int64(gen), 10)
+	for n := 5 - len(g); n > 0; n-- {
+		b.WriteByte('0')
 	}
-	return off + " " + g + " n \n"
+	b.Write(g)
+	b.WriteString(" n \n")
+	return b.String()
+}
+
+// appendPageWarning builds a page-scoped warning without strconv.Itoa allocations.
+func appendPageWarning(pageNum int, msg string) string {
+	var b strings.Builder
+	b.Grow(16 + len(msg))
+	b.WriteString("page ")
+	var scratch [12]byte
+	b.Write(strconv.AppendInt(scratch[:0], int64(pageNum), 10))
+	b.WriteString(": ")
+	b.WriteString(msg)
+	return b.String()
 }

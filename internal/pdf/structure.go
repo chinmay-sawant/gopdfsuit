@@ -285,15 +285,12 @@ func (sm *StructureManager) GenerateStructTreeRoot(_ int, parentTreeObjID int, n
 	}
 
 	// Point to the first child (Document)
-	if len(sm.Root.Kids) > 0 {
-		// Assuming the first kid is the Document element
-		if firstKid, ok := sm.Root.Kids[0].(*StructElem); ok {
-			structBuf = structBuf[:0]
-			structBuf = append(structBuf, " /K "...)
-			structBuf = strconv.AppendInt(structBuf, int64(firstKid.ObjectID), 10)
-			structBuf = append(structBuf, " 0 R"...)
-			sb.Write(structBuf)
-		}
+	if firstKid := rootFirstStructKid(sm.Root); firstKid != nil {
+		structBuf = structBuf[:0]
+		structBuf = append(structBuf, " /K "...)
+		structBuf = strconv.AppendInt(structBuf, int64(firstKid.ObjectID), 10)
+		structBuf = append(structBuf, " 0 R"...)
+		sb.Write(structBuf)
 	}
 
 	sb.WriteString(" >>")
@@ -331,14 +328,21 @@ func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 	sm.LinkElements[annotObjID] = linkElem
 }
 
+// rootFirstStructKid returns the first *StructElem child of root, if present.
+func rootFirstStructKid(root *StructElem) *StructElem {
+	if len(root.Kids) == 0 {
+		return nil
+	}
+	docElem, ok := root.Kids[0].(*StructElem)
+	if !ok {
+		return nil
+	}
+	return docElem
+}
+
 // GetCurrentDocumentElement returns the Document element (first child of Root)
 func (sm *StructureManager) GetCurrentDocumentElement() *StructElem {
-	if len(sm.Root.Kids) > 0 {
-		if docElem, ok := sm.Root.Kids[0].(*StructElem); ok {
-			return docElem
-		}
-	}
-	return nil
+	return rootFirstStructKid(sm.Root)
 }
 
 // CreateBookmarkSect creates a Sect structure element for a bookmark target

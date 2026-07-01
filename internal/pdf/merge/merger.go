@@ -3,9 +3,9 @@ package merge
 import (
 	"bytes"
 	"errors"
+	"log"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 // MergePDFs merges multiple PDF files into one
@@ -175,7 +175,7 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 		return 0, 0
 	}
 
-	parts := strings.Fields(rootRef)
+	parts := splitASCIIFields(rootRef)
 	if len(parts) < 1 {
 		return 0, 0
 	}
@@ -190,7 +190,10 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 			pagesRe := regexp.MustCompile(`/Pages\s+(\d+)\s+\d+\s+R`)
 			match := pagesRe.FindSubmatch(body)
 			if match != nil {
-				pagesNum, _ = strconv.Atoi(string(match[1])) //nolint:errcheck // malformed PDF refs skipped
+				pagesNum, err = strconv.Atoi(string(match[1]))
+				if err != nil {
+					log.Printf("warning: invalid pages reference in catalog: %v", err)
+				}
 			}
 		}
 	}
@@ -209,7 +212,7 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 	}
 
 	// Parse root object number
-	rootParts := strings.Fields(rootRef)
+	rootParts := splitASCIIFields(rootRef)
 	if len(rootParts) < 1 {
 		return pages
 	}
@@ -428,12 +431,13 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	// Write entries for objects 1 to maxObj
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
+			var numBuf [16]byte
+			numPart := strconv.AppendInt(numBuf[:0], int64(off), 10)
 			xrefBuf = xrefBuf[:0]
-			offStr := strconv.FormatInt(int64(off), 10)
-			for j := 0; j < 10-len(offStr); j++ {
+			for j := 0; j < 10-len(numPart); j++ {
 				xrefBuf = append(xrefBuf, '0')
 			}
-			xrefBuf = append(xrefBuf, offStr...)
+			xrefBuf = append(xrefBuf, numPart...)
 			xrefBuf = append(xrefBuf, " 00000 n\r\n"...)
 			out.Write(xrefBuf)
 		} else {
@@ -461,4 +465,29 @@ func hasEncrypt(data []byte) bool {
 		}
 	}
 	return bytes.Contains(data, []byte("/Encrypt"))
+}
+
+// splitASCIIFields splits on ASCII whitespace without strings.Fields allocation.
+func splitASCIIFields(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var parts []string
+	start := -1
+	for i := 0; i < len(s); i++ {
+		if s[i] <= ' ' {
+			if start >= 0 {
+				parts = append(parts, s[start:i])
+				start = -1
+			}
+			continue
+		}
+		if start < 0 {
+			start = i
+		}
+	}
+	if start >= 0 {
+		parts = append(parts, s[start:])
+	}
+	return parts
 }

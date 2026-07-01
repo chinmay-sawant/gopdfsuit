@@ -62,7 +62,9 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 		streamContent := sb.String()
 
 		// Create new stream object
-		streamObjKey := strconv.Itoa(nextObj) + " 0"
+		var keyBuf []byte
+		keyBuf = appendObjMapKey(keyBuf[:0], nextObj)
+		streamObjKey := string(keyBuf)
 		nextObj++
 
 		// NOTE: objMap stores body content between "obj" and "endobj" markers.
@@ -70,7 +72,8 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 		var streamObj bytes.Buffer
 		streamObj.Grow(len(streamContent) + 48)
 		streamObj.WriteString("<< /Length ")
-		streamObj.WriteString(strconv.Itoa(len(streamContent)))
+		var lenBuf [16]byte
+		streamObj.Write(strconv.AppendInt(lenBuf[:0], int64(len(streamContent)), 10))
 		streamObj.WriteString(" >>\nstream\n")
 		streamObj.WriteString(streamContent)
 		streamObj.WriteString("\nendstream")

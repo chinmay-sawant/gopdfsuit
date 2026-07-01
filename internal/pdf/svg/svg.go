@@ -4,9 +4,9 @@ package svg
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // SVG support for converting simple vector graphics to PDF commands
@@ -30,6 +30,28 @@ type Token struct {
 func parseDimension(val string) float64 {
 	val = strings.TrimSuffix(val, "px")
 	return parseFloatDefault(val)
+}
+
+// splitFields splits on Unicode whitespace without strings.Fields allocation (PERF-186).
+func splitFields(s string) []string {
+	var parts []string
+	start := -1
+	for i, r := range s {
+		if unicode.IsSpace(r) {
+			if start >= 0 {
+				parts = append(parts, s[start:i])
+				start = -1
+			}
+			continue
+		}
+		if start < 0 {
+			start = i
+		}
+	}
+	if start >= 0 {
+		parts = append(parts, s[start:])
+	}
+	return parts
 }
 
 func parseFloatDefault(s string) float64 {
@@ -106,7 +128,7 @@ func parseTransformCall(part string) (string, []string, bool) {
 	}
 	name := part[:open]
 	inner := part[open+1 : close]
-	return name, strings.Fields(strings.ReplaceAll(inner, ",", " ")), true
+	return name, splitFields(strings.ReplaceAll(inner, ",", " ")), true
 }
 
 // ConvertSVGToPDFCommands parses SVG data and returns PDF content stream commands
@@ -125,7 +147,7 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 
 	// If width/height missing, try ViewBox
 	if width == 0 || height == 0 {
-		parts := strings.Fields(strings.ReplaceAll(svg.ViewBox, ",", " "))
+		parts := splitFields(strings.ReplaceAll(svg.ViewBox, ",", " "))
 		if len(parts) == 4 {
 			width = parseFloatDefault(parts[2])
 			height = parseFloatDefault(parts[3])
@@ -303,7 +325,7 @@ func processElement(b *bytes.Buffer, se xml.StartElement) {
 
 func applyTransform(b *bytes.Buffer, t string) {
 	t = strings.ReplaceAll(t, ",", " ")
-	for _, part := range strings.Fields(t) {
+	for _, part := range splitFields(t) {
 		name, args, ok := parseTransformCall(part)
 		if !ok {
 			continue
@@ -438,7 +460,7 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 
 	// Apply styles
 	if r, g, blue, ok := parseColor(stroke); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f RG\n", r, g, blue)
+		writeRGBColor(b, r, g, blue, " RG\n")
 	}
 
 	// SVG default: fill is black if not specified, NOT transparent
@@ -446,19 +468,20 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 	if fill == "" {
 		// Default fill is black per SVG spec
 		fill = "black"
-		fmt.Fprintf(b, "0.00 0.00 0.00 rg\n") // Black fill
+		b.WriteString("0.00 0.00 0.00 rg\n") // Black fill
 	} else if fill == "none" || fill == "transparent" {
 		// Explicit no fill - keep as "none" for drawOp logic
 		fill = "none"
 	} else if r, g, blue, ok := parseColor(fill); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f rg\n", r, g, blue)
+		writeRGBColor(b, r, g, blue, " rg\n")
 	} else {
 		// Unknown fill value - default to black
 		fill = "black"
-		fmt.Fprintf(b, "0.00 0.00 0.00 rg\n")
+		b.WriteString("0.00 0.00 0.00 rg\n")
 	}
 
-	fmt.Fprintf(b, "%.2f w\n", sw)
+	writeFloats(b, 2, sw)
+	b.WriteString(" w\n")
 
 	switch name {
 	case "rect":
@@ -466,7 +489,8 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y := parseDimension(attrs["y"])
 		w := parseDimension(attrs["width"])
 		h := parseDimension(attrs["height"])
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f re\n", x, y, w, h)
+		writeFloats(b, 2, x, y, w, h)
+		b.WriteString(" re\n")
 		drawOp(b, fill, stroke)
 
 	case "line":
@@ -474,7 +498,10 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y1 := parseDimension(attrs["y1"])
 		x2 := parseDimension(attrs["x2"])
 		y2 := parseDimension(attrs["y2"])
-		fmt.Fprintf(b, "%.2f %.2f m %.2f %.2f l\n", x1, y1, x2, y2)
+		writeFloats(b, 2, x1, y1)
+		b.WriteString(" m ")
+		writeFloats(b, 2, x2, y2)
+		b.WriteString(" l\n")
 		b.WriteString("S\n")
 
 	case "circle":
@@ -483,11 +510,16 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		r := parseDimension(attrs["r"])
 		magic := 0.551784
 		d := r * magic
-		fmt.Fprintf(b, "%.2f %.2f m\n", cx, cy-r)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx+d, cy-r, cx+r, cy-d, cx+r, cy)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx+r, cy+d, cx+d, cy+r, cx, cy+r)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx-d, cy+r, cx-r, cy+d, cx-r, cy)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx-r, cy-d, cx-d, cy-r, cx, cy-r)
+		writeFloats(b, 2, cx, cy-r)
+		b.WriteString(" m\n")
+		writeFloats(b, 2, cx+d, cy-r, cx+r, cy-d, cx+r, cy)
+		b.WriteString(" c\n")
+		writeFloats(b, 2, cx+r, cy+d, cx+d, cy+r, cx, cy+r)
+		b.WriteString(" c\n")
+		writeFloats(b, 2, cx-d, cy+r, cx-r, cy+d, cx-r, cy)
+		b.WriteString(" c\n")
+		writeFloats(b, 2, cx-r, cy-d, cx-d, cy-r, cx, cy-r)
+		b.WriteString(" c\n")
 		drawOp(b, fill, stroke)
 
 	case "path":
@@ -518,7 +550,7 @@ func parsePathData(b *bytes.Buffer, d string) {
 		d = strings.ReplaceAll(d, cmd, " "+cmd+" ")
 	}
 
-	tokens := strings.Fields(d)
+	tokens := splitFields(d)
 	i := 0
 
 	cx, cy := 0.0, 0.0

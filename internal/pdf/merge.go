@@ -88,7 +88,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		offset := currentMax
 		pagesFromTree := []int{}
 		if rootRef, ok := findRootRef(f); ok {
-			parts := strings.Fields(rootRef)
+			parts := splitASCIIFields(rootRef)
 			if len(parts) >= 2 {
 				rootNum, err1 := strconv.Atoi(parts[0])
 				if err1 == nil {
@@ -156,12 +156,15 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	catalog.WriteString("<< /Type /Catalog /Pages 2 0 R")
 	if len(mergedFormFields) > 0 {
 		catalog.WriteString(" /AcroForm << /Fields [")
+		var fieldBuf []byte
 		for i, fieldNum := range mergedFormFields {
 			if i > 0 {
 				catalog.WriteByte(' ')
 			}
-			catalog.WriteString(strconv.Itoa(fieldNum))
-			catalog.WriteString(" 0 R")
+			fieldBuf = fieldBuf[:0]
+			fieldBuf = strconv.AppendInt(fieldBuf, int64(fieldNum), 10)
+			fieldBuf = append(fieldBuf, " 0 R"...)
+			catalog.Write(fieldBuf)
 		}
 		catalog.WriteString("] >>")
 	}
@@ -176,16 +179,21 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	offsets[2] = out.Len()
 	var pagesHdr strings.Builder
 	pagesHdr.WriteString("2 0 obj\n<< /Type /Pages /Kids [")
+	var pageBuf []byte
 	for i, p := range mergedPages {
 		if i > 0 {
 			pagesHdr.WriteByte(' ')
 		}
-		pagesHdr.WriteString(strconv.Itoa(p))
-		pagesHdr.WriteString(" 0 R")
+		pageBuf = pageBuf[:0]
+		pageBuf = strconv.AppendInt(pageBuf, int64(p), 10)
+		pageBuf = append(pageBuf, " 0 R"...)
+		pagesHdr.Write(pageBuf)
 	}
-	pagesHdr.WriteString("] /Count ")
-	pagesHdr.WriteString(strconv.Itoa(len(mergedPages)))
-	pagesHdr.WriteString(" >>\nendobj\n")
+	pageBuf = pageBuf[:0]
+	pageBuf = append(pageBuf, "] /Count "...)
+	pageBuf = strconv.AppendInt(pageBuf, int64(len(mergedPages)), 10)
+	pageBuf = append(pageBuf, " >>\nendobj\n"...)
+	pagesHdr.Write(pageBuf)
 	out.WriteString(pagesHdr.String())
 
 	for _, a := range appended {
@@ -223,12 +231,13 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	out.WriteString("0000000000 65535 f \n")
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
+			var numBuf [16]byte
+			numPart := strconv.AppendInt(numBuf[:0], int64(off), 10)
 			xrefBuf = xrefBuf[:0]
-			offStr := strconv.FormatInt(int64(off), 10)
-			for j := 0; j < 10-len(offStr); j++ {
+			for j := 0; j < 10-len(numPart); j++ {
 				xrefBuf = append(xrefBuf, '0')
 			}
-			xrefBuf = append(xrefBuf, offStr...)
+			xrefBuf = append(xrefBuf, numPart...)
 			xrefBuf = append(xrefBuf, " 00000 n \n"...)
 			out.Write(xrefBuf)
 		} else {
@@ -307,10 +316,12 @@ func addParentRef(pageBody []byte, parentObjNum int) []byte {
 	}
 
 	var result bytes.Buffer
+	var parentBuf []byte
+	parentBuf = strconv.AppendInt(parentBuf, int64(parentObjNum), 10)
+	parentBuf = append(parentBuf, " 0 R"...)
 	result.Write(pageBody[:dictStart+2])
 	result.WriteString(" /Parent ")
-	result.WriteString(strconv.Itoa(parentObjNum))
-	result.WriteString(" 0 R")
+	result.Write(parentBuf)
 	result.Write(pageBody[dictStart+2:])
 	return result.Bytes()
 }
@@ -321,7 +332,7 @@ func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
 	fieldSet := make(map[int]bool, 16)
 
 	if rootRef, ok := findRootRef(pdfData); ok {
-		parts := strings.Fields(rootRef)
+		parts := splitASCIIFields(rootRef)
 		if len(parts) >= 1 {
 			rootNum, err := strconv.Atoi(parts[0])
 			if err == nil {

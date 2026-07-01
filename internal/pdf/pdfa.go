@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -131,8 +131,14 @@ func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr strin
 		streamContent = encryptor.EncryptStream(streamContent, objectID, 0)
 	}
 
-	return fmt.Sprintf("%d 0 obj\n<< /Type /Metadata /Subtype /XML /Length %d >>\nstream\n%s\nendstream\nendobj\n",
-		objectID, len(streamContent), string(streamContent))
+	var obj strings.Builder
+	obj.WriteString(strconv.Itoa(objectID))
+	obj.WriteString(" 0 obj\n<< /Type /Metadata /Subtype /XML /Length ")
+	obj.WriteString(strconv.Itoa(len(streamContent)))
+	obj.WriteString(" >>\nstream\n")
+	obj.Write(streamContent)
+	obj.WriteString("\nendstream\nendobj\n")
+	return obj.String()
 }
 
 // buildSRGBICCProfile builds a valid sRGB ICC profile from scratch
@@ -325,6 +331,7 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 		return nil
 	}
 	if err := font.CloseZlibWriter(zlibWriter); err != nil {
+		log.Printf("warning: ICC profile zlib close failed: %v", err)
 		return nil
 	}
 	compressedData := append([]byte(nil), compressedBuf.Bytes()...)
@@ -336,9 +343,11 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 
 	// Build the object with proper binary stream handling
 	var result bytes.Buffer
-	result.WriteString(strconv.Itoa(objectID))
-	result.WriteString(" 0 obj\n<< /Filter /FlateDecode /Length ")
-	result.WriteString(strconv.Itoa(len(compressedData)))
+	var hdrBuf []byte
+	hdrBuf = strconv.AppendInt(hdrBuf, int64(objectID), 10)
+	hdrBuf = append(hdrBuf, " 0 obj\n<< /Filter /FlateDecode /Length "...)
+	hdrBuf = strconv.AppendInt(hdrBuf, int64(len(compressedData)), 10)
+	result.Write(hdrBuf)
 	result.WriteString(" /N 3 /Alternate /DeviceRGB >>\nstream\n")
 	result.Write(compressedData)
 	result.WriteString("\nendstream\nendobj\n")
@@ -361,6 +370,7 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 		return nil
 	}
 	if err := font.CloseZlibWriter(zlibWriter); err != nil {
+		log.Printf("warning: gray ICC profile zlib close failed: %v", err)
 		return nil
 	}
 	compressedData := append([]byte(nil), compressedBuf.Bytes()...)
@@ -372,9 +382,11 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 
 	// Build the object
 	var result bytes.Buffer
-	result.WriteString(strconv.Itoa(objectID))
-	result.WriteString(" 0 obj\n<< /Filter /FlateDecode /Length ")
-	result.WriteString(strconv.Itoa(len(compressedData)))
+	var hdrBuf []byte
+	hdrBuf = strconv.AppendInt(hdrBuf, int64(objectID), 10)
+	hdrBuf = append(hdrBuf, " 0 obj\n<< /Filter /FlateDecode /Length "...)
+	hdrBuf = strconv.AppendInt(hdrBuf, int64(len(compressedData)), 10)
+	result.Write(hdrBuf)
 	result.WriteString(" /N 1 /Alternate /DeviceGray >>\nstream\n")
 	result.Write(compressedData)
 	result.WriteString("\nendstream\nendobj\n")

@@ -7,7 +7,6 @@ import (
 	"crypto/rc4"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,14 +21,12 @@ var pdfPasswordPadding = []byte{
 
 // padPassword pads or truncates password to 32 bytes
 func padPassword(password string) []byte {
-	pwd := []byte(password)
-	if len(pwd) >= 32 {
-		return pwd[:32]
-	}
-	// Pad with standard padding bytes
 	result := make([]byte, 32)
-	copy(result, pwd)
-	copy(result[len(pwd):], pdfPasswordPadding[:32-len(pwd)])
+	n := copy(result, password)
+	if n >= 32 {
+		return result[:32]
+	}
+	copy(result[n:], pdfPasswordPadding[:32-n])
 	return result
 }
 
@@ -174,7 +171,7 @@ func parseIntField(b []byte, pattern string, def int) int {
 }
 
 func parseHexOrLiteralField(b []byte, field string) []byte {
-	hexRe := regexp.MustCompile(fmt.Sprintf(`/%s\s*<([0-9A-Fa-f\s]+)>`, regexp.QuoteMeta(field)))
+	hexRe := regexp.MustCompile("/" + regexp.QuoteMeta(field) + `\s*<([0-9A-Fa-f\s]+)>`)
 	if m := hexRe.FindSubmatch(b); m != nil {
 		h := strings.ReplaceAll(string(m[1]), " ", "")
 		h = strings.ReplaceAll(h, "\n", "")
@@ -184,7 +181,7 @@ func parseHexOrLiteralField(b []byte, field string) []byte {
 			return v
 		}
 	}
-	litRe := regexp.MustCompile(fmt.Sprintf(`/%s\s*\(([^)]*)\)`, regexp.QuoteMeta(field)))
+	litRe := regexp.MustCompile("/" + regexp.QuoteMeta(field) + `\s*\(([^)]*)\)`)
 	if m := litRe.FindSubmatch(b); m != nil {
 		return []byte(m[1])
 	}
@@ -227,6 +224,7 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 	}
 
 	pad := padPassword(password)
+	//nolint:gosec // PDF Standard Security Handler (ISO 32000-1 §7.6.3.3) requires MD5 for key derivation.
 	h := md5.New()
 	h.Write(pad)
 	h.Write(d.O)
@@ -238,6 +236,7 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 	sum := h.Sum(nil)
 	if d.R >= 3 {
 		for i := 0; i < 50; i++ {
+			//nolint:gosec // ISO 32000-1 mandates iterated MD5 for file encryption key derivation.
 			x := md5.Sum(sum[:keyLen])
 			sum = x[:]
 		}
@@ -253,7 +252,11 @@ func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) boo
 		}
 		return bytes.Equal(exp, d.U[:32])
 	}
-	h := md5.Sum(append(append([]byte{}, pdfPasswordPadding...), id0...))
+	//nolint:gosec // PDF Standard Security Handler (ISO 32000-1 §7.6.3.3) requires MD5 for /U validation.
+	uPad := make([]byte, len(pdfPasswordPadding)+len(id0))
+	copy(uPad, pdfPasswordPadding)
+	copy(uPad[len(pdfPasswordPadding):], id0)
+	h := md5.Sum(uPad)
 	tmp := h[:]
 	tmp = rc4Crypt(fileKey, tmp)
 	for i := 1; i <= 19; i++ {
@@ -284,10 +287,12 @@ func deriveUserPasswordFromOwner(ownerPassword string, d standardEncryptDict) st
 		keyLen = 16
 	}
 
+	//nolint:gosec // PDF Standard Security Handler (ISO 32000-1 §7.6.3.3) requires MD5 for owner key derivation.
 	h := md5.Sum(padPassword(ownerPassword))
 	k := h[:]
 	if d.R >= 3 {
 		for i := 0; i < 50; i++ {
+			//nolint:gosec // ISO 32000-1 mandates iterated MD5 for owner-password key derivation.
 			x := md5.Sum(k[:keyLen])
 			k = x[:]
 		}
@@ -318,7 +323,10 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 	objKey := deriveObjectKey(fileKey, objNum, genNum)
 	dec := rc4Crypt(objKey, raw)
 
-	out := append(append(append(make([]byte, 0, len(objBody)), objBody[:loc[2]]...), dec...), objBody[loc[3]:]...)
+	out := make([]byte, 0, len(objBody))
+	out = append(out, objBody[:loc[2]]...)
+	out = append(out, dec...)
+	out = append(out, objBody[loc[3]:]...)
 	var lenBuf []byte
 	lenBuf = append(lenBuf, "/Length "...)
 	lenBuf = strconv.AppendInt(lenBuf, int64(len(dec)), 10)
@@ -329,8 +337,8 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
 	b := make([]byte, 0, len(fileKey)+5)
 	b = append(b, fileKey...)
-	b = append(b, byte(objNum), byte(objNum>>8), byte(objNum>>16))
-	b = append(b, byte(genNum), byte(genNum>>8))
+	b = append(b, byte(objNum), byte(objNum>>8), byte(objNum>>16), byte(genNum), byte(genNum>>8))
+	//nolint:gosec // PDF Standard Security Handler (ISO 32000-1 §7.6.3.3) requires MD5 for per-object keys.
 	h := md5.Sum(b)
 	kLen := len(fileKey) + 5
 	if kLen > 16 {

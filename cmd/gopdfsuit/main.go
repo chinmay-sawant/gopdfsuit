@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/fontutils"
 	"github.com/gin-gonic/gin"
 )
@@ -51,15 +52,7 @@ func main() {
 
 	// Lightweight custom recovery: only captures stack on actual panic
 	// (gin.Recovery() has per-request overhead from defer/stack-trace setup)
-	router.Use(func(c *gin.Context) {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[Recovery] panic recovered: %v", r)
-				c.AbortWithStatus(http.StatusInternalServerError)
-			}
-		}()
-		c.Next()
-	})
+	router.Use(middleware.PanicRecovery())
 
 	// Only add request logger in debug mode (GIN_MODE=debug)
 	if gin.Mode() == gin.DebugMode {

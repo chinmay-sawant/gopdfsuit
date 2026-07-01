@@ -87,7 +87,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	scratchPtr := scratchBufPool.Get().(*[]byte)
 	b := (*scratchPtr)[:0]
-	defer func() { *scratchPtr = b[:0]; scratchBufPool.Put(scratchPtr) }()
 
 	xrefOffsets := make(map[int]int, 256)
 
@@ -510,15 +509,19 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		widgetFontRef := getWidgetFontReference(fontRegistry)
 
 		// Build AcroForm content - include SigFlags if signatures are present
-		var acroFormContent string
+		var acroForm strings.Builder
+		acroForm.WriteString("<< /Fields ")
+		acroForm.WriteString(fieldsRef.String())
+		acroForm.WriteString(" /DA (")
+		acroForm.WriteString(widgetFontRef)
+		acroForm.WriteString(" 0 Tf 0 g)")
 		if sigIDs != nil {
 			// SigFlags 3 = SignaturesExist (1) + AppendOnly (2)
-			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) /SigFlags %d >>", fieldsRef.String(), widgetFontRef, signature.GetAcroFormSigFlags())
-		} else {
-			// Note: /NeedAppearances removed (deprecated in PDF 2.0) - widget appearances are generated programmatically
-			acroFormContent = fmt.Sprintf("<< /Fields %s /DA (%s 0 Tf 0 g) >>", fieldsRef.String(), widgetFontRef)
+			acroForm.WriteString(" /SigFlags ")
+			acroForm.WriteString(strconv.Itoa(signature.GetAcroFormSigFlags()))
 		}
-		pageManager.ExtraObjects[acroFormID] = acroFormContent
+		acroForm.WriteString(" >>")
+		pageManager.ExtraObjects[acroFormID] = acroForm.String()
 
 		pdfBuffer.WriteString(" /AcroForm ")
 		b = b[:0]
@@ -752,11 +755,12 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(contentStream.Bytes()); err != nil {
-			_ = closeZlibWriter(zlibWriter) // best-effort cleanup after write failure
+			logZlibCloseErr(closeZlibWriter(zlibWriter))
 			compressBufPool.Put(compressedBuf)
 			continue // Skip encryption if compression fails
 		}
 		if err := closeZlibWriter(zlibWriter); err != nil {
+			logZlibCloseErr(err)
 			compressBufPool.Put(compressedBuf)
 			continue
 		}
@@ -966,15 +970,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pageManager.NextObjectID++
 	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
 	// Go's time format doesn't support the PDF timezone format directly, so we build it manually
-	_, tzOffset := now.Zone()
-	tzSign := "+"
-	if tzOffset < 0 {
-		tzSign = "-"
-		tzOffset = -tzOffset
-	}
-	tzHours := tzOffset / 3600
-	tzMinutes := (tzOffset % 3600) / 60
-	creationDate := fmt.Sprintf("D:%s%s%02d'%02d'", now.Format("20060102150405"), tzSign, tzHours, tzMinutes)
+	creationDate := formatPDFDate(now)
 
 	// For PDF/A-4: Skip Info object entirely (Clause 6.1.3, Test 4)
 	// Info key shall not be present in trailer unless PieceInfo exists in catalog
@@ -984,13 +980,20 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(infoObjectID), 10)
 		b = append(b, " 0 obj\n"...)
-		// Include Title in Info dictionary if provided
-		titleEntry := ""
-		if template.Config.PdfTitle != "" {
-			titleEntry = fmt.Sprintf(" /Title (%s)", escapeText(template.Config.PdfTitle))
-		}
-		b = append(b, fmt.Sprintf("<< /CreationDate (%s) /ModDate (%s)%s >>\nendobj\n", creationDate, creationDate, titleEntry)...)
 		pdfBuffer.Write(b)
+		var infoDict strings.Builder
+		infoDict.WriteString("<< /CreationDate (")
+		infoDict.WriteString(creationDate)
+		infoDict.WriteString(") /ModDate (")
+		infoDict.WriteString(creationDate)
+		infoDict.WriteString(")")
+		if template.Config.PdfTitle != "" {
+			infoDict.WriteString(" /Title (")
+			infoDict.WriteString(escapeText(template.Config.PdfTitle))
+			infoDict.WriteString(")")
+		}
+		infoDict.WriteString(" >>\nendobj\n")
+		pdfBuffer.WriteString(infoDict.String())
 	}
 
 	// Write encryption dictionary object if encryption was set up
@@ -1145,25 +1148,23 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		xrefOffsets[elem.ObjectID] = pdfBuffer.Len()
 
 		var sb strings.Builder
-		sb.WriteString(strconv.Itoa(elem.ObjectID))
+		var objIDBuf [16]byte
+		sb.Write(strconv.AppendInt(objIDBuf[:0], int64(elem.ObjectID), 10))
 		sb.WriteString(" 0 obj\n<< /Type /StructElem /S /")
 		sb.WriteString(string(elem.Type))
 
 		// PDF/UA-2: Document element must be in PDF 2.0 namespace
 		if elem.Type == StructDocument {
-			sb.WriteString(" /NS ")
-			sb.WriteString(strconv.Itoa(namespaceID))
-			sb.WriteString(" 0 R")
+			sb.WriteString(" /NS")
+			appendPDFIndirectRef(&sb, namespaceID)
 		}
 
 		if elem.Parent == pageManager.Structure.Root {
-			sb.WriteString(" /P ")
-			sb.WriteString(strconv.Itoa(structTreeRootID))
-			sb.WriteString(" 0 R")
+			sb.WriteString(" /P")
+			appendPDFIndirectRef(&sb, structTreeRootID)
 		} else if elem.Parent != nil {
-			sb.WriteString(" /P ")
-			sb.WriteString(strconv.Itoa(elem.Parent.ObjectID))
-			sb.WriteString(" 0 R")
+			sb.WriteString(" /P")
+			appendPDFIndirectRef(&sb, elem.Parent.ObjectID)
 		}
 
 		if elem.Title != "" {
@@ -1192,11 +1193,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 						if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 							pageObjID = pageManager.Pages[elem.PageID]
 						}
-						sb.WriteString(" << /Type /OBJR /Obj ")
-						sb.WriteString(strconv.Itoa(annotObjID))
-						sb.WriteString(" 0 R /Pg ")
-						sb.WriteString(strconv.Itoa(pageObjID))
-						sb.WriteString(" 0 R >>")
+						sb.WriteString(" << /Type /OBJR /Obj")
+						appendPDFIndirectRef(&sb, annotObjID)
+						sb.WriteString(" /Pg")
+						appendPDFIndirectRef(&sb, pageObjID)
+						sb.WriteString(" >>")
 						break
 					}
 				}
@@ -1206,8 +1207,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				if kidElem, ok := k.(*StructElem); ok {
 					appendPDFIndirectRef(&sb, kidElem.ObjectID)
 				} else if mcid, ok := k.(int); ok {
+					var mcidBuf [12]byte
 					sb.WriteByte(' ')
-					sb.WriteString(strconv.Itoa(mcid))
+					sb.Write(strconv.AppendInt(mcidBuf[:0], int64(mcid), 10))
 				}
 			}
 			sb.WriteString(" ]")
@@ -1219,9 +1221,8 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// pm.Pages[elem.PageID] gives the object ID.
 		if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 			pageObjID := pageManager.Pages[elem.PageID]
-			sb.WriteString(" /Pg ")
-			sb.WriteString(strconv.Itoa(pageObjID))
-			sb.WriteString(" 0 R")
+			sb.WriteString(" /Pg")
+			appendPDFIndirectRef(&sb, pageObjID)
 		}
 
 		sb.WriteString(" >>\nendobj\n")
@@ -1317,7 +1318,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// For PDF/A-4, The Info key shall not be present in the trailer dictionary unless there exists a PieceInfo entry
 	trailerExtra := ""
 	if encryptObjID > 0 {
-		trailerExtra = " /Encrypt " + strconv.Itoa(encryptObjID) + " 0 R"
+		var trailerBuf strings.Builder
+		trailerBuf.WriteString(" /Encrypt")
+		appendPDFIndirectRef(&trailerBuf, encryptObjID)
+		trailerExtra = trailerBuf.String()
 	}
 
 	pdfBuffer.WriteString("trailer\n<< /Size ")
@@ -1339,8 +1343,15 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 	pdfBuffer.WriteString(" >>\n")
 	pdfBuffer.WriteString("startxref\n")
-	pdfBuffer.WriteString(strconv.Itoa(xrefStart) + "\n")
+	b = b[:0]
+	b = strconv.AppendInt(b, int64(xrefStart), 10)
+	b = append(b, '\n')
+	pdfBuffer.Write(b)
 	pdfBuffer.WriteString("%%EOF\n")
+
+	// Return scratch buffer to pool before exit (PERF-31).
+	*scratchPtr = b[:0]
+	scratchBufPool.Put(scratchPtr)
 
 	// Apply digital signature if configured
 	// Copy bytes before returning since pdfBuffer goes back to pool

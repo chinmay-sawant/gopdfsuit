@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"compress/zlib"
 	"io"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -43,7 +44,9 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer func() {
-		_ = r.Close() // best-effort cleanup after successful read
+		if err := r.Close(); err != nil {
+			log.Printf("warning: zlib reader close failed: %v", err)
+		}
 	}()
 	var out bytes.Buffer
 	if _, err := io.Copy(&out, r); err != nil {
@@ -56,7 +59,9 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 func tryFlateDecompress(b []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewReader(b))
 	defer func() {
-		_ = r.Close() // best-effort cleanup after successful read
+		if err := r.Close(); err != nil {
+			log.Printf("warning: flate reader close failed: %v", err)
+		}
 	}()
 	var out bytes.Buffer
 	if _, err := io.Copy(&out, r); err != nil {
@@ -154,7 +159,8 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 			if f1 == 2 {
 				objstm := f2
 				index := f3
-				key := strconv.Itoa(objstm) + " 0"
+				var keyBuf [16]byte
+				key := string(appendObjMapKey(keyBuf[:0], objstm))
 				if stm, ok := objMap[key]; ok {
 					_ = index
 					_ = stm

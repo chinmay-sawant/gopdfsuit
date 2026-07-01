@@ -729,7 +729,11 @@ func appendStreamToPage(pageBody []byte, streamKey string) []byte {
 	contentsRe := reContentsAlt
 	match := contentsRe.FindSubmatchIndex(pageBody)
 
-	refStr := fmt.Sprintf("%s R", streamKey)
+	var refBuf strings.Builder
+	refBuf.Grow(len(streamKey) + 2)
+	refBuf.WriteString(streamKey)
+	refBuf.WriteString(" R")
+	refStr := refBuf.String()
 
 	if match == nil {
 		// No contents, add it
@@ -740,7 +744,9 @@ func appendStreamToPage(pageBody []byte, streamKey string) []byte {
 		}
 		var buf bytes.Buffer
 		buf.Write(pageBody[:dictEnd])
-		buf.WriteString(fmt.Sprintf("/Contents [%s]", refStr))
+		buf.WriteString("/Contents [")
+		buf.WriteString(refStr)
+		buf.WriteByte(']')
 		buf.Write(pageBody[dictEnd:])
 		return buf.Bytes()
 	}
@@ -753,11 +759,25 @@ func appendStreamToPage(pageBody []byte, streamKey string) []byte {
 	if match[2] != -1 && match[3] != -1 {
 		// Single ref: /Contents 1 0 R -> /Contents [1 0 R newRef]
 		oldRef := string(pageBody[match[2]:match[3]])
-		replacement = fmt.Sprintf("/Contents [%s %s]", oldRef, refStr)
+		var repBuf strings.Builder
+		repBuf.Grow(len(oldRef) + len(refStr) + 16)
+		repBuf.WriteString("/Contents [")
+		repBuf.WriteString(oldRef)
+		repBuf.WriteByte(' ')
+		repBuf.WriteString(refStr)
+		repBuf.WriteByte(']')
+		replacement = repBuf.String()
 	} else if match[4] != -1 && match[5] != -1 {
 		// Array: /Contents [1 0 R] -> /Contents [1 0 R newRef]
 		oldContent := string(pageBody[match[4]:match[5]])
-		replacement = fmt.Sprintf("/Contents [%s %s]", oldContent, refStr)
+		var repBuf strings.Builder
+		repBuf.Grow(len(oldContent) + len(refStr) + 16)
+		repBuf.WriteString("/Contents [")
+		repBuf.WriteString(oldContent)
+		repBuf.WriteByte(' ')
+		repBuf.WriteString(refStr)
+		repBuf.WriteByte(']')
+		replacement = repBuf.String()
 	}
 
 	if replacement != "" {
@@ -839,10 +859,12 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		}{offset: out.Len(), gen: obj.gen}
 
 		body := objMap[obj.key]
-		out.WriteString(strconv.Itoa(obj.id))
-		out.WriteString(" ")
-		out.WriteString(strconv.Itoa(obj.gen))
-		out.WriteString(" obj\n")
+		var objScratch [24]byte
+		objHdr := strconv.AppendInt(objScratch[:0], int64(obj.id), 10)
+		objHdr = append(objHdr, ' ')
+		objHdr = strconv.AppendInt(objHdr, int64(obj.gen), 10)
+		objHdr = append(objHdr, " obj\n"...)
+		out.Write(objHdr)
 		out.Write(body)
 		if !bytes.HasSuffix(body, []byte("\n")) {
 			out.WriteByte('\n')
@@ -869,10 +891,12 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		if len(block) == 0 {
 			return
 		}
-		out.WriteString(strconv.Itoa(start))
-		out.WriteByte(' ')
-		out.WriteString(strconv.Itoa(len(block)))
-		out.WriteByte('\n')
+		var xrefScratch [24]byte
+		xrefHdr := strconv.AppendInt(xrefScratch[:0], int64(start), 10)
+		xrefHdr = append(xrefHdr, ' ')
+		xrefHdr = strconv.AppendInt(xrefHdr, int64(len(block)), 10)
+		xrefHdr = append(xrefHdr, '\n')
+		out.Write(xrefHdr)
 		for _, id := range block {
 			entry := offsetByObject[id]
 			out.WriteString(appendXrefEntry(entry.offset, entry.gen))
@@ -895,7 +919,17 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		trailerIDPart = " /ID " + trailerID
 	}
 
-	fmt.Fprintf(&out, "trailer\n<< /Size %d /Root %s R /Prev %d%s >>\nstartxref\n%d\n%%%%EOF\n", maxID+1, rootRef, prevStartXRef, trailerIDPart, xrefStart)
+	out.WriteString("trailer\n<< /Size ")
+	var trailerBuf [32]byte
+	out.Write(strconv.AppendInt(trailerBuf[:0], int64(maxID+1), 10))
+	out.WriteString(" /Root ")
+	out.WriteString(rootRef)
+	out.WriteString(" R /Prev ")
+	out.Write(strconv.AppendInt(trailerBuf[:0], int64(prevStartXRef), 10))
+	out.WriteString(trailerIDPart)
+	out.WriteString(" >>\nstartxref\n")
+	out.Write(strconv.AppendInt(trailerBuf[:0], int64(xrefStart), 10))
+	out.WriteString("\n%%EOF\n")
 
 	return out.Bytes(), nil
 }

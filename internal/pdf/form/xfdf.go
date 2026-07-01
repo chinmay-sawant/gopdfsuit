@@ -1020,15 +1020,19 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				continue
 			}
 			dictBytes := out[dictStart:dictEnd]
-			var newVBuf strings.Builder
+			var newVBuf bytes.Buffer
 			newVBuf.WriteString("/V /")
 			newVBuf.WriteString(value)
-			newV := []byte(newVBuf.String())
+			newV := bytes.Clone(newVBuf.Bytes())
 			var newDictBytes []byte
 			if reVGeneric.Match(dictBytes) {
 				newDictBytes = reVGeneric.ReplaceAll(dictBytes, newV)
 			} else {
-				newDictBytes = bytes.Replace(dictBytes, pdfDictClose, append(append([]byte(" "), newV...), pdfDictClose...), 1)
+				insert := make([]byte, 0, 1+len(newV)+len(pdfDictClose))
+				insert = append(insert, ' ')
+				insert = append(insert, newV...)
+				insert = append(insert, pdfDictClose...)
+				newDictBytes = bytes.Replace(dictBytes, pdfDictClose, insert, 1)
 			}
 			out = append(out[:dictStart], append(newDictBytes, out[dictEnd:]...)...)
 		}
@@ -1039,15 +1043,19 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			switch job.fieldType {
 			case typeText:
 				esc := escapePDFString(job.val)
-				var newVBuf strings.Builder
+				var newVBuf bytes.Buffer
 				newVBuf.WriteString("/V (")
 				newVBuf.WriteString(esc)
 				newVBuf.WriteByte(')')
-				newV := []byte(newVBuf.String())
+				newV := bytes.Clone(newVBuf.Bytes())
 				if reVString.Match(dictBytes) {
 					newDictBytes = reVString.ReplaceAll(dictBytes, newV)
 				} else {
-					newDictBytes = bytes.Replace(dictBytes, pdfDictClose, append(append([]byte(" "), newV...), pdfDictClose...), 1)
+					insert := make([]byte, 0, 1+len(newV)+len(pdfDictClose))
+					insert = append(insert, ' ')
+					insert = append(insert, newV...)
+					insert = append(insert, pdfDictClose...)
+					newDictBytes = bytes.Replace(dictBytes, pdfDictClose, insert, 1)
 				}
 				newDictBytes = reAPStrip.ReplaceAll(newDictBytes, []byte(" "))
 			case typeButton, typeRadio:
@@ -1061,11 +1069,18 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				} else if job.fieldType == typeRadio && job.radioExportValue == job.val {
 					newState = "/" + job.radioExportValue
 				}
-				newAS := []byte("/AS " + newState)
+				var newASBuf bytes.Buffer
+				newASBuf.WriteString("/AS ")
+				newASBuf.WriteString(newState)
+				newAS := bytes.Clone(newASBuf.Bytes())
 				if reASState.Match(dictBytes) {
 					newDictBytes = reASState.ReplaceAll(dictBytes, newAS)
 				} else {
-					newDictBytes = bytes.Replace(dictBytes, pdfDictClose, append(append([]byte(" "), newAS...), pdfDictClose...), 1)
+					insert := make([]byte, 0, 1+len(newAS)+len(pdfDictClose))
+					insert = append(insert, ' ')
+					insert = append(insert, newAS...)
+					insert = append(insert, pdfDictClose...)
+					newDictBytes = bytes.Replace(dictBytes, pdfDictClose, insert, 1)
 				}
 			}
 			if newDictBytes != nil {
@@ -1094,6 +1109,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	}
 	sort.Slice(textJobs, func(i, j int) bool { return textJobs[i].dictStart > textJobs[j].dictStart })
 
+	var numScratch [64]byte
 	for _, job := range textJobs {
 		job.fontDescObjNum = nextObj
 		nextObj++
@@ -1106,11 +1122,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		if !ok {
 			continue
 		}
-		var apRefBuf strings.Builder
+		var apRefBuf bytes.Buffer
 		apRefBuf.WriteString(" /AP<</N ")
-		apRefBuf.WriteString(strconv.Itoa(job.apObjNum))
+		apRefBuf.Write(strconv.AppendInt(numScratch[:0], int64(job.apObjNum), 10))
 		apRefBuf.WriteString(" 0 R>>")
-		apRef := []byte(apRefBuf.String())
+		apRef := apRefBuf.Bytes()
 		out = append(out[:dictEnd-2], append(apRef, out[dictEnd-2:]...)...)
 	}
 
@@ -1120,7 +1136,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		if loc := reAcroFormInline.FindIndex(out); loc != nil {
 			insertPos := loc[1]
 			insertContent := []byte(" /NeedAppearances false ")
-			out = append(append(append(out[:insertPos:insertPos], insertContent...), out[insertPos:]...))
+			out = append(out[:insertPos:insertPos], append(insertContent, out[insertPos:]...)...)
 		}
 	}
 
@@ -1143,65 +1159,64 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		if y < 2 {
 			y = 2
 		}
-		var streamBuf strings.Builder
+		var streamBuf bytes.Buffer
 		streamBuf.WriteString("q\nBT\n/F1 ")
-		streamBuf.WriteString(strconv.FormatFloat(job.fontSize, 'f', 2, 64))
+		streamBuf.Write(strconv.AppendFloat(numScratch[:0], job.fontSize, 'f', 2, 64))
 		streamBuf.WriteString(" Tf\n0 g\n")
-		streamBuf.WriteString(strconv.FormatFloat(tx, 'f', 2, 64))
+		streamBuf.Write(strconv.AppendFloat(numScratch[:0], tx, 'f', 2, 64))
 		streamBuf.WriteByte(' ')
-		streamBuf.WriteString(strconv.FormatFloat(y, 'f', 2, 64))
+		streamBuf.Write(strconv.AppendFloat(numScratch[:0], y, 'f', 2, 64))
 		streamBuf.WriteString(" Td\n(")
 		streamBuf.WriteString(streamText)
 		streamBuf.WriteString(") Tj\nET\nQ")
-		streamBody := streamBuf.String()
 
-		var fontDescBuf strings.Builder
+		var fontDescBuf bytes.Buffer
 		fontDescBuf.WriteString("\n")
-		fontDescBuf.WriteString(strconv.Itoa(job.fontDescObjNum))
+		fontDescBuf.Write(strconv.AppendInt(numScratch[:0], int64(job.fontDescObjNum), 10))
 		fontDescBuf.WriteString(" 0 obj\n<</Type/FontDescriptor/FontName/")
 		fontDescBuf.WriteString(job.fontResourceName)
 		fontDescBuf.WriteString("/Flags 32/FontBBox[-558 -225 1000 931]/ItalicAngle 0/Ascent 905/Descent -212/CapHeight 905/StemV 88>>\nendobj\n")
-		out = append(out, fontDescBuf.String()...)
+		out = append(out, fontDescBuf.Bytes()...)
 
-		var fontObjBuf strings.Builder
+		var fontObjBuf bytes.Buffer
 		fontObjBuf.WriteString("\n")
-		fontObjBuf.WriteString(strconv.Itoa(job.fontObjNum))
+		fontObjBuf.Write(strconv.AppendInt(numScratch[:0], int64(job.fontObjNum), 10))
 		fontObjBuf.WriteString(" 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/")
 		fontObjBuf.WriteString(job.fontResourceName)
 		fontObjBuf.WriteString("/Encoding/WinAnsiEncoding/FirstChar 32/LastChar 255/Widths ")
 		fontObjBuf.WriteString(helveticaWidthsStr)
 		fontObjBuf.WriteString("/FontDescriptor ")
-		fontObjBuf.WriteString(strconv.Itoa(job.fontDescObjNum))
+		fontObjBuf.Write(strconv.AppendInt(numScratch[:0], int64(job.fontDescObjNum), 10))
 		fontObjBuf.WriteString(" 0 R>>\nendobj\n")
-		out = append(out, fontObjBuf.String()...)
+		out = append(out, fontObjBuf.Bytes()...)
 
 		var compBuf bytes.Buffer
 		zw, err := zlib.NewWriterLevel(&compBuf, zlib.BestCompression)
 		if err != nil {
 			zw = zlib.NewWriter(&compBuf)
 		}
-		if _, err := zw.Write([]byte(streamBody)); err != nil {
+		if _, err := zw.Write(streamBuf.Bytes()); err != nil {
 			return nil, fmt.Errorf("compression write failed: %w", err)
 		}
 		if err := zw.Close(); err != nil {
 			return nil, fmt.Errorf("compression close failed: %w", err)
 		}
 		comp := compBuf.Bytes()
-		var apObjBuf strings.Builder
+		var apObjBuf bytes.Buffer
 		apObjBuf.WriteString("\n")
-		apObjBuf.WriteString(strconv.Itoa(job.apObjNum))
+		apObjBuf.Write(strconv.AppendInt(numScratch[:0], int64(job.apObjNum), 10))
 		apObjBuf.WriteString(" 0 obj\n<</Type/XObject/Subtype/Form/FormType 1/BBox[0 0 ")
-		apObjBuf.WriteString(strconv.FormatFloat(job.width, 'f', 2, 64))
+		apObjBuf.Write(strconv.AppendFloat(numScratch[:0], job.width, 'f', 2, 64))
 		apObjBuf.WriteByte(' ')
-		apObjBuf.WriteString(strconv.FormatFloat(job.height, 'f', 2, 64))
+		apObjBuf.Write(strconv.AppendFloat(numScratch[:0], job.height, 'f', 2, 64))
 		apObjBuf.WriteString("/Resources<</Font<</F1 ")
-		apObjBuf.WriteString(strconv.Itoa(job.fontObjNum))
+		apObjBuf.Write(strconv.AppendInt(numScratch[:0], int64(job.fontObjNum), 10))
 		apObjBuf.WriteString(" 0 R>>/ProcSet[/PDF/Text]>>/Filter/FlateDecode/Length ")
-		apObjBuf.WriteString(strconv.Itoa(len(comp)))
+		apObjBuf.Write(strconv.AppendInt(numScratch[:0], int64(len(comp)), 10))
 		apObjBuf.WriteString(">>\nstream\n")
 		apObjBuf.Write(comp)
 		apObjBuf.WriteString("\nendstream\nendobj\n")
-		out = append(out, apObjBuf.String()...)
+		out = append(out, apObjBuf.Bytes()...)
 	}
 
 	objMatches := reObjNum.FindAllSubmatchIndex(out, -1)
@@ -1218,27 +1233,25 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		}
 	}
 	xrefStart := len(out)
-	var xrefBuf strings.Builder
-	xrefBuf.WriteString("xref\n0 ")
-	xrefBuf.WriteString(strconv.Itoa(maxObj + 1))
-	xrefBuf.WriteString("\n0000000000 65535 f \r\n")
+	var tailBuf bytes.Buffer
+	tailBuf.WriteString("xref\n0 ")
+	tailBuf.Write(strconv.AppendInt(numScratch[:0], int64(maxObj+1), 10))
+	tailBuf.WriteString("\n0000000000 65535 f \r\n")
 	var xrefLine [32]byte
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
 			line := strconv.AppendInt(xrefLine[:0], int64(off), 10)
-			padding := 10 - len(line)
-			if padding > 0 {
-				padded := make([]byte, 10)
-				copy(padded[padding:], line)
+			if padding := 10 - len(line); padding > 0 {
+				line = line[:10]
+				copy(line[padding:], line[:10-padding])
 				for j := 0; j < padding; j++ {
-					padded[j] = '0'
+					line[j] = '0'
 				}
-				line = padded
 			}
-			xrefBuf.Write(line)
-			xrefBuf.WriteString(" 00000 n \r\n")
+			tailBuf.Write(line)
+			tailBuf.WriteString(" 00000 n \r\n")
 		} else {
-			xrefBuf.WriteString("0000000000 65535 f \r\n")
+			tailBuf.WriteString("0000000000 65535 f \r\n")
 		}
 	}
 	root := 1
@@ -1247,16 +1260,14 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			root = r
 		}
 	}
-	var trailerBuf strings.Builder
-	trailerBuf.WriteString("trailer\n<</Size ")
-	trailerBuf.WriteString(strconv.Itoa(maxObj + 1))
-	trailerBuf.WriteString("/Root ")
-	trailerBuf.WriteString(strconv.Itoa(root))
-	trailerBuf.WriteString(" 0 R>>\nstartxref\n")
-	trailerBuf.WriteString(strconv.Itoa(xrefStart))
-	trailerBuf.WriteString("\n%%EOF\n")
-	out = append(out, xrefBuf.String()...)
-	out = append(out, trailerBuf.String()...)
+	tailBuf.WriteString("trailer\n<</Size ")
+	tailBuf.Write(strconv.AppendInt(numScratch[:0], int64(maxObj+1), 10))
+	tailBuf.WriteString("/Root ")
+	tailBuf.Write(strconv.AppendInt(numScratch[:0], int64(root), 10))
+	tailBuf.WriteString(" 0 R>>\nstartxref\n")
+	tailBuf.Write(strconv.AppendInt(numScratch[:0], int64(xrefStart), 10))
+	tailBuf.WriteString("\n%%EOF\n")
+	out = append(out, tailBuf.Bytes()...)
 	// --- PASS 3: GLOBAL NEED APPEARANCES ---
 	// If fields were modified or APs stripped, force the PDF viewer to recreate appearances on open.
 	acroMatch := reAcroFormIndirect.FindSubmatch(out)
@@ -1518,13 +1529,14 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 		return body, false, nil
 	}
 
-	var headerBuilder strings.Builder
-	var contentBuilder strings.Builder
+	var headerBuilder bytes.Buffer
+	var contentBuilder bytes.Buffer
+	var objStmNumScratch [32]byte
 	currentOffset := 0
 	for i, member := range members {
-		headerBuilder.WriteString(strconv.Itoa(member.objNum))
+		headerBuilder.Write(strconv.AppendInt(objStmNumScratch[:0], int64(member.objNum), 10))
 		headerBuilder.WriteByte(' ')
-		headerBuilder.WriteString(strconv.Itoa(currentOffset))
+		headerBuilder.Write(strconv.AppendInt(objStmNumScratch[:0], int64(currentOffset), 10))
 		if i != len(members)-1 {
 			headerBuilder.WriteByte(' ')
 		}
@@ -1538,9 +1550,12 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 		}
 	}
 
-	newHeader := headerBuilder.String()
-	newFirst := len(newHeader) + 1
-	newDecoded := []byte(newHeader + " " + contentBuilder.String())
+	newFirst := headerBuilder.Len() + 1
+	var decodedBuf bytes.Buffer
+	decodedBuf.Write(headerBuilder.Bytes())
+	decodedBuf.WriteByte(' ')
+	decodedBuf.Write(contentBuilder.Bytes())
+	newDecoded := decodedBuf.Bytes()
 
 	var compressedBuf bytes.Buffer
 	zw, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestCompression)
@@ -1557,15 +1572,11 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 
 	dictPart := body[:sm[0]]
 	suffix := body[sm[1]:]
-	var firstBuf strings.Builder
-	firstBuf.WriteString("/First ")
-	firstBuf.WriteString(strconv.Itoa(newFirst))
-	newDict := reFirst.ReplaceAll(dictPart, []byte(firstBuf.String()))
-	var lengthBuf strings.Builder
-	lengthBuf.WriteString("/Length ")
-	lengthBuf.WriteString(strconv.Itoa(len(compressed)))
+	firstReplace := append([]byte("/First "), strconv.AppendInt(objStmNumScratch[:0], int64(newFirst), 10)...)
+	newDict := reFirst.ReplaceAll(dictPart, firstReplace)
+	lengthReplace := append([]byte("/Length "), strconv.AppendInt(objStmNumScratch[:0], int64(len(compressed)), 10)...)
 	if reLength.Match(newDict) {
-		newDict = reLength.ReplaceAll(newDict, []byte(lengthBuf.String()))
+		newDict = reLength.ReplaceAll(newDict, lengthReplace)
 	}
 
 	var rebuilt bytes.Buffer

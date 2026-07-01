@@ -191,10 +191,11 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
-			_ = closeZlibWriter(zlibWriter) // best-effort cleanup after write failure
+			logZlibCloseErr(closeZlibWriter(zlibWriter))
 			return nil, err
 		}
 		if err := closeZlibWriter(zlibWriter); err != nil {
+			logZlibCloseErr(err)
 			return nil, err
 		}
 
@@ -225,10 +226,11 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
-			_ = closeZlibWriter(zlibWriter) // best-effort cleanup after write failure
+			logZlibCloseErr(closeZlibWriter(zlibWriter))
 			return nil, err
 		}
 		if err := closeZlibWriter(zlibWriter); err != nil {
+			logZlibCloseErr(err)
 			return nil, err
 		}
 
@@ -461,31 +463,32 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	// Pre-allocate buffer with capacity for typical image XObject header
 	b := make([]byte, 0, 256)
 
-	b = strconv.AppendInt(b, int64(objectID), 10)
-	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
-	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
-	b = append(b, "\n   /Height "...)
-	b = strconv.AppendInt(b, int64(imgObj.Height), 10)
-	b = append(b, "\n   /ColorSpace "...)
-	b = append(b, imgObj.ColorSpace...)
-	b = append(b, "\n   /BitsPerComponent "...)
-	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
-	b = append(b, "\n"...)
-	if imgObj.Filter != "" {
-		b = append(b, "   /Filter "...)
-		b = append(b, imgObj.Filter...)
-		b = append(b, "\n"...)
-	}
-	b = append(b, "   /Length "...)
-	b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
-	b = append(b, "\n>>\nstream\n"...)
+	b = appendImageXObjectHeader(b, objectID, imgObj.Width, imgObj.Height, imgObj.ColorSpace, imgObj.BitsPerComp, imgObj.Filter, imgObj.ImageDataLen)
 
-	// Write header and image data in two operations
 	buf.Write(b)
 	buf.Write(imgObj.ImageData)
 	buf.WriteString("\nendstream\nendobj\n")
 
 	return buf.String()
+}
+
+func appendImageXObjectHeader(b []byte, objectID, width, height int, colorSpace string, bitsPerComp int, filter string, dataLen int) []byte {
+	b = strconv.AppendInt(b, int64(objectID), 10)
+	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
+	b = strconv.AppendInt(b, int64(width), 10)
+	b = append(b, "\n   /Height "...)
+	b = strconv.AppendInt(b, int64(height), 10)
+	b = append(b, "\n   /ColorSpace "...)
+	b = append(b, colorSpace...)
+	b = append(b, "\n   /BitsPerComponent "...)
+	b = strconv.AppendInt(b, int64(bitsPerComp), 10)
+	if filter != "" {
+		b = append(b, "\n   /Filter "...)
+		b = append(b, filter...)
+	}
+	b = append(b, "\n   /Length "...)
+	b = strconv.AppendInt(b, int64(dataLen), 10)
+	return append(b, "\n>>\nstream\n"...)
 }
 
 // ImageEncryptor interface for encrypting image data
@@ -516,34 +519,12 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 		return buf.String()
 	}
 
-	// Pre-allocate buffer with capacity for typical image XObject header
 	b := make([]byte, 0, 256)
-	b = strconv.AppendInt(b, int64(objectID), 10)
-	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
-	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
-	b = append(b, "\n   /Height "...)
-	b = strconv.AppendInt(b, int64(imgObj.Height), 10)
-	b = append(b, "\n   /ColorSpace "...)
-	b = append(b, imgObj.ColorSpace...)
-	b = append(b, "\n   /BitsPerComponent "...)
-	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
-	b = append(b, "\n"...)
+	b = appendImageXObjectHeader(b, objectID, imgObj.Width, imgObj.Height, imgObj.ColorSpace, imgObj.BitsPerComp, imgObj.Filter, len(encryptedData))
 
-	if imgObj.Filter != "" {
-		b = append(b, "   /Filter "...)
-		b = append(b, imgObj.Filter...)
-		b = append(b, "\n"...)
-	}
-
-	b = append(b, "   /Length "...)
-	b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
-	b = append(b, "\n>>\nstream\n"...)
-
-	// Write header and encrypted data in two operations
 	buf.Write(b)
 	buf.Write(encryptedData)
-	buf.WriteString("\nendstream\n")
-	buf.WriteString("endobj\n")
+	buf.WriteString("\nendstream\nendobj\n")
 
 	return buf.String()
 }
@@ -583,14 +564,13 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 	// Set up transformation matrix to position and scale the image
 	// PDF images are drawn in a 1x1 unit square by default
 	// We need to scale and translate to our desired size and position
+	wStr := fmtNumImg(imageWidth)
+	hStr := fmtNumImg(imageHeight)
+	xStr := fmtNumImg(imageX)
+	yStr := fmtNumImg(imageY)
 	var imgBuf []byte
-	imgBuf = append(imgBuf, fmtNumImg(imageWidth)...)
-	imgBuf = append(imgBuf, " 0 0 "...)
-	imgBuf = append(imgBuf, fmtNumImg(imageHeight)...)
-	imgBuf = append(imgBuf, ' ')
-	imgBuf = append(imgBuf, fmtNumImg(imageX)...)
-	imgBuf = append(imgBuf, ' ')
-	imgBuf = append(imgBuf, fmtNumImg(imageY)...)
+	imgBuf = append(append(append(append(append(append(append(imgBuf,
+		wStr...), " 0 0 "...), hStr...), ' '), xStr...), ' '), yStr...)
 	imgBuf = append(imgBuf, " cm\n"...)
 	contentStream.Write(imgBuf)
 

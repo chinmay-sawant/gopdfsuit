@@ -256,7 +256,12 @@ func UpdatePageAnnotations(pageBody []byte, offset int) []byte {
 				return ref
 			}
 			gen := string(sm[2])
-			return []byte(strconv.Itoa(offset+on) + " " + gen + " R")
+			var refBuf [32]byte
+			n := strconv.AppendInt(refBuf[:0], int64(offset+on), 10)
+			n = append(n, ' ')
+			n = append(n, gen...)
+			n = append(n, ' ', 'R')
+			return append([]byte(nil), n...)
 		})
 
 		result := make([]byte, 0, len(prefix)+len(newContent)+len(suffix))

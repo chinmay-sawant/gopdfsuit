@@ -106,23 +106,19 @@ func ParseTTF(data []byte) (*TTFFont, error) {
 	}
 
 	// Read table directory
+	tableDirOffset := 12 // after sfnt header (12 bytes)
 	for i := uint16(0); i < numTables; i++ {
-		var tag [4]byte
-		var entry TableEntry
-		if _, err := r.Read(tag[:]); err != nil {
-			return nil, fmt.Errorf("failed to read tag: %w", err)
+		if tableDirOffset+16 > len(data) {
+			return nil, fmt.Errorf("failed to read tag: %w", io.EOF)
 		}
-		if err := binary.Read(r, binary.BigEndian, &entry.Checksum); err != nil {
-			return nil, fmt.Errorf("failed to read checksum: %w", err)
+		entry := TableEntry{
+			Tag:      string(data[tableDirOffset : tableDirOffset+4]),
+			Checksum: binary.BigEndian.Uint32(data[tableDirOffset+4:]),
+			Offset:   binary.BigEndian.Uint32(data[tableDirOffset+8:]),
+			Length:   binary.BigEndian.Uint32(data[tableDirOffset+12:]),
 		}
-		if err := binary.Read(r, binary.BigEndian, &entry.Offset); err != nil {
-			return nil, fmt.Errorf("failed to read offset: %w", err)
-		}
-		if err := binary.Read(r, binary.BigEndian, &entry.Length); err != nil {
-			return nil, fmt.Errorf("failed to read length: %w", err)
-		}
-		entry.Tag = string(tag[:])
 		font.Tables[entry.Tag] = entry
+		tableDirOffset += 16
 	}
 
 	// Parse required tables
@@ -282,16 +278,15 @@ func (f *TTFFont) parseHmtx(data []byte) error {
 
 	// Parse hmtx table
 	f.GlyphWidths = make([]uint16, f.NumGlyphs)
-	r = bytes.NewReader(data[table.Offset:])
+	hmtxData := data[table.Offset:]
 
 	var lastWidth uint16
 	for i := uint16(0); i < numberOfHMetrics; i++ {
-		if err := binary.Read(r, binary.BigEndian, &f.GlyphWidths[i]); err != nil {
-			return fmt.Errorf("failed to read GlyphWidths[%d]: %w", i, err)
+		pos := int(i) * 4
+		if pos+2 > len(hmtxData) {
+			return fmt.Errorf("failed to read GlyphWidths[%d]: %w", i, io.EOF)
 		}
-		if _, err := r.Seek(2, io.SeekCurrent); err != nil {
-			return fmt.Errorf("failed to seek: %w", err)
-		}
+		f.GlyphWidths[i] = binary.BigEndian.Uint16(hmtxData[pos:])
 		lastWidth = f.GlyphWidths[i]
 	}
 
@@ -324,28 +319,25 @@ func (f *TTFFont) parseCmap(data []byte) error {
 	var bestOffset uint32
 	var bestFormat uint16
 
+	cmapData := data[table.Offset:]
+	encodingRecordOffset := 4 // after version (2) + numTables (2)
 	for i := uint16(0); i < numTables; i++ {
-		var platformID, encodingID uint16
-		var offset uint32
-		if err := binary.Read(r, binary.BigEndian, &platformID); err != nil {
-			return fmt.Errorf("failed to read platformID: %w", err)
+		if encodingRecordOffset+8 > len(cmapData) {
+			return fmt.Errorf("failed to read platformID: %w", io.EOF)
 		}
-		if err := binary.Read(r, binary.BigEndian, &encodingID); err != nil {
-			return fmt.Errorf("failed to read encodingID: %w", err)
+		platformID := binary.BigEndian.Uint16(cmapData[encodingRecordOffset:])
+		encodingID := binary.BigEndian.Uint16(cmapData[encodingRecordOffset+2:])
+		offset := binary.BigEndian.Uint32(cmapData[encodingRecordOffset+4:])
+		encodingRecordOffset += 8
+
+		subtableStart := int(table.Offset + offset)
+		if subtableStart+2 > len(data) {
+			return fmt.Errorf("failed to read format: %w", io.EOF)
 		}
-		if err := binary.Read(r, binary.BigEndian, &offset); err != nil {
-			return fmt.Errorf("failed to read offset: %w", err)
-		}
+		format := binary.BigEndian.Uint16(data[subtableStart:])
 
 		// Windows Unicode BMP (format 4) or Full Unicode (format 12)
 		if platformID == 3 && (encodingID == 1 || encodingID == 10) {
-			// Check format
-			formatReader := bytes.NewReader(data[table.Offset+offset:])
-			var format uint16
-			if err := binary.Read(formatReader, binary.BigEndian, &format); err != nil {
-				return fmt.Errorf("failed to read format: %w", err)
-			}
-
 			// Prefer format 12 over format 4
 			if format == 12 || (format == 4 && bestFormat != 12) {
 				bestOffset = offset
@@ -355,12 +347,6 @@ func (f *TTFFont) parseCmap(data []byte) error {
 
 		// Unicode platform
 		if platformID == 0 {
-			formatReader := bytes.NewReader(data[table.Offset+offset:])
-			var format uint16
-			if err := binary.Read(formatReader, binary.BigEndian, &format); err != nil {
-				return fmt.Errorf("failed to read format: %w", err)
-			}
-
 			if format == 12 || (format == 4 && bestFormat != 12) {
 				bestOffset = offset
 				bestFormat = format
@@ -385,67 +371,50 @@ func (f *TTFFont) parseCmap(data []byte) error {
 
 // parseCmapFormat4 parses a format 4 cmap subtable (BMP characters)
 func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
-	r := bytes.NewReader(data[offset:])
-	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
-		return fmt.Errorf("failed to seek: %w", err)
+	subtable := data[offset:]
+	if len(subtable) < 14 {
+		return fmt.Errorf("failed to read segCountX2: %w", io.EOF)
 	}
 
-	var length uint16
-	if err := binary.Read(r, binary.BigEndian, &length); err != nil {
-		return fmt.Errorf("failed to read length: %w", err)
-	}
-	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
-		return fmt.Errorf("failed to seek: %w", err)
-	}
-
-	var segCountX2 uint16
-	if err := binary.Read(r, binary.BigEndian, &segCountX2); err != nil {
-		return fmt.Errorf("failed to read segCountX2: %w", err)
-	}
+	segCountX2 := binary.BigEndian.Uint16(subtable[6:])
 	segCount := segCountX2 / 2
 
-	if _, err := r.Seek(6, io.SeekCurrent); err != nil {
-		return fmt.Errorf("failed to seek: %w", err)
+	endCodeOffset := 14
+	startCodeOffset := endCodeOffset + int(segCount)*2 + 2
+	idDeltaOffset := startCodeOffset + int(segCount)*2
+	idRangeOffsetPos := idDeltaOffset + int(segCount)*2
+
+	requiredLen := idRangeOffsetPos + int(segCount)*2
+	if len(subtable) < requiredLen {
+		return fmt.Errorf("failed to read idRangeOffsets: %w", io.EOF)
 	}
 
 	// Read endCode array
 	endCodes := make([]uint16, segCount)
 	for i := uint16(0); i < segCount; i++ {
-		if err := binary.Read(r, binary.BigEndian, &endCodes[i]); err != nil {
-			return fmt.Errorf("failed to read endCodes: %w", err)
-		}
-	}
-
-	if _, err := r.Seek(2, io.SeekCurrent); err != nil {
-		return fmt.Errorf("failed to seek: %w", err)
+		pos := endCodeOffset + int(i)*2
+		endCodes[i] = binary.BigEndian.Uint16(subtable[pos:])
 	}
 
 	// Read startCode array
 	startCodes := make([]uint16, segCount)
 	for i := uint16(0); i < segCount; i++ {
-		if err := binary.Read(r, binary.BigEndian, &startCodes[i]); err != nil {
-			return fmt.Errorf("failed to read startCodes: %w", err)
-		}
+		pos := startCodeOffset + int(i)*2
+		startCodes[i] = binary.BigEndian.Uint16(subtable[pos:])
 	}
 
 	// Read idDelta array
 	idDeltas := make([]int16, segCount)
 	for i := uint16(0); i < segCount; i++ {
-		if err := binary.Read(r, binary.BigEndian, &idDeltas[i]); err != nil {
-			return fmt.Errorf("failed to read idDeltas: %w", err)
-		}
+		pos := idDeltaOffset + int(i)*2
+		idDeltas[i] = int16(binary.BigEndian.Uint16(subtable[pos:]))
 	}
 
 	// Read idRangeOffset array
-	idRangeOffsetPos, err := r.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return fmt.Errorf("failed to get idRangeOffset position: %w", err)
-	}
 	idRangeOffsets := make([]uint16, segCount)
 	for i := uint16(0); i < segCount; i++ {
-		if err := binary.Read(r, binary.BigEndian, &idRangeOffsets[i]); err != nil {
-			return fmt.Errorf("failed to read idRangeOffsets: %w", err)
-		}
+		pos := idRangeOffsetPos + int(i)*2
+		idRangeOffsets[i] = binary.BigEndian.Uint16(subtable[pos:])
 	}
 
 	// Build character to glyph mapping
@@ -461,13 +430,9 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 				glyphID = uint16(int32(c) + int32(idDeltas[i]))
 			} else {
 				// Calculate offset into glyph ID array
-				glyphIndexOffset := idRangeOffsetPos + int64(i)*2 + int64(idRangeOffsets[i]) + int64(c-startCodes[i])*2
-				if glyphIndexOffset+2 <= int64(len(data[offset:])) {
-					glyphReader := bytes.NewReader(data[offset+uint32(glyphIndexOffset):])
-					if err := binary.Read(glyphReader, binary.BigEndian, &glyphID); err != nil {
-						// Should probably handle error, but nested loop context, maybe break
-						break
-					}
+				glyphIndexOffset := idRangeOffsetPos + int(i)*2 + int(idRangeOffsets[i]) + int(c-startCodes[i])*2
+				if glyphIndexOffset+2 <= len(subtable) {
+					glyphID = binary.BigEndian.Uint16(subtable[glyphIndexOffset:])
 					if glyphID != 0 {
 						glyphID = uint16(int32(glyphID) + int32(idDeltas[i]))
 					}
@@ -496,17 +461,16 @@ func (f *TTFFont) parseCmapFormat12(data []byte, offset uint32) error {
 		return fmt.Errorf("failed to read numGroups: %w", err)
 	}
 
+	subtable := data[offset:]
+	groupsOffset := 16 // after format(2) + reserved(2) + length(4) + language(4) + numGroups(4)
 	for i := uint32(0); i < numGroups; i++ {
-		var startCharCode, endCharCode, startGlyphID uint32
-		if err := binary.Read(r, binary.BigEndian, &startCharCode); err != nil {
-			return fmt.Errorf("failed to read startCharCode: %w", err)
+		pos := groupsOffset + int(i)*12
+		if pos+12 > len(subtable) {
+			return fmt.Errorf("failed to read startCharCode: %w", io.EOF)
 		}
-		if err := binary.Read(r, binary.BigEndian, &endCharCode); err != nil {
-			return fmt.Errorf("failed to read endCharCode: %w", err)
-		}
-		if err := binary.Read(r, binary.BigEndian, &startGlyphID); err != nil {
-			return fmt.Errorf("failed to read startGlyphID: %w", err)
-		}
+		startCharCode := binary.BigEndian.Uint32(subtable[pos:])
+		endCharCode := binary.BigEndian.Uint32(subtable[pos+4:])
+		startGlyphID := binary.BigEndian.Uint32(subtable[pos+8:])
 
 		for c := startCharCode; c <= endCharCode; c++ {
 			glyphID := uint16(startGlyphID + (c - startCharCode))
@@ -543,26 +507,18 @@ func (f *TTFFont) parseName(data []byte) error {
 
 	storageOffset := table.Offset + uint32(stringOffset)
 
+	nameData := data[table.Offset:]
+	recordOffset := 6 // after format(2) + count(2) + stringOffset(2)
 	for i := uint16(0); i < count; i++ {
-		var platformID, encodingID, languageID, nameID, length, offset uint16
-		if err := binary.Read(r, binary.BigEndian, &platformID); err != nil {
-			return fmt.Errorf("failed to read platformID: %w", err)
+		pos := recordOffset + int(i)*12
+		if pos+12 > len(nameData) {
+			return fmt.Errorf("failed to read platformID: %w", io.EOF)
 		}
-		if err := binary.Read(r, binary.BigEndian, &encodingID); err != nil {
-			return fmt.Errorf("failed to read encodingID: %w", err)
-		}
-		if err := binary.Read(r, binary.BigEndian, &languageID); err != nil {
-			return fmt.Errorf("failed to read languageID: %w", err)
-		}
-		if err := binary.Read(r, binary.BigEndian, &nameID); err != nil {
-			return fmt.Errorf("failed to read nameID: %w", err)
-		}
-		if err := binary.Read(r, binary.BigEndian, &length); err != nil {
-			return fmt.Errorf("failed to read length: %w", err)
-		}
-		if err := binary.Read(r, binary.BigEndian, &offset); err != nil {
-			return fmt.Errorf("failed to read offset: %w", err)
-		}
+		platformID := binary.BigEndian.Uint16(nameData[pos:])
+		encodingID := binary.BigEndian.Uint16(nameData[pos+2:])
+		nameID := binary.BigEndian.Uint16(nameData[pos+6:])
+		length := binary.BigEndian.Uint16(nameData[pos+8:])
+		offset := binary.BigEndian.Uint16(nameData[pos+10:])
 
 		// Extract string (prefer platform 3 = Windows, encoding 1 = Unicode BMP)
 		if platformID == 3 && encodingID == 1 {

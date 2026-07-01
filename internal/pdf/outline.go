@@ -325,7 +325,8 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 		appendPDFIndirectRef(&rootDict, lastTopLevel)
 	}
 	rootDict.WriteString(" /Count ")
-	rootDict.WriteString(strconv.Itoa(totalCount))
+	var countBuf [16]byte
+	rootDict.Write(strconv.AppendInt(countBuf[:0], int64(totalCount), 10))
 	rootDict.WriteString(" >>")
 	ob.pageManager.ExtraObjects[ob.outlineObjID] = rootDict.String()
 
@@ -383,8 +384,8 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 			itemDict.WriteByte(')')
 		} else if item.DestPageID > 0 {
 			itemDict.WriteString(" /Dest [")
-			itemDict.WriteString(strconv.Itoa(item.DestPageID))
-			itemDict.WriteString(" 0 R /XYZ null ")
+			appendPDFIndirectRef(&itemDict, item.DestPageID)
+			itemDict.WriteString(" /XYZ null ")
 			itemDict.WriteString(fmtNum(item.DestY))
 			itemDict.WriteString(" null]")
 		}
@@ -403,7 +404,8 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 			itemDict.WriteString(" /Last")
 			appendPDFIndirectRef(&itemDict, item.LastID)
 			itemDict.WriteString(" /Count ")
-			itemDict.WriteString(strconv.Itoa(item.Count))
+			var countBuf [16]byte
+			itemDict.Write(strconv.AppendInt(countBuf[:0], int64(item.Count), 10))
 		}
 
 		itemDict.WriteString(" >>")
@@ -485,6 +487,7 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	destsTreeID := ob.pageManager.NextObjectID
 	ob.pageManager.NextObjectID++
 
+	nameBuf := make([]byte, 0, 64)
 	for i, name := range names {
 		dest := ob.pageManager.NamedDests[name]
 		pageObjID := 0
@@ -501,8 +504,8 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		nameStr := ""
 		if ob.encryptor != nil {
 			// Names in name tree are strings and must be encrypted
-			nameBuf := make([]byte, len(name))
-			copy(nameBuf, name)
+			nameBuf = nameBuf[:0]
+			nameBuf = append(nameBuf, name...)
 			encrypted := ob.encryptor.EncryptString(nameBuf, destsTreeID, 0)
 			var encHex strings.Builder
 			encHex.Grow(len(encrypted) * 2 + 2)
@@ -519,18 +522,18 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		namesArray.WriteString(nameStr)
 		if dest.StructElemID > 0 {
 			namesArray.WriteString(" << /D [")
-			namesArray.WriteString(strconv.Itoa(pageObjID))
-			namesArray.WriteString(" 0 R /XYZ null ")
+			appendPDFIndirectRef(&namesArray, pageObjID)
+			namesArray.WriteString(" /XYZ null ")
 			namesArray.WriteString(yPos)
 			namesArray.WriteString(" null] /SD [")
-			namesArray.WriteString(strconv.Itoa(dest.StructElemID))
-			namesArray.WriteString(" 0 R /XYZ null ")
+			appendPDFIndirectRef(&namesArray, dest.StructElemID)
+			namesArray.WriteString(" /XYZ null ")
 			namesArray.WriteString(yPos)
 			namesArray.WriteString(" null] >>")
 		} else {
 			namesArray.WriteString(" [")
-			namesArray.WriteString(strconv.Itoa(pageObjID))
-			namesArray.WriteString(" 0 R /XYZ null ")
+			appendPDFIndirectRef(&namesArray, pageObjID)
+			namesArray.WriteString(" /XYZ null ")
 			namesArray.WriteString(yPos)
 			namesArray.WriteString(" null]")
 		}
@@ -544,8 +547,11 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	namesID := ob.pageManager.NextObjectID
 	ob.pageManager.NextObjectID++
 
-	namesContent := "<< /Dests " + strconv.Itoa(destsTreeID) + " 0 R >>"
-	ob.pageManager.ExtraObjects[namesID] = namesContent
+	var namesContent strings.Builder
+	namesContent.WriteString("<< /Dests")
+	appendPDFIndirectRef(&namesContent, destsTreeID)
+	namesContent.WriteString(" >>")
+	ob.pageManager.ExtraObjects[namesID] = namesContent.String()
 
 	return namesID, true
 }
