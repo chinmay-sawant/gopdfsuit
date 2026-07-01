@@ -96,12 +96,12 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 
 	fc := parseFile(file)
 	if fc == nil {
-		return nil, fmt.Errorf("invalid PDF")
+		return nil, errors.New("invalid PDF")
 	}
 
 	totalPages := len(fc.Pages)
 	if totalPages == 0 {
-		return nil, fmt.Errorf("no pages found")
+		return nil, errors.New("no pages found")
 	}
 
 	// Build requested page list (map 1-based indexes to page object numbers)

@@ -231,9 +231,9 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 		newText := text
 		if posIdx < len(positions) {
 			p := positions[posIdx]
-			if strings.TrimSpace(p.Text) != text {
+			if trimSpaceASCII(p.Text) != text {
 				for lookahead := posIdx + 1; lookahead < len(positions) && lookahead < posIdx+6; lookahead++ {
-					if strings.TrimSpace(positions[lookahead].Text) == text {
+					if trimSpaceASCII(positions[lookahead].Text) == text {
 						p = positions[lookahead]
 						posIdx = lookahead
 						break
@@ -245,7 +245,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 		}
 
 		for _, q := range queries {
-			term := strings.TrimSpace(q.Text)
+			term := trimSpaceASCII(q.Text)
 			if term == "" {
 				continue
 			}

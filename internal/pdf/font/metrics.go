@@ -649,7 +649,7 @@ func GetAvailableFonts() []models.FontInfo {
 // GenerateTrueTypeFontObjects generates all PDF objects needed for a custom TrueType font
 // Returns map of object ID to object content
 func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor) map[int]string {
-	objects := make(map[int]string)
+	objects := make(map[int]string, 8)
 
 	// Get font data (subset if available, otherwise full font)
 	fontData := font.Font.RawData
@@ -661,7 +661,7 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	compressedBuf := GetCompressBuffer()
 	zlibWriter := GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(fontData); err != nil {
-		_ = CloseZlibWriter(zlibWriter)
+		_ = CloseZlibWriter(zlibWriter) // best-effort cleanup after write failure
 		CompressBufPool.Put(compressedBuf)
 		return objects
 	}
@@ -907,7 +907,7 @@ func GenerateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 	compressedBuf := GetCompressBuffer()
 	zlibWriter := GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(mapData); err != nil {
-		_ = CloseZlibWriter(zlibWriter)
+		_ = CloseZlibWriter(zlibWriter) // best-effort cleanup after write failure
 		CompressBufPool.Put(compressedBuf)
 		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
 	}
@@ -1014,7 +1014,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	compressedBuf := GetCompressBuffer()
 	zlibWriter := GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write([]byte(cmapData)); err != nil {
-		_ = CloseZlibWriter(zlibWriter)
+		_ = CloseZlibWriter(zlibWriter) // best-effort cleanup after write failure
 		CompressBufPool.Put(compressedBuf)
 		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
 	}

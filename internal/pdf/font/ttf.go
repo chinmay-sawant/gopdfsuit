@@ -756,7 +756,7 @@ func (f *TTFFont) GetCharWidthScaled(char rune) int {
 
 // GetUsedGlyphs returns a sorted list of glyph IDs used by the given text
 func (f *TTFFont) GetUsedGlyphs(text string) []uint16 {
-	glyphSet := make(map[uint16]bool)
+	glyphSet := make(map[uint16]bool, len(text)+1)
 	glyphSet[0] = true // Always include .notdef
 
 	for _, char := range text {

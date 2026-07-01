@@ -80,7 +80,7 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	copy(keyPEM, config.PrivateKeyPEM)
 	keyBlock, _ := pem.Decode(keyPEM)
 	if keyBlock == nil {
-		return nil, fmt.Errorf("failed to parse private key PEM")
+		return nil, errors.New("failed to parse private key PEM")
 	}
 
 	// Try parsing as PKCS#8 first, then PKCS#1
@@ -451,7 +451,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 			return nil, fmt.Errorf("failed to sign: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported key type")
+		return nil, errors.New("unsupported key type")
 	}
 
 	// Extract content bytes for SignerInfo (strip SET tag and length)

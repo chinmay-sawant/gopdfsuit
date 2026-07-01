@@ -191,7 +191,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
-			_ = closeZlibWriter(zlibWriter)
+			_ = closeZlibWriter(zlibWriter) // best-effort cleanup after write failure
 			return nil, err
 		}
 		if err := closeZlibWriter(zlibWriter); err != nil {
@@ -225,7 +225,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
-			_ = closeZlibWriter(zlibWriter)
+			_ = closeZlibWriter(zlibWriter) // best-effort cleanup after write failure
 			return nil, err
 		}
 		if err := closeZlibWriter(zlibWriter); err != nil {

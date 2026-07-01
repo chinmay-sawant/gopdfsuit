@@ -143,7 +143,10 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 			}
 		}
 		if len(keys) == 0 {
-			content, _ := extractPageContent(body, objMap)
+			content, err := extractPageContent(body, objMap)
+			if err != nil {
+				content = nil // capability probe: treat missing content as empty
+			}
 			s := string(content)
 			hasText = strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ"))
 			hasImage = strings.Contains(s, " Do") || bytesIndex(body, imageBytes) >= 0

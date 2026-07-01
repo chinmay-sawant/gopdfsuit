@@ -752,7 +752,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(contentStream.Bytes()); err != nil {
-			_ = closeZlibWriter(zlibWriter)
+			_ = closeZlibWriter(zlibWriter) // best-effort cleanup after write failure
 			compressBufPool.Put(compressedBuf)
 			continue // Skip encryption if compression fails
 		}

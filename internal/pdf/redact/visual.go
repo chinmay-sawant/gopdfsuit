@@ -1,6 +1,7 @@
 package redact
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -66,14 +67,14 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 
 		// NOTE: objMap stores body content between "obj" and "endobj" markers.
 		// rebuildPDF wraps each body with "N G obj\n...\nendobj\n".
-		var streamObj strings.Builder
+		var streamObj bytes.Buffer
 		streamObj.Grow(len(streamContent) + 48)
 		streamObj.WriteString("<< /Length ")
 		streamObj.WriteString(strconv.Itoa(len(streamContent)))
 		streamObj.WriteString(" >>\nstream\n")
 		streamObj.WriteString(streamContent)
 		streamObj.WriteString("\nendstream")
-		objMap[streamObjKey] = []byte(streamObj.String())
+		objMap[streamObjKey] = bytes.Clone(streamObj.Bytes())
 
 		// Append this new object to the page's /Contents
 		newPageBody := appendStreamToPage(pageBody, streamObjKey)

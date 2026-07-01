@@ -206,8 +206,11 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 			if kw == "" {
 				continue
 			}
-			if kw[0] == ' ' || kw[len(kw)-1] == ' ' {
-				kw = strings.TrimSpace(kw)
+			for len(kw) > 0 && kw[0] == ' ' {
+				kw = kw[1:]
+			}
+			for len(kw) > 0 && kw[len(kw)-1] == ' ' {
+				kw = kw[:len(kw)-1]
 			}
 			if kw != "" {
 				xmp.WriteString(`          <rdf:li>`)
