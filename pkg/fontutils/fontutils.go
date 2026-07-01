@@ -3,6 +3,7 @@
 package fontutils
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -105,19 +106,18 @@ func MathFontCandidates() []string {
 	var paths []string
 
 	for _, font := range mathFonts {
+		var osPaths []string
 		switch runtime.GOOS {
 		case "linux":
-			paths = append(paths, font.LinuxPaths...)
+			osPaths = font.LinuxPaths
 		case "darwin":
-			paths = append(paths, font.MacPaths...)
+			osPaths = font.MacPaths
 		case "windows":
-			paths = append(paths, font.WinPaths...)
+			osPaths = font.WinPaths
 		default:
-			// Fallback to Linux paths
-			paths = append(paths, font.LinuxPaths...)
+			osPaths = font.LinuxPaths
 		}
-		// Always include the downloaded font path as final fallback
-		paths = append(paths, downloadedFontPath(font.FileName))
+		paths = append(append(paths, osPaths...), downloadedFontPath(font.FileName))
 	}
 
 	return paths
@@ -146,12 +146,12 @@ func EnsureMathFonts() {
 		// Download in background
 		wg.Add(1)
 		go func(f MathFontInfo) {
-			defer wg.Done()
 			if err := downloadFont(f); err != nil {
 				log.Printf("[fontutils] WARNING: failed to download font %s: %v", f.Name, err)
 			} else {
 				log.Printf("[fontutils] Downloaded font %s to %s", f.Name, downloadedFontPath(f.FileName))
 			}
+			wg.Done()
 		}(font)
 	}
 
@@ -183,7 +183,7 @@ func fontExistsOnSystem(font MathFontInfo) bool {
 // downloadFont downloads a font file from its GitHub URL to the local fonts directory.
 func downloadFont(font MathFontInfo) error {
 	if font.DownloadURL == "" {
-		return fmt.Errorf("no download URL for font %s", font.Name)
+		return errors.New("no download URL for font " + font.Name)
 	}
 
 	destDir := fontsDir()
@@ -198,7 +198,11 @@ func downloadFont(font MathFontInfo) error {
 	if err != nil {
 		return fmt.Errorf("download %s: %w", font.Name, err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("[fontutils] WARNING: failed to close response body for %s: %v", font.Name, closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download %s: HTTP %d", font.Name, resp.StatusCode)
@@ -220,12 +224,16 @@ func downloadFont(font MathFontInfo) error {
 		err = closeErr
 	}
 	if err != nil {
-		_ = os.Remove(tmpPath)
+		if removeErr := os.Remove(tmpPath); removeErr != nil {
+			log.Printf("[fontutils] WARNING: failed to remove temp file %s: %v", tmpPath, removeErr)
+		}
 		return fmt.Errorf("write font file: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, destPath); err != nil {
-		_ = os.Remove(tmpPath)
+		if removeErr := os.Remove(tmpPath); removeErr != nil {
+			log.Printf("[fontutils] WARNING: failed to remove temp file %s: %v", tmpPath, removeErr)
+		}
 		return fmt.Errorf("rename temp file: %w", err)
 	}
 

@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"compress/zlib"
 	"errors"
-	"fmt"
 	"math"
-	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -22,7 +21,7 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 		}
 	}
 
-	redactionsByPage := make(map[int][]models.RedactionRect)
+	redactionsByPage := make(map[int][]models.RedactionRect, 8)
 	for _, r := range redactions {
 		redactionsByPage[r.PageNum] = append(redactionsByPage[r.PageNum], r)
 	}
@@ -40,18 +39,18 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 	for pageNum, rects := range redactionsByPage {
 		pageRef, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("page %d: %v", pageNum, err))
+			warnings = append(warnings, "page "+strconv.Itoa(pageNum)+": "+err.Error())
 			continue
 		}
 		pageBody := objMap[pageRef]
 		keys := extractContentKeys(pageBody)
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
-			warnings = append(warnings, fmt.Sprintf("page %d: no content streams", pageNum))
+			warnings = append(warnings, "page "+strconv.Itoa(pageNum)+": no content streams")
 			continue
 		}
 
-		visited := make(map[string]bool)
+		visited := make(map[string]bool, len(keys))
 		activeQueries := queries
 
 		for _, key := range keys {
@@ -90,7 +89,7 @@ func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resourc
 	updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
 	warnings := make([]string, 0, 2)
 	if err != nil {
-		warnings = append(warnings, fmt.Sprintf("stream %s: %v", streamKey, err))
+		warnings = append(warnings, "stream "+streamKey+": "+err.Error())
 	} else if changed {
 		objMap[streamKey] = updated
 	}
@@ -106,7 +105,7 @@ func rewriteSecureStreamTree(objMap map[string][]byte, streamKey string, resourc
 			continue
 		}
 		// Only recurse into Form XObjects where text content commonly lives.
-		if !regexp.MustCompile(`/Subtype\s*/Form(\b|\s|/)`).Match(childBody) {
+		if !reFormSubtype.Match(childBody) {
 			continue
 		}
 		childResources := extractResourcesBody(childBody, objMap)
@@ -138,8 +137,7 @@ func inspectStream(streamObj []byte) ([]byte, []byte, bool) {
 }
 
 func extractContentKeys(pageBody []byte) []string {
-	contentsRe := regexp.MustCompile(`/Contents\s+(?:(\d+)\s+(\d+)\s+R|\[(.*?)\])`)
-	match := contentsRe.FindSubmatch(pageBody)
+	match := reContents.FindSubmatch(pageBody)
 	if match == nil {
 		return nil
 	}
@@ -149,8 +147,7 @@ func extractContentKeys(pageBody []byte) []string {
 		return keys
 	}
 	if len(match[3]) > 0 {
-		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-		refs := refRe.FindAllSubmatch(match[3], -1)
+		refs := reObjRef.FindAllSubmatch(match[3], -1)
 		for _, r := range refs {
 			keys = append(keys, string(r[1])+" "+string(r[2]))
 		}
@@ -197,13 +194,11 @@ func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, 
 		encoded = buf.Bytes()
 	}
 
-	newObj := make([]byte, 0, len(streamObj)+64)
-	newObj = append(newObj, streamObj[:start]...)
-	newObj = append(newObj, encoded...)
-	newObj = append(newObj, streamObj[end:]...)
-
-	lenRe := regexp.MustCompile(`/Length\s+(?:\d+\s+\d+\s+R|\d+)`)
-	newObj = lenRe.ReplaceAll(newObj, []byte(fmt.Sprintf("/Length %d", len(encoded))))
+	newObj := append(append(append(make([]byte, 0, len(streamObj)+64), streamObj[:start]...), encoded...), streamObj[end:]...)
+	var lenBuf []byte
+	lenBuf = append(lenBuf, "/Length "...)
+	lenBuf = strconv.AppendInt(lenBuf, int64(len(encoded)), 10)
+	newObj = reLengthStream.ReplaceAll(newObj, lenBuf)
 
 	return newObj, true, nil
 }
@@ -211,7 +206,7 @@ func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, 
 func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool) {
 	positions := parseTextOperators(decoded)
 
-	opRe := regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
+	opRe := reTextOp
 	src := string(decoded)
 	matches := opRe.FindAllStringIndex(src, -1)
 	if len(matches) == 0 {
@@ -226,7 +221,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 	for _, m := range matches {
 		out.WriteString(src[last:m[0]])
 		op := src[m[0]:m[1]]
-		text := strings.TrimSpace(extractTextFromOperator(op))
+		text := trimSpaceASCII(extractTextFromOperator(op))
 		if text == "" {
 			out.WriteString(op)
 			last = m[1]
@@ -277,7 +272,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 	if !changed {
 		return decoded, false
 	}
-	return []byte(out.String()), true
+	return bytes.Clone([]byte(out.String())), true
 }
 
 func applyRectMaskToText(text string, pos models.TextPosition, rects []models.RedactionRect) string {
@@ -375,7 +370,7 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			var sb strings.Builder
 			sb.WriteString("<")
 			for _, r := range redacted {
-				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+				writeHex4Runes(&sb, uint16(r))
 			}
 			sb.WriteString("> Tj")
 			return sb.String()
@@ -397,7 +392,7 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			var sb strings.Builder
 			sb.WriteString("<")
 			for _, r := range redacted {
-				_, _ = fmt.Fprintf(&sb, "%04X", uint16(r))
+				writeHex4Runes(&sb, uint16(r))
 			}
 			sb.WriteString("> Tj")
 			return sb.String()
@@ -448,12 +443,13 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 			estWidth := estimateStringWidth(seg.removed, 1000)
 			// Negative value = advance cursor to the right.
 			kern := -int(math.Round(estWidth))
-			_, _ = fmt.Fprintf(&out, "%d ", kern)
+			out.WriteString(strconv.Itoa(kern))
+			out.WriteByte(' ')
 		} else {
 			if isHex {
 				out.WriteString("<")
 				for _, r := range seg.text {
-					_, _ = fmt.Fprintf(&out, "%04X", uint16(r))
+					writeHex4Runes(&out, uint16(r))
 				}
 				out.WriteString("> ")
 			} else {

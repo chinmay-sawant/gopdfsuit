@@ -55,8 +55,8 @@ func (r *Redactor) FindTextOccurrences(searchText string) ([]models.RedactionRec
 	}
 
 	var redactions []models.RedactionRect
-	normalizedQuery := r.normalizeSearchText(searchText)
-	searchText = strings.ToLower(searchText)
+	normalizedQuery := normalizeSearchText(searchText)
+	searchLower := strings.ToLower(searchText)
 
 	for i := 1; i <= info.TotalPages; i++ {
 		positions, err := r.ExtractTextPositions(i)
@@ -66,7 +66,7 @@ func (r *Redactor) FindTextOccurrences(searchText string) ([]models.RedactionRec
 		}
 
 		for _, pos := range positions {
-			redactions = append(redactions, r.buildSubstringRects(i, pos, searchText)...)
+			redactions = append(redactions, r.buildSubstringRects(i, pos, searchLower)...)
 		}
 
 		// Fallback for PDFs that split words/phrases across multiple text-show operators
@@ -92,7 +92,7 @@ func (r *Redactor) FindTextOccurrencesMulti(searchTexts []string) ([]models.Reda
 	seenTerms := make(map[string]struct{}, len(searchTexts))
 	all := make([]models.RedactionRect, 0, len(searchTexts)*4)
 	for _, raw := range searchTexts {
-		term := strings.TrimSpace(raw)
+		term := trimSpaceASCII(raw)
 		if term == "" {
 			continue
 		}
@@ -149,7 +149,7 @@ func (r *Redactor) isURLToken(text string) bool {
 }
 
 func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, loweredSearch string) []models.RedactionRect {
-	if loweredSearch == "" || strings.TrimSpace(pos.Text) == "" {
+	if loweredSearch == "" || trimSpaceASCII(pos.Text) == "" {
 		return nil
 	}
 	src := []rune(strings.ToLower(pos.Text))
@@ -223,7 +223,7 @@ func (r *Redactor) runeSliceEqual(a, b []rune) bool {
 }
 
 func (r *Redactor) normalizeSearchText(s string) string {
-	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), " ")
+	return normalizeSearchText(s)
 }
 
 // r.findAllCombinedMatchRects finds ALL occurrences of normalizedQuery that span
@@ -272,7 +272,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 			refY := lines[li].spans[0].pos.Y
 			if math.Abs(pos.Y-refY) < lineH*0.75 {
 				// Same line  — append token
-				part := strings.TrimSpace(pos.Text)
+				part := trimSpaceASCII(pos.Text)
 				if part == "" {
 					placed = true
 					break
@@ -283,7 +283,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 					lines[li].joined = part
 				} else {
 					startOff = len(lines[li].joined) + 1
-					lines[li].joined += " " + part
+					lines[li].joined = joinLineParts(lines[li].joined, part)
 				}
 				lines[li].spans = append(lines[li].spans, tokenSpan{
 					pos:   pos,
@@ -295,7 +295,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 			}
 		}
 		if !placed {
-			part := strings.TrimSpace(pos.Text)
+			part := trimSpaceASCII(pos.Text)
 			if part == "" {
 				lines = append(lines, lineGroup{})
 				continue

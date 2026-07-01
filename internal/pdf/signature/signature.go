@@ -11,6 +11,7 @@ import (
 	"encoding/asn1"
 	"encoding/hex"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -61,9 +62,11 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	}
 
 	// Parse certificate
-	block, _ := pem.Decode([]byte(config.CertificatePEM))
+	certPEM := make([]byte, len(config.CertificatePEM))
+	copy(certPEM, config.CertificatePEM)
+	block, _ := pem.Decode(certPEM)
 	if block == nil {
-		return nil, fmt.Errorf("failed to parse certificate PEM")
+		return nil, errors.New("failed to parse certificate PEM")
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
@@ -73,7 +76,9 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	signer.certificate = cert
 
 	// Parse private key
-	keyBlock, _ := pem.Decode([]byte(config.PrivateKeyPEM))
+	keyPEM := make([]byte, len(config.PrivateKeyPEM))
+	copy(keyPEM, config.PrivateKeyPEM)
+	keyBlock, _ := pem.Decode(keyPEM)
 	if keyBlock == nil {
 		return nil, fmt.Errorf("failed to parse private key PEM")
 	}
@@ -94,7 +99,9 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 
 	// Parse certificate chain if provided
 	for _, chainPEM := range config.CertificateChain {
-		chainBlock, _ := pem.Decode([]byte(chainPEM))
+		chainBuf := make([]byte, len(chainPEM))
+		copy(chainBuf, chainPEM)
+		chainBlock, _ := pem.Decode(chainBuf)
 		if chainBlock != nil {
 			chainCert, err := x509.ParseCertificate(chainBlock.Bytes)
 			if err == nil {
@@ -373,6 +380,19 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 	// Build authenticated attributes
 	signingTime := time.Now().UTC()
 
+	contentTypeBytes, err := mustMarshal(oidData)
+	if err != nil {
+		return nil, fmt.Errorf("marshal content type attribute: %w", err)
+	}
+	messageDigestBytes, err := mustMarshal(messageDigest)
+	if err != nil {
+		return nil, fmt.Errorf("marshal message digest attribute: %w", err)
+	}
+	signingTimeBytes, err := mustMarshal(signingTime)
+	if err != nil {
+		return nil, fmt.Errorf("marshal signing time attribute: %w", err)
+	}
+
 	// Authenticated attributes MUST be in DER-sorted order for SET encoding
 	// OIDs: ContentType (1.9.3), MessageDigest (1.9.4), SigningTime (1.9.5)
 	authenticatedAttrs := []attribute{
@@ -382,7 +402,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 				Class:      asn1.ClassUniversal,
 				Tag:        asn1.TagSet,
 				IsCompound: true,
-				Bytes:      mustMarshal(oidData),
+				Bytes:      contentTypeBytes,
 			},
 		},
 		{
@@ -391,7 +411,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 				Class:      asn1.ClassUniversal,
 				Tag:        asn1.TagSet,
 				IsCompound: true,
-				Bytes:      mustMarshal(messageDigest),
+				Bytes:      messageDigestBytes,
 			},
 		},
 		{
@@ -400,7 +420,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 				Class:      asn1.ClassUniversal,
 				Tag:        asn1.TagSet,
 				IsCompound: true,
-				Bytes:      mustMarshal(signingTime),
+				Bytes:      signingTimeBytes,
 			},
 		},
 	}
@@ -560,12 +580,8 @@ type attribute struct {
 	Value asn1.RawValue `asn1:"set"`
 }
 
-func mustMarshal(v interface{}) []byte {
-	b, err := asn1.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return b
+func mustMarshal(v interface{}) ([]byte, error) {
+	return asn1.Marshal(v)
 }
 
 // GetAcroFormSigFlags returns the SigFlags value for AcroForm when signatures are present
@@ -639,7 +655,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	copy(result, pdfData)
 
 	// Replace ByteRange
-	copy(result[byteRangePos:byteRangePos+len(byteRangeMarker)], []byte(newByteRange))
+	copy(result[byteRangePos:byteRangePos+len(byteRangeMarker)], newByteRange)
 
 	// Generate signature over the byte ranges (excluding Contents value)
 	signature, err := signer.SignPDF(result, byteRange)
@@ -657,7 +673,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	sigHex += strings.Repeat("0", 16384-len(sigHex))
 
 	// Replace Contents value
-	copy(result[contentsStart:contentsEnd], []byte(sigHex))
+	copy(result[contentsStart:contentsEnd], sigHex)
 
 	return result, nil
 }

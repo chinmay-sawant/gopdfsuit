@@ -13,7 +13,7 @@ import (
 func RunSingleDocumentBenchmark(name string) error {
 	template, err := BuildZerodhaRetailTemplate()
 	if err != nil {
-		return err
+		return fmt.Errorf("build zerodha retail template: %w", err)
 	}
 
 	const iterations = 5
@@ -26,7 +26,7 @@ func RunSingleDocumentBenchmark(name string) error {
 	for runIndex := 1; runIndex <= iterations; runIndex++ {
 		start := time.Now()
 		if _, err := gopdflib.GeneratePDF(template); err != nil {
-			return err
+			return fmt.Errorf("generate pdf run %d: %w", runIndex, err)
 		}
 		elapsedMs := float64(time.Since(start).Nanoseconds()) / 1_000_000
 		durations = append(durations, elapsedMs)

@@ -89,15 +89,21 @@ func main() {
 		WriteTimeout: 60 * time.Second,
 	}
 
+	listenErr := make(chan error, 1)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			listenErr <- err
 		}
 	}()
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
+	select {
+	case <-quit:
+		log.Println("Shutting down server...")
+	case err := <-listenErr:
+		log.Printf("server listen failed: %v", err)
+		os.Exit(1)
+	}
 }

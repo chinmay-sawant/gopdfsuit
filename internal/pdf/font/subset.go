@@ -16,7 +16,7 @@ func SubsetTTF(font *TTFFont, usedGlyphs []uint16) ([]byte, map[uint16]uint16, e
 	}
 
 	// Ensure glyphs are sorted and include .notdef (glyph 0)
-	glyphSet := make(map[uint16]bool)
+	glyphSet := make(map[uint16]bool, len(usedGlyphs)+1)
 	glyphSet[0] = true // Always include .notdef
 	for _, glyph := range usedGlyphs {
 		if glyph < font.NumGlyphs {
@@ -38,7 +38,7 @@ func SubsetTTF(font *TTFFont, usedGlyphs []uint16) ([]byte, map[uint16]uint16, e
 	})
 
 	// Create old-to-new glyph ID mapping
-	oldToNew := make(map[uint16]uint16)
+	oldToNew := make(map[uint16]uint16, len(sortedGlyphs))
 	for newID, oldID := range sortedGlyphs {
 		oldToNew[oldID] = uint16(newID)
 	}
@@ -62,7 +62,7 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 	// Optional but recommended: OS/2, cvt, fpgm, prep
 
 	// Collect table data
-	tables := make(map[string][]byte)
+	tables := make(map[string][]byte, 12)
 
 	// Generate required tables
 	tables["head"] = subsetHead(font)
@@ -105,11 +105,17 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 
 	// Copy optional tables if they exist
 	optionalTables := []string{"cvt ", "fpgm", "prep"}
+	var optionalTableScratch []byte
 	for _, tableName := range optionalTables {
 		if entry, ok := font.Tables[tableName]; ok {
 			if entry.Offset+entry.Length <= uint32(len(font.RawData)) {
-				tables[tableName] = make([]byte, entry.Length)
-				copy(tables[tableName], font.RawData[entry.Offset:entry.Offset+entry.Length])
+				if cap(optionalTableScratch) < int(entry.Length) {
+					optionalTableScratch = make([]byte, entry.Length)
+				} else {
+					optionalTableScratch = optionalTableScratch[:entry.Length]
+				}
+				copy(optionalTableScratch, font.RawData[entry.Offset:entry.Offset+entry.Length])
+				tables[tableName] = append([]byte(nil), optionalTableScratch...)
 			}
 		}
 	}
@@ -153,29 +159,26 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 	sort.Strings(tableNames)
 
 	// Write table directory
-	tableOffsets := make(map[string]uint32)
+	tableOffsets := make(map[string]uint32, len(tableNames))
+	var tableDirScratch [12]byte
 	for _, name := range tableNames {
 		data := tables[name]
 
 		// Pad table name to 4 bytes
-		tag := []byte(name)
-		for len(tag) < 4 {
-			tag = append(tag, ' ')
+		var tag [4]byte
+		copy(tag[:], name)
+		for i := len(name); i < 4; i++ {
+			tag[i] = ' '
 		}
 
 		checksum := calculateChecksum(data)
 		length := uint32(len(data))
 
 		buf.Write(tag[:4])
-		if err := binary.Write(&buf, binary.BigEndian, checksum); err != nil {
-			return nil, nil, err
-		}
-		if err := binary.Write(&buf, binary.BigEndian, tableOffset); err != nil {
-			return nil, nil, err
-		}
-		if err := binary.Write(&buf, binary.BigEndian, length); err != nil {
-			return nil, nil, err
-		}
+		binary.BigEndian.PutUint32(tableDirScratch[0:4], checksum)
+		binary.BigEndian.PutUint32(tableDirScratch[4:8], tableOffset)
+		binary.BigEndian.PutUint32(tableDirScratch[8:12], length)
+		buf.Write(tableDirScratch[:])
 
 		tableOffsets[name] = tableOffset
 
@@ -266,11 +269,12 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 	newOffsets := make([]uint32, len(glyphs)+1)
 
 	// Build old-to-new GID mapping for this subset
-	oldToNewGID := make(map[uint16]uint16)
+	oldToNewGID := make(map[uint16]uint16, len(glyphs))
 	for newIdx, oldGID := range glyphs {
 		oldToNewGID[oldGID] = uint16(newIdx)
 	}
 
+	var glyphScratch []byte
 	for i, glyphID := range glyphs {
 		newOffsets[i] = uint32(newGlyf.Len())
 
@@ -289,7 +293,12 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 			if offset+length > uint32(len(glyfData)) {
 				length = uint32(len(glyfData)) - offset
 			}
-			glyphBytes := make([]byte, length)
+			if cap(glyphScratch) < int(length) {
+				glyphScratch = make([]byte, length)
+			} else {
+				glyphScratch = glyphScratch[:length]
+			}
+			glyphBytes := glyphScratch
 			copy(glyphBytes, glyfData[offset:offset+length])
 
 			// Remap component GID references in composite glyphs
@@ -311,17 +320,17 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 	// Build new loca table
 	var newLoca bytes.Buffer
 	if useShortLoca {
-		for _, offset := range newOffsets {
-			if err := binary.Write(&newLoca, binary.BigEndian, uint16(offset/2)); err != nil {
-				return nil, nil, false
-			}
+		locaBytes := make([]byte, len(newOffsets)*2)
+		for i, offset := range newOffsets {
+			binary.BigEndian.PutUint16(locaBytes[i*2:], uint16(offset/2))
 		}
+		newLoca.Write(locaBytes)
 	} else {
-		for _, offset := range newOffsets {
-			if err := binary.Write(&newLoca, binary.BigEndian, offset); err != nil {
-				return nil, nil, false
-			}
+		locaBytes := make([]byte, len(newOffsets)*4)
+		for i, offset := range newOffsets {
+			binary.BigEndian.PutUint32(locaBytes[i*4:], offset)
 		}
+		newLoca.Write(locaBytes)
 	}
 
 	return newGlyf.Bytes(), newLoca.Bytes(), useShortLoca
@@ -329,19 +338,13 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 
 // subsetHmtx generates the hmtx table for the subset
 func subsetHmtx(font *TTFFont, glyphs []uint16) []byte {
-	var buf bytes.Buffer
-
-	for _, glyphID := range glyphs {
+	hmtxBytes := make([]byte, len(glyphs)*4)
+	for i, glyphID := range glyphs {
 		width := font.GetGlyphWidth(glyphID)
-		if err := binary.Write(&buf, binary.BigEndian, width); err != nil {
-			return nil
-		}
-		if err := binary.Write(&buf, binary.BigEndian, int16(0)); err != nil {
-			return nil
-		}
+		binary.BigEndian.PutUint16(hmtxBytes[i*4:], width)
+		// lsb is zero (bytes already zero-initialized)
 	}
-
-	return buf.Bytes()
+	return hmtxBytes
 }
 
 // subsetCmap generates a format 4 cmap table with remapped glyph IDs
@@ -351,7 +354,7 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 	var buf bytes.Buffer
 
 	// Build character to new glyph ID mapping
-	charToNewGlyph := make(map[uint16]uint16)
+	charToNewGlyph := make(map[uint16]uint16, len(font.CharToGlyph))
 	for char, oldGlyph := range font.CharToGlyph {
 		if char <= 0xFFFF {
 			if newGlyph, ok := oldToNew[oldGlyph]; ok {
@@ -449,37 +452,33 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 	}
 
 	// endCode array
-	for _, seg := range segments {
-		if err := binary.Write(&format4, binary.BigEndian, seg.endCode); err != nil {
-			return nil
-		}
+	endCodeBytes := make([]byte, len(segments)*2)
+	for i, seg := range segments {
+		binary.BigEndian.PutUint16(endCodeBytes[i*2:], seg.endCode)
 	}
+	format4.Write(endCodeBytes)
 
 	// reservedPad
-	if err := binary.Write(&format4, binary.BigEndian, uint16(0)); err != nil {
-		return nil
-	}
+	var reservedPad [2]byte
+	format4.Write(reservedPad[:])
 
 	// startCode array
-	for _, seg := range segments {
-		if err := binary.Write(&format4, binary.BigEndian, seg.startCode); err != nil {
-			return nil
-		}
+	startCodeBytes := make([]byte, len(segments)*2)
+	for i, seg := range segments {
+		binary.BigEndian.PutUint16(startCodeBytes[i*2:], seg.startCode)
 	}
+	format4.Write(startCodeBytes)
 
 	// idDelta array
-	for _, seg := range segments {
-		if err := binary.Write(&format4, binary.BigEndian, seg.idDelta); err != nil {
-			return nil
-		}
+	idDeltaBytes := make([]byte, len(segments)*2)
+	for i, seg := range segments {
+		binary.BigEndian.PutUint16(idDeltaBytes[i*2:], uint16(seg.idDelta))
 	}
+	format4.Write(idDeltaBytes)
 
 	// idRangeOffset array (all zeros for our simple mapping)
-	for range segments {
-		if err := binary.Write(&format4, binary.BigEndian, uint16(0)); err != nil {
-			return nil
-		}
-	}
+	idRangeBytes := make([]byte, len(segments)*2)
+	format4.Write(idRangeBytes)
 
 	// Update length
 	format4Data := format4.Bytes()
@@ -619,25 +618,15 @@ func subsetName(font *TTFFont) []byte {
 	}
 
 	// Write name records
+	var nameRecScratch [12]byte
 	for _, rec := range records {
-		if err := binary.Write(&buf, binary.BigEndian, rec.platformID); err != nil {
-			return nil
-		}
-		if err := binary.Write(&buf, binary.BigEndian, rec.encodingID); err != nil {
-			return nil
-		}
-		if err := binary.Write(&buf, binary.BigEndian, rec.languageID); err != nil {
-			return nil
-		}
-		if err := binary.Write(&buf, binary.BigEndian, rec.nameID); err != nil {
-			return nil
-		}
-		if err := binary.Write(&buf, binary.BigEndian, rec.length); err != nil {
-			return nil
-		}
-		if err := binary.Write(&buf, binary.BigEndian, rec.offset); err != nil {
-			return nil
-		}
+		binary.BigEndian.PutUint16(nameRecScratch[0:2], rec.platformID)
+		binary.BigEndian.PutUint16(nameRecScratch[2:4], rec.encodingID)
+		binary.BigEndian.PutUint16(nameRecScratch[4:6], rec.languageID)
+		binary.BigEndian.PutUint16(nameRecScratch[6:8], rec.nameID)
+		binary.BigEndian.PutUint16(nameRecScratch[8:10], rec.length)
+		binary.BigEndian.PutUint16(nameRecScratch[10:12], rec.offset)
+		buf.Write(nameRecScratch[:])
 	}
 
 	// Write string data

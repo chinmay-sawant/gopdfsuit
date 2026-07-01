@@ -87,8 +87,8 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 		b = b[:0] // Reuse buffer
 		b = strconv.AppendInt(b, int64(currentID), 10)
 		b = append(b, " 0 obj\n<< /Title ("...)
-		b = append(b, escapePDFString(item.Title)...)
-		b = append(b, ") /Parent "...)
+		titleEscaped := escapePDFString(item.Title)
+		b = append(append(b, titleEscaped...), ") /Parent "...)
 		b = strconv.AppendInt(b, int64(parentID), 10)
 		b = append(b, " 0 R"...)
 

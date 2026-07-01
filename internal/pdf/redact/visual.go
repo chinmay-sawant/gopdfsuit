@@ -3,6 +3,7 @@ package redact
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -27,7 +28,7 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 	}
 
 	// Group redactions by page
-	redactionsByPage := make(map[int][]models.RedactionRect)
+	redactionsByPage := make(map[int][]models.RedactionRect, 8)
 	for _, rect := range redactions {
 		redactionsByPage[rect.PageNum] = append(redactionsByPage[rect.PageNum], rect)
 	}
@@ -35,9 +36,7 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 	// Find highest object number
 	maxObj := 0
 	for k := range objMap {
-		var n int
-		_, _ = fmt.Sscanf(k, "%d", &n)
-		if n > maxObj {
+		if n, ok := parseObjectKeyPrefix(k); ok && n > maxObj {
 			maxObj = n
 		}
 	}
@@ -53,22 +52,28 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 
 		// Create redaction stream content
 		var sb strings.Builder
+		sb.Grow(len(rects) * 48)
 		sb.WriteString("q 0 0 0 rg ") // Save state, set black color
 		for _, rect := range rects {
-			// Construct rectangle path: x y w h re f (fill)
-			sb.WriteString(fmt.Sprintf("%.2f %.2f %.2f %.2f re f ", rect.X, rect.Y, rect.Width, rect.Height))
+			appendPDFRect(&sb, rect.X, rect.Y, rect.Width, rect.Height)
 		}
 		sb.WriteString("Q ") // Restore state
 		streamContent := sb.String()
 
 		// Create new stream object
-		streamObjKey := fmt.Sprintf("%d 0", nextObj)
+		streamObjKey := strconv.Itoa(nextObj) + " 0"
 		nextObj++
 
 		// NOTE: objMap stores body content between "obj" and "endobj" markers.
 		// rebuildPDF wraps each body with "N G obj\n...\nendobj\n".
-		streamObj := fmt.Sprintf("<< /Length %d >>\nstream\n%s\nendstream", len(streamContent), streamContent)
-		objMap[streamObjKey] = []byte(streamObj)
+		var streamObj strings.Builder
+		streamObj.Grow(len(streamContent) + 48)
+		streamObj.WriteString("<< /Length ")
+		streamObj.WriteString(strconv.Itoa(len(streamContent)))
+		streamObj.WriteString(" >>\nstream\n")
+		streamObj.WriteString(streamContent)
+		streamObj.WriteString("\nendstream")
+		objMap[streamObjKey] = []byte(streamObj.String())
 
 		// Append this new object to the page's /Contents
 		newPageBody := appendStreamToPage(pageBody, streamObjKey)
@@ -76,4 +81,10 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 	}
 
 	return rebuildPDF(objMap, r.pdfBytes)
+}
+
+// parseObjectKeyPrefix returns the object number from a "num gen" key.
+func parseObjectKeyPrefix(key string) (int, bool) {
+	id, _, ok := parseObjectKey(key)
+	return id, ok
 }

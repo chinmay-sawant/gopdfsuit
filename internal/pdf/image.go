@@ -18,7 +18,7 @@ import (
 
 // fmtNumImg formats a float with 2 decimal places for image dimensions
 func fmtNumImg(f float64) string {
-	return fmt.Sprintf("%.2f", f)
+	return fmtNum(f)
 }
 
 // rgbDataPool recycles byte slices for RGB conversion
@@ -37,7 +37,7 @@ type imageCache struct {
 }
 
 var imgCache = &imageCache{
-	cache: make(map[uint64]*ImageObject),
+	cache: make(map[uint64]*ImageObject, 32),
 }
 
 // fnv1aHash computes FNV-1a hash for quick image deduplication
@@ -57,7 +57,7 @@ func fnv1aHash(data string) uint64 {
 // ResetImageCache clears the image cache (call between PDF generations if needed)
 func ResetImageCache() {
 	imgCache.mu.Lock()
-	imgCache.cache = make(map[uint64]*ImageObject)
+	imgCache.cache = make(map[uint64]*ImageObject, 32)
 	imgCache.mu.Unlock()
 }
 
@@ -191,12 +191,12 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
-			_ = zlibWriter.Close()
-			putZlibWriter(zlibWriter)
+			_ = closeZlibWriter(zlibWriter)
 			return nil, err
 		}
-		_ = zlibWriter.Close()
-		putZlibWriter(zlibWriter)
+		if err := closeZlibWriter(zlibWriter); err != nil {
+			return nil, err
+		}
 
 		imgObj.Filter = "/FlateDecode"
 		// Copy compressed data since buffer will be reused
@@ -225,12 +225,12 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(rawRGB); err != nil {
-			_ = zlibWriter.Close()
-			putZlibWriter(zlibWriter)
+			_ = closeZlibWriter(zlibWriter)
 			return nil, err
 		}
-		_ = zlibWriter.Close()
-		putZlibWriter(zlibWriter)
+		if err := closeZlibWriter(zlibWriter); err != nil {
+			return nil, err
+		}
 
 		imgObj.Filter = "/FlateDecode"
 		imgObj.ImageData = append([]byte(nil), compressedBuf.Bytes()...)
@@ -471,13 +471,11 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	b = append(b, "\n   /BitsPerComponent "...)
 	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
 	b = append(b, "\n"...)
-
 	if imgObj.Filter != "" {
 		b = append(b, "   /Filter "...)
 		b = append(b, imgObj.Filter...)
 		b = append(b, "\n"...)
 	}
-
 	b = append(b, "   /Length "...)
 	b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
 	b = append(b, "\n>>\nstream\n"...)

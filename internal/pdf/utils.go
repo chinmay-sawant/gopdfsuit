@@ -166,7 +166,9 @@ func parseBorders(borderStr string) [4]int {
 	borders := [4]int{0, 0, 0, 0}
 	for i, part := range parts {
 		if i < 4 {
-			borders[i], _ = strconv.Atoi(part)
+			if n, err := strconv.Atoi(part); err == nil {
+				borders[i] = n
+			}
 		}
 	}
 	return borders
@@ -303,6 +305,56 @@ func getWidgetFontObjectID(registry *CustomFontRegistry) int {
 	return 0
 }
 
+// formatICCBasedColorSpace returns a PDF ICCBased color space reference.
+func formatICCBasedColorSpace(profileObjID int) string {
+	var buf [32]byte
+	b := append(buf[:0], "[/ICCBased "...)
+	b = strconv.AppendInt(b, int64(profileObjID), 10)
+	b = append(b, " 0 R]"...)
+	return string(b)
+}
+
+// appendPDFIndirectRef appends " N 0 R" to sb without fmt.Sprintf.
+func appendPDFIndirectRef(sb *strings.Builder, id int) {
+	var buf [16]byte
+	sb.WriteByte(' ')
+	sb.Write(strconv.AppendInt(buf[:0], int64(id), 10))
+	sb.WriteString(" 0 R")
+}
+
+// formatXObjectNameRef returns "/{prefix}{idx}" for image XObject references.
+func formatXObjectNameRef(prefix string, idx int) string {
+	var buf [16]byte
+	b := append(buf[:0], '/')
+	b = append(b, prefix...)
+	b = strconv.AppendInt(b, int64(idx), 10)
+	return string(b)
+}
+
+// formatIntKey returns a decimal string for use as a map/cell key prefix.
+func formatIntKey(n int) string {
+	return strconv.Itoa(n)
+}
+
+// formatElemInlineKey returns "elem_inline:{idx}" for inline table keys.
+func formatElemInlineKey(elemIdx int) string {
+	var buf [32]byte
+	n := copy(buf[:], "elem_inline:")
+	b := strconv.AppendInt(buf[n:n], int64(elemIdx), 10)
+	return string(b[:n+len(b)])
+}
+
+// writeUTF16HexEscape writes a UTF-16 code unit as \xHH\xHH into sb.
+func writeUTF16HexEscape(sb *strings.Builder, r rune) {
+	const hex = "0123456789ABCDEF"
+	sb.WriteString(`\x`)
+	sb.WriteByte(hex[(r>>12)&0xF])
+	sb.WriteByte(hex[(r>>8)&0xF])
+	sb.WriteString(`\x`)
+	sb.WriteByte(hex[(r>>4)&0xF])
+	sb.WriteByte(hex[r&0xF])
+}
+
 // formatPageKids formats the page object IDs for the Pages object
 func formatPageKids(pageIDs []int) string {
 	var buf []byte
@@ -408,11 +460,13 @@ func WrapText(text string, resolvedFontName string, fontSize float64, maxWidth f
 		}
 
 		// Try adding word to current line
-		testLine := currentLine
-		if testLine != "" {
-			testLine += " "
+		var testBuilder strings.Builder
+		if currentLine != "" {
+			testBuilder.WriteString(currentLine)
+			testBuilder.WriteByte(' ')
 		}
-		testLine += word
+		testBuilder.WriteString(word)
+		testLine := testBuilder.String()
 
 		testWidth := EstimateTextWidth(resolvedFontName, testLine, fontSize, registry)
 		if testWidth <= maxWidth {

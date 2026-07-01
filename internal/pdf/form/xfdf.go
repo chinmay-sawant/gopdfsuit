@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // Standard Helvetica widths for characters 32-255 (WinAnsiEncoding)
@@ -35,6 +36,90 @@ var helveticaWidths = []int{
 	556, 556, 556, 556, 556, 556, 556, 584, 611, 556, 556, 556, 556, 500, 556, 500, // 240-255
 }
 
+var helveticaWidthsStr string
+
+func init() {
+	var b strings.Builder
+	b.WriteString("[")
+	for i, w := range helveticaWidths {
+		b.WriteString(strconv.Itoa(w))
+		if i < len(helveticaWidths)-1 {
+			b.WriteByte(' ')
+		}
+	}
+	b.WriteByte(']')
+	helveticaWidthsStr = b.String()
+}
+
+// Common PDF token literals reused across hot paths.
+var (
+	pdfSubtypeWidget      = []byte("/Subtype/Widget")
+	pdfSubtypeWidgetSpace = []byte("/Subtype /Widget")
+	pdfTokenT             = []byte("/T")
+	pdfFTBtn              = []byte("/FT /Btn")
+	pdfFTTx               = []byte("/FT /Tx")
+	pdfFTTxAlt            = []byte("/FT/Tx")
+	pdfObjStm             = []byte("/ObjStm")
+	pdfTypeObjStm         = []byte("/Type/ObjStm")
+	pdfEncrypt            = []byte("/Encrypt")
+	pdfWBracket           = []byte("/W[")
+	pdfIndex              = []byte("/Index")
+	pdfStartxref          = []byte("startxref")
+	pdfDictClose          = []byte(">>")
+	pdfAP                 = []byte("/AP")
+	pdfFieldsBracket      = []byte("/Fields[")
+	pdfFieldsSpace        = []byte("/Fields [")
+	pdfNeedAppearances    = []byte("/NeedAppearances")
+)
+
+// Package-scoped compiled regular expressions (PERF-1).
+var (
+	reValueToken        = regexp.MustCompile(`/V\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
+	reASToken           = regexp.MustCompile(`/AS\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
+	reRootRef           = regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
+	reAcroFormRef       = regexp.MustCompile(`/AcroForm\s+(\d+)\s+(\d+)\s+R`)
+	reParenString       = regexp.MustCompile(`\(([^)]{1,200})\)`)
+	reHexString         = regexp.MustCompile(`<([0-9A-Fa-f\s]{2,400})>`)
+	rePDFName           = regexp.MustCompile(`/([A-Za-z0-9_+-]{1,200})`)
+	reTField            = regexp.MustCompile(`/T\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
+	reKidsArray         = regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
+	reObjRef            = regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
+	reSingleKidsRef     = regexp.MustCompile(`/Kids\s+(\d+)\s+(\d+)\s+R`)
+	reVIndirectRef      = regexp.MustCompile(`/V\s*(\d+)\s+(\d+)\s+R`)
+	reStreamBody        = regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	reASWidget          = regexp.MustCompile(`/AS\s*(/(\w+)|\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
+	reAPDict            = regexp.MustCompile(`/AP\s*<<(.*?)>>`)
+	reNSubDict          = regexp.MustCompile(`/N\s*<<(.*?)>>`)
+	reAPKey             = regexp.MustCompile(`/([A-Za-z0-9_+-]+)\s*(?:/|stream|<<|\()`)
+	reNName             = regexp.MustCompile(`/N\s*/([A-Za-z0-9_+-]+)`)
+	reTrailer           = regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
+	reObjStream         = regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
+	reObjStreamAlt      = regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
+	reObjAtOffset       = regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
+	reFirst             = regexp.MustCompile(`/First\s+(\d+)`)
+	reFieldsArray       = regexp.MustCompile(`/Fields\s*\[(.*?)\]`)
+	reSingleFieldsRef   = regexp.MustCompile(`/Fields\s+(\d+)\s+(\d+)\s+R`)
+	reWidgetDict        = regexp.MustCompile(`(?s)<<.*?/Subtype\s*/Widget.*?>>`)
+	reWidgetName        = regexp.MustCompile(`/T\s*\((.*?)\)`)
+	reAPNState          = regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
+	reRect              = regexp.MustCompile(`/Rect\s*\[\s*([^\]]+)\s*\]`)
+	reQAlign            = regexp.MustCompile(`/Q\s*(\d)`)
+	reDA                = regexp.MustCompile(`/DA\s*\((.*?)\)`)
+	reTextFont          = regexp.MustCompile(`/([\w.-]+)\s+([\d.]+)\s+Tf`)
+	reVGeneric          = regexp.MustCompile(`/V\s*\(?.*?\)?`)
+	reVString           = regexp.MustCompile(`/V\s*\(.*?\)`)
+	reAPStrip           = regexp.MustCompile(`\s*/AP\s*<<.*?>>`)
+	reASState           = regexp.MustCompile(`/AS\s*/\w+`)
+	reObjNum            = regexp.MustCompile(`(\d+)\s+0\s+obj`)
+	reNeedAppearances   = regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
+	reAcroFormInline    = regexp.MustCompile(`(/AcroForm\s*<<)`)
+	reRootObj           = regexp.MustCompile(`/Root\s+(\d+)\s+0\s+R`)
+	reAcroFormIndirect  = regexp.MustCompile(`(?s)(/AcroForm\s*<<.*?)(>>)|(/AcroForm\s+\d+\s+\d+\s+R)`)
+	reObjStmName        = regexp.MustCompile(`/T\s*(?:\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
+	reAPIndirectRef     = regexp.MustCompile(`/AP\s+\d+\s+\d+\s+R`)
+	reLength            = regexp.MustCompile(`/Length\s+\d+`)
+)
+
 // XFDF structures for minimal parsing
 type xfdfField struct {
 	XMLName xml.Name `xml:"field"`
@@ -53,7 +138,7 @@ func ParseXFDF(xfdfBytes []byte) (map[string]string, error) {
 	if err := xml.Unmarshal(xfdfBytes, &root); err != nil {
 		return nil, err
 	}
-	m := make(map[string]string)
+	m := make(map[string]string, len(root.Fields))
 	for _, f := range root.Fields {
 		name := strings.TrimSpace(f.Name)
 		val := strings.TrimSpace(f.Value)
@@ -71,7 +156,72 @@ type Field struct {
 
 // bytesIndex is a helper to find a subsequence in a []byte
 func bytesIndex(b, sub []byte) int {
-	return strings.Index(string(b), string(sub))
+	return bytes.Index(b, sub)
+}
+
+func objMapKey(objNum int, generation int) string {
+	var b strings.Builder
+	b.Grow(16)
+	b.WriteString(strconv.Itoa(objNum))
+	b.WriteByte(' ')
+	b.WriteString(strconv.Itoa(generation))
+	return b.String()
+}
+
+// splitFloatCoords splits PDF rect coordinate bytes without allocating via strings.Fields.
+func splitFloatCoords(coords []byte) []string {
+	trimmed := bytes.TrimSpace(coords)
+	if len(trimmed) == 0 {
+		return nil
+	}
+	var parts []string
+	start := 0
+	for i := 0; i <= len(trimmed); i++ {
+		if i == len(trimmed) || unicode.IsSpace(rune(trimmed[i])) {
+			if i > start {
+				parts = append(parts, string(trimmed[start:i]))
+			}
+			start = i + 1
+		}
+	}
+	return parts
+}
+
+func isTruthyButtonValue(val string) bool {
+	return strings.EqualFold(val, "yes") || strings.EqualFold(val, "on")
+}
+
+// findEnclosingDict locates a PDF dictionary containing marker bytes.
+func findEnclosingDict(pdf []byte, marker []byte, mustContain, mustNotContain []byte) (int, int, bool) {
+	searchFrom := 0
+	for {
+		idx := bytes.Index(pdf[searchFrom:], marker)
+		if idx < 0 {
+			return 0, 0, false
+		}
+		abs := searchFrom + idx
+		dictStart := bytes.LastIndex(pdf[:abs], []byte("<<"))
+		if dictStart < 0 {
+			searchFrom = abs + 1
+			continue
+		}
+		relEnd := bytes.Index(pdf[abs:], pdfDictClose)
+		if relEnd < 0 {
+			searchFrom = abs + 1
+			continue
+		}
+		dictEnd := abs + relEnd + len(pdfDictClose)
+		slice := pdf[dictStart:dictEnd]
+		if len(mustContain) > 0 && !bytes.Contains(slice, mustContain) {
+			searchFrom = abs + 1
+			continue
+		}
+		if len(mustNotContain) > 0 && bytes.Contains(slice, mustNotContain) {
+			searchFrom = abs + 1
+			continue
+		}
+		return dictStart, dictEnd, true
+	}
 }
 
 // decodeHexString converts hex string to regular string
@@ -96,6 +246,7 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer func() {
+		// Close error ignored: decompression already completed via io.Copy.
 		_ = r.Close()
 	}()
 	var out bytes.Buffer
@@ -109,6 +260,7 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 func tryFlateDecompress(b []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewReader(b))
 	defer func() {
+		// Close error ignored: decompression already completed via io.Copy.
 		_ = r.Close()
 	}()
 	var out bytes.Buffer
@@ -126,10 +278,7 @@ func extractTokenGroups(content []byte, pos int) (string, string) {
 	}
 	window := content[pos:limit]
 
-	valueRe := regexp.MustCompile(`/V\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
-	asRe := regexp.MustCompile(`/AS\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
-
-	if m := valueRe.FindSubmatch(window); m != nil {
+	if m := reValueToken.FindSubmatch(window); m != nil {
 		if len(m[2]) > 0 {
 			return "V", string(m[2])
 		}
@@ -140,7 +289,7 @@ func extractTokenGroups(content []byte, pos int) (string, string) {
 			return "V", string(m[4])
 		}
 	}
-	if m := asRe.FindSubmatch(window); m != nil {
+	if m := reASToken.FindSubmatch(window); m != nil {
 		if len(m[2]) > 0 {
 			return "AS", string(m[2])
 		}
@@ -156,23 +305,33 @@ func extractTokenGroups(content []byte, pos int) (string, string) {
 
 // parseArrayInts parses array values from PDF dictionary
 func parseArrayInts(dict []byte, key string) []int {
-	re := regexp.MustCompile(key + `\s*\[(.*?)\]`)
-	if m := re.FindSubmatch(dict); m != nil {
-		inner := strings.TrimSpace(string(m[1]))
-		if inner == "" {
-			return nil
-		}
-		parts := strings.Fields(inner)
-		res := make([]int, 0, len(parts))
-		for _, p := range parts {
-			var v int
-			if _, err := fmt.Sscanf(p, "%d", &v); err == nil {
-				res = append(res, v)
-			}
-		}
-		return res
+	keyBytes := []byte(key)
+	idx := bytes.Index(dict, keyBytes)
+	if idx < 0 {
+		return nil
 	}
-	return nil
+	rest := dict[idx+len(keyBytes):]
+	bracketIdx := bytes.IndexByte(rest, '[')
+	if bracketIdx < 0 {
+		return nil
+	}
+	rest = rest[bracketIdx+1:]
+	endIdx := bytes.IndexByte(rest, ']')
+	if endIdx < 0 {
+		return nil
+	}
+	inner := strings.TrimSpace(string(rest[:endIdx]))
+	if inner == "" {
+		return nil
+	}
+	parts := strings.Fields(inner)
+	res := make([]int, 0, len(parts))
+	for _, p := range parts {
+		if v, err := strconv.Atoi(p); err == nil {
+			res = append(res, v)
+		}
+	}
+	return res
 }
 
 // readUint reads bytes as unsigned integer
@@ -186,8 +345,7 @@ func readUint(b []byte) uint64 {
 
 // findRootRef looks for /Root n m R in the PDF bytes
 func findRootRef(data []byte) (string, bool) {
-	rootRe := regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
-	if m := rootRe.FindSubmatch(data); m != nil {
+	if m := reRootRef.FindSubmatch(data); m != nil {
 		return string(m[1]) + " " + string(m[2]), true
 	}
 	return "", false
@@ -195,11 +353,10 @@ func findRootRef(data []byte) (string, bool) {
 
 // getAcroFormRef finds /AcroForm n m R reference
 func getAcroFormRef(body []byte, data []byte) (string, bool) {
-	afRe := regexp.MustCompile(`/AcroForm\s+(\d+)\s+(\d+)\s+R`)
-	if m := afRe.FindSubmatch(body); m != nil {
+	if m := reAcroFormRef.FindSubmatch(body); m != nil {
 		return string(m[1]) + " " + string(m[2]), true
 	}
-	if m := afRe.FindSubmatch(data); m != nil {
+	if m := reAcroFormRef.FindSubmatch(data); m != nil {
 		return string(m[1]) + " " + string(m[2]), true
 	}
 	return "", false
@@ -207,16 +364,13 @@ func getAcroFormRef(body []byte, data []byte) (string, bool) {
 
 // extractStringFromBytes looks for PDF literal representations
 func extractStringFromBytes(b []byte) string {
-	parenRe := regexp.MustCompile(`\(([^)]{1,200})\)`)
-	if m := parenRe.FindSubmatch(b); m != nil {
+	if m := reParenString.FindSubmatch(b); m != nil {
 		return string(m[1])
 	}
-	hexRe := regexp.MustCompile(`<([0-9A-Fa-f\s]{2,400})>`)
-	if m := hexRe.FindSubmatch(b); m != nil {
+	if m := reHexString.FindSubmatch(b); m != nil {
 		return decodeHexString(string(m[1]))
 	}
-	nameRe := regexp.MustCompile(`/([A-Za-z0-9_+-]{1,200})`)
-	if m := nameRe.FindSubmatch(b); m != nil {
+	if m := rePDFName.FindSubmatch(b); m != nil {
 		return string(m[1])
 	}
 	return ""
@@ -229,10 +383,9 @@ func traverseField(ref string, objMap map[string][]byte, parentPrefix string, ou
 		return
 	}
 
-	tReLocal := regexp.MustCompile(`/T\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
 	tv := ""
 	name := ""
-	if m := tReLocal.FindSubmatchIndex(body); m != nil {
+	if m := reTField.FindSubmatchIndex(body); m != nil {
 		switch {
 		case m[4] != -1 && m[5] != -1:
 			name = string(body[m[4]:m[5]])
@@ -273,17 +426,14 @@ func traverseField(ref string, objMap map[string][]byte, parentPrefix string, ou
 		}
 	}
 
-	kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
-	refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-	if m := kidsRe.FindSubmatch(body); m != nil {
+	if m := reKidsArray.FindSubmatch(body); m != nil {
 		inner := m[1]
-		for _, r := range refRe.FindAllSubmatch(inner, -1) {
+		for _, r := range reObjRef.FindAllSubmatch(inner, -1) {
 			kidRef := string(r[1]) + " " + string(r[2])
 			traverseField(kidRef, objMap, fullName, out)
 		}
 	}
-	singleKidsRe := regexp.MustCompile(`/Kids\s+(\d+)\s+(\d+)\s+R`)
-	if m := singleKidsRe.FindSubmatch(body); m != nil {
+	if m := reSingleKidsRef.FindSubmatch(body); m != nil {
 		kidRef := string(m[1]) + " " + string(m[2])
 		traverseField(kidRef, objMap, fullName, out)
 	}
@@ -302,12 +452,10 @@ func resolveValueRef(body []byte, objMap map[string][]byte) string {
 		if s := extractStringFromBytes(b); s != "" {
 			return s
 		}
-		refRe := regexp.MustCompile(`/V\s*(\d+)\s+(\d+)\s+R`)
-		if m := refRe.FindSubmatch(b); m != nil {
+		if m := reVIndirectRef.FindSubmatch(b); m != nil {
 			ref := string(m[1]) + " " + string(m[2])
 			if rb, ok := objMap[ref]; ok {
-				streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-				if sm := streamRe.FindSubmatch(rb); sm != nil {
+				if sm := reStreamBody.FindSubmatch(rb); sm != nil {
 					var dec []byte
 					if d, err := tryZlibDecompress(sm[1]); err == nil {
 						dec = d
@@ -338,15 +486,14 @@ func resolveValueRef(body []byte, objMap map[string][]byte) string {
 func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string, bool) {
 	needle := []byte("(" + name + ")")
 	for k, body := range objMap {
-		if bytesIndex(body, []byte(`/Subtype/Widget`)) < 0 {
+		if bytesIndex(body, pdfSubtypeWidget) < 0 {
 			continue
 		}
-		if bytesIndex(body, needle) < 0 && bytesIndex(body, []byte(`/T`)) < 0 {
+		if bytesIndex(body, needle) < 0 && bytesIndex(body, pdfTokenT) < 0 {
 			continue
 		}
 		if bytesIndex(body, needle) >= 0 {
-			asRe := regexp.MustCompile(`/AS\s*(/(\w+)|\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
-			if m := asRe.FindSubmatch(body); m != nil {
+			if m := reASWidget.FindSubmatch(body); m != nil {
 				if len(m[2]) > 0 {
 					return string(m[2]), true
 				}
@@ -357,17 +504,13 @@ func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string
 					return decodeHexString(string(m[4])), true
 				}
 			}
-			apRe := regexp.MustCompile(`/AP\s*<<(.*?)>>`)
-			if am := apRe.FindSubmatch(body); am != nil {
-				nRe := regexp.MustCompile(`/N\s*<<(.*?)>>`)
-				if nm := nRe.FindSubmatch(am[1]); nm != nil {
-					keyRe := regexp.MustCompile(`/([A-Za-z0-9_+-]+)\s*(?:/|stream|<<|\()`)
-					if kr := keyRe.FindSubmatch(nm[1]); kr != nil {
+			if am := reAPDict.FindSubmatch(body); am != nil {
+				if nm := reNSubDict.FindSubmatch(am[1]); nm != nil {
+					if kr := reAPKey.FindSubmatch(nm[1]); kr != nil {
 						return string(kr[1]), true
 					}
 				}
-				nNameRe := regexp.MustCompile(`/N\s*/([A-Za-z0-9_+-]+)`)
-				if nn := nNameRe.FindSubmatch(am[1]); nn != nil {
+				if nn := reNName.FindSubmatch(am[1]); nn != nil {
 					return string(nn[1]), true
 				}
 			}
@@ -379,28 +522,25 @@ func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string
 
 // trailerHasEncrypt checks if trailer or any trailer 'Encrypt' appears
 func trailerHasEncrypt(data []byte) bool {
-	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
-	for _, m := range trRe.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], []byte(`/Encrypt`)) >= 0 {
+	for _, m := range reTrailer.FindAllSubmatch(data, -1) {
+		if bytesIndex(m[1], pdfEncrypt) >= 0 {
 			return true
 		}
 	}
 	// also check for /Encrypt elsewhere
-	return bytesIndex(data, []byte(`/Encrypt`)) >= 0
+	return bytesIndex(data, pdfEncrypt) >= 0
 }
 
 // parseXRefStreams looks for XRef stream objects and uses them to augment objMap
 func parseXRefStreams(data []byte, objMap map[string][]byte) {
 	// find objects with streams that contain /W and /Index
-	objStreamRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-	for _, m := range objStreamRe.FindAllSubmatch(data, -1) {
+	for _, m := range reObjStream.FindAllSubmatch(data, -1) {
 		body := m[3]
-		if bytesIndex(body, []byte(`/W[`)) < 0 || bytesIndex(body, []byte(`/Index`)) < 0 {
+		if bytesIndex(body, pdfWBracket) < 0 || bytesIndex(body, pdfIndex) < 0 {
 			continue
 		}
 		// extract stream
-		streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
-		sm := streamRe.FindSubmatch(body)
+		sm := reObjStreamAlt.FindSubmatch(body)
 		if sm == nil {
 			continue
 		}
@@ -438,8 +578,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				if off > 0 && off < len(data) {
 					// try to parse object at this offset
 					tail := data[off:]
-					reObj := regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-					if ro := reObj.FindSubmatch(tail); ro != nil {
+					if ro := reObjAtOffset.FindSubmatch(tail); ro != nil {
 						onum := string(ro[2])
 						ogen := string(ro[3])
 						key := onum + " " + ogen
@@ -452,7 +591,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				objstm := f2
 				index := f3
 				// look for objstm content we earlier extracted
-				key := fmt.Sprintf("%d 0", objstm)
+				key := objMapKey(objstm, 0)
 				if stm, ok := objMap[key]; ok {
 					// try to parse embedded objects from stm similarly to earlier logic
 					_ = index
@@ -478,24 +617,22 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 	}
 
 	// Build map of indirect objects
-	objRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-	objMatches := objRe.FindAllSubmatch(pdfBytes, -1)
+	objMatches := reObjStream.FindAllSubmatch(pdfBytes, -1)
 
 	if len(objMatches) == 0 {
 		// Fall back to naive scan
 		return detectFormFieldsNaive(pdfBytes)
 	}
 
-	objMap := make(map[string][]byte)
+	objMap := make(map[string][]byte, len(objMatches))
 	for _, m := range objMatches {
 		key := string(m[1]) + " " + string(m[2])
 		body := m[3]
 
 		// Handle ObjStm objects
-		if bytesIndex(body, []byte("/ObjStm")) >= 0 || bytesIndex(body, []byte("/Type/ObjStm")) >= 0 {
+		if bytesIndex(body, pdfObjStm) >= 0 || bytesIndex(body, pdfTypeObjStm) >= 0 {
 			// find stream
-			streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
-			if sm := streamRe.FindSubmatch(body); sm != nil {
+			if sm := reObjStreamAlt.FindSubmatch(body); sm != nil {
 				streamBytes := sm[1]
 				// try decompress
 				var dec []byte
@@ -506,11 +643,10 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 				}
 				if dec != nil {
 					// find First value in dict
-					firstRe := regexp.MustCompile(`/First\s+(\d+)`)
 					first := 0
-					if fm := firstRe.FindSubmatch(body); fm != nil {
-						if _, err := fmt.Sscanf(string(fm[1]), "%d", &first); err != nil {
-							first = 0
+					if fm := reFirst.FindSubmatch(body); fm != nil {
+						if n, err := strconv.Atoi(string(fm[1])); err == nil {
+							first = n
 						}
 					}
 					if first > 0 && first < len(dec) {
@@ -518,13 +654,12 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 						header := strings.TrimSpace(string(dec[:first]))
 						parts := strings.Fields(header)
 						// header should be pairs of (objnum offset)
-						pairs := [][]int{}
+						pairs := make([][2]int, 0, len(parts)/2)
 						for i := 0; i+1 < len(parts); i += 2 {
-							var objnum, off int
-							if _, err := fmt.Sscanf(parts[i], "%d", &objnum); err == nil {
-								if _, err2 := fmt.Sscanf(parts[i+1], "%d", &off); err2 == nil {
-									pairs = append(pairs, []int{objnum, off})
-								}
+							objnum, errNum := strconv.Atoi(parts[i])
+							off, errOff := strconv.Atoi(parts[i+1])
+							if errNum == nil && errOff == nil {
+								pairs = append(pairs, [2]int{objnum, off})
 							}
 						}
 						// objects content
@@ -543,8 +678,7 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 							}
 							objBytes := content[off:end]
 							// store under objnum 0 generation
-							objKey := fmt.Sprintf("%d 0", objnum)
-							objMap[objKey] = objBytes
+							objMap[objMapKey(objnum, 0)] = objBytes
 						}
 						// also store the ObjStm object itself
 						objMap[key] = body
@@ -563,22 +697,19 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 	parseXRefStreams(pdfBytes, objMap)
 
 	// Try structured approach first
-	structured := make(map[string]string)
+	structured := make(map[string]string, len(objMap))
 	if rootRef, ok := findRootRef(pdfBytes); ok {
 		if rootBody, ok2 := objMap[rootRef]; ok2 {
 			if acroRef, ok3 := getAcroFormRef(rootBody, pdfBytes); ok3 {
 				if afBody, ok4 := objMap[acroRef]; ok4 {
-					fieldsRe := regexp.MustCompile(`/Fields\s*\[(.*?)\]`)
-					if fm := fieldsRe.FindSubmatch(afBody); fm != nil {
+					if fm := reFieldsArray.FindSubmatch(afBody); fm != nil {
 						inner := fm[1]
-						refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-						for _, r := range refRe.FindAllSubmatch(inner, -1) {
+						for _, r := range reObjRef.FindAllSubmatch(inner, -1) {
 							fref := string(r[1]) + " " + string(r[2])
 							traverseField(fref, objMap, "", structured)
 						}
 					} else {
-						singleFields := regexp.MustCompile(`/Fields\s+(\d+)\s+(\d+)\s+R`)
-						if sm := singleFields.FindSubmatch(afBody); sm != nil {
+						if sm := reSingleFieldsRef.FindSubmatch(afBody); sm != nil {
 							fref := string(sm[1]) + " " + string(sm[2])
 							traverseField(fref, objMap, "", structured)
 						}
@@ -598,11 +729,10 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 
 // detectFormFieldsNaive performs simple field detection by scanning for /T tokens
 func detectFormFieldsNaive(pdfBytes []byte) (map[string]string, error) {
-	tRe := regexp.MustCompile(`/T\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
-	matches := tRe.FindAllSubmatchIndex(pdfBytes, -1)
+	matches := reTField.FindAllSubmatchIndex(pdfBytes, -1)
 
-	result := make(map[string]string)
-	seen := make(map[string]bool)
+	result := make(map[string]string, len(matches))
+	seen := make(map[string]bool, len(matches))
 
 	for _, mi := range matches {
 		var name string
@@ -637,12 +767,11 @@ func detectFormFieldsNaive(pdfBytes []byte) (map[string]string, error) {
 
 // decompressStreams decompresses any compressed streams in the object body
 func decompressStreams(body []byte) []byte {
-	streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
 	newBody := body
 
 	for {
 		found := false
-		for _, sm := range streamRe.FindAllSubmatchIndex(newBody, -1) {
+		for _, sm := range reObjStreamAlt.FindAllSubmatchIndex(newBody, -1) {
 			sStart := sm[2]
 			sEnd := sm[3]
 			if sStart < 0 || sEnd < 0 || sEnd <= sStart {
@@ -704,7 +833,7 @@ func FillPDFWithXFDFAdvanced(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	mergedFields := make(map[string]string)
+	mergedFields := make(map[string]string, len(detectedFields)+len(xfdfFields))
 	for name, value := range detectedFields {
 		mergedFields[name] = value
 	}
@@ -733,7 +862,10 @@ func buildXFDF(fields map[string]string) []byte {
 	for k, v := range fields {
 		root.Fields = append(root.Fields, xfdfField{Name: k, Value: v})
 	}
-	out, _ := xml.Marshal(root)
+	out, err := xml.Marshal(root)
+	if err != nil {
+		return []byte(fmt.Sprintf(`<?xml version="1.0"?><xfdf xmlns="http://ns.adobe.com/xfdf/"><error>%s</error></xfdf>`, err.Error()))
+	}
 	return out
 }
 
@@ -776,16 +908,14 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	var allJobs []job
 
 	// --- PASS 1: DISCOVERY (READ-ONLY) ---
-	widgetRe := regexp.MustCompile(`(?s)<<.*?/Subtype\s*/Widget.*?>>`)
-	nameRe := regexp.MustCompile(`/T\s*\((.*?)\)`)
-	widgetMatches := widgetRe.FindAllIndex(out, -1)
+	widgetMatches := reWidgetDict.FindAllIndex(out, -1)
 
-	discoveredWidgets := make(map[string][]job)
+	discoveredWidgets := make(map[string][]job, len(fields))
 
 	for _, match := range widgetMatches {
 		dictStart, dictEnd := match[0], match[1]
 		dictBytes := out[dictStart:dictEnd]
-		nameMatch := nameRe.FindSubmatch(dictBytes)
+		nameMatch := reWidgetName.FindSubmatch(dictBytes)
 		if nameMatch == nil {
 			continue
 		}
@@ -798,42 +928,51 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		currentVal := fields[fieldName]
 		newJob := job{field: fieldName, val: currentVal, dictStart: dictStart, dictEnd: dictEnd}
 
-		if bytes.Contains(dictBytes, []byte("/FT /Btn")) {
+		if bytes.Contains(dictBytes, pdfFTBtn) {
 			if bytes.Contains(dictBytes, []byte("/Parent")) {
 				newJob.fieldType = typeRadio
-				apDictRe := regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
-				if apMatch := apDictRe.FindSubmatch(dictBytes); apMatch != nil {
+				if apMatch := reAPNState.FindSubmatch(dictBytes); apMatch != nil {
 					newJob.radioExportValue = string(apMatch[1])
 				}
 			} else {
 				newJob.fieldType = typeButton
 			}
-		} else if bytes.Contains(dictBytes, []byte("/FT /Tx")) {
+		} else if bytes.Contains(dictBytes, pdfFTTx) {
 			newJob.fieldType = typeText
-			rectRe := regexp.MustCompile(`/Rect\s*\[\s*([^\]]+)\s*\]`)
-			rectMatch := rectRe.FindSubmatch(dictBytes)
+			rectMatch := reRect.FindSubmatch(dictBytes)
 			if rectMatch == nil {
 				continue
 			}
-			coords := strings.Fields(string(rectMatch[1]))
+			coords := splitFloatCoords(rectMatch[1])
 			if len(coords) < 4 {
 				continue
 			}
-			llx, _ := strconv.ParseFloat(coords[0], 64)
-			lly, _ := strconv.ParseFloat(coords[1], 64)
-			urx, _ := strconv.ParseFloat(coords[2], 64)
-			ury, _ := strconv.ParseFloat(coords[3], 64)
+			llx, err := strconv.ParseFloat(coords[0], 64)
+			if err != nil {
+				continue
+			}
+			lly, err := strconv.ParseFloat(coords[1], 64)
+			if err != nil {
+				continue
+			}
+			urx, err := strconv.ParseFloat(coords[2], 64)
+			if err != nil {
+				continue
+			}
+			ury, err := strconv.ParseFloat(coords[3], 64)
+			if err != nil {
+				continue
+			}
 			newJob.width, newJob.height = urx-llx, ury-lly
 
-			qRe := regexp.MustCompile(`/Q\s*(\d)`)
-			if qMatch := qRe.FindSubmatch(dictBytes); qMatch != nil {
-				newJob.q, _ = strconv.Atoi(string(qMatch[1]))
+			if qMatch := reQAlign.FindSubmatch(dictBytes); qMatch != nil {
+				if q, err := strconv.Atoi(string(qMatch[1])); err == nil {
+					newJob.q = q
+				}
 			}
 			newJob.fontSize, newJob.fontResourceName = 12.0, "Helv" // Default to Helv
-			daRe := regexp.MustCompile(`/DA\s*\((.*?)\)`)
-			if daMatch := daRe.FindSubmatch(dictBytes); daMatch != nil {
-				tfRe := regexp.MustCompile(`/([\w.-]+)\s+([\d.]+)\s+Tf`)
-				if tfMatch := tfRe.FindStringSubmatch(string(daMatch[1])); len(tfMatch) > 2 {
+			if daMatch := reDA.FindSubmatch(dictBytes); daMatch != nil {
+				if tfMatch := reTextFont.FindStringSubmatch(string(daMatch[1])); len(tfMatch) > 2 {
 					// NOTE: This logic assumes standard PDF fonts. If the original font was embedded,
 					// we are replacing it with a standard one (Helvetica). This is usually fine.
 					newJob.fontResourceName = "Helv" // Force Helvetica for consistency
@@ -850,7 +989,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	}
 
 	objStmChanged := false
-	if bytes.Contains(out, []byte("/ObjStm")) {
+	if bytes.Contains(out, pdfObjStm) {
 		if filled, changed, err := fillXFDFInObjectStreams(out, fields); err != nil {
 			return nil, err
 		} else if changed {
@@ -868,27 +1007,28 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		// --- PASS 2: MODIFICATION (WRITE-ONLY, IN REVERSE) ---
 		sort.Slice(allJobs, func(i, j int) bool { return allJobs[i].dictStart > allJobs[j].dictStart })
 
-		radioGroups := make(map[string]string)
+		radioGroups := make(map[string]string, len(allJobs))
 		for _, job := range allJobs {
 			if job.fieldType == typeRadio {
 				radioGroups[job.field] = job.val
 			}
 		}
 		for fieldName, value := range radioGroups {
-			re := regexp.MustCompile(fmt.Sprintf(`(?s)(<<.*?/T\s*\(\s*%s\s*\).*?/Kids.*?>>)`, regexp.QuoteMeta(fieldName)))
-			match := re.FindIndex(out)
-			if match == nil || bytes.Contains(out[match[0]:match[1]], []byte("/Subtype /Widget")) {
+			marker := []byte("/T (" + fieldName + ")")
+			dictStart, dictEnd, ok := findEnclosingDict(out, marker, []byte("/Kids"), pdfSubtypeWidgetSpace)
+			if !ok {
 				continue
 			}
-			dictStart, dictEnd := match[0], match[1]
 			dictBytes := out[dictStart:dictEnd]
-			newV := []byte("/V /" + value)
-			vRe := regexp.MustCompile(`/V\s*\(?.*?\)?`)
+			var newVBuf strings.Builder
+			newVBuf.WriteString("/V /")
+			newVBuf.WriteString(value)
+			newV := []byte(newVBuf.String())
 			var newDictBytes []byte
-			if vRe.Match(dictBytes) {
-				newDictBytes = vRe.ReplaceAll(dictBytes, newV)
+			if reVGeneric.Match(dictBytes) {
+				newDictBytes = reVGeneric.ReplaceAll(dictBytes, newV)
 			} else {
-				newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newV, []byte(">>")...)...), 1)
+				newDictBytes = bytes.Replace(dictBytes, pdfDictClose, append(append([]byte(" "), newV...), pdfDictClose...), 1)
 			}
 			out = append(out[:dictStart], append(newDictBytes, out[dictEnd:]...)...)
 		}
@@ -899,20 +1039,21 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			switch job.fieldType {
 			case typeText:
 				esc := escapePDFString(job.val)
-				newV := []byte(fmt.Sprintf("/V (%s)", esc))
-				vRe := regexp.MustCompile(`/V\s*\(.*?\)`)
-				if vRe.Match(dictBytes) {
-					newDictBytes = vRe.ReplaceAll(dictBytes, newV)
+				var newVBuf strings.Builder
+				newVBuf.WriteString("/V (")
+				newVBuf.WriteString(esc)
+				newVBuf.WriteByte(')')
+				newV := []byte(newVBuf.String())
+				if reVString.Match(dictBytes) {
+					newDictBytes = reVString.ReplaceAll(dictBytes, newV)
 				} else {
-					newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newV, []byte(">>")...)...), 1)
+					newDictBytes = bytes.Replace(dictBytes, pdfDictClose, append(append([]byte(" "), newV...), pdfDictClose...), 1)
 				}
-				apRe := regexp.MustCompile(`\s*/AP\s*<<.*?>>`)
-				newDictBytes = apRe.ReplaceAll(newDictBytes, []byte(" "))
+				newDictBytes = reAPStrip.ReplaceAll(newDictBytes, []byte(" "))
 			case typeButton, typeRadio:
 				newState := "/Off"
-				if job.fieldType == typeButton && (strings.ToLower(job.val) == "yes" || strings.ToLower(job.val) == "on") {
-					apDictRe := regexp.MustCompile(`/AP\s*<<.*?/N\s*<<\s*/\s*([A-Za-z0-9_]+)\s*`)
-					if apMatch := apDictRe.FindSubmatch(dictBytes); apMatch != nil {
+				if job.fieldType == typeButton && isTruthyButtonValue(job.val) {
+					if apMatch := reAPNState.FindSubmatch(dictBytes); apMatch != nil {
 						newState = "/" + string(apMatch[1])
 					} else {
 						newState = "/Yes"
@@ -921,11 +1062,10 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 					newState = "/" + job.radioExportValue
 				}
 				newAS := []byte("/AS " + newState)
-				asRe := regexp.MustCompile(`/AS\s*/\w+`)
-				if asRe.Match(dictBytes) {
-					newDictBytes = asRe.ReplaceAll(dictBytes, newAS)
+				if reASState.Match(dictBytes) {
+					newDictBytes = reASState.ReplaceAll(dictBytes, newAS)
 				} else {
-					newDictBytes = bytes.Replace(dictBytes, []byte(">>"), append([]byte(" "), append(newAS, []byte(">>")...)...), 1)
+					newDictBytes = bytes.Replace(dictBytes, pdfDictClose, append(append([]byte(" "), newAS...), pdfDictClose...), 1)
 				}
 			}
 			if newDictBytes != nil {
@@ -935,8 +1075,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	}
 
 	// --- PASS 3: NEW OBJECT GENERATION ---
-	objRe := regexp.MustCompile(`(\d+)\s+0\s+obj`)
-	allObjMatches := objRe.FindAllSubmatchIndex(out, -1)
+	allObjMatches := reObjNum.FindAllSubmatchIndex(out, -1)
 	highest := 0
 	for _, m := range allObjMatches {
 		if n, err := strconv.Atoi(string(out[m[2]:m[3]])); err == nil && n > highest {
@@ -944,7 +1083,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		}
 	}
 	nextObj := highest + 1
-	if sx := bytes.LastIndex(out, []byte("startxref")); sx >= 0 {
+	if sx := bytes.LastIndex(out, pdfStartxref); sx >= 0 {
 		out = out[:sx]
 	}
 	var textJobs []*job
@@ -962,29 +1101,26 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		nextObj++
 		job.apObjNum = nextObj
 		nextObj++
-		re := regexp.MustCompile(fmt.Sprintf(`(?s)(<<.*?/Subtype\s*/Widget.*?/T\s*\(\s*%s\s*\).*?>>)`, regexp.QuoteMeta(job.field)))
-		match := re.FindIndex(out)
-		if match == nil {
+		marker := []byte("/T (" + job.field + ")")
+		_, dictEnd, ok := findEnclosingDict(out, marker, pdfSubtypeWidget, nil)
+		if !ok {
 			continue
 		}
-		dictEnd := match[1]
-		apRef := []byte(fmt.Sprintf(" /AP<</N %d 0 R>>", job.apObjNum))
+		var apRefBuf strings.Builder
+		apRefBuf.WriteString(" /AP<</N ")
+		apRefBuf.WriteString(strconv.Itoa(job.apObjNum))
+		apRefBuf.WriteString(" 0 R>>")
+		apRef := []byte(apRefBuf.String())
 		out = append(out[:dictEnd-2], append(apRef, out[dictEnd-2:]...)...)
 	}
 
-	needAppRe := regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
-	if needAppRe.Match(out) {
-		out = needAppRe.ReplaceAll(out, []byte("/NeedAppearances false"))
+	if reNeedAppearances.Match(out) {
+		out = reNeedAppearances.ReplaceAll(out, []byte("/NeedAppearances false"))
 	} else {
-		acroFormRe := regexp.MustCompile(`(/AcroForm\s*<<)`)
-		if loc := acroFormRe.FindIndex(out); loc != nil {
+		if loc := reAcroFormInline.FindIndex(out); loc != nil {
 			insertPos := loc[1]
 			insertContent := []byte(" /NeedAppearances false ")
-			newOut := make([]byte, 0, len(out)+len(insertContent))
-			newOut = append(newOut, out[:insertPos]...)
-			newOut = append(newOut, insertContent...)
-			newOut = append(newOut, out[insertPos:]...)
-			out = newOut
+			out = append(append(append(out[:insertPos:insertPos], insertContent...), out[insertPos:]...))
 		}
 	}
 
@@ -1007,38 +1143,43 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		if y < 2 {
 			y = 2
 		}
-		streamBody := fmt.Sprintf("q\nBT\n/F1 %.2f Tf\n0 g\n%.2f %.2f Td\n(%s) Tj\nET\nQ",
-			job.fontSize, tx, y, streamText)
+		var streamBuf strings.Builder
+		streamBuf.WriteString("q\nBT\n/F1 ")
+		streamBuf.WriteString(strconv.FormatFloat(job.fontSize, 'f', 2, 64))
+		streamBuf.WriteString(" Tf\n0 g\n")
+		streamBuf.WriteString(strconv.FormatFloat(tx, 'f', 2, 64))
+		streamBuf.WriteByte(' ')
+		streamBuf.WriteString(strconv.FormatFloat(y, 'f', 2, 64))
+		streamBuf.WriteString(" Td\n(")
+		streamBuf.WriteString(streamText)
+		streamBuf.WriteString(") Tj\nET\nQ")
+		streamBody := streamBuf.String()
 
-		fontDescObj := fmt.Sprintf("\n%d 0 obj\n<</Type/FontDescriptor/FontName/%s/Flags 32/FontBBox[-558 -225 1000 931]/ItalicAngle 0/Ascent 905/Descent -212/CapHeight 905/StemV 88>>\nendobj\n",
-			job.fontDescObjNum, job.fontResourceName)
-		out = append(out, []byte(fontDescObj)...)
+		var fontDescBuf strings.Builder
+		fontDescBuf.WriteString("\n")
+		fontDescBuf.WriteString(strconv.Itoa(job.fontDescObjNum))
+		fontDescBuf.WriteString(" 0 obj\n<</Type/FontDescriptor/FontName/")
+		fontDescBuf.WriteString(job.fontResourceName)
+		fontDescBuf.WriteString("/Flags 32/FontBBox[-558 -225 1000 931]/ItalicAngle 0/Ascent 905/Descent -212/CapHeight 905/StemV 88>>\nendobj\n")
+		out = append(out, fontDescBuf.String()...)
 
-		// --- START OF CHANGES ---
-
-		// Build the widths array string from the constant.
-		var widthsBuf strings.Builder
-		widthsBuf.WriteString("[")
-		for i, w := range helveticaWidths {
-			widthsBuf.WriteString(strconv.Itoa(w))
-			if i < len(helveticaWidths)-1 {
-				widthsBuf.WriteString(" ")
-			}
-		}
-		widthsBuf.WriteString("]")
-		widthsStr := widthsBuf.String()
-
-		// Update the Font object to include FirstChar, LastChar, and the Widths array.
-		// Using full WinAnsiEncoding range (32-255) for PDF 2.0 compliance
-		fontObj := fmt.Sprintf("\n%d 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/%s/Encoding/WinAnsiEncoding/FirstChar 32/LastChar 255/Widths %s/FontDescriptor %d 0 R>>\nendobj\n",
-			job.fontObjNum, job.fontResourceName, widthsStr, job.fontDescObjNum)
-
-		// --- END OF CHANGES ---
-
-		out = append(out, []byte(fontObj)...)
+		var fontObjBuf strings.Builder
+		fontObjBuf.WriteString("\n")
+		fontObjBuf.WriteString(strconv.Itoa(job.fontObjNum))
+		fontObjBuf.WriteString(" 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/")
+		fontObjBuf.WriteString(job.fontResourceName)
+		fontObjBuf.WriteString("/Encoding/WinAnsiEncoding/FirstChar 32/LastChar 255/Widths ")
+		fontObjBuf.WriteString(helveticaWidthsStr)
+		fontObjBuf.WriteString("/FontDescriptor ")
+		fontObjBuf.WriteString(strconv.Itoa(job.fontDescObjNum))
+		fontObjBuf.WriteString(" 0 R>>\nendobj\n")
+		out = append(out, fontObjBuf.String()...)
 
 		var compBuf bytes.Buffer
-		zw, _ := zlib.NewWriterLevel(&compBuf, zlib.BestCompression)
+		zw, err := zlib.NewWriterLevel(&compBuf, zlib.BestCompression)
+		if err != nil {
+			zw = zlib.NewWriter(&compBuf)
+		}
 		if _, err := zw.Write([]byte(streamBody)); err != nil {
 			return nil, fmt.Errorf("compression write failed: %w", err)
 		}
@@ -1046,53 +1187,85 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			return nil, fmt.Errorf("compression close failed: %w", err)
 		}
 		comp := compBuf.Bytes()
-		apObj := fmt.Sprintf("\n%d 0 obj\n<</Type/XObject/Subtype/Form/FormType 1/BBox[0 0 %.2f %.2f]/Resources<</Font<</F1 %d 0 R>>/ProcSet[/PDF/Text]>>/Filter/FlateDecode/Length %d>>\nstream\n%s\nendstream\nendobj\n",
-			job.apObjNum, job.width, job.height, job.fontObjNum, len(comp), string(comp))
-		out = append(out, []byte(apObj)...)
+		var apObjBuf strings.Builder
+		apObjBuf.WriteString("\n")
+		apObjBuf.WriteString(strconv.Itoa(job.apObjNum))
+		apObjBuf.WriteString(" 0 obj\n<</Type/XObject/Subtype/Form/FormType 1/BBox[0 0 ")
+		apObjBuf.WriteString(strconv.FormatFloat(job.width, 'f', 2, 64))
+		apObjBuf.WriteByte(' ')
+		apObjBuf.WriteString(strconv.FormatFloat(job.height, 'f', 2, 64))
+		apObjBuf.WriteString("/Resources<</Font<</F1 ")
+		apObjBuf.WriteString(strconv.Itoa(job.fontObjNum))
+		apObjBuf.WriteString(" 0 R>>/ProcSet[/PDF/Text]>>/Filter/FlateDecode/Length ")
+		apObjBuf.WriteString(strconv.Itoa(len(comp)))
+		apObjBuf.WriteString(">>\nstream\n")
+		apObjBuf.Write(comp)
+		apObjBuf.WriteString("\nendstream\nendobj\n")
+		out = append(out, apObjBuf.String()...)
 	}
 
-	objMatches := objRe.FindAllSubmatchIndex(out, -1)
-	offsets := make(map[int]int)
+	objMatches := reObjNum.FindAllSubmatchIndex(out, -1)
+	offsets := make(map[int]int, len(objMatches))
 	maxObj := 0
 	for _, m := range objMatches {
-		num, _ := strconv.Atoi(string(out[m[2]:m[3]]))
+		num, err := strconv.Atoi(string(out[m[2]:m[3]]))
+		if err != nil {
+			continue
+		}
 		offsets[num] = m[0]
 		if num > maxObj {
 			maxObj = num
 		}
 	}
 	xrefStart := len(out)
-	var xrefBuf bytes.Buffer
-	fmt.Fprintf(&xrefBuf, "xref\n0 %d\n", maxObj+1)
-	xrefBuf.WriteString("0000000000 65535 f \r\n")
+	var xrefBuf strings.Builder
+	xrefBuf.WriteString("xref\n0 ")
+	xrefBuf.WriteString(strconv.Itoa(maxObj + 1))
+	xrefBuf.WriteString("\n0000000000 65535 f \r\n")
+	var xrefLine [32]byte
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			fmt.Fprintf(&xrefBuf, "%010d 00000 n \r\n", off)
+			line := strconv.AppendInt(xrefLine[:0], int64(off), 10)
+			padding := 10 - len(line)
+			if padding > 0 {
+				padded := make([]byte, 10)
+				copy(padded[padding:], line)
+				for j := 0; j < padding; j++ {
+					padded[j] = '0'
+				}
+				line = padded
+			}
+			xrefBuf.Write(line)
+			xrefBuf.WriteString(" 00000 n \r\n")
 		} else {
 			xrefBuf.WriteString("0000000000 65535 f \r\n")
 		}
 	}
 	root := 1
-	rootRe := regexp.MustCompile(`/Root\s+(\d+)\s+0\s+R`)
-	if rm := rootRe.FindSubmatch(pdfBytes); len(rm) > 1 {
+	if rm := reRootObj.FindSubmatch(pdfBytes); len(rm) > 1 {
 		if r, err := strconv.Atoi(string(rm[1])); err == nil {
 			root = r
 		}
 	}
-	trailer := fmt.Sprintf("trailer\n<</Size %d/Root %d 0 R>>\nstartxref\n%d\n%%%%EOF\n", maxObj+1, root, xrefStart)
-	out = append(out, xrefBuf.Bytes()...)
-	out = append(out, []byte(trailer)...)
+	var trailerBuf strings.Builder
+	trailerBuf.WriteString("trailer\n<</Size ")
+	trailerBuf.WriteString(strconv.Itoa(maxObj + 1))
+	trailerBuf.WriteString("/Root ")
+	trailerBuf.WriteString(strconv.Itoa(root))
+	trailerBuf.WriteString(" 0 R>>\nstartxref\n")
+	trailerBuf.WriteString(strconv.Itoa(xrefStart))
+	trailerBuf.WriteString("\n%%EOF\n")
+	out = append(out, xrefBuf.String()...)
+	out = append(out, trailerBuf.String()...)
 	// --- PASS 3: GLOBAL NEED APPEARANCES ---
 	// If fields were modified or APs stripped, force the PDF viewer to recreate appearances on open.
-	acroFormRe := regexp.MustCompile(`(?s)(/AcroForm\s*<<.*?)(>>)|(/AcroForm\s+\d+\s+\d+\s+R)`)
-	acroMatch := acroFormRe.FindSubmatch(out)
+	acroMatch := reAcroFormIndirect.FindSubmatch(out)
 	if acroMatch != nil {
 		if acroMatch[1] != nil {
 			// Inline dictionary case
 			dictPart := acroMatch[1]
-			needApRe := regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
-			if needApRe.Match(dictPart) {
-				newDict := needApRe.ReplaceAll(dictPart, []byte("/NeedAppearances true"))
+			if reNeedAppearances.Match(dictPart) {
+				newDict := reNeedAppearances.ReplaceAll(dictPart, []byte("/NeedAppearances true"))
 				out = bytes.Replace(out, dictPart, newDict, 1)
 			} else {
 				// Inject it
@@ -1104,18 +1277,16 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		} else if acroMatch[3] != nil {
 			// Indirect reference case
 			refFull := string(acroMatch[3])
-			refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-			if rm := refRe.FindStringSubmatch(refFull); rm != nil {
-				objRe := regexp.MustCompile(fmt.Sprintf(`(?s)\b%s\s+%s\s+obj(.*?)endobj`, rm[1], rm[2]))
-				if objM := objRe.FindSubmatch(out); objM != nil {
+			if rm := reObjRef.FindStringSubmatch(refFull); rm != nil {
+				objPattern := `(?s)\b` + rm[1] + `\s+` + rm[2] + `\s+obj(.*?)endobj`
+				if objM := regexp.MustCompile(objPattern).FindSubmatch(out); objM != nil {
 					objBody := objM[1]
-					needApRe := regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
-					if needApRe.Match(objBody) {
-						newBody := needApRe.ReplaceAll(objBody, []byte("/NeedAppearances true"))
+					if reNeedAppearances.Match(objBody) {
+						newBody := reNeedAppearances.ReplaceAll(objBody, []byte("/NeedAppearances true"))
 						out = bytes.Replace(out, objBody, newBody, 1)
 					} else {
 						// Inject before the ending >>
-						insertPos := bytes.LastIndex(objBody, []byte(">>"))
+						insertPos := bytes.LastIndex(objBody, pdfDictClose)
 						if insertPos >= 0 {
 							var newBody bytes.Buffer
 							newBody.Write(objBody[:insertPos])
@@ -1146,8 +1317,7 @@ func fillXFDFInObjectStreams(pdfBytes []byte, fields map[string]string) ([]byte,
 	out := make([]byte, len(pdfBytes))
 	copy(out, pdfBytes)
 
-	objRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-	matches := objRe.FindAllSubmatchIndex(out, -1)
+	matches := reObjStream.FindAllSubmatchIndex(out, -1)
 	if len(matches) == 0 {
 		return out, false, nil
 	}
@@ -1157,7 +1327,7 @@ func fillXFDFInObjectStreams(pdfBytes []byte, fields map[string]string) ([]byte,
 		m := matches[i]
 		bodyStart, bodyEnd := m[6], m[7]
 		body := out[bodyStart:bodyEnd]
-		if !bytes.Contains(body, []byte("/ObjStm")) {
+		if !bytes.Contains(body, pdfObjStm) {
 			continue
 		}
 
@@ -1178,8 +1348,7 @@ func fillXFDFInObjectStreams(pdfBytes []byte, fields map[string]string) ([]byte,
 
 //nolint:gocyclo
 func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, error) {
-	streamRe := regexp.MustCompile(`(?s)stream[\r\n]+(.*?)(?:[\r\n]+endstream|endstream)`)
-	sm := streamRe.FindSubmatchIndex(body)
+	sm := reObjStreamAlt.FindSubmatchIndex(body)
 	if sm == nil {
 		return body, false, nil
 	}
@@ -1194,8 +1363,7 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 		return body, false, nil
 	}
 
-	firstRe := regexp.MustCompile(`/First\s+(\d+)`)
-	fm := firstRe.FindSubmatch(body)
+	fm := reFirst.FindSubmatch(body)
 	if fm == nil {
 		return body, false, nil
 	}
@@ -1227,7 +1395,7 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 		members = append(members, objMember{objNum: num, offset: off})
 	}
 
-	kidsToRemoveAP := make(map[int]bool)
+	kidsToRemoveAP := make(map[int]bool, len(members))
 	for i := range members {
 		start := members[i].offset
 		end := len(content)
@@ -1236,8 +1404,7 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 		}
 		objContent := bytes.TrimSpace(content[start:end])
 
-		nameRe := regexp.MustCompile(`/T\s*(?:\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
-		if nameMatch := nameRe.FindSubmatch(objContent); nameMatch != nil {
+		if nameMatch := reObjStmName.FindSubmatch(objContent); nameMatch != nil {
 			var fieldName string
 			if len(nameMatch[1]) > 0 {
 				fieldName = string(nameMatch[1])
@@ -1247,20 +1414,19 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 			fieldName = strings.TrimSpace(fieldName)
 
 			if _, ok := fields[fieldName]; ok {
-				if bytes.Contains(objContent, []byte("/FT /Tx")) || bytes.Contains(objContent, []byte("/FT/Tx")) {
+				if bytes.Contains(objContent, pdfFTTx) || bytes.Contains(objContent, pdfFTTxAlt) {
 					kidsToRemoveAP[members[i].objNum] = true
-					kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
-					if m := kidsRe.FindSubmatch(objContent); m != nil {
-						refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-						for _, r := range refRe.FindAllSubmatch(m[1], -1) {
-							kidNum, _ := strconv.Atoi(string(r[1]))
-							kidsToRemoveAP[kidNum] = true
+					if m := reKidsArray.FindSubmatch(objContent); m != nil {
+						for _, r := range reObjRef.FindAllSubmatch(m[1], -1) {
+							if kidNum, err := strconv.Atoi(string(r[1])); err == nil {
+								kidsToRemoveAP[kidNum] = true
+							}
 						}
 					}
-					singleKidsRe := regexp.MustCompile(`/Kids\s+(\d+)\s+(\d+)\s+R`)
-					if m := singleKidsRe.FindSubmatch(objContent); m != nil {
-						kidNum, _ := strconv.Atoi(string(m[1]))
-						kidsToRemoveAP[kidNum] = true
+					if m := reSingleKidsRef.FindSubmatch(objContent); m != nil {
+						if kidNum, err := strconv.Atoi(string(m[1])); err == nil {
+							kidsToRemoveAP[kidNum] = true
+						}
 					}
 				}
 			}
@@ -1283,13 +1449,12 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 
 		if kidsToRemoveAP[members[i].objNum] {
 			// Clean any standalone indirect APs
-			apReRef := regexp.MustCompile(`/AP\s+\d+\s+\d+\s+R`)
-			if apReRef.Match(updated) {
-				updated = apReRef.ReplaceAll(updated, []byte(" "))
+			if reAPIndirectRef.Match(updated) {
+				updated = reAPIndirectRef.ReplaceAll(updated, []byte(" "))
 				changed = true
 			}
 			// Manual removal of /AP dictionary to handle nested <<>>
-			apIdx := bytes.Index(updated, []byte("/AP"))
+			apIdx := bytes.Index(updated, pdfAP)
 			if apIdx >= 0 {
 				afterAP := updated[apIdx+3:]
 				trimmedAfter := bytes.TrimSpace(afterAP)
@@ -1328,10 +1493,10 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 
 		// Pass 3: If this object is AcroForm globally inject NeedAppearances.
 		// Usually identified by /Fields or /DA or /SigFlags coupled with being a catalog reference...
-		if bytes.Contains(updated, []byte("/Fields[")) || bytes.Contains(updated, []byte("/Fields [")) {
+		if bytes.Contains(updated, pdfFieldsBracket) || bytes.Contains(updated, pdfFieldsSpace) {
 			// Basic AcroForm object identification
-			if !bytes.Contains(updated, []byte("/NeedAppearances")) {
-				insertPos := bytes.LastIndex(updated, []byte(">>"))
+			if !bytes.Contains(updated, pdfNeedAppearances) {
+				insertPos := bytes.LastIndex(updated, pdfDictClose)
 				if insertPos >= 0 {
 					var newBody bytes.Buffer
 					newBody.Write(updated[:insertPos])
@@ -1392,10 +1557,15 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 
 	dictPart := body[:sm[0]]
 	suffix := body[sm[1]:]
-	newDict := firstRe.ReplaceAll(dictPart, []byte(fmt.Sprintf("/First %d", newFirst)))
-	lengthRe := regexp.MustCompile(`/Length\s+\d+`)
-	if lengthRe.Match(newDict) {
-		newDict = lengthRe.ReplaceAll(newDict, []byte(fmt.Sprintf("/Length %d", len(compressed))))
+	var firstBuf strings.Builder
+	firstBuf.WriteString("/First ")
+	firstBuf.WriteString(strconv.Itoa(newFirst))
+	newDict := reFirst.ReplaceAll(dictPart, []byte(firstBuf.String()))
+	var lengthBuf strings.Builder
+	lengthBuf.WriteString("/Length ")
+	lengthBuf.WriteString(strconv.Itoa(len(compressed)))
+	if reLength.Match(newDict) {
+		newDict = reLength.ReplaceAll(newDict, []byte(lengthBuf.String()))
 	}
 
 	var rebuilt bytes.Buffer
@@ -1409,8 +1579,7 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 }
 
 func updateObjStmFieldValue(objContent []byte, fields map[string]string) ([]byte, bool) {
-	nameRe := regexp.MustCompile(`/T\s*(?:\(([^)]*)\)|<([0-9A-Fa-f\s]+)>)`)
-	nameMatch := nameRe.FindSubmatch(objContent)
+	nameMatch := reObjStmName.FindSubmatch(objContent)
 	if nameMatch == nil {
 		return objContent, false
 	}
@@ -1431,13 +1600,13 @@ func updateObjStmFieldValue(objContent []byte, fields map[string]string) ([]byte
 	updated := make([]byte, len(objContent))
 	copy(updated, objContent)
 
-	if bytes.Contains(updated, []byte("/FT /Tx")) || bytes.Contains(updated, []byte("/FT/Tx")) {
+	if bytes.Contains(updated, pdfFTTx) || bytes.Contains(updated, pdfFTTxAlt) {
 		replacement := []byte("/V (" + escapePDFString(value) + ")")
 		newUpdated, changed := replaceOrInsertPDFEntry(updated, `/V\s*\((?:\\.|[^\\)])*\)|/V\s*/[^\s/>]+|/V\s*<[0-9A-Fa-f\s]+>`, replacement)
 		return newUpdated, changed
 	}
 
-	if bytes.Contains(updated, []byte("/FT /Btn")) || bytes.Contains(updated, []byte("/FT/Btn")) {
+	if bytes.Contains(updated, pdfFTBtn) || bytes.Contains(updated, []byte("/FT/Btn")) {
 		state := xfdfValueToPDFName(value)
 		newUpdated, changedV := replaceOrInsertPDFEntry(updated, `/V\s*/[^\s/>]+|/V\s*\((?:\\.|[^\\)])*\)|/V\s*<[0-9A-Fa-f\s]+>`, []byte("/V /"+state))
 		newUpdated, changedAS := replaceOrInsertPDFEntry(newUpdated, `/AS\s*/[^\s/>]+|/AS\s*\((?:\\.|[^\\)])*\)|/AS\s*<[0-9A-Fa-f\s]+>`, []byte("/AS /"+state))
@@ -1451,10 +1620,10 @@ func replaceOrInsertPDFEntry(dict []byte, pattern string, replacement []byte) ([
 	re := regexp.MustCompile(pattern)
 	if re.Match(dict) {
 		newDict := re.ReplaceAll(dict, replacement)
-		return newDict, !bytes.Equal(newDict, dict)
+		return newDict, len(newDict) != len(dict) || !bytes.Equal(newDict, dict)
 	}
 
-	insertPos := bytes.LastIndex(dict, []byte(">>"))
+	insertPos := bytes.LastIndex(dict, pdfDictClose)
 	if insertPos < 0 {
 		// If '>>' is not found, append to the end.
 		// Ensure the original 'dict' is not used after 'append' if it reallocates.

@@ -2,11 +2,13 @@ package pdf
 
 import (
 	"encoding/hex"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
+
+const outlineHexDigits = "0123456789ABCDEF"
 
 // OutlineBuilder builds the PDF outline (bookmarks) tree structure
 type OutlineBuilder struct {
@@ -167,7 +169,8 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 
 		// PDF/UA-2: Generate unique destination key and register named destination
 		// This allows using /Dest (name) instead of /A << /S /GoTo ... >>
-		destKey := fmt.Sprintf("_bm_%d", len(ob.outlineItems))
+		var destKeyBuf [16]byte
+		destKey := "_bm_" + string(strconv.AppendInt(destKeyBuf[:0], int64(len(ob.outlineItems)), 10))
 		item.DestKey = destKey
 
 		// Register the named destination with structure element for PDF/UA-2
@@ -316,10 +319,13 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 	var rootDict strings.Builder
 	rootDict.WriteString("<< /Type /Outlines")
 	if firstTopLevel > 0 {
-		rootDict.WriteString(fmt.Sprintf(" /First %d 0 R", firstTopLevel))
-		rootDict.WriteString(fmt.Sprintf(" /Last %d 0 R", lastTopLevel))
+		rootDict.WriteString(" /First")
+		appendPDFIndirectRef(&rootDict, firstTopLevel)
+		rootDict.WriteString(" /Last")
+		appendPDFIndirectRef(&rootDict, lastTopLevel)
 	}
-	rootDict.WriteString(fmt.Sprintf(" /Count %d", totalCount))
+	rootDict.WriteString(" /Count ")
+	rootDict.WriteString(strconv.Itoa(totalCount))
 	rootDict.WriteString(" >>")
 	ob.pageManager.ExtraObjects[ob.outlineObjID] = rootDict.String()
 
@@ -359,38 +365,70 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 			}
 
 			encrypted := ob.encryptor.EncryptString(titleBytes, item.ObjectID, 0)
-			itemDict.WriteString(fmt.Sprintf(" /Title <%s>", hex.EncodeToString(encrypted)))
+			itemDict.WriteString(" /Title <")
+			itemDict.WriteString(hex.EncodeToString(encrypted))
+			itemDict.WriteByte('>')
 		} else {
-			itemDict.WriteString(fmt.Sprintf(" /Title (%s)", escapeTextUnicode(item.Title)))
+			itemDict.WriteString(" /Title (")
+			itemDict.WriteString(escapeTextUnicode(item.Title))
+			itemDict.WriteByte(')')
 		}
 
-		itemDict.WriteString(fmt.Sprintf(" /Parent %d 0 R", item.ParentID))
+		itemDict.WriteString(" /Parent")
+		appendPDFIndirectRef(&itemDict, item.ParentID)
 
-		// PDF/UA-2 Compliance: Use /Dest (name) instead of /A << /S /GoTo ... >>
-		// The named destination contains both /D and /SD entries
 		if item.DestKey != "" {
-			itemDict.WriteString(fmt.Sprintf(" /Dest (%s)", escapeText(item.DestKey)))
+			itemDict.WriteString(" /Dest (")
+			itemDict.WriteString(escapeText(item.DestKey))
+			itemDict.WriteByte(')')
 		} else if item.DestPageID > 0 {
-			// Fallback for items without a destination key (shouldn't happen normally)
-			itemDict.WriteString(fmt.Sprintf(" /Dest [%d 0 R /XYZ null %s null]",
-				item.DestPageID, fmtNum(item.DestY)))
+			itemDict.WriteString(" /Dest [")
+			itemDict.WriteString(strconv.Itoa(item.DestPageID))
+			itemDict.WriteString(" 0 R /XYZ null ")
+			itemDict.WriteString(fmtNum(item.DestY))
+			itemDict.WriteString(" null]")
 		}
 
 		if item.PrevID > 0 {
-			itemDict.WriteString(fmt.Sprintf(" /Prev %d 0 R", item.PrevID))
+			itemDict.WriteString(" /Prev")
+			appendPDFIndirectRef(&itemDict, item.PrevID)
 		}
 		if item.NextID > 0 {
-			itemDict.WriteString(fmt.Sprintf(" /Next %d 0 R", item.NextID))
+			itemDict.WriteString(" /Next")
+			appendPDFIndirectRef(&itemDict, item.NextID)
 		}
 		if item.FirstID > 0 {
-			itemDict.WriteString(fmt.Sprintf(" /First %d 0 R", item.FirstID))
-			itemDict.WriteString(fmt.Sprintf(" /Last %d 0 R", item.LastID))
-			itemDict.WriteString(fmt.Sprintf(" /Count %d", item.Count))
+			itemDict.WriteString(" /First")
+			appendPDFIndirectRef(&itemDict, item.FirstID)
+			itemDict.WriteString(" /Last")
+			appendPDFIndirectRef(&itemDict, item.LastID)
+			itemDict.WriteString(" /Count ")
+			itemDict.WriteString(strconv.Itoa(item.Count))
 		}
 
 		itemDict.WriteString(" >>")
 		ob.pageManager.ExtraObjects[item.ObjectID] = itemDict.String()
 	}
+}
+
+func writeUTF16BEHexEscape(sb *strings.Builder, r rune) {
+	writeByte := func(b byte) {
+		sb.WriteString(`\x`)
+		sb.WriteByte(outlineHexDigits[b>>4])
+		sb.WriteByte(outlineHexDigits[b&0x0F])
+	}
+	if r <= 0xFFFF {
+		writeByte(byte((r >> 8) & 0xFF))
+		writeByte(byte(r & 0xFF))
+		return
+	}
+	r -= 0x10000
+	high := 0xD800 + ((r >> 10) & 0x3FF)
+	low := 0xDC00 + (r & 0x3FF)
+	writeByte(byte((high >> 8) & 0xFF))
+	writeByte(byte(high & 0xFF))
+	writeByte(byte((low >> 8) & 0xFF))
+	writeByte(byte(low & 0xFF))
 }
 
 // escapeTextUnicode escapes text for PDF string, handling Unicode
@@ -409,17 +447,7 @@ func escapeTextUnicode(s string) string {
 		var result strings.Builder
 		result.WriteString("\\xFE\\xFF") // UTF-16BE BOM
 		for _, r := range s {
-			// Convert to UTF-16BE
-			if r <= 0xFFFF {
-				result.WriteString(fmt.Sprintf("\\x%02X\\x%02X", (r>>8)&0xFF, r&0xFF))
-			} else {
-				// Surrogate pair for characters > 0xFFFF
-				r -= 0x10000
-				high := 0xD800 + ((r >> 10) & 0x3FF)
-				low := 0xDC00 + (r & 0x3FF)
-				result.WriteString(fmt.Sprintf("\\x%02X\\x%02X\\x%02X\\x%02X",
-					(high>>8)&0xFF, high&0xFF, (low>>8)&0xFF, low&0xFF))
-			}
+			writeUTF16BEHexEscape(&result, r)
 		}
 		return result.String()
 	}
@@ -473,35 +501,50 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		nameStr := ""
 		if ob.encryptor != nil {
 			// Names in name tree are strings and must be encrypted
-			// Usually names are ASCII, but handle them as bytes
-			encrypted := ob.encryptor.EncryptString([]byte(name), destsTreeID, 0)
-			nameStr = fmt.Sprintf("<%s>", hex.EncodeToString(encrypted))
+			nameBuf := make([]byte, len(name))
+			copy(nameBuf, name)
+			encrypted := ob.encryptor.EncryptString(nameBuf, destsTreeID, 0)
+			var encHex strings.Builder
+			encHex.Grow(len(encrypted) * 2 + 2)
+			encHex.WriteByte('<')
+			encHex.WriteString(hex.EncodeToString(encrypted))
+			encHex.WriteByte('>')
+			nameStr = encHex.String()
 		} else {
-			nameStr = fmt.Sprintf("(%s)", escapeText(name))
+			nameStr = "(" + escapeText(name) + ")"
 		}
 
 		// PDF/UA-2: Output as dictionary with both /D and /SD keys
-		// /D is the page-based destination (for compatibility)
-		// /SD is the structure destination (required for PDF/UA-2)
+		yPos := fmtNum(dest.Y)
+		namesArray.WriteString(nameStr)
 		if dest.StructElemID > 0 {
-			namesArray.WriteString(fmt.Sprintf("%s << /D [%d 0 R /XYZ null %s null] /SD [%d 0 R /XYZ null %s null] >>",
-				nameStr, pageObjID, fmtNum(dest.Y), dest.StructElemID, fmtNum(dest.Y)))
+			namesArray.WriteString(" << /D [")
+			namesArray.WriteString(strconv.Itoa(pageObjID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(yPos)
+			namesArray.WriteString(" null] /SD [")
+			namesArray.WriteString(strconv.Itoa(dest.StructElemID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(yPos)
+			namesArray.WriteString(" null] >>")
 		} else {
-			// Fallback for destinations without structure element (not fully PDF/UA-2 compliant)
-			namesArray.WriteString(fmt.Sprintf("%s [%d 0 R /XYZ null %s null]",
-				nameStr, pageObjID, fmtNum(dest.Y)))
+			namesArray.WriteString(" [")
+			namesArray.WriteString(strconv.Itoa(pageObjID))
+			namesArray.WriteString(" 0 R /XYZ null ")
+			namesArray.WriteString(yPos)
+			namesArray.WriteString(" null]")
 		}
 	}
 	namesArray.WriteString("]")
 
-	destsTreeContent := fmt.Sprintf("<< /Names %s >>", namesArray.String())
+	destsTreeContent := "<< /Names " + namesArray.String() + " >>"
 	ob.pageManager.ExtraObjects[destsTreeID] = destsTreeContent
 
 	// Create Names dictionary object
 	namesID := ob.pageManager.NextObjectID
 	ob.pageManager.NextObjectID++
 
-	namesContent := fmt.Sprintf("<< /Dests %d 0 R >>", destsTreeID)
+	namesContent := "<< /Dests " + strconv.Itoa(destsTreeID) + " 0 R >>"
 	ob.pageManager.ExtraObjects[namesID] = namesContent
 
 	return namesID, true

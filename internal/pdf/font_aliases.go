@@ -64,6 +64,7 @@ var (
 var (
 	getCompressBuffer   = font.GetCompressBuffer
 	getZlibWriter       = font.GetZlibWriter
+	closeZlibWriter     = font.CloseZlibWriter
 	putZlibWriter       = font.PutZlibWriter // Note: remote code uses getZlibWriter/putZlibWriter names
 	compressBufPool     = &font.CompressBufPool
 	generateCIDToGIDMap = font.GenerateCIDToGIDMap

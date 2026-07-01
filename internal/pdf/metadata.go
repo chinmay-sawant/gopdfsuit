@@ -117,7 +117,9 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	// PDF/A and PDF/UA identification
 	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/">`)
 	xmp.WriteString("\n")
-	xmp.WriteString(fmt.Sprintf(`      <pdfaid:part>%d</pdfaid:part>`, part))
+	xmp.WriteString(`      <pdfaid:part>`)
+	xmp.WriteString(strconv.Itoa(part))
+	xmp.WriteString(`</pdfaid:part>`)
 	xmp.WriteString("\n")
 	if part == 4 {
 		xmp.WriteString(`      <pdfaid:rev>2020</pdfaid:rev>`)
@@ -201,9 +203,16 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 		xmp.WriteString("\n")
 		keywords := strings.Split(h.config.Keywords, ",")
 		for _, kw := range keywords {
-			kw = strings.TrimSpace(kw)
+			if kw == "" {
+				continue
+			}
+			if kw[0] == ' ' || kw[len(kw)-1] == ' ' {
+				kw = strings.TrimSpace(kw)
+			}
 			if kw != "" {
-				xmp.WriteString(fmt.Sprintf(`          <rdf:li>%s</rdf:li>`, escapeXML(kw)))
+				xmp.WriteString(`          <rdf:li>`)
+				xmp.WriteString(escapeXML(kw))
+				xmp.WriteString(`</rdf:li>`)
 				xmp.WriteString("\n")
 			}
 		}
@@ -284,10 +293,14 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	var compressedBuf bytes.Buffer
 	zlibWriter := zlib.NewWriter(&compressedBuf)
 	if _, err := zlibWriter.Write(iccData); err != nil {
-		_ = zlibWriter.Close()
+		if closeErr := zlibWriter.Close(); closeErr != nil {
+			return 0, nil, nil
+		}
 		return 0, nil, nil
 	}
-	_ = zlibWriter.Close()
+	if err := zlibWriter.Close(); err != nil {
+		return 0, nil, nil
+	}
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt compressed ICC profile stream if needed

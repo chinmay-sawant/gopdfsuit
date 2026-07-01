@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,17 +15,15 @@ import (
 
 // buildObjectMap parses the PDF into a map of "num gen" -> body
 func buildObjectMap(pdfBytes []byte) (map[string][]byte, error) {
-	objMap := make(map[string][]byte)
-	objRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-	matches := objRe.FindAllSubmatch(pdfBytes, -1)
+	matches := rePDFObj.FindAllSubmatch(pdfBytes, -1)
+	objMap := make(map[string][]byte, len(matches))
 	for _, m := range matches {
 		key := string(m[1]) + " " + string(m[2])
 		body := m[3]
 
 		// Expand object streams so downstream page/content lookups work on modern PDFs.
-		if bytesIndex(body, []byte("/ObjStm")) >= 0 || bytesIndex(body, []byte("/Type/ObjStm")) >= 0 {
-			streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-			if sm := streamRe.FindSubmatch(body); sm != nil {
+		if bytesIndex(body, objStmBytes) >= 0 || bytesIndex(body, objStmTypeBytes) >= 0 {
+			if sm := reStreamSegment.FindSubmatch(body); sm != nil {
 				streamBytes := sm[1]
 				var dec []byte
 				if d, err := tryZlibDecompress(streamBytes); err == nil {
@@ -35,29 +32,28 @@ func buildObjectMap(pdfBytes []byte) (map[string][]byte, error) {
 					dec = d
 				}
 				if dec != nil {
-					firstRe := regexp.MustCompile(`/First\s+(\d+)`)
 					first := 0
-					if fm := firstRe.FindSubmatch(body); fm != nil {
-						if _, err := fmt.Sscanf(string(fm[1]), "%d", &first); err != nil {
-							first = 0
+					if fm := reFirstField.FindSubmatch(body); fm != nil {
+						if n, err := strconv.Atoi(string(fm[1])); err == nil {
+							first = n
 						}
 					}
 					if first > 0 && first < len(dec) {
-						header := strings.TrimSpace(string(dec[:first]))
-						parts := strings.Fields(header)
+						header := trimSpaceASCII(string(dec[:first]))
+						parts := splitFields(header)
 						content := dec[first:]
 						for i := 0; i+1 < len(parts); i += 2 {
-							var objNum, off int
-							if _, err := fmt.Sscanf(parts[i], "%d", &objNum); err != nil {
+							objNum, err := strconv.Atoi(parts[i])
+							if err != nil {
 								continue
 							}
-							if _, err := fmt.Sscanf(parts[i+1], "%d", &off); err != nil {
+							off, err := strconv.Atoi(parts[i+1])
+							if err != nil {
 								continue
 							}
 							end := len(content)
 							for j := i + 2; j+1 < len(parts); j += 2 {
-								var nextOff int
-								if _, err := fmt.Sscanf(parts[j+1], "%d", &nextOff); err == nil {
+								if nextOff, err := strconv.Atoi(parts[j+1]); err == nil {
 									end = nextOff
 									break
 								}
@@ -65,7 +61,9 @@ func buildObjectMap(pdfBytes []byte) (map[string][]byte, error) {
 							if off < 0 || off >= len(content) || end <= off || end > len(content) {
 								continue
 							}
-							objMap[fmt.Sprintf("%d 0", objNum)] = content[off:end]
+							var keyBuf []byte
+							keyBuf = appendObjMapKey(keyBuf[:0], objNum)
+							objMap[string(keyBuf)] = content[off:end]
 						}
 						objMap[key] = body
 						continue
@@ -91,7 +89,7 @@ func traversePages(key string, objMap map[string][]byte, dims *[]models.PageDeta
 	if isPDFTypePages(body) {
 		for _, kidKey := range extractKidsRefs(body) {
 			if err := traversePages(kidKey, objMap, dims); err != nil {
-				return err
+				return fmt.Errorf("traverse pages %s: %w", kidKey, err)
 			}
 		}
 		return nil
@@ -114,27 +112,26 @@ func traversePages(key string, objMap map[string][]byte, dims *[]models.PageDeta
 
 func extractMediaBox(body []byte, objMap map[string][]byte) [4]float64 {
 	defaultBox := [4]float64{0, 0, 595.28, 841.89}
-	rectRe := regexp.MustCompile(`/MediaBox\s*\[\s*([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s*\]`)
-	match := rectRe.FindSubmatch(body)
+	match := reMediaBox.FindSubmatch(body)
 
 	if match == nil {
-		refRe := regexp.MustCompile(`/MediaBox\s+(\d+)\s+(\d+)\s+R`)
-		refMatch := refRe.FindSubmatch(body)
+		refMatch := reMediaBoxRef.FindSubmatch(body)
 		if refMatch != nil {
 			refKey := string(refMatch[1]) + " " + string(refMatch[2])
 			if refBody, ok := objMap[refKey]; ok {
-				arrayRe := regexp.MustCompile(`\[\s*([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s*\]`)
-				match = arrayRe.FindSubmatch(refBody)
+				match = reFloatArray.FindSubmatch(refBody)
 			}
 		}
 	}
 
 	if match != nil {
-		x1, _ := strconv.ParseFloat(string(match[1]), 64)
-		y1, _ := strconv.ParseFloat(string(match[2]), 64)
-		x2, _ := strconv.ParseFloat(string(match[3]), 64)
-		y2, _ := strconv.ParseFloat(string(match[4]), 64)
-		return [4]float64{x1, y1, x2, y2}
+		x1, err1 := strconv.ParseFloat(string(match[1]), 64)
+		y1, err2 := strconv.ParseFloat(string(match[2]), 64)
+		x2, err3 := strconv.ParseFloat(string(match[3]), 64)
+		y2, err4 := strconv.ParseFloat(string(match[4]), 64)
+		if err1 == nil && err2 == nil && err3 == nil && err4 == nil {
+			return [4]float64{x1, y1, x2, y2}
+		}
 	}
 	return defaultBox
 }
@@ -146,8 +143,7 @@ func findPageObject(objMap map[string][]byte, pdfBytes []byte, targetPage int) (
 	}
 
 	rootBody := objMap[rootRef]
-	pagesRefRe := regexp.MustCompile(`/Pages\s+(\d+)\s+(\d+)\s+R`)
-	pm := pagesRefRe.FindSubmatch(rootBody)
+	pm := rePagesRef.FindSubmatch(rootBody)
 	if pm == nil {
 		return "", errors.New("missing /Pages in Root")
 	}
@@ -190,14 +186,13 @@ func findPageObject(objMap map[string][]byte, pdfBytes []byte, targetPage int) (
 	}
 
 	if foundKey == "" {
-		return "", fmt.Errorf("page %d not found", targetPage)
+		return "", fmt.Errorf("find page object: page %d not found", targetPage)
 	}
 	return foundKey, nil
 }
 
 func extractPageContent(pageBody []byte, objMap map[string][]byte) ([]byte, error) {
-	contentsRe := regexp.MustCompile(`/Contents\s+(?:(\d+)\s+(\d+)\s+R|\[(.*?)\])`)
-	match := contentsRe.FindSubmatch(pageBody)
+	match := reContents.FindSubmatch(pageBody)
 	if match == nil {
 		return nil, nil // Empty content
 	}
@@ -209,8 +204,7 @@ func extractPageContent(pageBody []byte, objMap map[string][]byte) ([]byte, erro
 		contentKeys = append(contentKeys, string(match[1])+" "+string(match[2]))
 	} else if len(match[3]) > 0 {
 		// Array of references
-		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-		refs := refRe.FindAllSubmatch(match[3], -1)
+		refs := reObjRef.FindAllSubmatch(match[3], -1)
 		for _, r := range refs {
 			contentKeys = append(contentKeys, string(r[1])+" "+string(r[2]))
 		}
@@ -290,11 +284,11 @@ func locateStreamSegment(obj []byte) (int, int, bool) {
 }
 
 func parseInlineLength(obj []byte) int {
-	if regexp.MustCompile(`/Length\s+\d+\s+\d+\s+R`).Find(obj) != nil {
+	if reLengthIndirect.Find(obj) != nil {
 		return 0
 	}
 
-	re := regexp.MustCompile(`/Length\s+(\d+)`)
+	re := reLengthInline
 	m := re.FindSubmatch(obj)
 	if m == nil {
 		return 0
@@ -310,7 +304,7 @@ func findPageResources(pageBody []byte, objMap map[string][]byte) []byte {
 	if res := extractResourcesBody(pageBody, objMap); len(res) > 0 {
 		return res
 	}
-	parentRe := regexp.MustCompile(`/Parent\s+(\d+)\s+(\d+)\s+R`)
+	parentRe := reParentRef
 	cur := pageBody
 	for depth := 0; depth < 16; depth++ {
 		m := parentRe.FindSubmatch(cur)
@@ -331,15 +325,15 @@ func findPageResources(pageBody []byte, objMap map[string][]byte) []byte {
 }
 
 func extractResourcesBody(body []byte, objMap map[string][]byte) []byte {
-	inlineRe := regexp.MustCompile(`(?s)/Resources\s*<<(.*?)>>`)
+	inlineRe := reInlineResources
 	if m := inlineRe.FindSubmatch(body); m != nil {
 		return m[1]
 	}
-	refRe := regexp.MustCompile(`/Resources\s+(\d+)\s+(\d+)\s+R`)
+	refRe := reResourcesRef
 	if m := refRe.FindSubmatch(body); m != nil {
 		key := string(m[1]) + " " + string(m[2])
 		if rb, ok := objMap[key]; ok {
-			dictRe := regexp.MustCompile(`(?s)<<(.*?)>>`)
+			dictRe := reResourceDict
 			if dm := dictRe.FindSubmatch(rb); dm != nil {
 				return dm[1]
 			}
@@ -350,15 +344,15 @@ func extractResourcesBody(body []byte, objMap map[string][]byte) []byte {
 }
 
 func resolveUsedXObjectRefs(content []byte, resources []byte) []string {
-	doRe := regexp.MustCompile(`/([A-Za-z0-9_.+-]+)\s+Do`)
-	xobjDictRe := regexp.MustCompile(`(?s)/XObject\s*<<(.*?)>>`)
+	doRe := reDoOperator
+	xobjDictRe := reXObjectDict
 	m := xobjDictRe.FindSubmatch(resources)
 	if m == nil {
 		return nil
 	}
 	xobjDict := m[1]
 	nameToRef := map[string]string{}
-	refRe := regexp.MustCompile(`/([A-Za-z0-9_.+-]+)\s+(\d+)\s+(\d+)\s+R`)
+	refRe := reXObjectRef
 	for _, r := range refRe.FindAllSubmatch(xobjDict, -1) {
 		nameToRef[string(r[1])] = string(r[2]) + " " + string(r[3])
 	}
@@ -386,7 +380,7 @@ func appendXObjectContentRecursive(out *bytes.Buffer, key string, objMap map[str
 	if !ok {
 		return
 	}
-	if !regexp.MustCompile(`/Subtype\s*/Form(\b|\s|/)`).Match(body) {
+	if !reFormSubtype.Match(body) {
 		return
 	}
 	raw, dec, ok := inspectStream(body)
@@ -409,24 +403,22 @@ func appendXObjectContentRecursive(out *bytes.Buffer, key string, objMap map[str
 }
 
 func isPDFTypePage(body []byte) bool {
-	return regexp.MustCompile(`/Type\s*/Page(\b|\s|/)`).FindIndex(body) != nil && !isPDFTypePages(body)
+	return reTypePage.FindIndex(body) != nil && !isPDFTypePages(body)
 }
 
 func isPDFTypePages(body []byte) bool {
-	return regexp.MustCompile(`/Type\s*/Pages(\b|\s|/)`).FindIndex(body) != nil
+	return reTypePages.FindIndex(body) != nil
 }
 
 func extractKidsRefs(body []byte) []string {
 	refs := make([]string, 0, 4)
-	kidsArrRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
-	if m := kidsArrRe.FindSubmatch(body); m != nil {
-		refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
-		for _, r := range refRe.FindAllSubmatch(m[1], -1) {
+	if m := reKidsArray.FindSubmatch(body); m != nil {
+		for _, r := range reObjRef.FindAllSubmatch(m[1], -1) {
 			refs = append(refs, string(r[1])+" "+string(r[2]))
 		}
 		return refs
 	}
-	singleKidRe := regexp.MustCompile(`/Kids\s+(\d+)\s+(\d+)\s+R`)
+	singleKidRe := reKidsSingle
 	if m := singleKidRe.FindSubmatch(body); m != nil {
 		refs = append(refs, string(m[1])+" "+string(m[2]))
 	}
@@ -464,13 +456,12 @@ func parseTextOperators(content []byte) []models.TextPosition {
 	var positions []models.TextPosition
 
 	strContent := string(content)
-	btEtRe := regexp.MustCompile(`(?s)BT(.*?)ET`)
-	blocks := btEtRe.FindAllStringSubmatch(strContent, -1)
-	tmRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+Tm`)
-	tdRe := regexp.MustCompile(`([\d.-]+)\s+([\d.-]+)\s+T[dD]`)
-	tfRe := regexp.MustCompile(`/[A-Za-z0-9_.+-]+\s+([\d.-]+)\s+Tf`)
-	textOpRe := regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
-	tokenRe := regexp.MustCompile(`(?s)[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+Tm|[\d.-]+\s+[\d.-]+\s+T[dD]|/[A-Za-z0-9_.+-]+\s+[\d.-]+\s+Tf|\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
+	blocks := reBTET.FindAllStringSubmatch(strContent, -1)
+	tmRe := reTm
+	tdRe := reTd
+	tfRe := reTf
+	textOpRe := reTextOp
+	tokenRe := reToken
 
 	for _, block := range blocks {
 		inner := block[1]
@@ -484,16 +475,22 @@ func parseTextOperators(content []byte) []models.TextPosition {
 			}
 
 			if m := tmRe.FindStringSubmatch(token); m != nil {
-				currentX, _ = strconv.ParseFloat(m[5], 64)
-				currentY, _ = strconv.ParseFloat(m[6], 64)
+				currentX, errX := strconv.ParseFloat(m[5], 64)
+				currentY, errY := strconv.ParseFloat(m[6], 64)
+				if errX != nil || errY != nil {
+					continue
+				}
 				// Tm resets both the current text matrix AND the line matrix.
 				lineStartX = currentX
 				lineStartY = currentY
 				continue
 			}
 			if m := tdRe.FindStringSubmatch(token); m != nil {
-				dx, _ := strconv.ParseFloat(m[1], 64)
-				dy, _ := strconv.ParseFloat(m[2], 64)
+				dx, errDX := strconv.ParseFloat(m[1], 64)
+				dy, errDY := strconv.ParseFloat(m[2], 64)
+				if errDX != nil || errDY != nil {
+					continue
+				}
 				// Td/TD moves relative to the line-start matrix (Tlm), not the
 				// current text position (which may have advanced after text rendering).
 				lineStartX += dx
@@ -729,7 +726,7 @@ func decodePDFHexLiteral(hexText string) string {
 
 func appendStreamToPage(pageBody []byte, streamKey string) []byte {
 	// Find /Contents
-	contentsRe := regexp.MustCompile(`/Contents\s+(?:(\d+\s+\d+\s+R)|\[(.*?)\])`)
+	contentsRe := reContentsAlt
 	match := contentsRe.FindSubmatchIndex(pageBody)
 
 	refStr := fmt.Sprintf("%s R", streamKey)
@@ -789,8 +786,8 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 	maxID := 0
 
 	for key, body := range objMap {
-		var id, gen int
-		if _, scanErr := fmt.Sscanf(key, "%d %d", &id, &gen); scanErr != nil {
+		id, gen, ok := parseObjectKey(key)
+		if !ok {
 			continue
 		}
 		if id > maxID {
@@ -798,7 +795,7 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		}
 
 		origBody, ok := originalMap[key]
-		if !ok || !bytes.Equal(origBody, body) {
+		if !ok || len(origBody) != len(body) || !bytes.Equal(origBody, body) {
 			changed = append(changed, objMeta{id: id, gen: gen, key: key})
 		}
 	}
@@ -842,7 +839,10 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		}{offset: out.Len(), gen: obj.gen}
 
 		body := objMap[obj.key]
-		fmt.Fprintf(&out, "%d %d obj\n", obj.id, obj.gen)
+		out.WriteString(strconv.Itoa(obj.id))
+		out.WriteString(" ")
+		out.WriteString(strconv.Itoa(obj.gen))
+		out.WriteString(" obj\n")
 		out.Write(body)
 		if !bytes.HasSuffix(body, []byte("\n")) {
 			out.WriteByte('\n')
@@ -869,10 +869,13 @@ func rebuildPDF(objMap map[string][]byte, originalBytes []byte) ([]byte, error) 
 		if len(block) == 0 {
 			return
 		}
-		out.WriteString(fmt.Sprintf("%d %d\n", start, len(block)))
+		out.WriteString(strconv.Itoa(start))
+		out.WriteByte(' ')
+		out.WriteString(strconv.Itoa(len(block)))
+		out.WriteByte('\n')
 		for _, id := range block {
 			entry := offsetByObject[id]
-			out.WriteString(fmt.Sprintf("%010d %05d n \n", entry.offset, entry.gen))
+			out.WriteString(appendXrefEntry(entry.offset, entry.gen))
 		}
 	}
 
@@ -901,8 +904,8 @@ func extractPrimaryTrailerID(pdfBytes []byte) string {
 	if len(pdfBytes) == 0 {
 		return ""
 	}
-	trailerRe := regexp.MustCompile(`(?s)trailer\s*<<(.*?)>>`)
-	idRe := regexp.MustCompile(`(?s)/ID\s*(\[(?:.|\n|\r)*?\])`)
+	trailerRe := reTrailerRebuild
+	idRe := reTrailerID
 
 	if tm := trailerRe.FindSubmatch(pdfBytes); tm != nil {
 		if idm := idRe.FindSubmatch(tm[1]); idm != nil {
@@ -922,13 +925,13 @@ func extractLastStartXRef(pdfBytes []byte) int {
 	if len(pdfBytes) == 0 {
 		return 0
 	}
-	re := regexp.MustCompile(`(?s)startxref\s*(\d+)\s*%%EOF\s*$`)
+	re := reStartXRefEOF
 	if m := re.FindSubmatch(pdfBytes); m != nil {
 		if n, err := strconv.Atoi(string(m[1])); err == nil {
 			return n
 		}
 	}
-	reAny := regexp.MustCompile(`startxref\s*(\d+)`)
+	reAny := reStartXRefAny
 	all := reAny.FindAllSubmatch(pdfBytes, -1)
 	if len(all) == 0 {
 		return 0

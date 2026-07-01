@@ -31,9 +31,10 @@ func appendFmtNum(dst []byte, f float64) []byte {
 	fracPart := scaled % 100
 	dst = strconv.AppendInt(dst, intPart, 10)
 	if fracPart > 0 {
-		dst = append(dst, '.')
 		if fracPart < 10 {
-			dst = append(dst, '0')
+			dst = append(dst, '.', '0')
+		} else {
+			dst = append(dst, '.')
 		}
 		// Trim trailing zero (e.g. 0.50 -> 0.5)
 		if fracPart%10 == 0 {
@@ -350,6 +351,8 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 	// PDF/UA: Start Table Structure Element (Logical grouping)
 	pageManager.Structure.BeginStructureElement(StructTable)
 
+	scratchBuf := make([]byte, 0, 32)
+
 	for rowIdx, row := range table.Rows {
 		// Determine this row's height
 		rowHeight := baseRowHeight
@@ -551,7 +554,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				contentStream.WriteString("BT\n")
 				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 				contentStream.WriteString(" ")
-				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+				contentStream.Write(strconv.AppendInt(scratchBuf[:0], int64(cellProps.FontSize), 10))
 				contentStream.WriteString(" Tf\n")
 
 				// Set text color - always explicitly set to avoid state leakage, default to black
@@ -619,7 +622,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString("BT\n")
 					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 					contentStream.WriteString(" ")
-					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+					contentStream.Write(strconv.AppendInt(scratchBuf[:0], int64(cellProps.FontSize), 10))
 					contentStream.WriteString(" Tf\n")
 					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
 					textPosBuf = textPosBuf[:0]
@@ -1125,7 +1128,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				contentStream.WriteString("BT\n")
 				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 				contentStream.WriteString(" ")
-				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+				contentStream.Write(strconv.AppendInt(scratchBuf[:0], int64(cellProps.FontSize), 10))
 				contentStream.WriteString(" Tf\n")
 
 				// Set text color (cell-level takes precedence over table-level, default to black)
@@ -1247,7 +1250,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.WriteString("BT\n")
 						contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 						contentStream.WriteString(" ")
-						contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+						contentStream.Write(strconv.AppendInt(scratchBuf[:0], int64(cellProps.FontSize), 10))
 						contentStream.WriteString(" Tf\n")
 						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
 						textPosBuf = textPosBuf[:0]
@@ -1415,7 +1418,12 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 
 // drawPageNumber renders page number in bottom right corner
 func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions, pageManager *PageManager) {
-	pageText := fmt.Sprintf("Page %d of %d", currentPage, totalPages)
+	var pageTextBuf []byte
+	pageTextBuf = append(pageTextBuf, "Page "...)
+	pageTextBuf = strconv.AppendInt(pageTextBuf, int64(currentPage), 10)
+	pageTextBuf = append(pageTextBuf, " of "...)
+	pageTextBuf = strconv.AppendInt(pageTextBuf, int64(totalPages), 10)
+	pageText := string(pageTextBuf)
 
 	// Track characters for font subsetting
 	registry := pageManager.FontRegistry

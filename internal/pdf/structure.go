@@ -93,9 +93,9 @@ func NewStructureManager() *StructureManager {
 		Root:          root,
 		CurrentParent: root,
 		Elements:      []*StructElem{root},
-		NextMCID:      make(map[int]int),
-		ParentTree:    make(map[int][]*StructElem),
-		StructParents: make(map[int]int),
+		NextMCID:      make(map[int]int, 4),
+		ParentTree:    make(map[int][]*StructElem, 4),
+		StructParents: make(map[int]int, 4),
 	}
 
 	// PDF/UA: The valid top-level element must be 'Document' (or Part, Art, etc.)
@@ -142,7 +142,7 @@ func (sm *StructureManager) BeginMarkedContent(streamBuilder *strings.Builder, p
 	// Track in ParentTree for PDF/UA logic
 	// The element we just created is the parent of this marked content
 	if sm.ParentTree[pageIndex] == nil {
-		sm.ParentTree[pageIndex] = make([]*StructElem, 0)
+		sm.ParentTree[pageIndex] = make([]*StructElem, 0, 4)
 	}
 	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
 
@@ -205,7 +205,7 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 
 	// Track in ParentTree
 	if sm.ParentTree[pageIndex] == nil {
-		sm.ParentTree[pageIndex] = make([]*StructElem, 0)
+		sm.ParentTree[pageIndex] = make([]*StructElem, 0, 4)
 	}
 	sm.ParentTree[pageIndex] = append(sm.ParentTree[pageIndex], elem)
 
@@ -326,7 +326,7 @@ func (sm *StructureManager) AddLinkElement(annotObjID int, _ int) {
 	// Store the annotation reference - this will be resolved during generation
 	// The OBJR (object reference) to the annotation will be added as a kid
 	if sm.LinkElements == nil {
-		sm.LinkElements = make(map[int]*StructElem)
+		sm.LinkElements = make(map[int]*StructElem, 4)
 	}
 	sm.LinkElements[annotObjID] = linkElem
 }

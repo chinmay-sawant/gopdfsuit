@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type Record struct {
@@ -19,10 +20,11 @@ func main() {
 	var data []Record
 
 	for i := 1; i <= count; i++ {
+		idStr := strconv.Itoa(i)
 		data = append(data, Record{
 			ID:    i,
-			Name:  fmt.Sprintf("User %d", i),
-			Email: fmt.Sprintf("user%d@example.com", i),
+			Name:  "User " + idStr,
+			Email: "user" + idStr + "@example.com",
 			Role:  "Administrator",
 			Desc:  "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
 		})

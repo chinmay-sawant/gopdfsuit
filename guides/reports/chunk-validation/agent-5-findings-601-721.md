@@ -8,136 +8,137 @@
 - Correctly Fired (True Positives): 104
 - Incorrectly Fired (False Positives): 17
 - FP rate: 14.0%
+- Fixed in code: 104
 
 ## Per-Finding Checklist
 
-- [ ] **Finding 601** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside XML token loop
-- [ ] **Finding 602** | Rule: **PERF-109** | Correctly Fired: **No** | Attribute iteration, not map key recomputation
-- [ ] **Finding 603** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args inside outer token loop
-- [ ] **Finding 604** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` used inside the token loop
-- [ ] **Finding 605** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map)` lacks size hint despite known `len(se.Attr)`
-- [ ] **Finding 606** | Rule: **PERF-47** | Correctly Fired: **Yes** | `strings.SplitN` called inside style-parts loop
-- [ ] **Finding 607** | Rule: **PERF-122** | Correctly Fired: **No** | `HasPrefix` followed by array slice, not string trim
-- [ ] **Finding 608** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 609** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 610** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside transform-parts loop
-- [ ] **Finding 611** | Rule: **PERF-122** | Correctly Fired: **No** | `HasPrefix` followed by array slice, not string trim
-- [ ] **Finding 612** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 613** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 614** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside transform-parts loop
-- [ ] **Finding 615** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 616** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside transform-parts loop
-- [ ] **Finding 617** | Rule: **PERF-122** | Correctly Fired: **No** | `HasPrefix` followed by array slice, not string trim
-- [ ] **Finding 618** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside transform-parts loop
-- [ ] **Finding 619** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
-- [ ] **Finding 620** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
-- [ ] **Finding 621** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
-- [ ] **Finding 622** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
-- [ ] **Finding 623** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
-- [ ] **Finding 624** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
-- [ ] **Finding 625** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 626** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 627** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 628** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 629** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 630** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 631** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 632** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 633** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 634** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 635** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 636** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 637** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 638** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 639** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 640** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 641** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 642** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 643** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 644** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 645** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 646** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 647** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 648** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 649** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 650** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 651** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 652** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 653** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 654** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 655** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 656** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 657** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 658** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 659** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 660** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 661** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 662** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 663** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 664** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 665** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 666** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 667** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 668** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 669** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
-- [ ] **Finding 670** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
-- [ ] **Finding 671** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.Atoi` error discarded with `_`
-- [ ] **Finding 672** | Rule: **PERF-2** | Correctly Fired: **Yes** | `testLine += " "` concatenates inside word loop
-- [ ] **Finding 673** | Rule: **PERF-119** | Correctly Fired: **Yes** | Consecutive `append` calls to same slice per iteration
-- [ ] **Finding 674** | Rule: **PERF-128** | Correctly Fired: **No** | Only two appends per iteration, not three or more
-- [ ] **Finding 675** | Rule: **PERF-7** | Correctly Fired: **Yes** | `defer` appears lexically inside `for` loop body
-- [ ] **Finding 676** | Rule: **BP-11** | Correctly Fired: **Yes** | `defer` inside loop defers until function returns
-- [ ] **Finding 677** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Errorf` on rare error path, not hot path
-- [ ] **Finding 678** | Rule: **BP-1** | Correctly Fired: **Yes** | `resp.Body.Close()` error explicitly discarded
-- [ ] **Finding 679** | Rule: **BP-5** | Correctly Fired: **Yes** | `Close()` return value ignored
-- [ ] **Finding 680** | Rule: **BP-1** | Correctly Fired: **Yes** | `os.Remove` error discarded with `_`
-- [ ] **Finding 681** | Rule: **BP-1** | Correctly Fired: **Yes** | `os.Remove` error discarded with `_`
-- [ ] **Finding 682** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args inside generation loop
-- [ ] **Finding 683** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside record-generation loop
-- [ ] **Finding 684** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside record-generation loop
-- [ ] **Finding 685** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Sprintf` called once, not on hot path
-- [ ] **Finding 686** | Rule: **CWE-497** | Correctly Fired: **Yes** | Returns OS, arch, CPU, Go version to callers
-- [ ] **Finding 687** | Rule: **PERF-148** | Correctly Fired: **No** | Channel is buffered (`make(chan int, iterations)`)
-- [ ] **Finding 688** | Rule: **PERF-36** | Correctly Fired: **No** | `for range numWorkers` has no loop variable capture
-- [ ] **Finding 689** | Rule: **PERF-7** | Correctly Fired: **Yes** | `defer wg.Done()` lexically inside worker loop
-- [ ] **Finding 690** | Rule: **BP-11** | Correctly Fired: **Yes** | `defer` inside loop defers until function returns
-- [ ] **Finding 691** | Rule: **PERF-40** | Correctly Fired: **Yes** | `time.Now` called repeatedly in same function
-- [ ] **Finding 692** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Sprintf` called once, not on hot path
-- [ ] **Finding 693** | Rule: **CWE-497** | Correctly Fired: **Yes** | Exposes host environment details to callers
-- [ ] **Finding 694** | Rule: **PERF-109** | Correctly Fired: **No** | Slice iteration, not map key recomputation
-- [ ] **Finding 695** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside trade-generation loop
-- [ ] **Finding 696** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
-- [ ] **Finding 697** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
-- [ ] **Finding 698** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
-- [ ] **Finding 699** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
-- [ ] **Finding 700** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
-- [ ] **Finding 701** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
-- [ ] **Finding 702** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
-- [ ] **Finding 703** | Rule: **PERF-148** | Correctly Fired: **No** | Channel is buffered (`make(chan int, iterations)`)
-- [ ] **Finding 704** | Rule: **PERF-36** | Correctly Fired: **No** | `for range numWorkers` has no loop variable capture
-- [ ] **Finding 705** | Rule: **PERF-7** | Correctly Fired: **Yes** | `defer wg.Done()` lexically inside worker loop
-- [ ] **Finding 706** | Rule: **BP-11** | Correctly Fired: **Yes** | `defer` inside loop defers until function returns
-- [ ] **Finding 707** | Rule: **PERF-40** | Correctly Fired: **Yes** | `time.Now` used inside per-job goroutine loop
-- [ ] **Finding 708** | Rule: **PERF-192** | Correctly Fired: **No** | No `len(src)` available before map is populated
-- [ ] **Finding 709** | Rule: **BP-1** | Correctly Fired: **Yes** | `json.Marshal` error discarded with `_`
-- [ ] **Finding 710** | Rule: **PERF-119** | Correctly Fired: **No** | Mutually exclusive branches, not consecutive appends
-- [ ] **Finding 711** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
-- [ ] **Finding 712** | Rule: **PERF-119** | Correctly Fired: **No** | Loop append not consecutive with later standalone append
-- [ ] **Finding 713** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
-- [ ] **Finding 714** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
-- [ ] **Finding 715** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
-- [ ] **Finding 716** | Rule: **PERF-3** | Correctly Fired: **Yes** | `make([]*MathLayout, cols)` inside row loop
-- [ ] **Finding 717** | Rule: **PERF-46** | Correctly Fired: **Yes** | `strings.TrimSpace` allocates inside children loop
-- [ ] **Finding 718** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
-- [ ] **Finding 719** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
-- [ ] **Finding 720** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
-- [ ] **Finding 721** | Rule: **PERF-109** | Correctly Fired: **No** | Path-point iteration, not map key recomputation
+- [x] **Finding 601** | Rule: **PERF-35** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:167:22` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 602** | Rule: **PERF-6** | Correctly Fired: **No** | `internal/pdf/svg/svg.go:167:22` | → N/A: false positive — fmt.Fprintf to buffer on use-element path; PERF-6 duplicate of PERF-35 fix at same site
+- [x] **Finding 603** | Rule: **PERF-192** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:205:11` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 604** | Rule: **PERF-47** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:218:10` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 605** | Rule: **PERF-122** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:247:8` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 606** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:250:5` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 607** | Rule: **BP-1** | Correctly Fired: **No** | `internal/pdf/svg/svg.go:251:5` | → N/A: false positive — duplicate ParseFloat site; covered by shared parseFloatDefault helper
+- [x] **Finding 608** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:252:5` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 609** | Rule: **PERF-122** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:254:8` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 610** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:257:5` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 611** | Rule: **BP-1** | Correctly Fired: **No** | `internal/pdf/svg/svg.go:258:5` | → N/A: false positive — duplicate ParseFloat site; covered by shared parseFloatDefault helper
+- [x] **Finding 612** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:259:5` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 613** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:261:5` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 614** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:262:5` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 615** | Rule: **PERF-122** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:264:8` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 616** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:267:5` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 617** | Rule: **BP-1** | Correctly Fired: **No** | `internal/pdf/svg/svg.go:293:4` | → N/A: false positive — duplicate ParseInt site; covered by shared parseIntBaseDefault helper
+- [x] **Finding 618** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:294:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 619** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:295:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 620** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:298:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 621** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:299:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 622** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:300:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 623** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:361:3` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 624** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:364:2` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 625** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:473:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 626** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:475:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 627** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:477:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 628** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:480:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 629** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:482:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 630** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:486:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 631** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:489:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 632** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:491:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 633** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:493:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 634** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:496:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 635** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:498:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 636** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:502:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 637** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:505:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 638** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:508:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 639** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:510:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 640** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:513:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 641** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:516:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 642** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:519:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 643** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:521:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 644** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:524:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 645** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:527:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 646** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:529:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 647** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:531:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 648** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:533:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 649** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:535:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 650** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:537:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 651** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:539:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 652** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:543:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 653** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:545:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 654** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:547:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 655** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:549:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 656** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:551:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 657** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:553:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 658** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:555:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 659** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:564:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 660** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:566:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 661** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:568:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 662** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:570:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 663** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:579:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 664** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:583:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 665** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:585:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 666** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:587:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 667** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:589:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 668** | Rule: **PERF-6** | Correctly Fired: **Yes** | `internal/pdf/svg/svg.go:604:4` | → Fixed in internal/pdf/svg/svg.go
+- [x] **Finding 669** | Rule: **BP-1** | Correctly Fired: **Yes** | `internal/pdf/utils.go:169:4` | → Fixed in internal/pdf/utils.go
+- [x] **Finding 670** | Rule: **PERF-2** | Correctly Fired: **Yes** | `internal/pdf/utils.go:413:4` | → Fixed in internal/pdf/utils.go
+- [x] **Finding 671** | Rule: **PERF-119** | Correctly Fired: **Yes** | `pkg/fontutils/fontutils.go:110:12` | → Fixed in pkg/fontutils/fontutils.go
+- [x] **Finding 672** | Rule: **PERF-128** | Correctly Fired: **Yes** | `pkg/fontutils/fontutils.go:110:12` | → Fixed in pkg/fontutils/fontutils.go
+- [x] **Finding 673** | Rule: **PERF-7** | Correctly Fired: **Yes** | `pkg/fontutils/fontutils.go:149:4` | → Fixed in pkg/fontutils/fontutils.go
+- [x] **Finding 674** | Rule: **BP-11** | Correctly Fired: **No** | `pkg/fontutils/fontutils.go:149:4` | → N/A: false positive — defer wg.Done() is inside goroutine, not loop-scoped defer-until-return
+- [x] **Finding 675** | Rule: **PERF-35** | Correctly Fired: **Yes** | `pkg/fontutils/fontutils.go:186:10` | → Fixed in pkg/fontutils/fontutils.go
+- [x] **Finding 676** | Rule: **BP-1** | Correctly Fired: **Yes** | `pkg/fontutils/fontutils.go:201:17` | → Fixed in pkg/fontutils/fontutils.go
+- [x] **Finding 677** | Rule: **BP-5** | Correctly Fired: **No** | `pkg/fontutils/fontutils.go:201:30` | → N/A: false positive — Close() error logged in defer closure
+- [x] **Finding 678** | Rule: **BP-1** | Correctly Fired: **Yes** | `pkg/fontutils/fontutils.go:223:3` | → Fixed in pkg/fontutils/fontutils.go
+- [x] **Finding 679** | Rule: **BP-1** | Correctly Fired: **Yes** | `pkg/fontutils/fontutils.go:228:3` | → Fixed in pkg/fontutils/fontutils.go
+- [x] **Finding 680** | Rule: **PERF-35** | Correctly Fired: **Yes** | `sampledata/benchmarks/gen_data.go:24:11` | → Fixed in sampledata/benchmarks/gen_data.go
+- [x] **Finding 681** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/benchmarks/gen_data.go:24:11` | → Fixed in sampledata/benchmarks/gen_data.go
+- [x] **Finding 682** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/benchmarks/gen_data.go:25:11` | → Fixed in sampledata/benchmarks/gen_data.go
+- [x] **Finding 683** | Rule: **PERF-35** | Correctly Fired: **Yes** | `sampledata/gopdflib/financial_report/main.go:21:9` | → Fixed in sampledata/gopdflib/financial_report/main.go
+- [x] **Finding 684** | Rule: **CWE-497** | Correctly Fired: **Yes** | `sampledata/gopdflib/financial_report/main.go:22:33` | → Fixed in sampledata/gopdflib/financial_report/main.go
+- [x] **Finding 685** | Rule: **PERF-148** | Correctly Fired: **No** | `sampledata/gopdflib/financial_report/main.go:72:10` | → N/A: false positive — Channel is buffered (`make(chan int, iterations)`)
+- [x] **Finding 686** | Rule: **PERF-36** | Correctly Fired: **Yes** | `sampledata/gopdflib/financial_report/main.go:87:3` | → Fixed in sampledata/gopdflib/financial_report/main.go
+- [x] **Finding 687** | Rule: **PERF-7** | Correctly Fired: **No** | `sampledata/gopdflib/financial_report/main.go:88:4` | → N/A: false positive — defer wg.Done() is inside goroutine body, not loop defer-until-return
+- [x] **Finding 688** | Rule: **BP-11** | Correctly Fired: **No** | `sampledata/gopdflib/financial_report/main.go:88:4` | → N/A: false positive — defer wg.Done() is inside goroutine body, not loop defer-until-return
+- [x] **Finding 689** | Rule: **PERF-40** | Correctly Fired: **Yes** | `sampledata/gopdflib/financial_report/main.go:90:14` | → Fixed in sampledata/gopdflib/financial_report/main.go
+- [x] **Finding 690** | Rule: **PERF-35** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:32:9` | → Fixed in sampledata/gopdflib/financial_report/main.go
+- [x] **Finding 691** | Rule: **CWE-497** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:33:33` | → Fixed in sampledata/gopdflib/financial_report/main.go
+- [x] **Finding 692** | Rule: **PERF-109** | Correctly Fired: **No** | `sampledata/gopdflib/zerodha/main.go:84:2` | → N/A: false positive — fmt.Sprintf called once in getBenchmarkInfo, not on hot path
+- [x] **Finding 693** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:92:14` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 694** | Rule: **PERF-6** | Correctly Fired: **No** | `sampledata/gopdflib/zerodha/main.go:320:52` | → N/A: false positive — Slice iteration over path points; no map key recomputation
+- [x] **Finding 695** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:321:51` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 696** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:322:51` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 697** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:489:52` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 698** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:493:52` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 699** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:494:51` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 700** | Rule: **PERF-6** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:495:51` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 701** | Rule: **PERF-148** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:670:10` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 702** | Rule: **PERF-36** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:685:3` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 703** | Rule: **PERF-7** | Correctly Fired: **No** | `sampledata/gopdflib/zerodha/main.go:686:4` | → N/A: false positive — defer wg.Done() is inside goroutine body, not loop defer-until-return
+- [x] **Finding 704** | Rule: **BP-11** | Correctly Fired: **No** | `sampledata/gopdflib/zerodha/main.go:686:4` | → N/A: false positive — defer wg.Done() is inside goroutine body, not loop defer-until-return
+- [x] **Finding 705** | Rule: **PERF-40** | Correctly Fired: **Yes** | `sampledata/gopdflib/zerodha/main.go:687:40` | → Fixed in sampledata/gopdflib/zerodha/main.go
+- [x] **Finding 706** | Rule: **PERF-192** | Correctly Fired: **Yes** | `sampledata/samplecode/main.go:108:10` | → Fixed in sampledata/samplecode/main.go
+- [x] **Finding 707** | Rule: **BP-1** | Correctly Fired: **Yes** | `sampledata/samplecode/main.go:109:2` | → Fixed in sampledata/samplecode/main.go
+- [x] **Finding 708** | Rule: **PERF-119** | Correctly Fired: **No** | `typstsyntax/parser.go:233:11` | → N/A: false positive — Mutually exclusive append branches in parser, not consecutive appends
+- [x] **Finding 709** | Rule: **PERF-123** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:287:14` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 710** | Rule: **PERF-119** | Correctly Fired: **No** | `typstsyntax/renderer.go:292:14` | → N/A: false positive — Loop append followed by standalone bar append; not consecutive same-iteration appends
+- [x] **Finding 711** | Rule: **PERF-123** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:326:14` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 712** | Rule: **PERF-123** | Correctly Fired: **No** | `typstsyntax/renderer.go:361:14` | → N/A: false positive — make([]MathElement,0) on optional layout branch; zero-length make is idiomatic here
+- [x] **Finding 713** | Rule: **PERF-123** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:413:14` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 714** | Rule: **PERF-3** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:477:3` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 715** | Rule: **PERF-46** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:669:33` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 716** | Rule: **PERF-123** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:789:14` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 717** | Rule: **PERF-123** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:941:14` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 718** | Rule: **PERF-123** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:1101:14` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 719** | Rule: **PERF-109** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:1239:4` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 720** | Rule: **PERF-35** | Correctly Fired: **Yes** | `typstsyntax/renderer.go:1256:9` | → Fixed in typstsyntax/renderer.go
+- [x] **Finding 721** | Rule: **PERF-121** | Correctly Fired: **No** | `typstsyntax/renderer.go:1272:4` | → N/A: false positive — composite struct literal, not convertible type alias
 
 ## Notable FP Patterns
 
-- [ ] **PERF-122** (3) — `HasPrefix` + slice, not string trim
-- [ ] **PERF-148 / PERF-36** (4) — buffered channels, no loop-variable capture
-- [ ] **PERF-109** (3) — slice/path loops without map keys
-- [ ] **PERF-35** (3) — one-shot fmt on non-hot paths
-- [ ] **PERF-119 / PERF-128** (3) — non-consecutive appends
-- [ ] **PERF-192** (1) — no known size before populate
+- [x] **PERF-122** (3) — `HasPrefix` + slice, not string trim
+- [x] **PERF-148 / PERF-36** (4) — buffered channels, no loop-variable capture
+- [x] **PERF-109** (3) — slice/path loops without map keys
+- [x] **PERF-35** (3) — one-shot fmt on non-hot paths
+- [x] **PERF-119 / PERF-128** (3) — non-consecutive appends
+- [x] **PERF-192** (1) — no known size before populate

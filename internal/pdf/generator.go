@@ -89,7 +89,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	b := (*scratchPtr)[:0]
 	defer func() { *scratchPtr = b[:0]; scratchBufPool.Put(scratchPtr) }()
 
-	xrefOffsets := make(map[int]int)
+	xrefOffsets := make(map[int]int, 256)
 
 	// Get page dimensions from config
 	pageConfig := template.Config
@@ -143,13 +143,14 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry)
 
 	// Process images and create XObjects
-	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
-	imageObjectIDs := make(map[int]int)        // map imageIndex to PDF object ID
+	imageObjects := make(map[int]*ImageObject, len(template.Image)) // map imageIndex to ImageObject
+	imageObjectIDs := make(map[int]int, len(template.Image))        // map imageIndex to PDF object ID
 
 	// Process cell images - map tableIdx:rowIdx:colIdx to XObject ID
 	// Also process title table images with prefix "title:"
-	cellImageObjects := make(map[string]*ImageObject)
-	cellImageObjectIDs := make(map[string]int)
+	cellImageCount := countCellImages(template)
+	cellImageObjects := make(map[string]*ImageObject, cellImageCount)
+	cellImageObjectIDs := make(map[string]int, cellImageCount)
 
 	nextImageObjectID := 1000 // Start image objects at ID 1000
 
@@ -226,8 +227,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	// Process inline images in elements array
 	// These are images specified directly in the elements array with type="image" and image:{...}
-	elemImageObjects := make(map[int]*ImageObject) // map element index to ImageObject
-	elemImageObjectIDs := make(map[int]int)        // map element index to PDF object ID
+	elemImageCount := countElementImages(template.Elements)
+	elemImageObjects := make(map[int]*ImageObject, elemImageCount) // map element index to ImageObject
+	elemImageObjectIDs := make(map[int]int, elemImageCount)        // map element index to PDF object ID
 	for elemIdx, elem := range template.Elements {
 		if elem.Type == "image" && elem.Image != nil && elem.Image.ImageData != "" {
 			imgObj, err := DecodeImageData(elem.Image.ImageData)
@@ -261,7 +263,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	var enc *encryption.PDFEncryption
 	if template.Config.Security != nil && template.Config.Security.Enabled && template.Config.Security.OwnerPassword != "" {
 		// Generate a preliminary document ID for encryption setup
-		preliminaryID := encryption.GenerateDocumentID([]byte(template.Title.Text + fmt.Sprintf("%d", len(pageManager.Pages))))
+		preliminaryID := encryption.GenerateDocumentID([]byte(template.Title.Text + strconv.Itoa(len(pageManager.Pages))))
 		var err error
 		enc, err = encryption.NewPDFEncryption(template.Config.Security, preliminaryID)
 		if err != nil {
@@ -330,23 +332,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	shouldEmbed := template.Config.EmbedFonts == nil || *template.Config.EmbedFonts
 
-	// Calculate Object IDs for standard fonts dynamically
-	// Only assign IDs for fonts that are used
-	fontObjectIDs := make(map[string]int)     // Font Name -> Font Dictionary Object ID
-	fontDescriptorIDs := make(map[string]int) // Font Name -> Font Descriptor Object ID
-	fontWidthsIDs := make(map[string]int)     // Font Name (group) -> Widths Array Object ID
-
-	currentObjectID := fontObjectStart
-
-	// Phase 1: Assign IDs for Font Dictionaries
-	for _, name := range fontNames {
-		if usedStandardFonts[name] {
-			fontObjectIDs[name] = currentObjectID
-			currentObjectID++
-		}
-	}
-
-	// Phase 2: Assign IDs for Descriptors and Widths (Arlington mode only)
 	widthGroups := map[string]string{
 		"Helvetica":             "helvetica-regular",
 		"Helvetica-Oblique":     "helvetica-regular",
@@ -364,6 +349,22 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		"ZapfDingbats":          "zapfdingbats",
 	}
 
+	// Calculate Object IDs for standard fonts dynamically
+	// Only assign IDs for fonts that are used
+	fontObjectIDs := make(map[string]int, len(fontNames))     // Font Name -> Font Dictionary Object ID
+	fontDescriptorIDs := make(map[string]int, len(fontNames)) // Font Name -> Font Descriptor Object ID
+	fontWidthsIDs := make(map[string]int, len(widthGroups))     // Font Name (group) -> Widths Array Object ID
+
+	currentObjectID := fontObjectStart
+
+	// Phase 1: Assign IDs for Font Dictionaries
+	for _, name := range fontNames {
+		if usedStandardFonts[name] {
+			fontObjectIDs[name] = currentObjectID
+			currentObjectID++
+		}
+	}
+
 	if template.Config.ArlingtonCompatible && shouldEmbed {
 		// Assign Descriptor IDs
 		for _, name := range fontNames {
@@ -374,7 +375,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		}
 
 		// Assign Widths IDs (deduplicated by group)
-		assignedGroups := make(map[string]bool)
+		assignedGroups := make(map[string]bool, len(widthGroups))
 		for _, name := range fontNames {
 			if usedStandardFonts[name] {
 				group := widthGroups[name]
@@ -670,9 +671,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Add Annots if present
 		annotsStr := ""
 		if i < len(pageManager.PageAnnots) && len(pageManager.PageAnnots[i]) > 0 {
-			var annotBuf []byte
+			annots := pageManager.PageAnnots[i]
+			annotBuf := make([]byte, 0, 10+len(annots)*12)
 			annotBuf = append(annotBuf, " /Annots ["...)
-			for _, annotID := range pageManager.PageAnnots[i] {
+			for _, annotID := range annots {
 				annotBuf = append(annotBuf, ' ')
 				annotBuf = strconv.AppendInt(annotBuf, int64(annotID), 10)
 				annotBuf = append(annotBuf, " 0 R"...)
@@ -750,13 +752,14 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		compressedBuf := getCompressBuffer()
 		zlibWriter := getZlibWriter(compressedBuf)
 		if _, err := zlibWriter.Write(contentStream.Bytes()); err != nil {
-			_ = zlibWriter.Close()
-			putZlibWriter(zlibWriter)
+			_ = closeZlibWriter(zlibWriter)
 			compressBufPool.Put(compressedBuf)
 			continue // Skip encryption if compression fails
 		}
-		_ = zlibWriter.Close()
-		putZlibWriter(zlibWriter)
+		if err := closeZlibWriter(zlibWriter); err != nil {
+			compressBufPool.Put(compressedBuf)
+			continue
+		}
 		compressedData := compressedBuf.Bytes()
 
 		// Encrypt content stream if encryption is enabled
@@ -786,7 +789,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Arlington mode: Generate PDF 2.0 compliant font objects with full metrics
 
 		// 1. Generate Widths Arrays (shared)
-		generatedGroupWidths := make(map[string]bool)
+		generatedGroupWidths := make(map[string]bool, len(widthGroups))
 		for _, name := range fontNames {
 			if !usedStandardFonts[name] {
 				continue
@@ -839,11 +842,15 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		actualICCProfileObjID = pdfaHandler.GetICCProfileObjID()
 	}
 
+	iccColorSpace := ""
+	if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
+		iccColorSpace = formatICCBasedColorSpace(actualICCProfileObjID)
+	}
+
 	// Generate image XObjects (standalone images)
 	for _, imgObj := range imageObjects {
-		// PDF/UA-2: Ensure images use the ICC profile for color space
-		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		if iccColorSpace != "" {
+			imgObj.ColorSpace = iccColorSpace
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -856,9 +863,8 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	// Generate image XObjects (cell images)
 	for _, imgObj := range cellImageObjects {
-		// PDF/UA-2: Ensure images use the ICC profile for color space
-		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		if iccColorSpace != "" {
+			imgObj.ColorSpace = iccColorSpace
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -871,9 +877,8 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	// Generate image XObjects (element images)
 	for _, imgObj := range elemImageObjects {
-		// PDF/UA-2: Ensure images use the ICC profile for color space
-		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = fmt.Sprintf("[/ICCBased %d 0 R]", actualICCProfileObjID)
+		if iccColorSpace != "" {
+			imgObj.ColorSpace = iccColorSpace
 		}
 
 		xrefOffsets[imgObj.ObjectID] = pdfBuffer.Len()
@@ -910,10 +915,12 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		pdfBuffer.WriteString("\nendobj\n")
 	}
 
+	now := time.Now()
+
 	// Generate PDF/A metadata objects if enabled
 	if pdfaHandler != nil {
 		// Generate XMP metadata content (but use our pre-reserved metadataObjectID for consistency with Catalog)
-		docIDForXMP := fmt.Sprintf("%x", time.Now().UnixNano())
+		docIDForXMP := strconv.FormatInt(now.UnixNano(), 16)
 		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
 		// Write metadata object using the pre-reserved ID that's already in the Catalog
 		xrefOffsets[metadataObjectID] = pdfBuffer.Len()
@@ -959,7 +966,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pageManager.NextObjectID++
 	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
 	// Go's time format doesn't support the PDF timezone format directly, so we build it manually
-	now := time.Now()
 	_, tzOffset := now.Zone()
 	tzSign := "+"
 	if tzOffset < 0 {
@@ -1014,10 +1020,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		randomBytes := make([]byte, 16)
 		if _, err := rand.Read(randomBytes); err != nil {
 			// Fallback to time-based randomness if rand fails
-			binary.BigEndian.PutUint64(randomBytes, uint64(time.Now().UnixNano()))
+			binary.BigEndian.PutUint64(randomBytes, uint64(now.UnixNano()))
+			binary.BigEndian.PutUint64(randomBytes[8:], uint64(now.Unix()))
 		}
-		randomHash := md5.Sum(randomBytes)
-		documentID = fmt.Sprintf("[<%s> <%s>]", hex.EncodeToString(contentHashArr[:]), hex.EncodeToString(randomHash[:]))
+		documentID = "[<" + hex.EncodeToString(contentHashArr[:]) + "> <" + hex.EncodeToString(randomBytes) + ">]"
 	}
 
 	// Generate PDF/A-1b compliance objects
@@ -1106,21 +1112,27 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// Iterate through all pages that have marked content
 	// We iterate by page index to keep Nums sorted
 	maxPageIndex := len(pageManager.Pages)
+	var ptNumBuf [16]byte
 	for i := 0; i < maxPageIndex; i++ {
 		if elems, exists := pageManager.Structure.ParentTree[i]; exists && len(elems) > 0 {
-			ptBuilder.WriteString(fmt.Sprintf(" %d [", i)) // Key is page index
+			ptBuilder.WriteByte(' ')
+			ptBuilder.Write(strconv.AppendInt(ptNumBuf[:0], int64(i), 10))
+			ptBuilder.WriteString(" [")
 			for _, elem := range elems {
-				ptBuilder.WriteString(fmt.Sprintf(" %d 0 R", elem.ObjectID))
+				appendPDFIndirectRef(&ptBuilder, elem.ObjectID)
 			}
 			ptBuilder.WriteString(" ]")
 		}
 	}
 
 	// PDF/UA-2: Add ParentTree entries for annotation StructParents
-	// Each annotation's StructParent value maps to its Link structure element
 	for _, annotInfo := range pageManager.AnnotStructElems {
 		if linkElem, exists := pageManager.Structure.LinkElements[annotInfo.AnnotObjID]; exists {
-			ptBuilder.WriteString(fmt.Sprintf(" %d %d 0 R", annotInfo.StructParentIdx, linkElem.ObjectID))
+			ptBuilder.WriteByte(' ')
+			ptBuilder.Write(strconv.AppendInt(ptNumBuf[:0], int64(annotInfo.StructParentIdx), 10))
+			ptBuilder.WriteByte(' ')
+			ptBuilder.Write(strconv.AppendInt(ptNumBuf[:0], int64(linkElem.ObjectID), 10))
+			ptBuilder.WriteString(" 0 R")
 		}
 	}
 
@@ -1139,20 +1151,30 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 		// PDF/UA-2: Document element must be in PDF 2.0 namespace
 		if elem.Type == StructDocument {
-			sb.WriteString(fmt.Sprintf(" /NS %d 0 R", namespaceID))
+			sb.WriteString(" /NS ")
+			sb.WriteString(strconv.Itoa(namespaceID))
+			sb.WriteString(" 0 R")
 		}
 
 		if elem.Parent == pageManager.Structure.Root {
-			sb.WriteString(fmt.Sprintf(" /P %d 0 R", structTreeRootID))
+			sb.WriteString(" /P ")
+			sb.WriteString(strconv.Itoa(structTreeRootID))
+			sb.WriteString(" 0 R")
 		} else if elem.Parent != nil {
-			sb.WriteString(fmt.Sprintf(" /P %d 0 R", elem.Parent.ObjectID))
+			sb.WriteString(" /P ")
+			sb.WriteString(strconv.Itoa(elem.Parent.ObjectID))
+			sb.WriteString(" 0 R")
 		}
 
 		if elem.Title != "" {
-			sb.WriteString(fmt.Sprintf(" /T (%s)", escapeText(elem.Title)))
+			sb.WriteString(" /T (")
+			sb.WriteString(escapeText(elem.Title))
+			sb.WriteByte(')')
 		}
 		if elem.Alt != "" {
-			sb.WriteString(fmt.Sprintf(" /Alt (%s)", escapeText(elem.Alt)))
+			sb.WriteString(" /Alt (")
+			sb.WriteString(escapeText(elem.Alt))
+			sb.WriteByte(')')
 		}
 
 		// Kids
@@ -1170,7 +1192,11 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 						if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 							pageObjID = pageManager.Pages[elem.PageID]
 						}
-						sb.WriteString(fmt.Sprintf(" << /Type /OBJR /Obj %d 0 R /Pg %d 0 R >>", annotObjID, pageObjID))
+						sb.WriteString(" << /Type /OBJR /Obj ")
+						sb.WriteString(strconv.Itoa(annotObjID))
+						sb.WriteString(" 0 R /Pg ")
+						sb.WriteString(strconv.Itoa(pageObjID))
+						sb.WriteString(" 0 R >>")
 						break
 					}
 				}
@@ -1178,9 +1204,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 			for _, k := range elem.Kids {
 				if kidElem, ok := k.(*StructElem); ok {
-					sb.WriteString(fmt.Sprintf(" %d 0 R", kidElem.ObjectID))
+					appendPDFIndirectRef(&sb, kidElem.ObjectID)
 				} else if mcid, ok := k.(int); ok {
-					sb.WriteString(fmt.Sprintf(" %d", mcid))
+					sb.WriteByte(' ')
+					sb.WriteString(strconv.Itoa(mcid))
 				}
 			}
 			sb.WriteString(" ]")
@@ -1192,7 +1219,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// pm.Pages[elem.PageID] gives the object ID.
 		if elem.PageID >= 0 && elem.PageID < len(pageManager.Pages) {
 			pageObjID := pageManager.Pages[elem.PageID]
-			sb.WriteString(fmt.Sprintf(" /Pg %d 0 R", pageObjID))
+			sb.WriteString(" /Pg ")
+			sb.WriteString(strconv.Itoa(pageObjID))
+			sb.WriteString(" 0 R")
 		}
 
 		sb.WriteString(" >>\nendobj\n")
@@ -1288,7 +1317,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	// For PDF/A-4, The Info key shall not be present in the trailer dictionary unless there exists a PieceInfo entry
 	trailerExtra := ""
 	if encryptObjID > 0 {
-		trailerExtra = fmt.Sprintf(" /Encrypt %d 0 R", encryptObjID)
+		trailerExtra = " /Encrypt " + strconv.Itoa(encryptObjID) + " 0 R"
 	}
 
 	pdfBuffer.WriteString("trailer\n<< /Size ")
@@ -1374,10 +1403,10 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 				switch {
 				case elem.Table != nil:
 					table = *elem.Table
-					imageKeyPrefix = fmt.Sprintf("elem_inline:%d", elemIdx) // Use elem_inline prefix for inline tables
+					imageKeyPrefix = formatElemInlineKey(elemIdx)
 				case elem.Index < len(template.Table):
 					table = template.Table[elem.Index]
-					imageKeyPrefix = fmt.Sprintf("%d", elem.Index) // Use index as key for indexed tables
+					imageKeyPrefix = formatIntKey(elem.Index)
 				default:
 					continue
 				}
@@ -1401,7 +1430,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 					image = *elem.Image
 					if imgObj, exists := elemImageObjects[elemIdx]; exists {
 						// Use element image XObject with /E prefix to distinguish from /I prefix
-						imageXObjectRef := fmt.Sprintf("/E%d", elemIdx)
+						imageXObjectRef := formatXObjectNameRef("E", elemIdx)
 						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						// Fall back to placeholder if no XObject
@@ -1411,7 +1440,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 					// Reference to template.Image array
 					image = template.Image[elem.Index]
 					if imgObj, exists := imageObjects[elem.Index]; exists {
-						imageXObjectRef := fmt.Sprintf("/I%d", elem.Index)
+						imageXObjectRef := formatXObjectNameRef("I", elem.Index)
 						drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 					} else {
 						drawImage(image, pageManager, template.Config.PageBorder, template.Config.Watermark)
@@ -1424,7 +1453,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		// Tables - Process each table with automatic page breaks
 		for tableIdx, table := range template.Table {
 			// For legacy table array, use simple index as key
-			imageKeyPrefix := fmt.Sprintf("%d", tableIdx)
+			imageKeyPrefix := formatIntKey(tableIdx)
 			drawTable(table, imageKeyPrefix, pageManager, template.Config.PageBorder, template.Config.Watermark, cellImageObjectIDs)
 		}
 
@@ -1437,7 +1466,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 		for i, image := range template.Image {
 			if imgObj, exists := imageObjects[i]; exists {
 				// Image was successfully decoded, draw it with XObject reference
-				imageXObjectRef := fmt.Sprintf("/I%d", i)
+				imageXObjectRef := formatXObjectNameRef("I", i)
 				drawImageWithXObjectInternal(image, imageXObjectRef, pageManager, template.Config.PageBorder, template.Config.Watermark, imgObj.Width, imgObj.Height)
 			} else {
 				// Fall back to placeholder if image couldn't be decoded
@@ -1467,7 +1496,7 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 //
 //nolint:gocyclo
 func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontRegistry) map[string]bool {
-	used := make(map[string]bool)
+	used := make(map[string]bool, 16)
 
 	// Helper to mark font only if it's a true standard font (not overridden by custom)
 	markFont := func(propsStr string) {
@@ -1596,7 +1625,7 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 // collectAllStandardFontsInTemplate returns all standard font names used in the template
 // This does NOT check the font registry - used for determining which Liberation fonts to load
 func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]bool {
-	used := make(map[string]bool)
+	used := make(map[string]bool, 16)
 
 	// Helper to mark font
 	markFont := func(propsStr string) {
@@ -1752,7 +1781,7 @@ func autoResolveMathFonts(template models.PDFTemplate, registry *CustomFontRegis
 // with mathEnabled=true and returns font names (from props) not already
 // registered in the font registry.
 func collectUnregisteredMathFontNames(template models.PDFTemplate, registry *CustomFontRegistry) map[string]struct{} {
-	needed := make(map[string]struct{})
+	needed := make(map[string]struct{}, 4)
 
 	checkCell := func(cell models.Cell) {
 		if cell.MathEnabled == nil || !*cell.MathEnabled {
@@ -1801,4 +1830,48 @@ func collectUnregisteredMathFontNames(template models.PDFTemplate, registry *Cus
 	}
 
 	return needed
+}
+
+func countCellImages(template models.PDFTemplate) int {
+	count := 0
+	if template.Title.Table != nil {
+		for _, row := range template.Title.Table.Rows {
+			for _, cell := range row.Row {
+				if cell.Image != nil && cell.Image.ImageData != "" {
+					count++
+				}
+			}
+		}
+	}
+	for _, table := range template.Table {
+		for _, row := range table.Rows {
+			for _, cell := range row.Row {
+				if cell.Image != nil && cell.Image.ImageData != "" {
+					count++
+				}
+			}
+		}
+	}
+	for _, elem := range template.Elements {
+		if elem.Type == "table" && elem.Table != nil {
+			for _, row := range elem.Table.Rows {
+				for _, cell := range row.Row {
+					if cell.Image != nil && cell.Image.ImageData != "" {
+						count++
+					}
+				}
+			}
+		}
+	}
+	return count
+}
+
+func countElementImages(elements []models.Element) int {
+	count := 0
+	for _, elem := range elements {
+		if elem.Type == "image" && elem.Image != nil && elem.Image.ImageData != "" {
+			count++
+		}
+	}
+	return count
 }

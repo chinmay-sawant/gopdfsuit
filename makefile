@@ -81,7 +81,28 @@ gengine-deploy: test-integration
 	cd frontend && npm run build && cd ..
 	gcloud app deploy
 
-.PHONY: build test clean run fmt vet mod lint
+# ── Benchmark defaults (override on CLI, e.g. make bench-gopdflib-zerodha BENCH_ITERATIONS=1000) ──
+GO_BENCH ?= go
+GOMAXPROCS_BENCH ?= 24
+BENCH_ITERATIONS ?= 5000
+BENCH_WORKERS ?= 48
+ZERODHA_DIR := sampledata/gopdflib/zerodha
+PLACEHOLDER_NAMES_DIR := sampledata/gopdflib/placeholder_names
+
+.PHONY: build test clean run fmt vet mod lint \
+	bench-gopdflib-zerodha bench-gopdflib-zerodha-x10 \
+	example-gopdflib-placeholder-names
+
+# ── gopdflib: Zerodha gold standard (runs from sampledata/gopdflib/zerodha) ──
+
+bench-gopdflib-zerodha:
+	cd $(ZERODHA_DIR) && GOMAXPROCS=$(GOMAXPROCS_BENCH) BENCH_ITERATIONS=$(BENCH_ITERATIONS) BENCH_WORKERS=$(BENCH_WORKERS) $(GO_BENCH) run .
+
+bench-gopdflib-zerodha-x10:
+	bash $(ZERODHA_DIR)/run_bench_x10.sh
+
+example-gopdflib-placeholder-names:
+	cd $(PLACEHOLDER_NAMES_DIR) && $(GO_BENCH) run .
 
 # go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/profile?seconds=30"
 # go tool pprof -http=:8081 "http://localhost:8080/debug/pprof/heap"

@@ -2,7 +2,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -71,8 +70,7 @@ func GoogleAuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Validate the ID token
-		ctx := context.Background()
-		payload, err := idtoken.Validate(ctx, token, audience)
+		payload, err := idtoken.Validate(c.Request.Context(), token, audience)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "Invalid ID token",
@@ -124,8 +122,7 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
 		}
 
-		ctx := context.Background()
-		payload, err := idtoken.Validate(ctx, token, audience)
+		payload, err := idtoken.Validate(c.Request.Context(), token, audience)
 		if err == nil {
 			// Token is valid, store user info
 			c.Set("user_email", payload.Claims["email"])
@@ -150,7 +147,7 @@ func GetUserEmail(c *gin.Context) (string, bool) {
 
 // GetUserInfo retrieves all user info from context
 func GetUserInfo(c *gin.Context) map[string]interface{} {
-	userInfo := make(map[string]interface{})
+	userInfo := make(map[string]interface{}, 4)
 
 	if email, exists := c.Get("user_email"); exists {
 		userInfo["email"] = email

@@ -13,7 +13,10 @@ import (
 var ZlibWriterPool = sync.Pool{
 	New: func() any {
 		// Create writer that will be reset with actual buffer later
-		w, _ := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed)
+		w, err := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed)
+		if err != nil {
+			panic("zlib writer pool init failed: " + err.Error())
+		}
 		return w
 	},
 }
@@ -35,6 +38,13 @@ func GetZlibWriter(buf *bytes.Buffer) *zlib.Writer {
 // PutZlibWriter returns a zlib writer to the pool
 func PutZlibWriter(w *zlib.Writer) {
 	ZlibWriterPool.Put(w)
+}
+
+// CloseZlibWriter closes the writer and returns it to the pool.
+func CloseZlibWriter(w *zlib.Writer) error {
+	err := w.Close()
+	PutZlibWriter(w)
+	return err
 }
 
 // GetCompressBuffer returns a pooled compression buffer

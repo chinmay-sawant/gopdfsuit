@@ -29,8 +29,84 @@ type Token struct {
 
 func parseDimension(val string) float64 {
 	val = strings.TrimSuffix(val, "px")
-	f, _ := strconv.ParseFloat(val, 64)
-	return f
+	return parseFloatDefault(val)
+}
+
+func parseFloatDefault(s string) float64 {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
+func parseIntBaseDefault(s string, base int) int64 {
+	v, err := strconv.ParseInt(s, base, 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
+func writeFloatCmd(b *bytes.Buffer, parts ...interface{}) {
+	for i, p := range parts {
+		switch v := p.(type) {
+		case string:
+			b.WriteString(v)
+		case float64:
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			var buf [32]byte
+			b.Write(strconv.AppendFloat(buf[:0], v, 'f', 6, 64))
+		}
+	}
+}
+
+func writeRGBColor(b *bytes.Buffer, r, g, blue float64, suffix string) {
+	writeFloats(b, 3, r, g, blue)
+	b.WriteString(suffix)
+}
+
+func writeTranslateCM(b *bytes.Buffer, x, y float64) {
+	b.WriteString("1 0 0 1 ")
+	writeFloats(b, 6, x, y)
+	b.WriteString(" cm\n")
+}
+
+func writeFloats(b *bytes.Buffer, prec int, vals ...float64) {
+	for i, v := range vals {
+		if i > 0 {
+			b.WriteByte(' ')
+		}
+		var buf [32]byte
+		b.Write(strconv.AppendFloat(buf[:0], v, 'f', prec, 64))
+	}
+}
+
+func parseStyleIntoAttrs(style string, attrs map[string]string) {
+	for _, part := range strings.Split(style, ";") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		colon := strings.IndexByte(part, ':')
+		if colon <= 0 {
+			continue
+		}
+		attrs[strings.TrimSpace(part[:colon])] = strings.TrimSpace(part[colon+1:])
+	}
+}
+
+func parseTransformCall(part string) (string, []string, bool) {
+	open := strings.IndexByte(part, '(')
+	close := strings.LastIndexByte(part, ')')
+	if open < 0 || close <= open {
+		return "", nil, false
+	}
+	name := part[:open]
+	inner := part[open+1 : close]
+	return name, strings.Fields(strings.ReplaceAll(inner, ",", " ")), true
 }
 
 // ConvertSVGToPDFCommands parses SVG data and returns PDF content stream commands
@@ -51,8 +127,8 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	if width == 0 || height == 0 {
 		parts := strings.Fields(strings.ReplaceAll(svg.ViewBox, ",", " "))
 		if len(parts) == 4 {
-			width, _ = strconv.ParseFloat(parts[2], 64)
-			height, _ = strconv.ParseFloat(parts[3], 64)
+			width = parseFloatDefault(parts[2])
+			height = parseFloatDefault(parts[3])
 		}
 	}
 
@@ -77,11 +153,11 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	// [  0   1   1 ]
 	// M = [1/w 0 0 -1/h 0 1]
 
-	fmt.Fprintf(&b, "%.6f 0 0 %.6f 0 1 cm\n", 1.0/width, -1.0/height)
+	writeFloatCmd(&b, 1.0/width, " 0 0 ", -1.0/height, " 0 1 cm\n")
 
 	// State tracking
 	inDefs := 0
-	definitions := make(map[string]xml.StartElement)
+	definitions := make(map[string]xml.StartElement, 8)
 
 	// Iterate children
 	decoder := xml.NewDecoder(bytes.NewReader(data))
@@ -107,7 +183,7 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 			if se.Name.Local == "g" {
 				b.WriteString("q\n")
 
-				attrs := make(map[string]string)
+				attrs := make(map[string]string, len(se.Attr))
 				for _, a := range se.Attr {
 					attrs[a.Name.Local] = a.Value
 				}
@@ -121,13 +197,13 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 				if fill, ok := attrs["fill"]; ok {
 					r, g, bVal, ok := parseColor(fill)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f rg\n", r, g, bVal)
+						writeRGBColor(&b, r, g, bVal, " rg\n")
 					}
 				}
 				if stroke, ok := attrs["stroke"]; ok {
 					r, g, bVal, ok := parseColor(stroke)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f RG\n", r, g, bVal)
+						writeRGBColor(&b, r, g, bVal, " RG\n")
 					}
 				}
 			}
@@ -164,7 +240,7 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 
 						// Apply use-specific transform/translation
 						if x != 0 || y != 0 {
-							b.WriteString(fmt.Sprintf("1 0 0 1 %.6f %.6f cm\n", x, -y))
+							writeTranslateCM(&b, x, -y)
 						}
 						if transform != "" {
 							applyTransform(&b, transform) // Note: height might be irrelevant for purely relative transforms but needed for coordinate flip
@@ -202,26 +278,14 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 }
 
 func processElement(b *bytes.Buffer, se xml.StartElement) {
-	attrs := make(map[string]string)
+	attrs := make(map[string]string, len(se.Attr))
 	for _, a := range se.Attr {
 		attrs[a.Name.Local] = a.Value
 	}
 
 	// Parse style attribute if present
 	if style, ok := attrs["style"]; ok {
-		styleParts := strings.Split(style, ";")
-		for _, part := range styleParts {
-			part = strings.TrimSpace(part)
-			if part == "" {
-				continue
-			}
-			kv := strings.SplitN(part, ":", 2)
-			if len(kv) == 2 {
-				k := strings.TrimSpace(kv[0])
-				v := strings.TrimSpace(kv[1])
-				attrs[k] = v
-			}
-		}
+		parseStyleIntoAttrs(style, attrs)
 	}
 
 	// Handle transforms on the element itself
@@ -238,47 +302,44 @@ func processElement(b *bytes.Buffer, se xml.StartElement) {
 }
 
 func applyTransform(b *bytes.Buffer, t string) {
-	// Basic transform parser
 	t = strings.ReplaceAll(t, ",", " ")
-	parts := strings.Fields(t)
-
-	for i := range parts {
-		switch {
-		case strings.HasPrefix(parts[i], "translate("):
-			args := extractArgs(parts[i:])
+	for _, part := range strings.Fields(t) {
+		name, args, ok := parseTransformCall(part)
+		if !ok {
+			continue
+		}
+		switch name {
+		case "translate":
 			if len(args) >= 2 {
-				tx, _ := strconv.ParseFloat(args[0], 64)
-				ty, _ := strconv.ParseFloat(args[1], 64)
-				fmt.Fprintf(b, "1 0 0 1 %.2f %.2f cm\n", tx, ty)
+				tx := parseFloatDefault(args[0])
+				ty := parseFloatDefault(args[1])
+				writeFloats(b, 2, 1, 0, 0, 1, tx, ty)
+				b.WriteString(" cm\n")
 			}
-		case strings.HasPrefix(parts[i], "scale("):
-			args := extractArgs(parts[i:])
-			if len(args) >= 2 {
-				sx, _ := strconv.ParseFloat(args[0], 64)
-				sy, _ := strconv.ParseFloat(args[1], 64)
-				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", sx, sy)
-			} else if len(args) == 1 {
-				s, _ := strconv.ParseFloat(args[0], 64)
-				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", s, s)
+		case "scale":
+			switch len(args) {
+			case 2:
+				sx := parseFloatDefault(args[0])
+				sy := parseFloatDefault(args[1])
+				writeFloats(b, 4, sx, 0, 0, sy, 0, 0)
+				b.WriteString(" cm\n")
+			case 1:
+				s := parseFloatDefault(args[0])
+				writeFloats(b, 4, s, 0, 0, s, 0, 0)
+				b.WriteString(" cm\n")
 			}
-		case strings.HasPrefix(parts[i], "matrix("):
-			args := extractArgs(parts[i:])
+		case "matrix":
 			if len(args) >= 6 {
-				fmt.Fprintf(b, "%s %s %s %s %s %s cm\n", args[0], args[1], args[2], args[3], args[4], args[5])
+				for i, arg := range args[:6] {
+					if i > 0 {
+						b.WriteByte(' ')
+					}
+					b.WriteString(arg)
+				}
+				b.WriteString(" cm\n")
 			}
 		}
 	}
-}
-
-func extractArgs(tokens []string) []string {
-	s := strings.Join(tokens, " ")
-	start := strings.Index(s, "(")
-	end := strings.Index(s, ")")
-	if start == -1 || end == -1 {
-		return nil
-	}
-	inner := s[start+1 : end]
-	return strings.Fields(strings.ReplaceAll(inner, ",", " "))
 }
 
 func parseColor(c string) (float64, float64, float64, bool) {
@@ -290,14 +351,14 @@ func parseColor(c string) (float64, float64, float64, bool) {
 		// Parse hex
 		hex := after
 		if len(hex) == 3 {
-			r, _ := strconv.ParseInt(string(hex[0])+string(hex[0]), 16, 64)
-			g, _ := strconv.ParseInt(string(hex[1])+string(hex[1]), 16, 64)
-			b, _ := strconv.ParseInt(string(hex[2])+string(hex[2]), 16, 64)
+			r := parseIntBaseDefault(string(hex[0])+string(hex[0]), 16)
+			g := parseIntBaseDefault(string(hex[1])+string(hex[1]), 16)
+			b := parseIntBaseDefault(string(hex[2])+string(hex[2]), 16)
 			return float64(r) / 255.0, float64(g) / 255.0, float64(b) / 255.0, true
 		} else if len(hex) == 6 {
-			r, _ := strconv.ParseInt(hex[0:2], 16, 64)
-			g, _ := strconv.ParseInt(hex[2:4], 16, 64)
-			b, _ := strconv.ParseInt(hex[4:6], 16, 64)
+			r := parseIntBaseDefault(hex[0:2], 16)
+			g := parseIntBaseDefault(hex[2:4], 16)
+			b := parseIntBaseDefault(hex[4:6], 16)
 			return float64(r) / 255.0, float64(g) / 255.0, float64(b) / 255.0, true
 		}
 	}
@@ -358,11 +419,9 @@ func parseColor(c string) (float64, float64, float64, bool) {
 func parseColorComponent(s string) float64 {
 	s = strings.TrimSpace(s)
 	if strings.HasSuffix(s, "%") {
-		val, _ := strconv.ParseFloat(strings.TrimSuffix(s, "%"), 64)
-		return val / 100.0
+		return parseFloatDefault(strings.TrimSuffix(s, "%")) / 100.0
 	}
-	val, _ := strconv.ParseFloat(s, 64)
-	return val / 255.0
+	return parseFloatDefault(s) / 255.0
 }
 
 func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string) {
@@ -470,89 +529,99 @@ func parsePathData(b *bytes.Buffer, d string) {
 		i++
 		switch cmd {
 		case "M":
-			x, _ := strconv.ParseFloat(tokens[i], 64)
+			x := parseFloatDefault(tokens[i])
 			i++
-			y, _ := strconv.ParseFloat(tokens[i], 64)
+			y := parseFloatDefault(tokens[i])
 			i++
-			fmt.Fprintf(b, "%.2f %.2f m ", x, y)
+			writeFloats(b, 2, x, y)
+			b.WriteString(" m ")
 			cx, cy = x, y
 		case "m":
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
+			dx := parseFloatDefault(tokens[i])
 			i++
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
+			dy := parseFloatDefault(tokens[i])
 			i++
 			cx += dx
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f m ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" m ")
 
 		case "L":
-			x, _ := strconv.ParseFloat(tokens[i], 64)
+			x := parseFloatDefault(tokens[i])
 			i++
-			y, _ := strconv.ParseFloat(tokens[i], 64)
+			y := parseFloatDefault(tokens[i])
 			i++
-			fmt.Fprintf(b, "%.2f %.2f l ", x, y)
+			writeFloats(b, 2, x, y)
+			b.WriteString(" l ")
 			cx, cy = x, y
 		case "l":
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
+			dx := parseFloatDefault(tokens[i])
 			i++
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
+			dy := parseFloatDefault(tokens[i])
 			i++
 			cx += dx
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
 		case "H":
-			x, _ := strconv.ParseFloat(tokens[i], 64)
+			x := parseFloatDefault(tokens[i])
 			i++
 			cx = x
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 		case "h":
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
+			dx := parseFloatDefault(tokens[i])
 			i++
 			cx += dx
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy) // Treat z inside h case? No, separate case.
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
 		case "V":
-			y, _ := strconv.ParseFloat(tokens[i], 64)
+			y := parseFloatDefault(tokens[i])
 			i++
 			cy = y
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 		case "v":
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
+			dy := parseFloatDefault(tokens[i])
 			i++
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFloats(b, 2, cx, cy)
+			b.WriteString(" l ")
 
 		case "C":
-			x1, _ := strconv.ParseFloat(tokens[i], 64)
+			x1 := parseFloatDefault(tokens[i])
 			i++
-			y1, _ := strconv.ParseFloat(tokens[i], 64)
+			y1 := parseFloatDefault(tokens[i])
 			i++
-			x2, _ := strconv.ParseFloat(tokens[i], 64)
+			x2 := parseFloatDefault(tokens[i])
 			i++
-			y2, _ := strconv.ParseFloat(tokens[i], 64)
+			y2 := parseFloatDefault(tokens[i])
 			i++
-			x, _ := strconv.ParseFloat(tokens[i], 64)
+			x := parseFloatDefault(tokens[i])
 			i++
-			y, _ := strconv.ParseFloat(tokens[i], 64)
+			y := parseFloatDefault(tokens[i])
 			i++
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", x1, y1, x2, y2, x, y)
+			writeFloats(b, 2, x1, y1, x2, y2, x, y)
+			b.WriteString(" c ")
 			cx, cy = x, y
 
 		case "c":
-			dx1, _ := strconv.ParseFloat(tokens[i], 64)
+			dx1 := parseFloatDefault(tokens[i])
 			i++
-			dy1, _ := strconv.ParseFloat(tokens[i], 64)
+			dy1 := parseFloatDefault(tokens[i])
 			i++
-			dx2, _ := strconv.ParseFloat(tokens[i], 64)
+			dx2 := parseFloatDefault(tokens[i])
 			i++
-			dy2, _ := strconv.ParseFloat(tokens[i], 64)
+			dy2 := parseFloatDefault(tokens[i])
 			i++
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
+			dx := parseFloatDefault(tokens[i])
 			i++
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
+			dy := parseFloatDefault(tokens[i])
 			i++
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cx+dx1, cy+dy1, cx+dx2, cy+dy2, cx+dx, cy+dy)
+			writeFloats(b, 2, cx+dx1, cy+dy1, cx+dx2, cy+dy2, cx+dx, cy+dy)
+			b.WriteString(" c ")
 			cx += dx
 			cy += dy
 
@@ -561,13 +630,13 @@ func parsePathData(b *bytes.Buffer, d string) {
 			// Convert to Cubic:
 			// CP1 = current + 2/3 * (Q1 - current)
 			// CP2 = end + 2/3 * (Q1 - end)
-			x1, _ := strconv.ParseFloat(tokens[i], 64)
+			x1 := parseFloatDefault(tokens[i])
 			i++
-			y1, _ := strconv.ParseFloat(tokens[i], 64)
+			y1 := parseFloatDefault(tokens[i])
 			i++
-			x, _ := strconv.ParseFloat(tokens[i], 64)
+			x := parseFloatDefault(tokens[i])
 			i++
-			y, _ := strconv.ParseFloat(tokens[i], 64)
+			y := parseFloatDefault(tokens[i])
 			i++
 
 			const k = 2.0 / 3.0
@@ -576,17 +645,18 @@ func parsePathData(b *bytes.Buffer, d string) {
 			cp2x := x + k*(x1-x)
 			cp2y := y + k*(y1-y)
 
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cp1x, cp1y, cp2x, cp2y, x, y)
+			writeFloats(b, 2, cp1x, cp1y, cp2x, cp2y, x, y)
+			b.WriteString(" c ")
 			cx, cy = x, y
 
 		case "q":
-			dx1, _ := strconv.ParseFloat(tokens[i], 64)
+			dx1 := parseFloatDefault(tokens[i])
 			i++
-			dy1, _ := strconv.ParseFloat(tokens[i], 64)
+			dy1 := parseFloatDefault(tokens[i])
 			i++
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
+			dx := parseFloatDefault(tokens[i])
 			i++
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
+			dy := parseFloatDefault(tokens[i])
 			i++
 
 			// Abs coords for calculation
@@ -601,7 +671,8 @@ func parsePathData(b *bytes.Buffer, d string) {
 			cp2x := absX + k*(absX1-absX)
 			cp2y := absY + k*(absY1-absY)
 
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cp1x, cp1y, cp2x, cp2y, absX, absY)
+			writeFloats(b, 2, cp1x, cp1y, cp2x, cp2y, absX, absY)
+			b.WriteString(" c ")
 			cx, cy = absX, absY
 
 		case "Z", "z":

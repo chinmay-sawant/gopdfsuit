@@ -76,13 +76,6 @@ func ParseTTF(data []byte) (*TTFFont, error) {
 		return nil, errors.New("font data too short")
 	}
 
-	font := &TTFFont{
-		RawData:     data,
-		Tables:      make(map[string]TableEntry),
-		CharToGlyph: make(map[rune]uint16),
-		GlyphToChar: make(map[uint16]rune),
-	}
-
 	r := bytes.NewReader(data)
 
 	// Read offset table
@@ -100,6 +93,13 @@ func ParseTTF(data []byte) (*TTFFont, error) {
 	var numTables uint16
 	if err := binary.Read(r, binary.BigEndian, &numTables); err != nil {
 		return nil, fmt.Errorf("failed to read numTables: %w", err)
+	}
+
+	font := &TTFFont{
+		RawData:     data,
+		Tables:      make(map[string]TableEntry, numTables),
+		CharToGlyph: make(map[rune]uint16, 256),
+		GlyphToChar: make(map[uint16]rune, 256),
 	}
 	if _, err := r.Seek(6, io.SeekCurrent); err != nil { // Skip searchRange, entrySelector, rangeShift
 		return nil, fmt.Errorf("failed to seek: %w", err)
@@ -437,7 +437,10 @@ func (f *TTFFont) parseCmapFormat4(data []byte, offset uint32) error {
 	}
 
 	// Read idRangeOffset array
-	idRangeOffsetPos, _ := r.Seek(0, io.SeekCurrent)
+	idRangeOffsetPos, err := r.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return fmt.Errorf("failed to get idRangeOffset position: %w", err)
+	}
 	idRangeOffsets := make([]uint16, segCount)
 	for i := uint16(0); i < segCount; i++ {
 		if err := binary.Read(r, binary.BigEndian, &idRangeOffsets[i]); err != nil {

@@ -93,13 +93,12 @@ func decryptEncryptedPDFBytes(pdfBytes []byte, password string) ([]byte, error) 
 }
 
 func parseEncryptRefAndID(pdfBytes []byte) (string, []byte, error) {
-	trailers := regexp.MustCompile(`(?s)trailer\s*<<(.*?)>>`).FindAllSubmatch(pdfBytes, -1)
+	trailers := reTrailerBlock.FindAllSubmatch(pdfBytes, -1)
 	if len(trailers) == 0 {
 		return "", nil, errors.New("missing trailer")
 	}
 	tr := trailers[len(trailers)-1][1]
-	re := regexp.MustCompile(`/Encrypt\s+(\d+)\s+(\d+)\s+R`)
-	m := re.FindSubmatch(tr)
+	m := reEncryptRef.FindSubmatch(tr)
 	if m == nil {
 		return "", nil, errors.New("trailer has no /Encrypt reference")
 	}
@@ -116,8 +115,7 @@ func parseEncryptRefAndID(pdfBytes []byte) (string, []byte, error) {
 
 func parseFirstID(b []byte) []byte {
 	// /ID [<hex1><hex2>] or /ID [<hex1> <hex2>]
-	re := regexp.MustCompile(`/ID\s*\[\s*<([0-9A-Fa-f\s]+)>`)
-	m := re.FindSubmatch(b)
+	m := reTrailerIDHex.FindSubmatch(b)
 	if m == nil {
 		return nil
 	}
@@ -132,7 +130,7 @@ func parseFirstID(b []byte) []byte {
 }
 
 func parseStandardEncryptDict(body []byte) (standardEncryptDict, error) {
-	if bytesIndex(body, []byte(`/Filter /Standard`)) < 0 && bytesIndex(body, []byte(`/Filter/Standard`)) < 0 {
+	if bytesIndex(body, encryptFilterStd) < 0 && bytesIndex(body, encryptFilterStdAlt) < 0 {
 		return standardEncryptDict{}, errors.New("only Standard security handler is supported")
 	}
 
@@ -148,8 +146,8 @@ func parseStandardEncryptDict(body []byte) (standardEncryptDict, error) {
 		return standardEncryptDict{}, errors.New("missing O/U entries in Encrypt dictionary")
 	}
 
-	encryptMetadata := bytesIndex(body, []byte(`/EncryptMetadata false`)) < 0 && bytesIndex(body, []byte(`/EncryptMetadatafalse`)) < 0
-	usesAES := bytesIndex(body, []byte("/AESV2")) >= 0 || bytesIndex(body, []byte("/AESV3")) >= 0
+	encryptMetadata := bytesIndex(body, encryptMetaFalse) < 0 && bytesIndex(body, encryptMetaFalseAlt) < 0
+	usesAES := bytesIndex(body, aesV2Bytes) >= 0 || bytesIndex(body, aesV3Bytes) >= 0
 
 	return standardEncryptDict{
 		R:               r,
@@ -250,7 +248,10 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) bool {
 	if d.R == 2 {
 		exp := rc4Crypt(fileKey, pdfPasswordPadding)
-		return len(d.U) >= 32 && bytes.Equal(exp, d.U[:32])
+		if len(d.U) < 32 || len(exp) != 32 {
+			return false
+		}
+		return bytes.Equal(exp, d.U[:32])
 	}
 	h := md5.Sum(append(append([]byte{}, pdfPasswordPadding...), id0...))
 	tmp := h[:]
@@ -258,6 +259,9 @@ func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) boo
 	for i := 1; i <= 19; i++ {
 		k := xorKey(fileKey, byte(i))
 		tmp = rc4Crypt(k, tmp)
+	}
+	if len(d.U) < 16 {
+		return false
 	}
 	if len(d.U) < 16 {
 		return false
@@ -306,8 +310,7 @@ func deriveUserPasswordFromOwner(ownerPassword string, d standardEncryptDict) st
 }
 
 func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([]byte, bool) {
-	streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-	loc := streamRe.FindSubmatchIndex(objBody)
+	loc := reDecryptStream.FindSubmatchIndex(objBody)
 	if loc == nil {
 		return objBody, false
 	}
@@ -315,12 +318,11 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 	objKey := deriveObjectKey(fileKey, objNum, genNum)
 	dec := rc4Crypt(objKey, raw)
 
-	out := make([]byte, 0, len(objBody))
-	out = append(out, objBody[:loc[2]]...)
-	out = append(out, dec...)
-	out = append(out, objBody[loc[3]:]...)
-	lenRe := regexp.MustCompile(`/Length\s+\d+`)
-	out = lenRe.ReplaceAll(out, []byte(fmt.Sprintf(`/Length %d`, len(dec))))
+	out := append(append(append(make([]byte, 0, len(objBody)), objBody[:loc[2]]...), dec...), objBody[loc[3]:]...)
+	var lenBuf []byte
+	lenBuf = append(lenBuf, "/Length "...)
+	lenBuf = strconv.AppendInt(lenBuf, int64(len(dec)), 10)
+	out = reLengthReplace.ReplaceAll(out, lenBuf)
 	return out, true
 }
 
@@ -337,18 +339,7 @@ func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
 	return h[:kLen]
 }
 
-func parseObjectKey(key string) (int, int, bool) {
-	parts := strings.Fields(key)
-	if len(parts) != 2 {
-		return 0, 0, false
-	}
-	o, err1 := strconv.Atoi(parts[0])
-	g, err2 := strconv.Atoi(parts[1])
-	if err1 != nil || err2 != nil {
-		return 0, 0, false
-	}
-	return o, g, true
-}
+
 
 func int32LEBytes(v int32) []byte {
 	return []byte{byte(v), byte(v >> 8), byte(v >> 16), byte(v >> 24)}

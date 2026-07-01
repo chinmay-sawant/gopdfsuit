@@ -2,7 +2,8 @@ package pdf
 
 import (
 	"bytes"
-	"fmt"
+	"strconv"
+	"strings"
 )
 
 // PageManager handles multi-page document generation
@@ -48,13 +49,13 @@ func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompa
 		Margins:               margins,
 		ContentStreams:        make([]bytes.Buffer, 1),
 		PageAnnots:            make([][]int, 1),
-		ExtraObjects:          make(map[int]string),
+		ExtraObjects:          make(map[int]string, 16),
 		NextObjectID:          2000, // Start extra objects at 2000 to avoid conflicts
 		ArlingtonCompatible:   arlingtonCompatible,
 		Structure:             NewStructureManager(),
 		NextAnnotStructParent: 1000, // Start annotation StructParents at 1000 to avoid conflicts with page StructParents
-		AnnotStructElems:      make([]AnnotStructElem, 0),
-		NamedDests:            make(map[string]NamedDest),
+		AnnotStructElems:      make([]AnnotStructElem, 0, 8),
+		NamedDests:            make(map[string]NamedDest, 8),
 		FontRegistry:          fontRegistry,
 	}
 	return pm
@@ -67,7 +68,9 @@ func (pm *PageManager) AddNewPage() {
 	pm.Pages = append(pm.Pages, nextPageID)
 	pm.CurrentPageIndex = len(pm.Pages) - 1 // Move to new page
 	pm.CurrentYPos = pm.PageDimensions.Height - pm.Margins.Top
-	pm.ContentStreams = append(pm.ContentStreams, bytes.Buffer{})
+	var streamBuf bytes.Buffer
+	streamBuf.Grow(4096)
+	pm.ContentStreams = append(pm.ContentStreams, streamBuf)
 	pm.PageAnnots = append(pm.PageAnnots, []int{})
 }
 
@@ -98,15 +101,32 @@ func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
 	structParentIdx := pm.GetNextAnnotStructParent()
 
 	// PDF Rectangle: [LLx LLy URx URy]
-	rect := fmt.Sprintf("[%s %s %s %s]", fmtNum(x), fmtNum(y), fmtNum(x+w), fmtNum(y+h))
+	var rect strings.Builder
+	rect.Grow(48)
+	rect.WriteByte('[')
+	rect.WriteString(fmtNum(x))
+	rect.WriteByte(' ')
+	rect.WriteString(fmtNum(y))
+	rect.WriteByte(' ')
+	rect.WriteString(fmtNum(x + w))
+	rect.WriteByte(' ')
+	rect.WriteString(fmtNum(y + h))
+	rect.WriteByte(']')
 
 	validURL := escapePDFString(url)
 
 	// PDF/UA-2: Include StructParent entry
-	content := fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /StructParent %d /A << /Type /Action /S /URI /URI (%s) >> >>",
-		rect, structParentIdx, validURL)
+	var content strings.Builder
+	content.Grow(128 + len(validURL))
+	content.WriteString("<< /Type /Annot /Subtype /Link /Rect ")
+	content.WriteString(rect.String())
+	content.WriteString(" /Border [0 0 0] /F 4 /StructParent ")
+	content.WriteString(strconv.Itoa(structParentIdx))
+	content.WriteString(" /A << /Type /Action /S /URI /URI (")
+	content.WriteString(validURL)
+	content.WriteString(") >> >>")
 
-	pm.ExtraObjects[annotID] = content
+	pm.ExtraObjects[annotID] = content.String()
 	pm.AddAnnotation(annotID)
 
 	// PDF/UA-2: Create Link structure element for this annotation

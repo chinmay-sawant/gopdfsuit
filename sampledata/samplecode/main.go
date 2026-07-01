@@ -105,13 +105,17 @@ func main() {
 	}
 
 	// Convert model to map for placeholder replacement
-	data := make(map[string]string)
-	jsonData, _ := json.Marshal(patient)
+	jsonData, err := json.Marshal(patient)
+	if err != nil {
+		fmt.Printf("Error marshaling patient data: %v\n", err)
+		return
+	}
 	var tempMap map[string]interface{}
 	if err := json.Unmarshal(jsonData, &tempMap); err != nil {
 		fmt.Printf("Error unmarshaling patient data: %v\n", err)
 		return
 	}
+	data := make(map[string]string, len(tempMap))
 	for k, v := range tempMap {
 		data["{"+k+"}"] = fmt.Sprint(v)
 	}

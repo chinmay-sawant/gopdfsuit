@@ -1,10 +1,18 @@
 package merge
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
+)
+
+var (
+	splitPartsRe = regexp.MustCompile(`\s*,\s*`)
+	splitRngRe   = regexp.MustCompile(`^(\d+)-(\d+)$`)
+	splitNumRe   = regexp.MustCompile(`^\d+$`)
+	splitRefRe   = regexp.MustCompile(`(\d+)\s+\d+\s+R`)
 )
 
 // SplitSpec defines split criteria
@@ -19,21 +27,24 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 	if spec == "" {
 		return nil, nil
 	}
-	partsRe := regexp.MustCompile(`\s*,\s*`)
-	parts := partsRe.Split(spec, -1)
-	set := make(map[int]bool)
-	rngRe := regexp.MustCompile(`^(\d+)-(\d+)$`)
-	numRe := regexp.MustCompile(`^\d+$`)
+	parts := splitPartsRe.Split(spec, -1)
+	set := make(map[int]bool, len(parts))
 
 	for _, p := range parts {
 		if p == "" {
 			continue
 		}
 		switch {
-		case rngRe.MatchString(p):
-			m := rngRe.FindStringSubmatch(p)
-			a, _ := strconv.Atoi(m[1])
-			b, _ := strconv.Atoi(m[2])
+		case splitRngRe.MatchString(p):
+			m := splitRngRe.FindStringSubmatch(p)
+			a, err := strconv.Atoi(m[1])
+			if err != nil {
+				return nil, fmt.Errorf("invalid range: %s", p)
+			}
+			b, err := strconv.Atoi(m[2])
+			if err != nil {
+				return nil, fmt.Errorf("invalid range: %s", p)
+			}
 			if a < 1 || b < a {
 				return nil, fmt.Errorf("invalid range: %s", p)
 			}
@@ -46,8 +57,11 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 			for i := a; i <= b; i++ {
 				set[i] = true
 			}
-		case numRe.MatchString(p):
-			n, _ := strconv.Atoi(p)
+		case splitNumRe.MatchString(p):
+			n, err := strconv.Atoi(p)
+			if err != nil {
+				return nil, fmt.Errorf("invalid page: %s", p)
+			}
 			if n < 1 || (totalPages > 0 && n > totalPages) {
 				return nil, fmt.Errorf("invalid page: %s", p)
 			}
@@ -57,7 +71,7 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 		}
 	}
 
-	var pages []int
+	pages := make([]int, 0, len(set))
 	for k := range set {
 		pages = append(pages, k)
 	}
@@ -74,10 +88,10 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	*/
 
 	if len(file) == 0 {
-		return nil, fmt.Errorf("empty file")
+		return nil, errors.New("empty file")
 	}
 	if hasEncrypt(file) {
-		return nil, fmt.Errorf("cannot split encrypted PDF")
+		return nil, errors.New("cannot split encrypted PDF")
 	}
 
 	fc := parseFile(file)
@@ -117,8 +131,8 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	}
 
 	// dedupe while preserving document order
-	seen := make(map[int]bool)
-	var orderedPages []int
+	seen := make(map[int]bool, len(requestedObjNums))
+	orderedPages := make([]int, 0, len(requestedObjNums))
 	for _, obj := range requestedObjNums {
 		if !seen[obj] {
 			orderedPages = append(orderedPages, obj)
@@ -155,8 +169,7 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 // buildPDFFromPageObjs builds a single PDF containing only the provided original page object numbers.
 func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) ([]byte, error) {
 	// collect included objects via DFS starting from page objects
-	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
-	included := make(map[int]bool)
+	included := make(map[int]bool, len(pageObjs))
 	var stack []int
 	for _, p := range pageObjs {
 		included[p] = true
@@ -180,8 +193,11 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 			}
 		}
 		// find numeric refs in body (outside streams)
-		for _, m := range refRe.FindAllSubmatch(body, -1) {
-			refNum, _ := strconv.Atoi(string(m[1]))
+		for _, m := range splitRefRe.FindAllSubmatch(body, -1) {
+			refNum, err := strconv.Atoi(string(m[1]))
+			if err != nil {
+				continue
+			}
 			if refNum == 0 {
 				continue
 			}
@@ -208,7 +224,9 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 	// prepare merge context and header (use original file version)
 	ctx := NewMergeContext()
 	ctx.HighestVersion = DetectPDFVersion(originalFile)
-	ctx.Output.WriteString(fmt.Sprintf("%%PDF-%s\n%%\xe2\xe3\xcf\xd3\n", ctx.HighestVersion))
+	ctx.Output.WriteString("%PDF-")
+	ctx.Output.WriteString(ctx.HighestVersion)
+	ctx.Output.WriteString("\n%\xe2\xe3\xcf\xd3\n")
 
 	// remap offset: reserve 1 for Catalog and 2 for Pages
 	offset := 2
@@ -219,7 +237,7 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 	}
 	var appended []appendedObj
 	var mergedPages []int
-	fieldSet := make(map[int]bool)
+	fieldSet := make(map[int]bool, len(fc.FormFields))
 	var mergedFields []int
 
 	// collect remapped object bodies

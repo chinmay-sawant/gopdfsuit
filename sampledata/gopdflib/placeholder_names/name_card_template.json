@@ -1,0 +1,2158 @@
+{
+  "config": {
+    "page": "A4",
+    "pageAlignment": 1,
+    "pageBorder": "1:1:1:1",
+    "pdfaCompliant": false,
+    "embedFonts": true
+  },
+  "title": {
+    "props": "Helvetica:18:100:center:0:0:0:1",
+    "text": "Central City Public Library \u2014 Circulation Receipt",
+    "bgcolor": "#EBF5FB",
+    "table": {
+      "maxcolumns": 3,
+      "columnwidths": [
+        1,
+        2.5,
+        2
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:12:000:center:1:1:1:1",
+              "height": 72,
+              "image": {
+                "imagename": "library_logo.png",
+                "imagedata": "iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAAqklEQVR42u3aMQ3AIABEUQxUAaLqBQ91g4l6qImGmYkBNFCWJrzhz5e8+UI8U9f3AgSAAAECFECAAAEKIECAAAUQIECAAghwK8DrfpcqtU23ugkQIECAfwF88jEdQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAAQIECBAgQIAAvbO8swACBAgQIEABBAgQoAACBAhQAAECBAgQAkCAAAEKIECAGzYA3Jvi8iAjnRAAAAAASUVORK5CYII=",
+                "width": 72,
+                "height": 72
+              }
+            },
+            {
+              "props": "Helvetica:16:100:left:1:1:1:1",
+              "text": "Central City Public Library\nCirculation & Borrowing Receipt",
+              "textcolor": "#1B4F72",
+              "wrap": true
+            },
+            {
+              "props": "Helvetica:9:000:right:1:1:1:1",
+              "text": "Receipt No: LIB-REC-2026-004821\nDate: 2026-07-01 14:32\nBranch: Main \u2014 Reading Room\nTerminal: POS-CCPL-07",
+              "textcolor": "#566573",
+              "wrap": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "elements": [
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:1:1:1",
+                "text": "SECTION A \u2014 MEMBER INFORMATION",
+                "bgcolor": "#D6EAF8",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 4,
+        "columnwidths": [
+          1.2,
+          2,
+          1.2,
+          2
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Member ID",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "MEM-{firstname}-{lastname}",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Card Type",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "Adult \u2014 Resident"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "First Name",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "{firstname}"
+              },
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Last Name",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "{lastname}"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Full Name",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "{firstname} {lastname}"
+              },
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Email",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "{firstname}.{lastname}@librarymail.example.com",
+                "wrap": true
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Phone",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "+1 (555) 014-7821"
+              },
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Membership Since",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "2019-03-14"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:1:1:1",
+                "text": "SECTION B \u2014 TRANSACTION SUMMARY",
+                "bgcolor": "#D6EAF8",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 4,
+        "columnwidths": [
+          1.5,
+          1.5,
+          1.5,
+          1.5
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Items on Receipt",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "42"
+              },
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "11"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Returned Today",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "27"
+              },
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Overdue Items",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "4",
+                "textcolor": "#C0392B"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Total Fines Due",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "$7.50",
+                "textcolor": "#C0392B"
+              },
+              {
+                "props": "Helvetica:9:100:left:1:1:1:1",
+                "text": "Payment Method",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:9:000:left:1:1:1:1",
+                "text": "Library Account Credit"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:1:1:1",
+                "text": "SECTION C \u2014 BORROWING DETAIL (42 RECORDS)",
+                "bgcolor": "#D6EAF8",
+                "textcolor": "#1B4F72",
+                "wrap": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 7,
+        "columnwidths": [
+          0.4,
+          1.4,
+          2.2,
+          1.6,
+          1.0,
+          0.8,
+          0.9
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:100:center:1:1:1:1",
+                "text": "#",
+                "bgcolor": "#D6EAF8"
+              },
+              {
+                "props": "Helvetica:8:100:center:1:1:1:1",
+                "text": "ISBN / Accession",
+                "bgcolor": "#D6EAF8",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:100:center:1:1:1:1",
+                "text": "Title",
+                "bgcolor": "#D6EAF8",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:100:center:1:1:1:1",
+                "text": "Author",
+                "bgcolor": "#D6EAF8",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:100:center:1:1:1:1",
+                "text": "Due Date",
+                "bgcolor": "#D6EAF8"
+              },
+              {
+                "props": "Helvetica:8:100:center:1:1:1:1",
+                "text": "Fine (USD)",
+                "bgcolor": "#D6EAF8"
+              },
+              {
+                "props": "Helvetica:8:100:center:1:1:1:1",
+                "text": "Status",
+                "bgcolor": "#D6EAF8"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "1",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0143127741",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Midnight Library",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Matt Haig",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-12",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0062315007",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Alchemist",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Paulo Coelho",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-08",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "3",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0743273565",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Great Gatsby",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "F. Scott Fitzgerald",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-15",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "4",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0451524935",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "1984",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "George Orwell",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-10",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "1.50",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Overdue",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#C0392B"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "5",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0316769174",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Catcher in the Rye",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "J.D. Salinger",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-11",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "6",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0618640157",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Lord of the Rings",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "J.R.R. Tolkien",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-20",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "7",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0439023521",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Hunger Games",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Suzanne Collins",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-09",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "8",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0385472570",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "A Brief History of Time",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Stephen Hawking",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-14",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "9",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0142437230",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Dracula",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Bram Stoker",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-07",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Overdue",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#C0392B"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "10",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0061120084",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "To Kill a Mockingbird",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Harper Lee",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-13",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "11",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0307277673",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Road",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Cormac McCarthy",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-16",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "12",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-1400033416",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Beloved",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Toni Morrison",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-06",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "13",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0679732761",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Bell Jar",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Sylvia Plath",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-18",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "14",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0141182636",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Mrs Dalloway",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Virginia Woolf",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-05",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "3.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Overdue",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#C0392B"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "15",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0812978188",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Kite Runner",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Khaled Hosseini",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-17",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "16",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0312421704",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Namesake",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Jhumpa Lahiri",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-19",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "17",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0374533557",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "A Tale for the Time Being",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Ruth Ozeki",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-21",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "18",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0307387899",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Never Let Me Go",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Kazuo Ishiguro",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-04",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "19",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0143039433",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Master and Margarita",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Mikhail Bulgakov",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-22",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "20",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0812993013",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Sapiens",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Yuval Noah Harari",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-23",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "21",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-1501129742",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Born a Crime",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Trevor Noah",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-24",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "22",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0316017930",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Outliers",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Malcolm Gladwell",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-25",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "23",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0060850524",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Brave New World",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Aldous Huxley",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-03",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "1.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Overdue",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#C0392B"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "24",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0140283334",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The God of Small Things",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Arundhati Roy",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-26",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "25",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0679720201",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Stranger",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Albert Camus",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-27",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "26",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0140449136",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Republic",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Plato",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-28",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "27",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0140449266",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Odyssey",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Homer",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-29",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "28",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0393317558",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Guns, Germs, and Steel",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Jared Diamond",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-04-30",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "29",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0312425290",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Handmaid's Tale",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Margaret Atwood",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-01",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "30",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0141439518",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Pride and Prejudice",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Jane Austen",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-02",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "31",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0140447944",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Anna Karenina",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Leo Tolstoy",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-03",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "32",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0679783268",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Slaughterhouse-Five",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Kurt Vonnegut",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-04",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "33",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0143126560",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Goldfinch",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Donna Tartt",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-05",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "34",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0307474278",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Girl with the Dragon Tattoo",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Stieg Larsson",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-06",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "35",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0307278449",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Shadow of the Wind",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Carlos Ruiz Zafon",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-07",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "36",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0812981605",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Night Circus",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Erin Morgenstern",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-08",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "37",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0312428819",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Brief Wondrous Life of Oscar Wao",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Junot Diaz",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-09",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "38",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0142001744",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The No. 1 Ladies' Detective Agency",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Alexander McCall Smith",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-10",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "39",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-1400078775",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Book Thief",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Markus Zusak",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-11",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "40",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0316067924",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "The Help",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Kathryn Stockett",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-12",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Returned",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1E8449"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "41",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0385333846",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Memoirs of a Geisha",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Arthur Golden",
+                "bgcolor": "#FFFFFF",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-13",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "Checked Out",
+                "bgcolor": "#FFFFFF",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "42",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "978-0143113497",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Cutting for Stone",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:left:1:1:1:1",
+                "text": "Abraham Verghese",
+                "bgcolor": "#FAFAFA",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "2026-05-14",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "0.00",
+                "bgcolor": "#FAFAFA"
+              },
+              {
+                "props": "Helvetica:8:000:center:1:1:1:1",
+                "text": "On Shelf",
+                "bgcolor": "#FAFAFA",
+                "textcolor": "#1B4F72"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:010:center:1:1:1:1",
+                "text": "Thank you for visiting Central City Public Library. Please retain this receipt for your records. Lost items may incur replacement fees per library policy CCPL-REG-12.",
+                "bgcolor": "#F8F9F9",
+                "textcolor": "#566573",
+                "wrap": true
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:7:010:center:1:1:1:1",
+                "text": "Processed by: Circulation Desk \u2014 Clerk ID CCPL-4421  |  Questions: help@ccplibrary.example.org  |  www.ccplibrary.example.org",
+                "bgcolor": "#F8F9F9",
+                "textcolor": "#7F8C8D",
+                "wrap": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

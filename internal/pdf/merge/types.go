@@ -51,11 +51,11 @@ type MergeContext struct {
 // NewMergeContext creates a new merge context
 func NewMergeContext() *MergeContext {
 	return &MergeContext{
-		Offsets:        make(map[int]int),
+		Offsets:        make(map[int]int, 64),
 		CurrentMax:     2, // Reserve 1 for Catalog, 2 for Pages
-		FieldSet:       make(map[int]bool),
-		WidgetToFields: make(map[int]int),
-		AnnotationDeps: make(map[int][]int),
+		FieldSet:       make(map[int]bool, 16),
+		WidgetToFields: make(map[int]int, 16),
+		AnnotationDeps: make(map[int][]int, 16),
 		HighestVersion: "1.4",
 	}
 }
@@ -82,8 +82,8 @@ type FileContext struct {
 func NewFileContext(data []byte) *FileContext {
 	return &FileContext{
 		Data:    data,
-		Objects: make(map[int][]byte),
-		Annots:  make(map[int][]int),
-		APDeps:  make(map[int][]int),
+		Objects: make(map[int][]byte, 64),
+		Annots:  make(map[int][]int, 8),
+		APDeps:  make(map[int][]int, 8),
 	}
 }

@@ -1,16 +1,37 @@
 package handlers
 
 import (
-	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/redact"
 	"github.com/gin-gonic/gin"
 )
+
+func trimASCIIWhitespace(s string) string {
+	start, end := 0, len(s)
+	for start < end && s[start] <= ' ' {
+		start++
+	}
+	for end > start && s[end-1] <= ' ' {
+		end--
+	}
+	if start == 0 && end == len(s) {
+		return s
+	}
+	return s[start:end]
+}
+
+func closeUploadedFile(f io.Closer) {
+	if err := f.Close(); err != nil {
+		log.Printf("failed to close uploaded pdf file: %v", err)
+	}
+}
 
 func parseCommaSeparatedTerms(raw string) []string {
 	parts := strings.Split(raw, ",")
@@ -20,7 +41,7 @@ func parseCommaSeparatedTerms(raw string) []string {
 	seen := make(map[string]struct{}, len(parts))
 	terms := make([]string, 0, len(parts))
 	for _, p := range parts {
-		term := strings.TrimSpace(p)
+		term := trimASCIIWhitespace(p)
 		if term == "" {
 			continue
 		}
@@ -66,7 +87,7 @@ func HandleRedactPageInfo(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open pdf file"})
 		return
 	}
-	defer func() { _ = f.Close() }()
+	defer closeUploadedFile(f)
 
 	pdfBytes, err := io.ReadAll(f)
 	if err != nil {
@@ -105,7 +126,7 @@ func HandleRedactCapabilities(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open pdf file"})
 		return
 	}
-	defer func() { _ = f.Close() }()
+	defer closeUploadedFile(f)
 
 	pdfBytes, err := io.ReadAll(f)
 	if err != nil {
@@ -155,7 +176,7 @@ func HandleRedactTextPositions(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open pdf file"})
 		return
 	}
-	defer func() { _ = f.Close() }()
+	defer closeUploadedFile(f)
 
 	pdfBytes, err := io.ReadAll(f)
 	if err != nil {
@@ -190,12 +211,12 @@ func HandleRedactApply(c *gin.Context) {
 	}
 
 	var options models.ApplyRedactionOptions
-	options.Mode = strings.TrimSpace(c.PostForm("mode"))
+	options.Mode = trimASCIIWhitespace(c.PostForm("mode"))
 	options.Password = c.PostForm("password")
 
 	blocksJSON := c.PostForm("blocks")
 	if blocksJSON != "" {
-		if err := json.Unmarshal([]byte(blocksJSON), &options.Blocks); err != nil {
+		if err := sonic.UnmarshalString(blocksJSON, &options.Blocks); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid blocks json"})
 			return
 		}
@@ -203,14 +224,14 @@ func HandleRedactApply(c *gin.Context) {
 
 	textSearchJSON := c.PostForm("textSearch")
 	if textSearchJSON != "" {
-		if err := json.Unmarshal([]byte(textSearchJSON), &options.TextSearch); err != nil {
+		if err := sonic.UnmarshalString(textSearchJSON, &options.TextSearch); err != nil {
 			var plain []string
-			if err2 := json.Unmarshal([]byte(textSearchJSON), &plain); err2 != nil {
+			if err2 := sonic.UnmarshalString(textSearchJSON, &plain); err2 != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid textSearch json"})
 				return
 			}
 			for _, text := range plain {
-				text = strings.TrimSpace(text)
+				text = trimASCIIWhitespace(text)
 				if text == "" {
 					continue
 				}
@@ -220,9 +241,9 @@ func HandleRedactApply(c *gin.Context) {
 	}
 
 	ocrJSON := c.PostForm("ocr")
-	if strings.TrimSpace(ocrJSON) != "" {
+	if trimASCIIWhitespace(ocrJSON) != "" {
 		var ocr models.OCRSettings
-		if err := json.Unmarshal([]byte(ocrJSON), &ocr); err != nil {
+		if err := sonic.UnmarshalString(ocrJSON, &ocr); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ocr json"})
 			return
 		}
@@ -233,7 +254,7 @@ func HandleRedactApply(c *gin.Context) {
 	if len(options.Blocks) == 0 {
 		redactionsJSON := c.PostForm("redactions")
 		if redactionsJSON != "" {
-			if err := json.Unmarshal([]byte(redactionsJSON), &options.Blocks); err != nil {
+			if err := sonic.UnmarshalString(redactionsJSON, &options.Blocks); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid redactions json"})
 				return
 			}
@@ -242,7 +263,7 @@ func HandleRedactApply(c *gin.Context) {
 
 	// Backward compatibility: allow plain text search field for one-shot apply.
 	if len(options.TextSearch) == 0 {
-		if searchText := strings.TrimSpace(c.PostForm("text")); searchText != "" {
+		if searchText := trimASCIIWhitespace(c.PostForm("text")); searchText != "" {
 			terms := parseCommaSeparatedTerms(searchText)
 			if len(terms) == 0 {
 				terms = []string{searchText}
@@ -260,7 +281,7 @@ func HandleRedactApply(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open pdf file"})
 		return
 	}
-	defer func() { _ = f.Close() }()
+	defer closeUploadedFile(f)
 
 	pdfBytes, err := io.ReadAll(f)
 	if err != nil {
@@ -282,7 +303,7 @@ func HandleRedactApply(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if b, err := json.Marshal(report); err == nil {
+	if b, err := sonic.Marshal(report); err == nil {
 		c.Header("X-Redaction-Report", string(b))
 	}
 
@@ -299,15 +320,15 @@ func HandleRedactSearch(c *gin.Context) {
 	}
 
 	var terms []string
-	textsJSON := strings.TrimSpace(c.PostForm("texts"))
+	textsJSON := trimASCIIWhitespace(c.PostForm("texts"))
 	if textsJSON != "" {
-		if err := json.Unmarshal([]byte(textsJSON), &terms); err != nil {
+		if err := sonic.UnmarshalString(textsJSON, &terms); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid texts json"})
 			return
 		}
 	}
 	if len(terms) == 0 {
-		searchText := strings.TrimSpace(c.PostForm("text"))
+		searchText := trimASCIIWhitespace(c.PostForm("text"))
 		if searchText != "" {
 			terms = parseCommaSeparatedTerms(searchText)
 			if len(terms) == 0 {
@@ -325,7 +346,7 @@ func HandleRedactSearch(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open pdf file"})
 		return
 	}
-	defer func() { _ = f.Close() }()
+	defer closeUploadedFile(f)
 
 	pdfBytes, err := io.ReadAll(f)
 	if err != nil {

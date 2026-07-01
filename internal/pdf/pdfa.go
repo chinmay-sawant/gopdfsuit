@@ -2,12 +2,15 @@ package pdf
 
 import (
 	"bytes"
-	"compress/zlib"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
 )
 
 // ConvertPDFDateToXMP converts a PDF date string (D:YYYYMMDDHHmmSSOHH'mm') to XMP format (YYYY-MM-DDTHH:mm:ss+HH:MM)
@@ -39,7 +42,7 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 		tz = tzSign + tzHour + ":" + tzMin
 	}
 
-	return fmt.Sprintf("%s-%s-%sT%s:%s:%s%s", year, month, day, hour, minute, sec, tz)
+	return year + "-" + month + "-" + day + "T" + hour + ":" + minute + ":" + sec + tz
 }
 
 // GenerateXMPMetadata generates PDF/A-4 and PDF/UA-2 compliant XMP metadata (PDF 2.0 based)
@@ -230,7 +233,7 @@ func buildSRGBICCProfile() []byte {
 	}
 
 	for _, tag := range tags {
-		copy(profile[offset:offset+4], []byte(tag.sig))
+		copy(profile[offset:offset+4], tag.sig)
 		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
 		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
 		offset += 12
@@ -314,14 +317,17 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 	iccProfile := GetSRGBICCProfile()
 
 	// Compress the ICC profile
-	var compressedBuf bytes.Buffer
-	zlibWriter := zlib.NewWriter(&compressedBuf)
+	compressedBuf := font.GetCompressBuffer()
+	defer font.CompressBufPool.Put(compressedBuf)
+	zlibWriter := font.GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(iccProfile); err != nil {
-		_ = zlibWriter.Close()
+		font.PutZlibWriter(zlibWriter)
 		return nil
 	}
-	_ = zlibWriter.Close()
-	compressedData := compressedBuf.Bytes()
+	if err := font.CloseZlibWriter(zlibWriter); err != nil {
+		return nil
+	}
+	compressedData := append([]byte(nil), compressedBuf.Bytes()...)
 
 	// Encrypt if needed
 	if encryptor != nil {
@@ -330,8 +336,10 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 
 	// Build the object with proper binary stream handling
 	var result bytes.Buffer
-	result.WriteString(fmt.Sprintf("%d 0 obj\n<< /Filter /FlateDecode /Length %d /N 3 /Alternate /DeviceRGB >>\nstream\n",
-		objectID, len(compressedData)))
+	result.WriteString(strconv.Itoa(objectID))
+	result.WriteString(" 0 obj\n<< /Filter /FlateDecode /Length ")
+	result.WriteString(strconv.Itoa(len(compressedData)))
+	result.WriteString(" /N 3 /Alternate /DeviceRGB >>\nstream\n")
 	result.Write(compressedData)
 	result.WriteString("\nendstream\nendobj\n")
 
@@ -345,14 +353,17 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 	grayProfile := buildGrayICCProfile()
 
 	// Compress the ICC profile
-	var compressedBuf bytes.Buffer
-	zlibWriter := zlib.NewWriter(&compressedBuf)
+	compressedBuf := font.GetCompressBuffer()
+	defer font.CompressBufPool.Put(compressedBuf)
+	zlibWriter := font.GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(grayProfile); err != nil {
-		_ = zlibWriter.Close()
+		font.PutZlibWriter(zlibWriter)
 		return nil
 	}
-	_ = zlibWriter.Close()
-	compressedData := compressedBuf.Bytes()
+	if err := font.CloseZlibWriter(zlibWriter); err != nil {
+		return nil
+	}
+	compressedData := append([]byte(nil), compressedBuf.Bytes()...)
 
 	// Encrypt if needed
 	if encryptor != nil {
@@ -361,8 +372,10 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 
 	// Build the object
 	var result bytes.Buffer
-	result.WriteString(fmt.Sprintf("%d 0 obj\n<< /Filter /FlateDecode /Length %d /N 1 /Alternate /DeviceGray >>\nstream\n",
-		objectID, len(compressedData)))
+	result.WriteString(strconv.Itoa(objectID))
+	result.WriteString(" 0 obj\n<< /Filter /FlateDecode /Length ")
+	result.WriteString(strconv.Itoa(len(compressedData)))
+	result.WriteString(" /N 1 /Alternate /DeviceGray >>\nstream\n")
 	result.Write(compressedData)
 	result.WriteString("\nendstream\nendobj\n")
 
@@ -430,7 +443,7 @@ func buildGrayICCProfile() []byte {
 	}
 
 	for _, tag := range tags {
-		copy(profile[offset:offset+4], []byte(tag.sig))
+		copy(profile[offset:offset+4], tag.sig)
 		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
 		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
 		offset += 12
@@ -482,17 +495,33 @@ func GenerateOutputIntentObject(objectID int, iccProfileID int, encryptor Object
 	infoStr := "(" + srgbICC + ")"
 
 	if encryptor != nil {
-		idEnc := encryptor.EncryptString([]byte(srgbICC), objectID, 0)
-		idStr = fmt.Sprintf("<%s>", hex.EncodeToString(idEnc))
+		idBuf := make([]byte, len(srgbICC))
+		copy(idBuf, srgbICC)
+		idEnc := encryptor.EncryptString(idBuf, objectID, 0)
+		idStr = "<" + hex.EncodeToString(idEnc) + ">"
 
-		regEnc := encryptor.EncryptString([]byte("http://www.color.org"), objectID, 0)
-		regStr = fmt.Sprintf("<%s>", hex.EncodeToString(regEnc))
+		regVal := "http://www.color.org"
+		regBuf := make([]byte, len(regVal))
+		copy(regBuf, regVal)
+		regEnc := encryptor.EncryptString(regBuf, objectID, 0)
+		regStr = "<" + hex.EncodeToString(regEnc) + ">"
 
-		infoEnc := encryptor.EncryptString([]byte(srgbICC), objectID, 0)
-		infoStr = fmt.Sprintf("<%s>", hex.EncodeToString(infoEnc))
+		infoEnc := encryptor.EncryptString(idBuf, objectID, 0)
+		infoStr = "<" + hex.EncodeToString(infoEnc) + ">"
 	}
 
 	// For PDF/A-4 (PDF 2.0), use GTS_PDFA1 subtype (still valid)
-	return fmt.Sprintf("%d 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier %s /RegistryName %s /Info %s /DestOutputProfile %d 0 R >>\nendobj\n",
-		objectID, idStr, regStr, infoStr, iccProfileID)
+	var out strings.Builder
+	out.Grow(256)
+	out.WriteString(strconv.Itoa(objectID))
+	out.WriteString(" 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier ")
+	out.WriteString(idStr)
+	out.WriteString(" /RegistryName ")
+	out.WriteString(regStr)
+	out.WriteString(" /Info ")
+	out.WriteString(infoStr)
+	out.WriteString(" /DestOutputProfile ")
+	out.WriteString(strconv.Itoa(iccProfileID))
+	out.WriteString(" 0 R >>\nendobj\n")
+	return out.String()
 }

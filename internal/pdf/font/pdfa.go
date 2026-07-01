@@ -80,7 +80,7 @@ type PDFAFontManager struct {
 
 // Global PDF/A font manager
 var pdfaFontManager = &PDFAFontManager{
-	loadedFonts: make(map[string]*TTFFont),
+	loadedFonts: make(map[string]*TTFFont, len(LiberationFontFiles)),
 }
 
 // GetPDFAFontManager returns the global PDF/A font manager
@@ -147,7 +147,7 @@ func (m *PDFAFontManager) EnsureFontsAvailable() error {
 
 	if !m.initialized {
 		if err := m.initialize(PDFAFontConfig{AutoDownload: true}); err != nil {
-			return err
+			return fmt.Errorf("initialize PDF/A font manager: %w", err)
 		}
 	}
 
@@ -231,7 +231,9 @@ func (m *PDFAFontManager) downloadFonts() error {
 		_ = os.Remove(tmpFile.Name()) // Clean up
 	}()
 	defer func() {
-		_ = tmpFile.Close()
+		if err := tmpFile.Close(); err != nil {
+			fmt.Printf("warning: failed to close temp font archive: %v\n", err)
+		}
 	}()
 
 	// Download the file
@@ -240,7 +242,9 @@ func (m *PDFAFontManager) downloadFonts() error {
 		return fmt.Errorf("failed to download fonts: %w", err)
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("warning: failed to close font download response body: %v\n", err)
+		}
 	}()
 
 	if resp.StatusCode != http.StatusOK {
@@ -263,12 +267,16 @@ func (m *PDFAFontManager) downloadFonts() error {
 		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
 	defer func() {
-		_ = gzr.Close()
+		if err := gzr.Close(); err != nil {
+			fmt.Printf("warning: failed to close font archive gzip reader: %v\n", err)
+		}
 	}()
 
 	tr := tar.NewReader(gzr)
 
 	fmt.Printf("Extracting fonts to %s...\n", m.config.FontsDirectory)
+
+	copyBuf := make([]byte, 32*1024)
 
 	for {
 		header, err := tr.Next()
@@ -303,8 +311,10 @@ func (m *PDFAFontManager) downloadFonts() error {
 				return fmt.Errorf("failed to create font file %s: %w", destPath, err)
 			}
 
-			if _, err := io.Copy(outFile, tr); err != nil {
-				_ = outFile.Close()
+			if _, err := io.CopyBuffer(outFile, tr, copyBuf); err != nil {
+				if closeErr := outFile.Close(); closeErr != nil {
+					fmt.Printf("warning: failed to close %s after extract error: %v\n", fileName, closeErr)
+				}
 				return fmt.Errorf("failed to extract %s: %w", fileName, err)
 			}
 			if err := outFile.Close(); err != nil {
@@ -358,7 +368,7 @@ func (m *PDFAFontManager) GetLiberationFont(standardFontName string) (*TTFFont, 
 // This registers them under their STANDARD names so getFontReference picks them up
 func (m *PDFAFontManager) RegisterLiberationFontsForPDFA(registry *CustomFontRegistry, usedStandardFonts []string) error {
 	if err := m.EnsureFontsAvailable(); err != nil {
-		return err
+		return fmt.Errorf("ensure liberation fonts available: %w", err)
 	}
 
 	for _, stdFont := range usedStandardFonts {
@@ -374,13 +384,13 @@ func (m *PDFAFontManager) RegisterLiberationFontsForPDFA(registry *CustomFontReg
 
 		font, err := m.GetLiberationFont(stdFont)
 		if err != nil {
-			return err
+			return fmt.Errorf("load liberation font %s: %w", stdFont, err)
 		}
 
 		// Register under the STANDARD font name, not the Liberation name
 		// This way getFontReference will find it and use the embedded font
 		if err := registry.RegisterFont(stdFont, font); err != nil {
-			return err
+			return fmt.Errorf("register liberation font %s: %w", stdFont, err)
 		}
 	}
 

@@ -2,8 +2,8 @@ package typstsyntax
 
 import (
 	"bytes"
-	"fmt"
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -284,7 +284,7 @@ func (le *LayoutEngine) layoutFraction(node *Node, fontSize float64) *MathLayout
 	denX := (fracWidth - denLay.Width) / 2
 	denY := barY - barPadding - denLay.Height
 
-	elements := make([]MathElement, 0)
+	var elements []MathElement
 
 	// Numerator
 	for _, el := range numLay.Elements {
@@ -323,7 +323,7 @@ func (le *LayoutEngine) layoutSqrt(node *Node, fontSize float64) *MathLayout {
 	totalH := inner.Height + overlineGap + fontSize*0.15
 	totalW := radWidth + inner.Width + fontSize*0.1
 
-	elements := make([]MathElement, 0)
+	var elements []MathElement
 
 	// Radical sign (√) glyph
 	elements = append(elements, MathElement{
@@ -358,7 +358,7 @@ func (le *LayoutEngine) layoutRoot(node *Node, fontSize float64) *MathLayout {
 	totalW := radWidth + innerLay.Width + fontSize*0.1
 	totalH := innerLay.Height + fontSize*0.25
 
-	elements := make([]MathElement, 0)
+	var elements []MathElement
 
 	// Index (small, top-left of radical)
 	for _, el := range indexLay.Elements {
@@ -410,7 +410,7 @@ func (le *LayoutEngine) layoutGroup(node *Node, fontSize float64) *MathLayout {
 	}
 
 	totalW := delimWidth*2 + innerLay.Width
-	elements := make([]MathElement, 0)
+	var elements []MathElement
 
 	// Left delimiter
 	elements = append(elements, MathElement{
@@ -468,13 +468,16 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 	cols := inferMatrixColumns(len(node.Args))
 	rowCount := int(math.Ceil(float64(len(node.Args)) / float64(cols)))
 
+	flatCells := make([]*MathLayout, rowCount*cols)
 	gridCells := make([][]*MathLayout, rowCount)
+	for r := range gridCells {
+		gridCells[r] = flatCells[r*cols : (r+1)*cols]
+	}
 	colWidths := make([]float64, cols)
 	rowHeights := make([]float64, rowCount)
 
 	idx := 0
 	for r := 0; r < rowCount; r++ {
-		gridCells[r] = make([]*MathLayout, cols)
 		for c := 0; c < cols; c++ {
 			if idx >= len(node.Args) {
 				break
@@ -666,7 +669,7 @@ func findSingleMatrix(args []*Node) *Node {
 		if arg.Type == NodeSequence {
 			var matNode *Node
 			for _, c := range arg.Children {
-				if c.Type == NodeLiteral && strings.TrimSpace(c.Value) == "" {
+				if c.Type == NodeLiteral && isWhitespaceLiteral(c.Value) {
 					continue
 				}
 				if c.Type == NodeMatrix && matNode == nil {
@@ -786,7 +789,7 @@ func (le *LayoutEngine) layoutBinom(node *Node, fontSize float64) *MathLayout {
 	topY := fontSize*0.4 + gap
 	botY := fontSize*0.4 - gap - botLay.Height
 
-	elements := make([]MathElement, 0)
+	var elements []MathElement
 
 	// Left paren
 	elements = append(elements, MathElement{
@@ -938,7 +941,7 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 
 	totalW := delimW*2 + innerLay.Width
 
-	elements := make([]MathElement, 0)
+	var elements []MathElement
 
 	// Position delimiter baseline so the glyph is vertically centered on the content
 	delimY := 0.0
@@ -1098,8 +1101,8 @@ func (le *LayoutEngine) layoutGenericFunc(node *Node, fontSize float64) *MathLay
 	delimW := fontSize * 0.3
 
 	totalW := nameLay.Width + delimW // name + (
-	elements := make([]MathElement, 0)
-	elements = append(elements, nameLay.Elements...)
+	elements := make([]MathElement, len(nameLay.Elements))
+	copy(elements, nameLay.Elements)
 
 	elements = append(elements, MathElement{
 		Type: ElemGlyph, Text: "(", FontSize: fontSize,
@@ -1231,15 +1234,17 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 			buf.WriteString("1 J 1 j\n") // round line cap + round line join
 			buf.WriteString(fmtFloat(lineW))
 			buf.WriteString(" w\n")
+			pathBaseX := baseX + el.X
+			pathBaseY := baseY + el.Y
 			p0 := el.PathPoints[0]
-			buf.WriteString(fmtFloat(baseX + el.X + p0[0]))
+			buf.WriteString(fmtFloat(pathBaseX + p0[0]))
 			buf.WriteString(" ")
-			buf.WriteString(fmtFloat(baseY + el.Y + p0[1]))
+			buf.WriteString(fmtFloat(pathBaseY + p0[1]))
 			buf.WriteString(" m\n")
 			for _, pt := range el.PathPoints[1:] {
-				buf.WriteString(fmtFloat(baseX + el.X + pt[0]))
+				buf.WriteString(fmtFloat(pathBaseX + pt[0]))
 				buf.WriteString(" ")
-				buf.WriteString(fmtFloat(baseY + el.Y + pt[1]))
+				buf.WriteString(fmtFloat(pathBaseY + pt[1]))
 				buf.WriteString(" l\n")
 			}
 			buf.WriteString("S\n")
@@ -1253,7 +1258,17 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 
 // fmtFloat formats a float64 for PDF with 2 decimal places.
 func fmtFloat(f float64) string {
-	return fmt.Sprintf("%.2f", f)
+	var buf [32]byte
+	return string(strconv.AppendFloat(buf[:0], f, 'f', 2, 64))
+}
+
+func isWhitespaceLiteral(value string) bool {
+	for _, r := range value {
+		if r != ' ' && r != '\t' && r != '\n' && r != '\r' {
+			return false
+		}
+	}
+	return true
 }
 
 // bracketLineWidth is a constant thin line width for all drawn brackets.

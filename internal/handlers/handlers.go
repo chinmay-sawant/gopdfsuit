@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/middleware"
@@ -89,9 +90,18 @@ func RegisterRoutes(router *gin.Engine) {
 	// the repo root or from inside cmd/gopdfsuit (where the exe often lives).
 	base := getProjectRoot()
 
-	// Serve static assets from Vite build (matching the base path in vite.config.js)
-	router.Static("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
-	router.Static("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
+	// Serve static assets with long-lived cache headers (Vite-hashed filenames are immutable).
+	serveStaticAssets := func(urlPrefix, dir string) {
+		fileServer := http.FileServer(http.Dir(dir))
+		router.GET(urlPrefix+"/*filepath", func(c *gin.Context) {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			c.Request.URL.Path = urlPrefix + c.Param("filepath")
+			fileServer.ServeHTTP(c.Writer, c.Request)
+		})
+	}
+	assetsDir := filepath.Join(base, "docs", "assets")
+	serveStaticAssets("/gopdfsuit/assets", assetsDir)
+	serveStaticAssets("/assets", assetsDir) // Fallback for backward compatibility
 
 	// API endpoints - protected with Google OAuth when running on Cloud Run
 	v1 := router.Group("/api/v1")
@@ -100,7 +110,7 @@ func RegisterRoutes(router *gin.Engine) {
 	{
 		// Handle all OPTIONS requests for CORS
 		v1.OPTIONS("/*path", func(c *gin.Context) { //nolint:revive
-			// Handled by CORSMiddleware
+			c.Status(http.StatusNoContent)
 		})
 
 		v1.POST("/generate/template-pdf", handleGenerateTemplatePDF)
@@ -174,6 +184,8 @@ func handleSPA(c *gin.Context) {
 	c.File(indexPath)
 }
 
+var templateDataCache sync.Map // map[string][]byte keyed by absolute file path
+
 // handleGetTemplateData serves JSON template data based on file query parameter
 func handleGetTemplateData(c *gin.Context) {
 	filename := c.Query("file")
@@ -194,11 +206,18 @@ func handleGetTemplateData(c *gin.Context) {
 	filename = filepath.Base(filename)
 	filePath := filepath.Join(getProjectRoot(), filename)
 
-	// Read the JSON file
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Template file not found: " + filename})
-		return
+	// Read the JSON file (cached after first load to avoid per-request disk I/O).
+	var data []byte
+	if cached, ok := templateDataCache.Load(filePath); ok {
+		data = cached.([]byte)
+	} else {
+		var err error
+		data, err = os.ReadFile(filePath)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Template file not found: " + filename})
+			return
+		}
+		templateDataCache.Store(filePath, data)
 	}
 
 	// Validate JSON structure using sonic for performance
@@ -231,9 +250,9 @@ func handleUploadFont(c *gin.Context) {
 		return
 	}
 
-	// Validate file extension
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if ext != ".ttf" && ext != ".otf" {
+	// Validate file extension (case-insensitive without allocating ToLower).
+	ext := filepath.Ext(file.Filename)
+	if !strings.EqualFold(ext, ".ttf") && !strings.EqualFold(ext, ".otf") {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .ttf and .otf files are supported"})
 		return
 	}
@@ -245,7 +264,9 @@ func handleUploadFont(c *gin.Context) {
 		return
 	}
 	defer func() {
-		_ = f.Close()
+		if closeErr := f.Close(); closeErr != nil {
+			log.Printf("warning: failed to close uploaded font: %v", closeErr)
+		}
 	}()
 
 	data, err := io.ReadAll(f)
@@ -255,7 +276,7 @@ func handleUploadFont(c *gin.Context) {
 	}
 
 	// Register font
-	fontName := strings.TrimSuffix(file.Filename, filepath.Ext(file.Filename))
+	fontName, _ := strings.CutSuffix(file.Filename, filepath.Ext(file.Filename))
 	err = pdf.GetFontRegistry().RegisterFontFromData(fontName, data)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to register font: " + err.Error()})
@@ -297,33 +318,41 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 // and returns the filled PDF bytes as application/pdf
 func handleFillPDF(c *gin.Context) {
 	// Try multipart form file upload
-	pdfFile, pdfHeader, _ := c.Request.FormFile("pdf")
+	pdfFile, pdfHeader, pdfFormErr := c.Request.FormFile("pdf")
 	var pdfBytes []byte
-	if pdfFile != nil {
+	if pdfFormErr == nil && pdfFile != nil {
 		defer func() {
-			_ = pdfFile.Close()
+			if closeErr := pdfFile.Close(); closeErr != nil {
+				log.Printf("failed to close pdf upload: %v", closeErr)
+			}
 		}()
 		buf := make([]byte, pdfHeader.Size)
-		_, err := pdfFile.Read(buf)
-		if err == nil {
+		if _, err := pdfFile.Read(buf); err == nil {
 			pdfBytes = buf
 		}
+	} else if pdfFormErr != nil && pdfFormErr != http.ErrMissingFile {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pdf upload: " + pdfFormErr.Error()})
+		return
 	}
 
-	xfdfFile, xfdfHeader, _ := c.Request.FormFile("xfdf")
+	xfdfFile, xfdfHeader, xfdfFormErr := c.Request.FormFile("xfdf")
 	var xfdfBytes []byte
-	if xfdfFile != nil {
+	if xfdfFormErr == nil && xfdfFile != nil {
 		defer func() {
-			_ = xfdfFile.Close()
+			if closeErr := xfdfFile.Close(); closeErr != nil {
+				log.Printf("failed to close xfdf upload: %v", closeErr)
+			}
 		}()
 		buf := make([]byte, xfdfHeader.Size)
-		_, err := xfdfFile.Read(buf)
-		if err == nil {
+		if _, err := xfdfFile.Read(buf); err == nil {
 			xfdfBytes = buf
 		}
+	} else if xfdfFormErr != nil && xfdfFormErr != http.ErrMissingFile {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid xfdf upload: " + xfdfFormErr.Error()})
+		return
 	}
 
-	// If files not provided, try to read raw body fields
+	// If files not provided, try to read raw body fields.
 	if len(pdfBytes) == 0 {
 		if b := c.PostForm("pdf_bytes"); b != "" {
 			pdfBytes = []byte(b)
@@ -373,13 +402,15 @@ func handleMergePDFs(c *gin.Context) {
 		fmt.Printf("Processing file %d: %s\n", i+1, fh.Filename)
 		f, err := fh.Open()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to open upload %d: %s", i+1, err.Error())})
 			return
 		}
-		buf, err := io.ReadAll(f)
-		_ = f.Close()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
+		buf, readErr := io.ReadAll(f)
+		if closeErr := f.Close(); closeErr != nil {
+			log.Printf("failed to close upload %d: %v", i+1, closeErr)
+		}
+		if readErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to read upload %d: %s", i+1, readErr.Error())})
 			return
 		}
 		pdfBytesList = append(pdfBytesList, buf)
@@ -406,7 +437,9 @@ func handlerSplitPDF(c *gin.Context) {
 		return
 	}
 	defer func() {
-		_ = pdfFile.Close()
+		if err := pdfFile.Close(); err != nil {
+			log.Printf("failed to close pdf file: %v", err)
+		}
 	}()
 	pdfBytes, err := io.ReadAll(pdfFile)
 	if err != nil {
@@ -452,21 +485,30 @@ func handlerSplitPDF(c *gin.Context) {
 	// Multiple outputs: return a zip archive
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
+	var partName []byte
 	for i, b := range outs {
-		name := fmt.Sprintf("originalfile-part%d.pdf", i+1)
-		fw, err := zw.Create(name)
+		partName = append(partName[:0], "originalfile-part"...)
+		partName = strconv.AppendInt(partName, int64(i+1), 10)
+		partName = append(partName, ".pdf"...)
+		fw, err := zw.Create(string(partName))
 		if err != nil {
-			_ = zw.Close()
+			if closeErr := zw.Close(); closeErr != nil {
+				log.Printf("failed to close zip writer after create error: %v", closeErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip create failed: " + err.Error()})
 			return
 		}
 		if _, err := fw.Write(b); err != nil {
-			_ = zw.Close()
+			if closeErr := zw.Close(); closeErr != nil {
+				log.Printf("failed to close zip writer after write error: %v", closeErr)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip write failed: " + err.Error()})
 			return
 		}
 	}
-	_ = zw.Close()
+	if err := zw.Close(); err != nil {
+		log.Printf("failed to close zip writer: %v", err)
+	}
 
 	c.Header("Content-Type", "application/zip")
 	c.Header("Content-Disposition", "attachment; filename=splits.zip")
@@ -476,8 +518,6 @@ func handlerSplitPDF(c *gin.Context) {
 
 // handleHTMLToPDF handles HTML to PDF conversion using htmltopdf
 func handleHTMLToPDF(c *gin.Context) {
-	log.Printf("Starting HTML to PDF conversion request")
-
 	var req models.HTMLToPDFRequest
 	data, err := c.GetRawData()
 	if err != nil {

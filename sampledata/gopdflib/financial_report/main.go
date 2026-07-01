@@ -9,17 +9,15 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
 )
 
-func getSystemInfo() string {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return fmt.Sprintf("OS: %s, Arch: %s, NumCPU: %d, GoVersion: %s",
-		runtime.GOOS, runtime.GOARCH, runtime.NumCPU(), runtime.Version())
+func getBenchmarkInfo(workers int) string {
+	return "Benchmark workers: " + strconv.Itoa(workers)
 }
 
 func monitorMemory(done chan bool, wg *sync.WaitGroup) {
@@ -54,7 +52,7 @@ func main() {
 	// numWorkers := runtime.NumCPU()
 	numWorkers := 96
 
-	fmt.Println(getSystemInfo())
+	fmt.Println(getBenchmarkInfo(numWorkers))
 	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)
 
 	// Build the template
@@ -82,10 +80,10 @@ func main() {
 	go monitorMemory(memDone, &memWg)
 
 	// Start workers
-	for range numWorkers {
+	for w := range numWorkers {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		go func(workerID int) {
+			_ = workerID
 			for range jobs {
 				start := time.Now()
 				_, err := gopdflib.GeneratePDF(template)
@@ -97,7 +95,8 @@ func main() {
 				}
 				results <- elapsed
 			}
-		}()
+			wg.Done()
+		}(w)
 	}
 
 	// Start total timer

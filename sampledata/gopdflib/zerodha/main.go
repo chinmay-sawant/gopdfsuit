@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -26,11 +27,34 @@ import (
 func boolPtr(b bool) *bool        { return &b }
 func floatPtr(f float64) *float64 { return &f }
 
-func getSystemInfo() string {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return fmt.Sprintf("OS: %s, Arch: %s, NumCPU: %d, GoVersion: %s",
-		runtime.GOOS, runtime.GOARCH, runtime.NumCPU(), runtime.Version())
+func getBenchmarkInfo(workers int) string {
+	return "Benchmark workers: " + strconv.Itoa(workers)
+}
+
+func formatClock(hour, min, sec int) string {
+	var buf [8]byte
+	buf[0] = '0' + byte(hour/10)
+	buf[1] = '0' + byte(hour%10)
+	buf[2] = ':'
+	buf[3] = '0' + byte(min/10)
+	buf[4] = '0' + byte(min%10)
+	buf[5] = ':'
+	buf[6] = '0' + byte(sec/10)
+	buf[7] = '0' + byte(sec%10)
+	return string(buf[:])
+}
+
+func formatINR(amount float64) string {
+	scaled := int64(amount*100 + 0.5)
+	whole := scaled / 100
+	frac := scaled % 100
+	if frac == 0 {
+		return "₹" + strconv.FormatInt(whole, 10)
+	}
+	if frac < 10 {
+		return "₹" + strconv.FormatInt(whole, 10) + ".0" + strconv.FormatInt(frac, 10)
+	}
+	return "₹" + strconv.FormatInt(whole, 10) + "." + strconv.FormatInt(frac, 10)
 }
 
 func monitorMemory(done chan bool, wg *sync.WaitGroup) {
@@ -89,7 +113,7 @@ func generateTrades(n int, rng *rand.Rand) []trade {
 		price = float64(int(price*100)) / 100 // round to 2 decimals
 		total := float64(qty) * price
 
-		timeStr := fmt.Sprintf("%02d:%02d:%02d", hour, min, sec)
+		timeStr := formatClock(hour, min, sec)
 		sec++
 		if sec >= 60 {
 			sec = 0
@@ -317,9 +341,9 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 		tradeRows = append(tradeRows, gopdflib.Row{Row: []gopdflib.Cell{
 			{Props: "Helvetica:8:000:center:1:0:0:1", Text: t.Symbol, BgColor: bg},
 			{Props: "Helvetica:8:000:center:0:0:0:1", Text: t.Action, TextColor: actionColor, BgColor: bg},
-			{Props: "Helvetica:8:000:center:0:0:0:1", Text: fmt.Sprintf("%d", t.Qty), BgColor: bg},
-			{Props: "Helvetica:8:000:right:0:0:0:1", Text: fmt.Sprintf("₹%.2f", t.Price), BgColor: bg},
-			{Props: "Helvetica:8:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", t.Total), BgColor: bg},
+			{Props: "Helvetica:8:000:center:0:0:0:1", Text: strconv.Itoa(t.Qty), BgColor: bg},
+			{Props: "Helvetica:8:000:right:0:0:0:1", Text: formatINR(t.Price), BgColor: bg},
+			{Props: "Helvetica:8:000:right:0:1:0:1", Text: formatINR(t.Total), BgColor: bg},
 		}})
 	}
 
@@ -486,13 +510,13 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 			actionColor = "#E74C3C"
 		}
 		tradeRows = append(tradeRows, gopdflib.Row{Row: []gopdflib.Cell{
-			{Props: "Helvetica:7:000:center:1:0:0:1", Text: fmt.Sprintf("%d", t.ID), BgColor: bg},
+			{Props: "Helvetica:7:000:center:1:0:0:1", Text: strconv.Itoa(t.ID), BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Time, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Symbol, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Action, TextColor: actionColor, BgColor: bg},
-			{Props: "Helvetica:7:000:center:0:0:0:1", Text: fmt.Sprintf("%d", t.Qty), BgColor: bg},
-			{Props: "Helvetica:7:000:right:0:0:0:1", Text: fmt.Sprintf("₹%.2f", t.Price), BgColor: bg},
-			{Props: "Helvetica:7:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", t.Total), BgColor: bg},
+			{Props: "Helvetica:7:000:center:0:0:0:1", Text: strconv.Itoa(t.Qty), BgColor: bg},
+			{Props: "Helvetica:7:000:right:0:0:0:1", Text: formatINR(t.Price), BgColor: bg},
+			{Props: "Helvetica:7:000:right:0:1:0:1", Text: formatINR(t.Total), BgColor: bg},
 		}})
 	}
 
@@ -631,7 +655,7 @@ func main() {
 	iterations := 5000
 	numWorkers := 48
 
-	fmt.Println(getSystemInfo())
+	fmt.Println(getBenchmarkInfo(numWorkers))
 	fmt.Printf("Running %d iterations using %d workers...\n\n", iterations, numWorkers)
 
 	// Pre-build all 3 templates
@@ -666,7 +690,7 @@ func main() {
 	// Counters
 	var retailCount, activeCount, hftCount int64
 
-	// Channels
+	// Channels (buffered so producers never block while workers are starting)
 	jobs := make(chan int, iterations)
 	results := make(chan time.Duration, iterations)
 	errors := make(chan error, iterations)
@@ -680,11 +704,11 @@ func main() {
 	go monitorMemory(memDone, &memWg)
 
 	// Start workers
-	for range numWorkers {
+	workerSeed := time.Now().UnixNano()
+	for w := range numWorkers {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			localRng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(rand.Intn(10000))))
+		go func(workerID int) {
+			localRng := rand.New(rand.NewSource(workerSeed + int64(workerID)))
 			for range jobs {
 				roll := localRng.Intn(100)
 				var tmpl gopdflib.PDFTemplate
@@ -710,7 +734,8 @@ func main() {
 				}
 				results <- elapsed
 			}
-		}()
+			wg.Done()
+		}(w)
 	}
 
 	// Start timer and send jobs

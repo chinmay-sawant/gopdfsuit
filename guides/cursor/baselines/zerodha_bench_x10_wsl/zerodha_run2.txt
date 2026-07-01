@@ -1,0 +1,34 @@
+=== Zerodha Gold Standard Benchmark ===
+Workload Mix: 80% Retail | 15% Active | 5% HFT
+
+Benchmark workers: 48
+Running 5000 iterations using 48 workers...
+
+Building templates...
+Templates built.
+Warm-up runs...
+  Retail PDF size:  61354 bytes (59.92 KB)
+  Active PDF size:  76128 bytes (74.34 KB)
+  HFT PDF size:     2424217 bytes (2367.40 KB)
+
+  Max Memory Allocated: 980.24 MB
+=== Performance Summary ===
+  Iterations:      5000
+  Concurrency:     48 workers
+  Total time:      3.128 s
+  Throughput:      1598.72 ops/sec
+
+  Avg Latency:     29.395 ms
+  Min Latency:     2.437 ms
+  Max Latency:     609.899 ms
+
+=== Workload Distribution ===
+  Retail  (80%):   3993 iterations
+  Active  (15%):   750 iterations
+  HFT      (5%):   257 iterations
+
+Saved: zerodha_retail_output.pdf (61354 bytes)
+Saved: zerodha_active_output.pdf (76128 bytes)
+Saved: zerodha_hft_output.pdf (2424217 bytes)
+
+=== Done ===

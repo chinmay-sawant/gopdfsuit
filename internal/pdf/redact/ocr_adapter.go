@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
@@ -33,8 +32,8 @@ type OCRProvider interface {
 type tesseractProvider struct{}
 
 func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
-	provider := strings.TrimSpace(strings.ToLower(settings.Provider))
-	if provider == "" || provider == "tesseract" {
+	provider := trimSpaceASCII(settings.Provider)
+	if provider == "" || equalsFoldASCII(provider, "tesseract") {
 		return tesseractProvider{}, nil
 	}
 	return nil, fmt.Errorf("unsupported OCR provider: %s", settings.Provider)
@@ -55,11 +54,11 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 	var rects []models.RedactionRect
 	for _, w := range words {
 		for _, q := range queries {
-			term := strings.TrimSpace(strings.ToLower(q.Text))
+			term := trimSpaceASCII(q.Text)
 			if term == "" {
 				continue
 			}
-			if strings.Contains(strings.ToLower(w.Text), term) {
+			if containsFoldASCII(w.Text, term) {
 				rects = append(rects, models.RedactionRect{
 					PageNum: w.PageNum,
 					X:       w.X,
@@ -95,23 +94,29 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	defer func() {
+		if rmErr := os.RemoveAll(tmpDir); rmErr != nil {
+			// Best-effort temp cleanup after OCR pipeline.
+			_ = rmErr
+		}
+	}()
 
 	pdfPath := filepath.Join(tmpDir, "input.pdf")
 	if err := os.WriteFile(pdfPath, pdfBytes, 0o600); err != nil {
 		return nil, err
 	}
 
-	lang := strings.TrimSpace(settings.Language)
+	lang := trimSpaceASCII(settings.Language)
 	if lang == "" {
 		lang = "eng"
 	}
 
-	words := make([]ocrWord, 0)
+	words := make([]ocrWord, 0, info.TotalPages*32)
 	for page := 1; page <= info.TotalPages; page++ {
-		imgBase := filepath.Join(tmpDir, fmt.Sprintf("page-%d", page))
+		imgBase := filepath.Join(tmpDir, "page-"+strconv.Itoa(page))
 		imgPath := imgBase + ".png"
-		pdftoppmCmd := exec.Command("pdftoppm", "-f", strconv.Itoa(page), "-l", strconv.Itoa(page), "-singlefile", "-png", pdfPath, imgBase)
+		pageStr := strconv.Itoa(page)
+		pdftoppmCmd := exec.Command("pdftoppm", "-f", pageStr, "-l", pageStr, "-singlefile", "-png", pdfPath, imgBase)
 		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, err, string(out))
 		}
@@ -121,7 +126,9 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 			return nil, err
 		}
 		cfg, _, err := image.DecodeConfig(imgFile)
-		_ = imgFile.Close()
+		if closeErr := imgFile.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -137,6 +144,7 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 		sy := pageDim.Height / float64(cfg.Height)
 
 		scanner := bufio.NewScanner(bytes.NewReader(tsvOut))
+		scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 		lineNo := 0
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -144,11 +152,11 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 			if lineNo == 1 {
 				continue // header
 			}
-			cols := strings.Split(line, "\t")
+			cols := splitTabFields(line)
 			if len(cols) < 12 {
 				continue
 			}
-			text := strings.TrimSpace(cols[11])
+			text := trimSpaceASCII(cols[11])
 			if text == "" {
 				continue
 			}

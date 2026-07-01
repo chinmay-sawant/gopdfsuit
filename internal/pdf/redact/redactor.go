@@ -3,7 +3,6 @@ package redact
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -80,8 +79,7 @@ func (r *Redactor) GetPageInfo() (models.PageInfo, error) {
 		return models.PageInfo{}, errors.New("root object not found in map")
 	}
 
-	pagesRefRe := regexp.MustCompile(`/Pages\s+(\d+)\s+(\d+)\s+R`)
-	pm := pagesRefRe.FindSubmatch(rootBody)
+	pm := rePagesRef.FindSubmatch(rootBody)
 	if pm == nil {
 		return models.PageInfo{}, errors.New("no /Pages reference in Root")
 	}
@@ -135,14 +133,12 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 				continue
 			}
 			rawStream, decStream, _ := inspectStream(objBody)
-			combined := make([]byte, 0, len(rawStream)+len(decStream))
-			combined = append(combined, rawStream...)
-			combined = append(combined, decStream...)
+			combined := append(append(make([]byte, 0, len(rawStream)+len(decStream)), rawStream...), decStream...)
 			s := string(combined)
 			if strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ")) {
 				hasText = true
 			}
-			if strings.Contains(s, " Do") || bytesIndex(objBody, []byte("/Image")) >= 0 {
+			if strings.Contains(s, " Do") || bytesIndex(objBody, imageBytes) >= 0 {
 				hasImage = true
 			}
 		}
@@ -150,7 +146,7 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 			content, _ := extractPageContent(body, objMap)
 			s := string(content)
 			hasText = strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ"))
-			hasImage = strings.Contains(s, " Do") || bytesIndex(body, []byte("/Image")) >= 0
+			hasImage = strings.Contains(s, " Do") || bytesIndex(body, imageBytes) >= 0
 		}
 		typeName := "unknown"
 		switch {
@@ -187,7 +183,10 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		SecurityOutcome: "visual_only",
 	}
 
-	mode := strings.TrimSpace(strings.ToLower(opts.Mode))
+	mode := trimSpaceASCII(opts.Mode)
+	if mode != "" {
+		mode = strings.ToLower(mode)
+	}
 	if mode == "" {
 		mode = "visual_allowed" //nolint:goconst
 	}
@@ -229,7 +228,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 	activeTextQueries := opts.TextSearch
 
 	for _, q := range activeTextQueries {
-		query := strings.TrimSpace(q.Text)
+		query := trimSpaceASCII(q.Text)
 		if query == "" {
 			continue
 		}
@@ -271,7 +270,11 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		}
 		// Note: ApplyRedactions visual overlays still use the original ApplyRedactions design
 		// We can make applyRedactionsToPage a method later.
-		rOut, _ := NewRedactor(secureOut)
+		rOut, redactErr := NewRedactor(secureOut)
+		if redactErr != nil {
+			report.SecurityOutcome = "failed"
+			return nil, report, fmt.Errorf("create redactor for visual overlay: %w", redactErr)
+		}
 		visualOut, err := rOut.ApplyRedactions(all)
 		if err != nil {
 			report.SecurityOutcome = "failed"

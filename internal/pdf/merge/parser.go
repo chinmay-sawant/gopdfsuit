@@ -8,12 +8,20 @@ import (
 	"strconv"
 )
 
+var (
+	parserVersionRe  = regexp.MustCompile(`%PDF-(\d+\.\d+)`)
+	parserObjStartRe = regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
+	parserRefRe      = regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
+	parserNRe        = regexp.MustCompile(`/N\s+(\d+)`)
+	parserFirstRe    = regexp.MustCompile(`/First\s+(\d+)`)
+	parserWSRe       = regexp.MustCompile(`\s+`)
+)
+
 // PDF parsing functions for the merge package
 
 // DetectPDFVersion extracts the PDF version from the header (e.g., "1.4", "1.7", "2.0")
 func DetectPDFVersion(data []byte) string {
-	versionRe := regexp.MustCompile(`%PDF-(\d+\.\d+)`)
-	if m := versionRe.FindSubmatch(data); m != nil {
+	if m := parserVersionRe.FindSubmatch(data); m != nil {
 		return string(m[1])
 	}
 	return "1.7" // default fallback
@@ -24,10 +32,16 @@ func DetectPDFVersion(data []byte) string {
 func CompareVersions(v1, v2 string) int {
 	parse := func(v string) (int, int) {
 		parts := bytes.Split([]byte(v), []byte("."))
-		major, _ := strconv.Atoi(string(parts[0]))
+		major, err := strconv.Atoi(string(parts[0]))
+		if err != nil {
+			major = 0
+		}
 		minor := 0
 		if len(parts) > 1 {
-			minor, _ = strconv.Atoi(string(parts[1]))
+			minor, err = strconv.Atoi(string(parts[1]))
+			if err != nil {
+				minor = 0
+			}
 		}
 		return major, minor
 	}
@@ -51,13 +65,10 @@ func CompareVersions(v1, v2 string) int {
 
 // FindObjectBoundaries finds all PDF objects in the data
 func FindObjectBoundaries(data []byte) []ObjectBoundary {
-	var results []ObjectBoundary
-	objStartRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
-
+	results := make([]ObjectBoundary, 0, 32)
 	pos := 0
 	for pos < len(data) {
-		// Find next "obj" starting from pos
-		loc := objStartRe.FindSubmatchIndex(data[pos:])
+		loc := parserObjStartRe.FindSubmatchIndex(data[pos:])
 		if loc == nil {
 			break
 		}
@@ -66,8 +77,15 @@ func FindObjectBoundaries(data []byte) []ObjectBoundary {
 		start := pos + loc[0]
 		bodyStart := pos + loc[1]
 
-		objNum, _ := strconv.Atoi(string(data[pos+loc[2] : pos+loc[3]]))
-		genNum, _ := strconv.Atoi(string(data[pos+loc[4] : pos+loc[5]]))
+		objNum, err := strconv.Atoi(string(data[pos+loc[2] : pos+loc[3]]))
+		if err != nil {
+			pos = start + 1
+			continue
+		}
+		genNum, err := strconv.Atoi(string(data[pos+loc[4] : pos+loc[5]]))
+		if err != nil {
+			genNum = 0
+		}
 
 		endPos := FindEndObj(data, bodyStart)
 		if endPos == -1 {
@@ -296,13 +314,12 @@ func FindStreamStart(data []byte) int {
 
 // ReplaceRefsOutsideStreams rewrites indirect references only outside stream blocks
 func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
-	refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 	var out bytes.Buffer
 	i := 0
 	n := len(data)
 
 	replaceFunc := func(b []byte) []byte {
-		sm := refRe.FindSubmatch(b)
+		sm := parserRefRe.FindSubmatch(b)
 		if len(sm) < 3 {
 			return b
 		}
@@ -320,7 +337,7 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 		if relStart == -1 {
 			// No more streams, process rest
 			tail := data[i:]
-			replaced := refRe.ReplaceAllFunc(tail, replaceFunc)
+			replaced := parserRefRe.ReplaceAllFunc(tail, replaceFunc)
 			out.Write(replaced)
 			break
 		}
@@ -329,7 +346,7 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 
 		// Process pre-stream
 		pre := data[i:streamStart]
-		replaced := refRe.ReplaceAllFunc(pre, replaceFunc)
+		replaced := parserRefRe.ReplaceAllFunc(pre, replaceFunc)
 		out.Write(replaced)
 
 		// Find endstream
@@ -437,26 +454,29 @@ func isWhitespace(b byte) bool {
 //   - Header: pairs of "objnum offset" separated by whitespace
 //   - Body: object bodies starting at /First offset
 func ParseObjectStream(body []byte) map[int][]byte {
-	result := make(map[int][]byte)
+	result := make(map[int][]byte, 8)
 
-	// Extract /N (number of objects)
-	nRe := regexp.MustCompile(`/N\s+(\d+)`)
-	nMatch := nRe.FindSubmatch(body)
+	nMatch := parserNRe.FindSubmatch(body)
 	if nMatch == nil {
 		return result
 	}
-	numObjects, _ := strconv.Atoi(string(nMatch[1]))
+	numObjects, err := strconv.Atoi(string(nMatch[1]))
+	if err != nil {
+		return result
+	}
 	if numObjects == 0 {
 		return result
 	}
 
 	// Extract /First (offset to first object body)
-	firstRe := regexp.MustCompile(`/First\s+(\d+)`)
-	firstMatch := firstRe.FindSubmatch(body)
+	firstMatch := parserFirstRe.FindSubmatch(body)
 	if firstMatch == nil {
 		return result
 	}
-	firstOffset, _ := strconv.Atoi(string(firstMatch[1]))
+	firstOffset, err := strconv.Atoi(string(firstMatch[1]))
+	if err != nil {
+		return result
+	}
 
 	// Find and decompress stream
 	streamData := extractAndDecompressStream(body)
@@ -476,7 +496,7 @@ func ParseObjectStream(body []byte) map[int][]byte {
 	var entries []objEntry
 
 	headerStr := string(bytes.TrimSpace(header))
-	parts := regexp.MustCompile(`\s+`).Split(headerStr, -1)
+	parts := parserWSRe.Split(headerStr, -1)
 
 	for i := 0; i+1 < len(parts); i += 2 {
 		objNum, err1 := strconv.Atoi(parts[i])
@@ -558,7 +578,7 @@ func decompressFlate(data []byte) []byte {
 		return nil
 	}
 	defer func() {
-		_ = reader.Close()
+		_ = reader.Close() // best-effort cleanup after successful read
 	}()
 
 	var out bytes.Buffer

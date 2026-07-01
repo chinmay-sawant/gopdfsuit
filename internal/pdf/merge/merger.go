@@ -2,9 +2,10 @@ package merge
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 // MergePDFs merges multiple PDF files into one
@@ -12,7 +13,7 @@ import (
 //nolint:revive // exported
 func MergePDFs(files [][]byte) ([]byte, error) {
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no PDF files provided")
+		return nil, errors.New("no PDF files provided")
 	}
 
 	ctx := NewMergeContext()
@@ -21,7 +22,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	var fileContexts []*FileContext
 	for _, f := range files {
 		if hasEncrypt(f) {
-			return nil, fmt.Errorf("cannot merge encrypted PDF")
+			return nil, errors.New("cannot merge encrypted PDF")
 		}
 
 		fc := parseFile(f)
@@ -39,11 +40,12 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	}
 
 	if len(fileContexts) == 0 {
-		return nil, fmt.Errorf("no valid PDF files to merge")
+		return nil, errors.New("no valid PDF files to merge")
 	}
 
-	// Write PDF header
-	ctx.Output.WriteString(fmt.Sprintf("%%PDF-%s\n%%\xe2\xe3\xcf\xd3\n", ctx.HighestVersion))
+	ctx.Output.WriteString("%PDF-")
+	ctx.Output.WriteString(ctx.HighestVersion)
+	ctx.Output.WriteString("\n%\xe2\xe3\xcf\xd3\n")
 
 	// Process each file
 	var appendedObjects []struct {
@@ -173,7 +175,13 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 		return 0, 0
 	}
 
-	if _, err := fmt.Sscanf(rootRef, "%d", &catalogNum); err != nil {
+	parts := strings.Fields(rootRef)
+	if len(parts) < 1 {
+		return 0, 0
+	}
+	var err error
+	catalogNum, err = strconv.Atoi(parts[0])
+	if err != nil {
 		return 0, 0
 	}
 
@@ -182,7 +190,7 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 			pagesRe := regexp.MustCompile(`/Pages\s+(\d+)\s+\d+\s+R`)
 			match := pagesRe.FindSubmatch(body)
 			if match != nil {
-				pagesNum, _ = strconv.Atoi(string(match[1]))
+				pagesNum, _ = strconv.Atoi(string(match[1])) //nolint:errcheck // malformed PDF refs skipped
 			}
 		}
 	}
@@ -201,8 +209,12 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 	}
 
 	// Parse root object number
-	var rootNum int
-	if _, err := fmt.Sscanf(rootRef, "%d", &rootNum); err != nil {
+	rootParts := strings.Fields(rootRef)
+	if len(rootParts) < 1 {
+		return pages
+	}
+	rootNum, err := strconv.Atoi(rootParts[0])
+	if err != nil {
 		return pages
 	}
 
@@ -218,7 +230,10 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 		return pages
 	}
 
-	pagesNum, _ := strconv.Atoi(string(match[1]))
+	pagesNum, err := strconv.Atoi(string(match[1]))
+	if err != nil {
+		return pages
+	}
 	pagesBody, exists := objMap[pagesNum]
 	if !exists {
 		return pages
@@ -239,7 +254,10 @@ func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp
 	}
 
 	for _, r := range refRe.FindAllSubmatch(match[1], -1) {
-		kidNum, _ := strconv.Atoi(string(r[1]))
+		kidNum, err := strconv.Atoi(string(r[1]))
+		if err != nil {
+			continue
+		}
 		kidBody, ok := objMap[kidNum]
 		if !ok {
 			pages = append(pages, kidNum)
@@ -261,9 +279,9 @@ func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp
 // collectObjectsWithDependencies returns all object numbers to process
 // ensuring annotation dependencies are included but excluding original catalog/pages/objstm
 func collectObjectsWithDependencies(fc *FileContext) []int {
-	included := make(map[int]bool)
-	excluded := make(map[int]bool)
-	var result []int
+	included := make(map[int]bool, fc.MaxObj)
+	excluded := make(map[int]bool, 8)
+	result := make([]int, 0, fc.MaxObj)
 
 	// Mark objects to exclude
 	if fc.OriginalCatalog > 0 {
@@ -411,7 +429,6 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
 			xrefBuf = xrefBuf[:0]
-			// Format as 10-digit zero-padded number
 			offStr := strconv.FormatInt(int64(off), 10)
 			for j := 0; j < 10-len(offStr); j++ {
 				xrefBuf = append(xrefBuf, '0')

@@ -545,11 +545,13 @@ func GenerateWidthsArrayObject(fontName string, objectID int) string {
 	widthsArray.WriteString(" 0 obj\n[")
 
 	// Compact format - no newlines, minimal spacing
+	var numBuf []byte
 	for i, w := range metrics.Widths {
 		if i > 0 {
 			widthsArray.WriteString(" ")
 		}
-		widthsArray.WriteString(strconv.Itoa(w))
+		numBuf = strconv.AppendInt(numBuf[:0], int64(w), 10)
+		widthsArray.Write(numBuf)
 	}
 
 	widthsArray.WriteString("]\nendobj\n")
@@ -566,11 +568,13 @@ func GetHelveticaFontResourceString() string {
 	// Build compact widths array inline (no extra spaces)
 	var widths strings.Builder
 	widths.WriteString("[")
+	var numBuf []byte
 	for i, w := range metrics.Widths {
 		if i > 0 {
 			widths.WriteString(" ")
 		}
-		widths.WriteString(strconv.Itoa(w))
+		numBuf = strconv.AppendInt(numBuf[:0], int64(w), 10)
+		widths.Write(numBuf)
 	}
 	widths.WriteString("]")
 
@@ -657,13 +661,14 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	compressedBuf := GetCompressBuffer()
 	zlibWriter := GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(fontData); err != nil {
-		_ = zlibWriter.Close()
-		PutZlibWriter(zlibWriter)
+		_ = CloseZlibWriter(zlibWriter)
 		CompressBufPool.Put(compressedBuf)
 		return objects
 	}
-	_ = zlibWriter.Close()
-	PutZlibWriter(zlibWriter)
+	if err := CloseZlibWriter(zlibWriter); err != nil {
+		CompressBufPool.Put(compressedBuf)
+		return objects
+	}
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -809,6 +814,7 @@ func generateCIDWidths(font *RegisteredFont) string {
 	// Build width array using consecutive ranges for efficiency
 	var result strings.Builder
 	result.WriteString("[")
+	var numBuf []byte
 
 	i := 0
 	for i < len(widths) {
@@ -823,13 +829,15 @@ func generateCIDWidths(font *RegisteredFont) string {
 
 		// Write this range
 		result.WriteString(" ")
-		result.WriteString(strconv.Itoa(int(startCID)))
+		numBuf = strconv.AppendInt(numBuf[:0], int64(startCID), 10)
+		result.Write(numBuf)
 		result.WriteString(" [")
 		for j := startIdx; j < i; j++ {
 			if j > startIdx {
 				result.WriteString(" ")
 			}
-			result.WriteString(strconv.Itoa(widths[j].width))
+			numBuf = strconv.AppendInt(numBuf[:0], int64(widths[j].width), 10)
+			result.Write(numBuf)
 		}
 		result.WriteString("]")
 	}
@@ -899,13 +907,14 @@ func GenerateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 	compressedBuf := GetCompressBuffer()
 	zlibWriter := GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write(mapData); err != nil {
-		_ = zlibWriter.Close()
-		PutZlibWriter(zlibWriter)
+		_ = CloseZlibWriter(zlibWriter)
 		CompressBufPool.Put(compressedBuf)
 		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
 	}
-	_ = zlibWriter.Close()
-	PutZlibWriter(zlibWriter)
+	if err := CloseZlibWriter(zlibWriter); err != nil {
+		CompressBufPool.Put(compressedBuf)
+		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
+	}
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed
@@ -959,6 +968,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	cmap.WriteString("endcodespacerange\n")
 
 	// Write character mappings in chunks of 100 (PDF limit)
+	var chunkCountBuf []byte
 	for i := 0; i < len(mappings); i += 100 {
 		end := i + 100
 		if end > len(mappings) {
@@ -966,7 +976,8 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 		}
 		chunk := mappings[i:end]
 
-		cmap.WriteString(strconv.Itoa(len(chunk)))
+		chunkCountBuf = strconv.AppendInt(chunkCountBuf[:0], int64(len(chunk)), 10)
+		cmap.Write(chunkCountBuf)
 		cmap.WriteString(" beginbfchar\n")
 		for _, m := range chunk {
 			// CID as hex, Unicode code point as hex — using lookup table
@@ -1003,13 +1014,14 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	compressedBuf := GetCompressBuffer()
 	zlibWriter := GetZlibWriter(compressedBuf)
 	if _, err := zlibWriter.Write([]byte(cmapData)); err != nil {
-		_ = zlibWriter.Close()
-		PutZlibWriter(zlibWriter)
+		_ = CloseZlibWriter(zlibWriter)
 		CompressBufPool.Put(compressedBuf)
 		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
 	}
-	_ = zlibWriter.Close()
-	PutZlibWriter(zlibWriter)
+	if err := CloseZlibWriter(zlibWriter); err != nil {
+		CompressBufPool.Put(compressedBuf)
+		return "<< /Filter /FlateDecode /Length 0 >>\nstream\n\nendstream"
+	}
 	compressedData := compressedBuf.Bytes()
 
 	// Encrypt if needed

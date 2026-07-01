@@ -13,156 +13,156 @@
 
 ## Per-Finding Checklist
 
-- [ ] **Finding 1** | Rule: **PERF-151** | Correctly Fired: **No** | main is startup code, not a per-request hot-path handler
-- [ ] **Finding 2** | Rule: **PERF-41** | Correctly Fired: **No** | flagged log.Printf is in startup profiling setup, not request path
-- [ ] **Finding 3** | Rule: **PERF-43** | Correctly Fired: **Yes** | defer-recover runs in per-request Gin middleware
-- [ ] **Finding 4** | Rule: **PERF-68** | Correctly Fired: **No** | gin.Logger registered only when gin.DebugMode, not production
-- [ ] **Finding 5** | Rule: **CWE-497** | Correctly Fired: **No** | highlighted line is a comment, not a diagnostics endpoint
-- [ ] **Finding 6** | Rule: **PERF-148** | Correctly Fired: **No** | channel is buffered and middleware receives in same function
-- [ ] **Finding 7** | Rule: **PERF-195** | Correctly Fired: **Yes** | log.Fatalf is called inside a goroutine
-- [ ] **Finding 8** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without wrapping
-- [ ] **Finding 9** | Rule: **PERF-40** | Correctly Fired: **Yes** | multiple time.Now calls in same function body
-- [ ] **Finding 10** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without wrapping
-- [ ] **Finding 11** | Rule: **BP-1** | Correctly Fired: **No** | discarded value is runtime.Caller ok bool, not an error
-- [ ] **Finding 12** | Rule: **PERF-35** | Correctly Fired: **No** | fmt.Sprintf in one-off benchmark header, not hot path
-- [ ] **Finding 13** | Rule: **PERF-151** | Correctly Fired: **No** | utility helper, not a request handler on hot path
-- [ ] **Finding 14** | Rule: **PERF-61** | Correctly Fired: **Yes** | router.Static with no cache headers shown in snippet
-- [ ] **Finding 15** | Rule: **PERF-88** | Correctly Fired: **No** | Echo static-cache rule applied to Gin router.Static
-- [ ] **Finding 16** | Rule: **PERF-200** | Correctly Fired: **No** | CORS is registered before Auth; ordering already correct
-- [ ] **Finding 17** | Rule: **CWE-22** | Correctly Fired: **No** | filepath.Base confines user input before join with project root
-- [ ] **Finding 18** | Rule: **PERF-22** | Correctly Fired: **Yes** | os.ReadFile invoked inside HTTP handler
-- [ ] **Finding 19** | Rule: **PERF-112** | Correctly Fired: **Yes** | strings.ToLower used before string extension comparison
-- [ ] **Finding 20** | Rule: **BP-1** | Correctly Fired: **Yes** | Close error discarded via `_ =` without handling comment
-- [ ] **Finding 21** | Rule: **PERF-57** | Correctly Fired: **No** | io.ReadAll is in route handler, not Gin middleware
-- [ ] **Finding 22** | Rule: **PERF-46** | Correctly Fired: **Yes** | strings.TrimSuffix allocates on request handler path
-- [ ] **Finding 23** | Rule: **BP-1** | Correctly Fired: **Yes** | FormFile error return discarded with blank identifier
-- [ ] **Finding 24** | Rule: **BP-1** | Correctly Fired: **Yes** | Close error discarded via `_ =` without handling comment
-- [ ] **Finding 25** | Rule: **BP-1** | Correctly Fired: **Yes** | FormFile error return discarded with blank identifier
-- [ ] **Finding 26** | Rule: **BP-1** | Correctly Fired: **Yes** | Close error discarded via `_ =` without handling comment
-- [ ] **Finding 27** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(b)` string-to-byte conversion in handler
-- [ ] **Finding 28** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(b)` string-to-byte conversion in handler
-- [ ] **Finding 29** | Rule: **PERF-56** | Correctly Fired: **Yes** | c.JSON called inside for-loop body on error path
-- [ ] **Finding 30** | Rule: **BP-1** | Correctly Fired: **Yes** | Close error discarded via `_ =` without handling comment
-- [ ] **Finding 31** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = pdfFile.Close()` explicitly discards Close error
-- [ ] **Finding 32** | Rule: **PERF-35** | Correctly Fired: **Yes** | fmt.Sprintf in handler loop boxes args via interface{}
-- [ ] **Finding 33** | Rule: **PERF-6** | Correctly Fired: **Yes** | fmt.Sprintf called inside for-loop body
-- [ ] **Finding 34** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zw.Close()` discards error on zip-create failure
-- [ ] **Finding 35** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zw.Close()` discards error on zip-write failure
-- [ ] **Finding 36** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zw.Close()` discards error after successful zip build
-- [ ] **Finding 37** | Rule: **PERF-41** | Correctly Fired: **Yes** | log.Printf used at start of gin request handler
-- [ ] **Finding 38** | Rule: **PERF-109** | Correctly Fired: **No** | ToLower key varies per item, not recomputed constant
-- [ ] **Finding 39** | Rule: **PERF-46** | Correctly Fired: **Yes** | strings.TrimSpace inside loop allocates per iteration
-- [ ] **Finding 40** | Rule: **BP-1** | Correctly Fired: **Yes** | defer uses `_ = f.Close()` discarding returned error
-- [ ] **Finding 41** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() return value ignored via blank identifier
-- [ ] **Finding 42** | Rule: **BP-1** | Correctly Fired: **Yes** | defer `_ = f.Close()` explicitly discards error
-- [ ] **Finding 43** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() return ignored in deferred cleanup
-- [ ] **Finding 44** | Rule: **BP-1** | Correctly Fired: **Yes** | defer `_ = f.Close()` discards Close error
-- [ ] **Finding 45** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() return value ignored in defer
-- [ ] **Finding 46** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(blocksJSON)` copies string for json.Unmarshal
-- [ ] **Finding 47** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(textSearchJSON)` string-to-byte copy present
-- [ ] **Finding 48** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(textSearchJSON)` conversion copies underlying data
-- [ ] **Finding 49** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(ocrJSON)` conversion in request handler path
-- [ ] **Finding 50** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(redactionsJSON)` string-to-byte copy present
-- [ ] **Finding 51** | Rule: **BP-1** | Correctly Fired: **Yes** | defer `_ = f.Close()` discards returned error
-- [ ] **Finding 52** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() ignored with blank identifier in defer
-- [ ] **Finding 53** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(textsJSON)` copies string for Unmarshal
-- [ ] **Finding 54** | Rule: **BP-1** | Correctly Fired: **Yes** | defer `_ = f.Close()` explicitly discards error
-- [ ] **Finding 55** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() return ignored in deferred file cleanup
-- [ ] **Finding 56** | Rule: **PERF-30** | Correctly Fired: **No** | context.Background used synchronously; no goroutine shown
-- [ ] **Finding 57** | Rule: **BP-13** | Correctly Fired: **Yes** | context.Background() used instead of caller/request context
-- [ ] **Finding 58** | Rule: **BP-13** | Correctly Fired: **Yes** | context.Background() instead of propagated request context
-- [ ] **Finding 59** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) called without a size hint
-- [ ] **Finding 60** | Rule: **PERF-201** | Correctly Fired: **Yes** | Custom OPTIONS branch implements manual preflight handling
-- [ ] **Finding 61** | Rule: **PERF-119** | Correctly Fired: **No** | strconv.AppendInt separates the two append calls
-- [ ] **Finding 62** | Rule: **PERF-128** | Correctly Fired: **Yes** | Three consecutive append calls on same buffer
-- [ ] **Finding 63** | Rule: **PERF-119** | Correctly Fired: **Yes** | Consecutive append(dst,'.') and append(dst,'0') calls
-- [ ] **Finding 64** | Rule: **PERF-128** | Correctly Fired: **No** | appendFmtNum calls break three-or-more append sequence
-- [ ] **Finding 65** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error
-- [ ] **Finding 66** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error
-- [ ] **Finding 67** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error
-- [ ] **Finding 68** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside nested table cell loop
-- [ ] **Finding 69** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error
-- [ ] **Finding 70** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside nested table cell loop
-- [ ] **Finding 71** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error
-- [ ] **Finding 72** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error
-- [ ] **Finding 73** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside nested table row loop
-- [ ] **Finding 74** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error
-- [ ] **Finding 75** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside nested table row loop
-- [ ] **Finding 76** | Rule: **PERF-35** | Correctly Fired: **Yes** | fmt.Sprintf boxes args during per-page rendering
-- [ ] **Finding 77** | Rule: **PERF-42** | Correctly Fired: **No** | One-time constructor validation, not hot path
-- [ ] **Finding 78** | Rule: **PERF-32** | Correctly Fired: **No** | One-time encryption setup, not hot path
-- [ ] **Finding 79** | Rule: **CWE-916** | Correctly Fired: **Yes** | MD5 password hash with insufficient computational effort
-- [ ] **Finding 80** | Rule: **CWE-328** | Correctly Fired: **Yes** | MD5 used for password digest derivation
-- [ ] **Finding 81** | Rule: **PERF-3** | Correctly Fired: **Yes** | make([]byte) rebuilt inside owner-hash loop
-- [ ] **Finding 82** | Rule: **PERF-3** | Correctly Fired: **Yes** | make([]byte) rebuilt inside user-hash loop
-- [ ] **Finding 83** | Rule: **PERF-35** | Correctly Fired: **No** | One-time encrypt dictionary build, not hot path
-- [ ] **Finding 84** | Rule: **PERF-110** | Correctly Fired: **No** | Pool New returns *zlib.Writer pointer, not value
-- [ ] **Finding 85** | Rule: **BP-1** | Correctly Fired: **Yes** | zlib.NewWriterLevel error discarded into blank identifier
-- [ ] **Finding 86** | Rule: **PERF-109** | Correctly Fired: **No** | Slice range loop, no map key recomputation
-- [ ] **Finding 87** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside metrics.Widths loop
-- [ ] **Finding 88** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside metrics.Widths loop
-- [ ] **Finding 89** | Rule: **PERF-35** | Correctly Fired: **No** | One-time font resource string build, not hot path
-- [ ] **Finding 90** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without known object-count size hint
-- [ ] **Finding 91** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error without comment
-- [ ] **Finding 92** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error without comment
-- [ ] **Finding 93** | Rule: **PERF-15** | Correctly Fired: **Yes** | `strconv.Itoa` called inside outer width-range loop
-- [ ] **Finding 94** | Rule: **PERF-15** | Correctly Fired: **Yes** | `strconv.Itoa` called inside inner width-write loop
-- [ ] **Finding 95** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error on failure path
-- [ ] **Finding 96** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error after success
-- [ ] **Finding 97** | Rule: **PERF-15** | Correctly Fired: **Yes** | `strconv.Itoa` called inside CMap chunking loop
-- [ ] **Finding 98** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error on failure path
-- [ ] **Finding 99** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error after success
-- [ ] **Finding 100** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]*TTFFont)` without a size hint
-- [ ] **Finding 101** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without contextual wrapping
-- [ ] **Finding 102** | Rule: **PERF-42** | Correctly Fired: **No** | static `fmt.Errorf` on cold font-setup path, not hot
-- [ ] **Finding 103** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Errorf` on rare AutoDownload-false branch, not hot
-- [ ] **Finding 104** | Rule: **BP-1** | Correctly Fired: **No** | `_ = os.Remove(...)` explicitly ignored with `// Clean up`
-- [ ] **Finding 105** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = tmpFile.Close()` discards Close error in defer
-- [ ] **Finding 106** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = resp.Body.Close()` discards Close error in defer
-- [ ] **Finding 107** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = gzr.Close()` discards Close error in defer
-- [ ] **Finding 108** | Rule: **PERF-176** | Correctly Fired: **Yes** | `io.Copy` inside tar-extraction loop allocates per call
-- [ ] **Finding 109** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = outFile.Close()` discards Close error on failure path
-- [ ] **Finding 110** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without contextual wrapping
-- [ ] **Finding 111** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without contextual wrapping
-- [ ] **Finding 112** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without contextual wrapping
-- [ ] **Finding 113** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]*RegisteredFont)` without a size hint
-- [ ] **Finding 114** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]*RegisteredFont)` without a size hint
-- [ ] **Finding 115** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Errorf` only on font-load error path, not hot
-- [ ] **Finding 116** | Rule: **PERF-31** | Correctly Fired: **No** | `defer r.mu.Unlock()` in registry helper, not HTTP handler
-- [ ] **Finding 117** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[rune]bool)` without a size hint
-- [ ] **Finding 118** | Rule: **PERF-31** | Correctly Fired: **No** | `defer r.mu.RUnlock()` in registry getter, not HTTP handler
-- [ ] **Finding 119** | Rule: **PERF-31** | Correctly Fired: **No** | `defer r.mu.RUnlock()` in registry lookup, not HTTP handler
-- [ ] **Finding 120** | Rule: **PERF-31** | Correctly Fired: **No** | `defer r.mu.Unlock()` in registry helper, not HTTP handler
-- [ ] **Finding 121** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.Unlock() present in flagged function
-- [ ] **Finding 122** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function
-- [ ] **Finding 123** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function
-- [ ] **Finding 124** | Rule: **PERF-123** | Correctly Fired: **Yes** | make([]*RegisteredFont, 0) uses explicit zero length
-- [ ] **Finding 125** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.Unlock() present in flagged function
-- [ ] **Finding 126** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) called without a size hint
-- [ ] **Finding 127** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.Unlock() present in flagged function
-- [ ] **Finding 128** | Rule: **PERF-4** | Correctly Fired: **Yes** | make(map) allocated inside for-loop body
-- [ ] **Finding 129** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) inside loop without size hint
-- [ ] **Finding 130** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function
-- [ ] **Finding 131** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.Unlock() present in flagged function
-- [ ] **Finding 132** | Rule: **PERF-6** | Correctly Fired: **Yes** | fmt.Sprintf called inside for-loop body
-- [ ] **Finding 133** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function
-- [ ] **Finding 134** | Rule: **PERF-109** | Correctly Fired: **No** | ToLower filters per-entry ext; no map key in loop
-- [ ] **Finding 135** | Rule: **PERF-112** | Correctly Fired: **Yes** | strings.ToLower used before extension comparison
-- [ ] **Finding 136** | Rule: **PERF-46** | Correctly Fired: **Yes** | strings.TrimSuffix called inside directory-scan loop
-- [ ] **Finding 137** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function
-- [ ] **Finding 138** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function
-- [ ] **Finding 139** | Rule: **PERF-6** | Correctly Fired: **Yes** | fmt.Sprintf called inside fonts range loop
-- [ ] **Finding 140** | Rule: **PERF-6** | Correctly Fired: **Yes** | fmt.Sprintf called inside fonts range loop
-- [ ] **Finding 141** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function
-- [ ] **Finding 142** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without len(usedGlyphs) size hint
-- [ ] **Finding 143** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without len(glyphSet) size hint
-- [ ] **Finding 144** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without table-count size hint
-- [ ] **Finding 145** | Rule: **PERF-3** | Correctly Fired: **Yes** | make([]byte) rebuilt inside optional-tables loop
-- [ ] **Finding 146** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without len(tableNames) size hint
-- [ ] **Finding 147** | Rule: **PERF-32** | Correctly Fired: **Yes** | []byte(name) string conversion inside table loop
-- [ ] **Finding 148** | Rule: **PERF-107** | Correctly Fired: **Yes** | binary.Write called inside table-directory loop
-- [ ] **Finding 149** | Rule: **PERF-107** | Correctly Fired: **Yes** | binary.Write called inside table-directory loop
-- [ ] **Finding 150** | Rule: **PERF-107** | Correctly Fired: **Yes** | binary.Write called inside table-directory loop
+- [x] **Finding 1** | Rule: **PERF-151** | Correctly Fired: **No** | main is startup code, not a per-request hot-path handler → N/A: false positive — `main()` is one-time startup, not a request handler
+- [x] **Finding 2** | Rule: **PERF-41** | Correctly Fired: **No** | flagged log.Printf is in startup profiling setup, not request path → N/A: false positive — profiling branch runs only when `ENABLE_PROFILING=1`
+- [x] **Finding 3** | Rule: **PERF-43** | Correctly Fired: **Yes** | defer-recover runs in per-request Gin middleware → Cannot fix: per-request recovery is required in Gin; custom handler is intentional lighter alternative to `gin.Recovery()`
+- [x] **Finding 4** | Rule: **PERF-68** | Correctly Fired: **No** | gin.Logger registered only when gin.DebugMode, not production → N/A: false positive — logger gated behind `gin.DebugMode`
+- [x] **Finding 5** | Rule: **CWE-497** | Correctly Fired: **No** | highlighted line is a comment, not a diagnostics endpoint → N/A: false positive — anchor is a commented line, not exposed diagnostics
+- [x] **Finding 6** | Rule: **PERF-148** | Correctly Fired: **No** | channel is buffered and middleware receives in same function → N/A: false positive — semaphore channel is buffered with defer receive
+- [x] **Finding 7** | Rule: **PERF-195** | Correctly Fired: **Yes** | log.Fatalf is called inside a goroutine → Fixed in `cmd/gopdfsuit/main.go` — listen errors sent via channel; `os.Exit` called from main goroutine
+- [x] **Finding 8** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without wrapping → Fixed in `internal/benchmarktemplates/runner.go` — wrapped with `fmt.Errorf`
+- [x] **Finding 9** | Rule: **PERF-40** | Correctly Fired: **Yes** | multiple time.Now calls in same function body → Cannot fix: intentional per-iteration benchmark timing requires separate `time.Now()` per run
+- [x] **Finding 10** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without wrapping → Fixed in `internal/benchmarktemplates/runner.go` — wrapped with `fmt.Errorf`
+- [x] **Finding 11** | Rule: **BP-1** | Correctly Fired: **No** | discarded value is runtime.Caller ok bool, not an error → N/A: false positive — blank identifier binds `ok` bool, not an error return
+- [x] **Finding 12** | Rule: **PERF-35** | Correctly Fired: **No** | fmt.Sprintf in one-off benchmark header, not hot path → N/A: false positive — one-off benchmark header helper, not request hot path
+- [x] **Finding 13** | Rule: **PERF-151** | Correctly Fired: **No** | utility helper, not a request handler on hot path → N/A: false positive — `getProjectRoot()` is a cold-path utility
+- [x] **Finding 14** | Rule: **PERF-61** | Correctly Fired: **Yes** | router.Static with no cache headers shown in snippet → Fixed in `internal/handlers/handlers.go` — custom static handler sets `Cache-Control: public, max-age=31536000, immutable`
+- [x] **Finding 15** | Rule: **PERF-88** | Correctly Fired: **No** | Echo static-cache rule applied to Gin router.Static → N/A: false positive — Echo-specific rule misfired on Gin
+- [x] **Finding 16** | Rule: **PERF-200** | Correctly Fired: **No** | CORS is registered before Auth; ordering already correct → N/A: false positive — snippet shows CORS before Auth as intended
+- [x] **Finding 17** | Rule: **CWE-22** | Correctly Fired: **No** | filepath.Base confines user input before join with project root → N/A: false positive — `filepath.Base` prevents traversal
+- [x] **Finding 18** | Rule: **PERF-22** | Correctly Fired: **Yes** | os.ReadFile invoked inside HTTP handler → Fixed in `internal/handlers/handlers.go` — `sync.Map` template cache avoids per-request disk I/O
+- [x] **Finding 19** | Rule: **PERF-112** | Correctly Fired: **Yes** | strings.ToLower used before string extension comparison → Fixed in `internal/handlers/handlers.go` — `strings.EqualFold` on extension
+- [x] **Finding 20** | Rule: **BP-1** | Correctly Fired: **Yes** | Close error discarded via `_ =` without handling comment → Fixed in `internal/handlers/handlers.go` — close errors logged in defer
+- [x] **Finding 21** | Rule: **PERF-57** | Correctly Fired: **No** | io.ReadAll is in route handler, not Gin middleware → N/A: false positive — `io.ReadAll` is in route handler, not middleware
+- [x] **Finding 22** | Rule: **PERF-46** | Correctly Fired: **Yes** | strings.TrimSuffix allocates on request handler path → Fixed in `internal/handlers/handlers.go` — `strings.CutSuffix` instead of `TrimSuffix`
+- [x] **Finding 23** | Rule: **BP-1** | Correctly Fired: **Yes** | FormFile error return discarded with blank identifier → Fixed in `internal/handlers/handlers.go` — FormFile errors checked (allows `ErrMissingFile`)
+- [x] **Finding 24** | Rule: **BP-1** | Correctly Fired: **Yes** | Close error discarded via `_ =` without handling comment → Fixed in `internal/handlers/handlers.go` — close errors logged in defer
+- [x] **Finding 25** | Rule: **BP-1** | Correctly Fired: **Yes** | FormFile error return discarded with blank identifier → Fixed in `internal/handlers/handlers.go` — FormFile errors checked (allows `ErrMissingFile`)
+- [x] **Finding 26** | Rule: **BP-1** | Correctly Fired: **Yes** | Close error discarded via `_ =` without handling comment → Fixed in `internal/handlers/handlers.go` — close errors logged in defer
+- [x] **Finding 27** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(b)` string-to-byte conversion in handler → Cannot fix: `[]byte(string)` required for binary form-field fallback; no allocation-free alternative without `unsafe`
+- [x] **Finding 28** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(b)` string-to-byte conversion in handler → Cannot fix: same as finding 27 — binary post-form data requires byte slice
+- [x] **Finding 29** | Rule: **PERF-56** | Correctly Fired: **Yes** | c.JSON called inside for-loop body on error path → Fixed in `internal/handlers/handlers.go` — error responses use formatted messages; close handled outside JSON branch
+- [x] **Finding 30** | Rule: **BP-1** | Correctly Fired: **Yes** | Close error discarded via `_ =` without handling comment → Fixed in `internal/handlers/handlers.go` — upload close errors logged
+- [x] **Finding 31** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = pdfFile.Close()` explicitly discards Close error → Fixed in internal/handlers/handlers.go
+- [x] **Finding 32** | Rule: **PERF-35** | Correctly Fired: **Yes** | fmt.Sprintf in handler loop boxes args via interface{} → Fixed in internal/handlers/handlers.go
+- [x] **Finding 33** | Rule: **PERF-6** | Correctly Fired: **Yes** | fmt.Sprintf called inside for-loop body → Fixed in internal/handlers/handlers.go
+- [x] **Finding 34** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zw.Close()` discards error on zip-create failure → Fixed in internal/handlers/handlers.go
+- [x] **Finding 35** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zw.Close()` discards error on zip-write failure → Fixed in internal/handlers/handlers.go
+- [x] **Finding 36** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zw.Close()` discards error after successful zip build → Fixed in internal/handlers/handlers.go
+- [x] **Finding 37** | Rule: **PERF-41** | Correctly Fired: **Yes** | log.Printf used at start of gin request handler → Fixed in internal/handlers/handlers.go
+- [x] **Finding 38** | Rule: **PERF-109** | Correctly Fired: **No** | ToLower key varies per item, not recomputed constant → N/A: false positive — ToLower key varies per dedup term, not constant map key
+- [x] **Finding 39** | Rule: **PERF-46** | Correctly Fired: **Yes** | strings.TrimSpace inside loop allocates per iteration → Fixed in internal/handlers/redact.go
+- [x] **Finding 40** | Rule: **BP-1** | Correctly Fired: **Yes** | defer uses `_ = f.Close()` discarding returned error → Fixed in internal/handlers/redact.go
+- [x] **Finding 41** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() return value ignored via blank identifier → Fixed in internal/handlers/redact.go
+- [x] **Finding 42** | Rule: **BP-1** | Correctly Fired: **Yes** | defer `_ = f.Close()` explicitly discards error → Fixed in internal/handlers/redact.go
+- [x] **Finding 43** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() return ignored in deferred cleanup → Fixed in internal/handlers/redact.go
+- [x] **Finding 44** | Rule: **BP-1** | Correctly Fired: **Yes** | defer `_ = f.Close()` discards Close error → Fixed in internal/handlers/redact.go
+- [x] **Finding 45** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() return value ignored in defer → Fixed in internal/handlers/redact.go
+- [x] **Finding 46** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(blocksJSON)` copies string for json.Unmarshal → Fixed in internal/handlers/redact.go
+- [x] **Finding 47** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(textSearchJSON)` string-to-byte copy present → Fixed in internal/handlers/redact.go
+- [x] **Finding 48** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(textSearchJSON)` conversion copies underlying data → Fixed in internal/handlers/redact.go
+- [x] **Finding 49** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(ocrJSON)` conversion in request handler path → Fixed in internal/handlers/redact.go
+- [x] **Finding 50** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(redactionsJSON)` string-to-byte copy present → Fixed in internal/handlers/redact.go
+- [x] **Finding 51** | Rule: **BP-1** | Correctly Fired: **Yes** | defer `_ = f.Close()` discards returned error → Fixed in internal/handlers/redact.go
+- [x] **Finding 52** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() ignored with blank identifier in defer → Fixed in internal/handlers/redact.go
+- [x] **Finding 53** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(textsJSON)` copies string for Unmarshal → Fixed in internal/handlers/redact.go
+- [x] **Finding 54** | Rule: **BP-1** | Correctly Fired: **Yes** | defer `_ = f.Close()` explicitly discards error → Fixed in internal/handlers/redact.go
+- [x] **Finding 55** | Rule: **BP-5** | Correctly Fired: **Yes** | Close() return ignored in deferred file cleanup → Fixed in internal/handlers/redact.go
+- [x] **Finding 56** | Rule: **PERF-30** | Correctly Fired: **No** | context.Background used synchronously; no goroutine shown → N/A: false positive — synchronous middleware, no goroutine
+- [x] **Finding 57** | Rule: **BP-13** | Correctly Fired: **Yes** | context.Background() used instead of caller/request context → Fixed in internal/middleware/auth.go
+- [x] **Finding 58** | Rule: **BP-13** | Correctly Fired: **Yes** | context.Background() instead of propagated request context → Fixed in internal/middleware/auth.go
+- [x] **Finding 59** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) called without a size hint → Fixed in internal/middleware/auth.go
+- [x] **Finding 60** | Rule: **PERF-201** | Correctly Fired: **Yes** | Custom OPTIONS branch implements manual preflight handling → Fixed in internal/middleware/cors.go
+- [x] **Finding 61** | Rule: **PERF-119** | Correctly Fired: **No** | strconv.AppendInt separates the two append calls → N/A: false positive — strconv.AppendInt separates append calls
+- [x] **Finding 62** | Rule: **PERF-128** | Correctly Fired: **Yes** | Three consecutive append calls on same buffer → Fixed in internal/pdf/bookmarks.go
+- [x] **Finding 63** | Rule: **PERF-119** | Correctly Fired: **Yes** | Consecutive append(dst,'.') and append(dst,'0') calls → Fixed in internal/pdf/draw.go
+- [x] **Finding 64** | Rule: **PERF-128** | Correctly Fired: **No** | appendFmtNum calls break three-or-more append sequence → N/A: false positive — appendFmtNum breaks three-or-more append sequence
+- [x] **Finding 65** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error → N/A: false positive — parseHexColor returns bool, not error
+- [x] **Finding 66** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error → N/A: false positive — parseHexColor returns bool, not error
+- [x] **Finding 67** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error → N/A: false positive — parseHexColor returns bool, not error
+- [x] **Finding 68** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside nested table cell loop → Fixed in internal/pdf/draw.go
+- [x] **Finding 69** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error → N/A: false positive — parseHexColor returns bool, not error
+- [x] **Finding 70** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside nested table cell loop → Fixed in internal/pdf/draw.go
+- [x] **Finding 71** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error → N/A: false positive — parseHexColor returns bool, not error
+- [x] **Finding 72** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error → N/A: false positive — parseHexColor returns bool, not error
+- [x] **Finding 73** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside nested table row loop → Fixed in internal/pdf/draw.go
+- [x] **Finding 74** | Rule: **BP-1** | Correctly Fired: **No** | parseHexColor returns bool valid, not an error → N/A: false positive — parseHexColor returns bool, not error
+- [x] **Finding 75** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside nested table row loop → Fixed in internal/pdf/draw.go
+- [x] **Finding 76** | Rule: **PERF-35** | Correctly Fired: **Yes** | fmt.Sprintf boxes args during per-page rendering → Fixed in internal/pdf/draw.go
+- [x] **Finding 77** | Rule: **PERF-42** | Correctly Fired: **No** | One-time constructor validation, not hot path → N/A: false positive — one-time constructor validation, not hot path
+- [x] **Finding 78** | Rule: **PERF-32** | Correctly Fired: **No** | One-time encryption setup, not hot path → N/A: false positive — one-time encryption setup, not hot path
+- [x] **Finding 79** | Rule: **CWE-916** | Correctly Fired: **Yes** | MD5 password hash with insufficient computational effort → Cannot fix: PDF Standard Security Handler requires MD5 per ISO 32000
+- [x] **Finding 80** | Rule: **CWE-328** | Correctly Fired: **Yes** | MD5 used for password digest derivation → Cannot fix: PDF Standard Security Handler requires MD5 per ISO 32000
+- [x] **Finding 81** | Rule: **PERF-3** | Correctly Fired: **Yes** | make([]byte) rebuilt inside owner-hash loop → Fixed in internal/pdf/encryption/encrypt.go
+- [x] **Finding 82** | Rule: **PERF-3** | Correctly Fired: **Yes** | make([]byte) rebuilt inside user-hash loop → Fixed in internal/pdf/encryption/encrypt.go
+- [x] **Finding 83** | Rule: **PERF-35** | Correctly Fired: **No** | One-time encrypt dictionary build, not hot path → N/A: false positive — one-time encrypt dictionary build, not hot path
+- [x] **Finding 84** | Rule: **PERF-110** | Correctly Fired: **No** | Pool New returns *zlib.Writer pointer, not value → N/A: false positive — Pool New returns *zlib.Writer pointer
+- [x] **Finding 85** | Rule: **BP-1** | Correctly Fired: **Yes** | zlib.NewWriterLevel error discarded into blank identifier → Fixed in internal/pdf/font/compression.go
+- [x] **Finding 86** | Rule: **PERF-109** | Correctly Fired: **No** | Slice range loop, no map key recomputation → N/A: false positive — slice range loop, no map key recomputation
+- [x] **Finding 87** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside metrics.Widths loop → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 88** | Rule: **PERF-15** | Correctly Fired: **Yes** | strconv.Itoa inside metrics.Widths loop → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 89** | Rule: **PERF-35** | Correctly Fired: **No** | One-time font resource string build, not hot path → N/A: false positive — one-time font resource string build, not hot path
+- [x] **Finding 90** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without known object-count size hint → Fixed in internal/pdf/font/ttf.go
+- [x] **Finding 91** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error without comment → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 92** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error without comment → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 93** | Rule: **PERF-15** | Correctly Fired: **Yes** | `strconv.Itoa` called inside outer width-range loop → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 94** | Rule: **PERF-15** | Correctly Fired: **Yes** | `strconv.Itoa` called inside inner width-write loop → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 95** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error on failure path → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 96** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error after success → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 97** | Rule: **PERF-15** | Correctly Fired: **Yes** | `strconv.Itoa` called inside CMap chunking loop → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 98** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error on failure path → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 99** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards Close error after success → Fixed in internal/pdf/font/metrics.go
+- [x] **Finding 100** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]*TTFFont)` without a size hint → Fixed in internal/pdf/font/ttf.go
+- [x] **Finding 101** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without contextual wrapping → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 102** | Rule: **PERF-42** | Correctly Fired: **No** | static `fmt.Errorf` on cold font-setup path, not hot → N/A: false positive — static fmt.Errorf on cold font-setup path
+- [x] **Finding 103** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Errorf` on rare AutoDownload-false branch, not hot → N/A: false positive — fmt.Errorf on rare AutoDownload-false branch
+- [x] **Finding 104** | Rule: **BP-1** | Correctly Fired: **No** | `_ = os.Remove(...)` explicitly ignored with `// Clean up` → N/A: false positive — os.Remove explicitly ignored with // Clean up
+- [x] **Finding 105** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = tmpFile.Close()` discards Close error in defer → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 106** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = resp.Body.Close()` discards Close error in defer → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 107** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = gzr.Close()` discards Close error in defer → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 108** | Rule: **PERF-176** | Correctly Fired: **Yes** | `io.Copy` inside tar-extraction loop allocates per call → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 109** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = outFile.Close()` discards Close error on failure path → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 110** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without contextual wrapping → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 111** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without contextual wrapping → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 112** | Rule: **BP-2** | Correctly Fired: **Yes** | bare `return err` without contextual wrapping → Fixed in internal/pdf/font/pdfa.go
+- [x] **Finding 113** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]*RegisteredFont)` without a size hint → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 114** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]*RegisteredFont)` without a size hint → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 115** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Errorf` only on font-load error path, not hot → N/A: false positive — fmt.Errorf only on font-load error path
+- [x] **Finding 116** | Rule: **PERF-31** | Correctly Fired: **No** | `defer r.mu.Unlock()` in registry helper, not HTTP handler → N/A: false positive — defer r.mu.Unlock in registry helper, not HTTP handler
+- [x] **Finding 117** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[rune]bool)` without a size hint → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 118** | Rule: **PERF-31** | Correctly Fired: **No** | `defer r.mu.RUnlock()` in registry getter, not HTTP handler → N/A: false positive — defer r.mu.RUnlock in registry getter, not HTTP handler
+- [x] **Finding 119** | Rule: **PERF-31** | Correctly Fired: **No** | `defer r.mu.RUnlock()` in registry lookup, not HTTP handler → N/A: false positive — defer r.mu.RUnlock in registry lookup, not HTTP handler
+- [x] **Finding 120** | Rule: **PERF-31** | Correctly Fired: **No** | `defer r.mu.Unlock()` in registry helper, not HTTP handler → N/A: false positive — defer r.mu.RUnlock in registry helper, not HTTP handler
+- [x] **Finding 121** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.Unlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 122** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 123** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 124** | Rule: **PERF-123** | Correctly Fired: **Yes** | make([]*RegisteredFont, 0) uses explicit zero length → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 125** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.Unlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 126** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) called without a size hint → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 127** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.Unlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 128** | Rule: **PERF-4** | Correctly Fired: **Yes** | make(map) allocated inside for-loop body → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 129** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) inside loop without size hint → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 130** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 131** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.Unlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 132** | Rule: **PERF-6** | Correctly Fired: **Yes** | fmt.Sprintf called inside for-loop body → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 133** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 134** | Rule: **PERF-109** | Correctly Fired: **No** | ToLower filters per-entry ext; no map key in loop → N/A: false positive — ToLower filters per-entry ext, not constant map key
+- [x] **Finding 135** | Rule: **PERF-112** | Correctly Fired: **Yes** | strings.ToLower used before extension comparison → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 136** | Rule: **PERF-46** | Correctly Fired: **Yes** | strings.TrimSuffix called inside directory-scan loop → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 137** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 138** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 139** | Rule: **PERF-6** | Correctly Fired: **Yes** | fmt.Sprintf called inside fonts range loop → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 140** | Rule: **PERF-6** | Correctly Fired: **Yes** | fmt.Sprintf called inside fonts range loop → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 141** | Rule: **PERF-31** | Correctly Fired: **Yes** | defer r.mu.RUnlock() present in flagged function → Fixed in internal/pdf/font/registry.go
+- [x] **Finding 142** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without len(usedGlyphs) size hint → Fixed in internal/pdf/font/subset.go
+- [x] **Finding 143** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without len(glyphSet) size hint → Fixed in internal/pdf/font/subset.go
+- [x] **Finding 144** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without table-count size hint → Fixed in internal/pdf/font/subset.go
+- [x] **Finding 145** | Rule: **PERF-3** | Correctly Fired: **Yes** | make([]byte) rebuilt inside optional-tables loop → Fixed in internal/pdf/font/subset.go
+- [x] **Finding 146** | Rule: **PERF-192** | Correctly Fired: **Yes** | make(map) without len(tableNames) size hint → Fixed in internal/pdf/font/subset.go
+- [x] **Finding 147** | Rule: **PERF-32** | Correctly Fired: **Yes** | []byte(name) string conversion inside table loop → Fixed in internal/pdf/font/subset.go
+- [x] **Finding 148** | Rule: **PERF-107** | Correctly Fired: **Yes** | binary.Write called inside table-directory loop → Fixed in internal/pdf/font/subset.go
+- [x] **Finding 149** | Rule: **PERF-107** | Correctly Fired: **Yes** | binary.Write called inside table-directory loop → Fixed in internal/pdf/font/subset.go
+- [x] **Finding 150** | Rule: **PERF-107** | Correctly Fired: **Yes** | binary.Write called inside table-directory loop → Fixed in internal/pdf/font/subset.go
 
 ## Notable FP Patterns (Findings 1–150)
 

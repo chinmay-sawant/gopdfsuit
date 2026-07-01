@@ -4,26 +4,19 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/zlib"
-	"fmt"
 	"io"
 	"regexp"
-	"strings"
+	"strconv"
 )
-
-// bytesIndex is a helper to find a subsequence in a []byte
-func bytesIndex(b, sub []byte) int {
-	return strings.Index(string(b), string(sub))
-}
 
 // trailerHasEncrypt checks if trailer or any trailer 'Encrypt' appears
 func trailerHasEncrypt(data []byte) bool {
-	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
-	for _, m := range trRe.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], []byte(`/Encrypt`)) >= 0 {
+	for _, m := range reTrailerDict.FindAllSubmatch(data, -1) {
+		if bytesIndex(m[1], encryptSubBytes) >= 0 {
 			return true
 		}
 	}
-	return bytesIndex(data, []byte(`/Encrypt`)) >= 0
+	return bytesIndex(data, encryptSubBytes) >= 0
 }
 
 // tryZlibDecompress attempts to decompress zlib data
@@ -32,11 +25,14 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = r.Close()
-	}()
 	var out bytes.Buffer
 	if _, err := io.Copy(&out, r); err != nil {
+		if closeErr := r.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+		return nil, err
+	}
+	if err := r.Close(); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -45,11 +41,14 @@ func tryZlibDecompress(b []byte) ([]byte, error) {
 // tryFlateDecompress attempts to decompress raw flate data
 func tryFlateDecompress(b []byte) ([]byte, error) {
 	r := flate.NewReader(bytes.NewReader(b))
-	defer func() {
-		_ = r.Close()
-	}()
 	var out bytes.Buffer
 	if _, err := io.Copy(&out, r); err != nil {
+		if closeErr := r.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+		return nil, err
+	}
+	if err := r.Close(); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil
@@ -57,8 +56,7 @@ func tryFlateDecompress(b []byte) ([]byte, error) {
 
 // findRootRef looks for /Root n m R in the PDF bytes
 func findRootRef(data []byte) (string, bool) {
-	rootRe := regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
-	if m := rootRe.FindSubmatch(data); m != nil {
+	if m := reRootRef.FindSubmatch(data); m != nil {
 		return string(m[1]) + " " + string(m[2]), true
 	}
 	return "", false
@@ -66,17 +64,17 @@ func findRootRef(data []byte) (string, bool) {
 
 // parseArrayInts parses array values from PDF dictionary
 func parseArrayInts(dict []byte, key string) []int {
-	re := regexp.MustCompile(key + `\s*\[(.*?)\]`)
-	if m := re.FindSubmatch(dict); m != nil {
-		inner := strings.TrimSpace(string(m[1]))
+	pattern := regexp.MustCompile(regexp.QuoteMeta(key) + `\s*\[(.*?)\]`)
+	if m := pattern.FindSubmatch(dict); m != nil {
+		inner := trimSpaceASCII(string(m[1]))
 		if inner == "" {
 			return nil
 		}
-		parts := strings.Fields(inner)
+		parts := splitFields(inner)
 		res := make([]int, 0, len(parts))
 		for _, p := range parts {
-			var v int
-			if _, err := fmt.Sscanf(p, "%d", &v); err == nil {
+			v, err := strconv.Atoi(p)
+			if err == nil {
 				res = append(res, v)
 			}
 		}
@@ -89,21 +87,19 @@ func parseArrayInts(dict []byte, key string) []int {
 func readUint(b []byte) uint64 {
 	var v uint64
 	for _, c := range b {
-		v = (v << 8) | uint64(byte(c))
+		v = (v << 8) | uint64(c)
 	}
 	return v
 }
 
 // parseXRefStreams looks for XRef stream objects and uses them to augment objMap
 func parseXRefStreams(data []byte, objMap map[string][]byte) {
-	objStreamRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-	for _, m := range objStreamRe.FindAllSubmatch(data, -1) {
+	for _, m := range reObjStream.FindAllSubmatch(data, -1) {
 		body := m[3]
-		if bytesIndex(body, []byte(`/W[`)) < 0 || bytesIndex(body, []byte(`/Index`)) < 0 {
+		if bytesIndex(body, wFieldBytes) < 0 || bytesIndex(body, indexFieldBytes) < 0 {
 			continue
 		}
-		streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-		sm := streamRe.FindSubmatch(body)
+		sm := reStreamSegment.FindSubmatch(body)
 		if sm == nil {
 			continue
 		}
@@ -134,8 +130,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				off := f3
 				if off > 0 && off < len(data) {
 					tail := data[off:]
-					reObj := regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-					if ro := reObj.FindSubmatch(tail); ro != nil {
+					if ro := reObjAtOffset.FindSubmatch(tail); ro != nil {
 						onum := string(ro[2])
 						ogen := string(ro[3])
 						key := onum + " " + ogen
@@ -146,7 +141,9 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 			if f1 == 2 {
 				objstm := f2
 				index := f3
-				key := fmt.Sprintf("%d 0", objstm)
+				var keyBuf []byte
+				keyBuf = appendObjMapKey(keyBuf[:0], objstm)
+				key := string(keyBuf)
 				if stm, ok := objMap[key]; ok {
 					_ = index
 					_ = stm
