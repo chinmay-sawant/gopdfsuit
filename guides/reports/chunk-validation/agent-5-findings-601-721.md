@@ -9,137 +9,135 @@
 - Incorrectly Fired (False Positives): 17
 - FP rate: 14.0%
 
-## Per-Finding Table
+## Per-Finding Checklist
 
-| Finding | Rule | Correctly Fired? | Reason |
-|---------|------|------------------|--------|
-| 601 | PERF-6 | Yes | `fmt.Fprintf` inside XML token loop |
-| 602 | PERF-109 | No | Attribute iteration, not map key recomputation |
-| 603 | PERF-35 | Yes | `fmt.Sprintf` boxes args inside outer token loop |
-| 604 | PERF-6 | Yes | `fmt.Sprintf` used inside the token loop |
-| 605 | PERF-192 | Yes | `make(map)` lacks size hint despite known `len(se.Attr)` |
-| 606 | PERF-47 | Yes | `strings.SplitN` called inside style-parts loop |
-| 607 | PERF-122 | No | `HasPrefix` followed by array slice, not string trim |
-| 608 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 609 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 610 | PERF-6 | Yes | `fmt.Fprintf` inside transform-parts loop |
-| 611 | PERF-122 | No | `HasPrefix` followed by array slice, not string trim |
-| 612 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 613 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 614 | PERF-6 | Yes | `fmt.Fprintf` inside transform-parts loop |
-| 615 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 616 | PERF-6 | Yes | `fmt.Fprintf` inside transform-parts loop |
-| 617 | PERF-122 | No | `HasPrefix` followed by array slice, not string trim |
-| 618 | PERF-6 | Yes | `fmt.Fprintf` inside transform-parts loop |
-| 619 | BP-1 | Yes | `strconv.ParseInt` error discarded with `_` |
-| 620 | BP-1 | Yes | `strconv.ParseInt` error discarded with `_` |
-| 621 | BP-1 | Yes | `strconv.ParseInt` error discarded with `_` |
-| 622 | BP-1 | Yes | `strconv.ParseInt` error discarded with `_` |
-| 623 | BP-1 | Yes | `strconv.ParseInt` error discarded with `_` |
-| 624 | BP-1 | Yes | `strconv.ParseInt` error discarded with `_` |
-| 625 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 626 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 627 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 628 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 629 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 630 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 631 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 632 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 633 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 634 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 635 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 636 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 637 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 638 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 639 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 640 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 641 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 642 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 643 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 644 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 645 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 646 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 647 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 648 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 649 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 650 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 651 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 652 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 653 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 654 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 655 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 656 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 657 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 658 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 659 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 660 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 661 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 662 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 663 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 664 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 665 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 666 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 667 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 668 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 669 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 670 | PERF-6 | Yes | `fmt.Fprintf` inside path-token loop |
-| 671 | BP-1 | Yes | `strconv.Atoi` error discarded with `_` |
-| 672 | PERF-2 | Yes | `testLine += " "` concatenates inside word loop |
-| 673 | PERF-119 | Yes | Consecutive `append` calls to same slice per iteration |
-| 674 | PERF-128 | No | Only two appends per iteration, not three or more |
-| 675 | PERF-7 | Yes | `defer` appears lexically inside `for` loop body |
-| 676 | BP-11 | Yes | `defer` inside loop defers until function returns |
-| 677 | PERF-35 | No | `fmt.Errorf` on rare error path, not hot path |
-| 678 | BP-1 | Yes | `resp.Body.Close()` error explicitly discarded |
-| 679 | BP-5 | Yes | `Close()` return value ignored |
-| 680 | BP-1 | Yes | `os.Remove` error discarded with `_` |
-| 681 | BP-1 | Yes | `os.Remove` error discarded with `_` |
-| 682 | PERF-35 | Yes | `fmt.Sprintf` boxes args inside generation loop |
-| 683 | PERF-6 | Yes | `fmt.Sprintf` inside record-generation loop |
-| 684 | PERF-6 | Yes | `fmt.Sprintf` inside record-generation loop |
-| 685 | PERF-35 | No | `fmt.Sprintf` called once, not on hot path |
-| 686 | CWE-497 | Yes | Returns OS, arch, CPU, Go version to callers |
-| 687 | PERF-148 | No | Channel is buffered (`make(chan int, iterations)`) |
-| 688 | PERF-36 | No | `for range numWorkers` has no loop variable capture |
-| 689 | PERF-7 | Yes | `defer wg.Done()` lexically inside worker loop |
-| 690 | BP-11 | Yes | `defer` inside loop defers until function returns |
-| 691 | PERF-40 | Yes | `time.Now` called repeatedly in same function |
-| 692 | PERF-35 | No | `fmt.Sprintf` called once, not on hot path |
-| 693 | CWE-497 | Yes | Exposes host environment details to callers |
-| 694 | PERF-109 | No | Slice iteration, not map key recomputation |
-| 695 | PERF-6 | Yes | `fmt.Sprintf` inside trade-generation loop |
-| 696 | PERF-6 | Yes | `fmt.Sprintf` inside table-row loop |
-| 697 | PERF-6 | Yes | `fmt.Sprintf` inside table-row loop |
-| 698 | PERF-6 | Yes | `fmt.Sprintf` inside table-row loop |
-| 699 | PERF-6 | Yes | `fmt.Sprintf` inside table-row loop |
-| 700 | PERF-6 | Yes | `fmt.Sprintf` inside table-row loop |
-| 701 | PERF-6 | Yes | `fmt.Sprintf` inside table-row loop |
-| 702 | PERF-6 | Yes | `fmt.Sprintf` inside table-row loop |
-| 703 | PERF-148 | No | Channel is buffered (`make(chan int, iterations)`) |
-| 704 | PERF-36 | No | `for range numWorkers` has no loop variable capture |
-| 705 | PERF-7 | Yes | `defer wg.Done()` lexically inside worker loop |
-| 706 | BP-11 | Yes | `defer` inside loop defers until function returns |
-| 707 | PERF-40 | Yes | `time.Now` used inside per-job goroutine loop |
-| 708 | PERF-192 | No | No `len(src)` available before map is populated |
-| 709 | BP-1 | Yes | `json.Marshal` error discarded with `_` |
-| 710 | PERF-119 | No | Mutually exclusive branches, not consecutive appends |
-| 711 | PERF-123 | Yes | `make([]MathElement, 0)` uses redundant zero length |
-| 712 | PERF-119 | No | Loop append not consecutive with later standalone append |
-| 713 | PERF-123 | Yes | `make([]MathElement, 0)` uses redundant zero length |
-| 714 | PERF-123 | Yes | `make([]MathElement, 0)` uses redundant zero length |
-| 715 | PERF-123 | Yes | `make([]MathElement, 0)` uses redundant zero length |
-| 716 | PERF-3 | Yes | `make([]*MathLayout, cols)` inside row loop |
-| 717 | PERF-46 | Yes | `strings.TrimSpace` allocates inside children loop |
-| 718 | PERF-123 | Yes | `make([]MathElement, 0)` uses redundant zero length |
-| 719 | PERF-123 | Yes | `make([]MathElement, 0)` uses redundant zero length |
-| 720 | PERF-123 | Yes | `make([]MathElement, 0)` uses redundant zero length |
-| 721 | PERF-109 | No | Path-point iteration, not map key recomputation |
+- [ ] **Finding 601** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside XML token loop
+- [ ] **Finding 602** | Rule: **PERF-109** | Correctly Fired: **No** | Attribute iteration, not map key recomputation
+- [ ] **Finding 603** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args inside outer token loop
+- [ ] **Finding 604** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` used inside the token loop
+- [ ] **Finding 605** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map)` lacks size hint despite known `len(se.Attr)`
+- [ ] **Finding 606** | Rule: **PERF-47** | Correctly Fired: **Yes** | `strings.SplitN` called inside style-parts loop
+- [ ] **Finding 607** | Rule: **PERF-122** | Correctly Fired: **No** | `HasPrefix` followed by array slice, not string trim
+- [ ] **Finding 608** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 609** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 610** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside transform-parts loop
+- [ ] **Finding 611** | Rule: **PERF-122** | Correctly Fired: **No** | `HasPrefix` followed by array slice, not string trim
+- [ ] **Finding 612** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 613** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 614** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside transform-parts loop
+- [ ] **Finding 615** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 616** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside transform-parts loop
+- [ ] **Finding 617** | Rule: **PERF-122** | Correctly Fired: **No** | `HasPrefix` followed by array slice, not string trim
+- [ ] **Finding 618** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside transform-parts loop
+- [ ] **Finding 619** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
+- [ ] **Finding 620** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
+- [ ] **Finding 621** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
+- [ ] **Finding 622** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
+- [ ] **Finding 623** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
+- [ ] **Finding 624** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseInt` error discarded with `_`
+- [ ] **Finding 625** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 626** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 627** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 628** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 629** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 630** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 631** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 632** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 633** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 634** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 635** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 636** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 637** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 638** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 639** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 640** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 641** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 642** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 643** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 644** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 645** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 646** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 647** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 648** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 649** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 650** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 651** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 652** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 653** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 654** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 655** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 656** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 657** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 658** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 659** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 660** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 661** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 662** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 663** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 664** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 665** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 666** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 667** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 668** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 669** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 670** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside path-token loop
+- [ ] **Finding 671** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.Atoi` error discarded with `_`
+- [ ] **Finding 672** | Rule: **PERF-2** | Correctly Fired: **Yes** | `testLine += " "` concatenates inside word loop
+- [ ] **Finding 673** | Rule: **PERF-119** | Correctly Fired: **Yes** | Consecutive `append` calls to same slice per iteration
+- [ ] **Finding 674** | Rule: **PERF-128** | Correctly Fired: **No** | Only two appends per iteration, not three or more
+- [ ] **Finding 675** | Rule: **PERF-7** | Correctly Fired: **Yes** | `defer` appears lexically inside `for` loop body
+- [ ] **Finding 676** | Rule: **BP-11** | Correctly Fired: **Yes** | `defer` inside loop defers until function returns
+- [ ] **Finding 677** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Errorf` on rare error path, not hot path
+- [ ] **Finding 678** | Rule: **BP-1** | Correctly Fired: **Yes** | `resp.Body.Close()` error explicitly discarded
+- [ ] **Finding 679** | Rule: **BP-5** | Correctly Fired: **Yes** | `Close()` return value ignored
+- [ ] **Finding 680** | Rule: **BP-1** | Correctly Fired: **Yes** | `os.Remove` error discarded with `_`
+- [ ] **Finding 681** | Rule: **BP-1** | Correctly Fired: **Yes** | `os.Remove` error discarded with `_`
+- [ ] **Finding 682** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args inside generation loop
+- [ ] **Finding 683** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside record-generation loop
+- [ ] **Finding 684** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside record-generation loop
+- [ ] **Finding 685** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Sprintf` called once, not on hot path
+- [ ] **Finding 686** | Rule: **CWE-497** | Correctly Fired: **Yes** | Returns OS, arch, CPU, Go version to callers
+- [ ] **Finding 687** | Rule: **PERF-148** | Correctly Fired: **No** | Channel is buffered (`make(chan int, iterations)`)
+- [ ] **Finding 688** | Rule: **PERF-36** | Correctly Fired: **No** | `for range numWorkers` has no loop variable capture
+- [ ] **Finding 689** | Rule: **PERF-7** | Correctly Fired: **Yes** | `defer wg.Done()` lexically inside worker loop
+- [ ] **Finding 690** | Rule: **BP-11** | Correctly Fired: **Yes** | `defer` inside loop defers until function returns
+- [ ] **Finding 691** | Rule: **PERF-40** | Correctly Fired: **Yes** | `time.Now` called repeatedly in same function
+- [ ] **Finding 692** | Rule: **PERF-35** | Correctly Fired: **No** | `fmt.Sprintf` called once, not on hot path
+- [ ] **Finding 693** | Rule: **CWE-497** | Correctly Fired: **Yes** | Exposes host environment details to callers
+- [ ] **Finding 694** | Rule: **PERF-109** | Correctly Fired: **No** | Slice iteration, not map key recomputation
+- [ ] **Finding 695** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside trade-generation loop
+- [ ] **Finding 696** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
+- [ ] **Finding 697** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
+- [ ] **Finding 698** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
+- [ ] **Finding 699** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
+- [ ] **Finding 700** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
+- [ ] **Finding 701** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
+- [ ] **Finding 702** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside table-row loop
+- [ ] **Finding 703** | Rule: **PERF-148** | Correctly Fired: **No** | Channel is buffered (`make(chan int, iterations)`)
+- [ ] **Finding 704** | Rule: **PERF-36** | Correctly Fired: **No** | `for range numWorkers` has no loop variable capture
+- [ ] **Finding 705** | Rule: **PERF-7** | Correctly Fired: **Yes** | `defer wg.Done()` lexically inside worker loop
+- [ ] **Finding 706** | Rule: **BP-11** | Correctly Fired: **Yes** | `defer` inside loop defers until function returns
+- [ ] **Finding 707** | Rule: **PERF-40** | Correctly Fired: **Yes** | `time.Now` used inside per-job goroutine loop
+- [ ] **Finding 708** | Rule: **PERF-192** | Correctly Fired: **No** | No `len(src)` available before map is populated
+- [ ] **Finding 709** | Rule: **BP-1** | Correctly Fired: **Yes** | `json.Marshal` error discarded with `_`
+- [ ] **Finding 710** | Rule: **PERF-119** | Correctly Fired: **No** | Mutually exclusive branches, not consecutive appends
+- [ ] **Finding 711** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
+- [ ] **Finding 712** | Rule: **PERF-119** | Correctly Fired: **No** | Loop append not consecutive with later standalone append
+- [ ] **Finding 713** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
+- [ ] **Finding 714** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
+- [ ] **Finding 715** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
+- [ ] **Finding 716** | Rule: **PERF-3** | Correctly Fired: **Yes** | `make([]*MathLayout, cols)` inside row loop
+- [ ] **Finding 717** | Rule: **PERF-46** | Correctly Fired: **Yes** | `strings.TrimSpace` allocates inside children loop
+- [ ] **Finding 718** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
+- [ ] **Finding 719** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
+- [ ] **Finding 720** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]MathElement, 0)` uses redundant zero length
+- [ ] **Finding 721** | Rule: **PERF-109** | Correctly Fired: **No** | Path-point iteration, not map key recomputation
 
 ## Notable FP Patterns
 
-- **PERF-122** (3) — `HasPrefix` + slice, not string trim
-- **PERF-148 / PERF-36** (4) — buffered channels, no loop-variable capture
-- **PERF-109** (3) — slice/path loops without map keys
-- **PERF-35** (3) — one-shot fmt on non-hot paths
-- **PERF-119 / PERF-128** (3) — non-consecutive appends
-- **PERF-192** (1) — no known size before populate
+- [ ] **PERF-122** (3) — `HasPrefix` + slice, not string trim
+- [ ] **PERF-148 / PERF-36** (4) — buffered channels, no loop-variable capture
+- [ ] **PERF-109** (3) — slice/path loops without map keys
+- [ ] **PERF-35** (3) — one-shot fmt on non-hot paths
+- [ ] **PERF-119 / PERF-128** (3) — non-consecutive appends
+- [ ] **PERF-192** (1) — no known size before populate

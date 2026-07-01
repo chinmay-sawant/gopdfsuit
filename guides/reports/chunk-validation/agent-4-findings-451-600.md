@@ -9,163 +9,161 @@
 - Incorrectly Fired (False Positives): 16
 - FP rate: 10.7%
 
-## Per-Finding Table
+## Per-Finding Checklist
 
-| Finding | Rule | Correctly Fired? | Reason |
-|---------|------|------------------|--------|
-| 451 | PERF-6 | Yes | `fmt.Sprintf` inside `for _, item := range` loop |
-| 452 | PERF-6 | Yes | `fmt.Sprintf` inside `for _, r := range s` loop |
-| 453 | PERF-6 | Yes | `fmt.Sprintf` inside same `for _, r := range` loop |
-| 454 | PERF-32 | Yes | `[]byte(name)` string-to-byte conversion in loop |
-| 455 | PERF-6 | Yes | `fmt.Sprintf` inside `for i, name := range names` loop |
-| 456 | PERF-6 | Yes | `fmt.Sprintf` inside same names loop |
-| 457 | PERF-6 | Yes | `fmt.Sprintf` inside same names loop |
-| 458 | PERF-6 | Yes | `fmt.Sprintf` inside same names loop |
-| 459 | PERF-192 | Yes | `make(map[int]string)` without size hint |
-| 460 | PERF-123 | Yes | `make([]AnnotStructElem, 0)` uses redundant zero |
-| 461 | PERF-192 | Yes | `make(map[string]NamedDest)` without size hint |
-| 462 | PERF-27 | Yes | New `bytes.Buffer{}` allocated on each page add |
-| 463 | PERF-35 | Yes | `fmt.Sprintf` boxes args through `interface{}` |
-| 464 | PERF-35 | Yes | `fmt.Sprintf` boxes args through `interface{}` |
-| 465 | PERF-32 | Yes | `[]byte(tag.sig)` conversion inside loop |
-| 466 | BP-1 | Yes | `_ = zlibWriter.Close()` discards error return |
-| 467 | BP-1 | Yes | `_ = zlibWriter.Close()` discards error return |
-| 468 | BP-1 | Yes | `_ = zlibWriter.Close()` discards error return |
-| 469 | BP-1 | Yes | `_ = zlibWriter.Close()` discards error return |
-| 470 | PERF-32 | Yes | `[]byte(tag.sig)` conversion inside loop |
-| 471 | PERF-109 | No | Loop writes slice data; no map key computation |
-| 472 | PERF-35 | Yes | `fmt.Sprintf` boxes args through `interface{}` |
-| 473 | CWE-916 | Yes | MD5 used in password/key derivation loop |
-| 474 | CWE-328 | Yes | MD5 used for security-sensitive password digest |
-| 475 | PERF-48 | Yes | `bytes.Equal` on 32-byte values in hot path |
-| 476 | PERF-109 | No | MD5 iteration loop; no map key recomputation |
-| 477 | PERF-119 | Yes | Three consecutive `append` calls to same slice |
-| 478 | PERF-128 | Yes | Three independent `append` calls can be combined |
-| 479 | PERF-32 | Yes | `[]byte('/Encrypt')` conversion inside loop |
-| 480 | BP-1 | Yes | `_ = r.Close()` discards error return |
-| 481 | BP-1 | Yes | `_ = r.Close()` discards error return |
-| 482 | PERF-188 | Yes | `fmt.Sscanf` inside `for _, p := range parts` loop |
-| 483 | PERF-32 | Yes | `[]byte(...)` conversion inside loop |
-| 484 | PERF-32 | Yes | Second `[]byte(...)` conversion on same line |
-| 485 | PERF-1 | Yes | `regexp.MustCompile` inside loop body |
-| 486 | PERF-109 | Yes | Loop contains `fmt.Sprintf` map key construction |
-| 487 | PERF-1 | Yes | `regexp.MustCompile` inside nested loop |
-| 488 | PERF-35 | Yes | `fmt.Sprintf` boxes args in loop body |
-| 489 | PERF-6 | Yes | `fmt.Sprintf` formatting inside loop body |
-| 490 | PERF-46 | Yes | `strings.TrimSpace` allocates on request path |
-| 491 | PERF-112 | Yes | `strings.ToLower` before string comparison |
-| 492 | PERF-35 | Yes | `fmt.Errorf` boxes args through `interface{}` |
-| 493 | PERF-109 | No | Outer words loop; no expensive map key built |
-| 494 | PERF-112 | Yes | `strings.ToLower` before comparison in loop |
-| 495 | BP-1 | Yes | `_ = os.RemoveAll(tmpDir)` discards error |
-| 496 | PERF-123 | Yes | `make([]ocrWord, 0)` has redundant zero arg |
-| 497 | PERF-6 | Yes | `fmt.Sprintf` inside page loop |
-| 498 | PERF-15 | Yes | `strconv.Itoa` inside page loop |
-| 499 | PERF-15 | Yes | Second `strconv.Itoa` inside same loop |
-| 500 | BP-1 | Yes | `_ = imgFile.Close()` discards error return |
-| 501 | PERF-55 | Yes | `bufio.NewScanner` without explicit buffer sizing |
-| 502 | PERF-47 | Yes | `strings.Split` allocates inside scanner loop |
-| 503 | PERF-192 | Yes | `make(map[string][]byte)` without size hint |
-| 504 | PERF-1 | Yes | `regexp.MustCompile` inside matches loop |
-| 505 | PERF-1 | Yes | `regexp.MustCompile` inside nested loop body |
-| 506 | PERF-188 | Yes | `fmt.Sscanf` inside parsing loop |
-| 507 | PERF-186 | Yes | `strings.Fields` used in hot parsing path |
-| 508 | PERF-109 | Yes | Inner loop builds `fmt.Sprintf` map keys |
-| 509 | PERF-188 | Yes | `fmt.Sscanf` inside hot parsing loop |
-| 510 | PERF-188 | Yes | `fmt.Sscanf` inside hot parsing loop |
-| 511 | PERF-188 | Yes | `fmt.Sscanf` inside nested parsing loop |
-| 512 | PERF-35 | Yes | `fmt.Sprintf` boxes args for map key |
-| 513 | PERF-6 | Yes | `fmt.Sprintf` inside loop body |
-| 514 | BP-2 | Yes | Bare `return err` without wrapping context |
-| 515 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 516 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 517 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 518 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 519 | BP-2 | Yes | Bare `return err` without wrapping context |
-| 520 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 521 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 522 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 523 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 524 | BP-1 | No | `_` discards offset int, not an error return |
-| 525 | BP-1 | No | `scanErr` is checked; `_` is scan count |
-| 526 | PERF-188 | Yes | `fmt.Sscanf` inside `for key, body := range` loop |
-| 527 | PERF-48 | Yes | `bytes.Equal` on object bodies in loop |
-| 528 | PERF-6 | Yes | `fmt.Fprintf` inside `for _, obj := range` loop |
-| 529 | PERF-6 | Yes | `fmt.Sprintf` inside nested xref loop |
-| 530 | PERF-35 | Yes | `fmt.Errorf` boxes `err` through `interface{}` |
-| 531 | BP-1 | No | `_` discards raw stream bytes, not error |
-| 532 | PERF-119 | Yes | Two consecutive `append` calls to `combined` |
-| 533 | BP-1 | Yes | `_` discards `extractPageContent` error return |
-| 534 | PERF-46 | Yes | `strings.TrimSpace(strings.ToLower(...))` allocates |
-| 535 | PERF-112 | Yes | `strings.ToLower` before mode comparison |
-| 536 | BP-1 | Yes | `_` discards `NewRedactor` error return |
-| 537 | PERF-109 | Yes | `strings.ToLower(term)` used as map key in loop |
-| 538 | PERF-46 | Yes | `strings.TrimSpace` inside search loop |
-| 539 | PERF-112 | Yes | `strings.ToLower` before substring comparison |
-| 540 | PERF-186 | Yes | `strings.Fields` in normalization hot path |
-| 541 | PERF-2 | Yes | `joined += " " + part` concatenation in loop |
-| 542 | PERF-119 | No | Single `append`; not consecutive appends |
-| 543 | PERF-192 | Yes | `make(map[int][]...)` without size hint |
-| 544 | PERF-109 | No | Uses `r.PageNum` directly; not expensive key |
-| 545 | PERF-35 | Yes | `fmt.Sprintf` boxes args in page loop |
-| 546 | PERF-6 | Yes | `fmt.Sprintf` inside page loop |
-| 547 | PERF-6 | Yes | `fmt.Sprintf` inside page loop |
-| 548 | PERF-4 | Yes | `make(map[string]bool)` allocated inside loop |
-| 549 | PERF-192 | Yes | `make(map[string]bool)` without size hint |
-| 550 | BP-1 | No | `_` discards raw stream, not error return |
-| 551 | PERF-1 | Yes | `regexp.MustCompile` inside child-refs loop |
-| 552 | PERF-119 | Yes | Three consecutive `append` calls to `newObj` |
-| 553 | PERF-128 | Yes | Three independent `append` calls combinable |
-| 554 | PERF-32 | Yes | `[]byte(fmt.Sprintf(...))` copies string data |
-| 555 | PERF-46 | Yes | `strings.TrimSpace` inside match loop |
-| 556 | PERF-32 | Yes | `[]byte(out.String())` copies builder output |
-| 557 | BP-1 | Yes | `_, _ = fmt.Fprintf` discards write error |
-| 558 | PERF-6 | Yes | `fmt.Fprintf` inside `for _, r := range` loop |
-| 559 | BP-1 | Yes | `_, _ = fmt.Fprintf` discards write error |
-| 560 | PERF-6 | Yes | `fmt.Fprintf` inside second char loop |
-| 561 | BP-1 | Yes | `_, _ = fmt.Fprintf` discards write error |
-| 562 | PERF-6 | Yes | `fmt.Fprintf` inside segments loop |
-| 563 | BP-1 | Yes | `_, _ = fmt.Fprintf` discards write error |
-| 564 | PERF-6 | Yes | `fmt.Fprintf` inside nested hex loop |
-| 565 | PERF-192 | Yes | `make(map[int][]...)` without size hint |
-| 566 | PERF-109 | No | Uses `rect.PageNum` directly as map key |
-| 567 | BP-1 | Yes | `_, _ = fmt.Sscanf` discards parse error |
-| 568 | PERF-188 | Yes | `fmt.Sscanf` inside `for k := range objMap` |
-| 569 | PERF-35 | Yes | `fmt.Errorf` boxes args through `interface{}` |
-| 570 | PERF-6 | Yes | `fmt.Sprintf` inside rects loop |
-| 571 | PERF-6 | Yes | `fmt.Sprintf` inside page loop |
-| 572 | PERF-6 | Yes | `fmt.Sprintf` inside page loop |
-| 573 | PERF-32 | Yes | `[]byte(streamObj)` string-to-byte conversion |
-| 574 | BP-1 | No | `pem.Decode` second value is remainder, not error |
-| 575 | PERF-32 | Yes | `[]byte(config.CertificatePEM)` copies string |
-| 576 | PERF-42 | Yes | `fmt.Errorf` with static string, no format args |
-| 577 | PERF-35 | Yes | `fmt.Errorf` boxes `err` through `interface{}` |
-| 578 | BP-1 | No | `pem.Decode` remainder discarded, not error |
-| 579 | PERF-32 | Yes | `[]byte(config.PrivateKeyPEM)` copies string |
-| 580 | BP-1 | No | `pem.Decode` remainder discarded, not error |
-| 581 | PERF-32 | Yes | `[]byte(chainPEM)` conversion inside loop |
-| 582 | PERF-40 | No | Only one `time.Now()` call in function |
-| 583 | BP-1 | No | `now.Zone()` returns name/offset, not error |
-| 584 | BP-3 | Yes | `panic(err)` outside `main` or test file |
-| 585 | PERF-32 | Yes | `[]byte(newByteRange)` copies formatted string |
-| 586 | PERF-32 | Yes | `[]byte(sigHex)` copies hex string to bytes |
-| 587 | PERF-192 | Yes | `make(map[int]int)` without size hint |
-| 588 | PERF-192 | Yes | `make(map[int][]*StructElem)` without hint |
-| 589 | PERF-192 | Yes | `make(map[int]int)` without size hint |
-| 590 | PERF-123 | Yes | `make([]*StructElem, 0)` redundant zero arg |
-| 591 | PERF-123 | Yes | `make([]*StructElem, 0)` redundant zero arg |
-| 592 | PERF-44 | No | Only one type assertion on `Kids[0]` |
-| 593 | PERF-192 | Yes | `make(map[int]*StructElem)` without size hint |
-| 594 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 595 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 596 | BP-1 | Yes | `strconv.ParseFloat` error discarded with `_` |
-| 597 | PERF-192 | Yes | `make(map[string]xml.StartElement)` no hint |
-| 598 | PERF-4 | Yes | `make(map[string]string)` inside token loop |
-| 599 | PERF-192 | Yes | Loop-body map created without size hint |
-| 600 | PERF-6 | Yes | `fmt.Fprintf` inside XML token loop |
+- [ ] **Finding 451** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside `for _, item := range` loop
+- [ ] **Finding 452** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside `for _, r := range s` loop
+- [ ] **Finding 453** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside same `for _, r := range` loop
+- [ ] **Finding 454** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(name)` string-to-byte conversion in loop
+- [ ] **Finding 455** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside `for i, name := range names` loop
+- [ ] **Finding 456** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside same names loop
+- [ ] **Finding 457** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside same names loop
+- [ ] **Finding 458** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside same names loop
+- [ ] **Finding 459** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[int]string)` without size hint
+- [ ] **Finding 460** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]AnnotStructElem, 0)` uses redundant zero
+- [ ] **Finding 461** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]NamedDest)` without size hint
+- [ ] **Finding 462** | Rule: **PERF-27** | Correctly Fired: **Yes** | New `bytes.Buffer{}` allocated on each page add
+- [ ] **Finding 463** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args through `interface{}`
+- [ ] **Finding 464** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args through `interface{}`
+- [ ] **Finding 465** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(tag.sig)` conversion inside loop
+- [ ] **Finding 466** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards error return
+- [ ] **Finding 467** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards error return
+- [ ] **Finding 468** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards error return
+- [ ] **Finding 469** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = zlibWriter.Close()` discards error return
+- [ ] **Finding 470** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(tag.sig)` conversion inside loop
+- [ ] **Finding 471** | Rule: **PERF-109** | Correctly Fired: **No** | Loop writes slice data; no map key computation
+- [ ] **Finding 472** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args through `interface{}`
+- [ ] **Finding 473** | Rule: **CWE-916** | Correctly Fired: **Yes** | MD5 used in password/key derivation loop
+- [ ] **Finding 474** | Rule: **CWE-328** | Correctly Fired: **Yes** | MD5 used for security-sensitive password digest
+- [ ] **Finding 475** | Rule: **PERF-48** | Correctly Fired: **Yes** | `bytes.Equal` on 32-byte values in hot path
+- [ ] **Finding 476** | Rule: **PERF-109** | Correctly Fired: **No** | MD5 iteration loop; no map key recomputation
+- [ ] **Finding 477** | Rule: **PERF-119** | Correctly Fired: **Yes** | Three consecutive `append` calls to same slice
+- [ ] **Finding 478** | Rule: **PERF-128** | Correctly Fired: **Yes** | Three independent `append` calls can be combined
+- [ ] **Finding 479** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte('/Encrypt')` conversion inside loop
+- [ ] **Finding 480** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = r.Close()` discards error return
+- [ ] **Finding 481** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = r.Close()` discards error return
+- [ ] **Finding 482** | Rule: **PERF-188** | Correctly Fired: **Yes** | `fmt.Sscanf` inside `for _, p := range parts` loop
+- [ ] **Finding 483** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(...)` conversion inside loop
+- [ ] **Finding 484** | Rule: **PERF-32** | Correctly Fired: **Yes** | Second `[]byte(...)` conversion on same line
+- [ ] **Finding 485** | Rule: **PERF-1** | Correctly Fired: **Yes** | `regexp.MustCompile` inside loop body
+- [ ] **Finding 486** | Rule: **PERF-109** | Correctly Fired: **Yes** | Loop contains `fmt.Sprintf` map key construction
+- [ ] **Finding 487** | Rule: **PERF-1** | Correctly Fired: **Yes** | `regexp.MustCompile` inside nested loop
+- [ ] **Finding 488** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args in loop body
+- [ ] **Finding 489** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` formatting inside loop body
+- [ ] **Finding 490** | Rule: **PERF-46** | Correctly Fired: **Yes** | `strings.TrimSpace` allocates on request path
+- [ ] **Finding 491** | Rule: **PERF-112** | Correctly Fired: **Yes** | `strings.ToLower` before string comparison
+- [ ] **Finding 492** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Errorf` boxes args through `interface{}`
+- [ ] **Finding 493** | Rule: **PERF-109** | Correctly Fired: **No** | Outer words loop; no expensive map key built
+- [ ] **Finding 494** | Rule: **PERF-112** | Correctly Fired: **Yes** | `strings.ToLower` before comparison in loop
+- [ ] **Finding 495** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = os.RemoveAll(tmpDir)` discards error
+- [ ] **Finding 496** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]ocrWord, 0)` has redundant zero arg
+- [ ] **Finding 497** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside page loop
+- [ ] **Finding 498** | Rule: **PERF-15** | Correctly Fired: **Yes** | `strconv.Itoa` inside page loop
+- [ ] **Finding 499** | Rule: **PERF-15** | Correctly Fired: **Yes** | Second `strconv.Itoa` inside same loop
+- [ ] **Finding 500** | Rule: **BP-1** | Correctly Fired: **Yes** | `_ = imgFile.Close()` discards error return
+- [ ] **Finding 501** | Rule: **PERF-55** | Correctly Fired: **Yes** | `bufio.NewScanner` without explicit buffer sizing
+- [ ] **Finding 502** | Rule: **PERF-47** | Correctly Fired: **Yes** | `strings.Split` allocates inside scanner loop
+- [ ] **Finding 503** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string][]byte)` without size hint
+- [ ] **Finding 504** | Rule: **PERF-1** | Correctly Fired: **Yes** | `regexp.MustCompile` inside matches loop
+- [ ] **Finding 505** | Rule: **PERF-1** | Correctly Fired: **Yes** | `regexp.MustCompile` inside nested loop body
+- [ ] **Finding 506** | Rule: **PERF-188** | Correctly Fired: **Yes** | `fmt.Sscanf` inside parsing loop
+- [ ] **Finding 507** | Rule: **PERF-186** | Correctly Fired: **Yes** | `strings.Fields` used in hot parsing path
+- [ ] **Finding 508** | Rule: **PERF-109** | Correctly Fired: **Yes** | Inner loop builds `fmt.Sprintf` map keys
+- [ ] **Finding 509** | Rule: **PERF-188** | Correctly Fired: **Yes** | `fmt.Sscanf` inside hot parsing loop
+- [ ] **Finding 510** | Rule: **PERF-188** | Correctly Fired: **Yes** | `fmt.Sscanf` inside hot parsing loop
+- [ ] **Finding 511** | Rule: **PERF-188** | Correctly Fired: **Yes** | `fmt.Sscanf` inside nested parsing loop
+- [ ] **Finding 512** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args for map key
+- [ ] **Finding 513** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside loop body
+- [ ] **Finding 514** | Rule: **BP-2** | Correctly Fired: **Yes** | Bare `return err` without wrapping context
+- [ ] **Finding 515** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 516** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 517** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 518** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 519** | Rule: **BP-2** | Correctly Fired: **Yes** | Bare `return err` without wrapping context
+- [ ] **Finding 520** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 521** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 522** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 523** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 524** | Rule: **BP-1** | Correctly Fired: **No** | `_` discards offset int, not an error return
+- [ ] **Finding 525** | Rule: **BP-1** | Correctly Fired: **No** | `scanErr` is checked; `_` is scan count
+- [ ] **Finding 526** | Rule: **PERF-188** | Correctly Fired: **Yes** | `fmt.Sscanf` inside `for key, body := range` loop
+- [ ] **Finding 527** | Rule: **PERF-48** | Correctly Fired: **Yes** | `bytes.Equal` on object bodies in loop
+- [ ] **Finding 528** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside `for _, obj := range` loop
+- [ ] **Finding 529** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside nested xref loop
+- [ ] **Finding 530** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Errorf` boxes `err` through `interface{}`
+- [ ] **Finding 531** | Rule: **BP-1** | Correctly Fired: **No** | `_` discards raw stream bytes, not error
+- [ ] **Finding 532** | Rule: **PERF-119** | Correctly Fired: **Yes** | Two consecutive `append` calls to `combined`
+- [ ] **Finding 533** | Rule: **BP-1** | Correctly Fired: **Yes** | `_` discards `extractPageContent` error return
+- [ ] **Finding 534** | Rule: **PERF-46** | Correctly Fired: **Yes** | `strings.TrimSpace(strings.ToLower(...))` allocates
+- [ ] **Finding 535** | Rule: **PERF-112** | Correctly Fired: **Yes** | `strings.ToLower` before mode comparison
+- [ ] **Finding 536** | Rule: **BP-1** | Correctly Fired: **Yes** | `_` discards `NewRedactor` error return
+- [ ] **Finding 537** | Rule: **PERF-109** | Correctly Fired: **Yes** | `strings.ToLower(term)` used as map key in loop
+- [ ] **Finding 538** | Rule: **PERF-46** | Correctly Fired: **Yes** | `strings.TrimSpace` inside search loop
+- [ ] **Finding 539** | Rule: **PERF-112** | Correctly Fired: **Yes** | `strings.ToLower` before substring comparison
+- [ ] **Finding 540** | Rule: **PERF-186** | Correctly Fired: **Yes** | `strings.Fields` in normalization hot path
+- [ ] **Finding 541** | Rule: **PERF-2** | Correctly Fired: **Yes** | `joined += " " + part` concatenation in loop
+- [ ] **Finding 542** | Rule: **PERF-119** | Correctly Fired: **No** | Single `append`; not consecutive appends
+- [ ] **Finding 543** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[int][]...)` without size hint
+- [ ] **Finding 544** | Rule: **PERF-109** | Correctly Fired: **No** | Uses `r.PageNum` directly; not expensive key
+- [ ] **Finding 545** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Sprintf` boxes args in page loop
+- [ ] **Finding 546** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside page loop
+- [ ] **Finding 547** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside page loop
+- [ ] **Finding 548** | Rule: **PERF-4** | Correctly Fired: **Yes** | `make(map[string]bool)` allocated inside loop
+- [ ] **Finding 549** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]bool)` without size hint
+- [ ] **Finding 550** | Rule: **BP-1** | Correctly Fired: **No** | `_` discards raw stream, not error return
+- [ ] **Finding 551** | Rule: **PERF-1** | Correctly Fired: **Yes** | `regexp.MustCompile` inside child-refs loop
+- [ ] **Finding 552** | Rule: **PERF-119** | Correctly Fired: **Yes** | Three consecutive `append` calls to `newObj`
+- [ ] **Finding 553** | Rule: **PERF-128** | Correctly Fired: **Yes** | Three independent `append` calls combinable
+- [ ] **Finding 554** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(fmt.Sprintf(...))` copies string data
+- [ ] **Finding 555** | Rule: **PERF-46** | Correctly Fired: **Yes** | `strings.TrimSpace` inside match loop
+- [ ] **Finding 556** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(out.String())` copies builder output
+- [ ] **Finding 557** | Rule: **BP-1** | Correctly Fired: **Yes** | `_, _ = fmt.Fprintf` discards write error
+- [ ] **Finding 558** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside `for _, r := range` loop
+- [ ] **Finding 559** | Rule: **BP-1** | Correctly Fired: **Yes** | `_, _ = fmt.Fprintf` discards write error
+- [ ] **Finding 560** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside second char loop
+- [ ] **Finding 561** | Rule: **BP-1** | Correctly Fired: **Yes** | `_, _ = fmt.Fprintf` discards write error
+- [ ] **Finding 562** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside segments loop
+- [ ] **Finding 563** | Rule: **BP-1** | Correctly Fired: **Yes** | `_, _ = fmt.Fprintf` discards write error
+- [ ] **Finding 564** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside nested hex loop
+- [ ] **Finding 565** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[int][]...)` without size hint
+- [ ] **Finding 566** | Rule: **PERF-109** | Correctly Fired: **No** | Uses `rect.PageNum` directly as map key
+- [ ] **Finding 567** | Rule: **BP-1** | Correctly Fired: **Yes** | `_, _ = fmt.Sscanf` discards parse error
+- [ ] **Finding 568** | Rule: **PERF-188** | Correctly Fired: **Yes** | `fmt.Sscanf` inside `for k := range objMap`
+- [ ] **Finding 569** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Errorf` boxes args through `interface{}`
+- [ ] **Finding 570** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside rects loop
+- [ ] **Finding 571** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside page loop
+- [ ] **Finding 572** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Sprintf` inside page loop
+- [ ] **Finding 573** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(streamObj)` string-to-byte conversion
+- [ ] **Finding 574** | Rule: **BP-1** | Correctly Fired: **No** | `pem.Decode` second value is remainder, not error
+- [ ] **Finding 575** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(config.CertificatePEM)` copies string
+- [ ] **Finding 576** | Rule: **PERF-42** | Correctly Fired: **Yes** | `fmt.Errorf` with static string, no format args
+- [ ] **Finding 577** | Rule: **PERF-35** | Correctly Fired: **Yes** | `fmt.Errorf` boxes `err` through `interface{}`
+- [ ] **Finding 578** | Rule: **BP-1** | Correctly Fired: **No** | `pem.Decode` remainder discarded, not error
+- [ ] **Finding 579** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(config.PrivateKeyPEM)` copies string
+- [ ] **Finding 580** | Rule: **BP-1** | Correctly Fired: **No** | `pem.Decode` remainder discarded, not error
+- [ ] **Finding 581** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(chainPEM)` conversion inside loop
+- [ ] **Finding 582** | Rule: **PERF-40** | Correctly Fired: **No** | Only one `time.Now()` call in function
+- [ ] **Finding 583** | Rule: **BP-1** | Correctly Fired: **No** | `now.Zone()` returns name/offset, not error
+- [ ] **Finding 584** | Rule: **BP-3** | Correctly Fired: **Yes** | `panic(err)` outside `main` or test file
+- [ ] **Finding 585** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(newByteRange)` copies formatted string
+- [ ] **Finding 586** | Rule: **PERF-32** | Correctly Fired: **Yes** | `[]byte(sigHex)` copies hex string to bytes
+- [ ] **Finding 587** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[int]int)` without size hint
+- [ ] **Finding 588** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[int][]*StructElem)` without hint
+- [ ] **Finding 589** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[int]int)` without size hint
+- [ ] **Finding 590** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]*StructElem, 0)` redundant zero arg
+- [ ] **Finding 591** | Rule: **PERF-123** | Correctly Fired: **Yes** | `make([]*StructElem, 0)` redundant zero arg
+- [ ] **Finding 592** | Rule: **PERF-44** | Correctly Fired: **No** | Only one type assertion on `Kids[0]`
+- [ ] **Finding 593** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[int]*StructElem)` without size hint
+- [ ] **Finding 594** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 595** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 596** | Rule: **BP-1** | Correctly Fired: **Yes** | `strconv.ParseFloat` error discarded with `_`
+- [ ] **Finding 597** | Rule: **PERF-192** | Correctly Fired: **Yes** | `make(map[string]xml.StartElement)` no hint
+- [ ] **Finding 598** | Rule: **PERF-4** | Correctly Fired: **Yes** | `make(map[string]string)` inside token loop
+- [ ] **Finding 599** | Rule: **PERF-192** | Correctly Fired: **Yes** | Loop-body map created without size hint
+- [ ] **Finding 600** | Rule: **PERF-6** | Correctly Fired: **Yes** | `fmt.Fprintf` inside XML token loop
 
 ## Notable FP Patterns
 
-- **PERF-109** (5) — loop flagged without map key recomputation
-- **BP-1** (11) — non-error `_` bindings (`pem.Decode`, raw bytes, `Zone()`, scan count)
-- **PERF-119** (1), **PERF-40** (1), **PERF-44** (1) — single-instance misfires
+- [ ] **PERF-109** (5) — loop flagged without map key recomputation
+- [ ] **BP-1** (11) — non-error `_` bindings (`pem.Decode`, raw bytes, `Zone()`, scan count)
+- [ ] **PERF-119** (1), **PERF-40** (1), **PERF-44** (1) — single-instance misfires
