@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,7 +65,7 @@ func buildRows(records []benchmarkRecord) []gopdflib.Row {
 		}
 
 		rows = append(rows, gopdflib.Row{Row: []gopdflib.Cell{
-			{Props: "Helvetica:10:000:left:1:1:1:1", Text: fmt.Sprintf("%d", record.ID), BgColor: bgColor},
+			{Props: "Helvetica:10:000:left:1:1:1:1", Text: strconv.Itoa(record.ID), BgColor: bgColor},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Name, BgColor: bgColor},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Email, BgColor: bgColor, Wrap: boolPtr(true)},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Role, BgColor: bgColor},
@@ -110,7 +112,7 @@ func buildTemplate(records []benchmarkRecord) gopdflib.PDFTemplate {
 func runDataBenchGoPDFLib() error {
 	records, err := readBenchmarkData()
 	if err != nil {
-		return fmt.Errorf("failed to read benchmark data: %w", err)
+		return errors.Join(errors.New("failed to read benchmark data"), err)
 	}
 
 	template := buildTemplate(records)
@@ -129,10 +131,10 @@ func runDataBenchGoPDFLib() error {
 		wg      sync.WaitGroup
 	)
 
-	memDone := make(chan bool)
+	var memStop atomic.Bool
 	var memWg sync.WaitGroup
 	memWg.Add(1)
-	go monitorMemoryData(memDone, &memWg)
+	go monitorMemoryData(&memStop, &memWg)
 
 	sem := make(chan struct{}, workers)
 	totalStart := time.Now()
@@ -140,42 +142,22 @@ func runDataBenchGoPDFLib() error {
 	for i := 1; i <= iterations; i++ {
 		sem <- struct{}{}
 		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			start := time.Now()
-			pdfBytes, genErr := gopdflib.GeneratePDF(template)
-			if genErr != nil {
-				fmt.Printf("Run %d error: %v\n", idx, genErr)
-				return
-			}
-			elapsed := float64(time.Since(start).Nanoseconds()) / 1_000_000
-			n := ops.Add(1)
-			mu.Lock()
-			timings = append(timings, elapsed)
-			lastPDF = pdfBytes
-			mu.Unlock()
-			if !quiet {
-				fmt.Printf("Run %d: %.2f ms\n", idx, elapsed)
-			} else if n%500 == 0 || int(n) == iterations {
-				fmt.Printf("  progress: %d / %d (latest %.2f ms)\n", n, iterations, elapsed)
-			}
-		}(i)
+		// PERF-7/36/40: named worker helper
+		go runDataBenchIter(&wg, sem, template, i, iterations, quiet, &mu, &timings, &lastPDF, &ops)
 	}
 	wg.Wait()
 	totalSeconds := time.Since(totalStart).Seconds()
 
-	memDone <- true
+	memStop.Store(true)
 	memWg.Wait()
 
 	if len(timings) == 0 {
-		return fmt.Errorf("no successful runs")
+		return errors.New("no successful runs")
 	}
 
 	outputPath := filepath.Join(filepath.Dir(mustCurrentFile()), "output_databench_gopdflib.pdf")
 	if err := os.WriteFile(outputPath, lastPDF, 0o644); err != nil {
-		return fmt.Errorf("failed to write output pdf: %w", err)
+		return errors.Join(errors.New("failed to write output pdf"), err)
 	}
 
 	sort.Float64s(timings)
@@ -200,23 +182,58 @@ func runDataBenchGoPDFLib() error {
 	return nil
 }
 
-func monitorMemoryData(done chan bool, wg *sync.WaitGroup) {
+func monitorMemoryData(stop *atomic.Bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var maxAlloc uint64
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-done:
-			fmt.Printf("  Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
-			return
-		case <-ticker.C:
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			if m.Alloc > maxAlloc {
-				maxAlloc = m.Alloc
-			}
+	for !stop.Load() {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		if m.Alloc > maxAlloc {
+			maxAlloc = m.Alloc
 		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	fmt.Printf("  Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
+}
+
+// runDataBenchIter is a named worker so defer is not in a loop body (PERF-7/40).
+func runDataBenchIter(
+	wg *sync.WaitGroup,
+	sem chan struct{},
+	template gopdflib.PDFTemplate,
+	idx, iterations int,
+	quiet bool,
+	mu *sync.Mutex,
+	timings *[]float64,
+	lastPDF *[]byte,
+	ops *atomic.Int64,
+) {
+	defer wg.Done()
+	defer func() { <-sem }()
+
+	start := time.Now()
+	pdfBytes, genErr := gopdflib.GeneratePDF(template)
+	if genErr != nil {
+		var idBuf [20]byte
+		idStr := string(strconv.AppendInt(idBuf[:0], int64(idx), 10))
+		fmt.Printf("Run %s error: %v\n", idStr, genErr)
+		return
+	}
+	elapsed := float64(time.Since(start).Nanoseconds()) / 1_000_000
+	n := ops.Add(1)
+	mu.Lock()
+	*timings = append(*timings, elapsed)
+	*lastPDF = pdfBytes
+	mu.Unlock()
+	if !quiet {
+		var idBuf [20]byte
+		idStr := string(strconv.AppendInt(idBuf[:0], int64(idx), 10))
+		fmt.Printf("Run %s: %.2f ms\n", idStr, elapsed)
+	} else if n%500 == 0 || int(n) == iterations {
+		var nBuf, itBuf [20]byte
+		nStr := string(strconv.AppendInt(nBuf[:0], n, 10))
+		itStr := string(strconv.AppendInt(itBuf[:0], int64(iterations), 10))
+		fmt.Printf("  progress: %s / %s (latest %.2f ms)\n", nStr, itStr, elapsed)
 	}
 }
 

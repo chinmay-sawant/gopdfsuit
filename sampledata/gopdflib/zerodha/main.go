@@ -7,6 +7,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -37,28 +38,68 @@ func floatPtr(f float64) *float64 { return &f }
 func getSystemInfo() string {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	return fmt.Sprintf("OS: %s, Arch: %s, NumCPU: %d, GoVersion: %s",
-		runtime.GOOS, runtime.GOARCH, runtime.NumCPU(), runtime.Version())
+	return "OS: " + runtime.GOOS + ", Arch: " + runtime.GOARCH + ", GoVersion: " + runtime.Version()
 }
 
-func monitorMemory(done chan bool, wg *sync.WaitGroup) {
+// formatRupee formats amount as "₹X.YY" without fmt.Sprintf (PERF-6).
+func formatRupee(v float64) string {
+	return "₹" + strconv.FormatFloat(v, 'f', 2, 64)
+}
+
+// measureGeneratePDF times a single GeneratePDF call (PERF-40: isolate time.Now).
+func measureGeneratePDF(tmpl gopdflib.PDFTemplate) (time.Duration, error) {
+	start := time.Now()
+	_, err := gopdflib.GeneratePDF(tmpl)
+	return time.Since(start), err
+}
+
+// runZerodhaWorker runs one benchmark worker (PERF-7: defer outside loop body).
+func runZerodhaWorker(
+	wg *sync.WaitGroup,
+	jobs <-chan int,
+	results chan<- time.Duration,
+	errCh chan<- error,
+	retailTemplate, activeTemplate, hftTemplate gopdflib.PDFTemplate,
+	retailCount, activeCount, hftCount *int64,
+) {
+	defer wg.Done()
+	localRng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(rand.Intn(10000))))
+	for range jobs {
+		roll := localRng.Intn(100)
+		var tmpl gopdflib.PDFTemplate
+		switch {
+		case roll < 80:
+			tmpl = retailTemplate
+			atomic.AddInt64(retailCount, 1)
+		case roll < 95:
+			tmpl = activeTemplate
+			atomic.AddInt64(activeCount, 1)
+		default:
+			tmpl = hftTemplate
+			atomic.AddInt64(hftCount, 1)
+		}
+
+		elapsed, err := measureGeneratePDF(tmpl)
+		if err != nil {
+			errCh <- err
+			continue
+		}
+		results <- elapsed
+	}
+}
+
+func monitorMemory(stop *atomic.Bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var maxAlloc uint64
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-done:
-			fmt.Printf("  Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
-			return
-		case <-ticker.C:
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			if m.Alloc > maxAlloc {
-				maxAlloc = m.Alloc
-			}
+	for !stop.Load() {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		if m.Alloc > maxAlloc {
+			maxAlloc = m.Alloc
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
+	fmt.Printf("  Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
 }
 
 // ──────────────────────────────────────────────
@@ -97,7 +138,17 @@ func generateTrades(n int, rng *rand.Rand) []trade {
 		price = float64(int(price*100)) / 100 // round to 2 decimals
 		total := float64(qty) * price
 
-		timeStr := fmt.Sprintf("%02d:%02d:%02d", hour, min, sec)
+		// PERF-6: build HH:MM:SS without fmt.Sprintf
+		var tb [8]byte
+		tb[0] = byte('0' + hour/10)
+		tb[1] = byte('0' + hour%10)
+		tb[2] = ':'
+		tb[3] = byte('0' + min/10)
+		tb[4] = byte('0' + min%10)
+		tb[5] = ':'
+		tb[6] = byte('0' + sec/10)
+		tb[7] = byte('0' + sec%10)
+		timeStr := string(tb[:])
 		sec++
 		if sec >= 60 {
 			sec = 0
@@ -323,12 +374,14 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 		if t.Action == "SELL" {
 			actionColor = "#E74C3C"
 		}
+		var qtyBuf [20]byte
+		qtyStr := string(strconv.AppendInt(qtyBuf[:0], int64(t.Qty), 10))
 		tradeRows = append(tradeRows, gopdflib.Row{Row: []gopdflib.Cell{
 			{Props: "Helvetica:8:000:center:1:0:0:1", Text: t.Symbol, BgColor: bg},
 			{Props: "Helvetica:8:000:center:0:0:0:1", Text: t.Action, TextColor: actionColor, BgColor: bg},
-			{Props: "Helvetica:8:000:center:0:0:0:1", Text: fmt.Sprintf("%d", t.Qty), BgColor: bg},
-			{Props: "Helvetica:8:000:right:0:0:0:1", Text: fmt.Sprintf("₹%.2f", t.Price), BgColor: bg},
-			{Props: "Helvetica:8:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", t.Total), BgColor: bg},
+			{Props: "Helvetica:8:000:center:0:0:0:1", Text: qtyStr, BgColor: bg},
+			{Props: "Helvetica:8:000:right:0:0:0:1", Text: formatRupee(t.Price), BgColor: bg},
+			{Props: "Helvetica:8:000:right:0:1:0:1", Text: formatRupee(t.Total), BgColor: bg},
 		}})
 	}
 
@@ -433,7 +486,7 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 				Rows: []gopdflib.Row{
 					{Row: []gopdflib.Cell{
 						{Props: "Helvetica:9:000:left:1:0:0:1", Text: "Total Turnover"},
-						{Props: "Helvetica:9:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", totalTurnover)},
+						{Props: "Helvetica:9:000:right:0:1:0:1", Text: formatRupee(totalTurnover)},
 					}},
 					{Row: []gopdflib.Cell{
 						{Props: "Helvetica:9:000:left:1:0:0:1", Text: "Brokerage", BgColor: "#F8F9F9"},
@@ -445,7 +498,7 @@ func buildActiveTraderTemplate() gopdflib.PDFTemplate {
 					}},
 					{Row: []gopdflib.Cell{
 						{Props: "Helvetica:10:100:left:1:0:1:1", Text: "Net Payable", BgColor: "#A9CCE3"},
-						{Props: "Helvetica:10:100:right:0:1:1:1", Text: fmt.Sprintf("₹%.2f", totalTurnover+20+150), BgColor: "#A9CCE3"},
+						{Props: "Helvetica:10:100:right:0:1:1:1", Text: formatRupee(totalTurnover + 20 + 150), BgColor: "#A9CCE3"},
 					}},
 				},
 			}},
@@ -495,14 +548,17 @@ func buildHFTTemplate() gopdflib.PDFTemplate {
 		if t.Action == "SELL" {
 			actionColor = "#E74C3C"
 		}
+		var idBuf, qtyBuf [20]byte
+		idStr := string(strconv.AppendInt(idBuf[:0], int64(t.ID), 10))
+		qtyStr := string(strconv.AppendInt(qtyBuf[:0], int64(t.Qty), 10))
 		tradeRows = append(tradeRows, gopdflib.Row{Row: []gopdflib.Cell{
-			{Props: "Helvetica:7:000:center:1:0:0:1", Text: fmt.Sprintf("%d", t.ID), BgColor: bg},
+			{Props: "Helvetica:7:000:center:1:0:0:1", Text: idStr, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Time, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Symbol, BgColor: bg},
 			{Props: "Helvetica:7:000:center:0:0:0:1", Text: t.Action, TextColor: actionColor, BgColor: bg},
-			{Props: "Helvetica:7:000:center:0:0:0:1", Text: fmt.Sprintf("%d", t.Qty), BgColor: bg},
-			{Props: "Helvetica:7:000:right:0:0:0:1", Text: fmt.Sprintf("₹%.2f", t.Price), BgColor: bg},
-			{Props: "Helvetica:7:000:right:0:1:0:1", Text: fmt.Sprintf("₹%.2f", t.Total), BgColor: bg},
+			{Props: "Helvetica:7:000:center:0:0:0:1", Text: qtyStr, BgColor: bg},
+			{Props: "Helvetica:7:000:right:0:0:0:1", Text: formatRupee(t.Price), BgColor: bg},
+			{Props: "Helvetica:7:000:right:0:1:0:1", Text: formatRupee(t.Total), BgColor: bg},
 		}})
 	}
 
@@ -704,15 +760,15 @@ func runBenchmark() error {
 	fmt.Println("Warm-up runs...")
 	retailPDF, err := gopdflib.GeneratePDF(retailTemplate)
 	if err != nil {
-		return fmt.Errorf("error generating retail PDF: %w", err)
+		return errors.Join(errors.New("error generating retail PDF"), err)
 	}
 	activePDF, err := gopdflib.GeneratePDF(activeTemplate)
 	if err != nil {
-		return fmt.Errorf("error generating active PDF: %w", err)
+		return errors.Join(errors.New("error generating active PDF"), err)
 	}
 	hftPDF, err := gopdflib.GeneratePDF(hftTemplate)
 	if err != nil {
-		return fmt.Errorf("error generating HFT PDF: %w", err)
+		return errors.Join(errors.New("error generating HFT PDF"), err)
 	}
 	fmt.Printf("  Retail PDF size:  %d bytes (%.2f KB)\n", len(retailPDF), float64(len(retailPDF))/1024.0)
 	fmt.Printf("  Active PDF size:  %d bytes (%.2f KB)\n", len(activePDF), float64(len(activePDF))/1024.0)
@@ -725,48 +781,21 @@ func runBenchmark() error {
 	// Channels
 	jobs := make(chan int, iterations)
 	results := make(chan time.Duration, iterations)
-	errors := make(chan error, iterations)
+	errCh := make(chan error, iterations)
 
 	var wg sync.WaitGroup
 
-	// Memory monitor
-	memDone := make(chan bool)
+	// Memory monitor via atomic stop flag (PERF-171)
+	var memStop atomic.Bool
 	var memWg sync.WaitGroup
 	memWg.Add(1)
-	go monitorMemory(memDone, &memWg)
+	go monitorMemory(&memStop, &memWg)
 
-	// Start workers
+	// Start workers (PERF-7: defer lives in named helper, not loop body)
 	for range numWorkers {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			localRng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(rand.Intn(10000))))
-			for range jobs {
-				roll := localRng.Intn(100)
-				var tmpl gopdflib.PDFTemplate
-				switch {
-				case roll < 80:
-					tmpl = retailTemplate
-					atomic.AddInt64(&retailCount, 1)
-				case roll < 95:
-					tmpl = activeTemplate
-					atomic.AddInt64(&activeCount, 1)
-				default:
-					tmpl = hftTemplate
-					atomic.AddInt64(&hftCount, 1)
-				}
-
-				start := time.Now()
-				_, err := gopdflib.GeneratePDF(tmpl)
-				elapsed := time.Since(start)
-
-				if err != nil {
-					errors <- err
-					continue
-				}
-				results <- elapsed
-			}
-		}()
+		go runZerodhaWorker(&wg, jobs, results, errCh, retailTemplate, activeTemplate, hftTemplate,
+			&retailCount, &activeCount, &hftCount)
 	}
 
 	// Start timer and send jobs
@@ -781,15 +810,15 @@ func runBenchmark() error {
 	totalTime := time.Since(totalStart)
 
 	// Stop memory monitor
-	memDone <- true
+	memStop.Store(true)
 	memWg.Wait()
 
 	close(results)
-	close(errors)
+	close(errCh)
 
 	// Check errors
 	var errCount int
-	for e := range errors {
+	for e := range errCh {
 		if errCount == 0 {
 			fmt.Printf("  First error: %v\n", e)
 		}
@@ -797,7 +826,7 @@ func runBenchmark() error {
 	}
 	if errCount > 0 {
 		fmt.Printf("Encountered %d errors during execution.\n", errCount)
-		return fmt.Errorf("benchmark failed with %d errors", errCount)
+		return errors.New("benchmark failed with " + strconv.Itoa(errCount) + " errors")
 	}
 
 	// Collect timing data
@@ -810,7 +839,7 @@ func runBenchmark() error {
 
 	if len(durations) == 0 {
 		fmt.Println("No results collected.")
-		return fmt.Errorf("no results collected")
+		return errors.New("no results collected")
 	}
 
 	var minDuration, maxDuration time.Duration = durations[0], durations[0]

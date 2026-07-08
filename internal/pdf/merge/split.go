@@ -1,10 +1,17 @@
 package merge
 
 import (
-	"fmt"
+	"errors"
 	"regexp"
 	"sort"
 	"strconv"
+)
+
+// Package-level regexes for page-spec parsing (PERF-1).
+var (
+	commaPartsRe = regexp.MustCompile(`\s*,\s*`)
+	rangeSpecRe  = regexp.MustCompile(`^(\d+)-(\d+)$`)
+	numSpecRe    = regexp.MustCompile(`^\d+$`)
 )
 
 // SplitSpec defines split criteria
@@ -19,26 +26,23 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 	if spec == "" {
 		return nil, nil
 	}
-	partsRe := regexp.MustCompile(`\s*,\s*`)
-	parts := partsRe.Split(spec, -1)
-	set := make(map[int]bool)
-	rngRe := regexp.MustCompile(`^(\d+)-(\d+)$`)
-	numRe := regexp.MustCompile(`^\d+$`)
+	parts := commaPartsRe.Split(spec, -1)
+	set := make(map[int]bool, len(parts)) // PERF-192
 
 	for _, p := range parts {
 		if p == "" {
 			continue
 		}
 		switch {
-		case rngRe.MatchString(p):
-			m := rngRe.FindStringSubmatch(p)
+		case rangeSpecRe.MatchString(p):
+			m := rangeSpecRe.FindStringSubmatch(p)
 			a, _ := strconv.Atoi(m[1])
 			b, _ := strconv.Atoi(m[2])
 			if a < 1 || b < a {
-				return nil, fmt.Errorf("invalid range: %s", p)
+				return nil, errors.New("invalid range: " + p)
 			}
 			if totalPages > 0 && a > totalPages {
-				return nil, fmt.Errorf("invalid range: %s", p)
+				return nil, errors.New("invalid range: " + p)
 			}
 			if totalPages > 0 && b > totalPages {
 				b = totalPages
@@ -46,18 +50,18 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 			for i := a; i <= b; i++ {
 				set[i] = true
 			}
-		case numRe.MatchString(p):
+		case numSpecRe.MatchString(p):
 			n, _ := strconv.Atoi(p)
 			if n < 1 || (totalPages > 0 && n > totalPages) {
-				return nil, fmt.Errorf("invalid page: %s", p)
+				return nil, errors.New("invalid page: " + p)
 			}
 			set[n] = true
 		default:
-			return nil, fmt.Errorf("invalid token: %s", p)
+			return nil, errors.New("invalid token: " + p)
 		}
 	}
 
-	var pages []int
+	pages := make([]int, 0, len(set))
 	for k := range set {
 		pages = append(pages, k)
 	}
@@ -74,29 +78,40 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	*/
 
 	if len(file) == 0 {
-		return nil, fmt.Errorf("empty file")
+		return nil, errors.New("empty file")
 	}
 	if hasEncrypt(file) {
-		return nil, fmt.Errorf("cannot split encrypted PDF")
+		return nil, errors.New("cannot split encrypted PDF")
 	}
 
 	fc := parseFile(file)
 	if fc == nil {
-		return nil, fmt.Errorf("invalid PDF")
+		return nil, errors.New("invalid PDF")
 	}
 
 	totalPages := len(fc.Pages)
 	if totalPages == 0 {
-		return nil, fmt.Errorf("no pages found")
+		return nil, errors.New("no pages found")
 	}
 
 	// Build requested page list (map 1-based indexes to page object numbers)
-	var requestedObjNums []int
+	// PERF-45: capacity hints for append-heavy page selection
+	reqCap := len(spec.Pages)
+	for _, r := range spec.Ranges {
+		if r[1] >= r[0] {
+			reqCap += r[1] - r[0] + 1
+		}
+	}
+	if reqCap == 0 {
+		reqCap = totalPages
+	}
+	requestedObjNums := make([]int, 0, reqCap)
 
 	// explicit Pages
 	for _, p := range spec.Pages {
 		if p < 1 || p > totalPages {
-			return nil, fmt.Errorf("page out of range: %d", p)
+			var pBuf [20]byte
+			return nil, errors.New("page out of range: " + string(strconv.AppendInt(pBuf[:0], int64(p), 10)))
 		}
 		requestedObjNums = append(requestedObjNums, fc.Pages[p-1])
 	}
@@ -104,7 +119,7 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	// ranges
 	for _, r := range spec.Ranges {
 		if r[0] < 1 || r[1] < r[0] || r[1] > totalPages {
-			return nil, fmt.Errorf("invalid range: %v", r)
+			return nil, errors.New("invalid range")
 		}
 		for i := r[0]; i <= r[1]; i++ {
 			requestedObjNums = append(requestedObjNums, fc.Pages[i-1])
@@ -117,8 +132,8 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	}
 
 	// dedupe while preserving document order
-	seen := make(map[int]bool)
-	var orderedPages []int
+	seen := make(map[int]bool, len(requestedObjNums)) // PERF-192
+	orderedPages := make([]int, 0, len(requestedObjNums))
 	for _, obj := range requestedObjNums {
 		if !seen[obj] {
 			orderedPages = append(orderedPages, obj)
@@ -127,8 +142,20 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	}
 
 	// chunk according to MaxPerFile
+	groupCap := 1
+	if spec.MaxPerFile > 0 {
+		groupCap = (len(orderedPages) + spec.MaxPerFile - 1) / spec.MaxPerFile
+		if groupCap < 1 {
+			groupCap = 1
+		}
+	}
 	var groups [][]int
 	if spec.MaxPerFile > 0 {
+		n := (len(orderedPages) + spec.MaxPerFile - 1) / spec.MaxPerFile
+		if n < 0 {
+			n = 0
+		}
+		groups = make([][]int, 0, n)
 		for i := 0; i < len(orderedPages); i += spec.MaxPerFile {
 			end := i + spec.MaxPerFile
 			if end > len(orderedPages) {
@@ -137,10 +164,10 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 			groups = append(groups, orderedPages[i:end])
 		}
 	} else {
-		groups = append(groups, orderedPages)
+		groups = [][]int{orderedPages}
 	}
 
-	var outputs [][]byte
+	outputs := make([][]byte, 0, len(groups))
 	for _, grp := range groups {
 		out, err := buildPDFFromPageObjs(fc, grp, file)
 		if err != nil {
@@ -155,8 +182,11 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 // buildPDFFromPageObjs builds a single PDF containing only the provided original page object numbers.
 func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) ([]byte, error) {
 	// collect included objects via DFS starting from page objects
-	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
-	included := make(map[int]bool)
+	capHint := fc.MaxObj
+	if capHint < 8 {
+		capHint = 8
+	}
+	included := make(map[int]bool, capHint) // PERF-192
 	var stack []int
 	for _, p := range pageObjs {
 		included[p] = true
@@ -180,7 +210,7 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 			}
 		}
 		// find numeric refs in body (outside streams)
-		for _, m := range refRe.FindAllSubmatch(body, -1) {
+		for _, m := range objRefRe.FindAllSubmatch(body, -1) {
 			refNum, _ := strconv.Atoi(string(m[1]))
 			if refNum == 0 {
 				continue
@@ -208,7 +238,9 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 	// prepare merge context and header (use original file version)
 	ctx := NewMergeContext()
 	ctx.HighestVersion = DetectPDFVersion(originalFile)
-	ctx.Output.WriteString(fmt.Sprintf("%%PDF-%s\n%%\xe2\xe3\xcf\xd3\n", ctx.HighestVersion))
+	ctx.Output.WriteString("%PDF-")
+	ctx.Output.WriteString(ctx.HighestVersion)
+	ctx.Output.WriteString("\n%\xe2\xe3\xcf\xd3\n")
 
 	// remap offset: reserve 1 for Catalog and 2 for Pages
 	offset := 2
@@ -219,7 +251,7 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 	}
 	var appended []appendedObj
 	var mergedPages []int
-	fieldSet := make(map[int]bool)
+	fieldSet := make(map[int]bool, len(fc.FormFields)) // PERF-192
 	var mergedFields []int
 
 	// collect remapped object bodies

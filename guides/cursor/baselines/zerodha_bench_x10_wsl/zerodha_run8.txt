@@ -1,7 +1,7 @@
 === Zerodha Gold Standard Benchmark ===
 Workload Mix: 80% Retail | 15% Active | 5% HFT
 
-OS: linux, Arch: amd64, NumCPU: 24, GoVersion: go1.26.4
+OS: linux, Arch: amd64, GoVersion: go1.26.4
 Running 5000 iterations using 48 workers...
 
 Building templates...
@@ -9,26 +9,26 @@ Templates built.
 Warm-up runs...
   Retail PDF size:  61360 bytes (59.92 KB)
   Active PDF size:  76125 bytes (74.34 KB)
-  HFT PDF size:     2425818 bytes (2368.96 KB)
+  HFT PDF size:     2425725 bytes (2368.87 KB)
 
-  Max Memory Allocated: 951.91 MB
+  Max Memory Allocated: 1065.57 MB
 === Performance Summary ===
   Iterations:      5000
   Concurrency:     48 workers
-  Total time:      2.664 s
-  Throughput:      1876.94 ops/sec
+  Total time:      2.442 s
+  Throughput:      2047.32 ops/sec
 
-  Avg Latency:     24.825 ms
-  Min Latency:     2.390 ms
-  Max Latency:     917.011 ms
+  Avg Latency:     22.911 ms
+  Min Latency:     2.119 ms
+  Max Latency:     585.414 ms
 
 === Workload Distribution ===
-  Retail  (80%):   4013 iterations
-  Active  (15%):   740 iterations
-  HFT      (5%):   247 iterations
+  Retail  (80%):   3992 iterations
+  Active  (15%):   757 iterations
+  HFT      (5%):   251 iterations
 
 Saved: zerodha_retail_output.pdf (61360 bytes)
 Saved: zerodha_active_output.pdf (76125 bytes)
-Saved: zerodha_hft_output.pdf (2425818 bytes)
+Saved: zerodha_hft_output.pdf (2425725 bytes)
 
 === Done ===

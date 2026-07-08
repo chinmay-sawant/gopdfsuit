@@ -4,12 +4,31 @@ package svg
 import (
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"strconv"
 	"strings"
 )
 
 // SVG support for converting simple vector graphics to PDF commands
+
+// writeFixed writes f formatted with prec digits after the decimal (same as fmt %.Nf).
+func writeFixed(b *bytes.Buffer, f float64, prec int) {
+	var tmp [32]byte
+	b.Write(strconv.AppendFloat(tmp[:0], f, 'f', prec, 64))
+}
+
+// writeFixedN writes space-separated floats at the given precision, then suffix.
+func writeFixedN(b *bytes.Buffer, prec int, suffix string, vals ...float64) {
+	var buf [128]byte
+	p := buf[:0]
+	for i, v := range vals {
+		if i > 0 {
+			p = append(p, ' ')
+		}
+		p = strconv.AppendFloat(p, v, 'f', prec, 64)
+	}
+	p = append(p, suffix...)
+	b.Write(p)
+}
 
 // SVG represents the root of an SVG document.
 type SVG struct {
@@ -77,11 +96,15 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	// [  0   1   1 ]
 	// M = [1/w 0 0 -1/h 0 1]
 
-	fmt.Fprintf(&b, "%.6f 0 0 %.6f 0 1 cm\n", 1.0/width, -1.0/height)
+	// Matrix: [1/w 0 0 -1/h 0 1]
+	writeFixed(&b, 1.0/width, 6)
+	b.WriteString(" 0 0 ")
+	writeFixed(&b, -1.0/height, 6)
+	b.WriteString(" 0 1 cm\n")
 
 	// State tracking
 	inDefs := 0
-	definitions := make(map[string]xml.StartElement)
+	definitions := make(map[string]xml.StartElement, 8) // PERF-192
 
 	// Iterate children
 	decoder := xml.NewDecoder(bytes.NewReader(data))
@@ -107,7 +130,7 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 			if se.Name.Local == "g" {
 				b.WriteString("q\n")
 
-				attrs := make(map[string]string)
+				attrs := make(map[string]string, len(se.Attr))
 				for _, a := range se.Attr {
 					attrs[a.Name.Local] = a.Value
 				}
@@ -121,13 +144,13 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 				if fill, ok := attrs["fill"]; ok {
 					r, g, bVal, ok := parseColor(fill)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f rg\n", r, g, bVal)
+						writeFixedN(&b, 3, " rg\n", r, g, bVal)
 					}
 				}
 				if stroke, ok := attrs["stroke"]; ok {
 					r, g, bVal, ok := parseColor(stroke)
 					if ok {
-						fmt.Fprintf(&b, "%.3f %.3f %.3f RG\n", r, g, bVal)
+						writeFixedN(&b, 3, " RG\n", r, g, bVal)
 					}
 				}
 			}
@@ -164,7 +187,8 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 
 						// Apply use-specific transform/translation
 						if x != 0 || y != 0 {
-							b.WriteString(fmt.Sprintf("1 0 0 1 %.6f %.6f cm\n", x, -y))
+							b.WriteString("1 0 0 1 ")
+							writeFixedN(&b, 6, " cm\n", x, -y)
 						}
 						if transform != "" {
 							applyTransform(&b, transform) // Note: height might be irrelevant for purely relative transforms but needed for coordinate flip
@@ -202,25 +226,32 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 }
 
 func processElement(b *bytes.Buffer, se xml.StartElement) {
-	attrs := make(map[string]string)
+	attrs := make(map[string]string, len(se.Attr))
 	for _, a := range se.Attr {
 		attrs[a.Name.Local] = a.Value
 	}
 
-	// Parse style attribute if present
+	// Parse style attribute if present (PERF-47: Index/Cut loop, no Split)
 	if style, ok := attrs["style"]; ok {
-		styleParts := strings.Split(style, ";")
-		for _, part := range styleParts {
+		rest := style
+		for rest != "" {
+			var part string
+			if i := strings.IndexByte(rest, ';'); i >= 0 {
+				part = rest[:i]
+				rest = rest[i+1:]
+			} else {
+				part = rest
+				rest = ""
+			}
 			part = strings.TrimSpace(part)
 			if part == "" {
 				continue
 			}
-			kv := strings.SplitN(part, ":", 2)
-			if len(kv) == 2 {
-				k := strings.TrimSpace(kv[0])
-				v := strings.TrimSpace(kv[1])
-				attrs[k] = v
+			k, v, found := strings.Cut(part, ":")
+			if !found {
+				continue
 			}
+			attrs[strings.TrimSpace(k)] = strings.TrimSpace(v)
 		}
 	}
 
@@ -243,31 +274,56 @@ func applyTransform(b *bytes.Buffer, t string) {
 	parts := strings.Fields(t)
 
 	for i := range parts {
+		p := parts[i]
+		// PERF-122: prefer CutPrefix over HasPrefix + manual slice
 		switch {
-		case strings.HasPrefix(parts[i], "translate("):
+		case hasSVGTransform(p, "translate("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 2 {
 				tx, _ := strconv.ParseFloat(args[0], 64)
 				ty, _ := strconv.ParseFloat(args[1], 64)
-				fmt.Fprintf(b, "1 0 0 1 %.2f %.2f cm\n", tx, ty)
+				b.WriteString("1 0 0 1 ")
+				writeFixedN(b, 2, " cm\n", tx, ty)
 			}
-		case strings.HasPrefix(parts[i], "scale("):
+		case hasSVGTransform(p, "scale("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 2 {
 				sx, _ := strconv.ParseFloat(args[0], 64)
 				sy, _ := strconv.ParseFloat(args[1], 64)
-				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", sx, sy)
+				writeFixed(b, sx, 4)
+				b.WriteString(" 0 0 ")
+				writeFixed(b, sy, 4)
+				b.WriteString(" 0 0 cm\n")
 			} else if len(args) == 1 {
 				s, _ := strconv.ParseFloat(args[0], 64)
-				fmt.Fprintf(b, "%.4f 0 0 %.4f 0 0 cm\n", s, s)
+				writeFixed(b, s, 4)
+				b.WriteString(" 0 0 ")
+				writeFixed(b, s, 4)
+				b.WriteString(" 0 0 cm\n")
 			}
-		case strings.HasPrefix(parts[i], "matrix("):
+		case hasSVGTransform(p, "matrix("):
 			args := extractArgs(parts[i:])
 			if len(args) >= 6 {
-				fmt.Fprintf(b, "%s %s %s %s %s %s cm\n", args[0], args[1], args[2], args[3], args[4], args[5])
+				b.WriteString(args[0])
+				b.WriteByte(' ')
+				b.WriteString(args[1])
+				b.WriteByte(' ')
+				b.WriteString(args[2])
+				b.WriteByte(' ')
+				b.WriteString(args[3])
+				b.WriteByte(' ')
+				b.WriteString(args[4])
+				b.WriteByte(' ')
+				b.WriteString(args[5])
+				b.WriteString(" cm\n")
 			}
 		}
 	}
+}
+
+func hasSVGTransform(s, prefix string) bool {
+	_, ok := strings.CutPrefix(s, prefix)
+	return ok
 }
 
 func extractArgs(tokens []string) []string {
@@ -301,12 +357,13 @@ func parseColor(c string) (float64, float64, float64, bool) {
 			return float64(r) / 255.0, float64(g) / 255.0, float64(b) / 255.0, true
 		}
 	}
-	// Handle rgb(r, g, b) and rgba(r, g, b, a) formats
-	if strings.HasPrefix(c, "rgb") {
-		start := strings.Index(c, "(")
-		end := strings.LastIndex(c, ")")
+	// Handle rgb(r, g, b) and rgba(r, g, b, a) formats (PERF-122)
+	if afterRGB, ok := strings.CutPrefix(c, "rgb"); ok {
+		// afterRGB is "a(...)" for rgba or "(...)" for rgb
+		start := strings.Index(afterRGB, "(")
+		end := strings.LastIndex(afterRGB, ")")
 		if start != -1 && end != -1 && end > start {
-			inner := c[start+1 : end]
+			inner := afterRGB[start+1 : end]
 			parts := strings.Split(inner, ",")
 			if len(parts) >= 3 {
 				r := parseColorComponent(strings.TrimSpace(parts[0]))
@@ -379,7 +436,7 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 
 	// Apply styles
 	if r, g, blue, ok := parseColor(stroke); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f RG\n", r, g, blue)
+		writeFixedN(b, 2, " RG\n", r, g, blue)
 	}
 
 	// SVG default: fill is black if not specified, NOT transparent
@@ -387,19 +444,19 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 	if fill == "" {
 		// Default fill is black per SVG spec
 		fill = "black"
-		fmt.Fprintf(b, "0.00 0.00 0.00 rg\n") // Black fill
+		b.WriteString("0.00 0.00 0.00 rg\n") // Black fill
 	} else if fill == "none" || fill == "transparent" {
 		// Explicit no fill - keep as "none" for drawOp logic
 		fill = "none"
 	} else if r, g, blue, ok := parseColor(fill); ok {
-		fmt.Fprintf(b, "%.2f %.2f %.2f rg\n", r, g, blue)
+		writeFixedN(b, 2, " rg\n", r, g, blue)
 	} else {
 		// Unknown fill value - default to black
 		fill = "black"
-		fmt.Fprintf(b, "0.00 0.00 0.00 rg\n")
+		b.WriteString("0.00 0.00 0.00 rg\n")
 	}
 
-	fmt.Fprintf(b, "%.2f w\n", sw)
+	writeFixedN(b, 2, " w\n", sw)
 
 	switch name {
 	case "rect":
@@ -407,7 +464,7 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y := parseDimension(attrs["y"])
 		w := parseDimension(attrs["width"])
 		h := parseDimension(attrs["height"])
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f re\n", x, y, w, h)
+		writeFixedN(b, 2, " re\n", x, y, w, h)
 		drawOp(b, fill, stroke)
 
 	case "line":
@@ -415,7 +472,8 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y1 := parseDimension(attrs["y1"])
 		x2 := parseDimension(attrs["x2"])
 		y2 := parseDimension(attrs["y2"])
-		fmt.Fprintf(b, "%.2f %.2f m %.2f %.2f l\n", x1, y1, x2, y2)
+		writeFixedN(b, 2, " m ", x1, y1)
+		writeFixedN(b, 2, " l\n", x2, y2)
 		b.WriteString("S\n")
 
 	case "circle":
@@ -424,11 +482,11 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		r := parseDimension(attrs["r"])
 		magic := 0.551784
 		d := r * magic
-		fmt.Fprintf(b, "%.2f %.2f m\n", cx, cy-r)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx+d, cy-r, cx+r, cy-d, cx+r, cy)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx+r, cy+d, cx+d, cy+r, cx, cy+r)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx-d, cy+r, cx-r, cy+d, cx-r, cy)
-		fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c\n", cx-r, cy-d, cx-d, cy-r, cx, cy-r)
+		writeFixedN(b, 2, " m\n", cx, cy-r)
+		writeFixedN(b, 2, " c\n", cx+d, cy-r, cx+r, cy-d, cx+r, cy)
+		writeFixedN(b, 2, " c\n", cx+r, cy+d, cx+d, cy+r, cx, cy+r)
+		writeFixedN(b, 2, " c\n", cx-d, cy+r, cx-r, cy+d, cx-r, cy)
+		writeFixedN(b, 2, " c\n", cx-r, cy-d, cx-d, cy-r, cx, cy-r)
 		drawOp(b, fill, stroke)
 
 	case "path":
@@ -474,7 +532,7 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f m ", x, y)
+			writeFixedN(b, 2, " m ", x, y)
 			cx, cy = x, y
 		case "m":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
@@ -483,14 +541,14 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			cx += dx
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f m ", cx, cy)
+			writeFixedN(b, 2, " m ", cx, cy)
 
 		case "L":
 			x, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f l ", x, y)
+			writeFixedN(b, 2, " l ", x, y)
 			cx, cy = x, y
 		case "l":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
@@ -499,29 +557,29 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			cx += dx
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFixedN(b, 2, " l ", cx, cy)
 
 		case "H":
 			x, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cx = x
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFixedN(b, 2, " l ", cx, cy)
 		case "h":
 			dx, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cx += dx
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy) // Treat z inside h case? No, separate case.
+			writeFixedN(b, 2, " l ", cx, cy) // Treat z inside h case? No, separate case.
 
 		case "V":
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cy = y
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFixedN(b, 2, " l ", cx, cy)
 		case "v":
 			dy, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
 			cy += dy
-			fmt.Fprintf(b, "%.2f %.2f l ", cx, cy)
+			writeFixedN(b, 2, " l ", cx, cy)
 
 		case "C":
 			x1, _ := strconv.ParseFloat(tokens[i], 64)
@@ -536,7 +594,7 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			y, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", x1, y1, x2, y2, x, y)
+			writeFixedN(b, 2, " c ", x1, y1, x2, y2, x, y)
 			cx, cy = x, y
 
 		case "c":
@@ -552,7 +610,7 @@ func parsePathData(b *bytes.Buffer, d string) {
 			i++
 			dy, _ := strconv.ParseFloat(tokens[i], 64)
 			i++
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cx+dx1, cy+dy1, cx+dx2, cy+dy2, cx+dx, cy+dy)
+			writeFixedN(b, 2, " c ", cx+dx1, cy+dy1, cx+dx2, cy+dy2, cx+dx, cy+dy)
 			cx += dx
 			cy += dy
 
@@ -576,7 +634,7 @@ func parsePathData(b *bytes.Buffer, d string) {
 			cp2x := x + k*(x1-x)
 			cp2y := y + k*(y1-y)
 
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cp1x, cp1y, cp2x, cp2y, x, y)
+			writeFixedN(b, 2, " c ", cp1x, cp1y, cp2x, cp2y, x, y)
 			cx, cy = x, y
 
 		case "q":
@@ -601,7 +659,7 @@ func parsePathData(b *bytes.Buffer, d string) {
 			cp2x := absX + k*(absX1-absX)
 			cp2y := absY + k*(absY1-absY)
 
-			fmt.Fprintf(b, "%.2f %.2f %.2f %.2f %.2f %.2f c ", cp1x, cp1y, cp2x, cp2y, absX, absY)
+			writeFixedN(b, 2, " c ", cp1x, cp1y, cp2x, cp2y, absX, absY)
 			cx, cy = absX, absY
 
 		case "Z", "z":

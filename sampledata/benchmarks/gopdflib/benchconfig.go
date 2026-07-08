@@ -52,9 +52,12 @@ func effectiveWorkers(requested int) int {
 	if requested <= 0 {
 		requested = 1
 	}
-	cpus := runtime.NumCPU()
-	if requested > cpus*2 {
-		return cpus * 2
+	cap := runtime.GOMAXPROCS(0)
+	if cap < 1 {
+		cap = 1
+	}
+	if requested > cap*2 {
+		return cap * 2
 	}
 	return requested
 }

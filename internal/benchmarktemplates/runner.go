@@ -2,6 +2,7 @@
 package benchmarktemplates
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -31,23 +32,49 @@ func envInt(key string, fallback int) int {
 	return n
 }
 
-func monitorMemory(done chan bool, wg *sync.WaitGroup) {
+func monitorMemory(stop *atomic.Bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var maxAlloc uint64
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-done:
-			fmt.Printf("  Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
-			return
-		case <-ticker.C:
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			if m.Alloc > maxAlloc {
-				maxAlloc = m.Alloc
-			}
+	for !stop.Load() {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		if m.Alloc > maxAlloc {
+			maxAlloc = m.Alloc
 		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	fmt.Printf("  Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
+}
+
+// measureGenerateMs times a single PDF generation (PERF-40).
+func measureGenerateMs(template gopdflib.PDFTemplate) (float64, bool) {
+	start := time.Now()
+	_, err := gopdflib.GeneratePDF(template)
+	if err != nil {
+		return 0, false
+	}
+	return float64(time.Since(start).Nanoseconds()) / 1_000_000, true
+}
+
+// runBenchmarkIteration is a named worker so defer is not in a loop body (PERF-7).
+func runBenchmarkIteration(
+	wg *sync.WaitGroup,
+	sem chan struct{},
+	template gopdflib.PDFTemplate,
+	idx int,
+	mu *sync.Mutex,
+	durations *[]float64,
+	ops *atomic.Int64,
+) {
+	defer wg.Done()
+	defer func() { <-sem }()
+
+	if elapsedMs, ok := measureGenerateMs(template); ok {
+		mu.Lock()
+		*durations = append(*durations, elapsedMs)
+		mu.Unlock()
+		ops.Add(1)
+		fmt.Printf("Run %d: %.2f ms\n", idx, elapsedMs)
 	}
 }
 
@@ -75,39 +102,27 @@ func RunSingleDocumentBenchmark(name string) error {
 		wg        sync.WaitGroup
 	)
 
-	memDone := make(chan bool)
+	var memStop atomic.Bool
 	var memWg sync.WaitGroup
 	memWg.Add(1)
-	go monitorMemory(memDone, &memWg)
+	go monitorMemory(&memStop, &memWg)
 
 	sem := make(chan struct{}, workers)
 	totalStart := time.Now()
 	for runIndex := 1; runIndex <= iterations; runIndex++ {
 		sem <- struct{}{}
 		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			start := time.Now()
-			if _, genErr := gopdflib.GeneratePDF(template); genErr == nil {
-				elapsedMs := float64(time.Since(start).Nanoseconds()) / 1_000_000
-				mu.Lock()
-				durations = append(durations, elapsedMs)
-				mu.Unlock()
-				ops.Add(1)
-				fmt.Printf("Run %d: %.2f ms\n", idx, elapsedMs)
-			}
-		}(runIndex)
+		// PERF-7/36: named helper keeps defer out of loop body; pass idx explicitly
+		go runBenchmarkIteration(&wg, sem, template, runIndex, &mu, &durations, &ops)
 	}
 	wg.Wait()
 	totalSeconds := time.Since(totalStart).Seconds()
 
-	memDone <- true
+	memStop.Store(true)
 	memWg.Wait()
 
 	if len(durations) == 0 {
-		return fmt.Errorf("no successful runs")
+		return errors.New("no successful runs")
 	}
 
 	sort.Float64s(durations)

@@ -3,13 +3,14 @@
 package fontutils
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -102,22 +103,36 @@ func downloadedFontPath(fileName string) string {
 // including both system paths and the downloaded font fallback path.
 // This replaces the hardcoded mathFontCandidates variable from generator.go.
 func MathFontCandidates() []string {
-	var paths []string
+	// Pre-size: each font contributes OS paths + downloaded fallback (PERF-119/128)
+	paths := make([]string, 0, len(mathFonts)*4)
 
 	for _, font := range mathFonts {
+		var osPaths []string
 		switch runtime.GOOS {
 		case "linux":
-			paths = append(paths, font.LinuxPaths...)
+			osPaths = font.LinuxPaths
 		case "darwin":
-			paths = append(paths, font.MacPaths...)
+			osPaths = font.MacPaths
 		case "windows":
-			paths = append(paths, font.WinPaths...)
+			osPaths = font.WinPaths
 		default:
-			// Fallback to Linux paths
-			paths = append(paths, font.LinuxPaths...)
+			osPaths = font.LinuxPaths
 		}
-		// Always include the downloaded font path as final fallback
-		paths = append(paths, downloadedFontPath(font.FileName))
+		// Single append of OS paths then downloaded fallback
+		dl := downloadedFontPath(font.FileName)
+		// PERF-119: grow once, then fill by index
+		base := len(paths)
+		paths = paths[:base:base] // ensure no spare capacity confusion
+		need := base + len(osPaths) + 1
+		if cap(paths) < need {
+			grown := make([]string, need)
+			copy(grown, paths)
+			paths = grown
+		} else {
+			paths = paths[:need]
+		}
+		copy(paths[base:], osPaths)
+		paths[need-1] = dl
 	}
 
 	return paths
@@ -143,20 +158,22 @@ func EnsureMathFonts() {
 			continue
 		}
 
-		// Download in background
+		// Download in background (PERF-7: defer in named helper)
 		wg.Add(1)
-		go func(f MathFontInfo) {
-			defer wg.Done()
-			if err := downloadFont(f); err != nil {
-				log.Printf("[fontutils] WARNING: failed to download font %s: %v", f.Name, err)
-			} else {
-				log.Printf("[fontutils] Downloaded font %s to %s", f.Name, downloadedFontPath(f.FileName))
-			}
-		}(font)
+		go downloadFontWorker(&wg, font)
 	}
 
 	wg.Wait()
 	log.Println("[fontutils] Math font initialization complete")
+}
+
+func downloadFontWorker(wg *sync.WaitGroup, f MathFontInfo) {
+	defer wg.Done()
+	if err := downloadFont(f); err != nil {
+		log.Printf("[fontutils] WARNING: failed to download font %s: %v", f.Name, err)
+	} else {
+		log.Printf("[fontutils] Downloaded font %s to %s", f.Name, downloadedFontPath(f.FileName))
+	}
 }
 
 // fontExistsOnSystem checks if any of the system paths for a font exist.
@@ -183,12 +200,12 @@ func fontExistsOnSystem(font MathFontInfo) bool {
 // downloadFont downloads a font file from its GitHub URL to the local fonts directory.
 func downloadFont(font MathFontInfo) error {
 	if font.DownloadURL == "" {
-		return fmt.Errorf("no download URL for font %s", font.Name)
+		return errors.New("no download URL for font " + font.Name)
 	}
 
 	destDir := fontsDir()
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return fmt.Errorf("create fonts dir: %w", err)
+		return errors.Join(errors.New("create fonts dir"), err)
 	}
 
 	destPath := downloadedFontPath(font.FileName)
@@ -196,18 +213,18 @@ func downloadFont(font MathFontInfo) error {
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Get(font.DownloadURL) //nolint:gosec // URLs are hardcoded constants, not user input
 	if err != nil {
-		return fmt.Errorf("download %s: %w", font.Name, err)
+		return errors.Join(errors.New("download "+font.Name), err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download %s: HTTP %d", font.Name, resp.StatusCode)
+		return errors.New("download " + font.Name + ": HTTP " + strconv.Itoa(resp.StatusCode))
 	}
 
 	// Write to temp file first then rename for atomicity
 	tmpFile, err := os.CreateTemp(destDir, font.FileName+".tmp.*")
 	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
+		return errors.Join(errors.New("create temp file"), err)
 	}
 	tmpPath := tmpFile.Name()
 
@@ -221,12 +238,12 @@ func downloadFont(font MathFontInfo) error {
 	}
 	if err != nil {
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("write font file: %w", err)
+		return errors.Join(errors.New("write font file"), err)
 	}
 
 	if err := os.Rename(tmpPath, destPath); err != nil {
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("rename temp file: %w", err)
+		return errors.Join(errors.New("rename temp file"), err)
 	}
 
 	return nil

@@ -105,13 +105,13 @@ func main() {
 	}
 
 	// Convert model to map for placeholder replacement
-	data := make(map[string]string)
 	jsonData, _ := json.Marshal(patient)
 	var tempMap map[string]interface{}
 	if err := json.Unmarshal(jsonData, &tempMap); err != nil {
 		fmt.Printf("Error unmarshaling patient data: %v\n", err)
 		return
 	}
+	data := make(map[string]string, len(tempMap))
 	for k, v := range tempMap {
 		data["{"+k+"}"] = fmt.Sprint(v)
 	}
@@ -205,11 +205,13 @@ func ProcessSlice(s []interface{}, data map[string]string) {
 	}
 }
 
+// PERF-1: hoist MustCompile out of function
+var placeholderRe = regexp.MustCompile(`\{[a-zA-Z0-9_]+\}`)
+
 // ReplacePlaceholders replaces all occurrences of keys in data with their values
 // Uses regex to find placeholders and look them up in the map
 func ReplacePlaceholders(s string, data map[string]string) string {
-	re := regexp.MustCompile(`\{[a-zA-Z0-9_]+\}`)
-	return re.ReplaceAllStringFunc(s, func(match string) string {
+	return placeholderRe.ReplaceAllStringFunc(s, func(match string) string {
 		if val, ok := data[match]; ok {
 			return val
 		}

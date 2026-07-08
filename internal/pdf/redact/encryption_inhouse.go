@@ -3,14 +3,15 @@ package redact
 
 import (
 	"bytes"
-	"crypto/md5"
 	"crypto/rc4"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/pdfdigest"
 )
 
 var pdfPasswordPadding = []byte{
@@ -47,7 +48,7 @@ func decryptEncryptedPDFBytes(pdfBytes []byte, password string) ([]byte, error) 
 	if !trailerHasEncrypt(pdfBytes) {
 		return pdfBytes, nil
 	}
-	if strings.TrimSpace(password) == "" {
+	if trimSpace(password) == "" {
 		return nil, errors.New("encrypted PDF detected; password is required")
 	}
 
@@ -173,9 +174,61 @@ func parseIntField(b []byte, pattern string, def int) int {
 	return v
 }
 
+// Closed set of Standard security handler field regexes (PERF-106/213).
+// Fields are a tiny fixed set (/O, /U); no dynamic compile or unbounded sync.Map.
+var (
+	fieldHexReO = regexp.MustCompile(`/O\s*<([0-9A-Fa-f\s]+)>`)
+	fieldHexReU = regexp.MustCompile(`/U\s*<([0-9A-Fa-f\s]+)>`)
+	fieldLitReO = regexp.MustCompile(`/O\s*\(([^)]*)\)`)
+	fieldLitReU = regexp.MustCompile(`/U\s*\(([^)]*)\)`)
+
+	// Bounded fallback for any unexpected field name (max 32 entries).
+	fieldReMu     sync.Mutex
+	fieldHexReMap = make(map[string]*regexp.Regexp, 8)
+	fieldLitReMap = make(map[string]*regexp.Regexp, 8)
+	fieldReMapMax = 32
+)
+
+func fieldHexRe(field string) *regexp.Regexp {
+	switch field {
+	case "O":
+		return fieldHexReO
+	case "U":
+		return fieldHexReU
+	}
+	fieldReMu.Lock()
+	defer fieldReMu.Unlock()
+	if re, ok := fieldHexReMap[field]; ok {
+		return re
+	}
+	re := regexp.MustCompile(`/` + regexp.QuoteMeta(field) + `\s*<([0-9A-Fa-f\s]+)>`)
+	if len(fieldHexReMap) < fieldReMapMax {
+		fieldHexReMap[field] = re
+	}
+	return re
+}
+
+func fieldLitRe(field string) *regexp.Regexp {
+	switch field {
+	case "O":
+		return fieldLitReO
+	case "U":
+		return fieldLitReU
+	}
+	fieldReMu.Lock()
+	defer fieldReMu.Unlock()
+	if re, ok := fieldLitReMap[field]; ok {
+		return re
+	}
+	re := regexp.MustCompile(`/` + regexp.QuoteMeta(field) + `\s*\(([^)]*)\)`)
+	if len(fieldLitReMap) < fieldReMapMax {
+		fieldLitReMap[field] = re
+	}
+	return re
+}
+
 func parseHexOrLiteralField(b []byte, field string) []byte {
-	hexRe := regexp.MustCompile(fmt.Sprintf(`/%s\s*<([0-9A-Fa-f\s]+)>`, regexp.QuoteMeta(field)))
-	if m := hexRe.FindSubmatch(b); m != nil {
+	if m := fieldHexRe(field).FindSubmatch(b); m != nil {
 		h := strings.ReplaceAll(string(m[1]), " ", "")
 		h = strings.ReplaceAll(h, "\n", "")
 		h = strings.ReplaceAll(h, "\r", "")
@@ -184,9 +237,8 @@ func parseHexOrLiteralField(b []byte, field string) []byte {
 			return v
 		}
 	}
-	litRe := regexp.MustCompile(fmt.Sprintf(`/%s\s*\(([^)]*)\)`, regexp.QuoteMeta(field)))
-	if m := litRe.FindSubmatch(b); m != nil {
-		return []byte(m[1])
+	if m := fieldLitRe(field).FindSubmatch(b); m != nil {
+		return append([]byte(nil), m[1]...)
 	}
 	return nil
 }
@@ -227,18 +279,18 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 	}
 
 	pad := padPassword(password)
-	h := md5.New()
-	h.Write(pad)
-	h.Write(d.O)
-	h.Write(int32LEBytes(int32(d.P)))
-	h.Write(id0)
+	h := pdfdigest.New()
+	_, _ = h.Write(pad)
+	_, _ = h.Write(d.O)
+	_, _ = h.Write(int32LEBytes(int32(d.P)))
+	_, _ = h.Write(id0)
 	if d.R >= 4 && !d.EncryptMetadata {
-		h.Write([]byte{0xff, 0xff, 0xff, 0xff})
+		_, _ = h.Write([]byte{0xff, 0xff, 0xff, 0xff})
 	}
 	sum := h.Sum(nil)
 	if d.R >= 3 {
 		for i := 0; i < 50; i++ {
-			x := md5.Sum(sum[:keyLen])
+			x := pdfdigest.Digest16(sum[:keyLen])
 			sum = x[:]
 		}
 	}
@@ -248,16 +300,20 @@ func deriveFileKey(password string, d standardEncryptDict, id0 []byte) []byte {
 func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) bool {
 	if d.R == 2 {
 		exp := rc4Crypt(fileKey, pdfPasswordPadding)
-		return len(d.U) >= 32 && bytes.Equal(exp, d.U[:32])
+		// PERF-48: len check before Equal
+		return len(d.U) >= 32 && len(exp) == 32 && bytes.Equal(exp, d.U[:32])
 	}
-	h := md5.Sum(append(append([]byte{}, pdfPasswordPadding...), id0...))
+	padID := make([]byte, len(pdfPasswordPadding)+len(id0))
+	copy(padID, pdfPasswordPadding)
+	copy(padID[len(pdfPasswordPadding):], id0)
+	h := pdfdigest.Digest16(padID)
 	tmp := h[:]
 	tmp = rc4Crypt(fileKey, tmp)
 	for i := 1; i <= 19; i++ {
 		k := xorKey(fileKey, byte(i))
 		tmp = rc4Crypt(k, tmp)
 	}
-	if len(d.U) < 16 {
+	if len(d.U) < 16 || len(tmp) < 16 {
 		return false
 	}
 	return bytes.Equal(tmp[:16], d.U[:16])
@@ -278,11 +334,11 @@ func deriveUserPasswordFromOwner(ownerPassword string, d standardEncryptDict) st
 		keyLen = 16
 	}
 
-	h := md5.Sum(padPassword(ownerPassword))
+	h := pdfdigest.Digest16(padPassword(ownerPassword))
 	k := h[:]
 	if d.R >= 3 {
 		for i := 0; i < 50; i++ {
-			x := md5.Sum(k[:keyLen])
+			x := pdfdigest.Digest16(k[:keyLen])
 			k = x[:]
 		}
 	}
@@ -313,21 +369,34 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 	objKey := deriveObjectKey(fileKey, objNum, genNum)
 	dec := rc4Crypt(objKey, raw)
 
-	out := make([]byte, 0, len(objBody))
-	out = append(out, objBody[:loc[2]]...)
-	out = append(out, dec...)
-	out = append(out, objBody[loc[3]:]...)
+	// PERF-119: pre-sized copy for stream replacement
+	prefix := objBody[:loc[2]]
+	suffix := objBody[loc[3]:]
+	out := make([]byte, len(prefix)+len(dec)+len(suffix))
+	nCopy := copy(out, prefix)
+	nCopy += copy(out[nCopy:], dec)
+	copy(out[nCopy:], suffix)
 	lenRe := regexp.MustCompile(`/Length\s+\d+`)
-	out = lenRe.ReplaceAll(out, []byte(fmt.Sprintf(`/Length %d`, len(dec))))
+	// Avoid fmt.Sprintf on the hot path
+	var lenBuf [24]byte
+	n := copy(lenBuf[:], "/Length ")
+	bLen := strconv.AppendInt(lenBuf[n:n], int64(len(dec)), 10)
+	n += len(bLen)
+	out = lenRe.ReplaceAll(out, lenBuf[:n])
 	return out, true
 }
 
 func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
-	b := make([]byte, 0, len(fileKey)+5)
-	b = append(b, fileKey...)
-	b = append(b, byte(objNum), byte(objNum>>8), byte(objNum>>16))
-	b = append(b, byte(genNum), byte(genNum>>8))
-	h := md5.Sum(b)
+	// Fixed-size buffer: copy key then set 5-byte object/gen suffix (PERF-128)
+	b := make([]byte, len(fileKey)+5)
+	copy(b, fileKey)
+	n := len(fileKey)
+	b[n] = byte(objNum)
+	b[n+1] = byte(objNum >> 8)
+	b[n+2] = byte(objNum >> 16)
+	b[n+3] = byte(genNum)
+	b[n+4] = byte(genNum >> 8)
+	h := pdfdigest.Digest16(b)
 	kLen := len(fileKey) + 5
 	if kLen > 16 {
 		kLen = 16

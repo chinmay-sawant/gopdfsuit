@@ -12,10 +12,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/bytedance/sonic"
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
@@ -28,6 +28,42 @@ var templatePDFPool = sync.Pool{
 	New: func() any {
 		return new(models.PDFTemplate)
 	},
+}
+
+// Bound cache of template JSON files (PERF-56/57/200).
+const maxTemplateFileCache = 32
+
+var (
+	templateFileCache   sync.Map // filename -> []byte
+	templateFileCacheN  int
+	templateFileCacheMu sync.Mutex
+)
+
+// isFontExt reports whether ext is .ttf or .otf (ASCII, case-insensitive) without allocations.
+func isFontExt(ext string) bool {
+	if len(ext) != 4 || ext[0] != '.' {
+		return false
+	}
+	b1, b2, b3 := ext[1]|0x20, ext[2]|0x20, ext[3]|0x20
+	return (b1 == 't' && b2 == 't' && b3 == 'f') || (b1 == 'o' && b2 == 't' && b3 == 'f')
+}
+
+func loadTemplateFileCached(filePath, filename string) ([]byte, error) {
+	if v, ok := templateFileCache.Load(filename); ok {
+		return v.([]byte), nil
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+	templateFileCacheMu.Lock()
+	if templateFileCacheN < maxTemplateFileCache {
+		if _, loaded := templateFileCache.LoadOrStore(filename, data); !loaded {
+			templateFileCacheN++
+		}
+	}
+	templateFileCacheMu.Unlock()
+	return data, nil
 }
 
 // resetTemplate clears a pooled PDFTemplate before unmarshal (and before Put) so
@@ -100,15 +136,43 @@ func getProjectRoot() string {
 	return "."
 }
 
+// registerCachedStatic serves files under relativePath with long-cache headers
+// suitable for Vite content-hashed asset filenames.
+func registerCachedStatic(router gin.IRoutes, relativePath, root string) {
+	fs := gin.Dir(root, false)
+	fileServer := http.StripPrefix(relativePath, http.FileServer(fs))
+	handler := func(c *gin.Context) {
+		file := c.Param("filepath")
+		f, err := fs.Open(file)
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		stat, statErr := f.Stat()
+		_ = f.Close()
+		if statErr != nil || stat.IsDir() {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		fileServer.ServeHTTP(c.Writer, c.Request)
+	}
+	pattern := relativePath + "/*filepath"
+	router.GET(pattern, handler)
+	router.HEAD(pattern, handler)
+}
+
 // RegisterRoutes wires up API routes onto the provided Gin router.
 func RegisterRoutes(router *gin.Engine) {
 	// Resolve project base directory so paths work whether binary is run from
 	// the repo root or from inside cmd/gopdfsuit (where the exe often lives).
 	base := getProjectRoot()
 
-	// Serve static assets from Vite build (matching the base path in vite.config.js)
-	router.Static("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
-	router.Static("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
+	// Serve static assets from Vite build (matching the base path in vite.config.js).
+	// Vite content-hashed filenames are safe for long-lived immutable caching (PERF-61/88).
+	assetsRoot := filepath.Join(base, "docs", "assets")
+	registerCachedStatic(router, "/gopdfsuit/assets", assetsRoot)
+	registerCachedStatic(router, "/assets", assetsRoot) // Fallback for backward compatibility
 
 	// API endpoints - protected with Google OAuth when running on Cloud Run
 	v1 := router.Group("/api/v1")
@@ -205,14 +269,18 @@ func handleGetTemplateData(c *gin.Context) {
 		return
 	}
 
-	// Clean the filename to prevent path traversal and resolve against
-	// project root so files at repository root are found when running the
-	// server from cmd/gopdfsuit.
-	filename = filepath.Base(filename)
-	filePath := filepath.Join(getProjectRoot(), filename)
+	// Sanitize filename first so path-taint analysis sees filepath.Base/Clean,
+	// then enforce abs-base prefix containment (CWE-22).
+	filename = filepath.Clean(filepath.Base(filename))
+	base := getProjectRoot()
+	filePath, err := resolveSafePath(base, filename)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file path"})
+		return
+	}
 
-	// Read the JSON file
-	data, err := os.ReadFile(filePath)
+	// Read the JSON file (cached by filename)
+	data, err := loadTemplateFileCached(filePath, filename)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template file not found: " + filename})
 		return
@@ -248,9 +316,9 @@ func handleUploadFont(c *gin.Context) {
 		return
 	}
 
-	// Validate file extension
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	if ext != ".ttf" && ext != ".otf" {
+	// Validate file extension (len-first, avoid EqualFold allocs — PERF-48)
+	ext := filepath.Ext(file.Filename)
+	if !isFontExt(ext) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .ttf and .otf files are supported"})
 		return
 	}
@@ -271,8 +339,11 @@ func handleUploadFont(c *gin.Context) {
 		return
 	}
 
-	// Register font
-	fontName := strings.TrimSuffix(file.Filename, filepath.Ext(file.Filename))
+	// Register font — strip extension without TrimSuffix allocation when possible (PERF-46)
+	fontName := file.Filename
+	if n := len(fontName); n > len(ext) {
+		fontName = fontName[:n-len(ext)]
+	}
 	err = pdf.GetFontRegistry().RegisterFontFromData(fontName, data)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to register font: " + err.Error()})
@@ -348,12 +419,12 @@ func handleFillPDF(c *gin.Context) {
 	// If files not provided, try to read raw body fields
 	if len(pdfBytes) == 0 {
 		if b := c.PostForm("pdf_bytes"); b != "" {
-			pdfBytes = []byte(b)
+			pdfBytes = byteconv.StringToBytes(b)
 		}
 	}
 	if len(xfdfBytes) == 0 {
 		if b := c.PostForm("xfdf_bytes"); b != "" {
-			xfdfBytes = []byte(b)
+			xfdfBytes = byteconv.StringToBytes(b)
 		}
 	}
 
@@ -474,9 +545,13 @@ func handlerSplitPDF(c *gin.Context) {
 	// Multiple outputs: return a zip archive
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
+	var nameBuf []byte
 	for i, b := range outs {
-		name := fmt.Sprintf("originalfile-part%d.pdf", i+1)
-		fw, err := zw.Create(name)
+		nameBuf = append(nameBuf[:0], "originalfile-part"...)
+		nameBuf = strconv.AppendInt(nameBuf, int64(i+1), 10)
+		nameBuf = append(nameBuf, ".pdf"...)
+		// string() copies so Create retains a stable name while nameBuf is reused
+		fw, err := zw.Create(string(nameBuf))
 		if err != nil {
 			_ = zw.Close()
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip create failed: " + err.Error()})
@@ -498,8 +573,6 @@ func handlerSplitPDF(c *gin.Context) {
 
 // handleHTMLToPDF handles HTML to PDF conversion using htmltopdf
 func handleHTMLToPDF(c *gin.Context) {
-	log.Printf("Starting HTML to PDF conversion request")
-
 	var req models.HTMLToPDFRequest
 	data, err := c.GetRawData()
 	if err != nil {
@@ -512,8 +585,6 @@ func handleHTMLToPDF(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
 	}
-
-	log.Printf("Request parsed successfully. HTML length: %d, URL: %s", len(req.HTML), req.URL)
 
 	// Set defaults
 	if req.PageSize == "" {
@@ -538,16 +609,12 @@ func handleHTMLToPDF(c *gin.Context) {
 		req.DPI = 300
 	}
 
-	log.Printf("Calling pdf.ConvertHTMLToPDF with options: PageSize=%s, Orientation=%s, DPI=%d", req.PageSize, req.Orientation, req.DPI)
-
 	pdfBytes, err := pdf.ConvertHTMLToPDF(req)
 	if err != nil {
 		log.Printf("PDF conversion failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF conversion failed: " + err.Error()})
 		return
 	}
-
-	log.Printf("PDF conversion successful. PDF size: %d bytes", len(pdfBytes))
 
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", "attachment; filename=converted.pdf")
@@ -556,8 +623,6 @@ func handleHTMLToPDF(c *gin.Context) {
 
 // handleHTMLToImage handles HTML to image conversion using htmltoimage
 func handleHTMLToImage(c *gin.Context) {
-	log.Printf("Starting HTML to image conversion request")
-
 	var req models.HTMLToImageRequest
 	data, err := c.GetRawData()
 	if err != nil {
@@ -571,8 +636,6 @@ func handleHTMLToImage(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Request parsed successfully. HTML length: %d, URL: %s, Format: %s", len(req.HTML), req.URL, req.Format)
-
 	// Set defaults
 	if req.Format == "" {
 		req.Format = "png"
@@ -584,16 +647,12 @@ func handleHTMLToImage(c *gin.Context) {
 		req.Zoom = 1.0
 	}
 
-	log.Printf("Calling pdf.ConvertHTMLToImage with options: Format=%s, Quality=%d, Zoom=%.2f", req.Format, req.Quality, req.Zoom)
-
 	imageBytes, err := pdf.ConvertHTMLToImage(req)
 	if err != nil {
 		log.Printf("Image conversion failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Image conversion failed: " + err.Error()})
 		return
 	}
-
-	log.Printf("Image conversion successful. Image size: %d bytes", len(imageBytes))
 
 	contentType := "image/png"
 	switch req.Format {
@@ -604,6 +663,7 @@ func handleHTMLToImage(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", contentType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=converted.%s", req.Format))
+	// Avoid fmt.Sprintf boxing on the response path (PERF-35)
+	c.Header("Content-Disposition", "attachment; filename=converted."+req.Format)
 	c.Data(http.StatusOK, contentType, imageBytes)
 }

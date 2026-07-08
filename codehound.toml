@@ -1,0 +1,55 @@
+# CodeHound configuration. All fields are optional; unknown fields are rejected.
+[codehound]
+# Limit analysis to specific languages.
+# languages = ["go", "python"]
+
+# Only run the union of these rule IDs and any passed via --only.
+# only = ["CWE-22", "CWE-89"]
+
+# Skip the union of these rule IDs and any passed via --skip.
+# skip = ["CWE-15"]
+
+# Exit policy: "none" | "high" | "strict" | anything else = mediums as errors.
+# fail_on = "high"
+
+# Optional include/exclude gitignore-style globs, relative to each scan root.
+# include = ["**/*.go"]
+# exclude = ["**/vendor/**", "**/*_test.go"]
+
+# Test files (*_test.*) are excluded by default; set to false to include them.
+# exclude_tests = false
+
+# Baselines are enabled by default. CodeHound discovers `.codehound-baseline.json`
+# upward from the current directory unless a custom path is configured or passed
+# with `--baseline-file`.
+# [codehound.baseline]
+# enabled = true
+# path = ".codehound-baseline.json"
+
+# Incremental analysis cache is enabled by default. CodeHound stores per-file
+# results in `.codehound-cache/` next to the project root and reuses them on
+# subsequent runs when the file's content hash has not changed. Disable with
+# `enabled = false` or via the `--no-cache` CLI flag.
+# [codehound.cache]
+# enabled = true
+# path = ".codehound-cache"
+# max_size_mb = 500  # evict oldest entries when the cache exceeds this size
+# evict_target_ratio = 0.9  # fraction of max_size_mb to retain after eviction
+# max_file_size_mb = 4  # skip caching for files larger than this (MiB)
+
+# Bad-practice rule configuration.
+# [codehound.bad_practices]
+# enabled = true
+# severity = "medium"  # optional severity override for all BP-* findings
+# severity_overrides = { "BP-1" = "high", "BP-10" = "low" }  # per-rule overrides
+
+# Experimental taint-tracking engine for CWE-22/78/79/89.
+# Disabled: inter-procedural finalize() misclassifies bytes.Buffer.Write /
+# PDF content-stream helpers (appendFmtNum, escapePDFString, etc.) as
+# HTTPWrite XSS sinks (CWE-79 ×192 FPs). Path traversal is hardened in
+# handlers via filepath.Base/Clean + resolveSafePath; remaining CWE-22/79
+# taint noise is not actionable for a PDF generator. Re-enable when the
+# taint sink model distinguishes HTTP responses from buffer writes.
+[codehound.taint]
+enabled = false
+# show_paths = true

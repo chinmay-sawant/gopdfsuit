@@ -1,7 +1,6 @@
 package font
 
 import (
-	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -484,17 +483,18 @@ func GenerateFontObject(fontName string, fontObjectID, fontDescriptorID, widthsA
 
 	// Build compact font dictionary without deprecated /Name field for PDF 2.0
 	var sb strings.Builder
-	sb.WriteString(strconv.Itoa(fontObjectID))
+	var tmp [20]byte
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fontObjectID), 10))
 	sb.WriteString(" 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/")
 	sb.WriteString(metrics.BaseFont)
 	sb.WriteString("/Encoding/WinAnsiEncoding/FirstChar ")
-	sb.WriteString(strconv.Itoa(metrics.FirstChar))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(metrics.FirstChar), 10))
 	sb.WriteString("/LastChar ")
-	sb.WriteString(strconv.Itoa(metrics.LastChar))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(metrics.LastChar), 10))
 	sb.WriteString("/Widths ")
-	sb.WriteString(strconv.Itoa(widthsArrayID))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(widthsArrayID), 10))
 	sb.WriteString(" 0 R/FontDescriptor ")
-	sb.WriteString(strconv.Itoa(fontDescriptorID))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fontDescriptorID), 10))
 	sb.WriteString(" 0 R>>\nendobj\n")
 	return sb.String()
 }
@@ -505,33 +505,33 @@ func GenerateFontDescriptorObject(fontName string, objectID int) string {
 	fd := metrics.FontDescriptor
 
 	// Compact format - single line
-	// Compact format - single line
 	var sb strings.Builder
-	sb.WriteString(strconv.Itoa(objectID))
+	var tmp [20]byte
+	sb.Write(strconv.AppendInt(tmp[:0], int64(objectID), 10))
 	sb.WriteString(" 0 obj\n<</Type/FontDescriptor/FontName/")
 	sb.WriteString(fd.FontName)
 	sb.WriteString("/Flags ")
-	sb.WriteString(strconv.Itoa(fd.Flags))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.Flags), 10))
 	sb.WriteString("/FontBBox[")
-	sb.WriteString(strconv.Itoa(fd.FontBBox[0]))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.FontBBox[0]), 10))
 	sb.WriteString(" ")
-	sb.WriteString(strconv.Itoa(fd.FontBBox[1]))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.FontBBox[1]), 10))
 	sb.WriteString(" ")
-	sb.WriteString(strconv.Itoa(fd.FontBBox[2]))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.FontBBox[2]), 10))
 	sb.WriteString(" ")
-	sb.WriteString(strconv.Itoa(fd.FontBBox[3]))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.FontBBox[3]), 10))
 	sb.WriteString("]/ItalicAngle ")
-	sb.WriteString(strconv.Itoa(fd.ItalicAngle))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.ItalicAngle), 10))
 	sb.WriteString("/Ascent ")
-	sb.WriteString(strconv.Itoa(fd.Ascent))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.Ascent), 10))
 	sb.WriteString("/Descent ")
-	sb.WriteString(strconv.Itoa(fd.Descent))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.Descent), 10))
 	sb.WriteString("/CapHeight ")
-	sb.WriteString(strconv.Itoa(fd.CapHeight))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.CapHeight), 10))
 	sb.WriteString("/StemV ")
-	sb.WriteString(strconv.Itoa(fd.StemV))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.StemV), 10))
 	sb.WriteString("/XHeight ")
-	sb.WriteString(strconv.Itoa(fd.XHeight))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fd.XHeight), 10))
 	sb.WriteString(">>\nendobj\n")
 	return sb.String()
 }
@@ -541,15 +541,16 @@ func GenerateWidthsArrayObject(fontName string, objectID int) string {
 	metrics := GetFontMetrics(fontName)
 
 	var widthsArray strings.Builder
-	widthsArray.WriteString(strconv.Itoa(objectID))
+	var tmp [20]byte
+	widthsArray.Write(strconv.AppendInt(tmp[:0], int64(objectID), 10))
 	widthsArray.WriteString(" 0 obj\n[")
 
 	// Compact format - no newlines, minimal spacing
 	for i, w := range metrics.Widths {
 		if i > 0 {
-			widthsArray.WriteString(" ")
+			widthsArray.WriteByte(' ')
 		}
-		widthsArray.WriteString(strconv.Itoa(w))
+		widthsArray.Write(strconv.AppendInt(tmp[:0], int64(w), 10))
 	}
 
 	widthsArray.WriteString("]\nendobj\n")
@@ -565,18 +566,27 @@ func GetHelveticaFontResourceString() string {
 
 	// Build compact widths array inline (no extra spaces)
 	var widths strings.Builder
-	widths.WriteString("[")
+	var tmp [20]byte
+	widths.WriteByte('[')
 	for i, w := range metrics.Widths {
 		if i > 0 {
-			widths.WriteString(" ")
+			widths.WriteByte(' ')
 		}
-		widths.WriteString(strconv.Itoa(w))
+		widths.Write(strconv.AppendInt(tmp[:0], int64(w), 10))
 	}
-	widths.WriteString("]")
+	widths.WriteByte(']')
 
-	// Build compact font dictionary with inline FontDescriptor
-	return fmt.Sprintf(`<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding/FirstChar %d/LastChar %d/Widths %s/FontDescriptor<</Type/FontDescriptor/FontName/Helvetica/Flags 32/FontBBox[-166 -225 1000 931]/ItalicAngle 0/Ascent 718/Descent -207/CapHeight 718/StemV 88/XHeight 523>>>>`,
-		metrics.FirstChar, metrics.LastChar, widths.String())
+	// Build compact font dictionary with inline FontDescriptor (PERF-35: no fmt)
+	var sb strings.Builder
+	sb.Grow(280 + widths.Len())
+	sb.WriteString(`<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding/FirstChar `)
+	sb.Write(strconv.AppendInt(tmp[:0], int64(metrics.FirstChar), 10))
+	sb.WriteString(`/LastChar `)
+	sb.Write(strconv.AppendInt(tmp[:0], int64(metrics.LastChar), 10))
+	sb.WriteString(`/Widths `)
+	sb.WriteString(widths.String())
+	sb.WriteString(`/FontDescriptor<</Type/FontDescriptor/FontName/Helvetica/Flags 32/FontBBox[-166 -225 1000 931]/ItalicAngle 0/Ascent 718/Descent -207/CapHeight 718/StemV 88/XHeight 523>>>>`)
+	return sb.String()
 }
 
 // GetSimpleHelveticaFontResourceString returns a simple inline font resource for XObjects
@@ -589,7 +599,8 @@ func GetSimpleHelveticaFontResourceString() string {
 // This is the legacy format without FirstChar, LastChar, Widths, and FontDescriptor
 func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int) string {
 	var sb strings.Builder
-	sb.WriteString(strconv.Itoa(fontObjectID))
+	var tmp [20]byte
+	sb.Write(strconv.AppendInt(tmp[:0], int64(fontObjectID), 10))
 	sb.WriteString(" 0 obj\n<< /Type /Font /Subtype /Type1 /Name ")
 	sb.WriteString(fontRef)
 	sb.WriteString(" /BaseFont /")
@@ -645,7 +656,7 @@ func GetAvailableFonts() []models.FontInfo {
 // GenerateTrueTypeFontObjects generates all PDF objects needed for a custom TrueType font
 // Returns map of object ID to object content
 func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor) map[int]string {
-	objects := make(map[int]string)
+	objects := make(map[int]string, 8) // PERF-192: font dict, descriptor, widths, CIDToGID, ToUnicode, FontFile
 
 	// Get font data (subset if available, otherwise full font)
 	fontData := font.Font.RawData
@@ -673,10 +684,11 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 
 	// Generate font file stream (FontFile2 for TrueType)
 	var fontFileBuf strings.Builder
+	var tmp [20]byte
 	fontFileBuf.WriteString("<< /Filter /FlateDecode /Length ")
-	fontFileBuf.WriteString(strconv.Itoa(len(compressedData)))
+	fontFileBuf.Write(strconv.AppendInt(tmp[:0], int64(len(compressedData)), 10))
 	fontFileBuf.WriteString(" /Length1 ")
-	fontFileBuf.WriteString(strconv.Itoa(len(fontData)))
+	fontFileBuf.Write(strconv.AppendInt(tmp[:0], int64(len(fontData)), 10))
 	fontFileBuf.WriteString(" >>\nstream\n")
 	fontFileBuf.Write(compressedData)
 	fontFileBuf.WriteString("\nendstream")
@@ -711,18 +723,27 @@ func generateType0FontDict(font *RegisteredFont) string {
 	psName := font.Font.PostScriptName
 	if len(font.SubsetData) > 0 {
 		// Add subset tag (6 uppercase letters + '+')
-		psName = fmt.Sprintf("SUBSET+%s", font.Font.PostScriptName)
+		psName = "SUBSET+" + font.Font.PostScriptName
 	}
 
-	return fmt.Sprintf("<< /Type /Font /Subtype /Type0 /BaseFont /%s /Encoding /Identity-H /DescendantFonts [%d 0 R] /ToUnicode %d 0 R >>",
-		psName, font.CIDFontID, font.ToUnicodeID)
+	var b strings.Builder
+	b.Grow(128 + len(psName))
+	b.WriteString("<< /Type /Font /Subtype /Type0 /BaseFont /")
+	b.WriteString(psName)
+	b.WriteString(" /Encoding /Identity-H /DescendantFonts [")
+	var tmp [20]byte
+	b.Write(strconv.AppendInt(tmp[:0], int64(font.CIDFontID), 10))
+	b.WriteString(" 0 R] /ToUnicode ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(font.ToUnicodeID), 10))
+	b.WriteString(" 0 R >>")
+	return b.String()
 }
 
 // generateCIDFontDict generates the CIDFont dictionary
 func generateCIDFontDict(font *RegisteredFont) string {
 	psName := font.Font.PostScriptName
 	if len(font.SubsetData) > 0 {
-		psName = fmt.Sprintf("SUBSET+%s", font.Font.PostScriptName)
+		psName = "SUBSET+" + font.Font.PostScriptName
 	}
 
 	// Default width (space character or average)
@@ -732,8 +753,21 @@ func generateCIDFontDict(font *RegisteredFont) string {
 		_ = spaceGlyph // Use the glyph lookup
 	}
 
-	return fmt.Sprintf("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /%s /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor %d 0 R /DW %d /W %d 0 R /CIDToGIDMap %d 0 R >>",
-		psName, font.DescriptorID, defaultWidth, font.WidthsID, font.CIDToGIDMapID)
+	var b strings.Builder
+	b.Grow(200 + len(psName))
+	b.WriteString("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /")
+	b.WriteString(psName)
+	b.WriteString(" /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor ")
+	var tmp [20]byte
+	b.Write(strconv.AppendInt(tmp[:0], int64(font.DescriptorID), 10))
+	b.WriteString(" 0 R /DW ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(defaultWidth), 10))
+	b.WriteString(" /W ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(font.WidthsID), 10))
+	b.WriteString(" 0 R /CIDToGIDMap ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(font.CIDToGIDMapID), 10))
+	b.WriteString(" 0 R >>")
+	return b.String()
 }
 
 // generateTrueTypeFontDescriptor generates the FontDescriptor for a TrueType font
@@ -741,7 +775,7 @@ func generateTrueTypeFontDescriptor(font *RegisteredFont) string {
 	f := font.Font
 	psName := f.PostScriptName
 	if len(font.SubsetData) > 0 {
-		psName = fmt.Sprintf("SUBSET+%s", f.PostScriptName)
+		psName = "SUBSET+" + f.PostScriptName
 	}
 
 	// Scale font metrics to PDF units (1/1000 em)
@@ -764,9 +798,38 @@ func generateTrueTypeFontDescriptor(font *RegisteredFont) string {
 	flags := f.GetPDFFlags()
 	italicAngle := int(f.ItalicAngle)
 
-	return fmt.Sprintf("<< /Type /FontDescriptor /FontName /%s /Flags %d /FontBBox [%d %d %d %d] /ItalicAngle %d /Ascent %d /Descent %d /CapHeight %d /StemV %d /XHeight %d /FontFile2 %d 0 R >>",
-		psName, flags, bbox[0], bbox[1], bbox[2], bbox[3],
-		italicAngle, ascent, descent, capHeight, stemV, xHeight, font.FontFileID)
+	// PERF-35: builders + AppendInt instead of fmt.Sprintf interface boxing
+	var b strings.Builder
+	b.Grow(160 + len(psName))
+	var tmp [20]byte
+	b.WriteString("<< /Type /FontDescriptor /FontName /")
+	b.WriteString(psName)
+	b.WriteString(" /Flags ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(flags), 10))
+	b.WriteString(" /FontBBox [")
+	b.Write(strconv.AppendInt(tmp[:0], int64(bbox[0]), 10))
+	b.WriteByte(' ')
+	b.Write(strconv.AppendInt(tmp[:0], int64(bbox[1]), 10))
+	b.WriteByte(' ')
+	b.Write(strconv.AppendInt(tmp[:0], int64(bbox[2]), 10))
+	b.WriteByte(' ')
+	b.Write(strconv.AppendInt(tmp[:0], int64(bbox[3]), 10))
+	b.WriteString("] /ItalicAngle ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(italicAngle), 10))
+	b.WriteString(" /Ascent ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(ascent), 10))
+	b.WriteString(" /Descent ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(descent), 10))
+	b.WriteString(" /CapHeight ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(capHeight), 10))
+	b.WriteString(" /StemV ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(stemV), 10))
+	b.WriteString(" /XHeight ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(xHeight), 10))
+	b.WriteString(" /FontFile2 ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(font.FontFileID), 10))
+	b.WriteString(" 0 R >>")
+	return b.String()
 }
 
 // generateCIDWidths generates the /W array for CID font widths
@@ -808,7 +871,8 @@ func generateCIDWidths(font *RegisteredFont) string {
 
 	// Build width array using consecutive ranges for efficiency
 	var result strings.Builder
-	result.WriteString("[")
+	var tmp [20]byte
+	result.WriteByte('[')
 
 	i := 0
 	for i < len(widths) {
@@ -822,19 +886,19 @@ func generateCIDWidths(font *RegisteredFont) string {
 		}
 
 		// Write this range
-		result.WriteString(" ")
-		result.WriteString(strconv.Itoa(int(startCID)))
+		result.WriteByte(' ')
+		result.Write(strconv.AppendInt(tmp[:0], int64(startCID), 10))
 		result.WriteString(" [")
 		for j := startIdx; j < i; j++ {
 			if j > startIdx {
-				result.WriteString(" ")
+				result.WriteByte(' ')
 			}
-			result.WriteString(strconv.Itoa(widths[j].width))
+			result.Write(strconv.AppendInt(tmp[:0], int64(widths[j].width), 10))
 		}
-		result.WriteString("]")
+		result.WriteByte(']')
 	}
 
-	result.WriteString("]")
+	result.WriteByte(']')
 	return result.String()
 }
 
@@ -914,8 +978,9 @@ func GenerateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 	}
 
 	var sb strings.Builder
+	var tmp [20]byte
 	sb.WriteString("<< /Filter /FlateDecode /Length ")
-	sb.WriteString(strconv.Itoa(len(compressedData)))
+	sb.Write(strconv.AppendInt(tmp[:0], int64(len(compressedData)), 10))
 	sb.WriteString(" >>\nstream\n")
 	sb.Write(compressedData)
 	sb.WriteString("\nendstream")
@@ -959,6 +1024,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	cmap.WriteString("endcodespacerange\n")
 
 	// Write character mappings in chunks of 100 (PDF limit)
+	var tmp [20]byte
 	for i := 0; i < len(mappings); i += 100 {
 		end := i + 100
 		if end > len(mappings) {
@@ -966,7 +1032,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 		}
 		chunk := mappings[i:end]
 
-		cmap.WriteString(strconv.Itoa(len(chunk)))
+		cmap.Write(strconv.AppendInt(tmp[:0], int64(len(chunk)), 10))
 		cmap.WriteString(" beginbfchar\n")
 		for _, m := range chunk {
 			// CID as hex, Unicode code point as hex — using lookup table
@@ -1018,8 +1084,9 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	}
 
 	var sb strings.Builder
+	var lenTmp [20]byte
 	sb.WriteString("<< /Filter /FlateDecode /Length ")
-	sb.WriteString(strconv.Itoa(len(compressedData)))
+	sb.Write(strconv.AppendInt(lenTmp[:0], int64(len(compressedData)), 10))
 	sb.WriteString(" >>\nstream\n")
 	sb.Write(compressedData)
 	sb.WriteString("\nendstream")
@@ -1031,26 +1098,30 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 // AppendTextForCustomFont appends hex-encoded Identity-H text for a custom font to dst.
 // Characters not in the font are replaced with a space to prevent .notdef references.
 func AppendTextForCustomFont(dst []byte, fontName string, text string, registry *CustomFontRegistry) []byte {
+	// Pre-size exact hex payload; index writes avoid consecutive append (PERF-119).
+	nRunes := 0
+	for range text {
+		nRunes++
+	}
+	enc := make([]byte, 1+nRunes*4+1)
+	enc[0] = '<'
+	o := 1
 	font, ok := registry.GetFont(fontName)
-	dst = append(dst, '<')
-	if !ok {
-		// Fallback: encode as-is if font not found
-		for _, char := range text {
-			v := uint16(char)
-			dst = append(dst, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
-		}
-	} else {
-		spaceHex := [4]byte{hexDigits[0], hexDigits[0], hexDigits[uint16(' ')>>4&0xF], hexDigits[uint16(' ')&0xF]}
-		for _, char := range text {
-			if _, exists := font.Font.CharToGlyph[char]; exists {
-				v := uint16(char)
-				dst = append(dst, hexDigits[v>>12&0xF], hexDigits[v>>8&0xF], hexDigits[v>>4&0xF], hexDigits[v&0xF])
-			} else {
-				dst = append(dst, spaceHex[0], spaceHex[1], spaceHex[2], spaceHex[3])
+	for _, char := range text {
+		v := uint16(char)
+		if ok {
+			if _, exists := font.Font.CharToGlyph[char]; !exists {
+				v = uint16(' ')
 			}
 		}
+		enc[o] = hexDigits[v>>12&0xF]
+		enc[o+1] = hexDigits[v>>8&0xF]
+		enc[o+2] = hexDigits[v>>4&0xF]
+		enc[o+3] = hexDigits[v&0xF]
+		o += 4
 	}
-	return append(dst, '>')
+	enc[o] = '>'
+	return append(dst, enc[:o+1]...)
 }
 
 // EncodeTextForCustomFont encodes text for use with a custom font (Identity-H encoding)

@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"bytes"
+	"strings"
 
 	"strconv"
 
@@ -26,28 +27,26 @@ func (pm *PageManager) GenerateBookmarks(bookmarks []models.Bookmark, xrefOffset
 	// Pre-allocate capacity to prevent mid-flight resizing
 	// 64 bytes is plenty for these small PDF lines
 	xrefOffsets[outlinesID] = pdfBuffer.Len()
-	b := make([]byte, 0, 64)
-	b = strconv.AppendInt(b, int64(outlinesID), 10)
-	b = append(b, " 0 obj\n<< /Type /Outlines"...)
-
+	// PERF-119: single Builder for outlines dictionary
+	var sb strings.Builder
+	sb.Grow(96)
+	var numBuf [20]byte
+	sb.Write(strconv.AppendInt(numBuf[:0], int64(outlinesID), 10))
+	sb.WriteString(" 0 obj\n<< /Type /Outlines")
 	if firstID > 0 {
-		b = append(b, " /First "...)
-		b = strconv.AppendInt(b, int64(firstID), 10)
-		b = append(b, " 0 R"...)
+		sb.WriteString(" /First ")
+		sb.Write(strconv.AppendInt(numBuf[:0], int64(firstID), 10))
+		sb.WriteString(" 0 R")
 	}
-
 	if lastID > 0 {
-		b = append(b, " /Last "...)
-		b = strconv.AppendInt(b, int64(lastID), 10)
-		b = append(b, " 0 R"...)
+		sb.WriteString(" /Last ")
+		sb.Write(strconv.AppendInt(numBuf[:0], int64(lastID), 10))
+		sb.WriteString(" 0 R")
 	}
-
-	b = append(b, " /Count "...)
-	b = strconv.AppendInt(b, int64(count), 10)
-	b = append(b, " >>\nendobj\n"...)
-
-	// Single Write call is more efficient than multiple small writes
-	pdfBuffer.Write(b)
+	sb.WriteString(" /Count ")
+	sb.Write(strconv.AppendInt(numBuf[:0], int64(count), 10))
+	sb.WriteString(" >>\nendobj\n")
+	pdfBuffer.WriteString(sb.String())
 
 	return outlinesID
 }
@@ -74,6 +73,9 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 	lastID := itemIDs[len(itemIDs)-1]
 
 	// Second pass: Generate each item
+	chunk := make([]byte, 1<<20) // PERF-3: single buffer for all items
+	pChunk := make([]byte, 256)
+	nChunk := make([]byte, 256)
 	for i, item := range items {
 		currentID := itemIDs[i]
 
@@ -85,32 +87,60 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 		// Build complete bookmark entry in buffer before writing
 		b = b[:0] // Reuse buffer
+		escapedTitle := escapePDFString(item.Title)
 		b = strconv.AppendInt(b, int64(currentID), 10)
-		b = append(b, " 0 obj\n<< /Title ("...)
-		b = append(b, escapePDFString(item.Title)...)
-		b = append(b, ") /Parent "...)
-		b = strconv.AppendInt(b, int64(parentID), 10)
-		b = append(b, " 0 R"...)
+		// Merge static fragments where possible (PERF-119/128)
+		var idBuf [20]byte
+		parentNum := strconv.AppendInt(idBuf[:0], int64(parentID), 10)
+		head := " 0 obj\n<< /Title ("
+		mid := ") /Parent "
+		need := len(head) + len(escapedTitle) + len(mid) + len(parentNum) + 4
+		chunk = chunk[:need]
+		o := copy(chunk, head)
+		o += copy(chunk[o:], escapedTitle)
+		o += copy(chunk[o:], mid)
+		o += copy(chunk[o:], parentNum)
+		copy(chunk[o:], " 0 R")
+		b = append(b, chunk...)
 
 		if i > 0 {
-			b = append(b, " /Prev "...)
-			b = strconv.AppendInt(b, int64(itemIDs[i-1]), 10)
-			b = append(b, " 0 R"...)
+			var pBuf [20]byte
+			pNum := strconv.AppendInt(pBuf[:0], int64(itemIDs[i-1]), 10)
+			pNeed := len(" /Prev ") + len(pNum) + 4
+			pChunk = pChunk[:pNeed]
+			o := copy(pChunk, " /Prev ")
+			o += copy(pChunk[o:], pNum)
+			copy(pChunk[o:], " 0 R")
+			b = append(b, pChunk...)
 		}
 
 		if i < len(items)-1 {
-			b = append(b, " /Next "...)
-			b = strconv.AppendInt(b, int64(itemIDs[i+1]), 10)
-			b = append(b, " 0 R"...)
+			var nBuf [20]byte
+			nNum := strconv.AppendInt(nBuf[:0], int64(itemIDs[i+1]), 10)
+			nNeed := len(" /Next ") + len(nNum) + 4
+			nChunk = nChunk[:nNeed]
+			o := copy(nChunk, " /Next ")
+			o += copy(nChunk[o:], nNum)
+			copy(nChunk[o:], " 0 R")
+			b = append(b, nChunk...)
 		}
 
 		if childFirst > 0 {
-			b = append(b, " /First "...)
-			b = strconv.AppendInt(b, int64(childFirst), 10)
-			b = append(b, " 0 R /Last "...)
-			b = strconv.AppendInt(b, int64(childLast), 10)
-			b = append(b, " 0 R /Count "...)
-			b = strconv.AppendInt(b, int64(childCount), 10)
+			// PERF-119: one chunk for First/Last/Count
+			var n1, n2, n3 [20]byte
+			a := strconv.AppendInt(n1[:0], int64(childFirst), 10)
+			c2 := strconv.AppendInt(n2[:0], int64(childLast), 10)
+			c3 := strconv.AppendInt(n3[:0], int64(childCount), 10)
+			pref1, mid1, mid2 := " /First ", " 0 R /Last ", " 0 R /Count "
+			need := len(pref1) + len(a) + len(mid1) + len(c2) + len(mid2) + len(c3)
+			ch := make([]byte, need)
+			o := copy(ch, pref1)
+			o += copy(ch[o:], a)
+			o += copy(ch[o:], mid1)
+			o += copy(ch[o:], c2)
+			o += copy(ch[o:], mid2)
+			copy(ch[o:], c3)
+			b = append(b, ch...)
 		}
 
 		// Link to page (Dest)

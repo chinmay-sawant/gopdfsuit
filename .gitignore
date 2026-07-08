@@ -56,3 +56,5 @@ sampledata/benchmarks/typst.tar.xz
 *node_modules*
 functions/
 reports/
+.codehound-cache
+scripts

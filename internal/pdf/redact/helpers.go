@@ -4,29 +4,45 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/zlib"
-	"fmt"
 	"io"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/merge"
 )
 
+// Package-level PDF markers (avoid per-call []byte allocations).
+var (
+	markerEncrypt  = []byte(`/Encrypt`)
+	markerWBracket = []byte(`/W[`)
+	markerIndex    = []byte(`/Index`)
+)
+
+// Package-level compiled regexes (hoisted out of loops / hot paths).
+var (
+	trailerDictRe   = regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
+	rootRefRe       = regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
+	streamContentRe = regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	objStartRe      = regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
+	arrayWRe        = regexp.MustCompile(`/W\s*\[(.*?)\]`)
+	arrayIndexRe    = regexp.MustCompile(`/Index\s*\[(.*?)\]`)
+)
+
 // bytesIndex is a helper to find a subsequence in a []byte
 func bytesIndex(b, sub []byte) int {
-	return strings.Index(string(b), string(sub))
+	return bytes.Index(b, sub)
 }
 
 // trailerHasEncrypt checks if trailer or any trailer 'Encrypt' appears
 func trailerHasEncrypt(data []byte) bool {
-	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
-	for _, m := range trRe.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], []byte(`/Encrypt`)) >= 0 {
+	for _, m := range trailerDictRe.FindAllSubmatch(data, -1) {
+		if bytesIndex(m[1], markerEncrypt) >= 0 {
 			return true
 		}
 	}
-	return bytesIndex(data, []byte(`/Encrypt`)) >= 0
+	return bytesIndex(data, markerEncrypt) >= 0
 }
 
 // tryZlibDecompress attempts to decompress zlib data
@@ -60,8 +76,7 @@ func tryFlateDecompress(b []byte) ([]byte, error) {
 
 // findRootRef looks for /Root n m R in the PDF bytes.
 func findRootRef(data []byte) (objNum int, genNum int, ok bool) {
-	rootRe := regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
-	if m := rootRe.FindSubmatch(data); m != nil {
+	if m := rootRefRe.FindSubmatch(data); m != nil {
 		objNum, _ = strconv.Atoi(string(m[1]))
 		genNum, _ = strconv.Atoi(string(m[2]))
 		return objNum, genNum, true
@@ -83,19 +98,48 @@ func isPDFWhitespace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
 }
 
+// isASCIISpace reports whether c is ASCII whitespace (same set as strings.TrimSpace fast path).
+func isASCIISpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f'
+}
+
+// trimSpace trims leading/trailing ASCII space without calling strings.TrimSpace.
+// The returned substring shares the input backing array (no alloc when trimmed).
+// Falls back to strings.TrimSpace if non-ASCII bytes remain at the edges.
+func trimSpace(s string) string {
+	start, end := 0, len(s)
+	for start < end && isASCIISpace(s[start]) {
+		start++
+	}
+	for end > start && isASCIISpace(s[end-1]) {
+		end--
+	}
+	if start < end && (s[start] >= utf8.RuneSelf || s[end-1] >= utf8.RuneSelf) {
+		return strings.TrimSpace(s)
+	}
+	return s[start:end]
+}
+
 // parseArrayInts parses array values from PDF dictionary
 func parseArrayInts(dict []byte, key string) []int {
-	re := regexp.MustCompile(key + `\s*\[(.*?)\]`)
+	var re *regexp.Regexp
+	switch key {
+	case `/W`:
+		re = arrayWRe
+	case `/Index`:
+		re = arrayIndexRe
+	default:
+		re = regexp.MustCompile(regexp.QuoteMeta(key) + `\s*\[(.*?)\]`)
+	}
 	if m := re.FindSubmatch(dict); m != nil {
-		inner := strings.TrimSpace(string(m[1]))
+		inner := trimSpace(string(m[1]))
 		if inner == "" {
 			return nil
 		}
 		parts := strings.Fields(inner)
 		res := make([]int, 0, len(parts))
 		for _, p := range parts {
-			var v int
-			if _, err := fmt.Sscanf(p, "%d", &v); err == nil {
+			if v, err := strconv.Atoi(p); err == nil {
 				res = append(res, v)
 			}
 		}
@@ -124,11 +168,10 @@ func parseXRefStreams(data []byte, objMap map[int][]byte, objGen map[int]int) {
 			bodyEnd--
 		}
 		body := data[b.BodyStart:bodyEnd]
-		if bytesIndex(body, []byte(`/W[`)) < 0 || bytesIndex(body, []byte(`/Index`)) < 0 {
+		if bytesIndex(body, markerWBracket) < 0 || bytesIndex(body, markerIndex) < 0 {
 			continue
 		}
-		streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-		sm := streamRe.FindSubmatch(body)
+		sm := streamContentRe.FindSubmatch(body)
 		if sm == nil {
 			continue
 		}
@@ -161,7 +204,6 @@ func parseXRefStreams(data []byte, objMap map[int][]byte, objGen map[int]int) {
 					if endPos == -1 {
 						continue
 					}
-					objStartRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
 					loc := objStartRe.FindSubmatchIndex(data[off:endPos])
 					if loc == nil {
 						continue

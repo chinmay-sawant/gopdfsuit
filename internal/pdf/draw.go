@@ -2,7 +2,6 @@ package pdf
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -15,6 +14,64 @@ func fmtNum(f float64) string {
 	var buf [24]byte
 	b := appendFmtNum(buf[:0], f)
 	return string(b)
+}
+
+// formXObjectStream builds a Form XObject object body without fmt (PERF-35).
+func formXObjectStream(fw, fh, stream string) string {
+	var b strings.Builder
+	var nbuf [20]byte
+	b.Grow(96 + len(stream))
+	b.WriteString("<< /Type /XObject /Subtype /Form /BBox [0 0 ")
+	b.WriteString(fw)
+	b.WriteByte(' ')
+	b.WriteString(fh)
+	b.WriteString("] /Resources << /ProcSet [/PDF] >> /Length ")
+	b.Write(strconv.AppendInt(nbuf[:0], int64(len(stream)), 10))
+	b.WriteString(" >> stream\n")
+	b.WriteString(stream)
+	b.WriteString("\nendstream")
+	return b.String()
+}
+
+// bezierCirclePath builds a 4-curve circle path centered at origin with radius r.
+func bezierCirclePath(r float64) string {
+	k := 0.5523
+	rk, nr, nrk := r*k, -r, -r*k
+	var b strings.Builder
+	b.Grow(160)
+	// r 0 m  r rk  rk r  0 r c  -rk r  -r rk  -r 0 c  -r -rk  -rk -r  0 -r c  rk -r  r -rk  r 0 c h
+	parts := [...]float64{r, r, rk, rk, r, r, nrk, r, nr, rk, nr, nr, nrk, nrk, nr, nr, rk, nr, r, nrk, r}
+	// Layout matches previous fmt.Sprintf circle path
+	write := func(v float64) { b.WriteString(fmtNum(v)); b.WriteByte(' ') }
+	write(parts[0])
+	b.WriteString("0 m ")
+	write(parts[1])
+	write(parts[2])
+	write(parts[3])
+	write(parts[4])
+	b.WriteString("0 ")
+	write(parts[5])
+	b.WriteString("c ")
+	write(parts[6])
+	write(parts[7])
+	write(parts[8])
+	write(parts[9])
+	write(parts[10])
+	b.WriteString("0 c ")
+	write(parts[11])
+	write(parts[12])
+	write(parts[13])
+	write(parts[14])
+	b.WriteString("0 ")
+	write(parts[15])
+	b.WriteString("c ")
+	write(parts[16])
+	write(parts[17])
+	write(parts[18])
+	write(parts[19])
+	write(parts[20])
+	b.WriteString("0 c h")
+	return b.String()
 }
 
 // appendFmtNum appends a float formatted to 2 decimal places directly to dst.
@@ -31,14 +88,16 @@ func appendFmtNum(dst []byte, f float64) []byte {
 	fracPart := scaled % 100
 	dst = strconv.AppendInt(dst, intPart, 10)
 	if fracPart > 0 {
-		dst = append(dst, '.')
+		// Combine '.' and leading zero in one append when possible (PERF-119)
 		if fracPart < 10 {
-			dst = append(dst, '0')
-		}
-		// Trim trailing zero (e.g. 0.50 -> 0.5)
-		if fracPart%10 == 0 {
+			dst = append(dst, '.', '0')
+			dst = strconv.AppendInt(dst, fracPart, 10)
+		} else if fracPart%10 == 0 {
+			// Trim trailing zero (e.g. 0.50 -> 0.5)
+			dst = append(dst, '.')
 			dst = strconv.AppendInt(dst, fracPart/10, 10)
 		} else {
+			dst = append(dst, '.')
 			dst = strconv.AppendInt(dst, fracPart, 10)
 		}
 	}
@@ -47,7 +106,7 @@ func appendFmtNum(dst []byte, f float64) []byte {
 
 // --- new watermark drawer (diagonal bottom-left to top-right) ---
 func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimensions, registry *CustomFontRegistry) {
-	if strings.TrimSpace(text) == "" {
+	if trimSpace(text) == "" {
 		return
 	}
 	// Proportional font size (fallback minimum)
@@ -82,27 +141,47 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	fontRef := getFontReference(watermarkProps, registry)
 
 	// Pre-allocate buffer and build complete watermark command sequence
-	wmBuf := make([]byte, 0, 256)
-	wmBuf = append(wmBuf, fontRef...)
-	wmBuf = append(wmBuf, ' ')
-	wmBuf = strconv.AppendInt(wmBuf, int64(fontSize), 10)
-	wmBuf = append(wmBuf, " Tf\n"...)
-	wmBuf = appendFmtNum(wmBuf, c)
-	wmBuf = append(wmBuf, ' ')
-	wmBuf = appendFmtNum(wmBuf, s)
-	wmBuf = append(wmBuf, ' ')
-	wmBuf = appendFmtNum(wmBuf, -s)
-	wmBuf = append(wmBuf, ' ')
-	wmBuf = appendFmtNum(wmBuf, c)
-	wmBuf = append(wmBuf, ' ')
-	wmBuf = appendFmtNum(wmBuf, x)
-	wmBuf = append(wmBuf, ' ')
-	wmBuf = appendFmtNum(wmBuf, y)
-	wmBuf = append(wmBuf, " Tm\n"...)
-	// Resolve font name first
 	resolvedName := resolveFontName(watermarkProps, registry)
-	wmBuf = append(wmBuf, formatTextForPDF(resolvedName, text, registry)...)
-	wmBuf = append(wmBuf, " Tj\n"...)
+	textCmd := formatTextForPDF(resolvedName, text, registry)
+	var sizeBuf [12]byte
+	sizeNum := strconv.AppendInt(sizeBuf[:0], int64(fontSize), 10)
+	head := make([]byte, len(fontRef)+1+len(sizeNum)+4)
+	o := copy(head, fontRef)
+	head[o] = ' '
+	o++
+	o += copy(head[o:], sizeNum)
+	copy(head[o:], " Tf\n")
+	// PERF-119: assemble watermark ops with Builder (no multi-append chain)
+	var wb strings.Builder
+	wb.Grow(256 + len(head) + len(textCmd))
+	wb.Write(head)
+	tmp := make([]byte, 0, 48)
+	tmp = appendFmtNum(tmp, c)
+	wb.Write(tmp)
+	wb.WriteByte(' ')
+	tmp = tmp[:0]
+	tmp = appendFmtNum(tmp, s)
+	wb.Write(tmp)
+	wb.WriteByte(' ')
+	tmp = tmp[:0]
+	tmp = appendFmtNum(tmp, -s)
+	wb.Write(tmp)
+	wb.WriteByte(' ')
+	tmp = tmp[:0]
+	tmp = appendFmtNum(tmp, c)
+	wb.Write(tmp)
+	wb.WriteByte(' ')
+	tmp = tmp[:0]
+	tmp = appendFmtNum(tmp, x)
+	wb.Write(tmp)
+	wb.WriteByte(' ')
+	tmp = tmp[:0]
+	tmp = appendFmtNum(tmp, y)
+	wb.Write(tmp)
+	wb.WriteString(" Tm\n")
+	wb.WriteString(string(textCmd))
+	wb.WriteString(" Tj\n")
+	wmBuf := []byte(wb.String())
 
 	// Single write for entire watermark command sequence
 	contentStream.Write(wmBuf)
@@ -216,32 +295,46 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 		rectH := float64(titleProps.FontSize)
 
 		contentStream.WriteString("q\n")
-		var colorBuf []byte
-		colorBuf = appendFmtNum(colorBuf, r)
-		colorBuf = append(colorBuf, ' ')
-		colorBuf = appendFmtNum(colorBuf, g)
-		colorBuf = append(colorBuf, ' ')
-		colorBuf = appendFmtNum(colorBuf, b)
-		colorBuf = append(colorBuf, " rg\n"...)
-		contentStream.Write(colorBuf)
-
-		colorBuf = colorBuf[:0]
-		colorBuf = appendFmtNum(colorBuf, rectX)
-		colorBuf = append(colorBuf, ' ')
-		colorBuf = appendFmtNum(colorBuf, rectY)
-		colorBuf = append(colorBuf, ' ')
-		colorBuf = appendFmtNum(colorBuf, rectW)
-		colorBuf = append(colorBuf, ' ')
-		colorBuf = appendFmtNum(colorBuf, rectH)
-		colorBuf = append(colorBuf, " re f\n"...)
-		contentStream.Write(colorBuf)
+		// PERF-119: Builder for color+rect ops
+		var cb strings.Builder
+		cb.Grow(96)
+		tmp := make([]byte, 0, 32)
+		tmp = appendFmtNum(tmp, r)
+		cb.Write(tmp)
+		cb.WriteByte(' ')
+		tmp = tmp[:0]
+		tmp = appendFmtNum(tmp, g)
+		cb.Write(tmp)
+		cb.WriteByte(' ')
+		tmp = tmp[:0]
+		tmp = appendFmtNum(tmp, b)
+		cb.Write(tmp)
+		cb.WriteString(" rg\n")
+		tmp = tmp[:0]
+		tmp = appendFmtNum(tmp, rectX)
+		cb.Write(tmp)
+		cb.WriteByte(' ')
+		tmp = tmp[:0]
+		tmp = appendFmtNum(tmp, rectY)
+		cb.Write(tmp)
+		cb.WriteByte(' ')
+		tmp = tmp[:0]
+		tmp = appendFmtNum(tmp, rectW)
+		cb.Write(tmp)
+		cb.WriteByte(' ')
+		tmp = tmp[:0]
+		tmp = appendFmtNum(tmp, rectH)
+		cb.Write(tmp)
+		cb.WriteString(" re f\n")
+		contentStream.WriteString(cb.String())
 		contentStream.WriteString("Q\n")
 	}
 
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(titleProps, pageManager.FontRegistry))
 	contentStream.WriteString(" ")
-	contentStream.WriteString(strconv.Itoa(titleProps.FontSize))
+	var titleFsBuf [12]byte
+	contentStream.Write(strconv.AppendInt(titleFsBuf[:0], int64(titleProps.FontSize), 10))
 	contentStream.WriteString(" Tf\n")
 
 	// Set text color
@@ -551,7 +644,8 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				contentStream.WriteString("BT\n")
 				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 				contentStream.WriteString(" ")
-				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+				var cellFsBuf [12]byte
+				contentStream.Write(strconv.AppendInt(cellFsBuf[:0], int64(cellProps.FontSize), 10))
 				contentStream.WriteString(" Tf\n")
 
 				// Set text color - always explicitly set to avoid state leakage, default to black
@@ -619,7 +713,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.WriteString("BT\n")
 					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 					contentStream.WriteString(" ")
-					contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+					contentStream.Write(strconv.AppendInt(cellFsBuf[:0], int64(cellProps.FontSize), 10))
 					contentStream.WriteString(" Tf\n")
 					contentStream.WriteString("1 0 0 1 0 0 Tm\n")
 					textPosBuf = textPosBuf[:0]
@@ -1131,7 +1225,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 				contentStream.WriteString("BT\n")
 				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 				contentStream.WriteString(" ")
-				contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+				var tableCellFsBuf [12]byte
+				contentStream.Write(strconv.AppendInt(tableCellFsBuf[:0], int64(cellProps.FontSize), 10))
 				contentStream.WriteString(" Tf\n")
 
 				// Set text color (cell-level takes precedence over table-level, default to black)
@@ -1252,7 +1347,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 						contentStream.WriteString("BT\n")
 						contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
 						contentStream.WriteString(" ")
-						contentStream.WriteString(strconv.Itoa(cellProps.FontSize))
+						contentStream.Write(strconv.AppendInt(tableCellFsBuf[:0], int64(cellProps.FontSize), 10))
 						contentStream.WriteString(" Tf\n")
 						contentStream.WriteString("1 0 0 1 0 0 Tm\n")
 						textPosBuf = textPosBuf[:0]
@@ -1373,7 +1468,8 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 	contentStream.WriteString("BT\n")
 	contentStream.WriteString(getFontReference(footerProps, pageManager.FontRegistry))
 	contentStream.WriteString(" ")
-	contentStream.WriteString(strconv.Itoa(footerProps.FontSize))
+	var footerFsBuf [12]byte
+	contentStream.Write(strconv.AppendInt(footerFsBuf[:0], int64(footerProps.FontSize), 10))
 	contentStream.WriteString(" Tf\n")
 
 	// Position footer outside the page border on the left side
@@ -1419,7 +1515,9 @@ func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *
 
 // drawPageNumber renders page number in bottom right corner
 func drawPageNumber(contentStream *bytes.Buffer, currentPage, totalPages int, pageDims PageDimensions, pageManager *PageManager) {
-	pageText := fmt.Sprintf("Page %d of %d", currentPage, totalPages)
+	var pageTmp [20]byte
+	pageText := "Page " + string(strconv.AppendInt(pageTmp[:0], int64(currentPage), 10)) +
+		" of " + string(strconv.AppendInt(pageTmp[:0], int64(totalPages), 10))
 
 	// Track characters for font subsetting
 	registry := pageManager.FontRegistry
@@ -1626,14 +1724,29 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 	}
 
 	field := cell.FormField
-	// Calculate rect with optimized precision
-	rect := fmt.Sprintf("[%s %s %s %s]", fmtNum(x), fmtNum(y), fmtNum(x+w), fmtNum(y+h))
+	// Calculate rect without fmt boxing (PERF-35)
+	var rectB strings.Builder
+	rectB.Grow(48)
+	rectB.WriteByte('[')
+	rectB.WriteString(fmtNum(x))
+	rectB.WriteByte(' ')
+	rectB.WriteString(fmtNum(y))
+	rectB.WriteByte(' ')
+	rectB.WriteString(fmtNum(x + w))
+	rectB.WriteByte(' ')
+	rectB.WriteString(fmtNum(y + h))
+	rectB.WriteByte(']')
+	rect := rectB.String()
 
 	var widgetDict strings.Builder
 	widgetDict.WriteString("<< /Type /Annot /Subtype /Widget")
-	widgetDict.WriteString(fmt.Sprintf(" /Rect %s", rect))
-	widgetDict.WriteString(fmt.Sprintf(" /T (%s)", escapeText(field.Name)))
+	widgetDict.WriteString(" /Rect ")
+	widgetDict.WriteString(rect)
+	widgetDict.WriteString(" /T (")
+	widgetDict.WriteString(escapeText(field.Name))
+	widgetDict.WriteByte(')')
 	widgetDict.WriteString(" /F 4") // Print flag
+	var nbuf [20]byte
 
 	switch field.Type {
 	case "checkbox":
@@ -1647,18 +1760,70 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			val = onState
 		}
 
-		fmt.Fprintf(&widgetDict, " /V %s /AS %s", val, val)
+		widgetDict.WriteString(" /V ")
+		widgetDict.WriteString(val)
+		widgetDict.WriteString(" /AS ")
+		widgetDict.WriteString(val)
 
 		// Checkbox Appearance Streams using 're' operator
-		// On Appearance (Box with X)
-		onAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S 2 2 m %s %s l 2 %s m %s 2 l S Q", fmtNum(w), fmtNum(h), fmtNum(w-2), fmtNum(h-2), fmtNum(h-2), fmtNum(w-2))
-		onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
+		fw, fh := fmtNum(w), fmtNum(h)
+		fw2, fh2 := fmtNum(w-2), fmtNum(h-2)
+		var onAPB strings.Builder
+		onAPB.Grow(96)
+		onAPB.WriteString("q 1 w 0 0 0 RG 0 0 ")
+		onAPB.WriteString(fw)
+		onAPB.WriteByte(' ')
+		onAPB.WriteString(fh)
+		onAPB.WriteString(" re S 2 2 m ")
+		onAPB.WriteString(fw2)
+		onAPB.WriteByte(' ')
+		onAPB.WriteString(fh2)
+		onAPB.WriteString(" l 2 ")
+		onAPB.WriteString(fh2)
+		onAPB.WriteString(" m ")
+		onAPB.WriteString(fw2)
+		onAPB.WriteString(" 2 l S Q")
+		onAP := onAPB.String()
+		var onObjB strings.Builder
+		onObjB.Grow(96 + len(onAP))
+		onObjB.WriteString("<< /Type /XObject /Subtype /Form /BBox [0 0 ")
+		onObjB.WriteString(fw)
+		onObjB.WriteByte(' ')
+		onObjB.WriteString(fh)
+		onObjB.WriteString("] /Resources << /ProcSet [/PDF] >> /Length ")
+		onObjB.Write(strconv.AppendInt(nbuf[:0], int64(len(onAP)), 10))
+		onObjB.WriteString(" >> stream\n")
+		onObjB.WriteString(onAP)
+		onObjB.WriteString("\nendstream")
+		onAPID := pageManager.AddExtraObject(onObjB.String())
 
 		// Off Appearance (Empty Box)
-		offAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S Q", fmtNum(w), fmtNum(h))
-		offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
+		var offAPB strings.Builder
+		offAPB.Grow(48)
+		offAPB.WriteString("q 1 w 0 0 0 RG 0 0 ")
+		offAPB.WriteString(fw)
+		offAPB.WriteByte(' ')
+		offAPB.WriteString(fh)
+		offAPB.WriteString(" re S Q")
+		offAP := offAPB.String()
+		var offObjB strings.Builder
+		offObjB.Grow(96 + len(offAP))
+		offObjB.WriteString("<< /Type /XObject /Subtype /Form /BBox [0 0 ")
+		offObjB.WriteString(fw)
+		offObjB.WriteByte(' ')
+		offObjB.WriteString(fh)
+		offObjB.WriteString("] /Resources << /ProcSet [/PDF] >> /Length ")
+		offObjB.Write(strconv.AppendInt(nbuf[:0], int64(len(offAP)), 10))
+		offObjB.WriteString(" >> stream\n")
+		offObjB.WriteString(offAP)
+		offObjB.WriteString("\nendstream")
+		offAPID := pageManager.AddExtraObject(offObjB.String())
 
-		widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /Yes %d 0 R /Off %d 0 R >> >>", onAPID, offAPID))
+		widgetDict.WriteString(" /AP << /N << /Yes ")
+		widgetDict.Write(strconv.AppendInt(nbuf[:0], int64(onAPID), 10))
+		widgetDict.WriteString(" 0 R /Off ")
+		widgetDict.Write(strconv.AppendInt(nbuf[:0], int64(offAPID), 10))
+		widgetDict.WriteString(" 0 R >> >>")
 
 	case "radio":
 		widgetDict.WriteString(" /FT /Btn /Ff 49152") // Radio button flag
@@ -1671,17 +1836,44 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			val = onState
 		}
 
-		widgetDict.WriteString(fmt.Sprintf(" /V %s /AS %s", val, val))
+		widgetDict.WriteString(" /V ")
+		widgetDict.WriteString(val)
+		widgetDict.WriteString(" /AS ")
+		widgetDict.WriteString(val)
 
 		if field.Shape == "square" {
 			// Radio Appearance Streams (Square with dot) using 're' operator
-			onAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S 3 3 %s %s re f Q", fmtNum(w), fmtNum(h), fmtNum(w-6), fmtNum(h-6))
-			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
+			fw, fh := fmtNum(w), fmtNum(h)
+			fw6, fh6 := fmtNum(w-6), fmtNum(h-6)
+			var onAPB strings.Builder
+			onAPB.WriteString("q 1 w 0 0 0 RG 0 0 ")
+			onAPB.WriteString(fw)
+			onAPB.WriteByte(' ')
+			onAPB.WriteString(fh)
+			onAPB.WriteString(" re S 3 3 ")
+			onAPB.WriteString(fw6)
+			onAPB.WriteByte(' ')
+			onAPB.WriteString(fh6)
+			onAPB.WriteString(" re f Q")
+			onAP := onAPB.String()
+			onAPID := pageManager.AddExtraObject(formXObjectStream(fw, fh, onAP))
 
-			offAP := fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S Q", fmtNum(w), fmtNum(h))
-			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
+			var offAPB strings.Builder
+			offAPB.WriteString("q 1 w 0 0 0 RG 0 0 ")
+			offAPB.WriteString(fw)
+			offAPB.WriteByte(' ')
+			offAPB.WriteString(fh)
+			offAPB.WriteString(" re S Q")
+			offAP := offAPB.String()
+			offAPID := pageManager.AddExtraObject(formXObjectStream(fw, fh, offAP))
 
-			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
+			widgetDict.WriteString(" /AP << /N << /")
+			widgetDict.WriteString(field.Value)
+			widgetDict.WriteByte(' ')
+			widgetDict.Write(strconv.AppendInt(nbuf[:0], int64(onAPID), 10))
+			widgetDict.WriteString(" 0 R /Off ")
+			widgetDict.Write(strconv.AppendInt(nbuf[:0], int64(offAPID), 10))
+			widgetDict.WriteString(" 0 R >> >>")
 		} else {
 			// Default to Round (Circle)
 			// Add /MK dictionary with appearance characteristics for circle radio button
@@ -1692,42 +1884,56 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			cy := h / 2
 			outerR := cx - 0.5      // Outer circle radius
 			innerR := outerR * 0.45 // Inner dot radius
-
-			// Bézier curve control point factor
-			k := 0.5523 // approximation of 4*(sqrt(2)-1)/3 for circle
-
-			// Build outer circle path using Bézier curves with reduced precision
-			outerCirclePath := fmt.Sprintf("%s 0 m %s %s %s %s 0 %s c %s %s %s %s %s 0 c %s %s %s %s 0 %s c %s %s %s %s %s 0 c h",
-				fmtNum(outerR),
-				fmtNum(outerR), fmtNum(outerR*k), fmtNum(outerR*k), fmtNum(outerR), fmtNum(outerR),
-				fmtNum(-outerR*k), fmtNum(outerR), fmtNum(-outerR), fmtNum(outerR*k), fmtNum(-outerR),
-				fmtNum(-outerR), fmtNum(-outerR*k), fmtNum(-outerR*k), fmtNum(-outerR), fmtNum(-outerR),
-				fmtNum(outerR*k), fmtNum(-outerR), fmtNum(outerR), fmtNum(-outerR*k), fmtNum(outerR))
-
-			// Build inner dot circle path
-			innerCirclePath := fmt.Sprintf("%s 0 m %s %s %s %s 0 %s c %s %s %s %s %s 0 c %s %s %s %s 0 %s c %s %s %s %s %s 0 c h",
-				fmtNum(innerR),
-				fmtNum(innerR), fmtNum(innerR*k), fmtNum(innerR*k), fmtNum(innerR), fmtNum(innerR),
-				fmtNum(-innerR*k), fmtNum(innerR), fmtNum(-innerR), fmtNum(innerR*k), fmtNum(-innerR),
-				fmtNum(-innerR), fmtNum(-innerR*k), fmtNum(-innerR*k), fmtNum(-innerR), fmtNum(-innerR),
-				fmtNum(innerR*k), fmtNum(-innerR), fmtNum(innerR), fmtNum(-innerR*k), fmtNum(innerR))
+			outerCirclePath := bezierCirclePath(outerR)
+			innerCirclePath := bezierCirclePath(innerR)
 
 			// ON appearance: Light background fill + dark stroke + dark inner dot
-			onAP := fmt.Sprintf("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 %s %s cm\n%s\nB\nQ\nq\n0 0 0 rg\n1 0 0 1 %s %s cm\n%s\nf\nQ",
-				fmtNum(cx), fmtNum(cy), outerCirclePath,
-				fmtNum(cx), fmtNum(cy), innerCirclePath)
-			onAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(onAP), onAP))
+			fcx, fcy := fmtNum(cx), fmtNum(cy)
+			fw, fh := fmtNum(w), fmtNum(h)
+			var onAPB strings.Builder
+			onAPB.Grow(64 + len(outerCirclePath) + len(innerCirclePath))
+			onAPB.WriteString("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 ")
+			onAPB.WriteString(fcx)
+			onAPB.WriteByte(' ')
+			onAPB.WriteString(fcy)
+			onAPB.WriteString(" cm\n")
+			onAPB.WriteString(outerCirclePath)
+			onAPB.WriteString("\nB\nQ\nq\n0 0 0 rg\n1 0 0 1 ")
+			onAPB.WriteString(fcx)
+			onAPB.WriteByte(' ')
+			onAPB.WriteString(fcy)
+			onAPB.WriteString(" cm\n")
+			onAPB.WriteString(innerCirclePath)
+			onAPB.WriteString("\nf\nQ")
+			onAP := onAPB.String()
+			onAPID := pageManager.AddExtraObject(formXObjectStream(fw, fh, onAP))
 
 			// OFF appearance: Light background fill + dark stroke (no inner dot)
-			offAP := fmt.Sprintf("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 %s %s cm\n%s\nB\nQ",
-				fmtNum(cx), fmtNum(cy), outerCirclePath)
-			offAPID := pageManager.AddExtraObject(fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /ProcSet [/PDF] >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), len(offAP), offAP))
+			var offAPB strings.Builder
+			offAPB.Grow(48 + len(outerCirclePath))
+			offAPB.WriteString("q\n0.9 0.9 0.9 rg 0 0 0 RG 1 w\n1 0 0 1 ")
+			offAPB.WriteString(fcx)
+			offAPB.WriteByte(' ')
+			offAPB.WriteString(fcy)
+			offAPB.WriteString(" cm\n")
+			offAPB.WriteString(outerCirclePath)
+			offAPB.WriteString("\nB\nQ")
+			offAP := offAPB.String()
+			offAPID := pageManager.AddExtraObject(formXObjectStream(fw, fh, offAP))
 
-			widgetDict.WriteString(fmt.Sprintf(" /AP << /N << /%s %d 0 R /Off %d 0 R >> >>", field.Value, onAPID, offAPID))
+			widgetDict.WriteString(" /AP << /N << /")
+			widgetDict.WriteString(field.Value)
+			widgetDict.WriteByte(' ')
+			widgetDict.Write(strconv.AppendInt(nbuf[:0], int64(onAPID), 10))
+			widgetDict.WriteString(" 0 R /Off ")
+			widgetDict.Write(strconv.AppendInt(nbuf[:0], int64(offAPID), 10))
+			widgetDict.WriteString(" 0 R >> >>")
 		}
 	case "text":
 		widgetDict.WriteString(" /FT /Tx") // Text field
-		widgetDict.WriteString(fmt.Sprintf(" /V (%s)", escapeText(field.Value)))
+		widgetDict.WriteString(" /V (")
+		widgetDict.WriteString(escapeText(field.Value))
+		widgetDict.WriteByte(')')
 
 		// Calculate font size based on field height
 		fontSize := 10.0
@@ -1753,13 +1959,23 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 
 		// Default Appearance string - used by viewer to render text
 		// Use proper font reference instead of hardcoded /Helv
-		widgetDict.WriteString(fmt.Sprintf(" /DA (%s %s Tf 0 g)", widgetFontRef, fmtNum(fontSize)))
+		ffs := fmtNum(fontSize)
+		fw, fh := fmtNum(w), fmtNum(h)
+		widgetDict.WriteString(" /DA (")
+		widgetDict.WriteString(widgetFontRef)
+		widgetDict.WriteByte(' ')
+		widgetDict.WriteString(ffs)
+		widgetDict.WriteString(" Tf 0 g)")
 
 		// Build appearance stream: border + text properly structured
 		// Use /Tx BMC ... EMC to mark text content area (viewer replaces this when editing)
 		var apStream strings.Builder
 		// Draw border first
-		apStream.WriteString(fmt.Sprintf("q 1 w 0 0 0 RG 0 0 %s %s re S Q ", fmtNum(w), fmtNum(h)))
+		apStream.WriteString("q 1 w 0 0 0 RG 0 0 ")
+		apStream.WriteString(fw)
+		apStream.WriteByte(' ')
+		apStream.WriteString(fh)
+		apStream.WriteString(" re S Q ")
 		// Text content marked with /Tx BMC ... EMC (marked content)
 		// This tells PDF viewer this is the text area it should manage
 		apStream.WriteString("/Tx BMC ")
@@ -1770,7 +1986,17 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			fieldProps := models.Props{FontName: "Helvetica", FontSize: int(fontSize)}
 			encodedValue := formatTextForPDF(resolveFontName(fieldProps, pageManager.FontRegistry), field.Value, pageManager.FontRegistry)
 			// Use proper font reference in appearance stream
-			apStream.WriteString(fmt.Sprintf("q BT %s %s Tf 0 g %s %s Td %s Tj ET Q ", widgetFontRef, fmtNum(fontSize), fmtNum(textX), fmtNum(textY), encodedValue))
+			apStream.WriteString("q BT ")
+			apStream.WriteString(widgetFontRef)
+			apStream.WriteByte(' ')
+			apStream.WriteString(ffs)
+			apStream.WriteString(" Tf 0 g ")
+			apStream.WriteString(fmtNum(textX))
+			apStream.WriteByte(' ')
+			apStream.WriteString(fmtNum(textY))
+			apStream.WriteString(" Td ")
+			apStream.WriteString(encodedValue)
+			apStream.WriteString(" Tj ET Q ")
 		}
 		apStream.WriteString("EMC")
 		apContent := apStream.String()
@@ -1785,12 +2011,36 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			fontObjID := getWidgetFontObjectID(pageManager.FontRegistry)
 			if fontObjID > 0 {
 				// Include the font reference in the XObject's Resources dictionary
-				apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << %s %d 0 R >> >> /Length %d >> stream\n%s\nendstream",
-					fmtNum(w), fmtNum(h), widgetFontRef, fontObjID, len(apContent), apContent)
+				var apB strings.Builder
+				apB.Grow(128 + len(apContent) + len(widgetFontRef))
+				apB.WriteString("<< /Type /XObject /Subtype /Form /BBox [0 0 ")
+				apB.WriteString(fw)
+				apB.WriteByte(' ')
+				apB.WriteString(fh)
+				apB.WriteString("] /Resources << /Font << ")
+				apB.WriteString(widgetFontRef)
+				apB.WriteByte(' ')
+				apB.Write(strconv.AppendInt(nbuf[:0], int64(fontObjID), 10))
+				apB.WriteString(" 0 R >> >> /Length ")
+				apB.Write(strconv.AppendInt(nbuf[:0], int64(len(apContent)), 10))
+				apB.WriteString(" >> stream\n")
+				apB.WriteString(apContent)
+				apB.WriteString("\nendstream")
+				apObjContent = apB.String()
 			} else {
 				// Fallback: empty resources (should not happen in PDF/A mode)
-				apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << >> /Length %d >> stream\n%s\nendstream",
-					fmtNum(w), fmtNum(h), len(apContent), apContent)
+				var apB strings.Builder
+				apB.Grow(96 + len(apContent))
+				apB.WriteString("<< /Type /XObject /Subtype /Form /BBox [0 0 ")
+				apB.WriteString(fw)
+				apB.WriteByte(' ')
+				apB.WriteString(fh)
+				apB.WriteString("] /Resources << >> /Length ")
+				apB.Write(strconv.AppendInt(nbuf[:0], int64(len(apContent)), 10))
+				apB.WriteString(" >> stream\n")
+				apB.WriteString(apContent)
+				apB.WriteString("\nendstream")
+				apObjContent = apB.String()
 			}
 		} else {
 			// Standard mode: Embed Helvetica definition in XObject resources
@@ -1800,11 +2050,26 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 			} else {
 				helveticaFont = GetSimpleHelveticaFontResourceString()
 			}
-			apObjContent = fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources << /Font << /F1 %s >> >> /Length %d >> stream\n%s\nendstream", fmtNum(w), fmtNum(h), helveticaFont, len(apContent), apContent)
+			var apB strings.Builder
+			apB.Grow(128 + len(helveticaFont) + len(apContent))
+			apB.WriteString("<< /Type /XObject /Subtype /Form /BBox [0 0 ")
+			apB.WriteString(fw)
+			apB.WriteByte(' ')
+			apB.WriteString(fh)
+			apB.WriteString("] /Resources << /Font << /F1 ")
+			apB.WriteString(helveticaFont)
+			apB.WriteString(" >> >> /Length ")
+			apB.Write(strconv.AppendInt(nbuf[:0], int64(len(apContent)), 10))
+			apB.WriteString(" >> stream\n")
+			apB.WriteString(apContent)
+			apB.WriteString("\nendstream")
+			apObjContent = apB.String()
 		}
 		apID := pageManager.AddExtraObject(apObjContent)
 
-		widgetDict.WriteString(fmt.Sprintf(" /AP << /N %d 0 R >>", apID))
+		widgetDict.WriteString(" /AP << /N ")
+		widgetDict.Write(strconv.AppendInt(nbuf[:0], int64(apID), 10))
+		widgetDict.WriteString(" 0 R >>")
 	}
 
 	widgetDict.WriteString(" >>")

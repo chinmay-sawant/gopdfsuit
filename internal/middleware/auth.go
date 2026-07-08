@@ -2,7 +2,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +13,22 @@ import (
 
 // isCloudRunCached is evaluated once at package init to avoid per-request os.Getenv overhead.
 var isCloudRunCached = os.Getenv("K_SERVICE") != "" || os.Getenv("K_REVISION") != ""
+
+// oauthAudience is the expected Google ID token audience, resolved once at init.
+var oauthAudience = resolveOAuthAudience()
+
+func resolveOAuthAudience() string {
+	audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
+	if audience == "" {
+		// Client ID is common for Google Sign-In
+		audience = os.Getenv("GOOGLE_CLIENT_ID")
+	}
+	if audience == "" {
+		// Fallback to Cloud Run service URL
+		audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
+	}
+	return audience
+}
 
 // IsCloudRun checks if the application is running on Google Cloud Run
 func IsCloudRun() bool {
@@ -58,21 +73,8 @@ func GoogleAuthMiddleware() gin.HandlerFunc {
 
 		token := parts[1]
 
-		// Get the expected audience (your Cloud Run service URL)
-		// This should be set as an environment variable
-		audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
-		if audience == "" {
-			// Try Client ID as audience (common for Google Sign-In)
-			audience = os.Getenv("GOOGLE_CLIENT_ID")
-		}
-		if audience == "" {
-			// If not set, try to get from Cloud Run metadata
-			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
-		}
-
-		// Validate the ID token
-		ctx := context.Background()
-		payload, err := idtoken.Validate(ctx, token, audience)
+		// Validate the ID token using the request context (PERF-30) and cached audience.
+		payload, err := idtoken.Validate(c.Request.Context(), token, oauthAudience)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error":   "Invalid ID token",
@@ -116,16 +118,7 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 		}
 
 		token := parts[1]
-		audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
-		if audience == "" {
-			audience = os.Getenv("GOOGLE_CLIENT_ID")
-		}
-		if audience == "" {
-			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
-		}
-
-		ctx := context.Background()
-		payload, err := idtoken.Validate(ctx, token, audience)
+		payload, err := idtoken.Validate(c.Request.Context(), token, oauthAudience)
 		if err == nil {
 			// Token is valid, store user info
 			c.Set("user_email", payload.Claims["email"])
@@ -150,7 +143,7 @@ func GetUserEmail(c *gin.Context) (string, bool) {
 
 // GetUserInfo retrieves all user info from context
 func GetUserInfo(c *gin.Context) map[string]interface{} {
-	userInfo := make(map[string]interface{})
+	userInfo := make(map[string]interface{}, 4) // PERF-192
 
 	if email, exists := c.Get("user_email"); exists {
 		userInfo["email"] = email

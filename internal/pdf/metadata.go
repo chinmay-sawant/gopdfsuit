@@ -2,11 +2,11 @@ package pdf
 
 import (
 	"encoding/hex"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
 )
@@ -116,13 +116,18 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	// PDF/A and PDF/UA identification
 	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/">`)
 	xmp.WriteString("\n")
-	xmp.WriteString(fmt.Sprintf(`      <pdfaid:part>%d</pdfaid:part>`, part))
+	xmp.WriteString(`      <pdfaid:part>`)
+	var ptmp [8]byte
+	xmp.Write(strconv.AppendInt(ptmp[:0], int64(part), 10))
+	xmp.WriteString(`</pdfaid:part>`)
 	xmp.WriteString("\n")
 	if part == 4 {
 		xmp.WriteString(`      <pdfaid:rev>2020</pdfaid:rev>`)
 		xmp.WriteString("\n")
 	} else if conformance != "" {
-		xmp.WriteString(fmt.Sprintf(`      <pdfaid:conformance>%s</pdfaid:conformance>`, conformance))
+		xmp.WriteString(`      <pdfaid:conformance>`)
+		xmp.WriteString(conformance)
+		xmp.WriteString(`</pdfaid:conformance>`)
 		xmp.WriteString("\n")
 	}
 	xmp.WriteString("\n")
@@ -136,14 +141,22 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	// XMP basic properties
 	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/">`)
 	xmp.WriteString("\n")
-	xmp.WriteString(fmt.Sprintf(`      <xmp:CreateDate>%s</xmp:CreateDate>`, createDate))
+	xmp.WriteString(`      <xmp:CreateDate>`)
+	xmp.WriteString(createDate)
+	xmp.WriteString(`</xmp:CreateDate>`)
 	xmp.WriteString("\n")
-	xmp.WriteString(fmt.Sprintf(`      <xmp:ModifyDate>%s</xmp:ModifyDate>`, modifyDate))
+	xmp.WriteString(`      <xmp:ModifyDate>`)
+	xmp.WriteString(modifyDate)
+	xmp.WriteString(`</xmp:ModifyDate>`)
 	xmp.WriteString("\n")
-	xmp.WriteString(fmt.Sprintf(`      <xmp:MetadataDate>%s</xmp:MetadataDate>`, modifyDate))
+	xmp.WriteString(`      <xmp:MetadataDate>`)
+	xmp.WriteString(modifyDate)
+	xmp.WriteString(`</xmp:MetadataDate>`)
 	xmp.WriteString("\n")
 	if h.config.Creator != "" {
-		xmp.WriteString(fmt.Sprintf(`      <xmp:CreatorTool>%s</xmp:CreatorTool>`, escapeXML(h.config.Creator)))
+		xmp.WriteString(`      <xmp:CreatorTool>`)
+		xmp.WriteString(escapeXML(h.config.Creator))
+		xmp.WriteString(`</xmp:CreatorTool>`)
 		xmp.WriteString("\n")
 	} else {
 		xmp.WriteString(`      <xmp:CreatorTool>GoPDFSuit</xmp:CreatorTool>`)
@@ -162,7 +175,9 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 		xmp.WriteString("\n")
 		xmp.WriteString(`        <rdf:Alt>`)
 		xmp.WriteString("\n")
-		xmp.WriteString(fmt.Sprintf(`          <rdf:li xml:lang="x-default">%s</rdf:li>`, escapeXML(h.config.Title)))
+		xmp.WriteString(`          <rdf:li xml:lang="x-default">`)
+		xmp.WriteString(escapeXML(h.config.Title))
+		xmp.WriteString(`</rdf:li>`)
 		xmp.WriteString("\n")
 		xmp.WriteString(`        </rdf:Alt>`)
 		xmp.WriteString("\n")
@@ -174,7 +189,9 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 		xmp.WriteString("\n")
 		xmp.WriteString(`        <rdf:Seq>`)
 		xmp.WriteString("\n")
-		xmp.WriteString(fmt.Sprintf(`          <rdf:li>%s</rdf:li>`, escapeXML(h.config.Author)))
+		xmp.WriteString(`          <rdf:li>`)
+		xmp.WriteString(escapeXML(h.config.Author))
+		xmp.WriteString(`</rdf:li>`)
 		xmp.WriteString("\n")
 		xmp.WriteString(`        </rdf:Seq>`)
 		xmp.WriteString("\n")
@@ -186,7 +203,9 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 		xmp.WriteString("\n")
 		xmp.WriteString(`        <rdf:Alt>`)
 		xmp.WriteString("\n")
-		xmp.WriteString(fmt.Sprintf(`          <rdf:li xml:lang="x-default">%s</rdf:li>`, escapeXML(h.config.Subject)))
+		xmp.WriteString(`          <rdf:li xml:lang="x-default">`)
+		xmp.WriteString(escapeXML(h.config.Subject))
+		xmp.WriteString(`</rdf:li>`)
 		xmp.WriteString("\n")
 		xmp.WriteString(`        </rdf:Alt>`)
 		xmp.WriteString("\n")
@@ -200,9 +219,11 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 		xmp.WriteString("\n")
 		keywords := strings.Split(h.config.Keywords, ",")
 		for _, kw := range keywords {
-			kw = strings.TrimSpace(kw)
+			kw = trimSpace(kw)
 			if kw != "" {
-				xmp.WriteString(fmt.Sprintf(`          <rdf:li>%s</rdf:li>`, escapeXML(kw)))
+				xmp.WriteString(`          <rdf:li>`)
+				xmp.WriteString(escapeXML(kw))
+				xmp.WriteString(`</rdf:li>`)
 				xmp.WriteString("\n")
 			}
 		}
@@ -225,9 +246,13 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	// XMP Media Management
 	xmp.WriteString(`    <rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/">`)
 	xmp.WriteString("\n")
-	xmp.WriteString(fmt.Sprintf(`      <xmpMM:DocumentID>uuid:%s</xmpMM:DocumentID>`, documentID))
+	xmp.WriteString(`      <xmpMM:DocumentID>uuid:`)
+	xmp.WriteString(documentID)
+	xmp.WriteString(`</xmpMM:DocumentID>`)
 	xmp.WriteString("\n")
-	xmp.WriteString(fmt.Sprintf(`      <xmpMM:InstanceID>uuid:%s</xmpMM:InstanceID>`, documentID))
+	xmp.WriteString(`      <xmpMM:InstanceID>uuid:`)
+	xmp.WriteString(documentID)
+	xmp.WriteString(`</xmpMM:InstanceID>`)
 	xmp.WriteString("\n")
 	xmp.WriteString(`    </rdf:Description>`)
 	xmp.WriteString("\n")
@@ -249,15 +274,22 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	h.metadataObjID = h.pageManager.NextObjectID
 	h.pageManager.NextObjectID++
 
-	streamContent := []byte(xmpContent)
+	streamContent := byteconv.StringToBytes(xmpContent)
 
 	// Encrypt if needed
 	if h.encryptor != nil {
 		streamContent = h.encryptor.EncryptStream(streamContent, h.metadataObjID, 0)
 	}
 
-	metadataDict := fmt.Sprintf("<< /Type /Metadata /Subtype /XML /Length %d >>\nstream\n%s\nendstream",
-		len(streamContent), string(streamContent))
+	// Build metadata dict without re-converting streamContent to string (PERF-32)
+	var metaSB strings.Builder
+	metaSB.Grow(64 + len(streamContent))
+	metaSB.WriteString("<< /Type /Metadata /Subtype /XML /Length ")
+	metaSB.Write(strconv.AppendInt(nil, int64(len(streamContent)), 10))
+	metaSB.WriteString(" >>\nstream\n")
+	metaSB.Write(streamContent)
+	metaSB.WriteString("\nendstream")
+	metadataDict := metaSB.String()
 
 	return h.metadataObjID, metadataDict
 }
@@ -290,7 +322,9 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	}
 	_ = zlibWriter.Close()
 	font.PutZlibWriter(zlibWriter)
-	compressedData := append([]byte(nil), compressedBuf.Bytes()...)
+	cp := make([]byte, compressedBuf.Len())
+	copy(cp, compressedBuf.Bytes())
+	compressedData := cp
 	font.PutCompressBuffer(compressedBuf)
 
 	// Encrypt compressed ICC profile stream if needed
@@ -298,11 +332,12 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 		compressedData = h.encryptor.EncryptStream(compressedData, h.iccProfileObjID, 0)
 	}
 
-	iccDict := fmt.Sprintf("<< /N 3 /Length %d /Filter /FlateDecode /Alternate /DeviceRGB >>\nstream\n", len(compressedData))
 	sb.Reset()
-	sb.WriteString(strconv.Itoa(h.iccProfileObjID))
-	sb.WriteString(" 0 obj\n")
-	sb.WriteString(iccDict)
+	var tmp [20]byte
+	sb.Write(strconv.AppendInt(tmp[:0], int64(h.iccProfileObjID), 10))
+	sb.WriteString(" 0 obj\n<< /N 3 /Length ")
+	sb.Write(strconv.AppendInt(tmp[:0], int64(len(compressedData)), 10))
+	sb.WriteString(" /Filter /FlateDecode /Alternate /DeviceRGB >>\nstream\n")
 	objects = append(objects, sb.String())
 
 	// Create OutputIntent object
@@ -320,22 +355,26 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 
 	if h.encryptor != nil {
 		idEnc := h.encryptor.EncryptString([]byte("sRGB IEC61966-2.1"), h.outputIntentObjID, 0)
-		idStr = fmt.Sprintf("<%s>", hex.EncodeToString(idEnc))
+		idStr = "<" + hex.EncodeToString(idEnc) + ">"
 
 		regEnc := h.encryptor.EncryptString([]byte("http://www.color.org"), h.outputIntentObjID, 0)
-		regStr = fmt.Sprintf("<%s>", hex.EncodeToString(regEnc))
+		regStr = "<" + hex.EncodeToString(regEnc) + ">"
 
 		infoEnc := h.encryptor.EncryptString([]byte("sRGB IEC61966-2.1"), h.outputIntentObjID, 0)
-		infoStr = fmt.Sprintf("<%s>", hex.EncodeToString(infoEnc))
+		infoStr = "<" + hex.EncodeToString(infoEnc) + ">"
 	}
 
-	outputIntentDict := fmt.Sprintf(`<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier %s /RegistryName %s /Info %s /DestOutputProfile %d 0 R >>`,
-		idStr, regStr, infoStr, h.iccProfileObjID)
 	sb.Reset()
-	sb.WriteString(strconv.Itoa(h.outputIntentObjID))
-	sb.WriteString(" 0 obj\n")
-	sb.WriteString(outputIntentDict)
-	sb.WriteString("\nendobj")
+	sb.Write(strconv.AppendInt(tmp[:0], int64(h.outputIntentObjID), 10))
+	sb.WriteString(" 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier ")
+	sb.WriteString(idStr)
+	sb.WriteString(" /RegistryName ")
+	sb.WriteString(regStr)
+	sb.WriteString(" /Info ")
+	sb.WriteString(infoStr)
+	sb.WriteString(" /DestOutputProfile ")
+	sb.Write(strconv.AppendInt(tmp[:0], int64(h.iccProfileObjID), 10))
+	sb.WriteString(" 0 R >>\nendobj")
 	objects = append(objects, sb.String())
 
 	return h.outputIntentObjID, objects, compressedData
@@ -375,13 +414,18 @@ func getSRGBICCProfile() []byte {
 // GenerateCatalogExtras returns additional catalog entries for PDF/A
 func (h *PDFAHandler) GenerateCatalogExtras() string {
 	var extras strings.Builder
+	var tmp [20]byte
 
 	if h.metadataObjID > 0 {
-		extras.WriteString(fmt.Sprintf(" /Metadata %d 0 R", h.metadataObjID))
+		extras.WriteString(" /Metadata ")
+		extras.Write(strconv.AppendInt(tmp[:0], int64(h.metadataObjID), 10))
+		extras.WriteString(" 0 R")
 	}
 
 	if h.outputIntentObjID > 0 {
-		extras.WriteString(fmt.Sprintf(" /OutputIntents [%d 0 R]", h.outputIntentObjID))
+		extras.WriteString(" /OutputIntents [")
+		extras.Write(strconv.AppendInt(tmp[:0], int64(h.outputIntentObjID), 10))
+		extras.WriteString(" 0 R]")
 	}
 
 	// PDF/A requires MarkInfo with Marked = true for tagged PDF

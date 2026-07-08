@@ -376,15 +376,42 @@ func EstimateTextWidth(resolvedName string, text string, fontSize float64, regis
 	return float64(utf8.RuneCountInString(text)) * fontSize * avgCharWidth
 }
 
+// isASCIISpace reports whether b is an ASCII whitespace byte.
+func isASCIISpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v'
+}
+
+// trimSpace trims leading/trailing ASCII space without calling strings.TrimSpace.
+// The returned substring shares the input backing array (no alloc when only edges change).
+// Falls back to strings.TrimSpace if non-ASCII bytes remain at the edges.
+func trimSpace(s string) string {
+	start, end := 0, len(s)
+	for start < end && isASCIISpace(s[start]) {
+		start++
+	}
+	for end > start && isASCIISpace(s[end-1]) {
+		end--
+	}
+	if start < end && (s[start] >= utf8.RuneSelf || s[end-1] >= utf8.RuneSelf) {
+		return strings.TrimSpace(s)
+	}
+	return s[start:end]
+}
+
 // appendTextForPDF appends PDF text for a Tj operator: hex string for custom fonts,
 // or a parenthesized escaped literal for standard fonts.
 func appendTextForPDF(dst []byte, resolvedName, text string, registry *CustomFontRegistry) []byte {
 	if registry.HasFont(resolvedName) {
 		return AppendTextForCustomFont(dst, resolvedName, text, registry)
 	}
-	dst = append(dst, '(')
-	dst = appendEscapedPDFLiteral(dst, text)
-	return append(dst, ')')
+	// Build escaped body then wrap with parens in one allocation (PERF-119).
+	body := appendEscapedPDFLiteral(nil, text)
+	out := make([]byte, len(dst)+len(body)+2)
+	copy(out, dst)
+	out[len(dst)] = '('
+	copy(out[len(dst)+1:], body)
+	out[len(out)-1] = ')'
+	return out
 }
 
 // formatTextForPDF formats text for use in a PDF content stream
@@ -474,9 +501,13 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 
 		if trialWidth <= maxWidth {
 			if savedLen > lineStart {
-				ws.buf = append(ws.buf, ' ')
+				// PERF-119: grow once for space+word
+				ws.buf = append(ws.buf, make([]byte, 1+len(word))...)
+				ws.buf[savedLen] = ' '
+				copy(ws.buf[savedLen+1:], word)
+			} else {
+				ws.buf = append(ws.buf, word...)
 			}
-			ws.buf = append(ws.buf, word...)
 			lineWidth = trialWidth
 			continue
 		}

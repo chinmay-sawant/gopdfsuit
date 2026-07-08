@@ -14,14 +14,15 @@ var ZlibWriterPool = sync.Pool{
 	New: func() any {
 		// Create writer that will be reset with actual buffer later
 		w, _ := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed)
-		return w
+		return w // *zlib.Writer (pointer) — Put does not box (PERF-110)
 	},
 }
 
-// CompressBufPool recycles bytes.Buffer for compression output
+// CompressBufPool recycles *bytes.Buffer for compression output.
+// New always returns a pointer so Put never allocates a box (PERF-110).
 var CompressBufPool = sync.Pool{
 	New: func() any {
-		buf := new(bytes.Buffer)
+		buf := &bytes.Buffer{}
 		buf.Grow(65536)
 		return buf
 	},

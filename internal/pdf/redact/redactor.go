@@ -1,8 +1,8 @@
 package redact
 
 import (
+	"bytes"
 	"errors"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -94,7 +94,7 @@ func (r *Redactor) GetPageInfo() (models.PageInfo, error) {
 
 	var pageDims []models.PageDetail
 	if err := traversePages(pagesNum, objMap, &pageDims); err != nil {
-		return models.PageInfo{}, fmt.Errorf("error traversing page tree: %w", err)
+		return models.PageInfo{}, errors.Join(errors.New("error traversing page tree"), err)
 	}
 
 	return models.PageInfo{
@@ -140,14 +140,14 @@ func (r *Redactor) AnalyzePageCapabilities() ([]models.PageCapability, error) {
 				continue
 			}
 			rawStream, decStream, _ := inspectStream(objBody)
-			combined := make([]byte, 0, len(rawStream)+len(decStream))
-			combined = append(combined, rawStream...)
-			combined = append(combined, decStream...)
-			s := string(combined)
-			if strings.Contains(s, "BT") && (strings.Contains(s, "Tj") || strings.Contains(s, "TJ")) {
+			// PERF-3: check streams separately — no per-key combined allocation
+			if (bytes.Contains(rawStream, []byte("BT")) || bytes.Contains(decStream, []byte("BT"))) &&
+				(bytes.Contains(rawStream, []byte("Tj")) || bytes.Contains(rawStream, []byte("TJ")) ||
+					bytes.Contains(decStream, []byte("Tj")) || bytes.Contains(decStream, []byte("TJ"))) {
 				hasText = true
 			}
-			if strings.Contains(s, " Do") || bytesIndex(objBody, []byte("/Image")) >= 0 {
+			if bytes.Contains(rawStream, []byte(" Do")) || bytes.Contains(decStream, []byte(" Do")) ||
+				bytesIndex(objBody, []byte("/Image")) >= 0 {
 				hasImage = true
 			}
 		}
@@ -192,13 +192,21 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		SecurityOutcome: "visual_only",
 	}
 
-	mode := strings.TrimSpace(strings.ToLower(opts.Mode))
+	mode := trimSpace(opts.Mode)
 	if mode == "" {
 		mode = "visual_allowed" //nolint:goconst
 	}
 	report.Mode = mode
-	if mode != "visual_allowed" && mode != "secure_required" {
+	if !strings.EqualFold(mode, "visual_allowed") && !strings.EqualFold(mode, "secure_required") {
 		return nil, report, errors.New("invalid mode: expected visual_allowed or secure_required")
+	}
+	// Canonicalize mode for report / downstream branches
+	if strings.EqualFold(mode, "secure_required") {
+		mode = "secure_required"
+		report.Mode = mode
+	} else {
+		mode = "visual_allowed"
+		report.Mode = mode
 	}
 
 	// For encrypted PDFs, we might process them recursively depending on if decrypt succeeds
@@ -235,7 +243,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 	activeTextQueries := opts.TextSearch
 
 	for _, q := range activeTextQueries {
-		query := strings.TrimSpace(q.Text)
+		query := trimSpace(q.Text)
 		if query == "" {
 			continue
 		}

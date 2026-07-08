@@ -5,6 +5,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
@@ -92,7 +93,11 @@ func (r *Redactor) FindTextOccurrencesMulti(searchTexts []string) ([]models.Reda
 	seenTerms := make(map[string]struct{}, len(searchTexts))
 	all := make([]models.RedactionRect, 0, len(searchTexts)*4)
 	for _, raw := range searchTexts {
-		term := strings.TrimSpace(raw)
+		// Skip empty/whitespace without always allocating TrimSpace (PERF-46)
+		if len(raw) == 0 {
+			continue
+		}
+		term := trimSpace(raw)
 		if term == "" {
 			continue
 		}
@@ -149,7 +154,7 @@ func (r *Redactor) isURLToken(text string) bool {
 }
 
 func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, loweredSearch string) []models.RedactionRect {
-	if loweredSearch == "" || strings.TrimSpace(pos.Text) == "" {
+	if loweredSearch == "" || trimSpace(pos.Text) == "" {
 		return nil
 	}
 	src := []rune(strings.ToLower(pos.Text))
@@ -222,8 +227,29 @@ func (r *Redactor) runeSliceEqual(a, b []rune) bool {
 	return true
 }
 
+// normalizeSearchText lowercases and collapses whitespace in a single pass (PERF-2).
 func (r *Redactor) normalizeSearchText(s string) string {
-	return strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(s))), " ")
+	s = trimSpace(s)
+	if s == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	prevSpace := false
+	for _, rr := range s {
+		if unicode.IsSpace(rr) {
+			if !prevSpace && b.Len() > 0 {
+				b.WriteByte(' ')
+				prevSpace = true
+			}
+			continue
+		}
+		prevSpace = false
+		b.WriteRune(unicode.ToLower(rr))
+	}
+	// Trim trailing space if any (shouldn't occur with the gate above, but keep safe).
+	out := b.String()
+	return strings.TrimRight(out, " ")
 }
 
 // r.findAllCombinedMatchRects finds ALL occurrences of normalizedQuery that span
@@ -253,67 +279,70 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		start int
 		end   int
 	}
+	// Pointer groups so strings.Builder is never copied when the slice grows (PERF-2).
 	type lineGroup struct {
 		spans  []tokenSpan
-		joined string
+		joined strings.Builder
 	}
 
-	var lines []lineGroup
+	var lines []*lineGroup
 	for _, pos := range ordered {
 		lineH := pos.Height
 		if lineH <= 0 {
 			lineH = 10
 		}
 		placed := false
-		for li := range lines {
-			if len(lines[li].spans) == 0 {
+		for _, line := range lines {
+			if len(line.spans) == 0 {
 				continue
 			}
-			refY := lines[li].spans[0].pos.Y
+			refY := line.spans[0].pos.Y
 			if math.Abs(pos.Y-refY) < lineH*0.75 {
 				// Same line  — append token
-				part := strings.TrimSpace(pos.Text)
+				part := trimSpace(pos.Text)
 				if part == "" {
 					placed = true
 					break
 				}
 				var startOff int
-				if lines[li].joined == "" {
+				if line.joined.Len() == 0 {
 					startOff = 0
-					lines[li].joined = part
+					line.joined.WriteString(part)
 				} else {
-					startOff = len(lines[li].joined) + 1
-					lines[li].joined += " " + part
+					startOff = line.joined.Len() + 1
+					line.joined.WriteByte(' ')
+					line.joined.WriteString(part)
 				}
-				lines[li].spans = append(lines[li].spans, tokenSpan{
+				line.spans = append(line.spans, tokenSpan{
 					pos:   pos,
 					start: startOff,
-					end:   len(lines[li].joined),
+					end:   line.joined.Len(),
 				})
 				placed = true
 				break
 			}
 		}
 		if !placed {
-			part := strings.TrimSpace(pos.Text)
+			part := trimSpace(pos.Text)
 			if part == "" {
-				lines = append(lines, lineGroup{})
+				lines = append(lines, &lineGroup{})
 				continue
 			}
-			lines = append(lines, lineGroup{
-				spans:  []tokenSpan{{pos: pos, start: 0, end: len(part)}},
-				joined: part,
-			})
+			lg := &lineGroup{
+				spans: []tokenSpan{{pos: pos, start: 0, end: len(part)}},
+			}
+			lg.joined.WriteString(part)
+			lines = append(lines, lg)
 		}
 	}
 
 	var results []models.RedactionRect
 	for _, line := range lines {
-		if line.joined == "" || len(line.spans) < 2 {
+		if line.joined.Len() == 0 || len(line.spans) < 2 {
 			// Single-token lines are already handled by r.buildSubstringRects.
 			continue
 		}
-		normalJoined := r.normalizeSearchText(line.joined)
+		normalJoined := r.normalizeSearchText(line.joined.String())
 		searchOff := 0
 		for searchOff < len(normalJoined) {
 			idx := strings.Index(normalJoined[searchOff:], normalizedQuery)

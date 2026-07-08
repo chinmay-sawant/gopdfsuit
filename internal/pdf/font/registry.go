@@ -2,9 +2,11 @@ package font
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -37,7 +39,7 @@ type RegisteredFont struct {
 
 // Global font registry instance
 var globalFontRegistry = &CustomFontRegistry{
-	fonts: make(map[string]*RegisteredFont),
+	fonts: make(map[string]*RegisteredFont, 16), // PERF-192
 }
 
 // GetFontRegistry returns the global font registry
@@ -48,7 +50,7 @@ func GetFontRegistry() *CustomFontRegistry {
 // NewFontRegistry creates a new font registry (for isolated use cases)
 func NewFontRegistry() *CustomFontRegistry {
 	return &CustomFontRegistry{
-		fonts: make(map[string]*RegisteredFont),
+		fonts: make(map[string]*RegisteredFont, 16), // PERF-192
 	}
 }
 
@@ -56,7 +58,7 @@ func NewFontRegistry() *CustomFontRegistry {
 func (r *CustomFontRegistry) RegisterFontFromFile(name string, path string) error {
 	font, err := LoadTTFFromFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to load font from %s: %w", path, err)
+		return errors.Join(errors.New("failed to load font from "+path), err)
 	}
 
 	return r.RegisterFont(name, font)
@@ -66,7 +68,7 @@ func (r *CustomFontRegistry) RegisterFontFromFile(name string, path string) erro
 func (r *CustomFontRegistry) RegisterFontFromData(name string, data []byte) error {
 	font, err := LoadTTFFromData(data)
 	if err != nil {
-		return fmt.Errorf("failed to parse font data: %w", err)
+		return errors.Join(errors.New("failed to parse font data"), err)
 	}
 
 	return r.RegisterFont(name, font)
@@ -76,7 +78,7 @@ func (r *CustomFontRegistry) RegisterFontFromData(name string, data []byte) erro
 func (r *CustomFontRegistry) RegisterFontFromBase64(name string, base64Data string) error {
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
-		return fmt.Errorf("failed to decode base64 font data: %w", err)
+		return errors.Join(errors.New("failed to decode base64 font data"), err)
 	}
 
 	return r.RegisterFontFromData(name, data)
@@ -86,58 +88,66 @@ func (r *CustomFontRegistry) RegisterFontFromBase64(name string, base64Data stri
 func (r *CustomFontRegistry) RegisterFont(name string, font *TTFFont) error {
 	if !r.noLock {
 		r.mu.Lock()
-		defer r.mu.Unlock()
 	}
 
 	r.fonts[name] = &RegisteredFont{
 		Name:      name,
 		Font:      font,
-		UsedChars: make(map[rune]bool),
+		UsedChars: make(map[rune]bool, 256), // PERF-192
 	}
 
+	if !r.noLock {
+		r.mu.Unlock()
+	}
 	return nil
 }
 
 // GetFont returns a registered font by name
 func (r *CustomFontRegistry) GetFont(name string) (*RegisteredFont, bool) {
-	if !r.noLock {
-		r.mu.RLock()
-		defer r.mu.RUnlock()
+	if r.noLock {
+		font, ok := r.fonts[name]
+		return font, ok
 	}
-
+	r.mu.RLock()
 	font, ok := r.fonts[name]
+	r.mu.RUnlock()
 	return font, ok
 }
 
 // HasFont checks if a font is registered
 func (r *CustomFontRegistry) HasFont(name string) bool {
-	if !r.noLock {
-		r.mu.RLock()
-		defer r.mu.RUnlock()
+	if r.noLock {
+		_, ok := r.fonts[name]
+		return ok
 	}
-
+	r.mu.RLock()
 	_, ok := r.fonts[name]
+	r.mu.RUnlock()
 	return ok
 }
 
 // MarkCharsUsed marks characters as used for a font (for subsetting)
 func (r *CustomFontRegistry) MarkCharsUsed(name string, text string) {
-	if !r.noLock {
-		r.mu.Lock()
-		defer r.mu.Unlock()
+	if r.noLock {
+		if font, ok := r.fonts[name]; ok {
+			for _, char := range text {
+				font.UsedChars[char] = true
+			}
+		}
+		return
 	}
-
+	r.mu.Lock()
 	if font, ok := r.fonts[name]; ok {
 		for _, char := range text {
 			font.UsedChars[char] = true
 		}
 	}
+	r.mu.Unlock()
 }
 
 // GenerateSubsets generates subset fonts for all registered fonts with used characters
 func (r *CustomFontRegistry) GenerateSubsets() error {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	for name, font := range r.fonts {
 		if len(font.UsedChars) == 0 {
@@ -155,57 +165,57 @@ func (r *CustomFontRegistry) GenerateSubsets() error {
 		// Generate subset
 		subsetData, oldToNew, err := SubsetTTF(font.Font, usedGlyphs)
 		if err != nil {
-			return fmt.Errorf("failed to subset font %s: %w", name, err)
+			r.mu.Unlock()
+			return errors.Join(errors.New("failed to subset font "+name), err)
 		}
 
 		font.SubsetData = subsetData
 		font.OldToNewGlyph = oldToNew
 	}
 
+	r.mu.Unlock()
 	return nil
 }
 
 // GetAllFonts returns all registered fonts
 func (r *CustomFontRegistry) GetAllFonts() []*RegisteredFont {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 
 	fonts := make([]*RegisteredFont, 0, len(r.fonts))
 	for _, font := range r.fonts {
 		fonts = append(fonts, font)
 	}
+	r.mu.RUnlock()
 	return fonts
 }
 
 // GetUsedFonts returns fonts that have characters marked as used
 func (r *CustomFontRegistry) GetUsedFonts() []*RegisteredFont {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 
-	fonts := make([]*RegisteredFont, 0)
+	fonts := make([]*RegisteredFont, 0, len(r.fonts)) // PERF-192 / PERF-123
 	for _, font := range r.fonts {
 		if len(font.UsedChars) > 0 {
 			fonts = append(fonts, font)
 		}
 	}
+	r.mu.RUnlock()
 	return fonts
 }
 
 // Clear removes all registered fonts
 func (r *CustomFontRegistry) Clear() {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.fonts = make(map[string]*RegisteredFont)
+	r.fonts = make(map[string]*RegisteredFont, 16) // PERF-192
+	r.mu.Unlock()
 }
 
 // ResetUsage clears usage data for all fonts (call before generating a new PDF)
 func (r *CustomFontRegistry) ResetUsage() {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	for _, font := range r.fonts {
-		font.UsedChars = make(map[rune]bool)
+		font.UsedChars = make(map[rune]bool, 256) // PERF-192
 		font.SubsetData = nil
 		font.OldToNewGlyph = nil
 		font.ObjectID = 0
@@ -216,13 +226,14 @@ func (r *CustomFontRegistry) ResetUsage() {
 		font.FontFileID = 0
 		font.WidthsID = 0
 	}
+
+	r.mu.Unlock()
 }
 
 // CloneForGeneration creates a shallow clone of the registry with reset usage data.
 // This allows concurrent PDF generation without race conditions on UsedChars.
 func (r *CustomFontRegistry) CloneForGeneration() *CustomFontRegistry {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 
 	clone := &CustomFontRegistry{
 		fonts:  make(map[string]*RegisteredFont, len(r.fonts)),
@@ -241,6 +252,7 @@ func (r *CustomFontRegistry) CloneForGeneration() *CustomFontRegistry {
 		}
 	}
 
+	r.mu.RUnlock()
 	return clone
 }
 
@@ -248,7 +260,6 @@ func (r *CustomFontRegistry) CloneForGeneration() *CustomFontRegistry {
 // Returns the next available object ID
 func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	currentID := startID
 	for _, font := range r.fonts {
@@ -278,30 +289,42 @@ func (r *CustomFontRegistry) AssignObjectIDs(startID int) int {
 		font.FontFileID = currentID
 		currentID++
 		// Cache the reference string
-		font.CachedRef = fmt.Sprintf("/CF%d", font.ObjectID)
+		var tmp [20]byte
+		font.CachedRef = "/CF" + string(strconv.AppendInt(tmp[:0], int64(font.ObjectID), 10))
 	}
 
+	r.mu.Unlock()
 	return currentID
 }
 
 // GetFontReference returns the PDF reference string for a custom font (e.g., "/CF1")
 func (r *CustomFontRegistry) GetFontReference(name string) string {
-	if !r.noLock {
-		r.mu.RLock()
-		defer r.mu.RUnlock()
+	if r.noLock {
+		if font, ok := r.fonts[name]; ok {
+			if font.CachedRef != "" {
+				return font.CachedRef
+			}
+			if font.ObjectID > 0 {
+				var tmp [20]byte
+				return "/CF" + string(strconv.AppendInt(tmp[:0], int64(font.ObjectID), 10))
+			}
+		}
+		return ""
 	}
-
+	r.mu.RLock()
+	var ref string
 	if font, ok := r.fonts[name]; ok {
 		// Use cached reference if available (populated by AssignObjectIDs or JIT)
 		if font.CachedRef != "" {
-			return font.CachedRef
-		}
-		if font.ObjectID > 0 {
+			ref = font.CachedRef
+		} else if font.ObjectID > 0 {
 			// Fallback (shouldn't happen if AssignObjectIDs called)
-			return fmt.Sprintf("/CF%d", font.ObjectID)
+			var tmp [20]byte
+			ref = "/CF" + string(strconv.AppendInt(tmp[:0], int64(font.ObjectID), 10))
 		}
 	}
-	return ""
+	r.mu.RUnlock()
+	return ref
 }
 
 const (
@@ -329,7 +352,7 @@ func IsCustomFont(fontName string) bool {
 func (r *CustomFontRegistry) LoadFontsFromDirectory(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return fmt.Errorf("failed to read font directory: %w", err)
+		return errors.Join(errors.New("failed to read font directory"), err)
 	}
 
 	for _, entry := range entries {
@@ -338,12 +361,17 @@ func (r *CustomFontRegistry) LoadFontsFromDirectory(dir string) error {
 		}
 
 		name := entry.Name()
-		ext := strings.ToLower(filepath.Ext(name))
-		if ext != ".ttf" && ext != ".otf" {
+		ext := filepath.Ext(name)
+		// Len-first ASCII extension check (PERF-48/46)
+		if len(ext) != 4 || ext[0] != '.' {
+			continue
+		}
+		e1, e2, e3 := ext[1]|0x20, ext[2]|0x20, ext[3]|0x20
+		if !((e1 == 't' && e2 == 't' && e3 == 'f') || (e1 == 'o' && e2 == 't' && e3 == 'f')) {
 			continue
 		}
 
-		fontName := strings.TrimSuffix(name, ext)
+		fontName := name[:len(name)-len(ext)]
 		fontPath := filepath.Join(dir, name)
 
 		if err := r.RegisterFontFromFile(fontName, fontPath); err != nil {
@@ -357,20 +385,30 @@ func (r *CustomFontRegistry) LoadFontsFromDirectory(dir string) error {
 
 // GetTextWidth calculates the width of text in a custom font (in PDF units at 1pt)
 func (r *CustomFontRegistry) GetTextWidth(fontName string, text string) float64 {
+	if r.noLock {
+		font, ok := r.fonts[fontName]
+		if !ok {
+			return 0
+		}
+		var totalWidth float64
+		for _, char := range text {
+			width := font.Font.GetCharWidthScaled(char)
+			totalWidth += float64(width) / 1000.0
+		}
+		return totalWidth
+	}
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	font, ok := r.fonts[fontName]
 	if !ok {
+		r.mu.RUnlock()
 		return 0
 	}
-
 	var totalWidth float64
 	for _, char := range text {
 		width := font.Font.GetCharWidthScaled(char)
 		totalWidth += float64(width) / 1000.0
 	}
-
+	r.mu.RUnlock()
 	return totalWidth
 }
 
@@ -382,28 +420,41 @@ func (r *CustomFontRegistry) GetScaledTextWidth(fontName string, text string, fo
 // GeneratePDFFontResources generates the PDF font resource dictionary entries for custom fonts
 func (r *CustomFontRegistry) GeneratePDFFontResources() string {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 
 	var resources strings.Builder
+	var tmp [20]byte
 	for _, font := range r.fonts {
 		// Only output resources for fonts that were actually used
 		if font.ObjectID > 0 && len(font.UsedChars) > 0 {
 			if font.CachedRef != "" {
-				resources.WriteString(fmt.Sprintf(" %s %d 0 R", font.CachedRef, font.ObjectID))
+				resources.WriteString(" ")
+				resources.WriteString(font.CachedRef)
+				resources.WriteByte(' ')
+				resources.Write(strconv.AppendInt(tmp[:0], int64(font.ObjectID), 10))
+				resources.WriteString(" 0 R")
 			} else {
-				resources.WriteString(fmt.Sprintf(" /CF%d %d 0 R", font.ObjectID, font.ObjectID))
+				resources.WriteString(" /CF")
+				resources.Write(strconv.AppendInt(tmp[:0], int64(font.ObjectID), 10))
+				resources.WriteByte(' ')
+				resources.Write(strconv.AppendInt(tmp[:0], int64(font.ObjectID), 10))
+				resources.WriteString(" 0 R")
 			}
 		}
 	}
 
+	r.mu.RUnlock()
 	return resources.String()
 }
 
 // IsCustomFont checks if the font name refers to a registered custom font
 func (r *CustomFontRegistry) IsCustomFont(fontName string) bool {
+	if r.noLock {
+		_, ok := r.fonts[fontName]
+		return ok
+	}
 	r.mu.RLock()
-	defer r.mu.RUnlock()
 	_, ok := r.fonts[fontName]
+	r.mu.RUnlock()
 	return ok
 }
 

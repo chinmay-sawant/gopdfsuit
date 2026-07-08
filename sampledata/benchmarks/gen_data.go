@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type Record struct {
@@ -16,13 +17,17 @@ type Record struct {
 
 func main() {
 	count := 2000 // 2000 rows for a solid benchmark
-	var data []Record
+	data := make([]Record, 0, count)
 
+	var idBuf []byte
 	for i := 1; i <= count; i++ {
+		// PERF-15: AppendInt into reusable buffer instead of Itoa in loop
+		idBuf = strconv.AppendInt(idBuf[:0], int64(i), 10)
+		idStr := string(idBuf)
 		data = append(data, Record{
 			ID:    i,
-			Name:  fmt.Sprintf("User %d", i),
-			Email: fmt.Sprintf("user%d@example.com", i),
+			Name:  "User " + idStr,
+			Email: "user" + idStr + "@example.com",
 			Role:  "Administrator",
 			Desc:  "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
 		})

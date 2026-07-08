@@ -2,7 +2,10 @@ package pdf
 
 import (
 	"bytes"
-	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 )
 
 // PageManager handles multi-page document generation
@@ -43,21 +46,25 @@ type NamedDest struct {
 func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompatible bool, fontRegistry *CustomFontRegistry, taggedPDF bool) *PageManager {
 	var firstStream bytes.Buffer
 	firstStream.Grow(65536)
+	pages := make([]int, 1, 4)
+	pages[0] = 3 // First page starts at object 3
+	contentStreams := make([]bytes.Buffer, 1, 4)
+	contentStreams[0] = firstStream
 	pm := &PageManager{
-		Pages:                 []int{3}, // First page starts at object 3
-		CurrentPageIndex:      0,        // Start with first page
+		Pages:                 pages,
+		CurrentPageIndex:      0, // Start with first page
 		CurrentYPos:           pageDims.Height - margins.Top,
 		PageDimensions:        pageDims,
 		Margins:               margins,
-		ContentStreams:        []bytes.Buffer{firstStream},
-		PageAnnots:            make([][]int, 1),
-		ExtraObjects:          make(map[int][]byte),
+		ContentStreams:        contentStreams,
+		PageAnnots:            make([][]int, 1, 4),
+		ExtraObjects:          make(map[int][]byte, 16),
 		NextObjectID:          2000, // Start extra objects at 2000 to avoid conflicts
 		ArlingtonCompatible:   arlingtonCompatible,
 		Structure:             NewStructureManager(taggedPDF),
 		NextAnnotStructParent: 1000, // Start annotation StructParents at 1000 to avoid conflicts with page StructParents
-		AnnotStructElems:      make([]AnnotStructElem, 0),
-		NamedDests:            make(map[string]NamedDest),
+		AnnotStructElems:      make([]AnnotStructElem, 0, 8),
+		NamedDests:            make(map[string]NamedDest, 8),
 		FontRegistry:          fontRegistry,
 	}
 	return pm
@@ -85,7 +92,8 @@ func (pm *PageManager) AddAnnotation(objID int) {
 func (pm *PageManager) AddExtraObject(content string) int {
 	id := pm.NextObjectID
 	pm.NextObjectID++
-	pm.ExtraObjects[id] = []byte(content)
+	// PERF-32: zero-copy; content is not mutated after store
+	pm.ExtraObjects[id] = byteconv.StringToBytes(content)
 	return id
 }
 
@@ -99,26 +107,53 @@ func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
 	annotID := pm.NextObjectID
 	pm.NextObjectID++
 
-	// PDF Rectangle: [LLx LLy URx URy]
-	rect := fmt.Sprintf("[%s %s %s %s]", fmtNum(x), fmtNum(y), fmtNum(x+w), fmtNum(y+h))
-
+	// PDF Rectangle: [LLx LLy URx URy] — builder avoids fmt interface boxing (PERF-35)
 	validURL := escapePDFString(url)
+	var rectBuf strings.Builder
+	rectBuf.Grow(48)
+	rectBuf.WriteByte('[')
+	rectBuf.WriteString(fmtNum(x))
+	rectBuf.WriteByte(' ')
+	rectBuf.WriteString(fmtNum(y))
+	rectBuf.WriteByte(' ')
+	rectBuf.WriteString(fmtNum(x + w))
+	rectBuf.WriteByte(' ')
+	rectBuf.WriteString(fmtNum(y + h))
+	rectBuf.WriteByte(']')
+	rect := rectBuf.String()
 
 	var content string
 	if pm.Structure.Enabled {
 		structParentIdx := pm.GetNextAnnotStructParent()
-		content = fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /StructParent %d /A << /Type /Action /S /URI /URI (%s) >> >>",
-			rect, structParentIdx, validURL)
-		pm.ExtraObjects[annotID] = []byte(content)
+		var sb strings.Builder
+		sb.Grow(160 + len(rect) + len(validURL))
+		sb.WriteString("<< /Type /Annot /Subtype /Link /Rect ")
+		sb.WriteString(rect)
+		sb.WriteString(" /Border [0 0 0] /F 4 /StructParent ")
+		var nbuf [20]byte
+		sb.Write(strconv.AppendInt(nbuf[:0], int64(structParentIdx), 10))
+		sb.WriteString(" /A << /Type /Action /S /URI /URI (")
+		sb.WriteString(validURL)
+		sb.WriteString(") >> >>")
+		content = sb.String()
+		// PERF-32: zero-copy; content is not mutated after store
+		pm.ExtraObjects[annotID] = byteconv.StringToBytes(content)
 		pm.AddAnnotation(annotID)
 		pm.AddLinkStructureElement(annotID, structParentIdx)
 		return
 	}
 
-	content = fmt.Sprintf("<< /Type /Annot /Subtype /Link /Rect %s /Border [0 0 0] /F 4 /A << /Type /Action /S /URI /URI (%s) >> >>",
-		rect, validURL)
+	var sb strings.Builder
+	sb.Grow(128 + len(rect) + len(validURL))
+	sb.WriteString("<< /Type /Annot /Subtype /Link /Rect ")
+	sb.WriteString(rect)
+	sb.WriteString(" /Border [0 0 0] /F 4 /A << /Type /Action /S /URI /URI (")
+	sb.WriteString(validURL)
+	sb.WriteString(") >> >>")
+	content = sb.String()
 
-	pm.ExtraObjects[annotID] = []byte(content)
+	// PERF-32: zero-copy; content is not mutated after store
+	pm.ExtraObjects[annotID] = byteconv.StringToBytes(content)
 	pm.AddAnnotation(annotID)
 }
 

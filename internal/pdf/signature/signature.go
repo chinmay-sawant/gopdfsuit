@@ -11,13 +11,15 @@ import (
 	"encoding/asn1"
 	"encoding/hex"
 	"encoding/pem"
-	"fmt"
+	"errors"
 	"math/big"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
@@ -58,18 +60,67 @@ type parsedSignerPEMEntry struct {
 	certChain []*x509.Certificate
 }
 
-var signerPEMMaterialCache sync.Map // hex(sha256(...)) -> *parsedSignerPEMEntry
+const maxSignerPEMCacheSize = 64
+
+var (
+	signerPEMMaterialCache sync.Map // hex(sha256(...)) -> *parsedSignerPEMEntry
+	signerPEMCacheSize     atomic.Int64
+	signerPEMCacheEvictMu  sync.Mutex
+)
+
+// appendPad10 appends a zero-padded 10-digit decimal (PERF-35/119: no fmt, no multi-append).
+func appendPad10(dst []byte, n int) []byte {
+	var buf [20]byte
+	num := strconv.AppendInt(buf[:0], int64(n), 10)
+	pad := 10 - len(num)
+	if pad < 0 {
+		pad = 0
+	}
+	out := make([]byte, len(dst)+pad+len(num))
+	copy(out, dst)
+	for i := 0; i < pad; i++ {
+		out[len(dst)+i] = '0'
+	}
+	copy(out[len(dst)+pad:], num)
+	return out
+}
 
 func signerPEMCacheKey(certPEM, keyPEM string, chain []string) string {
 	h := sha256.New()
-	h.Write([]byte(certPEM))
+	h.Write(byteconv.StringToBytes(certPEM))
 	h.Write([]byte{0})
-	h.Write([]byte(keyPEM))
+	h.Write(byteconv.StringToBytes(keyPEM))
 	for _, c := range chain {
 		h.Write([]byte{1})
-		h.Write([]byte(c))
+		h.Write(byteconv.StringToBytes(c))
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func storeSignerPEMCache(key string, ent *parsedSignerPEMEntry) {
+	if _, loaded := signerPEMMaterialCache.LoadOrStore(key, ent); loaded {
+		return
+	}
+	n := signerPEMCacheSize.Add(1)
+	if n <= maxSignerPEMCacheSize {
+		return
+	}
+	// Best-effort eviction: drop one arbitrary entry when over capacity.
+	// Explicit unlock (PERF-31) — avoid defer on the hot store path.
+	signerPEMCacheEvictMu.Lock()
+	if signerPEMCacheSize.Load() <= maxSignerPEMCacheSize {
+		signerPEMCacheEvictMu.Unlock()
+		return
+	}
+	signerPEMMaterialCache.Range(func(k, _ any) bool {
+		if ks, ok := k.(string); ok && ks != key {
+			signerPEMMaterialCache.Delete(ks)
+			signerPEMCacheSize.Add(-1)
+			return false
+		}
+		return true
+	})
+	signerPEMCacheEvictMu.Unlock()
 }
 
 func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.Certificate, crypto.PrivateKey, []*x509.Certificate, error) {
@@ -79,18 +130,18 @@ func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.
 		return ent.cert, ent.key, ent.certChain, nil
 	}
 
-	block, _ := pem.Decode([]byte(certPEM))
+	block, _ := pem.Decode(byteconv.StringToBytes(certPEM))
 	if block == nil {
-		return nil, nil, nil, fmt.Errorf("failed to parse certificate PEM")
+		return nil, nil, nil, errors.New("failed to parse certificate PEM")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to parse certificate: %w", err)
+		return nil, nil, nil, errors.Join(errors.New("failed to parse certificate"), err)
 	}
 
-	keyBlock, _ := pem.Decode([]byte(keyPEM))
+	keyBlock, _ := pem.Decode(byteconv.StringToBytes(keyPEM))
 	if keyBlock == nil {
-		return nil, nil, nil, fmt.Errorf("failed to parse private key PEM")
+		return nil, nil, nil, errors.New("failed to parse private key PEM")
 	}
 
 	var privateKey crypto.PrivateKey
@@ -100,14 +151,14 @@ func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.
 		if err != nil {
 			privateKey, err = x509.ParseECPrivateKey(keyBlock.Bytes)
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to parse private key: %w", err)
+				return nil, nil, nil, errors.Join(errors.New("failed to parse private key"), err)
 			}
 		}
 	}
 
 	var chain []*x509.Certificate
 	for _, chainPEM := range chainPEMs {
-		chainBlock, _ := pem.Decode([]byte(chainPEM))
+		chainBlock, _ := pem.Decode(byteconv.StringToBytes(chainPEM))
 		if chainBlock == nil {
 			continue
 		}
@@ -117,7 +168,7 @@ func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.
 		}
 	}
 
-	signerPEMMaterialCache.Store(cacheKey, &parsedSignerPEMEntry{
+	storeSignerPEMCache(cacheKey, &parsedSignerPEMEntry{
 		cert:      cert,
 		key:       privateKey,
 		certChain: chain,
@@ -202,17 +253,26 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	sigValueDict.WriteString(strings.Repeat("0", 16384))
 	sigValueDict.WriteString(">")
 
+	// PERF-35: no fmt.Sprintf interface boxing
 	if s.config.Reason != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Reason (%s)", escapeText(s.config.Reason)))
+		sigValueDict.WriteString(" /Reason (")
+		sigValueDict.WriteString(escapeText(s.config.Reason))
+		sigValueDict.WriteByte(')')
 	}
 	if s.config.Location != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Location (%s)", escapeText(s.config.Location)))
+		sigValueDict.WriteString(" /Location (")
+		sigValueDict.WriteString(escapeText(s.config.Location))
+		sigValueDict.WriteByte(')')
 	}
 	if s.config.ContactInfo != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /ContactInfo (%s)", escapeText(s.config.ContactInfo)))
+		sigValueDict.WriteString(" /ContactInfo (")
+		sigValueDict.WriteString(escapeText(s.config.ContactInfo))
+		sigValueDict.WriteByte(')')
 	}
 	if signerName != "" {
-		sigValueDict.WriteString(fmt.Sprintf(" /Name (%s)", escapeText(signerName)))
+		sigValueDict.WriteString(" /Name (")
+		sigValueDict.WriteString(escapeText(signerName))
+		sigValueDict.WriteByte(')')
 	}
 
 	// Signing time - PDF date format: D:YYYYMMDDHHmmSSOHH'mm'
@@ -226,7 +286,21 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	}
 	tzHours := tzOffset / 3600
 	tzMinutes := (tzOffset % 3600) / 60
-	sigValueDict.WriteString(fmt.Sprintf(" /M (D:%s%s%02d'%02d')", now.Format("20060102150405"), tzSign, tzHours, tzMinutes))
+	// PERF-35: build PDF date without fmt.Sprintf
+	sigValueDict.WriteString(" /M (D:")
+	sigValueDict.WriteString(now.Format("20060102150405"))
+	sigValueDict.WriteString(tzSign)
+	var mTmp [4]byte
+	if tzHours < 10 {
+		sigValueDict.WriteByte('0')
+	}
+	sigValueDict.Write(strconv.AppendInt(mTmp[:0], int64(tzHours), 10))
+	sigValueDict.WriteByte('\'')
+	if tzMinutes < 10 {
+		sigValueDict.WriteByte('0')
+	}
+	sigValueDict.Write(strconv.AppendInt(mTmp[:0], int64(tzMinutes), 10))
+	sigValueDict.WriteString("')")
 
 	sigValueDict.WriteString(" >>")
 
@@ -253,10 +327,20 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// Rectangle for visible/invisible signature
 	if s.config.Visible {
-		annotDict.WriteString(fmt.Sprintf(" /Rect [%s %s %s %s]",
-			fmtNum(sigX), fmtNum(sigY), fmtNum(sigX+sigW), fmtNum(sigY+sigH)))
+		annotDict.WriteString(" /Rect [")
+		annotDict.WriteString(fmtNum(sigX))
+		annotDict.WriteByte(' ')
+		annotDict.WriteString(fmtNum(sigY))
+		annotDict.WriteByte(' ')
+		annotDict.WriteString(fmtNum(sigX + sigW))
+		annotDict.WriteByte(' ')
+		annotDict.WriteString(fmtNum(sigY + sigH))
+		annotDict.WriteByte(']')
 		if ids.AppearanceID > 0 {
-			annotDict.WriteString(fmt.Sprintf(" /AP << /N %d 0 R >>", ids.AppearanceID))
+			annotDict.WriteString(" /AP << /N ")
+			var idTmp [12]byte
+			annotDict.Write(strconv.AppendInt(idTmp[:0], int64(ids.AppearanceID), 10))
+			annotDict.WriteString(" 0 R >>")
 		}
 	} else {
 		// Invisible signature - zero-size rectangle
@@ -269,7 +353,10 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 		targetPage = 1
 	}
 	pageObjID := 3 + (targetPage - 1) // Pages start at object 3
-	annotDict.WriteString(fmt.Sprintf(" /P %d 0 R", pageObjID))
+	annotDict.WriteString(" /P ")
+	var pTmp [12]byte
+	annotDict.Write(strconv.AppendInt(pTmp[:0], int64(pageObjID), 10))
+	annotDict.WriteString(" 0 R")
 
 	annotDict.WriteString(" >>")
 
@@ -294,9 +381,17 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	// Yellow background with black border
 	appearance.WriteString("q\n")
 	appearance.WriteString("1 1 0.8 rg\n") // Light yellow background (RGB: 255, 255, 204)
-	appearance.WriteString(fmt.Sprintf("0 0 %s %s re f\n", fmtNum(width), fmtNum(height)))
+	appearance.WriteString("0 0 ")
+	appearance.WriteString(fmtNum(width))
+	appearance.WriteByte(' ')
+	appearance.WriteString(fmtNum(height))
+	appearance.WriteString(" re f\n")
 	appearance.WriteString("0 0 0 RG 1 w\n") // Black border
-	appearance.WriteString(fmt.Sprintf("0 0 %s %s re S\n", fmtNum(width), fmtNum(height)))
+	appearance.WriteString("0 0 ")
+	appearance.WriteString(fmtNum(width))
+	appearance.WriteByte(' ')
+	appearance.WriteString(fmtNum(height))
+	appearance.WriteString(" re S\n")
 	appearance.WriteString("Q\n")
 
 	// Text content
@@ -323,8 +418,11 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	}
 
 	// "Digitally signed by" line
-	appearance.WriteString(fmt.Sprintf("5 %s Td\n", fmtNum(height-15)))
-	appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText("Digitally signed by:")))
+	appearance.WriteString("5 ")
+	appearance.WriteString(fmtNum(height - 15))
+	appearance.WriteString(" Td\n")
+	appearance.WriteString(formatText("Digitally signed by:"))
+	appearance.WriteString(" Tj\n")
 
 	// Mark font usage for subsetting
 	if useHexEncoding {
@@ -333,7 +431,8 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 
 	// Signer name
 	appearance.WriteString("0 -12 Td\n")
-	appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(signerName)))
+	appearance.WriteString(formatText(signerName))
+	appearance.WriteString(" Tj\n")
 	if useHexEncoding {
 		pageManager.FontMarkChars("Helvetica", signerName)
 	}
@@ -342,7 +441,8 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	now := time.Now()
 	dateStr := "Date: " + now.Format("2006-01-02 15:04:05")
 	appearance.WriteString("0 -12 Td\n")
-	appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(dateStr)))
+	appearance.WriteString(formatText(dateStr))
+	appearance.WriteString(" Tj\n")
 	if useHexEncoding {
 		pageManager.FontMarkChars("Helvetica", dateStr)
 	}
@@ -351,7 +451,8 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	if s.config.Reason != "" {
 		reasonStr := "Reason: " + s.config.Reason
 		appearance.WriteString("0 -12 Td\n")
-		appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(reasonStr)))
+		appearance.WriteString(formatText(reasonStr))
+		appearance.WriteString(" Tj\n")
 		if useHexEncoding {
 			pageManager.FontMarkChars("Helvetica", reasonStr)
 		}
@@ -361,7 +462,8 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	if s.config.Location != "" {
 		locationStr := "Location: " + s.config.Location
 		appearance.WriteString("0 -12 Td\n")
-		appearance.WriteString(fmt.Sprintf("%s Tj\n", formatText(locationStr)))
+		appearance.WriteString(formatText(locationStr))
+		appearance.WriteString(" Tj\n")
 		if useHexEncoding {
 			pageManager.FontMarkChars("Helvetica", locationStr)
 		}
@@ -376,18 +478,35 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 
 	// Construct resources dictionary using the embedded font ID
 	var resourcesDict string
+	var resB strings.Builder
 	if fontID > 0 {
 		// Use reference to existing embedded font
-		resourcesDict = fmt.Sprintf("<< /Font << /F1 %d 0 R >> >>", fontID)
+		resB.WriteString("<< /Font << /F1 ")
+		var fTmp [12]byte
+		resB.Write(strconv.AppendInt(fTmp[:0], int64(fontID), 10))
+		resB.WriteString(" 0 R >> >>")
 	} else {
 		// Fallback for non-embedded (should be avoided for PDF/A)
-		resourcesDict = "<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>"
+		resB.WriteString("<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>")
 	}
+	resourcesDict = resB.String()
 
-	appearanceDict := fmt.Sprintf("<< /Type /XObject /Subtype /Form /BBox [0 0 %s %s] /Resources %s /Length %d >>\nstream\n%s\nendstream",
-		fmtNum(width), fmtNum(height), resourcesDict, len(appearanceContent), appearanceContent)
+	var appB strings.Builder
+	appB.Grow(96 + len(resourcesDict) + len(appearanceContent))
+	appB.WriteString("<< /Type /XObject /Subtype /Form /BBox [0 0 ")
+	appB.WriteString(fmtNum(width))
+	appB.WriteByte(' ')
+	appB.WriteString(fmtNum(height))
+	appB.WriteString("] /Resources ")
+	appB.WriteString(resourcesDict)
+	appB.WriteString(" /Length ")
+	var lTmp [12]byte
+	appB.Write(strconv.AppendInt(lTmp[:0], int64(len(appearanceContent)), 10))
+	appB.WriteString(" >>\nstream\n")
+	appB.WriteString(appearanceContent)
+	appB.WriteString("\nendstream")
 
-	pageManager.SetExtraObject(appearanceID, appearanceDict)
+	pageManager.SetExtraObject(appearanceID, appB.String())
 
 	return appearanceID
 }
@@ -452,7 +571,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 	// Attributes are already in DER-sorted order (ContentType < MessageDigest < SigningTime by OID)
 	seqBytes, err := asn1.Marshal(authenticatedAttrs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal authenticated attributes: %w", err)
+		return nil, errors.Join(errors.New("failed to marshal authenticated attributes"), err)
 	}
 
 	// Change SEQUENCE tag (0x30) to SET tag (0x31)
@@ -470,10 +589,10 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 	case *rsa.PrivateKey:
 		signature, err = rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, authAttrsHash[:])
 		if err != nil {
-			return nil, fmt.Errorf("failed to sign: %w", err)
+			return nil, errors.Join(errors.New("failed to sign"), err)
 		}
 	default:
-		return nil, fmt.Errorf("unsupported key type")
+		return nil, errors.New("unsupported key type")
 	}
 
 	// Extract content bytes for SignerInfo (strip SET tag and length)
@@ -544,7 +663,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 
 	signedDataBytes, err := asn1.Marshal(sData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal signedData: %w", err)
+		return nil, errors.Join(errors.New("failed to marshal signedData"), err)
 	}
 
 	// Wrap in ContentInfo
@@ -625,7 +744,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	byteRangeMarker := []byte("/ByteRange [0 0000000000 0000000000 0000000000]")
 	byteRangePos := bytes.Index(pdfData, byteRangeMarker)
 	if byteRangePos < 0 {
-		return pdfData, fmt.Errorf("byteRange placeholder not found")
+		return pdfData, errors.New("byteRange placeholder not found")
 	}
 
 	// Find Contents placeholder in signature dictionary
@@ -637,7 +756,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 		contentsMarker = []byte("/Contents <")
 		contentsPos = bytes.Index(pdfData, contentsMarker)
 		if contentsPos < 0 {
-			return pdfData, fmt.Errorf("contents placeholder not found")
+			return pdfData, errors.New("contents placeholder not found")
 		}
 	}
 
@@ -645,14 +764,14 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	contentsStart := contentsPos + len("/Contents <")
 	contentsEnd := bytes.Index(pdfData[contentsStart:], []byte(">"))
 	if contentsEnd < 0 {
-		return pdfData, fmt.Errorf("contents end not found")
+		return pdfData, errors.New("contents end not found")
 	}
 	contentsEnd += contentsStart
 
 	// Validate the placeholder size
 	placeholderSize := contentsEnd - contentsStart
 	if placeholderSize != 16384 {
-		return pdfData, fmt.Errorf("contents placeholder has unexpected size: %d (expected 16384)", placeholderSize)
+		return pdfData, errors.New("contents placeholder has unexpected size: " + strconv.Itoa(placeholderSize) + " (expected 16384)")
 	}
 
 	// Calculate byte ranges
@@ -667,13 +786,21 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 
 	byteRange := [4]int{0, beforeContents, afterContents, totalLength - afterContents}
 
-	// Update ByteRange in PDF
-	newByteRange := fmt.Sprintf("/ByteRange [0 %010d %010d %010d]",
-		byteRange[1], byteRange[2], byteRange[3])
+	// Update ByteRange in PDF (PERF-35: fixed-width digits without fmt.Sprintf)
+	// Placeholder is exactly: "/ByteRange [0 0000000000 0000000000 0000000000]"
+	newByteRange := make([]byte, 0, len(byteRangeMarker))
+	newByteRange = append(newByteRange, "/ByteRange [0 "...)
+	newByteRange = appendPad10(newByteRange, byteRange[1])
+	newByteRange = append(newByteRange, ' ')
+	newByteRange = appendPad10(newByteRange, byteRange[2])
+	newByteRange = append(newByteRange, ' ')
+	newByteRange = appendPad10(newByteRange, byteRange[3])
+	newByteRange = append(newByteRange, ']')
 
 	// Validate new ByteRange has same length as placeholder
 	if len(newByteRange) != len(byteRangeMarker) {
-		return pdfData, fmt.Errorf("ByteRange length mismatch: new=%d, placeholder=%d", len(newByteRange), len(byteRangeMarker))
+		return pdfData, errors.New("ByteRange length mismatch: new=" + strconv.Itoa(len(newByteRange)) +
+			", placeholder=" + strconv.Itoa(len(byteRangeMarker)))
 	}
 
 	// Create a copy of pdfData to modify
@@ -681,12 +808,12 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	copy(result, pdfData)
 
 	// Replace ByteRange
-	copy(result[byteRangePos:byteRangePos+len(byteRangeMarker)], []byte(newByteRange))
+	copy(result[byteRangePos:byteRangePos+len(byteRangeMarker)], newByteRange)
 
 	// Generate signature over the byte ranges (excluding Contents value)
 	signature, err := signer.SignPDF(result, byteRange)
 	if err != nil {
-		return pdfData, fmt.Errorf("failed to sign PDF: %w", err)
+		return pdfData, errors.Join(errors.New("failed to sign PDF"), err)
 	}
 
 	// Convert signature to hex (uppercase to match PDF convention)
@@ -694,12 +821,12 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 
 	// Pad to fill the placeholder (16384 chars)
 	if len(sigHex) > 16384 {
-		return pdfData, fmt.Errorf("signature too large: %d bytes (max 8192)", len(sigHex)/2)
+		return pdfData, errors.New("signature too large: " + strconv.Itoa(len(sigHex)/2) + " bytes (max 8192)")
 	}
 	sigHex += strings.Repeat("0", 16384-len(sigHex))
 
 	// Replace Contents value
-	copy(result[contentsStart:contentsEnd], []byte(sigHex))
+	copy(result[contentsStart:contentsEnd], byteconv.StringToBytes(sigHex))
 
 	return result, nil
 }

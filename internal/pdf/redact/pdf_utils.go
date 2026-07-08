@@ -27,8 +27,9 @@ var (
 // buildObjectMap parses the PDF into object-number → body slices and complements
 // it with xref-stream and object-stream expansion via the merge helpers.
 func buildObjectMap(pdfBytes []byte) (map[int][]byte, map[int]int, error) {
-	objMap := make(map[int][]byte)
-	objGen := make(map[int]int)
+	// PERF-192: size for typical multi-object PDFs; grows if needed
+	objMap := make(map[int][]byte, 64)
+	objGen := make(map[int]int, 64)
 
 	for _, b := range merge.FindObjectBoundaries(pdfBytes) {
 		bodyEnd := b.End - len("endobj")
@@ -164,7 +165,7 @@ func findPageObject(objMap map[int][]byte, pdfBytes []byte, targetPage int) (int
 	}
 
 	if !found {
-		return 0, fmt.Errorf("page %d not found", targetPage)
+		return 0, errors.New("page " + strconv.Itoa(targetPage) + " not found")
 	}
 	return foundKey, nil
 }
@@ -458,7 +459,7 @@ func parseTextOperators(content []byte) []models.TextPosition {
 		lineStartX, lineStartY := 0.0, 0.0
 		currentFontSize := 10.0
 		for _, token := range tokenRe.FindAllString(inner, -1) {
-			token = strings.TrimSpace(token)
+			token = trimSpace(token)
 			if token == "" {
 				continue
 			}
@@ -489,7 +490,7 @@ func parseTextOperators(content []byte) []models.TextPosition {
 				continue
 			}
 
-			textStr := strings.TrimSpace(extractTextFromOperator(token))
+			textStr := trimSpace(extractTextFromOperator(token))
 			if textStr == "" {
 				continue
 			}
@@ -516,7 +517,7 @@ func parseTextOperators(content []byte) []models.TextPosition {
 }
 
 func extractTextFromOperator(op string) string {
-	op = strings.TrimSpace(op)
+	op = trimSpace(op)
 	switch {
 	case strings.HasSuffix(op, "TJ"):
 		start := strings.Index(op, "[")
@@ -534,8 +535,8 @@ func extractTextFromOperator(op string) string {
 			return decodePDFLiteral(lit)
 		}
 	case strings.HasSuffix(op, "Tj") || strings.HasSuffix(op, "'"):
-		op = strings.TrimSpace(strings.TrimSuffix(op, "Tj"))
-		op = strings.TrimSpace(strings.TrimSuffix(op, "'"))
+		op = trimSpace(strings.TrimSuffix(op, "Tj"))
+		op = trimSpace(strings.TrimSuffix(op, "'"))
 		if strings.HasPrefix(op, "(") {
 			if lit, ok := readPDFLiteral(op); ok {
 				return decodePDFLiteral(lit)
@@ -655,7 +656,7 @@ func decodePDFLiteral(s string) string {
 }
 
 func decodePDFHexLiteral(hexText string) string {
-	hexText = strings.TrimSpace(hexText)
+	hexText = trimSpace(hexText)
 	if hexText == "" {
 		return ""
 	}
@@ -703,7 +704,15 @@ func appendStreamToPage(pageBody []byte, streamObjNum, streamGenNum int) []byte 
 	contentsRe := regexp.MustCompile(`/Contents\s+(?:(\d+\s+\d+\s+R)|\[(.*?)\])`)
 	match := contentsRe.FindSubmatchIndex(pageBody)
 
-	refStr := fmt.Sprintf("%d %d R", streamObjNum, streamGenNum)
+	// PERF-35: AppendInt builders instead of Sprintf
+	var refBuf strings.Builder
+	var ntmp [20]byte
+	refBuf.Grow(24)
+	refBuf.Write(strconv.AppendInt(ntmp[:0], int64(streamObjNum), 10))
+	refBuf.WriteByte(' ')
+	refBuf.Write(strconv.AppendInt(ntmp[:0], int64(streamGenNum), 10))
+	refBuf.WriteString(" R")
+	refStr := refBuf.String()
 
 	if match == nil {
 		dictEnd := bytes.LastIndex(pageBody, []byte(">>"))
@@ -712,26 +721,38 @@ func appendStreamToPage(pageBody []byte, streamObjNum, streamGenNum int) []byte 
 		}
 		var buf bytes.Buffer
 		buf.Write(pageBody[:dictEnd])
-		buf.WriteString(fmt.Sprintf("/Contents [%s]", refStr))
+		buf.WriteString("/Contents [")
+		buf.WriteString(refStr)
+		buf.WriteByte(']')
 		buf.Write(pageBody[dictEnd:])
 		return buf.Bytes()
 	}
 
 	start, end := match[0], match[1]
 
-	var replacement string
+	var replacement strings.Builder
 	if match[2] != -1 && match[3] != -1 {
-		oldRef := string(pageBody[match[2]:match[3]])
-		replacement = fmt.Sprintf("/Contents [%s %s]", oldRef, refStr)
+		oldRef := pageBody[match[2]:match[3]]
+		replacement.Grow(16 + len(oldRef) + len(refStr))
+		replacement.WriteString("/Contents [")
+		replacement.Write(oldRef)
+		replacement.WriteByte(' ')
+		replacement.WriteString(refStr)
+		replacement.WriteByte(']')
 	} else if match[4] != -1 && match[5] != -1 {
-		oldContent := string(pageBody[match[4]:match[5]])
-		replacement = fmt.Sprintf("/Contents [%s %s]", oldContent, refStr)
+		oldContent := pageBody[match[4]:match[5]]
+		replacement.Grow(16 + len(oldContent) + len(refStr))
+		replacement.WriteString("/Contents [")
+		replacement.Write(oldContent)
+		replacement.WriteByte(' ')
+		replacement.WriteString(refStr)
+		replacement.WriteByte(']')
 	}
 
-	if replacement != "" {
+	if replacement.Len() > 0 {
 		var buf bytes.Buffer
 		buf.Write(pageBody[:start])
-		buf.WriteString(replacement)
+		buf.WriteString(replacement.String())
 		buf.Write(pageBody[end:])
 		return buf.Bytes()
 	}
@@ -778,7 +799,13 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 	if !ok {
 		return nil, errors.New("missing Root")
 	}
-	rootRefStr := fmt.Sprintf("%d %d", rootNum, rootGen)
+	var rootRefB strings.Builder
+	var rtmp [20]byte
+	rootRefB.Grow(24)
+	rootRefB.Write(strconv.AppendInt(rtmp[:0], int64(rootNum), 10))
+	rootRefB.WriteByte(' ')
+	rootRefB.Write(strconv.AppendInt(rtmp[:0], int64(rootGen), 10))
+	rootRefStr := rootRefB.String()
 	trailerID := extractPrimaryTrailerID(originalBytes)
 
 	var out bytes.Buffer
@@ -795,6 +822,7 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		gen    int
 	}, len(changed))
 
+	var numBuf []byte
 	for _, obj := range changed {
 		offsetByObject[obj.id] = struct {
 			offset int
@@ -802,7 +830,13 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}{offset: out.Len(), gen: obj.gen}
 
 		body := objMap[obj.id]
-		fmt.Fprintf(&out, "%d %d obj\n", obj.id, obj.gen)
+		// PERF-6: avoid fmt for "%d %d obj\n"
+		numBuf = numBuf[:0]
+		numBuf = strconv.AppendInt(numBuf, int64(obj.id), 10)
+		numBuf = append(numBuf, ' ')
+		numBuf = strconv.AppendInt(numBuf, int64(obj.gen), 10)
+		numBuf = append(numBuf, " obj\n"...)
+		out.Write(numBuf)
 		out.Write(body)
 		if !bytes.HasSuffix(body, []byte("\n")) {
 			out.WriteByte('\n')
@@ -829,10 +863,32 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		if len(block) == 0 {
 			return
 		}
-		out.WriteString(fmt.Sprintf("%d %d\n", start, len(block)))
+		numBuf = numBuf[:0]
+		numBuf = strconv.AppendInt(numBuf, int64(start), 10)
+		numBuf = append(numBuf, ' ')
+		numBuf = strconv.AppendInt(numBuf, int64(len(block)), 10)
+		numBuf = append(numBuf, '\n')
+		out.Write(numBuf)
+		// Fixed layout: 10-digit offset + space + 5-digit gen + " n \n" (PERF-128)
+		var entryLine [20]byte
+		copy(entryLine[16:], " n \n")
+		var offTmp, genTmp [20]byte
 		for _, id := range block {
 			entry := offsetByObject[id]
-			out.WriteString(fmt.Sprintf("%010d %05d n \n", entry.offset, entry.gen))
+			offStr := strconv.AppendInt(offTmp[:0], int64(entry.offset), 10)
+			offPad := 10 - len(offStr)
+			for j := 0; j < offPad; j++ {
+				entryLine[j] = '0'
+			}
+			copy(entryLine[offPad:10], offStr)
+			entryLine[10] = ' '
+			genStr := strconv.AppendInt(genTmp[:0], int64(entry.gen), 10)
+			genPad := 5 - len(genStr)
+			for j := 0; j < genPad; j++ {
+				entryLine[11+j] = '0'
+			}
+			copy(entryLine[11+genPad:16], genStr)
+			out.Write(entryLine[:])
 		}
 	}
 
@@ -866,12 +922,12 @@ func extractPrimaryTrailerID(pdfBytes []byte) string {
 
 	if tm := trailerRe.FindSubmatch(pdfBytes); tm != nil {
 		if idm := idRe.FindSubmatch(tm[1]); idm != nil {
-			return strings.TrimSpace(string(idm[1]))
+			return trimSpace(string(idm[1]))
 		}
 	}
 
 	if idm := idRe.FindSubmatch(pdfBytes); idm != nil {
-		return strings.TrimSpace(string(idm[1]))
+		return trimSpace(string(idm[1]))
 	}
 
 	return ""

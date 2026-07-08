@@ -4,11 +4,28 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
+)
+
+// Static ICC tag bytes avoid per-call []byte("...") conversions (PERF-32).
+var (
+	iccTextTag      = []byte("text")
+	iccPublicDomain = []byte("Public Domain\x00")
+	iccMlucTag      = []byte("mluc")
+	iccLangEN       = []byte("en")
+	iccLangUS       = []byte("US")
+	iccXYZTag       = []byte("XYZ ")
+	iccCurvTag      = []byte("curv")
+	iccMntrTag      = []byte("mntr")
+	iccRGBTag       = []byte("RGB ")
+	iccGRAYTag      = []byte("GRAY")
+	iccAcspTag      = []byte("acsp")
 )
 
 // ConvertPDFDateToXMP converts a PDF date string (D:YYYYMMDDHHmmSSOHH'mm') to XMP format (YYYY-MM-DDTHH:mm:ss+HH:MM)
@@ -40,7 +57,22 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 		tz = tzSign + tzHour + ":" + tzMin
 	}
 
-	return fmt.Sprintf("%s-%s-%sT%s:%s:%s%s", year, month, day, hour, minute, sec, tz)
+	// Avoid fmt.Sprintf (PERF-35): fixed-shape date assembly.
+	var b strings.Builder
+	b.Grow(32)
+	b.WriteString(year)
+	b.WriteByte('-')
+	b.WriteString(month)
+	b.WriteByte('-')
+	b.WriteString(day)
+	b.WriteByte('T')
+	b.WriteString(hour)
+	b.WriteByte(':')
+	b.WriteString(minute)
+	b.WriteByte(':')
+	b.WriteString(sec)
+	b.WriteString(tz)
+	return b.String()
 }
 
 // GenerateXMPMetadata generates PDF/A-4 and PDF/UA-2 compliant XMP metadata (PDF 2.0 based)
@@ -129,8 +161,16 @@ func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr strin
 		streamContent = encryptor.EncryptStream(streamContent, objectID, 0)
 	}
 
-	return fmt.Sprintf("%d 0 obj\n<< /Type /Metadata /Subtype /XML /Length %d >>\nstream\n%s\nendstream\nendobj\n",
-		objectID, len(streamContent), string(streamContent))
+	var b strings.Builder
+	b.Grow(96 + len(streamContent))
+	var tmp [20]byte
+	b.Write(strconv.AppendInt(tmp[:0], int64(objectID), 10))
+	b.WriteString(" 0 obj\n<< /Type /Metadata /Subtype /XML /Length ")
+	b.Write(strconv.AppendInt(tmp[:0], int64(len(streamContent)), 10))
+	b.WriteString(" >>\nstream\n")
+	b.Write(streamContent)
+	b.WriteString("\nendstream\nendobj\n")
+	return b.String()
 }
 
 // buildSRGBICCProfile builds a valid sRGB ICC profile from scratch
@@ -183,9 +223,9 @@ func buildSRGBICCProfile() []byte {
 	binary.BigEndian.PutUint32(profile[0:4], uint32(profileSize)) // Profile size
 	copy(profile[4:8], []byte{0, 0, 0, 0})                        // CMM Type
 	binary.BigEndian.PutUint32(profile[8:12], 0x02100000)         // Version 2.1 (more compatible)
-	copy(profile[12:16], []byte("mntr"))                          // Device class: monitor
-	copy(profile[16:20], []byte("RGB "))                          // Color space: RGB
-	copy(profile[20:24], []byte("XYZ "))                          // PCS: XYZ
+	copy(profile[12:16], iccMntrTag)                              // Device class: monitor
+	copy(profile[16:20], iccRGBTag)                               // Color space: RGB
+	copy(profile[20:24], iccXYZTag)                               // PCS: XYZ
 	// Date/time: 2024-01-01 00:00:00
 	binary.BigEndian.PutUint16(profile[24:26], 2024) // Year
 	binary.BigEndian.PutUint16(profile[26:28], 1)    // Month
@@ -193,7 +233,7 @@ func buildSRGBICCProfile() []byte {
 	binary.BigEndian.PutUint16(profile[30:32], 0)    // Hour
 	binary.BigEndian.PutUint16(profile[32:34], 0)    // Minute
 	binary.BigEndian.PutUint16(profile[34:36], 0)    // Second
-	copy(profile[36:40], []byte("acsp"))             // Signature
+	copy(profile[36:40], iccAcspTag)                 // Signature
 	copy(profile[40:44], []byte{0, 0, 0, 0})         // Platform
 	binary.BigEndian.PutUint32(profile[44:48], 0)    // Flags
 	binary.BigEndian.PutUint32(profile[48:52], 0)    // Device manufacturer
@@ -231,7 +271,7 @@ func buildSRGBICCProfile() []byte {
 	}
 
 	for _, tag := range tags {
-		copy(profile[offset:offset+4], []byte(tag.sig))
+		copy(profile[offset:offset+4], byteconv.StringToBytes(tag.sig))
 		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
 		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
 		offset += 12
@@ -239,18 +279,18 @@ func buildSRGBICCProfile() []byte {
 
 	// Write cprt (copyright) - textType
 	offset = cprtOffset
-	copy(profile[offset:offset+4], []byte("text"))
+	copy(profile[offset:offset+4], iccTextTag)
 	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
-	copy(profile[offset+8:offset+32], []byte("Public Domain\x00"))
+	copy(profile[offset+8:offset+32], iccPublicDomain)
 
 	// Write desc (description) - mluc type
 	offset = descOffset
-	copy(profile[offset:offset+4], []byte("mluc"))
+	copy(profile[offset:offset+4], iccMlucTag)
 	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)    // Reserved
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1)   // Record count
 	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 12) // Record size
-	copy(profile[offset+16:offset+18], []byte("en"))             // Language
-	copy(profile[offset+18:offset+20], []byte("US"))             // Country
+	copy(profile[offset+16:offset+18], iccLangEN)                // Language
+	copy(profile[offset+18:offset+20], iccLangUS)                // Country
 	binary.BigEndian.PutUint32(profile[offset+20:offset+24], 34) // String length (bytes)
 	binary.BigEndian.PutUint32(profile[offset+24:offset+28], 28) // String offset
 	descText := []uint16{'s', 'R', 'G', 'B', ' ', 'I', 'E', 'C', '6', '1', '9', '6', '6', '-', '2', '.', '1'}
@@ -260,7 +300,7 @@ func buildSRGBICCProfile() []byte {
 
 	// Write wtpt (white point) - XYZType (D50)
 	offset = wtptOffset
-	copy(profile[offset:offset+4], []byte("XYZ "))
+	copy(profile[offset:offset+4], iccXYZTag)
 	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x0000F6D6)  // X: 0.9642
 	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x00010000) // Y: 1.0
@@ -268,7 +308,7 @@ func buildSRGBICCProfile() []byte {
 
 	// Write rXYZ (red primary) - XYZType
 	offset = rXYZOffset
-	copy(profile[offset:offset+4], []byte("XYZ "))
+	copy(profile[offset:offset+4], iccXYZTag)
 	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x00006FA2)  // X: 0.4361
 	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x000038F5) // Y: 0.2225
@@ -276,7 +316,7 @@ func buildSRGBICCProfile() []byte {
 
 	// Write gXYZ (green primary) - XYZType
 	offset = gXYZOffset
-	copy(profile[offset:offset+4], []byte("XYZ "))
+	copy(profile[offset:offset+4], iccXYZTag)
 	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x00006299)  // X: 0.3851
 	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x0000B785) // Y: 0.7169
@@ -284,7 +324,7 @@ func buildSRGBICCProfile() []byte {
 
 	// Write bXYZ (blue primary) - XYZType
 	offset = bXYZOffset
-	copy(profile[offset:offset+4], []byte("XYZ "))
+	copy(profile[offset:offset+4], iccXYZTag)
 	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x000024A0)  // X: 0.1431
 	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x00000F84) // Y: 0.0606
@@ -293,7 +333,7 @@ func buildSRGBICCProfile() []byte {
 	// Write TRC (tone reproduction curve) - curvType with inverse sRGB gamma
 	// This linearization curve tells Adobe our input values are sRGB-encoded
 	offset = curvOffset
-	copy(profile[offset:offset+4], []byte("curv"))
+	copy(profile[offset:offset+4], iccCurvTag)
 	binary.BigEndian.PutUint32(profile[offset+4:offset+8], 0)     // Reserved
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1024) // Entry count
 	for i, v := range gammaTable {
@@ -333,10 +373,13 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 		compressedData = encryptor.EncryptStream(compressedData, objectID, 0)
 	}
 
-	// Build the object with proper binary stream handling
+	// Build the object with proper binary stream handling (PERF-35: Builder + AppendInt)
 	var result bytes.Buffer
-	result.WriteString(fmt.Sprintf("%d 0 obj\n<< /Filter /FlateDecode /Length %d /N 3 /Alternate /DeviceRGB >>\nstream\n",
-		objectID, len(compressedData)))
+	var nbuf [24]byte
+	result.Write(strconv.AppendInt(nbuf[:0], int64(objectID), 10))
+	result.WriteString(" 0 obj\n<< /Filter /FlateDecode /Length ")
+	result.Write(strconv.AppendInt(nbuf[:0], int64(len(compressedData)), 10))
+	result.WriteString(" /N 3 /Alternate /DeviceRGB >>\nstream\n")
 	result.Write(compressedData)
 	result.WriteString("\nendstream\nendobj\n")
 
@@ -368,10 +411,13 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 		compressedData = encryptor.EncryptStream(compressedData, objectID, 0)
 	}
 
-	// Build the object
+	// Build the object (PERF-35: Builder + AppendInt)
 	var result bytes.Buffer
-	result.WriteString(fmt.Sprintf("%d 0 obj\n<< /Filter /FlateDecode /Length %d /N 1 /Alternate /DeviceGray >>\nstream\n",
-		objectID, len(compressedData)))
+	var nbuf [24]byte
+	result.Write(strconv.AppendInt(nbuf[:0], int64(objectID), 10))
+	result.WriteString(" 0 obj\n<< /Filter /FlateDecode /Length ")
+	result.Write(strconv.AppendInt(nbuf[:0], int64(len(compressedData)), 10))
+	result.WriteString(" /N 1 /Alternate /DeviceGray >>\nstream\n")
 	result.Write(compressedData)
 	result.WriteString("\nendstream\nendobj\n")
 
@@ -411,13 +457,13 @@ func buildGrayICCProfile() []byte {
 	// Header
 	binary.BigEndian.PutUint32(profile[0:4], uint32(profileSize))
 	binary.BigEndian.PutUint32(profile[8:12], 0x02100000) // Version 2.1 (more compatible)
-	copy(profile[12:16], []byte("mntr"))                  // monitor
-	copy(profile[16:20], []byte("GRAY"))                  // Gray color space
-	copy(profile[20:24], []byte("XYZ "))                  // PCS
+	copy(profile[12:16], iccMntrTag)                      // monitor
+	copy(profile[16:20], iccGRAYTag)                      // Gray color space
+	copy(profile[20:24], iccXYZTag)                       // PCS
 	binary.BigEndian.PutUint16(profile[24:26], 2024)
 	binary.BigEndian.PutUint16(profile[26:28], 1)
 	binary.BigEndian.PutUint16(profile[28:30], 1)
-	copy(profile[36:40], []byte("acsp"))
+	copy(profile[36:40], iccAcspTag)
 	binary.BigEndian.PutUint32(profile[68:72], 0x0000F6D6)
 	binary.BigEndian.PutUint32(profile[72:76], 0x00010000)
 	binary.BigEndian.PutUint32(profile[76:80], 0x0000D32D)
@@ -439,7 +485,7 @@ func buildGrayICCProfile() []byte {
 	}
 
 	for _, tag := range tags {
-		copy(profile[offset:offset+4], []byte(tag.sig))
+		copy(profile[offset:offset+4], byteconv.StringToBytes(tag.sig))
 		binary.BigEndian.PutUint32(profile[offset+4:offset+8], uint32(tag.offset))
 		binary.BigEndian.PutUint32(profile[offset+8:offset+12], uint32(tag.size))
 		offset += 12
@@ -447,16 +493,16 @@ func buildGrayICCProfile() []byte {
 
 	// cprt
 	offset = cprtOffset
-	copy(profile[offset:offset+4], []byte("text"))
-	copy(profile[offset+8:offset+32], []byte("Public Domain\x00"))
+	copy(profile[offset:offset+4], iccTextTag)
+	copy(profile[offset+8:offset+32], iccPublicDomain)
 
 	// desc
 	offset = descOffset
-	copy(profile[offset:offset+4], []byte("mluc"))
+	copy(profile[offset:offset+4], iccMlucTag)
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1)
 	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 12)
-	copy(profile[offset+16:offset+18], []byte("en"))
-	copy(profile[offset+18:offset+20], []byte("US"))
+	copy(profile[offset+16:offset+18], iccLangEN)
+	copy(profile[offset+18:offset+20], iccLangUS)
 	binary.BigEndian.PutUint32(profile[offset+20:offset+24], 20)
 	binary.BigEndian.PutUint32(profile[offset+24:offset+28], 28)
 	descText := []uint16{'s', 'R', 'G', 'B', ' ', 'G', 'r', 'a', 'y'}
@@ -466,14 +512,14 @@ func buildGrayICCProfile() []byte {
 
 	// wtpt
 	offset = wtptOffset
-	copy(profile[offset:offset+4], []byte("XYZ "))
+	copy(profile[offset:offset+4], iccXYZTag)
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 0x0000F6D6)
 	binary.BigEndian.PutUint32(profile[offset+12:offset+16], 0x00010000)
 	binary.BigEndian.PutUint32(profile[offset+16:offset+20], 0x0000D32D)
 
 	// kTRC (gray curve)
 	offset = curvOffset
-	copy(profile[offset:offset+4], []byte("curv"))
+	copy(profile[offset:offset+4], iccCurvTag)
 	binary.BigEndian.PutUint32(profile[offset+8:offset+12], 1024)
 	for i, v := range gammaTable {
 		binary.BigEndian.PutUint16(profile[offset+12+i*2:offset+14+i*2], v)
@@ -492,16 +538,28 @@ func GenerateOutputIntentObject(objectID int, iccProfileID int, encryptor Object
 
 	if encryptor != nil {
 		idEnc := encryptor.EncryptString([]byte(srgbICC), objectID, 0)
-		idStr = fmt.Sprintf("<%s>", hex.EncodeToString(idEnc))
+		idStr = "<" + hex.EncodeToString(idEnc) + ">"
 
 		regEnc := encryptor.EncryptString([]byte("http://www.color.org"), objectID, 0)
-		regStr = fmt.Sprintf("<%s>", hex.EncodeToString(regEnc))
+		regStr = "<" + hex.EncodeToString(regEnc) + ">"
 
 		infoEnc := encryptor.EncryptString([]byte(srgbICC), objectID, 0)
-		infoStr = fmt.Sprintf("<%s>", hex.EncodeToString(infoEnc))
+		infoStr = "<" + hex.EncodeToString(infoEnc) + ">"
 	}
 
-	// For PDF/A-4 (PDF 2.0), use GTS_PDFA1 subtype (still valid)
-	return fmt.Sprintf("%d 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier %s /RegistryName %s /Info %s /DestOutputProfile %d 0 R >>\nendobj\n",
-		objectID, idStr, regStr, infoStr, iccProfileID)
+	// For PDF/A-4 (PDF 2.0), use GTS_PDFA1 subtype (still valid) — PERF-35 Builder+AppendInt
+	var b strings.Builder
+	var ntmp [24]byte
+	b.Grow(160 + len(idStr) + len(regStr) + len(infoStr))
+	b.Write(strconv.AppendInt(ntmp[:0], int64(objectID), 10))
+	b.WriteString(" 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier ")
+	b.WriteString(idStr)
+	b.WriteString(" /RegistryName ")
+	b.WriteString(regStr)
+	b.WriteString(" /Info ")
+	b.WriteString(infoStr)
+	b.WriteString(" /DestOutputProfile ")
+	b.Write(strconv.AppendInt(ntmp[:0], int64(iccProfileID), 10))
+	b.WriteString(" 0 R >>\nendobj\n")
+	return b.String()
 }

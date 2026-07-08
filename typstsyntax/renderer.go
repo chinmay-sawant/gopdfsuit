@@ -2,8 +2,8 @@ package typstsyntax
 
 import (
 	"bytes"
-	"fmt"
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -139,21 +139,32 @@ func (le *LayoutEngine) layoutNode(node *Node, fontSize float64) *MathLayout {
 // offsetElement shifts all coordinate fields (X/Y for glyphs, LineX/LineY for lines) by dx, dy.
 // For ElemGroup elements, only the group's X/Y is shifted since children are positioned
 // relative to the group origin and rendered via baseX+group.X in renderElements.
+// offsetElement shifts an element tree by (dx, dy) using an iterative stack
+// (PERF-224) instead of recursive walk.
 func offsetElement(el *MathElement, dx, dy float64) {
-	el.X += dx
-	el.Y += dy
-	if el.Type == ElemLine {
-		el.LineX1 += dx
-		el.LineY1 += dy
-		el.LineX2 += dx
-		el.LineY2 += dy
+	if el == nil {
+		return
 	}
-	// Only recurse into children for non-group elements.
-	// ElemGroup children are rendered relative to group.X/group.Y,
-	// so offsetting both would double the displacement.
-	if el.Type != ElemGroup {
-		for i := range el.Children {
-			offsetElement(&el.Children[i], dx, dy)
+	stack := []*MathElement{el}
+	for len(stack) > 0 {
+		cur := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		cur.X += dx
+		cur.Y += dy
+		if cur.Type == ElemLine {
+			cur.LineX1 += dx
+			cur.LineY1 += dy
+			cur.LineX2 += dx
+			cur.LineY2 += dy
+		}
+		// Only walk children for non-group elements.
+		// ElemGroup children are rendered relative to group.X/group.Y,
+		// so offsetting both would double the displacement.
+		if cur.Type != ElemGroup {
+			for i := range cur.Children {
+				stack = append(stack, &cur.Children[i])
+			}
 		}
 	}
 }
@@ -284,12 +295,17 @@ func (le *LayoutEngine) layoutFraction(node *Node, fontSize float64) *MathLayout
 	denX := (fracWidth - denLay.Width) / 2
 	denY := barY - barPadding - denLay.Height
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(numLay.Elements)+len(denLay.Elements)+1)
 
 	// Numerator
-	for _, el := range numLay.Elements {
-		offsetElement(&el, numX, numY)
-		elements = append(elements, el)
+	if n := len(numLay.Elements); n > 0 {
+		start := len(elements)
+		elements = append(elements, numLay.Elements...)
+		for i := start; i < start+n; i++ {
+			el := elements[i]
+			offsetElement(&el, numX, numY)
+			elements[i] = el
+		}
 	}
 
 	// Fraction bar
@@ -323,7 +339,7 @@ func (le *LayoutEngine) layoutSqrt(node *Node, fontSize float64) *MathLayout {
 	totalH := inner.Height + overlineGap + fontSize*0.15
 	totalW := radWidth + inner.Width + fontSize*0.1
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(inner.Elements)+2)
 
 	// Radical sign (√) glyph
 	elements = append(elements, MathElement{
@@ -358,12 +374,17 @@ func (le *LayoutEngine) layoutRoot(node *Node, fontSize float64) *MathLayout {
 	totalW := radWidth + innerLay.Width + fontSize*0.1
 	totalH := innerLay.Height + fontSize*0.25
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(indexLay.Elements)+len(innerLay.Elements)+2)
 
-	// Index (small, top-left of radical)
-	for _, el := range indexLay.Elements {
-		offsetElement(&el, fontSize*0.05, totalH-indexLay.Height*0.5)
-		elements = append(elements, el)
+	// Index (small, top-left of radical) — single append of all (PERF-119)
+	if n := len(indexLay.Elements); n > 0 {
+		base := len(elements)
+		elements = append(elements, indexLay.Elements...)
+		for i := base; i < base+n; i++ {
+			el := elements[i]
+			offsetElement(&el, fontSize*0.05, totalH-indexLay.Height*0.5)
+			elements[i] = el
+		}
 	}
 
 	// Radical sign
@@ -410,7 +431,7 @@ func (le *LayoutEngine) layoutGroup(node *Node, fontSize float64) *MathLayout {
 	}
 
 	totalW := delimWidth*2 + innerLay.Width
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(innerLay.Elements)+2)
 
 	// Left delimiter
 	elements = append(elements, MathElement{
@@ -418,10 +439,15 @@ func (le *LayoutEngine) layoutGroup(node *Node, fontSize float64) *MathLayout {
 		X: 0, Width: delimWidth,
 	})
 
-	// Inner content, shifted right
-	for _, el := range innerLay.Elements {
-		offsetElement(&el, delimWidth, 0)
-		elements = append(elements, el)
+	// Inner content, shifted right (PERF-119: single append of slice)
+	if n := len(innerLay.Elements); n > 0 {
+		base := len(elements)
+		elements = append(elements, innerLay.Elements...)
+		for i := base; i < base+n; i++ {
+			el := elements[i]
+			offsetElement(&el, delimWidth, 0)
+			elements[i] = el
+		}
 	}
 
 	// Right delimiter
@@ -468,13 +494,17 @@ func (le *LayoutEngine) layoutMatrixGrid(node *Node, fontSize float64) (grid *Ma
 	cols := inferMatrixColumns(len(node.Args))
 	rowCount := int(math.Ceil(float64(len(node.Args)) / float64(cols)))
 
+	// PERF-3: one flat backing store for all cells (no per-row make)
 	gridCells := make([][]*MathLayout, rowCount)
+	cellStore := make([]*MathLayout, rowCount*cols)
+	for r := 0; r < rowCount; r++ {
+		gridCells[r] = cellStore[r*cols : (r+1)*cols]
+	}
 	colWidths := make([]float64, cols)
 	rowHeights := make([]float64, rowCount)
 
 	idx := 0
 	for r := 0; r < rowCount; r++ {
-		gridCells[r] = make([]*MathLayout, cols)
 		for c := 0; c < cols; c++ {
 			if idx >= len(node.Args) {
 				break
@@ -666,7 +696,7 @@ func findSingleMatrix(args []*Node) *Node {
 		if arg.Type == NodeSequence {
 			var matNode *Node
 			for _, c := range arg.Children {
-				if c.Type == NodeLiteral && strings.TrimSpace(c.Value) == "" {
+				if c.Type == NodeLiteral && isWhitespaceOnly(c.Value) {
 					continue
 				}
 				if c.Type == NodeMatrix && matNode == nil {
@@ -786,7 +816,7 @@ func (le *LayoutEngine) layoutBinom(node *Node, fontSize float64) *MathLayout {
 	topY := fontSize*0.4 + gap
 	botY := fontSize*0.4 - gap - botLay.Height
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(topLay.Elements)+len(botLay.Elements)+2)
 
 	// Left paren
 	elements = append(elements, MathElement{
@@ -938,7 +968,7 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 
 	totalW := delimW*2 + innerLay.Width
 
-	elements := make([]MathElement, 0)
+	elements := make([]MathElement, 0, len(innerLay.Elements)+2)
 
 	// Position delimiter baseline so the glyph is vertically centered on the content
 	delimY := 0.0
@@ -1098,7 +1128,9 @@ func (le *LayoutEngine) layoutGenericFunc(node *Node, fontSize float64) *MathLay
 	delimW := fontSize * 0.3
 
 	totalW := nameLay.Width + delimW // name + (
-	elements := make([]MathElement, 0)
+	// Estimate: name glyphs + '(' + ')' + per-arg content and commas
+	estCap := len(nameLay.Elements) + 2 + len(node.Args)*4
+	elements := make([]MathElement, 0, estCap)
 	elements = append(elements, nameLay.Elements...)
 
 	elements = append(elements, MathElement{
@@ -1253,7 +1285,19 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 
 // fmtFloat formats a float64 for PDF with 2 decimal places.
 func fmtFloat(f float64) string {
-	return fmt.Sprintf("%.2f", f)
+	return strconv.FormatFloat(f, 'f', 2, 64)
+}
+
+// isWhitespaceOnly reports whether s is empty or contains only ASCII whitespace.
+// Avoids the allocation from strings.TrimSpace for the common whitespace-check path.
+func isWhitespaceOnly(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+			return false
+		}
+	}
+	return true
 }
 
 // bracketLineWidth is a constant thin line width for all drawn brackets.

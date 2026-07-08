@@ -4,27 +4,44 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/zlib"
-	"fmt"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
+)
+
+// Package-level PDF markers (avoid per-call []byte allocations).
+var (
+	markerEncrypt  = []byte(`/Encrypt`)
+	markerWBracket = []byte(`/W[`)
+	markerIndex    = []byte(`/Index`)
+)
+
+// Package-level compiled regexes (hoisted out of hot paths / loops).
+var (
+	trailerDictRe   = regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
+	rootRefRe       = regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
+	objStreamRe     = regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
+	streamContentRe = regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
+	objAtOffsetRe   = regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
+	arrayWRe        = regexp.MustCompile(`/W\s*\[(.*?)\]`)
+	arrayIndexRe    = regexp.MustCompile(`/Index\s*\[(.*?)\]`)
 )
 
 // bytesIndex is a helper to find a subsequence in a []byte
 func bytesIndex(b, sub []byte) int {
-	return strings.Index(string(b), string(sub))
+	return bytes.Index(b, sub)
 }
 
 // trailerHasEncrypt checks if trailer or any trailer 'Encrypt' appears
 func trailerHasEncrypt(data []byte) bool {
-	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
-	for _, m := range trRe.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], []byte(`/Encrypt`)) >= 0 {
+	for _, m := range trailerDictRe.FindAllSubmatch(data, -1) {
+		if bytesIndex(m[1], markerEncrypt) >= 0 {
 			return true
 		}
 	}
 	// also check for /Encrypt elsewhere
-	return bytesIndex(data, []byte(`/Encrypt`)) >= 0
+	return bytesIndex(data, markerEncrypt) >= 0
 }
 
 // tryZlibDecompress attempts to decompress zlib data
@@ -58,8 +75,7 @@ func tryFlateDecompress(b []byte) ([]byte, error) {
 
 // findRootRef looks for /Root n m R in the PDF bytes
 func findRootRef(data []byte) (string, bool) {
-	rootRe := regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
-	if m := rootRe.FindSubmatch(data); m != nil {
+	if m := rootRefRe.FindSubmatch(data); m != nil {
 		return string(m[1]) + " " + string(m[2]), true
 	}
 	return "", false
@@ -67,17 +83,24 @@ func findRootRef(data []byte) (string, bool) {
 
 // parseArrayInts parses array values from PDF dictionary
 func parseArrayInts(dict []byte, key string) []int {
-	re := regexp.MustCompile(key + `\s*\[(.*?)\]`)
+	var re *regexp.Regexp
+	switch key {
+	case `/W`:
+		re = arrayWRe
+	case `/Index`:
+		re = arrayIndexRe
+	default:
+		re = regexp.MustCompile(regexp.QuoteMeta(key) + `\s*\[(.*?)\]`)
+	}
 	if m := re.FindSubmatch(dict); m != nil {
-		inner := strings.TrimSpace(string(m[1]))
+		inner := trimSpace(string(m[1]))
 		if inner == "" {
 			return nil
 		}
 		parts := strings.Fields(inner)
 		res := make([]int, 0, len(parts))
 		for _, p := range parts {
-			var v int
-			if _, err := fmt.Sscanf(p, "%d", &v); err == nil {
+			if v, err := strconv.Atoi(p); err == nil {
 				res = append(res, v)
 			}
 		}
@@ -98,15 +121,13 @@ func readUint(b []byte) uint64 {
 // parseXRefStreams looks for XRef stream objects and uses them to augment objMap
 func parseXRefStreams(data []byte, objMap map[string][]byte) {
 	// find objects with streams that contain /W and /Index
-	objStreamRe := regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
 	for _, m := range objStreamRe.FindAllSubmatch(data, -1) {
 		body := m[3]
-		if bytesIndex(body, []byte(`/W[`)) < 0 || bytesIndex(body, []byte(`/Index`)) < 0 {
+		if bytesIndex(body, markerWBracket) < 0 || bytesIndex(body, markerIndex) < 0 {
 			continue
 		}
 		// extract stream
-		streamRe := regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-		sm := streamRe.FindSubmatch(body)
+		sm := streamContentRe.FindSubmatch(body)
 		if sm == nil {
 			continue
 		}
@@ -144,8 +165,7 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				if off > 0 && off < len(data) {
 					// try to parse object at this offset
 					tail := data[off:]
-					reObj := regexp.MustCompile(`(?s)^(\s*)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
-					if ro := reObj.FindSubmatch(tail); ro != nil {
+					if ro := objAtOffsetRe.FindSubmatch(tail); ro != nil {
 						onum := string(ro[2])
 						ogen := string(ro[3])
 						key := onum + " " + ogen
@@ -158,7 +178,8 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 				objstm := f2
 				index := f3
 				// look for objstm content we earlier extracted
-				key := fmt.Sprintf("%d 0", objstm)
+				var tmp [20]byte
+				key := string(strconv.AppendInt(tmp[:0], int64(objstm), 10)) + " 0"
 				if stm, ok := objMap[key]; ok {
 					// try to parse embedded objects from stm similarly to earlier logic
 					_ = index

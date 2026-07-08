@@ -65,13 +65,14 @@ func main() {
 	if gin.Mode() == gin.DebugMode {
 		router.Use(gin.Logger())
 	}
-	// Concurrency control: match to CPU count to minimize context switching
+	// Concurrency control: match GOMAXPROCS to minimize context switching
 	// for CPU-bound PDF generation workloads.
-	// Using NumCPU() prevents goroutine thrashing — 100 goroutines on 24 cores
-	// caused massive context-switch overhead and was the primary bottleneck.
-	maxConcurrent := runtime.NumCPU()
+	maxConcurrent := runtime.GOMAXPROCS(0)
+	if maxConcurrent < 1 {
+		maxConcurrent = 1
+	}
 	semaphore := make(chan struct{}, maxConcurrent)
-	fmt.Printf("Server starting with %d max concurrent workers (CPUs: %d)\n", maxConcurrent, runtime.NumCPU())
+	fmt.Printf("Server starting with %d max concurrent workers\n", maxConcurrent)
 
 	router.Use(func(c *gin.Context) {
 		semaphore <- struct{}{}
@@ -88,15 +89,22 @@ func main() {
 		WriteTimeout: 60 * time.Second,
 	}
 
+	// PERF-43/151: never log.Fatal from a goroutine; surface listen errors on a channel
+	serverErr := make(chan error, 1)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
+			serverErr <- err
 		}
 	}()
 
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
+	select {
+	case err := <-serverErr:
+		log.Printf("listen: %s\n", err)
+		os.Exit(1)
+	case <-quit:
+		log.Println("Shutting down server...")
+	}
 }

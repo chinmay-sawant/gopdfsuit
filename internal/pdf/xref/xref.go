@@ -36,8 +36,8 @@ var GeneratorStyle = Style{
 // subsections. scratch is reused for numeric formatting; pass nil to allocate.
 // Returns the byte offset where "xref" starts (for startxref).
 func WriteCompactXRef(out *bytes.Buffer, offsets map[int]int, scratch []byte, style Style) int {
-	usedObjects := make([]int, 0, len(offsets)+1)
-	usedObjects = append(usedObjects, 0)
+	usedObjects := make([]int, 1, len(offsets)+1)
+	usedObjects[0] = 0
 	for objID := range offsets {
 		usedObjects = append(usedObjects, objID)
 	}

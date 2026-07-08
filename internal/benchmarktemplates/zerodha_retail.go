@@ -1,7 +1,6 @@
 package benchmarktemplates
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -232,5 +231,5 @@ func BuildZerodhaRetailTemplate() (gopdflib.PDFTemplate, error) {
 
 // BenchmarkHeader formats a standard heading for benchmark output.
 func BenchmarkHeader(name string) string {
-	return fmt.Sprintf("=== %s Single Zerodha Benchmark ===", name)
+	return "=== " + name + " Single Zerodha Benchmark ==="
 }

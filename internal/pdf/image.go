@@ -3,7 +3,7 @@ package pdf
 import (
 	"bytes"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"image"
 	_ "image/jpeg" // Register JPEG decoder
 	_ "image/png"  // Register PNG decoder
@@ -16,9 +16,10 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/svg"
 )
 
-// fmtNumImg formats a float with 2 decimal places for image dimensions
+// fmtNumImg formats a float with 2 decimal places for image dimensions (PERF-35: no fmt boxing)
 func fmtNumImg(f float64) string {
-	return fmt.Sprintf("%.2f", f)
+	var buf [24]byte
+	return string(strconv.AppendFloat(buf[:0], f, 'f', 2, 64))
 }
 
 // rgbDataPool recycles byte slices for RGB conversion
@@ -37,7 +38,7 @@ type imageCache struct {
 }
 
 var imgCache = &imageCache{
-	cache: make(map[uint64]*ImageObject),
+	cache: make(map[uint64]*ImageObject, 64), // PERF-192
 }
 
 // fnv1aHash computes FNV-1a hash for quick image deduplication
@@ -57,7 +58,7 @@ func fnv1aHash(data string) uint64 {
 // ResetImageCache clears the image cache (call between PDF generations if needed)
 func ResetImageCache() {
 	imgCache.mu.Lock()
-	imgCache.cache = make(map[uint64]*ImageObject)
+	imgCache.cache = make(map[uint64]*ImageObject, 64) // PERF-192
 	imgCache.mu.Unlock()
 }
 
@@ -123,7 +124,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	// Decode base64 to bytes
 	imageBytes, err := base64.StdEncoding.DecodeString(cleanData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64: %v", err)
+		return nil, errors.Join(errors.New("failed to decode base64"), err)
 	}
 
 	// Check if data is SVG (simple check)
@@ -147,7 +148,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	// Try to decode as PNG/JPEG
 	img, format, err := image.Decode(bytes.NewReader(imageBytes))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %v", err)
+		return nil, errors.Join(errors.New("failed to decode image"), err)
 	}
 
 	bounds := img.Bounds()
@@ -254,7 +255,7 @@ func convertToRGB(img image.Image, rgbData []byte) error {
 	expectedLen := width * height * 3
 
 	if len(rgbData) < expectedLen {
-		return fmt.Errorf("rgbData buffer too small: got %d, want %d", len(rgbData), expectedLen)
+		return errors.New("rgbData buffer too small: got " + strconv.Itoa(len(rgbData)) + ", want " + strconv.Itoa(expectedLen))
 	}
 
 	idx := 0
@@ -317,7 +318,7 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 	expectedLen := width * height * 3
 
 	if len(rgbData) < expectedLen {
-		return fmt.Errorf("rgbData buffer too small: got %d, want %d", len(rgbData), expectedLen)
+		return errors.New("rgbData buffer too small: got " + strconv.Itoa(len(rgbData)) + ", want " + strconv.Itoa(expectedLen))
 	}
 
 	idx := 0
@@ -446,9 +447,8 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	if imgObj.IsForm {
 		b := make([]byte, 0, 256)
 		b = strconv.AppendInt(b, int64(objectID), 10)
-		b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Form\n   /BBox [0 0 1 1]\n"...)
-		b = append(b, "   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n"...) // Basic resources
-		b = append(b, "   /Length "...)
+		// Single static header chunk (PERF-119)
+		b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Form\n   /BBox [0 0 1 1]\n   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n   /Length "...)
 		b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
 		b = append(b, "\n>>\nstream\n"...)
 
@@ -459,28 +459,42 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	}
 
 	// Pre-allocate buffer with capacity for typical image XObject header
-	b := make([]byte, 0, 256)
+	b := make([]byte, 0, 256+len(imgObj.ColorSpace)+len(imgObj.Filter))
 
 	b = strconv.AppendInt(b, int64(objectID), 10)
 	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
 	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
 	b = append(b, "\n   /Height "...)
 	b = strconv.AppendInt(b, int64(imgObj.Height), 10)
-	b = append(b, "\n   /ColorSpace "...)
-	b = append(b, imgObj.ColorSpace...)
-	b = append(b, "\n   /BitsPerComponent "...)
-	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
-	b = append(b, "\n"...)
-
+	// Merge ColorSpace prefix + value + BitsPerComponent prefix (PERF-119/128)
+	csPref := []byte("\n   /ColorSpace ")
+	bpPref := []byte("\n   /BitsPerComponent ")
+	var bpBuf [12]byte
+	bpNum := strconv.AppendInt(bpBuf[:0], int64(imgObj.BitsPerComp), 10)
+	chunk := make([]byte, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
+	o := copy(chunk, csPref)
+	o += copy(chunk[o:], imgObj.ColorSpace)
+	o += copy(chunk[o:], bpPref)
+	copy(chunk[o:], bpNum)
+	var lenBuf [12]byte
+	lenNum := strconv.AppendInt(lenBuf[:0], int64(imgObj.ImageDataLen), 10)
+	filterPref := []byte("\n   /Filter ")
+	lenPref := []byte("\n   /Length ")
+	streamEnd := []byte("\n>>\nstream\n")
+	filterLen := 0
 	if imgObj.Filter != "" {
-		b = append(b, "   /Filter "...)
-		b = append(b, imgObj.Filter...)
-		b = append(b, "\n"...)
+		filterLen = len(filterPref) + len(imgObj.Filter)
 	}
-
-	b = append(b, "   /Length "...)
-	b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
-	b = append(b, "\n>>\nstream\n"...)
+	tail := make([]byte, len(chunk)+filterLen+len(lenPref)+len(lenNum)+len(streamEnd))
+	o = copy(tail, chunk)
+	if imgObj.Filter != "" {
+		o += copy(tail[o:], filterPref)
+		o += copy(tail[o:], imgObj.Filter)
+	}
+	o += copy(tail[o:], lenPref)
+	o += copy(tail[o:], lenNum)
+	copy(tail[o:], streamEnd)
+	b = append(b, tail...)
 
 	// Write header and image data in two operations
 	buf.Write(b)
@@ -506,9 +520,7 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	if imgObj.IsForm {
 		b := make([]byte, 0, 256)
 		b = strconv.AppendInt(b, int64(objectID), 10)
-		b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Form\n   /BBox [0 0 1 1]\n"...)
-		b = append(b, "   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n"...)
-		b = append(b, "   /Length "...)
+		b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Form\n   /BBox [0 0 1 1]\n   /Resources << /ProcSet [/PDF /Text /ImageB /ImageC /ImageI] >>\n   /Length "...)
 		b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
 		b = append(b, "\n>>\nstream\n"...)
 
@@ -519,27 +531,40 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	}
 
 	// Pre-allocate buffer with capacity for typical image XObject header
-	b := make([]byte, 0, 256)
+	b := make([]byte, 0, 256+len(imgObj.ColorSpace)+len(imgObj.Filter))
 	b = strconv.AppendInt(b, int64(objectID), 10)
 	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
 	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
 	b = append(b, "\n   /Height "...)
 	b = strconv.AppendInt(b, int64(imgObj.Height), 10)
-	b = append(b, "\n   /ColorSpace "...)
-	b = append(b, imgObj.ColorSpace...)
-	b = append(b, "\n   /BitsPerComponent "...)
-	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
-	b = append(b, "\n"...)
-
+	csPref := []byte("\n   /ColorSpace ")
+	bpPref := []byte("\n   /BitsPerComponent ")
+	var bpBuf [12]byte
+	bpNum := strconv.AppendInt(bpBuf[:0], int64(imgObj.BitsPerComp), 10)
+	chunk := make([]byte, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
+	o := copy(chunk, csPref)
+	o += copy(chunk[o:], imgObj.ColorSpace)
+	o += copy(chunk[o:], bpPref)
+	copy(chunk[o:], bpNum)
+	var lenBuf [12]byte
+	lenNum := strconv.AppendInt(lenBuf[:0], int64(len(encryptedData)), 10)
+	filterPref := []byte("\n   /Filter ")
+	lenPref := []byte("\n   /Length ")
+	streamEnd := []byte("\n>>\nstream\n")
+	filterLen := 0
 	if imgObj.Filter != "" {
-		b = append(b, "   /Filter "...)
-		b = append(b, imgObj.Filter...)
-		b = append(b, "\n"...)
+		filterLen = len(filterPref) + len(imgObj.Filter)
 	}
-
-	b = append(b, "   /Length "...)
-	b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
-	b = append(b, "\n>>\nstream\n"...)
+	tail := make([]byte, len(chunk)+filterLen+len(lenPref)+len(lenNum)+len(streamEnd))
+	o = copy(tail, chunk)
+	if imgObj.Filter != "" {
+		o += copy(tail[o:], filterPref)
+		o += copy(tail[o:], imgObj.Filter)
+	}
+	o += copy(tail[o:], lenPref)
+	o += copy(tail[o:], lenNum)
+	copy(tail[o:], streamEnd)
+	b = append(b, tail...)
 
 	// Write header and encrypted data in two operations
 	buf.Write(b)

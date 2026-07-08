@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/pkg/gopdflib"
@@ -18,28 +19,35 @@ import (
 func getSystemInfo() string {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	return fmt.Sprintf("OS: %s, Arch: %s, NumCPU: %d, GoVersion: %s",
-		runtime.GOOS, runtime.GOARCH, runtime.NumCPU(), runtime.Version())
+	return "OS: " + runtime.GOOS + ", Arch: " + runtime.GOARCH + ", GoVersion: " + runtime.Version()
 }
 
-func monitorMemory(done chan bool, wg *sync.WaitGroup) {
+func monitorMemory(stop *atomic.Bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var maxAlloc uint64
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-done:
-			fmt.Printf("Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
-			return
-		case <-ticker.C:
-			var m runtime.MemStats
-			runtime.ReadMemStats(&m)
-			if m.Alloc > maxAlloc {
-				maxAlloc = m.Alloc
-			}
+	for !stop.Load() {
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		if m.Alloc > maxAlloc {
+			maxAlloc = m.Alloc
 		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	fmt.Printf("Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
+}
+
+// runFinancialWorker runs one PDF generation worker (PERF-7/40).
+func runFinancialWorker(wg *sync.WaitGroup, jobs <-chan int, results chan<- time.Duration, errCh chan<- error, template gopdflib.PDFTemplate) {
+	defer wg.Done()
+	for range jobs {
+		start := time.Now()
+		_, err := gopdflib.GeneratePDF(template)
+		elapsed := time.Since(start)
+		if err != nil {
+			errCh <- err
+			continue
+		}
+		results <- elapsed
 	}
 }
 
@@ -51,7 +59,6 @@ func main() {
 	// Number of iterations for benchmarking
 	iterations := 5000
 	// Determine concurrency
-	// numWorkers := runtime.NumCPU()
 	numWorkers := 96
 
 	fmt.Println(getSystemInfo())
@@ -75,29 +82,16 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	// Start memory monitor
-	memDone := make(chan bool)
+	// Memory monitor via atomic stop flag (PERF-171)
+	var memStop atomic.Bool
 	var memWg sync.WaitGroup
 	memWg.Add(1)
-	go monitorMemory(memDone, &memWg)
+	go monitorMemory(&memStop, &memWg)
 
-	// Start workers
+	// Start workers (PERF-7: named helper for defer)
 	for range numWorkers {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for range jobs {
-				start := time.Now()
-				_, err := gopdflib.GeneratePDF(template)
-				elapsed := time.Since(start)
-
-				if err != nil {
-					errors <- err
-					continue
-				}
-				results <- elapsed
-			}
-		}()
+		go runFinancialWorker(&wg, jobs, results, errors, template)
 	}
 
 	// Start total timer
@@ -114,7 +108,7 @@ func main() {
 	totalTime := time.Since(totalStart)
 
 	// Stop memory monitor
-	memDone <- true
+	memStop.Store(true)
 	memWg.Wait()
 
 	close(results)

@@ -229,10 +229,14 @@ func (p *Parser) parseFunctionCall(name string) *Node {
 	var args []*Node
 	for p.current().Type != TokenRParen && p.current().Type != TokenEOF {
 		arg := p.parseFunctionArgSequence()
+		var node *Node
 		if len(arg) == 1 {
-			args = append(args, arg[0])
+			node = arg[0]
 		} else if len(arg) > 1 {
-			args = append(args, &Node{Type: NodeSequence, Children: arg})
+			node = &Node{Type: NodeSequence, Children: arg}
+		}
+		if node != nil {
+			args = append(args, node)
 		}
 		if p.current().Type == TokenComma {
 			p.advance()
@@ -420,220 +424,207 @@ func FlattenToText(node *Node) string {
 	return sb.String()
 }
 
-func flattenNode(node *Node, sb *strings.Builder) {
-	switch node.Type {
-	case NodeLiteral, NodeSymbol, NodeOperator, NodeQuotedText:
-		sb.WriteString(node.Value)
+// flattenWork is a stack item for iterative flatten (PERF-224).
+// Exactly one of node or literal is used.
+type flattenWork struct {
+	node    *Node
+	literal string
+}
 
-	case NodeSuperscript:
-		flattenSuperscript(node, sb)
-	case NodeSubscript:
-		flattenSubscript(node, sb)
-	case NodeFraction:
-		flattenFraction(node, sb)
-	case NodeSqrt:
-		flattenSqrt(node, sb)
-	case NodeRoot:
-		flattenRoot(node, sb)
-	case NodeGroup:
-		flattenGroup(node, sb)
-	case NodePrime:
-		flattenPrime(node, sb)
-	case NodeAccent:
-		flattenAccent(node, sb)
-	case NodeMatrix, NodeVector:
-		flattenMatrixVector(node, sb)
-	case NodeBinom:
-		flattenBinom(node, sb)
-	case NodeCases:
-		flattenCases(node, sb)
-	case NodeCancel:
-		flattenCancel(node, sb)
-	case NodeLR:
-		flattenLR(node, sb)
-	case NodeUnderOver:
-		flattenUnderOver(node, sb)
-	case NodeStyle, NodeVariant, NodeSize, NodeStretch:
-		if len(node.Children) >= 1 {
-			flattenNode(node.Children[0], sb)
+// flattenNode walks the AST iteratively with an explicit stack (PERF-224).
+func flattenNode(root *Node, sb *strings.Builder) {
+	if root == nil {
+		return
+	}
+	stack := make([]flattenWork, 0, 32)
+	stack = append(stack, flattenWork{node: root})
+
+	for len(stack) > 0 {
+		w := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		if w.literal != "" {
+			sb.WriteString(w.literal)
+			continue
 		}
-	case NodeOp:
-		flattenOp(node, sb)
-	case NodeClass:
-		if len(node.Children) >= 2 {
-			flattenNode(node.Children[1], sb)
+		node := w.node
+		if node == nil {
+			continue
 		}
-	case NodeFunc:
-		flattenFunc(node, sb)
-	case NodeSequence:
-		for _, child := range node.Children {
-			flattenNode(child, sb)
+
+		switch node.Type {
+		case NodeLiteral, NodeSymbol, NodeOperator, NodeQuotedText:
+			sb.WriteString(node.Value)
+
+		case NodeSuperscript:
+			// base then superscript of exponent
+			if len(node.Children) >= 2 {
+				stack = append(stack, flattenWork{literal: toSuperscript(FlattenToText(node.Children[1]))})
+			}
+			if len(node.Children) >= 1 {
+				stack = append(stack, flattenWork{node: node.Children[0]})
+			}
+
+		case NodeSubscript:
+			if len(node.Children) >= 2 {
+				stack = append(stack, flattenWork{literal: toSubscript(FlattenToText(node.Children[1]))})
+			}
+			if len(node.Children) >= 1 {
+				stack = append(stack, flattenWork{node: node.Children[0]})
+			}
+
+		case NodeFraction:
+			if len(node.Children) >= 2 {
+				// PERF-119: one append of 3 work items (reverse: den, slash, num for stack)
+				stack = append(stack,
+					flattenWork{literal: FlattenToText(node.Children[1])},
+					flattenWork{literal: "/"},
+					flattenWork{literal: FlattenToText(node.Children[0])},
+				)
+			}
+
+		case NodeSqrt:
+			// √ ( child )
+			if len(node.Children) >= 1 {
+				stack = append(stack,
+					flattenWork{literal: ")"},
+					flattenWork{node: node.Children[0]},
+					flattenWork{literal: "("},
+				)
+			}
+			stack = append(stack, flattenWork{literal: "√"})
+
+		case NodeRoot:
+			if len(node.Children) >= 2 {
+				stack = append(stack,
+					flattenWork{literal: ")"},
+					flattenWork{node: node.Children[1]},
+					flattenWork{literal: "√("},
+					flattenWork{literal: toSuperscript(FlattenToText(node.Children[0]))},
+				)
+			}
+
+		case NodeGroup:
+			delims := getGroupDelimiters(node.Value)
+			// reverse order: open, children with spaces, close
+			stack = append(stack, flattenWork{literal: delims[1]})
+			for i := len(node.Children) - 1; i >= 0; i-- {
+				stack = append(stack, flattenWork{node: node.Children[i]})
+				if i > 0 {
+					stack = append(stack, flattenWork{literal: " "})
+				}
+			}
+			stack = append(stack, flattenWork{literal: delims[0]})
+
+		case NodePrime:
+			stack = append(stack, flattenWork{literal: node.Value})
+			if len(node.Children) >= 1 {
+				stack = append(stack, flattenWork{node: node.Children[0]})
+			}
+
+		case NodeAccent:
+			if len(node.Children) >= 1 {
+				if accent, ok := AccentMap[node.FuncName]; ok {
+					stack = append(stack, flattenWork{literal: accent})
+				}
+				stack = append(stack, flattenWork{node: node.Children[0]})
+			}
+
+		case NodeMatrix, NodeVector:
+			openDelim, sep, closeDelim := "⌈", "; ", "⌉"
+			if node.Type == NodeVector {
+				openDelim, sep, closeDelim = "(", ", ", ")"
+			}
+			stack = append(stack, flattenWork{literal: closeDelim})
+			for i := len(node.Args) - 1; i >= 0; i-- {
+				stack = append(stack, flattenWork{node: node.Args[i]})
+				if i > 0 {
+					stack = append(stack, flattenWork{literal: sep})
+				}
+			}
+			stack = append(stack, flattenWork{literal: openDelim})
+
+		case NodeBinom:
+			if len(node.Children) >= 2 {
+				stack = append(stack, flattenWork{literal: ")"})
+				stack = append(stack, flattenWork{node: node.Children[1]})
+				stack = append(stack, flattenWork{literal: " choose "})
+				stack = append(stack, flattenWork{node: node.Children[0]})
+				stack = append(stack, flattenWork{literal: "("})
+			}
+
+		case NodeCases:
+			// note: original had no closing brace
+			for i := len(node.Args) - 1; i >= 0; i-- {
+				stack = append(stack, flattenWork{node: node.Args[i]})
+				if i > 0 {
+					stack = append(stack, flattenWork{literal: ", "})
+				}
+			}
+			stack = append(stack, flattenWork{literal: "{"})
+
+		case NodeCancel:
+			if len(node.Children) >= 1 {
+				stack = append(stack, flattenWork{node: node.Children[0]})
+			}
+
+		case NodeLR:
+			delims := getLRDelimiters(node.FuncName)
+			stack = append(stack, flattenWork{literal: delims[1]})
+			for i := len(node.Args) - 1; i >= 0; i-- {
+				stack = append(stack, flattenWork{node: node.Args[i]})
+				if i > 0 {
+					stack = append(stack, flattenWork{literal: ", "})
+				}
+			}
+			stack = append(stack, flattenWork{literal: delims[0]})
+
+		case NodeUnderOver:
+			if len(node.Args) >= 2 {
+				stack = append(stack, flattenWork{literal: ")"})
+				stack = append(stack, flattenWork{node: node.Args[1]})
+				stack = append(stack, flattenWork{literal: " ("})
+			}
+			if len(node.Args) >= 1 {
+				stack = append(stack, flattenWork{node: node.Args[0]})
+			}
+
+		case NodeStyle, NodeVariant, NodeSize, NodeStretch:
+			if len(node.Children) >= 1 {
+				stack = append(stack, flattenWork{node: node.Children[0]})
+			}
+
+		case NodeOp:
+			if node.Value != "" {
+				sb.WriteString(node.Value)
+			} else if len(node.Children) >= 1 {
+				stack = append(stack, flattenWork{node: node.Children[0]})
+			}
+
+		case NodeClass:
+			if len(node.Children) >= 2 {
+				stack = append(stack, flattenWork{node: node.Children[1]})
+			}
+
+		case NodeFunc:
+			stack = append(stack, flattenWork{literal: ")"})
+			for i := len(node.Args) - 1; i >= 0; i-- {
+				stack = append(stack, flattenWork{node: node.Args[i]})
+				if i > 0 {
+					stack = append(stack, flattenWork{literal: ", "})
+				}
+			}
+			stack = append(stack, flattenWork{literal: node.FuncName + "("})
+
+		case NodeSequence:
+			for i := len(node.Children) - 1; i >= 0; i-- {
+				stack = append(stack, flattenWork{node: node.Children[i]})
+			}
+
+		case NodeLineBreak:
+			sb.WriteString("\n")
 		}
-	case NodeLineBreak:
-		sb.WriteString("\n")
 	}
-}
-
-func flattenSuperscript(node *Node, sb *strings.Builder) {
-	if len(node.Children) >= 1 {
-		flattenNode(node.Children[0], sb)
-	}
-	if len(node.Children) >= 2 {
-		expText := FlattenToText(node.Children[1])
-		sb.WriteString(toSuperscript(expText))
-	}
-}
-
-func flattenSubscript(node *Node, sb *strings.Builder) {
-	if len(node.Children) >= 1 {
-		flattenNode(node.Children[0], sb)
-	}
-	if len(node.Children) >= 2 {
-		subText := FlattenToText(node.Children[1])
-		sb.WriteString(toSubscript(subText))
-	}
-}
-
-func flattenFraction(node *Node, sb *strings.Builder) {
-	if len(node.Children) >= 2 {
-		num := FlattenToText(node.Children[0])
-		den := FlattenToText(node.Children[1])
-		sb.WriteString(num)
-		sb.WriteString("/")
-		sb.WriteString(den)
-	}
-}
-
-func flattenSqrt(node *Node, sb *strings.Builder) {
-	sb.WriteString("√")
-	if len(node.Children) >= 1 {
-		sb.WriteString("(")
-		flattenNode(node.Children[0], sb)
-		sb.WriteString(")")
-	}
-}
-
-func flattenRoot(node *Node, sb *strings.Builder) {
-	if len(node.Children) >= 2 {
-		idxText := FlattenToText(node.Children[0])
-		sb.WriteString(toSuperscript(idxText))
-		sb.WriteString("√")
-		sb.WriteString("(")
-		flattenNode(node.Children[1], sb)
-		sb.WriteString(")")
-	}
-}
-
-func flattenGroup(node *Node, sb *strings.Builder) {
-	delims := getGroupDelimiters(node.Value)
-	sb.WriteString(delims[0])
-	for i, child := range node.Children {
-		if i > 0 {
-			sb.WriteString(" ")
-		}
-		flattenNode(child, sb)
-	}
-	sb.WriteString(delims[1])
-}
-
-func flattenPrime(node *Node, sb *strings.Builder) {
-	if len(node.Children) >= 1 {
-		flattenNode(node.Children[0], sb)
-	}
-	sb.WriteString(node.Value)
-}
-
-func flattenAccent(node *Node, sb *strings.Builder) {
-	if len(node.Children) >= 1 {
-		flattenNode(node.Children[0], sb)
-		if accent, ok := AccentMap[node.FuncName]; ok {
-			sb.WriteString(accent)
-		}
-	}
-}
-
-func flattenMatrixVector(node *Node, sb *strings.Builder) {
-	openDelim, sep, closeDelim := "⌈", "; ", "⌉"
-	if node.Type == NodeVector {
-		openDelim, sep, closeDelim = "(", ", ", ")"
-	}
-	sb.WriteString(openDelim)
-	for i, arg := range node.Args {
-		if i > 0 {
-			sb.WriteString(sep)
-		}
-		flattenNode(arg, sb)
-	}
-	sb.WriteString(closeDelim)
-}
-
-func flattenBinom(node *Node, sb *strings.Builder) {
-	if len(node.Children) >= 2 {
-		sb.WriteString("(")
-		flattenNode(node.Children[0], sb)
-		sb.WriteString(" choose ")
-		flattenNode(node.Children[1], sb)
-		sb.WriteString(")")
-	}
-}
-
-func flattenCases(node *Node, sb *strings.Builder) {
-	sb.WriteString("{")
-	for i, arg := range node.Args {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		flattenNode(arg, sb)
-	}
-}
-
-func flattenCancel(node *Node, sb *strings.Builder) {
-	if len(node.Children) >= 1 {
-		flattenNode(node.Children[0], sb)
-	}
-}
-
-func flattenLR(node *Node, sb *strings.Builder) {
-	delims := getLRDelimiters(node.FuncName)
-	sb.WriteString(delims[0])
-	for i, arg := range node.Args {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		flattenNode(arg, sb)
-	}
-	sb.WriteString(delims[1])
-}
-
-func flattenUnderOver(node *Node, sb *strings.Builder) {
-	if len(node.Args) >= 1 {
-		flattenNode(node.Args[0], sb)
-	}
-	if len(node.Args) >= 2 {
-		sb.WriteString(" (")
-		flattenNode(node.Args[1], sb)
-		sb.WriteString(")")
-	}
-}
-
-func flattenOp(node *Node, sb *strings.Builder) {
-	if node.Value != "" {
-		sb.WriteString(node.Value)
-	} else if len(node.Children) >= 1 {
-		flattenNode(node.Children[0], sb)
-	}
-}
-
-func flattenFunc(node *Node, sb *strings.Builder) {
-	sb.WriteString(node.FuncName)
-	sb.WriteString("(")
-	for i, arg := range node.Args {
-		if i > 0 {
-			sb.WriteString(", ")
-		}
-		flattenNode(arg, sb)
-	}
-	sb.WriteString(")")
 }
 
 // toSuperscript converts text to Unicode superscript characters.

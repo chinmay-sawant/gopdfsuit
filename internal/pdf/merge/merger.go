@@ -2,17 +2,26 @@ package merge
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 )
 
+// Package-level regexes used by merger helpers (PERF-1).
+var (
+	pagesRefRe  = regexp.MustCompile(`/Pages\s+(\d+)\s+\d+\s+R`)
+	parentRefRe = regexp.MustCompile(`/Parent\s+\d+\s+\d+\s+R`)
+	trailerRe   = regexp.MustCompile(`(?s)trailer\s*<<(.*?)>>`)
+)
+
 // MergePDFs merges multiple PDF files into one
 // It properly handles form fields, widgets, appearance streams, and various PDF versions
+//
 //nolint:revive // exported
 func MergePDFs(files [][]byte) ([]byte, error) {
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no PDF files provided")
+		return nil, errors.New("no PDF files provided")
 	}
 
 	ctx := NewMergeContext()
@@ -21,7 +30,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	var fileContexts []*FileContext
 	for _, f := range files {
 		if hasEncrypt(f) {
-			return nil, fmt.Errorf("cannot merge encrypted PDF")
+			return nil, errors.New("cannot merge encrypted PDF")
 		}
 
 		fc := parseFile(f)
@@ -39,11 +48,13 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	}
 
 	if len(fileContexts) == 0 {
-		return nil, fmt.Errorf("no valid PDF files to merge")
+		return nil, errors.New("no valid PDF files to merge")
 	}
 
-	// Write PDF header
-	ctx.Output.WriteString(fmt.Sprintf("%%PDF-%s\n%%\xe2\xe3\xcf\xd3\n", ctx.HighestVersion))
+	// Write PDF header (PERF-35: no fmt boxing)
+	ctx.Output.WriteString("%PDF-")
+	ctx.Output.WriteString(ctx.HighestVersion)
+	ctx.Output.WriteString("\n%\xe2\xe3\xcf\xd3\n")
 
 	// Process each file
 	var appendedObjects []struct {
@@ -179,8 +190,7 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 
 	if catalogNum > 0 {
 		if body, exists := objMap[catalogNum]; exists {
-			pagesRe := regexp.MustCompile(`/Pages\s+(\d+)\s+\d+\s+R`)
-			match := pagesRe.FindSubmatch(body)
+			match := pagesRefRe.FindSubmatch(body)
 			if match != nil {
 				pagesNum, _ = strconv.Atoi(string(match[1]))
 			}
@@ -193,7 +203,6 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 // extractPagesFromTree extracts page object numbers from the Pages tree
 func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 	var pages []int
-	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
 
 	rootRef := findRootRef(data)
 	if rootRef == "" {
@@ -212,8 +221,7 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 	}
 
 	// Find /Pages reference
-	pagesRe := regexp.MustCompile(`/Pages\s+(\d+)\s+\d+\s+R`)
-	match := pagesRe.FindSubmatch(rootBody)
+	match := pagesRefRe.FindSubmatch(rootBody)
 	if match == nil {
 		return pages
 	}
@@ -225,15 +233,14 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 	}
 
 	// Recursively extract kids
-	return extractKidsRecursive(pagesBody, objMap, refRe)
+	return extractKidsRecursive(pagesBody, objMap, objRefRe)
 }
 
 // extractKidsRecursive extracts page numbers from /Kids array
 func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp.Regexp) []int {
 	var pages []int
-	kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
 
-	match := kidsRe.FindSubmatch(pagesBody)
+	match := kidsArrayRe.FindSubmatch(pagesBody)
 	if match == nil {
 		return pages
 	}
@@ -261,8 +268,12 @@ func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp
 // collectObjectsWithDependencies returns all object numbers to process
 // ensuring annotation dependencies are included but excluding original catalog/pages/objstm
 func collectObjectsWithDependencies(fc *FileContext) []int {
-	included := make(map[int]bool)
-	excluded := make(map[int]bool)
+	capHint := fc.MaxObj
+	if capHint < 8 {
+		capHint = 8
+	}
+	included := make(map[int]bool, capHint) // PERF-192
+	excluded := make(map[int]bool, 8)
 	var result []int
 
 	// Mark objects to exclude
@@ -367,11 +378,9 @@ func writeObject(out *bytes.Buffer, num int, body []byte) {
 
 // updateParentRef updates or adds /Parent reference
 func updateParentRef(body []byte) []byte {
-	parentRe := regexp.MustCompile(`/Parent\s+\d+\s+\d+\s+R`)
-
-	if parentRe.Match(body) {
+	if parentRefRe.Match(body) {
 		// Update existing
-		return parentRe.ReplaceAll(body, []byte("/Parent 2 0 R"))
+		return parentRefRe.ReplaceAll(body, []byte("/Parent 2 0 R"))
 	}
 
 	// Add new parent reference after <<
@@ -407,18 +416,19 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	// Object 0 is always free
 	out.WriteString("0000000000 65535 f\r\n")
 
-	// Write entries for objects 1 to maxObj
+	// Write entries for objects 1 to maxObj (fixed 19-byte line, PERF-119/128)
+	var entry [19]byte
+	copy(entry[10:], " 00000 n\r\n")
+	var offTmp [20]byte
 	for i := 1; i <= maxObj; i++ {
 		if off, ok := offsets[i]; ok {
-			xrefBuf = xrefBuf[:0]
-			// Format as 10-digit zero-padded number
-			offStr := strconv.FormatInt(int64(off), 10)
-			for j := 0; j < 10-len(offStr); j++ {
-				xrefBuf = append(xrefBuf, '0')
+			offStr := strconv.AppendInt(offTmp[:0], int64(off), 10)
+			pad := 10 - len(offStr)
+			for j := 0; j < pad; j++ {
+				entry[j] = '0'
 			}
-			xrefBuf = append(xrefBuf, offStr...)
-			xrefBuf = append(xrefBuf, " 00000 n\r\n"...)
-			out.Write(xrefBuf)
+			copy(entry[pad:10], offStr)
+			out.Write(entry[:])
 		} else {
 			out.WriteString("0000000000 65535 f\r\n")
 		}
@@ -436,7 +446,6 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 
 // hasEncrypt checks if PDF is encrypted
 func hasEncrypt(data []byte) bool {
-	trailerRe := regexp.MustCompile(`(?s)trailer\s*<<(.*?)>>`)
 	matches := trailerRe.FindAllSubmatch(data, -1)
 	for _, m := range matches {
 		if bytes.Contains(m[1], []byte("/Encrypt")) {

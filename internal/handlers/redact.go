@@ -6,30 +6,52 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode"
 
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/redact"
 	"github.com/gin-gonic/gin"
 )
 
+// isAllWhitespace reports whether s is empty or only Unicode spaces (no alloc).
+func isAllWhitespace(s string) bool {
+	for _, r := range s {
+		if !unicode.IsSpace(r) {
+			return false
+		}
+	}
+	return true
+}
+
 func parseCommaSeparatedTerms(raw string) []string {
-	parts := strings.Split(raw, ",")
-	if len(parts) == 0 {
+	// PERF-47: Index/Cut loop instead of Split
+	if raw == "" {
 		return nil
 	}
-	seen := make(map[string]struct{}, len(parts))
-	terms := make([]string, 0, len(parts))
-	for _, p := range parts {
-		term := strings.TrimSpace(p)
-		if term == "" {
-			continue
+	seen := make(map[string]struct{}, 4)
+	terms := make([]string, 0, 4)
+	rest := raw
+	for {
+		var part string
+		if i := strings.IndexByte(rest, ','); i >= 0 {
+			part = rest[:i]
+			rest = rest[i+1:]
+		} else {
+			part = rest
+			rest = ""
 		}
-		key := strings.ToLower(term)
-		if _, ok := seen[key]; ok {
-			continue
+		term := strings.TrimSpace(part)
+		if term != "" {
+			key := strings.ToLower(term)
+			if _, ok := seen[key]; !ok {
+				seen[key] = struct{}{}
+				terms = append(terms, term)
+			}
 		}
-		seen[key] = struct{}{}
-		terms = append(terms, term)
+		if rest == "" {
+			break
+		}
 	}
 	return terms
 }
@@ -190,12 +212,14 @@ func HandleRedactApply(c *gin.Context) {
 	}
 
 	var options models.ApplyRedactionOptions
-	options.Mode = strings.TrimSpace(c.PostForm("mode"))
+	if mode := c.PostForm("mode"); !isAllWhitespace(mode) {
+		options.Mode = strings.TrimSpace(mode)
+	}
 	options.Password = c.PostForm("password")
 
 	blocksJSON := c.PostForm("blocks")
 	if blocksJSON != "" {
-		if err := json.Unmarshal([]byte(blocksJSON), &options.Blocks); err != nil {
+		if err := json.Unmarshal(byteconv.StringToBytes(blocksJSON), &options.Blocks); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid blocks json"})
 			return
 		}
@@ -203,26 +227,27 @@ func HandleRedactApply(c *gin.Context) {
 
 	textSearchJSON := c.PostForm("textSearch")
 	if textSearchJSON != "" {
-		if err := json.Unmarshal([]byte(textSearchJSON), &options.TextSearch); err != nil {
+		textSearchBytes := byteconv.StringToBytes(textSearchJSON)
+		if err := json.Unmarshal(textSearchBytes, &options.TextSearch); err != nil {
 			var plain []string
-			if err2 := json.Unmarshal([]byte(textSearchJSON), &plain); err2 != nil {
+			if err2 := json.Unmarshal(textSearchBytes, &plain); err2 != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid textSearch json"})
 				return
 			}
 			for _, text := range plain {
-				text = strings.TrimSpace(text)
-				if text == "" {
+				if isAllWhitespace(text) {
 					continue
 				}
+				text = strings.TrimSpace(text)
 				options.TextSearch = append(options.TextSearch, models.RedactionTextQuery{Text: text})
 			}
 		}
 	}
 
 	ocrJSON := c.PostForm("ocr")
-	if strings.TrimSpace(ocrJSON) != "" {
+	if !isAllWhitespace(ocrJSON) {
 		var ocr models.OCRSettings
-		if err := json.Unmarshal([]byte(ocrJSON), &ocr); err != nil {
+		if err := json.Unmarshal(byteconv.StringToBytes(ocrJSON), &ocr); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ocr json"})
 			return
 		}
@@ -233,7 +258,7 @@ func HandleRedactApply(c *gin.Context) {
 	if len(options.Blocks) == 0 {
 		redactionsJSON := c.PostForm("redactions")
 		if redactionsJSON != "" {
-			if err := json.Unmarshal([]byte(redactionsJSON), &options.Blocks); err != nil {
+			if err := json.Unmarshal(byteconv.StringToBytes(redactionsJSON), &options.Blocks); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid redactions json"})
 				return
 			}
@@ -242,7 +267,9 @@ func HandleRedactApply(c *gin.Context) {
 
 	// Backward compatibility: allow plain text search field for one-shot apply.
 	if len(options.TextSearch) == 0 {
-		if searchText := strings.TrimSpace(c.PostForm("text")); searchText != "" {
+		rawText := c.PostForm("text")
+		if !isAllWhitespace(rawText) {
+			searchText := strings.TrimSpace(rawText)
 			terms := parseCommaSeparatedTerms(searchText)
 			if len(terms) == 0 {
 				terms = []string{searchText}
@@ -299,16 +326,18 @@ func HandleRedactSearch(c *gin.Context) {
 	}
 
 	var terms []string
-	textsJSON := strings.TrimSpace(c.PostForm("texts"))
-	if textsJSON != "" {
-		if err := json.Unmarshal([]byte(textsJSON), &terms); err != nil {
+	textsJSON := c.PostForm("texts")
+	if !isAllWhitespace(textsJSON) {
+		textsJSON = strings.TrimSpace(textsJSON)
+		if err := json.Unmarshal(byteconv.StringToBytes(textsJSON), &terms); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid texts json"})
 			return
 		}
 	}
 	if len(terms) == 0 {
-		searchText := strings.TrimSpace(c.PostForm("text"))
-		if searchText != "" {
+		rawText := c.PostForm("text")
+		if !isAllWhitespace(rawText) {
+			searchText := strings.TrimSpace(rawText)
 			terms = parseCommaSeparatedTerms(searchText)
 			if len(terms) == 0 {
 				terms = []string{searchText}

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"image"
 	_ "image/png" // Register PNG decoder for image.DecodeConfig
 	"os"
@@ -33,11 +32,12 @@ type OCRProvider interface {
 type tesseractProvider struct{}
 
 func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
-	provider := strings.TrimSpace(strings.ToLower(settings.Provider))
-	if provider == "" || provider == "tesseract" {
+	provider := trimSpace(settings.Provider)
+	// EqualFold with len-first for the common "tesseract" case (PERF-48)
+	if provider == "" || (len(provider) == len("tesseract") && strings.EqualFold(provider, "tesseract")) {
 		return tesseractProvider{}, nil
 	}
-	return nil, fmt.Errorf("unsupported OCR provider: %s", settings.Provider)
+	return nil, errors.New("unsupported OCR provider: " + settings.Provider)
 }
 
 func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings models.OCRSettings) ([]models.RedactionRect, error) {
@@ -55,7 +55,7 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 	var rects []models.RedactionRect
 	for _, w := range words {
 		for _, q := range queries {
-			term := strings.TrimSpace(strings.ToLower(q.Text))
+			term := trimSpace(strings.ToLower(q.Text))
 			if term == "" {
 				continue
 			}
@@ -102,18 +102,23 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 		return nil, err
 	}
 
-	lang := strings.TrimSpace(settings.Language)
+	lang := trimSpace(settings.Language)
 	if lang == "" {
 		lang = "eng"
 	}
 
-	words := make([]ocrWord, 0)
+	// PERF-123: nil slice grows on demand (or pre-size when pages known)
+	words := make([]ocrWord, 0, info.TotalPages*32)
+	var pageTmp [20]byte
+	// PERF-55: larger scanner buffer for long TSV lines
+	scanBuf := make([]byte, 0, 64*1024)
 	for page := 1; page <= info.TotalPages; page++ {
-		imgBase := filepath.Join(tmpDir, fmt.Sprintf("page-%d", page))
+		pageStr := string(strconv.AppendInt(pageTmp[:0], int64(page), 10))
+		imgBase := filepath.Join(tmpDir, "page-"+pageStr)
 		imgPath := imgBase + ".png"
-		pdftoppmCmd := exec.Command("pdftoppm", "-f", strconv.Itoa(page), "-l", strconv.Itoa(page), "-singlefile", "-png", pdfPath, imgBase)
+		pdftoppmCmd := exec.Command("pdftoppm", "-f", pageStr, "-l", pageStr, "-singlefile", "-png", pdfPath, imgBase)
 		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, err, string(out))
+			return nil, errors.Join(errors.New("pdftoppm failed on page "+pageStr+": "+string(out)), err)
 		}
 
 		imgFile, err := os.Open(imgPath)
@@ -129,7 +134,7 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 		tsvCmd := exec.Command("tesseract", imgPath, "stdout", "tsv", "-l", lang)
 		tsvOut, err := tsvCmd.CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("tesseract failed on page %d: %v (%s)", page, err, string(tsvOut))
+			return nil, errors.Join(errors.New("tesseract failed on page "+pageStr+": "+string(tsvOut)), err)
 		}
 
 		pageDim := info.Pages[page-1]
@@ -137,6 +142,7 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 		sy := pageDim.Height / float64(cfg.Height)
 
 		scanner := bufio.NewScanner(bytes.NewReader(tsvOut))
+		scanner.Buffer(scanBuf, 1024*1024)
 		lineNo := 0
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -144,32 +150,10 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 			if lineNo == 1 {
 				continue // header
 			}
-			cols := strings.Split(line, "\t")
-			if len(cols) < 12 {
-				continue
+			// PERF-47: IndexByte column walk instead of strings.Split
+			if w, ok := parseTSVWord(line, page, sx, sy, pageDim.Height); ok {
+				words = append(words, w)
 			}
-			text := strings.TrimSpace(cols[11])
-			if text == "" {
-				continue
-			}
-			left, errL := strconv.ParseFloat(cols[6], 64)
-			top, errT := strconv.ParseFloat(cols[7], 64)
-			w, errW := strconv.ParseFloat(cols[8], 64)
-			h, errH := strconv.ParseFloat(cols[9], 64)
-			if errL != nil || errT != nil || errW != nil || errH != nil {
-				continue
-			}
-
-			pdfX := left * sx
-			pdfY := pageDim.Height - ((top + h) * sy)
-			words = append(words, ocrWord{
-				PageNum: page,
-				X:       pdfX,
-				Y:       pdfY,
-				Width:   w * sx,
-				Height:  h * sy,
-				Text:    text,
-			})
 		}
 		if err := scanner.Err(); err != nil {
 			return nil, err
@@ -177,4 +161,45 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 	}
 
 	return words, nil
+}
+
+// parseTSVWord extracts one OCR word from a Tesseract TSV line without Split allocs.
+func parseTSVWord(line string, page int, sx, sy, pageHeight float64) (ocrWord, bool) {
+	// TSV columns: level page_num block_num par_num line_num word_num left top width height conf text
+	// We need indices 6,7,8,9,11
+	var cols [12]string
+	col := 0
+	start := 0
+	for i := 0; i <= len(line) && col < 12; i++ {
+		if i == len(line) || line[i] == '\t' {
+			cols[col] = line[start:i]
+			col++
+			start = i + 1
+			if i == len(line) {
+				break
+			}
+		}
+	}
+	if col < 12 {
+		return ocrWord{}, false
+	}
+	text := trimSpace(cols[11])
+	if text == "" {
+		return ocrWord{}, false
+	}
+	left, errL := strconv.ParseFloat(cols[6], 64)
+	top, errT := strconv.ParseFloat(cols[7], 64)
+	w, errW := strconv.ParseFloat(cols[8], 64)
+	h, errH := strconv.ParseFloat(cols[9], 64)
+	if errL != nil || errT != nil || errW != nil || errH != nil {
+		return ocrWord{}, false
+	}
+	return ocrWord{
+		PageNum: page,
+		X:       left * sx,
+		Y:       pageHeight - ((top + h) * sy),
+		Width:   w * sx,
+		Height:  h * sy,
+		Text:    text,
+	}, true
 }

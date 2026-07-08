@@ -79,7 +79,7 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 // External links start with http://, https://, mailto:, etc.
 // Internal links start with # followed by a bookmark name
 func ParseLink(link string) (isExternal bool, uri string, dest string) {
-	link = strings.TrimSpace(link)
+	link = trimSpace(link)
 	if link == "" {
 		return false, "", ""
 	}

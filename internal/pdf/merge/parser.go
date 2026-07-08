@@ -10,9 +10,15 @@ import (
 
 // PDF parsing functions for the merge package
 
+var (
+	versionRe  = regexp.MustCompile(`%PDF-(\d+\.\d+)`)
+	objStartRe = regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
+	objStmNRe  = regexp.MustCompile(`/N\s+(\d+)`)
+	objStm1st  = regexp.MustCompile(`/First\s+(\d+)`)
+)
+
 // DetectPDFVersion extracts the PDF version from the header (e.g., "1.4", "1.7", "2.0")
 func DetectPDFVersion(data []byte) string {
-	versionRe := regexp.MustCompile(`%PDF-(\d+\.\d+)`)
 	if m := versionRe.FindSubmatch(data); m != nil {
 		return string(m[1])
 	}
@@ -51,8 +57,8 @@ func CompareVersions(v1, v2 string) int {
 
 // FindObjectBoundaries finds all PDF objects in the data
 func FindObjectBoundaries(data []byte) []ObjectBoundary {
-	var results []ObjectBoundary
-	objStartRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+obj`)
+	// PERF-45: pre-size for typical multi-object PDFs
+	results := make([]ObjectBoundary, 0, 64)
 
 	pos := 0
 	for pos < len(data) {
@@ -296,13 +302,12 @@ func FindStreamStart(data []byte) int {
 
 // ReplaceRefsOutsideStreams rewrites indirect references only outside stream blocks
 func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
-	refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 	var out bytes.Buffer
 	i := 0
 	n := len(data)
 
 	replaceFunc := func(b []byte) []byte {
-		sm := refRe.FindSubmatch(b)
+		sm := objGenRefRe.FindSubmatch(b)
 		if len(sm) < 3 {
 			return b
 		}
@@ -310,8 +315,16 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 		if err != nil {
 			return b
 		}
-		gen := string(sm[2])
-		return []byte(strconv.Itoa(offset+on) + " " + gen + " R")
+		gen := sm[2]
+		num := strconv.AppendInt(nil, int64(offset+on), 10)
+		ref := make([]byte, len(num)+1+len(gen)+2)
+		o := copy(ref, num)
+		ref[o] = ' '
+		o++
+		o += copy(ref[o:], gen)
+		ref[o] = ' '
+		ref[o+1] = 'R'
+		return ref
 	}
 
 	for i < n {
@@ -320,7 +333,7 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 		if relStart == -1 {
 			// No more streams, process rest
 			tail := data[i:]
-			replaced := refRe.ReplaceAllFunc(tail, replaceFunc)
+			replaced := objGenRefRe.ReplaceAllFunc(tail, replaceFunc)
 			out.Write(replaced)
 			break
 		}
@@ -329,7 +342,7 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 
 		// Process pre-stream
 		pre := data[i:streamStart]
-		replaced := refRe.ReplaceAllFunc(pre, replaceFunc)
+		replaced := objGenRefRe.ReplaceAllFunc(pre, replaceFunc)
 		out.Write(replaced)
 
 		// Find endstream
@@ -437,22 +450,19 @@ func isWhitespace(b byte) bool {
 //   - Header: pairs of "objnum offset" separated by whitespace
 //   - Body: object bodies starting at /First offset
 func ParseObjectStream(body []byte) map[int][]byte {
-	result := make(map[int][]byte)
-
 	// Extract /N (number of objects)
-	nRe := regexp.MustCompile(`/N\s+(\d+)`)
-	nMatch := nRe.FindSubmatch(body)
+	nMatch := objStmNRe.FindSubmatch(body)
 	if nMatch == nil {
-		return result
+		return map[int][]byte{}
 	}
 	numObjects, _ := strconv.Atoi(string(nMatch[1]))
 	if numObjects == 0 {
-		return result
+		return map[int][]byte{}
 	}
+	result := make(map[int][]byte, numObjects)
 
 	// Extract /First (offset to first object body)
-	firstRe := regexp.MustCompile(`/First\s+(\d+)`)
-	firstMatch := firstRe.FindSubmatch(body)
+	firstMatch := objStm1st.FindSubmatch(body)
 	if firstMatch == nil {
 		return result
 	}
@@ -476,7 +486,7 @@ func ParseObjectStream(body []byte) map[int][]byte {
 	var entries []objEntry
 
 	headerStr := string(bytes.TrimSpace(header))
-	parts := regexp.MustCompile(`\s+`).Split(headerStr, -1)
+	parts := wsSplitRe.Split(headerStr, -1)
 
 	for i := 0; i+1 < len(parts); i += 2 {
 		objNum, err1 := strconv.Atoi(parts[i])

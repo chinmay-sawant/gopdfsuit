@@ -33,28 +33,28 @@ func DefaultPageMargins() PageMargins {
 // Missing or invalid values gracefully fall back to defaults.
 func ParsePageMargins(margins string) PageMargins {
 	parsed := DefaultPageMargins()
-	if strings.TrimSpace(margins) == "" {
+	if trimSpace(margins) == "" {
 		return parsed
 	}
 
 	parts := strings.Split(margins, ":")
 	if len(parts) > 0 {
-		if value, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64); err == nil && value >= 0 {
+		if value, err := strconv.ParseFloat(trimSpace(parts[0]), 64); err == nil && value >= 0 {
 			parsed.Left = value
 		}
 	}
 	if len(parts) > 1 {
-		if value, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64); err == nil && value >= 0 {
+		if value, err := strconv.ParseFloat(trimSpace(parts[1]), 64); err == nil && value >= 0 {
 			parsed.Right = value
 		}
 	}
 	if len(parts) > 2 {
-		if value, err := strconv.ParseFloat(strings.TrimSpace(parts[2]), 64); err == nil && value >= 0 {
+		if value, err := strconv.ParseFloat(trimSpace(parts[2]), 64); err == nil && value >= 0 {
 			parsed.Top = value
 		}
 	}
 	if len(parts) > 3 {
-		if value, err := strconv.ParseFloat(strings.TrimSpace(parts[3]), 64); err == nil && value >= 0 {
+		if value, err := strconv.ParseFloat(trimSpace(parts[3]), 64); err == nil && value >= 0 {
 			parsed.Bottom = value
 		}
 	}
