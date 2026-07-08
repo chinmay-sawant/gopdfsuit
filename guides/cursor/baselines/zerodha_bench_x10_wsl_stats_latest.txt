@@ -1,0 +1,47 @@
+# Zerodha x10 latest summary
+
+Runs: 10
+Best throughput: 2194.96 ops/sec
+Worst throughput: 1829.42 ops/sec
+Mean throughput: 2026.71 ops/sec
+Median throughput: 2063.70 ops/sec
+Stddev throughput: 123.63 ops/sec
+Mean avg latency: 23.177 ms
+Mean peak allocated: 1003.55 MB
+
+| Run | Throughput | Avg latency | Peak allocated |
+|-----|-----------:|------------:|---------------:|
+| zerodha_run1.txt | 2117.87 ops/sec | 22.271 ms | 986.63 MB |
+| zerodha_run2.txt | 2194.96 ops/sec | 21.291 ms | 1036.58 MB |
+| zerodha_run3.txt | 2101.02 ops/sec | 22.409 ms | 1038.28 MB |
+| zerodha_run4.txt | 2147.16 ops/sec | 21.741 ms | 976.30 MB |
+| zerodha_run5.txt | 2062.36 ops/sec | 22.381 ms | 984.08 MB |
+| zerodha_run6.txt | 1829.42 ops/sec | 25.634 ms | 1047.65 MB |
+| zerodha_run7.txt | 1921.70 ops/sec | 24.410 ms | 987.16 MB |
+| zerodha_run8.txt | 1876.94 ops/sec | 24.825 ms | 951.91 MB |
+| zerodha_run9.txt | 2065.04 ops/sec | 22.691 ms | 949.60 MB |
+| zerodha_run10.txt | 1950.59 ops/sec | 24.119 ms | 1077.35 MB |
+
+# Zerodha x10 latest summary
+
+Runs: 10
+Best throughput: 2162.97 ops/sec
+Worst throughput: 1859.41 ops/sec
+Mean throughput: 2048.76 ops/sec
+Median throughput: 2069.72 ops/sec
+Stddev throughput: 103.05 ops/sec
+Mean avg latency: 22.955 ms
+Mean peak allocated: 1035.90 MB
+
+| Run | Throughput | Avg latency | Peak allocated |
+|-----|-----------:|------------:|---------------:|
+| zerodha_run1.txt | 2070.71 ops/sec | 22.662 ms | 967.44 MB |
+| zerodha_run2.txt | 2124.13 ops/sec | 21.988 ms | 932.46 MB |
+| zerodha_run3.txt | 1870.37 ops/sec | 25.180 ms | 1063.12 MB |
+| zerodha_run4.txt | 2054.91 ops/sec | 22.838 ms | 1027.21 MB |
+| zerodha_run5.txt | 2068.74 ops/sec | 22.710 ms | 1123.85 MB |
+| zerodha_run6.txt | 2119.26 ops/sec | 22.175 ms | 1089.80 MB |
+| zerodha_run7.txt | 2051.05 ops/sec | 22.866 ms | 1043.44 MB |
+| zerodha_run8.txt | 2162.97 ops/sec | 21.673 ms | 1040.81 MB |
+| zerodha_run9.txt | 1859.41 ops/sec | 25.335 ms | 1089.30 MB |
+| zerodha_run10.txt | 2106.08 ops/sec | 22.123 ms | 981.54 MB |
