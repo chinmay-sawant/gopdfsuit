@@ -11,21 +11,21 @@ Warm-up runs...
   Active PDF size:  76125 bytes (74.34 KB)
   HFT PDF size:     2425725 bytes (2368.87 KB)
 
-  Max Memory Allocated: 1042.54 MB
+  Max Memory Allocated: 1080.90 MB
 === Performance Summary ===
   Iterations:      5000
   Concurrency:     48 workers
-  Total time:      2.307 s
-  Throughput:      2167.58 ops/sec
+  Total time:      1.878 s
+  Throughput:      2662.14 ops/sec
 
-  Avg Latency:     21.631 ms
-  Min Latency:     1.858 ms
-  Max Latency:     619.693 ms
+  Avg Latency:     17.680 ms
+  Min Latency:     2.073 ms
+  Max Latency:     578.268 ms
 
 === Workload Distribution ===
-  Retail  (80%):   4024 iterations
-  Active  (15%):   733 iterations
-  HFT      (5%):   243 iterations
+  Retail  (80%):   3975 iterations
+  Active  (15%):   789 iterations
+  HFT      (5%):   236 iterations
 
 Saved: zerodha_retail_output.pdf (61360 bytes)
 Saved: zerodha_active_output.pdf (76125 bytes)
