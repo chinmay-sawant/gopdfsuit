@@ -126,21 +126,20 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 		}
 
 		if childFirst > 0 {
-			// PERF-119: one chunk for First/Last/Count
 			var n1, n2, n3 [20]byte
 			a := strconv.AppendInt(n1[:0], int64(childFirst), 10)
 			c2 := strconv.AppendInt(n2[:0], int64(childLast), 10)
 			c3 := strconv.AppendInt(n3[:0], int64(childCount), 10)
 			pref1, mid1, mid2 := " /First ", " 0 R /Last ", " 0 R /Count "
 			need := len(pref1) + len(a) + len(mid1) + len(c2) + len(mid2) + len(c3)
-			ch := make([]byte, need)
-			o := copy(ch, pref1)
-			o += copy(ch[o:], a)
-			o += copy(ch[o:], mid1)
-			o += copy(ch[o:], c2)
-			o += copy(ch[o:], mid2)
-			copy(ch[o:], c3)
-			b = append(b, ch...)
+			chunk = chunk[:need]
+			o := copy(chunk, pref1)
+			o += copy(chunk[o:], a)
+			o += copy(chunk[o:], mid1)
+			o += copy(chunk[o:], c2)
+			o += copy(chunk[o:], mid2)
+			copy(chunk[o:], c3)
+			b = append(b, chunk...)
 		}
 
 		// Link to page (Dest)
@@ -162,9 +161,11 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 		if pageIdx >= 0 && pageIdx < len(pm.Pages) {
 			pageID := pm.Pages[pageIdx]
-			b = append(b, " /Dest ["...)
-			b = strconv.AppendInt(b, int64(pageID), 10)
-			b = append(b, " 0 R /Fit]"...)
+			chunk = chunk[:0]
+			chunk = append(chunk, " /Dest ["...)
+			chunk = strconv.AppendInt(chunk, int64(pageID), 10)
+			chunk = append(chunk, " 0 R /Fit]"...)
+			b = append(b, chunk...)
 		}
 
 		b = append(b, " >>\nendobj\n"...)

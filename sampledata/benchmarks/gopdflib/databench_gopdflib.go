@@ -64,8 +64,10 @@ func buildRows(records []benchmarkRecord) []gopdflib.Row {
 			bgColor = "#F0F0F0"
 		}
 
+		var idBuf [20]byte
+		idStr := string(strconv.AppendInt(idBuf[:0], int64(record.ID), 10))
 		rows = append(rows, gopdflib.Row{Row: []gopdflib.Cell{
-			{Props: "Helvetica:10:000:left:1:1:1:1", Text: strconv.Itoa(record.ID), BgColor: bgColor},
+			{Props: "Helvetica:10:000:left:1:1:1:1", Text: idStr, BgColor: bgColor},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Name, BgColor: bgColor},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Email, BgColor: bgColor, Wrap: boolPtr(true)},
 			{Props: "Helvetica:10:000:left:1:1:1:1", Text: record.Role, BgColor: bgColor},

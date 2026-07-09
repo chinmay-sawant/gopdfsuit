@@ -36,7 +36,7 @@ func GeneratePDF(jsonTemplate *C.char) C.ByteResult {
 
 	goTemplate := C.GoString(jsonTemplate)
 	var template gopdflib.PDFTemplate
-	if err := json.Unmarshal([]byte(goTemplate), &template); err != nil {
+	if err := json.Unmarshal(unsafe.Slice(unsafe.StringData(goTemplate), len(goTemplate)), &template); err != nil {
 		result.error = C.CString(err.Error())
 		return result
 	}

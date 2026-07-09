@@ -906,8 +906,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	out := make([]byte, len(pdfBytes))
-	copy(out, pdfBytes)
+	out := bytes.Clone(pdfBytes)
 
 	const (
 		typeText = iota
@@ -1066,7 +1065,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				newDictBytes = apStripRe.ReplaceAll(newDictBytes, []byte(" "))
 			case typeButton, typeRadio:
 				newState := "/Off"
-				if job.fieldType == typeButton && (strings.EqualFold(job.val, "yes") || strings.EqualFold(job.val, "on")) {
+				v := job.val
+				isButton := job.fieldType == typeButton
+				isYesOn := len(v) == 2 && (v[0]|0x20) == 'o' && (v[1]|0x20) == 'n' ||
+					len(v) == 3 && (v[0]|0x20) == 'y' && (v[1]|0x20) == 'e' && (v[2]|0x20) == 's'
+				if isButton && isYesOn {
 					if apMatch := apNExportRe.FindSubmatch(dictBytes); apMatch != nil {
 						newState = "/" + string(apMatch[1])
 					} else {
@@ -1218,7 +1221,7 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		out = append(out, fontSB.String()...)
 
 		var compBuf bytes.Buffer
-		zw, _ := zlib.NewWriterLevel(&compBuf, zlib.BestCompression)
+		zw, _ := zlib.NewWriterLevel(&compBuf, zlib.BestSpeed)
 		if _, err := zw.Write(byteconv.StringToBytes(streamBody)); err != nil {
 			return nil, errors.Join(errors.New("compression write failed"), err)
 		}
@@ -1294,9 +1297,9 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	// PERF-119: one growth for xref + trailer
 	xrefBytes := xrefBuf.Bytes()
 	trailerBytes := []byte(trailerBuf.String())
-	tail := make([]byte, len(xrefBytes)+len(trailerBytes))
-	copy(tail, xrefBytes)
-	copy(tail[len(xrefBytes):], trailerBytes)
+	tail := make([]byte, 0, len(xrefBytes)+len(trailerBytes))
+	tail = append(tail, xrefBytes...)
+	tail = append(tail, trailerBytes...)
 	out = append(out, tail...)
 	// --- PASS 3: GLOBAL NEED APPEARANCES ---
 	// If fields were modified or APs stripped, force the PDF viewer to recreate appearances on open.
@@ -1310,9 +1313,9 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				out = bytes.Replace(out, dictPart, newDict, 1)
 			} else {
 				// Inject it
-				newDict := make([]byte, len(dictPart)+len(" /NeedAppearances true "))
-				copy(newDict, dictPart)
-				copy(newDict[len(dictPart):], " /NeedAppearances true ")
+				newDict := make([]byte, 0, len(dictPart)+len(" /NeedAppearances true "))
+				newDict = append(newDict, dictPart...)
+				newDict = append(newDict, " /NeedAppearances true "...)
 				out = bytes.Replace(out, dictPart, newDict, 1)
 			}
 		} else if acroMatch[3] != nil {
@@ -1355,8 +1358,7 @@ func FlattenPDFBytes(pdfBytes []byte) ([]byte, error) {
 }
 
 func fillXFDFInObjectStreams(pdfBytes []byte, fields map[string]string) ([]byte, bool, error) {
-	out := make([]byte, len(pdfBytes))
-	copy(out, pdfBytes)
+	out := bytes.Clone(pdfBytes)
 
 	matches := objStreamRe.FindAllSubmatchIndex(out, -1)
 	if len(matches) == 0 {
@@ -1581,7 +1583,7 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 	newDecoded := []byte(newHeader + " " + contentBuilder.String())
 
 	var compressedBuf bytes.Buffer
-	zw, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestCompression)
+	zw, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestSpeed)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1604,6 +1606,7 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 	}
 
 	var rebuilt bytes.Buffer
+	rebuilt.Grow(len(newDict) + len("stream\n") + len(compressed) + len("\nendstream") + len(suffix))
 	rebuilt.Write(newDict)
 	rebuilt.WriteString("stream\n")
 	rebuilt.Write(compressed)
@@ -1632,8 +1635,7 @@ func updateObjStmFieldValue(objContent []byte, fields map[string]string) ([]byte
 		return objContent, false
 	}
 
-	updated := make([]byte, len(objContent))
-	copy(updated, objContent)
+	updated := bytes.Clone(objContent)
 
 	if bytes.Contains(updated, markerFTTx) || bytes.Contains(updated, markerFTTxCompact) {
 		replacement := []byte("/V (" + escapePDFString(value) + ")")

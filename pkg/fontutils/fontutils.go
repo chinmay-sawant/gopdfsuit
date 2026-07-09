@@ -103,8 +103,22 @@ func downloadedFontPath(fileName string) string {
 // including both system paths and the downloaded font fallback path.
 // This replaces the hardcoded mathFontCandidates variable from generator.go.
 func MathFontCandidates() []string {
-	// Pre-size: each font contributes OS paths + downloaded fallback (PERF-119/128)
-	paths := make([]string, 0, len(mathFonts)*4)
+	total := 0
+	for _, font := range mathFonts {
+		switch runtime.GOOS {
+		case "linux":
+			total += len(font.LinuxPaths)
+		case "darwin":
+			total += len(font.MacPaths)
+		case "windows":
+			total += len(font.WinPaths)
+		default:
+			total += len(font.LinuxPaths)
+		}
+		total++ // downloaded fallback
+	}
+
+	paths := make([]string, 0, total)
 
 	for _, font := range mathFonts {
 		var osPaths []string
@@ -118,21 +132,8 @@ func MathFontCandidates() []string {
 		default:
 			osPaths = font.LinuxPaths
 		}
-		// Single append of OS paths then downloaded fallback
-		dl := downloadedFontPath(font.FileName)
-		// PERF-119: grow once, then fill by index
-		base := len(paths)
-		paths = paths[:base:base] // ensure no spare capacity confusion
-		need := base + len(osPaths) + 1
-		if cap(paths) < need {
-			grown := make([]string, need)
-			copy(grown, paths)
-			paths = grown
-		} else {
-			paths = paths[:need]
-		}
-		copy(paths[base:], osPaths)
-		paths[need-1] = dl
+		paths = append(paths, osPaths...)
+		paths = append(paths, downloadedFontPath(font.FileName))
 	}
 
 	return paths
@@ -144,6 +145,7 @@ func MathFontCandidates() []string {
 // are non-fatal (math rendering will degrade gracefully).
 func EnsureMathFonts() {
 	var wg sync.WaitGroup
+	fdir := fontsDir()
 
 	for _, font := range mathFonts {
 		if fontExistsOnSystem(font) {
@@ -151,14 +153,12 @@ func EnsureMathFonts() {
 			continue
 		}
 
-		// Check if already downloaded
-		dlPath := downloadedFontPath(font.FileName)
+		dlPath := filepath.Join(fdir, font.FileName)
 		if _, err := os.Stat(dlPath); err == nil {
 			log.Printf("[fontutils] Font %s already downloaded at %s", font.Name, dlPath)
 			continue
 		}
 
-		// Download in background (PERF-7: defer in named helper)
 		wg.Add(1)
 		go downloadFontWorker(&wg, font)
 	}

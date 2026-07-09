@@ -33,14 +33,6 @@ var pdfBufferPool = sync.Pool{
 	},
 }
 
-// finalPDFSlicePool holds scratch []byte slices for assembling the PDF before cloning for the caller.
-var finalPDFSlicePool = sync.Pool{
-	New: func() any {
-		s := make([]byte, 0, 256*1024)
-		return &s
-	},
-}
-
 // scratchBufPool reuses the small scratch buffer for strconv.Append* operations.
 var scratchBufPool = sync.Pool{
 	New: func() any {
@@ -534,6 +526,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		pageManager.NextObjectID++
 
 		var fieldsRef strings.Builder
+		fieldsRef.Grow(4 + len(allWidgetIDs)*15)
 		fieldsRef.WriteString("[")
 		for _, id := range allWidgetIDs {
 			fieldsRef.WriteByte(' ')
@@ -798,6 +791,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	var compGroup errgroup.Group
 	for si := range pageManager.ContentStreams {
 		si := si
+		siStr := strconv.Itoa(si)
 		compGroup.Go(func() error {
 			contentStream := &pageManager.ContentStreams[si]
 			compressedBuf := getCompressBuffer()
@@ -811,16 +805,15 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				_ = zlibWriter.Close()
 				putZlibWriter(zlibWriter)
 				putCompressBuffer(compressedBuf)
-				return errors.Join(errors.New("compress page stream "+strconv.Itoa(si)), err)
+				return errors.Join(errors.New("compress page stream "+siStr), err)
 			}
 			if err := zlibWriter.Close(); err != nil {
 				putZlibWriter(zlibWriter)
 				putCompressBuffer(compressedBuf)
-				return errors.Join(errors.New("compress page stream close "+strconv.Itoa(si)), err)
+				return errors.Join(errors.New("compress page stream close "+siStr), err)
 			}
 			putZlibWriter(zlibWriter)
-			cp := make([]byte, compressedBuf.Len())
-			copy(cp, compressedBuf.Bytes())
+			cp := slices.Clone(compressedBuf.Bytes())
 			compressedPages[si] = cp
 			putCompressBuffer(compressedBuf)
 			return nil
@@ -1472,13 +1465,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pdfBuffer.WriteByte('\n')
 	pdfBuffer.WriteString("%%EOF\n")
 
-	// Assemble scratch PDF bytes from pool-backed slice (caller receives an owned copy below).
-	finalScr := finalPDFSlicePool.Get().(*[]byte)
-	*finalScr = append((*finalScr)[:0], pdfBuffer.Bytes()...)
-	unsignedOwned := slices.Clone(*finalScr)
-	finalPDFSlicePool.Put(finalScr)
-
-	finalPDF := unsignedOwned
+	finalPDF := slices.Clone(pdfBuffer.Bytes())
 	if pdfSigner != nil && sigIDs != nil {
 		signedPDF, err := signature.UpdatePDFWithSignature(finalPDF, pdfSigner)
 		if err != nil {

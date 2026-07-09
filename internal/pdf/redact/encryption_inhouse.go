@@ -27,10 +27,9 @@ func padPassword(password string) []byte {
 	if len(pwd) >= 32 {
 		return pwd[:32]
 	}
-	// Pad with standard padding bytes
 	result := make([]byte, 32)
-	copy(result, pwd)
-	copy(result[len(pwd):], pdfPasswordPadding[:32-len(pwd)])
+	n := copy(result, pwd)
+	copy(result[n:], pdfPasswordPadding)
 	return result
 }
 
@@ -303,9 +302,9 @@ func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) boo
 		// PERF-48: len check before Equal
 		return len(d.U) >= 32 && len(exp) == 32 && bytes.Equal(exp, d.U[:32])
 	}
-	padID := make([]byte, len(pdfPasswordPadding)+len(id0))
-	copy(padID, pdfPasswordPadding)
-	copy(padID[len(pdfPasswordPadding):], id0)
+	padID := make([]byte, 0, len(pdfPasswordPadding)+len(id0))
+	padID = append(padID, pdfPasswordPadding...)
+	padID = append(padID, id0...)
 	h := pdfdigest.Digest16(padID)
 	tmp := h[:]
 	tmp = rc4Crypt(fileKey, tmp)
@@ -372,10 +371,10 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 	// PERF-119: pre-sized copy for stream replacement
 	prefix := objBody[:loc[2]]
 	suffix := objBody[loc[3]:]
-	out := make([]byte, len(prefix)+len(dec)+len(suffix))
-	nCopy := copy(out, prefix)
-	nCopy += copy(out[nCopy:], dec)
-	copy(out[nCopy:], suffix)
+	out := make([]byte, 0, len(prefix)+len(dec)+len(suffix))
+	out = append(out, prefix...)
+	out = append(out, dec...)
+	out = append(out, suffix...)
 	lenRe := regexp.MustCompile(`/Length\s+\d+`)
 	// Avoid fmt.Sprintf on the hot path
 	var lenBuf [24]byte
@@ -387,15 +386,9 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 }
 
 func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
-	// Fixed-size buffer: copy key then set 5-byte object/gen suffix (PERF-128)
-	b := make([]byte, len(fileKey)+5)
-	copy(b, fileKey)
-	n := len(fileKey)
-	b[n] = byte(objNum)
-	b[n+1] = byte(objNum >> 8)
-	b[n+2] = byte(objNum >> 16)
-	b[n+3] = byte(genNum)
-	b[n+4] = byte(genNum >> 8)
+	b := make([]byte, len(fileKey), len(fileKey)+5)
+	b = append(b, fileKey...)
+	b = append(b, byte(objNum), byte(objNum>>8), byte(objNum>>16), byte(genNum), byte(genNum>>8))
 	h := pdfdigest.Digest16(b)
 	kLen := len(fileKey) + 5
 	if kLen > 16 {

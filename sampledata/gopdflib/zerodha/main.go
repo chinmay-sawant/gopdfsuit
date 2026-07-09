@@ -704,10 +704,8 @@ func main() {
 			fmt.Printf("cpu profile: %v\n", err)
 			os.Exit(1)
 		}
-		defer func() {
-			pprof.StopCPUProfile()
-			_ = f.Close()
-		}()
+		defer pprof.StopCPUProfile()
+		defer f.Close()
 	}
 
 	if err := runBenchmark(); err != nil {
@@ -876,11 +874,12 @@ func runBenchmark() error {
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		fmt.Printf("Error creating output directory: %v\n", err)
 	}
-	for name, data := range map[string][]byte{
+	pdfFiles := map[string][]byte{
 		"zerodha_retail_output.pdf": retailPDF,
 		"zerodha_active_output.pdf": activePDF,
 		"zerodha_hft_output.pdf":    hftPDF,
-	} {
+	}
+	for name, data := range pdfFiles {
 		outPath := filepath.Join(outputDir, name)
 		if err := os.WriteFile(outPath, data, 0644); err != nil {
 			fmt.Printf("Error saving %s: %v\n", outPath, err)

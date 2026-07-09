@@ -54,12 +54,13 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 	}
 	var rects []models.RedactionRect
 	for _, w := range words {
+		loweredWord := strings.ToLower(w.Text)
 		for _, q := range queries {
 			term := trimSpace(strings.ToLower(q.Text))
 			if term == "" {
 				continue
 			}
-			if strings.Contains(strings.ToLower(w.Text), term) {
+			if strings.Contains(loweredWord, term) {
 				rects = append(rects, models.RedactionRect{
 					PageNum: w.PageNum,
 					X:       w.X,

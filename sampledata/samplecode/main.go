@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	pdf "github.com/chinmay-sawant/gopdfsuit-client"
@@ -113,7 +114,15 @@ func main() {
 	}
 	data := make(map[string]string, len(tempMap))
 	for k, v := range tempMap {
-		data["{"+k+"}"] = fmt.Sprint(v)
+		key := "{" + k + "}"
+		switch val := v.(type) {
+		case string:
+			data[key] = val
+		case float64:
+			data[key] = strconv.FormatFloat(val, 'f', -1, 64)
+		default:
+			data[key] = fmt.Sprint(val)
+		}
 	}
 
 	// 2. Read the template file

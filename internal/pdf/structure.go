@@ -337,6 +337,7 @@ func (sm *StructureManager) RegisterPageStructParents(_ int, _ int) {
 // namespaceObjID is the object ID of the PDF 2.0 namespace dictionary (0 to skip)
 func (sm *StructureManager) GenerateStructTreeRoot(_ int, parentTreeObjID int, namespaceObjID int) string {
 	var sb strings.Builder
+	sb.Grow(256)
 	var structBuf []byte
 	structBuf = append(structBuf, "<< /Type /StructTreeRoot /ParentTree "...)
 	structBuf = strconv.AppendInt(structBuf, int64(parentTreeObjID), 10)

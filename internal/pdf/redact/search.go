@@ -101,13 +101,13 @@ func (r *Redactor) FindTextOccurrencesMulti(searchTexts []string) ([]models.Reda
 		if term == "" {
 			continue
 		}
-		key := strings.ToLower(term)
-		if _, ok := seenTerms[key]; ok {
+		lowered := strings.ToLower(term)
+		if _, ok := seenTerms[lowered]; ok {
 			continue
 		}
-		seenTerms[key] = struct{}{}
+		seenTerms[lowered] = struct{}{}
 
-		rects, err := r.FindTextOccurrences(term)
+		rects, err := r.FindTextOccurrences(lowered)
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +157,7 @@ func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, low
 	if loweredSearch == "" || trimSpace(pos.Text) == "" {
 		return nil
 	}
-	src := []rune(strings.ToLower(pos.Text))
+	src := []rune(pos.Text)
 	needle := []rune(loweredSearch)
 	if len(src) == 0 || len(needle) == 0 || len(needle) > len(src) {
 		return nil
@@ -171,11 +171,17 @@ func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, low
 		scale = pos.Width / totalEst
 	}
 
+	// PERF-230: Precompute per-rune widths for the height outside the scan loop.
+	origWidths := make([]float64, len(origSrc))
+	for j := range origSrc {
+		origWidths[j] = estimateStringWidth(string(origSrc[j]), pos.Height)
+	}
+
 	urlToken := r.isURLToken(pos.Text)
 
 	rects := make([]models.RedactionRect, 0, 2)
 	for i := 0; i+len(needle) <= len(src); i++ {
-		if !r.runeSliceEqual(src[i:i+len(needle)], needle) {
+		if !r.runeSliceEqualFold(src[i:i+len(needle)], needle) {
 			continue
 		}
 		if urlToken {
@@ -191,14 +197,10 @@ func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, low
 
 		var offsetEst, matchEst float64
 		for j := 0; j < i; j++ {
-			if j < len(origSrc) {
-				offsetEst += estimateStringWidth(string(origSrc[j]), pos.Height)
-			}
+			offsetEst += origWidths[j]
 		}
 		for j := 0; j < len(needle); j++ {
-			if i+j < len(origSrc) {
-				matchEst += estimateStringWidth(string(origSrc[i+j]), pos.Height)
-			}
+			matchEst += origWidths[i+j]
 		}
 
 		x := pos.X + (offsetEst * scale)
@@ -215,13 +217,16 @@ func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, low
 	return rects
 }
 
-func (r *Redactor) runeSliceEqual(a, b []rune) bool {
+func (r *Redactor) runeSliceEqualFold(a, b []rune) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for i := range a {
-		if a[i] != b[i] {
-			return false
+		if unicode.SimpleFold(a[i]) != unicode.SimpleFold(b[i]) && a[i] != b[i] {
+			ra, rb := unicode.ToLower(a[i]), unicode.ToLower(b[i])
+			if ra != rb {
+				return false
+			}
 		}
 	}
 	return true
@@ -247,9 +252,11 @@ func (r *Redactor) normalizeSearchText(s string) string {
 		prevSpace = false
 		b.WriteRune(unicode.ToLower(rr))
 	}
-	// Trim trailing space if any (shouldn't occur with the gate above, but keep safe).
 	out := b.String()
-	return strings.TrimRight(out, " ")
+	if len(out) > 0 && out[len(out)-1] == ' ' {
+		out = out[:len(out)-1]
+	}
+	return out
 }
 
 // r.findAllCombinedMatchRects finds ALL occurrences of normalizedQuery that span
@@ -397,16 +404,18 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 						overlapEnd = s.end - s.start
 					}
 
-					var offsetEst, matchEst float64
-					for j := 0; j < overlapStart; j++ {
-						if j < len(tokenText) {
-							offsetEst += estimateStringWidth(string(tokenText[j]), s.pos.Height)
-						}
+					// PERF-230: Precompute per-rune widths before the inner scan loops.
+					tokenWidths := make([]float64, len(tokenText))
+					for j := range tokenText {
+						tokenWidths[j] = estimateStringWidth(string(tokenText[j]), s.pos.Height)
 					}
-					for j := overlapStart; j < overlapEnd; j++ {
-						if j < len(tokenText) {
-							matchEst += estimateStringWidth(string(tokenText[j]), s.pos.Height)
-						}
+
+					var offsetEst, matchEst float64
+					for j := 0; j < overlapStart && j < len(tokenWidths); j++ {
+						offsetEst += tokenWidths[j]
+					}
+					for j := overlapStart; j < overlapEnd && j < len(tokenWidths); j++ {
+						matchEst += tokenWidths[j]
 					}
 
 					tokenX = s.pos.X + (offsetEst * scale)

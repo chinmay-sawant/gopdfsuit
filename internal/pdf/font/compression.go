@@ -47,11 +47,11 @@ func GetCompressBuffer() *bytes.Buffer {
 	return buf
 }
 
-// PutCompressBuffer returns a compression buffer to the pool after resetting it.
+// PutCompressBuffer returns a compression buffer to the pool.
+// GetCompressBuffer resets on fetch, so we skip reset here.
 func PutCompressBuffer(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
-	buf.Reset()
 	CompressBufPool.Put(buf)
 }

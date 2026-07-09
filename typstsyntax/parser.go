@@ -506,12 +506,12 @@ func flattenNode(root *Node, sb *strings.Builder) {
 
 		case NodeGroup:
 			delims := getGroupDelimiters(node.Value)
-			// reverse order: open, children with spaces, close
 			stack = append(stack, flattenWork{literal: delims[1]})
 			for i := len(node.Children) - 1; i >= 0; i-- {
-				stack = append(stack, flattenWork{node: node.Children[i]})
 				if i > 0 {
-					stack = append(stack, flattenWork{literal: " "})
+					stack = append(stack, flattenWork{node: node.Children[i]}, flattenWork{literal: " "})
+				} else {
+					stack = append(stack, flattenWork{node: node.Children[i]})
 				}
 			}
 			stack = append(stack, flattenWork{literal: delims[0]})
@@ -537,28 +537,31 @@ func flattenNode(root *Node, sb *strings.Builder) {
 			}
 			stack = append(stack, flattenWork{literal: closeDelim})
 			for i := len(node.Args) - 1; i >= 0; i-- {
-				stack = append(stack, flattenWork{node: node.Args[i]})
 				if i > 0 {
-					stack = append(stack, flattenWork{literal: sep})
+					stack = append(stack, flattenWork{node: node.Args[i]}, flattenWork{literal: sep})
+				} else {
+					stack = append(stack, flattenWork{node: node.Args[i]})
 				}
 			}
 			stack = append(stack, flattenWork{literal: openDelim})
 
 		case NodeBinom:
 			if len(node.Children) >= 2 {
-				stack = append(stack, flattenWork{literal: ")"})
-				stack = append(stack, flattenWork{node: node.Children[1]})
-				stack = append(stack, flattenWork{literal: " choose "})
-				stack = append(stack, flattenWork{node: node.Children[0]})
-				stack = append(stack, flattenWork{literal: "("})
+				stack = append(stack,
+					flattenWork{literal: ")"},
+					flattenWork{node: node.Children[1]},
+					flattenWork{literal: " choose "},
+					flattenWork{node: node.Children[0]},
+					flattenWork{literal: "("},
+				)
 			}
 
 		case NodeCases:
-			// note: original had no closing brace
 			for i := len(node.Args) - 1; i >= 0; i-- {
-				stack = append(stack, flattenWork{node: node.Args[i]})
 				if i > 0 {
-					stack = append(stack, flattenWork{literal: ", "})
+					stack = append(stack, flattenWork{node: node.Args[i]}, flattenWork{literal: ", "})
+				} else {
+					stack = append(stack, flattenWork{node: node.Args[i]})
 				}
 			}
 			stack = append(stack, flattenWork{literal: "{"})
@@ -572,9 +575,10 @@ func flattenNode(root *Node, sb *strings.Builder) {
 			delims := getLRDelimiters(node.FuncName)
 			stack = append(stack, flattenWork{literal: delims[1]})
 			for i := len(node.Args) - 1; i >= 0; i-- {
-				stack = append(stack, flattenWork{node: node.Args[i]})
 				if i > 0 {
-					stack = append(stack, flattenWork{literal: ", "})
+					stack = append(stack, flattenWork{node: node.Args[i]}, flattenWork{literal: ", "})
+				} else {
+					stack = append(stack, flattenWork{node: node.Args[i]})
 				}
 			}
 			stack = append(stack, flattenWork{literal: delims[0]})
@@ -609,9 +613,10 @@ func flattenNode(root *Node, sb *strings.Builder) {
 		case NodeFunc:
 			stack = append(stack, flattenWork{literal: ")"})
 			for i := len(node.Args) - 1; i >= 0; i-- {
-				stack = append(stack, flattenWork{node: node.Args[i]})
 				if i > 0 {
-					stack = append(stack, flattenWork{literal: ", "})
+					stack = append(stack, flattenWork{node: node.Args[i]}, flattenWork{literal: ", "})
+				} else {
+					stack = append(stack, flattenWork{node: node.Args[i]})
 				}
 			}
 			stack = append(stack, flattenWork{literal: node.FuncName + "("})

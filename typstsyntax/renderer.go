@@ -833,9 +833,12 @@ func (le *LayoutEngine) layoutBinom(node *Node, fontSize float64) *MathLayout {
 
 	// Bottom
 	botX := delimW + (innerW-botLay.Width)/2
-	for _, el := range botLay.Elements {
-		offsetElement(&el, botX, botY)
-		elements = append(elements, el)
+	if n := len(botLay.Elements); n > 0 {
+		base := len(elements)
+		elements = append(elements, botLay.Elements...)
+		for i := base; i < base+n; i++ {
+			offsetElement(&elements[i], botX, botY)
+		}
 	}
 
 	// Right paren
@@ -1309,32 +1312,22 @@ const parenLineWidth = 0.15
 // makeSquareBracketLeft draws a "[" bracket as 3 lines: top serif, vertical, bottom serif.
 // x is the right edge of the bracket area, top/bottom are relative Y coords.
 func makeSquareBracketLeft(x, top, bottom, serifLen float64) MathElement {
-	return MathElement{
-		Type: ElemGroup, X: 0, Y: 0,
-		Children: []MathElement{
-			// vertical line
-			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
-			// top serif
-			{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x + serifLen, LineY2: top, LineWidth: bracketLineWidth},
-			// bottom serif
-			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x + serifLen, LineY2: bottom, LineWidth: bracketLineWidth},
-		},
+	children := [3]MathElement{
+		{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+		{Type: ElemLine, LineX1: x, LineY1: top, LineX2: x + serifLen, LineY2: top, LineWidth: bracketLineWidth},
+		{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x + serifLen, LineY2: bottom, LineWidth: bracketLineWidth},
 	}
+	return MathElement{Type: ElemGroup, X: 0, Y: 0, Children: children[:]}
 }
 
 // makeSquareBracketRight draws a "]" bracket as 3 lines.
 func makeSquareBracketRight(x, top, bottom, serifLen float64) MathElement {
-	return MathElement{
-		Type: ElemGroup, X: 0, Y: 0,
-		Children: []MathElement{
-			// vertical line
-			{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
-			// top serif
-			{Type: ElemLine, LineX1: x - serifLen, LineY1: top, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
-			// bottom serif
-			{Type: ElemLine, LineX1: x - serifLen, LineY1: bottom, LineX2: x, LineY2: bottom, LineWidth: bracketLineWidth},
-		},
+	children := [3]MathElement{
+		{Type: ElemLine, LineX1: x, LineY1: bottom, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+		{Type: ElemLine, LineX1: x - serifLen, LineY1: top, LineX2: x, LineY2: top, LineWidth: bracketLineWidth},
+		{Type: ElemLine, LineX1: x - serifLen, LineY1: bottom, LineX2: x, LineY2: bottom, LineWidth: bracketLineWidth},
 	}
+	return MathElement{Type: ElemGroup, X: 0, Y: 0, Children: children[:]}
 }
 
 // parenSegments is the number of line segments used to approximate a smooth parenthesis curve.

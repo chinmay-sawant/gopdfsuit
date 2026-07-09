@@ -2,6 +2,7 @@ package redact
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -50,7 +51,7 @@ func (r *Redactor) ApplyRedactions(redactions []models.RedactionRect) ([]byte, e
 	for pageNum, rects := range redactionsByPage {
 		pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			return nil, errors.Join(errors.New("failed to find page "+strconv.Itoa(pageNum)), err)
+			return nil, fmt.Errorf("failed to find page %d: %w", pageNum, err)
 		}
 		pageBody := objMap[pageObjNum]
 

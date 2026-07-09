@@ -4,9 +4,7 @@ package handlers
 import (
 	"archive/zip"
 	"bytes"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -34,46 +32,35 @@ var templatePDFPool = sync.Pool{
 const maxTemplateFileCache = 32
 
 var (
-	templateFileCache   sync.Map // filename -> []byte
-	templateFileCacheN  int
-	templateFileCacheMu sync.Mutex
+	templateFileCache   = make(map[string][]byte)
+	templateFileCacheMu sync.RWMutex
 )
 
-// isFontExt reports whether ext is .ttf or .otf (ASCII, case-insensitive) without allocations.
-func isFontExt(ext string) bool {
-	if len(ext) != 4 || ext[0] != '.' {
-		return false
-	}
-	b1, b2, b3 := ext[1]|0x20, ext[2]|0x20, ext[3]|0x20
-	return (b1 == 't' && b2 == 't' && b3 == 'f') || (b1 == 'o' && b2 == 't' && b3 == 'f')
-}
-
 func loadTemplateFileCached(filePath, filename string) ([]byte, error) {
-	if v, ok := templateFileCache.Load(filename); ok {
-		return v.([]byte), nil
+	templateFileCacheMu.RLock()
+	if v, ok := templateFileCache[filename]; ok {
+		templateFileCacheMu.RUnlock()
+		return v, nil
 	}
+	templateFileCacheMu.RUnlock()
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
+
 	templateFileCacheMu.Lock()
-	if templateFileCacheN < maxTemplateFileCache {
-		if _, loaded := templateFileCache.LoadOrStore(filename, data); !loaded {
-			templateFileCacheN++
+	if _, ok := templateFileCache[filename]; !ok {
+		if len(templateFileCache) >= maxTemplateFileCache {
+			for k := range templateFileCache {
+				delete(templateFileCache, k)
+				break
+			}
 		}
+		templateFileCache[filename] = data
 	}
 	templateFileCacheMu.Unlock()
 	return data, nil
-}
-
-// resetTemplate clears a pooled PDFTemplate before unmarshal (and before Put) so
-// omitted JSON fields do not leak from prior requests. Zeroing the shell also
-// drops large slice backing arrays from the pooled value after each use.
-func resetTemplate(t *models.PDFTemplate) {
-	if t == nil {
-		return
-	}
-	*t = models.PDFTemplate{}
 }
 
 // getProjectRoot returns the base directory where the `web` folder lives.
@@ -176,7 +163,7 @@ func RegisterRoutes(router *gin.Engine) {
 
 	// API endpoints - protected with Google OAuth when running on Cloud Run
 	v1 := router.Group("/api/v1")
-	v1.Use(middleware.CORSMiddleware())       // Add CORS middleware
+	v1.Use(middleware.CORSMiddleware())       // CORS first so preflight OPTIONS bypass auth
 	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run
 	{
 		// Handle all OPTIONS requests for CORS
@@ -316,11 +303,17 @@ func handleUploadFont(c *gin.Context) {
 		return
 	}
 
-	// Validate file extension (len-first, avoid EqualFold allocs — PERF-48)
+	// Validate file extension — inline case-insensitive check to avoid call overhead (PERF-151)
 	ext := filepath.Ext(file.Filename)
-	if !isFontExt(ext) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .ttf and .otf files are supported"})
-		return
+	{
+		b1, b2, b3 := byte(0), byte(0), byte(0)
+		if len(ext) == 4 && ext[0] == '.' {
+			b1, b2, b3 = ext[1]|0x20, ext[2]|0x20, ext[3]|0x20
+		}
+		if !((b1 == 't' && b2 == 't' && b3 == 'f') || (b1 == 'o' && b2 == 't' && b3 == 'f')) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Only .ttf and .otf files are supported"})
+			return
+		}
 	}
 
 	// Read file content
@@ -358,11 +351,8 @@ func handleUploadFont(c *gin.Context) {
 
 func handleGenerateTemplatePDF(c *gin.Context) {
 	template := templatePDFPool.Get().(*models.PDFTemplate)
-	resetTemplate(template)
-	defer func() {
-		resetTemplate(template)
-		templatePDFPool.Put(template)
-	}()
+	*template = models.PDFTemplate{}
+	defer templatePDFPool.Put(template)
 
 	data, err := c.GetRawData()
 	if err != nil {
@@ -462,8 +452,7 @@ func handleMergePDFs(c *gin.Context) {
 
 	var pdfBytesList [][]byte
 	// Process files in the exact order they appear in the form to maintain selection sequence
-	for i, fh := range files {
-		fmt.Printf("Processing file %d: %s\n", i+1, fh.Filename)
+	for _, fh := range files {
 		f, err := fh.Open()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
@@ -581,7 +570,6 @@ func handleHTMLToPDF(c *gin.Context) {
 	}
 
 	if err := sonic.Unmarshal(data, &req); err != nil {
-		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
 	}
@@ -611,7 +599,6 @@ func handleHTMLToPDF(c *gin.Context) {
 
 	pdfBytes, err := pdf.ConvertHTMLToPDF(req)
 	if err != nil {
-		log.Printf("PDF conversion failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF conversion failed: " + err.Error()})
 		return
 	}
@@ -631,7 +618,6 @@ func handleHTMLToImage(c *gin.Context) {
 	}
 
 	if err := sonic.Unmarshal(data, &req); err != nil {
-		log.Printf("Error binding JSON request: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data: " + err.Error()})
 		return
 	}
@@ -649,7 +635,6 @@ func handleHTMLToImage(c *gin.Context) {
 
 	imageBytes, err := pdf.ConvertHTMLToImage(req)
 	if err != nil {
-		log.Printf("Image conversion failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Image conversion failed: " + err.Error()})
 		return
 	}

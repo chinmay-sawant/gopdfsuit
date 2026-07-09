@@ -385,15 +385,18 @@ func (r *CustomFontRegistry) LoadFontsFromDirectory(dir string) error {
 
 // GetTextWidth calculates the width of text in a custom font (in PDF units at 1pt)
 func (r *CustomFontRegistry) GetTextWidth(fontName string, text string) float64 {
+	scale := func(f *TTFFont) float64 {
+		return 1.0 / float64(f.UnitsPerEm)
+	}
 	if r.noLock {
 		font, ok := r.fonts[fontName]
 		if !ok {
 			return 0
 		}
+		invUPE := scale(font.Font)
 		var totalWidth float64
 		for _, char := range text {
-			width := font.Font.GetCharWidthScaled(char)
-			totalWidth += float64(width) / 1000.0
+			totalWidth += float64(font.Font.GetCharWidth(char)) * invUPE
 		}
 		return totalWidth
 	}
@@ -403,10 +406,10 @@ func (r *CustomFontRegistry) GetTextWidth(fontName string, text string) float64 
 		r.mu.RUnlock()
 		return 0
 	}
+	invUPE := scale(font.Font)
 	var totalWidth float64
 	for _, char := range text {
-		width := font.Font.GetCharWidthScaled(char)
-		totalWidth += float64(width) / 1000.0
+		totalWidth += float64(font.Font.GetCharWidth(char)) * invUPE
 	}
 	r.mu.RUnlock()
 	return totalWidth
@@ -423,6 +426,7 @@ func (r *CustomFontRegistry) GeneratePDFFontResources() string {
 
 	var resources strings.Builder
 	var tmp [20]byte
+	resources.Grow(len(r.fonts) * 30)
 	for _, font := range r.fonts {
 		// Only output resources for fonts that were actually used
 		if font.ObjectID > 0 && len(font.UsedChars) > 0 {

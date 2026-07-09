@@ -9,6 +9,21 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
+// Package-level byte constants for repeated PDF dictionary fragments (PERF-217).
+var (
+	outlineObjRef    = []byte(" 0 R")
+	outlineParent    = []byte(" /Parent ")
+	outlineFirst     = []byte(" /First ")
+	outlineLast      = []byte(" /Last ")
+	outlinePrev      = []byte(" /Prev ")
+	outlineNext      = []byte(" /Next ")
+	outlineCount     = []byte(" /Count ")
+	outlineTitle     = []byte(" /Title ")
+	outlineDest      = []byte(" /Dest ")
+	outlineDictOpen  = []byte("<< ")
+	outlineDictClose = []byte(" >>")
+)
+
 // OutlineBuilder builds the PDF outline (bookmarks) tree structure
 type OutlineBuilder struct {
 	pageManager  *PageManager
@@ -313,26 +328,28 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 
 	// Generate root outline dictionary
 	var rootDict strings.Builder
+	rootDict.Grow(256)
 	var numBuf [20]byte
 	rootDict.WriteString("<< /Type /Outlines")
 	if firstTopLevel > 0 {
-		rootDict.WriteString(" /First ")
+		rootDict.Write(outlineFirst)
 		rootDict.Write(strconv.AppendInt(numBuf[:0], int64(firstTopLevel), 10))
-		rootDict.WriteString(" 0 R")
-		rootDict.WriteString(" /Last ")
+		rootDict.Write(outlineObjRef)
+		rootDict.Write(outlineLast)
 		rootDict.Write(strconv.AppendInt(numBuf[:0], int64(lastTopLevel), 10))
-		rootDict.WriteString(" 0 R")
+		rootDict.Write(outlineObjRef)
 	}
-	rootDict.WriteString(" /Count ")
+	rootDict.Write(outlineCount)
 	rootDict.Write(strconv.AppendInt(numBuf[:0], int64(totalCount), 10))
-	rootDict.WriteString(" >>")
+	rootDict.Write(outlineDictClose)
 	// PERF-32: zero-copy; stored content is not mutated
 	ob.pageManager.ExtraObjects[ob.outlineObjID] = byteconv.StringToBytes(rootDict.String())
 
 	// Generate each outline item
 	for _, item := range ob.outlineItems {
 		var itemDict strings.Builder
-		itemDict.WriteString("<<")
+		itemDict.Grow(200)
+		itemDict.Write(outlineDictOpen)
 
 		// Handle Title encryption
 		if ob.encryptor != nil {
@@ -365,28 +382,32 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 			}
 
 			encrypted := ob.encryptor.EncryptString(titleBytes, item.ObjectID, 0)
-			itemDict.WriteString(" /Title <")
+			itemDict.Write(outlineTitle)
+			itemDict.WriteString("<")
 			itemDict.WriteString(hex.EncodeToString(encrypted))
 			itemDict.WriteByte('>')
 		} else {
-			itemDict.WriteString(" /Title (")
+			itemDict.Write(outlineTitle)
+			itemDict.WriteByte('(')
 			itemDict.WriteString(escapeTextUnicode(item.Title))
 			itemDict.WriteByte(')')
 		}
 
-		itemDict.WriteString(" /Parent ")
+		itemDict.Write(outlineParent)
 		itemDict.Write(strconv.AppendInt(numBuf[:0], int64(item.ParentID), 10))
-		itemDict.WriteString(" 0 R")
+		itemDict.Write(outlineObjRef)
 
 		// PDF/UA-2 Compliance: Use /Dest (name) instead of /A << /S /GoTo ... >>
 		// The named destination contains both /D and /SD entries
 		if item.DestKey != "" {
-			itemDict.WriteString(" /Dest (")
+			itemDict.Write(outlineDest)
+			itemDict.WriteByte('(')
 			itemDict.WriteString(escapeText(item.DestKey))
 			itemDict.WriteByte(')')
 		} else if item.DestPageID > 0 {
 			// Fallback for items without a destination key (shouldn't happen normally)
-			itemDict.WriteString(" /Dest [")
+			itemDict.Write(outlineDest)
+			itemDict.WriteByte('[')
 			itemDict.Write(strconv.AppendInt(numBuf[:0], int64(item.DestPageID), 10))
 			itemDict.WriteString(" 0 R /XYZ null ")
 			itemDict.WriteString(fmtNum(item.DestY))
@@ -394,27 +415,27 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 		}
 
 		if item.PrevID > 0 {
-			itemDict.WriteString(" /Prev ")
+			itemDict.Write(outlinePrev)
 			itemDict.Write(strconv.AppendInt(numBuf[:0], int64(item.PrevID), 10))
-			itemDict.WriteString(" 0 R")
+			itemDict.Write(outlineObjRef)
 		}
 		if item.NextID > 0 {
-			itemDict.WriteString(" /Next ")
+			itemDict.Write(outlineNext)
 			itemDict.Write(strconv.AppendInt(numBuf[:0], int64(item.NextID), 10))
-			itemDict.WriteString(" 0 R")
+			itemDict.Write(outlineObjRef)
 		}
 		if item.FirstID > 0 {
-			itemDict.WriteString(" /First ")
+			itemDict.Write(outlineFirst)
 			itemDict.Write(strconv.AppendInt(numBuf[:0], int64(item.FirstID), 10))
-			itemDict.WriteString(" 0 R")
-			itemDict.WriteString(" /Last ")
+			itemDict.Write(outlineObjRef)
+			itemDict.Write(outlineLast)
 			itemDict.Write(strconv.AppendInt(numBuf[:0], int64(item.LastID), 10))
-			itemDict.WriteString(" 0 R")
-			itemDict.WriteString(" /Count ")
+			itemDict.Write(outlineObjRef)
+			itemDict.Write(outlineCount)
 			itemDict.Write(strconv.AppendInt(numBuf[:0], int64(item.Count), 10))
 		}
 
-		itemDict.WriteString(" >>")
+		itemDict.Write(outlineDictClose)
 		// PERF-32: zero-copy; stored content is not mutated
 		ob.pageManager.ExtraObjects[item.ObjectID] = byteconv.StringToBytes(itemDict.String())
 	}

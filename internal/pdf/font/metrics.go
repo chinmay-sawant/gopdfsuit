@@ -7,6 +7,7 @@ import (
 
 	"strconv"
 
+	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
 )
 
@@ -640,11 +641,16 @@ func GetAvailableFonts() []models.FontInfo {
 	registry := GetFontRegistry()
 	customFonts := registry.GetAllFonts()
 	for _, f := range customFonts {
+		ref := f.CachedRef
+		if ref == "" && f.ObjectID > 0 {
+			var tmp [20]byte
+			ref = "/CF" + string(strconv.AppendInt(tmp[:0], int64(f.ObjectID), 10))
+		}
 		fonts = append(fonts, models.FontInfo{
 			ID:          f.Name,
 			Name:        f.Name,
 			DisplayName: f.Name + " (Custom)",
-			Reference:   registry.GetFontReference(f.Name),
+			Reference:   ref,
 		})
 	}
 
@@ -979,6 +985,7 @@ func GenerateCIDToGIDMap(font *RegisteredFont, encryptor ObjectEncryptor) string
 
 	var sb strings.Builder
 	var tmp [20]byte
+	sb.Grow(64 + len(compressedData))
 	sb.WriteString("<< /Filter /FlateDecode /Length ")
 	sb.Write(strconv.AppendInt(tmp[:0], int64(len(compressedData)), 10))
 	sb.WriteString(" >>\nstream\n")
@@ -1068,7 +1075,7 @@ func GenerateToUnicodeCMap(font *RegisteredFont, encryptor ObjectEncryptor) stri
 	// Compress the CMap stream using pooled zlib writer
 	compressedBuf := GetCompressBuffer()
 	zlibWriter := GetZlibWriter(compressedBuf)
-	if _, err := zlibWriter.Write([]byte(cmapData)); err != nil {
+	if _, err := zlibWriter.Write(byteconv.StringToBytes(cmapData)); err != nil {
 		_ = zlibWriter.Close()
 		PutZlibWriter(zlibWriter)
 		CompressBufPool.Put(compressedBuf)

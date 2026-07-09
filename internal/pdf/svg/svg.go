@@ -84,6 +84,7 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	}
 
 	var b bytes.Buffer
+	b.Grow(2048)
 
 	// PDF coordinate system is bottom-up (0,0 at bottom-left).
 	// SVG is top-down (0,0 at top-left).
@@ -337,6 +338,29 @@ func extractArgs(tokens []string) []string {
 	return strings.Fields(strings.ReplaceAll(inner, ",", " "))
 }
 
+var namedColors = map[string][3]float64{
+	"black":    {0, 0, 0},
+	"white":    {1, 1, 1},
+	"red":      {1, 0, 0},
+	"green":    {0, 1, 0},
+	"lime":     {0, 1, 0},
+	"blue":     {0, 0, 1},
+	"yellow":   {1, 1, 0},
+	"cyan":     {0, 1, 1},
+	"aqua":     {0, 1, 1},
+	"magenta":  {1, 0, 1},
+	"fuchsia":  {1, 0, 1},
+	"gray":     {0.5, 0.5, 0.5},
+	"grey":     {0.5, 0.5, 0.5},
+	"silver":   {0.75, 0.75, 0.75},
+	"maroon":   {0.5, 0, 0},
+	"olive":    {0.5, 0.5, 0},
+	"navy":     {0, 0, 0.5},
+	"purple":   {0.5, 0, 0.5},
+	"teal":     {0, 0.5, 0.5},
+	"orange":   {1, 0.647, 0},
+}
+
 func parseColor(c string) (float64, float64, float64, bool) {
 	c = strings.TrimSpace(c)
 	if c == "" || c == "none" || c == "transparent" { //nolint:goconst
@@ -374,39 +398,8 @@ func parseColor(c string) (float64, float64, float64, bool) {
 		}
 	}
 	// Basic color names
-	switch strings.ToLower(c) {
-	case "black": //nolint:goconst
-		return 0, 0, 0, true
-	case "white":
-		return 1, 1, 1, true
-	case "red":
-		return 1, 0, 0, true
-	case "green", "lime":
-		return 0, 1, 0, true
-	case "blue":
-		return 0, 0, 1, true
-	case "yellow":
-		return 1, 1, 0, true
-	case "cyan", "aqua":
-		return 0, 1, 1, true
-	case "magenta", "fuchsia":
-		return 1, 0, 1, true
-	case "gray", "grey":
-		return 0.5, 0.5, 0.5, true
-	case "silver":
-		return 0.75, 0.75, 0.75, true
-	case "maroon":
-		return 0.5, 0, 0, true
-	case "olive":
-		return 0.5, 0.5, 0, true
-	case "navy":
-		return 0, 0, 0.5, true
-	case "purple":
-		return 0.5, 0, 0.5, true
-	case "teal":
-		return 0, 0.5, 0.5, true
-	case "orange":
-		return 1, 0.647, 0, true
+	if rgb, ok := namedColors[strings.ToLower(c)]; ok {
+		return rgb[0], rgb[1], rgb[2], true
 	}
 	return 0, 0, 0, false
 }

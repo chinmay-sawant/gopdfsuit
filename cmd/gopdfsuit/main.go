@@ -19,22 +19,22 @@ import (
 
 func main() {
 	// Profiling is opt-in to avoid heap instrumentation overhead in production/benchmarks
-	if os.Getenv("ENABLE_PROFILING") == "1" {
+	if _, profiling := os.LookupEnv("ENABLE_PROFILING"); profiling {
 		f, err := os.Create("/tmp/mem.prof")
 		if err != nil {
-			log.Printf("could not create memory profile: %v", err)
+			fmt.Fprintf(os.Stderr, "could not create memory profile: %v\n", err)
 		} else {
 			defer func() {
 				if err := f.Close(); err != nil {
-					log.Printf("could not close memory profile: %v", err)
+					fmt.Fprintf(os.Stderr, "could not close memory profile: %v\n", err)
 				}
 			}()
 			defer func() {
-				log.Println("Writing memory profile...")
+				fmt.Fprintln(os.Stderr, "Writing memory profile...")
 				if err := pprof.WriteHeapProfile(f); err != nil {
-					log.Printf("could not write memory profile: %v", err)
+					fmt.Fprintf(os.Stderr, "could not write memory profile: %v\n", err)
 				}
-				log.Println("Memory profile written")
+				fmt.Fprintln(os.Stderr, "Memory profile written")
 			}()
 		}
 	}
@@ -54,7 +54,7 @@ func main() {
 	router.Use(func(c *gin.Context) {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Printf("[Recovery] panic recovered: %v", r)
+				fmt.Fprintf(os.Stderr, "[Recovery] panic recovered: %v\n", r)
 				c.AbortWithStatus(http.StatusInternalServerError)
 			}
 		}()
@@ -75,7 +75,12 @@ func main() {
 	fmt.Printf("Server starting with %d max concurrent workers\n", maxConcurrent)
 
 	router.Use(func(c *gin.Context) {
-		semaphore <- struct{}{}
+		select {
+		case semaphore <- struct{}{}:
+		case <-c.Request.Context().Done():
+			c.AbortWithStatus(http.StatusServiceUnavailable)
+			return
+		}
 		defer func() { <-semaphore }()
 		c.Next()
 	})

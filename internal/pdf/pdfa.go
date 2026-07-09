@@ -7,6 +7,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
@@ -154,7 +155,7 @@ func GenerateXMPMetadata(documentID string, pdfDateStr string) string { //nolint
 func GenerateXMPMetadataObject(objectID int, documentID string, pdfDateStr string, encryptor ObjectEncryptor) string {
 	xmpData := GenerateXMPMetadata(documentID, pdfDateStr)
 
-	streamContent := []byte(xmpData)
+	streamContent := byteconv.StringToBytes(xmpData)
 
 	// Encrypt if needed
 	if encryptor != nil {
@@ -343,9 +344,20 @@ func buildSRGBICCProfile() []byte {
 	return profile
 }
 
+// Cached ICC profiles avoid rebuilding the large binary blob on every call (PERF-217).
+var (
+	srgbICCProfileOnce sync.Once
+	srgbICCProfile     []byte
+	grayICCProfileOnce sync.Once
+	grayICCProfile     []byte
+)
+
 // GetSRGBICCProfile returns the complete sRGB ICC profile
 func GetSRGBICCProfile() []byte {
-	return buildSRGBICCProfile()
+	srgbICCProfileOnce.Do(func() {
+		srgbICCProfile = buildSRGBICCProfile()
+	})
+	return srgbICCProfile
 }
 
 // GenerateICCProfileObject generates the ICC profile stream object for sRGB
@@ -365,7 +377,7 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 	}
 	_ = zw.Close()
 	font.PutZlibWriter(zw)
-	compressedData := append([]byte(nil), cb.Bytes()...)
+	compressedData := bytes.Clone(cb.Bytes())
 	font.PutCompressBuffer(cb)
 
 	// Encrypt if needed
@@ -376,6 +388,7 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 	// Build the object with proper binary stream handling (PERF-35: Builder + AppendInt)
 	var result bytes.Buffer
 	var nbuf [24]byte
+	result.Grow(128 + len(compressedData))
 	result.Write(strconv.AppendInt(nbuf[:0], int64(objectID), 10))
 	result.WriteString(" 0 obj\n<< /Filter /FlateDecode /Length ")
 	result.Write(strconv.AppendInt(nbuf[:0], int64(len(compressedData)), 10))
@@ -390,7 +403,10 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 // Returns the bytes to write to the PDF buffer
 func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 	// Build a simple Gray ICC profile
-	grayProfile := buildGrayICCProfile()
+	grayICCProfileOnce.Do(func() {
+		grayICCProfile = buildGrayICCProfile()
+	})
+	grayProfile := grayICCProfile
 
 	// Compress the ICC profile
 	cb := font.GetCompressBuffer()
@@ -403,7 +419,7 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 	}
 	_ = zw.Close()
 	font.PutZlibWriter(zw)
-	compressedData := append([]byte(nil), cb.Bytes()...)
+	compressedData := bytes.Clone(cb.Bytes())
 	font.PutCompressBuffer(cb)
 
 	// Encrypt if needed
@@ -414,6 +430,7 @@ func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byt
 	// Build the object (PERF-35: Builder + AppendInt)
 	var result bytes.Buffer
 	var nbuf [24]byte
+	result.Grow(128 + len(compressedData))
 	result.Write(strconv.AppendInt(nbuf[:0], int64(objectID), 10))
 	result.WriteString(" 0 obj\n<< /Filter /FlateDecode /Length ")
 	result.Write(strconv.AppendInt(nbuf[:0], int64(len(compressedData)), 10))
@@ -537,13 +554,13 @@ func GenerateOutputIntentObject(objectID int, iccProfileID int, encryptor Object
 	infoStr := "(" + srgbICC + ")"
 
 	if encryptor != nil {
-		idEnc := encryptor.EncryptString([]byte(srgbICC), objectID, 0)
+		idEnc := encryptor.EncryptString(byteconv.StringToBytes(srgbICC), objectID, 0)
 		idStr = "<" + hex.EncodeToString(idEnc) + ">"
 
-		regEnc := encryptor.EncryptString([]byte("http://www.color.org"), objectID, 0)
+		regEnc := encryptor.EncryptString(byteconv.StringToBytes("http://www.color.org"), objectID, 0)
 		regStr = "<" + hex.EncodeToString(regEnc) + ">"
 
-		infoEnc := encryptor.EncryptString([]byte(srgbICC), objectID, 0)
+		infoEnc := encryptor.EncryptString(byteconv.StringToBytes(srgbICC), objectID, 0)
 		infoStr = "<" + hex.EncodeToString(infoEnc) + ">"
 	}
 

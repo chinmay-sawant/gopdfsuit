@@ -51,5 +51,5 @@
 # taint noise is not actionable for a PDF generator. Re-enable when the
 # taint sink model distinguishes HTTP responses from buffer writes.
 [codehound.taint]
-enabled = false
+enabled = true
 # show_paths = true

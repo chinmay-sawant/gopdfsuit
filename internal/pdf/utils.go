@@ -80,24 +80,29 @@ func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 }
 
 // propsCache memoizes parseProps results since the same prop strings are parsed repeatedly.
-var propsCache sync.Map // string -> models.Props
+const maxPropsCache = 64
+
+var (
+	propsCache   = make(map[string]models.Props)
+	propsCacheMu sync.RWMutex
+)
 
 func parseProps(props string) models.Props {
-	// Fast path: check cache
-	if cached, ok := propsCache.Load(props); ok {
-		return cached.(models.Props)
+	propsCacheMu.RLock()
+	if cached, ok := propsCache[props]; ok {
+		propsCacheMu.RUnlock()
+		return cached
 	}
+	propsCacheMu.RUnlock()
 
 	parts := strings.Split(props, ":")
 
-	// Default values
 	fontName := "Helvetica" //nolint:goconst
 	fontSize := 12
 	styleCode := "000"
 	alignment := "left"
 	borders := [4]int{0, 0, 0, 0}
 
-	// Helper to safe index
 	getPart := func(idx int) string {
 		if idx < len(parts) {
 			return parts[idx]
@@ -105,19 +110,16 @@ func parseProps(props string) models.Props {
 		return ""
 	}
 
-	// 1. Font Name
 	if name := strings.TrimSpace(getPart(0)); name != "" {
 		fontName = name
 	}
 
-	// 2. Font Size
 	if sizeStr := getPart(1); sizeStr != "" {
 		if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 {
 			fontSize = s
 		}
 	}
 
-	// 3. Style Code
 	if sc := getPart(2); len(sc) == 3 {
 		styleCode = sc
 	}
@@ -126,12 +128,10 @@ func parseProps(props string) models.Props {
 	italic := styleCode[1] == '1'
 	underline := styleCode[2] == '1'
 
-	// 4. Alignment
 	if align := getPart(3); align != "" {
 		alignment = align
 	}
 
-	// 5-8. Borders
 	if len(parts) >= 8 {
 		for i := 4; i < 8; i++ {
 			if val, err := strconv.Atoi(parts[i]); err == nil {
@@ -139,7 +139,6 @@ func parseProps(props string) models.Props {
 			}
 		}
 	} else if len(parts) >= 5 {
-		// Try to parse as many borders as available starting from index 4
 		for i := 4; i < len(parts) && i < 8; i++ {
 			if val, err := strconv.Atoi(parts[i]); err == nil {
 				borders[i-4] = val
@@ -158,8 +157,17 @@ func parseProps(props string) models.Props {
 		Borders:   borders,
 	}
 
-	// Cache for future calls
-	propsCache.Store(props, result)
+	propsCacheMu.Lock()
+	if _, ok := propsCache[props]; !ok {
+		if len(propsCache) >= maxPropsCache {
+			for k := range propsCache {
+				delete(propsCache, k)
+				break
+			}
+		}
+		propsCache[props] = result
+	}
+	propsCacheMu.Unlock()
 	return result
 }
 
@@ -404,14 +412,10 @@ func appendTextForPDF(dst []byte, resolvedName, text string, registry *CustomFon
 	if registry.HasFont(resolvedName) {
 		return AppendTextForCustomFont(dst, resolvedName, text, registry)
 	}
-	// Build escaped body then wrap with parens in one allocation (PERF-119).
-	body := appendEscapedPDFLiteral(nil, text)
-	out := make([]byte, len(dst)+len(body)+2)
-	copy(out, dst)
-	out[len(dst)] = '('
-	copy(out[len(dst)+1:], body)
-	out[len(out)-1] = ')'
-	return out
+	dst = append(dst, '(')
+	dst = appendEscapedPDFLiteral(dst, text)
+	dst = append(dst, ')')
+	return dst
 }
 
 // formatTextForPDF formats text for use in a PDF content stream
@@ -501,10 +505,8 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 
 		if trialWidth <= maxWidth {
 			if savedLen > lineStart {
-				// PERF-119: grow once for space+word
-				ws.buf = append(ws.buf, make([]byte, 1+len(word))...)
-				ws.buf[savedLen] = ' '
-				copy(ws.buf[savedLen+1:], word)
+				ws.buf = append(ws.buf, ' ')
+				ws.buf = append(ws.buf, word...)
 			} else {
 				ws.buf = append(ws.buf, word...)
 			}
@@ -536,15 +538,35 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 func wrapLongWordInto(ws *WrapState, word, resolvedFontName string, fontSize, maxWidth float64, registry *CustomFontRegistry) {
 	ws.wordBuf = append(ws.wordBuf[:0], word...)
 
+	hasCustomFont := registry.HasFont(resolvedFontName)
+	var avgCW float64
+	if !hasCustomFont {
+		avgCW = 0.5
+		switch resolvedFontName {
+		case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
+			avgCW = 0.6
+		case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
+			avgCW = 0.45
+		}
+	}
+
 	start := 0
 	for start < len(ws.wordBuf) {
 		end := start
 		lastGood := start
+		var runeCount int
 
 		for end < len(ws.wordBuf) {
 			_, rs := utf8.DecodeRune(ws.wordBuf[end:])
+			runeCount++
+			var w float64
+			if hasCustomFont {
+				w = EstimateTextWidth(resolvedFontName, byteString(ws.wordBuf[start:start+end-start+rs]), fontSize, registry)
+			} else {
+				w = float64(runeCount) * fontSize * avgCW
+			}
 			end += rs
-			if EstimateTextWidth(resolvedFontName, byteString(ws.wordBuf[start:end]), fontSize, registry) > maxWidth {
+			if w > maxWidth {
 				break
 			}
 			lastGood = end

@@ -145,16 +145,12 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	textCmd := formatTextForPDF(resolvedName, text, registry)
 	var sizeBuf [12]byte
 	sizeNum := strconv.AppendInt(sizeBuf[:0], int64(fontSize), 10)
-	head := make([]byte, len(fontRef)+1+len(sizeNum)+4)
-	o := copy(head, fontRef)
-	head[o] = ' '
-	o++
-	o += copy(head[o:], sizeNum)
-	copy(head[o:], " Tf\n")
-	// PERF-119: assemble watermark ops with Builder (no multi-append chain)
 	var wb strings.Builder
-	wb.Grow(256 + len(head) + len(textCmd))
-	wb.Write(head)
+	wb.Grow(256 + len(fontRef) + 1 + len(sizeNum) + 4 + len(textCmd))
+	wb.WriteString(fontRef)
+	wb.WriteByte(' ')
+	wb.Write(sizeNum)
+	wb.WriteString(" Tf\n")
 	tmp := make([]byte, 0, 48)
 	tmp = appendFmtNum(tmp, c)
 	wb.Write(tmp)
@@ -181,10 +177,9 @@ func drawWatermark(contentStream *bytes.Buffer, text string, pageDims PageDimens
 	wb.WriteString(" Tm\n")
 	wb.WriteString(string(textCmd))
 	wb.WriteString(" Tj\n")
-	wmBuf := []byte(wb.String())
 
 	// Single write for entire watermark command sequence
-	contentStream.Write(wmBuf)
+	contentStream.WriteString(wb.String())
 	contentStream.WriteString("ET\nQ\n")
 
 	// End Artifact mark
@@ -339,13 +334,10 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 
 	// Set text color
 	if r, g, b, _, valid := parseHexColor(title.TextColor); valid {
-		var colorBuf []byte
-		colorBuf = appendFmtNum(colorBuf, r)
-		colorBuf = append(colorBuf, ' ')
-		colorBuf = appendFmtNum(colorBuf, g)
-		colorBuf = append(colorBuf, ' ')
-		colorBuf = appendFmtNum(colorBuf, b)
-		colorBuf = append(colorBuf, " rg\n"...)
+		colorBuf := make([]byte, 0, 32)
+		colorBuf = append(appendFmtNum(colorBuf, r), ' ')
+		colorBuf = append(appendFmtNum(colorBuf, g), ' ')
+		colorBuf = append(appendFmtNum(colorBuf, b), " rg\n"...)
 		contentStream.Write(colorBuf)
 	} else {
 		contentStream.WriteString("0 0 0 rg\n")
@@ -443,6 +435,21 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 	// PDF/UA: Start Table Structure Element (Logical grouping)
 	pageManager.Structure.BeginStructureElement(StructTable)
 
+	// Precompute stable values to avoid re-evaluation in loops (PERF-230)
+	helveticaFontRef := getFontReference(models.Props{FontName: "Helvetica"}, pageManager.FontRegistry)
+	defaultFontRef := getFontReference(defaultProps, pageManager.FontRegistry)
+	defaultResolvedName := resolveFontName(defaultProps, pageManager.FontRegistry)
+	var defaultTextR, defaultTextG, defaultTextB float64
+	var defaultTextHasColor bool
+	if dr, dg, db, _, dvalid := parseHexColor(defaultTextColor); dvalid {
+		defaultTextR, defaultTextG, defaultTextB, defaultTextHasColor = dr, dg, db, true
+	}
+	var defaultBgR, defaultBgG, defaultBgB float64
+	var defaultBgHasColor bool
+	if dbr, dbg, dbb, _, dbvalid := parseHexColor(defaultBgColor); dbvalid {
+		defaultBgR, defaultBgG, defaultBgB, defaultBgHasColor = dbr, dbg, dbb, true
+	}
+
 	for rowIdx, row := range table.Rows {
 		// Determine this row's height
 		rowHeight := baseRowHeight
@@ -478,7 +485,28 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			if bgColor == "" {
 				bgColor = defaultBgColor
 			}
-			if r, g, b, _, valid := parseHexColor(bgColor); valid {
+			if bgColor == defaultBgColor && defaultBgHasColor {
+				contentStream.WriteString("q\n")
+				var bgBuf []byte
+				bgBuf = appendFmtNum(bgBuf, defaultBgR)
+				bgBuf = append(bgBuf, ' ')
+				bgBuf = appendFmtNum(bgBuf, defaultBgG)
+				bgBuf = append(bgBuf, ' ')
+				bgBuf = appendFmtNum(bgBuf, defaultBgB)
+				bgBuf = append(bgBuf, " rg\n"...)
+				contentStream.Write(bgBuf)
+				bgBuf = bgBuf[:0]
+				bgBuf = appendFmtNum(bgBuf, bgX)
+				bgBuf = append(bgBuf, ' ')
+				bgBuf = appendFmtNum(bgBuf, pageManager.CurrentYPos-cellHeight)
+				bgBuf = append(bgBuf, ' ')
+				bgBuf = appendFmtNum(bgBuf, cellWidth)
+				bgBuf = append(bgBuf, ' ')
+				bgBuf = appendFmtNum(bgBuf, cellHeight)
+				bgBuf = append(bgBuf, " re f\n"...)
+				contentStream.Write(bgBuf)
+				contentStream.WriteString("Q\n")
+			} else if r, g, b, _, valid := parseHexColor(bgColor); valid {
 				contentStream.WriteString("q\n")
 				var bgBuf []byte
 				bgBuf = appendFmtNum(bgBuf, r)
@@ -616,9 +644,8 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					// Draw image name
 					if cell.Image.ImageName != "" && len(cell.Image.ImageName) < 20 {
 						contentStream.WriteString("BT\n")
-						fontRef := getFontReference(models.Props{FontName: "Helvetica"}, pageManager.FontRegistry)
 						var imgNameBuf []byte
-						imgNameBuf = append(imgNameBuf, fontRef...)
+						imgNameBuf = append(imgNameBuf, helveticaFontRef...)
 						imgNameBuf = append(imgNameBuf, " 8 Tf\n"...)
 						contentStream.Write(imgNameBuf)
 						contentStream.WriteString("0.5 0.5 0.5 rg\n")
@@ -642,7 +669,11 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			} else if cell.Text != "" {
 				// Draw text with font styling
 				contentStream.WriteString("BT\n")
-				contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
+				if cell.Props == "" {
+					contentStream.WriteString(defaultFontRef)
+				} else {
+					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
+				}
 				contentStream.WriteString(" ")
 				var cellFsBuf [12]byte
 				contentStream.Write(strconv.AppendInt(cellFsBuf[:0], int64(cellProps.FontSize), 10))
@@ -654,7 +685,16 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				if textColor == "" {
 					textColor = defaultTextColor
 				}
-				if r, g, b, _, valid := parseHexColor(textColor); valid {
+				if textColor == defaultTextColor && defaultTextHasColor {
+					var colorBuf []byte
+					colorBuf = appendFmtNum(colorBuf, defaultTextR)
+					colorBuf = append(colorBuf, ' ')
+					colorBuf = appendFmtNum(colorBuf, defaultTextG)
+					colorBuf = append(colorBuf, ' ')
+					colorBuf = appendFmtNum(colorBuf, defaultTextB)
+					colorBuf = append(colorBuf, " rg\n"...)
+					contentStream.Write(colorBuf)
+				} else if r, g, b, _, valid := parseHexColor(textColor); valid {
 					var colorBuf []byte
 					colorBuf = appendFmtNum(colorBuf, r)
 					colorBuf = append(colorBuf, ' ')
@@ -669,7 +709,12 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				}
 
 				// Calculate approximate text width
-				resolvedName := resolveFontName(cellProps, pageManager.FontRegistry)
+				var resolvedName string
+				if cell.Props == "" {
+					resolvedName = defaultResolvedName
+				} else {
+					resolvedName = resolveFontName(cellProps, pageManager.FontRegistry)
+				}
 				textWidth := EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 
 				var textX float64

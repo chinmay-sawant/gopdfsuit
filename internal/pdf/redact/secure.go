@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
@@ -31,6 +32,14 @@ var (
 	secureLenRe         = regexp.MustCompile(`/Length\s+(?:\d+\s+\d+\s+R|\d+)`)
 	secureTextOpRe      = regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
 )
+
+// PERF-227/233: pool of zlib writers with BestSpeed compression for the hot path.
+var zlibWriterPool = sync.Pool{
+	New: func() any {
+		w, _ := zlib.NewWriterLevel(nil, zlib.BestSpeed)
+		return w
+	},
+}
 
 func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRect, queries []models.RedactionTextQuery) ([]byte, bool, []string, error) {
 	objMap := r.objMap
@@ -63,6 +72,7 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 		if err != nil {
 			// PERF-6: avoid fmt.Sprintf in loop
 			var wb strings.Builder
+			wb.Grow(64)
 			var tmp [20]byte
 			wb.WriteString("page ")
 			wb.Write(strconv.AppendInt(tmp[:0], int64(pageNum), 10))
@@ -76,6 +86,7 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
 			var wb strings.Builder
+			wb.Grow(64)
 			var tmp [20]byte
 			wb.WriteString("page ")
 			wb.Write(strconv.AppendInt(tmp[:0], int64(pageNum), 10))
@@ -124,6 +135,7 @@ func rewriteSecureStreamTree(objMap map[int][]byte, streamObjNum int, resources 
 	warnings := make([]string, 0, 2)
 	if err != nil {
 		var wb strings.Builder
+		wb.Grow(64)
 		var tmp [20]byte
 		wb.WriteString("stream ")
 		wb.Write(strconv.AppendInt(tmp[:0], int64(streamObjNum), 10))
@@ -230,13 +242,18 @@ func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, 
 	encoded := newDecoded
 	if compressed {
 		var buf bytes.Buffer
-		zw := zlib.NewWriter(&buf)
+		zw := zlibWriterPool.Get().(*zlib.Writer)
+		zw.Reset(&buf)
 		if _, err := zw.Write(newDecoded); err != nil {
+			zw.Close()
+			zlibWriterPool.Put(zw)
 			return nil, false, err
 		}
 		if err := zw.Close(); err != nil {
+			zlibWriterPool.Put(zw)
 			return nil, false, err
 		}
+		zlibWriterPool.Put(zw)
 		encoded = buf.Bytes()
 	}
 
@@ -498,6 +515,7 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 
 	// Build TJ array: [(text) kern (text) ...] TJ
 	var out strings.Builder
+	out.Grow(len(segments) * 16)
 	out.WriteString("[")
 	for _, seg := range segments {
 		if seg.isKern {

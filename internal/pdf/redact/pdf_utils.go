@@ -22,6 +22,13 @@ var (
 	tfRe     = regexp.MustCompile(`/[A-Za-z0-9_.+-]+\s+([\d.-]+)\s+Tf`)
 	textOpRe = regexp.MustCompile(`(?s)\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
 	tokenRe  = regexp.MustCompile(`(?s)[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+[\d.-]+\s+Tm|[\d.-]+\s+[\d.-]+\s+T[dD]|/[A-Za-z0-9_.+-]+\s+[\d.-]+\s+Tf|\[(?:.|\n|\r)*?\]\s*TJ|<[^>]+>\s*Tj|\((?:\\.|[^\\)])*\)\s*Tj|\((?:\\.|[^\\)])*\)\s*'|[\d.-]+\s+[\d.-]+\s+\((?:\\.|[^\\)])*\)\s*"`)
+
+	// PERF-230: hoisted regexes for hot-path functions.
+	doRe           = regexp.MustCompile(`/([A-Za-z0-9_.+-]+)\s+Do`)
+	xobjDictRe     = regexp.MustCompile(`(?s)/XObject\s*<<(.*?)>>`)
+	xobjRefRe      = regexp.MustCompile(`/([A-Za-z0-9_.+-]+)\s+(\d+)\s+(\d+)\s+R`)
+	inlineLenRefRe = regexp.MustCompile(`/Length\s+\d+\s+\d+\s+R`)
+	inlineLenRe    = regexp.MustCompile(`/Length\s+(\d+)`)
 )
 
 // buildObjectMap parses the PDF into object-number → body slices and complements
@@ -196,6 +203,7 @@ func extractPageContent(pageBody []byte, objMap map[int][]byte) ([]byte, error) 
 	}
 
 	var fullContent bytes.Buffer
+	fullContent.Grow(len(contentNums) * 4096)
 	visitedXObjects := map[int]bool{}
 	for _, objNum := range contentNums {
 		streamBody, ok := objMap[objNum]
@@ -265,12 +273,11 @@ func locateStreamSegment(obj []byte) (int, int, bool) {
 }
 
 func parseInlineLength(obj []byte) int {
-	if regexp.MustCompile(`/Length\s+\d+\s+\d+\s+R`).Find(obj) != nil {
+	if inlineLenRefRe.Find(obj) != nil {
 		return 0
 	}
 
-	re := regexp.MustCompile(`/Length\s+(\d+)`)
-	m := re.FindSubmatch(obj)
+	m := inlineLenRe.FindSubmatch(obj)
 	if m == nil {
 		return 0
 	}
@@ -331,16 +338,13 @@ func extractResourcesBody(body []byte, objMap map[int][]byte) []byte {
 }
 
 func resolveUsedXObjectRefs(content []byte, resources []byte) []int {
-	doRe := regexp.MustCompile(`/([A-Za-z0-9_.+-]+)\s+Do`)
-	xobjDictRe := regexp.MustCompile(`(?s)/XObject\s*<<(.*?)>>`)
 	m := xobjDictRe.FindSubmatch(resources)
 	if m == nil {
 		return nil
 	}
 	xobjDict := m[1]
 	nameToRef := map[string]int{}
-	refRe := regexp.MustCompile(`/([A-Za-z0-9_.+-]+)\s+(\d+)\s+(\d+)\s+R`)
-	for _, r := range refRe.FindAllSubmatch(xobjDict, -1) {
+	for _, r := range xobjRefRe.FindAllSubmatch(xobjDict, -1) {
 		num, err := strconv.Atoi(string(r[2]))
 		if err == nil {
 			nameToRef[string(r[1])] = num

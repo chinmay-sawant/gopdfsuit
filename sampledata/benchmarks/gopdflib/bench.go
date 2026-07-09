@@ -27,10 +27,8 @@ func main() {
 			_ = f.Close()
 			benchmarktemplates.Fail(err)
 		}
-		defer func() {
-			pprof.StopCPUProfile()
-			_ = f.Close()
-		}()
+		defer pprof.StopCPUProfile()
+		defer f.Close()
 	}
 
 	var err error
@@ -49,7 +47,7 @@ func main() {
 		if err != nil {
 			benchmarktemplates.Fail(err)
 		}
-		defer func() { _ = f.Close() }()
+		defer f.Close()
 		if werr := pprof.WriteHeapProfile(f); werr != nil {
 			benchmarktemplates.Fail(werr)
 		}

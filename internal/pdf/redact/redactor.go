@@ -197,11 +197,13 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		mode = "visual_allowed" //nolint:goconst
 	}
 	report.Mode = mode
-	if !strings.EqualFold(mode, "visual_allowed") && !strings.EqualFold(mode, "secure_required") {
+	isVisual := len(mode) == len("visual_allowed") && strings.EqualFold(mode, "visual_allowed")
+	isSecure := len(mode) == len("secure_required") && strings.EqualFold(mode, "secure_required")
+	if !isVisual && !isSecure {
 		return nil, report, errors.New("invalid mode: expected visual_allowed or secure_required")
 	}
 	// Canonicalize mode for report / downstream branches
-	if strings.EqualFold(mode, "secure_required") {
+	if isSecure {
 		mode = "secure_required"
 		report.Mode = mode
 	} else {

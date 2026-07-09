@@ -195,8 +195,7 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 // subsetHead generates the head table for the subset font
 func subsetHead(font *TTFFont) []byte {
 	headTable := font.Tables["head"]
-	result := make([]byte, headTable.Length)
-	copy(result, font.RawData[headTable.Offset:headTable.Offset+headTable.Length])
+	result := bytes.Clone(font.RawData[headTable.Offset : headTable.Offset+headTable.Length])
 
 	// Clear checksumAdjustment (will be recalculated)
 	result[8] = 0
@@ -210,8 +209,7 @@ func subsetHead(font *TTFFont) []byte {
 // subsetHhea generates the hhea table with updated numberOfHMetrics
 func subsetHhea(font *TTFFont, numGlyphs uint16) []byte {
 	hheaTable := font.Tables["hhea"]
-	result := make([]byte, hheaTable.Length)
-	copy(result, font.RawData[hheaTable.Offset:hheaTable.Offset+hheaTable.Length])
+	result := bytes.Clone(font.RawData[hheaTable.Offset : hheaTable.Offset+hheaTable.Length])
 
 	// Update numberOfHMetrics (last 2 bytes)
 	binary.BigEndian.PutUint16(result[len(result)-2:], numGlyphs)
@@ -222,8 +220,7 @@ func subsetHhea(font *TTFFont, numGlyphs uint16) []byte {
 // subsetMaxp generates the maxp table with updated numGlyphs
 func subsetMaxp(font *TTFFont, numGlyphs uint16) []byte {
 	maxpTable := font.Tables["maxp"]
-	result := make([]byte, maxpTable.Length)
-	copy(result, font.RawData[maxpTable.Offset:maxpTable.Offset+maxpTable.Length])
+	result := bytes.Clone(font.RawData[maxpTable.Offset : maxpTable.Offset+maxpTable.Length])
 
 	// Update numGlyphs (at offset 4)
 	binary.BigEndian.PutUint16(result[4:], numGlyphs)
@@ -317,11 +314,14 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 
 // subsetHmtx generates the hmtx table for the subset
 func subsetHmtx(font *TTFFont, glyphs []uint16) []byte {
-	// Each metric: advanceWidth u16 + lsb i16 = 4 bytes
 	buf := make([]byte, 0, len(glyphs)*4)
+	gw := font.GlyphWidths
 
 	for _, glyphID := range glyphs {
-		width := font.GetGlyphWidth(glyphID)
+		var width uint16
+		if int(glyphID) < len(gw) {
+			width = gw[glyphID]
+		}
 		putU16BE(&buf, width)
 		putI16BE(&buf, 0)
 	}
@@ -509,6 +509,7 @@ func subsetName(font *TTFFont) []byte {
 
 	// Calculate string storage
 	var stringData bytes.Buffer
+	stringData.Grow(len(names) * 64)
 	type nameRecord struct {
 		platformID uint16
 		encodingID uint16
@@ -561,16 +562,15 @@ func subsetName(font *TTFFont) []byte {
 
 // calculateChecksum calculates the checksum for a font table
 func calculateChecksum(data []byte) uint32 {
-	// Pad to 4-byte boundary
-	padded := data
 	if len(data)%4 != 0 {
-		padded = make([]byte, len(data)+(4-len(data)%4))
-		copy(padded, data)
+		dst := make([]byte, len(data)+(4-len(data)%4))
+		copy(dst, data)
+		data = dst
 	}
 
 	var sum uint32
-	for i := 0; i < len(padded); i += 4 {
-		sum += binary.BigEndian.Uint32(padded[i:])
+	for i := 0; i < len(data); i += 4 {
+		sum += binary.BigEndian.Uint32(data[i:])
 	}
 
 	return sum

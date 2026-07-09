@@ -166,24 +166,11 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	switch format {
 	case "png":
 		// For PNG, convert to RGB with proper alpha handling
-		// Check if image has transparency
-		hasAlpha := false
-		switch img.(type) {
-		case *image.NRGBA, *image.RGBA, *image.RGBA64, *image.NRGBA64:
-			hasAlpha = true
-		}
-
 		rgbSize := width * height * 3
 		rawRGB := getRGBDataBuffer(rgbSize)
 		defer putRGBDataBuffer(rawRGB)
 
-		if hasAlpha {
-			// For images with transparency, convert to RGBA with white background
-			err = convertToRGBWithAlpha(img, rawRGB)
-		} else {
-			// For opaque images, convert to RGB
-			err = convertToRGB(img, rawRGB)
-		}
+		err = convertToRGBWithAlpha(img, rawRGB)
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +188,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 
 		imgObj.Filter = "/FlateDecode"
 		// Copy compressed data since buffer will be reused
-		imgObj.ImageData = append([]byte(nil), compressedBuf.Bytes()...)
+		imgObj.ImageData = bytes.Clone(compressedBuf.Bytes())
 		imgObj.ImageDataLen = len(imgObj.ImageData)
 		putCompressBuffer(compressedBuf)
 
@@ -442,6 +429,7 @@ func convertToRGBWithAlpha(img image.Image, rgbData []byte) error {
 // CreateImageXObject creates a PDF XObject for an image
 func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	var buf bytes.Buffer
+	buf.Grow(imgObj.ImageDataLen + 512)
 
 	// Handle Form XObject (Vectors/SVG)
 	if imgObj.IsForm {
@@ -471,11 +459,11 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	bpPref := []byte("\n   /BitsPerComponent ")
 	var bpBuf [12]byte
 	bpNum := strconv.AppendInt(bpBuf[:0], int64(imgObj.BitsPerComp), 10)
-	chunk := make([]byte, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
-	o := copy(chunk, csPref)
-	o += copy(chunk[o:], imgObj.ColorSpace)
-	o += copy(chunk[o:], bpPref)
-	copy(chunk[o:], bpNum)
+	chunk := make([]byte, 0, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
+	chunk = append(chunk, csPref...)
+	chunk = append(chunk, imgObj.ColorSpace...)
+	chunk = append(chunk, bpPref...)
+	chunk = append(chunk, bpNum...)
 	var lenBuf [12]byte
 	lenNum := strconv.AppendInt(lenBuf[:0], int64(imgObj.ImageDataLen), 10)
 	filterPref := []byte("\n   /Filter ")
@@ -485,15 +473,16 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	if imgObj.Filter != "" {
 		filterLen = len(filterPref) + len(imgObj.Filter)
 	}
-	tail := make([]byte, len(chunk)+filterLen+len(lenPref)+len(lenNum)+len(streamEnd))
-	o = copy(tail, chunk)
+	tailCap := len(chunk) + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
+	tail := make([]byte, 0, tailCap)
+	tail = append(tail, chunk...)
 	if imgObj.Filter != "" {
-		o += copy(tail[o:], filterPref)
-		o += copy(tail[o:], imgObj.Filter)
+		tail = append(tail, filterPref...)
+		tail = append(tail, imgObj.Filter...)
 	}
-	o += copy(tail[o:], lenPref)
-	o += copy(tail[o:], lenNum)
-	copy(tail[o:], streamEnd)
+	tail = append(tail, lenPref...)
+	tail = append(tail, lenNum...)
+	tail = append(tail, streamEnd...)
 	b = append(b, tail...)
 
 	// Write header and image data in two operations
@@ -515,6 +504,7 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 
 	// Encrypt the image data (or form stream commands)
 	encryptedData := encryptor.EncryptStream(imgObj.ImageData, objectID, 0)
+	buf.Grow(len(encryptedData) + 512)
 
 	// Handle Form XObject (Vectors/SVG)
 	if imgObj.IsForm {
@@ -541,11 +531,11 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	bpPref := []byte("\n   /BitsPerComponent ")
 	var bpBuf [12]byte
 	bpNum := strconv.AppendInt(bpBuf[:0], int64(imgObj.BitsPerComp), 10)
-	chunk := make([]byte, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
-	o := copy(chunk, csPref)
-	o += copy(chunk[o:], imgObj.ColorSpace)
-	o += copy(chunk[o:], bpPref)
-	copy(chunk[o:], bpNum)
+	chunk := make([]byte, 0, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
+	chunk = append(chunk, csPref...)
+	chunk = append(chunk, imgObj.ColorSpace...)
+	chunk = append(chunk, bpPref...)
+	chunk = append(chunk, bpNum...)
 	var lenBuf [12]byte
 	lenNum := strconv.AppendInt(lenBuf[:0], int64(len(encryptedData)), 10)
 	filterPref := []byte("\n   /Filter ")
@@ -555,15 +545,16 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	if imgObj.Filter != "" {
 		filterLen = len(filterPref) + len(imgObj.Filter)
 	}
-	tail := make([]byte, len(chunk)+filterLen+len(lenPref)+len(lenNum)+len(streamEnd))
-	o = copy(tail, chunk)
+	tailCap := len(chunk) + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
+	tail := make([]byte, 0, tailCap)
+	tail = append(tail, chunk...)
 	if imgObj.Filter != "" {
-		o += copy(tail[o:], filterPref)
-		o += copy(tail[o:], imgObj.Filter)
+		tail = append(tail, filterPref...)
+		tail = append(tail, imgObj.Filter...)
 	}
-	o += copy(tail[o:], lenPref)
-	o += copy(tail[o:], lenNum)
-	copy(tail[o:], streamEnd)
+	tail = append(tail, lenPref...)
+	tail = append(tail, lenNum...)
+	tail = append(tail, streamEnd...)
 	b = append(b, tail...)
 
 	// Write header and encrypted data in two operations
@@ -608,24 +599,18 @@ func drawImageWithXObject(contentStream *bytes.Buffer, image models.Image, image
 	contentStream.WriteString("q\n")
 
 	// Set up transformation matrix to position and scale the image
-	// PDF images are drawn in a 1x1 unit square by default
-	// We need to scale and translate to our desired size and position
-	var imgBuf []byte
-	imgBuf = append(imgBuf, fmtNumImg(imageWidth)...)
-	imgBuf = append(imgBuf, " 0 0 "...)
-	imgBuf = append(imgBuf, fmtNumImg(imageHeight)...)
-	imgBuf = append(imgBuf, ' ')
-	imgBuf = append(imgBuf, fmtNumImg(imageX)...)
-	imgBuf = append(imgBuf, ' ')
-	imgBuf = append(imgBuf, fmtNumImg(imageY)...)
-	imgBuf = append(imgBuf, " cm\n"...)
-	contentStream.Write(imgBuf)
+	contentStream.WriteString(fmtNumImg(imageWidth))
+	contentStream.WriteString(" 0 0 ")
+	contentStream.WriteString(fmtNumImg(imageHeight))
+	contentStream.WriteByte(' ')
+	contentStream.WriteString(fmtNumImg(imageX))
+	contentStream.WriteByte(' ')
+	contentStream.WriteString(fmtNumImg(imageY))
+	contentStream.WriteString(" cm\n")
 
 	// Draw the image using the XObject reference
-	imgBuf = imgBuf[:0]
-	imgBuf = append(imgBuf, imageXObjectRef...)
-	imgBuf = append(imgBuf, " Do\n"...)
-	contentStream.Write(imgBuf)
+	contentStream.WriteString(imageXObjectRef)
+	contentStream.WriteString(" Do\n")
 
 	// Restore graphics state
 	contentStream.WriteString("Q\n")

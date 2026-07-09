@@ -64,9 +64,7 @@ func padPassword(password string) []byte {
 	// Zero-copy view for length/copy source (PERF-32); result is always a new slice.
 	pwd := byteconv.StringToBytes(password)
 	if len(pwd) >= 32 {
-		out := make([]byte, 32)
-		copy(out, pwd[:32])
-		return out
+		return bytes.Clone(pwd[:32])
 	}
 	// Pad with standard padding bytes
 	result := make([]byte, 32)
@@ -96,8 +94,7 @@ func (enc *PDFEncryption) computeOwnerHash(userPassword, ownerPassword string) [
 
 	// Step 5: Encrypt with key using RC4-like XOR operation
 	// For AES mode, we use a different approach - just encrypt with AES
-	result := make([]byte, 32)
-	copy(result, userPwd)
+	result := bytes.Clone(userPwd)
 
 	// For R=4, we do 20 iterations with modified key (reuse buffer)
 	modifiedKey := make([]byte, len(key))
@@ -261,12 +258,12 @@ func (enc *PDFEncryption) EncryptStream(data []byte, objNum, genNum int) []byte 
 		return data
 	}
 
-	ciphertext := make([]byte, len(padded))
+	result := make([]byte, aes.BlockSize+len(padded))
+	copy(result[:aes.BlockSize], iv)
 	mode := cipher.NewCBCEncrypter(block, iv)
-	mode.CryptBlocks(ciphertext, padded)
+	mode.CryptBlocks(result[aes.BlockSize:], padded)
 
-	// Prepend IV
-	return append(iv, ciphertext...)
+	return result
 }
 
 // EncryptString encrypts a PDF string

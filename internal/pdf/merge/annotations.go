@@ -260,7 +260,8 @@ func UpdatePageAnnotations(pageBody []byte, offset int) []byte {
 			}
 			on, _ := strconv.Atoi(string(sm[1]))
 			gen := sm[2]
-			num := strconv.AppendInt(nil, int64(offset+on), 10)
+			var nbuf [20]byte
+			num := strconv.AppendInt(nbuf[:0], int64(offset+on), 10)
 			out := make([]byte, len(num)+1+len(gen)+2)
 			o := copy(out, num)
 			out[o] = ' '
@@ -271,10 +272,7 @@ func UpdatePageAnnotations(pageBody []byte, offset int) []byte {
 			return out
 		})
 
-		result := make([]byte, len(prefix)+len(newContent)+len(suffix))
-		n := copy(result, prefix)
-		n += copy(result[n:], newContent)
-		copy(result[n:], suffix)
+		result := append(append(append([]byte(nil), prefix...), newContent...), suffix...)
 		return result
 	})
 

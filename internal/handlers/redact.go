@@ -24,8 +24,22 @@ func isAllWhitespace(s string) bool {
 	return true
 }
 
+func isASCIISpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v'
+}
+
+func trimStringSpace(s string) string {
+	start, end := 0, len(s)
+	for start < end && isASCIISpace(s[start]) {
+		start++
+	}
+	for end > start && isASCIISpace(s[end-1]) {
+		end--
+	}
+	return s[start:end]
+}
+
 func parseCommaSeparatedTerms(raw string) []string {
-	// PERF-47: Index/Cut loop instead of Split
 	if raw == "" {
 		return nil
 	}
@@ -41,7 +55,7 @@ func parseCommaSeparatedTerms(raw string) []string {
 			part = rest
 			rest = ""
 		}
-		term := strings.TrimSpace(part)
+		term := trimStringSpace(part)
 		if term != "" {
 			key := strings.ToLower(term)
 			if _, ok := seen[key]; !ok {
@@ -63,6 +77,15 @@ func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.Re
 	seen := make(map[string]struct{}, len(queries))
 	normalized := make([]models.RedactionTextQuery, 0, len(queries))
 	for _, q := range queries {
+		if strings.IndexByte(q.Text, ',') < 0 {
+			key := strings.ToLower(q.Text)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			normalized = append(normalized, models.RedactionTextQuery{Text: q.Text})
+			continue
+		}
 		for _, term := range parseCommaSeparatedTerms(q.Text) {
 			key := strings.ToLower(term)
 			if _, ok := seen[key]; ok {
@@ -213,7 +236,7 @@ func HandleRedactApply(c *gin.Context) {
 
 	var options models.ApplyRedactionOptions
 	if mode := c.PostForm("mode"); !isAllWhitespace(mode) {
-		options.Mode = strings.TrimSpace(mode)
+		options.Mode = trimStringSpace(mode)
 	}
 	options.Password = c.PostForm("password")
 
@@ -238,7 +261,7 @@ func HandleRedactApply(c *gin.Context) {
 				if isAllWhitespace(text) {
 					continue
 				}
-				text = strings.TrimSpace(text)
+				text = trimStringSpace(text)
 				options.TextSearch = append(options.TextSearch, models.RedactionTextQuery{Text: text})
 			}
 		}
@@ -269,7 +292,7 @@ func HandleRedactApply(c *gin.Context) {
 	if len(options.TextSearch) == 0 {
 		rawText := c.PostForm("text")
 		if !isAllWhitespace(rawText) {
-			searchText := strings.TrimSpace(rawText)
+			searchText := trimStringSpace(rawText)
 			terms := parseCommaSeparatedTerms(searchText)
 			if len(terms) == 0 {
 				terms = []string{searchText}
@@ -328,7 +351,7 @@ func HandleRedactSearch(c *gin.Context) {
 	var terms []string
 	textsJSON := c.PostForm("texts")
 	if !isAllWhitespace(textsJSON) {
-		textsJSON = strings.TrimSpace(textsJSON)
+		textsJSON = trimStringSpace(textsJSON)
 		if err := json.Unmarshal(byteconv.StringToBytes(textsJSON), &terms); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid texts json"})
 			return
@@ -337,7 +360,7 @@ func HandleRedactSearch(c *gin.Context) {
 	if len(terms) == 0 {
 		rawText := c.PostForm("text")
 		if !isAllWhitespace(rawText) {
-			searchText := strings.TrimSpace(rawText)
+			searchText := trimStringSpace(rawText)
 			terms = parseCommaSeparatedTerms(searchText)
 			if len(terms) == 0 {
 				terms = []string{searchText}

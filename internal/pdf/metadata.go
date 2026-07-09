@@ -1,6 +1,7 @@
 package pdf
 
 import (
+	"bytes"
 	"encoding/hex"
 	"strconv"
 	"strings"
@@ -73,6 +74,7 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 
 	// Build XMP packet
 	var xmp strings.Builder
+	xmp.Grow(8192)
 	xmp.WriteString(`<?xpacket begin="` + "\xef\xbb\xbf" + `" id="W5M0MpCehiHzreSzNTczkc9d"?>`)
 	xmp.WriteString("\n")
 	xmp.WriteString(`<x:xmpmeta xmlns:x="adobe:ns:meta/">`)
@@ -322,8 +324,7 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	}
 	_ = zlibWriter.Close()
 	font.PutZlibWriter(zlibWriter)
-	cp := make([]byte, compressedBuf.Len())
-	copy(cp, compressedBuf.Bytes())
+	cp := bytes.Clone(compressedBuf.Bytes())
 	compressedData := cp
 	font.PutCompressBuffer(compressedBuf)
 

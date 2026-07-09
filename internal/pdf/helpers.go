@@ -81,7 +81,26 @@ func findRootRef(data []byte) (string, bool) {
 	return "", false
 }
 
-// parseArrayInts parses array values from PDF dictionary
+// parseArrayFromRegex parses a PDF array value from dict using a pre-compiled regex.
+func parseArrayFromRegex(dict []byte, re *regexp.Regexp) []int {
+	if m := re.FindSubmatch(dict); m != nil {
+		inner := trimSpace(string(m[1]))
+		if inner == "" {
+			return nil
+		}
+		parts := strings.Fields(inner)
+		res := make([]int, 0, len(parts))
+		for _, p := range parts {
+			if v, err := strconv.Atoi(p); err == nil {
+				res = append(res, v)
+			}
+		}
+		return res
+	}
+	return nil
+}
+
+// parseArrayInts parses array values from PDF dictionary (supports /W and /Index with cached regex; fallback otherwise).
 func parseArrayInts(dict []byte, key string) []int {
 	var re *regexp.Regexp
 	switch key {
@@ -142,12 +161,12 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 			dec = streamBytes
 		}
 
-		// parse W and Index
-		W := parseArrayInts(body, `/W`)
+		// parse W and Index (PERF-230: use pre-compiled regex directly)
+		W := parseArrayFromRegex(body, arrayWRe)
 		if len(W) < 3 {
 			continue
 		}
-		Index := parseArrayInts(body, `/Index`)
+		Index := parseArrayFromRegex(body, arrayIndexRe)
 		if Index == nil {
 			continue
 		}

@@ -68,7 +68,7 @@ var (
 	signerPEMCacheEvictMu  sync.Mutex
 )
 
-// appendPad10 appends a zero-padded 10-digit decimal (PERF-35/119: no fmt, no multi-append).
+// appendPad10 appends a zero-padded 10-digit decimal (PERF-35/119/226: no fmt, no make+copy).
 func appendPad10(dst []byte, n int) []byte {
 	var buf [20]byte
 	num := strconv.AppendInt(buf[:0], int64(n), 10)
@@ -76,20 +76,17 @@ func appendPad10(dst []byte, n int) []byte {
 	if pad < 0 {
 		pad = 0
 	}
-	out := make([]byte, len(dst)+pad+len(num))
-	copy(out, dst)
 	for i := 0; i < pad; i++ {
-		out[len(dst)+i] = '0'
+		dst = append(dst, '0')
 	}
-	copy(out[len(dst)+pad:], num)
-	return out
+	return append(dst, num...)
 }
 
-func signerPEMCacheKey(certPEM, keyPEM string, chain []string) string {
+func signerPEMCacheKey(certPEMBytes, keyPEMBytes []byte, chain []string) string {
 	h := sha256.New()
-	h.Write(byteconv.StringToBytes(certPEM))
+	h.Write(certPEMBytes)
 	h.Write([]byte{0})
-	h.Write(byteconv.StringToBytes(keyPEM))
+	h.Write(keyPEMBytes)
 	for _, c := range chain {
 		h.Write([]byte{1})
 		h.Write(byteconv.StringToBytes(c))
@@ -124,13 +121,16 @@ func storeSignerPEMCache(key string, ent *parsedSignerPEMEntry) {
 }
 
 func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.Certificate, crypto.PrivateKey, []*x509.Certificate, error) {
-	cacheKey := signerPEMCacheKey(certPEM, keyPEM, chainPEMs)
+	certPEMBytes := byteconv.StringToBytes(certPEM)
+	keyPEMBytes := byteconv.StringToBytes(keyPEM)
+
+	cacheKey := signerPEMCacheKey(certPEMBytes, keyPEMBytes, chainPEMs)
 	if v, ok := signerPEMMaterialCache.Load(cacheKey); ok {
 		ent := v.(*parsedSignerPEMEntry)
 		return ent.cert, ent.key, ent.certChain, nil
 	}
 
-	block, _ := pem.Decode(byteconv.StringToBytes(certPEM))
+	block, _ := pem.Decode(certPEMBytes)
 	if block == nil {
 		return nil, nil, nil, errors.New("failed to parse certificate PEM")
 	}
@@ -139,7 +139,7 @@ func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.
 		return nil, nil, nil, errors.Join(errors.New("failed to parse certificate"), err)
 	}
 
-	keyBlock, _ := pem.Decode(byteconv.StringToBytes(keyPEM))
+	keyBlock, _ := pem.Decode(keyPEMBytes)
 	if keyBlock == nil {
 		return nil, nil, nil, errors.New("failed to parse private key PEM")
 	}
@@ -226,7 +226,8 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// Create appearance stream for visible signature
 	if s.config.Visible {
-		ids.AppearanceID = s.createSignatureAppearance(pageManager, sigW, sigH, fontID)
+		now := time.Now()
+		ids.AppearanceID = s.createSignatureAppearance(pageManager, sigW, sigH, fontID, now)
 	}
 
 	// Create signature value dictionary (will be filled during signing)
@@ -239,6 +240,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// Build signature value dictionary
 	var sigValueDict strings.Builder
+	sigValueDict.Grow(16500)
 	sigValueDict.WriteString("<< /Type /Sig")
 	sigValueDict.WriteString(" /Filter /Adobe.PPKLite")
 	sigValueDict.WriteString(" /SubFilter /adbe.pkcs7.detached")
@@ -375,7 +377,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 }
 
 // createSignatureAppearance creates the visual appearance for a visible signature
-func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, width, height float64, fontID int) int {
+func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, width, height float64, fontID int, now time.Time) int {
 	var appearance strings.Builder
 
 	// Yellow background with black border
@@ -438,7 +440,6 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	}
 
 	// Date
-	now := time.Now()
 	dateStr := "Date: " + now.Format("2006-01-02 15:04:05")
 	appearance.WriteString("0 -12 Td\n")
 	appearance.WriteString(formatText(dateStr))
@@ -574,9 +575,8 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 		return nil, errors.Join(errors.New("failed to marshal authenticated attributes"), err)
 	}
 
-	// Change SEQUENCE tag (0x30) to SET tag (0x31)
-	authAttrsBytes := make([]byte, len(seqBytes))
-	copy(authAttrsBytes, seqBytes)
+	// Change SEQUENCE tag (0x30) to SET tag (0x31) — seqBytes is a fresh allocation from asn1.Marshal
+	authAttrsBytes := seqBytes
 	if len(authAttrsBytes) > 0 {
 		authAttrsBytes[0] = asn1.TagSet
 	}
@@ -804,8 +804,7 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 	}
 
 	// Create a copy of pdfData to modify
-	result := make([]byte, len(pdfData))
-	copy(result, pdfData)
+	result := bytes.Clone(pdfData)
 
 	// Replace ByteRange
 	copy(result[byteRangePos:byteRangePos+len(byteRangeMarker)], newByteRange)
