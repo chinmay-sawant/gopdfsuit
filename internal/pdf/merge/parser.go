@@ -318,13 +318,11 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 		gen := sm[2]
 		var nbuf [20]byte
 		num := strconv.AppendInt(nbuf[:0], int64(offset+on), 10)
-		ref := make([]byte, len(num)+1+len(gen)+2)
-		o := copy(ref, num)
-		ref[o] = ' '
-		o++
-		o += copy(ref[o:], gen)
-		ref[o] = ' '
-		ref[o+1] = 'R'
+		ref := make([]byte, 0, len(num)+1+len(gen)+2)
+		ref = append(ref, num...)
+		ref = append(ref, ' ')
+		ref = append(ref, gen...)
+		ref = append(ref, " R"...)
 		return ref
 	}
 

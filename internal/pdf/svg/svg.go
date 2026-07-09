@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // SVG support for converting simple vector graphics to PDF commands
@@ -339,29 +340,53 @@ func extractArgs(tokens []string) []string {
 }
 
 var namedColors = map[string][3]float64{
-	"black":    {0, 0, 0},
-	"white":    {1, 1, 1},
-	"red":      {1, 0, 0},
-	"green":    {0, 1, 0},
-	"lime":     {0, 1, 0},
-	"blue":     {0, 0, 1},
-	"yellow":   {1, 1, 0},
-	"cyan":     {0, 1, 1},
-	"aqua":     {0, 1, 1},
-	"magenta":  {1, 0, 1},
-	"fuchsia":  {1, 0, 1},
-	"gray":     {0.5, 0.5, 0.5},
-	"grey":     {0.5, 0.5, 0.5},
-	"silver":   {0.75, 0.75, 0.75},
-	"maroon":   {0.5, 0, 0},
-	"olive":    {0.5, 0.5, 0},
-	"navy":     {0, 0, 0.5},
-	"purple":   {0.5, 0, 0.5},
-	"teal":     {0, 0.5, 0.5},
-	"orange":   {1, 0.647, 0},
+	"black":   {0, 0, 0},
+	"white":   {1, 1, 1},
+	"red":     {1, 0, 0},
+	"green":   {0, 1, 0},
+	"lime":    {0, 1, 0},
+	"blue":    {0, 0, 1},
+	"yellow":  {1, 1, 0},
+	"cyan":    {0, 1, 1},
+	"aqua":    {0, 1, 1},
+	"magenta": {1, 0, 1},
+	"fuchsia": {1, 0, 1},
+	"gray":    {0.5, 0.5, 0.5},
+	"grey":    {0.5, 0.5, 0.5},
+	"silver":  {0.75, 0.75, 0.75},
+	"maroon":  {0.5, 0, 0},
+	"olive":   {0.5, 0.5, 0},
+	"navy":    {0, 0, 0.5},
+	"purple":  {0.5, 0, 0.5},
+	"teal":    {0, 0.5, 0.5},
+	"orange":  {1, 0.647, 0},
 }
 
+// parsedColor caches parseColor results (PERF-230: avoid repeated parseColor in loops).
+type parsedColor [4]float64
+
+var colorCache sync.Map
+
 func parseColor(c string) (float64, float64, float64, bool) {
+	// PERF-230: cache parsed color results for repeated references
+	if v, ok := colorCache.Load(c); ok {
+		pc := v.(parsedColor)
+		return pc[0], pc[1], pc[2], pc[3] != 0
+	}
+
+	r, g, b, ok := parseColorUncached(c)
+	var cached parsedColor
+	cached[0] = r
+	cached[1] = g
+	cached[2] = b
+	if ok {
+		cached[3] = 1
+	}
+	colorCache.Store(c, cached)
+	return r, g, b, ok
+}
+
+func parseColorUncached(c string) (float64, float64, float64, bool) {
 	c = strings.TrimSpace(c)
 	if c == "" || c == "none" || c == "transparent" { //nolint:goconst
 		return 0, 0, 0, false

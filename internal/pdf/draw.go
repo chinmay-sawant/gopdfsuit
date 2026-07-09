@@ -449,6 +449,13 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 	if dbr, dbg, dbb, _, dbvalid := parseHexColor(defaultBgColor); dbvalid {
 		defaultBgR, defaultBgG, defaultBgB, defaultBgHasColor = dbr, dbg, dbb, true
 	}
+	propsCache := make(map[string]models.Props)
+	fontRefCache := make(map[string]string)
+	resolvedFontCache := make(map[string]string)
+	colorCache := make(map[string]struct {
+		r, g, b float64
+		valid   bool
+	})
 
 	for rowIdx, row := range table.Rows {
 		// Determine this row's height
@@ -487,7 +494,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			}
 			if bgColor == defaultBgColor && defaultBgHasColor {
 				contentStream.WriteString("q\n")
-				var bgBuf []byte
+				bgBuf := make([]byte, 0, 64)
 				bgBuf = appendFmtNum(bgBuf, defaultBgR)
 				bgBuf = append(bgBuf, ' ')
 				bgBuf = appendFmtNum(bgBuf, defaultBgG)
@@ -506,28 +513,36 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				bgBuf = append(bgBuf, " re f\n"...)
 				contentStream.Write(bgBuf)
 				contentStream.WriteString("Q\n")
-			} else if r, g, b, _, valid := parseHexColor(bgColor); valid {
-				contentStream.WriteString("q\n")
-				var bgBuf []byte
-				bgBuf = appendFmtNum(bgBuf, r)
-				bgBuf = append(bgBuf, ' ')
-				bgBuf = appendFmtNum(bgBuf, g)
-				bgBuf = append(bgBuf, ' ')
-				bgBuf = appendFmtNum(bgBuf, b)
-				bgBuf = append(bgBuf, " rg\n"...)
-				contentStream.Write(bgBuf)
+			} else {
+				cc, ok := colorCache[bgColor]
+				if !ok {
+					r, g, b, _, valid := parseHexColor(bgColor)
+					cc.r, cc.g, cc.b, cc.valid = r, g, b, valid
+					colorCache[bgColor] = cc
+				}
+				if cc.valid {
+					contentStream.WriteString("q\n")
+					bgBuf := make([]byte, 0, 64)
+					bgBuf = appendFmtNum(bgBuf, cc.r)
+					bgBuf = append(bgBuf, ' ')
+					bgBuf = appendFmtNum(bgBuf, cc.g)
+					bgBuf = append(bgBuf, ' ')
+					bgBuf = appendFmtNum(bgBuf, cc.b)
+					bgBuf = append(bgBuf, " rg\n"...)
+					contentStream.Write(bgBuf)
 
-				bgBuf = bgBuf[:0]
-				bgBuf = appendFmtNum(bgBuf, bgX)
-				bgBuf = append(bgBuf, ' ')
-				bgBuf = appendFmtNum(bgBuf, pageManager.CurrentYPos-cellHeight)
-				bgBuf = append(bgBuf, ' ')
-				bgBuf = appendFmtNum(bgBuf, cellWidth)
-				bgBuf = append(bgBuf, ' ')
-				bgBuf = appendFmtNum(bgBuf, cellHeight)
-				bgBuf = append(bgBuf, " re f\n"...)
-				contentStream.Write(bgBuf)
-				contentStream.WriteString("Q\n")
+					bgBuf = bgBuf[:0]
+					bgBuf = appendFmtNum(bgBuf, bgX)
+					bgBuf = append(bgBuf, ' ')
+					bgBuf = appendFmtNum(bgBuf, pageManager.CurrentYPos-cellHeight)
+					bgBuf = append(bgBuf, ' ')
+					bgBuf = appendFmtNum(bgBuf, cellWidth)
+					bgBuf = append(bgBuf, ' ')
+					bgBuf = appendFmtNum(bgBuf, cellHeight)
+					bgBuf = append(bgBuf, " re f\n"...)
+					contentStream.Write(bgBuf)
+					contentStream.WriteString("Q\n")
+				}
 			}
 
 			bgX += cellWidth
@@ -554,7 +569,12 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			if cell.Props == "" {
 				cellProps = defaultProps
 			} else {
-				cellProps = parseProps(cell.Props)
+				cp, ok := propsCache[cell.Props]
+				if !ok {
+					cp = parseProps(cell.Props)
+					propsCache[cell.Props] = cp
+				}
+				cellProps = cp
 			}
 			cellX := currentX
 
@@ -672,7 +692,12 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				if cell.Props == "" {
 					contentStream.WriteString(defaultFontRef)
 				} else {
-					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
+					fr, ok := fontRefCache[cell.Props]
+					if !ok {
+						fr = getFontReference(cellProps, pageManager.FontRegistry)
+						fontRefCache[cell.Props] = fr
+					}
+					contentStream.WriteString(fr)
 				}
 				contentStream.WriteString(" ")
 				var cellFsBuf [12]byte
@@ -694,6 +719,15 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					colorBuf = appendFmtNum(colorBuf, defaultTextB)
 					colorBuf = append(colorBuf, " rg\n"...)
 					contentStream.Write(colorBuf)
+				} else if tc, ok := colorCache[textColor]; ok && tc.valid {
+					var colorBuf []byte
+					colorBuf = appendFmtNum(colorBuf, tc.r)
+					colorBuf = append(colorBuf, ' ')
+					colorBuf = appendFmtNum(colorBuf, tc.g)
+					colorBuf = append(colorBuf, ' ')
+					colorBuf = appendFmtNum(colorBuf, tc.b)
+					colorBuf = append(colorBuf, " rg\n"...)
+					contentStream.Write(colorBuf)
 				} else if r, g, b, _, valid := parseHexColor(textColor); valid {
 					var colorBuf []byte
 					colorBuf = appendFmtNum(colorBuf, r)
@@ -703,6 +737,10 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					colorBuf = appendFmtNum(colorBuf, b)
 					colorBuf = append(colorBuf, " rg\n"...)
 					contentStream.Write(colorBuf)
+					colorCache[textColor] = struct {
+						r, g, b float64
+						valid   bool
+					}{r, g, b, true}
 				} else {
 					// Default to black if no valid color specified
 					contentStream.WriteString("0 0 0 rg\n")
@@ -713,7 +751,12 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				if cell.Props == "" {
 					resolvedName = defaultResolvedName
 				} else {
-					resolvedName = resolveFontName(cellProps, pageManager.FontRegistry)
+					rn, ok := resolvedFontCache[cell.Props]
+					if !ok {
+						rn = resolveFontName(cellProps, pageManager.FontRegistry)
+						resolvedFontCache[cell.Props] = rn
+					}
+					resolvedName = rn
 				}
 				textWidth := EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry)
 
@@ -756,7 +799,16 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 					contentStream.Write(underlineBuf)
 					contentStream.WriteString("Q\n")
 					contentStream.WriteString("BT\n")
-					contentStream.WriteString(getFontReference(cellProps, pageManager.FontRegistry))
+					if cell.Props == "" {
+						contentStream.WriteString(defaultFontRef)
+					} else {
+						fr, ok := fontRefCache[cell.Props]
+						if !ok {
+							fr = getFontReference(cellProps, pageManager.FontRegistry)
+							fontRefCache[cell.Props] = fr
+						}
+						contentStream.WriteString(fr)
+					}
 					contentStream.WriteString(" ")
 					contentStream.Write(strconv.AppendInt(cellFsBuf[:0], int64(cellProps.FontSize), 10))
 					contentStream.WriteString(" Tf\n")
@@ -1784,6 +1836,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 	rect := rectB.String()
 
 	var widgetDict strings.Builder
+	widgetDict.Grow(512)
 	widgetDict.WriteString("<< /Type /Annot /Subtype /Widget")
 	widgetDict.WriteString(" /Rect ")
 	widgetDict.WriteString(rect)

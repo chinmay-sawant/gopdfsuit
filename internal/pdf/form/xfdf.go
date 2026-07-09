@@ -37,6 +37,14 @@ var (
 	markerWidgetSubtype = []byte("/Subtype /Widget")
 )
 
+// PERF-227: pool of zlib writers with BestSpeed compression for the hot path.
+var zlibWriterPool = sync.Pool{
+	New: func() any {
+		w, _ := zlib.NewWriterLevel(nil, zlib.BestSpeed)
+		return w
+	},
+}
+
 // Package-level compiled regexes (stable patterns used on hot paths / in loops).
 var (
 	valueTokenRe   = regexp.MustCompile(`/V\s*(\(([^)]*)\)|<([0-9A-Fa-f\s]+)>|/([A-Za-z0-9#]+))`)
@@ -298,6 +306,30 @@ func extractTokenGroups(content []byte, pos int) (string, string) {
 	return "", ""
 }
 
+// parseWArrayData parses /W array using the pre-compiled regex (PERF-230).
+func parseWArrayData(dict []byte) []int {
+	if m := arrayWRe.FindSubmatch(dict); m != nil {
+		inner := strings.TrimSpace(string(m[1]))
+		if inner == "" {
+			return nil
+		}
+		return parseWhitespaceInts(inner)
+	}
+	return nil
+}
+
+// parseIndexArrayData parses /Index array using the pre-compiled regex (PERF-230).
+func parseIndexArrayData(dict []byte) []int {
+	if m := arrayIndexRe.FindSubmatch(dict); m != nil {
+		inner := strings.TrimSpace(string(m[1]))
+		if inner == "" {
+			return nil
+		}
+		return parseWhitespaceInts(inner)
+	}
+	return nil
+}
+
 // parseArrayInts parses array values from PDF dictionary
 func parseArrayInts(dict []byte, key string) []int {
 	var re *regexp.Regexp
@@ -364,6 +396,34 @@ func parseWhitespaceFloats(s string, max int) []float64 {
 		}
 	}
 	return res
+}
+
+// parseRectCoords parses up to 4 floats from bytes without string conversion (PERF-230).
+func parseRectCoords(b []byte) (llx, lly, urx, ury float64, ok bool) {
+	var coords [4]float64
+	idx := 0
+	i := 0
+	n := len(b)
+	for i < n && idx < 4 {
+		for i < n && (b[i] == ' ' || b[i] == '\t' || b[i] == '\n' || b[i] == '\r') {
+			i++
+		}
+		if i >= n {
+			break
+		}
+		start := i
+		for i < n && b[i] != ' ' && b[i] != '\t' && b[i] != '\n' && b[i] != '\r' {
+			i++
+		}
+		if v, err := strconv.ParseFloat(string(b[start:i]), 64); err == nil {
+			coords[idx] = v
+			idx++
+		}
+	}
+	if idx < 4 {
+		return 0, 0, 0, 0, false
+	}
+	return coords[0], coords[1], coords[2], coords[3], true
 }
 
 // readUint reads bytes as unsigned integer
@@ -587,12 +647,12 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 			dec = streamBytes
 		}
 
-		// parse W and Index
-		W := parseArrayInts(body, `/W`)
+		// parse W and Index (PERF-230: use pre-compiled regex directly)
+		W := parseWArrayData(body)
 		if len(W) < 3 {
 			continue
 		}
-		Index := parseArrayInts(body, `/Index`)
+		Index := parseIndexArrayData(body)
 		if Index == nil {
 			continue
 		}
@@ -683,9 +743,8 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 						}
 					}
 					if first > 0 && first < len(dec) {
-						// parse header portion up to first (PERF-186: no Fields)
-						header := strings.TrimSpace(string(dec[:first]))
-						headerNums := parseWhitespaceInts(header)
+						// parse header portion up to first (PERF-186/230: no Fields, TrimSpace not needed)
+						headerNums := parseWhitespaceInts(string(dec[:first]))
 						// header should be pairs of (objnum offset)
 						pairs := make([][]int, 0, len(headerNums)/2)
 						for i := 0; i+1 < len(headerNums); i += 2 {
@@ -967,12 +1026,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 			if rectMatch == nil {
 				continue
 			}
-			// PERF-186: parse rect coords without Fields allocation
-			coords := parseWhitespaceFloats(string(rectMatch[1]), 4)
-			if len(coords) < 4 {
+			// PERF-186/230: parse rect coords from bytes without string conversion
+			llx, lly, urx, ury, rectOk := parseRectCoords(rectMatch[1])
+			if !rectOk {
 				continue
 			}
-			llx, lly, urx, ury := coords[0], coords[1], coords[2], coords[3]
 			newJob.width, newJob.height = urx-llx, ury-lly
 
 			if qMatch := qValueRe.FindSubmatch(dictBytes); qMatch != nil {
@@ -1221,13 +1279,18 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		out = append(out, fontSB.String()...)
 
 		var compBuf bytes.Buffer
-		zw, _ := zlib.NewWriterLevel(&compBuf, zlib.BestSpeed)
+		zw := zlibWriterPool.Get().(*zlib.Writer)
+		zw.Reset(&compBuf)
 		if _, err := zw.Write(byteconv.StringToBytes(streamBody)); err != nil {
+			zw.Close()
+			zlibWriterPool.Put(zw)
 			return nil, errors.Join(errors.New("compression write failed"), err)
 		}
 		if err := zw.Close(); err != nil {
+			zlibWriterPool.Put(zw)
 			return nil, errors.Join(errors.New("compression close failed"), err)
 		}
+		zlibWriterPool.Put(zw)
 		comp := compBuf.Bytes()
 		var apSB strings.Builder
 		apSB.Grow(160 + len(comp))
@@ -1297,10 +1360,8 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	// PERF-119: one growth for xref + trailer
 	xrefBytes := xrefBuf.Bytes()
 	trailerBytes := []byte(trailerBuf.String())
-	tail := make([]byte, 0, len(xrefBytes)+len(trailerBytes))
-	tail = append(tail, xrefBytes...)
-	tail = append(tail, trailerBytes...)
-	out = append(out, tail...)
+	// PERF-18/119: merged variadic append avoids intermediate slice copy
+	out = append(out, append(xrefBytes, trailerBytes...)...)
 	// --- PASS 3: GLOBAL NEED APPEARANCES ---
 	// If fields were modified or APs stripped, force the PDF viewer to recreate appearances on open.
 	acroMatch := acroFormAnyRe.FindSubmatch(out)
@@ -1583,16 +1644,18 @@ func fillXFDFInObjStmBody(body []byte, fields map[string]string) ([]byte, bool, 
 	newDecoded := []byte(newHeader + " " + contentBuilder.String())
 
 	var compressedBuf bytes.Buffer
-	zw, err := zlib.NewWriterLevel(&compressedBuf, zlib.BestSpeed)
-	if err != nil {
-		return nil, false, err
-	}
+	zw := zlibWriterPool.Get().(*zlib.Writer)
+	zw.Reset(&compressedBuf)
 	if _, err := zw.Write(newDecoded); err != nil {
+		zw.Close()
+		zlibWriterPool.Put(zw)
 		return nil, false, err
 	}
 	if err := zw.Close(); err != nil {
+		zlibWriterPool.Put(zw)
 		return nil, false, err
 	}
+	zlibWriterPool.Put(zw)
 	compressed := compressedBuf.Bytes()
 
 	dictPart := body[:sm[0]]
@@ -1656,6 +1719,10 @@ func updateObjStmFieldValue(objContent []byte, fields map[string]string) ([]byte
 func replaceOrInsertPDFEntry(dict []byte, re *regexp.Regexp, replacement []byte) ([]byte, bool) {
 	if re.Match(dict) {
 		newDict := re.ReplaceAll(dict, replacement)
+		// PERF-48: length precheck before full bytes.Equal comparison
+		if len(newDict) != len(dict) {
+			return newDict, true
+		}
 		return newDict, !bytes.Equal(newDict, dict)
 	}
 
@@ -1681,7 +1748,11 @@ func xfdfValueToPDFName(value string) string {
 	if trimmed == "" {
 		return "Off"
 	}
-	if strings.EqualFold(trimmed, "off") || strings.EqualFold(trimmed, "false") || strings.EqualFold(trimmed, "no") || trimmed == "0" {
+	// PERF-48: len-first short-circuit before EqualFold comparisons
+	if (len(trimmed) == 3 && strings.EqualFold(trimmed, "off")) ||
+		(len(trimmed) == 5 && strings.EqualFold(trimmed, "false")) ||
+		(len(trimmed) == 2 && strings.EqualFold(trimmed, "no")) ||
+		trimmed == "0" {
 		return "Off"
 	}
 

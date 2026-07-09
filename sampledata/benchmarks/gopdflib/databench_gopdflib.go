@@ -139,16 +139,18 @@ func runDataBenchGoPDFLib() error {
 	go monitorMemoryData(&memStop, &memWg)
 
 	sem := make(chan struct{}, workers)
-	totalStart := time.Now()
 
-	for i := 1; i <= iterations; i++ {
-		sem <- struct{}{}
-		wg.Add(1)
-		// PERF-7/36/40: named worker helper
-		go runDataBenchIter(&wg, sem, template, i, iterations, quiet, &mu, &timings, &lastPDF, &ops)
-	}
-	wg.Wait()
-	totalSeconds := time.Since(totalStart).Seconds()
+	totalSeconds := func() float64 {
+		start := time.Now()
+		for i := 1; i <= iterations; i++ {
+			sem <- struct{}{}
+			wg.Add(1)
+			go runDataBenchIter(&wg, sem, template, i, iterations, quiet, &mu, &timings, &lastPDF, &ops)
+		}
+		wg.Wait()
+		close(sem)
+		return time.Since(start).Seconds()
+	}()
 
 	memStop.Store(true)
 	memWg.Wait()

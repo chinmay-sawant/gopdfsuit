@@ -494,7 +494,6 @@ func subsetPost(font *TTFFont) []byte {
 
 // subsetName generates a minimal name table
 func subsetName(font *TTFFont) []byte {
-	// We'll include: Copyright, Family, Subfamily, UniqueID, FullName, PostScriptName
 	names := []struct {
 		nameID uint16
 		value  string
@@ -507,72 +506,57 @@ func subsetName(font *TTFFont) []byte {
 		{6, font.PostScriptName}, // PostScript name
 	}
 
-	// Calculate string storage
-	var stringData bytes.Buffer
-	stringData.Grow(len(names) * 64)
-	type nameRecord struct {
-		platformID uint16
-		encodingID uint16
-		languageID uint16
-		nameID     uint16
-		length     uint16
-		offset     uint16
+	// PERF-121: write name records directly to buffer instead of creating struct literals.
+	// First pass: collect encoded names and compute offsets.
+	numRecords := uint16(len(names))
+	type encRec struct {
+		data []byte
+		off  uint16
 	}
-
-	var records []nameRecord
+	encs := make([]encRec, 0, numRecords)
+	var cumOff uint16
 	for _, name := range names {
-		// Windows Unicode BMP
-		offset := uint16(stringData.Len())
 		encoded := encodeUTF16BE(name.value)
-		stringData.Write(encoded)
-
-		records = append(records, nameRecord{
-			platformID: 3,      // Windows
-			encodingID: 1,      // Unicode BMP
-			languageID: 0x0409, // English US
-			nameID:     name.nameID,
-			length:     uint16(len(encoded)),
-			offset:     offset,
-		})
+		encs = append(encs, encRec{data: encoded, off: cumOff})
+		cumOff += uint16(len(encoded))
 	}
 
-	// Header (6) + records (12 each) + string data
-	buf := make([]byte, 0, 6+len(records)*12+stringData.Len())
+	stringOffset := uint16(6 + int(numRecords)*12)
+	buf := make([]byte, 0, int(stringOffset)+int(cumOff))
 
-	// Write name table header
-	putU16BE(&buf, 0)                         // format
-	putU16BE(&buf, uint16(len(records)))      // count
-	putU16BE(&buf, uint16(6+len(records)*12)) // stringOffset
+	putU16BE(&buf, 0)          // format
+	putU16BE(&buf, numRecords) // count
+	putU16BE(&buf, stringOffset)
 
-	// Write name records
-	for _, rec := range records {
-		putU16BE(&buf, rec.platformID)
-		putU16BE(&buf, rec.encodingID)
-		putU16BE(&buf, rec.languageID)
-		putU16BE(&buf, rec.nameID)
-		putU16BE(&buf, rec.length)
-		putU16BE(&buf, rec.offset)
+	for i, name := range names {
+		enc := encs[i]
+		putU16BE(&buf, 3)       // platformID: Windows
+		putU16BE(&buf, 1)       // encodingID: Unicode BMP
+		putU16BE(&buf, 0x0409)  // languageID: English US
+		putU16BE(&buf, name.nameID)
+		putU16BE(&buf, uint16(len(enc.data)))
+		putU16BE(&buf, enc.off)
 	}
 
-	// Write string data
-	buf = append(buf, stringData.Bytes()...)
+	for _, enc := range encs {
+		buf = append(buf, enc.data...)
+	}
 
 	return buf
 }
 
 // calculateChecksum calculates the checksum for a font table
 func calculateChecksum(data []byte) uint32 {
-	if len(data)%4 != 0 {
-		dst := make([]byte, len(data)+(4-len(data)%4))
-		copy(dst, data)
-		data = dst
-	}
-
 	var sum uint32
-	for i := 0; i < len(data); i += 4 {
+	i := 0
+	for ; i+4 <= len(data); i += 4 {
 		sum += binary.BigEndian.Uint32(data[i:])
 	}
-
+	if remainder := len(data) - i; remainder > 0 {
+		var pad [4]byte
+		copy(pad[:], data[i:])
+		sum += binary.BigEndian.Uint32(pad[:])
+	}
 	return sum
 }
 
@@ -591,6 +575,7 @@ func updateHeadChecksum(fontData []byte, headOffset uint32) {
 // encodeUTF16BE encodes a string as UTF-16BE
 func encodeUTF16BE(s string) []byte {
 	var buf bytes.Buffer
+	buf.Grow(len(s) * 2) // PERF-215: pre-size for worst-case (all BMP, 2 bytes per rune)
 	for _, r := range s {
 		if r <= 0xFFFF {
 			buf.WriteByte(byte(r >> 8))
@@ -624,7 +609,7 @@ func CompressFontData(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	PutZlibWriter(w)
-	return append([]byte(nil), buf.Bytes()...), nil
+	return bytes.Clone(buf.Bytes()), nil // PERF-32: Clone avoids append(nil, ...) pattern
 }
 
 // TrueType composite glyph flags (from OpenType spec)

@@ -485,6 +485,7 @@ func GenerateFontObject(fontName string, fontObjectID, fontDescriptorID, widthsA
 	// Build compact font dictionary without deprecated /Name field for PDF 2.0
 	var sb strings.Builder
 	var tmp [20]byte
+	sb.Grow(128 + len(metrics.BaseFont)) // PERF-215
 	sb.Write(strconv.AppendInt(tmp[:0], int64(fontObjectID), 10))
 	sb.WriteString(" 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/")
 	sb.WriteString(metrics.BaseFont)
@@ -638,7 +639,7 @@ func GetAvailableFonts() []models.FontInfo {
 	}
 
 	// Add registered custom fonts
-	registry := GetFontRegistry()
+	registry := globalFontRegistry // PERF-151: direct access, avoids non-inlinable GetFontRegistry call
 	customFonts := registry.GetAllFonts()
 	for _, f := range customFonts {
 		ref := f.CachedRef

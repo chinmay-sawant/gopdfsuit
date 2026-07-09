@@ -83,7 +83,7 @@ func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 const maxPropsCache = 64
 
 var (
-	propsCache   = make(map[string]models.Props)
+	propsCache   = make(map[string]models.Props, 64)
 	propsCacheMu sync.RWMutex
 )
 
@@ -412,6 +412,15 @@ func appendTextForPDF(dst []byte, resolvedName, text string, registry *CustomFon
 	if registry.HasFont(resolvedName) {
 		return AppendTextForCustomFont(dst, resolvedName, text, registry)
 	}
+	if !strings.ContainsAny(text, `()\`) {
+		n := len(text) + 2
+		dst = append(dst, make([]byte, n)...)
+		p := len(dst) - n
+		dst[p] = '('
+		copy(dst[p+1:], text)
+		dst[len(dst)-1] = ')'
+		return dst
+	}
 	dst = append(dst, '(')
 	dst = appendEscapedPDFLiteral(dst, text)
 	dst = append(dst, ')')
@@ -465,6 +474,20 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 	var lineWidth float64
 	spaceWidth := EstimateTextWidth(resolvedFontName, " ", fontSize, registry)
 
+	// PERF-230: precompute char-width factor for standard fonts to avoid repeated calls
+	hasCustomFont := registry.HasFont(resolvedFontName)
+	var avgCharMult float64
+	if !hasCustomFont {
+		avgCharWidth := 0.5
+		switch resolvedFontName {
+		case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
+			avgCharWidth = 0.6
+		case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
+			avgCharWidth = 0.45
+		}
+		avgCharMult = fontSize * avgCharWidth
+	}
+
 	for i := 0; i < len(text); {
 		r, size := utf8.DecodeRuneInString(text[i:])
 		if unicode.IsSpace(r) {
@@ -484,14 +507,23 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 		hasWords = true
 		word := text[wordStart:i]
 
-		wordWidth := EstimateTextWidth(resolvedFontName, word, fontSize, registry)
+		var wordWidth float64
+		if hasCustomFont {
+			wordWidth = EstimateTextWidth(resolvedFontName, word, fontSize, registry)
+		} else {
+			wordWidth = float64(utf8.RuneCountInString(word)) * avgCharMult
+		}
 		if wordWidth > maxWidth {
 			if len(ws.buf) > lineStart {
 				ws.lines = append(ws.lines, ws.buf[lineStart:])
 				lineStart = len(ws.buf)
 			}
-			wrapLongWordInto(ws, word, resolvedFontName, fontSize, maxWidth, registry)
-			lineWidth = EstimateTextWidth(resolvedFontName, byteString(ws.buf[lineStart:]), fontSize, registry)
+			wrapLongWordInto(ws, word, resolvedFontName, fontSize, maxWidth, registry, hasCustomFont, avgCharMult)
+			if hasCustomFont {
+				lineWidth = EstimateTextWidth(resolvedFontName, byteString(ws.buf[lineStart:]), fontSize, registry)
+			} else {
+				lineWidth = float64(utf8.RuneCount(ws.buf[lineStart:])) * avgCharMult
+			}
 			continue
 		}
 
@@ -505,8 +537,7 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 
 		if trialWidth <= maxWidth {
 			if savedLen > lineStart {
-				ws.buf = append(ws.buf, ' ')
-				ws.buf = append(ws.buf, word...)
+				ws.buf = append(append(ws.buf, ' '), word...)
 			} else {
 				ws.buf = append(ws.buf, word...)
 			}
@@ -535,20 +566,9 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 }
 
 // wrapLongWordInto breaks a single word that's too long into multiple lines using ws.wordBuf.
-func wrapLongWordInto(ws *WrapState, word, resolvedFontName string, fontSize, maxWidth float64, registry *CustomFontRegistry) {
+// PERF-230: hasCustomFont and avgCharMult precomputed by caller.
+func wrapLongWordInto(ws *WrapState, word, resolvedFontName string, fontSize, maxWidth float64, registry *CustomFontRegistry, hasCustomFont bool, avgCharMult float64) {
 	ws.wordBuf = append(ws.wordBuf[:0], word...)
-
-	hasCustomFont := registry.HasFont(resolvedFontName)
-	var avgCW float64
-	if !hasCustomFont {
-		avgCW = 0.5
-		switch resolvedFontName {
-		case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
-			avgCW = 0.6
-		case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
-			avgCW = 0.45
-		}
-	}
 
 	start := 0
 	for start < len(ws.wordBuf) {
@@ -563,7 +583,7 @@ func wrapLongWordInto(ws *WrapState, word, resolvedFontName string, fontSize, ma
 			if hasCustomFont {
 				w = EstimateTextWidth(resolvedFontName, byteString(ws.wordBuf[start:start+end-start+rs]), fontSize, registry)
 			} else {
-				w = float64(runeCount) * fontSize * avgCW
+				w = float64(runeCount) * avgCharMult
 			}
 			end += rs
 			if w > maxWidth {

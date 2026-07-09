@@ -782,7 +782,7 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}
 		gen := objGenNum(objGen, objNum)
 		origBody, ok := originalMap[objNum]
-		if !ok || !bytes.Equal(origBody, body) {
+		if !ok || len(origBody) != len(body) || !bytes.Equal(origBody, body) {
 			changed = append(changed, objMeta{id: objNum, gen: gen})
 		}
 	}

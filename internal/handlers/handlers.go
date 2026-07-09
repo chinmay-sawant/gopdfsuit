@@ -32,17 +32,49 @@ var templatePDFPool = sync.Pool{
 const maxTemplateFileCache = 32
 
 var (
-	templateFileCache   = make(map[string][]byte)
+	templateFileCache   = make(map[string][]byte, maxTemplateFileCache)
 	templateFileCacheMu sync.RWMutex
 )
 
+var (
+	templateFileInFlight   = make(map[string]chan struct{})
+	templateFileInFlightMu sync.Mutex
+)
+
 func loadTemplateFileCached(filePath, filename string) ([]byte, error) {
+	if v, ok := loadTemplateFromCache(filename); ok {
+		return v, nil
+	}
+	return loadTemplateFileMiss(filePath, filename)
+}
+
+func loadTemplateFromCache(filename string) ([]byte, bool) {
 	templateFileCacheMu.RLock()
-	if v, ok := templateFileCache[filename]; ok {
+	v, ok := templateFileCache[filename]
+	templateFileCacheMu.RUnlock()
+	return v, ok
+}
+
+func loadTemplateFileMiss(filePath, filename string) ([]byte, error) {
+	templateFileInFlightMu.Lock()
+	if wait, ok := templateFileInFlight[filename]; ok {
+		templateFileInFlightMu.Unlock()
+		<-wait
+		templateFileCacheMu.RLock()
+		v := templateFileCache[filename]
 		templateFileCacheMu.RUnlock()
 		return v, nil
 	}
-	templateFileCacheMu.RUnlock()
+	done := make(chan struct{})
+	templateFileInFlight[filename] = done
+	templateFileInFlightMu.Unlock()
+
+	defer func() {
+		templateFileInFlightMu.Lock()
+		delete(templateFileInFlight, filename)
+		templateFileInFlightMu.Unlock()
+		close(done)
+	}()
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -326,13 +358,17 @@ func handleUploadFont(c *gin.Context) {
 		_ = f.Close()
 	}()
 
-	data, err := io.ReadAll(f)
+	const maxFontSize = 10 << 20
+	data, err := io.ReadAll(io.LimitReader(f, maxFontSize+1))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file: " + err.Error()})
 		return
 	}
+	if len(data) > maxFontSize {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Font file too large (max 10 MB)"})
+		return
+	}
 
-	// Register font — strip extension without TrimSuffix allocation when possible (PERF-46)
 	fontName := file.Filename
 	if n := len(fontName); n > len(ext) {
 		fontName = fontName[:n-len(ext)]

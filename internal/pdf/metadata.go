@@ -9,7 +9,6 @@ import (
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
 )
 
 // PDFAHandler handles PDF/A compliance features, including metadata and color profiles.
@@ -311,22 +310,8 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 		h.pageManager.NextObjectID++
 	}
 
-	iccData := getSRGBICCProfile()
-
-	// Compress the ICC profile with zlib (FlateDecode)
-	compressedBuf := font.GetCompressBuffer()
-	zlibWriter := font.GetZlibWriter(compressedBuf)
-	if _, err := zlibWriter.Write(iccData); err != nil {
-		_ = zlibWriter.Close()
-		font.PutZlibWriter(zlibWriter)
-		font.PutCompressBuffer(compressedBuf)
-		return 0, nil, nil
-	}
-	_ = zlibWriter.Close()
-	font.PutZlibWriter(zlibWriter)
-	cp := bytes.Clone(compressedBuf.Bytes())
-	compressedData := cp
-	font.PutCompressBuffer(compressedBuf)
+	// Use cached compressed ICC profile (PERF-217: avoid recompression)
+	compressedData := bytes.Clone(GetSRGBICCCompressed())
 
 	// Encrypt compressed ICC profile stream if needed
 	if h.encryptor != nil {
@@ -334,6 +319,7 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	}
 
 	sb.Reset()
+	sb.Grow(128)
 	var tmp [20]byte
 	sb.Write(strconv.AppendInt(tmp[:0], int64(h.iccProfileObjID), 10))
 	sb.WriteString(" 0 obj\n<< /N 3 /Length ")
@@ -366,6 +352,7 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	}
 
 	sb.Reset()
+	sb.Grow(160 + len(idStr) + len(regStr) + len(infoStr))
 	sb.Write(strconv.AppendInt(tmp[:0], int64(h.outputIntentObjID), 10))
 	sb.WriteString(" 0 obj\n<< /Type /OutputIntent /S /GTS_PDFA1 /OutputConditionIdentifier ")
 	sb.WriteString(idStr)
@@ -404,12 +391,6 @@ func escapeXML(s string) string {
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	s = strings.ReplaceAll(s, "'", "&apos;")
 	return s
-}
-
-// getSRGBICCProfile returns the complete sRGB ICC profile for PDF/A compliance
-// Uses the properly built profile from pdfa.go to ensure validity
-func getSRGBICCProfile() []byte {
-	return GetSRGBICCProfile()
 }
 
 // GenerateCatalogExtras returns additional catalog entries for PDF/A

@@ -3,7 +3,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -51,15 +50,7 @@ func main() {
 
 	// Lightweight custom recovery: only captures stack on actual panic
 	// (gin.Recovery() has per-request overhead from defer/stack-trace setup)
-	router.Use(func(c *gin.Context) {
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Fprintf(os.Stderr, "[Recovery] panic recovered: %v\n", r)
-				c.AbortWithStatus(http.StatusInternalServerError)
-			}
-		}()
-		c.Next()
-	})
+	router.Use(lightweightRecovery())
 
 	// Only add request logger in debug mode (GIN_MODE=debug)
 	if gin.Mode() == gin.DebugMode {
@@ -107,9 +98,21 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case err := <-serverErr:
-		log.Printf("listen: %s\n", err)
+		fmt.Fprintf(os.Stderr, "listen: %s\n", err)
 		os.Exit(1)
 	case <-quit:
-		log.Println("Shutting down server...")
+		fmt.Fprintln(os.Stderr, "Shutting down server...")
+	}
+}
+
+func lightweightRecovery() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Fprintf(os.Stderr, "[Recovery] panic recovered: %v\n", r)
+				c.AbortWithStatus(http.StatusInternalServerError)
+			}
+		}()
+		c.Next()
 	}
 }

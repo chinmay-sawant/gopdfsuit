@@ -46,13 +46,6 @@ func formatRupee(v float64) string {
 	return "₹" + strconv.FormatFloat(v, 'f', 2, 64)
 }
 
-// measureGeneratePDF times a single GeneratePDF call (PERF-40: isolate time.Now).
-func measureGeneratePDF(tmpl gopdflib.PDFTemplate) (time.Duration, error) {
-	start := time.Now()
-	_, err := gopdflib.GeneratePDF(tmpl)
-	return time.Since(start), err
-}
-
 // runZerodhaWorker runs one benchmark worker (PERF-7: defer outside loop body).
 func runZerodhaWorker(
 	wg *sync.WaitGroup,
@@ -79,7 +72,9 @@ func runZerodhaWorker(
 			atomic.AddInt64(hftCount, 1)
 		}
 
-		elapsed, err := measureGeneratePDF(tmpl)
+		start := time.Now()
+		_, err := gopdflib.GeneratePDF(tmpl)
+		elapsed := time.Since(start)
 		if err != nil {
 			errCh <- err
 			continue

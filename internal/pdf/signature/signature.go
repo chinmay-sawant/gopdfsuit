@@ -68,6 +68,9 @@ var (
 	signerPEMCacheEvictMu  sync.Mutex
 )
 
+// padZeros holds pre-filled zero bytes for appendPad10 (PERF-119: single append instead of loop).
+var padZeros = [10]byte{'0', '0', '0', '0', '0', '0', '0', '0', '0', '0'}
+
 // appendPad10 appends a zero-padded 10-digit decimal (PERF-35/119/226: no fmt, no make+copy).
 func appendPad10(dst []byte, n int) []byte {
 	var buf [20]byte
@@ -76,8 +79,8 @@ func appendPad10(dst []byte, n int) []byte {
 	if pad < 0 {
 		pad = 0
 	}
-	for i := 0; i < pad; i++ {
-		dst = append(dst, '0')
+	if pad > 0 {
+		dst = append(dst, padZeros[:pad]...)
 	}
 	return append(dst, num...)
 }
@@ -91,7 +94,9 @@ func signerPEMCacheKey(certPEMBytes, keyPEMBytes []byte, chain []string) string 
 		h.Write([]byte{1})
 		h.Write(byteconv.StringToBytes(c))
 	}
-	return hex.EncodeToString(h.Sum(nil))
+	var k [32]byte
+	h.Sum(k[:0])
+	return string(k[:])
 }
 
 func storeSignerPEMCache(key string, ent *parsedSignerPEMEntry) {
@@ -224,9 +229,9 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 		sigY = pageManager.GetMargins().Bottom
 	}
 
-	// Create appearance stream for visible signature
+	// Get current time once for both appearance and signing time (PERF-40)
+	now := time.Now()
 	if s.config.Visible {
-		now := time.Now()
 		ids.AppearanceID = s.createSignatureAppearance(pageManager, sigW, sigH, fontID, now)
 	}
 
@@ -279,7 +284,6 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// Signing time - PDF date format: D:YYYYMMDDHHmmSSOHH'mm'
 	// where O is + or -, HH is timezone hours, mm is timezone minutes
-	now := time.Now()
 	_, tzOffset := now.Zone()
 	tzSign := "+"
 	if tzOffset < 0 {
@@ -313,6 +317,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 	ids.SigAnnotID = sigAnnotID
 
 	var annotDict strings.Builder
+	annotDict.Grow(320)
 	annotDict.WriteString("<< /Type /Annot /Subtype /Widget")
 	annotDict.WriteString(" /FT /Sig")
 	annotDict.WriteString(" /T (Signature1)")

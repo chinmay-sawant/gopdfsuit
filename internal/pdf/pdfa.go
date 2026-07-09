@@ -348,37 +348,42 @@ func buildSRGBICCProfile() []byte {
 var (
 	srgbICCProfileOnce sync.Once
 	srgbICCProfile     []byte
+	srgbICCCompressed  []byte
 	grayICCProfileOnce sync.Once
 	grayICCProfile     []byte
+	grayICCCompressed  []byte
 )
 
 // GetSRGBICCProfile returns the complete sRGB ICC profile
 func GetSRGBICCProfile() []byte {
 	srgbICCProfileOnce.Do(func() {
 		srgbICCProfile = buildSRGBICCProfile()
+		cb := font.GetCompressBuffer()
+		zw := font.GetZlibWriter(cb)
+		if _, err := zw.Write(srgbICCProfile); err != nil {
+			_ = zw.Close()
+			font.PutZlibWriter(zw)
+			font.PutCompressBuffer(cb)
+			return
+		}
+		_ = zw.Close()
+		font.PutZlibWriter(zw)
+		srgbICCCompressed = bytes.Clone(cb.Bytes())
+		font.PutCompressBuffer(cb)
 	})
 	return srgbICCProfile
+}
+
+// GetSRGBICCCompressed returns the compressed sRGB ICC profile (PERF-217: cached compression).
+func GetSRGBICCCompressed() []byte {
+	GetSRGBICCProfile()
+	return srgbICCCompressed
 }
 
 // GenerateICCProfileObject generates the ICC profile stream object for sRGB
 // Returns the bytes to write to the PDF buffer
 func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
-	// Get the complete sRGB ICC profile
-	iccProfile := GetSRGBICCProfile()
-
-	// Compress the ICC profile
-	cb := font.GetCompressBuffer()
-	zw := font.GetZlibWriter(cb)
-	if _, err := zw.Write(iccProfile); err != nil {
-		_ = zw.Close()
-		font.PutZlibWriter(zw)
-		font.PutCompressBuffer(cb)
-		return nil
-	}
-	_ = zw.Close()
-	font.PutZlibWriter(zw)
-	compressedData := bytes.Clone(cb.Bytes())
-	font.PutCompressBuffer(cb)
+	compressedData := bytes.Clone(GetSRGBICCCompressed())
 
 	// Encrypt if needed
 	if encryptor != nil {
@@ -402,25 +407,23 @@ func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
 // GenerateGrayICCProfileObject generates the ICC profile stream object for DeviceGray
 // Returns the bytes to write to the PDF buffer
 func GenerateGrayICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
-	// Build a simple Gray ICC profile
 	grayICCProfileOnce.Do(func() {
 		grayICCProfile = buildGrayICCProfile()
-	})
-	grayProfile := grayICCProfile
-
-	// Compress the ICC profile
-	cb := font.GetCompressBuffer()
-	zw := font.GetZlibWriter(cb)
-	if _, err := zw.Write(grayProfile); err != nil {
+		cb := font.GetCompressBuffer()
+		zw := font.GetZlibWriter(cb)
+		if _, err := zw.Write(grayICCProfile); err != nil {
+			_ = zw.Close()
+			font.PutZlibWriter(zw)
+			font.PutCompressBuffer(cb)
+			return
+		}
 		_ = zw.Close()
 		font.PutZlibWriter(zw)
+		grayICCCompressed = bytes.Clone(cb.Bytes())
 		font.PutCompressBuffer(cb)
-		return nil
-	}
-	_ = zw.Close()
-	font.PutZlibWriter(zw)
-	compressedData := bytes.Clone(cb.Bytes())
-	font.PutCompressBuffer(cb)
+	})
+
+	compressedData := bytes.Clone(grayICCCompressed)
 
 	// Encrypt if needed
 	if encryptor != nil {

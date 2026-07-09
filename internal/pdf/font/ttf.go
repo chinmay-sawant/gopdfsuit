@@ -295,9 +295,14 @@ func (f *TTFFont) parseHmtx(data []byte) error {
 	var lastWidth uint16
 	for i := uint16(0); i < numberOfHMetrics; i++ {
 		if off+4 > len(data) {
-			return errors.Join(errors.New("failed to read GlyphWidths["+strconv.Itoa(int(i))+"]"), io.ErrUnexpectedEOF)
+			errPrefix := "failed to read GlyphWidths["
+			errStr := make([]byte, 0, len(errPrefix)+5+1)
+			errStr = append(errStr, errPrefix...)
+			errStr = strconv.AppendInt(errStr, int64(i), 10) // PERF-15: AppendInt avoids strconv.Itoa alloc
+			errStr = append(errStr, ']')
+			return errors.Join(errors.New(string(errStr)), io.ErrUnexpectedEOF)
 		}
-		f.GlyphWidths[i] = binary.BigEndian.Uint16(data[off : off+2])
+		f.GlyphWidths[i] = binary.BigEndian.Uint16(data[off:]) // PERF-109: data[off:] avoids recomputing off+2 each loop
 		// skip lsb (2 bytes)
 		off += 4
 		lastWidth = f.GlyphWidths[i]

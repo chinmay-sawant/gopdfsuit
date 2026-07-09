@@ -281,6 +281,7 @@ func scrubDecodedContent(decoded []byte, rects []models.RedactionRect, queries [
 	}
 
 	var out strings.Builder
+	out.Grow(len(decoded))
 	last := 0
 	changed := false
 	posIdx := 0
@@ -352,8 +353,9 @@ func applyRectMaskToText(text string, pos models.TextPosition, rects []models.Re
 
 	// In secure mode, if a redaction block covers a substantial portion of a text run,
 	// scrub the full run. For small overlaps, keep per-glyph masking.
+	tolerance := pos.Height * 0.75
 	for _, r := range rects {
-		if !rectsIntersectWithTolerance(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height, pos.Height*0.75) {
+		if !rectsIntersectWithTolerance(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height, tolerance) {
 			continue
 		}
 		overlap := overlapWidth(pos.X, pos.Width, r.X, r.Width)

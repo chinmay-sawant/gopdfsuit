@@ -53,10 +53,13 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 		return nil, err
 	}
 	var rects []models.RedactionRect
+	loweredTerms := make([]string, len(queries))
+	for i, q := range queries {
+		loweredTerms[i] = trimSpace(strings.ToLower(q.Text))
+	}
 	for _, w := range words {
 		loweredWord := strings.ToLower(w.Text)
-		for _, q := range queries {
-			term := trimSpace(strings.ToLower(q.Text))
+		for _, term := range loweredTerms {
 			if term == "" {
 				continue
 			}

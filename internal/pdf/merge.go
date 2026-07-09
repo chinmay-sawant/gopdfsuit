@@ -313,55 +313,34 @@ func parseObjGenRef(ref string) (objNum, genNum int, ok bool) {
 // that are not within stream...endstream blocks, to avoid mangling compressed stream contents.
 func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []byte {
 	var out bytes.Buffer
+	var refBuf [32]byte
+
+	buildRef := func(b []byte) []byte {
+		sm2 := refRe.FindSubmatch(b)
+		if len(sm2) < 2 {
+			return b
+		}
+		on, _ := strconv.Atoi(string(sm2[1]))
+		gen := sm2[2]
+		num := strconv.AppendInt(refBuf[:0], int64(offset+on), 10)
+		ref := make([]byte, 0, len(num)+1+len(gen)+2)
+		ref = append(ref, num...)
+		ref = append(ref, ' ')
+		ref = append(ref, gen...)
+		ref = append(ref, " R"...)
+		return ref
+	}
+
 	last := 0
 	for _, sm := range streamBlockRe.FindAllIndex(data, -1) {
-		// process region before stream
 		pre := data[last:sm[0]]
-		replaced := refRe.ReplaceAllFunc(pre, func(b []byte) []byte {
-			sm2 := refRe.FindSubmatch(b)
-			if len(sm2) < 2 {
-				return b
-			}
-			on, _ := strconv.Atoi(string(sm2[1]))
-			gen := sm2[2]
-			var nbuf [20]byte
-			num := strconv.AppendInt(nbuf[:0], int64(offset+on), 10)
-			ref := make([]byte, len(num)+1+len(gen)+2)
-			o := copy(ref, num)
-			ref[o] = ' '
-			o++
-			o += copy(ref[o:], gen)
-			ref[o] = ' '
-			ref[o+1] = 'R'
-			return ref
-		})
-		out.Write(replaced)
-		// write stream block unchanged
+		out.Write(refRe.ReplaceAllFunc(pre, buildRef))
 		out.Write(data[sm[0]:sm[1]])
 		last = sm[1]
 	}
-	// remaining tail
+
 	if last < len(data) {
-		tail := data[last:]
-		replaced := refRe.ReplaceAllFunc(tail, func(b []byte) []byte {
-			sm2 := refRe.FindSubmatch(b)
-			if len(sm2) < 2 {
-				return b
-			}
-			on, _ := strconv.Atoi(string(sm2[1]))
-			gen := sm2[2]
-			var nbuf [20]byte
-			num := strconv.AppendInt(nbuf[:0], int64(offset+on), 10)
-			ref := make([]byte, len(num)+1+len(gen)+2)
-			o := copy(ref, num)
-			ref[o] = ' '
-			o++
-			o += copy(ref[o:], gen)
-			ref[o] = ' '
-			ref[o+1] = 'R'
-			return ref
-		})
-		out.Write(replaced)
+		out.Write(refRe.ReplaceAllFunc(data[last:], buildRef))
 	}
 	return out.Bytes()
 }

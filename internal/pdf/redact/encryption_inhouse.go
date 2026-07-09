@@ -303,8 +303,7 @@ func validateUserPassword(fileKey []byte, d standardEncryptDict, id0 []byte) boo
 		return len(d.U) >= 32 && len(exp) == 32 && bytes.Equal(exp, d.U[:32])
 	}
 	padID := make([]byte, 0, len(pdfPasswordPadding)+len(id0))
-	padID = append(padID, pdfPasswordPadding...)
-	padID = append(padID, id0...)
+	padID = append(append(padID, pdfPasswordPadding...), id0...)
 	h := pdfdigest.Digest16(padID)
 	tmp := h[:]
 	tmp = rc4Crypt(fileKey, tmp)
@@ -372,9 +371,7 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 	prefix := objBody[:loc[2]]
 	suffix := objBody[loc[3]:]
 	out := make([]byte, 0, len(prefix)+len(dec)+len(suffix))
-	out = append(out, prefix...)
-	out = append(out, dec...)
-	out = append(out, suffix...)
+	out = append(append(append(out, prefix...), dec...), suffix...)
 	lenRe := regexp.MustCompile(`/Length\s+\d+`)
 	// Avoid fmt.Sprintf on the hot path
 	var lenBuf [24]byte

@@ -41,6 +41,34 @@ var scratchBufPool = sync.Pool{
 	},
 }
 
+// fontNames and fontRefs are static PDF standard font references (PERF-217: cached at package level).
+var fontNames = []string{
+	"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique",
+	"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
+	"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique",
+	"Symbol", "ZapfDingbats",
+}
+
+var fontRefs = []string{"/F1", "/F2", "/F3", "/F4", "/F5", "/F6", "/F7", "/F8", "/F9", "/F10", "/F11", "/F12", "/F13", "/F14"}
+
+// widthGroups maps standard font names to their width group for Arlington-compatible font metrics (PERF-217).
+var widthGroups = map[string]string{
+	"Helvetica":             "helvetica-regular",
+	"Helvetica-Oblique":     "helvetica-regular",
+	"Helvetica-Bold":        "helvetica-bold",
+	"Helvetica-BoldOblique": "helvetica-bold",
+	"Times-Roman":           "times-roman",
+	"Times-Bold":            "times-bold",
+	"Times-Italic":          "times-italic",
+	"Times-BoldItalic":      "times-bolditalic",
+	"Courier":               "courier",
+	"Courier-Bold":          "courier",
+	"Courier-Oblique":       "courier",
+	"Courier-BoldOblique":   "courier",
+	"Symbol":                "symbol",
+	"ZapfDingbats":          "zapfdingbats",
+}
+
 // signatureContextAdapter wraps PageManager to implement signature.SignaturePageContext
 type signatureContextAdapter struct {
 	pm *PageManager
@@ -339,14 +367,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	contentObjectStart := totalPages + 3               // Content objects start after pages
 	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
 
-	// Standard fonts definition
-	fontNames := []string{
-		"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", // F1-F4
-		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic", // F5-F8
-		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", // F9-F12
-		"Symbol", "ZapfDingbats", // F13-F14
-	}
-	fontRefs := []string{"/F1", "/F2", "/F3", "/F4", "/F5", "/F6", "/F7", "/F8", "/F9", "/F10", "/F11", "/F12", "/F13", "/F14"}
+	// Standard fonts definition (fontNames, fontRefs are package-level per PERF-217)
 
 	// Identify used standard fonts
 	usedStandardFonts := collectUsedStandardFonts(template, fontRegistry)
@@ -376,22 +397,8 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 
 	// Phase 2: Assign IDs for Descriptors and Widths (Arlington mode only)
-	widthGroups := map[string]string{
-		"Helvetica":             "helvetica-regular",
-		"Helvetica-Oblique":     "helvetica-regular",
-		"Helvetica-Bold":        "helvetica-bold",
-		"Helvetica-BoldOblique": "helvetica-bold",
-		"Times-Roman":           "times-roman",
-		"Times-Bold":            "times-bold",
-		"Times-Italic":          "times-italic",
-		"Times-BoldItalic":      "times-bolditalic",
-		"Courier":               "courier",
-		"Courier-Bold":          "courier",
-		"Courier-Oblique":       "courier",
-		"Courier-BoldOblique":   "courier",
-		"Symbol":                "symbol",
-		"ZapfDingbats":          "zapfdingbats",
-	}
+	// widthGroups is defined at package level (PERF-217)
+
 
 	if template.Config.ArlingtonCompatible && shouldEmbed {
 		// Assign Descriptor IDs
@@ -432,10 +439,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 				signatureFontID = fontObjectIDs["Helvetica"]
 			}
 
-			sigPageDims := signature.PageDimensions{
-				Width:  pageDims.Width,
-				Height: pageDims.Height,
-			}
+			sigPageDims := signature.PageDimensions(pageDims) // PERF-121: direct type conversion
 			sigIDs = pdfSigner.CreateSignatureField(&signatureContextAdapter{pm: pageManager}, sigPageDims, signatureFontID)
 		}
 	}
@@ -616,6 +620,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	{
 		var xobjBuf [20]byte // scratch for strconv.AppendInt
 		var xobjBuilder strings.Builder
+		xobjBuilder.Grow(len(imageObjectIDs)*16 + len(cellImageObjectIDs)*20 + len(elemImageObjectIDs)*16 + len(pageManager.ExtraObjects)*16 + 64) // PERF-215
 
 		writeXObjRef := func(prefix string, key string, objID int) {
 			xobjBuilder.WriteString(" /")
@@ -791,7 +796,8 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	var compGroup errgroup.Group
 	for si := range pageManager.ContentStreams {
 		si := si
-		siStr := strconv.Itoa(si)
+		var siTmp [8]byte
+		siStr := string(strconv.AppendInt(siTmp[:0], int64(si), 10)) // PERF-15: AppendInt avoids allocation vs Itoa
 		compGroup.Go(func() error {
 			contentStream := &pageManager.ContentStreams[si]
 			compressedBuf := getCompressBuffer()
@@ -993,11 +999,12 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 
 	// Generate PDF/A metadata objects if enabled
+	now := time.Now() // PERF-40: hoisted for reuse in fallback and creation date
 	if pdfaHandler != nil {
-		// Generate XMP metadata content (crypto/rand 8 bytes hex — PERF-40)
+		// Generate XMP metadata content (crypto/rand 8 bytes hex)
 		var randID [8]byte
 		if _, err := rand.Read(randID[:]); err != nil {
-			binary.BigEndian.PutUint64(randID[:], uint64(time.Now().UnixNano()))
+			binary.BigEndian.PutUint64(randID[:], uint64(now.UnixNano()))
 		}
 		docIDForXMP := hex.EncodeToString(randID[:])
 		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP)
@@ -1045,7 +1052,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pageManager.NextObjectID++
 	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
 	// Go's time format doesn't support the PDF timezone format directly, so we build it manually
-	now := time.Now()
 	_, tzOffset := now.Zone()
 	tzSign := "+"
 	if tzOffset < 0 {
@@ -1124,7 +1130,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		randomBytes := make([]byte, 16)
 		if _, err := rand.Read(randomBytes); err != nil {
 			// Fallback to time-based randomness if rand fails
-			binary.BigEndian.PutUint64(randomBytes, uint64(time.Now().UnixNano()))
+			binary.BigEndian.PutUint64(randomBytes, uint64(now.UnixNano()))
 		}
 		randomSum := sha256.Sum256(randomBytes)
 		var randomHash [16]byte
@@ -1465,18 +1471,19 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pdfBuffer.WriteByte('\n')
 	pdfBuffer.WriteString("%%EOF\n")
 
-	finalPDF := slices.Clone(pdfBuffer.Bytes())
 	if pdfSigner != nil && sigIDs != nil {
-		signedPDF, err := signature.UpdatePDFWithSignature(finalPDF, pdfSigner)
+		// UpdatePDFWithSignature does bytes.Clone internally, so signedPDF is caller-owned.
+		// Pass pdfBuffer.Bytes() directly to avoid an extra pre-signing clone.
+		signedPDF, err := signature.UpdatePDFWithSignature(pdfBuffer.Bytes(), pdfSigner)
 		if err != nil {
-			// Signing failed — return unsigned copy (caller-owned).
+			// Signing failed — return a one-time clone of the pool buffer.
+			finalPDF := slices.Clone(pdfBuffer.Bytes())
 			return finalPDF, nil
 		}
-		// Signing writes into a dedicated buffer inside UpdatePDFWithSignature — clone once more
-		// so callers never retain pooled or shared scratch space.
-		finalPDF = slices.Clone(signedPDF)
+		return signedPDF, nil
 	}
 
+	finalPDF := slices.Clone(pdfBuffer.Bytes())
 	return finalPDF, nil
 }
 

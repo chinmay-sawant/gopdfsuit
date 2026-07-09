@@ -32,6 +32,11 @@ var GeneratorStyle = Style{
 	InUseSuffix: " 00000 n \n",
 }
 
+// subsectionEntry holds start/count for a contiguous xref subsection.
+type subsectionEntry struct {
+	start, count int
+}
+
 // WriteCompactXRef writes a compact PDF xref table using consecutive object
 // subsections. scratch is reused for numeric formatting; pass nil to allocate.
 // Returns the byte offset where "xref" starts (for startxref).
@@ -46,14 +51,14 @@ func WriteCompactXRef(out *bytes.Buffer, offsets map[int]int, scratch []byte, st
 	xrefStart := out.Len()
 	out.WriteString("xref\n")
 
-	var subsections []struct{ start, count int }
+	var subsections []subsectionEntry
 	for i := 0; i < len(usedObjects); {
 		start := usedObjects[i]
 		count := 1
 		for i+count < len(usedObjects) && usedObjects[i+count] == start+count {
 			count++
 		}
-		subsections = append(subsections, struct{ start, count int }{start, count})
+		subsections = append(subsections, subsectionEntry{start, count})
 		i += count
 	}
 

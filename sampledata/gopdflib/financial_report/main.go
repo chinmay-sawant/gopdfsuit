@@ -37,10 +37,9 @@ func monitorMemory(stop *atomic.Bool, wg *sync.WaitGroup) {
 }
 
 // runFinancialWorker runs one PDF generation worker (PERF-7/40).
-func runFinancialWorker(wg *sync.WaitGroup, jobs <-chan int, results chan<- time.Duration, errCh chan<- error, template gopdflib.PDFTemplate) {
+func runFinancialWorker(wg *sync.WaitGroup, jobs <-chan time.Time, results chan<- time.Duration, errCh chan<- error, template gopdflib.PDFTemplate) {
 	defer wg.Done()
-	for range jobs {
-		start := time.Now()
+	for start := range jobs {
 		_, err := gopdflib.GeneratePDF(template)
 		elapsed := time.Since(start)
 		if err != nil {
@@ -76,7 +75,7 @@ func main() {
 	}
 
 	// Channels for jobs and results
-	jobs := make(chan int, iterations)
+	jobs := make(chan time.Time, iterations)
 	results := make(chan time.Duration, iterations)
 	errors := make(chan error, iterations)
 
@@ -99,7 +98,7 @@ func main() {
 
 	// Send jobs
 	for i := 1; i <= iterations; i++ {
-		jobs <- i
+		jobs <- time.Now()
 	}
 	close(jobs)
 

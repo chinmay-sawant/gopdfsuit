@@ -366,24 +366,22 @@ func (m *PDFAFontManager) RegisterLiberationFontsForPDFA(registry *CustomFontReg
 		return err
 	}
 
+	// PERF-230: deduplicate and filter mappable fonts first to avoid repeated map lookups in loop
+	seen := make(map[string]bool, len(usedStandardFonts))
 	for _, stdFont := range usedStandardFonts {
-		// Skip if not a mappable standard font
 		if _, ok := LiberationFontMapping[stdFont]; !ok {
 			continue
 		}
-
-		// Skip if already registered (check under the STANDARD font name)
-		if registry.HasFont(stdFont) {
+		if seen[stdFont] {
 			continue
 		}
+		seen[stdFont] = true
 
 		font, err := m.GetLiberationFont(stdFont)
 		if err != nil {
 			return err
 		}
 
-		// Register under the STANDARD font name, not the Liberation name
-		// This way getFontReference will find it and use the embedded font
 		if err := registry.RegisterFont(stdFont, font); err != nil {
 			return err
 		}

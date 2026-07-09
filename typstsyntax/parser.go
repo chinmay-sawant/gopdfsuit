@@ -524,10 +524,12 @@ func flattenNode(root *Node, sb *strings.Builder) {
 
 		case NodeAccent:
 			if len(node.Children) >= 1 {
+				nodeWork := flattenWork{node: node.Children[0]}
 				if accent, ok := AccentMap[node.FuncName]; ok {
-					stack = append(stack, flattenWork{literal: accent})
+					stack = append(stack, flattenWork{literal: accent}, nodeWork)
+				} else {
+					stack = append(stack, nodeWork)
 				}
-				stack = append(stack, flattenWork{node: node.Children[0]})
 			}
 
 		case NodeMatrix, NodeVector:
@@ -585,9 +587,11 @@ func flattenNode(root *Node, sb *strings.Builder) {
 
 		case NodeUnderOver:
 			if len(node.Args) >= 2 {
-				stack = append(stack, flattenWork{literal: ")"})
-				stack = append(stack, flattenWork{node: node.Args[1]})
-				stack = append(stack, flattenWork{literal: " ("})
+				stack = append(stack,
+					flattenWork{literal: ")"},
+					flattenWork{node: node.Args[1]},
+					flattenWork{literal: " ("},
+				)
 			}
 			if len(node.Args) >= 1 {
 				stack = append(stack, flattenWork{node: node.Args[0]})

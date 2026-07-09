@@ -46,16 +46,6 @@ func monitorMemory(stop *atomic.Bool, wg *sync.WaitGroup) {
 	fmt.Printf("  Max Memory Allocated: %.2f MB\n", float64(maxAlloc)/1024/1024)
 }
 
-// measureGenerateMs times a single PDF generation (PERF-40).
-func measureGenerateMs(template gopdflib.PDFTemplate) (float64, bool) {
-	start := time.Now()
-	_, err := gopdflib.GeneratePDF(template)
-	if err != nil {
-		return 0, false
-	}
-	return float64(time.Since(start).Nanoseconds()) / 1_000_000, true
-}
-
 // runBenchmarkIteration is a named worker so defer is not in a loop body (PERF-7).
 func runBenchmarkIteration(
 	wg *sync.WaitGroup,
@@ -69,13 +59,18 @@ func runBenchmarkIteration(
 	defer wg.Done()
 	defer func() { <-sem }()
 
-	if elapsedMs, ok := measureGenerateMs(template); ok {
-		mu.Lock()
-		*durations = append(*durations, elapsedMs)
-		mu.Unlock()
-		ops.Add(1)
-		fmt.Printf("Run %d: %.2f ms\n", idx, elapsedMs)
+	start := time.Now()
+	pdfBytes, genErr := gopdflib.GeneratePDF(template)
+	if genErr != nil {
+		return
 	}
+	elapsedMs := float64(time.Since(start).Nanoseconds()) / 1_000_000
+	mu.Lock()
+	*durations = append(*durations, elapsedMs)
+	mu.Unlock()
+	ops.Add(1)
+	fmt.Printf("Run %d: %.2f ms\n", idx, elapsedMs)
+	_ = pdfBytes
 }
 
 // RunSingleDocumentBenchmark renders the benchmark template concurrently using a
@@ -108,15 +103,18 @@ func RunSingleDocumentBenchmark(name string) error {
 	go monitorMemory(&memStop, &memWg)
 
 	sem := make(chan struct{}, workers)
-	totalStart := time.Now()
-	for runIndex := 1; runIndex <= iterations; runIndex++ {
-		sem <- struct{}{}
-		wg.Add(1)
-		// PERF-7/36: named helper keeps defer out of loop body; pass idx explicitly
-		go runBenchmarkIteration(&wg, sem, template, runIndex, &mu, &durations, &ops)
-	}
-	wg.Wait()
-	totalSeconds := time.Since(totalStart).Seconds()
+	totalSeconds := func() float64 {
+		start := time.Now()
+		for runIndex := 1; runIndex <= iterations; runIndex++ {
+			sem <- struct{}{}
+			wg.Add(1)
+			// PERF-7/36: named helper keeps defer out of loop body; pass idx explicitly
+			go runBenchmarkIteration(&wg, sem, template, runIndex, &mu, &durations, &ops)
+		}
+		wg.Wait()
+		close(sem)
+		return time.Since(start).Seconds()
+	}()
 
 	memStop.Store(true)
 	memWg.Wait()

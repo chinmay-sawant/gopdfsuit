@@ -39,6 +39,21 @@ func trimStringSpace(s string) string {
 	return s[start:end]
 }
 
+func toLowerASCII(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 'A' && s[i] <= 'Z' {
+			b := []byte(s)
+			for j := i; j < len(b); j++ {
+				if b[j] >= 'A' && b[j] <= 'Z' {
+					b[j] += 32
+				}
+			}
+			return string(b)
+		}
+	}
+	return s
+}
+
 func parseCommaSeparatedTerms(raw string) []string {
 	if raw == "" {
 		return nil
@@ -57,7 +72,7 @@ func parseCommaSeparatedTerms(raw string) []string {
 		}
 		term := trimStringSpace(part)
 		if term != "" {
-			key := strings.ToLower(term)
+			key := toLowerASCII(term)
 			if _, ok := seen[key]; !ok {
 				seen[key] = struct{}{}
 				terms = append(terms, term)
@@ -75,10 +90,11 @@ func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.Re
 		return nil
 	}
 	seen := make(map[string]struct{}, len(queries))
+	parsedCache := make(map[string][]string, 4)
 	normalized := make([]models.RedactionTextQuery, 0, len(queries))
 	for _, q := range queries {
 		if strings.IndexByte(q.Text, ',') < 0 {
-			key := strings.ToLower(q.Text)
+			key := toLowerASCII(q.Text)
 			if _, ok := seen[key]; ok {
 				continue
 			}
@@ -86,8 +102,13 @@ func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.Re
 			normalized = append(normalized, models.RedactionTextQuery{Text: q.Text})
 			continue
 		}
-		for _, term := range parseCommaSeparatedTerms(q.Text) {
-			key := strings.ToLower(term)
+		terms, ok := parsedCache[q.Text]
+		if !ok {
+			terms = parseCommaSeparatedTerms(q.Text)
+			parsedCache[q.Text] = terms
+		}
+		for _, term := range terms {
+			key := toLowerASCII(term)
 			if _, ok := seen[key]; ok {
 				continue
 			}

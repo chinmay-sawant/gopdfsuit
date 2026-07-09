@@ -355,6 +355,7 @@ func (r *CustomFontRegistry) LoadFontsFromDirectory(dir string) error {
 		return errors.Join(errors.New("failed to read font directory"), err)
 	}
 
+	dirPrefix := dir + string(filepath.Separator) // PERF-109: precompute stable dir prefix; avoid filepath.Join per entry
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -372,7 +373,7 @@ func (r *CustomFontRegistry) LoadFontsFromDirectory(dir string) error {
 		}
 
 		fontName := name[:len(name)-len(ext)]
-		fontPath := filepath.Join(dir, name)
+		fontPath := dirPrefix + name
 
 		if err := r.RegisterFontFromFile(fontName, fontPath); err != nil {
 			// Log error but continue with other fonts
@@ -385,18 +386,17 @@ func (r *CustomFontRegistry) LoadFontsFromDirectory(dir string) error {
 
 // GetTextWidth calculates the width of text in a custom font (in PDF units at 1pt)
 func (r *CustomFontRegistry) GetTextWidth(fontName string, text string) float64 {
-	scale := func(f *TTFFont) float64 {
-		return 1.0 / float64(f.UnitsPerEm)
-	}
+	// PERF-230: hoist scale computation (1.0 / UnitsPerEm is pure with stable args)
 	if r.noLock {
 		font, ok := r.fonts[fontName]
 		if !ok {
 			return 0
 		}
-		invUPE := scale(font.Font)
+		invUPE := 1.0 / float64(font.Font.UnitsPerEm)
+		getWidth := font.Font.GetCharWidth // PERF-230: cache method value
 		var totalWidth float64
 		for _, char := range text {
-			totalWidth += float64(font.Font.GetCharWidth(char)) * invUPE
+			totalWidth += float64(getWidth(char)) * invUPE
 		}
 		return totalWidth
 	}
@@ -406,10 +406,11 @@ func (r *CustomFontRegistry) GetTextWidth(fontName string, text string) float64 
 		r.mu.RUnlock()
 		return 0
 	}
-	invUPE := scale(font.Font)
+	invUPE := 1.0 / float64(font.Font.UnitsPerEm)
+	getWidth := font.Font.GetCharWidth // PERF-230: cache method value
 	var totalWidth float64
 	for _, char := range text {
-		totalWidth += float64(font.Font.GetCharWidth(char)) * invUPE
+		totalWidth += float64(getWidth(char)) * invUPE
 	}
 	r.mu.RUnlock()
 	return totalWidth

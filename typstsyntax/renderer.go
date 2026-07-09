@@ -948,9 +948,12 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 			X: 0, Y: delimY, Width: delimW,
 		})
 
-		for _, el := range gridLay.Elements {
-			offsetElement(&el, delimW, 0)
-			elements = append(elements, el)
+		if n := len(gridLay.Elements); n > 0 {
+			base := len(elements)
+			elements = append(elements, gridLay.Elements...)
+			for i := base; i < base+n; i++ {
+				offsetElement(&elements[i], delimW, 0)
+			}
 		}
 
 		rightX := delimW + gridLay.Width

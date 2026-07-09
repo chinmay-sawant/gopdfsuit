@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	pdf "github.com/chinmay-sawant/gopdfsuit-client"
@@ -113,13 +114,20 @@ func main() {
 		return
 	}
 	data := make(map[string]string, len(tempMap))
+	var keyBuilder strings.Builder
+	var floatBuf [32]byte
 	for k, v := range tempMap {
-		key := "{" + k + "}"
+		keyBuilder.Reset()
+		keyBuilder.Grow(len(k) + 2)
+		keyBuilder.WriteByte('{')
+		keyBuilder.WriteString(k)
+		keyBuilder.WriteByte('}')
+		key := keyBuilder.String()
 		switch val := v.(type) {
 		case string:
 			data[key] = val
 		case float64:
-			data[key] = strconv.FormatFloat(val, 'f', -1, 64)
+			data[key] = string(strconv.AppendFloat(floatBuf[:0], val, 'f', -1, 64))
 		default:
 			data[key] = fmt.Sprint(val)
 		}

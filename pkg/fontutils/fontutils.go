@@ -133,7 +133,8 @@ func MathFontCandidates() []string {
 			osPaths = font.LinuxPaths
 		}
 		paths = append(paths, osPaths...)
-		paths = append(paths, downloadedFontPath(font.FileName))
+		dp := downloadedFontPath(font.FileName)
+		paths = append(paths, dp)
 	}
 
 	return paths

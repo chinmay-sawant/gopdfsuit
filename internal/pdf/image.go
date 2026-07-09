@@ -221,7 +221,7 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		putZlibWriter(zlibWriter)
 
 		imgObj.Filter = "/FlateDecode"
-		imgObj.ImageData = append([]byte(nil), compressedBuf.Bytes()...)
+		imgObj.ImageData = bytes.Clone(compressedBuf.Bytes())
 		imgObj.ImageDataLen = len(imgObj.ImageData)
 		putCompressBuffer(compressedBuf)
 	}
@@ -247,33 +247,27 @@ func convertToRGB(img image.Image, rgbData []byte) error {
 
 	idx := 0
 
-	// Fast path for NRGBA (common for PNGs)
-	if nrgba, ok := img.(*image.NRGBA); ok {
+	switch v := img.(type) {
+	case *image.NRGBA:
 		for y := 0; y < height; y++ {
-			// Calculate starting offset for this row in the source image
-			rowStart := (y + bounds.Min.Y - nrgba.Rect.Min.Y) * nrgba.Stride
+			rowStart := (y + bounds.Min.Y - v.Rect.Min.Y) * v.Stride
 			for x := 0; x < width; x++ {
-				pixOffset := rowStart + (x+bounds.Min.X-nrgba.Rect.Min.X)*4
-				// Just take R, G, B, ignore Alpha
-				rgbData[idx] = nrgba.Pix[pixOffset]
-				rgbData[idx+1] = nrgba.Pix[pixOffset+1]
-				rgbData[idx+2] = nrgba.Pix[pixOffset+2]
+				pixOffset := rowStart + (x+bounds.Min.X-v.Rect.Min.X)*4
+				rgbData[idx] = v.Pix[pixOffset]
+				rgbData[idx+1] = v.Pix[pixOffset+1]
+				rgbData[idx+2] = v.Pix[pixOffset+2]
 				idx += 3
 			}
 		}
 		return nil
-	}
-
-	// Fast path for RGBA
-	if rgba, ok := img.(*image.RGBA); ok {
+	case *image.RGBA:
 		for y := 0; y < height; y++ {
-			rowStart := (y + bounds.Min.Y - rgba.Rect.Min.Y) * rgba.Stride
+			rowStart := (y + bounds.Min.Y - v.Rect.Min.Y) * v.Stride
 			for x := 0; x < width; x++ {
-				pixOffset := rowStart + (x+bounds.Min.X-rgba.Rect.Min.X)*4
-				// RGBA uses premultiplied alpha
-				rgbData[idx] = rgba.Pix[pixOffset]
-				rgbData[idx+1] = rgba.Pix[pixOffset+1]
-				rgbData[idx+2] = rgba.Pix[pixOffset+2]
+				pixOffset := rowStart + (x+bounds.Min.X-v.Rect.Min.X)*4
+				rgbData[idx] = v.Pix[pixOffset]
+				rgbData[idx+1] = v.Pix[pixOffset+1]
+				rgbData[idx+2] = v.Pix[pixOffset+2]
 				idx += 3
 			}
 		}
@@ -459,11 +453,6 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	bpPref := []byte("\n   /BitsPerComponent ")
 	var bpBuf [12]byte
 	bpNum := strconv.AppendInt(bpBuf[:0], int64(imgObj.BitsPerComp), 10)
-	chunk := make([]byte, 0, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
-	chunk = append(chunk, csPref...)
-	chunk = append(chunk, imgObj.ColorSpace...)
-	chunk = append(chunk, bpPref...)
-	chunk = append(chunk, bpNum...)
 	var lenBuf [12]byte
 	lenNum := strconv.AppendInt(lenBuf[:0], int64(imgObj.ImageDataLen), 10)
 	filterPref := []byte("\n   /Filter ")
@@ -473,9 +462,13 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	if imgObj.Filter != "" {
 		filterLen = len(filterPref) + len(imgObj.Filter)
 	}
-	tailCap := len(chunk) + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
+	chunkLen := len(csPref) + len(imgObj.ColorSpace) + len(bpPref) + len(bpNum)
+	tailCap := chunkLen + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
 	tail := make([]byte, 0, tailCap)
-	tail = append(tail, chunk...)
+	tail = append(tail, csPref...)
+	tail = append(tail, imgObj.ColorSpace...)
+	tail = append(tail, bpPref...)
+	tail = append(tail, bpNum...)
 	if imgObj.Filter != "" {
 		tail = append(tail, filterPref...)
 		tail = append(tail, imgObj.Filter...)
@@ -545,7 +538,8 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	if imgObj.Filter != "" {
 		filterLen = len(filterPref) + len(imgObj.Filter)
 	}
-	tailCap := len(chunk) + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
+	chunkLen := len(chunk)
+	tailCap := chunkLen + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
 	tail := make([]byte, 0, tailCap)
 	tail = append(tail, chunk...)
 	if imgObj.Filter != "" {
