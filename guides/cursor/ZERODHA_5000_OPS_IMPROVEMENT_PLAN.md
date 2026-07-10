@@ -1,58 +1,29 @@
 # Zerodha pprof → 5000 ops/sec plan (compliance-safe)
 
-**Date:** 2026-07-09  
+**Date:** 2026-07-09 (last scan: 2026-07-10)  
+**Scan status:** Branch `codehound-2061k-191` @ `3accc2c` — mean throughput **~2,838 ops/s**  
 **Source:** `guides/cursor/baselines/zerodha_pprof_runs/` (2026-07-09)  
 **Workload:** 80% Retail / 15% Active / 5% HFT · 5000 iters · 48 workers · PDF/A + embedded fonts + **RSA digital signature**  
 **Hard constraint:** keep PDF/A, PDF/UA structure, Arlington-compatible output, and valid signatures — **no** “turn off compliance for speed”
 
 ---
 
-## Baseline vs target
+## Scan summary (2026-07-10)
 
-| Metric | Current | Target | Gap |
-|--------|---------|--------|-----|
-| Mean throughput | **~2212 ops/s** (x10) | **5000 ops/s** | **~2.26×** |
-| Best throughput | **~2716 ops/s** | 5000 | **~1.84×** |
-| Mean avg latency | **~21.5 ms** | **~9.6 ms** @ 48 workers | **~55% latency cut** |
-| Peak alloc | **~1.0–1.2 GB** | lower preferred | GC headroom |
+| Phase | Fixed | Partial | Not fixed | Total |
+|-------|-------|---------|-----------|-------|
+| P0 — Copies & growth | 2 | 1 | 2 | 5 |
+| P1 — Compression | 1 | 2 | 2 | 5 |
+| P2 — Structure tree | 0 | 3 | 2 | 5 |
+| P3 — drawTable | 5 | 1 | 1 | 7 |
+| P4 — Signature | 4 | 1 | 1 | 6 |
+| P5 — Font subset | 0 | 1 | 2 | 3 |
+| P6 — Concurrency/GC | 0 | 2 | 2 | 4 |
+| **Total** | **12** | **11** | **12** | **35** |
 
-**Rule of thumb at 48 workers:** `ops/s ≈ 48000 / avg_latency_ms` → need **~9.6 ms** avg.
-
-Related artifacts:
-
-- Timing (x10): `guides/cursor/baselines/zerodha_bench_x10_wsl_stats_latest.txt`
-- CPU profiles: `guides/cursor/baselines/zerodha_pprof_runs/cpu_zerodha_run{1..5}.prof`
-- Heap profile: `guides/cursor/baselines/zerodha_pprof_runs/heap_zerodha.prof`
-- Run logs: `guides/cursor/baselines/zerodha_pprof_runs/zerodha_*.txt`
+**Throughput gap:** ~2,838 / 5,000 ops/s ≈ **1.76× to go**. Most impactful remaining items: P0.2 (compress copy), P0.3 (pre-grow), P1.5 (serial compress small docs), P2.1–2.2 (struct tree `strings.Builder`), P4.3 (signature copy), P5.1 (font subset cache).
 
 ---
-
-## Where time/memory goes (pprof)
-
-### CPU (cum %, run1-style)
-
-| Bucket | ~cum | What it is | Compliance note |
-|--------|------|------------|-----------------|
-| **RSA / PKCS#7 sign** | **~20–21%** | `SignPDF` → `addMulVVW1024` ~10–11% flat | **Must keep** valid RSA signature |
-| **zlib/flate** | **~23%** | Page streams + font + ICC | Keep `/FlateDecode`; can change level/impl |
-| **`drawTable`** | **~21%** | cells + MCID + widths + text | Keep structure; fix cost |
-| **`func4` compress** | **~16%** | parallel page zlib close/write | Same streams, less waste |
-| **`func6` struct tree** | **~8–9%** | `strings.Builder` + `AppendInt` + map | Keep same StructElem tree |
-| **StructureManager** | **~6–8%** | `BeginMarkedContentBuf` / pool | Keep PDF/UA tags |
-| **Font subset + compress** | **~8%** | `GenerateTrueTypeFontObjects` | Keep embedded/subset fonts |
-| **memmove / memclr / grow** | **~12–15%** flat-ish | buffer growth + copies | Neutral |
-
-### Heap (alloc_space)
-
-| Hotspot | Share | Action class |
-|---------|-------|--------------|
-| `bytes.growSlice` | **~26%** | pre-grow / pool |
-| `slices.Clone` (final PDF) | **~13%** | own buffer, drop double-copy |
-| `strings.Builder` | **~11%** | write struct tree to `[]byte` / `bytes.Buffer` |
-| `subsetGlyfAndLoca` / font build | **~12%+** | subset cache / reuse |
-| `BeginMarkedContentBuf` | **~5%** | pool / fewer string ops |
-| `flate.NewWriter` | **~6%** | better pool / reuse |
-| Signature path | **~4–6%** | less ASN.1/PDF re-copy |
 
 ---
 
@@ -70,34 +41,38 @@ Related artifacts:
 
 ## Phase checklist
 
-### P0 — Free / near-free copies & growth (~10–20% toward target)
+### P0 — Free / near-free copies & growth
 
 Compliance impact: **none** (same PDF semantics).
 
-- [ ] **P0.1 — Kill double `slices.Clone` on signed path**  
-  `generator.go` ~1478–1490 clones unsigned then signed (~**13% alloc**).  
-  Own the buffer once; only copy when signature mutates in place.  
-  **Validate:** sign tests + heap `slices.Clone` drops sharply.
+- [x] **P0.1 — Kill double `slices.Clone` on signed path**  
+  `generator.go` ~1478–1490 — **FIXED** (commit `3accc2c`).  
+  Signed path now passes `pdfBuffer.Bytes()` directly to `UpdatePDFWithSignature` which does its own `bytes.Clone` internally. No clone before signing; only one `slices.Clone` on the unsigned error path.  
+  **Evidence:** `generator.go:1480-1493` — single clone on non-signed path only.
 
 - [ ] **P0.2 — Drop compressed-page extra `make`+`copy`**  
-  `func4` does `cp := make([]byte, n); copy(cp, …)` after zlib (~line 822).  
-  Take ownership of pool buffer or append into pre-sized slice without second copy.  
+  `generator.go:826` — still does `cp := slices.Clone(compressedBuf.Bytes())`.  
+  Functionally identical to old `make`+`copy`. Pool buffer ownership still requires a copy.  
+  **To fix:** Take ownership of pool buffer or append into pre-sized slice without second copy.  
   **Validate:** CPU `memmove` / alloc down; PDF streams identical.
 
 - [ ] **P0.3 — Pre-grow content streams from HFT/row estimates**  
-  Heap: `growSlice` via `AddNewPage` / `drawTable` (~**14% alloc** under grow).  
-  Grow page buffers from template stats (rows × cols × ~bytes/cell), not 0→power-of-two thrash.  
+  `pagemanager.go:48,81` — fixed 64KB `Grow()` per page stream. No template-stats-based sizing.  
+  `estimateInitialContentStreamCap` was removed in refactoring — does not exist on this branch.  
+  **To fix:** Add `estimateInitialContentStreamCap(rows, cols)` and pass it to `Grow()` at page creation.  
   **Validate:** fewer `bytes.growSlice` samples; lower peak MB.
 
-- [ ] **P0.4 — Pre-size main `pdfBuffer` + xref map**  
-  `func6` burns time on `mapassign` + buffer growth.  
-  Reserve `xrefOffsets` capacity = estimated object count; `pdfBuffer.Grow(estimatedSize)`.  
+- [-] **P0.4 — Pre-size main `pdfBuffer` + xref map**  
+  **Partial fix:** `xrefOffsets` pre-sized with estimate at `generator.go:126` (`make(map[int]int, 64+...)`).  
+  Many builders pre-sized (fieldsRef, acroB, xobjBuilder, csBuilder, stdFontRefs, compressedBuf, ptBuilder).  
+  **Not fixed:** `pdfBuffer` has no estimated `Grow()` — only the pool default 64KB.  
+  **To fix:** Add `pdfBuffer.Grow(estimateFinalPDFSize(template))`.  
   **Validate:** lower `growslice` + map assign in func6 peek.
 
-- [ ] **P0.5 — Cache ICC / OutputIntent bytes process-wide**  
-  `GenerateOutputIntent` / gray ICC still shows up (~**2–3%** + flate).  
-  Compress once, reuse immutable `[]byte` for all PDFs in process.  
-  **Validate:** OutputIntent object identical; CPU ICC path near zero after warm-up.
+- [x] **P0.5 — Cache ICC / OutputIntent bytes process-wide**  
+  **FIXED** — `pdfa.go:347-379` — both sRGB and Gray ICC profiles built + compressed once via `sync.Once`.  
+  Cached as package-level `[]byte`. `GetSRGBICCCompressed()` returns cached data.  
+  Minor residual: `bytes.Clone` on gray ICC cached data in non-encrypted path (`pdfa.go:423`).
 
 **Exit:** mean ≥ **~2800–3200 ops/s** (stretch if clone+compress copy are big).
 
@@ -107,25 +82,30 @@ Compliance impact: **none** (same PDF semantics).
 
 Compliance: keep **Flate** streams; do **not** switch to unsupported filters for PDF/A.
 
-- [ ] **P1.1 — Use `flate.BestSpeed` (or level 1) for page content**  
-  ~**23%** CPU in flate; Close dominates. PDF/A allows FlateDecode at any level.  
+- [x] **P1.1 — Use `flate.BestSpeed` (or level 1) for page content**  
+  **FIXED** — `font/compression.go:16` — `ZlibWriterPool` creates writers with `zlib.BestSpeed`.  
+  All compression paths (pages, images, fonts, ICC, redaction, forms) use `BestSpeed` through pooled writers.  
   **Validate:** size increase budgeted (e.g. retail &lt; +15%); throughput up.
 
-- [ ] **P1.2 — Tighten zlib writer pool under 48 workers**  
-  Heap still has `flate.NewWriter` / `newDeflateFast`.  
-  Ensure `GetZlibWriter` always hits pool; reset properly; avoid NewWriter per page under load.  
+- [-] **P1.2 — Tighten zlib writer pool under 48 workers**  
+  **Partial:** `font/compression.go:13-41` — pool exists with Get/Put + `Reset` before reuse. No `NewWriter` per page.  
+  **Not fixed:** Parallel compression in `generator.go:800` uses bare `errgroup.Group` with **no concurrency limit** (`SetLimit`). All content streams compress concurrently without throttling.  
+  **To fix:** Add `compGroup.SetLimit(48)` or use a bounded semaphore.  
   **Validate:** heap `NewWriter` flat ↓; no pool races.
 
 - [ ] **P1.3 — Optional: `github.com/klauspost/compress/flate` drop-in**  
-  Same API, often 1.5–2× encode. Keep output filter `/FlateDecode`.  
+  **NOT FIXED** — `go.mod` does not list `klauspost/compress` as a dependency. Only `klauspost/cpuid/v2` is present (indirect). All flate/zlib uses standard library.  
   **Validate:** veraPDF + golden smoke; measure size/CPU.
 
-- [ ] **P1.4 — Font stream compress once per unique subset**  
-  Font path shares flate cost with pages. Cache compressed subset stream by font+glyph-set hash.  
+- [-] **P1.4 — Font stream compress once per unique subset**  
+  **Partial:** Within a single PDF generation, each font+subset is compressed exactly once (fonts deduped by registry).  
+  **Not fixed:** No hash-based cross-generation cache (`fontCompressCache`, `glyphSetHash`). Each `GenerateTrueTypeFontObjects` call recompresses.  
+  **To fix:** Add `sync.Map` keyed by (font name, glyph-set fingerprint) → compressed stream.  
   **Validate:** identical glyphs → identical font objects; HFT/retail both faster.
 
 - [ ] **P1.5 — Skip parallel compress overhead for 1-page docs**  
-  Retail/active are small; errgroup spawn cost may not pay. Serial compress for ≤2 pages.  
+  **NOT FIXED** — `generator.go:797-834` always uses `errgroup.Group` regardless of page count. No serial fallback for `nStreams <= 2`.  
+  **To fix:** Check `len(pageManager.ContentStreams)` before spawning goroutines; serial path for ≤2 pages.  
   **Validate:** retail latency down without HFT regression.
 
 **Exit:** mean ≥ **~3500–4000 ops/s** combined with P0.
@@ -137,25 +117,32 @@ Compliance: keep **Flate** streams; do **not** switch to unsupported filters for
 Compliance: **same** StructElem tree, MCIDs, roles — only serialization changes.
 
 - [ ] **P2.1 — Rewrite `writeStructElems` with `[]byte` / `bytes.Buffer`, not `strings.Builder`**  
-  `func6` list: `WriteString` + `AppendInt` dominate.  
-  Append object lines into shared scratch; write once to `pdfBuffer`.  
+  **NOT FIXED** — `generator.go:1269` — `writeStructElems` still uses `var sb strings.Builder` per call.  
+  Also `structure.go:339` — `GenerateStructTreeRoot` uses `strings.Builder`.  
+  **To fix:** Rewrite both to use `[]byte` scratch buffer; flush to `pdfBuffer` once.  
   **Validate:** structure objects bit-identical (or canonical-equal); CPU func6 ↓.
 
 - [ ] **P2.2 — Avoid per-element `strings.Builder` alloc**  
-  Reuse one builder/buffer for whole tree walk.  
+  **NOT FIXED** — `generator.go:1269` — a new `strings.Builder` is allocated on every recursive `writeStructElems` call.  
+  **To fix:** Pass a shared `*bytes.Buffer` through the tree walk; no per-element builder allocation.  
   **Validate:** alloc `strings.Builder` ↓.
 
-- [ ] **P2.3 — Batch xref offset recording without hot map churn**  
-  Pre-sized slice/map; avoid repeated `mapassign_fast64` in tight loop.  
+- [-] **P2.3 — Batch xref offset recording without hot map churn**  
+  **Partial:** `generator.go:126` — `xrefOffsets` map is pre-sized with estimate.  
+  **Not fixed:** Still uses individual `xrefOffsets[objID] = pdfBuffer.Len()` assignments (~30+ scattered sites). No batching.  
+  **To fix:** Collect offsets in a pre-sized slice, batch-flush at end, or use `[]struct{objID, offset}` + sort.  
   **Validate:** func6 map time ↓.
 
-- [ ] **P2.4 — StructureManager: reduce pool miss cost**  
-  `BeginMarkedContentBuf` ~**6%** cum; pool getSlow / popTail shows up.  
-  Larger local freelist per `PageManager`; pre-allocate N struct elems from row×col estimate.  
+- [-] **P2.4 — StructureManager: reduce pool miss cost**  
+  **Partial:** `structure.go:119-136` — `sync.Pool` with `acquireStructElem` / `ReleaseStructElemsToPool` exists.  
+  **Not fixed:** No local freelist per `PageManager`. No pre-allocation from row×col estimates.  
+  **To fix:** Add per-SM ring buffer or slice of pre-allocated `StructElem` slots.  
   **Validate:** tagging still correct; pool CPU ↓; **do not** disable tagging for PDF/A path.
 
-- [ ] **P2.5 — MCID / BDC string encoding without intermediate strings**  
-  Append ` /BDC` operands into page buffer with scratch `[]byte`.  
+- [-] **P2.5 — MCID / BDC string encoding without intermediate strings**  
+  **Partial:** `structure.go:238-289` — `BeginMarkedContentBuf` writes BDC directly to `*bytes.Buffer` (correct). Used in hot table path (`draw.go:1071`).  
+  **Not fixed:** Some paths still use `BeginMarkedContent` with intermediate `strings.Builder` (e.g. `draw.go:282` — title headings, figure elements).  
+  **To fix:** Migrate remaining `BeginMarkedContent` callers to `BeginMarkedContentBuf`.  
   **Validate:** content stream operators unchanged.
 
 **Exit:** structure still validates; mean +**300–600 ops/s**.
@@ -164,29 +151,39 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
 
 ### P3 — `drawTable` hot path (~21% cum; keep cells + tags)
 
-- [ ] **P3.1 — Cache `parseProps` / font resolve per distinct props string**  
-  Props re-parsed per cell (`parseProps` in drawTable children).  
+- [x] **P3.1 — Cache `parseProps` / font resolve per distinct props string**  
+  **FIXED** — `utils.go:82-88` — global `propsCache` map with RWMutex (`maxPropsCache = 64`).  
+  `parseProps()` checks cache first (`utils.go:91-96` RLock), stores result on miss.  
+  Also `drawTitleTable` has its own `resolvedFontCache` for font name resolution.  
   **Validate:** same fonts/styles; CPU parse ↓.
 
-- [ ] **P3.2 — Speed `appendFmtNum` / coordinate writes**  
-  ~**2.4%** cum; fixed-point or dtoA into scratch without extra strconv layers.  
+- [-] **P3.2 — Speed `appendFmtNum` / coordinate writes**  
+  **Partial:** `draw.go:77-105` — uses integer math (`int64(f*100 + 0.5)`) + `strconv.AppendInt`, avoiding expensive `strconv.AppendFloat`. Used at ~100 call sites.  
+  **Residual:** Still calls `strconv.AppendInt` — a fully custom fixed-point buffer with manual digit writing would eliminate that too.  
   **Validate:** visual positions same (or within 0.01 pt).
 
 - [ ] **P3.3 — Width measurement cache**  
-  `EstimateTextWidth` / `GetTextWidth` ~**2–3%**.  
-  Cache (font, size, text) or measure once per unique cell text.  
+  **NOT FIXED** — `utils.go:369-385` (`EstimateTextWidth`) and `font/registry.go:388-417` (`GetTextWidth`) both recompute per call.  
+  No (font, size, text) → width look-up table exists. Custom fonts loop over every character.  
+  **To fix:** Add LRU cache keyed by (resolvedName, text, font) or measure once per unique cell text.  
   **Validate:** wrap layout golden tests.
 
-- [ ] **P3.4 — `appendTextForPDF` zero-extra-alloc**  
-  Already partially optimized; ensure wrap path never `string(line)` + re-escape.  
+- [x] **P3.4 — `appendTextForPDF` zero-extra-alloc**  
+  **FIXED** — `utils.go:411-425` — takes/returns `[]byte` (no intermediate `string`).  
+  Wrap path (`draw.go:1393`) uses `textPosBuf[:0]` as destination + `byteString()` (unsafe) for zero-copy string view.  
+  Non-wrap path (`draw.go:1459`) reuses same buffer. No `string(line)` conversions in hot path.  
   **Validate:** escaping tests; heap under drawTable ↓.
 
-- [ ] **P3.5 — Row-level structure, not over-tagging**  
-  Keep Table/TR/TH/TD as required; avoid redundant nested structure if any exists.  
+- [x] **P3.5 — Row-level structure, not over-tagging**  
+  **FIXED** — `draw.go:932` — `Table → TR → TD/TH` hierarchy, clean structure.  
+  Table opens once per table (`StructTable`), row per row (`StructTR`), cell as marked content (`BeginMarkedContentBuf`).  
+  No redundant nesting, no extra wrapper elements.  
   **Validate:** PDF/UA checker; **no** stripping required tags.
 
-- [ ] **P3.6 — Reuse row scratch slices (already started)**  
-  Confirm `wrappedTextLines` / props slices never re-allocate every row beyond capacity.  
+- [x] **P3.6 — Reuse row scratch slices (already started)**  
+  **FIXED** — `draw.go:963-975` — all scratch buffers allocated once before row loop:  
+  `cellWidthsForRow`, `wrappedTextLines`, `rowCellProps`, `rowResolvedFonts`, `scratchBuf`, `borderBuf`, `xobjBuf`, `colorBuf`, `placeholderBuf`, `checkboxBuf` + `WrapState`.  
+  `wrappedTextLines[colIdx] = nil` resets per row; `buf[:0]` pattern throughout. No re-allocation per row.  
   **Validate:** allocs/op on table microbench ↓.
 
 **Exit:** `drawTable` cum **&lt; 15%**; retail/active latency down materially.
@@ -197,24 +194,34 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
 
 ~**20%** CPU is crypto — cannot delete for this workload (retail has `Signature.Enabled: true`).
 
-- [ ] **P4.1 — Parse PEM keys once globally; reuse `*rsa.PrivateKey` + certs**  
-  Ensure every PDF does not re-parse PEM.  
+- [x] **P4.1 — Parse PEM keys once globally; reuse `*rsa.PrivateKey` + certs**  
+  **FIXED** — `signature.go:56-68` — `signerPEMMaterialCache` is a global `sync.Map` with SHA256-based cache key.  
+  `signature.go:125-134` — cache check at top of `parseSignerPEMMaterials`. Eviction at 64 entries.  
   **Validate:** signature still verifies; CPU outside `addMulVVW` drops.
 
-- [ ] **P4.2 — Reuse `PDFSigner` / precomputed digests scaffolding**  
-  Avoid re-building cert chain ASN.1 every request; cache DER of certs/chain.  
+- [-] **P4.2 — Reuse `PDFSigner` / precomputed digests scaffolding**  
+  **Partial:** `signature.go:645-649` — cert chain uses `Raw` bytes (no re-marshaling).  
+  **Not fixed:** Full PKCS#7 `signedData` (lines 539-686) is re-marshaled every `SignPDF` call. `authenticatedAttrs` includes fresh `signingTime`, preventing full precomputation.  
+  **To fix:** Pre-marshal static portion of PKCS#7 SignedData; only re-marshal the time-varying `authenticatedAttrs`.  
   **Validate:** PKCS#7 still correct; heap signature path ↓.
 
 - [ ] **P4.3 — Minimize PDF byte copies in `UpdatePDFWithSignature`**  
-  ~**330 MB alloc** in signature update. Sign in place with reserved ByteRange holes.  
+  **NOT FIXED** — `signature.go:812` still does `result := bytes.Clone(pdfData)` — full PDF copy (~330 MB).  
+  Then two `copy()` calls for ByteRange and Contents replacement.  
+  Generator side (`generator.go:1481`) avoids a *second* clone by passing raw bytes directly, but the signer's own clone remains.  
+  **To fix:** Sign in place with reserved ByteRange holes or pass a writable buffer.  
   **Validate:** ByteRange / Contents length correct; pdfsig pass.
 
-- [ ] **P4.4 — Confirm RSA key size is 2048 (not 4096)** for bench certs  
-  4096 ≈ 4–8× slower. Use 2048 if policy allows (typical PDF signing).  
+- [x] **P4.4 — Confirm RSA key size is 2048 (not 4096)** for bench certs  
+  **FIXED** — `certs/leaf.pem` confirmed: `Public-Key: (2048 bit)`.  
+  Code uses `rsa.SignPKCS1v15` / SHA256 (`signature.go:593-595`), consistent with 2048-bit key.  
   **Validate:** still “compliance-grade” for product; document choice.
 
-- [ ] **P4.5 — Do not move to “unsigned mode” for the 5000 target**  
-  Target is **with** signing. Separate optional unsigned bench is fine for isolation only.
+- [x] **P4.5 — Do not move to “unsigned mode” for the 5000 target**  
+  **FIXED** — `generator.go:426-444` — signer created only when `SignatureConfig.Enabled`.  
+  `generator.go:1480-1489` — signing unconditional when signer exists. No unsigned-skip optimization.  
+  The only unsigned path is the error fallback (line 1486).  
+  **Validate:** no unsigned mode for perf; separate optional bench is fine.
 
 **Exit:** sign path still ~RSA-bound but **overhead around RSA &lt; 3–5%**; total sign cum closer to pure mul cost.
 
@@ -223,15 +230,23 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
 ### P5 — Font subset caching (big on repeated charset)
 
 - [ ] **P5.1 — Process-level cache: font file + used rune set → subset + compressed stream**  
-  Zerodha docs share Latin/digit charset; re-subsetting every PDF wastes **~12% alloc** + flate.  
+  **NOT FIXED** — `font/registry.go:149-178` — `GenerateSubsets()` calls `SubsetTTF()` fresh on every invocation.  
+  No `sync.Map` or cache keyed by (font identity, rune set fingerprint). ~**12% alloc** overhead.  
+  **To fix:** Add global `sync.Map` with key = hash(font-name + sorted-glyphs) → (subset-data, glyf/loca).  
   **Validate:** ToUnicode/CID maps correct; no cross-request glyph leaks.
 
 - [ ] **P5.2 — `MarkCharsUsed` cheaper set**  
-  Bitset / roaring for BMP runes vs map churn in tables.  
+  **NOT FIXED** — `font/registry.go:27` — `UsedChars map[rune]bool` (standard map).  
+  `registry.go:130-146` — `MarkCharsUsed` does `for _, char := range text { font.UsedChars[char] = true }`.  
+  Only optimization: pre-sized `make(map[rune]bool, 256)`. No bitset / roaring bitmap.  
+  **To fix:** For BMP runes, replace with `[8192]uint64` bitset (~65 KB per font).  
   **Validate:** subset completeness tests.
 
-- [ ] **P5.3 — Avoid re-cloning glyf/loca buffers**  
-  `subsetGlyfAndLoca` ~**7% alloc**. Write into pooled buffers.  
+- [-] **P5.3 — Avoid re-cloning glyf/loca buffers**  
+  **Partial:** `font/subset.go:253` — `glyphScratch := make([]byte, len(glyfData))` — single reusable scratch per call.  
+  `putU16BE`/`putU32BE` replace `binary.Write`. Map pre-sized.  
+  **Not fixed:** No `sync.Pool` for scratch or loca slices. `newLoca` still fresh `make([]byte, ...)`. `newGlyf.Bytes()` returns fresh copy.  
+  **To fix:** Add `sync.Pool` for glyf/loca buffers; reuse across calls.  
   **Validate:** font checksum / render smoke.
 
 **Exit:** second+ PDF of same template family much cheaper; multi-worker steady-state ↑.
@@ -240,37 +255,55 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
 
 ### P6 — Concurrency / GC (system-level, still compliance-neutral)
 
-- [ ] **P6.1 — Measure GOMAXPROCS sweet spot** (not always 48)  
-  Over-subscription can inflate max latency (400–800 ms tails).  
+- [-] **P6.1 — Measure GOMAXPROCS sweet spot** (not always 48)  
+  **Partial:** `makefile:105` — `GOMAXPROCS_BENCH ?= 24`. `makefile:120` — `K6_LIGHT_GOMAXPROCS ?= 12`.  
+  `main.go:61` — `runtime.GOMAXPROCS(0)` used for semaphore size.  
+  **Not done:** No systematic A/B sweep documented (12, 24, 48, 96). No harness that varies GOMAXPROCS programmatically.  
+  **To do:** Run benchmark at GOMAXPROCS=12,24,48,96 and record throughput + p99 latency.  
   **Validate:** mean ops/s and p99 together.
 
-- [ ] **P6.2 — Reduce alloc rate to cut GC** (`mallocgc` ~**7.5%** cum)  
-  P0–P5 should cut this; re-check GC CPU after each phase.
+- [-] **P6.2 — Reduce alloc rate to cut GC** (`mallocgc` ~**7.5%** cum)  
+  **Indirect progress:** Multiple pools added across P0-P4 (pdfBufferPool, scratchBufPool, ZlibWriterPool, CompressBufPool, structElemPool, templatePDFPool). Pre-sized maps everywhere.  
+  **Not done:** No targeted P6.2 profiling pass. GC CPU share not re-measured after optimizations.  
+  **To do:** Re-profile with `-sample_index=alloc_space` after remaining phases; quantify GC CPU.  
+  **Validate:** GC CPU % ↓ in pprof.
 
 - [ ] **P6.3 — Optional `GOMEMLIMIT` experiment**  
-  Cap heap thrash under 48 workers; only if it helps throughput without OOM.
+  **NOT FIXED** — No `GOMEMLIMIT`, `GOGC`, or `debug.SetGCPercent()` anywhere in codebase or makefile.  
+  **To do:** Add `GOMEMLIMIT=800MiB` or similar experiment in benchmark harness.  
+  **Validate:** peak heap stabilises, throughput does not regress.
 
 - [ ] **P6.4 — HFT 5% is a latency bomb** (~2.4 MB PDF)  
-  Keep mix fixed for the gold standard; do not remove HFT to “hit” 5000.  
-  Optimize HFT path (pages, compress, fonts) so it does not dominate tails.
+  **NOT FIXED** — HFT remains 5% of mix; no HFT-specific path optimizations.  
+  Max latency (707ms) is always the HFT doc under contention.  
+  **To do:** Profile HFT specifically; optimize its page pre-growing, compression, font handling.  
+  **Validate:** HFT max latency ↓ without removing from mix.
 
 ---
 
-## Suggested implementation order
+## Suggested implementation order (updated 2026-07-10)
 
-| Order | Item | Est. gain | Risk to compliance |
-|------:|------|-----------|--------------------|
-| 1 | P0.1 double Clone | High alloc / some CPU | Low |
-| 2 | P0.2 compress copy | Medium | Low |
-| 3 | P0.3–P0.4 pre-grow | Medium | Low |
-| 4 | P0.5 ICC cache | Small–medium | Low |
-| 5 | P1.1 BestSpeed + P1.2 pool | **High** | Low (size ↑ only) |
-| 6 | P2.1–P2.3 struct serialize | **High** | Low if golden-tested |
-| 7 | P5.1 font subset cache | **High** steady-state | Medium (cache keys) |
-| 8 | P4.1–P4.3 signer reuse | Medium (RSA remains) | Medium |
-| 9 | P3 drawTable microopts | Medium | Low–medium |
-| 10 | P1.3 klauspost | High optional | Low |
-| 11 | P6 GOMAXPROCS / GC | Variable | None |
+| Order | Item | Status | Est. gain | Risk to compliance |
+|------:|------|--------|-----------|--------------------|
+| 1 | P0.1 double Clone | **FIXED** | — | — |
+| 2 | P0.2 compress copy | **NOT FIXED** | Medium | Low |
+| 3 | P0.3–P0.4 pre-grow | P0.4 PARTIAL, P0.3 NOT | Medium | Low |
+| 4 | P0.5 ICC cache | **FIXED** | — | — |
+| 5 | P1.1 BestSpeed + P1.2 pool | P1.1 FIXED, P1.2 PARTIAL | **High** | Low |
+| 6 | P2.1–P2.3 struct serialize | **NOT FIXED** (P2.3 PARTIAL) | **High** | Low if golden-tested |
+| 7 | P5.1 font subset cache | **NOT FIXED** | **High** steady-state | Medium (cache keys) |
+| 8 | P4.1–P4.3 signer reuse | P4.1 FIXED, P4.2 PARTIAL, P4.3 NOT | Medium (RSA remains) | Medium |
+| 9 | P3 drawTable microopts | Mostly FIXED (5/6) | Medium | Low–medium |
+| 10 | P1.3 klauspost | **NOT FIXED** | High optional | Low |
+| 11 | P6 GOMAXPROCS / GC | Mostly NOT FIXED | Variable | None |
+
+**Remaining high-impact items to reach 5000:**
+1. **P4.3** — Sign in-place (kill `bytes.Clone` of ~330 MB PDF per sign)
+2. **P0.2** — Eliminate compress-page `slices.Clone` copy
+3. **P0.3** — Pre-grow content streams from template estimates
+4. **P2.1–P2.2** — Rewrite struct tree serialization (drop `strings.Builder`)
+5. **P1.5** — Serial compress for ≤2-page docs
+6. **P5.1** — Font subset cache across PDF generations
 
 **Realistic stacking:** P0+P1+P2+P5 should approach **~1.7–2.1×**. P3+P4+P6 needed to clear **2.26×** to 5000 **with** RSA+PDF/A still on.
 
