@@ -1,7 +1,7 @@
 # Zerodha pprof → 5000 ops/sec plan (compliance-safe)
 
 **Date:** 2026-07-09 (last scan: 2026-07-10)  
-**Scan status:** Branch `codehound-2061k-191` @ `3accc2c` — mean throughput **~2,838 ops/s**  
+**Scan status:** Branch `codehound-2061k-191` @ `dffc13e` — 10-run mean throughput **2,551.77 ops/s** (best run **2,838.25 ops/s**)  
 **Source:** `guides/cursor/baselines/zerodha_pprof_runs/` (2026-07-09)  
 **Workload:** 80% Retail / 15% Active / 5% HFT · 5000 iters · 48 workers · PDF/A + embedded fonts + **RSA digital signature**  
 **Hard constraint:** keep PDF/A, PDF/UA structure, Arlington-compatible output, and valid signatures — **no** “turn off compliance for speed”
@@ -10,18 +10,20 @@
 
 ## Scan summary (2026-07-10)
 
-| Phase | Fixed | Partial | Not fixed | Total |
-|-------|-------|---------|-----------|-------|
-| P0 — Copies & growth | 2 | 1 | 2 | 5 |
-| P1 — Compression | 1 | 2 | 2 | 5 |
-| P2 — Structure tree | 0 | 3 | 2 | 5 |
-| P3 — drawTable | 5 | 1 | 1 | 7 |
-| P4 — Signature | 4 | 1 | 1 | 6 |
-| P5 — Font subset | 0 | 1 | 2 | 3 |
-| P6 — Concurrency/GC | 0 | 2 | 2 | 4 |
-| **Total** | **12** | **11** | **12** | **35** |
+| Phase | Fixed | Partial | Not fixed | Incorrect/regressed | Total |
+|-------|-------|---------|-----------|---------------------|-------|
+| P0 — Copies & growth | 1 | 1 | 2 | 1 | 5 |
+| P1 — Compression | 1 | 2 | 2 | 0 | 5 |
+| P2 — Structure tree | 0 | 3 | 2 | 0 | 5 |
+| P3 — drawTable | 2 | 3 | 1 | 0 | 6 |
+| P4 — Signature | 3 | 1 | 1 | 0 | 5 |
+| P5 — Font subset | 0 | 1 | 2 | 0 | 3 |
+| P6 — Concurrency/GC | 0 | 2 | 2 | 0 | 4 |
+| **Total** | **7** | **13** | **12** | **1** | **33** |
 
-**Throughput gap:** ~2,838 / 5,000 ops/s ≈ **1.76× to go**. Most impactful remaining items: P0.2 (compress copy), P0.3 (pre-grow), P1.5 (serial compress small docs), P2.1–2.2 (struct tree `strings.Builder`), P4.3 (signature copy), P5.1 (font subset cache).
+**Throughput gap:** 2,551.77 / 5,000 ops/s; the target is still **1.96× away**. The 2,838.25 figure is the best run, not the mean. Most impactful remaining items: P0.2 (compress copy), P0.3 (pre-grow), P1.5 (serial compress small docs), P2.1–2.2 (struct tree `strings.Builder`), P4.3 (signature copy), P5.1 (font subset cache).
+
+The checklist contains **33 actual items**, not 35. The fully complete count is **7**, but only five of those are substantive performance changes; P4.4 is a certificate confirmation and P4.5 is a guardrail confirmation.
 
 ---
 
@@ -31,11 +33,13 @@
 
 - [ ] **Throughput:** Zerodha gold standard ≥ **5000 ops/s** mean over 10 runs (same machine class / `GOMAXPROCS`)
 - [ ] **Compliance:** PDF/A validate (veraPDF) on retail/active/hft samples **pass**
-- [ ] **Structure:** tagged PDF / PDF/UA structure tree still present when `PDFACompliant`
+- [x] **Structure:** tagged PDF / PDF/UA structure tree still present when `PDFACompliant` (current retail/active/HFT PDF-UA checks pass)
 - [ ] **Signature:** signature validates (OpenSSL / pdfsig / existing tests)
-- [ ] **Byte-size sanity:** retail ~61 KB, active ~76 KB, HFT ~2.4 MB ± small compress delta
+- [x] **Byte-size sanity:** retail ~61 KB, active ~76 KB, HFT ~2.4 MB ± small compress delta (current outputs are within range)
 - [ ] **No correctness regressions:** `go test ./internal/pdf/... ./pkg/gopdflib/...`
 - [ ] **Re-profile after each phase** and attach top-20 flat/cum + heap tops
+
+**Current gate failures:** PDF/A-4 validation fails for all three current Zerodha outputs because the sRGB ICC stream is empty/invalid; signature validity is unverified; and the focused Go test gate panics in redaction (`internal/pdf/redact/search.go:337-343`). The compliance shell wrapper must not be treated as proof of success until its parallel wait/child-status handling is corrected.
 
 ---
 
@@ -69,10 +73,8 @@ Compliance impact: **none** (same PDF semantics).
   **To fix:** Add `pdfBuffer.Grow(estimateFinalPDFSize(template))`.  
   **Validate:** lower `growslice` + map assign in func6 peek.
 
-- [x] **P0.5 — Cache ICC / OutputIntent bytes process-wide**  
-  **FIXED** — `pdfa.go:347-379` — both sRGB and Gray ICC profiles built + compressed once via `sync.Once`.  
-  Cached as package-level `[]byte`. `GetSRGBICCCompressed()` returns cached data.  
-  Minor residual: `bytes.Clone` on gray ICC cached data in non-encrypted path (`pdfa.go:423`).
+- [-] **P0.5 — Cache ICC / OutputIntent bytes process-wide**  
+  **Incorrect claim / regression:** cache storage exists (`pdfa.go:347-355`), but `GetSRGBICCCompressed()` only returns `srgbICCCompressed` (`pdfa.go:377-380`) and no production caller initializes it through `GetSRGBICCProfile()`. Output-intent paths consume the empty slice directly (`metadata.go:312-315`, `pdfa.go:384-388`), causing PDF/A validation failures. Restore safe initialization before claiming this fixed.
 
 **Exit:** mean ≥ **~2800–3200 ops/s** (stretch if clone+compress copy are big).
 
@@ -151,10 +153,8 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
 
 ### P3 — `drawTable` hot path (~21% cum; keep cells + tags)
 
-- [x] **P3.1 — Cache `parseProps` / font resolve per distinct props string**  
-  **FIXED** — `utils.go:82-88` — global `propsCache` map with RWMutex (`maxPropsCache = 64`).  
-  `parseProps()` checks cache first (`utils.go:91-96` RLock), stores result on miss.  
-  Also `drawTitleTable` has its own `resolvedFontCache` for font name resolution.  
+- [-] **P3.1 — Cache `parseProps` / font resolve per distinct props string**  
+  **Partial:** global `parseProps` caching exists (`utils.go:82-96`), but hot `drawTable` still resolves fonts per cell (`draw.go:1003-1008`). The separate resolved-font cache is limited to `drawTitleTable` (`draw.go:452-455,755-760`).
   **Validate:** same fonts/styles; CPU parse ↓.
 
 - [-] **P3.2 — Speed `appendFmtNum` / coordinate writes**  
@@ -168,14 +168,12 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
   **To fix:** Add LRU cache keyed by (resolvedName, text, font) or measure once per unique cell text.  
   **Validate:** wrap layout golden tests.
 
-- [x] **P3.4 — `appendTextForPDF` zero-extra-alloc**  
-  **FIXED** — `utils.go:411-425` — takes/returns `[]byte` (no intermediate `string`).  
-  Wrap path (`draw.go:1393`) uses `textPosBuf[:0]` as destination + `byteString()` (unsafe) for zero-copy string view.  
-  Non-wrap path (`draw.go:1459`) reuses same buffer. No `string(line)` conversions in hot path.  
+- [-] **P3.4 — `appendTextForPDF` zero-extra-alloc**  
+  **Partial:** standard-font paths avoid an intermediate string (`utils.go:411-424`), but custom-font encoding still allocates `enc := make([]byte, ...)` on every call (`font/metrics.go:1110-1135`).
   **Validate:** escaping tests; heap under drawTable ↓.
 
 - [x] **P3.5 — Row-level structure, not over-tagging**  
-  **FIXED** — `draw.go:932` — `Table → TR → TD/TH` hierarchy, clean structure.  
+  **FIXED** — `draw.go:932,979,1071,1540-1545` — table/row/cell structure is emitted without redundant wrappers. Current code emits TD/MCID cells; the prior `TD/TH` wording overstated the actual TH behavior.  
   Table opens once per table (`StructTable`), row per row (`StructTR`), cell as marked content (`BeginMarkedContentBuf`).  
   No redundant nesting, no extra wrapper elements.  
   **Validate:** PDF/UA checker; **no** stripping required tags.
@@ -186,7 +184,7 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
   `wrappedTextLines[colIdx] = nil` resets per row; `buf[:0]` pattern throughout. No re-allocation per row.  
   **Validate:** allocs/op on table microbench ↓.
 
-**Exit:** `drawTable` cum **&lt; 15%**; retail/active latency down materially.
+**Exit:** `drawTable` cum **&lt; 15%**; retail/active latency down materially. Current status: 2 fixed, 3 partial, 1 not fixed.
 
 ---
 
@@ -223,7 +221,7 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
   The only unsigned path is the error fallback (line 1486).  
   **Validate:** no unsigned mode for perf; separate optional bench is fine.
 
-**Exit:** sign path still ~RSA-bound but **overhead around RSA &lt; 3–5%**; total sign cum closer to pure mul cost.
+**Exit:** sign path still ~RSA-bound but **overhead around RSA &lt; 3–5%**; total sign cum closer to pure mul cost. Current status: 3 fixed, 1 partial, 1 not fixed; signature validity remains unverified.
 
 ---
 
@@ -288,12 +286,12 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
 | 1 | P0.1 double Clone | **FIXED** | — | — |
 | 2 | P0.2 compress copy | **NOT FIXED** | Medium | Low |
 | 3 | P0.3–P0.4 pre-grow | P0.4 PARTIAL, P0.3 NOT | Medium | Low |
-| 4 | P0.5 ICC cache | **FIXED** | — | — |
+| 4 | P0.5 ICC cache | **REGRESSED / NOT SAFE** | — | **High until PDF/A passes** |
 | 5 | P1.1 BestSpeed + P1.2 pool | P1.1 FIXED, P1.2 PARTIAL | **High** | Low |
 | 6 | P2.1–P2.3 struct serialize | **NOT FIXED** (P2.3 PARTIAL) | **High** | Low if golden-tested |
 | 7 | P5.1 font subset cache | **NOT FIXED** | **High** steady-state | Medium (cache keys) |
 | 8 | P4.1–P4.3 signer reuse | P4.1 FIXED, P4.2 PARTIAL, P4.3 NOT | Medium (RSA remains) | Medium |
-| 9 | P3 drawTable microopts | Mostly FIXED (5/6) | Medium | Low–medium |
+| 9 | P3 drawTable microopts | **2 FIXED / 3 PARTIAL / 1 NOT FIXED** | Medium | Low–medium |
 | 10 | P1.3 klauspost | **NOT FIXED** | High optional | Low |
 | 11 | P6 GOMAXPROCS / GC | Mostly NOT FIXED | Variable | None |
 
@@ -305,7 +303,7 @@ Compliance: **same** StructElem tree, MCIDs, roles — only serialization change
 5. **P1.5** — Serial compress for ≤2-page docs
 6. **P5.1** — Font subset cache across PDF generations
 
-**Realistic stacking:** P0+P1+P2+P5 should approach **~1.7–2.1×**. P3+P4+P6 needed to clear **2.26×** to 5000 **with** RSA+PDF/A still on.
+**Realistic stacking:** P0+P1+P2+P5 should approach **~1.7–2.1×**, but the current PDF/A regression must be repaired first. P3+P4+P6 are still needed to clear the remaining gap to 5000 **with** RSA+PDF/A still on.
 
 ---
 
@@ -346,8 +344,10 @@ go test ./internal/pdf/... ./pkg/gopdflib/...
 
 ## Bottom line
 
-- Today: **~2.2k mean / ~2.7k best** ops/s; need **~5k** (**~2.3×** / **~1.8×**).  
-- Time is split three ways: **RSA sign (~20%)**, **flate (~23%)**, **table+structure (~25–30%)**, with **huge alloc tax** (`growSlice` + `slices.Clone` + struct `strings.Builder` + font subset).  
+- Today: **2,551.77 ops/s mean / 2,838.25 ops/s best**; need **5,000** (about **1.96×** the current mean).  
+- Confirmed complete checklist items: **7/33**; substantive performance fixes: **5**.  
+- PDF/A is currently failing because the cached sRGB ICC payload is not initialized; fix this before accepting throughput changes.  
+- The focused correctness gate is also red due to the `strings.Builder` panic in redaction, and signature validity is not yet independently verified.  
 - Hitting 5000 **without losing compliance** means **optimize around** PDF/A, tagging, and RSA — not disable them: cut copies, cache ICC/fonts, faster Flate, cheaper structure serialization, leaner drawTable, and tighter signer plumbing.
 
 ---
