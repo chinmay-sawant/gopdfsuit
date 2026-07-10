@@ -1311,6 +1311,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		out = append(out, apSB.String()...)
 	}
 
+	// Expand ObjStm embedded objects into standalone obj...endobj blocks so the
+	// traditional xref table can reference them.  PDF readers only follow xref
+	// entries that point to a top-level object, not one buried in an object stream.
+	out = expandObjStmObjects(out)
+
 	objMatches := obj0Re.FindAllSubmatchIndex(out, -1)
 	offsets := make(map[int]int, len(objMatches))
 	maxObj := 0
@@ -1789,4 +1794,82 @@ func escapePDFString(s string) string {
 		}
 	}
 	return sb.String()
+}
+
+// expandObjStmObjects finds every ObjStm in data, decompresses it, and writes
+// each embedded object as a standalone obj…endobj block so that a traditional
+// xref table can reference them.
+func expandObjStmObjects(data []byte) []byte {
+	for _, m := range objStreamRe.FindAllSubmatchIndex(data, -1) {
+		objEnd := m[1]
+		body := data[m[6]:m[7]]
+		if !bytes.Contains(body, markerObjStm) && !bytes.Contains(body, markerTypeObjStm) {
+			continue
+		}
+		sm := streamFlexRe.FindSubmatchIndex(body)
+		if sm == nil {
+			continue
+		}
+		streamBytes := body[sm[2]:sm[3]]
+		var dec []byte
+		if d, err := tryZlibDecompress(streamBytes); err == nil {
+			dec = d
+		} else if d, err := tryFlateDecompress(streamBytes); err == nil {
+			dec = d
+		} else {
+			continue
+		}
+		fm := firstNumRe.FindSubmatch(body)
+		if fm == nil {
+			continue
+		}
+		first, err := strconv.Atoi(string(fm[1]))
+		if err != nil || first <= 0 || first > len(dec) {
+			continue
+		}
+		headerNums := parseWhitespaceInts(string(dec[:first]))
+		if len(headerNums) < 2 || len(headerNums)%2 != 0 {
+			continue
+		}
+		var standaloneBuf bytes.Buffer
+		var intTmp [20]byte
+		contentPart := dec[first:]
+		contentLen := len(contentPart)
+		for i := 0; i+1 < len(headerNums); i += 2 {
+			objNum := headerNums[i]
+			objOff := headerNums[i+1]
+			var objEnd int
+			if i+3 < len(headerNums) {
+				objEnd = headerNums[i+3]
+			} else {
+				objEnd = contentLen
+			}
+			if objOff < 0 || objOff > contentLen || objEnd < objOff || objEnd > contentLen {
+				continue
+			}
+			objContent := bytes.TrimSpace(contentPart[objOff:objEnd])
+			if len(objContent) == 0 {
+				continue
+			}
+			standaloneBuf.WriteByte('\n')
+			standaloneBuf.Write(strconv.AppendInt(intTmp[:0], int64(objNum), 10))
+			standaloneBuf.WriteString(" 0 obj ")
+			standaloneBuf.Write(objContent)
+			if !bytes.HasSuffix(objContent, []byte("endobj")) {
+				standaloneBuf.WriteString("\nendobj")
+			}
+		}
+		if standaloneBuf.Len() == 0 {
+			continue
+		}
+		var tmp bytes.Buffer
+		tmp.Grow(len(data) + standaloneBuf.Len())
+		tmp.Write(data[:objEnd])
+		tmp.Write(standaloneBuf.Bytes())
+		tmp.Write(data[objEnd:])
+		data = tmp.Bytes()
+		// Only expand the first ObjStm; subsequent iterations re-scan
+		break
+	}
+	return data
 }

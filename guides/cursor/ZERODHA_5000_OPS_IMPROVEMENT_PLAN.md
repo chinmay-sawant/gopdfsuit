@@ -358,3 +358,177 @@ go test ./internal/pdf/... ./pkg/gopdflib/...
 - [PASS4_OPTIMIZATION_PLAN.md](./PASS4_OPTIMIZATION_PLAN.md) — prior load-test hotspot plan
 - [ZERODHA_BENCHMARK_RESULTS.md](./ZERODHA_BENCHMARK_RESULTS.md) — Zerodha benchmark notes
 - [baselines/zerodha_bench_x10_wsl_stats_latest.txt](./baselines/zerodha_bench_x10_wsl_stats_latest.txt) — latest x10 stats
+
+---
+
+## Codehound detection coverage (2026-07-11)
+
+All 724 codehound findings across 29 chunk files were cross-referenced against the 26 non-`[x]` plan items. **8 items have codehound coverage; 18 have zero detection.**
+
+### Detected by codehound
+
+- [-] **P0.5 — Cache ICC / OutputIntent bytes process-wide** (regressed)
+  `internal/pdf/font/pdfa.go:380:16` — `m.GetLiberationFont(stdFont)` in loop
+  ```go
+  func (m *PDFAFontManager) RegisterLiberationFontsForPDFA(...) error {
+      for _, stdFont := range usedStandardFonts {
+          font, err := m.GetLiberationFont(stdFont) // PERF-230: pure function re-evaluated
+  ```
+  `internal/pdf/font/pdfa.go:385:13` — `registry.RegisterFont(stdFont, font)` in loop
+  ```go
+          if err := registry.RegisterFont(stdFont, font); err != nil { // PERF-230
+  ```
+  `internal/pdf/metadata.go:313:20` — `GetSRGBICCCompressed()` called per operation
+  ```go
+  func (h *PDFAHandler) GenerateOutputIntent(...) (int, []string, []byte) {
+      compressedData := GetSRGBICCCompressed() // PERF-217: static computation rebuilt per op
+  ```
+  `internal/pdf/pdfa.go:381:2` — `GetSRGBICCProfile()` triggers `sync.Once` every call
+  ```go
+  func GetSRGBICCCompressed() []byte {
+      GetSRGBICCProfile() // ensure sync.Once has run; PERF-217: rebuilt per op
+      return srgbICCCompressed
+  }
+  ```
+
+- [-] **P1.2 — Tighten zlib writer pool under 48 workers**
+  `internal/pdf/font/compression.go:13:1` — `ZlibWriterPool` is a package-level global
+  ```go
+  var ZlibWriterPool = sync.Pool{ // BP-37: package-level mutable global
+      New: func() any {
+          w, _ := zlib.NewWriterLevel(io.Discard, zlib.BestSpeed) // BP-1: discarded error
+  ```
+  `internal/pdf/font/compression.go:23:1` — `CompressBufPool` is a package-level global
+  ```go
+  var CompressBufPool = sync.Pool{ // BP-37: package-level mutable global
+  ```
+  `internal/pdf/font/compression.go:59:2` — `PutCompressBuffer` has capacity guard but still flagged
+  ```go
+  func PutCompressBuffer(buf *bytes.Buffer) {
+      if buf.Cap() > 131072 { return }
+      CompressBufPool.Put(buf) // PERF-219: oversized object returned to pool
+  }
+  ```
+
+- [ ] **P1.4 — Font stream compress once per unique subset**
+  `internal/pdf/font/metrics.go:680:3` — `_ = zlibWriter.Close()` in `GenerateTrueTypeFontObjects`
+  ```go
+  func GenerateTrueTypeFontObjects(font *RegisteredFont, ...) map[int]string {
+      if _, err := zlibWriter.Write(fontData); err != nil {
+          _ = zlibWriter.Close() // BP-1: discarded error (compress path)
+  ```
+  `internal/pdf/font/metrics.go:685:2` — `_ = zlibWriter.Close()` same function
+  ```go
+      _ = zlibWriter.Close() // BP-1: discarded error
+  ```
+  `internal/pdf/font/metrics.go:975:3` — same pattern in `GenerateCIDToGIDMap`
+  ```go
+  func GenerateCIDToGIDMap(...) string {
+      if _, err := zlibWriter.Write(mapData); err != nil {
+          _ = zlibWriter.Close() // BP-1: discarded error
+  ```
+  `internal/pdf/font/metrics.go:980:2` — `_ = zlibWriter.Close()` same function
+  ```go
+      _ = zlibWriter.Close() // BP-1: discarded error
+  ```
+  `internal/pdf/font/metrics.go:1082:3` — same in `GenerateToUnicodeCMap`
+  ```go
+  func GenerateToUnicodeCMap(...) string {
+      if _, err := zlibWriter.Write(byteconv.StringToBytes(cmapData)); err != nil {
+          _ = zlibWriter.Close() // BP-1: discarded error
+  ```
+  `internal/pdf/font/metrics.go:1087:2` — `_ = zlibWriter.Close()` same function
+  ```go
+      _ = zlibWriter.Close() // BP-1: discarded error
+  ```
+
+- [-] **P2.4 — StructureManager: reduce pool miss cost**
+  `internal/pdf/structure.go:119:1` — `structElemPool` is a package-level global
+  ```go
+  var structElemPool = sync.Pool{ // BP-37: package-level mutable global
+      New: func() any {
+  ```
+
+- [-] **P3.1 — Cache `parseProps` / font resolve per distinct props string**
+  `internal/pdf/draw.go:520:27` — `parseHexColor(bgColor)` in cell loop
+  ```go
+      for colIdx, cell := range row.Row {
+          cc, ok := colorCache[bgColor]
+          if !ok {
+              r, g, b, _, valid := parseHexColor(bgColor) // PERF-230 in drawTitleTable
+  ```
+  `internal/pdf/draw.go:698:12` — `getFontReference(cellProps, ...)` in cell loop (content pass)
+  ```go
+          fr = getFontReference(cellProps, pageManager.FontRegistry) // PERF-230 in drawTitleTable
+  ```
+  `internal/pdf/draw.go:732:36` — `parseHexColor(textColor)` in text rendering loop
+  ```go
+          } else if r, g, b, _, valid := parseHexColor(textColor); valid { // PERF-230 in drawTitleTable
+  ```
+  `internal/pdf/draw.go:757:12` — `resolveFontName(cellProps, ...)` in text loop
+  ```go
+          rn = resolveFontName(cellProps, pageManager.FontRegistry) // PERF-230 in drawTitleTable
+  ```
+  `internal/pdf/draw.go:762:18` — `EstimateTextWidth(...)` per cell
+  ```go
+          textWidth := EstimateTextWidth(resolvedName, cell.Text, float64(cellProps.FontSize), pageManager.FontRegistry) // PERF-230
+  ```
+
+- [ ] **P3.3 — Width measurement cache**
+  `internal/pdf/font/registry.go:399:26` — `getWidth(char)` per character in `GetTextWidth`
+  ```go
+  func (r *CustomFontRegistry) GetTextWidth(fontName string, text string) float64 {
+      for _, char := range text {
+          totalWidth += float64(getWidth(char)) * invUPE // PERF-230: pure function in loop
+  ```
+  `internal/pdf/font/registry.go:413:25` — same call in the locked code path
+  ```go
+      for _, char := range text {
+          totalWidth += float64(getWidth(char)) * invUPE // PERF-230: pure function in loop
+  ```
+
+- [-] **P3.4 — `appendTextForPDF` zero-extra-alloc**
+  `internal/pdf/font/metrics.go:1142:9` — `len(text)*4+2` allocation in `EncodeTextForCustomFont`
+  ```go
+  func EncodeTextForCustomFont(fontName string, text string, registry *CustomFontRegistry) string {
+      buf := make([]byte, 0, len(text)*4+2) // BP-52: unchecked integer multiplication
+  ```
+
+- [-] **P6.2 — Reduce alloc rate to cut GC**
+  `internal/pdf/encryption/encrypt.go:65:12` — `make+copy` in `padPassword`
+  ```go
+  func padPassword(password string) []byte {
+      result := make([]byte, 32) // PERF-226: post-producer buffer re-copy
+      if len(pwd) >= 32 {
+          copy(result, pwd)
+  ```
+  `internal/pdf/font/metrics.go:1098:2` — `strings.Builder` without pre-sizing in `GenerateToUnicodeCMap`
+  ```go
+      var sb strings.Builder
+      var lenTmp [20]byte
+      sb.WriteString("<< /Filter /FlateDecode /Length ") // PERF-215: no Grow() call
+  ```
+
+### Not detected by codehound (no matching findings)
+
+- [ ] **P0.2** — Drop compressed-page extra `make`+`copy` (`generator.go:826`) — no rule for redundant `slices.Clone`
+- [ ] **P0.3** — Pre-grow content streams from HFT/row estimates (`pagemanager.go:48,81`) — no rule for missing `Grow()` with estimates
+- [-] **P0.4** — Pre-size main `pdfBuffer` + xref map (`generator.go:126`) — no rule for missing buffer pre-sizing
+- [-] **P1.2** — `errgroup.Group` without `SetLimit` (`generator.go:800`) — no rule for unbounded goroutine concurrency
+- [ ] **P1.3** — Optional `klauspost/compress` drop-in — dependency check, not structural
+- [ ] **P1.5** — Skip parallel compress overhead for 1-page docs (`generator.go:797-834`) — no rule for conditional parallelism
+- [ ] **P2.1** — Rewrite `writeStructElems` with `[]byte` / `bytes.Buffer` (`generator.go:1269`) — no rule targeting `strings.Builder` in struct serialization
+- [ ] **P2.2** — Avoid per-element `strings.Builder` alloc (`generator.go:1269`) — same, no per-call allocation pattern rule
+- [-] **P2.3** — Batch xref offset recording (`generator.go:126`) — no rule for map-assign vs slice batch
+- [-] **P2.5** — MCID / BDC string encoding without intermediate strings (`structure.go:238-289`, `draw.go:282`) — no rule for `BeginMarkedContent` vs `BeginMarkedContentBuf`
+- [-] **P3.2** — Speed `appendFmtNum` / coordinate writes (`draw.go:77-105`) — no rule for `strconv.AppendInt` vs custom fixed-point
+- [-] **P4.2** — Reuse `PDFSigner` / precomputed digests scaffolding (`signature.go:539-686`) — no rule for PKCS#7 pre-marshaling
+- [ ] **P4.3** — Minimize PDF byte copies in `UpdatePDFWithSignature` (`signature.go:812`, `bytes.Clone`) — no rule for redundant signature-path `bytes.Clone`
+- [ ] **P5.1** — Process-level cache: font file + used rune set → subset + compressed stream (`font/registry.go:149-178`) — no cross-generation cache detection
+- [ ] **P5.2** — `MarkCharsUsed` cheaper set (`font/registry.go:27,130-146` — `map[rune]bool`) — no rule suggesting bitset for BMP runes
+- [-] **P5.3** — Avoid re-cloning glyf/loca buffers (`font/subset.go:253`) — no `sync.Pool` miss detection for scratch buffers
+- [-] **P6.1** — Measure GOMAXPROCS sweet spot — no rule for missing A/B sweep harness
+- [ ] **P6.3** — Optional `GOMEMLIMIT` experiment — no rule checks for `GOMEMLIMIT`/`GOGC` presence
+- [ ] **P6.4** — HFT 5% is a latency bomb — no HFT-specific profiling detection
+
+**Summary:** Codehound detected **8 / 26** non-fixed plan items (30.8%). The **PERF-230** rule (pure function re-evaluated in loop) was the most productive, catching 9 of the 23 matched findings across `draw.go`, `pdfa.go`, and `registry.go`. The 18 misses are architectural/pattern-level issues that codehound's current rule set doesn't target — missing `Grow()`, `strings.Builder` vs `[]byte`, conditional parallelism, map vs bitset, cross-generation caching, and container-level configuration. Top-impact blind spots: **P0.2** (compress copy), **P2.1/P2.2** (struct tree `strings.Builder`), **P4.3** (signature `bytes.Clone`), and **P5.1** (font subset cache).
