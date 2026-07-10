@@ -298,7 +298,7 @@ func (f *TTFFont) parseHmtx(data []byte) error {
 			errPrefix := "failed to read GlyphWidths["
 			errStr := make([]byte, 0, len(errPrefix)+5+1)
 			errStr = append(errStr, errPrefix...)
-			errStr = strconv.AppendInt(errStr, int64(i), 10) // PERF-15: AppendInt avoids strconv.Itoa alloc
+			errStr = strconv.AppendInt(errStr, int64(i), 10)
 			errStr = append(errStr, ']')
 			return errors.Join(errors.New(string(errStr)), io.ErrUnexpectedEOF)
 		}

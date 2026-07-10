@@ -508,6 +508,7 @@ func GenerateFontDescriptorObject(fontName string, objectID int) string {
 
 	// Compact format - single line
 	var sb strings.Builder
+	sb.Grow(256)
 	var tmp [20]byte
 	sb.Write(strconv.AppendInt(tmp[:0], int64(objectID), 10))
 	sb.WriteString(" 0 obj\n<</Type/FontDescriptor/FontName/")
@@ -601,6 +602,7 @@ func GetSimpleHelveticaFontResourceString() string {
 // This is the legacy format without FirstChar, LastChar, Widths, and FontDescriptor
 func GenerateSimpleFontObject(fontName string, fontRef string, fontObjectID int) string {
 	var sb strings.Builder
+	sb.Grow(128)
 	var tmp [20]byte
 	sb.Write(strconv.AppendInt(tmp[:0], int64(fontObjectID), 10))
 	sb.WriteString(" 0 obj\n<< /Type /Font /Subtype /Type1 /Name ")

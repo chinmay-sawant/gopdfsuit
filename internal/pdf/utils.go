@@ -413,12 +413,9 @@ func appendTextForPDF(dst []byte, resolvedName, text string, registry *CustomFon
 		return AppendTextForCustomFont(dst, resolvedName, text, registry)
 	}
 	if !strings.ContainsAny(text, `()\`) {
-		n := len(text) + 2
-		dst = append(dst, make([]byte, n)...)
-		p := len(dst) - n
-		dst[p] = '('
-		copy(dst[p+1:], text)
-		dst[len(dst)-1] = ')'
+		dst = append(dst, '(')
+		dst = append(dst, text...)
+		dst = append(dst, ')')
 		return dst
 	}
 	dst = append(dst, '(')

@@ -7,28 +7,28 @@ Running 5000 iterations using 48 workers...
 Building templates...
 Templates built.
 Warm-up runs...
-  Retail PDF size:  61360 bytes (59.92 KB)
-  Active PDF size:  76125 bytes (74.34 KB)
-  HFT PDF size:     2425725 bytes (2368.87 KB)
+  Retail PDF size:  59032 bytes (57.65 KB)
+  Active PDF size:  73779 bytes (72.05 KB)
+  HFT PDF size:     2423386 bytes (2366.59 KB)
 
-  Max Memory Allocated: 1100.10 MB
+  Max Memory Allocated: 962.01 MB
 === Performance Summary ===
   Iterations:      5000
   Concurrency:     48 workers
-  Total time:      1.928 s
-  Throughput:      2593.27 ops/sec
+  Total time:      1.932 s
+  Throughput:      2588.58 ops/sec
 
-  Avg Latency:     18.091 ms
-  Min Latency:     1.683 ms
-  Max Latency:     412.169 ms
+  Avg Latency:     18.001 ms
+  Min Latency:     1.439 ms
+  Max Latency:     443.240 ms
 
 === Workload Distribution ===
-  Retail  (80%):   3957 iterations
-  Active  (15%):   795 iterations
-  HFT      (5%):   248 iterations
+  Retail  (80%):   4015 iterations
+  Active  (15%):   726 iterations
+  HFT      (5%):   259 iterations
 
-Saved: zerodha_retail_output.pdf (61360 bytes)
-Saved: zerodha_active_output.pdf (76125 bytes)
-Saved: zerodha_hft_output.pdf (2425725 bytes)
+Saved: zerodha_retail_output.pdf (59032 bytes)
+Saved: zerodha_active_output.pdf (73779 bytes)
+Saved: zerodha_hft_output.pdf (2423386 bytes)
 
 === Done ===

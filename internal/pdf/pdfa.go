@@ -376,16 +376,13 @@ func GetSRGBICCProfile() []byte {
 
 // GetSRGBICCCompressed returns the compressed sRGB ICC profile (PERF-217: cached compression).
 func GetSRGBICCCompressed() []byte {
-	GetSRGBICCProfile()
 	return srgbICCCompressed
 }
 
 // GenerateICCProfileObject generates the ICC profile stream object for sRGB
 // Returns the bytes to write to the PDF buffer
 func GenerateICCProfileObject(objectID int, encryptor ObjectEncryptor) []byte {
-	compressedData := bytes.Clone(GetSRGBICCCompressed())
-
-	// Encrypt if needed
+	compressedData := GetSRGBICCCompressed()
 	if encryptor != nil {
 		compressedData = encryptor.EncryptStream(compressedData, objectID, 0)
 	}

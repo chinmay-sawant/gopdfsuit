@@ -449,13 +449,14 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 	if dbr, dbg, dbb, _, dbvalid := parseHexColor(defaultBgColor); dbvalid {
 		defaultBgR, defaultBgG, defaultBgB, defaultBgHasColor = dbr, dbg, dbb, true
 	}
-	propsCache := make(map[string]models.Props)
-	fontRefCache := make(map[string]string)
-	resolvedFontCache := make(map[string]string)
+	rowEst := len(table.Rows)
+	propsCache := make(map[string]models.Props, rowEst)
+	fontRefCache := make(map[string]string, rowEst)
+	resolvedFontCache := make(map[string]string, rowEst)
 	colorCache := make(map[string]struct {
 		r, g, b float64
 		valid   bool
-	})
+	}, rowEst*2)
 
 	for rowIdx, row := range table.Rows {
 		// Determine this row's height
@@ -2068,6 +2069,7 @@ func drawWidget(cell models.Cell, x, y, w, h float64, pageManager *PageManager) 
 		// Build appearance stream: border + text properly structured
 		// Use /Tx BMC ... EMC to mark text content area (viewer replaces this when editing)
 		var apStream strings.Builder
+		apStream.Grow(256)
 		// Draw border first
 		apStream.WriteString("q 1 w 0 0 0 RG 0 0 ")
 		apStream.WriteString(fw)

@@ -1220,6 +1220,11 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	widthsStr := widthsBuf.String()
 
 	var intTmp [20]byte
+	// PERF-44: cache zlib.Writer from pool to avoid repeated Get+type assert in loop
+	poolItem := zlibWriterPool.Get()
+	zw := poolItem.(*zlib.Writer)
+	defer zlibWriterPool.Put(zw)
+
 	for _, job := range textJobs {
 		streamText := escapePDFString(job.val)
 		var tx float64
@@ -1279,18 +1284,14 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 		out = append(out, fontSB.String()...)
 
 		var compBuf bytes.Buffer
-		zw := zlibWriterPool.Get().(*zlib.Writer)
 		zw.Reset(&compBuf)
 		if _, err := zw.Write(byteconv.StringToBytes(streamBody)); err != nil {
 			zw.Close()
-			zlibWriterPool.Put(zw)
 			return nil, errors.Join(errors.New("compression write failed"), err)
 		}
 		if err := zw.Close(); err != nil {
-			zlibWriterPool.Put(zw)
 			return nil, errors.Join(errors.New("compression close failed"), err)
 		}
-		zlibWriterPool.Put(zw)
 		comp := compBuf.Bytes()
 		var apSB strings.Builder
 		apSB.Grow(160 + len(comp))
@@ -1374,9 +1375,9 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 				out = bytes.Replace(out, dictPart, newDict, 1)
 			} else {
 				// Inject it
-				newDict := make([]byte, 0, len(dictPart)+len(" /NeedAppearances true "))
-				newDict = append(newDict, dictPart...)
-				newDict = append(newDict, " /NeedAppearances true "...)
+				newDict := make([]byte, len(dictPart)+len(" /NeedAppearances true "))
+				copy(newDict, dictPart)
+				copy(newDict[len(dictPart):], " /NeedAppearances true ")
 				out = bytes.Replace(out, dictPart, newDict, 1)
 			}
 		} else if acroMatch[3] != nil {
@@ -1723,6 +1724,7 @@ func replaceOrInsertPDFEntry(dict []byte, re *regexp.Regexp, replacement []byte)
 		if len(newDict) != len(dict) {
 			return newDict, true
 		}
+		// PERF-48: precheck exists above — bytes.Equal only reached when lengths match
 		return newDict, !bytes.Equal(newDict, dict)
 	}
 

@@ -446,6 +446,8 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 	// Generate font subsets after content generation AND signature creation
 	// This ensures characters used in signature appearance are included in the subset
+	// PERF-217: GenerateSubsets is NOT cacheable — it depends on per-document UsedChars
+	// populated during content generation, so each call produces different output.
 	if err := fontRegistry.GenerateSubsets(); err != nil {
 		fmt.Printf("Warning: failed to generate font subsets: %v\n", err)
 	}
@@ -692,6 +694,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 			// Include both DefaultRGB and DefaultGray for full PDF/A-4 compliance
 			var csBuf [20]byte
 			var csBuilder strings.Builder
+			csBuilder.Grow(128)
 			csBuilder.WriteString(" /ColorSpace << /DefaultRGB [/ICCBased ")
 			csBuilder.Write(strconv.AppendInt(csBuf[:0], int64(actualICCObjID), 10))
 			csBuilder.WriteString(" 0 R] /DefaultGray [/ICCBased ")
@@ -748,6 +751,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 
 		// Build standard font resources string dynamically
 		var stdFontRefs strings.Builder
+		stdFontRefs.Grow(64 * len(fontNames))
 		for i, name := range fontNames {
 			if id, ok := fontObjectIDs[name]; ok {
 				stdFontRefs.WriteByte(' ')
@@ -1002,6 +1006,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	now := time.Now() // PERF-40: hoisted for reuse in fallback and creation date
 	if pdfaHandler != nil {
 		// Generate XMP metadata content (crypto/rand 8 bytes hex)
+		// crypto/rand is correct here — document ID must be unpredictable (PDF spec §14.4)
 		var randID [8]byte
 		if _, err := rand.Read(randID[:]); err != nil {
 			binary.BigEndian.PutUint64(randID[:], uint64(now.UnixNano()))
@@ -1219,6 +1224,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Build ParentTree Nums map
 		// Maps StructParents key (page index) to Array of IndirectRefs to StructElems
 		var ptBuilder strings.Builder
+		ptBuilder.Grow(128 + 32*len(pageManager.Structure.ParentTree))
 		var refBuf [24]byte
 		ptBuilder.Write(strconv.AppendInt(refBuf[:0], int64(parentTreeID), 10))
 		ptBuilder.WriteString(" 0 obj\n<< /Nums [")
@@ -1404,15 +1410,15 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		i += count
 	}
 
-	for _, sub := range subsections {
+	for i := range subsections {
 		b = b[:0]
-		b = strconv.AppendInt(b, int64(sub.start), 10)
+		b = strconv.AppendInt(b, int64(subsections[i].start), 10)
 		b = append(b, ' ')
-		b = strconv.AppendInt(b, int64(sub.count), 10)
+		b = strconv.AppendInt(b, int64(subsections[i].count), 10)
 		b = append(b, '\n')
 		pdfBuffer.Write(b)
-		for j := 0; j < sub.count; j++ {
-			objID := sub.start + j
+		for j := 0; j < subsections[i].count; j++ {
+			objID := subsections[i].start + j
 			if objID == 0 {
 				pdfBuffer.WriteString("0000000000 65535 f \n")
 			} else if offset, exists := xrefOffsets[objID]; exists {

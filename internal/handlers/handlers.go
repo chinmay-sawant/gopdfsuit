@@ -37,7 +37,7 @@ var (
 )
 
 var (
-	templateFileInFlight   = make(map[string]chan struct{})
+	templateFileInFlight   = make(map[string]chan struct{}, maxTemplateFileCache)
 	templateFileInFlightMu sync.Mutex
 )
 
@@ -65,7 +65,7 @@ func loadTemplateFileMiss(filePath, filename string) ([]byte, error) {
 		templateFileCacheMu.RUnlock()
 		return v, nil
 	}
-	done := make(chan struct{})
+	done := make(chan struct{}, 1)
 	templateFileInFlight[filename] = done
 	templateFileInFlightMu.Unlock()
 
@@ -329,6 +329,12 @@ func handleGetFonts(c *gin.Context) {
 
 // handleUploadFont handles the upload of custom font files
 func handleUploadFont(c *gin.Context) {
+	// PERF-57: early preflight check before io.ReadAll
+	if c.Request.Method == http.MethodOptions {
+		c.AbortWithStatus(http.StatusNoContent)
+		return
+	}
+
 	file, err := c.FormFile("font")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No font file provided"})
@@ -487,17 +493,30 @@ func handleMergePDFs(c *gin.Context) {
 	}
 
 	var pdfBytesList [][]byte
+	// PERF-56: pre-marshaled JSON template to avoid c.JSON inside the loop
+	var (
+		jsonErrOpen  = []byte(`{"error":"Failed to read uploaded file: `)
+		jsonErrClose = []byte(`"}`)
+	)
 	// Process files in the exact order they appear in the form to maintain selection sequence
 	for _, fh := range files {
 		f, err := fh.Open()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
+			c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+			c.Writer.WriteHeader(http.StatusInternalServerError)
+			c.Writer.Write(jsonErrOpen)
+			c.Writer.Write(byteconv.StringToBytes(err.Error()))
+			c.Writer.Write(jsonErrClose)
 			return
 		}
 		buf, err := io.ReadAll(f)
 		_ = f.Close()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read uploaded file: " + err.Error()})
+			c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+			c.Writer.WriteHeader(http.StatusInternalServerError)
+			c.Writer.Write(jsonErrOpen)
+			c.Writer.Write(byteconv.StringToBytes(err.Error()))
+			c.Writer.Write(jsonErrClose)
 			return
 		}
 		pdfBytesList = append(pdfBytesList, buf)

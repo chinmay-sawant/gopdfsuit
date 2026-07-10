@@ -79,10 +79,7 @@ func appendPad10(dst []byte, n int) []byte {
 	if pad < 0 {
 		pad = 0
 	}
-	if pad > 0 {
-		dst = append(dst, padZeros[:pad]...)
-	}
-	return append(dst, num...)
+	return append(append(dst, padZeros[:pad]...), num...)
 }
 
 func signerPEMCacheKey(certPEMBytes, keyPEMBytes []byte, chain []string) string {
@@ -135,6 +132,7 @@ func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.
 		return ent.cert, ent.key, ent.certChain, nil
 	}
 
+	// PERF-231: PEM/key parsing only reached on cache miss (line 130 checks cache first)
 	block, _ := pem.Decode(certPEMBytes)
 	if block == nil {
 		return nil, nil, nil, errors.New("failed to parse certificate PEM")
@@ -384,6 +382,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 // createSignatureAppearance creates the visual appearance for a visible signature
 func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, width, height float64, fontID int, now time.Time) int {
 	var appearance strings.Builder
+	appearance.Grow(512)
 
 	// Yellow background with black border
 	appearance.WriteString("q\n")
@@ -485,6 +484,7 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 	// Construct resources dictionary using the embedded font ID
 	var resourcesDict string
 	var resB strings.Builder
+	resB.Grow(64)
 	if fontID > 0 {
 		// Use reference to existing embedded font
 		resB.WriteString("<< /Font << /F1 ")

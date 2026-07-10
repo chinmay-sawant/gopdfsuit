@@ -1,7 +1,6 @@
 package pdf
 
 import (
-	"bytes"
 	"encoding/hex"
 	"strconv"
 	"strings"
@@ -311,9 +310,7 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	}
 
 	// Use cached compressed ICC profile (PERF-217: avoid recompression)
-	compressedData := bytes.Clone(GetSRGBICCCompressed())
-
-	// Encrypt compressed ICC profile stream if needed
+	compressedData := GetSRGBICCCompressed()
 	if h.encryptor != nil {
 		compressedData = h.encryptor.EncryptStream(compressedData, h.iccProfileObjID, 0)
 	}
@@ -396,6 +393,7 @@ func escapeXML(s string) string {
 // GenerateCatalogExtras returns additional catalog entries for PDF/A
 func (h *PDFAHandler) GenerateCatalogExtras() string {
 	var extras strings.Builder
+	extras.Grow(128)
 	var tmp [20]byte
 
 	if h.metadataObjID > 0 {

@@ -148,8 +148,10 @@ func EnsureMathFonts() {
 	var wg sync.WaitGroup
 	fdir := fontsDir()
 
+	// PERF-109: cache runtime.GOOS outside the loop to avoid repeated map-key computation
+	goos := runtime.GOOS
 	for _, font := range mathFonts {
-		if fontExistsOnSystem(font) {
+		if fontExistsOnSystem(font, goos) {
 			log.Printf("[fontutils] Font %s found on system", font.Name)
 			continue
 		}
@@ -178,9 +180,9 @@ func downloadFontWorker(wg *sync.WaitGroup, f MathFontInfo) {
 }
 
 // fontExistsOnSystem checks if any of the system paths for a font exist.
-func fontExistsOnSystem(font MathFontInfo) bool {
+func fontExistsOnSystem(font MathFontInfo, goos string) bool {
 	var candidates []string
-	switch runtime.GOOS {
+	switch goos {
 	case "linux":
 		candidates = font.LinuxPaths
 	case "darwin":

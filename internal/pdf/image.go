@@ -464,18 +464,20 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	}
 	chunkLen := len(csPref) + len(imgObj.ColorSpace) + len(bpPref) + len(bpNum)
 	tailCap := chunkLen + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
-	tail := make([]byte, 0, tailCap)
-	tail = append(tail, csPref...)
-	tail = append(tail, imgObj.ColorSpace...)
-	tail = append(tail, bpPref...)
-	tail = append(tail, bpNum...)
+	tail := make([]byte, tailCap)
+	off := 0
+	off += copy(tail[off:], csPref)
+	off += copy(tail[off:], imgObj.ColorSpace)
+	off += copy(tail[off:], bpPref)
+	off += copy(tail[off:], bpNum)
 	if imgObj.Filter != "" {
-		tail = append(tail, filterPref...)
-		tail = append(tail, imgObj.Filter...)
+		off += copy(tail[off:], filterPref)
+		off += copy(tail[off:], imgObj.Filter)
 	}
-	tail = append(tail, lenPref...)
-	tail = append(tail, lenNum...)
-	tail = append(tail, streamEnd...)
+	off += copy(tail[off:], lenPref)
+	off += copy(tail[off:], lenNum)
+	off += copy(tail[off:], streamEnd)
+	tail = tail[:off]
 	b = append(b, tail...)
 
 	// Write header and image data in two operations
@@ -524,11 +526,12 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	bpPref := []byte("\n   /BitsPerComponent ")
 	var bpBuf [12]byte
 	bpNum := strconv.AppendInt(bpBuf[:0], int64(imgObj.BitsPerComp), 10)
-	chunk := make([]byte, 0, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
-	chunk = append(chunk, csPref...)
-	chunk = append(chunk, imgObj.ColorSpace...)
-	chunk = append(chunk, bpPref...)
-	chunk = append(chunk, bpNum...)
+	chunk := make([]byte, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
+	off := 0
+	off += copy(chunk[off:], csPref)
+	off += copy(chunk[off:], imgObj.ColorSpace)
+	off += copy(chunk[off:], bpPref)
+	copy(chunk[off:], bpNum)
 	var lenBuf [12]byte
 	lenNum := strconv.AppendInt(lenBuf[:0], int64(len(encryptedData)), 10)
 	filterPref := []byte("\n   /Filter ")
@@ -538,17 +541,18 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	if imgObj.Filter != "" {
 		filterLen = len(filterPref) + len(imgObj.Filter)
 	}
-	chunkLen := len(chunk)
-	tailCap := chunkLen + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
-	tail := make([]byte, 0, tailCap)
-	tail = append(tail, chunk...)
+	tailCap := len(chunk) + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
+	tail := make([]byte, tailCap)
+	off = 0
+	off += copy(tail[off:], chunk)
 	if imgObj.Filter != "" {
-		tail = append(tail, filterPref...)
-		tail = append(tail, imgObj.Filter...)
+		off += copy(tail[off:], filterPref)
+		off += copy(tail[off:], imgObj.Filter)
 	}
-	tail = append(tail, lenPref...)
-	tail = append(tail, lenNum...)
-	tail = append(tail, streamEnd...)
+	off += copy(tail[off:], lenPref)
+	off += copy(tail[off:], lenNum)
+	off += copy(tail[off:], streamEnd)
+	tail = tail[:off]
 	b = append(b, tail...)
 
 	// Write header and encrypted data in two operations

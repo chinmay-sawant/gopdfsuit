@@ -92,6 +92,7 @@ func (r *Redactor) FindTextOccurrencesMulti(searchTexts []string) ([]models.Reda
 
 	seenTerms := make(map[string]struct{}, len(searchTexts))
 	all := make([]models.RedactionRect, 0, len(searchTexts)*4)
+	var lowered string
 	for _, raw := range searchTexts {
 		// Skip empty/whitespace without always allocating TrimSpace (PERF-46)
 		if len(raw) == 0 {
@@ -101,7 +102,7 @@ func (r *Redactor) FindTextOccurrencesMulti(searchTexts []string) ([]models.Reda
 		if term == "" {
 			continue
 		}
-		lowered := strings.ToLower(term)
+		lowered = strings.ToLower(term) // PERF-109: cache map key outside loop
 		if _, ok := seenTerms[lowered]; ok {
 			continue
 		}
@@ -312,14 +313,15 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		joined strings.Builder
 	}
 
-	var lines []*lineGroup
+	var lines []lineGroup
 	for _, pos := range ordered {
 		lineH := pos.Height
 		if lineH <= 0 {
 			lineH = 10
 		}
 		placed := false
-		for _, line := range lines {
+		for li := range lines {
+			line := &lines[li]
 			if len(line.spans) == 0 {
 				continue
 			}
@@ -352,10 +354,10 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		if !placed {
 			part := trimSpace(pos.Text)
 			if part == "" {
-				lines = append(lines, &lineGroup{})
+				lines = append(lines, lineGroup{})
 				continue
 			}
-			lg := &lineGroup{
+			lg := lineGroup{
 				spans: []tokenSpan{{pos: pos, start: 0, end: len(part)}},
 			}
 			lg.joined.WriteString(part)
@@ -365,13 +367,18 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 
 	var results []models.RedactionRect
 	var tokenWidths []float64
-	for _, line := range lines {
+	var spanTokenEst []float64
+	for li := range lines {
+		line := &lines[li]
 		if line.joined.Len() == 0 || len(line.spans) < 2 {
 			// Single-token lines are already handled by r.buildSubstringRects.
 			continue
 		}
 		normalJoined := r.normalizeSearchText(line.joined.String())
-		spanTokenEst := make([]float64, len(line.spans))
+		if cap(spanTokenEst) < len(line.spans) {
+			spanTokenEst = make([]float64, len(line.spans))
+		}
+		spanTokenEst = spanTokenEst[:len(line.spans)]
 		for i, s := range line.spans {
 			spanTokenEst[i] = estimateStringWidth(s.pos.Text, s.pos.Height)
 		}

@@ -42,13 +42,17 @@ func trimStringSpace(s string) string {
 func toLowerASCII(s string) string {
 	for i := 0; i < len(s); i++ {
 		if s[i] >= 'A' && s[i] <= 'Z' {
-			b := []byte(s)
-			for j := i; j < len(b); j++ {
-				if b[j] >= 'A' && b[j] <= 'Z' {
-					b[j] += 32
+			var sb strings.Builder
+			sb.Grow(len(s))
+			sb.WriteString(s[:i])
+			for j := i; j < len(s); j++ {
+				c := s[j]
+				if c >= 'A' && c <= 'Z' {
+					c += 32
 				}
+				sb.WriteByte(c)
 			}
-			return string(b)
+			return sb.String()
 		}
 	}
 	return s

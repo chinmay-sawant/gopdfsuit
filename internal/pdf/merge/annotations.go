@@ -262,11 +262,11 @@ func UpdatePageAnnotations(pageBody []byte, offset int) []byte {
 			gen := sm[2]
 			var nbuf [20]byte
 			num := strconv.AppendInt(nbuf[:0], int64(offset+on), 10)
-			out := make([]byte, 0, len(num)+1+len(gen)+2)
-			out = append(out, num...)
-			out = append(out, ' ')
-			out = append(out, gen...)
-			out = append(out, " R"...)
+			out := make([]byte, len(num)+1+len(gen)+2)
+			copy(out, num)
+			out[len(num)] = ' '
+			copy(out[len(num)+1:], gen)
+			copy(out[len(num)+1+len(gen):], " R")
 			return out
 		})
 

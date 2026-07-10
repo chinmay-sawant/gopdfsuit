@@ -161,17 +161,11 @@ func (pm *PageManager) generateBookmarkItems(items []models.Bookmark, parentID i
 
 		if pageIdx >= 0 && pageIdx < len(pm.Pages) {
 			pageID := pm.Pages[pageIdx]
-			chunk = chunk[:0]
 			var destBuf [20]byte
 			destID := strconv.AppendInt(destBuf[:0], int64(pageID), 10)
-			pref := " /Dest ["
-			suff := " 0 R /Fit]"
-			need := len(pref) + len(destID) + len(suff)
-			chunk = chunk[:need]
-			o := copy(chunk, pref)
-			o += copy(chunk[o:], destID)
-			copy(chunk[o:], suff)
-			b = append(b, chunk...)
+			b = append(b, " /Dest ["...)
+			b = append(b, destID...)
+			b = append(b, " 0 R /Fit]"...)
 		}
 
 		b = append(b, " >>\nendobj\n"...)

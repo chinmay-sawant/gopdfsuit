@@ -53,5 +53,8 @@ func PutCompressBuffer(buf *bytes.Buffer) {
 	if buf == nil {
 		return
 	}
+	if buf.Cap() > 131072 {
+		return
+	}
 	CompressBufPool.Put(buf)
 }

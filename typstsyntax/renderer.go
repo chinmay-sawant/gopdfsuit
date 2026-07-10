@@ -341,21 +341,21 @@ func (le *LayoutEngine) layoutSqrt(node *Node, fontSize float64) *MathLayout {
 
 	elements := make([]MathElement, 0, len(inner.Elements)+2)
 
-	// Radical sign (√) glyph
-	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: "√", FontSize: fontSize * 1.1,
-		X: 0, Y: 0, Width: radWidth,
-	})
-
-	// Overline (horizontal bar over the radicand)
-	elements = append(elements, MathElement{
-		Type:      ElemLine,
-		LineX1:    radWidth - 1,
-		LineY1:    totalH,
-		LineX2:    totalW,
-		LineY2:    totalH,
-		LineWidth: 0.5,
-	})
+	// Radical sign (√) glyph + overline
+	elements = append(elements,
+		MathElement{
+			Type: ElemGlyph, Text: "√", FontSize: fontSize * 1.1,
+			X: 0, Y: 0, Width: radWidth,
+		},
+		MathElement{
+			Type:      ElemLine,
+			LineX1:    radWidth - 1,
+			LineY1:    totalH,
+			LineX2:    totalW,
+			LineY2:    totalH,
+			LineWidth: 0.5,
+		},
+	)
 
 	// Inner content
 	for _, el := range inner.Elements {
@@ -387,21 +387,21 @@ func (le *LayoutEngine) layoutRoot(node *Node, fontSize float64) *MathLayout {
 		}
 	}
 
-	// Radical sign
-	elements = append(elements, MathElement{
-		Type: ElemGlyph, Text: "√", FontSize: fontSize * 1.1,
-		X: indexLay.Width * 0.6, Y: 0, Width: radWidth,
-	})
-
-	// Overline
-	elements = append(elements, MathElement{
-		Type:      ElemLine,
-		LineX1:    radWidth - 1,
-		LineY1:    totalH,
-		LineX2:    totalW,
-		LineY2:    totalH,
-		LineWidth: 0.5,
-	})
+	// Radical sign + overline
+	elements = append(elements,
+		MathElement{
+			Type: ElemGlyph, Text: "√", FontSize: fontSize * 1.1,
+			X: indexLay.Width * 0.6, Y: 0, Width: radWidth,
+		},
+		MathElement{
+			Type:      ElemLine,
+			LineX1:    radWidth - 1,
+			LineY1:    totalH,
+			LineX2:    totalW,
+			LineY2:    totalH,
+			LineWidth: 0.5,
+		},
+	)
 
 	// Inner content
 	for _, el := range innerLay.Elements {

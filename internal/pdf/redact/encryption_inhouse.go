@@ -383,7 +383,7 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 }
 
 func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
-	b := make([]byte, len(fileKey), len(fileKey)+5)
+	b := make([]byte, 0, len(fileKey)+5)
 	b = append(b, fileKey...)
 	b = append(b, byte(objNum), byte(objNum>>8), byte(objNum>>16), byte(genNum), byte(genNum>>8))
 	h := pdfdigest.Digest16(b)

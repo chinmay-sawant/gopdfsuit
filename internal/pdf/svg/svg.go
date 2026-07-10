@@ -274,6 +274,7 @@ func applyTransform(b *bytes.Buffer, t string) {
 	// Basic transform parser
 	t = strings.ReplaceAll(t, ",", " ")
 	parts := strings.Fields(t)
+	b.Grow(64)
 
 	for i := range parts {
 		p := parts[i]
@@ -365,25 +366,29 @@ var namedColors = map[string][3]float64{
 // parsedColor caches parseColor results (PERF-230: avoid repeated parseColor in loops).
 type parsedColor [4]float64
 
-var colorCache sync.Map
+var (
+	colorCache   = make(map[string]parsedColor)
+	colorCacheMu sync.RWMutex
+)
 
 func parseColor(c string) (float64, float64, float64, bool) {
 	// PERF-230: cache parsed color results for repeated references
-	if v, ok := colorCache.Load(c); ok {
-		pc := v.(parsedColor)
-		return pc[0], pc[1], pc[2], pc[3] != 0
+	colorCacheMu.RLock()
+	v, ok := colorCache[c]
+	colorCacheMu.RUnlock()
+	if ok {
+		return v[0], v[1], v[2], v[3] != 0
 	}
 
 	r, g, b, ok := parseColorUncached(c)
-	var cached parsedColor
-	cached[0] = r
-	cached[1] = g
-	cached[2] = b
-	if ok {
-		cached[3] = 1
+	if !ok {
+		return 0, 0, 0, false
 	}
-	colorCache.Store(c, cached)
-	return r, g, b, ok
+	cached := parsedColor{r, g, b, 1}
+	colorCacheMu.Lock()
+	colorCache[c] = cached
+	colorCacheMu.Unlock()
+	return r, g, b, true
 }
 
 func parseColorUncached(c string) (float64, float64, float64, bool) {

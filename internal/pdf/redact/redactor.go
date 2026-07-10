@@ -197,6 +197,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		mode = "visual_allowed" //nolint:goconst
 	}
 	report.Mode = mode
+	// PERF-48: len precheck before EqualFold
 	isVisual := len(mode) == len("visual_allowed") && strings.EqualFold(mode, "visual_allowed")
 	isSecure := len(mode) == len("secure_required") && strings.EqualFold(mode, "secure_required")
 	if !isVisual && !isSecure {

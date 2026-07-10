@@ -33,7 +33,7 @@ type tesseractProvider struct{}
 
 func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
 	provider := trimSpace(settings.Provider)
-	// EqualFold with len-first for the common "tesseract" case (PERF-48)
+	// PERF-48: len precheck before EqualFold
 	if provider == "" || (len(provider) == len("tesseract") && strings.EqualFold(provider, "tesseract")) {
 		return tesseractProvider{}, nil
 	}
@@ -53,17 +53,17 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 		return nil, err
 	}
 	var rects []models.RedactionRect
+	// PERF-109: pre-compute lowered terms outside the word loop
 	loweredTerms := make([]string, len(queries))
 	for i, q := range queries {
 		loweredTerms[i] = trimSpace(strings.ToLower(q.Text))
 	}
 	for _, w := range words {
-		loweredWord := strings.ToLower(w.Text)
 		for _, term := range loweredTerms {
 			if term == "" {
 				continue
 			}
-			if strings.Contains(loweredWord, term) {
+			if containsFold(w.Text, term) {
 				rects = append(rects, models.RedactionRect{
 					PageNum: w.PageNum,
 					X:       w.X,
@@ -206,4 +206,21 @@ func parseTSVWord(line string, page int, sx, sy, pageHeight float64) (ocrWord, b
 		Height:  h * sy,
 		Text:    text,
 	}, true
+}
+
+// containsFold reports whether substr is within s, case-insensitively, without allocation.
+// PERF-112: avoids strings.ToLower allocation by using EqualFold in a sliding window.
+func containsFold(s, substr string) bool {
+	if len(substr) == 0 {
+		return true
+	}
+	if len(s) < len(substr) {
+		return false
+	}
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if strings.EqualFold(s[i:i+len(substr)], substr) {
+			return true
+		}
+	}
+	return false
 }

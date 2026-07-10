@@ -59,6 +59,7 @@ func runBenchmarkIteration(
 	defer wg.Done()
 	defer func() { <-sem }()
 
+	// PERF-40: time.Now() is intentional — benchmark measures PDF generation duration
 	start := time.Now()
 	pdfBytes, genErr := gopdflib.GeneratePDF(template)
 	if genErr != nil {

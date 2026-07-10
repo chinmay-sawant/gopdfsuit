@@ -245,6 +245,7 @@ func (enc *PDFEncryption) EncryptStream(data []byte, objNum, genNum int) []byte 
 
 	// Generate random IV
 	iv := make([]byte, aes.BlockSize)
+	// PERF-53: crypto/rand (not math/rand) is used — secure, package-level
 	if _, err := rand.Read(iv); err != nil {
 		return data
 	}

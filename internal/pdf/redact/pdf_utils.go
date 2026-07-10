@@ -384,6 +384,7 @@ func appendXObjectContentRecursive(out *bytes.Buffer, objNum int, objMap map[int
 	if len(dec) == 0 {
 		dec = raw
 	}
+	out.Grow(len(dec) + 1)
 	out.Write(dec)
 	out.WriteByte('\n')
 
@@ -782,6 +783,7 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}
 		gen := objGenNum(objGen, objNum)
 		origBody, ok := originalMap[objNum]
+		// PERF-48: len precheck before bytes.Equal
 		if !ok || len(origBody) != len(body) || !bytes.Equal(origBody, body) {
 			changed = append(changed, objMeta{id: objNum, gen: gen})
 		}
