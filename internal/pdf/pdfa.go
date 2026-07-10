@@ -375,7 +375,10 @@ func GetSRGBICCProfile() []byte {
 }
 
 // GetSRGBICCCompressed returns the compressed sRGB ICC profile (PERF-217: cached compression).
+// It must trigger the sync.Once so the compressed bytes are populated — callers
+// (GenerateICCProfileObject, metadata.go) use this directly and must not receive nil.
 func GetSRGBICCCompressed() []byte {
+	GetSRGBICCProfile() // ensure sync.Once has run, populating srgbICCCompressed
 	return srgbICCCompressed
 }
 

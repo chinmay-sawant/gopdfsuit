@@ -314,14 +314,12 @@ size_within_tolerance() {
 }
 
 wait_for_slot() {
-    local -n _running_ref="$1"
-    local max_jobs="$2"
-    while ((_running_ref >= max_jobs)); do
-        if ! wait -n 2>/dev/null; then
-            wait || true
-        fi
-        ((_running_ref--)) || true
-    done
+	local -n _running_ref="$1"
+	local max_jobs="$2"
+	while ((_running_ref >= max_jobs)); do
+		wait -n 2>/dev/null || true
+		((_running_ref--)) || true
+	done
 }
 
 manifest_tolerance() {
@@ -599,7 +597,7 @@ zerodha_only() {
     done
 
     while ((running > 0)); do
-        wait -n 2>/dev/null || wait || true
+        wait -n 2>/dev/null || true
         ((running--)) || true
     done
 
@@ -660,7 +658,7 @@ post_test() {
     done
 
     while ((running > 0)); do
-        wait -n 2>/dev/null || wait || true
+        wait -n 2>/dev/null || true
         ((running--)) || true
     done
 
@@ -764,7 +762,7 @@ scan_all() {
     done
 
     while ((running > 0)); do
-        wait -n 2>/dev/null || wait || true
+        wait -n 2>/dev/null || true
         ((running--)) || true
     done
 

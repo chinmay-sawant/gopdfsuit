@@ -313,7 +313,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		joined strings.Builder
 	}
 
-	var lines []lineGroup
+	var lines []*lineGroup
 	for _, pos := range ordered {
 		lineH := pos.Height
 		if lineH <= 0 {
@@ -321,7 +321,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		}
 		placed := false
 		for li := range lines {
-			line := &lines[li]
+			line := lines[li]
 			if len(line.spans) == 0 {
 				continue
 			}
@@ -354,10 +354,10 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		if !placed {
 			part := trimSpace(pos.Text)
 			if part == "" {
-				lines = append(lines, lineGroup{})
+				lines = append(lines, &lineGroup{})
 				continue
 			}
-			lg := lineGroup{
+			lg := &lineGroup{
 				spans: []tokenSpan{{pos: pos, start: 0, end: len(part)}},
 			}
 			lg.joined.WriteString(part)
@@ -369,7 +369,7 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 	var tokenWidths []float64
 	var spanTokenEst []float64
 	for li := range lines {
-		line := &lines[li]
+		line := lines[li]
 		if line.joined.Len() == 0 || len(line.spans) < 2 {
 			// Single-token lines are already handled by r.buildSubstringRects.
 			continue
