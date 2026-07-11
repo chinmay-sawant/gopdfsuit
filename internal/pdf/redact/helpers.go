@@ -188,7 +188,7 @@ func parseXRefStreams(data []byte, objMap map[int][]byte, objGen map[int]int) {
 		if len(W) < 3 {
 			continue
 		}
-		if parseArrayInts(body, `/Index`) == nil {
+		if idx := parseArrayInts(body, `/Index`); idx == nil {
 			continue
 		}
 		w0, w1, w2 := W[0], W[1], W[2]

@@ -30,8 +30,8 @@ type MergeContext struct {
 	Output bytes.Buffer
 
 	// Object tracking
-	Offsets    map[int]int // Object ID -> byte offset in output
-	CurrentMax int         // Highest object number assigned
+	Offsets    []int // Object ID -> byte offset in output (indexed by obj num)
+	CurrentMax int   // Highest object number assigned
 
 	// Page tracking
 	MergedPages []int // Ordered list of page object numbers
@@ -51,8 +51,8 @@ type MergeContext struct {
 // NewMergeContext creates a new merge context
 func NewMergeContext() *MergeContext {
 	return &MergeContext{
-		Offsets:        make(map[int]int, 64), // PERF-192: typical multi-object PDF
-		CurrentMax:     2,                     // Reserve 1 for Catalog, 2 for Pages
+		Offsets:        make([]int, 0, 64), // PERF-192: typical multi-object PDF
+		CurrentMax:     2,                  // Reserve 1 for Catalog, 2 for Pages
 		FieldSet:       make(map[int]bool, 16),
 		WidgetToFields: make(map[int]int, 16),
 		AnnotationDeps: make(map[int][]int, 16),
@@ -63,8 +63,8 @@ func NewMergeContext() *MergeContext {
 // FileContext holds parsed data for a single input PDF
 type FileContext struct {
 	Data       []byte
-	Objects    map[int][]byte // Object number -> body
-	MaxObj     int            // Maximum object number in this file
+	Objects    [][]byte // Object number -> body (indexed by obj num)
+	MaxObj     int      // Maximum object number in this file
 	Pages      []int          // Page object numbers (in order)
 	FormFields []int          // Form field object numbers
 	Annots     map[int][]int  // Page object -> annotation object numbers
@@ -81,9 +81,8 @@ type FileContext struct {
 // NewFileContext creates a new file context
 func NewFileContext(data []byte) *FileContext {
 	return &FileContext{
-		Data:    data,
-		Objects: make(map[int][]byte, 64), // PERF-192
-		Annots:  make(map[int][]int, 8),
+		Data:   data,
+		Annots: make(map[int][]int, 8),
 		APDeps:  make(map[int][]int, 8),
 	}
 }

@@ -115,7 +115,12 @@ func (a *signatureContextAdapter) EncodeTextForFont(fontName, text string) strin
 func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	pdfBufferPtr := pdfBufferPool.Get().(*bytes.Buffer)
 	pdfBufferPtr.Reset()
-	defer pdfBufferPool.Put(pdfBufferPtr)
+	releaseBuffer := true
+	defer func() {
+		if releaseBuffer {
+			pdfBufferPool.Put(pdfBufferPtr)
+		}
+	}()
 	pdfBuffer := pdfBufferPtr // use directly as *bytes.Buffer
 
 	scratchPtr := scratchBufPool.Get().(*[]byte)
@@ -692,19 +697,38 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		}
 		if actualICCObjID > 0 {
 			// Include both DefaultRGB and DefaultGray for full PDF/A-4 compliance
-			var csBuf [20]byte
-			var csBuilder strings.Builder
-			csBuilder.Grow(128)
-			csBuilder.WriteString(" /ColorSpace << /DefaultRGB [/ICCBased ")
-			csBuilder.Write(strconv.AppendInt(csBuf[:0], int64(actualICCObjID), 10))
-			csBuilder.WriteString(" 0 R] /DefaultGray [/ICCBased ")
-			csBuilder.Write(strconv.AppendInt(csBuf[:0], int64(grayICCProfileObjID), 10))
-			csBuilder.WriteString(" 0 R] >>")
+		var csBuf [20]byte
+		actualICCID := strconv.AppendInt(csBuf[:0], int64(actualICCObjID), 10)
+		grayICCID := strconv.AppendInt(csBuf[:0], int64(grayICCProfileObjID), 10)
+		var csBuilder strings.Builder
+		csBuilder.Grow(37 + len(actualICCID) + 28 + len(grayICCID) + 7)
+		csBuilder.WriteString(" /ColorSpace << /DefaultRGB [/ICCBased ")
+		csBuilder.Write(actualICCID)
+		csBuilder.WriteString(" 0 R] /DefaultGray [/ICCBased ")
+		csBuilder.Write(grayICCID)
+		csBuilder.WriteString(" 0 R] >>")
 			colorSpaceRefs = csBuilder.String()
 		}
 	}
 
+	// Build standard font resources string once (hoisted from page loop per PERF-219)
+	var stdFontRefs strings.Builder
+	stdFontRefs.Grow(64 * len(fontNames))
+	for fontIdx, name := range fontNames {
+		if id, ok := fontObjectIDs[name]; ok {
+			stdFontRefs.WriteByte(' ')
+			stdFontRefs.WriteString(fontRefs[fontIdx])
+			stdFontRefs.WriteByte(' ')
+			var fontBuf [12]byte
+			stdFontRefs.Write(strconv.AppendInt(fontBuf[:0], int64(id), 10))
+			stdFontRefs.WriteString(" 0 R")
+		}
+	}
+	stdFontRefsStr := stdFontRefs.String()
+
 	// Generate page objects
+	widthStr := fmtNum(pageDims.Width)
+	heightStr := fmtNum(pageDims.Height)
 	for i, pageID := range pageManager.Pages {
 		xrefOffsets[pageID] = pdfBuffer.Len()
 		b = b[:0]
@@ -738,9 +762,9 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		}
 
 		pdfBuffer.WriteString("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ")
-		pdfBuffer.WriteString(fmtNum(pageDims.Width))
+		pdfBuffer.WriteString(widthStr)
 		pdfBuffer.WriteByte(' ')
-		pdfBuffer.WriteString(fmtNum(pageDims.Height))
+		pdfBuffer.WriteString(heightStr)
 		pdfBuffer.WriteString("] ")
 
 		pdfBuffer.WriteString("/Contents ")
@@ -748,20 +772,6 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		b = strconv.AppendInt(b, int64(contentObjectStart+i), 10)
 		b = append(b, " 0 R "...)
 		pdfBuffer.Write(b)
-
-		// Build standard font resources string dynamically
-		var stdFontRefs strings.Builder
-		stdFontRefs.Grow(64 * len(fontNames))
-		for i, name := range fontNames {
-			if id, ok := fontObjectIDs[name]; ok {
-				stdFontRefs.WriteByte(' ')
-				stdFontRefs.WriteString(fontRefs[i])
-				stdFontRefs.WriteByte(' ')
-				var fontBuf [12]byte
-				stdFontRefs.Write(strconv.AppendInt(fontBuf[:0], int64(id), 10))
-				stdFontRefs.WriteString(" 0 R")
-			}
-		}
 
 		// Include ColorSpace resource for PDF/A mode
 		// PDF/UA: Add StructParents entry ONLY if page has marked content
@@ -782,7 +792,7 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		pdfBuffer.WriteString("/Resources << ")
 		pdfBuffer.WriteString(colorSpaceRefs)
 		pdfBuffer.WriteString(" /Font <<")
-		pdfBuffer.WriteString(stdFontRefs.String())
+		pdfBuffer.WriteString(stdFontRefsStr)
 		pdfBuffer.WriteString(customFontRefs)
 		pdfBuffer.WriteString(" >>")
 		pdfBuffer.WriteString(xobjectRefs)
@@ -1482,15 +1492,16 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 		// Pass pdfBuffer.Bytes() directly to avoid an extra pre-signing clone.
 		signedPDF, err := signature.UpdatePDFWithSignature(pdfBuffer.Bytes(), pdfSigner)
 		if err != nil {
-			// Signing failed — return a one-time clone of the pool buffer.
-			finalPDF := slices.Clone(pdfBuffer.Bytes())
-			return finalPDF, nil
+			// Take ownership of the buffer — no clone needed (PERF-226/225).
+			releaseBuffer = false
+			return pdfBuffer.Bytes(), nil
 		}
 		return signedPDF, nil
 	}
 
-	finalPDF := slices.Clone(pdfBuffer.Bytes())
-	return finalPDF, nil
+	// Take ownership of the buffer — no clone needed (PERF-226/225).
+	releaseBuffer = false
+	return pdfBuffer.Bytes(), nil
 }
 
 // generateAllContentWithImages processes the template and generates content with image support

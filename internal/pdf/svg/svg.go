@@ -48,8 +48,24 @@ type Token struct {
 }
 
 func parseDimension(val string) float64 {
-	val = strings.TrimSuffix(val, "px")
-	f, _ := strconv.ParseFloat(val, 64)
+	dimCacheMu.RLock()
+	v, ok := dimCache[val]
+	dimCacheMu.RUnlock()
+	if ok {
+		return v
+	}
+
+	trimmed := val
+	if strings.HasSuffix(val, "px") {
+		trimmed = val[:len(val)-2]
+	}
+	f, _ := strconv.ParseFloat(trimmed, 64)
+
+	dimCacheMu.Lock()
+	if len(dimCache) < maxDimCacheSize {
+		dimCache[val] = f
+	}
+	dimCacheMu.Unlock()
 	return f
 }
 
@@ -366,10 +382,24 @@ var namedColors = map[string][3]float64{
 // parsedColor caches parseColor results (PERF-230: avoid repeated parseColor in loops).
 type parsedColor [4]float64
 
+const maxColorCacheSize = 256
+const maxDimCacheSize = 64
+
 var (
-	colorCache   = make(map[string]parsedColor)
+	colorCache   = make(map[string]parsedColor, len(namedColors)+16)
 	colorCacheMu sync.RWMutex
 )
+
+var (
+	dimCache   = make(map[string]float64, maxDimCacheSize)
+	dimCacheMu sync.RWMutex
+)
+
+func init() {
+	for name, rgb := range namedColors {
+		colorCache[name] = parsedColor{rgb[0], rgb[1], rgb[2], 1}
+	}
+}
 
 func parseColor(c string) (float64, float64, float64, bool) {
 	// PERF-230: cache parsed color results for repeated references
@@ -386,6 +416,12 @@ func parseColor(c string) (float64, float64, float64, bool) {
 	}
 	cached := parsedColor{r, g, b, 1}
 	colorCacheMu.Lock()
+	if len(colorCache) >= maxColorCacheSize {
+		for k := range colorCache {
+			delete(colorCache, k)
+			break
+		}
+	}
 	colorCache[c] = cached
 	colorCacheMu.Unlock()
 	return r, g, b, true

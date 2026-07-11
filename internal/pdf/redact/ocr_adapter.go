@@ -154,10 +154,41 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 			if lineNo == 1 {
 				continue // header
 			}
-			// PERF-47: IndexByte column walk instead of strings.Split
-			if w, ok := parseTSVWord(line, page, sx, sy, pageDim.Height); ok {
-				words = append(words, w)
+			var cols [12]string
+			col := 0
+			start := 0
+			for i := 0; i <= len(line) && col < 12; i++ {
+				if i == len(line) || line[i] == '\t' {
+					cols[col] = line[start:i]
+					col++
+					start = i + 1
+					if i == len(line) {
+						break
+					}
+				}
 			}
+			if col < 12 {
+				continue
+			}
+			text := trimSpace(cols[11])
+			if text == "" {
+				continue
+			}
+			left, errL := strconv.ParseFloat(cols[6], 64)
+			top, errT := strconv.ParseFloat(cols[7], 64)
+			w, errW := strconv.ParseFloat(cols[8], 64)
+			h, errH := strconv.ParseFloat(cols[9], 64)
+			if errL != nil || errT != nil || errW != nil || errH != nil {
+				continue
+			}
+			words = append(words, ocrWord{
+				PageNum: page,
+				X:       left * sx,
+				Y:       pageDim.Height - ((top + h) * sy),
+				Width:   w * sx,
+				Height:  h * sy,
+				Text:    text,
+			})
 		}
 		if err := scanner.Err(); err != nil {
 			return nil, err
@@ -165,47 +196,6 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 	}
 
 	return words, nil
-}
-
-// parseTSVWord extracts one OCR word from a Tesseract TSV line without Split allocs.
-func parseTSVWord(line string, page int, sx, sy, pageHeight float64) (ocrWord, bool) {
-	// TSV columns: level page_num block_num par_num line_num word_num left top width height conf text
-	// We need indices 6,7,8,9,11
-	var cols [12]string
-	col := 0
-	start := 0
-	for i := 0; i <= len(line) && col < 12; i++ {
-		if i == len(line) || line[i] == '\t' {
-			cols[col] = line[start:i]
-			col++
-			start = i + 1
-			if i == len(line) {
-				break
-			}
-		}
-	}
-	if col < 12 {
-		return ocrWord{}, false
-	}
-	text := trimSpace(cols[11])
-	if text == "" {
-		return ocrWord{}, false
-	}
-	left, errL := strconv.ParseFloat(cols[6], 64)
-	top, errT := strconv.ParseFloat(cols[7], 64)
-	w, errW := strconv.ParseFloat(cols[8], 64)
-	h, errH := strconv.ParseFloat(cols[9], 64)
-	if errL != nil || errT != nil || errW != nil || errH != nil {
-		return ocrWord{}, false
-	}
-	return ocrWord{
-		PageNum: page,
-		X:       left * sx,
-		Y:       pageHeight - ((top + h) * sy),
-		Width:   w * sx,
-		Height:  h * sy,
-		Text:    text,
-	}, true
 }
 
 // containsFold reports whether substr is within s, case-insensitively, without allocation.

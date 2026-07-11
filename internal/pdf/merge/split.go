@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // Package-level regexes for page-spec parsing (PERF-1).
@@ -27,18 +28,25 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 		return nil, nil
 	}
 	parts := commaPartsRe.Split(spec, -1)
-	set := make(map[int]bool, len(parts)) // PERF-192
+
+	// Use slice when totalPages is known, map otherwise
+	var set map[int]bool
+	var setSlice []bool
+	useSlice := totalPages > 0
+	if useSlice {
+		setSlice = make([]bool, totalPages+1)
+	} else {
+		set = make(map[int]bool, len(parts))
+	}
 
 	for _, p := range parts {
 		if p == "" {
 			continue
 		}
-		switch {
-		case rangeSpecRe.MatchString(p):
-			m := rangeSpecRe.FindStringSubmatch(p)
-			a, _ := strconv.Atoi(m[1])
-			b, _ := strconv.Atoi(m[2])
-			if a < 1 || b < a {
+		if idx := strings.IndexByte(p, '-'); idx > 0 {
+			a, err1 := strconv.Atoi(p[:idx])
+			b, err2 := strconv.Atoi(p[idx+1:])
+			if err1 != nil || err2 != nil || a < 1 || b < a {
 				return nil, errors.New("invalid range: " + p)
 			}
 			if totalPages > 0 && a > totalPages {
@@ -48,25 +56,53 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 				b = totalPages
 			}
 			for i := a; i <= b; i++ {
-				set[i] = true
+				if useSlice {
+					setSlice[i] = true
+				} else {
+					set[i] = true
+				}
 			}
-		case numSpecRe.MatchString(p):
+		} else if isAllDigits(p) {
 			n, _ := strconv.Atoi(p)
 			if n < 1 || (totalPages > 0 && n > totalPages) {
 				return nil, errors.New("invalid page: " + p)
 			}
-			set[n] = true
-		default:
+			if useSlice {
+				setSlice[n] = true
+			} else {
+				set[n] = true
+			}
+		} else {
 			return nil, errors.New("invalid token: " + p)
 		}
 	}
 
-	pages := make([]int, 0, len(set))
-	for k := range set {
-		pages = append(pages, k)
+	var pages []int
+	if useSlice {
+		pages = make([]int, 0, totalPages)
+		for i := 1; i <= totalPages; i++ {
+			if setSlice[i] {
+				pages = append(pages, i)
+			}
+		}
+	} else {
+		pages = make([]int, 0, len(set))
+		for k := range set {
+			pages = append(pages, k)
+		}
 	}
 	sort.Ints(pages)
 	return pages, nil
+}
+
+// isAllDigits checks if a string consists entirely of decimal digits.
+func isAllDigits(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
 }
 
 // SplitPDF splits a single PDF file into one or more PDFs according to spec.
@@ -182,28 +218,30 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 // buildPDFFromPageObjs builds a single PDF containing only the provided original page object numbers.
 func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) ([]byte, error) {
 	// collect included objects via DFS starting from page objects
-	capHint := fc.MaxObj
-	if capHint < 8 {
-		capHint = 8
+	n := fc.MaxObj + 1
+	if n < 8 {
+		n = 8
 	}
-	included := make(map[int]bool, capHint) // PERF-192
+	included := make([]bool, n)
 	var stack []int
 	for _, p := range pageObjs {
-		included[p] = true
+		if p < len(included) {
+			included[p] = true
+		}
 		stack = append(stack, p)
 	}
 
 	for len(stack) > 0 {
 		n := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		body, ok := fc.Objects[n]
-		if !ok {
+		if n >= len(fc.Objects) || fc.Objects[n] == nil {
 			continue
 		}
+		body := fc.Objects[n]
 		// include AP deps if any
 		if deps, ok := fc.APDeps[n]; ok {
 			for _, d := range deps {
-				if !included[d] && !isExcludedForSplit(fc, d) {
+				if d < len(included) && !included[d] && !isExcludedForSplit(fc, d) {
 					included[d] = true
 					stack = append(stack, d)
 				}
@@ -218,7 +256,7 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 			if isExcludedForSplit(fc, refNum) {
 				continue
 			}
-			if !included[refNum] {
+			if refNum < len(included) && !included[refNum] {
 				included[refNum] = true
 				stack = append(stack, refNum)
 			}
@@ -228,8 +266,8 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 	// build ordered list of object numbers to write
 	var objs []int
 	for i := 1; i <= fc.MaxObj; i++ {
-		if _, ok := fc.Objects[i]; ok {
-			if included[i] && !isExcludedForSplit(fc, i) {
+		if i < len(fc.Objects) && fc.Objects[i] != nil {
+			if i < len(included) && included[i] && !isExcludedForSplit(fc, i) {
 				objs = append(objs, i)
 			}
 		}
@@ -251,7 +289,7 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 	}
 	var appended []appendedObj
 	var mergedPages []int
-	fieldSet := make(map[int]bool, len(fc.FormFields)) // PERF-192
+	fieldSet := make([]bool, n)
 	var mergedFields []int
 
 	// collect remapped object bodies
@@ -272,9 +310,9 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 
 	// track form fields that are included
 	for _, fn := range fc.FormFields {
-		if included[fn] && !isExcludedForSplit(fc, fn) {
+		if fn < len(included) && included[fn] && !isExcludedForSplit(fc, fn) {
 			remapped := offset + fn
-			if !fieldSet[remapped] {
+			if remapped < len(fieldSet) && !fieldSet[remapped] {
 				mergedFields = append(mergedFields, remapped)
 				fieldSet[remapped] = true
 			}
@@ -282,6 +320,7 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 	}
 
 	// write Catalog and Pages
+	ensureLen(&ctx.Offsets, 3)
 	ctx.Offsets[1] = ctx.Output.Len()
 	writeCatalog(&ctx.Output, mergedFields)
 	ctx.Offsets[2] = ctx.Output.Len()
@@ -289,6 +328,7 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 
 	// write appended objects in numeric order
 	for _, obj := range appended {
+		ensureLen(&ctx.Offsets, obj.num+1)
 		ctx.Offsets[obj.num] = ctx.Output.Len()
 		body := obj.body
 		// ensure page objects have Parent -> 2 0 R
@@ -318,8 +358,8 @@ func isExcludedForSplit(fc *FileContext, objNum int) bool {
 		}
 	}
 	// exclude Pages tree nodes (intermediate)
-	if body, ok := fc.Objects[objNum]; ok {
-		if IsPagesTreeObject(body) {
+	if objNum < len(fc.Objects) && fc.Objects[objNum] != nil {
+		if IsPagesTreeObject(fc.Objects[objNum]) {
 			return true
 		}
 	}

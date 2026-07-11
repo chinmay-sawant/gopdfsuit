@@ -12,12 +12,14 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
+	"hash/fnv"
 	"math/big"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/byteconv"
 	"github.com/chinmay-sawant/gopdfsuit/v5/internal/models"
@@ -29,6 +31,14 @@ type PDFSigner struct {
 	certificate *x509.Certificate
 	privateKey  crypto.PrivateKey
 	certChain   []*x509.Certificate
+	signingTime time.Time
+}
+
+// oidContentTypeASN1Bytes holds the pre-marshaled oidData for authenticated attributes (PERF-241).
+var oidContentTypeASN1Bytes []byte
+
+func init() {
+	oidContentTypeASN1Bytes = mustMarshal(oidData)
 }
 
 // SignatureIDs holds the object IDs for a signature field and its associated annotations.
@@ -83,7 +93,7 @@ func appendPad10(dst []byte, n int) []byte {
 }
 
 func signerPEMCacheKey(certPEMBytes, keyPEMBytes []byte, chain []string) string {
-	h := sha256.New()
+	h := fnv.New128a()
 	h.Write(certPEMBytes)
 	h.Write([]byte{0})
 	h.Write(keyPEMBytes)
@@ -91,7 +101,7 @@ func signerPEMCacheKey(certPEMBytes, keyPEMBytes []byte, chain []string) string 
 		h.Write([]byte{1})
 		h.Write(byteconv.StringToBytes(c))
 	}
-	var k [32]byte
+	var k [16]byte
 	h.Sum(k[:0])
 	return string(k[:])
 }
@@ -229,6 +239,7 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// Get current time once for both appearance and signing time (PERF-40)
 	now := time.Now()
+	s.signingTime = now
 	if s.config.Visible {
 		ids.AppearanceID = s.createSignatureAppearance(pageManager, sigW, sigH, fontID, now)
 	}
@@ -243,7 +254,22 @@ func (s *PDFSigner) CreateSignatureField(pageManager SignaturePageContext, pageD
 
 	// Build signature value dictionary
 	var sigValueDict strings.Builder
-	sigValueDict.Grow(16500)
+
+	// Derive Grow size from workload (PERF-234)
+	sigValueGrow := 16547 // fixed overhead (tags, Contents placeholder, /M, closing)
+	if s.config.Reason != "" {
+		sigValueGrow += 11 + len(s.config.Reason)
+	}
+	if s.config.Location != "" {
+		sigValueGrow += 13 + len(s.config.Location)
+	}
+	if s.config.ContactInfo != "" {
+		sigValueGrow += 16 + len(s.config.ContactInfo)
+	}
+	if signerName != "" {
+		sigValueGrow += 9 + len(signerName)
+	}
+	sigValueDict.Grow(sigValueGrow)
 	sigValueDict.WriteString("<< /Type /Sig")
 	sigValueDict.WriteString(" /Filter /Adobe.PPKLite")
 	sigValueDict.WriteString(" /SubFilter /adbe.pkcs7.detached")
@@ -538,7 +564,11 @@ func (s *PDFSigner) SignPDF(pdfData []byte, byteRange [4]int) ([]byte, error) {
 // createPKCS7SignedData creates a PKCS#7 SignedData structure
 func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) {
 	// Build authenticated attributes
-	signingTime := time.Now().UTC()
+	signingTime := s.signingTime
+	if signingTime.IsZero() {
+		signingTime = time.Now()
+	}
+	signingTime = signingTime.UTC()
 
 	// Authenticated attributes MUST be in DER-sorted order for SET encoding
 	// OIDs: ContentType (1.9.3), MessageDigest (1.9.4), SigningTime (1.9.5)
@@ -549,7 +579,7 @@ func (s *PDFSigner) createPKCS7SignedData(messageDigest []byte) ([]byte, error) 
 				Class:      asn1.ClassUniversal,
 				Tag:        asn1.TagSet,
 				IsCompound: true,
-				Bytes:      mustMarshal(oidData),
+				Bytes:      oidContentTypeASN1Bytes, // pre-computed at init (PERF-241)
 			},
 		},
 		{
@@ -808,8 +838,10 @@ func UpdatePDFWithSignature(pdfData []byte, signer *PDFSigner) ([]byte, error) {
 			", placeholder=" + strconv.Itoa(len(byteRangeMarker)))
 	}
 
-	// Create a copy of pdfData to modify
-	result := bytes.Clone(pdfData)
+	// Avoid cloning the entire PDF buffer — mutate in-place via unsafe (PERF-236).
+	// The input pdfData is owned by the caller; the ByteRange and Contents are the
+	// only two positions modified, and both are fixed-size writes.
+	result := unsafe.Slice(unsafe.StringData(byteconv.BytesToString(pdfData)), len(pdfData))
 
 	// Replace ByteRange
 	copy(result[byteRangePos:byteRangePos+len(byteRangeMarker)], newByteRange)

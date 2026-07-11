@@ -413,9 +413,7 @@ func appendTextForPDF(dst []byte, resolvedName, text string, registry *CustomFon
 		return AppendTextForCustomFont(dst, resolvedName, text, registry)
 	}
 	if !strings.ContainsAny(text, `()\`) {
-		dst = append(dst, '(')
-		dst = append(dst, text...)
-		dst = append(dst, ')')
+		dst = append(append(append(dst, '('), text...), ')')
 		return dst
 	}
 	dst = append(dst, '(')
@@ -435,9 +433,23 @@ func formatTextForPDF(resolvedName string, text string, registry *CustomFontRegi
 
 // WrapState holds reusable buffers for allocation-free text wrapping.
 type WrapState struct {
-	lines   [][]byte
-	buf     []byte
-	wordBuf []byte
+	lines      [][]byte
+	buf        []byte
+	wordBuf    []byte
+	widthCache map[string]float64
+}
+
+// estimateWidthCached returns the text width, caching the result for repeated substrings.
+func (ws *WrapState) estimateWidthCached(resolvedFontName, text string, fontSize float64, registry *CustomFontRegistry) float64 {
+	if w, ok := ws.widthCache[text]; ok {
+		return w
+	}
+	w := EstimateTextWidth(resolvedFontName, text, fontSize, registry)
+	if ws.widthCache == nil {
+		ws.widthCache = make(map[string]float64)
+	}
+	ws.widthCache[text] = w
+	return w
 }
 
 // byteString converts a byte slice to a string without allocation.
@@ -506,7 +518,7 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 
 		var wordWidth float64
 		if hasCustomFont {
-			wordWidth = EstimateTextWidth(resolvedFontName, word, fontSize, registry)
+			wordWidth = ws.estimateWidthCached(resolvedFontName, word, fontSize, registry)
 		} else {
 			wordWidth = float64(utf8.RuneCountInString(word)) * avgCharMult
 		}
@@ -517,7 +529,7 @@ func WrapTextInto(ws *WrapState, text, resolvedFontName string, fontSize, maxWid
 			}
 			wrapLongWordInto(ws, word, resolvedFontName, fontSize, maxWidth, registry, hasCustomFont, avgCharMult)
 			if hasCustomFont {
-				lineWidth = EstimateTextWidth(resolvedFontName, byteString(ws.buf[lineStart:]), fontSize, registry)
+				lineWidth = ws.estimateWidthCached(resolvedFontName, string(ws.buf[lineStart:]), fontSize, registry)
 			} else {
 				lineWidth = float64(utf8.RuneCount(ws.buf[lineStart:])) * avgCharMult
 			}
@@ -578,7 +590,7 @@ func wrapLongWordInto(ws *WrapState, word, resolvedFontName string, fontSize, ma
 			runeCount++
 			var w float64
 			if hasCustomFont {
-				w = EstimateTextWidth(resolvedFontName, byteString(ws.wordBuf[start:start+end-start+rs]), fontSize, registry)
+				w = ws.estimateWidthCached(resolvedFontName, string(ws.wordBuf[start:start+end-start+rs]), fontSize, registry)
 			} else {
 				w = float64(runeCount) * avgCharMult
 			}

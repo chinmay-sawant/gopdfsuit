@@ -52,50 +52,50 @@ func (r *Redactor) applySecureContentRedactions(redactions []models.RedactionRec
 		}
 	}
 
-	redactionsByPage := make(map[int][]models.RedactionRect, len(redactions)) // PERF-192
+	maxPage := 0
+	for _, r := range redactions {
+		if r.PageNum > maxPage {
+			maxPage = r.PageNum
+		}
+	}
+	redactionsByPage := make([][]models.RedactionRect, maxPage+1)
 	for _, r := range redactions {
 		redactionsByPage[r.PageNum] = append(redactionsByPage[r.PageNum], r)
 	}
-	if len(redactionsByPage) == 0 && len(queries) > 0 {
+	if len(redactions) == 0 && len(queries) > 0 {
 		if info, err := r.GetPageInfo(); err == nil {
-			for i := 1; i <= info.TotalPages; i++ {
-				redactionsByPage[i] = nil
-			}
+			redactionsByPage = make([][]models.RedactionRect, info.TotalPages+1)
 		}
 	}
 
 	var warnings []string
 	changedAny := false
 
-	for pageNum, rects := range redactionsByPage {
+	for pageNum := 1; pageNum < len(redactionsByPage); pageNum++ {
+		rects := redactionsByPage[pageNum]
 		pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
 		if err != nil {
-			// PERF-6: avoid fmt.Sprintf in loop
-			var wb strings.Builder
-			wb.Grow(64)
-			var tmp [20]byte
-			wb.WriteString("page ")
-			wb.Write(strconv.AppendInt(tmp[:0], int64(pageNum), 10))
-			wb.WriteString(": ")
-			wb.WriteString(err.Error())
-			warnings = append(warnings, wb.String())
+			var wbuf []byte
+			wbuf = append(wbuf, "page "...)
+			wbuf = strconv.AppendInt(wbuf, int64(pageNum), 10)
+			wbuf = append(wbuf, ": "...)
+			wbuf = append(wbuf, err.Error()...)
+			warnings = append(warnings, string(wbuf))
 			continue
 		}
 		pageBody := objMap[pageObjNum]
 		keys := extractContentKeys(pageBody)
 		pageResources := findPageResources(pageBody, objMap)
 		if len(keys) == 0 {
-			var wb strings.Builder
-			wb.Grow(64)
-			var tmp [20]byte
-			wb.WriteString("page ")
-			wb.Write(strconv.AppendInt(tmp[:0], int64(pageNum), 10))
-			wb.WriteString(": no content streams")
-			warnings = append(warnings, wb.String())
+			var wbuf []byte
+			wbuf = append(wbuf, "page "...)
+			wbuf = strconv.AppendInt(wbuf, int64(pageNum), 10)
+			wbuf = append(wbuf, ": no content streams"...)
+			warnings = append(warnings, string(wbuf))
 			continue
 		}
 
-		visited := make(map[int]bool, 8) // PERF-192
+		visited := make(map[int]bool, 8)
 		activeQueries := queries
 
 		for _, key := range keys {
@@ -134,14 +134,12 @@ func rewriteSecureStreamTree(objMap map[int][]byte, streamObjNum int, resources 
 	updated, changed, err := rewriteContentStreamSecure(objBody, rects, queries)
 	warnings := make([]string, 0, 2)
 	if err != nil {
-		var wb strings.Builder
-		wb.Grow(64)
-		var tmp [20]byte
-		wb.WriteString("stream ")
-		wb.Write(strconv.AppendInt(tmp[:0], int64(streamObjNum), 10))
-		wb.WriteString(": ")
-		wb.WriteString(err.Error())
-		warnings = append(warnings, wb.String())
+		var wbuf []byte
+		wbuf = append(wbuf, "stream "...)
+		wbuf = strconv.AppendInt(wbuf, int64(streamObjNum), 10)
+		wbuf = append(wbuf, ": "...)
+		wbuf = append(wbuf, err.Error()...)
+		warnings = append(warnings, string(wbuf))
 	} else if changed {
 		objMap[streamObjNum] = updated
 	}
@@ -257,9 +255,13 @@ func rewriteContentStreamSecure(streamObj []byte, rects []models.RedactionRect, 
 		encoded = buf.Bytes()
 	}
 
-	// PERF-119: single multi-append of stream segments
-	newObj := make([]byte, 0, len(streamObj)-(end-start)+len(encoded)+64)
-	newObj = append(append(append(newObj, streamObj[:start]...), encoded...), streamObj[end:]...)
+	prefixLen := start
+	encodedLen := len(encoded)
+	suffixLen := len(streamObj) - end
+	newObj := make([]byte, prefixLen+encodedLen+suffixLen)
+	copy(newObj, streamObj[:start])
+	copy(newObj[prefixLen:], encoded)
+	copy(newObj[prefixLen+encodedLen:], streamObj[end:])
 
 	// PERF-32/6: build /Length without fmt
 	var lenBuf [32]byte
@@ -358,7 +360,12 @@ func applyRectMaskToText(text string, pos models.TextPosition, rects []models.Re
 		if !rectsIntersectWithTolerance(pos.X, pos.Y, pos.Width, pos.Height, r.X, r.Y, r.Width, r.Height, tolerance) {
 			continue
 		}
-		overlap := overlapWidth(pos.X, pos.Width, r.X, r.Width)
+		overlapLeft := math.Max(pos.X, r.X)
+		overlapRight := math.Min(pos.X+pos.Width, r.X+r.Width)
+		overlap := overlapRight - overlapLeft
+		if overlap < 0 {
+			overlap = 0
+		}
 		coverage := overlap / pos.Width
 		// Only blank the entire run when the rect covers ≥90% of it;
 		// lower overlaps use per-glyph masking below to avoid over-redacting.
@@ -523,9 +530,11 @@ func buildRedactionTJArray(original, redacted string, isHex bool) string {
 		if seg.isKern {
 			// Estimate width of removed string
 			// TJ array kerning units are 1/1000 of text space.
-			estWidth := estimateStringWidth(seg.removed, 1000)
-			// Negative value = advance cursor to the right.
-			kern := -int(math.Round(estWidth))
+			var est float64
+			for _, r := range seg.removed {
+				est += runeWidthFactor(r)
+			}
+			kern := -int(math.Round(est * 1000))
 			var kernTmp [20]byte
 			out.Write(strconv.AppendInt(kernTmp[:0], int64(kern), 10))
 			out.WriteByte(' ')

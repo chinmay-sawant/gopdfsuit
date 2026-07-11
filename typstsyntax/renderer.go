@@ -982,20 +982,23 @@ func (le *LayoutEngine) layoutLR(node *Node, fontSize float64) *MathLayout {
 		delimY = -innerLay.Depth - delimFontSize*0.25
 	}
 
-	elements = append(elements, MathElement{
+	leftDelim := MathElement{
 		Type: ElemGlyph, Text: delims[0], FontSize: delimFontSize,
 		X: 0, Y: delimY, Width: delimW,
-	})
-
-	for _, el := range innerLay.Elements {
-		offsetElement(&el, delimW, 0)
-		elements = append(elements, el)
 	}
-
-	elements = append(elements, MathElement{
+	rightDelim := MathElement{
 		Type: ElemGlyph, Text: delims[1], FontSize: delimFontSize,
 		X: delimW + innerLay.Width, Y: delimY, Width: delimW,
-	})
+	}
+	innerCount := len(innerLay.Elements)
+	allItems := make([]MathElement, 0, 2+innerCount)
+	allItems = append(allItems, leftDelim)
+	for _, el := range innerLay.Elements {
+		offsetElement(&el, delimW, 0)
+		allItems = append(allItems, el)
+	}
+	allItems = append(allItems, rightDelim)
+	elements = append(elements, allItems...)
 
 	return &MathLayout{Width: totalW, Height: innerLay.Height, Depth: innerLay.Depth, Elements: elements}
 }

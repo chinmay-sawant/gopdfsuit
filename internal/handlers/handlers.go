@@ -4,6 +4,7 @@ package handlers
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/pprof"
@@ -36,49 +37,22 @@ var (
 	templateFileCacheMu sync.RWMutex
 )
 
-var (
-	templateFileInFlight   = make(map[string]chan struct{}, maxTemplateFileCache)
-	templateFileInFlightMu sync.Mutex
-)
-
-func loadTemplateFileCached(filePath, filename string) ([]byte, error) {
-	if v, ok := loadTemplateFromCache(filename); ok {
-		return v, nil
-	}
-	return loadTemplateFileMiss(filePath, filename)
-}
-
-func loadTemplateFromCache(filename string) ([]byte, bool) {
+func loadTemplateFileCached(filename string) ([]byte, error) {
 	templateFileCacheMu.RLock()
 	v, ok := templateFileCache[filename]
 	templateFileCacheMu.RUnlock()
-	return v, ok
+	if !ok {
+		return nil, fmt.Errorf("template file not cached: %s", filename)
+	}
+	return v, nil
 }
 
-func loadTemplateFileMiss(filePath, filename string) ([]byte, error) {
-	templateFileInFlightMu.Lock()
-	if wait, ok := templateFileInFlight[filename]; ok {
-		templateFileInFlightMu.Unlock()
-		<-wait
-		templateFileCacheMu.RLock()
-		v := templateFileCache[filename]
-		templateFileCacheMu.RUnlock()
-		return v, nil
-	}
-	done := make(chan struct{}, 1)
-	templateFileInFlight[filename] = done
-	templateFileInFlightMu.Unlock()
-
-	defer func() {
-		templateFileInFlightMu.Lock()
-		delete(templateFileInFlight, filename)
-		templateFileInFlightMu.Unlock()
-		close(done)
-	}()
-
+// preloadTemplateFile reads a template file from disk into the in-memory cache.
+// Called at startup only — never on the request path (PERF-22).
+func preloadTemplateFile(filePath, filename string) error {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	templateFileCacheMu.Lock()
@@ -92,7 +66,7 @@ func loadTemplateFileMiss(filePath, filename string) ([]byte, error) {
 		templateFileCache[filename] = data
 	}
 	templateFileCacheMu.Unlock()
-	return data, nil
+	return nil
 }
 
 // getProjectRoot returns the base directory where the `web` folder lives.
@@ -256,6 +230,15 @@ func RegisterRoutes(router *gin.Engine) {
 
 	// Serve React app for all frontend routes (SPA fallback)
 	router.NoRoute(handleSPA)
+
+	// Pre-load sampledata JSON templates to avoid os.ReadFile on first request (PERF-22)
+	if entries, err := os.ReadDir(filepath.Join(base, "sampledata")); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() && filepath.Ext(e.Name()) == ".json" {
+				_ = preloadTemplateFile(filepath.Join(base, "sampledata", e.Name()), e.Name())
+			}
+		}
+	}
 }
 
 // handleSPA serves the React SPA for all frontend routes
@@ -292,14 +275,13 @@ func handleGetTemplateData(c *gin.Context) {
 	// then enforce abs-base prefix containment (CWE-22).
 	filename = filepath.Clean(filepath.Base(filename))
 	base := getProjectRoot()
-	filePath, err := resolveSafePath(base, filename)
-	if err != nil {
+	if _, err := resolveSafePath(base, filename); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid file path"})
 		return
 	}
 
-	// Read the JSON file (cached by filename)
-	data, err := loadTemplateFileCached(filePath, filename)
+	// Read the JSON file from cache (pre-loaded at startup, PERF-22)
+	data, err := loadTemplateFileCached(filename)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template file not found: " + filename})
 		return
@@ -493,30 +475,29 @@ func handleMergePDFs(c *gin.Context) {
 	}
 
 	var pdfBytesList [][]byte
-	// PERF-56: pre-marshaled JSON template to avoid c.JSON inside the loop
+	// Process files in the exact order they appear in the form to maintain selection sequence
 	var (
 		jsonErrOpen  = []byte(`{"error":"Failed to read uploaded file: `)
 		jsonErrClose = []byte(`"}`)
 	)
-	// Process files in the exact order they appear in the form to maintain selection sequence
+	writeMergeErr := func(err error) {
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		c.Writer.WriteHeader(http.StatusInternalServerError)
+		c.Writer.Write(jsonErrOpen)
+		c.Writer.Write(byteconv.StringToBytes(err.Error()))
+		c.Writer.Write(jsonErrClose)
+		c.Writer.Flush()
+	}
 	for _, fh := range files {
 		f, err := fh.Open()
 		if err != nil {
-			c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-			c.Writer.WriteHeader(http.StatusInternalServerError)
-			c.Writer.Write(jsonErrOpen)
-			c.Writer.Write(byteconv.StringToBytes(err.Error()))
-			c.Writer.Write(jsonErrClose)
+			writeMergeErr(err)
 			return
 		}
 		buf, err := io.ReadAll(f)
 		_ = f.Close()
 		if err != nil {
-			c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-			c.Writer.WriteHeader(http.StatusInternalServerError)
-			c.Writer.Write(jsonErrOpen)
-			c.Writer.Write(byteconv.StringToBytes(err.Error()))
-			c.Writer.Write(jsonErrClose)
+			writeMergeErr(err)
 			return
 		}
 		pdfBytesList = append(pdfBytesList, buf)
@@ -590,24 +571,27 @@ func handlerSplitPDF(c *gin.Context) {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 	var nameBuf []byte
+	var zipErr error
 	for i, b := range outs {
 		nameBuf = append(nameBuf[:0], "originalfile-part"...)
 		nameBuf = strconv.AppendInt(nameBuf, int64(i+1), 10)
 		nameBuf = append(nameBuf, ".pdf"...)
 		// string() copies so Create retains a stable name while nameBuf is reused
-		fw, err := zw.Create(string(nameBuf))
-		if err != nil {
-			_ = zw.Close()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip create failed: " + err.Error()})
-			return
+		fw, createErr := zw.Create(string(nameBuf))
+		if createErr != nil {
+			zipErr = fmt.Errorf("zip create failed: %w", createErr)
+			break
 		}
-		if _, err := fw.Write(b); err != nil {
-			_ = zw.Close()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "zip write failed: " + err.Error()})
-			return
+		if _, writeErr := fw.Write(b); writeErr != nil {
+			zipErr = fmt.Errorf("zip write failed: %w", writeErr)
+			break
 		}
 	}
 	_ = zw.Close()
+	if zipErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": zipErr.Error()})
+		return
+	}
 
 	c.Header("Content-Type", "application/zip")
 	c.Header("Content-Disposition", "attachment; filename=splits.zip")

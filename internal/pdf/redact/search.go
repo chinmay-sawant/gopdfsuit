@@ -164,18 +164,16 @@ func (r *Redactor) buildSubstringRects(pageNum int, pos models.TextPosition, low
 		return nil
 	}
 
-	// Original string preserved for precise width estimation (case-sensitive)
 	origSrc := []rune(pos.Text)
-	totalEst := estimateStringWidth(pos.Text, pos.Height)
+	origWidths := make([]float64, len(origSrc))
+	var totalEst float64
+	for j := range origSrc {
+		origWidths[j] = pos.Height * runeWidthFactor(origSrc[j])
+		totalEst += origWidths[j]
+	}
 	scale := 1.0
 	if totalEst > 0 && pos.Width > 0 {
 		scale = pos.Width / totalEst
-	}
-
-	// PERF-230: Precompute per-rune widths for the height outside the scan loop.
-	origWidths := make([]float64, len(origSrc))
-	for j := range origSrc {
-		origWidths[j] = pos.Height * runeWidthFactor(origSrc[j])
 	}
 
 	urlToken := r.isURLToken(pos.Text)
@@ -280,18 +278,11 @@ func (r *Redactor) normalizeSearchText(s string) string {
 	return out
 }
 
-// r.findAllCombinedMatchRects finds ALL occurrences of normalizedQuery that span
-// multiple text-show operators on the same visual line. It groups positions into
-// lines (Y within half a character-height), concatenates each line's tokens in
-// reading order, then scans for every non-overlapping match.
-//
-//nolint:gocyclo
 func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.TextPosition, normalizedQuery string) []models.RedactionRect {
 	if len(positions) == 0 || normalizedQuery == "" {
 		return nil
 	}
 
-	// Sort top-to-bottom then left-to-right (PDF Y is bottom-up so higher=first).
 	ordered := append([]models.TextPosition(nil), positions...)
 	sort.SliceStable(ordered, func(i, j int) bool {
 		if math.Abs(ordered[i].Y-ordered[j].Y) < 3 {
@@ -300,20 +291,17 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		return ordered[i].Y > ordered[j].Y
 	})
 
-	// Group into visual lines: tokens whose Y values are within half a glyph height
-	// of the first token on that line belong together.
 	type tokenSpan struct {
 		pos   models.TextPosition
 		start int
 		end   int
 	}
-	// Pointer groups so strings.Builder is never copied when the slice grows (PERF-2).
 	type lineGroup struct {
 		spans  []tokenSpan
 		joined strings.Builder
 	}
 
-	var lines []*lineGroup
+	lines := make([]lineGroup, 0, len(ordered))
 	for _, pos := range ordered {
 		lineH := pos.Height
 		if lineH <= 0 {
@@ -321,13 +309,12 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		}
 		placed := false
 		for li := range lines {
-			line := lines[li]
+			line := &lines[li]
 			if len(line.spans) == 0 {
 				continue
 			}
 			refY := line.spans[0].pos.Y
 			if math.Abs(pos.Y-refY) < lineH*0.75 {
-				// Same line  — append token
 				part := trimSpace(pos.Text)
 				if part == "" {
 					placed = true
@@ -354,33 +341,72 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 		if !placed {
 			part := trimSpace(pos.Text)
 			if part == "" {
-				lines = append(lines, &lineGroup{})
+				lines = append(lines, lineGroup{})
 				continue
 			}
-			lg := &lineGroup{
-				spans: []tokenSpan{{pos: pos, start: 0, end: len(part)}},
-			}
+			var lg lineGroup
+			lg.spans = []tokenSpan{{pos: pos, start: 0, end: len(part)}}
 			lg.joined.WriteString(part)
 			lines = append(lines, lg)
 		}
 	}
 
 	var results []models.RedactionRect
-	var tokenWidths []float64
-	var spanTokenEst []float64
+
+	maxSpans := 0
+	maxTokenLen := 0
+	for _, line := range lines {
+		if len(line.spans) > maxSpans {
+			maxSpans = len(line.spans)
+		}
+		for _, s := range line.spans {
+			if l := len([]rune(s.pos.Text)); l > maxTokenLen {
+				maxTokenLen = l
+			}
+		}
+	}
+	tokenWidths := make([]float64, maxTokenLen)
+	spanTokenEst := make([]float64, maxSpans)
+
 	for li := range lines {
-		line := lines[li]
+		line := &lines[li]
 		if line.joined.Len() == 0 || len(line.spans) < 2 {
-			// Single-token lines are already handled by r.buildSubstringRects.
 			continue
 		}
-		normalJoined := r.normalizeSearchText(line.joined.String())
-		if cap(spanTokenEst) < len(line.spans) {
-			spanTokenEst = make([]float64, len(line.spans))
+
+		normalJoined := trimSpace(line.joined.String())
+		if normalJoined != "" {
+			var nb strings.Builder
+			nb.Grow(len(normalJoined))
+			prevSpace := false
+			for _, rr := range normalJoined {
+				if rr == ' ' || rr == '\t' || rr == '\n' || rr == '\r' || rr == '\v' || rr == '\f' {
+					if !prevSpace && nb.Len() > 0 {
+						nb.WriteByte(' ')
+						prevSpace = true
+					}
+					continue
+				}
+				prevSpace = false
+				if rr >= 'A' && rr <= 'Z' {
+					nb.WriteByte(byte(rr + 32))
+				} else {
+					nb.WriteRune(rr)
+				}
+			}
+			normalJoined = nb.String()
+			if len(normalJoined) > 0 && normalJoined[len(normalJoined)-1] == ' ' {
+				normalJoined = normalJoined[:len(normalJoined)-1]
+			}
 		}
+
 		spanTokenEst = spanTokenEst[:len(line.spans)]
 		for i, s := range line.spans {
-			spanTokenEst[i] = estimateStringWidth(s.pos.Text, s.pos.Height)
+			var est float64
+			for _, r := range s.pos.Text {
+				est += runeWidthFactor(r)
+			}
+			spanTokenEst[i] = est * s.pos.Height
 		}
 		searchOff := 0
 		for searchOff < len(normalJoined) {
@@ -391,7 +417,6 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 			matchStart := searchOff + idx
 			matchEnd := matchStart + len(normalizedQuery)
 
-			// Compute tight bounding box from only the overlapping tokens.
 			minX := math.MaxFloat64
 			minY := math.MaxFloat64
 			maxX := -math.MaxFloat64
@@ -400,8 +425,6 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 				if s.start >= matchEnd || s.end <= matchStart {
 					continue
 				}
-				// URL token: redact the whole token — proportional offset is
-				// unreliable for these, but the token itself must be covered.
 				if r.isURLToken(s.pos.Text) {
 					if s.pos.X < minX {
 						minX = s.pos.X
@@ -417,7 +440,6 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 					}
 					continue
 				}
-				// Partially-overlapping tokens: trim X proportionally using estimated widths.
 				tokenX := s.pos.X
 				tokenW := s.pos.Width
 				tokenText := []rune(s.pos.Text)
@@ -436,10 +458,6 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 						overlapEnd = s.end - s.start
 					}
 
-					// Precompute per-rune widths outside the inner scan loops.
-					if cap(tokenWidths) < len(tokenText) {
-						tokenWidths = make([]float64, len(tokenText))
-					}
 					tokenWidths = tokenWidths[:len(tokenText)]
 					for j := range tokenText {
 						tokenWidths[j] = s.pos.Height * runeWidthFactor(tokenText[j])
@@ -478,7 +496,6 @@ func (r *Redactor) findAllCombinedMatchRects(pageNum int, positions []models.Tex
 					Height:  maxY - minY,
 				})
 			}
-			// Advance past this match (non-overlapping).
 			searchOff = matchEnd
 		}
 	}

@@ -499,16 +499,11 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		return 0, false
 	}
 
-	// Build Names array for Dests name tree
-	var namesArray strings.Builder
-	namesArray.WriteString("[")
-
 	// Sort names for binary search tree compliance
 	names := make([]string, 0, len(ob.pageManager.NamedDests))
 	for name := range ob.pageManager.NamedDests {
 		names = append(names, name)
 	}
-	// Simple sort
 	for i := 0; i < len(names)-1; i++ {
 		for j := i + 1; j < len(names); j++ {
 			if names[i] > names[j] {
@@ -517,10 +512,11 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		}
 	}
 
-	// Create Dests name tree object ID upfront for encryption key generation
 	destsTreeID := ob.pageManager.NextObjectID
 	ob.pageManager.NextObjectID++
 
+	var destsTree strings.Builder
+	destsTree.WriteString("<< /Names [")
 	for i, name := range names {
 		dest := ob.pageManager.NamedDests[name]
 		pageObjID := 0
@@ -530,53 +526,40 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 			pageObjID = ob.pageManager.Pages[0]
 		}
 		if i > 0 {
-			namesArray.WriteString(" ")
-		}
-
-		// Handle Name encryption
-		if ob.encryptor != nil {
-			// Names in name tree are strings and must be encrypted
-			// Usually names are ASCII, but handle them as bytes
-			encrypted := ob.encryptor.EncryptString(byteconv.StringToBytes(name), destsTreeID, 0)
-			namesArray.WriteByte('<')
-			namesArray.WriteString(hex.EncodeToString(encrypted))
-			namesArray.WriteByte('>')
-		} else {
-			namesArray.WriteByte('(')
-			namesArray.WriteString(escapeText(name))
-			namesArray.WriteByte(')')
+			destsTree.WriteByte(' ')
 		}
 
 		var numBuf [20]byte
-		// PDF/UA-2: Output as dictionary with both /D and /SD keys
-		// /D is the page-based destination (for compatibility)
-		// /SD is the structure destination (required for PDF/UA-2)
-		if dest.StructElemID > 0 {
-			namesArray.WriteString(" << /D [")
-			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(pageObjID), 10))
-			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.WriteString(fmtNum(dest.Y))
-			namesArray.WriteString(" null] /SD [")
-			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(dest.StructElemID), 10))
-			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.WriteString(fmtNum(dest.Y))
-			namesArray.WriteString(" null] >>")
+		if ob.encryptor != nil {
+			encrypted := ob.encryptor.EncryptString(byteconv.StringToBytes(name), destsTreeID, 0)
+			destsTree.WriteByte('<')
+			destsTree.WriteString(hex.EncodeToString(encrypted))
+			destsTree.WriteByte('>')
 		} else {
-			// Fallback for destinations without structure element (not fully PDF/UA-2 compliant)
-			namesArray.WriteString(" [")
-			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(pageObjID), 10))
-			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.WriteString(fmtNum(dest.Y))
-			namesArray.WriteString(" null]")
+			destsTree.WriteByte('(')
+			destsTree.WriteString(escapeText(name))
+			destsTree.WriteByte(')')
+		}
+
+		if dest.StructElemID > 0 {
+			destsTree.WriteString(" << /D [")
+			destsTree.Write(strconv.AppendInt(numBuf[:0], int64(pageObjID), 10))
+			destsTree.WriteString(" 0 R /XYZ null ")
+			destsTree.WriteString(fmtNum(dest.Y))
+			destsTree.WriteString(" null] /SD [")
+			destsTree.Write(strconv.AppendInt(numBuf[:0], int64(dest.StructElemID), 10))
+			destsTree.WriteString(" 0 R /XYZ null ")
+			destsTree.WriteString(fmtNum(dest.Y))
+			destsTree.WriteString(" null] >>")
+		} else {
+			destsTree.WriteString(" [")
+			destsTree.Write(strconv.AppendInt(numBuf[:0], int64(pageObjID), 10))
+			destsTree.WriteString(" 0 R /XYZ null ")
+			destsTree.WriteString(fmtNum(dest.Y))
+			destsTree.WriteString(" null]")
 		}
 	}
-	namesArray.WriteString("]")
-
-	var destsTree strings.Builder
-	destsTree.WriteString("<< /Names ")
-	destsTree.WriteString(namesArray.String())
-	destsTree.WriteString(" >>")
-	// PERF-32: zero-copy; stored content is not mutated
+	destsTree.WriteString("] >>")
 	ob.pageManager.ExtraObjects[destsTreeID] = byteconv.StringToBytes(destsTree.String())
 
 	// Create Names dictionary object

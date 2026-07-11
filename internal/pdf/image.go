@@ -441,44 +441,24 @@ func CreateImageXObject(imgObj *ImageObject, objectID int) string {
 	}
 
 	// Pre-allocate buffer with capacity for typical image XObject header
-	b := make([]byte, 0, 256+len(imgObj.ColorSpace)+len(imgObj.Filter))
+	b := make([]byte, 0, 512+len(imgObj.ColorSpace)+len(imgObj.Filter))
 
 	b = strconv.AppendInt(b, int64(objectID), 10)
 	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
 	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
 	b = append(b, "\n   /Height "...)
 	b = strconv.AppendInt(b, int64(imgObj.Height), 10)
-	// Merge ColorSpace prefix + value + BitsPerComponent prefix (PERF-119/128)
-	csPref := []byte("\n   /ColorSpace ")
-	bpPref := []byte("\n   /BitsPerComponent ")
-	var bpBuf [12]byte
-	bpNum := strconv.AppendInt(bpBuf[:0], int64(imgObj.BitsPerComp), 10)
-	var lenBuf [12]byte
-	lenNum := strconv.AppendInt(lenBuf[:0], int64(imgObj.ImageDataLen), 10)
-	filterPref := []byte("\n   /Filter ")
-	lenPref := []byte("\n   /Length ")
-	streamEnd := []byte("\n>>\nstream\n")
-	filterLen := 0
+	b = append(b, "\n   /ColorSpace "...)
+	b = append(b, imgObj.ColorSpace...)
+	b = append(b, "\n   /BitsPerComponent "...)
+	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
 	if imgObj.Filter != "" {
-		filterLen = len(filterPref) + len(imgObj.Filter)
+		b = append(b, "\n   /Filter "...)
+		b = append(b, imgObj.Filter...)
 	}
-	chunkLen := len(csPref) + len(imgObj.ColorSpace) + len(bpPref) + len(bpNum)
-	tailCap := chunkLen + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
-	tail := make([]byte, tailCap)
-	off := 0
-	off += copy(tail[off:], csPref)
-	off += copy(tail[off:], imgObj.ColorSpace)
-	off += copy(tail[off:], bpPref)
-	off += copy(tail[off:], bpNum)
-	if imgObj.Filter != "" {
-		off += copy(tail[off:], filterPref)
-		off += copy(tail[off:], imgObj.Filter)
-	}
-	off += copy(tail[off:], lenPref)
-	off += copy(tail[off:], lenNum)
-	off += copy(tail[off:], streamEnd)
-	tail = tail[:off]
-	b = append(b, tail...)
+	b = append(b, "\n   /Length "...)
+	b = strconv.AppendInt(b, int64(imgObj.ImageDataLen), 10)
+	b = append(b, "\n>>\nstream\n"...)
 
 	// Write header and image data in two operations
 	buf.Write(b)
@@ -516,44 +496,23 @@ func CreateEncryptedImageXObject(imgObj *ImageObject, objectID int, encryptor Im
 	}
 
 	// Pre-allocate buffer with capacity for typical image XObject header
-	b := make([]byte, 0, 256+len(imgObj.ColorSpace)+len(imgObj.Filter))
+	b := make([]byte, 0, 512+len(imgObj.ColorSpace)+len(imgObj.Filter))
 	b = strconv.AppendInt(b, int64(objectID), 10)
 	b = append(b, " 0 obj\n<< /Type /XObject\n   /Subtype /Image\n   /Width "...)
 	b = strconv.AppendInt(b, int64(imgObj.Width), 10)
 	b = append(b, "\n   /Height "...)
 	b = strconv.AppendInt(b, int64(imgObj.Height), 10)
-	csPref := []byte("\n   /ColorSpace ")
-	bpPref := []byte("\n   /BitsPerComponent ")
-	var bpBuf [12]byte
-	bpNum := strconv.AppendInt(bpBuf[:0], int64(imgObj.BitsPerComp), 10)
-	chunk := make([]byte, len(csPref)+len(imgObj.ColorSpace)+len(bpPref)+len(bpNum))
-	off := 0
-	off += copy(chunk[off:], csPref)
-	off += copy(chunk[off:], imgObj.ColorSpace)
-	off += copy(chunk[off:], bpPref)
-	copy(chunk[off:], bpNum)
-	var lenBuf [12]byte
-	lenNum := strconv.AppendInt(lenBuf[:0], int64(len(encryptedData)), 10)
-	filterPref := []byte("\n   /Filter ")
-	lenPref := []byte("\n   /Length ")
-	streamEnd := []byte("\n>>\nstream\n")
-	filterLen := 0
+	b = append(b, "\n   /ColorSpace "...)
+	b = append(b, imgObj.ColorSpace...)
+	b = append(b, "\n   /BitsPerComponent "...)
+	b = strconv.AppendInt(b, int64(imgObj.BitsPerComp), 10)
 	if imgObj.Filter != "" {
-		filterLen = len(filterPref) + len(imgObj.Filter)
+		b = append(b, "\n   /Filter "...)
+		b = append(b, imgObj.Filter...)
 	}
-	tailCap := len(chunk) + filterLen + len(lenPref) + len(lenNum) + len(streamEnd)
-	tail := make([]byte, tailCap)
-	off = 0
-	off += copy(tail[off:], chunk)
-	if imgObj.Filter != "" {
-		off += copy(tail[off:], filterPref)
-		off += copy(tail[off:], imgObj.Filter)
-	}
-	off += copy(tail[off:], lenPref)
-	off += copy(tail[off:], lenNum)
-	off += copy(tail[off:], streamEnd)
-	tail = tail[:off]
-	b = append(b, tail...)
+	b = append(b, "\n   /Length "...)
+	b = strconv.AppendInt(b, int64(len(encryptedData)), 10)
+	b = append(b, "\n>>\nstream\n"...)
 
 	// Write header and encrypted data in two operations
 	buf.Write(b)

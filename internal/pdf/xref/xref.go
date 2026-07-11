@@ -69,14 +69,16 @@ func WriteCompactXRef(out *bytes.Buffer, offsets map[int]int, scratch []byte, st
 
 	for i := range subsections {
 		b = b[:0]
-		b = strconv.AppendInt(b, int64(subsections[i].start), 10)
+		subStart := int64(subsections[i].start)
+		subCount := int64(subsections[i].count)
+		b = strconv.AppendInt(b, subStart, 10)
 		b = append(b, ' ')
-		b = strconv.AppendInt(b, int64(subsections[i].count), 10)
+		b = strconv.AppendInt(b, subCount, 10)
 		b = append(b, '\n')
 		out.Write(b)
 
-		for j := 0; j < subsections[i].count; j++ {
-			objID := subsections[i].start + j
+		for j := 0; j < int(subCount); j++ {
+			objID := int(subStart) + j
 			if objID == 0 {
 				out.WriteString(style.FreeLine)
 				continue

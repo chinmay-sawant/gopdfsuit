@@ -28,7 +28,7 @@ var (
 
 // ExtractAnnotationsFromPage extracts annotation object references from a page object
 // Returns a list of annotation object numbers
-func ExtractAnnotationsFromPage(pageBody []byte, objMap map[int][]byte) []int {
+func ExtractAnnotationsFromPage(pageBody []byte, objMap [][]byte) []int {
 	var annots []int
 
 	// Try inline array format: /Annots [...]
@@ -44,7 +44,8 @@ func ExtractAnnotationsFromPage(pageBody []byte, objMap map[int][]byte) []int {
 	// Try indirect reference format: /Annots N 0 R
 	if match := annotsRefRe.FindSubmatch(pageBody); match != nil {
 		if annotsObjNum, err := strconv.Atoi(string(match[1])); err == nil {
-			if annotsBody, exists := objMap[annotsObjNum]; exists {
+			if annotsObjNum < len(objMap) && objMap[annotsObjNum] != nil {
+				annotsBody := objMap[annotsObjNum]
 				// The annotations object should be an array
 				for _, ref := range objRefRe.FindAllSubmatch(annotsBody, -1) {
 					if num, err := strconv.Atoi(string(ref[1])); err == nil {
@@ -60,7 +61,7 @@ func ExtractAnnotationsFromPage(pageBody []byte, objMap map[int][]byte) []int {
 
 // ExtractAPDependencies extracts appearance stream dependencies from a widget
 // These are XObject references in /AP << /N ... /D ... /R ... >>
-func ExtractAPDependencies(widgetBody []byte, objMap map[int][]byte) []int {
+func ExtractAPDependencies(widgetBody []byte, objMap [][]byte) []int {
 	var deps []int
 	seen := make(map[int]bool, 8)
 
@@ -77,7 +78,8 @@ func ExtractAPDependencies(widgetBody []byte, objMap map[int][]byte) []int {
 				seen[num] = true
 
 				// Check if this object itself has nested references (XObject resources)
-				if objBody, exists := objMap[num]; exists {
+				if num < len(objMap) && objMap[num] != nil {
+					objBody := objMap[num]
 					for _, nestedRef := range objRefRe.FindAllSubmatch(objBody, -1) {
 						if nestedNum, err := strconv.Atoi(string(nestedRef[1])); err == nil && !seen[nestedNum] {
 							deps = append(deps, nestedNum)
@@ -95,21 +97,28 @@ func ExtractAPDependencies(widgetBody []byte, objMap map[int][]byte) []int {
 // ExtractFormFields extracts all form field objects from a PDF
 // This includes widgets, their dependencies, and AcroForm fields
 func ExtractFormFields(fc *FileContext) {
-	fieldSet := make(map[int]bool, 16)
+	n := fc.MaxObj + 1
+	if n < 16 {
+		n = 16
+	}
+	fieldSet := make([]bool, n)
 
 	// Method 1: Find widgets via AcroForm in Catalog
 	rootRef := findRootRef(fc.Data)
 	if rootRef != "" {
 		var rootNum int
 		if err := parseObjRef(rootRef, &rootNum); err == nil {
-			if rootBody, exists := fc.Objects[rootNum]; exists {
-				extractFromAcroForm(rootBody, fc.Objects, &fc.FormFields, fieldSet, objRefRe)
+			if rootNum < len(fc.Objects) && fc.Objects[rootNum] != nil {
+				extractFromAcroForm(fc.Objects[rootNum], fc.Objects, &fc.FormFields, fieldSet, objRefRe)
 			}
 		}
 	}
 
 	// Method 2: Scan for Widget annotations directly
 	for objNum, body := range fc.Objects {
+		if body == nil {
+			continue
+		}
 		if IsWidgetAnnotation(body) {
 			if !fieldSet[objNum] {
 				fc.FormFields = append(fc.FormFields, objNum)
@@ -132,6 +141,9 @@ func ExtractFormFields(fc *FileContext) {
 
 	// Method 3: Extract annotations from pages
 	for objNum, body := range fc.Objects {
+		if body == nil {
+			continue
+		}
 		if IsPageObject(body) && !IsPagesTreeObject(body) {
 			pageAnnots := ExtractAnnotationsFromPage(body, fc.Objects)
 			if len(pageAnnots) > 0 {
@@ -139,7 +151,8 @@ func ExtractFormFields(fc *FileContext) {
 			}
 
 			for _, annotNum := range pageAnnots {
-				if annotBody, exists := fc.Objects[annotNum]; exists {
+				if annotNum < len(fc.Objects) && fc.Objects[annotNum] != nil {
+					annotBody := fc.Objects[annotNum]
 					if IsWidgetAnnotation(annotBody) && !fieldSet[annotNum] {
 						fc.FormFields = append(fc.FormFields, annotNum)
 						fieldSet[annotNum] = true
@@ -157,12 +170,12 @@ func ExtractFormFields(fc *FileContext) {
 }
 
 // extractFromAcroForm extracts field references from AcroForm
-func extractFromAcroForm(catalogBody []byte, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp) {
+func extractFromAcroForm(catalogBody []byte, objMap [][]byte, fields *[]int, fieldSet []bool, refRe *regexp.Regexp) {
 	// Try indirect AcroForm: /AcroForm N 0 R
 	if match := acroFormRefRe.FindSubmatch(catalogBody); match != nil {
 		if acroFormNum, err := strconv.Atoi(string(match[1])); err == nil {
-			if acroFormBody, exists := objMap[acroFormNum]; exists {
-				extractFieldsArray(acroFormBody, objMap, fields, fieldSet, refRe)
+			if acroFormNum < len(objMap) && objMap[acroFormNum] != nil {
+				extractFieldsArray(objMap[acroFormNum], objMap, fields, fieldSet, refRe)
 			}
 		}
 	}
@@ -174,7 +187,7 @@ func extractFromAcroForm(catalogBody []byte, objMap map[int][]byte, fields *[]in
 }
 
 // extractFieldsArray extracts fields from /Fields array
-func extractFieldsArray(acroFormBody []byte, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp) {
+func extractFieldsArray(acroFormBody []byte, objMap [][]byte, fields *[]int, fieldSet []bool, refRe *regexp.Regexp) {
 	// Inline array: /Fields [...]
 	if match := fieldsArrayRe.FindSubmatch(acroFormBody); match != nil {
 		for _, ref := range refRe.FindAllSubmatch(match[1], -1) {
@@ -187,7 +200,8 @@ func extractFieldsArray(acroFormBody []byte, objMap map[int][]byte, fields *[]in
 	// Indirect array: /Fields N 0 R
 	if match := fieldsRefRe.FindSubmatch(acroFormBody); match != nil {
 		if fieldsObjNum, err := strconv.Atoi(string(match[1])); err == nil {
-			if fieldsBody, exists := objMap[fieldsObjNum]; exists {
+			if fieldsObjNum < len(objMap) && objMap[fieldsObjNum] != nil {
+				fieldsBody := objMap[fieldsObjNum]
 				for _, ref := range refRe.FindAllSubmatch(fieldsBody, -1) {
 					if fieldNum, err := strconv.Atoi(string(ref[1])); err == nil {
 						addFieldRecursive(fieldNum, objMap, fields, fieldSet, refRe)
@@ -199,15 +213,18 @@ func extractFieldsArray(acroFormBody []byte, objMap map[int][]byte, fields *[]in
 }
 
 // addFieldRecursive adds a field and its children (hierarchical form fields)
-func addFieldRecursive(fieldNum int, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp) {
-	if fieldSet[fieldNum] {
+func addFieldRecursive(fieldNum int, objMap [][]byte, fields *[]int, fieldSet []bool, refRe *regexp.Regexp) {
+	if fieldNum < len(fieldSet) && fieldSet[fieldNum] {
 		return
 	}
 	*fields = append(*fields, fieldNum)
-	fieldSet[fieldNum] = true
+	if fieldNum < len(fieldSet) {
+		fieldSet[fieldNum] = true
+	}
 
 	// Check for /Kids in the field (hierarchical fields)
-	if fieldBody, exists := objMap[fieldNum]; exists {
+	if fieldNum < len(objMap) && objMap[fieldNum] != nil {
+		fieldBody := objMap[fieldNum]
 		if match := kidsArrayRe.FindSubmatch(fieldBody); match != nil {
 			for _, ref := range refRe.FindAllSubmatch(match[1], -1) {
 				if kidNum, err := strconv.Atoi(string(ref[1])); err == nil {
@@ -262,12 +279,13 @@ func UpdatePageAnnotations(pageBody []byte, offset int) []byte {
 			gen := sm[2]
 			var nbuf [20]byte
 			num := strconv.AppendInt(nbuf[:0], int64(offset+on), 10)
-			out := make([]byte, len(num)+1+len(gen)+2)
-			copy(out, num)
-			out[len(num)] = ' '
-			copy(out[len(num)+1:], gen)
-			copy(out[len(num)+1+len(gen):], " R")
-			return out
+			var refBuf [64]byte
+			ref := refBuf[:0]
+			ref = append(ref, num...)
+			ref = append(ref, ' ')
+			ref = append(ref, gen...)
+			ref = append(ref, ' ', 'R')
+			return ref
 		})
 
 		result := append(append(append([]byte(nil), prefix...), newContent...), suffix...)
@@ -279,20 +297,22 @@ func UpdatePageAnnotations(pageBody []byte, offset int) []byte {
 
 // CollectAllDependencies collects all objects that a widget depends on
 // This includes appearance streams and any nested references
-func CollectAllDependencies(widgetNum int, objMap map[int][]byte) []int {
+func CollectAllDependencies(widgetNum int, objMap [][]byte) []int {
 	var deps []int
-	seen := make(map[int]bool, 8)
-	seen[widgetNum] = true // Don't include the widget itself
+	seen := make([]bool, len(objMap))
+	if widgetNum < len(seen) {
+		seen[widgetNum] = true // Don't include the widget itself
+	}
 
-	if widgetBody, exists := objMap[widgetNum]; exists {
-		collectDepsRecursive(widgetBody, objMap, &deps, seen)
+	if widgetNum < len(objMap) && objMap[widgetNum] != nil {
+		collectDepsRecursive(objMap[widgetNum], objMap, &deps, seen)
 	}
 
 	return deps
 }
 
 // collectDepsRecursive recursively collects dependencies
-func collectDepsRecursive(body []byte, objMap map[int][]byte, deps *[]int, seen map[int]bool) {
+func collectDepsRecursive(body []byte, objMap [][]byte, deps *[]int, seen []bool) {
 	// Only look in /AP dictionary to avoid false positives
 	apMatch := apDictRe.FindSubmatch(body)
 	if apMatch == nil {
@@ -301,22 +321,27 @@ func collectDepsRecursive(body []byte, objMap map[int][]byte, deps *[]int, seen 
 
 	for _, ref := range objRefRe.FindAllSubmatch(apMatch[1], -1) {
 		num, err := strconv.Atoi(string(ref[1]))
-		if err != nil || seen[num] {
+		if err != nil || (num < len(seen) && seen[num]) {
 			continue
 		}
-		seen[num] = true
+		if num < len(seen) {
+			seen[num] = true
+		}
 		*deps = append(*deps, num)
 
 		// Recursively check this object (for nested resources)
-		if objBody, exists := objMap[num]; exists {
+		if num < len(objMap) && objMap[num] != nil {
+			objBody := objMap[num]
 			// For XObjects, also look at /Resources (resourcesRe hoisted package-level)
 			if resMatch := resourcesRe.FindSubmatch(objBody); resMatch != nil {
 				for _, nestedRef := range objRefRe.FindAllSubmatch(resMatch[1], -1) {
 					nestedNum, err := strconv.Atoi(string(nestedRef[1]))
-					if err != nil || seen[nestedNum] {
+					if err != nil || (nestedNum < len(seen) && seen[nestedNum]) {
 						continue
 					}
-					seen[nestedNum] = true
+					if nestedNum < len(seen) {
+						seen[nestedNum] = true
+					}
 					*deps = append(*deps, nestedNum)
 				}
 			}

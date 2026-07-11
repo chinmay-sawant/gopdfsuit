@@ -45,7 +45,12 @@ type NamedDest struct {
 // When taggedPDF is false, marked content and structure-tree bookkeeping are disabled.
 func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompatible bool, fontRegistry *CustomFontRegistry, taggedPDF bool) *PageManager {
 	var firstStream bytes.Buffer
-	firstStream.Grow(65536)
+	// PERF-234: derive Grow from page area
+	estSize := int(pageDims.Width*pageDims.Height) / 8
+	if estSize < 4096 {
+		estSize = 4096
+	}
+	firstStream.Grow(estSize)
 	pages := make([]int, 1, 4)
 	pages[0] = 3 // First page starts at object 3
 	contentStreams := make([]bytes.Buffer, 1, 4)
@@ -78,7 +83,11 @@ func (pm *PageManager) AddNewPage() {
 	pm.CurrentPageIndex = len(pm.Pages) - 1 // Move to new page
 	pm.CurrentYPos = pm.PageDimensions.Height - pm.Margins.Top
 	var nb bytes.Buffer
-	nb.Grow(65536)
+	estSize := int(pm.PageDimensions.Width*pm.PageDimensions.Height) / 8
+	if estSize < 4096 {
+		estSize = 4096
+	}
+	nb.Grow(estSize)
 	pm.ContentStreams = append(pm.ContentStreams, nb)
 	pm.PageAnnots = append(pm.PageAnnots, []int{})
 }

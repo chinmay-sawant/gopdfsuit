@@ -318,11 +318,12 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 		gen := sm[2]
 		var nbuf [20]byte
 		num := strconv.AppendInt(nbuf[:0], int64(offset+on), 10)
-		ref := make([]byte, len(num)+1+len(gen)+2)
-		copy(ref, num)
-		ref[len(num)] = ' '
-		copy(ref[len(num)+1:], gen)
-		copy(ref[len(num)+1+len(gen):], " R")
+		var refBuf [64]byte
+		ref := refBuf[:0]
+		ref = append(ref, num...)
+		ref = append(ref, ' ')
+		ref = append(ref, gen...)
+		ref = append(ref, ' ', 'R')
 		return ref
 	}
 
@@ -448,29 +449,28 @@ func isWhitespace(b byte) bool {
 // Format: /N <count> /First <offset> followed by stream with:
 //   - Header: pairs of "objnum offset" separated by whitespace
 //   - Body: object bodies starting at /First offset
-func ParseObjectStream(body []byte) map[int][]byte {
+func ParseObjectStream(body []byte) [][]byte {
 	// Extract /N (number of objects)
 	nMatch := objStmNRe.FindSubmatch(body)
 	if nMatch == nil {
-		return map[int][]byte{}
+		return nil
 	}
 	numObjects, _ := strconv.Atoi(string(nMatch[1]))
 	if numObjects == 0 {
-		return map[int][]byte{}
+		return nil
 	}
-	result := make(map[int][]byte, numObjects)
 
 	// Extract /First (offset to first object body)
 	firstMatch := objStm1st.FindSubmatch(body)
 	if firstMatch == nil {
-		return result
+		return nil
 	}
 	firstOffset, _ := strconv.Atoi(string(firstMatch[1]))
 
 	// Find and decompress stream
 	streamData := extractAndDecompressStream(body)
 	if streamData == nil || len(streamData) < firstOffset {
-		return result
+		return nil
 	}
 
 	// Parse header: pairs of "objnum offset"
@@ -487,13 +487,20 @@ func ParseObjectStream(body []byte) map[int][]byte {
 	headerStr := string(bytes.TrimSpace(header))
 	parts := wsSplitRe.Split(headerStr, -1)
 
+	// First pass: find max objNum and collect entries
+	var maxObjNum int
 	for i := 0; i+1 < len(parts); i += 2 {
 		objNum, err1 := strconv.Atoi(parts[i])
 		offset, err2 := strconv.Atoi(parts[i+1])
 		if err1 == nil && err2 == nil {
+			if objNum > maxObjNum {
+				maxObjNum = objNum
+			}
 			entries = append(entries, objEntry{objNum: objNum, offset: offset})
 		}
 	}
+
+	result := make([][]byte, maxObjNum+1)
 
 	// Extract each object body
 	for i, entry := range entries {

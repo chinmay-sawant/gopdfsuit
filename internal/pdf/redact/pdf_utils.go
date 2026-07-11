@@ -47,7 +47,7 @@ func buildObjectMap(pdfBytes []byte) (map[int][]byte, map[int]int, error) {
 		objMap[b.ObjNum] = body
 		objGen[b.ObjNum] = b.GenNum
 
-		if merge.IsObjectStream(body) {
+		if bytes.Contains(body, []byte("/Type /ObjStm")) || bytes.Contains(body, []byte("/Type/ObjStm")) {
 			for onum, frag := range merge.ParseObjectStream(body) {
 				objMap[onum] = frag
 				objGen[onum] = 0
@@ -503,7 +503,11 @@ func parseTextOperators(content []byte) []models.TextPosition {
 			if height < 8 {
 				height = 8
 			}
-			width := estimateStringWidth(textStr, currentFontSize)
+			var textWidth float64
+			for _, r := range textStr {
+				textWidth += runeWidthFactor(r)
+			}
+			width := textWidth * currentFontSize
 			if width < currentFontSize {
 				width = currentFontSize
 			}
@@ -621,6 +625,7 @@ func readPDFLiteralAt(s string, start int) (string, int, bool) {
 
 func decodePDFLiteral(s string) string {
 	var out bytes.Buffer
+	out.Grow(len(s))
 	for i := 0; i < len(s); i++ {
 		if s[i] != '\\' {
 			out.WriteByte(s[i])
@@ -823,13 +828,14 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}
 	}
 
-	offsetByObject := make(map[int]struct {
+	offsetByObject := make([]struct {
 		offset int
 		gen    int
-	}, len(changed))
+	}, maxID+1)
 
 	var numBuf []byte
-	for _, obj := range changed {
+	for i := range changed {
+		obj := &changed[i]
 		offsetByObject[obj.id] = struct {
 			offset int
 			gen    int
@@ -857,20 +863,14 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 	xrefStart := out.Len()
 	out.WriteString("xref\n")
 
-	ids := make([]int, 0, len(offsetByObject))
-	for id := range offsetByObject {
-		ids = append(ids, id)
-	}
-	sort.Ints(ids)
-
-	start := ids[0]
-	block := []int{ids[0]}
-	flushBlock := func() {
+	start := changed[0].id
+	blockStart := 0
+	flushBlock := func(block []objMeta, blockID int) {
 		if len(block) == 0 {
 			return
 		}
 		numBuf = numBuf[:0]
-		numBuf = strconv.AppendInt(numBuf, int64(start), 10)
+		numBuf = strconv.AppendInt(numBuf, int64(blockID), 10)
 		numBuf = append(numBuf, ' ')
 		numBuf = strconv.AppendInt(numBuf, int64(len(block)), 10)
 		numBuf = append(numBuf, '\n')
@@ -879,8 +879,8 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		var entryLine [20]byte
 		copy(entryLine[16:], " n \n")
 		var offTmp, genTmp [20]byte
-		for _, id := range block {
-			entry := offsetByObject[id]
+		for _, meta := range block {
+			entry := offsetByObject[meta.id]
 			offStr := strconv.AppendInt(offTmp[:0], int64(entry.offset), 10)
 			offPad := 10 - len(offStr)
 			for j := 0; j < offPad; j++ {
@@ -898,16 +898,15 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 		}
 	}
 
-	for i := 1; i < len(ids); i++ {
-		if ids[i] == ids[i-1]+1 {
-			block = append(block, ids[i])
+	for i := 1; i < len(changed); i++ {
+		if changed[i].id == changed[i-1].id+1 {
 			continue
 		}
-		flushBlock()
-		start = ids[i]
-		block = []int{ids[i]}
+		flushBlock(changed[blockStart:i], start)
+		start = changed[i].id
+		blockStart = i
 	}
-	flushBlock()
+	flushBlock(changed[blockStart:], start)
 
 	trailerIDPart := ""
 	if trailerID != "" {

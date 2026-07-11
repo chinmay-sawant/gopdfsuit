@@ -93,8 +93,16 @@ func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.Re
 	if len(queries) == 0 {
 		return nil
 	}
+	// PERF-230: pre-parse all comma-separated queries before the main loop
+	parsedCache := make(map[string][]string, len(queries))
+	for _, q := range queries {
+		if strings.IndexByte(q.Text, ',') >= 0 {
+			if _, ok := parsedCache[q.Text]; !ok {
+				parsedCache[q.Text] = parseCommaSeparatedTerms(q.Text)
+			}
+		}
+	}
 	seen := make(map[string]struct{}, len(queries))
-	parsedCache := make(map[string][]string, 4)
 	normalized := make([]models.RedactionTextQuery, 0, len(queries))
 	for _, q := range queries {
 		if strings.IndexByte(q.Text, ',') < 0 {
@@ -106,11 +114,7 @@ func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.Re
 			normalized = append(normalized, models.RedactionTextQuery{Text: q.Text})
 			continue
 		}
-		terms, ok := parsedCache[q.Text]
-		if !ok {
-			terms = parseCommaSeparatedTerms(q.Text)
-			parsedCache[q.Text] = terms
-		}
+		terms := parsedCache[q.Text]
 		for _, term := range terms {
 			key := toLowerASCII(term)
 			if _, ok := seen[key]; ok {

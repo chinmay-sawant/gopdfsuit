@@ -188,6 +188,13 @@ var (
 	fieldReMapMax = 32
 )
 
+func evictOneFieldRe(m map[string]*regexp.Regexp) {
+	for k := range m {
+		delete(m, k)
+		return
+	}
+}
+
 func fieldHexRe(field string) *regexp.Regexp {
 	switch field {
 	case "O":
@@ -201,9 +208,10 @@ func fieldHexRe(field string) *regexp.Regexp {
 		return re
 	}
 	re := regexp.MustCompile(`/` + regexp.QuoteMeta(field) + `\s*<([0-9A-Fa-f\s]+)>`)
-	if len(fieldHexReMap) < fieldReMapMax {
-		fieldHexReMap[field] = re
+	if len(fieldHexReMap) >= fieldReMapMax {
+		evictOneFieldRe(fieldHexReMap)
 	}
+	fieldHexReMap[field] = re
 	return re
 }
 
@@ -220,9 +228,10 @@ func fieldLitRe(field string) *regexp.Regexp {
 		return re
 	}
 	re := regexp.MustCompile(`/` + regexp.QuoteMeta(field) + `\s*\(([^)]*)\)`)
-	if len(fieldLitReMap) < fieldReMapMax {
-		fieldLitReMap[field] = re
+	if len(fieldLitReMap) >= fieldReMapMax {
+		evictOneFieldRe(fieldLitReMap)
 	}
+	fieldLitReMap[field] = re
 	return re
 }
 
@@ -383,9 +392,8 @@ func decryptObjectStreams(objBody []byte, fileKey []byte, objNum, genNum int) ([
 }
 
 func deriveObjectKey(fileKey []byte, objNum, genNum int) []byte {
-	b := make([]byte, 0, len(fileKey)+5)
-	b = append(b, fileKey...)
-	b = append(b, byte(objNum), byte(objNum>>8), byte(objNum>>16), byte(genNum), byte(genNum>>8))
+	b := append(append([]byte{}, fileKey...),
+		byte(objNum), byte(objNum>>8), byte(objNum>>16), byte(genNum), byte(genNum>>8))
 	h := pdfdigest.Digest16(b)
 	kLen := len(fileKey) + 5
 	if kLen > 16 {

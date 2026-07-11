@@ -74,32 +74,94 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 			continue
 		}
 
-		objMap := make(map[int][]byte, len(objMatches))
+		// First pass: find max object number
 		maxObj := 0
 		for _, m := range objMatches {
+			if n, err := strconv.Atoi(string(m[1])); err == nil && n > maxObj {
+				maxObj = n
+			}
+		}
+		objMap := make([][]byte, maxObj+1)
+		for _, m := range objMatches {
 			if n, err := strconv.Atoi(string(m[1])); err == nil {
-				// Preserve original body (including stream markers) so we don't corrupt streams
-				body := m[3]
-				objMap[n] = body
-				if n > maxObj {
-					maxObj = n
-				}
+				objMap[n] = m[3]
 			}
 		}
 
-		// Allow parseXRefStreams to augment object map (it operates on raw bytes in this package)
-		tempObjMap := make(map[string][]byte, 16) // PERF-192
-		parseXRefStreams(f, tempObjMap)
-		// merge tempObjMap into objMap (keys are like "<num> <gen>")
-		for k, v := range tempObjMap {
-			onum, ok := parseLeadingInt(k)
-			if !ok {
+		// Inline cross-ref stream parsing directly into objMap (avoids temp map + merge loop, PERF-230)
+		for _, sm := range objStreamRe.FindAllSubmatch(f, -1) {
+			body := sm[3]
+			if bytesIndex(body, markerWBracket) < 0 || bytesIndex(body, markerIndex) < 0 {
 				continue
 			}
-			if _, exists := objMap[onum]; !exists {
-				objMap[onum] = v
-				if onum > maxObj {
-					maxObj = onum
+			if sm2 := streamContentRe.FindSubmatch(body); sm2 != nil {
+				streamBytes := sm2[1]
+				var dec []byte
+				if d, err := tryZlibDecompress(streamBytes); err == nil {
+					dec = d
+				} else if d, err := tryFlateDecompress(streamBytes); err == nil {
+					dec = d
+				} else {
+					dec = streamBytes
+				}
+				var W []int
+				if m := arrayWRe.FindSubmatch(body); m != nil {
+					inner := trimSpace(string(m[1]))
+					if inner != "" {
+						parts := strings.Fields(inner)
+						W = make([]int, 0, len(parts))
+						for _, p := range parts {
+							if v, err := strconv.Atoi(p); err == nil {
+								W = append(W, v)
+							}
+						}
+					}
+				}
+				if len(W) < 3 {
+					continue
+				}
+				var Index []int
+				if m := arrayIndexRe.FindSubmatch(body); m != nil {
+					inner := trimSpace(string(m[1]))
+					if inner != "" {
+						parts := strings.Fields(inner)
+						Index = make([]int, 0, len(parts))
+						for _, p := range parts {
+							if v, err := strconv.Atoi(p); err == nil {
+								Index = append(Index, v)
+							}
+						}
+					}
+				}
+				if Index == nil {
+					continue
+				}
+				w0, w1, w2 := W[0], W[1], W[2]
+				total := w0 + w1 + w2
+				for pos := 0; pos+total <= len(dec); pos += total {
+				f1 := int(readUint(dec[pos : pos+w0]))
+				_ = int(readUint(dec[pos+w0 : pos+w0+w1]))
+				f3 := int(readUint(dec[pos+w0+w1 : pos+total]))
+				if f1 == 1 {
+						off := f3
+						if off > 0 && off < len(f) {
+							tail := f[off:]
+							if ro := objAtOffsetRe.FindSubmatch(tail); ro != nil {
+								onum, _ := strconv.Atoi(string(ro[2]))
+								if onum >= len(objMap) {
+									newMap := make([][]byte, onum+1)
+									copy(newMap, objMap)
+									objMap = newMap
+								}
+								if objMap[onum] == nil {
+									objMap[onum] = ro[4]
+									if onum > maxObj {
+										maxObj = onum
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -110,10 +172,12 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		if rootRef, ok := findRootRef(f); ok {
 			rootNum, _, okRoot := parseObjGenRef(rootRef)
 			if okRoot {
-				if rootBody, ok2 := objMap[rootNum]; ok2 {
+				if rootNum < len(objMap) && objMap[rootNum] != nil {
+					rootBody := objMap[rootNum]
 					if pm := pagesRefRe.FindSubmatch(rootBody); pm != nil {
 						if pnum, err := strconv.Atoi(string(pm[1])); err == nil {
-							if pagesBody, ok3 := objMap[pnum]; ok3 {
+							if pnum < len(objMap) && objMap[pnum] != nil {
+								pagesBody := objMap[pnum]
 								if km := kidsArrayRe.FindSubmatch(pagesBody); km != nil {
 									for _, r := range mergeRefRe.FindAllSubmatch(km[1], -1) {
 										if pn, err := strconv.Atoi(string(r[1])); err == nil {
@@ -132,9 +196,9 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		formFields := extractFormFieldsFromFile(f, objMap)
 
 		// Process objects in numeric order to maintain consistency
-		fileObjects := make([]int, 0, len(objMap))
+		fileObjects := make([]int, 0, maxObj)
 		for origNum := 1; origNum <= maxObj; origNum++ {
-			if _, ok := objMap[origNum]; ok {
+			if origNum < len(objMap) && objMap[origNum] != nil {
 				fileObjects = append(fileObjects, origNum)
 			}
 		}
@@ -179,37 +243,31 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 	// Write Catalog object (1) - now includes AcroForm if we have form fields
 	offsets[1] = out.Len()
-	var catalogBuf strings.Builder
 	var tmp [20]byte
-	catalogBuf.WriteString("<< /Type /Catalog /Pages 2 0 R")
+	out.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
 	if len(mergedFormFields) > 0 {
-		catalogBuf.WriteString(" /AcroForm << /Fields [")
+		out.WriteString(" /AcroForm << /Fields [")
 		for i, fieldNum := range mergedFormFields {
 			if i > 0 {
-				catalogBuf.WriteByte(' ')
+				out.WriteByte(' ')
 			}
-			catalogBuf.Write(strconv.AppendInt(tmp[:0], int64(fieldNum), 10))
-			catalogBuf.WriteString(" 0 R")
+			out.Write(strconv.AppendInt(tmp[:0], int64(fieldNum), 10))
+			out.WriteString(" 0 R")
 		}
-		catalogBuf.WriteString("] >>")
+		out.WriteString("] >>")
 	}
-	catalogBuf.WriteString(" >>")
-	out.WriteString("1 0 obj\n")
-	out.WriteString(catalogBuf.String())
-	out.WriteString("\nendobj\n")
+	out.WriteString(" >>\nendobj\n")
 
 	// Write Pages object (2) with all kids
 	offsets[2] = out.Len()
-	var kidsBuf strings.Builder
+	out.WriteString("2 0 obj\n<< /Type /Pages /Kids [")
 	for i, p := range mergedPages {
 		if i > 0 {
-			kidsBuf.WriteByte(' ')
+			out.WriteByte(' ')
 		}
-		kidsBuf.Write(strconv.AppendInt(tmp[:0], int64(p), 10))
-		kidsBuf.WriteString(" 0 R")
+		out.Write(strconv.AppendInt(tmp[:0], int64(p), 10))
+		out.WriteString(" 0 R")
 	}
-	out.WriteString("2 0 obj\n<< /Type /Pages /Kids [")
-	out.WriteString(kidsBuf.String())
 	out.WriteString("] /Count ")
 	out.Write(strconv.AppendInt(tmp[:0], int64(len(mergedPages)), 10))
 	out.WriteString(" >>\nendobj\n")
@@ -313,7 +371,6 @@ func parseObjGenRef(ref string) (objNum, genNum int, ok bool) {
 // that are not within stream...endstream blocks, to avoid mangling compressed stream contents.
 func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []byte {
 	var out bytes.Buffer
-	var refBuf [32]byte
 
 	buildRef := func(b []byte) []byte {
 		sm2 := refRe.FindSubmatch(b)
@@ -322,12 +379,14 @@ func replaceRefsOutsideStreams(data []byte, refRe *regexp.Regexp, offset int) []
 		}
 		on, _ := strconv.Atoi(string(sm2[1]))
 		gen := sm2[2]
-		num := strconv.AppendInt(refBuf[:0], int64(offset+on), 10)
-		ref := make([]byte, len(num)+1+len(gen)+2)
-		copy(ref, num)
-		ref[len(num)] = ' '
-		copy(ref[len(num)+1:], gen)
-		copy(ref[len(num)+1+len(gen):], " R")
+		var numBuf [20]byte
+		num := strconv.AppendInt(numBuf[:0], int64(offset+on), 10)
+		var refBuf [64]byte
+		ref := refBuf[:0]
+		ref = append(ref, num...)
+		ref = append(ref, ' ')
+		ref = append(ref, gen...)
+		ref = append(ref, ' ', 'R')
 		return ref
 	}
 
@@ -366,7 +425,7 @@ func addParentRef(pageBody []byte, parentObjNum int) []byte {
 }
 
 // extractFormFieldsFromFile finds form field objects in a specific PDF file
-func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
+func extractFormFieldsFromFile(pdfData []byte, objMap [][]byte) []int {
 	var fields []int
 	fieldSet := make(map[int]bool, 16) // PERF-192: avoid duplicates within this file
 
@@ -374,10 +433,12 @@ func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
 	if rootRef, ok := findRootRef(pdfData); ok {
 		rootNum, okRoot := parseLeadingInt(rootRef)
 		if okRoot {
-			if rootBody, exists := objMap[rootNum]; exists {
+			if rootNum < len(objMap) && objMap[rootNum] != nil {
+				rootBody := objMap[rootNum]
 				if match := acroFormRefRe.FindSubmatch(rootBody); match != nil {
 					if acroFormNum, err := strconv.Atoi(string(match[1])); err == nil {
-						if acroFormBody, exists := objMap[acroFormNum]; exists {
+						if acroFormNum < len(objMap) && objMap[acroFormNum] != nil {
+							acroFormBody := objMap[acroFormNum]
 							if fieldsMatch := fieldsArrayRe.FindSubmatch(acroFormBody); fieldsMatch != nil {
 								for _, ref := range mergeSimpleRefRe.FindAllSubmatch(fieldsMatch[1], -1) {
 									if fieldNum, err := strconv.Atoi(string(ref[1])); err == nil {
@@ -397,17 +458,18 @@ func extractFormFieldsFromFile(pdfData []byte, objMap map[int][]byte) []int {
 
 	// Also scan for widget annotations in page objects from THIS file only
 	for _, body := range objMap {
-		if bytesIndex(body, markerTypePage) >= 0 {
-			if annotsMatch := annotsArrayRe.FindSubmatch(body); annotsMatch != nil {
-				for _, ref := range mergeSimpleRefRe.FindAllSubmatch(annotsMatch[1], -1) {
-					if annotNum, err := strconv.Atoi(string(ref[1])); err == nil {
-						if annotBody, exists := objMap[annotNum]; exists {
-							// Check if this annotation is a widget (form field)
-							if bytesIndex(annotBody, markerSubtypeWidget) >= 0 {
-								if !fieldSet[annotNum] {
-									fields = append(fields, annotNum)
-									fieldSet[annotNum] = true
-								}
+		if body == nil || bytesIndex(body, markerTypePage) < 0 {
+			continue
+		}
+		if annotsMatch := annotsArrayRe.FindSubmatch(body); annotsMatch != nil {
+			for _, ref := range mergeSimpleRefRe.FindAllSubmatch(annotsMatch[1], -1) {
+				if annotNum, err := strconv.Atoi(string(ref[1])); err == nil {
+					if annotNum < len(objMap) && objMap[annotNum] != nil {
+						annotBody := objMap[annotNum]
+						if bytesIndex(annotBody, markerSubtypeWidget) >= 0 {
+							if !fieldSet[annotNum] {
+								fields = append(fields, annotNum)
+								fieldSet[annotNum] = true
 							}
 						}
 					}

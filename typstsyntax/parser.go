@@ -537,15 +537,21 @@ func flattenNode(root *Node, sb *strings.Builder) {
 			if node.Type == NodeVector {
 				openDelim, sep, closeDelim = "(", ", ", ")"
 			}
-			stack = append(stack, flattenWork{literal: closeDelim})
-			for i := len(node.Args) - 1; i >= 0; i-- {
+			n := len(node.Args)
+			total := 2 + n
+			if n > 0 {
+				total += n - 1 // sep items
+			}
+			items := make([]flattenWork, 0, total)
+			items = append(items, flattenWork{literal: closeDelim})
+			for i := n - 1; i >= 0; i-- {
+				items = append(items, flattenWork{node: node.Args[i]})
 				if i > 0 {
-					stack = append(stack, flattenWork{node: node.Args[i]}, flattenWork{literal: sep})
-				} else {
-					stack = append(stack, flattenWork{node: node.Args[i]})
+					items = append(items, flattenWork{literal: sep})
 				}
 			}
-			stack = append(stack, flattenWork{literal: openDelim})
+			items = append(items, flattenWork{literal: openDelim})
+			stack = append(stack, items...)
 
 		case NodeBinom:
 			if len(node.Children) >= 2 {

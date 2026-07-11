@@ -71,8 +71,14 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string) (int, string) {
 	modifyDate := createDate
 
 	// Build XMP packet
+	// Build XMP packet — derive Grow from input field lengths (PERF-234)
 	var xmp strings.Builder
-	xmp.Grow(8192)
+	fieldLen := len(h.config.Creator) + len(h.config.Title) + len(h.config.Author) + len(h.config.Subject) + len(h.config.Keywords)
+	estSize := 4000 + fieldLen + len(documentID)
+	if estSize < 4096 {
+		estSize = 4096
+	}
+	xmp.Grow(estSize)
 	xmp.WriteString(`<?xpacket begin="` + "\xef\xbb\xbf" + `" id="W5M0MpCehiHzreSzNTczkc9d"?>`)
 	xmp.WriteString("\n")
 	xmp.WriteString(`<x:xmpmeta xmlns:x="adobe:ns:meta/">`)

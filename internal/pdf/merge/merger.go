@@ -15,6 +15,19 @@ var (
 	trailerRe   = regexp.MustCompile(`(?s)trailer\s*<<(.*?)>>`)
 )
 
+// ensureLen grows a slice to at least the required length.
+func ensureLen[T any](s *[]T, need int) {
+	if need > len(*s) {
+		newCap := need * 2
+		if newCap < 64 {
+			newCap = 64
+		}
+		newS := make([]T, need, newCap)
+		copy(newS, *s)
+		*s = newS
+	}
+}
+
 // MergePDFs merges multiple PDF files into one
 // It properly handles form fields, widgets, appearance streams, and various PDF versions
 //
@@ -70,10 +83,10 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 		// Process objects maintaining order
 		for _, origNum := range objectsToProcess {
-			body, exists := fc.Objects[origNum]
-			if !exists {
+			if origNum >= len(fc.Objects) || fc.Objects[origNum] == nil {
 				continue
 			}
+			body := fc.Objects[origNum]
 
 			newNum := offset + origNum
 
@@ -104,6 +117,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	}
 
 	// Write Catalog (object 1)
+	ensureLen(&ctx.Offsets, 2)
 	ctx.Offsets[1] = ctx.Output.Len()
 	writeCatalog(&ctx.Output, ctx.MergedFields)
 
@@ -113,6 +127,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 	// Write all remapped objects
 	for _, obj := range appendedObjects {
+		ensureLen(&ctx.Offsets, obj.num+1)
 		ctx.Offsets[obj.num] = ctx.Output.Len()
 		writeObject(&ctx.Output, obj.num, obj.body)
 	}
@@ -149,20 +164,29 @@ func parseFile(data []byte) *FileContext {
 
 	// Extract objects from Object Streams (PDF 1.5+)
 	for objNum, body := range fc.Objects {
-		if IsObjectStream(body) {
-			extractedObjs := ParseObjectStream(body)
-			for extractedNum, extractedBody := range extractedObjs {
-				// Only add if not already present (top-level objects take precedence)
-				if _, exists := fc.Objects[extractedNum]; !exists {
-					fc.Objects[extractedNum] = extractedBody
-					if extractedNum > fc.MaxObj {
-						fc.MaxObj = extractedNum
-					}
+		if body == nil || !IsObjectStream(body) {
+			continue
+		}
+		extractedObjs := ParseObjectStream(body)
+		for extractedNum, extractedBody := range extractedObjs {
+			if extractedBody == nil {
+				continue
+			}
+			// Only add if not already present (top-level objects take precedence)
+			if extractedNum >= len(fc.Objects) || fc.Objects[extractedNum] == nil {
+				if extractedNum >= len(fc.Objects) {
+					newObjs := make([][]byte, extractedNum+1)
+					copy(newObjs, fc.Objects)
+					fc.Objects = newObjs
+				}
+				fc.Objects[extractedNum] = extractedBody
+				if extractedNum > fc.MaxObj {
+					fc.MaxObj = extractedNum
 				}
 			}
-			// Mark original ObjStm for exclusion (we've expanded it)
-			fc.ObjectStreamNums = append(fc.ObjectStreamNums, objNum)
 		}
+		// Mark original ObjStm for exclusion (we've expanded it)
+		fc.ObjectStreamNums = append(fc.ObjectStreamNums, objNum)
 	}
 
 	// Extract pages from Pages tree
@@ -178,7 +202,7 @@ func parseFile(data []byte) *FileContext {
 }
 
 // findCatalogAndPages finds the original Catalog and Pages tree object numbers
-func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pagesNum int) {
+func findCatalogAndPages(data []byte, objMap [][]byte) (catalogNum int, pagesNum int) {
 	rootRef := findRootRef(data)
 	if rootRef == "" {
 		return 0, 0
@@ -188,12 +212,10 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 		return 0, 0
 	}
 
-	if catalogNum > 0 {
-		if body, exists := objMap[catalogNum]; exists {
-			match := pagesRefRe.FindSubmatch(body)
-			if match != nil {
-				pagesNum, _ = strconv.Atoi(string(match[1]))
-			}
+	if catalogNum > 0 && catalogNum < len(objMap) && objMap[catalogNum] != nil {
+		match := pagesRefRe.FindSubmatch(objMap[catalogNum])
+		if match != nil {
+			pagesNum, _ = strconv.Atoi(string(match[1]))
 		}
 	}
 
@@ -201,7 +223,7 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 }
 
 // extractPagesFromTree extracts page object numbers from the Pages tree
-func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
+func extractPagesFromTree(data []byte, objMap [][]byte) []int {
 	var pages []int
 
 	rootRef := findRootRef(data)
@@ -215,10 +237,10 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 		return pages
 	}
 
-	rootBody, exists := objMap[rootNum]
-	if !exists {
+	if rootNum >= len(objMap) || objMap[rootNum] == nil {
 		return pages
 	}
+	rootBody := objMap[rootNum]
 
 	// Find /Pages reference
 	match := pagesRefRe.FindSubmatch(rootBody)
@@ -227,17 +249,17 @@ func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
 	}
 
 	pagesNum, _ := strconv.Atoi(string(match[1]))
-	pagesBody, exists := objMap[pagesNum]
-	if !exists {
+	if pagesNum >= len(objMap) || objMap[pagesNum] == nil {
 		return pages
 	}
+	pagesBody := objMap[pagesNum]
 
 	// Recursively extract kids
 	return extractKidsRecursive(pagesBody, objMap, objRefRe)
 }
 
 // extractKidsRecursive extracts page numbers from /Kids array
-func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp.Regexp) []int {
+func extractKidsRecursive(pagesBody []byte, objMap [][]byte, refRe *regexp.Regexp) []int {
 	var pages []int
 
 	match := kidsArrayRe.FindSubmatch(pagesBody)
@@ -247,11 +269,11 @@ func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp
 
 	for _, r := range refRe.FindAllSubmatch(match[1], -1) {
 		kidNum, _ := strconv.Atoi(string(r[1]))
-		kidBody, ok := objMap[kidNum]
-		if !ok {
+		if kidNum >= len(objMap) || objMap[kidNum] == nil {
 			pages = append(pages, kidNum)
 			continue
 		}
+		kidBody := objMap[kidNum]
 
 		if IsPagesTreeObject(kidBody) {
 			// Recursive: nested Pages node
@@ -268,27 +290,32 @@ func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp
 // collectObjectsWithDependencies returns all object numbers to process
 // ensuring annotation dependencies are included but excluding original catalog/pages/objstm
 func collectObjectsWithDependencies(fc *FileContext) []int {
-	capHint := fc.MaxObj
-	if capHint < 8 {
-		capHint = 8
+	n := fc.MaxObj + 1
+	if n < 8 {
+		n = 8
 	}
-	included := make(map[int]bool, capHint) // PERF-192
-	excluded := make(map[int]bool, 8)
+	included := make([]bool, n)
+	excluded := make([]bool, n)
 	var result []int
 
 	// Mark objects to exclude
-	if fc.OriginalCatalog > 0 {
+	if fc.OriginalCatalog > 0 && fc.OriginalCatalog < n {
 		excluded[fc.OriginalCatalog] = true
 	}
-	if fc.OriginalPagesTree > 0 {
+	if fc.OriginalPagesTree > 0 && fc.OriginalPagesTree < n {
 		excluded[fc.OriginalPagesTree] = true
 	}
 	for _, objStmNum := range fc.ObjectStreamNums {
-		excluded[objStmNum] = true
+		if objStmNum < n {
+			excluded[objStmNum] = true
+		}
 	}
 
 	// Also exclude any intermediate Pages tree nodes
 	for num, body := range fc.Objects {
+		if body == nil || num >= n {
+			continue
+		}
 		if IsPagesTreeObject(body) {
 			excluded[num] = true
 		}
@@ -296,7 +323,7 @@ func collectObjectsWithDependencies(fc *FileContext) []int {
 
 	// Add all objects in numeric order, excluding catalog/pages/objstm
 	for i := 1; i <= fc.MaxObj; i++ {
-		if _, exists := fc.Objects[i]; exists {
+		if i < n && i < len(fc.Objects) && fc.Objects[i] != nil {
 			if !included[i] && !excluded[i] {
 				result = append(result, i)
 				included[i] = true
@@ -307,7 +334,7 @@ func collectObjectsWithDependencies(fc *FileContext) []int {
 	// Ensure all AP dependencies are included
 	for _, deps := range fc.APDeps {
 		for _, dep := range deps {
-			if !included[dep] && !excluded[dep] {
+			if dep < n && !included[dep] && !excluded[dep] {
 				result = append(result, dep)
 				included[dep] = true
 			}
@@ -397,13 +424,10 @@ func updateParentRef(body []byte) []byte {
 }
 
 // writeXRefAndTrailer writes the xref table and trailer
-func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
-	// Find max object number
-	maxObj := 0
-	for k := range offsets {
-		if k > maxObj {
-			maxObj = k
-		}
+func writeXRefAndTrailer(out *bytes.Buffer, offsets []int) {
+	maxObj := len(offsets) - 1
+	if maxObj < 0 {
+		maxObj = 0
 	}
 
 	xrefStart := out.Len()
@@ -421,7 +445,7 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	copy(entry[10:], " 00000 n\r\n")
 	var offTmp [20]byte
 	for i := 1; i <= maxObj; i++ {
-		if off, ok := offsets[i]; ok {
+		if off := offsets[i]; off != 0 {
 			offStr := strconv.AppendInt(offTmp[:0], int64(off), 10)
 			pad := 10 - len(offStr)
 			for j := 0; j < pad; j++ {
