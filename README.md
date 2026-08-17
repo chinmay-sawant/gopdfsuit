@@ -12,7 +12,7 @@
 
 ## Star History
 
-## [![Star History Chart](https://api.star-history.com/svg?repos=chinmay-sawant/gopdfsuit&type=timeline&logscale&legend=top-left)](https://www.star-history.com/#chinmay-sawant/gopdfsuit&type=timeline&logscale&legend=top-left)
+## [![Star History Chart](https://star-history.dera.page/svg?repos=chinmay-sawant/gopdfsuit&type=timeline&logscale&legend=top-left)](https://star-history.dera.page/#chinmay-sawant/gopdfsuit&type=timeline&logscale&legend=top-left)
 
 ## ⚡ Performance & Efficiency
 
