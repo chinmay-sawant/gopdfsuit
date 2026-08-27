@@ -2,7 +2,7 @@
 
 Same engine as `gopdflib.CompressPDF`, compiled to WebAssembly (`GOOS=js GOARCH=wasm`). This sample does **not** call `POST /api/v1/compress`.
 
-The Go library sample is [`sampledata/compress`](../compress). Limits live in `internal/pdf/compress/limits.go` and apply to the library, the HTTP handler, and this WASM path.
+The Go library sample is [`sampledata/compress`](../compress). Size and resource caps are listed under [Constraints](#constraints) (`internal/pdf/compress/limits.go`).
 
 ## Where it runs
 
@@ -35,24 +35,38 @@ const out = await compressPDF(uint8, { level: 2 })
 // 1 = light (JPEG 92), 2 = medium (75), 3 = heavy (50)
 ```
 
-## What is handled
+## Constraints
 
-These are resource and input checks, not a full PDF sandbox. A hostile file should fail closed (error, or skip that stream) instead of growing without bound.
+Defined in `internal/pdf/compress/limits.go`. They apply to **this WASM path, `gopdflib.CompressPDF`, and `POST /api/v1/compress`**. A hostile file should fail closed (error, or skip that stream) instead of growing without bound. They bound **this user’s tab** (or one API request); they do not make compress instant.
 
-| Guard | Limit | Why |
-|-------|-------|-----|
-| Input size | 32 MiB | Stops a huge upload / `Uint8Array` from allocating unbounded WASM/Go memory. Checked in JS, WASM (`byteLength` + `CopyBytesToGo`), `CompressPDF`, and the HTTP handler (`LimitReader`). |
-| Flate inflate | 48 MiB per stream | Zip bomb: a tiny Flate stream that expands to hundreds of MB. Same cap in `compress.decompressFlate` and `merge.decompressFlate` (object streams). |
-| Image raster | 16 megapixels, edge 8192 | A `/Width 100000 /Height 100000` XObject (or a huge JPEG) would allocate gigabytes. JPEG uses `DecodeConfig` before full decode. |
-| `max_image_dim` override | 4096 | HTTP `max_image_dim=999999999` cannot disable downscale or force a 1e9 target. |
-| JPEG quality | 1–100 | Values above 100 are clamped. |
-| Object count / object number | 50_000 | A single `50001 0 obj` used to make xref writing loop `1..N`. Object streams with `/N` above this are ignored. |
-| Encrypted PDFs | rejected | `/Encrypt` in the trailer is an error; contents are not decrypted. |
-| WASM argument type | `Uint8Array` only | A fake `{ byteLength: huge }` object is rejected (`CopyBytesToGo` copies 0 bytes). |
-| WASM panics | recovered | Font/parse panics return `{ error: "compression failed" }` instead of killing the tab. |
-| Empty / non-PDF | rejected | Missing `%PDF-` header fails before parse. |
+### Size and resource caps
 
-Skipped streams (JPEG2000, JBIG2, `/DecodeParms`, SMask, odd bit depths) are left as-is rather than decoded. That is intentional: we do not implement those codecs.
+| Constraint | Limit | What it stops |
+|------------|--------|----------------|
+| Input size | **32 MiB** | Huge upload / `Uint8Array`. Checked in JS, WASM (`byteLength` + `CopyBytesToGo`), `CompressPDF`, and HTTP `LimitReader`. |
+| Flate inflate | **48 MiB per stream** | Zip bomb (tiny Flate → hundreds of MB). Same cap in `compress.decompressFlate` and `merge.decompressFlate` (object streams). |
+| Image raster | **16 megapixels**, longest edge **8192** | `/Width 100000 /Height 100000` or a huge JPEG. JPEG size is read with `DecodeConfig` *before* full decode. |
+| `max_image_dim` override | **4096** | HTTP `max_image_dim=999999999` cannot disable downscale. |
+| JPEG quality | **1–100** | Values over 100 are clamped. |
+| PDF objects | **50_000** count **and** object number | A single `50001 0 obj` used to make xref writing loop `1..N`. Object streams with `/N` above this are ignored. |
+
+The 32 MiB ceiling is the main size number. Inside it, a awkward file can still freeze the tab for a while.
+
+### Compression tiers (quality presets, not DoS caps)
+
+| Level | JPEG quality | Max image edge |
+|-------|----------------|----------------|
+| Light (`1`) | 92 | 1920 |
+| Medium (`2`, default) | 75 | 1275 |
+| Heavy (`3`) | 50 | 612 |
+
+### Fail-closed rules
+
+- Encrypted PDFs (`/Encrypt`) are **rejected**, not decrypted.
+- Non-PDF / empty input is **rejected**.
+- WASM accepts a **`Uint8Array` only** (a fake `{ byteLength: huge }` copies 0 bytes and fails).
+- WASM **panics** become `{ error: "compression failed" }` instead of killing the tab.
+- JPEG2000, JBIG2, SMask, `/DecodeParms`, odd bit depths are **skipped**, not decoded.
 
 ## What is not handled (and is not going to be, here)
 
