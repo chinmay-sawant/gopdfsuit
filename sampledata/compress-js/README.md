@@ -64,3 +64,15 @@ This is still a PDF rewriter running in the tab (or in the API process). Caps bo
 | No auth on `/compress` | By design: the file never leaves the machine. Do not treat that as “safe to expose the HTTP compress API without your own limits.” |
 
 If you need a hard timeout or an isolated process, wrap the Go library in your own worker. This sample does not add a CLI.
+
+## License
+
+No Ghostscript (or other AGPL) is used. The compressor is this repo’s MIT engine (`internal/pdf/compress`), the same code as `gopdflib.CompressPDF`.
+
+| Piece | License |
+|-------|---------|
+| Engine, JS wrapper, this sample | MIT (this repository) |
+| `wasm_exec.js` | BSD-3-Clause, Copyright The Go Authors (file header kept) |
+| `compress.wasm` | Our MIT package plus the Go WASM runtime (BSD-3-Clause), which is how `GOOS=js GOARCH=wasm` always works |
+
+MIT and BSD-3-Clause can be shipped together. Keep the Go copyright header on `wasm_exec.js`. Do not strip it.
