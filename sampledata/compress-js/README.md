@@ -1,8 +1,16 @@
 # PDF compress — JavaScript / WASM
 
-Same engine as `gopdflib.CompressPDF`, compiled to WebAssembly (`GOOS=js GOARCH=wasm`). The PDF stays in the process. This sample does **not** call `POST /api/v1/compress`.
+Same engine as `gopdflib.CompressPDF`, compiled to WebAssembly (`GOOS=js GOARCH=wasm`). This sample does **not** call `POST /api/v1/compress`.
 
 The Go library sample is [`sampledata/compress`](../compress). Limits live in `internal/pdf/compress/limits.go` and apply to the library, the HTTP handler, and this WASM path.
+
+## Where it runs
+
+**Only in the visitor’s browser.** You host static files (`compress.wasm`, `wasm_exec.js`, a few lines of JS). The PDF is read in the tab, compressed in the tab, and downloaded from the tab. It does not go to gopdfsuit’s API and it does not go to your backend unless you add that yourself.
+
+A closed-source SaaS (an iLovePDF-style site) can ship this as a static asset on its own origin. Each user compresses on their own machine. Your server’s job is CDN/hosting, not PDF processing.
+
+`goCompressPDF` is a page global after WASM loads. Any script on **that same origin** can call it. That is still client-side.
 
 ## Run
 
@@ -67,12 +75,20 @@ If you need a hard timeout or an isolated process, wrap the Go library in your o
 
 ## License
 
-No Ghostscript (or other AGPL) is used. The compressor is this repo’s MIT engine (`internal/pdf/compress`), the same code as `gopdflib.CompressPDF`.
+No Ghostscript (or other AGPL) is used. That is the license that would have forced a network SaaS to publish source. This path does not include it.
 
-| Piece | License |
-|-------|---------|
-| Engine, JS wrapper, this sample | MIT (this repository) |
-| `wasm_exec.js` | BSD-3-Clause, Copyright The Go Authors (file header kept) |
-| `compress.wasm` | Our MIT package plus the Go WASM runtime (BSD-3-Clause), which is how `GOOS=js GOARCH=wasm` always works |
+The compressor is this repo’s MIT engine (`internal/pdf/compress`), the same code as `gopdflib.CompressPDF`. Closed-source products can use MIT and BSD-3-Clause. Neither is copyleft. You do **not** have to open-source the host app.
 
-MIT and BSD-3-Clause can be shipped together. Keep the Go copyright header on `wasm_exec.js`. Do not strip it.
+| Piece | License | Closed-source SaaS |
+|-------|---------|-------------------|
+| Engine, JS wrapper, this sample | MIT (this repository) | Allowed. Keep the MIT copyright notice. |
+| `wasm_exec.js` | BSD-3-Clause, Copyright The Go Authors | Allowed. Keep the file’s Go copyright header. Do not strip it. |
+| `compress.wasm` | Our MIT package plus the Go WASM runtime (BSD-3-Clause) | Allowed. That runtime is how `GOOS=js GOARCH=wasm` always works. |
+
+BSD-3-Clause is a **notice** license, not a “share your product” license. In practice:
+
+1. Leave the Go header at the top of `wasm_exec.js`.
+2. In LICENSE, NOTICE, or an About page, note that the product includes Go’s WASM runtime under BSD-3-Clause.
+3. Do not advertise the product as endorsed by Google or the Go Authors (the third BSD clause).
+
+You do not need a Ghostscript license, a GPL/AGPL grant, or to publish your SaaS source because of this WASM. This is not legal advice; it is the usual reading of MIT + BSD-3.
