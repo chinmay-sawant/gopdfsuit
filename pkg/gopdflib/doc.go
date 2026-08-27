@@ -1,7 +1,7 @@
 // Package gopdflib provides a Go library for PDF generation, manipulation, and conversion.
 //
 // This package can be imported into your Go application to generate PDFs from templates,
-// merge/split existing PDFs, fill PDF forms, and convert HTML to PDF/images.
+// merge/split/compress existing PDFs, fill PDF forms, and convert HTML to PDF/images.
 //
 // # Quick Start
 //
@@ -66,6 +66,7 @@
 //   - [GeneratePDF] - Generate PDF from template
 //   - [MergePDFs] - Combine multiple PDFs
 //   - [SplitPDF] - Split PDF into parts
+//   - [CompressPDF] - Compress an existing PDF
 //   - [FillPDFWithXFDF] - Fill PDF forms
 //   - [ConvertHTMLToPDF] - HTML to PDF conversion
 //   - [ConvertHTMLToImage] - HTML to image conversion

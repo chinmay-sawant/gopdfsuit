@@ -150,3 +150,15 @@ func ExampleMergePDFs() {
 	// Use merged PDF...
 	_ = merged
 }
+
+// ExampleCompressPDF demonstrates compressing an existing PDF.
+func ExampleCompressPDF() {
+	pdfBytes := []byte("%PDF-1.4...")
+
+	out, err := gopdflib.CompressPDF(pdfBytes, gopdflib.CompressOptions{Level: gopdflib.CompressMedium})
+	if err != nil {
+		panic(err)
+	}
+
+	_ = out
+}
