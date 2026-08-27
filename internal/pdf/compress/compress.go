@@ -123,24 +123,45 @@ func CompressPDF(data []byte, opts Options) ([]byte, error) {
 	infoNum, _, _ := lastRef(infoRefRe, data)
 	version := merge.DetectPDFVersion(data)
 
+	stmCount := 0
+	for _, obj := range objects {
+		if merge.IsObjectStream(obj.body) {
+			stmCount++
+		}
+	}
+	if stmCount > 2 {
+		return data, nil
+	}
+
 	stripDocumentMetadata(objects, rootNum, infoNum)
-	usedGlyphs := collectUsedGlyphs(objects)
 
 	for num, obj := range objects {
 		if shouldDrop(obj.body) {
 			delete(objects, num)
 			continue
 		}
-		rewritten, changed := compressObject(obj.body, opts, usedGlyphs)
+		rewritten, changed := compressObject(obj.body, opts)
 		if changed {
 			obj.body = rewritten
 			objects[num] = obj
 		}
 	}
 
+	if _, ok := objects[rootNum]; !ok {
+		return data, nil
+	}
+
 	out, err := writePDF(version, objects, maxObj, rootNum, rootGen, 0, 0, false, nil)
 	if err != nil {
-		return nil, err
+		return data, nil
+	}
+	if len(out) >= len(data) {
+		return data, nil
+	}
+	// Parser can miss stream objects (binary "endobj" inside fonts). Never
+	// ship a rewrite that dropped every stream — it renders blank.
+	if bytes.Contains(data, []byte("\nstream")) && !bytes.Contains(out, []byte("stream")) {
+		return data, nil
 	}
 	return out, nil
 }
@@ -163,6 +184,18 @@ func parseObjects(data []byte) (map[int]pdfObject, int, error) {
 		if b.ObjNum > maxObj {
 			maxObj = b.ObjNum
 		}
+	}
+
+	stmCount := 0
+	for _, obj := range objects {
+		if merge.IsObjectStream(obj.body) {
+			stmCount++
+		}
+	}
+	// Linearized files wrap a couple of object streams. Unpacking dozens of
+	// them (arXiv, CID papers) is lossy and blanks pages — leave those opaque.
+	if stmCount == 0 || stmCount > 2 {
+		return objects, maxObj, nil
 	}
 
 	for num, obj := range objects {
@@ -189,9 +222,6 @@ func parseObjects(data []byte) (map[int]pdfObject, int, error) {
 }
 
 func shouldDrop(body []byte) bool {
-	if merge.IsObjectStream(body) {
-		return true
-	}
 	if merge.HasSubstring(body, []byte("/Type /XRef")) || merge.HasSubstring(body, []byte("/Type/XRef")) {
 		return true
 	}
@@ -204,29 +234,19 @@ func shouldDrop(body []byte) bool {
 	return false
 }
 
-func compressObject(body []byte, opts Options, usedGlyphs []uint16) ([]byte, bool) {
+func compressObject(body []byte, opts Options) ([]byte, bool) {
 	dict, stream, ok := splitStream(body)
 	if !ok {
 		return body, false
 	}
 
+	// Images only. Recompressing fonts or generic content streams blanks
+	// real PDFs (arXiv, AcroForms, CID text) because encodings are not GIDs
+	// and Flate+predictor streams are not reversed.
 	if isImageXObject(dict) {
 		if rewritten, ok := compressImage(dict, stream, opts); ok && len(rewritten) < len(body) {
 			return rewritten, true
 		}
-	}
-
-	if isFontFileStream(dict) {
-		if rewritten, ok := compactFontStream(dict, stream, usedGlyphs); ok && len(rewritten) < len(body) {
-			return rewritten, true
-		}
-	}
-
-	if rewritten, ok := recompressFlate(dict, stream); ok && len(rewritten) < len(body) {
-		return rewritten, true
-	}
-	if rewritten, ok := applyFlate(dict, stream); ok && len(rewritten) < len(body) {
-		return rewritten, true
 	}
 	return body, false
 }

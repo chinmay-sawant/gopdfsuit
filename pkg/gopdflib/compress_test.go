@@ -92,6 +92,10 @@ func TestCompressPDF_StripsMetadata(t *testing.T) {
 	if !bytes.HasPrefix(out, []byte("%PDF-")) {
 		t.Fatal("compressed file is not a PDF")
 	}
+	if len(out) >= len(src) {
+		// No smaller rewrite — original bytes (and trailer /Info) are kept.
+		return
+	}
 	trailer := out
 	if i := bytes.LastIndex(out, []byte("trailer")); i >= 0 {
 		trailer = out[i:]

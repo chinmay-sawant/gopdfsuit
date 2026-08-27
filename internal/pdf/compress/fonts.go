@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"regexp"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
 
@@ -21,7 +20,7 @@ func isFontFileStream(dict []byte) bool {
 		merge.HasSubstring(dict, []byte("/Subtype/CIDFontType0C"))
 }
 
-func compactFontStream(dict, data []byte, usedGlyphs []uint16) ([]byte, bool) {
+func compactFontStream(dict, data []byte, _ []uint16) ([]byte, bool) {
 	raw := data
 	if streamFilter(dict) == filterFlate {
 		decoded, err := decompressFlate(data)
@@ -33,20 +32,18 @@ func compactFontStream(dict, data []byte, usedGlyphs []uint16) ([]byte, bool) {
 		return nil, false
 	}
 
-	compacted, err := font.CompactUnusedGlyphs(raw, usedGlyphs)
-	if err != nil || len(compacted) == 0 {
-		compacted = raw
-	}
-	compressed, err := compressFlate(compacted)
+	// Do not hollow TTF outlines. PDF strings are encoding/cmap codes, not
+	// TrueType GIDs, so CompactUnusedGlyphs blanks papers, forms, and CID text.
+	compressed, err := compressFlate(raw)
 	if err != nil {
 		return nil, false
 	}
-	if streamFilter(dict) == filterFlate && len(compressed) >= len(data) && len(compacted) >= len(raw) {
+	if streamFilter(dict) == filterFlate && len(compressed) >= len(data) {
 		return nil, false
 	}
 	outDict := setFilter(dict, filterFlate)
 	if merge.HasSubstring(outDict, []byte("/Length1")) {
-		outDict = setNameInt(outDict, "Length1", len(compacted))
+		outDict = setNameInt(outDict, "Length1", len(raw))
 	}
 	return buildStream(outDict, compressed), true
 }
