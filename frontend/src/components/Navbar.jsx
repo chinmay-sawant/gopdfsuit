@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors, Book, Eraser, Gauge } from 'lucide-react'
+import { FileText, Edit, Merge, FileCheck, Globe, Image, Menu, X, Sun, Moon, Camera, LogOut, Scissors, Book, Eraser, Gauge, Minimize2 } from 'lucide-react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { isAuthRequired, isGitHubPagesHost, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
@@ -29,6 +29,7 @@ const Navbar = () => {
     { path: '/editor', label: 'Editor', icon: Edit },
     { path: '/merge', label: 'Merge', icon: Merge },
     { path: '/split', label: 'Split', icon: Scissors },
+    { path: '/compress', label: 'Compress', icon: Minimize2 },
     { path: '/filler', label: 'Filler', icon: FileCheck },
     { path: '/htmltopdf', label: 'HTML→PDF', icon: Globe },
     { path: '/htmltoimage', label: 'HTML→Image', icon: Image },

@@ -446,7 +446,7 @@ func ParseObjectStream(body []byte) map[int][]byte {
 		return result
 	}
 	numObjects, _ := strconv.Atoi(string(nMatch[1]))
-	if numObjects == 0 {
+	if numObjects <= 0 || numObjects > 50000 {
 		return result
 	}
 
@@ -456,7 +456,10 @@ func ParseObjectStream(body []byte) map[int][]byte {
 	if firstMatch == nil {
 		return result
 	}
-	firstOffset, _ := strconv.Atoi(string(firstMatch[1]))
+	firstOffset, err := strconv.Atoi(string(firstMatch[1]))
+	if err != nil || firstOffset < 0 {
+		return result
+	}
 
 	// Find and decompress stream
 	streamData := extractAndDecompressStream(body)
@@ -561,9 +564,10 @@ func decompressFlate(data []byte) []byte {
 		_ = reader.Close()
 	}()
 
+	const maxInflateBytes = 48 << 20
 	var out bytes.Buffer
-	_, err = io.Copy(&out, reader)
-	if err != nil {
+	n, err := io.Copy(&out, io.LimitReader(reader, maxInflateBytes+1))
+	if err != nil || n > maxInflateBytes {
 		return nil
 	}
 

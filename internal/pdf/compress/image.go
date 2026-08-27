@@ -14,7 +14,7 @@ func compressImage(dict, data []byte, opts Options) ([]byte, bool) {
 
 	width := dictInt(dict, widthRe)
 	height := dictInt(dict, heightRe)
-	if width <= 0 || height <= 0 {
+	if !imagePixelBudgetOK(width, height) {
 		return nil, false
 	}
 
@@ -65,6 +65,10 @@ func compressImage(dict, data []byte, opts Options) ([]byte, bool) {
 func decodeImagePixels(filter, colorSpace string, width, height int, data, dict []byte) (image.Image, bool) {
 	switch filter {
 	case filterDCT:
+		cfg, err := jpeg.DecodeConfig(bytes.NewReader(data))
+		if err != nil || !imagePixelBudgetOK(cfg.Width, cfg.Height) {
+			return nil, false
+		}
 		img, err := jpeg.Decode(bytes.NewReader(data))
 		if err != nil {
 			return nil, false
@@ -86,7 +90,17 @@ func decodeImagePixels(filter, colorSpace string, width, height int, data, dict 
 	}
 }
 
+func imagePixelBudgetOK(width, height int) bool {
+	if width <= 0 || height <= 0 || width > MaxImageEdge || height > MaxImageEdge {
+		return false
+	}
+	return int64(width)*int64(height) <= MaxImagePixels
+}
+
 func rawToImage(raw []byte, colorSpace string, width, height int) (image.Image, bool) {
+	if !imagePixelBudgetOK(width, height) {
+		return nil, false
+	}
 	switch colorSpace {
 	case "DeviceGray":
 		if len(raw) < width*height {

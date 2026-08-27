@@ -568,13 +568,17 @@ func handleCompressPDF(c *gin.Context) {
 	defer func() {
 		_ = pdfFile.Close()
 	}()
-	pdfBytes, err := io.ReadAll(pdfFile)
+	pdfBytes, err := io.ReadAll(io.LimitReader(pdfFile, int64(compress.MaxInputBytes)+1))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read pdf: " + err.Error()})
 		return
 	}
 	if len(pdfBytes) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is empty"})
+		return
+	}
+	if len(pdfBytes) > compress.MaxInputBytes {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf exceeds maximum size"})
 		return
 	}
 

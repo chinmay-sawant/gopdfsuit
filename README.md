@@ -66,6 +66,7 @@ Zerodha gold-standard workload (5000 iterations, 48 workers, 80% retail · 15% a
 - **Form Filling**: Fill generic AcroForms and XFDF data.
 - **Redaction**: Securely redact sensitive information using specific coordinates or text search.
 - **Merge & Split**: Combine multiple PDFs or split them.
+- **PDF Compress**: Shrink existing PDFs in `gopdflib` or **in-browser WASM** (no Ghostscript, no server round-trip). Light / Medium / Heavy JPEG tiers.
 - **HTML Conversion**: High-fidelity HTML to PDF/Image via headless Chrome.
 - **Web Interfaces**: Built-in React UI for viewer, editor, merger, filler, and converters.
 

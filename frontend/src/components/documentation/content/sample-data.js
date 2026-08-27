@@ -11,6 +11,8 @@ export const sampleDataSection = {
 
 • [acroform](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/acroform) - AcroForm templates with interactive form fields
 • [benchmarks](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/benchmarks) - Performance benchmark data and reports
+• [compress](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/compress) - PDF compression via the Go library (gopdflib.CompressPDF)
+• [compress-js](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/compress-js) - Same engine in-browser via WebAssembly (no HTTP)
 • [editor](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/editor) - Templates designed for the visual editor
 • [filler](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/filler) - XFDF data files for form filling
 • [financialreport](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/financialreport) - Financial report templates

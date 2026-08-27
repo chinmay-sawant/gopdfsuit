@@ -49,7 +49,22 @@ test-integration: test
 clean:
 	rm -rf bin/
 
-run: test-integration lint
+# Go 1.24+ ships wasm_exec.js under lib/wasm; older toolchains use misc/wasm.
+WASM_EXEC := $(shell go env GOROOT)/lib/wasm/wasm_exec.js
+ifeq ($(wildcard $(WASM_EXEC)),)
+WASM_EXEC := $(shell go env GOROOT)/misc/wasm/wasm_exec.js
+endif
+
+# In-browser compressor: GOOS=js GOARCH=wasm, no gin / gochromedp.
+# Copies wasm + wasm_exec.js to frontend/public and sampledata/compress-js.
+wasm-compress:
+	mkdir -p frontend/public sampledata/compress-js
+	GOOS=js GOARCH=wasm go build -o frontend/public/compress.wasm ./cmd/wasmcompress
+	cp "$(WASM_EXEC)" frontend/public/wasm_exec.js
+	cp frontend/public/compress.wasm frontend/public/wasm_exec.js sampledata/compress-js/
+	file frontend/public/compress.wasm
+
+run: test-integration lint wasm-compress
 	export VITE_IS_CLOUD_RUN=false;\
 	export VITE_ENVIRONMENT=local;\
 	export VITE_API_URL=http://localhost:8080;\
@@ -70,7 +85,7 @@ lint:
 	cd frontend && npm run lint
 	cd .. 
 
-gdocker: test-integration
+gdocker: test-integration wasm-compress
 	cd frontend && npm run build && cd ..
 	docker rm -f gopdfsuit
 	docker build -t gopdfsuit . 

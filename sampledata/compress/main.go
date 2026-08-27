@@ -1,6 +1,9 @@
 // Package main compresses report.pdf with gopdflib at Light, Medium, and Heavy.
 //
 //	cd sampledata/compress && go run .
+//
+// Browser / Node WASM is sampledata/compress-js (make wasm-compress, then
+// node run.mjs). This go run does not build or call WASM.
 package main
 
 import (

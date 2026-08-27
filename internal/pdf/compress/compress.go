@@ -69,6 +69,9 @@ func (o Options) withDefaults() Options {
 			o.MaxImageDim = maxDimMedium
 		}
 	}
+	if o.MaxImageDim > maxAllowedDim {
+		o.MaxImageDim = maxAllowedDim
+	}
 	return o
 }
 
@@ -91,6 +94,9 @@ var (
 //
 //nolint:revive // exported name matches the public gopdflib wrapper
 func CompressPDF(data []byte, opts Options) ([]byte, error) {
+	if len(data) > MaxInputBytes {
+		return nil, fmt.Errorf("PDF exceeds maximum size (%d bytes)", MaxInputBytes)
+	}
 	if len(data) < 8 || !bytes.HasPrefix(data, []byte("%PDF-")) {
 		return nil, fmt.Errorf("not a PDF file")
 	}
@@ -105,6 +111,9 @@ func CompressPDF(data []byte, opts Options) ([]byte, error) {
 	}
 	if len(objects) == 0 {
 		return nil, fmt.Errorf("no PDF objects found")
+	}
+	if len(objects) > MaxObjects || maxObj > MaxObjects {
+		return nil, fmt.Errorf("PDF has too many objects")
 	}
 
 	rootNum, rootGen, ok := lastRef(rootRefRe, data)

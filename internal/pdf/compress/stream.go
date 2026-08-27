@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/zlib"
+	"fmt"
 	"io"
 	"regexp"
 	"strconv"
@@ -103,15 +104,23 @@ func decompressFlate(data []byte) ([]byte, error) {
 	r, err := zlib.NewReader(bytes.NewReader(data))
 	if err == nil {
 		defer func() { _ = r.Close() }()
-		var out bytes.Buffer
-		if _, copyErr := io.Copy(&out, r); copyErr == nil {
-			return out.Bytes(), nil
+		out, copyErr := readLimited(r)
+		if copyErr == nil {
+			return out, nil
 		}
 	}
 	fr := flate.NewReader(bytes.NewReader(data))
 	defer func() { _ = fr.Close() }()
+	return readLimited(fr)
+}
+
+func readLimited(r io.Reader) ([]byte, error) {
 	var out bytes.Buffer
-	if _, err := io.Copy(&out, fr); err != nil {
+	n, err := io.Copy(&out, io.LimitReader(r, int64(MaxInflateBytes)+1))
+	if n > int64(MaxInflateBytes) {
+		return nil, fmt.Errorf("decompressed stream exceeds %d bytes", MaxInflateBytes)
+	}
+	if err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil

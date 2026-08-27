@@ -7,6 +7,7 @@ This guide provides a comprehensive overview of how to install and start using t
 1.  [Downloading and Installing](#downloading-and-installing)
 2.  [Loading PDF Templates from JSON](#loading-pdf-templates-from-json)
 3.  [Redacting a PDF](#redacting-a-pdf)
+4.  [Compressing a PDF](#compressing-a-pdf)
 
 ---
 
@@ -220,4 +221,69 @@ func main() {
 
     fmt.Printf("PDF successfully redacted and saved to %s!\n", outputPath)
 }
+```
+
+---
+
+## Compressing a PDF
+
+`gopdflib.CompressPDF` rewrites an existing PDF: bicubic image downsample and JPEG recompression at a chosen tier, unused TTF glyph outlines dropped, document metadata stripped, and streams Flate-compressed. Encrypted files are rejected. Input larger than 32 MiB is rejected. If the rewrite is not smaller, the original bytes are returned.
+
+There is no CLI. The same engine also runs in the browser as WebAssembly (`make wasm-compress`); see `sampledata/compress-js`.
+
+### Levels
+
+| Level | Constant | JPEG quality | Max image edge |
+|-------|----------|--------------|----------------|
+| Light | `gopdflib.CompressLight` | 92 | 1920 |
+| Medium (default) | `gopdflib.CompressMedium` | 75 | 1275 |
+| Heavy | `gopdflib.CompressHeavy` | 50 | 612 |
+
+`JPEGQuality` and `MaxImageDim` on `CompressOptions` override the preset when greater than zero.
+
+### Example Code
+
+```go
+package main
+
+import (
+    "fmt"
+    "os"
+
+    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+)
+
+func main() {
+    src, err := os.ReadFile("document.pdf")
+    if err != nil {
+        panic(err)
+    }
+
+    out, err := gopdflib.CompressPDF(src, gopdflib.CompressOptions{
+        Level: gopdflib.CompressHeavy,
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    if err := os.WriteFile("document-compressed.pdf", out, 0644); err != nil {
+        panic(err)
+    }
+    fmt.Printf("original=%d compressed=%d\n", len(src), len(out))
+}
+```
+
+### Running the Sample
+
+```bash
+cd sampledata/compress && go run .
+```
+
+This reads `report.pdf` and writes `report_level_1.pdf` (Light), `report_level_2.pdf` (Medium), and `report_level_3.pdf` (Heavy).
+
+The JavaScript/WASM sample is separate:
+
+```bash
+make wasm-compress
+node sampledata/compress-js/run.mjs
 ```

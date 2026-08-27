@@ -26,7 +26,7 @@ const (
 // CompressPDF rewrites an existing PDF: bicubic image downsample and JPEG
 // recompression at the chosen tier, unused TTF glyph outlines dropped,
 // document metadata stripped, and streams Flate-compressed. Encrypted files
-// are rejected.
+// are rejected. Input larger than 32 MiB is rejected.
 //
 // Example:
 //
