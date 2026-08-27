@@ -74,32 +74,6 @@ func buildStream(dict, data []byte) []byte {
 	return b.Bytes()
 }
 
-func applyFlate(dict, data []byte) ([]byte, bool) {
-	if streamFilter(dict) != "" {
-		return nil, false
-	}
-	compressed, err := compressFlate(data)
-	if err != nil || len(compressed) >= len(data) {
-		return nil, false
-	}
-	return buildStream(setFilter(dict, filterFlate), compressed), true
-}
-
-func recompressFlate(dict, data []byte) ([]byte, bool) {
-	if streamFilter(dict) != filterFlate {
-		return nil, false
-	}
-	raw, err := decompressFlate(data)
-	if err != nil || len(raw) == 0 {
-		return nil, false
-	}
-	compressed, err := compressFlate(raw)
-	if err != nil || len(compressed) >= len(data) {
-		return nil, false
-	}
-	return buildStream(dict, compressed), true
-}
-
 func decompressFlate(data []byte) ([]byte, error) {
 	r, err := zlib.NewReader(bytes.NewReader(data))
 	if err == nil {
@@ -124,23 +98,6 @@ func readLimited(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	return out.Bytes(), nil
-}
-
-func compressFlate(data []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	buf.Grow(len(data) / 2)
-	w, err := zlib.NewWriterLevel(&buf, zlib.BestCompression)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := w.Write(data); err != nil {
-		_ = w.Close()
-		return nil, err
-	}
-	if err := w.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
 
 func streamFilter(dict []byte) string {
