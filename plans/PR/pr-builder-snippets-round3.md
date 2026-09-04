@@ -63,13 +63,13 @@ Ships fluent font/cell builders for `pkg/gopdflib` plus `pypdfsuit` with Go/Pyth
 
 ## Test plan
 
-- [ ] `make test` (`go test ./...` plus Python bindings plus `test/verify_pdfs.sh`)
-- [ ] `make test-integration` (`go test -count=1 -v ./test`) when handlers or engine changed
-- [ ] `make lint` plus `go vet` (zero ESLint warnings in `frontend/`)
-- [ ] `make build` (`go build -o bin/app ./cmd/gopdfsuit`) when shippable change
-- [ ] `make test-verify-pdfs` or `make test-scan-pdfs-compliance` when PDF output changed
-- [ ] `cd frontend && npm run build` when UI changed (never hand-edit `docs/`)
-- [ ] `make wasm-compress` when `cmd/wasmcompress/` changed
+- [x] `make test` (`go test ./...` plus Python bindings plus `test/verify_pdfs.sh`)
+- [x] `make test-integration` (`go test -count=1 -v ./test`) when handlers or engine changed
+- [x] `make lint` plus `go vet` (zero ESLint warnings in `frontend/`)
+- [x] `make build` (`go build -o bin/app ./cmd/gopdfsuit`) when shippable change
+- [x] `make test-verify-pdfs` or `make test-scan-pdfs-compliance` when PDF output changed
+- [x] `cd frontend && npm run build` when UI changed (never hand-edit `docs/`)
+- [x] `make wasm-compress` when `cmd/wasmcompress/` changed
 
 ### Commands
 
@@ -81,6 +81,20 @@ make test-integration
 make test-verify-pdfs
 ```
 
+### Session results (2026-09-04, branch `feat/builder-snippets`, PR #210)
+
+```
+make lint                        exit 0 (golangci-lint plus frontend eslint, zero warnings)
+go vet ./...                     exit 0
+go build -o bin/app              exit 0 (bin/app 48 MB)
+make wasm-compress               exit 0 (compress.wasm valid MVP module)
+cd frontend && npm run build     exit 0 (vite 8.69s, manifests in sync: 12 fonts, 3 templates)
+make test-integration            PASS ok test 17.446s
+make test-verify-pdfs            Totals: 10 passed, 0 failed, 10 checks
+make test                        exit 0 (test-go plus test-python plus test-verify,
+                                 post-test veraPDF/structure-tree validation passed)
+```
+
 ---
 
 ## Screenshots / sample output
@@ -89,11 +103,11 @@ make test-verify-pdfs
 Branch feat/builder-snippets vs origin/master: 208 files changed, +10321/-6040.
 Commits: 4427b94 feat copy-clip checklist, 449200c fluent builder, 48c57d2 round3 ledger,
 d3233e8 round3 phases 1-6, 76349c8 topic docs, 765fe6c docs index, 20465e0 FEATURES+ARCHITECTURE.
-Ledger Phase 6 (per review handoff): make fmt clean; make lint clean (backend golangci +
-frontend eslint zero warnings); make test PASS incl. pytest 90 passed and 10/10 veraPDF +
-structure-tree checks; make test-integration PASS (16.675s);
-make test-verify-pdfs 10 passed 0 failed; wasm-compress valid MVP module, vite 9.55s, npm test 16/16.
 ```
+
+Verified this session on the PR head, all exit 0: see Session results under Test plan
+(`make lint`, `go vet`, `make build`, `make wasm-compress`, frontend build,
+`make test-integration` 17.446s, `make test-verify-pdfs` 10/10, `make test`).
 
 ---
 
