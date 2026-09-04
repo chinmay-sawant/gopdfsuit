@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gopdfsuit Architecture Review Round 2 - Residual Friction</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+<style>
+  .badge-strong { background:#dc2626; color:#fff; }
+  .badge-worth { background:#d97706; color:#fff; }
+  .bar-before { background: repeating-linear-gradient(45deg,#fecaca,#fecaca 8px,#fee2e2 8px,#fee2e2 16px); }
+  .bar-after { background: linear-gradient(90deg,#bbf7d0,#86efac); }
+  .card { break-inside: avoid; }
+  code.fn { font-size:.78rem; }
+</style>
+</head>
+<body class="bg-stone-100 text-stone-900">
+<div class="max-w-6xl mx-auto px-6 py-10">
+
+  <header class="mb-10">
+    <p class="text-sm uppercase tracking-widest text-stone-500">gopdfsuit &middot; architecture review round 2 &middot; 2026-09-04 &middot; branch chore/improves-fixes</p>
+    <h1 class="text-4xl font-bold mt-2">Residual Friction</h1>
+    <p class="mt-3 text-stone-600 max-w-3xl">Five follow-up walks over the post-deepening tree (new seams, errors, concurrency, tests, frontend residuals). Prior ledgers (<code class="fn">go-review-2026-09-04.md</code>, <code class="fn">architecture-review-2026-09-04.md</code>) were read first; nothing below repeats them. Theme of this round: the April round created depth — now the new seams need sole ownership, one error language, one cache doctrine, and tests at the new seams.</p>
+    <div class="mt-4 flex gap-4 text-sm">
+      <span><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span> tackle</span>
+      <span><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span> grill first</span>
+    </div>
+  </header>
+
+  <h2 class="text-2xl font-bold mt-12 mb-4">A · New seams need sole ownership</h2>
+  <div class="bg-white rounded-xl shadow p-6 mb-6">
+    <p class="text-sm text-stone-600 mb-4">Round 1 created <code class="fn">pdfobj</code>, <code class="fn">Allocator</code>, the facade, <code class="fn">TableTagger</code>, <code class="fn">DestinationStore</code> — but old paths still bypass them.</p>
+<pre class="mermaid text-sm">graph LR
+  S[pageObjectStore] -.->|own counter| IDs[(object IDs)]
+  A[Allocator] --> IDs
+  M[metadata.go] -.->|NextObjectID++| IDs
+  D[destinations] -.->|via pm| IDs
+</pre>
+    <p class="text-sm text-stone-600 mt-4">After: every arrow goes through the bound <code class="fn">Allocator</code>; the store delegates, metadata calls <code class="fn">Alloc</code>.</p>
+  </div>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">A1 · pdfobj vs xref name collision</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">pdfobj/xref.go:178-313 (reads) · xref/xref.go:1-103 (write-only WriteCompactXRef)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Two packages, same noun, opposite directions; newcomers learn the split from paths, not the interface.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one module — move WriteCompactXRef into pdfobj as the write adapter, keep the three Style presets as the single line-ending vocabulary.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">read ⊕ write</div><div class="bar-after flex-1 flex items-center justify-center">one pdfobj</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">A2 · Allocator bypassed by 3 paths</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">allocator.go:44-57 · pagemanager.go:311-336 (re-implements AllocN) · metadata.go:317,355,382 (direct ++) · destinations.go via pm</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Depth without leverage: two counters in words, one in fact — until someone diverges them.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> route the store and DestinationStore through the bound Allocator; metadata uses Alloc. Proof: TestShiftedLayoutLargeDoc still green.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">4 ID paths</div><div class="bar-after flex-1 flex items-center justify-center">1 allocator</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">A3 · Facade allocates per call</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">pagemanager.go:92-113 (fields still public) · :293-300 (fresh adapter per call)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Every call builds a throwaway store while callers can still touch Pages/ExtraObjects directly — a hop without an enforced boundary.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> hold one objects/layout value per PageManager, or collapse the wrappers; then unexport the claimed fields.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">hop, no wall</div><div class="bar-after flex-1 flex items-center justify-center">own or collapse</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">A4 · Tagger half-landed, primitives public</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">structure_tag.go:1-80 · structure.go:465,627,661-726 (ReserveMCIDsLite et al still exported) · links.go delegates yet keeps ParseLink · outline.go keeps DestKey logic</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Tests and future callers can bypass TableTagger; outline keeps its own dests beside the store. (Speculative sub-note: needs a count of outside DestKey writers first.)</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> unexport the table primitives; fold link emission fully into destinations.go; move DestKey construction into the store.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">2 half-homes</div><div class="bar-after flex-1 flex items-center justify-center">sole homes</div></div>
+    </div>
+  </div>
+
+  <h2 class="text-2xl font-bold mt-12 mb-4">B · One error language</h2>
+  <div class="bg-white rounded-xl shadow p-6 mb-6">
+    <p class="text-sm text-stone-600 mb-4">Five dialects classify the same failures: substring matching, string concat, one typed error nobody matches on, three untyped adapter envelopes.</p>
+<pre class="mermaid text-sm">graph LR
+  E[engine flat errors] -->|substring re-derive| H[pdfErrorStatus 422/500]
+  E -->|bare string| C[CGO errResult]
+  E -->|one exception| P[GoPDFSuitError]
+  E -->|error string| W[WASM + frontend alert]
+</pre>
+    <p class="text-sm text-stone-600 mt-4">After: sentinels wrapped with %w at the engine seam; one {code,message} envelope per adapter; codes assigned at the gopdflib seam.</p>
+  </div>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">B1 · Substring classifier</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">request.go:62-77 (15-substring match) · registry.go:62,72,82 (+ concat, no %w) · provision.go HTTPStatusError (unmatchable)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Any reworded message silently flips HTTP codes. Delete the list and 422/500 mapping collapses — nothing else classifies.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> sentinels (ErrInvalidInput, ErrLimitExceeded, ErrUpstream) + %w; ClassifyError over errors.Is/As; substring list as pinned legacy fallback.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">English matching</div><div class="bar-after flex-1 flex items-center justify-center">sentinels</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">B2 · Three flat adapter contracts</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">exports.go:41-45,124-142 · _bindings.py:40-43 · wasmcompress main.go:22-55 · apiConfig.js:108-129</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> No caller can distinguish retryable (oversize, upstream) from fatal (malformed PDF) without re-parsing English.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> stable {code,message} envelope; Python subclasses; same code string in WASM/HTTP JSON; contract doc owned by gopdflib.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">strings</div><div class="bar-after flex-1 flex items-center justify-center">codes</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">B3 · Logging: 5 dialects, no request ID</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">pdf.go:34-118 (success noise) · handlers per-op prefixes · apiConfig console.log + usePdfOperation alert · adapter.go:42-56 mustToInternal panics unlogged</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Engine logs noise, failures log bare %v with no level/ID/duration; frontend both logs full bodies and alerts raw strings.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> request-ID middleware + one structured per-request line at the handler seam; engine returns errors (callers log); frontend uses onError state.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">scattered</div><div class="bar-after flex-1 flex items-center justify-center">one seam</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">B4 · No metrics seam</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">services.go:28-60 (natural seam, no counters) · go.mod otel indirect-only · no request-ID/latency middleware</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> The 413/422/500 distinctions are unobservable in prod; observability lives outside the binary (k6).</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> PDFService decorator (or gin middleware) with stdlib-only per-op count/latency/code; otel later.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">black box</div><div class="bar-after flex-1 flex items-center justify-center">one wrap point</div></div>
+    </div>
+  </div>
+
+  <h2 class="text-2xl font-bold mt-12 mb-4">C · One cache doctrine, one budget</h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C1 · Pool folklore per file</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">generator.go:90-148 · compression.go:49-65 · pagemanager.go:76-89 · structure.go:227-266 · image.go:106-122 (rgbDataPool: no cap, 1MB New)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Private keep/drop thresholds everywhere, no metrics; one large image pins a large backing in rgbDataPool forever.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one poolpolicy module (thresholds per buffer class + gauge); rgbDataPool gets the drop-cap treatment first.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">folklore</div><div class="bar-after flex-1 flex items-center justify-center">policy + gauge</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C2 · Five caches, four doctrines</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">template_data.go:16,42-63 (unbounded sync.Map, no TTL) · subset/compress clear-all restampede · signer 128-LRU O(n) churn</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> templateDataCache grows without bound under many distinct files — the one true growth risk left. Others restampede on overflow.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> single bounded-cache interface (capacity + LRU, not clear-all); templateDataCache gets cap + mtime/size key; eviction counters.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">4 doctrines</div><div class="bar-after flex-1 flex items-center justify-center">1 bounded cache</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C3 · Three budgets multiply</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">router.go:42-95 (admission semaphore, no 429/timeout) · generator.go:285-291,1076 (SetLimit) · signature.go:113,593 (sign slots)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> 48 inflight × N page workers oversubscribes far past CPU; one slow sign/OCR request head-of-line blocks followers silently.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one admission module: single goroutine budget, try-acquire with 429/Retry-After, depth + wait-time metrics. Load test decides.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">3× emergent</div><div class="bar-after flex-1 flex items-center justify-center">1 budget</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C4 · WASM pays server overhead</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">wasmcompress/main.go · compressShardCount init from NumCPU · errgroup fan-out · WarmRuntimePools pre-warm (GOMAXPROCS=1)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Shared paths assume threaded server: goroutine churn, 4 shards of mutex overhead, wasted pre-warm in a single-threaded tab. Wasteful-but-correct.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> runtime-capability adapter (Parallel vs Serial) by build tag or GOMAXPROCS==1; WASM-first benchmark proves parity.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">server-shaped</div><div class="bar-after flex-1 flex items-center justify-center">capability adapter</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C5 · Race-tested only where burned</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">subset count/Clear races · compress shard count/Clear · templateDataCache shared []byte · pooled-buffer ownership by convention</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> -race covers image cache + gopdflib generate only; clear-all counters race, shared bytes unpinned by test.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> extend the xrefOffsetsHandle typed-handle pattern to compress buffers; atomic-around-clear; -race tests for subset/compress/template-data.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">convention</div><div class="bar-after flex-1 flex items-center justify-center">handles + race tests</div></div>
+    </div>
+  </div>
+
+  <h2 class="text-2xl font-bold mt-12 mb-4">D · Contracts with teeth</h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D1 · Schema is JS-only</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">schema-selfcheck.mjs · template.schema.json · test_serializer_schema.py (keys, not schema) · no Go check · CI never runs test:schema</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Delete a field from types.py and no gate fails — the contract is decorative.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> Go test validating a golden template against the schema + Python check on the same golden file; wire test:schema into make test or CI.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">decorative</div><div class="bar-after flex-1 flex items-center justify-center">triple-gated</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D2 · Seeds, not fuzz</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">svg_fuzz_test.go:10-48 (recover() table) · zero func Fuzz repo-wide · no testdata/fuzz corpus</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Delete any 5 seeds and the suite still passes with no corpus to regenerate them — coverage never grows.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> real FuzzConvertSVG entry + corpus, then same seam for page-spec and EncryptString aliasing; seeds stay as regression layer.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">fixed seeds</div><div class="bar-after flex-1 flex items-center justify-center">corpus + harness</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D3 · WASM/server parity untested</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">compressPdf.js:154-178 (zero frontend tests) · toWasmLevel/toServerLevel/ParseCompressLevel in 3 places</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Swap two level mappings and no test fails — a mapping slip ships silent quality change.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> JS unit tests for the mapping + fallback (mocked fetch/goCompressPDF) + Go parity test on defaults.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">assumed</div><div class="bar-after flex-1 flex items-center justify-center">pinned</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D4 · Four benches, no gate</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">k6 scripts ×7 · benchmarktemplates/runner.go · sampledata/benchmarks · benchmark_test.go (makefile wires only verify_pdfs.sh)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Delete runner.go and everything still runs — no shared leverage, numbers incomparable across tiers.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one doc mapping each harness to its question + pinned canonical payload + single make bench-smoke slicing each.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">4 dialects</div><div class="bar-after flex-1 flex items-center justify-center">1 map + smoke</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D5 · New seams lack seam tests</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">request.go/decode.go/router.go (no *_test.go) · mocks cover 5 ops, skip redact/html/fonts</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Break router.go wiring and only slow integration tests catch it; error classification has no isolated contract.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> thin adapter tests for decodeTemplate limits + route table; extend mock router to one redact op.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">indirect only</div><div class="bar-after flex-1 flex items-center justify-center">seam tests</div></div>
+    </div>
+  </div>
+
+  <h2 class="text-2xl font-bold mt-12 mb-4">E · Frontend residuals</h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E1 · Editor bypasses the hook</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">Editor.jsx:558-612 (own fetch + alert) · :595 (unrevoked URL) · :1199-1208 vs :1275-1285 (Toast list twice)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> The one page that skipped adoption; every toast renders twice; documentModel stopped at builders.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> route generate/load/font-upload through usePdfOperation; delete one Toast block; move findElementById + id scheme into documentModel.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">parallel module</div><div class="bar-after flex-1 flex items-center justify-center">hook-owned</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E2 · Viewer bespoke panel + stale bug</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">Viewer.jsx:289-446 (repeats OperationShell shape) · :466-482 (setFileName then loadTemplate reads stale state)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Same-shape panel duplicated; sample-template click loads the previously typed file, not the sample.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> loading-overlay slot in OperationShell (the one genuine gap), collapse the panel, loadTemplate takes explicit filename.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">duplicated + stale</div><div class="bar-after flex-1 flex items-center justify-center">slot + param</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E3 · Redaction half-adopts the hook</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">Redaction.jsx:38-44 (shadow state) · :46-59 (readErrorResponse duplicates apiConfig:115-128) · :398-405 (unrevoked anchor) · :560 (dead canvasRef)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Auth-retry, error mapping, blob lifecycle each have two homes; error-display ownership (inline banners vs alert) undecided.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> adopt run/storeBlob, delete readErrorResponse + canvasRef; decide banner-vs-alert ownership first.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">two homes</div><div class="bar-after flex-1 flex items-center justify-center">decided + deleted</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E4 · God-hook + alert archipelago</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">usePdfOperation.js:4-28 (sniffs "401" while apiConfig classifies) · :59-70 (alert fallback) · :156 (12-field return) · 8 page-level alerts vs Editor Toast</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Transport + lifecycle + mapping + retry + presentation in one hook; notification policy lives nowhere.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> split notification out (shared useToast, killing alert/Toast split); narrow hook to request + lifecycle; use status codes, not sniffing.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">god-hook</div><div class="bar-after flex-1 flex items-center justify-center">request + toast</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E5 · Fallback contradicts the promise</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">compressLevels.js:53-55 (flag at load) · compressPdf.js:165-178 (fallback uploads) · Compress.jsx:59 (copy: "never leaves this device") · mapLevel alias leftover</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Untested flag; fallback uploads the file on the page promising it never leaves the device, no consent step. (Consent itself is product, not code.)</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> explicit tested seam (flag + override + visible fallback notice); delete mapLevel; first frontend unit tests.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">silent upload</div><div class="bar-after flex-1 flex items-center justify-center">explicit + tested</div></div>
+    </div>
+  </div>
+
+  <section class="mt-12 bg-white rounded-xl shadow p-8">
+    <h2 class="text-2xl font-bold">Grill decisions 2026-09-04</h2>
+    <p class="mt-2 text-sm text-stone-600">5 parallel walkers, source-verified. Strong deepen. Worth exploring triaged below.</p>
+    <ul class="mt-3 text-sm list-disc ml-5 space-y-1">
+      <li>B1 deepen M: gopdflib sentinels + errors.Is/As. B2 deepen M: {code,message} envelope.</li>
+      <li>A1 deepen M: WriteCompactXRef into pdfobj, migrate 5 writers. A2 deepen M: bound Allocator sole owner. A3 defer. A4 deepen M sequenced.</li>
+      <li>C1 defer module, rgb cap S. C2 templateDataCache cap S. C3 admission 429 S + ADR. C4 defer. C5 narrow harden M.</li>
+      <li>D1 golden S. D2 FuzzConvertSVG S. D3 Go parity S now. D4 bench map S. D5 seam tests S.</li>
+      <li>B3 logging S after B1. B4 defer. E1 hook M. E2 filename fix S. E3 banners S. E4 useToast S. E5 notice S + product default (chinmay-sawant).</li>
+    </ul>
+  </section>
+
+  <section class="mt-12 bg-stone-900 text-stone-100 rounded-xl p-8">
+    <h2 class="text-2xl font-bold">Top recommendation</h2>
+    <p class="mt-3">Tackle <b>B1+B2 (error taxonomy + envelope)</b> first: smallest size, widest leverage — one change reuses across HTTP, CGO, WASM, and Python, and it hardens the 413/422/500 distinctions into something prod can observe (with B4 metrics riding the same seam).</p>
+    <p class="mt-2 text-stone-300">Second: <b>A2 + C2 (allocator bypass + cache doctrine)</b> — completes the ownership story and kills the only true growth risk (unbounded templateDataCache). Third: <b>D1 (schema triple-gate)</b> — cheap, prevents silent drift.</p>
+    <p class="mt-4 text-sm text-stone-400">Counts: 10 Strong · 13 Worth exploring. Still no CONTEXT.md/ADRs; the two review ledgers remain the de-facto decision log.</p>
+  </section>
+
+  <footer class="mt-8 text-sm text-stone-500">Round 2 from 5 follow-up walks. Companion ledger: plans/reviews/architecture-review-2026-09-04-round2.md</footer>
+</div>
+</body>
+</html>
