@@ -8,6 +8,26 @@ export const GOPDFSUIT_WASM_URL = `${import.meta.env.BASE_URL}gopdfsuit.wasm`
 
 const modulePromises = new Map()
 
+// Cache-first fetch for WASM binaries: once downloaded, pages work fully
+// offline (same Cache API story as fonts.js and templates.js). Falls back
+// to plain fetch where Cache API is unavailable.
+const WASM_CACHE_NAME = 'gopdfsuit-wasm-v1'
+
+async function fetchCached(url) {
+  try {
+    const cache = await caches.open(WASM_CACHE_NAME)
+    const hit = await cache.match(url)
+    if (hit) return hit
+    const response = await fetch(url)
+    if (response.ok) {
+      cache.put(url, response.clone()).catch(() => {})
+    }
+    return response
+  } catch {
+    return fetch(url)
+  }
+}
+
 export function asUint8Array(input, label = 'expected a Uint8Array or ArrayBuffer view of PDF bytes') {
   if (input instanceof Uint8Array) return input
   if (ArrayBuffer.isView(input)) {
@@ -43,7 +63,7 @@ export function loadWasmExec() {
 }
 
 async function instantiateWasm(wasmUrl, importObject) {
-  const response = await fetch(wasmUrl)
+  const response = await fetchCached(wasmUrl)
   if (!response.ok) {
     throw new Error(`failed to load ${wasmUrl} (${response.status})`)
   }

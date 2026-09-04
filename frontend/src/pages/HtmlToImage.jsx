@@ -3,6 +3,7 @@ import { Image, Globe, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
 import { isGitHubPagesHost, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
+import { htmlToImageViaWasm } from '../utils/wasm/html.js'
 import OperationShell from '../components/OperationShell'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
@@ -12,7 +13,7 @@ const HtmlToImage = () => {
   const [inputType, setInputType] = useState('html')
   const [showPreview, setShowPreview] = useState(false)
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const { isLoading, resultUrl: imageUrl, run, download } = usePdfOperation({
+  const { isLoading, resultUrl: imageUrl, run, runLocal, download } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => alert(`Error: ${message}`),
   })
@@ -22,13 +23,21 @@ const HtmlToImage = () => {
   })
 
   const convertToImage = async () => {
-    // [~] server-only per plans/wasm/03 Phase 3: Chromium today, gowkhtmltopdf
-    // after plans/wasm/02-gowkhtmltopdf-replace.md; never WASM.
+    // Inline HTML renders in-browser via gopdfsuit.wasm (offline-capable,
+    // no upload). URL sources need the server fetch path (SSRF guard).
+    if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
+    if (inputType === 'html') {
+      await runLocal(() => htmlToImageViaWasm(htmlContent, config), {
+        filename: `html-to-image-${Date.now()}.${config.format}`,
+        autoDownload: false,
+        mimeType: `image/${config.format === 'jpg' ? 'jpeg' : config.format}`,
+      })
+      return
+    }
     if (isGitHubPagesHost()) {
       alert(OFFLINE_DEMO_MESSAGE)
       return
     }
-    if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
     const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
     await run({
       endpoint: '/api/v1/htmltoimage',

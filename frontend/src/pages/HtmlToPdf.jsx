@@ -3,6 +3,7 @@ import { Globe, FileText, RefreshCw, Eye, Settings, Sparkles } from 'lucide-reac
 import { isGitHubPagesHost, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
+import { htmlToPDFViaWasm } from '../utils/wasm/html.js'
 import OperationShell from '../components/OperationShell'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
@@ -12,7 +13,7 @@ const HtmlToPdf = () => {
   const [inputType, setInputType] = useState('html')
   const [showPreview, setShowPreview] = useState(false)
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const { isLoading, resultUrl: pdfUrl, run, download } = usePdfOperation({
+  const { isLoading, resultUrl: pdfUrl, run, runLocal, download } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => alert(`Error: ${message}`),
   })
@@ -24,13 +25,20 @@ const HtmlToPdf = () => {
   })
 
   const convertToPdf = async () => {
-    // [~] server-only per plans/wasm/03 Phase 3: Chromium today, gowkhtmltopdf
-    // after plans/wasm/02-gowkhtmltopdf-replace.md; never WASM.
+    // Inline HTML renders in-browser via gopdfsuit.wasm (offline-capable,
+    // no upload). URL sources need the server fetch path (SSRF guard).
+    if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
+    if (inputType === 'html') {
+      await runLocal(() => htmlToPDFViaWasm(htmlContent, config), {
+        filename: `html-to-pdf-${Date.now()}.pdf`,
+        autoDownload: false,
+      })
+      return
+    }
     if (isGitHubPagesHost()) {
       alert(OFFLINE_DEMO_MESSAGE)
       return
     }
-    if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
     const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
     await run({
       endpoint: '/api/v1/htmltopdf',

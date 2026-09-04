@@ -213,6 +213,20 @@ export async function ensurePDFAFonts() {
   return out
 }
 
+export async function htmlToPDF(html, options = {}) {
+  await ensureWasm()
+  const out = globalThis.goHtmlToPDF(html, options)
+  return assertPdfOut(out, 'goHtmlToPDF')
+}
+
+export async function htmlToImage(html, options = {}) {
+  await ensureWasm()
+  const out = globalThis.goHtmlToImage(html, options)
+  if (out && typeof out === 'object' && out.error) throw new Error(String(out.error))
+  if (!(out instanceof Uint8Array)) throw new Error('goHtmlToImage did not return a Uint8Array')
+  return out
+}
+
 function missingWasm(detail) {
   return new Error(`${detail}\nRun \`make wasm\` first to build gopdfsuit.wasm and wasm_exec.js.`)
 }
@@ -304,6 +318,8 @@ const EXPECTED_BINDS = [
   'goRedactAdvanced',
   'goRegisterFont',
   'goEnsurePDFAFonts',
+  'goHtmlToPDF',
+  'goHtmlToImage',
 ]
 
 async function loadWasm() {

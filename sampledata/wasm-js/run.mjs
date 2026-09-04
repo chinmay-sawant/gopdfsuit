@@ -11,7 +11,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { applyRedactionsAdvanced, fillPDF, findTextOccurrences, generatePDF, mergePDFs, splitPDF } from './gopdfsuit.js'
+import { applyRedactionsAdvanced, fillPDF, findTextOccurrences, generatePDF, htmlToImage, htmlToPDF, mergePDFs, splitPDF } from './gopdfsuit.js'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 
@@ -73,6 +73,15 @@ try {
   const { pdf: redacted } = await applyRedactionsAdvanced(generated, { textSearch: [{ text: 'RedactMe' }], mode: 'secure_required' })
   await writeFile(join(dir, 'redacted.pdf'), redacted)
   console.log(`redact    redacted.pdf  ${redacted.length} bytes`)
+
+  // 6. HTML to PDF/Image from inline strings (URLs stay server-side).
+  const demoHtml = '<html><body><h1>WASM HTML invoice</h1><p>Rendered in-browser, no upload.</p></body></html>'
+  const htmlPdf = await htmlToPDF(demoHtml, { page_size: 'A4', orientation: 'Portrait' })
+  await writeFile(join(dir, 'html.pdf'), htmlPdf)
+  console.log(`html-pdf  html.pdf  ${htmlPdf.length} bytes`)
+  const htmlPng = await htmlToImage(demoHtml, { format: 'png', width: 800, height: 600 })
+  await writeFile(join(dir, 'html.png'), htmlPng)
+  console.log(`html-img  html.png  ${htmlPng.length} bytes`)
 } catch (err) {
   const msg = err?.message ?? String(err)
   console.error(msg)

@@ -42,8 +42,8 @@ Compress is the only WASM-first page (`Compress.jsx:57-92` via `compressPDFSmart
 - [x] `frontend/src/pages/Split.jsx:35` - `splitPDFSmart` via `runLocalMulti` with consent fallback - proof: code diff; engine binding proven via Node smoke (1 part, see `01` Phase 4)
 - [x] `frontend/src/pages/Filler.jsx:28` - `fillPDFSmart` via `runLocal` with consent fallback - proof: code diff; engine binding proven via Node smoke (`fillPDF` 82089B, see `01` Phase 4)
 - [x] `frontend/src/pages/Redaction.jsx:103,257,343` - page-info via client `pdfjs`, search/apply via WASM text path - proof: code comments plus sidebar note; engine binding proven via Node smoke (2 hits, 5175B, see `01` Phase 4)
-- [~] `frontend/src/pages/Viewer.jsx:24,34,55` plus `Editor.jsx:575,627` (`POST /api/v1/generate/template-pdf`, `GET template-data`, `GET/POST /api/v1/fonts`) - deferred: generator is portable but bundle plus font-asset cost high; keep server - proof: pointer to `plans/wasm/01-full-wasm-port.md` Phase 2.2
-- [~] `frontend/src/pages/HtmlToPdf.jsx:34` plus `HtmlToImage.jsx:33` - server-only: pure-Go `gowkhtmltopdf` after `plans/wasm/02-gowkhtmltopdf-replace.md`, never WASM - proof: pointer to `02` ledger
+- [x] `frontend/src/pages/Viewer.jsx:24,34,55` plus `Editor.jsx:575,627` (`POST /api/v1/generate/template-pdf`, `GET template-data`, `GET/POST /api/v1/fonts`) - WASM-first with consent fallback and offline support: generate via `generatePDFSmart` (engine runs no JS, so output matches the server byte path), bundled samples from `/templates/` (Cache API), uploads register locally via `goRegisterFont` - proof: pages wired, lint plus build green
+- [x] `frontend/src/pages/HtmlToPdf.jsx:34` plus `HtmlToImage.jsx:33` - URL fetch plus SSRF guard permanently server-side by design; inline-HTML strings render in WASM (`wasm/html.js`, `goHtmlToPDF`/`goHtmlToImage`, pages use `runLocal` for html input) - proof: pointer to `02` ledger plus `01` non-goals revision
 
 ## Phase 4: Cleanup and docs
 

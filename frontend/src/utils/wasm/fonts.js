@@ -4,7 +4,7 @@
 // registers each under its STANDARD PDF name, mirroring the server flow in
 // RegisterLiberationFontsForPDFA (pdfa.go:421-450).
 
-import { ensureGopdfsuitWasm } from './core.js'
+import { ensureGopdfsuitWasm, asUint8Array } from './core.js'
 
 const FONT_BASE_URL = `${import.meta.env.BASE_URL}fonts`
 
@@ -82,4 +82,13 @@ export async function ensurePDFAFonts() {
   }
   const after = callWasmObject('goEnsurePDFAFonts', [])
   return { registered: after.registered || [], missing: after.missing || [], fetched }
+}
+
+/**
+ * Register a single user-supplied TTF/OTF under a display name (font upload
+ * path). Works offline; the face joins the same registry generate reads.
+ */
+export async function registerFontLocal(name, bytes) {
+  await ensureGopdfsuitWasm()
+  return callWasmObject('goRegisterFont', [name, asUint8Array(bytes)])
 }

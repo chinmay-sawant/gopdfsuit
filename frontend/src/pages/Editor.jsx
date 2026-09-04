@@ -14,6 +14,10 @@ import PropertiesPanel from '../components/editor/PropertiesPanel'
 import JsonTemplate from '../components/editor/JsonTemplate'
 import ComponentItem from '../components/editor/ComponentItem'
 import { PAGE_SIZES, DEFAULT_FONTS, COMPONENT_TYPES } from '../components/editor/constants'
+import { generatePDFSmart, generateViaServer } from '../utils/wasm/generate.js'
+import { loadBundledTemplate } from '../utils/wasm/templates.js'
+import { shouldUseServerWasmTransport } from '../utils/wasm/transports.js'
+import { registerFontLocal } from '../utils/wasm/fonts.js'
 import { getFontFamily } from '../components/editor/utils'
 import { parseProps, formatProps } from '../components/editor/utils'
 import {
@@ -56,11 +60,12 @@ export default function Editor() {
 
   const [copiedId, setCopiedId] = useState(null)
   const [clipboard, setClipboard] = useState(null)
+  const [serverRetry, setServerRetry] = useState(null)
   const [templateInput, setTemplateInput] = useState('editor/financial_report.json')
   const canvasRef = useRef(null)
   const { toasts, showToast, removeToast } = useToast()
   const { menuState, showMenu, hideMenu } = useContextMenu()
-  const { run, runJson } = usePdfOperation({
+  const { runJson, runLocal } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => showToast(message, 'error'),
   })
@@ -77,9 +82,9 @@ export default function Editor() {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  // Fetch fonts from API on component mount (module-level cache, single request)
-  // [~] deferred per plans/wasm/03 Phase 3: server font-install stays
-  // server-side (never in-browser); see plans/wasm/01-full-wasm-port.md.
+  // Fetch fonts from API on component mount (module-level cache, single request).
+  // Offline-first: failures fall back to DEFAULT_FONTS with a warning, and
+  // user uploads register locally via goRegisterFont (see onUploadFont).
   useEffect(() => {
     const loadFonts = async () => {
       if (_fontsCache) {
@@ -565,26 +570,44 @@ export default function Editor() {
   }
 
   // --- PDF Generation ---
-  // [~] deferred per plans/wasm/03 Phase 3: POST /api/v1/generate/template-pdf
-  // plus GET template-data and GET/POST /api/v1/fonts stay server-side until
-  // plans/wasm/01-full-wasm-port.md Phase 2.2 (bundle + font-asset cost).
+  // Browser-local first via gopdfsuit.wasm (offline once downloaded; the
+  // engine runs no JS, so output matches the server byte path). Server only
+  // on explicit retry (serverRetry banner) or VITE_WASM_TRANSPORT=server.
   const handleGeneratePdf = async (isPreview = false) => {
     setIsJsonEditing(false)
+    setServerRetry(null)
     const template = buildTemplate({ config, title, components, footer, bookmarks })
     const { errors, warnings } = validateTemplate(template)
     if (errors.length > 0 || warnings.length > 0) {
       console.warn('Template schema issues:', { errors, warnings })
     }
 
-    await run({
-      endpoint: '/api/v1/generate/template-pdf',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/pdf'
-      },
-      body: JSON.stringify(template),
-      getAuthHeaders,
+    if (shouldUseServerWasmTransport()) {
+      await runServerGenerate(template, isPreview)
+      return
+    }
+    let wasmMessage = ''
+    const url = await runLocal(() => generatePDFSmart(template, { getAuthHeaders }), {
+      autoDownload: !isPreview,
+      filename: 'generated_document.pdf',
+      onBlob: isPreview
+        ? (blob, blobUrl) => {
+          setPdfUrl(blobUrl)
+          setShowPreviewModal(true)
+        }
+        : undefined,
+      onError: (message) => { wasmMessage = message },
+    })
+    if (url) return
+    if (getAuthHeaders) {
+      setServerRetry({ message: wasmMessage, template, isPreview })
+    } else {
+      showToast(wasmMessage || 'Browser generate failed', 'error')
+    }
+  }
+
+  const runServerGenerate = async (template, isPreview = false) => {
+    await runLocal(() => generateViaServer(template, getAuthHeaders), {
       filename: 'generated_document.pdf',
       autoDownload: !isPreview,
       onBlob: isPreview
@@ -595,6 +618,13 @@ export default function Editor() {
         : undefined,
       onError: (message) => showToast(message, 'error'),
     })
+  }
+
+  const retryServerGenerate = async () => {
+    if (!serverRetry) return
+    const { template, isPreview } = serverRetry
+    setServerRetry(null)
+    await runServerGenerate(template, isPreview)
   }
 
   const handlePreviewPdf = () => handleGeneratePdf(true)
@@ -626,20 +656,26 @@ export default function Editor() {
         }
         templateData = await response.json();
       } else {
-        // GET the template through the shared hook (auth retry + error mapping included)
-        // [~] deferred per plans/wasm/03 Phase 3: template-data stays server-side.
-        templateData = await runJson(
-          {
-            endpoint: `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json'
-            },
-            getAuthHeaders,
-            onError: (message) => showToast(message, 'error'),
-          }
-        )
-        if (!templateData) return
+        // Offline-first: bundled samples from /templates/ (Cache API, no
+        // server). Unknown names fall through to the server endpoint below.
+        try {
+          templateData = await loadBundledTemplate(filename)
+        } catch (bundledError) {
+          if (!bundledError || !bundledError.fallbackAvailable) throw bundledError
+          // GET the template through the shared hook (auth retry + error mapping included)
+          templateData = await runJson(
+            {
+              endpoint: `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json'
+              },
+              getAuthHeaders,
+              onError: (message) => showToast(message, 'error'),
+            }
+          )
+          if (!templateData) return
+        }
       }
 
       // Parse and load the template data
@@ -763,6 +799,22 @@ export default function Editor() {
         padding: '0.75rem 1rem',
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
+        {serverRetry && (
+          <div style={{ padding: '0.75rem 1rem', background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', borderRadius: '8px', marginBottom: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
+              Browser generate is not available in this build{serverRetry.message ? `: ${serverRetry.message}` : '.'} The template was not uploaded.
+              Upload it to the server to generate instead?
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={retryServerGenerate} className="btn-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                Upload to server and generate
+              </button>
+              <button onClick={() => setServerRetry(null)} className="btn-outline-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                Stay local
+              </button>
+            </div>
+          </div>
+        )}
         <Toolbar
           theme={theme}
           setTheme={setTheme}
@@ -776,6 +828,22 @@ export default function Editor() {
           elementCount={allElements.length}
           pageSize={config.page}
           onUploadFont={async (file) => {
+            // Local-first: register into the WASM registry so offline
+            // generation embeds it, then keep the server upload so shared
+            // backends see it too.
+            try {
+              const bytes = new Uint8Array(await file.arrayBuffer())
+              const name = String(file.name || 'custom').replace(/\.(ttf|otf)$/i, '')
+              await registerFontLocal(name, bytes)
+              setFonts((prev) => {
+                if (prev.some((f) => f.id === name || f.name === name)) return prev
+                return [...prev, { id: name, name, displayName: name }]
+              })
+              showToast(`Font "${name}" registered locally!`, 'success')
+            } catch (error) {
+              console.error('Local font registration failed:', error)
+              showToast(error.message || 'Local font registration failed', 'error')
+            }
             try {
               const formData = new FormData()
               formData.append('font', file)

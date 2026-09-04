@@ -45,6 +45,7 @@ func main() {
 	js.Global().Set("goRedactApply", js.FuncOf(redactApply))
 	js.Global().Set("goRedactAdvanced", js.FuncOf(redactAdvanced))
 	registerWasmFontBindings()
+	registerWasmHTMLBindings()
 	select {}
 }
 

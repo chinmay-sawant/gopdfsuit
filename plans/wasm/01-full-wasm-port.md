@@ -69,4 +69,4 @@ Today only `goCompressPDF(Uint8Array, levelString)` is exposed (`cmd/wasmcompres
 - `cmd/wasmcompress/main.go:18-70` existing pattern; `makefile:70-83` build; `frontend/src/utils/compressPdf.js:1-181` loader to generalize
 - `pkg/gopdflib/{generator,merge,split,compress,fill,redact,adapter,errors}.go`; `internal/pdf/{generator,merge,compress,redact,form,font,pdfobj,svg}`
 - Blockers: `internal/pdf/pdf.go` gochromedp split, sonic `js/wasm` verdict, `gowkhtmltopdf` HTML decision in `plans/wasm/02-gowkhtmltopdf-replace.md`
-- Explicit non-goals: `ConvertHTMLToPDF/ConvertHTMLToImage` in WASM, `bindings/python/cgo`, OCR subprocess path
+- Explicit non-goals: URL/file HTML conversion in WASM (inline HTML strings ARE covered: `goHtmlToPDF`/`goHtmlToImage` via pure-Go gowkhtmltopdf, see `cmd/wasm/html.go`), `bindings/python/cgo`, OCR subprocess path

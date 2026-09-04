@@ -20,7 +20,21 @@ async function init(wasmExecUrl, wasmUrl) {
       throw new Error('wasm_exec.js did not provide global Go')
     }
     const go = new Go()
-    const response = await fetch(wasmUrl)
+    // Cache-first so compress works offline once downloaded (same story as
+    // wasm/core.js fetchCached on the main-thread path).
+    let response
+    try {
+      const cache = await caches.open('gopdfsuit-wasm-v1')
+      const hit = await cache.match(wasmUrl)
+      if (hit) {
+        response = hit
+      } else {
+        response = await fetch(wasmUrl)
+        if (response.ok) cache.put(wasmUrl, response.clone()).catch(() => {})
+      }
+    } catch {
+      response = await fetch(wasmUrl)
+    }
     if (!response.ok) {
       throw new Error(`compress.wasm fetch failed: ${response.status}`)
     }

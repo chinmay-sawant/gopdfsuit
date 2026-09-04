@@ -25,6 +25,7 @@ Today `frontend/src/utils/wasmLoader.js` (253 lines) mixes loader primitives, tr
 - [x] `wasm/redact.js` - search/apply text path - proof: Redaction page unchanged
 - [x] `wasm/transports.js` - `smartLocal` plus server fallbacks plus `WASM_TRANSPORT` matrix - proof: pages import via `wasmLoader.js` shim, build green
 - [x] `wasmLoader.js` plus `compressPdf.js` plus `compressLevels.js` - re-export shims - proof: page imports untouched, full `npm run lint` zero warnings
+- [x] `wasm/html.js` (added beyond plan) - inline-HTML `goHtmlToPDF`/`goHtmlToImage` via `wasmLoader.js` shim; URL sources stay server-side - proof: eslint plus build green, Node smoke `html.pdf` 7350B plus `html.png` 11799B
 
 ### 1.2 Demo shim parity
 

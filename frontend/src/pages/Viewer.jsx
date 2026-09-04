@@ -3,6 +3,11 @@ import { FileText, Download, Upload, Play, RefreshCw, Sparkles } from 'lucide-re
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import BackgroundAnimation from '../components/BackgroundAnimation'
+import { generatePDFSmart } from '../utils/wasm/generate.js'
+import { loadBundledTemplate, BUNDLED_TEMPLATES } from '../utils/wasm/templates.js'
+import { shouldUseServerWasmTransport } from '../utils/wasm/transports.js'
+
+const serverTransport = shouldUseServerWasmTransport()
 
 const Viewer = () => {
   const [templateData, setTemplateData] = useState('')
@@ -10,7 +15,8 @@ const Viewer = () => {
   const [error, setError] = useState(null)
   const fileInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const { isLoading, resultUrl: pdfUrl, run, runJson, download } = usePdfOperation({
+  const [fallbackOffer, setFallbackOffer] = useState(null)
+  const { isLoading, resultUrl: pdfUrl, run, runJson, runLocal, download } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => setError(message),
   })
@@ -19,41 +25,59 @@ const Viewer = () => {
     const target = (name ?? fileName).trim()
     if (!target) return
     setError(null)
+    setFallbackOffer(null)
 
-    // [~] deferred per plans/wasm/03 Phase 3: generate + template-data stay
-    // server-side. The generator is portable but the WASM bundle plus font
-    // asset cost is high; see plans/wasm/01-full-wasm-port.md Phase 2.2.
-    const data = await runJson({
-      endpoint: `/api/v1/template-data?file=${encodeURIComponent(target)}`,
-      method: 'GET',
-      getAuthHeaders,
-      onError: (message) => setError(`Error loading template: ${message}`),
-    })
-    if (!data) return
+    // Offline-first: bundled samples come from /templates/ (Cache API, no
+    // server). Unknown names fall through to the server endpoint below.
+    let data = null
+    try {
+      data = await loadBundledTemplate(target)
+    } catch (bundledError) {
+      if (!bundledError || !bundledError.fallbackAvailable) {
+        setError(`Error loading template: ${bundledError?.message || bundledError}`)
+        return
+      }
+      data = await runJson({
+        endpoint: `/api/v1/template-data?file=${encodeURIComponent(target)}`,
+        method: 'GET',
+        getAuthHeaders,
+        onError: (message) => setError(`Error loading template: ${message}`),
+      })
+      if (!data) return
+    }
     setTemplateData(JSON.stringify(data, null, 2))
 
-    // Directly call the generate PDF API
-    await run({
-      endpoint: '/api/v1/generate/template-pdf',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-      getAuthHeaders,
-      autoDownload: false,
-      onError: (message) => setError(`Error loading template: ${message}`),
-    })
+    // Preview render, same WASM-first path as Generate below.
+    await renderPreview(data)
   }
 
-  const generatePDF = async () => {
-    if (!templateData.trim()) return
-    setError(null)
-
-    let data
-    try {
-      data = JSON.parse(templateData)
-    } catch {
-      setError('Error generating PDF: invalid JSON template')
+  const renderPreview = async (data) => {
+    if (serverTransport) {
+      await run({
+        endpoint: '/api/v1/generate/template-pdf',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        getAuthHeaders,
+        autoDownload: false,
+        onError: (message) => setError(`Error loading template: ${message}`),
+      })
       return
     }
+    let wasmMessage = ''
+    const url = await runLocal(() => generatePDFSmart(data, { getAuthHeaders }), {
+      autoDownload: false,
+      onError: (message) => { wasmMessage = message },
+    })
+    if (url) return
+    if (getAuthHeaders) {
+      setFallbackOffer({ message: wasmMessage, data })
+    }
+  }
+
+  const renderViaServerConsent = async () => {
+    if (isLoading || !fallbackOffer) return
+    const { data } = fallbackOffer
+    setFallbackOffer(null)
     await run({
       endpoint: '/api/v1/generate/template-pdf',
       headers: { 'Content-Type': 'application/json' },
@@ -62,6 +86,42 @@ const Viewer = () => {
       autoDownload: false,
       onError: (message) => setError(`Error generating PDF: ${message}`),
     })
+  }
+
+  const generatePDF = async () => {
+    if (!templateData.trim()) return
+    setError(null)
+    setFallbackOffer(null)
+
+    let data
+    try {
+      data = JSON.parse(templateData)
+    } catch {
+      setError('Error generating PDF: invalid JSON template')
+      return
+    }
+    if (serverTransport) {
+      await run({
+        endpoint: '/api/v1/generate/template-pdf',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        getAuthHeaders,
+        autoDownload: false,
+        onError: (message) => setError(`Error generating PDF: ${message}`),
+      })
+      return
+    }
+    // Browser-local generate via gopdfsuit.wasm (offline once downloaded;
+    // engine runs no JS, so output matches the server byte path).
+    let wasmMessage = ''
+    const url = await runLocal(() => generatePDFSmart(data, { getAuthHeaders }), {
+      autoDownload: false,
+      onError: (message) => { wasmMessage = message },
+    })
+    if (url) return
+    if (getAuthHeaders) {
+      setFallbackOffer({ message: wasmMessage, data })
+    }
   }
 
   const handleFileUpload = (event) => {
@@ -145,6 +205,22 @@ const Viewer = () => {
               color: 'hsl(var(--foreground))',
             }}>
               {error}
+            </div>
+          )}
+          {fallbackOffer && (
+            <div style={{ padding: '1rem', background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', borderRadius: '8px', marginBottom: '1rem', color: 'hsl(var(--foreground))' }}>
+              <div style={{ marginBottom: '0.75rem' }}>
+                Browser generate is not available in this build{fallbackOffer.message ? `: ${fallbackOffer.message}` : '.'} The template was not uploaded.
+                Upload it to the server to generate instead?
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button onClick={renderViaServerConsent} disabled={isLoading} className="btn-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  Upload to server and generate
+                </button>
+                <button onClick={() => setFallbackOffer(null)} disabled={isLoading} className="btn-outline-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  Stay local
+                </button>
+              </div>
             </div>
           )}
           <div className="grid grid-2" style={{ gap: '2rem' }}>
@@ -479,7 +555,7 @@ const Viewer = () => {
               Sample Templates
             </h3>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {['temp_multiplepage.json', 'temp.json', 'temp_og.json'].map((sample) => (
+              {BUNDLED_TEMPLATES.map((sample) => (
                 <button
                   key={sample}
                   onClick={() => {

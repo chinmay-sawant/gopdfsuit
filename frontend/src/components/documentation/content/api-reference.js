@@ -6,8 +6,8 @@ export const apiReferenceSection = {
       title: 'Generate PDF',
       method: 'POST',
       endpoint: '/api/v1/generate/template-pdf',
-      transport: 'server-only',
-      description: 'Generate a PDF document from a JSON template. Returns the PDF as binary data. Server-only ([~] deferred per plans/wasm/03 Phase 3; WASM after plans/wasm/01 Phase 2.2).',
+      transport: 'browser-local',
+      description: 'Generate a PDF document from a JSON template. Returns the PDF as binary data. Browser-local via gopdfsuit.wasm goGeneratePDF (offline once downloaded, pdfaCompliant embeds JS-registered Liberation subsets); server endpoint equivalent.',
       params: [
         { name: 'config', type: 'object', required: true, description: 'Page configuration (size, orientation, security, signature)' },
         { name: 'title', type: 'object', required: true, description: 'Document title section' },
@@ -253,8 +253,8 @@ const imageBlob = await response.blob();`
       title: 'Get Template Data',
       method: 'GET',
       endpoint: '/api/v1/template-data',
-      transport: 'server-only',
-      description: 'Retrieve a saved template JSON file from the server. Server-only ([~] deferred per plans/wasm/03 Phase 3).',
+      transport: 'browser-local',
+      description: 'Retrieve a saved template JSON file. Bundled samples load from /templates/ offline (Cache API); arbitrary files still come from the server endpoint.',
       params: [
         { name: 'file', type: 'string', required: true, description: 'Filename of the template (e.g., temp_multiplepage.json)' }
       ],
