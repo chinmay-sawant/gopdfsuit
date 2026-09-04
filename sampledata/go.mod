@@ -10,15 +10,22 @@ require (
 )
 
 require (
+	github.com/bytedance/gopkg v0.1.3 // indirect
+	github.com/bytedance/sonic v1.15.2 // indirect
+	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/chinmay-sawant/gochromedp v1.0.2 // indirect
 	github.com/chromedp/cdproto v0.0.0-20240801214329-3f85d328b335 // indirect
 	github.com/chromedp/chromedp v0.10.0 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
+	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
+	golang.org/x/arch v0.16.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 )
