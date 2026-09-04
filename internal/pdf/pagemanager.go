@@ -175,8 +175,15 @@ func (pm *PageManager) ReleaseContentStreams() {
 	pm.ContentStreams = nil
 }
 
-// AddAnnotation adds an annotation object ID to the current page
+// AddAnnotation adds an annotation object ID to the current page,
+// growing PageAnnots like AppendPageAnnot when the index is out of range.
 func (pm *PageManager) AddAnnotation(objID int) {
+	if pm.CurrentPageIndex < 0 {
+		return
+	}
+	for len(pm.PageAnnots) <= pm.CurrentPageIndex {
+		pm.PageAnnots = append(pm.PageAnnots, []int{})
+	}
 	pm.PageAnnots[pm.CurrentPageIndex] = append(pm.PageAnnots[pm.CurrentPageIndex], objID)
 }
 

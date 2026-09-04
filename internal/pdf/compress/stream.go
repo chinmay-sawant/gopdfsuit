@@ -49,7 +49,10 @@ func splitStream(body []byte) (dict, data []byte, ok bool) {
 		return dict, body[ptr : ptr+n], true
 	}
 
-	end := bytes.LastIndex(body[ptr:], []byte("endstream"))
+	// Without a usable /Length, the stream ends at the first endstream
+	// token: LastIndex would swallow trailing objects when binary stream
+	// data itself contains that token.
+	end := bytes.Index(body[ptr:], []byte("endstream"))
 	if end < 0 {
 		return nil, nil, false
 	}

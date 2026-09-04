@@ -17,6 +17,10 @@ type PDFService interface {
 	MergePDFs(pdfBytesList [][]byte) ([]byte, error)
 	SplitPDF(pdfBytes []byte, spec merge.SplitSpec) ([][]byte, error)
 	CompressPDF(pdfBytes []byte, opts compress.Options) ([]byte, error)
+	GetFonts() []models.FontInfo
+	RegisterFont(name string, data []byte) error
+	HTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error)
+	HTMLToImage(req models.HTMLToImageRequest) ([]byte, error)
 }
 
 type defaultPDFService struct{}
@@ -39,6 +43,22 @@ func (defaultPDFService) SplitPDF(pdfBytes []byte, spec merge.SplitSpec) ([][]by
 
 func (defaultPDFService) CompressPDF(pdfBytes []byte, opts compress.Options) ([]byte, error) {
 	return compress.CompressPDF(pdfBytes, opts)
+}
+
+func (defaultPDFService) GetFonts() []models.FontInfo {
+	return pdf.GetAvailableFonts()
+}
+
+func (defaultPDFService) RegisterFont(name string, data []byte) error {
+	return pdf.GetFontRegistry().RegisterFontFromData(name, data)
+}
+
+func (defaultPDFService) HTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
+	return pdf.ConvertHTMLToPDF(req)
+}
+
+func (defaultPDFService) HTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
+	return pdf.ConvertHTMLToImage(req)
 }
 
 // pdfService is the active PDF backend (swap in tests via SetPDFService).

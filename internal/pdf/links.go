@@ -57,8 +57,17 @@ func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
 	case annot.PageIndex >= 0:
 		// Internal link with explicit page destination
 		// Format: [pageRef /XYZ left top zoom]
-		// XYZ = position at (left, top) with zoom factor
-		pageObjID := 3 + annot.PageIndex // Pages start at object 3
+		// XYZ = position at (left, top) with zoom factor.
+		// Page IDs live in pageManager.Pages; fall back to the first page
+		// when the index is out of range instead of assuming 3+index.
+		pageIdx := annot.PageIndex
+		if pageIdx < 0 || pageIdx >= len(pageManager.Pages) {
+			pageIdx = 0
+		}
+		pageObjID := 3 // First page starts at object 3
+		if len(pageManager.Pages) > 0 {
+			pageObjID = pageManager.Pages[pageIdx]
+		}
 		annotDict.WriteString(fmt.Sprintf(" /Dest [%d 0 R /XYZ null %s null]",
 			pageObjID, fmtNum(annot.DestY)))
 	}

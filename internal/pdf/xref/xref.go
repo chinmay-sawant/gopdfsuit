@@ -89,6 +89,12 @@ func WriteCompactXRef(out *bytes.Buffer, offsets map[int]int, scratch []byte, st
 				}
 				b = append(b, style.InUseSuffix...)
 				out.Write(b)
+			} else {
+				// Defense-in-depth: usedObjects derives from offsets keys
+				// so this lookup always hits today. Emit a free entry so
+				// the entry count still matches the subsection header if
+				// that invariant ever changes.
+				out.WriteString(style.FreeLine)
 			}
 		}
 	}

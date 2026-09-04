@@ -294,6 +294,49 @@ func FindStreamStart(data []byte) int {
 	return -1
 }
 
+// replaceRefsInDictPart rewrites indirect references in pre-stream bytes
+// while leaving literal (...) and hex <...> string contents untouched, so
+// text like "(see 1 0 R)" survives a merge unchanged. Dictionary structure
+// itself is still scanned: only the string spans are copied verbatim.
+func replaceRefsInDictPart(pre []byte, replaceFunc func([]byte) []byte) []byte {
+	refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
+	var out bytes.Buffer
+	i := 0
+	n := len(pre)
+	segStart := 0
+	flush := func(end int) {
+		if end > segStart {
+			out.Write(refRe.ReplaceAllFunc(pre[segStart:end], replaceFunc))
+		}
+	}
+	for i < n {
+		switch {
+		case pre[i] == '(':
+			flush(i)
+			j := SkipStringLiteral(pre, i)
+			if j > n {
+				j = n
+			}
+			out.Write(pre[i:j])
+			i, segStart = j, j
+		case pre[i] == '<' && i+1 < n && pre[i+1] == '<':
+			i += 2 // dictionary open: structure stays scannable, contents still rewritten
+		case pre[i] == '<':
+			flush(i)
+			j := SkipHexString(pre, i)
+			if j > n {
+				j = n
+			}
+			out.Write(pre[i:j])
+			i, segStart = j, j
+		default:
+			i++
+		}
+	}
+	flush(n)
+	return out.Bytes()
+}
+
 // ReplaceRefsOutsideStreams rewrites indirect references only outside stream blocks
 func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 	refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
@@ -318,19 +361,17 @@ func ReplaceRefsOutsideStreams(data []byte, offset int) []byte {
 		// Find next "stream" keyword properly
 		relStart := FindStreamStart(data[i:])
 		if relStart == -1 {
-			// No more streams, process rest
+			// No more streams, process rest (still skipping literals)
 			tail := data[i:]
-			replaced := refRe.ReplaceAllFunc(tail, replaceFunc)
-			out.Write(replaced)
+			out.Write(replaceRefsInDictPart(tail, replaceFunc))
 			break
 		}
 
 		streamStart := i + relStart
 
-		// Process pre-stream
+		// Process pre-stream, skipping string literals
 		pre := data[i:streamStart]
-		replaced := refRe.ReplaceAllFunc(pre, replaceFunc)
-		out.Write(replaced)
+		out.Write(replaceRefsInDictPart(pre, replaceFunc))
 
 		// Find endstream
 		// Skip "stream" and EOL

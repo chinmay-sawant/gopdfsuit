@@ -1,11 +1,7 @@
 package redact
 
 import (
-	"bytes"
-	"compress/flate"
-	"compress/zlib"
 	"fmt"
-	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,7 +9,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
 
-var encryptBytes = []byte("/Encrypt")
+var encryptEntryRe = regexp.MustCompile(`/Encrypt\s*(\d+\s+\d+\s+R|<<)`)
 var wBytes = []byte("/W[")
 var indexBytes = []byte("/Index")
 var streamRe = regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
@@ -24,44 +20,21 @@ func bytesIndex(b, sub []byte) int {
 	return strings.Index(string(b), string(sub))
 }
 
-// trailerHasEncrypt checks if trailer or any trailer 'Encrypt' appears
+// trailerHasEncrypt checks if the PDF declares document encryption: a real
+// /Encrypt entry (indirect reference or inline dict) outside stream data.
+// Plain "/Encrypt" text inside a content stream no longer counts.
 func trailerHasEncrypt(data []byte) bool {
-	trRe := regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
-	for _, m := range trRe.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], encryptBytes) >= 0 {
-			return true
-		}
-	}
-	return bytesIndex(data, encryptBytes) >= 0
+	return encryptEntryRe.Match(merge.BytesWithoutStreams(data))
 }
 
 // tryZlibDecompress attempts to decompress zlib data
 func tryZlibDecompress(b []byte) ([]byte, error) {
-	r, err := zlib.NewReader(bytes.NewReader(b))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = r.Close()
-	}()
-	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+	return merge.InflateCapped(b, false)
 }
 
 // tryFlateDecompress attempts to decompress raw flate data
 func tryFlateDecompress(b []byte) ([]byte, error) {
-	r := flate.NewReader(bytes.NewReader(b))
-	defer func() {
-		_ = r.Close()
-	}()
-	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+	return merge.InflateCapped(b, true)
 }
 
 // findRootRef looks for /Root n m R in the PDF bytes.
@@ -154,7 +127,10 @@ func parseXRefStreams(data []byte, objMap map[int][]byte, objGen map[int]int) {
 			continue
 		}
 		w0, w1, w2 := W[0], W[1], W[2]
-		total := w0 + w1 + w2
+		total, ok := merge.ValidXRefWidths(w0, w1, w2)
+		if !ok {
+			continue
+		}
 		for pos := 0; pos+total <= len(dec); pos += total {
 			f1 := int(readUint(dec[pos : pos+w0]))
 			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))

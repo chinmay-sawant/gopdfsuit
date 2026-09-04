@@ -3,6 +3,9 @@
 package fontutils
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -22,6 +25,10 @@ type MathFontInfo struct {
 	MacPaths    []string
 	WinPaths    []string
 	DownloadURL string // GitHub raw URL for fallback download
+	// SHA256 pins the expected download bytes (hex). Downloads whose digest
+	// mismatches are rejected. Recorded 2026-09-04; if upstream re-releases
+	// the file the mismatch error names the URL so the pin can be refreshed.
+	SHA256 string
 }
 
 // mathFonts defines all supported math fonts with cross-platform paths and download URLs.
@@ -43,6 +50,7 @@ var mathFonts = []MathFontInfo{
 			`C:\Windows\Fonts\NotoSansMath-Regular.ttf`,
 		},
 		DownloadURL: "https://github.com/notofonts/math/raw/refs/heads/main/fonts/NotoSansMath/unhinted/ttf/NotoSansMath-Regular.ttf",
+		SHA256:      "05a0ba975a623d7c1b72bb16621801bc975b001491add5e36f3871cd0cd2fada",
 	},
 	{
 		Name:     "DejaVuSans",
@@ -60,6 +68,7 @@ var mathFonts = []MathFontInfo{
 			`C:\Windows\Fonts\DejaVuSans.ttf`,
 		},
 		DownloadURL: "https://github.com/dejavu-fonts/dejavu-fonts/raw/refs/heads/master/src/DejaVuSans.ttf",
+		SHA256:      "2ba21d21b6edd3e5d8837bab94d112cfa78f824e7cc346d08277819a5a77b1b4",
 	},
 	{
 		Name:     "LiberationSans",
@@ -78,6 +87,7 @@ var mathFonts = []MathFontInfo{
 			`C:\Windows\Fonts\LiberationSans-Regular.ttf`,
 		},
 		DownloadURL: "https://github.com/liberationfonts/liberation-fonts/raw/refs/heads/main/src/LiberationSans-Regular.ttf",
+		SHA256:      "f2c9774fcfb226ac2efad0896b97388c96340f468db5482dd9d186d243eabe55",
 	},
 }
 
@@ -124,13 +134,28 @@ func MathFontCandidates() []string {
 }
 
 // EnsureMathFonts checks if math fonts exist on the system and downloads
-// any missing ones in parallel. This should be called at server startup.
-// It logs progress and errors but does not return errors - missing fonts
-// are non-fatal (math rendering will degrade gracefully).
+// any missing ones. It blocks until all downloads finish (despite any older
+// "background" wording: the internal WaitGroup is waited on before return).
+// Missing fonts are non-fatal: errors are logged and dropped. Callers that
+// need the errors should use EnsureMathFontsContext instead.
 func EnsureMathFonts() {
+	_ = EnsureMathFontsContext(context.Background())
+}
+
+// EnsureMathFontsContext is the context-aware core of EnsureMathFonts: it
+// blocks until all missing-font downloads finish and returns one error per
+// failed font (nil when every font was already present or downloaded).
+// The context deadline propagates to the download HTTP requests.
+func EnsureMathFontsContext(ctx context.Context) []error {
+	return ensureMathFonts(ctx, mathFonts)
+}
+
+func ensureMathFonts(ctx context.Context, fonts []MathFontInfo) []error {
+	var mu sync.Mutex
+	var errs []error
 	var wg sync.WaitGroup
 
-	for _, font := range mathFonts {
+	for _, font := range fonts {
 		if fontExistsOnSystem(font) {
 			log.Printf("[fontutils] Font %s found on system", font.Name)
 			continue
@@ -143,12 +168,15 @@ func EnsureMathFonts() {
 			continue
 		}
 
-		// Download in background
+		// Download missing fonts concurrently, then wait below.
 		wg.Add(1)
 		go func(f MathFontInfo) {
 			defer wg.Done()
-			if err := downloadFont(f); err != nil {
+			if err := downloadFontContext(ctx, f); err != nil {
 				log.Printf("[fontutils] WARNING: failed to download font %s: %v", f.Name, err)
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
 			} else {
 				log.Printf("[fontutils] Downloaded font %s to %s", f.Name, downloadedFontPath(f.FileName))
 			}
@@ -157,6 +185,7 @@ func EnsureMathFonts() {
 
 	wg.Wait()
 	log.Println("[fontutils] Math font initialization complete")
+	return errs
 }
 
 // fontExistsOnSystem checks if any of the system paths for a font exist.
@@ -180,8 +209,14 @@ func fontExistsOnSystem(font MathFontInfo) bool {
 	return false
 }
 
-// downloadFont downloads a font file from its GitHub URL to the local fonts directory.
-func downloadFont(font MathFontInfo) error {
+// maxFontDownloadSize caps a single font download to prevent resource
+// exhaustion. It is a var (not const) so tests can shrink it.
+var maxFontDownloadSize = 20 * 1024 * 1024
+
+// downloadFontContext is the context-aware download core. Fonts larger than
+// maxFontDownloadSize are rejected: the temp file is removed and an error is
+// returned instead of caching a truncated TTF.
+func downloadFontContext(ctx context.Context, font MathFontInfo) error {
 	if font.DownloadURL == "" {
 		return fmt.Errorf("no download URL for font %s", font.Name)
 	}
@@ -194,7 +229,11 @@ func downloadFont(font MathFontInfo) error {
 	destPath := downloadedFontPath(font.FileName)
 
 	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Get(font.DownloadURL) //nolint:gosec // URLs are hardcoded constants, not user input
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, font.DownloadURL, nil)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", font.Name, err)
+	}
+	resp, err := client.Do(req) //nolint:gosec // URLs are hardcoded constants, not user input
 	if err != nil {
 		return fmt.Errorf("download %s: %w", font.Name, err)
 	}
@@ -211,17 +250,36 @@ func downloadFont(font MathFontInfo) error {
 	}
 	tmpPath := tmpFile.Name()
 
-	// Limit download size to 20MB to prevent resource exhaustion
-	const maxFontSize = 20 * 1024 * 1024
-	limitedReader := io.LimitReader(resp.Body, maxFontSize)
+	// Read one byte past the cap so truncation is detectable: a full
+	// maxFontDownloadSize+1 bytes means the source was larger than allowed.
+	limitedReader := io.LimitReader(resp.Body, int64(maxFontDownloadSize)+1)
 
-	_, err = io.Copy(tmpFile, limitedReader)
+	n, err := io.Copy(tmpFile, limitedReader)
 	if closeErr := tmpFile.Close(); closeErr != nil && err == nil {
 		err = closeErr
 	}
 	if err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("write font file: %w", err)
+	}
+	if n > int64(maxFontDownloadSize) {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("font %s exceeds maximum size (%d bytes)", font.Name, maxFontDownloadSize)
+	}
+
+	// Verify the pinned digest before the file becomes visible. A mismatch
+	// means upstream re-released the file or the transfer was tampered with.
+	if font.SHA256 != "" {
+		sum, err := sha256File(tmpPath)
+		if err != nil {
+			_ = os.Remove(tmpPath)
+			return fmt.Errorf("checksum font %s: %w", font.Name, err)
+		}
+		if sum != font.SHA256 {
+			_ = os.Remove(tmpPath)
+			return fmt.Errorf("font %s checksum mismatch (got %s, want %s from %s): refresh the SHA256 pin",
+				font.Name, sum, font.SHA256, font.DownloadURL)
+		}
 	}
 
 	if err := os.Rename(tmpPath, destPath); err != nil {
@@ -230,4 +288,18 @@ func downloadFont(font MathFontInfo) error {
 	}
 
 	return nil
+}
+
+// sha256File digests a file without loading it fully into memory.
+func sha256File(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = f.Close() }()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

@@ -2,6 +2,8 @@
 package gopdflib
 
 import (
+	"errors"
+
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
 )
 
@@ -37,5 +39,8 @@ const (
 //	}
 //	os.WriteFile("document-compressed.pdf", out, 0644)
 func CompressPDF(data []byte, opts CompressOptions) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, errors.New("gopdflib: CompressPDF needs a non-empty PDF")
+	}
 	return compress.CompressPDF(data, opts)
 }

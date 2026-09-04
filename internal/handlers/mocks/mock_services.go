@@ -87,6 +87,50 @@ func (mr *MockPDFServiceMockRecorder) GenerateTemplatePDF(template any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateTemplatePDF", reflect.TypeOf((*MockPDFService)(nil).GenerateTemplatePDF), template)
 }
 
+// GetFonts mocks base method.
+func (m *MockPDFService) GetFonts() []models.FontInfo {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetFonts")
+	ret0, _ := ret[0].([]models.FontInfo)
+	return ret0
+}
+
+// GetFonts indicates an expected call of GetFonts.
+func (mr *MockPDFServiceMockRecorder) GetFonts() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFonts", reflect.TypeOf((*MockPDFService)(nil).GetFonts))
+}
+
+// HTMLToImage mocks base method.
+func (m *MockPDFService) HTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HTMLToImage", req)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HTMLToImage indicates an expected call of HTMLToImage.
+func (mr *MockPDFServiceMockRecorder) HTMLToImage(req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTMLToImage", reflect.TypeOf((*MockPDFService)(nil).HTMLToImage), req)
+}
+
+// HTMLToPDF mocks base method.
+func (m *MockPDFService) HTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HTMLToPDF", req)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HTMLToPDF indicates an expected call of HTMLToPDF.
+func (mr *MockPDFServiceMockRecorder) HTMLToPDF(req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HTMLToPDF", reflect.TypeOf((*MockPDFService)(nil).HTMLToPDF), req)
+}
+
 // MergePDFs mocks base method.
 func (m *MockPDFService) MergePDFs(pdfBytesList [][]byte) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -100,6 +144,20 @@ func (m *MockPDFService) MergePDFs(pdfBytesList [][]byte) ([]byte, error) {
 func (mr *MockPDFServiceMockRecorder) MergePDFs(pdfBytesList any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MergePDFs", reflect.TypeOf((*MockPDFService)(nil).MergePDFs), pdfBytesList)
+}
+
+// RegisterFont mocks base method.
+func (m *MockPDFService) RegisterFont(name string, data []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterFont", name, data)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterFont indicates an expected call of RegisterFont.
+func (mr *MockPDFServiceMockRecorder) RegisterFont(name, data any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterFont", reflect.TypeOf((*MockPDFService)(nil).RegisterFont), name, data)
 }
 
 // SplitPDF mocks base method.

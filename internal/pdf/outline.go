@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
@@ -341,6 +340,7 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 	var buf [20]byte
 	var titleBytes []byte
 	for _, item := range ob.outlineItems {
+		titleBytes = titleBytes[:0]
 		var itemDict bytes.Buffer
 		itemDict.WriteString("<<")
 
@@ -519,9 +519,11 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 		// Handle Name encryption
 		nameStr := ""
 		if ob.encryptor != nil {
-			// Names in name tree are strings and must be encrypted
-			// Usually names are ASCII, but handle them as bytes
-			encrypted := ob.encryptor.EncryptString(unsafe.Slice(unsafe.StringData(name), len(name)), destsTreeID, 0)
+			// Names in name tree are strings and must be encrypted.
+			// Copy into a fresh slice first: EncryptString may pad in
+			// place, which must never mutate immutable string bytes.
+			nameBytes := append([]byte(nil), name...)
+			encrypted := ob.encryptor.EncryptString(nameBytes, destsTreeID, 0)
 			nameStr = "<" + hex.EncodeToString(encrypted) + ">"
 		} else {
 			nameStr = "(" + escapeText(name) + ")"
@@ -553,7 +555,7 @@ func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
 	namesArray.WriteString("]")
 
 	destsTreeContent := "<< /Names " + namesArray.String() + " >>"
-	ob.pageManager.ExtraObjects[destsTreeID] = unsafe.Slice(unsafe.StringData(destsTreeContent), len(destsTreeContent))
+	ob.pageManager.ExtraObjects[destsTreeID] = append([]byte(nil), destsTreeContent...)
 
 	// Create Names dictionary object
 	namesID := ob.pageManager.NextObjectID

@@ -2,6 +2,8 @@
 package gopdflib
 
 import (
+	"errors"
+
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 )
 
@@ -25,6 +27,9 @@ import (
 //	}
 //	pdfBytes, err := gopdflib.ConvertHTMLToPDF(req)
 func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
+	if req.HTML == "" && req.URL == "" {
+		return nil, errors.New("gopdflib: ConvertHTMLToPDF needs HTML content or a URL")
+	}
 	return pdf.ConvertHTMLToPDF(req)
 }
 
@@ -42,5 +47,8 @@ func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
 //	}
 //	imgBytes, err := gopdflib.ConvertHTMLToImage(req)
 func ConvertHTMLToImage(req HTMLToImageRequest) ([]byte, error) {
+	if req.HTML == "" && req.URL == "" {
+		return nil, errors.New("gopdflib: ConvertHTMLToImage needs HTML content or a URL")
+	}
 	return pdf.ConvertHTMLToImage(req)
 }

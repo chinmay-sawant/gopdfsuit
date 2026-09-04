@@ -1,14 +1,12 @@
 package pdf
 
 import (
-	"bytes"
-	"compress/flate"
-	"compress/zlib"
 	"fmt"
-	"io"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
 
 var (
@@ -41,31 +39,12 @@ func trailerHasEncrypt(data []byte) bool {
 
 // tryZlibDecompress attempts to decompress zlib data
 func tryZlibDecompress(b []byte) ([]byte, error) {
-	r, err := zlib.NewReader(bytes.NewReader(b))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = r.Close()
-	}()
-	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+	return merge.InflateCapped(b, false)
 }
 
 // tryFlateDecompress attempts to decompress raw flate data
 func tryFlateDecompress(b []byte) ([]byte, error) {
-	r := flate.NewReader(bytes.NewReader(b))
-	defer func() {
-		_ = r.Close()
-	}()
-	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+	return merge.InflateCapped(b, true)
 }
 
 // findRootRef looks for /Root n m R in the PDF bytes
@@ -144,7 +123,10 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 
 		// iterate index pairs
 		w0, w1, w2 := W[0], W[1], W[2]
-		total := w0 + w1 + w2
+		total, ok := merge.ValidXRefWidths(w0, w1, w2)
+		if !ok {
+			continue
+		}
 		var objstmBuf [8]byte
 		for pos := 0; pos+total <= len(dec); pos += total {
 			f1 := int(readUint(dec[pos : pos+w0]))

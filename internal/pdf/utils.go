@@ -93,6 +93,7 @@ const maxPropsCacheEntries = 8192
 var (
 	propsCache      sync.Map // string -> models.Props
 	propsCacheCount atomic.Int64
+	propsCacheMu    sync.Mutex // serializes the bounded-size clear path below
 )
 
 // ClearPropsCache drops all cached prop parses (tests / memory pressure).
@@ -178,11 +179,15 @@ func parseProps(props string) models.Props {
 	}
 
 	// Cache for future calls, with bounded size to avoid unbounded growth.
+	// The mutex serializes check-clear-store: without it two goroutines can
+	// both clear and both reset the counter, losing an entry count.
+	propsCacheMu.Lock()
 	if propsCacheCount.Add(1) > maxPropsCacheEntries {
 		ClearPropsCache()
 		propsCacheCount.Store(1)
 	}
 	propsCache.Store(props, result)
+	propsCacheMu.Unlock()
 	return result
 }
 
@@ -466,6 +471,11 @@ type WrapState struct {
 }
 
 // byteString converts a byte slice to a string without allocation.
+// The result aliases b: it must not be retained (no storing in maps, structs
+// with longer lifetimes, or goroutine handoffs). All current callers pass it
+// straight into EstimateTextWidth or appendTextForPDF, which only read runes
+// transiently (StandardTextWidth, GetScaledTextWidth, AppendTextForCustomFont,
+// appendEscapedPDFLiteral copy what they need) and never retain the string.
 func byteString(b []byte) string {
 	if len(b) == 0 {
 		return ""

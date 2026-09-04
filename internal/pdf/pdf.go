@@ -3,6 +3,7 @@ package pdf
 import (
 	"fmt"
 	"log"
+	"net/url"
 
 	"github.com/chinmay-sawant/gochromedp/pkg/gochromedp"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
@@ -18,9 +19,19 @@ import (
 
 // This file intentionally left minimal to keep package build roots simple.
 
+// redactedURLForLog renders a fetch URL for logs as host + path only. Query,
+// fragment, and userinfo are dropped because they may carry tokens or PII.
+func redactedURLForLog(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return "(unparseable url)"
+	}
+	return u.Host + u.EscapedPath()
+}
+
 // ConvertHTMLToPDF converts HTML content to PDF using gochromedp.
 func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
-	log.Printf("ConvertHTMLToPDF: Starting conversion. HTML length: %d, URL: %s", len(req.HTML), req.URL)
+	log.Printf("ConvertHTMLToPDF: Starting conversion. HTML length: %d, URL: %s", len(req.HTML), redactedURLForLog(req.URL))
 
 	// Prepare options
 	options := &gochromedp.ConvertOptions{
@@ -50,7 +61,7 @@ func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
 		// Convert HTML content
 		pdfData, err = gochromedp.ConvertHTMLToPDF(req.HTML, options)
 	case req.URL != "":
-		log.Printf("ConvertHTMLToPDF: Converting URL: %s", req.URL)
+		log.Printf("ConvertHTMLToPDF: Converting URL: %s", redactedURLForLog(req.URL))
 		// Convert URL
 		pdfData, err = gochromedp.ConvertURLToPDF(req.URL, options)
 	default:
@@ -69,7 +80,7 @@ func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
 
 // ConvertHTMLToImage converts HTML content to image using gochromedp.
 func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
-	log.Printf("ConvertHTMLToImage: Starting conversion. HTML length: %d, URL: %s, Format: %s", len(req.HTML), req.URL, req.Format)
+	log.Printf("ConvertHTMLToImage: Starting conversion. HTML length: %d, URL: %s, Format: %s", len(req.HTML), redactedURLForLog(req.URL), req.Format)
 
 	// Prepare options
 	options := &gochromedp.ConvertOptions{
@@ -91,7 +102,7 @@ func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
 		// Convert HTML content
 		imageData, err = gochromedp.ConvertHTMLToImage(req.HTML, options)
 	case req.URL != "":
-		log.Printf("ConvertHTMLToImage: Converting URL: %s", req.URL)
+		log.Printf("ConvertHTMLToImage: Converting URL: %s", redactedURLForLog(req.URL))
 		// Convert URL
 		imageData, err = gochromedp.ConvertURLToImage(req.URL, options)
 	default:

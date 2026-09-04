@@ -2,11 +2,28 @@
 package gopdflib
 
 import (
+	"sync"
+
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 )
 
-func init() {
-	pdf.WarmRuntimePools()
+// warmPoolsOnce lazily initializes the runtime buffer/compression pools on
+// the first GeneratePDF call instead of at import time, so importing this
+// package does not pre-allocate ~2.75 MiB x GOMAXPROCS. WarmRuntimePools
+// remains exported for callers (e.g. cmd/gopdfsuit/main.go) that want to
+// warm pools explicitly at startup; it is idempotent.
+var warmPoolsOnce sync.Once
+
+// WarmRuntimePools pre-warms compression and buffer pools. It is safe to
+// call multiple times; only the first call allocates.
+func WarmRuntimePools() {
+	warmPoolsOnce.Do(func() {
+		pdf.WarmRuntimePools()
+	})
+}
+
+func ensureRuntimePools() {
+	WarmRuntimePools()
 }
 
 type BorrowedPDF = pdf.BorrowedPDF
@@ -59,12 +76,25 @@ func SnapshotPDFCapacityHighWater() PDFCapacityHighWater {
 //	}
 //	os.WriteFile("output.pdf", pdfBytes, 0644)
 func GeneratePDF(template PDFTemplate) ([]byte, error) {
+	ensureRuntimePools()
 	return pdf.GenerateTemplatePDF(template)
 }
 
 // GeneratePDFBorrowed creates a PDF document without cloning the final pooled
-// assembly buffer. Call Release when the bytes are no longer needed.
+// assembly buffer. The caller owns the buffer until Release is called and
+// MUST call Release exactly once, preferably via defer:
+//
+//	doc, err := gopdflib.GeneratePDFBorrowed(template)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer doc.Release()
+//	use(doc.Bytes())
+//
+// Bytes() borrows the pooled buffer: the slice is invalid after Release and
+// must not be retained. Use CopyBytes when the bytes must outlive Release.
 func GeneratePDFBorrowed(template PDFTemplate) (*BorrowedPDF, error) {
+	ensureRuntimePools()
 	return pdf.GenerateTemplatePDFBorrowed(template)
 }
 
@@ -76,6 +106,11 @@ func GetAvailableFonts() []FontInfo {
 
 // GetFontRegistry returns the global font registry for registering custom fonts.
 // Use this to register custom TTF/OTF fonts before generating PDFs.
+//
+// Concurrency: the registry itself is mutex-guarded and each GeneratePDF call
+// operates on an isolated per-generation clone, so concurrent GeneratePDF
+// calls are safe. Registering (or clearing) fonts mutates the global and must
+// happen-before concurrent generation, or be externally synchronized.
 //
 // Example:
 //

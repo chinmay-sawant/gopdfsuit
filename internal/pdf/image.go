@@ -42,6 +42,10 @@ type imageCache struct {
 	// Single-slot MRU: if the incoming base64 string shares the same
 	// (data pointer, length) as the last one, we know the hash matches
 	// and can return the cached object without hashing at all.
+	// lastData roots the string backing lastDataPtr so the GC cannot
+	// free and reuse that address (which would cause false-positive
+	// pointer matches against a different string).
+	lastData    string
 	lastDataPtr *byte
 	lastDataLen int
 	lastHash    uint64
@@ -55,6 +59,7 @@ var imgCache = &imageCache{
 // clear drops all cached image entries and the MRU slot.
 func (c *imageCache) clear() {
 	c.cache = make(map[uint64]*ImageObject)
+	c.lastData = ""
 	c.lastDataPtr = nil
 	c.lastDataLen = 0
 	c.lastHash = 0
@@ -103,7 +108,9 @@ func getRGBDataBuffer(length int) []byte {
 	bufPtr := rgbDataPool.Get().(*[]byte)
 	buf := *bufPtr
 	if cap(buf) < length {
-		// If capacity is insufficient, allocate a new one (old one is discarded from pool)
+		// Return the undersized buffer so the pool stays populated,
+		// then allocate exactly what was asked for (not pooled).
+		rgbDataPool.Put(bufPtr)
 		return make([]byte, length)
 	}
 	return buf[:length]
@@ -157,18 +164,20 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 
 	// Check cache first (fast path for duplicate images)
 	hash := fnv1aHash(cleanData)
-	imgCache.mu.RLock()
+	imgCache.mu.Lock()
 	if cached, ok := imgCache.cache[hash]; ok {
 		// Promote the matched entry to the MRU slot so subsequent calls
-		// can skip the hash entirely.
+		// can skip the hash entirely. Full Lock: this path mutates the
+		// MRU slot and must not run under RLock.
+		imgCache.lastData = cleanData
 		imgCache.lastDataPtr = dataPtr
 		imgCache.lastDataLen = dataLen
 		imgCache.lastHash = hash
 		imgCache.lastObj = cached
-		imgCache.mu.RUnlock()
+		imgCache.mu.Unlock()
 		return copyCachedImageObject(cached), nil
 	}
-	imgCache.mu.RUnlock()
+	imgCache.mu.Unlock()
 
 	// Decode base64 to bytes
 	imageBytes, err := base64.StdEncoding.DecodeString(cleanData)
@@ -293,18 +302,21 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	}
 
 	// Store in cache for future lookups of same image data, with bounded size.
+	// Return a copy: callers (e.g. the PDF/A path) mutate fields such as
+	// ColorSpace, which must never corrupt the shared cached entry.
 	imgCache.mu.Lock()
 	if len(imgCache.cache) >= maxImageCacheEntries {
 		imgCache.clear()
 	}
 	imgCache.cache[hash] = imgObj
+	imgCache.lastData = cleanData
 	imgCache.lastDataPtr = dataPtr
 	imgCache.lastDataLen = dataLen
 	imgCache.lastHash = hash
 	imgCache.lastObj = imgObj
 	imgCache.mu.Unlock()
 
-	return imgObj, nil
+	return copyCachedImageObject(imgObj), nil
 }
 
 // convertToRGB converts an image to raw RGB bytes

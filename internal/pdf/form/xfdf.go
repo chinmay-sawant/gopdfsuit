@@ -3,18 +3,18 @@ package form
 
 import (
 	"bytes"
-	"compress/flate"
 	"compress/zlib"
 	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
 
 var (
@@ -40,13 +40,13 @@ var (
 	reSingleKids      = regexp.MustCompile(`/Kids\s+(\d+)\s+(\d+)\s+R`)
 	reVRef            = regexp.MustCompile(`/V\s*(\d+)\s+(\d+)\s+R`)
 	reStreamAlt       = regexp.MustCompile(`(?s)stream\s*\r?\n(.*?)\r?\nendstream`)
-	reTrailer         = regexp.MustCompile(`trailer(?s).*?<<(.*?)>>`)
 	reObjStream       = regexp.MustCompile(`(?s)(\d+)\s+(\d+)\s+obj(.*?)endobj`)
 	reRect            = regexp.MustCompile(`/Rect\s*\[\s*([^\]]+)\s*\]`)
 	reQ               = regexp.MustCompile(`/Q\s*(\d)`)
 	reDA              = regexp.MustCompile(`/DA\s*\((.*?)\)`)
 	reTf              = regexp.MustCompile(`/([\w.-]+)\s+([\d.]+)\s+Tf`)
-	reVBroad          = regexp.MustCompile(`/V\s*\(?.*?\)?`)
+	reVBroad          = regexp.MustCompile(`/V\s*(\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]+>|/[A-Za-z0-9#]+)`)
+	reEncryptEntry    = regexp.MustCompile(`/Encrypt\s*(\d+\s+\d+\s+R|<<)`)
 	reVParen          = regexp.MustCompile(`/V\s*\((?:\\.|[^\\)])*\)`)
 	reBtnOnState      = regexp.MustCompile(`/AP\s*<<.*?/N\s*<<[^>]*?/Yes`)
 	reNeedAppearances = regexp.MustCompile(`/NeedAppearances\s+(true|false)`)
@@ -62,7 +62,6 @@ var (
 	bytesT                  = []byte("/T")
 	bytesW                  = []byte("/W[")
 	bytesIdx                = []byte("/Index")
-	bytesEncrypt            = []byte("/Encrypt")
 	bytesGtGt               = []byte(">>")
 	bytesLtLt               = []byte("<<")
 	bytesSpace              = []byte(" ")
@@ -127,8 +126,19 @@ type xfdfRoot struct {
 	Fields  []xfdfField `xml:"fields>field"`
 }
 
-// ParseXFDF parses XFDF bytes and returns a map of field name -> value
+// MaxXFDFBytes caps accepted XFDF input (4 MiB); larger payloads are rejected.
+const MaxXFDFBytes = 4 << 20
+
+// ParseXFDF parses XFDF bytes and returns a map of field name -> value.
+// Inputs over MaxXFDFBytes or containing <!ENTITY/<!DOCTYPE declarations
+// are rejected: Go's encoding/xml expands internal entities (billion-laughs).
 func ParseXFDF(xfdfBytes []byte) (map[string]string, error) {
+	if len(xfdfBytes) > MaxXFDFBytes {
+		return nil, errors.New("xfdf input exceeds 4 MiB limit")
+	}
+	if bytes.Contains(xfdfBytes, []byte("<!ENTITY")) || bytes.Contains(xfdfBytes, []byte("<!DOCTYPE")) {
+		return nil, errors.New("xfdf input with DOCTYPE/ENTITY declarations is rejected")
+	}
 	var root xfdfRoot
 	if err := xml.Unmarshal(xfdfBytes, &root); err != nil {
 		return nil, err
@@ -239,31 +249,12 @@ func decodeHexString(s string) string {
 
 // tryZlibDecompress attempts to decompress zlib data
 func tryZlibDecompress(b []byte) ([]byte, error) {
-	r, err := zlib.NewReader(bytes.NewReader(b))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = r.Close()
-	}()
-	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+	return merge.InflateCapped(b, false)
 }
 
 // tryFlateDecompress attempts to decompress raw flate data
 func tryFlateDecompress(b []byte) ([]byte, error) {
-	r := flate.NewReader(bytes.NewReader(b))
-	defer func() {
-		_ = r.Close()
-	}()
-	var out bytes.Buffer
-	if _, err := io.Copy(&out, r); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+	return merge.InflateCapped(b, true)
 }
 
 // extractTokenGroups looks for /V or /AS tokens near a position
@@ -505,15 +496,11 @@ func findWidgetAnnotationsForName(name string, objMap map[string][]byte) (string
 	return "", false
 }
 
-// trailerHasEncrypt checks if trailer or any trailer 'Encrypt' appears
+// trailerHasEncrypt checks if the PDF declares document encryption: a real
+// /Encrypt entry (indirect reference or inline dict) outside stream data.
+// Plain "/Encrypt" text inside a content stream no longer counts.
 func trailerHasEncrypt(data []byte) bool {
-	for _, m := range reTrailer.FindAllSubmatch(data, -1) {
-		if bytesIndex(m[1], bytesEncrypt) >= 0 {
-			return true
-		}
-	}
-	// also check for /Encrypt elsewhere
-	return bytesIndex(data, bytesEncrypt) >= 0
+	return reEncryptEntry.Match(merge.BytesWithoutStreams(data))
 }
 
 // parseXRefStreams looks for XRef stream objects and uses them to augment objMap
@@ -552,7 +539,10 @@ func parseXRefStreams(data []byte, objMap map[string][]byte) {
 
 		// iterate index pairs
 		w0, w1, w2 := W[0], W[1], W[2]
-		total := w0 + w1 + w2
+		total, ok := merge.ValidXRefWidths(w0, w1, w2)
+		if !ok {
+			continue
+		}
 		for pos := 0; pos+total <= len(dec); pos += total {
 			f1 := int(readUint(dec[pos : pos+w0]))
 			f2 := int(readUint(dec[pos+w0 : pos+w0+w1]))

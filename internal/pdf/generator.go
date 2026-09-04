@@ -38,6 +38,13 @@ func (d *BorrowedPDF) Bytes() []byte {
 	return d.bytes
 }
 
+// CopyBytes returns a copy of the PDF bytes that remains valid after
+// Release. Prefer Bytes when the slice is only used before Release to
+// avoid the extra allocation.
+func (d *BorrowedPDF) CopyBytes() []byte {
+	return slices.Clone(d.Bytes())
+}
+
 func (d *BorrowedPDF) Len() int {
 	return len(d.Bytes())
 }
@@ -273,9 +280,8 @@ func maxXrefObjectID(xrefOffsets []int, floor int) int {
 	return maxID
 }
 
-// pageCompressSlots limits concurrent per-page zlib compression (C4: reduces flate.NewWriter churn).
-var pageCompressSlots = make(chan struct{}, maxPageCompressWorkers())
-
+// maxPageCompressWorkers bounds concurrent per-page zlib compression (C4:
+// reduces flate.NewWriter churn). Applied via errgroup.SetLimit at use sites.
 func maxPageCompressWorkers() int {
 	n := runtime.NumCPU()
 	if n < 4 {
@@ -352,6 +358,33 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	}
 	defer doc.Release()
 	return slices.Clone(doc.Bytes()), nil
+}
+
+// maxLowRegionFontObjects bounds the std-font dict/descriptor/width IDs
+// assigned after fontObjectStart in the dense low-region layout.
+const maxLowRegionFontObjects = 64
+
+// layoutContentFontIDs assigns the content-stream and std-font object ID
+// blocks for a document with totalPages pages.
+//
+// Pages are dense from object 3 while allocator-backed extras (images,
+// custom fonts, outlines, annotations) occupy [extraRegionBase, nextID).
+// The dense layout [totalPages+3, ...) only fits while it ends before that
+// region; for very large documents the whole content/font block is shifted
+// above the extras instead of overlapping them and corrupting the xref.
+// Fail closed: once page IDs themselves reach the extras region no valid
+// layout exists, so an error is returned instead of a corrupt PDF.
+func layoutContentFontIDs(totalPages, extraRegionBase, nextID int) (contentStart, fontStart int, err error) {
+	if totalPages+3 > extraRegionBase {
+		return 0, 0, fmt.Errorf("document has %d pages, exceeding the supported layout range", totalPages)
+	}
+	contentStart = totalPages + 3         // Content objects start after pages
+	fontStart = contentStart + totalPages // Fonts start after content
+	if fontStart+maxLowRegionFontObjects > extraRegionBase {
+		contentStart = nextID
+		fontStart = contentStart + totalPages
+	}
+	return contentStart, fontStart, nil
 }
 
 //nolint:gocyclo // large template renderer with many element-type branches
@@ -439,7 +472,13 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	cellImageObjects := make(map[string]*ImageObject)
 	cellImageObjectIDs := make(map[string]int)
 
-	nextImageObjectID := 1000 // Start image objects at ID 1000
+	// Image object IDs come from the page manager allocator so they can never
+	// collide with page, content, font, or extra object IDs (a fixed base
+	// collided once documents grew past ~997 pages).
+	// extraRegionBase marks where allocator-backed IDs start; the dense
+	// low-region layout (pages/contents/fonts, below) must stay clear of it.
+	nextImageObjectID := pageManager.NextObjectID
+	extraRegionBase := nextImageObjectID
 
 	// Reuse identical decoded images across all document references so repeated
 	// cell PNGs point at one shared XObject instead of serializing duplicates.
@@ -534,8 +573,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// This ensures that when content streams are generated, custom font references
 	// (e.g., /CF2000) have valid object IDs. Custom fonts start AFTER image objects
 	// to avoid conflicts with image XObjects.
-	customFontObjectStart := nextImageObjectID
-	fontRegistry.AssignObjectIDs(customFontObjectStart)
+	pageManager.NextObjectID = nextImageObjectID
+	customFontObjectStart := pageManager.NextObjectID
+	pageManager.NextObjectID = fontRegistry.AssignObjectIDs(customFontObjectStart)
 
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
@@ -602,8 +642,10 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Calculate object IDs for fonts early (needed for signature font embedding)
 	// Calculate total pages first
 	totalPages := len(pageManager.Pages)
-	contentObjectStart := totalPages + 3               // Content objects start after pages
-	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
+	contentObjectStart, fontObjectStart, err := layoutContentFontIDs(totalPages, extraRegionBase, pageManager.NextObjectID)
+	if err != nil {
+		return nil, err
+	}
 
 	// Standard fonts definition
 	fontNames := []string{
@@ -682,6 +724,15 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		}
 	}
 
+	// Keep the allocator past the font block so later extras (signature
+	// field, metadata, struct tree, ICC, AcroForm, info, encrypt) can never
+	// reuse those IDs. In the legacy layout this is a no-op (fonts sit far
+	// below NextObjectID); in a shifted layout it advances past the fonts.
+	// It must run before signature creation, which allocates via the manager.
+	if currentObjectID > pageManager.NextObjectID {
+		pageManager.NextObjectID = currentObjectID
+	}
+
 	// Setup digital signature if enabled
 	var pdfSigner *signature.PDFSigner
 	var sigIDs *signature.SignatureIDs
@@ -747,11 +798,8 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		pageManager.NextObjectID++
 	}
 
-	// Calculate total pages for bookmarks
-	// totalPages is already calculated above
-
-	// Bookmarks are generated using outlineBuilder earlier (lines 168-171)
-	// outlineRootID := pageManager.GenerateBookmarks(template.Bookmarks, xrefOffsets, &pdfBuffer)
+	// Bookmarks are generated using outlineBuilder above; the legacy
+	// GenerateBookmarks path was removed (see OutlineBuilder).
 
 	// Object 1: Catalog
 	setXrefOffset(xrefOffsets, 1, pdfBuffer.Len())
@@ -1048,11 +1096,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	compressedPages := make([]*bytes.Buffer, nStreams)
 	useFlate := make([]bool, nStreams)
 	var compGroup errgroup.Group
+	compGroup.SetLimit(maxPageCompressWorkers())
 	for si := range pageManager.ContentStreams {
 		compGroup.Go(func() error {
-			pageCompressSlots <- struct{}{}
-			defer func() { <-pageCompressSlots }()
-
 			contentStream := pageManager.ContentStreams[si]
 			compressedBuf, ok := compressContentStream(contentStream.Bytes())
 			if !ok {

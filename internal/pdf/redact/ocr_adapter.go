@@ -3,6 +3,7 @@ package redact
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -12,6 +13,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
@@ -31,6 +34,31 @@ type OCRProvider interface {
 }
 
 type tesseractProvider struct{}
+
+// ocrCommandTimeout bounds each pdftoppm/tesseract invocation so a crafted
+// PDF cannot hang the pipeline forever. It is a var so tests can shrink it.
+var ocrCommandTimeout = 5 * time.Minute
+
+func ocrCommandContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), ocrCommandTimeout)
+}
+
+// ocrCommand builds a context-bound command that kills the whole process
+// group on timeout. Plain CommandContext only kills the direct child, but a
+// shell wrapper (or a helper that forks) would otherwise keep pipe FDs open
+// and CombinedOutput would block until the grandchildren exit.
+func ocrCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		_ = syscall.Kill(cmd.Process.Pid, syscall.SIGKILL)
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	return cmd
+}
 
 func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
 	provider := strings.ToLower(settings.Provider)
@@ -147,9 +175,12 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 		pageStr := string(strconv.AppendInt(pageBuf[:0], int64(page), 10))
 		imgBase := filepath.Join(tmpDir, "page-"+pageStr)
 		imgPath := imgBase + ".png"
-		pdftoppmCmd := exec.Command("pdftoppm", "-f", pageStr, "-l", pageStr, "-singlefile", "-png", pdfPath, imgBase)
-		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, err, string(out))
+		pdftoppmCtx, pdftoppmCancel := ocrCommandContext()
+		pdftoppmCmd := ocrCommand(pdftoppmCtx, "pdftoppm", "-f", pageStr, "-l", pageStr, "-singlefile", "-png", pdfPath, imgBase)
+		out, pdftoppmErr := pdftoppmCmd.CombinedOutput()
+		pdftoppmCancel()
+		if pdftoppmErr != nil {
+			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, pdftoppmErr, string(out))
 		}
 
 		imgFile, err := os.Open(imgPath)
@@ -162,8 +193,10 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 			return nil, err
 		}
 
-		tsvCmd := exec.Command("tesseract", imgPath, "stdout", "tsv", "-l", lang)
+		tsvCtx, tsvCancel := ocrCommandContext()
+		tsvCmd := ocrCommand(tsvCtx, "tesseract", imgPath, "stdout", "tsv", "-l", lang)
 		tsvOut, err := tsvCmd.CombinedOutput()
+		tsvCancel()
 		if err != nil {
 			return nil, fmt.Errorf("tesseract failed on page %d: %v (%s)", page, err, string(tsvOut))
 		}

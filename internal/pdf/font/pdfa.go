@@ -3,6 +3,8 @@ package font
 import (
 	"archive/tar"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 // PDFAFontConfig holds configuration for PDF/A compliant font handling
@@ -67,7 +70,43 @@ var LiberationFontFiles = map[string]string{
 // The release asset uses the stable GitHub files endpoint rather than /releases/download.
 const defaultLiberationFontsArchiveURL = "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz"
 
+// liberationFontsArchiveSHA256 pins the expected tarball bytes (hex,
+// recorded 2026-09-04). A mismatch fails the download loudly instead of
+// extracting untrusted content.
+const liberationFontsArchiveSHA256 = "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0"
+
 var liberationFontsArchiveURL = defaultLiberationFontsArchiveURL
+
+// verifyLiberationDigest checks the downloaded archive against the pinned
+// digest when fetching from the default URL. Test overrides (httptest
+// servers) carry different bytes and skip verification. The file is read
+// from its current offset; callers re-seek afterwards.
+func verifyLiberationDigest(f *os.File) error {
+	if liberationFontsArchiveURL != defaultLiberationFontsArchiveURL {
+		return nil
+	}
+	sum, err := sha256File(f)
+	if err != nil {
+		return fmt.Errorf("failed to checksum fonts archive: %w", err)
+	}
+	if sum != liberationFontsArchiveSHA256 {
+		return fmt.Errorf("fonts archive checksum mismatch (got %s): refresh liberationFontsArchiveSHA256", sum)
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return fmt.Errorf("failed to seek temp file: %w", err)
+	}
+	return nil
+}
+
+// sha256File digests an open file from its current offset without loading
+// it fully into memory.
+func sha256File(f *os.File) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
 
 // PDFAFontManager manages Liberation font loading for PDF/A compliance
 type PDFAFontManager struct {
@@ -238,8 +277,10 @@ func (m *PDFAFontManager) downloadFonts() error {
 		_ = tmpFile.Close()
 	}()
 
-	// Download the file
-	resp, err := http.Get(liberationFontsArchiveURL)
+	// Download the file with a timeout so a network hang cannot block
+	// PDF generation forever.
+	fontHTTPClient := &http.Client{Timeout: 30 * time.Second}
+	resp, err := fontHTTPClient.Get(liberationFontsArchiveURL)
 	if err != nil {
 		return fmt.Errorf("failed to download fonts: %w", err)
 	}
@@ -259,6 +300,14 @@ func (m *PDFAFontManager) downloadFonts() error {
 	// Seek back to start
 	if _, err := tmpFile.Seek(0, 0); err != nil {
 		return fmt.Errorf("failed to seek temp file: %w", err)
+	}
+
+	// Verify the pinned digest before extracting. The test override
+	// (liberationFontsArchiveURL) points at httptest servers whose bytes
+	// are not the pinned release, so verification only applies to the
+	// default URL.
+	if err := verifyLiberationDigest(tmpFile); err != nil {
+		return err
 	}
 
 	// Extract the tar.gz

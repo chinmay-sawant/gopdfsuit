@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
@@ -41,16 +42,24 @@ func init() {
 	srgbICCProfileCompressed = compressICCProfileBytes(srgbICCProfileRaw)
 }
 
-// ConvertPDFDateToXMP converts a PDF date string (D:YYYYMMDDHHmmSSOHH'mm') to XMP format (YYYY-MM-DDTHH:mm:ss+HH:MM)
+// ConvertPDFDateToXMP converts a PDF date string (D:YYYYMMDDHHmmSSOHH'mm') to XMP format (YYYY-MM-DDTHH:mm:ss+HH:MM).
+// Malformed input (bad prefix, short fields, non-digit components, misplaced
+// quotes) falls back to the current time instead of slicing out of range.
 func ConvertPDFDateToXMP(pdfDate string) string {
+	fallback := func() string {
+		return time.Now().Format("2006-01-02T15:04:05-07:00")
+	}
 	// PDF format: D:20060102150405-07'00' or D:20060102150405+05'30'
 	// XMP format: 2006-01-02T15:04:05-07:00 or 2006-01-02T15:04:05+05:30
-	if len(pdfDate) < 16 {
-		return time.Now().Format("2006-01-02T15:04:05-07:00")
+	if len(pdfDate) < 16 || !strings.HasPrefix(pdfDate, "D:") {
+		return fallback()
 	}
 
 	// Remove 'D:' prefix
 	date := pdfDate[2:]
+	if len(date) < 14 {
+		return fallback()
+	}
 
 	year := date[0:4]
 	month := date[4:6]
@@ -58,19 +67,47 @@ func ConvertPDFDateToXMP(pdfDate string) string {
 	hour := date[8:10]
 	minute := date[10:12]
 	sec := date[12:14]
+	for _, field := range []string{year, month, day, hour, minute, sec} {
+		if !isASCIIDigits(field) {
+			return fallback()
+		}
+	}
 
 	// Parse timezone: -07'00' or +05'30'
-	// Format is: sign + 2 digits + quote + 2 digits + quote
+	// Format is: sign + 2 digits + quote + 2 digits [+ quote]. The trailing
+	// quote is required when present; the legacy 20-char form without it is
+	// still accepted.
 	tz := "+00:00"
-	if len(date) >= 20 {
-		tzSign := string(date[14])
-		tzHour := date[15:17]
-		// Skip the quote at position 17, get minutes at 18-19
-		tzMin := date[18:20]
-		tz = tzSign + tzHour + ":" + tzMin
+	if len(date) > 14 {
+		if len(date) < 20 {
+			return fallback()
+		}
+		if tzSign := date[14]; tzSign != '+' && tzSign != '-' {
+			return fallback()
+		}
+		if date[17] != '\'' || !isASCIIDigits(date[15:17]) || !isASCIIDigits(date[18:20]) {
+			return fallback()
+		}
+		if len(date) > 20 && date[20] != '\'' {
+			return fallback()
+		}
+		tz = string(date[14]) + date[15:17] + ":" + date[18:20]
 	}
 
 	return fmt.Sprintf("%s-%s-%sT%s:%s:%s%s", year, month, day, hour, minute, sec, tz)
+}
+
+// isASCIIDigits reports whether s is non-empty and all ASCII digits.
+func isASCIIDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // GenerateXMPMetadata generates PDF/A-4 and PDF/UA-2 compliant XMP metadata (PDF 2.0 based)

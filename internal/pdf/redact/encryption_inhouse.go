@@ -296,7 +296,12 @@ func deriveUserPasswordFromOwner(ownerPassword string, d standardEncryptDict) st
 			out = rc4Crypt(ki, out)
 		}
 	}
-	out = bytes.TrimRight(out, string([]byte{0}))
+	// Per the PDF spec the decrypted /O value is the full 32-byte padded
+	// user password. Never strip trailing 0x00 bytes: they may be part of
+	// a binary user password.
+	// Per the PDF spec the decrypted /O value is the full 32-byte padded
+	// user password. Never strip trailing 0x00 bytes: they may be part of
+	// a binary user password.
 	if len(out) > 32 {
 		out = out[:32]
 	}

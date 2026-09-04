@@ -4,11 +4,15 @@ package svg
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"strconv"
 	"strings"
 )
 
 var floatBuf [64]byte
+
+// MaxSVGBytes caps accepted SVG input (4 MiB); larger payloads are rejected.
+const MaxSVGBytes = 4 << 20
 
 func writeFloats(b *bytes.Buffer, prec int, nums ...float64) {
 	for i, n := range nums {
@@ -47,6 +51,12 @@ func parseDimension(val string) float64 {
 //
 //nolint:gocyclo
 func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
+	if len(data) > MaxSVGBytes {
+		return nil, 0, 0, errors.New("svg input exceeds 4 MiB limit")
+	}
+	if bytes.Contains(data, []byte("<!ENTITY")) || bytes.Contains(data, []byte("<!DOCTYPE")) {
+		return nil, 0, 0, errors.New("svg input with DOCTYPE/ENTITY declarations is rejected")
+	}
 	var svg SVG
 	// Handle XML namespace issues by just ignoring them for simple parsing?
 	// Go's XML parser is strict. We might need to handle xmlns.
@@ -509,171 +519,163 @@ func parsePathData(b *bytes.Buffer, d string) {
 		d = strings.ReplaceAll(d, cmd, " "+cmd+" ")
 	}
 
-	tokens := strings.Fields(d)
-	i := 0
-
-	cx, cy := 0.0, 0.0
+	cur := &pathCursor{b: b, tokens: strings.Fields(d)}
 	// PDF 'm' operator starts a new subpath. It does set the current point.
-
-	for i < len(tokens) {
-		cmd := tokens[i]
-		i++
-		switch cmd {
-		case "M":
-			x, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			y, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			writeFloats(b, 2, x, y)
-			b.WriteString(" m ")
-			cx, cy = x, y
-		case "m":
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			cx += dx
-			cy += dy
-			writeFloats(b, 2, cx, cy)
-			b.WriteString(" m ")
-
-		case "L":
-			x, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			y, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			writeFloats(b, 2, x, y)
-			b.WriteString(" l ")
-			cx, cy = x, y
-		case "l":
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			cx += dx
-			cy += dy
-			writeFloats(b, 2, cx, cy)
-			b.WriteString(" l ")
-
-		case "H":
-			x, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			cx = x
-			writeFloats(b, 2, cx, cy)
-			b.WriteString(" l ")
-		case "h":
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			cx += dx
-			writeFloats(b, 2, cx, cy)
-			b.WriteString(" l ")
-
-		case "V":
-			y, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			cy = y
-			writeFloats(b, 2, cx, cy)
-			b.WriteString(" l ")
-		case "v":
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			cy += dy
-			writeFloats(b, 2, cx, cy)
-			b.WriteString(" l ")
-
-		case "C":
-			x1, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			y1, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			x2, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			y2, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			x, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			y, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			writeFloats(b, 2, x1, y1, x2, y2, x, y)
-			b.WriteString(" c ")
-			cx, cy = x, y
-
-		case "c":
-			dx1, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dy1, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dx2, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dy2, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			writeFloats(b, 2, cx+dx1, cy+dy1, cx+dx2, cy+dy2, cx+dx, cy+dy)
-			b.WriteString(" c ")
-			cx += dx
-			cy += dy
-
-		case "Q":
-			// Quadratic Bezier: x1 y1 x y
-			// Convert to Cubic:
-			// CP1 = current + 2/3 * (Q1 - current)
-			// CP2 = end + 2/3 * (Q1 - end)
-			x1, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			y1, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			x, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			y, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-
-			const k = 2.0 / 3.0
-			cp1x := cx + k*(x1-cx)
-			cp1y := cy + k*(y1-cy)
-			cp2x := x + k*(x1-x)
-			cp2y := y + k*(y1-y)
-
-			writeFloats(b, 2, cp1x, cp1y, cp2x, cp2y, x, y)
-			b.WriteString(" c ")
-			cx, cy = x, y
-
-		case "q":
-			dx1, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dy1, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dx, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-			dy, _ := strconv.ParseFloat(tokens[i], 64)
-			i++
-
-			// Abs coords for calculation
-			absX1 := cx + dx1
-			absY1 := cy + dy1
-			absX := cx + dx
-			absY := cy + dy
-
-			const k = 2.0 / 3.0
-			cp1x := cx + k*(absX1-cx)
-			cp1y := cy + k*(absY1-cy)
-			cp2x := absX + k*(absX1-absX)
-			cp2y := absY + k*(absY1-absY)
-
-			writeFloats(b, 2, cp1x, cp1y, cp2x, cp2y, absX, absY)
-			b.WriteString(" c ")
-			cx, cy = absX, absY
-
-		case "Z", "z":
-			b.WriteString("h ")
-			// Typically Z closes subpath to start point.
-			// We should technically track subpath start, but for most simple shapes, it works.
-
-		default:
-			// Handle implicit repetitions? Or skip
+	for cur.i < len(cur.tokens) {
+		cmd := cur.tokens[cur.i]
+		cur.i++
+		if !cur.command(cmd) {
+			return
 		}
 	}
 	b.WriteString("\n")
+}
+
+// pathCursor tracks SVG path tokenizing state across commands.
+type pathCursor struct {
+	b      *bytes.Buffer
+	tokens []string
+	i      int
+	cx, cy float64
+}
+
+// take reads n floats with bounds and syntax checks. Malformed path
+// data (e.g. d="M 10") aborts the path instead of panicking.
+func (c *pathCursor) take(n int) ([]float64, bool) {
+	if c.i+n > len(c.tokens) {
+		return nil, false
+	}
+	vals := make([]float64, n)
+	for k := range vals {
+		v, err := strconv.ParseFloat(c.tokens[c.i+k], 64)
+		if err != nil {
+			return nil, false
+		}
+		vals[k] = v
+	}
+	c.i += n
+	return vals, true
+}
+
+func (c *pathCursor) lineto(x, y float64) {
+	writeFloats(c.b, 2, x, y)
+	c.b.WriteString(" l ")
+	c.cx, c.cy = x, y
+}
+
+func (c *pathCursor) moveto(x, y float64) {
+	writeFloats(c.b, 2, x, y)
+	c.b.WriteString(" m ")
+	c.cx, c.cy = x, y
+}
+
+func (c *pathCursor) curveto(x1, y1, x2, y2, x, y float64) {
+	writeFloats(c.b, 2, x1, y1, x2, y2, x, y)
+	c.b.WriteString(" c ")
+	c.cx, c.cy = x, y
+}
+
+// quadTo converts a quadratic Bezier to cubic and emits it.
+func (c *pathCursor) quadTo(x1, y1, x, y float64) {
+	const k = 2.0 / 3.0
+	c.curveto(
+		c.cx+k*(x1-c.cx), c.cy+k*(y1-c.cy),
+		x+k*(x1-x), y+k*(y1-y),
+		x, y,
+	)
+}
+
+// command executes one path command; false aborts the path.
+func (c *pathCursor) command(cmd string) bool {
+	switch cmd {
+	case "M":
+		v, ok := c.take(2)
+		if !ok {
+			return false
+		}
+		c.moveto(v[0], v[1])
+	case "m":
+		v, ok := c.take(2)
+		if !ok {
+			return false
+		}
+		c.moveto(c.cx+v[0], c.cy+v[1])
+
+	case "L":
+		v, ok := c.take(2)
+		if !ok {
+			return false
+		}
+		c.lineto(v[0], v[1])
+	case "l":
+		v, ok := c.take(2)
+		if !ok {
+			return false
+		}
+		c.lineto(c.cx+v[0], c.cy+v[1])
+
+	case "H":
+		v, ok := c.take(1)
+		if !ok {
+			return false
+		}
+		c.lineto(v[0], c.cy)
+	case "h":
+		v, ok := c.take(1)
+		if !ok {
+			return false
+		}
+		c.lineto(c.cx+v[0], c.cy)
+
+	case "V":
+		v, ok := c.take(1)
+		if !ok {
+			return false
+		}
+		c.lineto(c.cx, v[0])
+	case "v":
+		v, ok := c.take(1)
+		if !ok {
+			return false
+		}
+		c.lineto(c.cx, c.cy+v[0])
+
+	case "C":
+		v, ok := c.take(6)
+		if !ok {
+			return false
+		}
+		c.curveto(v[0], v[1], v[2], v[3], v[4], v[5])
+
+	case "c":
+		v, ok := c.take(6)
+		if !ok {
+			return false
+		}
+		c.curveto(c.cx+v[0], c.cy+v[1], c.cx+v[2], c.cy+v[3], c.cx+v[4], c.cy+v[5])
+
+	case "Q":
+		// Quadratic Bezier: x1 y1 x y
+		v, ok := c.take(4)
+		if !ok {
+			return false
+		}
+		c.quadTo(v[0], v[1], v[2], v[3])
+
+	case "q":
+		v, ok := c.take(4)
+		if !ok {
+			return false
+		}
+		c.quadTo(c.cx+v[0], c.cy+v[1], c.cx+v[2], c.cy+v[3])
+
+	case "Z", "z":
+		c.b.WriteString("h ")
+		// Typically Z closes subpath to start point.
+		// We should technically track subpath start, but for most simple shapes, it works.
+
+	default:
+		// Handle implicit repetitions? Or skip
+	}
+	return true
 }

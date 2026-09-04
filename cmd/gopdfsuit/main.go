@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -73,6 +74,11 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	os.Stderr.WriteString("Shutting down server...\n")
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "forced shutdown: %s\n", err)
+	}
 }
 
 func resolveMaxConcurrent() int {
