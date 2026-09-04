@@ -143,6 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -155,7 +156,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
       - name: Build compress WASM
@@ -174,12 +175,28 @@ jobs:
           export CLOUD_RUN_SERVICE_URL=https://gopdfsuit.ue.r.appspot.com
           export DISABLE_PROFILING=true
           cd frontend && npm run build
-      - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Open PR with rebuilt docs
+        # master requires changes via pull request, so the docs rebuild
+        # is proposed as a PR instead of pushed directly. No-op when the
+        # build produces no diff against the checked-out ref.
+        uses: peter-evans/create-pull-request@v8
         with:
-          commit_message: "chore: auto-build frontend [skip ci]"
-          file_pattern: "docs/**"
-          commit_author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          add-paths: |
+            docs/**
+          commit-message: "chore: auto-build frontend [skip ci]"
+          committer: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          branch: chore/auto-build-frontend
+          base: ${{ github.event_name == 'pull_request' && github.base_ref || 'master' }}
+          delete-branch: true
+          title: "chore: auto-build frontend"
+          body: |
+            Automated `docs/` rebuild from the frontend pipeline.
+
+            - Built with `make wasm-compress` plus `npm run build` (Cloud Run env).
+            - Only `docs/**` is included. Never hand-edit `docs/`; it is Vite output.
+          labels: |
+            documentation
 
   publish-pypi:
     name: Publish to PyPI
