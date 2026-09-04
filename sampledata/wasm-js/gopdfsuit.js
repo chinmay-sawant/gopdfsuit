@@ -199,6 +199,20 @@ export async function applyRedactionsAdvanced(bytes, options) {
   return out
 }
 
+export async function registerFont(name, bytes) {
+  await ensureWasm()
+  const out = globalThis.goRegisterFont(name, asUint8Array(bytes))
+  if (out && typeof out === 'object' && out.error) throw new Error(String(out.error))
+  return out
+}
+
+export async function ensurePDFAFonts() {
+  await ensureWasm()
+  const out = globalThis.goEnsurePDFAFonts()
+  if (out && typeof out === 'object' && out.error) throw new Error(String(out.error))
+  return out
+}
+
 function missingWasm(detail) {
   return new Error(`${detail}\nRun \`make wasm\` first to build gopdfsuit.wasm and wasm_exec.js.`)
 }
@@ -288,6 +302,8 @@ const EXPECTED_BINDS = [
   'goRedactFindText',
   'goRedactApply',
   'goRedactAdvanced',
+  'goRegisterFont',
+  'goEnsurePDFAFonts',
 ]
 
 async function loadWasm() {

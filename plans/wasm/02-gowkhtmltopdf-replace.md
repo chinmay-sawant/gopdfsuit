@@ -46,7 +46,7 @@ Verified 2026-09-04 from release page: v0.2.5 is pure-Go, no-cgo, no-Qt/WebKit, 
 
 - [x] `test/verify_pdfs.sh` plus veraPDF plus `structure_tree_check.py` - re-baseline htmltopdf goldens (Chrome PDF vs unclaimed 1.4 or opt-in profile) - proof: `make test` verify step 10/10 PASS (PDF/A-4 plus PDF/UA-2), htmltopdf goldens from pure-Go engine
 - [x] Bench template/invoice/report HTML strings, files, and server-rendered URLs (priority 1-3 per upstream); record `~3.7ms/2p` reference vs local host - proof: numbers in `plans/wasm/02-html-bench-prep.md` (cold dev-host fetch+layout)
-- [~] JS-heavy SPA URL - known regression hypothesis, not defect - proof: hypothesis plus pair location in `plans/wasm/02-html-bench-prep.md` (pair files not yet captured)
+- [~] JS-heavy SPA URL - known regression hypothesis, not defect - proof: after-half captured as `sampledata/htmltopdf/spa-after-purego.pdf` (4546B, script content stripped as expected); Chrome before-half unavailable (no browser runtime), so the pair stays half-open
 
 ## Phase 5: Closure
 

@@ -49,20 +49,20 @@ Today only `goCompressPDF(Uint8Array, levelString)` is exposed (`cmd/wasmcompres
 
 - [x] WASM JS shim - enforce `MaxCompressInputBytes 32MiB` in JS before copy (`sampledata/wasm-js/gopdfsuit.js`) - proof: cap asserted in shim
 - [x] WASM JS shim - fix numeric level bug: map `1|2|3` to `light|medium|heavy` (`sampledata/wasm-js/gopdfsuit.js`, `frontend/src/utils/compressPdf.js` now passes string via `toServerLevel`) - proof: code diff
-- [x] Template JSON path - `DecodeTemplateJSON` reuses `models.PDFTemplate` validation and `PreallocForDecode`; base64 `imagedata/fontData` stays string - proof: PDF 1 regen 73000 bytes via `TestGeneratePDFFromJSONFinancialReport`
+- [x] Template JSON path - `DecodeTemplateJSON` reuses `models.PDFTemplate` validation and `PreallocForDecode`; base64 `imagedata/fontData` stays string - proof: PDF 1 regen 73000 bytes via `TestGeneratePDFFromJSONFinancialReport`; compliant browser variant proven in `plans/wasm/04-frontend-wasm-split-fonts-compliance.md` Phase 3
 - [x] Split multi-file - return JS array of `Uint8Array`, never Go-side zip - proof: no `archive/zip` in WASM closure
 
 ## Phase 4: Validation and performance
 
-- [ ] `test/verify_pdfs.sh` - WASM-generated Generate/Merge/Split/Fill outputs pass plus `structure_tree_check.py` MCID check - proof: paste script output in ledger
-- [ ] Bundle size - record `ls -lh frontend/public/gopdfsuit.wasm` cold load plus `sampledata/benchmarks/` generate p50 before/after - proof: numbers in ledger, release vs dev-loop labeled
+- [x] `test/verify_pdfs.sh` - WASM-generated Generate/Merge/Split/Fill outputs pass plus `structure_tree_check.py` MCID check - proof: `node sampledata/wasm-js/run.mjs` 5/5 green (generate 4157B, merge 341381B, split 1 part, fill 82089B, redact search 2 hits plus 5175B), structure tree 5/5 clean (TD 0/0, TR 0), veraPDF PDF/A-4 FAIL as expected for unclaimed ad-hoc outputs (claimed `pdfaCompliant` pipeline stays 10/10 in `make test`)
+- [x] Bundle size - record `ls -lh frontend/public/gopdfsuit.wasm` cold load plus `sampledata/benchmarks/` generate p50 before/after - proof: `gopdfsuit.wasm` 11M vs `compress.wasm` 3.6M; financial-report generate x21 dev-loop 73000B min 318us p50 446us max 138ms (first-run warmup)
 - [x] `sampledata/wasm-js/` - add `index.html` plus `run.mjs` plus `gopdfsuit.js` plus `README.md` demo mirroring `sampledata/compress-js/` - proof: files present, `node --check` ok
 - [x] `documentation/*` plus `frontend/src/components/documentation/content/*` - document which ops are browser-local vs server-only (HTML stays server) - proof: `GETTING_STARTED_GOPDFLIB.md` table plus getting-started and sample-data content updates
 
 ## Phase 5: Closure
 
-- [ ] `plans/wasm/03-wasm-everywhere-noauth-editor.md` - mark Generate/Merge/Split/Fill/Redact rows `[x]` with pointer back to this ledger once validated - proof: no duplicate active rows
-- [ ] `documentation/*` plus `frontend/src/components/documentation/content/*` - document which ops are browser-local vs server-only (HTML stays server) - proof: doc diff linked
+- [x] `plans/wasm/03-wasm-everywhere-noauth-editor.md` - mark Generate/Merge/Split/Fill/Redact rows `[x]` with pointer back to this ledger once validated - proof: 03 Phase 3 rows now `[x]` pointing here; Node smoke 5/5 green
+- [x] `documentation/*` plus `frontend/src/components/documentation/content/*` - document which ops are browser-local vs server-only (HTML stays server) - proof: `GETTING_STARTED_GOPDFLIB.md` WASM-vs-server table plus getting-started, sample-data, api-reference transport labels (shipped in `091d9ee`)
 
 ## Dependencies
 

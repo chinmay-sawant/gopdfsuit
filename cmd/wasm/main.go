@@ -3,10 +3,12 @@
 // Package main exposes the pure-Go gopdflib surface to JavaScript via WebAssembly.
 //
 // Bound ops: goGeneratePDF, goMergePDFs (alias goMergePDF), goSplitPDF,
-// goFillPDF, goCompressPDF, plus the text-path redact ops goRedactGetPageInfo,
+// goFillPDF, goCompressPDF, the text-path redact ops goRedactGetPageInfo,
 // goRedactExtractText, goRedactFindText (alias goRedactSearch), goRedactApply,
-// and goRedactAdvanced. Chrome-backed HTML conversion, the CGO bindings, and
-// the OCR subprocess stay server-side and are never referenced here.
+// goRedactAdvanced, plus the font ops goRegisterFont and goEnsurePDFAFonts
+// (fonts.go) for compliant generation. Chrome-backed HTML conversion, the
+// CGO bindings, and the OCR subprocess stay server-side and are never
+// referenced here.
 //
 // All validation and size caps are shared with the Go, HTTP, and CGO entry
 // points through pkg/gopdflib; this shim only translates between JS values
@@ -42,6 +44,7 @@ func main() {
 	js.Global().Set("goRedactSearch", js.FuncOf(redactFindText))
 	js.Global().Set("goRedactApply", js.FuncOf(redactApply))
 	js.Global().Set("goRedactAdvanced", js.FuncOf(redactAdvanced))
+	registerWasmFontBindings()
 	select {}
 }
 

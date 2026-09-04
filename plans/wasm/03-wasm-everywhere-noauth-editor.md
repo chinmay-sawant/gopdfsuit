@@ -34,14 +34,14 @@ Compress is the only WASM-first page (`Compress.jsx:57-92` via `compressPDFSmart
 
 - [x] `frontend/src/utils/wasmLoader.js` (new) - generalize `compressPdf.js:31-110` for `compress.wasm` and `gopdfsuit.wasm` - proof: `compressPdf.js` delegates to it, `node --check` ok
 - [x] `frontend/src/hooks/usePdfOperation.js:148` - extend `runLocal` pattern plus new `runLocalMulti` for Split - proof: code diff
-- [~] Web Worker - deferred with reason (current WASM blocks main thread) - proof: header note in `wasmLoader.js`
+- [x] Web Worker path - `frontend/src/utils/wasm/compressWorker.js` (classic worker, Vite-bundled) runs compress off-main-thread with main-thread fallback and `VITE_WASM_WORKER=off` opt-out - proof: eslint plus `npm run build` green; browser click-through still open; module now lives at `wasm/` per `plans/wasm/04-frontend-wasm-split-fonts-compliance.md`
 
 ## Phase 3: Per-page wiring
 
-- [x] `frontend/src/pages/Merge.jsx:40` - `mergePDFSmart` via `runLocal` with server consent fallback - proof: code diff
-- [x] `frontend/src/pages/Split.jsx:35` - `splitPDFSmart` via `runLocalMulti` with consent fallback - proof: code diff
-- [x] `frontend/src/pages/Filler.jsx:28` - `fillPDFSmart` via `runLocal` with consent fallback - proof: code diff
-- [x] `frontend/src/pages/Redaction.jsx:103,257,343` - page-info via client `pdfjs`, search/apply flagged no-privacy-win until engine lands - proof: code comments plus sidebar note
+- [x] `frontend/src/pages/Merge.jsx:40` - `mergePDFSmart` via `runLocal` with server consent fallback - proof: code diff; engine binding proven via Node smoke (`mergePDFs` 341381B, see `plans/wasm/01-full-wasm-port.md` Phase 4)
+- [x] `frontend/src/pages/Split.jsx:35` - `splitPDFSmart` via `runLocalMulti` with consent fallback - proof: code diff; engine binding proven via Node smoke (1 part, see `01` Phase 4)
+- [x] `frontend/src/pages/Filler.jsx:28` - `fillPDFSmart` via `runLocal` with consent fallback - proof: code diff; engine binding proven via Node smoke (`fillPDF` 82089B, see `01` Phase 4)
+- [x] `frontend/src/pages/Redaction.jsx:103,257,343` - page-info via client `pdfjs`, search/apply via WASM text path - proof: code comments plus sidebar note; engine binding proven via Node smoke (2 hits, 5175B, see `01` Phase 4)
 - [~] `frontend/src/pages/Viewer.jsx:24,34,55` plus `Editor.jsx:575,627` (`POST /api/v1/generate/template-pdf`, `GET template-data`, `GET/POST /api/v1/fonts`) - deferred: generator is portable but bundle plus font-asset cost high; keep server - proof: pointer to `plans/wasm/01-full-wasm-port.md` Phase 2.2
 - [~] `frontend/src/pages/HtmlToPdf.jsx:34` plus `HtmlToImage.jsx:33` - server-only: pure-Go `gowkhtmltopdf` after `plans/wasm/02-gowkhtmltopdf-replace.md`, never WASM - proof: pointer to `02` ledger
 

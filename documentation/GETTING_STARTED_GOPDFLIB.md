@@ -297,12 +297,14 @@ Pure-Go ops also run in the browser as WebAssembly (`make wasm`, demo in
 | Op | Browser-local (WASM) | Server-only |
 |----|----------------------|-------------|
 | Generate | yes (`goGeneratePDF`) | also via API |
+| Generate, PDF/A-compliant | yes, after `ensurePDFAFonts()` fetches `/fonts/*.ttf` and `goRegisterFont` registers all 12 faces (`wasm/compliance.js`, demo `run_compliant.mjs`) | also via API |
 | Merge | yes (`goMergePDF`) | also via API |
 | Split | yes (`goSplitPDF`, returns JS array, zip in JS) | also via API |
-| Compress | yes (`goCompressPDF`, Light/Medium/Heavy) | also via API |
+| Compress | yes (`goCompressPDF`, Light/Medium/Heavy, Worker path) | also via API |
 | Fill (XFDF) | yes (`goFillPDF`, two `Uint8Array`) | also via API |
 | Redact | yes, **text path only** (`goRedactSearch`/`goRedactApply`, no OCR) | full path incl. OCR via API |
 | HTML to PDF/Image | no | yes, server-side only |
+| veraPDF validation | no (runs server-side; browser output is verified by uploading bytes or regenerating server-side) | yes |
 
 Redact in WASM leaves the `OCR` field unset: there is no
 pdftoppm/tesseract subprocess in a browser tab, so image-only pages are

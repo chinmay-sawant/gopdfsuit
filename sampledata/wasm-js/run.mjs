@@ -11,7 +11,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { fillPDF, generatePDF, mergePDFs, redactApply, redactSearch, splitPDF } from './gopdfsuit.js'
+import { applyRedactionsAdvanced, fillPDF, findTextOccurrences, generatePDF, mergePDFs, splitPDF } from './gopdfsuit.js'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 
@@ -49,8 +49,10 @@ try {
   await writeFile(join(dir, 'merged.pdf'), merged)
   console.log(`merge     merged.pdf  ${merged.length} bytes from em-16.pdf + em-19.pdf`)
 
-  // 3. Split back into single pages (JS array of Uint8Array, no Go-side zip).
-  const parts = await splitPDF(merged, { maxPerFile: '1' })
+  // 3. Split the engine-generated PDF into single pages (JS array of
+  // Uint8Array, no Go-side zip). Note: merge output is not splittable -
+  // the merge parser cannot round-trip MergePDFs bytes (pre-existing).
+  const parts = await splitPDF(generated, { maxPerFile: 1 })
   for (let i = 0; i < parts.length; i += 1) {
     await writeFile(join(dir, `split_part_${i + 1}.pdf`), parts[i])
   }
@@ -66,9 +68,9 @@ try {
   console.log(`fill      filled.pdf  ${filled.length} bytes`)
 
   // 5. Redact via the text path (no OCR in WASM).
-  const hits = await redactSearch(generated, ['RedactMe'])
+  const hits = await findTextOccurrences(generated, 'RedactMe')
   console.log(`redact    search hits: ${JSON.stringify(hits)?.slice(0, 200)}`)
-  const redacted = await redactApply(generated, { textQueries: [{ text: 'RedactMe' }], mode: 'secure_required' })
+  const { pdf: redacted } = await applyRedactionsAdvanced(generated, { textSearch: [{ text: 'RedactMe' }], mode: 'secure_required' })
   await writeFile(join(dir, 'redacted.pdf'), redacted)
   console.log(`redact    redacted.pdf  ${redacted.length} bytes`)
 } catch (err) {

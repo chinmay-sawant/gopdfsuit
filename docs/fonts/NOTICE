@@ -1,0 +1,21 @@
+Bundled font notices
+====================
+
+This directory embeds Liberation Sans/Serif/Mono and DejaVu Sans for PDF
+subsetting. They are not covered by the project MIT license alone.
+
+Liberation fonts
+----------------
+Copyright (c) 2012 Red Hat, Inc.
+Licensed under the SIL Open Font License, Version 1.1.
+See https://scripts.sil.org/OFL
+
+DejaVu fonts
+------------
+DejaVu changes are in the public domain. The original Bitstream Vera fonts
+are Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved. Bitstream
+Vera is a trademark of Bitstream, Inc.
+
+These fonts cannot be released under any other license. Redistribution of
+this package must retain this NOTICE (or the upstream OFL / Bitstream Vera
+license texts).
