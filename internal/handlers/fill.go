@@ -20,11 +20,11 @@ func handleFillPDF(c *gin.Context) {
 		data, ok, err := pdfService.ReadUpload(pdfFile, UploadKindPDF)
 		if err != nil {
 			log.Printf("handleFillPDF: read pdf failed: %v", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			abortError(c, http.StatusBadRequest, "invalid request")
 			return
 		}
 		if !ok {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "pdf exceeds maximum size"})
+			abortError(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
 			return
 		}
 		pdfBytes = data
@@ -39,11 +39,11 @@ func handleFillPDF(c *gin.Context) {
 		data, ok, err := pdfService.ReadUpload(xfdfFile, UploadKindXFDF)
 		if err != nil {
 			log.Printf("handleFillPDF: read xfdf failed: %v", err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			abortError(c, http.StatusBadRequest, "invalid request")
 			return
 		}
 		if !ok {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "xfdf exceeds maximum size"})
+			abortError(c, http.StatusRequestEntityTooLarge, "xfdf exceeds maximum size")
 			return
 		}
 		xfdfBytes = data
@@ -53,7 +53,7 @@ func handleFillPDF(c *gin.Context) {
 	if len(pdfBytes) == 0 {
 		if b := c.PostForm("pdf_bytes"); b != "" {
 			if int64(len(b)) > pdfService.UploadLimit(UploadKindPDF) {
-				c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "pdf exceeds maximum size"})
+				abortError(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
 				return
 			}
 			pdfBytes = []byte(b)
@@ -62,7 +62,7 @@ func handleFillPDF(c *gin.Context) {
 	if len(xfdfBytes) == 0 {
 		if b := c.PostForm("xfdf_bytes"); b != "" {
 			if int64(len(b)) > pdfService.UploadLimit(UploadKindXFDF) {
-				c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "xfdf exceeds maximum size"})
+				abortError(c, http.StatusRequestEntityTooLarge, "xfdf exceeds maximum size")
 				return
 			}
 			xfdfBytes = []byte(b)
@@ -70,7 +70,7 @@ func handleFillPDF(c *gin.Context) {
 	}
 
 	if len(pdfBytes) == 0 || len(xfdfBytes) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing pdf or xfdf data"})
+		abortError(c, http.StatusBadRequest, "Missing pdf or xfdf data")
 		return
 	}
 

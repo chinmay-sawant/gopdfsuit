@@ -2,9 +2,10 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
-import { formatApiError, makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import { useToast } from '../hooks/useToast'
 import PdfPreview from '../components/PdfPreview'
-import Toast from '../components/Toast'
+import { ToastContainer } from '../components/Toast'
 
 // Imported Components
 import ComponentList from '../components/editor/ComponentList'
@@ -57,16 +58,23 @@ export default function Editor() {
   const [clipboard, setClipboard] = useState(null)
   const [templateInput, setTemplateInput] = useState('editor/financial_report.json')
   const canvasRef = useRef(null)
-  const [toasts, setToasts] = useState([])
+  const { toasts, showToast, removeToast } = useToast()
   const { menuState, showMenu, hideMenu } = useContextMenu()
+  const { run, runJson } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => showToast(message, 'error'),
+  })
 
-  const showToast = (message, type = 'success', duration = 3000) => {
-    const id = Date.now()
-    setToasts(prev => [...prev, { id, message, type, duration }])
-  }
-
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id))
+  const downloadJsonTemplate = () => {
+    const element = document.createElement('a')
+    const file = new Blob([jsonText], { type: 'application/json' })
+    const url = URL.createObjectURL(file)
+    element.href = url
+    element.download = 'template.json'
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   // Fetch fonts from API on component mount (module-level cache, single request)
@@ -77,17 +85,17 @@ export default function Editor() {
         return
       }
       if (!_fontsFetchPromise) {
-        _fontsFetchPromise = makeAuthenticatedRequest(
-          '/api/v1/fonts',
-          {},
-          isAuthRequired() ? getAuthHeaders : null
-        ).then(async (response) => {
-          if (response.ok) {
-            const data = await response.json()
-            if (data.fonts && Array.isArray(data.fonts)) {
-              _fontsCache = data.fonts
-              return data.fonts
-            }
+        _fontsFetchPromise = runJson(
+          {
+            endpoint: '/api/v1/fonts',
+            method: 'GET',
+            getAuthHeaders,
+            onError: (message) => console.warn('Failed to fetch fonts, using defaults:', message),
+          }
+        ).then((data) => {
+          if (data && data.fonts && Array.isArray(data.fonts)) {
+            _fontsCache = data.fonts
+            return data.fonts
           }
           console.warn('Failed to fetch fonts, using defaults')
           return null
@@ -101,7 +109,7 @@ export default function Editor() {
       if (fonts) setFonts(fonts)
     }
     loadFonts()
-  }, [getAuthHeaders])
+  }, [getAuthHeaders, runJson])
 
   // Get all elements in order for display
   const allElements = useMemo(() => {
@@ -556,59 +564,32 @@ export default function Editor() {
 
   // --- PDF Generation ---
   const handleGeneratePdf = async (isPreview = false) => {
-    try {
-      setIsJsonEditing(false)
-      const template = buildTemplate({ config, title, components, footer, bookmarks })
-      const { errors, warnings } = validateTemplate(template)
-      if (errors.length > 0 || warnings.length > 0) {
-        console.warn('Template schema issues:', { errors, warnings })
-      }
-
-      const response = await makeAuthenticatedRequest(
-        '/api/v1/generate/template-pdf',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/pdf'
-          },
-          body: JSON.stringify(template)
-        },
-        isAuthRequired() ? getAuthHeaders : null
-      )
-
-      console.log('PDF Generation Response Status:', response.status)
-
-      if (!response.ok) {
-        if (response.status === 401) { triggerLogin(); return }
-        const errorText = await response.text()
-        throw new Error(`Failed to generate PDF: ${response.status} - ${errorText}`)
-      }
-
-      const blob = await response.blob()
-      console.log('PDF Blob:', { size: blob.size, type: blob.type })
-
-      if (blob.size === 0) {
-        throw new Error('Received empty PDF document')
-      }
-
-      const url = URL.createObjectURL(blob)
-
-      if (isPreview) {
-        setPdfUrl(url)
-        setShowPreviewModal(true)
-      } else {
-        const link = document.createElement('a')
-        link.href = url
-        link.download = 'generated_document.pdf'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      }
-    } catch (err) {
-      console.error(err)
-      alert(formatApiError(err).message)
+    setIsJsonEditing(false)
+    const template = buildTemplate({ config, title, components, footer, bookmarks })
+    const { errors, warnings } = validateTemplate(template)
+    if (errors.length > 0 || warnings.length > 0) {
+      console.warn('Template schema issues:', { errors, warnings })
     }
+
+    await run({
+      endpoint: '/api/v1/generate/template-pdf',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/pdf'
+      },
+      body: JSON.stringify(template),
+      getAuthHeaders,
+      filename: 'generated_document.pdf',
+      autoDownload: !isPreview,
+      onBlob: isPreview
+        ? (blob, url) => {
+          setPdfUrl(url)
+          setShowPreviewModal(true)
+        }
+        : undefined,
+      onError: (message) => showToast(message, 'error'),
+    })
   }
 
   const handlePreviewPdf = () => handleGeneratePdf(true)
@@ -626,7 +607,7 @@ export default function Editor() {
   // --- File Upload ---
   const onLoadTemplate = async (filename, source = 'local') => {
     if (!filename || !filename.trim()) {
-      alert('Please enter a template filename')
+      showToast('Please enter a template filename', 'error')
       return
     }
 
@@ -640,30 +621,19 @@ export default function Editor() {
         }
         templateData = await response.json();
       } else {
-        // Make GET request to fetch the template
-        const response = await makeAuthenticatedRequest(
-          `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
+        // GET the template through the shared hook (auth retry + error mapping included)
+        templateData = await runJson(
           {
+            endpoint: `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
             method: 'GET',
             headers: {
               'Accept': 'application/json'
-            }
-          },
-          isAuthRequired() ? getAuthHeaders : null
+            },
+            getAuthHeaders,
+            onError: (message) => showToast(message, 'error'),
+          }
         )
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            triggerLogin()
-            return
-          }
-          if (response.status === 404) {
-            throw new Error(`Template "${filename}" not found`)
-          }
-          throw new Error(`Failed to load template: ${response.status}`)
-        }
-
-        templateData = await response.json()
+        if (!templateData) return
       }
 
       // Parse and load the template data
@@ -683,7 +653,7 @@ export default function Editor() {
 
     } catch (error) {
       console.error('Error loading template:', error)
-      alert(error.message || 'Failed to load template')
+      showToast(error.message || 'Failed to load template', 'error')
     }
   }
 
@@ -696,26 +666,14 @@ export default function Editor() {
         // Only handle Ctrl+S to save JSON even in inputs
         if ((e.metaKey || e.ctrlKey) && e.key === 's') {
           e.preventDefault()
-          const element = document.createElement('a')
-          const file = new Blob([jsonText], { type: 'application/json' })
-          element.href = URL.createObjectURL(file)
-          element.download = 'template.json'
-          document.body.appendChild(element)
-          element.click()
-          document.body.removeChild(element)
+          downloadJsonTemplate()
         }
         return
       }
 
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
-        const element = document.createElement('a')
-        const file = new Blob([jsonText], { type: 'application/json' })
-        element.href = URL.createObjectURL(file)
-        element.download = 'template.json'
-        document.body.appendChild(element)
-        element.click()
-        document.body.removeChild(element)
+        downloadJsonTemplate()
         return
       }
 
@@ -815,35 +773,32 @@ export default function Editor() {
             try {
               const formData = new FormData()
               formData.append('font', file)
-              const response = await makeAuthenticatedRequest(
-                '/api/v1/fonts',
+              const data = await runJson(
                 {
+                  endpoint: '/api/v1/fonts',
                   method: 'POST',
-                  body: formData
-                },
-                isAuthRequired() ? getAuthHeaders : null
+                  body: formData,
+                  getAuthHeaders,
+                  onError: (message) => showToast(message, 'error'),
+                }
               )
-              if (response.ok) {
-                const data = await response.json()
+              if (data) {
                 showToast(`Font "${data.name}" uploaded successfully!`, 'success')
                 // Refresh fonts list (invalidate cache)
                 _fontsCache = null
                 _fontsFetchPromise = null
-                const fontsResponse = await makeAuthenticatedRequest(
-                  '/api/v1/fonts',
-                  {},
-                  isAuthRequired() ? getAuthHeaders : null
-                )
-                if (fontsResponse.ok) {
-                  const fontsData = await fontsResponse.json()
-                  if (fontsData.fonts && Array.isArray(fontsData.fonts)) {
-                    _fontsCache = fontsData.fonts
-                    setFonts(fontsData.fonts)
+                const fontsData = await runJson(
+                  {
+                    endpoint: '/api/v1/fonts',
+                    method: 'GET',
+                    getAuthHeaders,
+                    onError: (message) => showToast(message, 'error'),
                   }
+                )
+                if (fontsData && fontsData.fonts && Array.isArray(fontsData.fonts)) {
+                  _fontsCache = fontsData.fonts
+                  setFonts(fontsData.fonts)
                 }
-              } else {
-                const error = await response.json()
-                showToast(`Failed to upload font: ${error.error || 'Unknown error'}`, 'error')
               }
             } catch (error) {
               console.error('Error uploading font:', error)
@@ -1196,16 +1151,7 @@ export default function Editor() {
       </div>
 
       {/* Toast Notifications */}
-      {toasts.map((toast, index) => (
-        <div key={toast.id} style={{ top: `${80 + index * 100}px` }}>
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            duration={toast.duration}
-            onClose={() => removeToast(toast.id)}
-          />
-        </div>
-      ))}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       {/* Preview Modal */}
       {showPreviewModal && (
@@ -1271,18 +1217,6 @@ export default function Editor() {
         clipboard={clipboard}
         hasTitle={!!title}
       />
-
-      {/* Toast Notifications */}
-      {toasts.map((toast, index) => (
-        <div key={toast.id} style={{ top: `${80 + index * 100}px` }}>
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            duration={toast.duration}
-            onClose={() => removeToast(toast.id)}
-          />
-        </div>
-      ))}
 
       <style jsx>{`
         .dragging {

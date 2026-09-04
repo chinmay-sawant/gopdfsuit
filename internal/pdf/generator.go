@@ -19,6 +19,7 @@ import (
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/encryption"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/signature"
 	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/fontutils"
 )
@@ -557,9 +558,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// This ensures that when content streams are generated, custom font references
 	// (e.g., /CF2000) have valid object IDs. Custom fonts start AFTER image objects
 	// to avoid conflicts with image XObjects.
-	pageManager.NextObjectID = nextImageObjectID
-	customFontObjectStart := pageManager.NextObjectID
-	pageManager.NextObjectID = fontRegistry.AssignObjectIDs(customFontObjectStart)
+	alloc.SeekTo(nextImageObjectID)
+	customFontObjectStart := alloc.Next()
+	alloc.SeekTo(fontRegistry.AssignObjectIDs(customFontObjectStart))
 
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
@@ -612,7 +613,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		if template.Config.PdfTitle != "" && template.Config.PDFA.Title == "" {
 			template.Config.PDFA.Title = template.Config.PdfTitle
 		}
-		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor)
+		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor, alloc)
 	} else if template.Config.PDFACompliant {
 		// If using valid PDF/A mode but no explicit PDFA config, create one to ensure metadata
 		pdfaConfig := &models.PDFAConfig{
@@ -620,7 +621,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			Conformance: "4", // Default for PDF/A-4
 			Title:       template.Config.PdfTitle,
 		}
-		pdfaHandler = NewPDFAHandler(pdfaConfig, pageManager, encryptor)
+		pdfaHandler = NewPDFAHandler(pdfaConfig, pageManager, encryptor, alloc)
 	}
 
 	// Calculate object IDs for fonts early (needed for signature font embedding)
@@ -713,9 +714,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// reuse those IDs. In the legacy layout this is a no-op (fonts sit far
 	// below NextObjectID); in a shifted layout it advances past the fonts.
 	// It must run before signature creation, which allocates via the manager.
-	if currentObjectID > pageManager.NextObjectID {
-		pageManager.NextObjectID = currentObjectID
-	}
+	alloc.EnsureBeyond(currentObjectID)
 
 	// Setup digital signature if enabled
 	var pdfSigner *signature.PDFSigner
@@ -1566,53 +1565,10 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	maxObjID := maxXrefObjectID(*xrefOffsets, infoObjectID)
 	totalObjects := maxObjID + 1
 
-	// Write compact XRef table using subsections
-	xrefStart := pdfBuffer.Len()
-	pdfBuffer.WriteString("xref\n")
-
-	// Group consecutive objects into subsections
-	var subsections []struct{ start, count int }
-	i := 0
-	for i < len(usedObjects) {
-		start := usedObjects[i]
-		count := 1
-		for i+count < len(usedObjects) && usedObjects[i+count] == start+count {
-			count++
-		}
-		subsections = append(subsections, struct{ start, count int }{start, count})
-		i += count
-	}
-
-	for _, sub := range subsections {
-		b = b[:0]
-		b = strconv.AppendInt(b, int64(sub.start), 10)
-		b = append(b, ' ')
-		b = strconv.AppendInt(b, int64(sub.count), 10)
-		b = append(b, '\n')
-		pdfBuffer.Write(b)
-		for j := 0; j < sub.count; j++ {
-			objID := sub.start + j
-			if objID == 0 {
-				pdfBuffer.WriteString("0000000000 65535 f \n")
-			} else if offset, exists := xrefOffsetAt(*xrefOffsets, objID); exists {
-				// Manual zero-padded 10-digit integer (replaces fmt.Sprintf("%010d 00000 n \n", offset))
-				b = b[:0]
-				b = strconv.AppendInt(b, int64(offset), 10)
-				// Pad to 10 digits
-				padding := 10 - len(b)
-				if padding > 0 {
-					// Shift existing digits right
-					b = b[:10]
-					copy(b[padding:], b[:10-padding])
-					for k := range padding {
-						b[k] = '0'
-					}
-				}
-				b = append(b, " 00000 n \n"...)
-				pdfBuffer.Write(b)
-			}
-		}
-	}
+	// Write compact XRef table using subsections (pdfobj write seam).
+	xrefStart := pdfobj.WriteCompactXRefSorted(pdfBuffer, usedObjects, func(objID int) (int, bool) {
+		return xrefOffsetAt(*xrefOffsets, objID)
+	}, b, pdfobj.GeneratorStyle)
 
 	// Trailer with Info and ID
 	// For PDF/A-4, The Info key shall not be present in the trailer dictionary unless there exists a PieceInfo entry

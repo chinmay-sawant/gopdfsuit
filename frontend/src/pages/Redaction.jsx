@@ -32,31 +32,14 @@ const Redaction = () => {
     const [password, setPassword] = useState('')
     const [mode, setMode] = useState('auto')
 
-  const canvasRef = useRef(null)
   const containerRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [successMsg, setSuccessMsg] = useState(null)
-  const { runJson, request } = usePdfOperation({
+  const { isLoading, runJson, runLocal, request } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => setError(message),
   })
-
-    const readErrorResponse = async (response, fallbackMessage) => {
-        try {
-            const text = await response.text()
-            if (!text) return fallbackMessage
-            try {
-                const parsed = JSON.parse(text)
-                return parsed?.error || parsed?.message || fallbackMessage
-            } catch {
-                return text
-            }
-        } catch {
-            return fallbackMessage
-        }
-    }
 
     const parseSearchTerms = (raw) => {
         if (!raw) return []
@@ -302,8 +285,6 @@ const Redaction = () => {
           if (additions.length === 0) return prev
           return [...prev, ...additions]
         })
-    } catch (err) {
-        setError(err.message)
     } finally {
         setIsSearching(false)
     }
@@ -318,9 +299,7 @@ const Redaction = () => {
             setError('Selected PDF is empty. Please re-upload a valid PDF.')
             return
         }
-    
-    setIsLoading(true)
-    try {
+
       // Flatten redactions map to array
       const allRedactions = Object.values(redactions).flat()
 
@@ -353,56 +332,44 @@ const Redaction = () => {
             const modesToTry = mode === 'auto' ? ['secure_required', 'visual_allowed'] : [mode]
             let appliedMode = ''
             let fallbackUsed = false
-            let response = null
-            let lastError = 'Redaction failed'
+            let report = null
 
-            for (let i = 0; i < modesToTry.length; i += 1) {
-                const candidateMode = modesToTry[i]
-                const tryResponse = await request({
-                    endpoint: '/api/v1/redact/apply',
-                    body: buildPayload(candidateMode),
-                    getAuthHeaders,
-                    throwOnError: false,
-                })
-
-                if (tryResponse.ok) {
-                    response = tryResponse
-                    appliedMode = candidateMode
-                    fallbackUsed = mode === 'auto' && i > 0
-                    break
+            const url = await runLocal(async () => {
+                let lastError = 'Redaction failed'
+                for (let i = 0; i < modesToTry.length; i += 1) {
+                    const candidateMode = modesToTry[i]
+                    try {
+                        const tryResponse = await request({
+                            endpoint: '/api/v1/redact/apply',
+                            body: buildPayload(candidateMode),
+                            getAuthHeaders,
+                            throwOnError: true,
+                        })
+                        const reportHeader = tryResponse.headers.get('X-Redaction-Report')
+                        if (reportHeader) {
+                            try { report = JSON.parse(reportHeader) } catch { /* ignore */ }
+                        }
+                        appliedMode = candidateMode
+                        fallbackUsed = mode === 'auto' && i > 0
+                        return await tryResponse.blob()
+                    } catch (err) {
+                        const message = err.message || lastError
+                        lastError = message
+                        const canFallback = mode === 'auto' && candidateMode === 'secure_required'
+                        const secureUnavailable = message.toLowerCase().includes('secure_required requested but no secure text content could be removed')
+                        if (canFallback && secureUnavailable) {
+                            continue
+                        }
+                        throw err
+                    }
                 }
-
-                const message = await readErrorResponse(tryResponse, 'Redaction failed')
-                lastError = message
-
-                const canFallback = mode === 'auto' && candidateMode === 'secure_required'
-                const secureUnavailable = message.toLowerCase().includes('secure_required requested but no secure text content could be removed')
-                if (canFallback && secureUnavailable) {
-                    continue
-                }
-
-                throw new Error(message)
-            }
-
-            if (!response) {
                 throw new Error(lastError)
-            }
+            }, {
+                filename: `redacted_${file.name}`,
+                autoDownload: true,
+            })
 
-      // Read report header before consuming blob (headers and body are independent)
-      let report = null
-      const reportHeader = response.headers.get('X-Redaction-Report')
-      if (reportHeader) {
-        try { report = JSON.parse(reportHeader) } catch { /* ignore */ }
-      }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `redacted_${file.name}`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+            if (!url) return
 
       if (report && report.generatedRects === 0) {
         setSuccessMsg(
@@ -420,11 +387,6 @@ const Redaction = () => {
         const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
         setSuccessMsg(`Visual redaction applied and PDF downloaded successfully!${rectInfo}`)
       }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   // Handle page load to get dimensions
@@ -556,18 +518,6 @@ const Redaction = () => {
                                 }} />
                             )}
                             
-                            {/* Invisible canvas capture layer - simplified: we draw using divs above */}
-                                                        <div
-                                                            ref={canvasRef}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: pageViewport.top,
-                                                                left: pageViewport.left,
-                                                                width: pageViewport.width,
-                                                                height: pageViewport.height,
-                                                                zIndex: 10,
-                                                            }}
-                                                        />
                          </div>
                     </div>
 

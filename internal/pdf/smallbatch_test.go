@@ -24,12 +24,12 @@ func TestAddAnnotationGrowsPageAnnots(t *testing.T) {
 // to a real page object instead of emitting a dangling 3+index reference.
 func TestCreateLinkAnnotationBoundsCheck(t *testing.T) {
 	pm := NewPageManager(PageDimensions{Width: 595, Height: 842}, PageMargins{}, false, NewFontRegistry(), false, 0)
-	id := CreateLinkAnnotation(LinkAnnotation{Rect: [4]float64{0, 0, 10, 10}, PageIndex: 99, DestY: 700}, pm)
+	id := CreateLinkAnnotation(LinkAnnotation{Rect: [4]float64{0, 0, 10, 10}, PageIndex: 99, DestY: 700}, pm, nil)
 	content := string(pm.ExtraObjects[id])
 	if !strings.Contains(content, "/Dest [3 0 R") {
 		t.Fatalf("out-of-range PageIndex must clamp to first page, got %q", content)
 	}
-	id2 := CreateLinkAnnotation(LinkAnnotation{Rect: [4]float64{0, 0, 10, 10}, PageIndex: 0, DestY: 700}, pm)
+	id2 := CreateLinkAnnotation(LinkAnnotation{Rect: [4]float64{0, 0, 10, 10}, PageIndex: 0, DestY: 700}, pm, nil)
 	if !strings.Contains(string(pm.ExtraObjects[id2]), "/Dest [3 0 R") {
 		t.Fatalf("valid PageIndex 0 must resolve to page object 3, got %q", pm.ExtraObjects[id2])
 	}

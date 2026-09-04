@@ -2,8 +2,6 @@
 package gopdflib
 
 import (
-	"errors"
-
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
 )
 
@@ -25,8 +23,16 @@ const MaxCompressInputBytes = compress.MaxInputBytes
 //	}
 //	os.WriteFile("document-compressed.pdf", out, 0644)
 func CompressPDF(data []byte, opts CompressOptions) ([]byte, error) {
+	const op = "gopdflib: CompressPDF"
 	if len(data) == 0 {
-		return nil, errors.New("gopdflib: CompressPDF needs a non-empty PDF")
+		return nil, invalidInputError(op, "needs a non-empty PDF")
 	}
-	return compress.CompressPDF(data, toInternalCompressOptions(opts))
+	if len(data) > MaxCompressInputBytes {
+		return nil, limitExceededError(op, "PDF exceeds maximum size")
+	}
+	out, err := compress.CompressPDF(data, toInternalCompressOptions(opts))
+	if err != nil {
+		return nil, wrapEngineError(op, err)
+	}
+	return out, nil
 }

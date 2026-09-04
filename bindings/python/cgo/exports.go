@@ -25,11 +25,12 @@ typedef struct {
 */
 import "C"
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"unsafe"
 
+	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
@@ -37,10 +38,12 @@ import (
 // (512 MiB, matching the MergePDFs per-part limit).
 const maxCGOPayloadBytes = 512 << 20
 
-// errResult builds an error ByteResult.
+// errResult builds an error ByteResult. The ABI is unchanged (the `error`
+// C string), but the payload is now the shared {code,message} JSON envelope
+// so Python can raise a typed subclass without parsing message text.
 func errResult(err error) C.ByteResult {
 	var result C.ByteResult
-	result.error = C.CString(err.Error())
+	result.error = C.CString(gopdflib.EnvelopeJSON(err))
 	return result
 }
 
@@ -61,10 +64,22 @@ func bytesResult(b []byte) C.ByteResult {
 	return result
 }
 
+// invalidArg wraps a transport-guard failure so the envelope classifies it
+// as invalid_input, matching the HTTP 400 for the same malformed calls.
+func invalidArg(err error) error {
+	return fmt.Errorf("%w: %w", gopdflib.ErrInvalidInput, err)
+}
+
+// limitArg wraps an over-cap transport rejection so the envelope carries
+// limit_exceeded, matching the HTTP 413 for oversized uploads.
+func limitArg(err error) error {
+	return fmt.Errorf("%w: %w", gopdflib.ErrLimitExceeded, err)
+}
+
 // checkByteLen rejects lengths that cannot be represented as C.int.
 func checkByteLen(n int) error {
 	if n < 0 || int64(n) > math.MaxInt32 {
-		return errors.New("length exceeds maximum representable length")
+		return invalidArg(errors.New("length exceeds maximum representable length"))
 	}
 	return nil
 }
@@ -78,7 +93,7 @@ func cBytes(p *C.char, n C.int) ([]byte, error) {
 		return nil, nil
 	}
 	if p == nil {
-		return nil, errors.New("nil data pointer with non-zero length")
+		return nil, invalidArg(errors.New("nil data pointer with non-zero length"))
 	}
 	return C.GoBytes(unsafe.Pointer(p), n), nil
 }
@@ -86,7 +101,7 @@ func cBytes(p *C.char, n C.int) ([]byte, error) {
 // cString safely converts a C string pointer, rejecting nil pointers.
 func cString(p *C.char) (string, error) {
 	if p == nil {
-		return "", errors.New("nil string pointer")
+		return "", invalidArg(errors.New("nil string pointer"))
 	}
 	return C.GoString(p), nil
 }
@@ -99,22 +114,22 @@ func pdfBytes(p *C.char, n C.int) ([]byte, error) {
 		return nil, err
 	}
 	if int64(n) > maxCGOPayloadBytes {
-		return nil, errors.New("PDF length out of range")
+		return nil, limitArg(errors.New("PDF length out of range"))
 	}
 	return cBytes(p, n)
 }
 
-// jsonArg parses a C JSON string argument into T. Malformed JSON is a
-// transport error; semantic validation of the decoded value belongs to
-// gopdflib.
+// jsonArg parses a C JSON string argument into T via sonic (pooled decoder
+// path for small args). Malformed JSON is a transport error; semantic
+// validation of the decoded value belongs to gopdflib.
 func jsonArg[T any](p *C.char) (T, error) {
 	var v T
 	s, err := cString(p)
 	if err != nil {
 		return v, err
 	}
-	if err := json.Unmarshal([]byte(s), &v); err != nil {
-		return v, err
+	if err := sonic.Unmarshal([]byte(s), &v); err != nil {
+		return v, invalidArg(err)
 	}
 	return v, nil
 }
@@ -137,7 +152,7 @@ func jsonOp(op func() (any, error)) C.ByteResult {
 		if err != nil {
 			return nil, err
 		}
-		return json.Marshal(v)
+		return sonic.Marshal(v)
 	})
 }
 
@@ -146,7 +161,7 @@ func jsonOp(op func() (any, error)) C.ByteResult {
 func bytesArrayOp(op func() ([][]byte, error)) C.ByteArrayResult {
 	var result C.ByteArrayResult
 	fail := func(err error) C.ByteArrayResult {
-		result.error = C.CString(err.Error())
+		result.error = C.CString(gopdflib.EnvelopeJSON(err))
 		return result
 	}
 
@@ -201,10 +216,10 @@ func GeneratePDF(jsonTemplate *C.char) C.ByteResult {
 func MergePDFs(pdfData **C.char, pdfLengths *C.int, count C.int) C.ByteResult {
 	return bytesOp(func() ([]byte, error) {
 		if pdfData == nil || pdfLengths == nil {
-			return nil, errors.New("nil array pointer")
+			return nil, invalidArg(errors.New("nil array pointer"))
 		}
 		if count <= 0 || int64(count) >= 1<<16 {
-			return nil, errors.New("invalid PDF count (must be 0 < count < 65536)")
+			return nil, invalidArg(errors.New("invalid PDF count (must be 0 < count < 65536)"))
 		}
 
 		dataSlice := unsafe.Slice(pdfData, int(count))
@@ -214,14 +229,14 @@ func MergePDFs(pdfData **C.char, pdfLengths *C.int, count C.int) C.ByteResult {
 		for i := 0; i < int(count); i++ {
 			length := int(lengthSlice[i])
 			if length < 0 || length > maxCGOPayloadBytes {
-				return nil, errors.New("PDF part length out of range")
+				return nil, limitArg(errors.New("PDF part length out of range"))
 			}
 			if length == 0 {
 				files[i] = nil
 				continue
 			}
 			if dataSlice[i] == nil {
-				return nil, errors.New("nil PDF data pointer")
+				return nil, invalidArg(errors.New("nil PDF data pointer"))
 			}
 			files[i] = C.GoBytes(unsafe.Pointer(dataSlice[i]), C.int(length))
 		}
@@ -262,7 +277,7 @@ func ParsePageSpec(spec *C.char, totalPages C.int) C.ByteResult {
 		if err != nil {
 			return nil, err
 		}
-		return json.Marshal(pages)
+		return sonic.Marshal(pages)
 	})
 }
 
@@ -277,7 +292,7 @@ func FillPDFWithXFDF(pdfData *C.char, pdfLen C.int, xfdfData *C.char, xfdfLen C.
 			return nil, err
 		}
 		if int64(xfdfLen) > maxCGOPayloadBytes {
-			return nil, errors.New("XFDF length out of range")
+			return nil, limitArg(errors.New("XFDF length out of range"))
 		}
 		xfdfBytes, err := cBytes(xfdfData, xfdfLen)
 		if err != nil {

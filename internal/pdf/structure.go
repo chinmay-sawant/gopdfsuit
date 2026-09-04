@@ -456,18 +456,19 @@ func (sm *StructureManager) ReserveElementCapacity(additional int) {
 	}
 }
 
-// ReserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
+// reserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
 // Used by drawTable to avoid per-cell ensurePageSlot/increment overhead (D4).
-func (sm *StructureManager) ReserveMCIDs(pageIndex, count int) int {
-	return sm.reserveMCIDs(pageIndex, count, true)
+// Reached through TableTagger; kept package-private with the other row primitives.
+func (sm *StructureManager) reserveMCIDs(pageIndex, count int) int {
+	return sm.reserveMCIDsImpl(pageIndex, count, true)
 }
 
 // ReserveMCIDsLite reserves MCIDs without growing ParentTree (deferred bulk fill per page).
 func (sm *StructureManager) ReserveMCIDsLite(pageIndex, count int) int {
-	return sm.reserveMCIDs(pageIndex, count, false)
+	return sm.reserveMCIDsImpl(pageIndex, count, false)
 }
 
-func (sm *StructureManager) reserveMCIDs(pageIndex, count int, reserveParentTree bool) int {
+func (sm *StructureManager) reserveMCIDsImpl(pageIndex, count int, reserveParentTree bool) int {
 	if !sm.Enabled || count <= 0 {
 		return 0
 	}
@@ -553,8 +554,8 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	return sm.beginMarkedContentBuf(buf, pageIndex, tag, props, -1)
 }
 
-// BeginMarkedContentBufWithMCID is like BeginMarkedContentBuf but uses a pre-reserved MCID (batch allocation).
-func (sm *StructureManager) BeginMarkedContentBufWithMCID(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string, mcid int) {
+// beginMarkedContentBufWithMCID is like BeginMarkedContentBuf but uses a pre-reserved MCID (batch allocation).
+func (sm *StructureManager) beginMarkedContentBufWithMCID(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string, mcid int) {
 	sm.beginMarkedContentBuf(buf, pageIndex, tag, props, mcid)
 }
 
@@ -613,8 +614,8 @@ func (sm *StructureManager) beginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	return mcid
 }
 
-// EndMarkedContentBuf writes EMC directly to a bytes.Buffer (avoids strings.Builder intermediary)
-func (sm *StructureManager) EndMarkedContentBuf(buf *bytes.Buffer) {
+// endMarkedContentBuf writes EMC directly to a bytes.Buffer (avoids strings.Builder intermediary)
+func (sm *StructureManager) endMarkedContentBuf(buf *bytes.Buffer) {
 	if !sm.Enabled {
 		return
 	}
@@ -624,8 +625,8 @@ func (sm *StructureManager) EndMarkedContentBuf(buf *bytes.Buffer) {
 	}
 }
 
-// WriteCellMarkedContentBDC emits BDC for a cell MCID without allocating a per-cell StructElem.
-func (sm *StructureManager) WriteCellMarkedContentBDC(buf *bytes.Buffer, tag StructureType, mcid int) {
+// writeCellMarkedContentBDC emits BDC for a cell MCID without allocating a per-cell StructElem.
+func (sm *StructureManager) writeCellMarkedContentBDC(buf *bytes.Buffer, tag StructureType, mcid int) {
 	if !sm.Enabled {
 		return
 	}
@@ -658,7 +659,7 @@ func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
 	}
 }
 
-// BeginTableRowWithTDMCIDs starts a TR with one TD StructElem per column, each carrying
+// beginTableRowWithTDMCIDs starts a TR with one TD StructElem per column, each carrying
 // a pre-reserved MCID. Used when replaying cached shared-row content streams that already
 // contain matching BDC/EMC operators (PDF/UA-2 requires TR → TD, not bare MCID leaves).
 //
@@ -723,7 +724,7 @@ func (sm *StructureManager) beginTableRowArena(pageIndex, startMCID, count int) 
 	return tr, true
 }
 
-func (sm *StructureManager) BeginTableRowWithTDMCIDs(pageIndex, startMCID, count int) {
+func (sm *StructureManager) beginTableRowWithTDMCIDs(pageIndex, startMCID, count int) {
 	if !sm.Enabled {
 		return
 	}

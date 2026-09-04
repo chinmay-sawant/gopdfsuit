@@ -2,7 +2,6 @@
 package gopdflib
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
@@ -22,10 +21,15 @@ import (
 //	spec := gopdflib.SplitSpec{MaxPerFile: 5}
 //	parts, err := gopdflib.SplitPDF(pdfBytes, spec)
 func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
+	const op = "gopdflib: SplitPDF"
 	if len(file) == 0 {
-		return nil, errors.New("gopdflib: SplitPDF needs a non-empty PDF")
+		return nil, invalidInputError(op, "needs a non-empty PDF")
 	}
-	return merge.SplitPDF(file, toInternalSplitSpec(spec))
+	parts, err := merge.SplitPDF(file, toInternalSplitSpec(spec))
+	if err != nil {
+		return nil, wrapEngineError(op, err)
+	}
+	return parts, nil
 }
 
 // ParsePageSpec parses a page specification string like "1-3,5,7-9" into a sorted
@@ -41,5 +45,9 @@ func ParsePageSpec(spec string, totalPages int) ([]int, error) {
 	if strings.TrimSpace(spec) == "" {
 		return nil, nil
 	}
-	return merge.ParsePageSpec(spec, totalPages)
+	pages, err := merge.ParsePageSpec(spec, totalPages)
+	if err != nil {
+		return nil, wrapEngineError("gopdflib: ParsePageSpec", err)
+	}
+	return pages, nil
 }

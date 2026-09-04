@@ -2,8 +2,6 @@
 package gopdflib
 
 import (
-	"errors"
-
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/form"
 )
 
@@ -21,11 +19,16 @@ import (
 //	}
 //	os.WriteFile("filled.pdf", filled, 0644)
 func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
+	const op = "gopdflib: FillPDFWithXFDF"
 	if len(pdfBytes) == 0 {
-		return nil, errors.New("gopdflib: FillPDFWithXFDF needs a non-empty PDF")
+		return nil, invalidInputError(op, "needs a non-empty PDF")
 	}
 	if len(xfdfBytes) == 0 {
-		return nil, errors.New("gopdflib: FillPDFWithXFDF needs non-empty XFDF data")
+		return nil, invalidInputError(op, "needs non-empty XFDF data")
 	}
-	return form.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	out, err := form.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	if err != nil {
+		return nil, wrapEngineError(op, err)
+	}
+	return out, nil
 }

@@ -1,15 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { formatApiError, makeAuthenticatedRequest } from '../utils/apiConfig'
 
-export const isAuthErrorMessage = (message) => {
-  const text = String(message || '')
-  return (
-    text.includes('Authentication failed') ||
-    text.includes('Not authenticated') ||
-    text.includes('login again') ||
-    text.includes('401') ||
-    text.includes('403')
-  )
+/**
+ * Fallback text per HTTP status when the server sent no usable message.
+ * Auth (401/403) never reaches here: it routes to onAuthRequired.
+ */
+const fallbackMessageForStatus = (status) => {
+  switch (status) {
+    case 413:
+      return 'Upload exceeds the server size limit.'
+    case 422:
+    case 400:
+      return 'Request rejected as invalid.'
+    case 500:
+    case 502:
+    case 503:
+      return 'Server failed to process the request.'
+    default:
+      return null
+  }
 }
 
 export const downloadBlobUrl = (url, filename) => {
@@ -58,14 +67,16 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
 
   const handleFailure = useCallback((err, onErrorOverride) => {
     const formatted = formatApiError(err)
-    if (isAuthErrorMessage(formatted.message)) {
+    const status = err?.status
+    if (status === 401 || status === 403) {
       if (onAuthRequired) onAuthRequired()
       return null
     }
-    setError(formatted.message)
+    const message = formatted.message || fallbackMessageForStatus(status) || 'Request failed.'
+    setError(message)
     const notify = onErrorOverride || onError
-    if (notify) notify(formatted.message)
-    else alert(formatted.message)
+    if (notify) notify(message)
+    else alert(message)
     return null
   }, [onAuthRequired, onError])
 

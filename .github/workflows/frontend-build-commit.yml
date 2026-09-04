@@ -89,6 +89,8 @@ jobs:
         run: npm ci
       - name: Run Lint
         run: npm run lint
+      - name: Run schema triple-gate check
+        run: npm run test:schema
 
   python-build:
     name: Python Build

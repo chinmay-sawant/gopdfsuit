@@ -23,14 +23,14 @@ func handleGetFonts(c *gin.Context) {
 func handleUploadFont(c *gin.Context) {
 	file, err := c.FormFile("font")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No font file provided"})
+		abortError(c, http.StatusBadRequest, "No font file provided")
 		return
 	}
 
 	// Validate file extension
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	if ext != ".ttf" && ext != ".otf" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only .ttf and .otf files are supported"})
+		abortError(c, http.StatusBadRequest, "Only .ttf and .otf files are supported")
 		return
 	}
 
@@ -38,7 +38,7 @@ func handleUploadFont(c *gin.Context) {
 	f, err := file.Open()
 	if err != nil {
 		log.Printf("handleUploadFont: open failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process font upload"})
+		abortError(c, http.StatusInternalServerError, "failed to process font upload")
 		return
 	}
 	defer func() {
@@ -48,11 +48,11 @@ func handleUploadFont(c *gin.Context) {
 	data, ok, err := pdfService.ReadUpload(f, UploadKindFont)
 	if err != nil {
 		log.Printf("handleUploadFont: read failed: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 	if !ok {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "font file exceeds maximum size"})
+		abortError(c, http.StatusRequestEntityTooLarge, "font file exceeds maximum size")
 		return
 	}
 
@@ -61,7 +61,7 @@ func handleUploadFont(c *gin.Context) {
 	err = pdfService.RegisterFont(fontName, data)
 	if err != nil {
 		log.Printf("handleUploadFont: register %q failed: %v", fontName, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid font data"})
+		abortError(c, http.StatusBadRequest, "invalid font data")
 		return
 	}
 

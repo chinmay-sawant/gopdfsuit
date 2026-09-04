@@ -16,8 +16,10 @@ type LinkAnnotation struct {
 // For internal links (bookmarks), it creates a /GoTo action with named destination
 // Returns the annotation object ID. Emission lives in DestinationStore so
 // link annots and their structure elements share one home with named dests.
-func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
-	return NewDestinationStore(pageManager, nil).CreateLinkAnnotation(annot)
+// A nil encryptor preserves the legacy unencrypted URI output; pass the
+// document encryptor once encryption is set up so URI strings are encrypted.
+func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager, encryptor ObjectEncryptor) int {
+	return NewDestinationStore(pageManager, pageManager.objects().alloc, encryptor).CreateLinkAnnotation(annot)
 }
 
 // ParseLink parses a link string and determines if it's external or internal
@@ -55,7 +57,7 @@ func ParseLink(link string) (isExternal bool, uri string, dest string) {
 
 // DrawCellLink creates a link annotation for a cell if it has a link
 // Returns the annotation object ID, or 0 if no link
-func DrawCellLink(link string, cellX, cellY, cellWidth, cellHeight float64, pageManager *PageManager) int {
+func DrawCellLink(link string, cellX, cellY, cellWidth, cellHeight float64, pageManager *PageManager, encryptor ObjectEncryptor) int {
 	if link == "" {
 		return 0
 	}
@@ -78,7 +80,7 @@ func DrawCellLink(link string, cellX, cellY, cellWidth, cellHeight float64, page
 		annot.Dest = dest
 	}
 
-	objID := CreateLinkAnnotation(annot, pageManager)
+	objID := CreateLinkAnnotation(annot, pageManager, encryptor)
 	pageManager.AddAnnotation(objID)
 
 	return objID

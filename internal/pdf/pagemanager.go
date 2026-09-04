@@ -106,6 +106,7 @@ type PageManager struct {
 	NamedDests              map[string]NamedDest // Map of named destinations for internal linking
 	FontRegistry            *CustomFontRegistry  // Per-generation font registry for thread-safe font access
 	InitialStreamCap        int                  // Initial capacity for pooled page content streams
+	alloc                   *Allocator           // Sole owner of NextObjectID reservation (Phase 5 D1/A2)
 	sharedRowBytes          int                  // profiled shared-layout row emit size (P40)
 	cachedPageInit          []byte               // Reused border/watermark init bytes for continuation pages (C3)
 	cachedPageInitBorder    string
@@ -151,6 +152,7 @@ func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompa
 		FontRegistry:          fontRegistry,
 		InitialStreamCap:      initialStreamCap,
 	}
+	pm.alloc = (&Allocator{}).BindPageManager(pm, nil)
 	return pm
 }
 
@@ -282,16 +284,23 @@ func (pm *PageManager) CommitExtraObjectString(id int, content string) {
 
 // ObjectAllocator returns the single Allocator bound to this manager and
 // the generation xref offsets, owning ID reservation, ExtraObjects commit,
-// and xref-offset recording (Phase 5 D1).
+// and xref-offset recording (Phase 5 D1). The instance is shared: calling it
+// rebinds the offsets of the manager-owned allocator instead of allocating.
 func (pm *PageManager) ObjectAllocator(offsets *[]int) *Allocator {
-	return (&Allocator{}).BindPageManager(pm, offsets)
+	if pm.alloc == nil {
+		pm.alloc = &Allocator{}
+	}
+	return pm.alloc.BindPageManager(pm, offsets)
 }
 
 // Objects returns the object bookkeeping collaborator (IDs, extras,
 // annots, link structure elements). Structure and Fonts stay injected
 // collaborators on PageManager itself (Phase 5 D2).
 func (pm *PageManager) objects() *pageObjectStore {
-	return &pageObjectStore{pm: pm}
+	if pm.alloc == nil {
+		pm.alloc = (&Allocator{}).BindPageManager(pm, nil)
+	}
+	return &pageObjectStore{pm: pm, alloc: pm.alloc}
 }
 
 // Layout returns the page geometry and stream collaborator (Phase 5 D2).
@@ -299,50 +308,40 @@ func (pm *PageManager) layout() *pageLayoutStore {
 	return &pageLayoutStore{pm: pm}
 }
 
-// pageObjectStore owns object-ID allocation (via the Allocator counter),
+// pageObjectStore owns object-ID allocation (via the bound Allocator),
 // ExtraObjects commit, per-page annotation lists, and link structure
 // element bookkeeping. Method bodies moved here from PageManager so the
 // manager stays a thin facade.
 type pageObjectStore struct {
-	pm *PageManager
+	pm    *PageManager
+	alloc *Allocator
 }
 
 // AddExtraObject adds an extra object (like a widget) to the manager
 func (s *pageObjectStore) AddExtraObject(content string) int {
-	pm := s.pm
-	id := pm.NextObjectID
-	pm.NextObjectID++
-	pm.ExtraObjects[id] = []byte(content)
+	id := s.alloc.Alloc()
+	s.alloc.Commit(id, []byte(content))
 	return id
 }
 
 // AllocObjectID reserves one object ID via the allocator counter.
 func (s *pageObjectStore) AllocObjectID() int {
-	pm := s.pm
-	id := pm.NextObjectID
-	pm.NextObjectID++
-	return id
+	return s.alloc.Alloc()
 }
 
 // AllocObjectIDs reserves n consecutive object IDs and returns the first.
 func (s *pageObjectStore) AllocObjectIDs(n int) int {
-	if n <= 0 {
-		n = 1
-	}
-	pm := s.pm
-	id := pm.NextObjectID
-	pm.NextObjectID += n
-	return id
+	return s.alloc.AllocN(n)
 }
 
 // CommitExtraObject stores an extra object body under a reserved ID.
 func (s *pageObjectStore) CommitExtraObject(id int, content []byte) {
-	s.pm.ExtraObjects[id] = content
+	s.alloc.Commit(id, content)
 }
 
 // CommitExtraObjectString stores an extra object body from a string.
 func (s *pageObjectStore) CommitExtraObjectString(id int, content string) {
-	s.pm.ExtraObjects[id] = []byte(content)
+	s.alloc.CommitString(id, content)
 }
 
 // AddAnnotation adds an annotation object ID to the current page,
@@ -366,8 +365,7 @@ func (s *pageObjectStore) AddLinkAnnotation(x, y, w, h float64, url string) {
 	}
 
 	// Create annotation object
-	annotID := pm.NextObjectID
-	pm.NextObjectID++
+	annotID := s.alloc.Alloc()
 
 	// PDF Rectangle: [LLx LLy URx URy]
 	validURL := escapePDFString(url)
@@ -381,7 +379,7 @@ func (s *pageObjectStore) AddLinkAnnotation(x, y, w, h float64, url string) {
 		content = append(content, " /A << /Type /Action /S /URI /URI ("...)
 		content = append(content, validURL...)
 		content = append(content, ") >> >>"...)
-		pm.ExtraObjects[annotID] = content
+		s.alloc.Commit(annotID, content)
 		pm.AddAnnotation(annotID)
 		pm.AddLinkStructureElement(annotID, structParentIdx)
 		return
@@ -393,7 +391,7 @@ func (s *pageObjectStore) AddLinkAnnotation(x, y, w, h float64, url string) {
 	content = append(content, validURL...)
 	content = append(content, ") >> >>"...)
 
-	pm.ExtraObjects[annotID] = content
+	s.alloc.Commit(annotID, content)
 	pm.AddAnnotation(annotID)
 }
 

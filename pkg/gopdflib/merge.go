@@ -21,13 +21,18 @@ import (
 //	}
 //	os.WriteFile("merged.pdf", merged, 0644)
 func MergePDFs(files [][]byte) ([]byte, error) {
+	const op = "gopdflib: MergePDFs"
 	if len(files) == 0 {
-		return nil, fmt.Errorf("gopdflib: MergePDFs needs at least 1 PDF file")
+		return nil, invalidInputError(op, "needs at least 1 PDF file")
 	}
 	for i, f := range files {
 		if len(f) == 0 {
-			return nil, fmt.Errorf("gopdflib: MergePDFs file at index %d is empty", i)
+			return nil, invalidInputError(op, fmt.Sprintf("file at index %d is empty", i))
 		}
 	}
-	return merge.MergePDFs(files)
+	out, err := merge.MergePDFs(files)
+	if err != nil {
+		return nil, wrapEngineError(op, err)
+	}
+	return out, nil
 }

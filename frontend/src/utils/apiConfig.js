@@ -109,7 +109,9 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
     const errorText = await response.text()
     console.log('Error response body:', errorText)
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Authentication failed. Please login again.')
+      const authError = new Error('Authentication failed. Please login again.')
+      authError.status = response.status
+      throw authError
     }
 
     let serverMessage = ''
@@ -123,9 +125,13 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
     }
 
     if (serverMessage) {
-      throw new Error(serverMessage)
+      const serverError = new Error(serverMessage)
+      serverError.status = response.status
+      throw serverError
     }
-    throw new Error(`API request failed: ${response.statusText}`)
+    const genericError = new Error(`API request failed: ${response.statusText}`)
+    genericError.status = response.status
+    throw genericError
   }
   
   return response

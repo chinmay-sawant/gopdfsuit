@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
 // MaxMergeObjects caps the highest object number accepted from a single
@@ -424,34 +426,13 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	}
 
 	xrefStart := out.Len()
-	var xrefBuf []byte
-	xrefBuf = append(xrefBuf, "xref\n0 "...)
-	xrefBuf = strconv.AppendInt(xrefBuf, int64(maxObj+1), 10)
-	xrefBuf = append(xrefBuf, '\n')
-	out.Write(xrefBuf)
-
-	// Object 0 is always free
-	out.WriteString("0000000000 65535 f\r\n")
-
-	// Write entries for objects 1 to maxObj
-	for i := 1; i <= maxObj; i++ {
-		if off, ok := offsets[i]; ok {
-			xrefBuf = xrefBuf[:0]
-			var offScratch [20]byte
-			digits := strconv.AppendInt(offScratch[:0], int64(off), 10)
-			for j := 0; j < 10-len(digits); j++ {
-				xrefBuf = append(xrefBuf, '0')
-			}
-			xrefBuf = append(xrefBuf, digits...)
-			xrefBuf = append(xrefBuf, " 00000 n\r\n"...)
-			out.Write(xrefBuf)
-		} else {
-			out.WriteString("0000000000 65535 f\r\n")
-		}
-	}
+	pdfobj.WriteDenseXRef(out, maxObj, func(id int) (int, bool) {
+		off, ok := offsets[id]
+		return off, ok
+	}, nil, pdfobj.MergeStyle)
 
 	// Trailer
-	xrefBuf = xrefBuf[:0]
+	var xrefBuf []byte
 	xrefBuf = append(xrefBuf, "trailer\n<< /Size "...)
 	xrefBuf = strconv.AppendInt(xrefBuf, int64(maxObj+1), 10)
 	xrefBuf = append(xrefBuf, " /Root 1 0 R >>\nstartxref\n"...)

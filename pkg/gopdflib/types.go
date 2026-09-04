@@ -16,6 +16,32 @@ type PDFTemplate struct {
 	Elements  []Element  `json:"elements,omitempty"`
 	Footer    Footer     `json:"footer"`
 	Bookmarks []Bookmark `json:"bookmarks,omitempty"`
+
+	precomputedStandardFonts []string
+}
+
+// SetPrecomputedStandardFonts stores a startup PDF/A font-registration hint,
+// mirroring models.PDFTemplate. It is not part of the JSON shape; the
+// translation adapter carries it into the engine in toInternalTemplate.
+func (t *PDFTemplate) SetPrecomputedStandardFonts(fonts ...string) {
+	if t == nil {
+		return
+	}
+	if len(fonts) == 0 {
+		t.precomputedStandardFonts = t.precomputedStandardFonts[:0]
+		return
+	}
+	if cap(t.precomputedStandardFonts) < len(fonts) {
+		t.precomputedStandardFonts = make([]string, len(fonts))
+	} else {
+		t.precomputedStandardFonts = t.precomputedStandardFonts[:len(fonts)]
+	}
+	copy(t.precomputedStandardFonts, fonts)
+}
+
+// PrecomputedStandardFonts returns the startup PDF/A font-registration hint.
+func (t PDFTemplate) PrecomputedStandardFonts() []string {
+	return t.precomputedStandardFonts
 }
 
 // Bookmark represents a PDF outline entry for document navigation.

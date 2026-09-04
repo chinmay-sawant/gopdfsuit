@@ -512,22 +512,10 @@ func FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {
 	xrefStart := len(out)
 	var xrefBuf bytes.Buffer
 	var xrefPad [20]byte
-	xrefBuf.WriteString("xref\n0 ")
-	xrefBuf.Write(strconv.AppendInt(xrefPad[:0], int64(maxObj+1), 10))
-	xrefBuf.WriteString("\n")
-	xrefBuf.WriteString("0000000000 65535 f \r\n")
-	for i := 1; i <= maxObj; i++ {
-		if off, ok := offsets[i]; ok {
-			b := strconv.AppendInt(xrefPad[:0], int64(off), 10)
-			for j := len(b); j < 10; j++ {
-				xrefBuf.WriteByte('0')
-			}
-			xrefBuf.Write(b)
-			xrefBuf.WriteString(" 00000 n \r\n")
-		} else {
-			xrefBuf.WriteString("0000000000 65535 f \r\n")
-		}
-	}
+	pdfobj.WriteDenseXRef(&xrefBuf, maxObj, func(id int) (int, bool) {
+		off, ok := offsets[id]
+		return off, ok
+	}, xrefPad[:0], pdfobj.XFDFStyle)
 	root := 1
 	if rm := reRoot0.FindSubmatch(pdfBytes); len(rm) > 1 {
 		if r, err := strconv.Atoi(string(rm[1])); err == nil {

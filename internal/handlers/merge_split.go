@@ -18,13 +18,13 @@ func handleMergePDFs(c *gin.Context) {
 	form, err := c.MultipartForm()
 	if err != nil {
 		log.Printf("handleMergePDFs: invalid multipart form: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
 	files := form.File["pdf"]
 	if len(files) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No pdf files provided; use field name 'pdf' multiple times"})
+		abortError(c, http.StatusBadRequest, "No pdf files provided; use field name 'pdf' multiple times")
 		return
 	}
 
@@ -34,18 +34,18 @@ func handleMergePDFs(c *gin.Context) {
 		f, err := fh.Open()
 		if err != nil {
 			log.Printf("handleMergePDFs: open upload failed: %v", err)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "failed to process upload"})
+			abortErrorAndStop(c, http.StatusInternalServerError, "failed to process upload")
 			return
 		}
 		buf, ok, err := pdfService.ReadUpload(f, UploadKindPDF)
 		_ = f.Close()
 		if err != nil {
 			log.Printf("handleMergePDFs: read upload failed: %v", err)
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			abortErrorAndStop(c, http.StatusBadRequest, "invalid request")
 			return
 		}
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "pdf exceeds maximum size"})
+			abortErrorAndStop(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
 			return
 		}
 		pdfBytesList = append(pdfBytesList, buf)
@@ -68,7 +68,7 @@ func handlerSplitPDF(c *gin.Context) {
 	// Read uploaded PDF file
 	pdfFile, _, err := c.Request.FormFile("pdf")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing pdf file: " + err.Error()})
+		abortError(c, http.StatusBadRequest, "Missing pdf file: "+err.Error())
 		return
 	}
 	defer func() {
@@ -77,11 +77,11 @@ func handlerSplitPDF(c *gin.Context) {
 	pdfBytes, ok, err := pdfService.ReadUpload(pdfFile, UploadKindPDF)
 	if err != nil {
 		log.Printf("handlerSplitPDF: read upload failed: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 	if !ok {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "pdf exceeds maximum size"})
+		abortError(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
 		return
 	}
 
@@ -97,7 +97,7 @@ func handlerSplitPDF(c *gin.Context) {
 	// Parse pages into []int
 	pages, err := merge.ParsePageSpec(pagesSpec, 0)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid pages spec: " + err.Error()})
+		abortError(c, http.StatusBadRequest, "Invalid pages spec: "+err.Error())
 		return
 	}
 
@@ -139,7 +139,7 @@ func handlerSplitPDF(c *gin.Context) {
 	}
 	_ = zw.Close()
 	if zipErr != "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": zipErr})
+		abortError(c, http.StatusInternalServerError, zipErr)
 		return
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,8 +16,15 @@ import (
 // cannot block PDF generation forever.
 const DefaultFetchTimeout = 60 * time.Second
 
+// ErrUpstream marks a font-asset fetch failure (non-200, checksum mismatch,
+// oversized source). It mirrors gopdflib.ErrUpstream: this package cannot
+// import pkg/gopdflib (import cycle via internal/pdf), so handlers classify
+// both sentinels plus HTTPStatusError via errors.As.
+var ErrUpstream = errors.New("font: upstream failure")
+
 // HTTPStatusError reports a non-200 response. Callers that pin legacy
 // message formats can errors.As-match it to recover the status code.
+// It unwraps to ErrUpstream so errors.Is classifies fetches as upstream.
 type HTTPStatusError struct {
 	URL    string
 	Status int
@@ -24,6 +32,11 @@ type HTTPStatusError struct {
 
 func (e *HTTPStatusError) Error() string {
 	return fmt.Sprintf("download %s: HTTP %d", e.URL, e.Status)
+}
+
+// Unwrap exposes the upstream class for errors.Is.
+func (e *HTTPStatusError) Unwrap() error {
+	return ErrUpstream
 }
 
 // FetchToTemp downloads url into a temp file inside dir (os.TempDir when

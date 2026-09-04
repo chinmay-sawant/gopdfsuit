@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
+	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 	"github.com/gin-gonic/gin"
 )
 
@@ -57,17 +59,44 @@ func readBounded(r io.Reader, limit int64) (data []byte, ok bool, err error) {
 	return data, true, nil
 }
 
-// pdfErrorStatus maps backend failures to HTTP codes: malformed client input
-// yields 422, engine failures yield 500.
+// pdfErrorStatus maps backend failures to HTTP codes. Sentinel-classified
+// errors (errors.Is/As against the gopdflib taxonomy) win; the substring
+// list below is the pinned legacy fallback for foreign errors that carry
+// only message text (e.g. test mocks, pre-taxonomy engine errors). Keep it
+// in sync with pkg/gopdflib's invalidInputSubstrings.
 func pdfErrorStatus(err error) int {
 	if err == nil {
 		return http.StatusOK
 	}
+	if errors.Is(err, gopdflib.ErrInvalidInput) {
+		return http.StatusUnprocessableEntity
+	}
+	if errors.Is(err, gopdflib.ErrLimitExceeded) {
+		return http.StatusRequestEntityTooLarge
+	}
+	if errors.Is(err, gopdflib.ErrUpstream) || errors.Is(err, font.ErrUpstream) {
+		return http.StatusBadGateway
+	}
+	var httpErr *font.HTTPStatusError
+	if errors.As(err, &httpErr) {
+		return http.StatusBadGateway
+	}
+	if errors.Is(err, gopdflib.ErrInternal) {
+		return http.StatusInternalServerError
+	}
 	msg := strings.ToLower(err.Error())
+	for _, s := range []string{
+		"exceed", "too large", "maximum size",
+	} {
+		if strings.Contains(msg, s) {
+			return http.StatusRequestEntityTooLarge
+		}
+	}
 	for _, s := range []string{
 		"invalid", "malformed", "corrupt", "parse", "password", "encrypt",
 		"spec", "page", "range", "empty", "not a pdf", "unsupported",
 		"too small", "trailer", "xref", "header", "crypt",
+		"no valid", "missing",
 	} {
 		if strings.Contains(msg, s) {
 			return http.StatusUnprocessableEntity
@@ -76,15 +105,42 @@ func pdfErrorStatus(err error) int {
 	return http.StatusInternalServerError
 }
 
+// errorBody renders the shared {code,message} envelope plus a legacy
+// "error" alias equal to message, so clients parsing `error` keep working.
+func errorBody(code gopdflib.ErrorCode, message string) gin.H {
+	return gin.H{"code": string(code), "message": message, "error": message}
+}
+
+// abortError replies with status and the envelope code for that status,
+// keeping the caller's message text unchanged.
+func abortError(c *gin.Context, status int, message string) {
+	c.JSON(status, errorBody(gopdflib.CodeForStatus(status), message))
+}
+
+// abortErrorAndStop is abortError followed by Abort (for call sites that
+// previously used AbortWithStatusJSON).
+func abortErrorAndStop(c *gin.Context, status int, message string) {
+	c.AbortWithStatusJSON(status, errorBody(gopdflib.CodeForStatus(status), message))
+}
+
 // abortPDFError logs backend detail server-side and replies with a generic
-// client message plus the mapped status code.
+// client message plus the mapped status code and envelope code.
 func abortPDFError(c *gin.Context, err error) {
 	log.Printf("pdf handler %s failed: %v", c.Request.URL.Path, err)
-	if pdfService.ClassifyError(err) == http.StatusUnprocessableEntity {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "invalid PDF input"})
-		return
+	status := pdfService.ClassifyError(err)
+	var message string
+	switch status {
+	case http.StatusUnprocessableEntity:
+		message = "invalid PDF input"
+	case http.StatusRequestEntityTooLarge:
+		message = "pdf exceeds maximum size"
+	case http.StatusBadGateway:
+		message = "upstream dependency failed"
+	default:
+		status = http.StatusInternalServerError
+		message = "PDF processing failed"
 	}
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF processing failed"})
+	c.JSON(status, errorBody(gopdflib.CodeForStatus(status), message))
 }
 
 // validateFetchURL allows only http/https URLs whose host does not resolve to

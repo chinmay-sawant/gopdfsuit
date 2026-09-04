@@ -7,24 +7,24 @@ import BackgroundAnimation from '../components/BackgroundAnimation'
 const Viewer = () => {
   const [templateData, setTemplateData] = useState('')
   const [fileName, setFileName] = useState('')
+  const [error, setError] = useState(null)
   const fileInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
   const { isLoading, resultUrl: pdfUrl, run, runJson, download } = usePdfOperation({
     onAuthRequired: triggerLogin,
+    onError: (message) => setError(message),
   })
 
-  const prefixError = (prefix) => (message) => {
-    alert(message.startsWith('Online PDF') ? message : `${prefix}${message}`)
-  }
-
-  const loadTemplate = async () => {
-    if (!fileName.trim()) return
+  const loadTemplate = async (name) => {
+    const target = (name ?? fileName).trim()
+    if (!target) return
+    setError(null)
 
     const data = await runJson({
-      endpoint: `/api/v1/template-data?file=${encodeURIComponent(fileName)}`,
+      endpoint: `/api/v1/template-data?file=${encodeURIComponent(target)}`,
       method: 'GET',
       getAuthHeaders,
-      onError: prefixError('Error loading template: '),
+      onError: (message) => setError(`Error loading template: ${message}`),
     })
     if (!data) return
     setTemplateData(JSON.stringify(data, null, 2))
@@ -36,18 +36,19 @@ const Viewer = () => {
       body: JSON.stringify(data),
       getAuthHeaders,
       autoDownload: false,
-      onError: prefixError('Error loading template: '),
+      onError: (message) => setError(`Error loading template: ${message}`),
     })
   }
 
   const generatePDF = async () => {
     if (!templateData.trim()) return
+    setError(null)
 
     let data
     try {
       data = JSON.parse(templateData)
     } catch {
-      alert('Error generating PDF: invalid JSON template')
+      setError('Error generating PDF: invalid JSON template')
       return
     }
     await run({
@@ -56,7 +57,7 @@ const Viewer = () => {
       body: JSON.stringify(data),
       getAuthHeaders,
       autoDownload: false,
-      onError: prefixError('Error generating PDF: '),
+      onError: (message) => setError(`Error generating PDF: ${message}`),
     })
   }
 
@@ -131,6 +132,18 @@ const Viewer = () => {
       {/* Main Content */}
       <section style={{ padding: '2rem 0 4rem' }}>
         <div className="container-full">
+          {error && (
+            <div style={{
+              padding: '1rem',
+              background: 'rgba(255, 0, 0, 0.1)',
+              border: '1px solid red',
+              borderRadius: '8px',
+              marginBottom: '1rem',
+              color: 'hsl(var(--foreground))',
+            }}>
+              {error}
+            </div>
+          )}
           <div className="grid grid-2" style={{ gap: '2rem' }}>
             {/* Template Input Section */}
             <div className="glass-card" style={{ padding: '2rem' }}>
@@ -177,7 +190,7 @@ const Viewer = () => {
                     }}
                   />
                   <button
-                    onClick={loadTemplate}
+                    onClick={() => loadTemplate()}
                     disabled={isLoading || !fileName.trim()}
                     className="btn-glow"
                     style={{
@@ -468,7 +481,7 @@ const Viewer = () => {
                   key={sample}
                   onClick={() => {
                     setFileName(sample)
-                    loadTemplate()
+                    loadTemplate(sample)
                   }}
                   className="btn-outline-glow"
                   style={{

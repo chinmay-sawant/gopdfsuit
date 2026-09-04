@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 
 	"github.com/chinmay-sawant/gochromedp/pkg/gochromedp"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
@@ -19,6 +20,17 @@ import (
 
 // This file intentionally left minimal to keep package build roots simple.
 
+// htmlDebug gates ConvertHTML lifecycle logs. The per-step lines below are
+// request noise in production; set GOPDFSUIT_DEBUG=1 to restore them when
+// diagnosing conversion failures.
+var htmlDebug = os.Getenv("GOPDFSUIT_DEBUG") == "1"
+
+func htmlDebugf(format string, args ...any) {
+	if htmlDebug {
+		log.Printf(format, args...)
+	}
+}
+
 // redactedURLForLog renders a fetch URL for logs as host + path only. Query,
 // fragment, and userinfo are dropped because they may carry tokens or PII.
 func redactedURLForLog(raw string) string {
@@ -31,7 +43,7 @@ func redactedURLForLog(raw string) string {
 
 // ConvertHTMLToPDF converts HTML content to PDF using gochromedp.
 func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
-	log.Printf("ConvertHTMLToPDF: Starting conversion. HTML length: %d, URL: %s", len(req.HTML), redactedURLForLog(req.URL))
+	htmlDebugf("ConvertHTMLToPDF: Starting conversion. HTML length: %d, URL: %s", len(req.HTML), redactedURLForLog(req.URL))
 
 	// Prepare options
 	options := &gochromedp.ConvertOptions{
@@ -49,7 +61,7 @@ func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
 	}
 	// Note: LowQuality option not available in gochromedp ConvertOptions
 
-	log.Printf("ConvertHTMLToPDF: Options prepared - PageSize: %s, Orientation: %s, Grayscale: %t",
+	htmlDebugf("ConvertHTMLToPDF: Options prepared - PageSize: %s, Orientation: %s, Grayscale: %t",
 		options.PageSize, options.Orientation, options.Grayscale)
 
 	var pdfData []byte
@@ -57,30 +69,28 @@ func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
 
 	switch {
 	case req.HTML != "":
-		log.Printf("ConvertHTMLToPDF: Converting HTML content")
+		htmlDebugf("ConvertHTMLToPDF: Converting HTML content")
 		// Convert HTML content
 		pdfData, err = gochromedp.ConvertHTMLToPDF(req.HTML, options)
 	case req.URL != "":
-		log.Printf("ConvertHTMLToPDF: Converting URL: %s", redactedURLForLog(req.URL))
+		htmlDebugf("ConvertHTMLToPDF: Converting URL: %s", redactedURLForLog(req.URL))
 		// Convert URL
 		pdfData, err = gochromedp.ConvertURLToPDF(req.URL, options)
 	default:
-		log.Printf("ConvertHTMLToPDF: Error - neither HTML nor URL provided")
 		return nil, fmt.Errorf("either HTML content or URL must be provided")
 	}
 
 	if err != nil {
-		log.Printf("ConvertHTMLToPDF: Conversion failed with error: %v", err)
-		return nil, fmt.Errorf("PDF conversion failed: %v", err)
+		return nil, fmt.Errorf("PDF conversion failed: %w", err)
 	}
 
-	log.Printf("ConvertHTMLToPDF: Conversion successful. PDF size: %d bytes", len(pdfData))
+	htmlDebugf("ConvertHTMLToPDF: Conversion successful. PDF size: %d bytes", len(pdfData))
 	return pdfData, nil
 }
 
 // ConvertHTMLToImage converts HTML content to image using gochromedp.
 func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
-	log.Printf("ConvertHTMLToImage: Starting conversion. HTML length: %d, URL: %s, Format: %s", len(req.HTML), redactedURLForLog(req.URL), req.Format)
+	htmlDebugf("ConvertHTMLToImage: Starting conversion. HTML length: %d, URL: %s, Format: %s", len(req.HTML), redactedURLForLog(req.URL), req.Format)
 
 	// Prepare options
 	options := &gochromedp.ConvertOptions{
@@ -90,7 +100,7 @@ func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
 		Quality: req.Quality,
 	}
 
-	log.Printf("ConvertHTMLToImage: Options prepared - Format: %s, Width: %d, Height: %d, Quality: %d",
+	htmlDebugf("ConvertHTMLToImage: Options prepared - Format: %s, Width: %d, Height: %d, Quality: %d",
 		options.Format, options.Width, options.Height, options.Quality)
 
 	var imageData []byte
@@ -98,23 +108,21 @@ func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
 
 	switch {
 	case req.HTML != "":
-		log.Printf("ConvertHTMLToImage: Converting HTML content")
+		htmlDebugf("ConvertHTMLToImage: Converting HTML content")
 		// Convert HTML content
 		imageData, err = gochromedp.ConvertHTMLToImage(req.HTML, options)
 	case req.URL != "":
-		log.Printf("ConvertHTMLToImage: Converting URL: %s", redactedURLForLog(req.URL))
+		htmlDebugf("ConvertHTMLToImage: Converting URL: %s", redactedURLForLog(req.URL))
 		// Convert URL
 		imageData, err = gochromedp.ConvertURLToImage(req.URL, options)
 	default:
-		log.Printf("ConvertHTMLToImage: Error - neither HTML nor URL provided")
 		return nil, fmt.Errorf("either HTML content or URL must be provided")
 	}
 
 	if err != nil {
-		log.Printf("ConvertHTMLToImage: Conversion failed with error: %v", err)
-		return nil, fmt.Errorf("image conversion failed: %v", err)
+		return nil, fmt.Errorf("image conversion failed: %w", err)
 	}
 
-	log.Printf("ConvertHTMLToImage: Conversion successful. Image size: %d bytes", len(imageData))
+	htmlDebugf("ConvertHTMLToImage: Conversion successful. Image size: %d bytes", len(imageData))
 	return imageData, nil
 }

@@ -42,7 +42,7 @@ func TestFormatStructElemTDLeaf_StableOutput(t *testing.T) {
 	table := sm.CurrentParent
 	table.ObjectID = 101
 
-	sm.BeginTableRowWithTDMCIDs(0, 0, 3)
+	sm.beginTableRowWithTDMCIDs(0, 0, 3)
 	tr := sm.CurrentParent
 	tr.ObjectID = 102
 

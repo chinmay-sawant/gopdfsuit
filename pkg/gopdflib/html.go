@@ -2,7 +2,7 @@
 package gopdflib
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
@@ -28,10 +28,19 @@ import (
 //	}
 //	pdfBytes, err := gopdflib.ConvertHTMLToPDF(req)
 func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
+	const op = "gopdflib: ConvertHTMLToPDF"
 	if req.HTML == "" && req.URL == "" {
-		return nil, errors.New("gopdflib: ConvertHTMLToPDF needs HTML content or a URL")
+		return nil, invalidInputError(op, "needs HTML content or a URL")
 	}
-	return pdf.ConvertHTMLToPDF(mustToInternal[HTMLToPDFRequest, models.HTMLToPDFRequest](req))
+	in, err := toInternal[HTMLToPDFRequest, models.HTMLToPDFRequest](req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s request translation: %w", ErrInvalidInput, op, err)
+	}
+	out, err := pdf.ConvertHTMLToPDF(in)
+	if err != nil {
+		return nil, wrapEngineError(op, err)
+	}
+	return out, nil
 }
 
 // ConvertHTMLToImage converts HTML content or a URL to an image.
@@ -48,8 +57,17 @@ func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
 //	}
 //	imgBytes, err := gopdflib.ConvertHTMLToImage(req)
 func ConvertHTMLToImage(req HTMLToImageRequest) ([]byte, error) {
+	const op = "gopdflib: ConvertHTMLToImage"
 	if req.HTML == "" && req.URL == "" {
-		return nil, errors.New("gopdflib: ConvertHTMLToImage needs HTML content or a URL")
+		return nil, invalidInputError(op, "needs HTML content or a URL")
 	}
-	return pdf.ConvertHTMLToImage(mustToInternal[HTMLToImageRequest, models.HTMLToImageRequest](req))
+	in, err := toInternal[HTMLToImageRequest, models.HTMLToImageRequest](req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s request translation: %w", ErrInvalidInput, op, err)
+	}
+	out, err := pdf.ConvertHTMLToImage(in)
+	if err != nil {
+		return nil, wrapEngineError(op, err)
+	}
+	return out, nil
 }

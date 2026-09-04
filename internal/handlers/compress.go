@@ -14,7 +14,7 @@ import (
 func handleCompressPDF(c *gin.Context) {
 	pdfFile, _, err := c.Request.FormFile("pdf")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing pdf file: " + err.Error()})
+		abortError(c, http.StatusBadRequest, "Missing pdf file: "+err.Error())
 		return
 	}
 	defer func() {
@@ -23,15 +23,15 @@ func handleCompressPDF(c *gin.Context) {
 	pdfBytes, ok, err := pdfService.ReadUpload(pdfFile, UploadKindPDF)
 	if err != nil {
 		log.Printf("handleCompressPDF: read upload failed: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 	if !ok {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "pdf exceeds maximum size"})
+		abortError(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
 		return
 	}
 	if len(pdfBytes) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is empty"})
+		abortError(c, http.StatusBadRequest, "pdf file is empty")
 		return
 	}
 

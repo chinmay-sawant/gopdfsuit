@@ -21,11 +21,11 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxTemplateJSONBody)
 	if err := decodeTemplate(c.Request.Body, int(c.Request.ContentLength), tier, template); err != nil {
 		if isBodyTooLargeErr(err) {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "template too large"})
+			abortError(c, http.StatusRequestEntityTooLarge, "template too large")
 			return
 		}
 		log.Printf("handleGenerateTemplatePDF: invalid template: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid template data"})
+		abortError(c, http.StatusBadRequest, "invalid template data")
 		return
 	}
 
@@ -36,7 +36,7 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		doc, err := pdf.GenerateTemplatePDFBorrowed(*template)
 		if err != nil {
 			log.Printf("handleGenerateTemplatePDF: generation failed: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF generation failed"})
+			abortError(c, http.StatusInternalServerError, "PDF generation failed")
 			return
 		}
 		defer doc.Release()
@@ -50,7 +50,7 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 	pdfBytes, err := pdfService.GenerateTemplatePDF(*template)
 	if err != nil {
 		log.Printf("handleGenerateTemplatePDF: generation failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF generation failed"})
+		abortError(c, http.StatusInternalServerError, "PDF generation failed")
 		return
 	}
 	c.Data(http.StatusOK, mimeTypePDF, pdfBytes)

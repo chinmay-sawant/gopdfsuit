@@ -31,6 +31,8 @@ func maxEntriesPerShard() int64 {
 type compressCacheShard struct {
 	entries sync.Map
 	count   atomic.Int64
+	// mu makes per-shard clear-all atomic with overflow stores.
+	mu sync.Mutex
 }
 
 var (
@@ -107,6 +109,8 @@ func CompressContentStreamCached(raw []byte) (compressed *bytes.Buffer, useFlate
 }
 
 func storePageCompressEntry(shard *compressCacheShard, key pageCompressKey, entry *pageCompressEntry) {
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
 	if _, exists := shard.entries.Load(key); exists {
 		shard.entries.Store(key, entry)
 		return
@@ -123,7 +127,9 @@ func storePageCompressEntry(shard *compressCacheShard, key pageCompressKey, entr
 // ClearPageCompressCache drops all shard entries (tests / memory pressure).
 func ClearPageCompressCache() {
 	for i := range compressShards {
+		compressShards[i].mu.Lock()
 		compressShards[i].entries.Clear()
 		compressShards[i].count.Store(0)
+		compressShards[i].mu.Unlock()
 	}
 }

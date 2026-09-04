@@ -18,30 +18,30 @@ func handleHTMLToPDF(c *gin.Context) {
 	data, err := c.GetRawData()
 	if err != nil {
 		if isBodyTooLargeErr(err) {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request body too large"})
+			abortError(c, http.StatusRequestEntityTooLarge, "request body too large")
 			return
 		}
 		log.Printf("handleHTMLToPDF: read body failed: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
 	if err := sonic.Unmarshal(data, &req); err != nil {
 		log.Printf("handleHTMLToPDF: invalid JSON: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
 	if req.HTML == "" && req.URL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "either html or url is required"})
+		abortError(c, http.StatusBadRequest, "either html or url is required")
 		return
 	}
 	if err := validateFetchURL(req.URL); err != nil {
 		if errors.Is(err, errFetchURLBlocked) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "url target is not allowed"})
+			abortError(c, http.StatusForbidden, "url target is not allowed")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
+		abortError(c, http.StatusBadRequest, "invalid url")
 		return
 	}
 
@@ -71,7 +71,7 @@ func handleHTMLToPDF(c *gin.Context) {
 	pdfBytes, err := pdfService.HTMLToPDF(req)
 	if err != nil {
 		log.Printf("handleHTMLToPDF: conversion failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "PDF conversion failed"})
+		abortError(c, http.StatusInternalServerError, "PDF conversion failed")
 		return
 	}
 
@@ -88,30 +88,30 @@ func handleHTMLToImage(c *gin.Context) {
 	data, err := c.GetRawData()
 	if err != nil {
 		if isBodyTooLargeErr(err) {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request body too large"})
+			abortError(c, http.StatusRequestEntityTooLarge, "request body too large")
 			return
 		}
 		log.Printf("handleHTMLToImage: read body failed: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
 	if err := sonic.Unmarshal(data, &req); err != nil {
 		log.Printf("handleHTMLToImage: invalid JSON: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
 	if req.HTML == "" && req.URL == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "either html or url is required"})
+		abortError(c, http.StatusBadRequest, "either html or url is required")
 		return
 	}
 	if err := validateFetchURL(req.URL); err != nil {
 		if errors.Is(err, errFetchURLBlocked) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "url target is not allowed"})
+			abortError(c, http.StatusForbidden, "url target is not allowed")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
+		abortError(c, http.StatusBadRequest, "invalid url")
 		return
 	}
 
@@ -129,7 +129,7 @@ func handleHTMLToImage(c *gin.Context) {
 	imageBytes, err := pdfService.HTMLToImage(req)
 	if err != nil {
 		log.Printf("handleHTMLToImage: conversion failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "image conversion failed"})
+		abortError(c, http.StatusInternalServerError, "image conversion failed")
 		return
 	}
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 	"github.com/gin-gonic/gin"
 )
 
@@ -68,14 +69,14 @@ func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.Re
 func readBoundedUpload(c *gin.Context) []byte {
 	file, err := c.FormFile("pdf")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is required"})
+		abortError(c, http.StatusBadRequest, "pdf file is required")
 		return nil
 	}
 
 	f, err := file.Open()
 	if err != nil {
 		log.Printf("redact: open pdf failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to process upload"})
+		abortError(c, http.StatusInternalServerError, "failed to process upload")
 		return nil
 	}
 	defer func() { _ = f.Close() }()
@@ -83,15 +84,15 @@ func readBoundedUpload(c *gin.Context) []byte {
 	pdfBytes, ok, err := pdfService.ReadUpload(f, UploadKindPDF)
 	if err != nil {
 		log.Printf("redact: read pdf failed: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return nil
 	}
 	if !ok {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "pdf exceeds maximum size"})
+		abortError(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
 		return nil
 	}
 	if len(pdfBytes) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is empty"})
+		abortError(c, http.StatusBadRequest, "pdf file is empty")
 		return nil
 	}
 	return pdfBytes
@@ -100,22 +101,32 @@ func readBoundedUpload(c *gin.Context) []byte {
 // abortRedactLoad handles redactor-construction failures (client-malformed
 // PDFs -> 422) without echoing backend internals.
 func abortRedactLoad(c *gin.Context, err error) {
-	log.Printf("redact: failed to load PDF: %v", err)
-	if pdfService.ClassifyError(err) == http.StatusUnprocessableEntity {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "invalid PDF input"})
-		return
-	}
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "redaction failed"})
+	abortRedact(c, err, "load")
 }
 
 // abortRedactOp handles redaction operation failures the same way.
 func abortRedactOp(c *gin.Context, err error) {
-	log.Printf("redact: operation failed: %v", err)
-	if pdfService.ClassifyError(err) == http.StatusUnprocessableEntity {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "invalid PDF input"})
-		return
+	abortRedact(c, err, "operation")
+}
+
+// abortRedact maps the classified status to a generic client message plus
+// the envelope code, mirroring abortPDFError.
+func abortRedact(c *gin.Context, err error, op string) {
+	log.Printf("redact: %s failed: %v", op, err)
+	status := pdfService.ClassifyError(err)
+	var message string
+	switch status {
+	case http.StatusUnprocessableEntity:
+		message = "invalid PDF input"
+	case http.StatusRequestEntityTooLarge:
+		message = "pdf exceeds maximum size"
+	case http.StatusBadGateway:
+		message = "upstream dependency failed"
+	default:
+		status = http.StatusInternalServerError
+		message = "redaction failed"
 	}
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "redaction failed"})
+	c.JSON(status, errorBody(gopdflib.CodeForStatus(status), message))
 }
 
 // handleRedactPageInfo handles requests to get PDF page dimensions
@@ -154,12 +165,12 @@ func handleRedactCapabilities(c *gin.Context) {
 func handleRedactTextPositions(c *gin.Context) {
 	pageNumStr := c.PostForm("page")
 	if pageNumStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "page number is required"})
+		abortError(c, http.StatusBadRequest, "page number is required")
 		return
 	}
 	pageNum, err := strconv.Atoi(pageNumStr)
 	if err != nil || pageNum < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid page number"})
+		abortError(c, http.StatusBadRequest, "invalid page number")
 		return
 	}
 
@@ -180,7 +191,7 @@ func handleRedactTextPositions(c *gin.Context) {
 // handleRedactApply handles requests to apply redactions to a PDF
 func handleRedactApply(c *gin.Context) {
 	if _, err := c.FormFile("pdf"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is required"})
+		abortError(c, http.StatusBadRequest, "pdf file is required")
 		return
 	}
 
@@ -191,7 +202,7 @@ func handleRedactApply(c *gin.Context) {
 	blocksJSON := c.PostForm("blocks")
 	if blocksJSON != "" {
 		if err := sonic.Unmarshal([]byte(blocksJSON), &options.Blocks); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid blocks json"})
+			abortError(c, http.StatusBadRequest, "invalid blocks json")
 			return
 		}
 	}
@@ -202,7 +213,7 @@ func handleRedactApply(c *gin.Context) {
 		if err := sonic.Unmarshal(textSearchBytes, &options.TextSearch); err != nil {
 			var plain []string
 			if err2 := sonic.Unmarshal(textSearchBytes, &plain); err2 != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid textSearch json"})
+				abortError(c, http.StatusBadRequest, "invalid textSearch json")
 				return
 			}
 			for _, text := range plain {
@@ -219,7 +230,7 @@ func handleRedactApply(c *gin.Context) {
 	if fastTrimSpace(ocrJSON) != "" {
 		var ocr models.OCRSettings
 		if err := sonic.Unmarshal([]byte(ocrJSON), &ocr); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid ocr json"})
+			abortError(c, http.StatusBadRequest, "invalid ocr json")
 			return
 		}
 		options.OCR = &ocr
@@ -230,7 +241,7 @@ func handleRedactApply(c *gin.Context) {
 		redactionsJSON := c.PostForm("redactions")
 		if redactionsJSON != "" {
 			if err := sonic.Unmarshal([]byte(redactionsJSON), &options.Blocks); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid redactions json"})
+				abortError(c, http.StatusBadRequest, "invalid redactions json")
 				return
 			}
 		}
@@ -272,7 +283,7 @@ func handleRedactApply(c *gin.Context) {
 // handleRedactSearch searches for text and returns potential redaction rectangles
 func handleRedactSearch(c *gin.Context) {
 	if _, err := c.FormFile("pdf"); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is required"})
+		abortError(c, http.StatusBadRequest, "pdf file is required")
 		return
 	}
 
@@ -280,7 +291,7 @@ func handleRedactSearch(c *gin.Context) {
 	textsJSON := fastTrimSpace(c.PostForm("texts"))
 	if textsJSON != "" {
 		if err := sonic.Unmarshal([]byte(textsJSON), &terms); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid texts json"})
+			abortError(c, http.StatusBadRequest, "invalid texts json")
 			return
 		}
 	}
@@ -294,7 +305,7 @@ func handleRedactSearch(c *gin.Context) {
 		}
 	}
 	if len(terms) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "search text is required"})
+		abortError(c, http.StatusBadRequest, "search text is required")
 		return
 	}
 

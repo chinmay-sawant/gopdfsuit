@@ -2,6 +2,7 @@
 package gopdflib
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
@@ -78,7 +79,15 @@ func SnapshotPDFCapacityHighWater() PDFCapacityHighWater {
 //	os.WriteFile("output.pdf", pdfBytes, 0644)
 func GeneratePDF(template PDFTemplate) ([]byte, error) {
 	ensureRuntimePools()
-	return pdf.GenerateTemplatePDF(toInternalTemplate(template))
+	in, err := toInternalTemplate(template)
+	if err != nil {
+		return nil, fmt.Errorf("%w: gopdflib: GeneratePDF template translation: %w", ErrInvalidInput, err)
+	}
+	out, err := pdf.GenerateTemplatePDF(in)
+	if err != nil {
+		return nil, wrapEngineError("gopdflib: GeneratePDF", err)
+	}
+	return out, nil
 }
 
 // GeneratePDFBorrowed creates a PDF document without cloning the final pooled
@@ -96,7 +105,15 @@ func GeneratePDF(template PDFTemplate) ([]byte, error) {
 // must not be retained. Use CopyBytes when the bytes must outlive Release.
 func GeneratePDFBorrowed(template PDFTemplate) (*BorrowedPDF, error) {
 	ensureRuntimePools()
-	return pdf.GenerateTemplatePDFBorrowed(toInternalTemplate(template))
+	in, err := toInternalTemplate(template)
+	if err != nil {
+		return nil, fmt.Errorf("%w: gopdflib: GeneratePDFBorrowed template translation: %w", ErrInvalidInput, err)
+	}
+	doc, err := pdf.GenerateTemplatePDFBorrowed(in)
+	if err != nil {
+		return nil, wrapEngineError("gopdflib: GeneratePDFBorrowed", err)
+	}
+	return doc, nil
 }
 
 // GetAvailableFonts returns a list of available fonts for PDF generation.
@@ -105,7 +122,11 @@ func GetAvailableFonts() []FontInfo {
 	internal := pdf.GetAvailableFonts()
 	out := make([]FontInfo, 0, len(internal))
 	for _, f := range internal {
-		out = append(out, mustFromInternal[models.FontInfo, FontInfo](f))
+		pub, err := fromInternal[models.FontInfo, FontInfo](f)
+		if err != nil {
+			continue
+		}
+		out = append(out, pub)
 	}
 	return out
 }

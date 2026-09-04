@@ -56,6 +56,32 @@ func (a *Allocator) AllocN(n int) int {
 	return id
 }
 
+// SeekTo sets the next object ID to id. Generation fixups use it to align
+// the counter with externally assigned ID blocks (image deduper, font
+// registry) instead of writing the counter field directly.
+func (a *Allocator) SeekTo(id int) {
+	if a.pm != nil {
+		a.pm.NextObjectID = id
+		return
+	}
+	a.next = id
+}
+
+// EnsureBeyond advances the counter to id when it lags behind a
+// caller-computed high-water mark (e.g. the dense font block). It never
+// moves the counter backwards.
+func (a *Allocator) EnsureBeyond(id int) {
+	if a.pm != nil {
+		if a.pm.NextObjectID < id {
+			a.pm.NextObjectID = id
+		}
+		return
+	}
+	if a.next < id {
+		a.next = id
+	}
+}
+
 // Commit stores an extra object body under a reserved ID.
 func (a *Allocator) Commit(id int, content []byte) {
 	if a.pm != nil {

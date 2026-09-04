@@ -42,7 +42,7 @@ func NewOutlineBuilder(pm *PageManager, encryptor ObjectEncryptor) *OutlineBuild
 	return &OutlineBuilder{
 		pageManager: pm,
 		encryptor:   encryptor,
-		dests:       NewDestinationStore(pm, encryptor),
+		dests:       NewDestinationStore(pm, pm.objects().alloc, encryptor),
 	}
 }
 
@@ -168,23 +168,8 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 
 		// PDF/UA-2: Generate unique destination key and register named destination
 		// This allows using /Dest (name) instead of /A << /S /GoTo ... >>
-		var bmBuf [32]byte
-		copy(bmBuf[:4], "_bm_")
-		numEnd := 4 + len(strconv.AppendInt(bmBuf[4:4], int64(len(ob.outlineItems)), 10))
-		item.DestKey = string(bmBuf[:numEnd])
-
-		nd := NamedDest{
-			PageIndex:    0, // Will be determined from DestPageID
-			Y:            item.DestY,
-			StructElemID: item.DestStructElemID,
-		}
-		for pageIdx, pageObjID := range ob.pageManager.Pages {
-			if pageObjID == item.DestPageID {
-				nd.PageIndex = pageIdx
-				break
-			}
-		}
-		ob.dests.DefineFull(item.DestKey, nd)
+		// Key minting lives in DestinationStore so the DestKey invariant has one home.
+		item.DestKey = ob.dests.DefineBookmarkDest(item.DestPageID, item.DestY, item.DestStructElemID)
 
 		// PDF/UA-2: If this bookmark defines a user-specified destination (bm.Dest),
 		// update that destination with the structure element ID so internal links work

@@ -186,7 +186,7 @@ func TestHandleGenerateTemplatePDF_InvalidJSONGeneric(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d want 400", w.Code)
 	}
-	if got := w.Body.String(); got != `{"error":"invalid template data"}` {
+	if got := w.Body.String(); got != `{"code":"invalid_input","error":"invalid template data","message":"invalid template data"}` {
 		t.Fatalf("leaky body: %q", got)
 	}
 }

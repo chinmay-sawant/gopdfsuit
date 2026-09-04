@@ -243,3 +243,42 @@ python3 guides/cursor/baselines/benchmark_run_20260618_v2/parse_results.py
 ```
 
 See also: [INTEGRATION_AND_BENCHMARK_TESTS.md](./INTEGRATION_AND_BENCHMARK_TESTS.md), [MAKEFILE.md](../guides/MAKEFILE.md), [sampledata/benchmarks/README_BENCHMARKS.md](../sampledata/benchmarks/README_BENCHMARKS.md).
+
+---
+
+## Harness map (D4): which harness answers which question
+
+Each row is one question about the system. Run the full harness for tuning
+decisions; run `make bench-smoke` for a pre-change sanity slice (each slice
+well under 5 minutes total).
+
+| Harness (make target) | Question it answers | Smoke slice in `bench-smoke` |
+|-----------------------|---------------------|------------------------------|
+| `bench-gopdflib-zerodha` | In-process Go throughput, compliant Zerodha mix (80/15/5 + ECDSA retail) | 20 iters, 2 workers, `BENCH_SEED=42`, `BENCH_SKIP_WRITE=1` |
+| `bench-pypdfsuit-zerodha` | Same mix through the CGO/Python bindings (binding overhead isolated) | 20 iters, 2 workers, `PAYLOAD_SCENARIO=retail_only` |
+| `bench-handler` | HTTP handler cost without network (Gin + decode + engine) | Serial financial-report bench, `-benchtime=10x` |
+| `bench-k6-smoke` | Live-server shape check (needs `go run ./cmd/gopdfsuit` on :8080) | Operator-run, not in `bench-smoke` (needs live server) |
+| `bench-gotenberg-smoke` | Chromium HTML-to-PDF baseline (needs Docker on :3010) | Operator-run, not in `bench-smoke` (needs Docker) |
+| `bench-gopdfkit-compare-test` | Output sanity vs GoPDFKit before timing (needs network setup) | Operator-run, not in `bench-smoke` (needs `bench-gopdfkit-setup`) |
+| `bench-pdf-micro` / `bench-pdf-macro` | Engine micro/macro scaling (rows, wrap, Typst) | Not in smoke; run on engine changes |
+
+## Canonical payload pin
+
+Comparisons are only meaningful on one payload. The canonical benchmark
+payload is the **Zerodha retail template** (single-statement retail mix,
+PDF/A-4 + PDF/UA-2 compliant, ECDSA P-256 retail signing):
+
+- Go harnesses: `sampledata/gopdflib/zerodha/bench.go`, workload mix
+  80% retail / 15% active / 5% HFT, schedule RNG seeded by `BENCH_SEED`
+  (default **42** - always export `BENCH_SEED=42` explicitly when reporting).
+- Python harness: `sampledata/gopdflib/zerodha/pypdfsuit_bench.py`,
+  `PAYLOAD_SCENARIO=retail_only` for the canonical slice; weighted runs use
+  deterministic per-iteration seeds (`range(iterations)`).
+- k6 HTTP: `PAYLOAD_SCENARIO=retail_only_signed` (`bench-k6-retail`); note
+  `test/generate_template-pdf/payload_generator.js` still draws trade fields
+  from `Math.random` (unpinned) - k6 numbers are approximate until payload
+  seeding lands.
+
+```bash
+make bench-smoke   # quick slice of every headless harness (<5 min total)
+```

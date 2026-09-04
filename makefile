@@ -25,6 +25,24 @@ test:
 	cd bindings/python && python3 -m pytest tests
 	bash test/verify_pdfs.sh
 
+# D1 triple-gate: frontend schema self-check against the golden fixture
+# (also covered by Go TestTemplateSchemaGolden and Python
+# test_golden_template.py). CI runs this in the frontend-lint job.
+test-schema:
+	cd frontend && npm run test:schema
+
+# D4 smoke: one quick slice per headless harness, total well under 5 min.
+# k6/Gotenberg/gopdfkit-compare need live infra (server :8080, Docker,
+# network setup) - run bench-k6-smoke / bench-gotenberg-smoke /
+# bench-gopdfkit-compare-test against running infra instead.
+bench-smoke:
+	cd $(ZERODHA_DIR) && BENCH_SEED=42 BENCH_ITERATIONS=20 BENCH_WORKERS=2 BENCH_SKIP_WRITE=1 $(GO_BENCH) run .
+	cd $(ZERODHA_DIR) && PAYLOAD_SCENARIO=retail_only BENCH_ITERATIONS=20 BENCH_WORKERS=2 python3 pypdfsuit_bench.py
+	GOMAXPROCS=$(GOMAXPROCS_BENCH) $(GO_BENCH) test -bench='BenchmarkGenerateTemplatePDF_FinancialReport$$' -benchtime=10x -count=1 ./test
+
+test-race:
+	go test -race ./internal/pdf/... ./internal/handlers/...
+
 install-verapdf:
 	bash test/install_verapdf.sh
 
@@ -134,7 +152,7 @@ K6_LIGHT_SECONDS ?= 15
 K6_LIGHT_MAX_CONCURRENT ?= 24
 K6_LIGHT_GOMAXPROCS ?= 12
 
-.PHONY: build test install-verapdf install-pdf-validators test-verify-pdfs test-scan-pdfs test-scan-pdfs-compliance test-zerodha-compliance clean run fmt vet mod lint \
+.PHONY: build test test-schema bench-smoke test-race install-verapdf install-pdf-validators test-verify-pdfs test-scan-pdfs test-scan-pdfs-compliance test-zerodha-compliance clean run fmt vet mod lint \
 	load-pprof load-pprof-gate load-pprof-1k load-pprof-1500 \
 	bench-help bench-setup \
 	bench-k6 bench-k6-light bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \

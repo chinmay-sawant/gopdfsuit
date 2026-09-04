@@ -17,10 +17,6 @@ export { MAX_COMPRESS_BYTES }
 
 let initPromise
 
-export function mapLevel(level) {
-  return toServerLevel(level)
-}
-
 function asUint8Array(input) {
   if (input instanceof Uint8Array) return input
   if (ArrayBuffer.isView(input)) {
@@ -161,8 +157,12 @@ export async function compressPDF(uint8, opts = {}) {
 /**
  * Transport-aware compression: WASM first (local, no upload) with server
  * fallback, or server first when VITE_COMPRESS_TRANSPORT=server.
+ * Server fallback after a WASM failure only happens with explicit
+ * allowServerFallback consent (the Compress page asks the user first);
+ * otherwise the WASM error is rethrown with fallbackAvailable set so the
+ * UI can offer the upload as a consent click.
  */
-export async function compressPDFSmart(uint8, opts = {}, { getAuthHeaders } = {}) {
+export async function compressPDFSmart(uint8, opts = {}, { getAuthHeaders, allowServerFallback = false } = {}) {
   const bytes = asUint8Array(uint8)
   assertCompressSize(bytes.byteLength)
   const level = opts == null ? undefined : opts.level
@@ -172,7 +172,10 @@ export async function compressPDFSmart(uint8, opts = {}, { getAuthHeaders } = {}
   try {
     return await compressViaWasm(bytes, level)
   } catch (wasmError) {
-    if (!getAuthHeaders) throw wasmError
-    return compressViaServer(bytes, level, getAuthHeaders)
+    if (allowServerFallback && getAuthHeaders) {
+      return compressViaServer(bytes, level, getAuthHeaders)
+    }
+    if (wasmError instanceof Error) wasmError.fallbackAvailable = Boolean(getAuthHeaders)
+    throw wasmError
   }
 }

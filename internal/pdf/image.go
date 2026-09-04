@@ -29,6 +29,11 @@ var rgbDataPool = sync.Pool{
 	},
 }
 
+// maxPooledRGBDataCap bounds the RGB pool: buffers that grew past this
+// are dropped instead of retained, mirroring PutCompressBuffer policy and
+// keeping pool memory bounded on large-image soaks.
+const maxPooledRGBDataCap = 8 * 1024 * 1024
+
 const maxImageCacheEntries = 256
 
 // imageCache stores decoded images keyed by a hash of their base64 data.
@@ -116,8 +121,16 @@ func getRGBDataBuffer(length int) []byte {
 	return buf[:length]
 }
 
-// putRGBDataBuffer returns a buffer to the pool
+// putRGBDataBuffer returns a buffer to the pool.
+// Buffers with cap above maxPooledRGBDataCap are dropped to keep pooled
+// memory bounded; oversized image buffers are GC'd instead of retained.
 func putRGBDataBuffer(buf []byte) {
+	if buf == nil {
+		return
+	}
+	if cap(buf) > maxPooledRGBDataCap {
+		return
+	}
 	rgbDataPool.Put(&buf)
 }
 

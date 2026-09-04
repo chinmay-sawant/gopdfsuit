@@ -6,8 +6,10 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strconv"
+	"sync/atomic"
 	"time"
 
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/middleware"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 	"github.com/gin-gonic/gin"
 )
@@ -84,12 +86,35 @@ func MaybeEnableProfiling() func() {
 	}
 }
 
+// concurrencyDepth tracks in-flight requests admitted by concurrencyLimiter.
+// Exported via ConcurrencyDepth for load-tuning observability (C3/B4).
+var concurrencyDepth atomic.Int64
+
+// ConcurrencyDepth reports current in-flight admitted requests.
+func ConcurrencyDepth() int64 {
+	return concurrencyDepth.Load()
+}
+
 // concurrencyLimiter caps in-flight requests with a semaphore channel.
+// Try-acquire is non-blocking: when full it aborts 429 with Retry-After: 1
+// instead of queueing, so overload sheds fast and stays observable.
+// SetLimit (page-compress errgroup) and signWorkerSlots are separate
+// inner budgets and intentionally untouched (see plans/adrs ADR note).
 func concurrencyLimiter(n int) gin.HandlerFunc {
 	semaphore := make(chan struct{}, n)
 	return func(c *gin.Context) {
-		semaphore <- struct{}{}
-		defer func() { <-semaphore }()
+		select {
+		case semaphore <- struct{}{}:
+		default:
+			c.Header("Retry-After", "1")
+			abortErrorAndStop(c, http.StatusTooManyRequests, "server busy")
+			return
+		}
+		concurrencyDepth.Add(1)
+		defer func() {
+			<-semaphore
+			concurrencyDepth.Add(-1)
+		}()
 		c.Next()
 	}
 }
@@ -99,6 +124,7 @@ func concurrencyLimiter(n int) gin.HandlerFunc {
 // middleware package and is unchanged.
 func NewRouter(cfg ServerConfig) *gin.Engine {
 	router := gin.New()
+	router.Use(middleware.RequestIDMiddleware())
 	router.Use(gin.CustomRecovery(func(c *gin.Context, _ any) {
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}))

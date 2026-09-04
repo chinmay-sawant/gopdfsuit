@@ -292,25 +292,10 @@ func writeXRefAndTrailer(
 	idArray []byte,
 ) {
 	xrefStart := out.Len()
-	out.WriteString("xref\n0 ")
-	out.WriteString(strconv.Itoa(maxObj + 1))
-	out.WriteByte('\n')
-	out.WriteString("0000000000 65535 f\r\n")
-	var entry []byte
-	for i := 1; i <= maxObj; i++ {
-		if off, ok := offsets[i]; ok {
-			entry = entry[:0]
-			offStr := strconv.FormatInt(int64(off), 10)
-			for j := 0; j < 10-len(offStr); j++ {
-				entry = append(entry, '0')
-			}
-			entry = append(entry, offStr...)
-			entry = append(entry, " 00000 n\r\n"...)
-			out.Write(entry)
-			continue
-		}
-		out.WriteString("0000000000 65535 f\r\n")
-	}
+	pdfobj.WriteDenseXRef(out, maxObj, func(id int) (int, bool) {
+		off, ok := offsets[id]
+		return off, ok
+	}, nil, pdfobj.MergeStyle)
 
 	out.WriteString("trailer\n<< /Size ")
 	out.WriteString(strconv.Itoa(maxObj + 1))

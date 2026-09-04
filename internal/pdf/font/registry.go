@@ -2,7 +2,6 @@ package font
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -59,7 +58,7 @@ func NewFontRegistry() *CustomFontRegistry {
 func (r *CustomFontRegistry) RegisterFontFromFile(name string, path string) error {
 	font, err := LoadTTFFromFile(path)
 	if err != nil {
-		return errors.New("failed to load font from " + path + ": " + err.Error())
+		return fmt.Errorf("failed to load font from %s: %w", path, err)
 	}
 
 	return r.RegisterFont(name, font)
@@ -69,7 +68,7 @@ func (r *CustomFontRegistry) RegisterFontFromFile(name string, path string) erro
 func (r *CustomFontRegistry) RegisterFontFromData(name string, data []byte) error {
 	font, err := LoadTTFFromData(data)
 	if err != nil {
-		return errors.New("failed to parse font data: " + err.Error())
+		return fmt.Errorf("failed to parse font data: %w", err)
 	}
 
 	return r.RegisterFont(name, font)
@@ -79,7 +78,7 @@ func (r *CustomFontRegistry) RegisterFontFromData(name string, data []byte) erro
 func (r *CustomFontRegistry) RegisterFontFromBase64(name string, base64Data string) error {
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
-		return errors.New("failed to decode base64 font data: " + err.Error())
+		return fmt.Errorf("failed to decode base64 font data: %w", err)
 	}
 
 	return r.RegisterFontFromData(name, data)

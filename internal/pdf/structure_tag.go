@@ -23,7 +23,7 @@ func (t *TableTagger) BeginRow(pageIndex, cellCount int) int {
 		return 0
 	}
 	base := t.sm.ReserveMCIDsLite(pageIndex, cellCount)
-	t.sm.BeginTableRowWithTDMCIDs(pageIndex, base, cellCount)
+	t.sm.beginTableRowWithTDMCIDs(pageIndex, base, cellCount)
 	return base
 }
 
@@ -42,7 +42,7 @@ func (t *TableTagger) BeginRowWithBase(pageIndex, base, cellCount int) {
 	if t == nil || t.sm == nil || !t.sm.Enabled || cellCount <= 0 {
 		return
 	}
-	t.sm.BeginTableRowWithTDMCIDs(pageIndex, base, cellCount)
+	t.sm.beginTableRowWithTDMCIDs(pageIndex, base, cellCount)
 }
 
 // WriteCell emits the TD BDC operator for one cell MCID.
@@ -50,7 +50,7 @@ func (t *TableTagger) WriteCell(buf *bytes.Buffer, mcid int) {
 	if t == nil || t.sm == nil || !t.sm.Enabled {
 		return
 	}
-	t.sm.WriteCellMarkedContentBDC(buf, StructTD, mcid)
+	t.sm.writeCellMarkedContentBDC(buf, StructTD, mcid)
 }
 
 // WriteCellWithTag emits the BDC operator for one cell MCID with an
@@ -59,7 +59,7 @@ func (t *TableTagger) WriteCellWithTag(buf *bytes.Buffer, tag StructureType, mci
 	if t == nil || t.sm == nil || !t.sm.Enabled {
 		return
 	}
-	t.sm.WriteCellMarkedContentBDC(buf, tag, mcid)
+	t.sm.writeCellMarkedContentBDC(buf, tag, mcid)
 }
 
 // EndRow closes the current TR grouping element.

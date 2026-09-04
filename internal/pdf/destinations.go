@@ -16,12 +16,17 @@ import (
 // here so the DestKey invariant lives in one home.
 type DestinationStore struct {
 	pm        *PageManager
+	alloc     *Allocator
 	encryptor ObjectEncryptor
+	bmCount   int
 }
 
 // NewDestinationStore creates a destination store bound to a page manager.
-func NewDestinationStore(pm *PageManager, encryptor ObjectEncryptor) *DestinationStore {
-	return &DestinationStore{pm: pm, encryptor: encryptor}
+func NewDestinationStore(pm *PageManager, alloc *Allocator, encryptor ObjectEncryptor) *DestinationStore {
+	if alloc == nil {
+		alloc = pm.objects().alloc
+	}
+	return &DestinationStore{pm: pm, alloc: alloc, encryptor: encryptor}
 }
 
 // Define registers a named destination for internal linking.
@@ -52,14 +57,40 @@ func (d *DestinationStore) UpdateStructElemID(name string, structElemID int) {
 	}
 }
 
+// DefineBookmarkDest mints a unique bookmark destination key ("_bm_<n>"),
+// resolves the destination page index from destPageID, and registers the
+// named destination. The key sequence follows allocation order, so outline
+// output is unchanged when called in outline-item order.
+func (d *DestinationStore) DefineBookmarkDest(destPageID int, destY float64, structElemID int) string {
+	var bmBuf [32]byte
+	copy(bmBuf[:4], "_bm_")
+	numEnd := 4 + len(strconv.AppendInt(bmBuf[4:4], int64(d.bmCount), 10))
+	key := string(bmBuf[:numEnd])
+	d.bmCount++
+
+	nd := NamedDest{
+		PageIndex:    0, // Resolved from destPageID below.
+		Y:            destY,
+		StructElemID: structElemID,
+	}
+	for pageIdx, pageObjID := range d.pm.Pages {
+		if pageObjID == destPageID {
+			nd.PageIndex = pageIdx
+			break
+		}
+	}
+	d.DefineFull(key, nd)
+	return key
+}
+
 // AllocID reserves one object ID for outline or name-tree objects.
 func (d *DestinationStore) AllocID() int {
-	return d.pm.AllocObjectID()
+	return d.alloc.Alloc()
 }
 
 // Commit stores an outline or name-tree object body under a reserved ID.
 func (d *DestinationStore) Commit(id int, content []byte) {
-	d.pm.CommitExtraObject(id, content)
+	d.alloc.Commit(id, content)
 }
 
 // ResolvePageObjectID maps a named destination to its page object ID,
@@ -94,7 +125,7 @@ func (d *DestinationStore) EmitNameTree() (int, bool) {
 	sort.Strings(names)
 
 	// Create Dests name tree object ID upfront for encryption key generation
-	destsTreeID := d.pm.AllocObjectID()
+	destsTreeID := d.alloc.Alloc()
 
 	var numBuf [20]byte
 	for i, name := range names {
@@ -143,13 +174,13 @@ func (d *DestinationStore) EmitNameTree() (int, bool) {
 	namesArray.WriteString("]")
 
 	destsTreeContent := "<< /Names " + namesArray.String() + " >>"
-	d.pm.CommitExtraObject(destsTreeID, append([]byte(nil), destsTreeContent...))
+	d.alloc.Commit(destsTreeID, append([]byte(nil), destsTreeContent...))
 
 	// Create Names dictionary object
-	namesID := d.pm.AllocObjectID()
+	namesID := d.alloc.Alloc()
 
 	namesContent := fmt.Appendf(nil, "<< /Dests %d 0 R >>", destsTreeID)
-	d.pm.CommitExtraObject(namesID, namesContent)
+	d.alloc.Commit(namesID, namesContent)
 
 	return namesID, true
 }
@@ -185,12 +216,22 @@ func (d *DestinationStore) CreateLinkAnnotation(annot LinkAnnotation) int {
 		annotDict.WriteString(fmt.Sprintf(" /StructParent %d", structParentIdx))
 	}
 
+	// Reserve the annotation ID first: URI encryption keys off it.
+	objID := d.alloc.Alloc()
+
 	// Add action based on link type
 	switch {
 	case annot.URI != "":
 		// External URL - use URI action
-		annotDict.WriteString(fmt.Sprintf(" /A << /Type /Action /S /URI /URI (%s) >>",
-			escapeText(annot.URI)))
+		if d.encryptor != nil {
+			uriBytes := append([]byte(nil), annot.URI...)
+			encrypted := d.encryptor.EncryptString(uriBytes, objID, 0)
+			annotDict.WriteString(fmt.Sprintf(" /A << /Type /Action /S /URI /URI <%s> >>",
+				hex.EncodeToString(encrypted)))
+		} else {
+			annotDict.WriteString(fmt.Sprintf(" /A << /Type /Action /S /URI /URI (%s) >>",
+				escapeText(annot.URI)))
+		}
 	case annot.Dest != "":
 		// Internal link - use named destination
 		// PDF/UA-2: Use /Dest (name) - the named destination contains both /D and /SD
@@ -215,7 +256,7 @@ func (d *DestinationStore) CreateLinkAnnotation(annot LinkAnnotation) int {
 
 	annotDict.WriteString(" >>")
 
-	objID := pm.AddExtraObject(annotDict.String())
+	d.alloc.Commit(objID, []byte(annotDict.String()))
 
 	if pm.Structure.Enabled {
 		// PDF/UA-2: Link structure element that references this annotation
