@@ -84,4 +84,4 @@ Go 1.26.4 - June 2026 suite (`make bench-gopdfkit-compare`, best pdf/s across 5 
 **Winner:** GoPDFLib (gopdfsuit engine) on all 7 workloads. Lead ranges **2.1x**
 (text) to **9.9x** (PNG rows).
 
-Full benchmark report: [`guides/BENCHMARKS.md`](../../../guides/BENCHMARKS.md).
+Full benchmark report: [`documentation/BENCHMARKS.md`](../../../documentation/BENCHMARKS.md).

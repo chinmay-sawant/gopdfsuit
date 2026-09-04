@@ -94,7 +94,7 @@ Notes: CI only runs lint plus `docs/` build. Always run `make fmt && make lint &
 - `bindings/python/pypdfsuit/`: generator, merge, split, fill, redact, html, compress via `cgo/exports.go`.
 - `test/`: Go integration tests `integration_*_test.go` plus k6 scripts in `test/generate_template-pdf/`.
 - `sampledata/`: fixtures per feature (`merge/`, `split/`, `compress/`, `filler/`, `financialreport/`, `typstsyntax/`, `gopdflib/zerodha/`, `benchmarks/`).
-- `guides/`: operational docs (`AUTHENTICATION.md`, `BENCHMARKS.md`, `DEPLOYMENT_CHECKLIST.md`, `TEMPLATE_REFERENCE.md`). `plans/`: design notes plus `plans/PR/` ledger. `typstsyntax/`: Typst subset lexer, parser, renderer.
+- `documentation/`: operational docs (`AUTHENTICATION.md`, `BENCHMARKS.md`, `DEPLOYMENT_CHECKLIST.md`, `TEMPLATE_REFERENCE.md`, plus caching, validators, signatures, getting started). `guides/` holds remaining build and optimization notes. `plans/`: design notes plus `plans/PR/` ledger. `typstsyntax/`: Typst subset lexer, parser, renderer.
 - Tests colocated as `*_test.go`. Directory name equals package name (`pdf`, `font`, `xref`, `models`, `middleware`, `gopdflib`, `typstsyntax`).
 
 ## Skills (this repo)

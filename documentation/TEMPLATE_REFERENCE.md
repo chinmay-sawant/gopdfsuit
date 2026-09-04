@@ -1,36 +1,38 @@
-# 📋 PDF Template Reference
+# PDF template reference
 
 Complete guide to the JSON template format used by GoPdfSuit for generating PDF documents.
 
 ---
 
-## Table of Contents
+## Table of contents
 
 - [Overview](#overview)
-- [Template Structure](#template-structure)
-- [Config Object](#config-object)
-- [Digital Signatures](#digital-signatures)
-- [Security & Encryption](#security--encryption)
-- [Title Object](#title-object)
-- [Table Object](#table-object)
-- [Cell Object](#cell-object)
-- [Props Syntax](#props-syntax)
-- [Bookmarks & Navigation](#bookmarks--navigation)
-- [Form Fields](#form-fields)
+- [Template structure](#template-structure)
+- [Config object](#config-object)
+- [Digital signatures](#digital-signatures)
+- [Security & encryption](#security--encryption)
+- [Title object](#title-object)
+- [Table object](#table-object)
+- [Cell object](#cell-object)
+- [Props syntax](#props-syntax)
+- [Bookmarks & navigation](#bookmarks--navigation)
+- [Form fields](#form-fields)
 - [Images](#images)
-- [Footer Object](#footer-object)
-- [Complete Example](#complete-example)
-- [API Usage](#api-usage)
+- [Footer object](#footer-object)
+- [Complete example](#complete-example)
+- [API usage](#api-usage)
 
 ---
 
 ## Overview
 
-GoPdfSuit uses JSON templates to define PDF document structure. Templates are processed by the `/api/v1/generate/template-pdf` endpoint and rendered into PDF documents with automatic page breaks, styling, and form elements.
+GoPdfSuit uses JSON templates to define PDF document structure. You send templates to the `/api/v1/generate/template-pdf` endpoint. It renders them into PDF documents with automatic page breaks, styling, and form elements.
+
+I like JSON templates because they stay in version control. No layout editor to fight. Short input, predictable output.
 
 ---
 
-## Template Structure
+## Template structure
 
 ```json
 {
@@ -47,9 +49,9 @@ GoPdfSuit uses JSON templates to define PDF document structure. Templates are pr
 
 ---
 
-## Config Object
+## Config object
 
-Controls page layout, appearance, and security features.
+Controls page layout, appearance, and security settings.
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
@@ -61,10 +63,10 @@ Controls page layout, appearance, and security features.
 | `pdfaCompliant` | bool | No | `false` | Enable PDF/A-4 compliance (embeds fonts via Liberation) |
 | `arlingtonCompatible` | bool | No | `false` | Enable PDF 2.0 Arlington Model compliance |
 | `embedFonts` | bool | No | `true` | Embed fonts for document portability |
-| `signature` | object | No | - | Digital signature settings (see [Digital Signatures](#digital-signatures)) |
-| `security` | object | No | - | Encryption settings (see [Security & Encryption](#security--encryption)) |
+| `signature` | object | No | - | Digital signature settings (see [Digital signatures](#digital-signatures)) |
+| `security` | object | No | - | Encryption settings (see [Security & encryption](#security--encryption)) |
 
-### Page Sizes
+### Page sizes
 
 | Size | Dimensions (inches) | Dimensions (points) |
 |------|---------------------|---------------------|
@@ -91,9 +93,9 @@ Controls page layout, appearance, and security features.
 
 ---
 
-## Digital Signatures
+## Digital signatures
 
-Add legally-binding digital signatures with X.509 certificates.
+Add legally binding digital signatures with X.509 certificates.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -137,9 +139,9 @@ Add legally-binding digital signatures with X.509 certificates.
 
 ---
 
-## Security & Encryption
+## Security & encryption
 
-Password-protect documents with granular permission controls.
+Password-protect documents with permission controls.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -175,20 +177,20 @@ Password-protect documents with granular permission controls.
 
 ---
 
-## Title Object
+## Title object
 
-Defines the document header/title section.
+Defines the document header section.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `props` | string | Yes | Styling properties (see [Props Syntax](#props-syntax)) |
+| `props` | string | Yes | Styling properties (see [Props syntax](#props-syntax)) |
 | `text` | string | Yes* | Title text (*ignored if `table` is provided) |
 | `table` | object | No | Embedded table for complex layouts (e.g., logo + text) |
 | `bgcolor` | string | No | Background color (hex: `"#RRGGBB"`) |
 | `textcolor` | string | No | Text color (hex: `"#RRGGBB"`) |
 | `link` | string | No | External URL hyperlink |
 
-### Title with Embedded Table
+### Title with embedded table
 
 ```json
 {
@@ -210,7 +212,7 @@ Defines the document header/title section.
 }
 ```
 
-### Title with Colors and Link
+### Title with colors and link
 
 ```json
 {
@@ -226,7 +228,7 @@ Defines the document header/title section.
 
 ---
 
-## Table Object
+## Table object
 
 Tables are the primary content containers.
 
@@ -267,7 +269,7 @@ Tables are the primary content containers.
 
 ---
 
-## Cell Object
+## Cell object
 
 Individual cells within table rows.
 
@@ -285,7 +287,7 @@ Individual cells within table rows.
 | `link` | string | No | Hyperlink - external URL or internal `#destination` |
 | `dest` | string | No | Named destination anchor for internal links |
 
-### Cell Types
+### Cell types
 
 ```json
 // Text cell
@@ -312,7 +314,7 @@ Individual cells within table rows.
 
 ---
 
-## Props Syntax
+## Props syntax
 
 The `props` string defines text styling and cell borders.
 
@@ -335,7 +337,7 @@ The `props` string defines text styling and cell borders.
 | 7 | `top` | `0` or `1` | Top border |
 | 8 | `bottom` | `0` or `1` | Bottom border |
 
-### Style Code (3-digit)
+### Style code (3-digit)
 
 | Code | Meaning |
 |------|---------|
@@ -358,7 +360,7 @@ The `props` string defines text styling and cell borders.
 
 ---
 
-## Form Fields
+## Form fields
 
 Interactive form fields for fillable PDFs.
 
@@ -400,11 +402,11 @@ Interactive form fields for fillable PDFs.
 
 ---
 
-## Bookmarks & Navigation
+## Bookmarks & navigation
 
 Create document outlines and internal navigation links.
 
-### Bookmark Object
+### Bookmark object
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -437,7 +439,7 @@ Create document outlines and internal navigation links.
 }
 ```
 
-### Creating Navigation Links
+### Creating navigation links
 
 1. **Add destination anchor** to a cell that will be the target:
 ```json
@@ -481,7 +483,7 @@ Embed images in cells or as standalone elements.
 }
 ```
 
-### Image with Link
+### Image with link
 
 ```json
 {
@@ -499,7 +501,7 @@ Embed images in cells or as standalone elements.
 
 ---
 
-## Footer Object
+## Footer object
 
 Appears at the bottom of every page.
 
@@ -509,7 +511,7 @@ Appears at the bottom of every page.
 | `text` | string | Yes | Footer text |
 | `link` | string | No | External URL hyperlink |
 
-> **Note:** Page numbers ("Page X of Y") are automatically added to the bottom-right corner.
+> **Note.** The engine adds page numbers ("Page X of Y") to the bottom-right corner automatically.
 
 ### Example
 
@@ -525,9 +527,9 @@ Appears at the bottom of every page.
 
 ---
 
-## Complete Example
+## Complete example
 
-A comprehensive financial report with digital signature, bookmarks, and internal navigation:
+A financial report with digital signature, bookmarks, and internal navigation:
 
 ```json
 {
@@ -678,7 +680,7 @@ A comprehensive financial report with digital signature, bookmarks, and internal
 
 ---
 
-## API Usage
+## API usage
 
 ### Generate PDF
 
@@ -689,7 +691,7 @@ curl -X POST "http://localhost:8080/api/v1/generate/template-pdf" \
   --output document.pdf
 ```
 
-### Load Template Data
+### Load template data
 
 ```bash
 curl "http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json"
@@ -697,17 +699,17 @@ curl "http://localhost:8080/api/v1/template-data?file=temp_multiplepage.json"
 
 ### Response
 
-- **Content-Type:** `application/pdf`
-- **Filename:** `template-pdf-<timestamp>.pdf`
+- **Content-type.** `application/pdf`
+- **Filename.** `template-pdf-<timestamp>.pdf`
 
 ---
 
-## Automatic Features
+## Automatic features
 
 | Feature | Description |
 |---------|-------------|
-| **Page Breaks** | Content automatically flows to new pages when needed |
-| **Page Numbering** | "Page X of Y" added to bottom-right of each page |
-| **Border Preservation** | Page borders drawn on every page |
-| **Watermarks** | Diagonal watermark rendered on all pages |
-| **Height Tracking** | System monitors content height for optimal pagination |
+| Page breaks | Content flows to new pages when needed |
+| Page numbering | The engine adds "Page X of Y" to the bottom-right of each page |
+| Border preservation | The engine draws page borders on every page |
+| Watermarks | The engine renders the diagonal watermark on all pages |
+| Height tracking | The engine tracks content height for pagination |

@@ -459,7 +459,7 @@ Native weighted render profile with CPU/heap profiling enabled:
 
 Important caveats:
 
-- This **7,160.62 ops/sec** number is a profiled run, not the native Go baseline. The current published Go Zerodha artifact in `guides/BENCHMARKS.md` reports **11,721 ops/sec** best for `bench-gopdflib-zerodha`, and the raw x10 WSL artifacts are generally around **10,829-11,775 ops/sec**.
+- This **7,160.62 ops/sec** number is a profiled run, not the native Go baseline. The current published Go Zerodha artifact in `documentation/BENCHMARKS.md` reports **11,721 ops/sec** best for `bench-gopdflib-zerodha`, and the raw x10 WSL artifacts are generally around **10,829-11,775 ops/sec**.
 - This native Go render benchmark is not byte-for-byte identical to pypdfsuit HFT. The native HFT warm-up output was **748,163 bytes**, while pypdfsuit HFT is **2,424,782 bytes**.
 - Therefore this profile is useful for render hotspot families, but it is not sufficient as the exact pypdfsuit FFI bottleneck proof. A true pypdfsuit JSON-round-trip pprof harness is still needed before making render-side optimization claims for pypdfsuit HFT.
 

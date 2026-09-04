@@ -1,36 +1,35 @@
-# Getting Started with gopdflib
+# Getting started with gopdflib
 
-This guide provides a comprehensive overview of how to install and start using the `gopdflib` package from the [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) repository.
+I use gopdflib when I need PDFs straight from Go code without shelling out to another tool. It generates, redacts, and compresses in one import, and templates stay as JSON you can version.
 
-## Table of Contents
+## Table of contents
 
-1.  [Downloading and Installing](#downloading-and-installing)
-2.  [Loading PDF Templates from JSON](#loading-pdf-templates-from-json)
+1.  [Downloading and installing](#downloading-and-installing)
+2.  [Loading PDF templates from JSON](#loading-pdf-templates-from-json)
 3.  [Redacting a PDF](#redacting-a-pdf)
 4.  [Compressing a PDF](#compressing-a-pdf)
 
 ---
 
-## Downloading and Installing
+## Downloading and installing
 
-This section explains how to download and install the `gopdflib` package using the `v6.0.0` release tag.
+Install the `gopdflib` package with the `v6.0.0` release tag.
 
 ### Prerequisites
 
-- Go (version 1.21 or later is recommended)
+- You need Go 1.21 or later.
 
-### Steps to Download
+### Steps to download
 
-1.  **Get the Package**
-    Run the following command in your terminal to download the package:
+1.  Run the following command in your terminal to download the package:
 
     ```bash
     go get github.com/chinmay-sawant/gopdfsuit/v6@v6.0.0
     ```
 
-    This command will download the source code and add the dependency to your `go.mod` file.
+    This command downloads the source code and adds the dependency to your `go.mod` file.
 
-### Usage in Your Project
+### Usage in your project
 
 To use the library in your Go code, import the `gopdflib` package:
 
@@ -40,9 +39,9 @@ import (
 )
 ```
 
-#### Basic Configuration Example
+#### Basic configuration example
 
-Here is a simple example of how to reference the library in your code:
+Reference the library in your code like this:
 
 ```go
 package main
@@ -63,7 +62,7 @@ func main() {
 }
 ```
 
-### Updating the Library
+### Updating the library
 
 To update to a specific v6 release in the future, run:
 
@@ -73,20 +72,20 @@ go get github.com/chinmay-sawant/gopdfsuit/v6@v6.0.0
 
 ---
 
-## Loading PDF Templates from JSON
+## Loading PDF templates from JSON
 
-This section explains how to generate PDFs by loading template data from a JSON file. This approach is useful for separating data/content from your Go code, or when receiving template data from an external API.
+Load template data from a JSON file to keep content out of Go code, or to accept template data from an API.
 
 ### Overview
 
-The `gopdflib.PDFTemplate` struct tags match standard JSON naming conventions (camelCase), allowing you to directly unmarshal JSON data into the struct.
+The `gopdflib.PDFTemplate` struct tags match standard JSON naming conventions (camelCase), so you can unmarshal JSON data directly into the struct.
 
 ### Prerequisites
 
 - `gopdflib` installed (as described above)
 - A valid JSON template file (e.g., `sampledata/editor/financial_digitalsignature.json`)
 
-### Example Code
+### Example code
 
 Create a file named `main.go` (or similar) with the following content:
 
@@ -135,9 +134,9 @@ func main() {
 }
 ```
 
-### Running the Sample
+### Running the sample
 
-We have provided a ready-to-run example in the repository.
+Run the ready-made example in the repo.
 
 1.  Navigate to the project root.
 2.  Run the example:
@@ -146,11 +145,11 @@ We have provided a ready-to-run example in the repository.
     go run sampledata/gopdflib/load_from_json/main.go
     ```
 
-    This will read `sampledata/editor/financial_digitalsignature.json`, generate the PDF, and save it as `financial_from_json.pdf` in your current directory.
+    This reads `sampledata/editor/financial_digitalsignature.json`, generates the PDF, and saves it as `financial_from_json.pdf` in your current directory.
 
-### JSON Structure
+### JSON structure
 
-The JSON structure directly mirrors the `gopdflib.PDFTemplate` struct. Common top-level fields include:
+The JSON structure mirrors the `gopdflib.PDFTemplate` struct. Common top-level fields include:
 
 - `config`: Page settings (size, margin, etc.)
 - `title`: Document title section
@@ -158,19 +157,19 @@ The JSON structure directly mirrors the `gopdflib.PDFTemplate` struct. Common to
 - `footer`: Footer configuration
 - `bookmarks`: Navigation outline
 
-Refer to the `sampledata/editor/financial_digitalsignature.json` file for a comprehensive example of the JSON schema.
+Refer to the `sampledata/editor/financial_digitalsignature.json` file for a full example of the JSON schema.
 
 ---
 
 ## Redacting a PDF
 
-This section explains how to scrub sensitive information from existing PDFs using `gopdflib`. You can redact specific areas via coordinates, or automatically search and redact specific text content.
+Scrub sensitive info from a PDF with `gopdflib`. Redact by coordinates, or search and redact text.
 
 ### Overview
 
-The `gopdflib.ApplyRedactionsAdvanced` function allows you to pass in a combination of explicit coordinates and text queries to redact a PDF visually and structurally.
+Call `gopdflib.ApplyRedactionsAdvanced` with explicit coordinates and text queries to redact a PDF visually and structurally.
 
-### Example Code
+### Example code
 
 Create a file named `main.go` with the following content:
 
@@ -241,7 +240,7 @@ There is no CLI. The same engine also runs in the browser as WebAssembly (`make 
 
 `JPEGQuality` and `MaxImageDim` on `CompressOptions` override the preset when greater than zero.
 
-### Example Code
+### Example code
 
 ```go
 package main
@@ -273,7 +272,7 @@ func main() {
 }
 ```
 
-### Running the Sample
+### Running the sample
 
 ```bash
 cd sampledata/compress && go run .

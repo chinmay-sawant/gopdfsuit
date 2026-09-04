@@ -171,6 +171,6 @@ There is currently **no** public API to clear `subsetCache` or `templateDataCach
 ## Related docs
 
 - [CROSS_REQUEST_CACHING_FAQ.md](./CROSS_REQUEST_CACHING_FAQ.md) - does layout bleed across PDFs? (FAQ)
-- [PERFORMANCE_OPTIMIZATIONS.md](./additionalnotes/PERFORMANCE_OPTIMIZATIONS.md) - zlib pooling, image cache overview
-- [PDF_GENERATION_INTERNALS.md](./additionalnotes/PDF_GENERATION_INTERNALS.md) - assets and streams
+- [PERFORMANCE_OPTIMIZATIONS.md](../guides/additionalnotes/PERFORMANCE_OPTIMIZATIONS.md) - zlib pooling, image cache overview
+- [PDF_GENERATION_INTERNALS.md](../guides/additionalnotes/PDF_GENERATION_INTERNALS.md) - assets and streams
 - [TEMPLATE_REFERENCE.md](./TEMPLATE_REFERENCE.md) - `sharedRowLayout` / `sharedRowTemplateRow` fields

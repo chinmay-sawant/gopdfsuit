@@ -1201,4 +1201,4 @@ go test ./internal/...
   expand it.
 - `guides/optimizations/20260614_remaining_optimizations_checklist.md` - broader k6
   optimization history (compression, JSON decode, structure-tree writer).
-- `guides/BENCHMARKS.md` - best-of-5 cross-harness comparison (Go 1.26.4).
+- `documentation/BENCHMARKS.md` - best-of-5 cross-harness comparison (Go 1.26.4).

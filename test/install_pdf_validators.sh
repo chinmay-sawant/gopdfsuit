@@ -50,7 +50,7 @@ veraPDF   ${REPO_ROOT}/verapdf/verapdf
 avalpdf   ${VENV_DIR}/bin/avalpdf
 structure ${REPO_ROOT}/test/structure_tree_check.py
 
-See guides/PDF_VALIDATORS.md for usage and optional commercial validators.
+See documentation/PDF_VALIDATORS.md for usage and optional commercial validators.
 EOF
 
 echo ""

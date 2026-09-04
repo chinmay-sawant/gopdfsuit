@@ -55,5 +55,5 @@ You become the listener.
 - Let the user finish a full attempt before interrupting.
 - Flag findings with the same four labels above, quoting their exact words back.
 - After flags, drill one question at a time: "why does that work?" until they hit bedrock or hit a wall. A wall is the method working, never mock it.
-- Point every gap to the file or doc that closes it. For gopdfsuit point to `internal/pdf/*`, `guides/TEMPLATE_REFERENCE.md`, or `sampledata/<area>/` fixtures.
+- Point every gap to the file or doc that closes it. For gopdfsuit point to `internal/pdf/*`, `documentation/TEMPLATE_REFERENCE.md`, or `sampledata/<area>/` fixtures.
 - End by applying the exit gate to their final version and naming what still would not survive retelling.

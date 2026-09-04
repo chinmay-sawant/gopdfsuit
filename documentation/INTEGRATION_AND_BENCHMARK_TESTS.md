@@ -43,7 +43,7 @@ python3 -m pytest bindings/python/tests -v
 |--------|---------|-----:|----------------:|--------------------------:|
 | **gopdflib** | Zerodha `go run .` | **2,953 ops/s** | **2,646 ops/s** | 3,604 / 2,787 ops/s |
 
-Full table: [ZERODHA_BENCHMARK_RESULTS.md](./cursor/ZERODHA_BENCHMARK_RESULTS.md)
+Full table: [ZERODHA_BENCHMARK_RESULTS.md](../guides/cursor/ZERODHA_BENCHMARK_RESULTS.md)
 
 ### HTTP / Python (2-run mean, 2026-06-11 22:01)
 
@@ -52,7 +52,7 @@ Full table: [ZERODHA_BENCHMARK_RESULTS.md](./cursor/ZERODHA_BENCHMARK_RESULTS.md
 | **gopdfsuit** | k6 `tagged_ecdsa` | **859 req/s** | **825 req/s** (5-run, 2026-06-14) | 893 req/s |
 | **pypdfsuit** | `pypdfsuit_bench.py` | 228 ops/s | **219 ops/s** | 236 ops/s |
 
-Full comparison: [benchmark_suite_20260611_2128/comparison.md](./cursor/baselines/benchmark_suite_20260611_2128/comparison.md)
+Full comparison: [benchmark_suite_20260611_2128/comparison.md](../guides/cursor/baselines/benchmark_suite_20260611_2128/comparison.md)
 
 ## Gin HTTP load benchmarks (`make load-pprof*`)
 
@@ -75,7 +75,7 @@ Same weighted 80/15/5 mix as gopdfsuit, rendered via Gotenberg Chromium (`skipNe
 | Weighted steady | `make bench-gotenberg` | `20260613_215127` | - | **10.3 req/s** | 4.26 s | 8.22 s |
 
 **vs gopdfsuit** (peak **859** / avg **825** req/s, 5-run `20260614`): ~**80×** higher avg throughput on the same k6 harness.  
-Full comparison: [gotenberg_runs/comparison_20260613.md](./cursor/baselines/gotenberg_runs/comparison_20260613.md)
+Full comparison: [gotenberg_runs/comparison_20260613.md](../guides/cursor/baselines/gotenberg_runs/comparison_20260613.md)
 
 Output PDF from integration test: `sampledata/financialreport/financial_report.pdf`
 

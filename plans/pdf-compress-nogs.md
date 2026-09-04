@@ -128,7 +128,7 @@ const out = await compressPDF(uint8, { level: 2 })
 
 ### 7.6 Docs
 - [x] README features: PDF compress (library + **in-browser WASM**).
-- [x] `guides/GETTING_STARTED_GOPDFLIB.md`: `CompressPDF` + level table.
+- [x] `documentation/GETTING_STARTED_GOPDFLIB.md`: `CompressPDF` + level table.
 - [x] Do **not** document a CLI.
 
 ### 7.7 Closure

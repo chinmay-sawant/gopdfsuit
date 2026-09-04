@@ -36,7 +36,7 @@ Manual publish (without tag):
 | **Python** | `bindings/python/pyproject.toml`, `bindings/python/pypdfsuit/__init__.py` |
 | **Sample data modules** | `sampledata/go.mod`, `sampledata/benchmarks/gopdfkit_compare/go.mod` |
 | **Nested Go modules** | `frontend/go.mod`, `guides/go.mod`, `certs/go.mod`, `dockerfolder/go.mod`, `bkp/go.mod`, `screenshots/go.mod` |
-| **Docs (source)** | `guides/GETTING_STARTED_GOPDFLIB.md`, `guides/MAKEFILE.md`, `frontend/src/components/documentation/content/getting-started.js` |
+| **Docs (source)** | `documentation/GETTING_STARTED_GOPDFLIB.md`, `guides/MAKEFILE.md`, `frontend/src/components/documentation/content/getting-started.js` |
 | **Docs (built)** | `docs/**` - regenerate via frontend build (do not hand-edit) |
 | **Generated** | `internal/handlers/mocks/mock_services.go`, `bindings/python/pypdfsuit/lib/libgopdfsuit.so` |
 
@@ -63,7 +63,7 @@ sed -i 's|__version__ = "5.0.0"|__version__ = "6.0.0"|' bindings/python/pypdfsui
 sed -i 's|gopdfsuit/v5|gopdfsuit/v6|g; s|@v5.0.0|@v6.0.0|g; s|v5.0.0|v6.0.0|g' \
   frontend/src/components/documentation/content/getting-started.js
 sed -i 's|gopdfsuit/v5|gopdfsuit/v6|g; s|@v5.0.0|@v6.0.0|g; s|v5.0.0|v6.0.0|g' \
-  guides/GETTING_STARTED_GOPDFLIB.md
+  documentation/GETTING_STARTED_GOPDFLIB.md
 sed -i 's|5\.0\.0|6.0.0|g' guides/MAKEFILE.md
 
 go mod tidy
@@ -222,7 +222,7 @@ Create a GitHub Release with upgrade notes (breaking change: `/v5` → `/v6` imp
 | `bindings/python/pypdfsuit/__init__.py` | `__version__ = "6.0.0"` |
 | `sampledata/go.mod`, `sampledata/benchmarks/gopdfkit_compare/go.mod` | `/v6 v6.0.0` |
 | `frontend/go.mod` + nested `go.mod` files | `/v6` module paths |
-| `guides/GETTING_STARTED_GOPDFLIB.md`, `guides/MAKEFILE.md` | v6 install examples |
+| `documentation/GETTING_STARTED_GOPDFLIB.md`, `guides/MAKEFILE.md` | v6 install examples |
 | `frontend/src/.../getting-started.js` | v6 code examples |
 | `docs/**` | Rebuilt via `npm run build` |
 | `bindings/python/pypdfsuit/lib/libgopdfsuit.so` | Rebuilt via `./build.sh` |

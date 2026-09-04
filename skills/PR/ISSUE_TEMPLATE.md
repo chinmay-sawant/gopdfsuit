@@ -79,7 +79,7 @@ Mixed plan + code batches: **`documentation` + `enhancement`**.
 | Link closed parents (`#8`, `#16`) | Continuity |
 | Link merged PRs | Evidence |
 | Link plan paths | Single source of checklist |
-| Link architecture docs | Policy boundaries (`guides/TEMPLATE_REFERENCE.md`, `guides/AUTHENTICATION.md`) |
+| Link architecture docs | Policy boundaries (`documentation/TEMPLATE_REFERENCE.md`, `documentation/AUTHENTICATION.md`) |
 
 When the work ships, the PR must use:
 
