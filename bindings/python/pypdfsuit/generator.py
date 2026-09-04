@@ -3,7 +3,7 @@ PDF generation functionality.
 """
 
 import json
-from typing import List
+from typing import List, Dict, Any
 
 from .types import PDFTemplate, FontInfo
 from ._bindings import get_lib, call_bytes_result
@@ -44,6 +44,21 @@ def generate_pdf(template: PDFTemplate) -> bytes:
     """
     lib = get_lib()
     payload = serialize_template(template)
+    return call_bytes_result(lib.GeneratePDF, payload)
+
+
+def generate_pdf_from_dict(template_dict: Dict[str, Any]) -> bytes:
+    """Generate a PDF from a raw JSON-compatible template dict.
+
+    Bypasses dataclass construction for raw JSON-template parity
+    (mirrors the helper used in tests/test_integration.py).
+    """
+    lib = get_lib()
+    payload = json.dumps(
+        template_dict,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
     return call_bytes_result(lib.GeneratePDF, payload)
 
 

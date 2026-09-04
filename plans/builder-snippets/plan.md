@@ -1,7 +1,7 @@
-# Plans > Copy-Clip - Keep Snippet JSON + Builder Snippets
+# Plans > Builder Snippets - Keep Snippet JSON + Builder Snippets
 
-> **Parent:** `plans/copy-clip/plan.md` - canonical ledger (this file, converted to phase-wise-checklist shape)
-> **Status:** planning, 0/5 phases complete, branch `feat/copy-clip-builder-snippets`
+> **Parent:** `plans/builder-snippets/plan.md` - canonical ledger (this file, converted to phase-wise-checklist shape)
+> **Status:** planning, 0/5 phases complete, branch `feat/builder-snippets`
 > **Estimated effort:** S-M, 2-3 sessions (Go overlay, Python parity, frontend copy buttons)
 
 ---
@@ -83,7 +83,7 @@ pdfBytes, err := b.Generate()
 
 - [ ] `bindings/python/pypdfsuit/compress.py` - new `compress_pdf(src,level)` via CGO `bindings/python/cgo/exports.go:310-322`, wire `bindings/python/pypdfsuit/_bindings.py:157-222` + `__init__.py:72-116` - proof: `pytest bindings/python/tests/test_compress.py -v` no longer skips
 
-## Phase 4: Frontend copy-clip - reuse general builder
+## Phase 4: Frontend builder snippets - reuse general builder
 
 ### 4.1 Snippet export
 
@@ -114,5 +114,14 @@ pdfBytes, err := b.Generate()
 - No hand-edit `docs/` Vite output, edit `frontend/src/` and rebuild.
 
 ## Completion Handoff
+
+## Phase 6: Samples - builder-snippet examples
+
+- [x] `sampledata/gopdflib/builder-snippets/main.go` - Go builder sample mirroring `sampledata/builder-snippets/snippet.json` (title table, bracket right cell `#B00020`, spacer 20, image 100x80, red-amount table) - proof: `cd sampledata && go run ./gopdflib/builder-snippets` wrote 4630 bytes, `go vet` + `gofmt` clean
+- [x] `sampledata/pypdflib/builder-snippets/main.py` - Python `TemplateBuilder` sample mirroring the Go sample - proof: `PYTHONPATH=bindings/python python3 sampledata/pypdflib/builder-snippets/main.py` wrote 4630 bytes, `py_compile` clean
+- [x] Go/Python parity - both PDFs PDF 2.0 1 page, same length, content streams identical (64 differing bytes are `CreationDate`/`ModDate`/`/ID` only) - proof: byte-compare script above
+- [x] `sampledata/go.mod` + `sampledata/go.sum` - `go mod tidy` resync with parent module graph (was stale: chromedp refs, old x/sync) - proof: required for `go run` to succeed
+
+## Completion Handoff (original)
 
 - [ ] Confirm rows above with commands beside each gate, synchronize this ledger, report next unchecked phase. Do not create a second status document.

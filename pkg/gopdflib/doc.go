@@ -51,9 +51,40 @@
 // Example: "Helvetica:12:100:left:1:1:1:1"
 //   - FontName: Helvetica, Times-Roman, Courier, or custom font name
 //   - FontSize: Size in points (e.g., 12)
-//   - StyleCode: 3-digit code for bold(1/0), italic(1/0), underline(1/0)
+//   - StyleCode: 3-digit code for bold(1/0), italic(1/0), underline(1/0).
+//     000 is regular, 100 is bold. This field is font style only, not color.
+//     Color lives in bgcolor/textcolor hex fields on the cell, title, or table.
 //   - Alignment: left, center, right
 //   - Borders: 1 = visible, 0 = hidden
+//
+// # Builder overlay
+//
+// Builders are a thin overlay over PDFTemplate. They emit the same Props
+// grammar and bgcolor/textcolor hex strings documented above, with no engine
+// draw changes. The sink stays [GeneratePDF] / GeneratePDFBorrowed.
+//
+// Raw Props strings are the supported low-level form (handy when copying
+// JSON fixtures verbatim). The fluent Font/Text chains below are the
+// preferred spelling; both emit identical strings.
+//
+// Right-cell color example:
+//
+//	b := gopdflib.NewDocument("A4", true)
+//	b.AddTitle("Document Title", gopdflib.WithTitleFont("Helvetica", 18, true))
+//	tb := b.AddTable(3, 1, 2, 1)
+//	row := tb.AddRow(
+//	    gopdflib.Font("Helvetica").Size(12).Bordered().Cell(""),
+//	    gopdflib.Font("Helvetica").Size(18).Bold().Center().Bordered().Cell("Document Title"),
+//	    gopdflib.Font("Helvetica").Size(12).Right().Bordered().Cell(""),
+//	)
+//	gopdflib.SetCellTextColor(&row[2], "#B00020")
+//	gopdflib.SetCellFont(&row[1], "Helvetica", 18, true, false, false)
+//	pdfBytes, err := b.Generate()
+//
+// Bracket text example:
+//
+//	c := gopdflib.Font("Helvetica").Size(12).Bordered().Cell("clause")
+//	gopdflib.AddBracketText(&c, "[", "]")
 //
 // # Thread Safety
 //

@@ -7,6 +7,7 @@ Complete guide to the JSON template format used by GoPdfSuit for generating PDF 
 ## Table of contents
 
 - [Overview](#overview)
+- [Builder-snippet canonical snippet](#builder-snippet-canonical-snippet)
 - [Template structure](#template-structure)
 - [Config object](#config-object)
 - [Digital signatures](#digital-signatures)
@@ -15,6 +16,7 @@ Complete guide to the JSON template format used by GoPdfSuit for generating PDF 
 - [Table object](#table-object)
 - [Cell object](#cell-object)
 - [Props syntax](#props-syntax)
+- [Fluent builder (Go + Python)](#fluent-builder-go--python)
 - [Bookmarks & navigation](#bookmarks--navigation)
 - [Form fields](#form-fields)
 - [Images](#images)
@@ -29,6 +31,18 @@ Complete guide to the JSON template format used by GoPdfSuit for generating PDF 
 GoPdfSuit uses JSON templates to define PDF document structure. You send templates to the `/api/v1/generate/template-pdf` endpoint. It renders them into PDF documents with automatic page breaks, styling, and form elements.
 
 I like JSON templates because they stay in version control. No layout editor to fight. Short input, predictable output.
+
+---
+
+## Builder-snippet canonical snippet
+
+Keep-snippet decision: the canonical shape is `config + title + inline elements`. Each entry in `elements` carries its own `table`, `spacer`, or `image` payload. There is no Versa conversion path and no importer. Builders emit the same JSON the engine already accepts.
+
+Load path: fetch a stored template with `GET /api/v1/template-data?file=<name>.json`, then render with `GenerateTemplatePDFBorrowed` (HTTP handler path) or `GeneratePDFBorrowed` (public `pkg/gopdflib` path). Both use pooled buffers with release/copy rules documented in `pkg/gopdflib/doc.go`.
+
+Props grammar: `Font:Size:Style:Align:L:R:T:B`, for example `Helvetica:12:000:left:1:1:1:1`. `000` is regular and `100` is bold. That three-digit field is font style only (bold/italic/underline flags), not color. Cell and title color lives in `bgcolor`/`textcolor` hex strings such as `"#B00020"`, which override any table-level defaults.
+
+Aliases: `title.textprops` falls back over `title.props` (textprops wins when set), `footer.props` is accepted alongside `footer.font` (props wins when set), and `config.embedStandardFonts` is accepted alongside `config.embedFonts`. The frontend schema already allows all three, and Go normalizes them so editor-exported JSON renders unchanged. See `sampledata/builder-snippets/snippet.json` for a minimal 3-col title table plus spacer and image.
 
 ---
 
@@ -357,6 +371,24 @@ The `props` string defines text styling and cell borders.
 "font1:14:100:center:0:0:1:0" → Bold, centered, top border only
 "font1:10:111:right:0:0:0:0"  → Bold+Italic+Underline, right-aligned, no borders
 ```
+
+---
+
+## Fluent builder (Go + Python)
+
+The `pkg/gopdflib` fluent builder emits the same props strings above, so raw strings remain the low-level form.
+
+```go
+props := gopdflib.Font("Helvetica").Size(12).Bold().Center().Props()
+cell := gopdflib.Text("Hello").Bg("#F4F6F7").Build()
+```
+
+```python
+props = Font("Helvetica").size(12).bold().center().props()
+cell = Text("Hello").bg("#F4F6F7").build()
+```
+
+Go output is byte-identical to `MakeProps`, Python output to `make_props`. Use the builder for readable code and raw strings when copying JSON fixtures verbatim.
 
 ---
 

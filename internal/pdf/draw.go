@@ -716,6 +716,12 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 
 // drawTitle renders the document title (either simple text or embedded table)
 func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps models.Props, pageManager *PageManager, cellImageObjectIDs map[string]int) {
+	// TextProps alias: prefer textprops over props for simple text titles.
+	// Title.Table precedence is preserved: the table path below still wins
+	// when a table is present; titleProps only supplies its defaultProps.
+	if title.Table == nil && title.TextProps != "" {
+		titleProps = parseProps(title.TextProps)
+	}
 	// Check if title has an embedded table
 	if title.Table != nil && len(title.Table.Rows) > 0 {
 		drawTitleTable(contentStream, title.Table, pageManager, cellImageObjectIDs, title.BgColor, title.TextColor, titleProps)
@@ -2040,7 +2046,11 @@ func drawSpacer(spacer models.Spacer, pageManager *PageManager) {
 
 // drawFooter renders the document footer
 func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *PageManager) {
-	footerProps := parseProps(footer.Font)
+	footerFont := footer.Props
+	if footerFont == "" {
+		footerFont = footer.Font
+	}
+	footerProps := parseProps(footerFont)
 	// PDF/UA: Start Artifact mark (Footer)
 	contentStream.WriteString("/Artifact <</Attached [/Bottom] /Type /Pagination >> BDC\n")
 

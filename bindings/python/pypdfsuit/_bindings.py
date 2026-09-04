@@ -179,6 +179,10 @@ def _load_library():
     lib.FillPDFWithXFDF.argtypes = [c_char_p, c_int, c_char_p, c_int]
     lib.FillPDFWithXFDF.restype = ByteResult
 
+    # CompressPDF (pdf bytes + JSON {"level": "light|medium|heavy"})
+    lib.CompressPDF.argtypes = [c_char_p, c_int, c_char_p]
+    lib.CompressPDF.restype = ByteResult
+
     # ConvertHTMLToPDF
     lib.ConvertHTMLToPDF.argtypes = [c_char_p]
     lib.ConvertHTMLToPDF.restype = ByteResult

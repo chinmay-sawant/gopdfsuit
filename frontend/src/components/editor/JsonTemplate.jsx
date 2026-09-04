@@ -1,7 +1,29 @@
 
 import { FileText, Check, Copy } from 'lucide-react'
 
-export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEditing, handleJsonBlur, copiedId, setCopiedId }) {
+export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEditing, handleJsonBlur, copiedId, setCopiedId, goSnippet = '', pythonSnippet = '' }) {
+    const copyButtonStyle = {
+        padding: '0.25rem 0.5rem',
+        fontSize: '0.75rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.25rem',
+        background: 'hsl(var(--secondary))',
+        color: 'hsl(var(--foreground))',
+        border: '1px solid hsl(var(--border))',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease'
+    }
+    const copyText = async (text, id) => {
+        try {
+            await navigator.clipboard.writeText(text)
+            setCopiedId(id)
+            setTimeout(() => setCopiedId(null), 2000)
+        } catch (error) {
+            console.error('Copy failed:', error)
+        }
+    }
     return (
         <div style={{
             padding: '1rem',
@@ -14,29 +36,34 @@ export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEdit
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'hsl(var(--foreground))' }}>
                     <FileText size={16} /> JSON Template
                 </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                 <button
-                    onClick={async () => {
-                        try {
-                            await navigator.clipboard.writeText(jsonText)
-                            setCopiedId('json')
-                            setTimeout(() => setCopiedId(null), 2000)
-                        } catch (error) {
-                            console.error('Copy failed:', error)
-                        }
+                    onClick={() => copyText(goSnippet, 'go')}
+                    style={copyButtonStyle}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'hsl(var(--accent))'
                     }}
-                    style={{
-                        padding: '0.25rem 0.5rem',
-                        fontSize: '0.75rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        background: 'hsl(var(--secondary))',
-                        color: 'hsl(var(--foreground))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'hsl(var(--secondary))'
                     }}
+                >
+                    {copiedId === 'go' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Go</>}
+                </button>
+                <button
+                    onClick={() => copyText(pythonSnippet, 'python')}
+                    style={copyButtonStyle}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'hsl(var(--accent))'
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'hsl(var(--secondary))'
+                    }}
+                >
+                    {copiedId === 'python' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Py</>}
+                </button>
+                <button
+                    onClick={() => copyText(jsonText, 'json')}
+                    style={copyButtonStyle}
                     onMouseEnter={(e) => {
                         e.currentTarget.style.background = 'hsl(var(--accent))'
                     }}
@@ -46,6 +73,7 @@ export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEdit
                 >
                     {copiedId === 'json' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
                 </button>
+                </div>
             </div>
             <textarea
                 value={jsonText}
@@ -72,7 +100,7 @@ export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEdit
                 fontSize: '0.7rem',
                 color: 'hsl(var(--muted-foreground))'
             }}>
-                Edit JSON directly or paste to load template. Changes apply on blur.
+                Edit JSON directly or paste to load template. Changes apply on blur. Copy Go / Copy Py emit builder snippets for the current template.
             </p>
         </div>
     )

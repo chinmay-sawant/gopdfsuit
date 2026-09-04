@@ -20,6 +20,7 @@ import { shouldUseServerWasmTransport } from '../utils/wasm/transports.js'
 import { registerFontLocal } from '../utils/wasm/fonts.js'
 import { getFontFamily } from '../components/editor/utils'
 import { parseProps, formatProps } from '../components/editor/utils'
+import { templateToGoSnippet, templateToPythonSnippet } from '../components/editor/snippet.js'
 import {
   DEFAULT_CONFIG,
   buildTemplate,
@@ -639,6 +640,35 @@ export default function Editor() {
     }
   }
 
+  const goSnippet = useMemo(
+    () => templateToGoSnippet(buildTemplate({ config, title, components, footer, bookmarks })),
+    [config, title, components, footer, bookmarks]
+  )
+  const pythonSnippet = useMemo(
+    () => templateToPythonSnippet(buildTemplate({ config, title, components, footer, bookmarks })),
+    [config, title, components, footer, bookmarks]
+  )
+
+  const handleCopyGo = async () => {
+    try {
+      await navigator.clipboard.writeText(goSnippet)
+      setCopiedId('go')
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (error) {
+      console.error('Copy failed:', error)
+    }
+  }
+
+  const handleCopyPython = async () => {
+    try {
+      await navigator.clipboard.writeText(pythonSnippet)
+      setCopiedId('python')
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (error) {
+      console.error('Copy failed:', error)
+    }
+  }
+
   // --- File Upload ---
   const onLoadTemplate = async (filename, source = 'local') => {
     if (!filename || !filename.trim()) {
@@ -821,6 +851,8 @@ export default function Editor() {
           onLoadTemplate={onLoadTemplate}
           onPreviewPDF={handlePreviewPdf}
           onCopyJSON={handleCopyJson}
+          onCopyGo={handleCopyGo}
+          onCopyPython={handleCopyPython}
           onDownloadPDF={handleGeneratePdf}
           templateInput={templateInput}
           setTemplateInput={setTemplateInput}
@@ -1220,6 +1252,8 @@ export default function Editor() {
             handleJsonBlur={handleJsonBlur}
             copiedId={copiedId}
             setCopiedId={setCopiedId}
+            goSnippet={goSnippet}
+            pythonSnippet={pythonSnippet}
           />
         </div>
       </div>

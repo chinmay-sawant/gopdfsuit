@@ -223,21 +223,24 @@ type Element struct {
 
 // Config holds document-wide settings such as page size, margins, and security.
 type Config struct {
-	PageBorder          string             `json:"pageBorder"`
-	PageMargin          string             `json:"pageMargin,omitempty"`          // Page margins in points: "left:right:top:bottom" (default: "72:72:72:72")
-	Page                string             `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
-	PageAlignment       int                `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
-	Watermark           string             `json:"watermark,omitempty"`           // Optional diagonal watermark text
-	PdfTitle            string             `json:"pdfTitle,omitempty"`            // Document title for PDF metadata
-	ArlingtonCompatible bool               `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
-	Bookmarks           []Bookmark         `json:"bookmarks,omitempty"`           // Document outline/bookmarks for navigation
-	Security            *SecurityConfig    `json:"security,omitempty"`            // Password protection and encryption settings
-	PDFA                *PDFAConfig        `json:"pdfa,omitempty"`                // PDF/A compliance settings
-	Signature           *SignatureConfig   `json:"signature,omitempty"`           // Digital signature settings
-	EmbedFonts          *bool              `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
-	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`         // Custom TTF/OTF fonts to embed
-	PDFACompliant       bool               `json:"pdfaCompliant,omitempty"`       // Enable PDF/A-4 compliance mode (PDF 2.0, requires all fonts to be embedded via Liberation fonts)
-	TaggedPDF           bool               `json:"taggedPDF,omitempty"`           // Emit structure tree/marked content; implied when pdfaCompliant is true via generator logic
+	PageBorder          string           `json:"pageBorder"`
+	PageMargin          string           `json:"pageMargin,omitempty"`          // Page margins in points: "left:right:top:bottom" (default: "72:72:72:72")
+	Page                string           `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
+	PageAlignment       int              `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
+	Watermark           string           `json:"watermark,omitempty"`           // Optional diagonal watermark text
+	PdfTitle            string           `json:"pdfTitle,omitempty"`            // Document title for PDF metadata
+	ArlingtonCompatible bool             `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
+	Bookmarks           []Bookmark       `json:"bookmarks,omitempty"`           // Document outline/bookmarks for navigation
+	Security            *SecurityConfig  `json:"security,omitempty"`            // Password protection and encryption settings
+	PDFA                *PDFAConfig      `json:"pdfa,omitempty"`                // PDF/A compliance settings
+	Signature           *SignatureConfig `json:"signature,omitempty"`           // Digital signature settings
+	EmbedFonts          *bool            `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
+	// EmbedStandardFonts is an optional alias for EmbedFonts (frontend parity).
+	// When set, it takes precedence over EmbedFonts.
+	EmbedStandardFonts *bool              `json:"embedStandardFonts,omitempty"`
+	CustomFonts        []CustomFontConfig `json:"customFonts,omitempty"`   // Custom TTF/OTF fonts to embed
+	PDFACompliant      bool               `json:"pdfaCompliant,omitempty"` // Enable PDF/A-4 compliance mode (PDF 2.0, requires all fonts to be embedded via Liberation fonts)
+	TaggedPDF          bool               `json:"taggedPDF,omitempty"`     // Emit structure tree/marked content; implied when pdfaCompliant is true via generator logic
 }
 
 // SecurityConfig holds PDF encryption and permission settings
@@ -300,6 +303,10 @@ type CustomFontConfig struct {
 type Title struct {
 	Props string `json:"props"`
 	Text  string `json:"text"`
+	// TextProps is an optional alias for Props for simple text titles.
+	// When set, the engine prefers TextProps over Props. Title.Table
+	// takes precedence over both.
+	TextProps string `json:"textprops,omitempty"`
 	// Table allows embedding a table inside the title for complex layouts (e.g., logo + text)
 	// When Table is provided, Text is ignored and the table is rendered instead
 	Table *TitleTable `json:"table,omitempty"`
@@ -413,6 +420,9 @@ type Image struct {
 type Footer struct {
 	Font string `json:"font"`
 	Text string `json:"text"`
+	// Props is an optional alias for Font. When set, the engine prefers
+	// Props over Font.
+	Props string `json:"props,omitempty"`
 	// Link URL for the footer text
 	Link string `json:"link,omitempty"`
 }

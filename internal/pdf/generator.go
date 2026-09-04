@@ -650,7 +650,12 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		usedStandardFonts["Helvetica"] = true
 	}
 
-	shouldEmbed := template.Config.EmbedFonts == nil || *template.Config.EmbedFonts
+	shouldEmbed := true
+	if template.Config.EmbedStandardFonts != nil {
+		shouldEmbed = *template.Config.EmbedStandardFonts
+	} else if template.Config.EmbedFonts != nil {
+		shouldEmbed = *template.Config.EmbedFonts
+	}
 
 	// Calculate Object IDs for standard fonts dynamically
 	// Only assign IDs for fonts that are used
@@ -2243,7 +2248,11 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 
 	// Title - Process if title text is provided OR if title has a table
 	if template.Title.Text != "" || template.Title.Table != nil {
-		titleProps := parseProps(template.Title.Props)
+		titlePropsStr := template.Title.TextProps
+		if titlePropsStr == "" {
+			titlePropsStr = template.Title.Props
+		}
+		titleProps := parseProps(titlePropsStr)
 
 		// Calculate title height based on content
 		var titleHeight float64
@@ -2401,7 +2410,11 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 
 	// Scan title
 	if template.Title.Text != "" {
-		markFont(template.Title.Props)
+		titlePropsStr := template.Title.TextProps
+		if titlePropsStr == "" {
+			titlePropsStr = template.Title.Props
+		}
+		markFont(titlePropsStr)
 	}
 
 	// Scan title table
@@ -2451,7 +2464,11 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 
 	// Scan footer
 	if template.Footer.Text != "" {
-		markFont(template.Footer.Font)
+		footerPropsStr := template.Footer.Props
+		if footerPropsStr == "" {
+			footerPropsStr = template.Footer.Font
+		}
+		markFont(footerPropsStr)
 	}
 
 	// Scan watermark (always uses Helvetica if present)
@@ -2537,7 +2554,11 @@ func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]b
 
 	// Scan title
 	if template.Title.Text != "" {
-		markFont(template.Title.Props)
+		titlePropsStr := template.Title.TextProps
+		if titlePropsStr == "" {
+			titlePropsStr = template.Title.Props
+		}
+		markFont(titlePropsStr)
 	}
 
 	// Scan title table
@@ -2587,7 +2608,11 @@ func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]b
 
 	// Scan footer
 	if template.Footer.Text != "" {
-		markFont(template.Footer.Font)
+		footerPropsStr := template.Footer.Props
+		if footerPropsStr == "" {
+			footerPropsStr = template.Footer.Font
+		}
+		markFont(footerPropsStr)
 	}
 
 	return used

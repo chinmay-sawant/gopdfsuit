@@ -230,6 +230,7 @@ class Config:
     pdfa: Optional[PDFAConfig] = None
     signature: Optional[SignatureConfig] = None
     embed_fonts: Optional[bool] = True
+    embed_standard_fonts: Optional[bool] = None
     custom_fonts: Optional[List[CustomFontConfig]] = None
     pdfa_compliant: bool = False
 
@@ -242,6 +243,8 @@ class Config:
         }
         if self.embed_fonts is not None:
             result["embedFonts"] = self.embed_fonts
+        if self.embed_standard_fonts is not None:
+            result["embedStandardFonts"] = self.embed_standard_fonts
         if self.watermark is not None:
             result["watermark"] = self.watermark
         if self.pdf_title is not None:
@@ -449,6 +452,7 @@ class Title:
 
     props: str
     text: str = ""
+    textprops: Optional[str] = None
     table: Optional[TitleTable] = None
     bg_color: Optional[str] = None
     text_color: Optional[str] = None
@@ -456,6 +460,8 @@ class Title:
 
     def to_dict(self) -> Dict[str, Any]:
         result = {"props": self.props, "text": self.text}
+        if self.textprops is not None:
+            result["textprops"] = self.textprops
         if self.table is not None:
             result["table"] = self.table.to_dict()
         if self.bg_color is not None:
@@ -473,10 +479,13 @@ class Footer:
 
     font: str
     text: str
+    props: Optional[str] = None
     link: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         result = {"font": self.font, "text": self.text}
+        if self.props is not None:
+            result["props"] = self.props
         if self.link is not None:
             result["link"] = self.link
         return result

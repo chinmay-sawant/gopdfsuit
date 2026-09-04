@@ -83,8 +83,11 @@ type Config struct {
 	Signature           *SignatureConfig   `json:"signature,omitempty"`
 	EmbedFonts          *bool              `json:"embedFonts,omitempty"`
 	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`
-	PDFACompliant       bool               `json:"pdfaCompliant,omitempty"`
-	TaggedPDF           bool               `json:"taggedPDF,omitempty"`
+	// EmbedStandardFonts is an optional alias for EmbedFonts (frontend parity).
+	// When set, it takes precedence over EmbedFonts.
+	EmbedStandardFonts *bool `json:"embedStandardFonts,omitempty"`
+	PDFACompliant      bool  `json:"pdfaCompliant,omitempty"`
+	TaggedPDF          bool  `json:"taggedPDF,omitempty"`
 }
 
 // SecurityConfig holds PDF encryption and permission settings.
@@ -140,8 +143,12 @@ type CustomFontConfig struct {
 
 // Title represents the header section of the document.
 type Title struct {
-	Props     string      `json:"props"`
-	Text      string      `json:"text"`
+	Props string `json:"props"`
+	Text  string `json:"text"`
+	// TextProps is an optional alias for Props for simple text titles.
+	// When set, the engine prefers TextProps over Props. Title.Table
+	// takes precedence over both.
+	TextProps string      `json:"textprops,omitempty"`
 	Table     *TitleTable `json:"table,omitempty"`
 	BgColor   string      `json:"bgcolor,omitempty"`
 	TextColor string      `json:"textcolor,omitempty"`
@@ -212,7 +219,10 @@ type Image struct {
 type Footer struct {
 	Font string `json:"font"`
 	Text string `json:"text"`
-	Link string `json:"link,omitempty"`
+	// Props is an optional alias for Font. When set, the engine prefers
+	// Props over Font.
+	Props string `json:"props,omitempty"`
+	Link  string `json:"link,omitempty"`
 }
 
 // Props defines the stylistic properties for document elements.
