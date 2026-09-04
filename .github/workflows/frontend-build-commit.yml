@@ -37,10 +37,11 @@ jobs:
           cache: false
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
+        timeout-minutes: 15
         with:
           version: v1.64.8
           install-mode: goinstall
-          args: -E revive,gocritic,gocyclo,goconst ./...
+          args: --timeout 10m -E revive,gocritic,gocyclo,goconst ./...
 
   # Row 5.7: one red job maps to exactly one layer (go vs python vs
   # compliance). Shared validator setup lives in

@@ -213,7 +213,7 @@ mod:
 	go mod tidy
 
 lint:
-	golangci-lint run -E revive,gocritic,gocyclo,goconst ./...
+	golangci-lint run --timeout 10m -E revive,gocritic,gocyclo,goconst ./...
 	cd frontend && npm run lint
 	cd .. 
 
