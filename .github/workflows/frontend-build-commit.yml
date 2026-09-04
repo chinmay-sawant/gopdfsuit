@@ -4,14 +4,10 @@ on:
   push:
     branches: ["main", "master"]
     tags: ["v*"]
-    paths:
-      - "**"
     paths-ignore:
       - "docs/**"
   pull_request:
     branches: ["*"]
-    paths:
-      - "**"
     paths-ignore:
       - "docs/**"
   release:
