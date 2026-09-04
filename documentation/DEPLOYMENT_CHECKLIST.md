@@ -261,6 +261,17 @@ cd .. && gcloud run deploy gopdfsuit --source . --region us-central1
 - Update OAuth client authorized origins
 - Redeploy to Cloud Run
 
+### Issue: Large uploads rejected (413) or malformed PDFs rejected (400/422)
+**Check:**
+- [ ] PDF uploads are capped at 32 MiB per file (matches `compress.MaxInputBytes`)
+- [ ] Template JSON bodies are capped at 8 MiB, HTML-convert bodies at 2 MiB
+- [ ] Font uploads are capped at 10 MiB, XFDF data at 8 MiB
+
+**Fix:**
+- Compress or split PDFs client-side before upload
+- 413 means over the size cap; 400/422 means the file failed validation
+  (malformed PDF), not a server error - check backend logs for details
+
 ## 📝 Documentation References
 
 - Full Guide: [docs/AUTHENTICATION.md](AUTHENTICATION.md)

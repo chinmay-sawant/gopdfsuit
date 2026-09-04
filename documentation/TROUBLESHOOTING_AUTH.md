@@ -44,6 +44,14 @@ export GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 go run cmd/gopdfsuit/main.go
 ```
 
+Simpler alternative: keep `K_SERVICE` unset and force auth with `REQUIRE_AUTH=1`.
+
+```bash
+export REQUIRE_AUTH=1
+export GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+go run cmd/gopdfsuit/main.go
+```
+
 #### 2. Verify Frontend Configuration
 
 Ensure your frontend is using the correct Client ID in `.env`:

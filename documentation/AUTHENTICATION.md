@@ -84,6 +84,22 @@ GOOGLE_OAUTH_AUDIENCE=https://your-service-name.run.app
 CLOUD_RUN_SERVICE_URL=https://your-service-name.run.app
 ```
 
+### Enforcing auth outside Cloud Run
+
+Local and staging deploys are open by default (no `K_SERVICE`/`K_REVISION`).
+To exercise the authenticated paths without faking Cloud Run, set:
+
+```bash
+REQUIRE_AUTH=1
+```
+
+This forces the middleware to validate tokens everywhere. Use it in staging
+or in local testing before release.
+
+Note: the `GIN_FAST_API=1` benchmark fast path only skips CORS overhead - it
+never bypasses authentication. The template-pdf route always runs inside the
+auth middleware group.
+
 ### 4. Build and Deploy
 
 #### Local Development (No Auth)
@@ -212,6 +228,7 @@ func YourHandler(c *gin.Context) {
 ### Authentication not required locally
 - This is expected! Check that `K_SERVICE` is not set
 - Frontend should have `VITE_IS_CLOUD_RUN=false`
+- To test authenticated paths locally, run with `REQUIRE_AUTH=1`
 
 ### Can't access API on Cloud Run
 - Ensure frontend was built with Cloud Run environment variables
@@ -234,6 +251,7 @@ func YourHandler(c *gin.Context) {
 |----------|----------|-------------|
 | `K_SERVICE` | Auto | Set by Cloud Run, triggers auth |
 | `K_REVISION` | Auto | Set by Cloud Run (backup check) |
+| `REQUIRE_AUTH` | Optional | Set to `1` to force auth even without `K_SERVICE` (staging/local testing) |
 | `GOOGLE_CLIENT_ID` | Yes | Expected audience (Client ID) for tokens |
 | `GOOGLE_OAUTH_AUDIENCE` | Optional | Custom expected audience |
 | `CLOUD_RUN_SERVICE_URL` | Optional | Service URL for validation (fallback) |
