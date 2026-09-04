@@ -1,45 +1,52 @@
 import { useState } from 'react'
-import { Globe, FileText, Download, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
-import { isGitHubPagesHost, makeAuthenticatedRequest, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
+import { Globe, FileText, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
+import { isGitHubPagesHost, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import { htmlToPDFViaWasm } from '../utils/wasm/html.js'
+import OperationShell from '../components/OperationShell'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const HtmlToPdf = () => {
   const [htmlContent, setHtmlContent] = useState('')
   const [url, setUrl] = useState('')
   const [inputType, setInputType] = useState('html')
-  const [isLoading, setIsLoading] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const { isLoading, resultUrl: pdfUrl, run, runLocal, download } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => alert(`Error: ${message}`),
+  })
 
   const [config, setConfig] = useState({
     page_size: 'A4', orientation: 'Portrait',
     margin_top: '10mm', margin_right: '10mm', margin_bottom: '10mm', margin_left: '10mm',
-    dpi: 300, grayscale: false, low_quality: false,
+    grayscale: false,
   })
 
   const convertToPdf = async () => {
+    // Inline HTML renders in-browser via gopdfsuit.wasm (offline-capable,
+    // no upload). URL sources need the server fetch path (SSRF guard).
+    if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
+    if (inputType === 'html') {
+      await runLocal(() => htmlToPDFViaWasm(htmlContent, config), {
+        filename: `html-to-pdf-${Date.now()}.pdf`,
+        autoDownload: false,
+      })
+      return
+    }
     if (isGitHubPagesHost()) {
       alert(OFFLINE_DEMO_MESSAGE)
       return
     }
-    if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
-    setIsLoading(true)
-    try {
-      const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
-      const response = await makeAuthenticatedRequest('/api/v1/htmltopdf', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody),
-      }, getAuthHeaders)
-      const blob = await response.blob()
-      const pdfBlobUrl = URL.createObjectURL(blob)
-      setPdfUrl(pdfBlobUrl)
-      const link = document.createElement('a')
-      link.href = pdfBlobUrl; link.download = `html-to-pdf-${Date.now()}.pdf`; link.click()
-    } catch (error) {
-      if (error.message.includes("401") || error.message.includes("403")) triggerLogin()
-      else alert('Error: ' + error.message)
-    } finally { setIsLoading(false) }
+    const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
+    await run({
+      endpoint: '/api/v1/htmltopdf',
+      body: JSON.stringify(requestBody),
+      headers: { 'Content-Type': 'application/json' },
+      getAuthHeaders,
+      filename: `html-to-pdf-${Date.now()}.pdf`,
+    })
   }
 
   const sampleHtml = `<!DOCTYPE html><html><head><style>body{font-family:Arial;padding:20px}h1{color:#2c3e50;border-bottom:2px solid #3498db}.highlight{background:#4ecdc4;color:white;padding:15px;border-radius:8px;margin:20px 0}</style></head><body><h1>Sample PDF</h1><p>Sample document for conversion.</p><div class="highlight"><h3>Highlighted</h3><p>This section has styling.</p></div></body></html>`
@@ -52,7 +59,7 @@ const HtmlToPdf = () => {
       <section style={{ padding: '4rem 0 2rem', textAlign: 'center' }}>
         <div className="container">
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(0,122,204,0.1)', border: '1px solid rgba(0,122,204,0.3)', borderRadius: '50px', marginBottom: '1.5rem', color: '#007acc', fontSize: '0.9rem', fontWeight: '500' }}>
-            <Sparkles size={16} />Chromium-powered
+            <Sparkles size={16} />Pure-Go conversion
           </div>
           <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem', fontSize: 'clamp(2rem,5vw,3rem)', fontWeight: '800', color: 'hsl(var(--foreground))' }}>
             <div className="feature-icon-box green" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Globe size={28} /></div>
@@ -134,31 +141,28 @@ const HtmlToPdf = () => {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-2" style={{ gap: '1rem' }}>
-                  <div>
-                    <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>DPI Quality:</label>
-                    <select value={config.dpi} onChange={(e) => setConfig(p => ({ ...p, dpi: parseInt(e.target.value) }))} style={inputStyles}><option value={150}>150 DPI</option><option value={300}>300 DPI</option><option value={600}>600 DPI</option></select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', justifyContent: 'center' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={config.grayscale} onChange={(e) => setConfig(p => ({ ...p, grayscale: e.target.checked }))} style={{ width: '18px', height: '18px', accentColor: '#4ecdc4' }} />Grayscale
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={config.low_quality} onChange={(e) => setConfig(p => ({ ...p, low_quality: e.target.checked }))} style={{ width: '18px', height: '18px', accentColor: '#4ecdc4' }} />Low Quality
-                    </label>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', justifyContent: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={config.grayscale} onChange={(e) => setConfig(p => ({ ...p, grayscale: e.target.checked }))} style={{ width: '18px', height: '18px', accentColor: '#4ecdc4' }} />Grayscale
+                  </label>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem', margin: 0 }}>Pure-Go engine: dpi / low_quality are no-ops and hidden. Scripts are stripped, flex/grid support is partial, backgrounds ignored, WOFF2 fonts skipped.</p>
                 </div>
               </div>
               <button onClick={convertToPdf} disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem', padding: '1rem 2rem' }}>
                 {isLoading ? <RefreshCw size={18} className="spin" /> : <FileText size={18} />}Convert to PDF
               </button>
               {pdfUrl && (
-                <div>
-                  <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.75rem', fontSize: '0.95rem', fontWeight: '600' }}>PDF Preview:</h4>
-                  <iframe src={pdfUrl} style={{ width: '100%', height: '280px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px' }} title="PDF" />
-                  <button onClick={() => { const link = document.createElement('a'); link.href = pdfUrl; link.download = `html-to-pdf-${Date.now()}.pdf`; link.click() }} className="btn-glow" style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-                    <Download size={16} />Download PDF
-                  </button>
+                <div style={{ marginTop: '1.5rem' }}>
+                  <OperationShell
+                    resultUrl={pdfUrl}
+                    title="PDF Preview"
+                    icon={<FileText size={18} />}
+                    emptyTitle=""
+                    emptySubtitle=""
+                    onDownload={() => download(`html-to-pdf-${Date.now()}.pdf`)}
+                    downloadLabel="Download PDF"
+                    height={280}
+                  />
                 </div>
               )}
             </div>

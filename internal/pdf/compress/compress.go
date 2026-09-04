@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
 // Level is a Ghostscript-style compression tier.
@@ -121,11 +121,11 @@ func CompressPDF(data []byte, opts Options) ([]byte, error) {
 		return nil, fmt.Errorf("PDF trailer /Root not found")
 	}
 	infoNum, _, _ := lastRef(infoRefRe, data)
-	version := merge.DetectPDFVersion(data)
+	version := pdfobj.DetectVersion(data)
 
 	stmCount := 0
 	for _, obj := range objects {
-		if merge.IsObjectStream(obj.body) {
+		if pdfobj.IsObjectStream(obj.body) {
 			stmCount++
 		}
 	}
@@ -167,7 +167,7 @@ func CompressPDF(data []byte, opts Options) ([]byte, error) {
 }
 
 func parseObjects(data []byte) (map[int]pdfObject, int, error) {
-	boundaries := merge.FindObjectBoundaries(data)
+	boundaries := pdfobj.FindObjectBoundaries(data)
 	if len(boundaries) == 0 {
 		return nil, 0, fmt.Errorf("no PDF objects found")
 	}
@@ -188,7 +188,7 @@ func parseObjects(data []byte) (map[int]pdfObject, int, error) {
 
 	stmCount := 0
 	for _, obj := range objects {
-		if merge.IsObjectStream(obj.body) {
+		if pdfobj.IsObjectStream(obj.body) {
 			stmCount++
 		}
 	}
@@ -199,10 +199,10 @@ func parseObjects(data []byte) (map[int]pdfObject, int, error) {
 	}
 
 	for num, obj := range objects {
-		if !merge.IsObjectStream(obj.body) {
+		if !pdfobj.IsObjectStream(obj.body) {
 			continue
 		}
-		extracted := merge.ParseObjectStream(obj.body)
+		extracted := pdfobj.ParseObjectStream(obj.body)
 		if len(extracted) == 0 {
 			continue
 		}
@@ -222,13 +222,13 @@ func parseObjects(data []byte) (map[int]pdfObject, int, error) {
 }
 
 func shouldDrop(body []byte) bool {
-	if merge.HasSubstring(body, []byte("/Type /XRef")) || merge.HasSubstring(body, []byte("/Type/XRef")) {
+	if pdfobj.HasSubstring(body, []byte("/Type /XRef")) || pdfobj.HasSubstring(body, []byte("/Type/XRef")) {
 		return true
 	}
-	if merge.HasSubstring(body, []byte("/Type /Metadata")) || merge.HasSubstring(body, []byte("/Type/Metadata")) {
+	if pdfobj.HasSubstring(body, []byte("/Type /Metadata")) || pdfobj.HasSubstring(body, []byte("/Type/Metadata")) {
 		return true
 	}
-	if merge.HasSubstring(body, []byte("/Linearized")) {
+	if pdfobj.HasSubstring(body, []byte("/Linearized")) {
 		return true
 	}
 	return false
@@ -292,25 +292,10 @@ func writeXRefAndTrailer(
 	idArray []byte,
 ) {
 	xrefStart := out.Len()
-	out.WriteString("xref\n0 ")
-	out.WriteString(strconv.Itoa(maxObj + 1))
-	out.WriteByte('\n')
-	out.WriteString("0000000000 65535 f\r\n")
-	var entry []byte
-	for i := 1; i <= maxObj; i++ {
-		if off, ok := offsets[i]; ok {
-			entry = entry[:0]
-			offStr := strconv.FormatInt(int64(off), 10)
-			for j := 0; j < 10-len(offStr); j++ {
-				entry = append(entry, '0')
-			}
-			entry = append(entry, offStr...)
-			entry = append(entry, " 00000 n\r\n"...)
-			out.Write(entry)
-			continue
-		}
-		out.WriteString("0000000000 65535 f\r\n")
-	}
+	pdfobj.WriteDenseXRef(out, maxObj, func(id int) (int, bool) {
+		off, ok := offsets[id]
+		return off, ok
+	}, nil, pdfobj.MergeStyle)
 
 	out.WriteString("trailer\n<< /Size ")
 	out.WriteString(strconv.Itoa(maxObj + 1))

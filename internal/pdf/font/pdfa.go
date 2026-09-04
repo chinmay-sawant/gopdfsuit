@@ -3,15 +3,18 @@ package font
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 // PDFAFontConfig holds configuration for PDF/A compliant font handling
@@ -67,7 +70,57 @@ var LiberationFontFiles = map[string]string{
 // The release asset uses the stable GitHub files endpoint rather than /releases/download.
 const defaultLiberationFontsArchiveURL = "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz"
 
+// liberationFontsArchiveSHA256 pins the expected tarball bytes (hex,
+// recorded 2026-09-04). A mismatch fails the download loudly instead of
+// extracting untrusted content.
+const liberationFontsArchiveSHA256 = "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0"
+
 var liberationFontsArchiveURL = defaultLiberationFontsArchiveURL
+
+// liberationArchiveMaxBytes caps the Liberation tarball download (64 MiB;
+// the 2.1.5 release is ~1 MiB, so anything larger is not the pinned asset).
+const liberationArchiveMaxBytes = 64 << 20
+
+// liberationArchiveDigest returns the pinned digest when fetching from the
+// default URL. Test overrides (httptest servers) carry different bytes and
+// skip verification by returning "".
+func liberationArchiveDigest() string {
+	if liberationFontsArchiveURL != defaultLiberationFontsArchiveURL {
+		return ""
+	}
+	return liberationFontsArchiveSHA256
+}
+
+// verifyLiberationDigest checks the downloaded archive against the pinned
+// digest when fetching from the default URL. Test overrides (httptest
+// servers) carry different bytes and skip verification. The file is read
+// from its current offset; callers re-seek afterwards.
+func verifyLiberationDigest(f *os.File) error {
+	if liberationFontsArchiveURL != defaultLiberationFontsArchiveURL {
+		return nil
+	}
+	sum, err := sha256File(f)
+	if err != nil {
+		return fmt.Errorf("failed to checksum fonts archive: %w", err)
+	}
+	if sum != liberationFontsArchiveSHA256 {
+		return fmt.Errorf("fonts archive checksum mismatch (got %s): refresh liberationFontsArchiveSHA256", sum)
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		return fmt.Errorf("failed to seek temp file: %w", err)
+	}
+	return nil
+}
+
+// sha256File digests an open file from its current offset without loading
+// it fully into memory.
+func sha256File(f *os.File) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
 
 // PDFAFontManager manages Liberation font loading for PDF/A compliance
 type PDFAFontManager struct {
@@ -141,8 +194,17 @@ func (m *PDFAFontManager) initialize(config PDFAFontConfig) error {
 	return nil
 }
 
-// EnsureFontsAvailable ensures Liberation fonts are available, downloading if necessary
+// EnsureFontsAvailable ensures Liberation fonts are available, downloading if necessary.
+//
+// WASM (GOOS=js): unsupported and rejected up front. The Liberation
+// download needs net/http plus a writable fonts directory, neither of which
+// exists in the browser; WASM callers needing PDF/A embedding must fetch
+// TTF bytes in JS and register them via
+// (CustomFontRegistry).RegisterFontFromData or RegisterFontFromBase64.
 func (m *PDFAFontManager) EnsureFontsAvailable() error {
+	if isWASM() {
+		return errors.New("liberation fonts unsupported in WASM (GOOS=js): load TTF bytes in JS and use RegisterFontFromData/RegisterFontFromBase64")
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -222,44 +284,40 @@ func (m *PDFAFontManager) checkFontDir(dir string) bool {
 	return false
 }
 
-// downloadFonts downloads Liberation font files
+// downloadFonts downloads Liberation font files via the shared provision
+// helper (timeout fetch, size cap, digest pin, temp file), then extracts the
+// known TTFs. The URL-override test seam is preserved: httptest overrides
+// skip digest verification through liberationArchiveDigest.
+// WASM (GOOS=js): never reached; EnsureFontsAvailable rejects first. The
+// guard below is defense in depth.
 func (m *PDFAFontManager) downloadFonts() error {
+	if isWASM() {
+		return errors.New("liberation font download unsupported in WASM (GOOS=js): load TTF bytes in JS and use RegisterFontFromData/RegisterFontFromBase64")
+	}
 	fmt.Printf("Downloading Liberation fonts from %s...\n", liberationFontsArchiveURL)
 
-	// Create temp file for the tar.gz
-	tmpFile, err := os.CreateTemp("", "liberation-fonts-*.tar.gz")
+	// Download the file with a timeout so a network hang cannot block
+	// PDF generation forever.
+	tmpPath, err := FetchToTemp(context.Background(), liberationFontsArchiveURL, "",
+		"liberation-fonts-*.tar.gz", liberationArchiveMaxBytes, liberationArchiveDigest(), 30*time.Second)
 	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer func() {
-		_ = os.Remove(tmpFile.Name()) // Clean up
-	}()
-	defer func() {
-		_ = tmpFile.Close()
-	}()
-
-	// Download the file
-	resp, err := http.Get(liberationFontsArchiveURL)
-	if err != nil {
+		var httpErr *HTTPStatusError
+		if errors.As(err, &httpErr) {
+			return fmt.Errorf("failed to download fonts: HTTP %d", httpErr.Status)
+		}
 		return fmt.Errorf("failed to download fonts: %w", err)
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		_ = os.Remove(tmpPath) // Clean up
 	}()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download fonts: HTTP %d", resp.StatusCode)
-	}
-
-	_, err = io.Copy(tmpFile, resp.Body)
+	tmpFile, err := os.Open(tmpPath)
 	if err != nil {
-		return fmt.Errorf("failed to save fonts archive: %w", err)
+		return fmt.Errorf("failed to open fonts archive: %w", err)
 	}
-
-	// Seek back to start
-	if _, err := tmpFile.Seek(0, 0); err != nil {
-		return fmt.Errorf("failed to seek temp file: %w", err)
-	}
+	defer func() {
+		_ = tmpFile.Close()
+	}()
 
 	// Extract the tar.gz
 	gzr, err := gzip.NewReader(tmpFile)

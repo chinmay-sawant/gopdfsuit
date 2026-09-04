@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { Upload, Download, Eraser, Trash2, ChevronLeft, ChevronRight, AlertCircle, Check, Search } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { usePdfOperation } from '../hooks/usePdfOperation'
 import { useAuth } from '../contexts/AuthContext'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
@@ -32,27 +32,14 @@ const Redaction = () => {
     const [password, setPassword] = useState('')
     const [mode, setMode] = useState('auto')
 
-  const canvasRef = useRef(null)
   const containerRef = useRef(null)
-  const { getAuthHeaders } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
+  const { getAuthHeaders, triggerLogin } = useAuth()
   const [error, setError] = useState(null)
   const [successMsg, setSuccessMsg] = useState(null)
-
-    const readErrorResponse = async (response, fallbackMessage) => {
-        try {
-            const text = await response.text()
-            if (!text) return fallbackMessage
-            try {
-                const parsed = JSON.parse(text)
-                return parsed?.error || parsed?.message || fallbackMessage
-            } catch {
-                return text
-            }
-        } catch {
-            return fallbackMessage
-        }
-    }
+  const { isLoading, runJson, runLocal, request } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => setError(message),
+  })
 
     const parseSearchTerms = (raw) => {
         if (!raw) return []
@@ -108,31 +95,49 @@ const Redaction = () => {
       setError(null)
       setPdfPageDims({ width: 0, height: 0 }) // Reset
       
-      // Fetch authoritative page info from backend
+      // Page dims come from client pdfjs (react-pdf renders locally, no
+      // network). The /api/v1/redact/page-info endpoint stays as a fallback
+      // only when local parsing fails. See plans/wasm/03 Phase 3.
       try {
-        const formData = new FormData()
-        formData.append('pdf', selectedFile)
-        const response = await makeAuthenticatedRequest('/api/v1/redact/page-info', {
-            method: 'POST',
-            body: formData
-        }, getAuthHeaders)
-        
-        if (response.ok) {
-            const info = await response.json()
-            if (info.pages && info.pages.length > 0) {
-                // Store all pages? For now just assume they are similar or store map?
-                // The current component assumes single page dim for conversion (simplification).
-                // Ideally, we should look up dim by pageNumber.
-                // Let's store the whole info.
-                setPdfPageDims({ 
-                    width: info.pages[0].width, 
-                    height: info.pages[0].height,
-                    allPages: info.pages 
-                })
-            }
+        const buf = await selectedFile.arrayBuffer()
+        const loadingTask = pdfjs.getDocument({ data: buf.slice(0) })
+        const pdf = await loadingTask.promise
+        const pagesDims = []
+        for (let i = 1; i <= pdf.numPages; i += 1) {
+          const page = await pdf.getPage(i)
+          const viewport = page.getViewport({ scale: 1 })
+          pagesDims.push({ width: viewport.width, height: viewport.height })
+          page.cleanup()
+        }
+        await pdf.destroy()
+        if (pagesDims.length > 0) {
+          setPdfPageDims({
+            width: pagesDims[0].width,
+            height: pagesDims[0].height,
+            allPages: pagesDims,
+          })
         }
       } catch (e) {
-        console.error("Failed to fetch page info", e)
+        console.error('Failed to read page info locally', e)
+        try {
+          const formData = new FormData()
+          formData.append('pdf', selectedFile)
+          const info = await runJson({
+            endpoint: '/api/v1/redact/page-info',
+            body: formData,
+            getAuthHeaders,
+            onError: (message) => console.error('Failed to fetch page info', message),
+          })
+          if (info && info.pages && info.pages.length > 0) {
+            setPdfPageDims({
+              width: info.pages[0].width,
+              height: info.pages[0].height,
+              allPages: info.pages,
+            })
+          }
+        } catch (fallbackErr) {
+          console.error('Failed to fetch page info', fallbackErr)
+        }
       }
 
     } else {
@@ -262,22 +267,22 @@ const Redaction = () => {
     setError(null)
         setSuccessMsg(null)
     try {
+        // NOTE: no privacy win yet. Search uploads the file to
+        // /api/v1/redact/search; the WASM text path (goRedactSearch in
+        // utils/wasmLoader.js, engine from plans/wasm/01-full-wasm-port.md)
+        // is not in the shipped bundle, so this stays server-side.
         const formData = new FormData()
         formData.append('pdf', file)
                 formData.append('text', terms.join(','))
                 formData.append('texts', JSON.stringify(terms))
 
-        const response = await makeAuthenticatedRequest('/api/v1/redact/search', {
-            method: 'POST',
+        const payload = await runJson({
+            endpoint: '/api/v1/redact/search',
             body: formData,
-        }, getAuthHeaders)
+            getAuthHeaders,
+        })
+        if (!payload) return
 
-                if (!response.ok) {
-                    const message = await readErrorResponse(response, 'Search failed')
-                    throw new Error(message)
-                }
-
-                const payload = await response.json()
                 const results = Array.isArray(payload)
                     ? payload
                     : (Array.isArray(payload?.rects) ? payload.rects : [])
@@ -303,8 +308,6 @@ const Redaction = () => {
           if (additions.length === 0) return prev
           return [...prev, ...additions]
         })
-    } catch (err) {
-        setError(err.message)
     } finally {
         setIsSearching(false)
     }
@@ -319,9 +322,7 @@ const Redaction = () => {
             setError('Selected PDF is empty. Please re-upload a valid PDF.')
             return
         }
-    
-    setIsLoading(true)
-    try {
+
       // Flatten redactions map to array
       const allRedactions = Object.values(redactions).flat()
 
@@ -354,55 +355,48 @@ const Redaction = () => {
             const modesToTry = mode === 'auto' ? ['secure_required', 'visual_allowed'] : [mode]
             let appliedMode = ''
             let fallbackUsed = false
-            let response = null
-            let lastError = 'Redaction failed'
+            let report = null
 
-            for (let i = 0; i < modesToTry.length; i += 1) {
-                const candidateMode = modesToTry[i]
-                const tryResponse = await makeAuthenticatedRequest('/api/v1/redact/apply', {
-                    method: 'POST',
-                    body: buildPayload(candidateMode),
-                    throwOnError: false,
-                }, getAuthHeaders)
-
-                if (tryResponse.ok) {
-                    response = tryResponse
-                    appliedMode = candidateMode
-                    fallbackUsed = mode === 'auto' && i > 0
-                    break
+            const url = await runLocal(async () => {
+                // NOTE: no privacy win yet. runLocal wraps request() here, so
+                // apply still uploads to /api/v1/redact/apply. Switch the body
+                // to redactApplyViaWasm (utils/wasmLoader.js) once the engine
+                // lands per plans/wasm/01-full-wasm-port.md.
+                let lastError = 'Redaction failed'
+                for (let i = 0; i < modesToTry.length; i += 1) {
+                    const candidateMode = modesToTry[i]
+                    try {
+                        const tryResponse = await request({
+                            endpoint: '/api/v1/redact/apply',
+                            body: buildPayload(candidateMode),
+                            getAuthHeaders,
+                            throwOnError: true,
+                        })
+                        const reportHeader = tryResponse.headers.get('X-Redaction-Report')
+                        if (reportHeader) {
+                            try { report = JSON.parse(reportHeader) } catch { /* ignore */ }
+                        }
+                        appliedMode = candidateMode
+                        fallbackUsed = mode === 'auto' && i > 0
+                        return await tryResponse.blob()
+                    } catch (err) {
+                        const message = err.message || lastError
+                        lastError = message
+                        const canFallback = mode === 'auto' && candidateMode === 'secure_required'
+                        const secureUnavailable = message.toLowerCase().includes('secure_required requested but no secure text content could be removed')
+                        if (canFallback && secureUnavailable) {
+                            continue
+                        }
+                        throw err
+                    }
                 }
-
-                const message = await readErrorResponse(tryResponse, 'Redaction failed')
-                lastError = message
-
-                const canFallback = mode === 'auto' && candidateMode === 'secure_required'
-                const secureUnavailable = message.toLowerCase().includes('secure_required requested but no secure text content could be removed')
-                if (canFallback && secureUnavailable) {
-                    continue
-                }
-
-                throw new Error(message)
-            }
-
-            if (!response) {
                 throw new Error(lastError)
-            }
+            }, {
+                filename: `redacted_${file.name}`,
+                autoDownload: true,
+            })
 
-      // Read report header before consuming blob (headers and body are independent)
-      let report = null
-      const reportHeader = response.headers.get('X-Redaction-Report')
-      if (reportHeader) {
-        try { report = JSON.parse(reportHeader) } catch { /* ignore */ }
-      }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `redacted_${file.name}`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+            if (!url) return
 
       if (report && report.generatedRects === 0) {
         setSuccessMsg(
@@ -420,11 +414,6 @@ const Redaction = () => {
         const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
         setSuccessMsg(`Visual redaction applied and PDF downloaded successfully!${rectInfo}`)
       }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   // Handle page load to get dimensions
@@ -556,18 +545,6 @@ const Redaction = () => {
                                 }} />
                             )}
                             
-                            {/* Invisible canvas capture layer - simplified: we draw using divs above */}
-                                                        <div
-                                                            ref={canvasRef}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: pageViewport.top,
-                                                                left: pageViewport.left,
-                                                                width: pageViewport.width,
-                                                                height: pageViewport.height,
-                                                                zIndex: 10,
-                                                            }}
-                                                        />
                          </div>
                     </div>
 
@@ -575,6 +552,9 @@ const Redaction = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div className="glass-card" style={{ padding: '1.5rem' }}>
                             <h3 style={{ marginBottom: '1rem' }}>Redact by Text</h3>
+                            <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.75rem' }}>
+                              Server-side for now (uploads file): browser WASM text path lands with the redact engine.
+                            </p>
                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                                 <input 
                                     type="text" 

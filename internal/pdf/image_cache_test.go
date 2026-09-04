@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"encoding/base64"
+	"sync"
 	"testing"
 )
 
@@ -70,5 +71,55 @@ func TestImageCacheClear(t *testing.T) {
 
 	if size != 0 || last != nil {
 		t.Fatalf("expected empty cache after reset, got size=%d last=%v", size, last)
+	}
+}
+
+func TestImageCacheConcurrentDecode(t *testing.T) {
+	ResetImageCache()
+
+	// Prime the cache so goroutines hit the MRU promote path.
+	if _, err := DecodeImageData(tinyPNG1x1); err != nil {
+		t.Fatalf("prime decode failed: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				img, err := DecodeImageData(tinyPNG1x1)
+				if err != nil {
+					t.Errorf("concurrent decode failed: %v", err)
+					return
+				}
+				if img.Width != 1 || img.Height != 1 {
+					t.Errorf("unexpected dimensions %dx%d", img.Width, img.Height)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestImageCacheReturnsCopy(t *testing.T) {
+	ResetImageCache()
+
+	img1, err := DecodeImageData(tinyPNG1x1)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	// Mutating the returned object (as the PDF/A path does with ColorSpace)
+	// must not corrupt the shared cached entry.
+	img1.ColorSpace = "/Mutated"
+
+	img2, err := DecodeImageData(tinyPNG1x1)
+	if err != nil {
+		t.Fatalf("second decode failed: %v", err)
+	}
+	if img2.ColorSpace == "/Mutated" {
+		t.Fatal("cache entry was corrupted by mutating a returned object")
 	}
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"io"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/bytedance/sonic"
@@ -13,6 +14,9 @@ import (
 const (
 	maxPooledDecodeBody = 512 << 10 // 512 KiB - retail/active payloads only
 	maxHFTEncodeBody    = 8 << 20   // 8 MiB - stream-decode fallback limit
+	// maxTemplateJSONBody caps template-pdf JSON request bodies (enforced via
+	// http.MaxBytesReader in handleGenerateTemplatePDF before decoding).
+	maxTemplateJSONBody = 8 << 20 // 8 MiB
 )
 
 var (
@@ -80,9 +84,7 @@ func decodeTemplateJSON(r io.Reader, contentLength int, tier string, template *m
 		putBodyBuf(bufPtr, buf)
 		return err
 	}
-	if contentLength > maxPooledDecodeBody && contentLength <= maxHFTEncodeBody {
-		return decoder.NewStreamDecoder(r).Decode(template)
-	}
+	// Large or unknown-size bodies stream with no intermediate copy.
 	return decoder.NewStreamDecoder(r).Decode(template)
 }
 
@@ -103,4 +105,13 @@ func putHftBodyBuf(bufPtr *[]byte, buf []byte) {
 		*bufPtr = buf[:0]
 	}
 	hftBodyBufPool.Put(bufPtr)
+}
+
+// isBodyTooLargeErr reports whether err came from http.MaxBytesReader
+// rejecting an oversized request body.
+func isBodyTooLargeErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "request body too large")
 }

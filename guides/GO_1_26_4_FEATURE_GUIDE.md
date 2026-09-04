@@ -358,7 +358,7 @@ GOEXPERIMENT=runtimesecret go build ./...
 
 ## 7. Suggested validation plan
 
-Align with existing benchmark culture in `guides/INTEGRATION_AND_BENCHMARK_TESTS.md` and `guides/optimizations/`.
+Align with existing benchmark culture in `documentation/INTEGRATION_AND_BENCHMARK_TESTS.md` and `guides/optimizations/`.
 
 ### Phase A - Confirm runtime wins (no code diff)
 

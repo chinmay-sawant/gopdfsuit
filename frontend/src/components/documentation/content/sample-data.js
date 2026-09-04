@@ -13,6 +13,7 @@ export const sampleDataSection = {
 • [benchmarks](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/benchmarks) - Performance benchmark data and reports
 • [compress](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/compress) - PDF compression via the Go library (gopdflib.CompressPDF)
 • [compress-js](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/compress-js) - Same engine in-browser via WebAssembly (no HTTP)
+• [wasm-js](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/wasm-js) - Generate, merge, split, fill, and text-path redact in-browser via WebAssembly (no HTTP; HTML stays server-side)
 • [editor](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/editor) - Templates designed for the visual editor
 • [filler](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/filler) - XFDF data files for form filling
 • [financialreport](https://github.com/chinmay-sawant/gopdfsuit/tree/master/sampledata/financialreport) - Financial report templates

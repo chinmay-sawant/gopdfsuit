@@ -11,13 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
-)
-
-const (
-	helveticaBold        = "Helvetica-Bold"
-	helveticaOblique     = "Helvetica-Oblique"
-	helveticaBoldOblique = "Helvetica-BoldOblique"
 )
 
 // hexNibble maps ASCII byte to hex value (0-15). 0xFF = invalid.
@@ -93,6 +86,7 @@ const maxPropsCacheEntries = 8192
 var (
 	propsCache      sync.Map // string -> models.Props
 	propsCacheCount atomic.Int64
+	propsCacheMu    sync.Mutex // serializes the bounded-size clear path below
 )
 
 // ClearPropsCache drops all cached prop parses (tests / memory pressure).
@@ -178,11 +172,15 @@ func parseProps(props string) models.Props {
 	}
 
 	// Cache for future calls, with bounded size to avoid unbounded growth.
+	// The mutex serializes check-clear-store: without it two goroutines can
+	// both clear and both reset the counter, losing an entry count.
+	propsCacheMu.Lock()
 	if propsCacheCount.Add(1) > maxPropsCacheEntries {
 		ClearPropsCache()
 		propsCacheCount.Store(1)
 	}
 	propsCache.Store(props, result)
+	propsCacheMu.Unlock()
 	return result
 }
 
@@ -203,69 +201,10 @@ func escapeText(s string) string {
 	return escapePDFString(s)
 }
 
-// resolveFontName resolves the actual font name to use, handling fallbacks
+// resolveFontName resolves the actual font name to use, handling fallbacks.
+// Thin shim over the registry seam (Phase 5 D3); kept for callers.
 func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
-	// 1. Check if the requested font is registered as a custom font
-	if registry.HasFont(props.FontName) {
-		return props.FontName
-	}
-
-	// 2. Map base standard fonts with style flags to styled variants.
-	switch props.FontName {
-	case "Helvetica": //nolint:goconst
-		switch {
-		case props.Bold && props.Italic:
-			return helveticaBoldOblique
-		case props.Bold:
-			return helveticaBold
-		case props.Italic:
-			return helveticaOblique
-		default:
-			return "Helvetica"
-		}
-	case "Times-Roman": //nolint:goconst
-		switch {
-		case props.Bold && props.Italic:
-			return "Times-BoldItalic"
-		case props.Bold:
-			return "Times-Bold"
-		case props.Italic:
-			return "Times-Italic"
-		default:
-			return "Times-Roman"
-		}
-	case "Courier": //nolint:goconst
-		switch {
-		case props.Bold && props.Italic:
-			return "Courier-BoldOblique"
-		case props.Bold:
-			return "Courier-Bold"
-		case props.Italic:
-			return "Courier-Oblique"
-		default:
-			return "Courier"
-		}
-	case helveticaBold, helveticaOblique, helveticaBoldOblique,
-		"Times-Bold", "Times-Italic", "Times-BoldItalic", //nolint:goconst
-		"Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", //nolint:goconst
-		"Symbol", "ZapfDingbats":
-		return props.FontName
-	}
-
-	// 3. Fallback logic: map unknown fonts to Helvetica family
-	var fallbackName string
-	switch {
-	case props.Bold && props.Italic:
-		fallbackName = helveticaBoldOblique
-	case props.Bold:
-		fallbackName = helveticaBold
-	case props.Italic:
-		fallbackName = helveticaOblique
-	default:
-		fallbackName = "Helvetica"
-	}
-
-	return fallbackName
+	return registry.ResolveFontName(props)
 }
 
 // getFontReference returns the appropriate font reference based on the font name
@@ -273,58 +212,11 @@ func resolveFontName(props models.Props, registry *CustomFontRegistry) string {
 // it takes precedence. Otherwise, falls back to using bold/italic style flags.
 // For custom fonts, checks the font registry and returns the custom font reference.
 func getFontReference(props models.Props, registry *CustomFontRegistry) string {
-	// Resolve usage to actual font name (handling fallbacks)
-	actualFontName := resolveFontName(props, registry)
-
-	return getFontReferenceByResolvedName(actualFontName, registry)
+	return registry.RefFor(props)
 }
 
 func getFontReferenceByResolvedName(actualFontName string, registry *CustomFontRegistry) string {
-	// If resolved font is custom (including PDF/A substitution), use it
-	if registry.HasFont(actualFontName) {
-		ref := registry.GetFontReference(actualFontName)
-		if ref != "" {
-			return ref
-		}
-	}
-
-	// Otherwise, return standard font reference code
-	switch actualFontName {
-	// Helvetica family (F1-F4)
-	case "Helvetica":
-		return "/F1" //nolint:goconst
-	case helveticaBold:
-		return "/F2"
-	case helveticaOblique:
-		return "/F3"
-	case helveticaBoldOblique:
-		return "/F4"
-	// Times family (F5-F8)
-	case "Times-Roman":
-		return "/F5"
-	case "Times-Bold":
-		return "/F6"
-	case "Times-Italic":
-		return "/F7"
-	case "Times-BoldItalic":
-		return "/F8"
-	// Courier family (F9-F12)
-	case "Courier":
-		return "/F9"
-	case "Courier-Bold":
-		return "/F10"
-	case "Courier-Oblique":
-		return "/F11"
-	case "Courier-BoldOblique":
-		return "/F12"
-	// Symbol fonts (F13-F14)
-	case "Symbol":
-		return "/F13"
-	case "ZapfDingbats":
-		return "/F14"
-	}
-
-	return "/F1" // Ultimate fallback
+	return registry.RefByName(actualFontName)
 }
 
 // getWidgetFontReference returns the appropriate font reference for form field widgets.
@@ -332,37 +224,21 @@ func getFontReferenceByResolvedName(actualFontName string, registry *CustomFontR
 // the custom font reference. Otherwise, it returns /F1 for standard Helvetica.
 // This should be used in widget DA strings and appearance streams instead of hardcoded /Helv.
 func getWidgetFontReference(registry *CustomFontRegistry) string {
-	// Check if Helvetica is registered as custom font (PDF/A mode with Liberation)
-	if registry.HasFont("Helvetica") {
-		ref := registry.GetFontReference("Helvetica")
-		if ref != "" {
-			return ref
-		}
-	}
-	return "/F1" // Standard Helvetica reference
+	return registry.WidgetRef()
 }
 
 // getWidgetFontName returns the font name to use in widget resource dictionaries.
 // In PDF/A mode, widgets should not embed their own font definitions - they should
 // reference fonts from the page resources. Returns empty string if using page fonts.
 func getWidgetFontName(registry *CustomFontRegistry) string {
-	// If Helvetica is a custom font, we use page-level font resources
-	if registry.HasFont("Helvetica") {
-		return "" // Signal to use page-level resources
-	}
-	return "Helvetica" // Use inline Helvetica definition
+	return registry.WidgetFontName()
 }
 
 // getWidgetFontObjectID returns the PDF object ID for the widget font.
 // In PDF/A mode, this returns the object ID of the Liberation font that replaces Helvetica.
 // Returns 0 if no custom font is registered (standard mode).
 func getWidgetFontObjectID(registry *CustomFontRegistry) int {
-	if registry.HasFont("Helvetica") {
-		if font, ok := registry.GetFont("Helvetica"); ok {
-			return font.ObjectID
-		}
-	}
-	return 0
+	return registry.WidgetFontObjectID()
 }
 
 // formatPageKids formats the page object IDs for the Pages object
@@ -417,45 +293,22 @@ func appendEscapedPDFLiteral(dst []byte, s string) []byte {
 
 // EstimateTextWidth estimates the width of text in points for a given font and size
 // Uses actual glyph widths for custom fonts, approximation for standard fonts
-// Takes resolvedFontName to avoid repeated lookups
+// Takes resolvedFontName to avoid repeated lookups. Thin shim over Measure.
 func EstimateTextWidth(resolvedName string, text string, fontSize float64, registry *CustomFontRegistry) float64 {
-	if registry.HasFont(resolvedName) {
-		return registry.GetScaledTextWidth(resolvedName, text, fontSize)
-	}
-
-	if w := font.StandardTextWidth(resolvedName, text, fontSize); w > 0 {
-		return w
-	}
-
-	// Fallback approximation for unknown standard names.
-	avgCharWidth := 0.5
-	switch resolvedName {
-	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique":
-		avgCharWidth = 0.6
-	case "Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic":
-		avgCharWidth = 0.45
-	}
-	return float64(utf8.RuneCountInString(text)) * fontSize * avgCharWidth
+	return registry.Measure(resolvedName, text, fontSize)
 }
 
 // appendTextForPDF appends PDF text for a Tj operator: hex string for custom fonts,
 // or a parenthesized escaped literal for standard fonts.
 func appendTextForPDF(dst []byte, resolvedName, text string, registry *CustomFontRegistry) []byte {
-	if registry.HasFont(resolvedName) {
-		return AppendTextForCustomFont(dst, resolvedName, text, registry)
-	}
-	dst = append(dst, '(')
-	dst = appendEscapedPDFLiteral(dst, text)
-	return append(dst, ')')
+	return registry.AppendEncoded(dst, resolvedName, text)
 }
 
 // formatTextForPDF formats text for use in a PDF content stream
 // For custom fonts, returns hex-encoded string; for standard fonts, returns escaped literal
 // Accepts a pre-resolved font name to avoid redundant resolveFontName calls.
 func formatTextForPDF(resolvedName string, text string, registry *CustomFontRegistry) string {
-	buf := make([]byte, 0, len(text)+4)
-	buf = appendTextForPDF(buf, resolvedName, text, registry)
-	return string(buf)
+	return registry.EncodeForPDF(resolvedName, text)
 }
 
 // WrapState holds reusable buffers for allocation-free text wrapping.
@@ -466,6 +319,11 @@ type WrapState struct {
 }
 
 // byteString converts a byte slice to a string without allocation.
+// The result aliases b: it must not be retained (no storing in maps, structs
+// with longer lifetimes, or goroutine handoffs). All current callers pass it
+// straight into EstimateTextWidth or appendTextForPDF, which only read runes
+// transiently (StandardTextWidth, GetScaledTextWidth, AppendTextForCustomFont,
+// appendEscapedPDFLiteral copy what they need) and never retain the string.
 func byteString(b []byte) string {
 	if len(b) == 0 {
 		return ""

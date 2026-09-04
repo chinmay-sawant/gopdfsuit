@@ -3,6 +3,7 @@ package redact
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
@@ -25,12 +27,28 @@ type ocrWord struct {
 	Text    string
 }
 
+// errOCRUnsupportedWASM is returned whenever OCR is requested under GOOS=js.
+// pdftoppm/tesseract subprocesses plus a temp directory cannot exist in the
+// browser, so OCR must fail fast here instead of reaching os/exec. The
+// message carries "unsupported" so the pkg/gopdflib seam classifies it as
+// CodeInvalidInput (invalid_input) through its legacy substring fallback
+// (this package cannot import pkg/gopdflib: import cycle via internal/pdf).
+var errOCRUnsupportedWASM = errors.New("redact: OCR unsupported in WASM (GOOS=js): pdftoppm/tesseract subprocesses cannot run in the browser; use the text path (FindTextOccurrences) or run OCR server-side")
+
 // OCRProvider is an adapter interface for OCR backends.
 type OCRProvider interface {
 	ExtractWords(pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error)
 }
 
 type tesseractProvider struct{}
+
+// ocrCommandTimeout bounds each pdftoppm/tesseract invocation so a crafted
+// PDF cannot hang the pipeline forever. It is a var so tests can shrink it.
+var ocrCommandTimeout = 5 * time.Minute
+
+func ocrCommandContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), ocrCommandTimeout)
+}
 
 func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
 	provider := strings.ToLower(settings.Provider)
@@ -47,6 +65,9 @@ func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
 }
 
 func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings models.OCRSettings) ([]models.RedactionRect, error) {
+	if isWASM() {
+		return nil, errOCRUnsupportedWASM
+	}
 	if len(queries) == 0 {
 		return nil, nil
 	}
@@ -109,6 +130,9 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 }
 
 func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error) {
+	if isWASM() {
+		return nil, errOCRUnsupportedWASM
+	}
 	if _, err := exec.LookPath("pdftoppm"); err != nil {
 		return nil, errors.New("pdftoppm command not found for OCR pipeline")
 	}
@@ -147,9 +171,12 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 		pageStr := string(strconv.AppendInt(pageBuf[:0], int64(page), 10))
 		imgBase := filepath.Join(tmpDir, "page-"+pageStr)
 		imgPath := imgBase + ".png"
-		pdftoppmCmd := exec.Command("pdftoppm", "-f", pageStr, "-l", pageStr, "-singlefile", "-png", pdfPath, imgBase)
-		if out, err := pdftoppmCmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, err, string(out))
+		pdftoppmCtx, pdftoppmCancel := ocrCommandContext()
+		pdftoppmCmd := ocrCommand(pdftoppmCtx, "pdftoppm", "-f", pageStr, "-l", pageStr, "-singlefile", "-png", pdfPath, imgBase)
+		out, pdftoppmErr := pdftoppmCmd.CombinedOutput()
+		pdftoppmCancel()
+		if pdftoppmErr != nil {
+			return nil, fmt.Errorf("pdftoppm failed on page %d: %v (%s)", page, pdftoppmErr, string(out))
 		}
 
 		imgFile, err := os.Open(imgPath)
@@ -162,8 +189,10 @@ func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettin
 			return nil, err
 		}
 
-		tsvCmd := exec.Command("tesseract", imgPath, "stdout", "tsv", "-l", lang)
+		tsvCtx, tsvCancel := ocrCommandContext()
+		tsvCmd := ocrCommand(tsvCtx, "tesseract", imgPath, "stdout", "tsv", "-l", lang)
 		tsvOut, err := tsvCmd.CombinedOutput()
+		tsvCancel()
 		if err != nil {
 			return nil, fmt.Errorf("tesseract failed on page %d: %v (%s)", page, err, string(tsvOut))
 		}

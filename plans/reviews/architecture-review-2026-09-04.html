@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gopdfsuit Architecture Review - Deepening Opportunities</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+<style>
+  .badge-strong { background:#dc2626; color:#fff; }
+  .badge-worth { background:#d97706; color:#fff; }
+  .badge-spec { background:#6b7280; color:#fff; }
+  .bar-before { background: repeating-linear-gradient(45deg,#fecaca,#fecaca 8px,#fee2e2 8px,#fee2e2 16px); }
+  .bar-after { background: linear-gradient(90deg,#bbf7d0,#86efac); }
+  .card { break-inside: avoid; }
+  code.fn { font-size:.78rem; }
+</style>
+</head>
+<body class="bg-stone-100 text-stone-900">
+<div class="max-w-6xl mx-auto px-6 py-10">
+
+  <header class="mb-10">
+    <p class="text-sm uppercase tracking-widest text-stone-500">gopdfsuit &middot; architecture review &middot; 2026-09-04 &middot; branch chore/improves-fixes</p>
+    <h1 class="text-4xl font-bold mt-2">Deepening Opportunities</h1>
+    <p class="mt-3 text-stone-600 max-w-3xl">Five parallel walks (generation engine, PDF ops, request tier, public surfaces, frontend contracts) through the Go + React codebase, using the module / interface / depth / seam / adapter / leverage / locality vocabulary. No bugs below — those were covered by the ponytail review. Each card names a module that should get <em>deeper</em>: more behavior behind a smaller interface.</p>
+    <div class="mt-4 flex gap-4 text-sm">
+      <span><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span> tackle</span>
+      <span><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span> grill first</span>
+      <span><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-spec">Speculative</span> needs proof</span>
+    </div>
+  </header>
+
+  <!-- AREA 1 -->
+  <h2 class="text-2xl font-bold mt-12 mb-4">A · One PDF-reader seam for all ops <span class="text-sm font-normal text-stone-500">(ops walk)</span></h2>
+  <div class="bg-white rounded-xl shadow p-6 mb-6">
+    <p class="text-sm text-stone-600 mb-4">Today every op parses PDFs its own way. The shared <code class="fn">xref/</code> module is write-only. A xref/object-stream fix must land in 3+ places.</p>
+<pre class="mermaid text-sm">graph LR
+  M[merge/parser.go] -->|own map int bytes| PDF[(pdf bytes)]
+  C[compress/parseObjects] -->|own pdfObject| PDF
+  R[redact/buildObjectMap] -->|own map| PDF
+  F[form/xfdf string keys] -->|own map string| PDF
+  X[xref/ write-only] -.->|unused for reads| PDF
+  style X stroke-dasharray: 5 5
+</pre>
+    <p class="text-sm text-stone-600 mt-4">After: one reader module owns object boundaries, trailer/startxref, xref-table + xref-stream, object-stream expansion. Migrate compress first; keep byte fallbacks behind the seam.</p>
+<pre class="mermaid text-sm">graph LR
+  M2[merge] --> O[(pdfobj reader)]
+  C2[compress] --> O
+  R2[redact] --> O
+  F2[form] --> O
+  O --> PDF2[(pdf bytes)]
+</pre>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">A1 · Fragmented "read a PDF" seam</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">merge/parser.go:616 · compress/compress.go:372 · redact/pdf_utils.go:933 · redact/helpers.go · form/xfdf.go:1726 · redact/encryption_inhouse.go:360 · xref/xref.go:103</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> 4+ object-map builders and 3 xref-stream parsers with incompatible key types (<code class="fn">map[int][]byte</code> vs <code class="fn">map[string][]byte</code>). Deleting any one parser leaves the others working — no single owner.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> promote <code class="fn">xref/</code> (or new <code class="fn">pdfobj</code>) to own the read seam behind one interface returning typed objects.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">4 parsers</div><div class="bar-after flex-1 flex items-center justify-center">1 reader</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">A2 · Decompress helpers ×5</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">merge/parser.go:553,599 · compress/stream.go:80 · redact/helpers.go:31,36 · form/xfdf.go:251,256,754</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Same Flate/zlib capability ~5 times, different signatures (nil-vs-error, capped-vs-uncapped). form/redact depend on <em>merge</em> for inflation — wrong-direction dependency.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one low-level inflation module next to <code class="fn">xref/</code>, one adapter with explicit limits; delete the wrappers.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">5 copies</div><div class="bar-after flex-1 flex items-center justify-center">1 capped path</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">A3 · form/xfdf.go god module</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">form/xfdf.go:1726 (ParseXFDF, DetectFormFields, Fill, Flatten, object-stream rewrite, xref repair)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> XFDF parsing, field location, byte-patch fill, and xref repair share one file at the same depth — fill logic untestable without dragging xref repair along.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> three seams — pure XFDF parse, field-locate over the shared object module, PDF-rewrite adapter. Expose the middle seam for tests.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">1 file × 3 jobs</div><div class="bar-after flex-1 flex items-center justify-center">parse / locate / rewrite</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">A4 · Two encrypt stacks</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">encryption/encrypt.go:388 · redact/encryption_inhouse.go:360 · redact/secure.go:509 · signature/signature.go:832</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Clean <code class="fn">encryption/</code> vs in-house redact copy with its own dict parsing and key derivation. No agreed "decrypted object view" — each path re-parses the Encrypt dict.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> give <code class="fn">encryption/</code> the full seam (parse dict, derive keys, decrypted view); demote the in-house copy to adapter or delete.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">2 stacks</div><div class="bar-after flex-1 flex items-center justify-center">1 seam</div></div>
+    </div>
+  </div>
+
+  <!-- AREA 2 -->
+  <h2 class="text-2xl font-bold mt-12 mb-4">B · Public seam with real depth <span class="text-sm font-normal text-stone-500">(surfaces walk)</span></h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">B1 · gopdflib is alias-only</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">pkg/gopdflib/types.go:71 + all op wrappers</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> <code class="fn">type PDFTemplate = models.PDFTemplate</code> — the public interface adds no depth, so the seam leaks internal shapes. Deleting gopdflib breaks imports, not behavior.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> owned public structs with translation at the seam; real validation and defaults as its depth. Schema churn stays inside the adapter.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">aliases</div><div class="bar-after flex-1 flex items-center justify-center">owned types + adapter</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">B2 · Validation at 3 seams</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">pkg/gopdflib/*.go · cgo/exports.go:472 · pypdfsuit/*.py</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Every op validated 3+ times (Go checks, CGO guards, Python ValueErrors). Deleting any one layer's checks leaves two copies — redundancy proves no layer is load-bearing.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> designate gopdflib the single validating interface; demote CGO and Python to dumb adapters forwarding bytes and errors.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">3× checks</div><div class="bar-after flex-1 flex items-center justify-center">1 validator</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">B3 · Hand-marshalled CGO</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">cgo/exports.go · _bindings.py:233 (gap proof: compress has no CGO/Python export)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> 14 exports repeat the same marshal shape with near-zero leverage. The pattern, not any function, is the asset.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one generic typed adapter (byte/JSON in, byte/JSON out, unified free); each op becomes one-line registration. Add compress as the proof case.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">14 copies</div><div class="bar-after flex-1 flex items-center justify-center">1 generic path</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">B4 · Two font-provision modules</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">pkg/fontutils/fontutils.go:305 vs internal/pdf/font/pdfa.go + registry.go</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Same mechanism (discover, download, SHA-pin, verify, atomic rename) split across math-font and PDF/A-font modules with no shared seam.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one font-provision interface (fetch, verify, cache); both callers become adapters supplying URL/pin/path policy.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">2 mechanisms</div><div class="bar-after flex-1 flex items-center justify-center">1 provision seam</div></div>
+    </div>
+  </div>
+
+  <!-- AREA 3 -->
+  <h2 class="text-2xl font-bold mt-12 mb-4">C · Request tier: thin handlers, deep adapters <span class="text-sm font-normal text-stone-500">(request walk)</span></h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C1 · Shallow PDFService mirror</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">services.go:74 (9 methods) · mocks/mock_services.go:176</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> 9 one-line passthroughs — no batching, policy, or error mapping. Deleting it changes nothing at runtime, yet every op pays mock-regeneration burden.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> move shared adapter work behind it (body-limit policy, error-status mapping, pooled decode) so handlers go thin — or collapse it to a narrower engine seam.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">9 mirrors</div><div class="bar-after flex-1 flex items-center justify-center">policy + mapping</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C2 · handlers.go god module</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">handlers.go:910 (routing, assets, SPA fallback, pprof, SSRF, errors, pooling, 10 handle* ops)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> ~6 responsibilities in one file; touching compress risks template-pdf. Deleting any one responsibility leaves five intact — overloaded, not deep.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> route wiring + shared request-adapter helpers + per-op handler files; handlers.go stays a thin composition root.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">1 × 910 lines</div><div class="bar-after flex-1 flex items-center justify-center">wiring + helpers + ops</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C3 · Three JSON decode seams</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">json_decode.go:119 · hft_decode.go:117 · models pooling ~180</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> sonic vs StreamDecoder vs two-pass HFT shell selected by tier string, with duplicate pooled-buffer branches and two pools. Tier policy, buffers, and shell types live apart.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one decode module owning tier policy, pools, HFT shell, and the reuse contract: <code class="fn">decodeTemplate(r, len, tier, tpl)</code>.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">3 seams + 2 pools</div><div class="bar-after flex-1 flex items-center justify-center">1 decode call</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">C4 · Redact bypasses the service</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">redact.go:339 (exported HandleRedact* vs private handle*) · own readBoundedUpload duplicating readBounded</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Deleting PDFService does not affect redact at all — two parallel seams where one contract should be.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> extend the service with a real redact capability or extract redact as its own interfaced module; unify naming and bound-read helpers.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">2 seams</div><div class="bar-after flex-1 flex items-center justify-center">1 contract</div></div>
+    </div>
+  </div>
+
+  <!-- AREA 4 -->
+  <h2 class="text-2xl font-bold mt-12 mb-4">D · Engine ownership: IDs, pages, fonts, links <span class="text-sm font-normal text-stone-500">(engine walk)</span></h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D1 · Unowned ID/xref allocation</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">generator.go:2802 · xref/xref.go · font/registry.go:488</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> IDs mutated from generator, PageManager, OutlineBuilder, struct-tree emit, and font registry; xref is a raw slice plus free functions while a separate xref package exists. No one owns the ID-to-offset invariant.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one Allocator owning NextObjectID, xref offsets, and ExtraObjects commit; xref/ becomes the only writer.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">5 mutators</div><div class="bar-after flex-1 flex items-center justify-center">1 allocator</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D2 · PageManager mutable bag</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">pagemanager.go:369 (~20 methods) · users: draw.go:2494 · outline.go:568 · links.go:149 · structure.go:950</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Geometry, pooled streams, perf tunables, annots, ID counter, structure manager, named dests, font registry in one struct — every feature reaches into the same bag.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> split into Pages (geometry/streams) and Objects (IDs + extras + annots); inject Structure/Fonts as collaborators.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">1 bag × 20 methods</div><div class="bar-after flex-1 flex items-center justify-center">pages / objects / collaborators</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D3 · Font resolution in 3 places</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">utils.go:648 · font/registry.go:488 · font/metrics.go:1186</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Callers sequence resolveFontName then format/measure/mark across two packages; standard-vs-custom vs PDF/A substitution duplicated on both sides of a leaked seam.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> registry as sole seam — RefFor / Measure / Encode with substitution inside; utils helpers shrink to shims or delete.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">2 registries</div><div class="bar-after flex-1 flex items-center justify-center">1 font seam</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">D4 · Table/tagging + dest triangles</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">draw.go:2494 + structure.go:950 (TableTagger) · outline.go:568 + links.go:149 + NamedDests (Destinations)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Tagged-table logic needs bouncing across draw emission, MCID/arena paths, and width helpers; link/bookmark invariants (DestKey → name-tree → StructParent) live nowhere.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> a TableTagger owning MCID/BDC/ParentTree behind BeginRow/EndRow; a Destinations module owning named dests, outline IDs, and link struct elements.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">scattered</div><div class="bar-after flex-1 flex items-center justify-center">tagger + destinations</div></div>
+    </div>
+  </div>
+
+  <!-- AREA 5 -->
+  <h2 class="text-2xl font-bold mt-12 mb-4">E · Frontend: shared workflows, owned schema <span class="text-sm font-normal text-stone-500">(frontend walk)</span></h2>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E1 · Operation pages ×8 duplicated</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">Merge:160 · Split:157 · Compress:244 · Viewer:531 · HtmlToPdf:172 · HtmlToImage:177 · Filler:150 · Redaction:704</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Each page re-implements upload/validate/progress/blob-URL/download. Deleting any one page leaves the pattern intact in the others — pure duplication, safe to collapse.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> a deep usePdfOperation hook + OperationShell owning the lifecycle; pages keep only op-specific form (endpoint + FormData builder).</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">8 flows</div><div class="bar-after flex-1 flex items-center justify-center">1 hook + shell</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E2 · Schema seam has no owner</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">models.go:472 · Editor.jsx:1505 + editor/utils.js:150 · Viewer.jsx · types.py:591 (_JSON_KEY_MAPPING)</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Three hand-maintained mirrors of one schema (Go structs, JS prop-string codecs, Python snake_case map). A renamed key (chequebox, maxcolumns) diverges silently until a render fails.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> Go models as authoritative seam; emit versioned template.schema.json (or generate TS/Python types) + one cross-tier golden-file test.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">3 mirrors</div><div class="bar-after flex-1 flex items-center justify-center">1 schema + golden test</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E3 · WASM vs server: 2 adapters, 2 interfaces</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+      <p class="text-xs text-stone-500 mt-1">wasmcompress/main.go:59 · compressPdf.js:149 · Compress.jsx:244 · limits.go + compress.go</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Level vocabularies diverge (1/2/3 vs light/medium/heavy + dead jpeg/maxEdge display fields); 32MiB cap copy-pasted in 3 places. Deleting either half affects nothing in the other — no shared interface.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> one Compress interface (bytes, level enum, single cap source) with WasmCompressor and ServerCompressor adapters behind flag/fallback.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">2 vocabularies</div><div class="bar-after flex-1 flex items-center justify-center">1 interface</div></div>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold">E4 · Editor god + thin panels</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+      <p class="text-xs text-stone-500 mt-1">Editor.jsx:1505 (14+ useState) · components/editor/*.jsx ×6 · utils.js:150 duplicating Go Props semantics</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> All template-assembly locality in Editor.jsx; subcomponents are prop-fed render adapters. Depth is inverted — panels can't be deleted without losing UI, Editor can't be deleted without losing the feature.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> a real document-model module under components/editor/ (typed builder + validation against the E2 schema); Editor.jsx slims to orchestration.</p>
+      <div class="mt-3 flex h-6 rounded overflow-hidden text-xs"><div class="bar-before flex-1 flex items-center justify-center">god + shells</div><div class="bar-after flex-1 flex items-center justify-center">model + orchestration</div></div>
+    </div>
+  </div>
+
+  <h2 class="text-2xl font-bold mt-12 mb-4">F · Speculative <span class="text-sm font-normal text-stone-500">(needs proof before shaping)</span></h2>
+  <div class="grid md:grid-cols-3 gap-5">
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold text-sm">F1 · Test-through-interface gaps</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-spec">Speculative</span></div>
+      <p class="text-xs text-stone-500 mt-1">merge/*, compress, redact/pdf_utils, xref (write-only exports), test/ handler-level</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Shared helpers are unexported per-op internals; reuse requires copy-paste. svg/ is the counterexample — deep, directly-tested seam.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> when extracting A1/A2, export the seam with table tests at that level instead of more handler coverage.</p>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold text-sm">F2 · WASM bypasses gopdflib</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-spec">Speculative</span></div>
+      <p class="text-xs text-stone-500 mt-1">cmd/wasmcompress/main.go:59 imports internal/pdf/compress directly</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> Go/Python/REST go through gopdflib; WASM bypasses it — the seam is non-uniform because gopdflib offers too little depth to leverage.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> route WASM through the same gopdflib interface; future WASM ops come free. Needs B1 first.</p>
+    </div>
+    <div class="card bg-white rounded-xl shadow p-5">
+      <div class="flex justify-between items-start"><h3 class="font-bold text-sm">F3 · Composition root + bench coupling</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-spec">Speculative</span></div>
+      <p class="text-xs text-stone-500 mt-1">cmd/gopdfsuit/main.go:101 · middleware/* · benchmarktemplates/*:366</p>
+      <p class="mt-2 text-sm"><b>Problem:</b> main inlines profiling/pools/semaphore/shutdown; benchmarks reach past the public adapter into internals, weakening locality.</p>
+      <p class="mt-2 text-sm"><b>Deepen:</b> extract a server-builder composition root (main declares, not implements); flip bench coupling so internal runners consume public builders.</p>
+    </div>
+  </div>
+
+  <section class="mt-12 bg-stone-900 text-stone-100 rounded-xl p-8">
+    <h2 class="text-2xl font-bold">Top recommendation</h2>
+    <p class="mt-3">Tackle <b>A1 (one PDF-reader seam)</b> first. It has the most leverage: unifying object/xref-stream reading unblocks A2 (inflation moves with it), A4 (encryption consumes the same object view), and A3 (field-locate tests through the new seam). Migrate compress first — smallest consumer — then redact, form, merge.</p>
+    <p class="mt-2 text-stone-300">Second: <b>B1+B2 (gopdflib owns its types and validation)</b> — gates every future cross-tier change. Third: <b>E2 (schema golden test)</b> — cheap, prevents silent drift while the bigger deepens land.</p>
+    <p class="mt-4 text-sm text-stone-400">Counts: 13 Strong · 7 Worth exploring · 3 Speculative. No CONTEXT.md or ADRs exist, so no decision records conflict.</p>
+  </section>
+
+  <footer class="mt-8 text-sm text-stone-500">Generated from 5 parallel architecture walks. Companion ledger: plans/reviews/architecture-review-2026-09-04.md</footer>
+</div>
+</body>
+</html>

@@ -2,7 +2,6 @@ package font
 
 import (
 	"bytes"
-	"encoding/binary"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -14,11 +13,8 @@ type pageCompressEntry struct {
 }
 
 type pageCompressKey struct {
-	fingerprint uint64
+	fingerprint uint64 // FNV-1a 64 over the FULL content plus length
 	rawLen      int
-	first       uint64
-	mid         uint64
-	last        uint64
 }
 
 const maxPageCompressCacheEntries = 2048
@@ -35,6 +31,8 @@ func maxEntriesPerShard() int64 {
 type compressCacheShard struct {
 	entries sync.Map
 	count   atomic.Int64
+	// mu makes per-shard clear-all atomic with overflow stores.
+	mu sync.Mutex
 }
 
 var (
@@ -62,22 +60,18 @@ func pageContentFingerprint(raw []byte) pageCompressKey {
 	if n == 0 {
 		return pageCompressKey{}
 	}
-	if n < 24 {
-		var h uint64 = 1469598103934665603
-		for _, b := range raw {
-			h ^= uint64(b)
-			h *= 1099511628211
-		}
-		return pageCompressKey{fingerprint: h, rawLen: n}
+	// FNV-1a over the full content: sampling only len/first/mid/last let
+	// distinct pages share a fingerprint and reuse each other's streams.
+	const (
+		offset64 = 1469598103934665603
+		prime64  = 1099511628211
+	)
+	h := uint64(offset64) ^ uint64(n)*0x9e3779b97f4a7c15
+	for _, b := range raw {
+		h ^= uint64(b)
+		h *= prime64
 	}
-	first := binary.LittleEndian.Uint64(raw[:8])
-	mid := binary.LittleEndian.Uint64(raw[n/2:])
-	last := binary.LittleEndian.Uint64(raw[n-8:])
-	h := uint64(n) * 0x9e3779b97f4a7c15
-	h ^= first + 0xbf58476d1ce4e5b9 + (h << 6) + (h >> 2)
-	h ^= mid + 0x94d049bb133111eb + (h << 6) + (h >> 2)
-	h ^= last + 0x2545f4914f6cdd1d + (h << 6) + (h >> 2)
-	return pageCompressKey{fingerprint: h, rawLen: n, first: first, mid: mid, last: last}
+	return pageCompressKey{fingerprint: h, rawLen: n}
 }
 
 // CompressContentStreamCached zlib-compresses page bytes, reusing prior results for
@@ -115,6 +109,8 @@ func CompressContentStreamCached(raw []byte) (compressed *bytes.Buffer, useFlate
 }
 
 func storePageCompressEntry(shard *compressCacheShard, key pageCompressKey, entry *pageCompressEntry) {
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
 	if _, exists := shard.entries.Load(key); exists {
 		shard.entries.Store(key, entry)
 		return
@@ -131,7 +127,9 @@ func storePageCompressEntry(shard *compressCacheShard, key pageCompressKey, entr
 // ClearPageCompressCache drops all shard entries (tests / memory pressure).
 func ClearPageCompressCache() {
 	for i := range compressShards {
+		compressShards[i].mu.Lock()
 		compressShards[i].entries.Clear()
 		compressShards[i].count.Store(0)
+		compressShards[i].mu.Unlock()
 	}
 }

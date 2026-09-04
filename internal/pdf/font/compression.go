@@ -46,9 +46,18 @@ func GetCompressBuffer() *bytes.Buffer {
 	return buf
 }
 
+// maxPooledCompressBufferCap bounds the buffer pool: buffers that grew past
+// this are dropped instead of retained, keeping pool memory bounded on
+// large-document soaks.
+const maxPooledCompressBufferCap = 256 * 1024
+
 // PutCompressBuffer returns a compression buffer to the pool after resetting it.
+// Buffers with cap above maxPooledCompressBufferCap are dropped.
 func PutCompressBuffer(buf *bytes.Buffer) {
 	if buf == nil {
+		return
+	}
+	if buf.Cap() > maxPooledCompressBufferCap {
 		return
 	}
 	buf.Reset()

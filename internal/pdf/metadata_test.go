@@ -9,6 +9,8 @@ import (
 )
 
 func TestPDFAHandlerGenerateXMPMetadataUsesCachedTemplateSections(t *testing.T) {
+	pm := &PageManager{NextObjectID: 9, ExtraObjects: make(map[int][]byte)}
+	alloc := NewAllocator(0).BindPageManager(pm, nil)
 	handler := NewPDFAHandler(&models.PDFAConfig{
 		Conformance: "4",
 		Title:       "Quarterly Note",
@@ -16,7 +18,7 @@ func TestPDFAHandlerGenerateXMPMetadataUsesCachedTemplateSections(t *testing.T) 
 		Subject:     "Desk Summary",
 		Keywords:    "alpha, beta, gamma",
 		Creator:     "bench-runner",
-	}, &PageManager{NextObjectID: 9}, nil)
+	}, pm, nil, alloc)
 
 	objectID, metadata := handler.GenerateXMPMetadata("abc123", time.Date(2026, time.June, 22, 10, 11, 12, 0, time.UTC))
 	if objectID != 9 {

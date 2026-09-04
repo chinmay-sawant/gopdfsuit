@@ -2,7 +2,6 @@
 package encryption
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
@@ -11,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unsafe"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
@@ -59,13 +57,16 @@ func NewPDFEncryption(config *models.SecurityConfig, documentID []byte) (*PDFEnc
 	return enc, nil
 }
 
-// padPassword pads or truncates password to 32 bytes
+// padPassword pads or truncates password to 32 bytes.
+// It always returns a fresh copy so callers can append to or encrypt the
+// result without aliasing (and mutating) the immutable string bytes.
 func padPassword(password string) []byte {
+	result := make([]byte, 32)
 	if len(password) >= 32 {
-		return unsafe.Slice(unsafe.StringData(password), 32)
+		copy(result, password[:32])
+		return result
 	}
 	// Pad with standard padding bytes
-	result := make([]byte, 32)
 	copy(result, password)
 	copy(result[len(password):], paddingBytes[:32-len(password)])
 	return result
@@ -237,24 +238,51 @@ func (enc *PDFEncryption) calculatePermissions(config *models.SecurityConfig) in
 	return p
 }
 
-// EncryptStream encrypts a PDF stream using AES-128-CBC
+// EncryptStream encrypts a PDF stream using AES-128-CBC.
+// On RNG or cipher failure it returns nil (fail closed) instead of leaking
+// plaintext; see EncryptStreamE for the error-reporting variant.
 func (enc *PDFEncryption) EncryptStream(data []byte, objNum, genNum int) []byte {
+	out, err := enc.EncryptStreamE(data, objNum, genNum, rand.Read)
+	if err != nil {
+		return nil
+	}
+	return out
+}
+
+// EncryptString encrypts a PDF string.
+// On failure it returns nil instead of leaking plaintext.
+func (enc *PDFEncryption) EncryptString(data []byte, objNum, genNum int) []byte {
+	return enc.EncryptStream(data, objNum, genNum)
+}
+
+// randReadFunc abstracts crypto/rand reads for fault injection in tests.
+type randReadFunc func([]byte) (int, error)
+
+// EncryptStreamE encrypts a PDF stream using AES-128-CBC, reporting RNG and
+// cipher failures instead of silently returning plaintext.
+func (enc *PDFEncryption) EncryptStreamE(data []byte, objNum, genNum int, randRead randReadFunc) ([]byte, error) {
+	if randRead == nil {
+		return nil, errors.New("nil random source")
+	}
+	if enc == nil || len(enc.EncryptionKey) == 0 {
+		return nil, errors.New("encryption key is not initialized")
+	}
 	// Compute object key
 	key := enc.computeObjectKey(objNum, genNum)
 
 	// Generate random IV
 	iv := make([]byte, aes.BlockSize)
-	if _, err := rand.Read(iv); err != nil {
-		return data
+	if _, err := randRead(iv); err != nil {
+		return nil, fmt.Errorf("failed to generate IV: %w", err)
 	}
 
-	// Pad data
-	padded := Pkcs7Pad(data, aes.BlockSize)
+	// Pad data (on a copy so the caller's slice is never mutated)
+	padded := Pkcs7Pad(append([]byte(nil), data...), aes.BlockSize)
 
 	// Encrypt
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return data
+		return nil, fmt.Errorf("failed to create cipher: %w", err)
 	}
 
 	ciphertext := make([]byte, len(padded))
@@ -262,12 +290,7 @@ func (enc *PDFEncryption) EncryptStream(data []byte, objNum, genNum int) []byte 
 	mode.CryptBlocks(ciphertext, padded)
 
 	// Prepend IV
-	return append(iv, ciphertext...)
-}
-
-// EncryptString encrypts a PDF string
-func (enc *PDFEncryption) EncryptString(data []byte, objNum, genNum int) []byte {
-	return enc.EncryptStream(data, objNum, genNum)
+	return append(iv, ciphertext...), nil
 }
 
 // computeObjectKey computes the encryption key for a specific object
@@ -294,11 +317,16 @@ func (enc *PDFEncryption) computeObjectKey(objNum, genNum int) []byte {
 	return hash[:16]
 }
 
-// Pkcs7Pad pads data to block size using PKCS#7
+// Pkcs7Pad pads data to block size using PKCS#7.
+// It always returns a new slice, never mutating the input backing array.
 func Pkcs7Pad(data []byte, blockSize int) []byte {
 	padding := blockSize - (len(data) % blockSize)
-	padText := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(data, padText...)
+	out := make([]byte, len(data)+padding)
+	copy(out, data)
+	for i := len(data); i < len(out); i++ {
+		out[i] = byte(padding)
+	}
+	return out
 }
 
 // GetEncryptDictionary returns the /Encrypt dictionary content
@@ -343,11 +371,12 @@ func GenerateDocumentID(data []byte) []byte {
 	hasher := md5.New()
 	hasher.Write(data)
 
-	// Add some randomness
+	// Add some randomness so IDs differ per document
 	randomBytes := make([]byte, 16)
 	if _, err := rand.Read(randomBytes); err != nil {
 		return hasher.Sum(nil) // Fallback to partial hash
 	}
+	hasher.Write(randomBytes)
 
 	return hasher.Sum(nil)
 }

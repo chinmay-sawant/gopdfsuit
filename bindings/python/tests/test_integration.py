@@ -24,7 +24,7 @@ from pypdfsuit import (
     HtmlToPDFRequest,
     HtmlToImageRequest,
 )
-from pypdfsuit._bindings import get_lib, call_bytes_result, GoPDFSuitError
+from pypdfsuit._bindings import get_lib, call_bytes_result
 
 # Resolve paths relative to the repo root
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -54,28 +54,6 @@ def _generate_pdf_from_dict(template_dict: dict) -> bytes:
     lib = get_lib()
     template_json = json.dumps(template_dict).encode("utf-8")
     return call_bytes_result(lib.GeneratePDF, template_json)
-
-
-def _has_chrome() -> bool:
-    """Check whether a Chrome/Chromium binary is available."""
-    import shutil
-    return any(
-        shutil.which(name) is not None
-        for name in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
-    )
-
-
-requires_chrome = pytest.mark.skipif(
-    not _has_chrome(),
-    reason="Chrome/Chromium not found on PATH",
-)
-
-
-def _skip_if_chrome_runtime_error(exc: GoPDFSuitError) -> None:
-    """Skip (not fail) when headless Chrome cannot start - common on CI sandboxes."""
-    msg = str(exc).lower()
-    if "chrome failed to start" in msg or "sandbox" in msg or "no usable sandbox" in msg:
-        pytest.skip(f"Chrome cannot run in this environment: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -170,15 +148,10 @@ class TestFillPDF:
 class TestHtmlToPDF:
     """Mirrors Go TestHtmlToPDF."""
 
-    @requires_chrome
     def test_url_to_pdf(self):
-        try:
-            pdf_bytes = convert_html_to_pdf(
-                HtmlToPDFRequest(url="https://en.wikipedia.org/wiki/Ana_de_Armas")
-            )
-        except GoPDFSuitError as exc:
-            _skip_if_chrome_runtime_error(exc)
-            raise
+        pdf_bytes = convert_html_to_pdf(
+            HtmlToPDFRequest(url="https://en.wikipedia.org/wiki/Ana_de_Armas")
+        )
 
         assert pdf_bytes is not None
         assert len(pdf_bytes) > 0
@@ -194,18 +167,16 @@ class TestHtmlToPDF:
 class TestHtmlToImage:
     """Mirrors Go TestHtmlToImage."""
 
-    @requires_chrome
     def test_url_to_png(self):
-        try:
-            img_bytes = convert_html_to_image(
-                HtmlToImageRequest(
-                    url="https://en.wikipedia.org/wiki/Ana_de_Armas",
-                    format="png",
-                )
+        # example.com: small static page. A long page (e.g. Wikipedia)
+        # lays out past the engine's 16384px raster budget and fails
+        # honestly with LimitExceededError instead of rendering.
+        img_bytes = convert_html_to_image(
+            HtmlToImageRequest(
+                url="https://example.com",
+                format="png",
             )
-        except GoPDFSuitError as exc:
-            _skip_if_chrome_runtime_error(exc)
-            raise
+        )
 
         assert img_bytes is not None
         assert len(img_bytes) > 0

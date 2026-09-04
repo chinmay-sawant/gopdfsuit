@@ -31,6 +31,7 @@ type xmpMetadataTemplate struct {
 type PDFAHandler struct {
 	config            *models.PDFAConfig
 	pageManager       *PageManager
+	alloc             *Allocator
 	metadataObjID     int
 	outputIntentObjID int
 	iccProfileObjID   int
@@ -39,10 +40,14 @@ type PDFAHandler struct {
 }
 
 // NewPDFAHandler creates a new PDF/A handler
-func NewPDFAHandler(config *models.PDFAConfig, pm *PageManager, encryptor ObjectEncryptor) *PDFAHandler {
+func NewPDFAHandler(config *models.PDFAConfig, pm *PageManager, encryptor ObjectEncryptor, alloc *Allocator) *PDFAHandler {
+	if alloc == nil {
+		alloc = pm.objects().alloc
+	}
 	return &PDFAHandler{
 		config:      config,
 		pageManager: pm,
+		alloc:       alloc,
 		encryptor:   encryptor,
 		xmpTemplate: buildXMPMetadataTemplate(config),
 	}
@@ -313,8 +318,7 @@ func (h *PDFAHandler) GenerateXMPMetadata(documentID string, generatedAt time.Ti
 	xmpContent := []byte(xmp.String())
 
 	// Create metadata stream object
-	h.metadataObjID = h.pageManager.NextObjectID
-	h.pageManager.NextObjectID++
+	h.metadataObjID = h.alloc.Alloc()
 
 	// Encrypt if needed
 	var metaBuf strings.Builder
@@ -351,8 +355,7 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	if iccID > 0 {
 		h.iccProfileObjID = iccID
 	} else {
-		h.iccProfileObjID = h.pageManager.NextObjectID
-		h.pageManager.NextObjectID++
+		h.iccProfileObjID = h.alloc.Alloc()
 	}
 
 	compressedData := compressedSRGBICCProfileCache()
@@ -378,8 +381,7 @@ func (h *PDFAHandler) GenerateOutputIntent(iccID, outputIntentID int) (int, []st
 	if outputIntentID > 0 {
 		h.outputIntentObjID = outputIntentID
 	} else {
-		h.outputIntentObjID = h.pageManager.NextObjectID
-		h.pageManager.NextObjectID++
+		h.outputIntentObjID = h.alloc.Alloc()
 	}
 
 	// Encrypt string values in OutputIntent dictionary if needed

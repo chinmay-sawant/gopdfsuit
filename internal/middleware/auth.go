@@ -3,6 +3,7 @@ package middleware
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -19,12 +20,30 @@ func IsCloudRun() bool {
 	return isCloudRunCached
 }
 
-// GoogleAuthMiddleware validates Google OAuth ID tokens
-// Only enforces authentication when running on Cloud Run
+// authEnforced reports whether GoogleAuthMiddleware must validate tokens.
+//
+// Open-by-default local behavior: authentication is enforced ONLY when this
+// returns true, i.e. when running on Cloud Run (K_SERVICE or K_REVISION is
+// set) or when REQUIRE_AUTH=1 is set in the environment. Everywhere else
+// (local dev, plain Docker, unit tests) requests pass through untouched.
+// Set REQUIRE_AUTH=1 to force enforcement outside Cloud Run (CI, staging,
+// on-prem).
+func authEnforced() bool {
+	if os.Getenv("REQUIRE_AUTH") == "1" {
+		return true
+	}
+	return IsCloudRun()
+}
+
+// GoogleAuthMiddleware validates Google OAuth ID tokens.
+//
+// Open-by-default local behavior: when authEnforced() is false (not on Cloud
+// Run and REQUIRE_AUTH != "1") the middleware is a no-op and every request
+// passes through. Set REQUIRE_AUTH=1 to default-deny outside Cloud Run.
 func GoogleAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Skip authentication if not running on Cloud Run
-		if !IsCloudRun() {
+		// Skip authentication if not running on Cloud Run (unless REQUIRE_AUTH=1)
+		if !authEnforced() {
 			c.Next()
 			return
 		}
@@ -73,9 +92,9 @@ func GoogleAuthMiddleware() gin.HandlerFunc {
 		ctx := c.Request.Context()
 		payload, err := idtoken.Validate(ctx, token, audience)
 		if err != nil {
+			log.Printf("GoogleAuthMiddleware: token validation failed: %v", err)
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":   "Invalid ID token",
-				"details": err.Error(),
+				"error": "authentication failed",
 			})
 			c.Abort()
 			return

@@ -6,7 +6,23 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
+
+// MaxMergeObjects caps the highest object number accepted from a single
+// input file and the total object count of a merge. It rejects sparse
+// files like `999999 0 obj` fast instead of blowing time/memory in the
+// numeric-order collection and xref loops.
+const MaxMergeObjects = 50000
+
+// MaxMergeInputBytes caps a single input file accepted by MergePDFs.
+const MaxMergeInputBytes = 32 << 20 // 32 MiB
+
+// encryptRefRe matches a real /Encrypt entry: an indirect reference or an
+// inline encryption dictionary. Bare "/Encrypt" text inside content streams
+// or strings must not count.
+var encryptRefRe = regexp.MustCompile(`/Encrypt\s*(\d+\s+\d+\s+R|<<)`)
 
 // MergePDFs merges multiple PDF files into one
 // It properly handles form fields, widgets, appearance streams, and various PDF versions
@@ -22,6 +38,9 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	// Parse all input files
 	var fileContexts []*FileContext
 	for _, f := range files {
+		if len(f) > MaxMergeInputBytes {
+			return nil, fmt.Errorf("input PDF exceeds %d bytes", MaxMergeInputBytes)
+		}
 		if hasEncrypt(f) {
 			return nil, errors.New("cannot merge encrypted PDF")
 		}
@@ -29,6 +48,9 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		fc := parseFile(f)
 		if fc == nil {
 			continue
+		}
+		if fc.MaxObj > MaxMergeObjects || len(fc.Objects) > MaxMergeObjects {
+			return nil, fmt.Errorf("input PDF exceeds %d objects", MaxMergeObjects)
 		}
 
 		// Track highest PDF version
@@ -55,6 +77,10 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 	for _, fc := range fileContexts {
 		offset := ctx.CurrentMax
+
+		if offset+fc.MaxObj+1 > MaxMergeObjects {
+			return nil, fmt.Errorf("merged PDF would exceed %d objects", MaxMergeObjects)
+		}
 
 		// Collect all objects to process (including annotation dependencies)
 		objectsToProcess := collectObjectsWithDependencies(fc)
@@ -400,34 +426,13 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	}
 
 	xrefStart := out.Len()
-	var xrefBuf []byte
-	xrefBuf = append(xrefBuf, "xref\n0 "...)
-	xrefBuf = strconv.AppendInt(xrefBuf, int64(maxObj+1), 10)
-	xrefBuf = append(xrefBuf, '\n')
-	out.Write(xrefBuf)
-
-	// Object 0 is always free
-	out.WriteString("0000000000 65535 f\r\n")
-
-	// Write entries for objects 1 to maxObj
-	for i := 1; i <= maxObj; i++ {
-		if off, ok := offsets[i]; ok {
-			xrefBuf = xrefBuf[:0]
-			var offScratch [20]byte
-			digits := strconv.AppendInt(offScratch[:0], int64(off), 10)
-			for j := 0; j < 10-len(digits); j++ {
-				xrefBuf = append(xrefBuf, '0')
-			}
-			xrefBuf = append(xrefBuf, digits...)
-			xrefBuf = append(xrefBuf, " 00000 n\r\n"...)
-			out.Write(xrefBuf)
-		} else {
-			out.WriteString("0000000000 65535 f\r\n")
-		}
-	}
+	pdfobj.WriteDenseXRef(out, maxObj, func(id int) (int, bool) {
+		off, ok := offsets[id]
+		return off, ok
+	}, nil, pdfobj.MergeStyle)
 
 	// Trailer
-	xrefBuf = xrefBuf[:0]
+	var xrefBuf []byte
 	xrefBuf = append(xrefBuf, "trailer\n<< /Size "...)
 	xrefBuf = strconv.AppendInt(xrefBuf, int64(maxObj+1), 10)
 	xrefBuf = append(xrefBuf, " /Root 1 0 R >>\nstartxref\n"...)
@@ -436,14 +441,43 @@ func writeXRefAndTrailer(out *bytes.Buffer, offsets map[int]int) {
 	out.Write(xrefBuf)
 }
 
-// hasEncrypt checks if PDF is encrypted
+// hasEncrypt checks if the PDF declares document encryption: a real
+// /Encrypt entry (indirect reference or inline dict) outside stream data.
+// Plain "/Encrypt" text inside a content stream no longer counts.
 func hasEncrypt(data []byte) bool {
-	trailerRe := regexp.MustCompile(`(?s)trailer\s*<<(.*?)>>`)
-	matches := trailerRe.FindAllSubmatch(data, -1)
-	for _, m := range matches {
-		if bytes.Contains(m[1], []byte("/Encrypt")) {
-			return true
+	return encryptRefRe.Match(BytesWithoutStreams(data))
+}
+
+// BytesWithoutStreams returns data with raw stream contents blanked so
+// keyword scans only see dictionary/trailer context, never stream bytes.
+func BytesWithoutStreams(data []byte) []byte {
+	out := make([]byte, len(data))
+	copy(out, data)
+	i := 0
+	for i < len(data) {
+		rel := FindStreamStart(out[i:])
+		if rel == -1 {
+			break
 		}
+		start := i + rel
+		ptr := start + 6
+		if ptr < len(out) && out[ptr] == '\r' {
+			ptr++
+		}
+		if ptr < len(out) && out[ptr] == '\n' {
+			ptr++
+		}
+		idx := bytes.Index(out[ptr:], []byte("endstream"))
+		if idx == -1 {
+			for j := ptr; j < len(out); j++ {
+				out[j] = ' '
+			}
+			break
+		}
+		for j := ptr; j < ptr+idx; j++ {
+			out[j] = ' '
+		}
+		i = ptr + idx + 9
 	}
-	return bytes.Contains(data, []byte("/Encrypt"))
+	return out
 }

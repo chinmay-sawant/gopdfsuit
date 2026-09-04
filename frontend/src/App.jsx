@@ -18,7 +18,8 @@ import Documentation from './pages/Documentation'
 import Redaction from './pages/Redaction'
 
 function App() {
-  // Wrap only the Editor route with AuthGuard when auth is required
+  // Public by default: Editor renders unwrapped. Only wrap in AuthGuard
+  // when auth is explicitly opted in (VITE_IS_CLOUD_RUN=true).
   const EditorRoute = isAuthRequired() ? (
     <AuthGuard>
       <Editor />

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("<svg><defs><rect id=\"r\" width=\"5\" height=\"5\"/></defs><use href=\"#r\" x=\"1\" y=\"2\"/></svg>")

@@ -16,14 +16,127 @@ pull:
 	docker pull $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
 	docker run -d -p 8080:8080 $(DOCKERUSERNAME)/gopdfsuit:$(VERSION)
 
-build: test-integration
+build: test-go
 	mkdir -p bin
 	go build -o bin/app ./cmd/gopdfsuit
 
-test:
-	go test ./...
-	cd bindings/python && python3 -m pytest tests
-	bash test/verify_pdfs.sh
+# ── Test harness (OOM-safe, filterable) ────────────────────────────────────
+# Defaults cap package parallelism so a 24-CPU / 8GB box does not OOM:
+#   go test -p limits concurrent package binaries (biggest RAM saver),
+#   -parallel limits parallel subtests inside a package,
+#   GOMEMLIMIT makes the Go runtime GC earlier under pressure,
+#   VERIFY_PDFS_JOBS caps concurrent veraPDF JVMs (each ~0.5-1GB).
+#
+# Usage:
+#   make test                    # full gate: go + python + verify (sequential)
+#   make test-go                 # go only (unit pkgs, then ./test integration)
+#   make test-unit                # go only, skip ./test integration package
+#   make test-integration         # ./test split: suite, then zerodha (standalone)
+#   make test-integration-suite   # only TestIntegrationSuite process
+#   make test-integration-zerodha # only TestZerodhaPDFCompliance process
+#   make test-python              # python only
+#   make test-verify              # veraPDF verify only
+#   make test-fast                # SHORT=1 unit + python, no verify
+#   make test-list                # list packages and test names
+#
+# Filters (all optional, overridable on CLI):
+#   make test-go P=1 PKG=./internal/pdf T=TestWrap
+#   make test-go JOBS=4 RUN=TestMerge ./... (JOBS/RUN are aliases of P/T)
+#   make test-python PY_K=test_merge
+#   make test SHORT=1 V=1 COUNT=2
+JOBS ?= 2
+P ?= $(JOBS)
+RUN ?=
+T ?= $(RUN)
+PKG ?= ./...
+PY_K ?= $(T)
+SHORT ?= 0
+V ?= 0
+COUNT ?= 1
+TEST_PARALLEL ?= 2
+TEST_TIMEOUT ?= 10m
+TEST_GOMEMLIMIT ?= 4GiB
+TEST_GOMAXPROCS ?=
+PYTEST_FLAGS ?=
+ifeq ($(SHORT),1)
+GO_SHORT_FLAG := -short
+else
+GO_SHORT_FLAG :=
+endif
+ifeq ($(V),1)
+GO_V_FLAG := -v
+PY_V_FLAG := -v
+else
+GO_V_FLAG :=
+PY_V_FLAG := -q
+endif
+GO_RUN_FLAG := $(if $(strip $(T)),-run '$(T)')
+PY_K_FLAG := $(if $(strip $(PY_K)),-k '$(PY_K)')
+GO_TEST_ENV := GOMEMLIMIT=$(TEST_GOMEMLIMIT) $(if $(strip $(TEST_GOMAXPROCS)),GOMAXPROCS=$(TEST_GOMAXPROCS) ,)
+
+test: test-go test-python test-verify
+
+test-go:
+ifeq ($(PKG),./...)
+	@$(MAKE) test-unit P=$(P) TEST_PARALLEL=$(TEST_PARALLEL) COUNT=$(COUNT) V=$(V) SHORT=$(SHORT) T='$(T)'
+	@$(MAKE) test-integration P=$(P) TEST_PARALLEL=$(TEST_PARALLEL) COUNT=$(COUNT) V=$(V) SHORT=$(SHORT) T='$(T)'
+else
+	$(GO_TEST_ENV) go test -count=$(COUNT) -timeout $(TEST_TIMEOUT) -p $(P) -parallel $(TEST_PARALLEL) $(GO_SHORT_FLAG) $(GO_V_FLAG) $(GO_RUN_FLAG) $(PKG)
+endif
+
+test-unit:
+	$(GO_TEST_ENV) go test -count=$(COUNT) -timeout $(TEST_TIMEOUT) -p $(P) -parallel $(TEST_PARALLEL) $(GO_SHORT_FLAG) $(GO_V_FLAG) $(GO_RUN_FLAG) $$(go list ./... | grep -v '/test$$')
+
+# Integration runs each top-level test in its own process, sequentially, so
+# peak RAM stays flat: TestIntegrationSuite (25 sequential HTTP/library
+# subtests) first, then TestZerodhaPDFCompliance (6 veraPDF JVM subtests
+# capped by -parallel). Pass T= to filter to a single process instead.
+test-integration:
+ifeq ($(strip $(T)),)
+	@$(MAKE) test-integration-suite P=$(P) TEST_PARALLEL=$(TEST_PARALLEL) COUNT=$(COUNT) V=$(V) SHORT=$(SHORT)
+	@$(MAKE) test-integration-zerodha P=$(P) TEST_PARALLEL=$(TEST_PARALLEL) COUNT=$(COUNT) V=$(V) SHORT=$(SHORT)
+else
+	$(GO_TEST_ENV) go test -count=$(COUNT) -timeout $(TEST_TIMEOUT) -p 1 -parallel $(TEST_PARALLEL) $(GO_SHORT_FLAG) -v $(GO_RUN_FLAG) ./test
+endif
+
+test-integration-suite:
+	$(GO_TEST_ENV) go test -count=$(COUNT) -timeout $(TEST_TIMEOUT) -p 1 -parallel 1 $(GO_SHORT_FLAG) -v $(if $(strip $(T)),$(GO_RUN_FLAG),-run 'TestIntegrationSuite') ./test
+
+test-integration-zerodha:
+	$(GO_TEST_ENV) go test -count=$(COUNT) -timeout $(TEST_TIMEOUT) -p 1 -parallel $(TEST_PARALLEL) $(GO_SHORT_FLAG) -v $(if $(strip $(T)),$(GO_RUN_FLAG),-run 'TestZerodhaPDFCompliance') ./test
+
+test-python:
+	cd bindings/python && python3 -m pytest tests $(PY_V_FLAG) $(PY_K_FLAG) $(PYTEST_FLAGS)
+
+test-verify:
+	VERIFY_PDFS_JOBS=$(P) bash test/verify_pdfs.sh
+
+test-fast:
+	@$(MAKE) test-unit SHORT=1 P=$(P) PKG='$(PKG)' T='$(T)' COUNT=$(COUNT) V=$(V)
+	@$(MAKE) test-python PY_K='$(PY_K)' PYTEST_FLAGS='$(PYTEST_FLAGS)'
+
+test-list:
+	@go list ./...
+	@echo '---'
+	@$(GO_TEST_ENV) go test -p $(P) ./... -list '.*' 2>/dev/null | grep -E '^(ok|Testing|Test|Benchmark|Example)' | head -n 100
+
+# D1 triple-gate: frontend schema self-check against the golden fixture
+# (also covered by Go TestTemplateSchemaGolden and Python
+# test_golden_template.py). CI runs this in the frontend-lint job.
+test-schema:
+	cd frontend && npm run test:schema
+
+# D4 smoke: one quick slice per headless harness, total well under 5 min.
+# k6/Gotenberg/gopdfkit-compare need live infra (server :8080, Docker,
+# network setup) - run bench-k6-smoke / bench-gotenberg-smoke /
+# bench-gopdfkit-compare-test against running infra instead.
+bench-smoke:
+	cd $(ZERODHA_DIR) && BENCH_SEED=42 BENCH_ITERATIONS=20 BENCH_WORKERS=2 BENCH_SKIP_WRITE=1 $(GO_BENCH) run .
+	cd $(ZERODHA_DIR) && PAYLOAD_SCENARIO=retail_only BENCH_ITERATIONS=20 BENCH_WORKERS=2 python3 pypdfsuit_bench.py
+	GOMAXPROCS=$(GOMAXPROCS_BENCH) $(GO_BENCH) test -bench='BenchmarkGenerateTemplatePDF_FinancialReport$$' -benchtime=10x -count=1 ./test
+
+test-race:
+	$(GO_TEST_ENV) go test -race -p $(P) -parallel $(TEST_PARALLEL) $(GO_RUN_FLAG) ./internal/pdf/... ./internal/handlers/...
 
 install-verapdf:
 	bash test/install_verapdf.sh
@@ -32,19 +145,16 @@ install-pdf-validators:
 	bash test/install_pdf_validators.sh
 
 test-verify-pdfs:
-	bash test/verify_pdfs.sh
+	VERIFY_PDFS_JOBS=$(P) bash test/verify_pdfs.sh
 
 test-scan-pdfs:
-	bash test/verify_pdfs.sh --scan-all
+	VERIFY_PDFS_JOBS=$(P) bash test/verify_pdfs.sh --scan-all
 
 test-scan-pdfs-compliance:
-	bash test/verify_pdfs.sh --scan-all-compliance
+	VERIFY_PDFS_JOBS=$(P) bash test/verify_pdfs.sh --scan-all-compliance
 
 test-zerodha-compliance:
-	bash test/verify_pdfs.sh --zerodha-only
-
-test-integration: test
-	go test -count=1 -v ./test
+	VERIFY_PDFS_JOBS=$(P) bash test/verify_pdfs.sh --zerodha-only
 
 clean:
 	rm -rf bin/
@@ -55,7 +165,8 @@ ifeq ($(wildcard $(WASM_EXEC)),)
 WASM_EXEC := $(shell go env GOROOT)/misc/wasm/wasm_exec.js
 endif
 
-# In-browser compressor: GOOS=js GOARCH=wasm, no gin / gochromedp.
+# In-browser compressor: GOOS=js GOARCH=wasm, no gin / browser deps.
+# HTML conversion is server-side pure-Go via gowkhtmltopdf, no Chrome needed.
 # Copies wasm + wasm_exec.js to frontend/public and sampledata/compress-js.
 wasm-compress:
 	mkdir -p frontend/public sampledata/compress-js
@@ -63,6 +174,18 @@ wasm-compress:
 	cp "$(WASM_EXEC)" frontend/public/wasm_exec.js
 	cp frontend/public/compress.wasm frontend/public/wasm_exec.js sampledata/compress-js/
 	file frontend/public/compress.wasm
+
+# Full browser bundle: Generate, Merge, Split, Compress, Fill, text-path Redact.
+# HTML conversion and the OCR subprocess stay server-side and are never
+# referenced by ./cmd/wasm (see plans/wasm/01-full-wasm-port.md Phase 2.1).
+wasm:
+	mkdir -p frontend/public sampledata/wasm-js
+	GOOS=js GOARCH=wasm go build -o frontend/public/gopdfsuit.wasm ./cmd/wasm
+	cp "$(WASM_EXEC)" frontend/public/wasm_exec.js
+	cp frontend/public/gopdfsuit.wasm frontend/public/wasm_exec.js sampledata/wasm-js/
+	file frontend/public/gopdfsuit.wasm
+
+.PHONY: wasm wasm-compress
 
 run: test-integration lint wasm-compress
 	export VITE_IS_CLOUD_RUN=false;\
@@ -134,7 +257,7 @@ K6_LIGHT_SECONDS ?= 15
 K6_LIGHT_MAX_CONCURRENT ?= 24
 K6_LIGHT_GOMAXPROCS ?= 12
 
-.PHONY: build test install-verapdf install-pdf-validators test-verify-pdfs test-scan-pdfs test-scan-pdfs-compliance test-zerodha-compliance clean run fmt vet mod lint \
+.PHONY: build test test-go test-unit test-integration test-integration-suite test-integration-zerodha test-python test-verify test-fast test-list test-schema bench-smoke test-race install-verapdf install-pdf-validators test-verify-pdfs test-scan-pdfs test-scan-pdfs-compliance test-zerodha-compliance clean run fmt vet mod lint \
 	load-pprof load-pprof-gate load-pprof-1k load-pprof-1500 \
 	bench-help bench-setup \
 	bench-k6 bench-k6-light bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \

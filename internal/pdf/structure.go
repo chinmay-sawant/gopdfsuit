@@ -265,6 +265,25 @@ func releaseStructKids(kids []StructKid) {
 	structKidsSlicePool.Put(&kids)
 }
 
+// resetStructElem clears every reusable field so a recycled StructElem is
+// identical to a fresh one. It is the single reset used by both the sync.Pool
+// and arena acquire paths below (Kids slice ownership stays with the caller:
+// the release path returns pooled slices, acquire paths set Kids per use).
+func resetStructElem(elem *StructElem) {
+	elem.Type = ""
+	elem.Title = ""
+	elem.Alt = ""
+	elem.Lang = ""
+	elem.MCID = 0
+	elem.HasMCID = false
+	elem.ObjectID = 0
+	elem.AnnotObjID = 0
+	elem.PageID = 0
+	elem.Parent = nil
+	elem.tdLeafFast = false
+	elem.groupEmitFast = false
+}
+
 // resetStructElemForPool clears the fields a recycled struct-elem needs to
 // drop before being reused by the next caller. The previous version zeroed
 // every field, but most call sites set Type/Parent/PageID/MCID/HasMCID
@@ -283,13 +302,10 @@ func resetStructElemForPool(elem *StructElem) {
 	elem.Kids = nil
 }
 
-// acquireStructElem pulls a *StructElem from the global sync.Pool and
-// performs the lazy field reset (P1/P2). The fields cleared here are the
-// ones that affect output correctness if left stale: Title/Alt/Lang are
-// read by the fast-path guard, ObjectID/AnnotObjID/PageID/HasMCID/MCID
-// determine whether the struct is emitted as a leaf vs a grouping
-// element, and Parent/Type are read by the slow-path formatter. Together
-// these cover the full set the caller might NOT overwrite on the next use.
+// acquireStructElem pulls a *StructElem from the arena slab when active,
+// else from the global sync.Pool, and resets it via resetStructElem so no
+// stale field (Title/Alt/Lang, leaf vs grouping flags, fast-path flags)
+// can leak into the next use.
 func (sm *StructureManager) activateArena(need int) {
 	if !sm.Enabled || need < arenaActivationThreshold {
 		return
@@ -318,17 +334,7 @@ func (sm *StructureManager) acquireStructElem() *StructElem {
 			if !ok || e == nil {
 				return &StructElem{}
 			}
-			e.Type = ""
-			e.Title = ""
-			e.Alt = ""
-			e.Lang = ""
-			e.MCID = 0
-			e.HasMCID = false
-			e.ObjectID = 0
-			e.AnnotObjID = 0
-			e.PageID = 0
-			e.Parent = nil
-			e.tdLeafFast = false
+			resetStructElem(e)
 			return e
 		}
 		if sm.arenaNext >= len(slab) {
@@ -337,13 +343,11 @@ func (sm *StructureManager) acquireStructElem() *StructElem {
 		}
 		e := &slab[sm.arenaNext]
 		sm.arenaNext++
-		// Arena slots are fresh within a PDF; callers overwrite Type/Parent/MCID/HasMCID.
-		e.ObjectID = 0
-		e.Title = ""
-		e.Alt = ""
-		e.PageID = 0
+		// Arena slabs are pooled across PDFs, so slots may hold stale
+		// fields; reset everything and drop any stale Kids slice header.
+		// Callers overwrite Type/Parent/MCID/HasMCID next.
+		resetStructElem(e)
 		e.Kids = nil
-		e.tdLeafFast = false
 		return e
 	}
 	v := structElemPool.Get()
@@ -351,17 +355,7 @@ func (sm *StructureManager) acquireStructElem() *StructElem {
 	if !ok || e == nil {
 		return &StructElem{}
 	}
-	e.Type = ""
-	e.Title = ""
-	e.Alt = ""
-	e.Lang = ""
-	e.MCID = 0
-	e.HasMCID = false
-	e.ObjectID = 0
-	e.AnnotObjID = 0
-	e.PageID = 0
-	e.Parent = nil
-	e.tdLeafFast = false
+	resetStructElem(e)
 	return e
 }
 
@@ -462,18 +456,19 @@ func (sm *StructureManager) ReserveElementCapacity(additional int) {
 	}
 }
 
-// ReserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
+// reserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
 // Used by drawTable to avoid per-cell ensurePageSlot/increment overhead (D4).
-func (sm *StructureManager) ReserveMCIDs(pageIndex, count int) int {
-	return sm.reserveMCIDs(pageIndex, count, true)
+// Reached through TableTagger; kept package-private with the other row primitives.
+func (sm *StructureManager) reserveMCIDs(pageIndex, count int) int {
+	return sm.reserveMCIDsImpl(pageIndex, count, true)
 }
 
 // ReserveMCIDsLite reserves MCIDs without growing ParentTree (deferred bulk fill per page).
 func (sm *StructureManager) ReserveMCIDsLite(pageIndex, count int) int {
-	return sm.reserveMCIDs(pageIndex, count, false)
+	return sm.reserveMCIDsImpl(pageIndex, count, false)
 }
 
-func (sm *StructureManager) reserveMCIDs(pageIndex, count int, reserveParentTree bool) int {
+func (sm *StructureManager) reserveMCIDsImpl(pageIndex, count int, reserveParentTree bool) int {
 	if !sm.Enabled || count <= 0 {
 		return 0
 	}
@@ -559,8 +554,8 @@ func (sm *StructureManager) BeginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	return sm.beginMarkedContentBuf(buf, pageIndex, tag, props, -1)
 }
 
-// BeginMarkedContentBufWithMCID is like BeginMarkedContentBuf but uses a pre-reserved MCID (batch allocation).
-func (sm *StructureManager) BeginMarkedContentBufWithMCID(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string, mcid int) {
+// beginMarkedContentBufWithMCID is like BeginMarkedContentBuf but uses a pre-reserved MCID (batch allocation).
+func (sm *StructureManager) beginMarkedContentBufWithMCID(buf *bytes.Buffer, pageIndex int, tag StructureType, props map[string]string, mcid int) {
 	sm.beginMarkedContentBuf(buf, pageIndex, tag, props, mcid)
 }
 
@@ -619,8 +614,8 @@ func (sm *StructureManager) beginMarkedContentBuf(buf *bytes.Buffer, pageIndex i
 	return mcid
 }
 
-// EndMarkedContentBuf writes EMC directly to a bytes.Buffer (avoids strings.Builder intermediary)
-func (sm *StructureManager) EndMarkedContentBuf(buf *bytes.Buffer) {
+// endMarkedContentBuf writes EMC directly to a bytes.Buffer (avoids strings.Builder intermediary)
+func (sm *StructureManager) endMarkedContentBuf(buf *bytes.Buffer) {
 	if !sm.Enabled {
 		return
 	}
@@ -630,8 +625,8 @@ func (sm *StructureManager) EndMarkedContentBuf(buf *bytes.Buffer) {
 	}
 }
 
-// WriteCellMarkedContentBDC emits BDC for a cell MCID without allocating a per-cell StructElem.
-func (sm *StructureManager) WriteCellMarkedContentBDC(buf *bytes.Buffer, tag StructureType, mcid int) {
+// writeCellMarkedContentBDC emits BDC for a cell MCID without allocating a per-cell StructElem.
+func (sm *StructureManager) writeCellMarkedContentBDC(buf *bytes.Buffer, tag StructureType, mcid int) {
 	if !sm.Enabled {
 		return
 	}
@@ -664,7 +659,7 @@ func (sm *StructureManager) AttachRowMCIDs(pageIndex, startMCID, count int) {
 	}
 }
 
-// BeginTableRowWithTDMCIDs starts a TR with one TD StructElem per column, each carrying
+// beginTableRowWithTDMCIDs starts a TR with one TD StructElem per column, each carrying
 // a pre-reserved MCID. Used when replaying cached shared-row content streams that already
 // contain matching BDC/EMC operators (PDF/UA-2 requires TR → TD, not bare MCID leaves).
 //
@@ -729,7 +724,7 @@ func (sm *StructureManager) beginTableRowArena(pageIndex, startMCID, count int) 
 	return tr, true
 }
 
-func (sm *StructureManager) BeginTableRowWithTDMCIDs(pageIndex, startMCID, count int) {
+func (sm *StructureManager) beginTableRowWithTDMCIDs(pageIndex, startMCID, count int) {
 	if !sm.Enabled {
 		return
 	}

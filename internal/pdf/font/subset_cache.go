@@ -19,10 +19,16 @@ const maxSubsetCacheEntries = 1024
 var (
 	subsetCache      sync.Map // uint64 fingerprint -> *cachedSubset
 	subsetCacheCount atomic.Int64
+	// subsetCacheMu makes clear-all atomic with overflow stores: both the
+	// count reset and the map clear happen under one mutex so concurrent
+	// stores cannot interleave a Store between Clear and count reset.
+	subsetCacheMu sync.Mutex
 )
 
 // ClearSubsetCache drops all cached font subsets (tests / memory pressure).
 func ClearSubsetCache() {
+	subsetCacheMu.Lock()
+	defer subsetCacheMu.Unlock()
 	subsetCache.Clear()
 	subsetCacheCount.Store(0)
 }
@@ -60,8 +66,10 @@ func storeCachedSubset(font *TTFFont, usedGlyphs []uint16, data []byte, oldToNew
 	key := glyphSubsetFingerprint(font, usedGlyphs)
 	oldCopy := make(map[uint16]uint16, len(oldToNew))
 	maps.Copy(oldCopy, oldToNew)
+	subsetCacheMu.Lock()
+	defer subsetCacheMu.Unlock()
 	if subsetCacheCount.Add(1) > maxSubsetCacheEntries {
-		ClearSubsetCache()
+		subsetCache.Clear()
 		subsetCacheCount.Store(1)
 	}
 	subsetCache.Store(key, &cachedSubset{

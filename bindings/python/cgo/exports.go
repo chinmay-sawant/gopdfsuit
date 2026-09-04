@@ -1,4 +1,9 @@
 // Package main provides CGO exports for the Python bindings.
+//
+// Validation ownership: this layer enforces transport-only guards (nil
+// pointers, insane lengths, malformed JSON). All semantic validation lives
+// in pkg/gopdflib, the single validating interface shared by Go, Python,
+// HTTP, and WASM callers. Do not add content checks here.
 package main
 
 /*
@@ -20,104 +25,154 @@ typedef struct {
 */
 import "C"
 import (
-	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
 	"unsafe"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
-// GeneratePDF generates a PDF from a JSON template.
-// The caller must free the result using FreeBytesResult.
-//
-//export GeneratePDF
-func GeneratePDF(jsonTemplate *C.char) C.ByteResult {
+// maxCGOPayloadBytes caps a single input buffer accepted from C callers
+// (512 MiB, matching the MergePDFs per-part limit).
+const maxCGOPayloadBytes = 512 << 20
+
+// errResult builds an error ByteResult. The ABI is unchanged (the `error`
+// C string), but the payload is now the shared {code,message} JSON envelope
+// so Python can raise a typed subclass without parsing message text.
+func errResult(err error) C.ByteResult {
 	var result C.ByteResult
-
-	goTemplate := C.GoString(jsonTemplate)
-	var template gopdflib.PDFTemplate
-	if err := json.Unmarshal([]byte(goTemplate), &template); err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	pdfBytes, err := gopdflib.GeneratePDF(template)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	// Allocate C memory and copy data
-	result.length = C.int(len(pdfBytes))
-	result.data = (*C.char)(C.malloc(C.size_t(len(pdfBytes))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&pdfBytes[0]), C.size_t(len(pdfBytes)))
-
+	result.error = C.CString(gopdflib.EnvelopeJSON(err))
 	return result
 }
 
-// MergePDFs merges multiple PDF files into one.
-// The caller must free the result using FreeBytesResult.
-//
-//export MergePDFs
-func MergePDFs(pdfData **C.char, pdfLengths *C.int, count C.int) C.ByteResult {
+// bytesResult copies b into C memory, returning an empty result (nil data,
+// 0 length) when b is empty so callers never index b[0] out of range.
+func bytesResult(b []byte) C.ByteResult {
 	var result C.ByteResult
-
-	if count <= 0 {
-		result.error = C.CString("no PDF files provided")
+	if len(b) == 0 {
 		return result
 	}
-
-	// Convert C arrays to Go slices
-	dataSlice := unsafe.Slice(pdfData, int(count))
-	lengthSlice := unsafe.Slice(pdfLengths, int(count))
-
-	files := make([][]byte, int(count))
-	for i := 0; i < int(count); i++ {
-		length := int(lengthSlice[i])
-		files[i] = C.GoBytes(unsafe.Pointer(dataSlice[i]), C.int(length))
-	}
-
-	merged, err := gopdflib.MergePDFs(files)
-	if err != nil {
-		result.error = C.CString(err.Error())
+	if len(b) > math.MaxInt32 {
+		result.error = C.CString("output exceeds maximum representable length")
 		return result
 	}
-
-	result.length = C.int(len(merged))
-	result.data = (*C.char)(C.malloc(C.size_t(len(merged))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&merged[0]), C.size_t(len(merged)))
-
+	result.length = C.int(len(b))
+	result.data = (*C.char)(C.malloc(C.size_t(len(b))))
+	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&b[0]), C.size_t(len(b)))
 	return result
 }
 
-// SplitPDF splits a PDF according to the given specification.
-// The caller must free the result using FreeBytesArrayResult.
-//
-//export SplitPDF
-func SplitPDF(pdfData *C.char, pdfLength C.int, specJSON *C.char) C.ByteArrayResult {
+// invalidArg wraps a transport-guard failure so the envelope classifies it
+// as invalid_input, matching the HTTP 400 for the same malformed calls.
+func invalidArg(err error) error {
+	return fmt.Errorf("%w: %w", gopdflib.ErrInvalidInput, err)
+}
+
+// limitArg wraps an over-cap transport rejection so the envelope carries
+// limit_exceeded, matching the HTTP 413 for oversized uploads.
+func limitArg(err error) error {
+	return fmt.Errorf("%w: %w", gopdflib.ErrLimitExceeded, err)
+}
+
+// checkByteLen rejects lengths that cannot be represented as C.int.
+func checkByteLen(n int) error {
+	if n < 0 || int64(n) > math.MaxInt32 {
+		return invalidArg(errors.New("length exceeds maximum representable length"))
+	}
+	return nil
+}
+
+// cBytes safely copies n bytes from a C pointer, rejecting nil pointers.
+func cBytes(p *C.char, n C.int) ([]byte, error) {
+	if err := checkByteLen(int(n)); err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	if p == nil {
+		return nil, invalidArg(errors.New("nil data pointer with non-zero length"))
+	}
+	return C.GoBytes(unsafe.Pointer(p), n), nil
+}
+
+// cString safely converts a C string pointer, rejecting nil pointers.
+func cString(p *C.char) (string, error) {
+	if p == nil {
+		return "", invalidArg(errors.New("nil string pointer"))
+	}
+	return C.GoString(p), nil
+}
+
+// pdfBytes is the transport guard for a PDF input buffer: representable
+// length within the payload cap. Empty content passes through so gopdflib
+// owns the "non-empty PDF" error.
+func pdfBytes(p *C.char, n C.int) ([]byte, error) {
+	if err := checkByteLen(int(n)); err != nil {
+		return nil, err
+	}
+	if int64(n) > maxCGOPayloadBytes {
+		return nil, limitArg(errors.New("PDF length out of range"))
+	}
+	return cBytes(p, n)
+}
+
+// jsonArg parses a C JSON string argument into T via sonic (pooled decoder
+// path for small args). Malformed JSON is a transport error; semantic
+// validation of the decoded value belongs to gopdflib.
+func jsonArg[T any](p *C.char) (T, error) {
+	var v T
+	s, err := cString(p)
+	if err != nil {
+		return v, err
+	}
+	if err := sonic.Unmarshal([]byte(s), &v); err != nil {
+		return v, invalidArg(err)
+	}
+	return v, nil
+}
+
+// bytesOp is the generic adapter for byte-or-JSON-out operations: run the op
+// and map its result to a ByteResult.
+func bytesOp(op func() ([]byte, error)) C.ByteResult {
+	out, err := op()
+	if err != nil {
+		return errResult(err)
+	}
+	return bytesResult(out)
+}
+
+// jsonOp is the generic adapter for value-out operations: run the op and
+// return its result marshaled as JSON.
+func jsonOp(op func() (any, error)) C.ByteResult {
+	return bytesOp(func() ([]byte, error) {
+		v, err := op()
+		if err != nil {
+			return nil, err
+		}
+		return sonic.Marshal(v)
+	})
+}
+
+// bytesArrayOp is the generic adapter for multi-part byte-out operations
+// (SplitPDF): run the op and map its parts to a ByteArrayResult.
+func bytesArrayOp(op func() ([][]byte, error)) C.ByteArrayResult {
 	var result C.ByteArrayResult
-
-	file := C.GoBytes(unsafe.Pointer(pdfData), pdfLength)
-	specStr := C.GoString(specJSON)
-
-	var spec merge.SplitSpec
-	if err := json.Unmarshal([]byte(specStr), &spec); err != nil {
-		result.error = C.CString(err.Error())
+	fail := func(err error) C.ByteArrayResult {
+		result.error = C.CString(gopdflib.EnvelopeJSON(err))
 		return result
 	}
 
-	parts, err := gopdflib.SplitPDF(file, spec)
+	parts, err := op()
 	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
+		return fail(err)
 	}
-
 	if len(parts) == 0 {
-		result.error = C.CString("no output parts generated")
-		return result
+		return fail(errors.New("no output parts generated"))
 	}
 
-	// Allocate arrays for data and lengths
 	result.count = C.int(len(parts))
 	result.data = (**C.char)(C.malloc(C.size_t(len(parts)) * C.size_t(unsafe.Sizeof((*C.char)(nil)))))
 	result.lengths = (*C.int)(C.malloc(C.size_t(len(parts)) * C.size_t(unsafe.Sizeof(C.int(0)))))
@@ -126,6 +181,12 @@ func SplitPDF(pdfData *C.char, pdfLength C.int, specJSON *C.char) C.ByteArrayRes
 	lengthSlice := unsafe.Slice(result.lengths, len(parts))
 
 	for i, part := range parts {
+		if len(part) == 0 {
+			continue
+		}
+		if err := checkByteLen(len(part)); err != nil {
+			return fail(err)
+		}
 		lengthSlice[i] = C.int(len(part))
 		dataSlice[i] = (*C.char)(C.malloc(C.size_t(len(part))))
 		C.memcpy(unsafe.Pointer(dataSlice[i]), unsafe.Pointer(&part[0]), C.size_t(len(part)))
@@ -134,32 +195,90 @@ func SplitPDF(pdfData *C.char, pdfLength C.int, specJSON *C.char) C.ByteArrayRes
 	return result
 }
 
+// GeneratePDF generates a PDF from a JSON template.
+// The caller must free the result using FreeBytesResult.
+//
+//export GeneratePDF
+func GeneratePDF(jsonTemplate *C.char) C.ByteResult {
+	return bytesOp(func() ([]byte, error) {
+		template, err := jsonArg[gopdflib.PDFTemplate](jsonTemplate)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.GeneratePDF(template)
+	})
+}
+
+// MergePDFs merges multiple PDF files into one.
+// The caller must free the result using FreeBytesResult.
+//
+//export MergePDFs
+func MergePDFs(pdfData **C.char, pdfLengths *C.int, count C.int) C.ByteResult {
+	return bytesOp(func() ([]byte, error) {
+		if pdfData == nil || pdfLengths == nil {
+			return nil, invalidArg(errors.New("nil array pointer"))
+		}
+		if count <= 0 || int64(count) >= 1<<16 {
+			return nil, invalidArg(errors.New("invalid PDF count (must be 0 < count < 65536)"))
+		}
+
+		dataSlice := unsafe.Slice(pdfData, int(count))
+		lengthSlice := unsafe.Slice(pdfLengths, int(count))
+
+		files := make([][]byte, int(count))
+		for i := 0; i < int(count); i++ {
+			length := int(lengthSlice[i])
+			if length < 0 || length > maxCGOPayloadBytes {
+				return nil, limitArg(errors.New("PDF part length out of range"))
+			}
+			if length == 0 {
+				files[i] = nil
+				continue
+			}
+			if dataSlice[i] == nil {
+				return nil, invalidArg(errors.New("nil PDF data pointer"))
+			}
+			files[i] = C.GoBytes(unsafe.Pointer(dataSlice[i]), C.int(length))
+		}
+
+		return gopdflib.MergePDFs(files)
+	})
+}
+
+// SplitPDF splits a PDF according to the given specification.
+// The caller must free the result using FreeBytesArrayResult.
+//
+//export SplitPDF
+func SplitPDF(pdfData *C.char, pdfLength C.int, specJSON *C.char) C.ByteArrayResult {
+	return bytesArrayOp(func() ([][]byte, error) {
+		file, err := pdfBytes(pdfData, pdfLength)
+		if err != nil {
+			return nil, err
+		}
+		spec, err := jsonArg[gopdflib.SplitSpec](specJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.SplitPDF(file, spec)
+	})
+}
+
 // ParsePageSpec parses a page specification string.
 // The caller must free the result using FreeIntArrayResult.
 //
 //export ParsePageSpec
 func ParsePageSpec(spec *C.char, totalPages C.int) C.ByteResult {
-	var result C.ByteResult
-
-	specStr := C.GoString(spec)
-	pages, err := gopdflib.ParsePageSpec(specStr, int(totalPages))
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	// Return pages as JSON array
-	pagesJSON, err := json.Marshal(pages)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(pagesJSON))
-	result.data = (*C.char)(C.malloc(C.size_t(len(pagesJSON))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&pagesJSON[0]), C.size_t(len(pagesJSON)))
-
-	return result
+	return bytesOp(func() ([]byte, error) {
+		specStr, err := cString(spec)
+		if err != nil {
+			return nil, err
+		}
+		pages, err := gopdflib.ParsePageSpec(specStr, int(totalPages))
+		if err != nil {
+			return nil, err
+		}
+		return sonic.Marshal(pages)
+	})
 }
 
 // FillPDFWithXFDF fills a PDF form with XFDF data.
@@ -167,22 +286,39 @@ func ParsePageSpec(spec *C.char, totalPages C.int) C.ByteResult {
 //
 //export FillPDFWithXFDF
 func FillPDFWithXFDF(pdfData *C.char, pdfLen C.int, xfdfData *C.char, xfdfLen C.int) C.ByteResult {
-	var result C.ByteResult
+	return bytesOp(func() ([]byte, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		if int64(xfdfLen) > maxCGOPayloadBytes {
+			return nil, limitArg(errors.New("XFDF length out of range"))
+		}
+		xfdfBytes, err := cBytes(xfdfData, xfdfLen)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	})
+}
 
-	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
-	xfdfBytes := C.GoBytes(unsafe.Pointer(xfdfData), xfdfLen)
-
-	filled, err := gopdflib.FillPDFWithXFDF(pdfBytes, xfdfBytes)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(filled))
-	result.data = (*C.char)(C.malloc(C.size_t(len(filled))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&filled[0]), C.size_t(len(filled)))
-
-	return result
+// CompressPDF compresses a PDF at the tier selected by the JSON options
+// ({"level":"light|medium|heavy"}; empty selects Medium).
+// The caller must free the result using FreeBytesResult.
+//
+//export CompressPDF
+func CompressPDF(pdfData *C.char, pdfLen C.int, optsJSON *C.char) C.ByteResult {
+	return bytesOp(func() ([]byte, error) {
+		file, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		opts, err := jsonArg[gopdflib.CompressOptions](optsJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.CompressPDF(file, opts)
+	})
 }
 
 // ConvertHTMLToPDF converts HTML to PDF.
@@ -190,26 +326,13 @@ func FillPDFWithXFDF(pdfData *C.char, pdfLen C.int, xfdfData *C.char, xfdfLen C.
 //
 //export ConvertHTMLToPDF
 func ConvertHTMLToPDF(requestJSON *C.char) C.ByteResult {
-	var result C.ByteResult
-
-	reqStr := C.GoString(requestJSON)
-	var req gopdflib.HTMLToPDFRequest
-	if err := json.Unmarshal([]byte(reqStr), &req); err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	pdfBytes, err := gopdflib.ConvertHTMLToPDF(req)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(pdfBytes))
-	result.data = (*C.char)(C.malloc(C.size_t(len(pdfBytes))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&pdfBytes[0]), C.size_t(len(pdfBytes)))
-
-	return result
+	return bytesOp(func() ([]byte, error) {
+		req, err := jsonArg[gopdflib.HTMLToPDFRequest](requestJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ConvertHTMLToPDF(req)
+	})
 }
 
 // ConvertHTMLToImage converts HTML to an image.
@@ -217,26 +340,13 @@ func ConvertHTMLToPDF(requestJSON *C.char) C.ByteResult {
 //
 //export ConvertHTMLToImage
 func ConvertHTMLToImage(requestJSON *C.char) C.ByteResult {
-	var result C.ByteResult
-
-	reqStr := C.GoString(requestJSON)
-	var req gopdflib.HTMLToImageRequest
-	if err := json.Unmarshal([]byte(reqStr), &req); err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	imgBytes, err := gopdflib.ConvertHTMLToImage(req)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(imgBytes))
-	result.data = (*C.char)(C.malloc(C.size_t(len(imgBytes))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&imgBytes[0]), C.size_t(len(imgBytes)))
-
-	return result
+	return bytesOp(func() ([]byte, error) {
+		req, err := jsonArg[gopdflib.HTMLToImageRequest](requestJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ConvertHTMLToImage(req)
+	})
 }
 
 // GetAvailableFonts returns the list of available fonts as JSON.
@@ -244,20 +354,9 @@ func ConvertHTMLToImage(requestJSON *C.char) C.ByteResult {
 //
 //export GetAvailableFonts
 func GetAvailableFonts() C.ByteResult {
-	var result C.ByteResult
-
-	fonts := gopdflib.GetAvailableFonts()
-	fontsJSON, err := json.Marshal(fonts)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(fontsJSON))
-	result.data = (*C.char)(C.malloc(C.size_t(len(fontsJSON))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&fontsJSON[0]), C.size_t(len(fontsJSON)))
-
-	return result
+	return jsonOp(func() (any, error) {
+		return gopdflib.GetAvailableFonts(), nil
+	})
 }
 
 // GetPageInfo returns metadata about PDF pages.
@@ -265,26 +364,13 @@ func GetAvailableFonts() C.ByteResult {
 //
 //export GetPageInfo
 func GetPageInfo(pdfData *C.char, pdfLen C.int) C.ByteResult {
-	var result C.ByteResult
-
-	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
-	info, err := gopdflib.GetPageInfo(pdfBytes)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	infoJSON, err := json.Marshal(info)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(infoJSON))
-	result.data = (*C.char)(C.malloc(C.size_t(len(infoJSON))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&infoJSON[0]), C.size_t(len(infoJSON)))
-
-	return result
+	return jsonOp(func() (any, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.GetPageInfo(pdfBytes)
+	})
 }
 
 // ExtractTextPositions extracts text coordinates from a specific page.
@@ -292,26 +378,13 @@ func GetPageInfo(pdfData *C.char, pdfLen C.int) C.ByteResult {
 //
 //export ExtractTextPositions
 func ExtractTextPositions(pdfData *C.char, pdfLen C.int, pageNum C.int) C.ByteResult {
-	var result C.ByteResult
-
-	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
-	positions, err := gopdflib.ExtractTextPositions(pdfBytes, int(pageNum))
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	posJSON, err := json.Marshal(positions)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(posJSON))
-	result.data = (*C.char)(C.malloc(C.size_t(len(posJSON))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&posJSON[0]), C.size_t(len(posJSON)))
-
-	return result
+	return jsonOp(func() (any, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ExtractTextPositions(pdfBytes, int(pageNum))
+	})
 }
 
 // FindTextOccurrences searches for text and returns redaction candidate rectangles.
@@ -319,27 +392,17 @@ func ExtractTextPositions(pdfData *C.char, pdfLen C.int, pageNum C.int) C.ByteRe
 //
 //export FindTextOccurrences
 func FindTextOccurrences(pdfData *C.char, pdfLen C.int, searchText *C.char) C.ByteResult {
-	var result C.ByteResult
-
-	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
-	text := C.GoString(searchText)
-	rects, err := gopdflib.FindTextOccurrences(pdfBytes, text)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	rectsJSON, err := json.Marshal(rects)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(rectsJSON))
-	result.data = (*C.char)(C.malloc(C.size_t(len(rectsJSON))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&rectsJSON[0]), C.size_t(len(rectsJSON)))
-
-	return result
+	return jsonOp(func() (any, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		text, err := cString(searchText)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.FindTextOccurrences(pdfBytes, text)
+	})
 }
 
 // ApplyRedactions applies redaction rectangles to the PDF.
@@ -347,28 +410,17 @@ func FindTextOccurrences(pdfData *C.char, pdfLen C.int, searchText *C.char) C.By
 //
 //export ApplyRedactions
 func ApplyRedactions(pdfData *C.char, pdfLen C.int, redactionsJSON *C.char) C.ByteResult {
-	var result C.ByteResult
-
-	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
-	redactionsStr := C.GoString(redactionsJSON)
-
-	var redactions []gopdflib.RedactionRect
-	if err := json.Unmarshal([]byte(redactionsStr), &redactions); err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	out, err := gopdflib.ApplyRedactions(pdfBytes, redactions)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(out))
-	result.data = (*C.char)(C.malloc(C.size_t(len(out))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&out[0]), C.size_t(len(out)))
-
-	return result
+	return bytesOp(func() ([]byte, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		redactions, err := jsonArg[[]gopdflib.RedactionRect](redactionsJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ApplyRedactions(pdfBytes, redactions)
+	})
 }
 
 // ApplyRedactionsAdvanced applies a unified redaction request to the PDF.
@@ -376,28 +428,17 @@ func ApplyRedactions(pdfData *C.char, pdfLen C.int, redactionsJSON *C.char) C.By
 //
 //export ApplyRedactionsAdvanced
 func ApplyRedactionsAdvanced(pdfData *C.char, pdfLen C.int, optionsJSON *C.char) C.ByteResult {
-	var result C.ByteResult
-
-	pdfBytes := C.GoBytes(unsafe.Pointer(pdfData), pdfLen)
-	optionsStr := C.GoString(optionsJSON)
-
-	var options gopdflib.ApplyRedactionOptions
-	if err := json.Unmarshal([]byte(optionsStr), &options); err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	out, err := gopdflib.ApplyRedactionsAdvanced(pdfBytes, options)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	result.length = C.int(len(out))
-	result.data = (*C.char)(C.malloc(C.size_t(len(out))))
-	C.memcpy(unsafe.Pointer(result.data), unsafe.Pointer(&out[0]), C.size_t(len(out)))
-
-	return result
+	return bytesOp(func() ([]byte, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		options, err := jsonArg[gopdflib.ApplyRedactionOptions](optionsJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ApplyRedactionsAdvanced(pdfBytes, options)
+	})
 }
 
 // FreeBytesResult frees memory allocated by functions returning ByteResult.

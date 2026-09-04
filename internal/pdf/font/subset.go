@@ -63,9 +63,21 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 	tables := make(map[string][]byte)
 
 	// Generate required tables
-	tables["head"] = subsetHead(font)
-	tables["hhea"] = subsetHhea(font, uint16(len(glyphs)))
-	tables["maxp"] = subsetMaxp(font, uint16(len(glyphs)))
+	headSubset, err := subsetHead(font)
+	if err != nil {
+		return nil, nil, err
+	}
+	tables["head"] = headSubset
+	hheaSubset, err := subsetHhea(font, uint16(len(glyphs)))
+	if err != nil {
+		return nil, nil, err
+	}
+	tables["hhea"] = hheaSubset
+	maxpSubset, err := subsetMaxp(font, uint16(len(glyphs)))
+	if err != nil {
+		return nil, nil, err
+	}
+	tables["maxp"] = maxpSubset
 
 	// Generate glyf and loca tables
 	glyfData, locaData, isShortLoca := subsetGlyfAndLoca(font, glyphs)
@@ -203,9 +215,16 @@ func buildSubsetFont(font *TTFFont, glyphs []uint16, oldToNew map[uint16]uint16)
 	return result, oldToNew, nil
 }
 
-// subsetHead generates the head table for the subset font
-func subsetHead(font *TTFFont) []byte {
-	headTable := font.Tables["head"]
+// subsetHead generates the head table for the subset font.
+// It returns an error when the head table is missing or too short to patch.
+func subsetHead(font *TTFFont) ([]byte, error) {
+	headTable, ok := font.Tables["head"]
+	if !ok {
+		return nil, errors.New("subset: missing head table")
+	}
+	if headTable.Offset+headTable.Length > uint32(len(font.RawData)) || headTable.Length < 12 {
+		return nil, errors.New("subset: truncated head table")
+	}
 	result := make([]byte, headTable.Length)
 	copy(result, font.RawData[headTable.Offset:headTable.Offset+headTable.Length])
 
@@ -215,31 +234,45 @@ func subsetHead(font *TTFFont) []byte {
 	result[10] = 0
 	result[11] = 0
 
-	return result
+	return result, nil
 }
 
-// subsetHhea generates the hhea table with updated numberOfHMetrics
-func subsetHhea(font *TTFFont, numGlyphs uint16) []byte {
-	hheaTable := font.Tables["hhea"]
+// subsetHhea generates the hhea table with updated numberOfHMetrics.
+// It returns an error when the hhea table is missing or too short to patch.
+func subsetHhea(font *TTFFont, numGlyphs uint16) ([]byte, error) {
+	hheaTable, ok := font.Tables["hhea"]
+	if !ok {
+		return nil, errors.New("subset: missing hhea table")
+	}
+	if hheaTable.Offset+hheaTable.Length > uint32(len(font.RawData)) || hheaTable.Length < 2 {
+		return nil, errors.New("subset: truncated hhea table")
+	}
 	result := make([]byte, hheaTable.Length)
 	copy(result, font.RawData[hheaTable.Offset:hheaTable.Offset+hheaTable.Length])
 
 	// Update numberOfHMetrics (last 2 bytes)
 	binary.BigEndian.PutUint16(result[len(result)-2:], numGlyphs)
 
-	return result
+	return result, nil
 }
 
-// subsetMaxp generates the maxp table with updated numGlyphs
-func subsetMaxp(font *TTFFont, numGlyphs uint16) []byte {
-	maxpTable := font.Tables["maxp"]
+// subsetMaxp generates the maxp table with updated numGlyphs.
+// It returns an error when the maxp table is missing or too short to patch.
+func subsetMaxp(font *TTFFont, numGlyphs uint16) ([]byte, error) {
+	maxpTable, ok := font.Tables["maxp"]
+	if !ok {
+		return nil, errors.New("subset: missing maxp table")
+	}
+	if maxpTable.Offset+maxpTable.Length > uint32(len(font.RawData)) || maxpTable.Length < 6 {
+		return nil, errors.New("subset: truncated maxp table")
+	}
 	result := make([]byte, maxpTable.Length)
 	copy(result, font.RawData[maxpTable.Offset:maxpTable.Offset+maxpTable.Length])
 
 	// Update numGlyphs (at offset 4)
 	binary.BigEndian.PutUint16(result[4:], numGlyphs)
 
-	return result
+	return result, nil
 }
 
 // subsetGlyfAndLoca generates the glyf and loca tables for the subset
@@ -253,9 +286,18 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 	}
 
 	// Determine loca format from head table
-	headTable := font.Tables["head"]
+	headTable, ok := font.Tables["head"]
+	if !ok || headTable.Offset+headTable.Length > uint32(len(font.RawData)) || headTable.Length < 52 {
+		// Without a readable head table the loca format is unknown;
+		// return empty tables rather than indexing out of range.
+		return []byte{}, []byte{0, 0}, true
+	}
 	isShortLoca := font.RawData[headTable.Offset+50] == 0 && font.RawData[headTable.Offset+51] == 0
 
+	if locaTable.Offset+locaTable.Length > uint32(len(font.RawData)) ||
+		glyfTable.Offset+glyfTable.Length > uint32(len(font.RawData)) {
+		return []byte{}, []byte{0, 0}, true
+	}
 	// Read original loca table
 	locaData := font.RawData[locaTable.Offset : locaTable.Offset+locaTable.Length]
 	glyfData := font.RawData[glyfTable.Offset : glyfTable.Offset+glyfTable.Length]
@@ -273,12 +315,19 @@ func subsetGlyfAndLoca(font *TTFFont, glyphs []uint16) ([]byte, []byte, bool) {
 	for i, glyphID := range glyphs {
 		newOffsets[i] = uint32(newGlyf.Len())
 
-		// Get original glyph offset and length
+		// Get original glyph offset and length, skipping glyphs whose
+		// loca entries lie outside the truncated table instead of panicking.
 		var offset, nextOffset uint32
 		if isShortLoca {
+			if int(glyphID)*2+4 > len(locaData) {
+				continue
+			}
 			offset = uint32(binary.BigEndian.Uint16(locaData[int(glyphID)*2:])) * 2
 			nextOffset = uint32(binary.BigEndian.Uint16(locaData[int(glyphID)*2+2:])) * 2
 		} else {
+			if int(glyphID)*4+8 > len(locaData) {
+				continue
+			}
 			offset = binary.BigEndian.Uint32(locaData[int(glyphID)*4:])
 			nextOffset = binary.BigEndian.Uint32(locaData[int(glyphID)*4+4:])
 		}
@@ -366,11 +415,21 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 	}
 	slices.Sort(chars)
 
-	// Build segments
+	// Build segments. idDelta is computed in int and must fit int16 for
+	// the delta encoding; segments that overflow use idRangeOffset instead.
 	type segment struct {
-		startCode uint16
-		endCode   uint16
-		idDelta   int16
+		startCode      uint16
+		endCode        uint16
+		idDelta        int16
+		useRangeOffset bool
+		glyphs         []uint16 // populated only when useRangeOffset is true
+	}
+
+	deltaFits := func(delta int) (int16, bool) {
+		if delta < -32768 || delta > 32767 {
+			return 0, false
+		}
+		return int16(delta), true
 	}
 
 	var segments []segment
@@ -378,6 +437,22 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 		segStart := chars[0]
 		prevChar := chars[0]
 		prevGlyph := charToNewGlyph[chars[0]]
+
+		flush := func() {
+			delta := int(charToNewGlyph[segStart]) - int(segStart)
+			if d, ok := deltaFits(delta); ok {
+				segments = append(segments, segment{segStart, prevChar, d, false, nil})
+				return
+			}
+			// Fall back to idRangeOffset: one single-char segment per
+			// character so every mapping stays exact.
+			for c := segStart; ; c++ {
+				segments = append(segments, segment{c, c, 0, true, []uint16{charToNewGlyph[c]}})
+				if c == prevChar {
+					break
+				}
+			}
+		}
 
 		for i := 1; i < len(chars); i++ {
 			char := chars[i]
@@ -389,8 +464,7 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 				prevGlyph = glyph
 			} else {
 				// End current segment
-				delta := int16(charToNewGlyph[segStart]) - int16(segStart)
-				segments = append(segments, segment{segStart, prevChar, delta})
+				flush()
 
 				// Start new segment
 				segStart = char
@@ -400,12 +474,11 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 		}
 
 		// Don't forget the last segment
-		delta := int16(charToNewGlyph[segStart]) - int16(segStart)
-		segments = append(segments, segment{segStart, prevChar, delta})
+		flush()
 	}
 
 	// Add terminating segment
-	segments = append(segments, segment{0xFFFF, 0xFFFF, 1})
+	segments = append(segments, segment{0xFFFF, 0xFFFF, 1, false, nil})
 
 	segCount := uint16(len(segments))
 
@@ -471,10 +544,38 @@ func subsetCmap(font *TTFFont, oldToNew map[uint16]uint16) []byte {
 		}
 	}
 
-	// idRangeOffset array (all zeros for our simple mapping)
-	for range segments {
-		if err := binary.Write(&format4, binary.BigEndian, uint16(0)); err != nil {
+	// idRangeOffset array: 0 for delta segments, byte offset from the
+	// position of the idRangeOffset word itself to its first glyph entry
+	// for range-offset segments.
+	glyphArrayStart := 14 + len(segments)*8 + 2
+	glyphOffsets := make([]int, len(segments))
+	nextGlyph := 0
+	for i, seg := range segments {
+		if seg.useRangeOffset {
+			glyphOffsets[i] = nextGlyph
+			nextGlyph += len(seg.glyphs)
+		}
+	}
+	for i, seg := range segments {
+		if !seg.useRangeOffset {
+			if err := binary.Write(&format4, binary.BigEndian, uint16(0)); err != nil {
+				return nil
+			}
+			continue
+		}
+		pos := 14 + len(segments)*2 + 2 + len(segments)*2 + len(segments)*2 + i*2
+		target := glyphArrayStart + glyphOffsets[i]*2
+		if err := binary.Write(&format4, binary.BigEndian, uint16(target-pos)); err != nil {
 			return nil
+		}
+	}
+
+	// glyphIdArray for range-offset segments, in segment order.
+	for _, seg := range segments {
+		for _, g := range seg.glyphs {
+			if err := binary.Write(&format4, binary.BigEndian, g); err != nil {
+				return nil
+			}
 		}
 	}
 
@@ -729,7 +830,13 @@ func getGlyphData(font *TTFFont, glyphID uint16) []byte {
 		return nil
 	}
 
-	headTable := font.Tables["head"]
+	headTable, ok := font.Tables["head"]
+	if !ok {
+		return nil
+	}
+	if headTable.Offset+52 > uint32(len(font.RawData)) {
+		return nil
+	}
 	isShortLoca := font.RawData[headTable.Offset+50] == 0 && font.RawData[headTable.Offset+51] == 0
 
 	locaData := font.RawData[locaTable.Offset : locaTable.Offset+locaTable.Length]

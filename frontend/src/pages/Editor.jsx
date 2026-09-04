@@ -2,9 +2,10 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
-import { formatApiError, makeAuthenticatedRequest, isAuthRequired } from '../utils/apiConfig'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import { useToast } from '../hooks/useToast'
 import PdfPreview from '../components/PdfPreview'
-import Toast from '../components/Toast'
+import { ToastContainer } from '../components/Toast'
 
 // Imported Components
 import ComponentList from '../components/editor/ComponentList'
@@ -13,7 +14,24 @@ import PropertiesPanel from '../components/editor/PropertiesPanel'
 import JsonTemplate from '../components/editor/JsonTemplate'
 import ComponentItem from '../components/editor/ComponentItem'
 import { PAGE_SIZES, DEFAULT_FONTS, COMPONENT_TYPES } from '../components/editor/constants'
-import { getFontFamily, parsePageMargins, parseProps, formatProps } from '../components/editor/utils'
+import { generatePDFSmart, generateViaServer } from '../utils/wasm/generate.js'
+import { loadBundledTemplate } from '../utils/wasm/templates.js'
+import { shouldUseServerWasmTransport } from '../utils/wasm/transports.js'
+import { registerFontLocal } from '../utils/wasm/fonts.js'
+import { getFontFamily } from '../components/editor/utils'
+import { parseProps, formatProps } from '../components/editor/utils'
+import {
+  DEFAULT_CONFIG,
+  buildTemplate,
+  buildTemplateJson,
+  createComponent,
+  createFooter,
+  createTitle,
+  parsePageMargins,
+  parseTemplateData,
+  parseTemplateJson,
+  validateTemplate,
+} from '../components/editor/documentModel'
 
 import Toolbar from '../components/editor/Toolbar'
 import ContextMenu from '../components/shortcut/ContextMenu'
@@ -26,7 +44,7 @@ let _fontsFetchPromise = null
 export default function Editor() {
   const { theme, setTheme } = useTheme()
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const [config, setConfig] = useState({ pageBorder: '1:1:1:1', pageMargin: '72:72:72:72', page: 'A4', pageAlignment: 1, watermark: '', pdfTitle: '', pdfaCompliant: true, signature: { enabled: false } })
+  const [config, setConfig] = useState({ ...DEFAULT_CONFIG, signature: { enabled: false } })
   const [title, setTitle] = useState(null)
   const [components, setComponents] = useState([]) // Combined ordered array for tables and spacers
   const [footer, setFooter] = useState(null)
@@ -42,21 +60,31 @@ export default function Editor() {
 
   const [copiedId, setCopiedId] = useState(null)
   const [clipboard, setClipboard] = useState(null)
+  const [serverRetry, setServerRetry] = useState(null)
   const [templateInput, setTemplateInput] = useState('editor/financial_report.json')
   const canvasRef = useRef(null)
-  const [toasts, setToasts] = useState([])
+  const { toasts, showToast, removeToast } = useToast()
   const { menuState, showMenu, hideMenu } = useContextMenu()
+  const { runJson, runLocal } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => showToast(message, 'error'),
+  })
 
-  const showToast = (message, type = 'success', duration = 3000) => {
-    const id = Date.now()
-    setToasts(prev => [...prev, { id, message, type, duration }])
+  const downloadJsonTemplate = () => {
+    const element = document.createElement('a')
+    const file = new Blob([jsonText], { type: 'application/json' })
+    const url = URL.createObjectURL(file)
+    element.href = url
+    element.download = 'template.json'
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id))
-  }
-
-  // Fetch fonts from API on component mount (module-level cache, single request)
+  // Fetch fonts from API on component mount (module-level cache, single request).
+  // Offline-first: failures fall back to DEFAULT_FONTS with a warning, and
+  // user uploads register locally via goRegisterFont (see onUploadFont).
   useEffect(() => {
     const loadFonts = async () => {
       if (_fontsCache) {
@@ -64,17 +92,17 @@ export default function Editor() {
         return
       }
       if (!_fontsFetchPromise) {
-        _fontsFetchPromise = makeAuthenticatedRequest(
-          '/api/v1/fonts',
-          {},
-          isAuthRequired() ? getAuthHeaders : null
-        ).then(async (response) => {
-          if (response.ok) {
-            const data = await response.json()
-            if (data.fonts && Array.isArray(data.fonts)) {
-              _fontsCache = data.fonts
-              return data.fonts
-            }
+        _fontsFetchPromise = runJson(
+          {
+            endpoint: '/api/v1/fonts',
+            method: 'GET',
+            getAuthHeaders,
+            onError: (message) => console.warn('Failed to fetch fonts, using defaults:', message),
+          }
+        ).then((data) => {
+          if (data && data.fonts && Array.isArray(data.fonts)) {
+            _fontsCache = data.fonts
+            return data.fonts
           }
           console.warn('Failed to fetch fonts, using defaults')
           return null
@@ -88,7 +116,7 @@ export default function Editor() {
       if (fonts) setFonts(fonts)
     }
     loadFonts()
-  }, [getAuthHeaders])
+  }, [getAuthHeaders, runJson])
 
   // Get all elements in order for display
   const allElements = useMemo(() => {
@@ -118,38 +146,11 @@ export default function Editor() {
   // --- Handlers ---
   const handleDropElement = (type, targetId = null) => {
     if (type === 'title') {
-      if (!title) setTitle({
-        props: 'Helvetica:12:000:left:1:1:1:1',
-        text: 'Document Title',
-        textprops: 'Helvetica:18:100:center:1:1:1:1',
-        table: {
-          maxcolumns: 3,
-          columnwidths: [1, 2, 1],
-          rows: [{
-            row: [
-              { props: 'Helvetica:12:000:left:1:1:1:1', text: '', image: null },
-              { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' },
-              { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }
-            ]
-          }]
-        }
-      })
+      if (!title) setTitle(createTitle())
     } else if (type === 'footer') {
-      if (!footer) setFooter({ props: 'Helvetica:10:000:center:1:0:0:0', text: 'Page footer text' })
+      if (!footer) setFooter(createFooter())
     } else {
-      const newComponent = type === 'table'
-        ? {
-          type: 'table',
-          maxcolumns: 3,
-          rows: [
-            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] },
-            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] },
-            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] }
-          ]
-        }
-        : type === 'image'
-          ? { type: 'image', width: 200, height: 150, imagedata: null, imagename: '' }
-          : { type: 'spacer', height: 20 }
+      const newComponent = createComponent(type)
 
       if (targetId) {
         // Insert before target
@@ -549,22 +550,7 @@ export default function Editor() {
 
   useEffect(() => {
     if (isJsonEditing) return
-    const template = {
-      config: config,
-      title: title,
-      elements: components.map(c => {
-        if (c.type === 'table') return { type: 'table', table: c }
-        if (c.type === 'spacer') return { type: 'spacer', spacer: c }
-        if (c.type === 'image') return { type: 'image', image: c }
-        return c
-      }),
-      footer: footer,
-      bookmarks: bookmarks
-    }
-    if (!title) delete template.title
-    if (!footer) delete template.footer
-    if (!bookmarks || bookmarks.length === 0) delete template.bookmarks
-    setJsonText(JSON.stringify(template, null, 2))
+    setJsonText(buildTemplateJson({ config, title, components, footer, bookmarks }))
   }, [config, title, components, footer, bookmarks, isJsonEditing])
 
   const handleJsonChange = (e) => setJsonText(e.target.value)
@@ -572,142 +558,73 @@ export default function Editor() {
   const handleJsonBlur = () => {
     setIsJsonEditing(false)
     try {
-      const parsed = JSON.parse(jsonText)
-      const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = parsed
-
-      // Fix embedStandardFonts loading - check both key names since templates may use either
-      const embedValue = newConfig?.embedStandardFonts !== undefined
-        ? newConfig.embedStandardFonts
-        : (newConfig?.embedFonts !== undefined ? newConfig.embedFonts : undefined)
-
-      setConfig(prev => ({
-        ...prev,
-        ...(newConfig || {}),
-        embedStandardFonts: embedValue !== undefined ? embedValue : prev.embedStandardFonts,
-        arlingtonCompatible: newConfig?.arlingtonCompatible !== undefined ? newConfig.arlingtonCompatible : prev.arlingtonCompatible,
-        pdfaCompliant: newConfig?.pdfaCompliant !== undefined ? newConfig.pdfaCompliant : prev.pdfaCompliant
-      }))
-      setTitle(newTitle || null)
-
-      // Handle various input formats (legacy content, table, or new elements)
-      let rawComponents = elements || content || []
-
-      // If there's a separate table array (raw tables format), process it
-      if (table && Array.isArray(table)) {
-        rawComponents = table.map(t => ({ ...t, type: 'table' }))
-      }
-
-      // If there's a separate spacer array, add those too
-      if (spacer && Array.isArray(spacer)) {
-        const spacerComponents = spacer.map(s => ({ ...s, type: 'spacer' }))
-        rawComponents = [...rawComponents, ...spacerComponents]
-      }
-
-      // If we have an "elements" array that references indices, process that
-      if (parsed.elements && Array.isArray(parsed.elements) && parsed.elements[0]?.index !== undefined) {
-        // This is the reference format: elements: [{type: 'table', index: 0}, ...]
-        const orderedComponents = []
-        for (const ref of parsed.elements) {
-          if (ref.type === 'table' && table && table[ref.index]) {
-            orderedComponents.push({ ...table[ref.index], type: 'table' })
-          } else if (ref.type === 'spacer' && spacer && spacer[ref.index]) {
-            orderedComponents.push({ ...spacer[ref.index], type: 'spacer' })
-          }
-        }
-        if (orderedComponents.length > 0) {
-          rawComponents = orderedComponents
-        }
-      }
-
-      const processedComponents = rawComponents.map(c => {
-        // If it's the wrapped format (element.table), unwrap it
-        if (c.table) return { ...c.table, type: 'table' }
-        if (c.spacer) return { ...c.spacer, type: 'spacer' }
-        if (c.image) return { ...c.image, type: 'image' }
-
-        // Auto-detect component type if not specified
-        if (!c.type) {
-          if (c.maxcolumns && c.rows) return { ...c, type: 'table' }
-          if (c.height && !c.width) return { ...c, type: 'spacer' }
-          if (c.imagedata || c.imagename) return { ...c, type: 'image' }
-        }
-
-        return c
-      })
-
-      setComponents(Array.isArray(processedComponents) ? processedComponents : [])
-      setFooter(newFooter || null)
-      setBookmarks(newBookmarks || null)
+      const parsed = parseTemplateJson(jsonText, config)
+      setConfig(parsed.config)
+      setTitle(parsed.title)
+      setComponents(parsed.components)
+      setFooter(parsed.footer)
+      setBookmarks(parsed.bookmarks)
     } catch (e) {
       console.error('Invalid JSON', e)
     }
   }
 
   // --- PDF Generation ---
+  // Browser-local first via gopdfsuit.wasm (offline once downloaded; the
+  // engine runs no JS, so output matches the server byte path). Server only
+  // on explicit retry (serverRetry banner) or VITE_WASM_TRANSPORT=server.
   const handleGeneratePdf = async (isPreview = false) => {
-    try {
-      setIsJsonEditing(false)
-      const template = {
-        config: config,
-        title: title,
-        elements: components.map(c => {
-          if (c.type === 'table') return { type: 'table', table: c }
-          if (c.type === 'spacer') return { type: 'spacer', spacer: c }
-          if (c.type === 'image') return { type: 'image', image: c }
-          return c
-        }),
-        footer: footer,
-        bookmarks: bookmarks
-      }
-      if (!title) delete template.title
-      if (!footer) delete template.footer
-      if (!bookmarks || bookmarks.length === 0) delete template.bookmarks
-
-      const response = await makeAuthenticatedRequest(
-        '/api/v1/generate/template-pdf',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/pdf'
-          },
-          body: JSON.stringify(template)
-        },
-        isAuthRequired() ? getAuthHeaders : null
-      )
-
-      console.log('PDF Generation Response Status:', response.status)
-
-      if (!response.ok) {
-        if (response.status === 401) { triggerLogin(); return }
-        const errorText = await response.text()
-        throw new Error(`Failed to generate PDF: ${response.status} - ${errorText}`)
-      }
-
-      const blob = await response.blob()
-      console.log('PDF Blob:', { size: blob.size, type: blob.type })
-
-      if (blob.size === 0) {
-        throw new Error('Received empty PDF document')
-      }
-
-      const url = URL.createObjectURL(blob)
-
-      if (isPreview) {
-        setPdfUrl(url)
-        setShowPreviewModal(true)
-      } else {
-        const link = document.createElement('a')
-        link.href = url
-        link.download = 'generated_document.pdf'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      }
-    } catch (err) {
-      console.error(err)
-      alert(formatApiError(err).message)
+    setIsJsonEditing(false)
+    setServerRetry(null)
+    const template = buildTemplate({ config, title, components, footer, bookmarks })
+    const { errors, warnings } = validateTemplate(template)
+    if (errors.length > 0 || warnings.length > 0) {
+      console.warn('Template schema issues:', { errors, warnings })
     }
+
+    if (shouldUseServerWasmTransport()) {
+      await runServerGenerate(template, isPreview)
+      return
+    }
+    let wasmMessage = ''
+    const url = await runLocal(() => generatePDFSmart(template, { getAuthHeaders }), {
+      autoDownload: !isPreview,
+      filename: 'generated_document.pdf',
+      onBlob: isPreview
+        ? (blob, blobUrl) => {
+          setPdfUrl(blobUrl)
+          setShowPreviewModal(true)
+        }
+        : undefined,
+      onError: (message) => { wasmMessage = message },
+    })
+    if (url) return
+    if (getAuthHeaders) {
+      setServerRetry({ message: wasmMessage, template, isPreview })
+    } else {
+      showToast(wasmMessage || 'Browser generate failed', 'error')
+    }
+  }
+
+  const runServerGenerate = async (template, isPreview = false) => {
+    await runLocal(() => generateViaServer(template, getAuthHeaders), {
+      filename: 'generated_document.pdf',
+      autoDownload: !isPreview,
+      onBlob: isPreview
+        ? (blob, url) => {
+          setPdfUrl(url)
+          setShowPreviewModal(true)
+        }
+        : undefined,
+      onError: (message) => showToast(message, 'error'),
+    })
+  }
+
+  const retryServerGenerate = async () => {
+    if (!serverRetry) return
+    const { template, isPreview } = serverRetry
+    setServerRetry(null)
+    await runServerGenerate(template, isPreview)
   }
 
   const handlePreviewPdf = () => handleGeneratePdf(true)
@@ -725,7 +642,7 @@ export default function Editor() {
   // --- File Upload ---
   const onLoadTemplate = async (filename, source = 'local') => {
     if (!filename || !filename.trim()) {
-      alert('Please enter a template filename')
+      showToast('Please enter a template filename', 'error')
       return
     }
 
@@ -739,98 +656,35 @@ export default function Editor() {
         }
         templateData = await response.json();
       } else {
-        // Make GET request to fetch the template
-        const response = await makeAuthenticatedRequest(
-          `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
-          {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json'
+        // Offline-first: bundled samples from /templates/ (Cache API, no
+        // server). Unknown names fall through to the server endpoint below.
+        try {
+          templateData = await loadBundledTemplate(filename)
+        } catch (bundledError) {
+          if (!bundledError || !bundledError.fallbackAvailable) throw bundledError
+          // GET the template through the shared hook (auth retry + error mapping included)
+          templateData = await runJson(
+            {
+              endpoint: `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json'
+              },
+              getAuthHeaders,
+              onError: (message) => showToast(message, 'error'),
             }
-          },
-          isAuthRequired() ? getAuthHeaders : null
-        )
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            triggerLogin()
-            return
-          }
-          if (response.status === 404) {
-            throw new Error(`Template "${filename}" not found`)
-          }
-          throw new Error(`Failed to load template: ${response.status}`)
+          )
+          if (!templateData) return
         }
-
-        templateData = await response.json()
       }
 
       // Parse and load the template data
-      const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = templateData
-
-      // Fix embedStandardFonts loading - check both key names since templates may use either
-      const embedValue = newConfig?.embedStandardFonts !== undefined
-        ? newConfig.embedStandardFonts
-        : (newConfig?.embedFonts !== undefined ? newConfig.embedFonts : undefined)
-
-      setConfig(prev => ({
-        ...prev,
-        ...(newConfig || {}),
-        embedStandardFonts: embedValue !== undefined ? embedValue : prev.embedStandardFonts,
-        arlingtonCompatible: newConfig?.arlingtonCompatible !== undefined ? newConfig.arlingtonCompatible : prev.arlingtonCompatible,
-        pdfaCompliant: newConfig?.pdfaCompliant !== undefined ? newConfig.pdfaCompliant : prev.pdfaCompliant
-      }))
-      setTitle(newTitle || null)
-
-      // Handle various input formats (legacy content, table, or new elements)
-      let rawComponents = elements || content || []
-
-      // If there's a separate table array (raw tables format), process it
-      if (table && Array.isArray(table)) {
-        rawComponents = table.map(t => ({ ...t, type: 'table' }))
-      }
-
-      // If there's a separate spacer array, add those too
-      if (spacer && Array.isArray(spacer)) {
-        const spacerComponents = spacer.map(s => ({ ...s, type: 'spacer' }))
-        rawComponents = [...rawComponents, ...spacerComponents]
-      }
-
-      // If we have an "elements" array that references indices, process that
-      if (templateData.elements && Array.isArray(templateData.elements) && templateData.elements[0]?.index !== undefined) {
-        // This is the reference format: elements: [{type: 'table', index: 0}, ...]
-        const orderedComponents = []
-        for (const ref of templateData.elements) {
-          if (ref.type === 'table' && table && table[ref.index]) {
-            orderedComponents.push({ ...table[ref.index], type: 'table' })
-          } else if (ref.type === 'spacer' && spacer && spacer[ref.index]) {
-            orderedComponents.push({ ...spacer[ref.index], type: 'spacer' })
-          }
-        }
-        if (orderedComponents.length > 0) {
-          rawComponents = orderedComponents
-        }
-      }
-
-      const processedComponents = rawComponents.map(c => {
-        // If it's the wrapped format (element.table), unwrap it
-        if (c.table) return { ...c.table, type: 'table' }
-        if (c.spacer) return { ...c.spacer, type: 'spacer' }
-        if (c.image) return { ...c.image, type: 'image' }
-
-        // Auto-detect component type if not specified
-        if (!c.type) {
-          if (c.maxcolumns && c.rows) return { ...c, type: 'table' }
-          if (c.height && !c.width) return { ...c, type: 'spacer' }
-          if (c.imagedata || c.imagename) return { ...c, type: 'image' }
-        }
-
-        return c
-      })
-
-      setComponents(Array.isArray(processedComponents) ? processedComponents : [])
-      setFooter(newFooter || null)
-      setBookmarks(newBookmarks || null)
+      const parsed = parseTemplateData(templateData, config)
+      setConfig(parsed.config)
+      setTitle(parsed.title)
+      setComponents(parsed.components)
+      setFooter(parsed.footer)
+      setBookmarks(parsed.bookmarks)
 
       // Update JSON display
       setIsJsonEditing(false)
@@ -841,7 +695,7 @@ export default function Editor() {
 
     } catch (error) {
       console.error('Error loading template:', error)
-      alert(error.message || 'Failed to load template')
+      showToast(error.message || 'Failed to load template', 'error')
     }
   }
 
@@ -854,26 +708,14 @@ export default function Editor() {
         // Only handle Ctrl+S to save JSON even in inputs
         if ((e.metaKey || e.ctrlKey) && e.key === 's') {
           e.preventDefault()
-          const element = document.createElement('a')
-          const file = new Blob([jsonText], { type: 'application/json' })
-          element.href = URL.createObjectURL(file)
-          element.download = 'template.json'
-          document.body.appendChild(element)
-          element.click()
-          document.body.removeChild(element)
+          downloadJsonTemplate()
         }
         return
       }
 
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
-        const element = document.createElement('a')
-        const file = new Blob([jsonText], { type: 'application/json' })
-        element.href = URL.createObjectURL(file)
-        element.download = 'template.json'
-        document.body.appendChild(element)
-        element.click()
-        document.body.removeChild(element)
+        downloadJsonTemplate()
         return
       }
 
@@ -957,6 +799,22 @@ export default function Editor() {
         padding: '0.75rem 1rem',
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
+        {serverRetry && (
+          <div style={{ padding: '0.75rem 1rem', background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', borderRadius: '8px', marginBottom: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem' }}>
+            <div style={{ marginBottom: '0.5rem' }}>
+              Browser generate is not available in this build{serverRetry.message ? `: ${serverRetry.message}` : '.'} The template was not uploaded.
+              Upload it to the server to generate instead?
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={retryServerGenerate} className="btn-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                Upload to server and generate
+              </button>
+              <button onClick={() => setServerRetry(null)} className="btn-outline-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                Stay local
+              </button>
+            </div>
+          </div>
+        )}
         <Toolbar
           theme={theme}
           setTheme={setTheme}
@@ -970,38 +828,51 @@ export default function Editor() {
           elementCount={allElements.length}
           pageSize={config.page}
           onUploadFont={async (file) => {
+            // Local-first: register into the WASM registry so offline
+            // generation embeds it, then keep the server upload so shared
+            // backends see it too.
+            try {
+              const bytes = new Uint8Array(await file.arrayBuffer())
+              const name = String(file.name || 'custom').replace(/\.(ttf|otf)$/i, '')
+              await registerFontLocal(name, bytes)
+              setFonts((prev) => {
+                if (prev.some((f) => f.id === name || f.name === name)) return prev
+                return [...prev, { id: name, name, displayName: name }]
+              })
+              showToast(`Font "${name}" registered locally!`, 'success')
+            } catch (error) {
+              console.error('Local font registration failed:', error)
+              showToast(error.message || 'Local font registration failed', 'error')
+            }
             try {
               const formData = new FormData()
               formData.append('font', file)
-              const response = await makeAuthenticatedRequest(
-                '/api/v1/fonts',
+              const data = await runJson(
                 {
+                  endpoint: '/api/v1/fonts',
                   method: 'POST',
-                  body: formData
-                },
-                isAuthRequired() ? getAuthHeaders : null
+                  body: formData,
+                  getAuthHeaders,
+                  onError: (message) => showToast(message, 'error'),
+                }
               )
-              if (response.ok) {
-                const data = await response.json()
+              if (data) {
                 showToast(`Font "${data.name}" uploaded successfully!`, 'success')
                 // Refresh fonts list (invalidate cache)
                 _fontsCache = null
                 _fontsFetchPromise = null
-                const fontsResponse = await makeAuthenticatedRequest(
-                  '/api/v1/fonts',
-                  {},
-                  isAuthRequired() ? getAuthHeaders : null
-                )
-                if (fontsResponse.ok) {
-                  const fontsData = await fontsResponse.json()
-                  if (fontsData.fonts && Array.isArray(fontsData.fonts)) {
-                    _fontsCache = fontsData.fonts
-                    setFonts(fontsData.fonts)
+                const fontsData = await runJson(
+                  {
+                    endpoint: '/api/v1/fonts',
+                    method: 'GET',
+                    getAuthHeaders,
+                    onError: (message) => showToast(message, 'error'),
                   }
+                )
+                if (fontsData && fontsData.fonts && Array.isArray(fontsData.fonts)) {
+                  _fontsCache = fontsData.fonts
+                  setFonts(fontsData.fonts)
                 }
-              } else {
-                const error = await response.json()
-                showToast(`Failed to upload font: ${error.error || 'Unknown error'}`, 'error')
               }
             } catch (error) {
               console.error('Error uploading font:', error)
@@ -1354,16 +1225,7 @@ export default function Editor() {
       </div>
 
       {/* Toast Notifications */}
-      {toasts.map((toast, index) => (
-        <div key={toast.id} style={{ top: `${80 + index * 100}px` }}>
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            duration={toast.duration}
-            onClose={() => removeToast(toast.id)}
-          />
-        </div>
-      ))}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       {/* Preview Modal */}
       {showPreviewModal && (
@@ -1429,18 +1291,6 @@ export default function Editor() {
         clipboard={clipboard}
         hasTitle={!!title}
       />
-
-      {/* Toast Notifications */}
-      {toasts.map((toast, index) => (
-        <div key={toast.id} style={{ top: `${80 + index * 100}px` }}>
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            duration={toast.duration}
-            onClose={() => removeToast(toast.id)}
-          />
-        </div>
-      ))}
 
       <style jsx>{`
         .dragging {

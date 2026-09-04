@@ -8,7 +8,7 @@ Thank you for your interest in contributing to **GoPdfSuit**. This guide covers 
 |-------------|-----------------|
 | **Go** | **1.26.4** (required - matches `go.mod`) |
 | **Make** | Required for build, test, and lint targets |
-| **Google Chrome** | Required for HTML→PDF/Image conversion |
+| **HTML conversion** | Pure-Go via gowkhtmltopdf, no browser needed |
 | **Node.js + npm** | Frontend build (Node 18+ recommended) |
 | **Python 3.8+** | Python bindings tests (`pypdfsuit`) |
 | **Java 11+** | Optional - needed for veraPDF (PDF/A-4 + PDF/UA-2 validation) |
@@ -31,14 +31,10 @@ bash setup-auth.sh
 # Or manual setup:
 go mod tidy
 cd frontend && npm ci && cp .env.example .env && cd ..
-make install-pdf-validators   # veraPDF + avalpdf (see guides/PDF_VALIDATORS.md)
+make install-pdf-validators   # veraPDF + avalpdf (see documentation/PDF_VALIDATORS.md)
 ```
 
-Install Google Chrome on Linux:
-
-```bash
-sudo apt install -y google-chrome-stable
-```
+HTML conversion is pure-Go via gowkhtmltopdf. No browser install needed.
 
 ## Project overview
 
@@ -134,7 +130,7 @@ python3 -m pytest bindings/python/tests -v
 | Python bindings | `bindings/python/tests/` | `python3 -m pytest bindings/python/tests` |
 | PDF validation | `test/verify_pdfs.sh` | `make test-verify-pdfs` |
 
-PDF compliance uses a layered stack: **veraPDF** (PDF/A-4 + PDF/UA-2), **structure_tree_check.py** (ParentTree consistency - catches bugs veraPDF misses), and **avalpdf** (accessibility heuristics, warnings by default). See [guides/PDF_VALIDATORS.md](guides/PDF_VALIDATORS.md).
+PDF compliance uses a layered stack: **veraPDF** (PDF/A-4 + PDF/UA-2), **structure_tree_check.py** (ParentTree consistency - catches bugs veraPDF misses), and **avalpdf** (accessibility heuristics, warnings by default). See [documentation/PDF_VALIDATORS.md](documentation/PDF_VALIDATORS.md).
 
 Fixtures live under `sampledata/`. Tests write artifacts back with `temp_*` or `*_python.pdf` suffixes.
 
@@ -187,11 +183,11 @@ Before opening a PR:
 | Change type | Update |
 |-------------|--------|
 | API endpoints / request shape | `frontend/src/components/documentation/content/api-reference.js` |
-| Template JSON schema | `guides/TEMPLATE_REFERENCE.md`, `frontend/.../template-format.js` |
-| gopdflib public API | `pkg/gopdflib/doc.go`, `example_test.go`, `guides/GETTING_STARTED_GOPDFLIB.md` |
+| Template JSON schema | `documentation/TEMPLATE_REFERENCE.md`, `frontend/.../template-format.js` |
+| gopdflib public API | `pkg/gopdflib/doc.go`, `example_test.go`, `documentation/GETTING_STARTED_GOPDFLIB.md` |
 | Python bindings | `bindings/python/README.md` |
 | New sample templates | Add under `sampledata/<feature>/`, reference in web docs |
-| Performance / benchmarks | `guides/INTEGRATION_AND_BENCHMARK_TESTS.md`, dated reports under `guides/optimizations/` |
+| Performance / benchmarks | `documentation/INTEGRATION_AND_BENCHMARK_TESTS.md`, dated reports under `guides/optimizations/` |
 
 After editing `frontend/src/`, run `npm run build` in `frontend/` and commit the generated `docs/` output, or let CI auto-commit it.
 
@@ -217,7 +213,7 @@ gopdfsuit/
 ## Getting help
 
 - [Web documentation](https://chinmay-sawant.github.io/gopdfsuit/#/documentation)
-- [Template reference](guides/TEMPLATE_REFERENCE.md)
+- [Template reference](documentation/TEMPLATE_REFERENCE.md)
 - [Makefile reference](guides/MAKEFILE.md)
 - [FAQ](README.md#-faq)
 

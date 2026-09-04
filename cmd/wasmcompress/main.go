@@ -1,14 +1,18 @@
 //go:build js && wasm
 
-// Package main exposes compress.CompressPDF to JavaScript via WebAssembly.
-// Import only the compress engine — not gin, not gochromedp.
+// Package main exposes gopdflib.CompressPDF to JavaScript via WebAssembly.
+// All validation, level parsing, and size caps are shared with the Go, HTTP,
+// and CGO entry points through pkg/gopdflib; this shim only translates
+// between JS values and Go values. Failures return the shared
+// {code,message} envelope (plus a legacy `error` alias equal to message,
+// which existing callers read).
 package main
 
 import (
 	"fmt"
 	"syscall/js"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
+	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
 func main() {
@@ -16,41 +20,48 @@ func main() {
 	select {}
 }
 
-// compressPDF(bytes, level) returns a Uint8Array on success or {error: string}.
+// errResult folds err into the shared envelope map.
+func errResult(err error) map[string]any {
+	env := gopdflib.EnvelopeOf(err)
+	return map[string]any{"code": string(env.Code), "message": env.Message, "error": env.Message}
+}
+
+// compressPDF(bytes, level) returns a Uint8Array on success or
+// {code,message,error} on failure.
 func compressPDF(_ js.Value, args []js.Value) (result any) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			result = map[string]any{"error": "compression failed"}
+			result = map[string]any{"code": string(gopdflib.CodeInternal), "message": "compression failed", "error": "compression failed"}
 		}
 	}()
 
 	if len(args) < 1 || args[0].Type() != js.TypeObject {
-		return map[string]any{"error": "expected a Uint8Array of PDF bytes"}
+		return errResult(fmt.Errorf("%w: expected a Uint8Array of PDF bytes", gopdflib.ErrInvalidInput))
 	}
 
 	n := args[0].Get("byteLength").Int()
 	if n <= 0 {
-		return map[string]any{"error": "empty PDF"}
+		return errResult(fmt.Errorf("%w: empty PDF", gopdflib.ErrInvalidInput))
 	}
-	if n > compress.MaxInputBytes {
-		return map[string]any{"error": fmt.Sprintf("PDF exceeds maximum size (%d bytes)", compress.MaxInputBytes)}
+	if n > gopdflib.MaxCompressInputBytes {
+		return errResult(fmt.Errorf("%w: PDF exceeds maximum size (%d bytes)", gopdflib.ErrLimitExceeded, gopdflib.MaxCompressInputBytes))
 	}
 
 	in := make([]byte, n)
 	copied := js.CopyBytesToGo(in, args[0])
 	if copied == 0 {
-		return map[string]any{"error": "expected a Uint8Array of PDF bytes"}
+		return errResult(fmt.Errorf("%w: expected a Uint8Array of PDF bytes", gopdflib.ErrInvalidInput))
 	}
 	in = in[:copied]
 
-	opts := compress.Options{}
+	opts := gopdflib.CompressOptions{Level: gopdflib.CompressMedium}
 	if len(args) >= 2 && args[1].Type() == js.TypeString {
-		opts.Level = compress.Level(args[1].String())
+		opts.Level = gopdflib.ParseCompressLevel(args[1].String())
 	}
 
-	out, err := compress.CompressPDF(in, opts)
+	out, err := gopdflib.CompressPDF(in, opts)
 	if err != nil {
-		return map[string]any{"error": err.Error()}
+		return errResult(err)
 	}
 
 	dst := js.Global().Get("Uint8Array").New(len(out))

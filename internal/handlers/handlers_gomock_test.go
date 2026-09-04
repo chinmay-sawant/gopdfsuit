@@ -6,9 +6,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers/mocks"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 	"github.com/gin-gonic/gin"
@@ -20,6 +22,7 @@ func setupMockRouter(t *testing.T) (*gin.Engine, *mocks.MockPDFService) {
 	gin.SetMode(gin.TestMode)
 	ctrl := gomock.NewController(t)
 	mockSvc := mocks.NewMockPDFService(ctrl)
+	stubServicePolicy(mockSvc)
 	SetPDFService(mockSvc)
 	t.Cleanup(func() {
 		SetPDFService(nil)
@@ -244,5 +247,33 @@ func TestHandleCompressPDF_MissingFile(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestHandleRedactSearch_MockSuccess(t *testing.T) {
+	r, mockSvc := setupMockRouter(t)
+	r.POST("/api/v1/redact/search", handleRedactSearch)
+	want := []models.RedactionRect{{PageNum: 1, X: 10, Y: 20, Width: 100, Height: 15}}
+	mockSvc.EXPECT().
+		RedactSearch(gomock.Any(), []string{"hello"}).
+		Return(want, nil)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("pdf", "doc.pdf")
+	_, _ = part.Write([]byte("%PDF-src"))
+	_ = writer.WriteField("texts", `["hello"]`)
+	_ = writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/redact/search", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"pageNum":1`) {
+		t.Fatalf("unexpected body: %s", w.Body.String())
 	}
 }

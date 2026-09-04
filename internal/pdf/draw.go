@@ -407,9 +407,9 @@ func sharedColsUniformBorder(cols []sharedColumnLayout) (width int, ok bool) {
 
 // drawSharedDeferRow renders a uniform shared-layout data row (HFT fast path).
 // P6 (2026-06-20 checklist): the per-cell BDC/EMC is emitted via the
-// lightweight WriteCellMarkedContentBDC / EndCellMarkedContentBuf pair. The
+// lightweight writeCellMarkedContentBDC / EndCellMarkedContentBuf pair. The
 // caller (drawSharedLayoutRow) is expected to have already created the
-// TR + per-column TD struct elems via BeginTableRowWithTDMCIDs, so this
+// TR + per-column TD struct elems via beginTableRowWithTDMCIDs, so this
 // function does not allocate any struct-elem nodes.
 func drawSharedDeferRow(
 	contentStream *bytes.Buffer,
@@ -443,8 +443,8 @@ func drawSharedDeferRow(
 		cellX := currentX
 		currentX += cellWidth
 
-		pageManager.Structure.WriteCellMarkedContentBDC(
-			contentStream, StructTD, rowMCIDBase+colIdx,
+		NewTableTagger(pageManager.Structure).WriteCell(
+			contentStream, rowMCIDBase+colIdx,
 		)
 
 		if cell.BgColor != "" {
@@ -520,8 +520,8 @@ func drawSharedDeferRow(
 
 // drawSharedLayoutRow draws a shared-layout data row with PDF/UA Table → TR → TD hierarchy.
 // P6 (2026-06-20 checklist): the HFT fast path now sets up the TR + 7 TD struct
-// elems in a single call to BeginTableRowWithTDMCIDs (arena path) and emits
-// the per-cell BDC/EMC through the lightweight WriteCellMarkedContentBDC /
+// elems in a single call to beginTableRowWithTDMCIDs (arena path) and emits
+// the per-cell BDC/EMC through the lightweight writeCellMarkedContentBDC /
 // EndCellMarkedContentBuf pair (no per-cell struct allocation, no per-cell
 // beginMarkedContentBuf grow).
 func drawSharedLayoutRow(
@@ -542,8 +542,9 @@ func drawSharedLayoutRow(
 	charsPreScanned bool,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
-	rowMCIDBase := pageManager.Structure.ReserveMCIDsLite(pageManager.CurrentPageIndex, cellCount)
 	pageIndex := pageManager.CurrentPageIndex
+	tagger := NewTableTagger(pageManager.Structure)
+	rowMCIDBase := tagger.Reserve(pageIndex, cellCount)
 
 	if rowPtr != nil {
 		cacheKey := sharedRowRenderCacheKey{
@@ -553,9 +554,9 @@ func drawSharedLayoutRow(
 			y:        scaledCoordKey(pageManager.CurrentYPos),
 		}
 		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
-			pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
+			tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
 			appendContentStream(contentStream, cached)
-			pageManager.Structure.EndStructureElement()
+			tagger.EndRow()
 			pageManager.CurrentYPos -= rowHeight
 			return
 		}
@@ -570,8 +571,8 @@ func drawSharedLayoutRow(
 		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, maxColumns)
 		// P6: build TR + 7 TD struct elems in a single arena pass; the per-cell
 		// BDC/EMC is then emitted by drawSharedDeferRow via the lightweight
-		// WriteCellMarkedContentBDC / EndCellMarkedContentBuf pair.
-		pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
+		// writeCellMarkedContentBDC / EndCellMarkedContentBuf pair.
+		tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
 		drawSharedDeferRow(
 			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 			scratchBuf, textTjBuf, borderBuf,
@@ -582,7 +583,7 @@ func drawSharedLayoutRow(
 		pageManager.NoteSharedRowBytes(len(rendered))
 		sharedRowRenderCache.Store(cacheKey, rendered)
 		appendContentStream(contentStream, rendered)
-		pageManager.Structure.EndStructureElement()
+		tagger.EndRow()
 		pageManager.CurrentYPos -= rowHeight
 		return
 	}
@@ -590,14 +591,14 @@ func drawSharedLayoutRow(
 	// P6: same fast path as the cached branch - set up TR + TDs up front
 	// (arena allocation, no sync.Pool churn) and let drawSharedDeferRow emit
 	// BDC/EMC per cell without re-allocating a struct elem each time.
-	pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
+	tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
 		rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
 		maxColumns, charsPreScanned,
 	)
-	pageManager.Structure.EndStructureElement()
+	tagger.EndRow()
 	pageManager.CurrentYPos -= rowHeight
 }
 
@@ -814,7 +815,7 @@ func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps model
 	contentStream.WriteString("ET\n")
 
 	// PDF/UA: End Structure Element
-	pageManager.Structure.EndMarkedContentBuf(contentStream)
+	pageManager.Structure.endMarkedContentBuf(contentStream)
 
 	// Add Link Annotation if provided
 	if title.Link != "" {
@@ -935,7 +936,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 		pageManager.Structure.BeginStructureElement(StructTR)
 
 		cellCount := min(len(row.Row), table.MaxColumns)
-		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+		rowMCIDBase := pageManager.Structure.reserveMCIDs(pageManager.CurrentPageIndex, cellCount)
 
 		currentX := pageManager.Margins.Left
 		for colIdx, cell := range row.Row {
@@ -944,7 +945,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 			}
 
 			// PDF/UA: Start TD Structure Element
-			pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx)
+			pageManager.Structure.beginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, StructTD, nil, rowMCIDBase+colIdx)
 
 			// Capture cell coordinates for link
 			// Capture cell coordinates for link
@@ -1229,7 +1230,7 @@ func drawTitleTable(contentStream *bytes.Buffer, table *models.TitleTable, pageM
 				}
 			}
 			// PDF/UA: End TD Structure Element
-			pageManager.Structure.EndMarkedContentBuf(contentStream)
+			pageManager.Structure.endMarkedContentBuf(contentStream)
 		}
 
 		// PDF/UA: End TR Structure Element
@@ -1525,9 +1526,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 		contentStream := pageManager.GetCurrentContentStream()
 
 		cellCount := min(len(row.Row), table.MaxColumns)
-		rowMCIDBase := pageManager.Structure.ReserveMCIDs(pageManager.CurrentPageIndex, cellCount)
+		rowMCIDBase := pageManager.Structure.reserveMCIDs(pageManager.CurrentPageIndex, cellCount)
 		if useRowBatchUA {
-			pageManager.Structure.BeginTableRowWithTDMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
+			pageManager.Structure.beginTableRowWithTDMCIDs(pageManager.CurrentPageIndex, rowMCIDBase, cellCount)
 		} else {
 			pageManager.Structure.BeginStructureElementCap(StructTR, cellCount)
 		}
@@ -1543,9 +1544,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			cellType := StructTD
 			mcid := rowMCIDBase + colIdx
 			if useRowBatchUA {
-				pageManager.Structure.WriteCellMarkedContentBDC(contentStream, cellType, mcid)
+				pageManager.Structure.writeCellMarkedContentBDC(contentStream, cellType, mcid)
 			} else {
-				pageManager.Structure.BeginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, mcid)
+				pageManager.Structure.beginMarkedContentBufWithMCID(contentStream, pageManager.CurrentPageIndex, cellType, nil, mcid)
 			}
 
 			cellProps := rowCellProps[colIdx] // Use cached props
@@ -2001,7 +2002,9 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 
 			// Create link annotation if cell has a link
 			if cell.Link != "" {
-				DrawCellLink(cell.Link, cellX, pageManager.CurrentYPos-cellHeight, cellWidth, cellHeight, pageManager)
+				// Content phase runs before encryption setup, so no
+				// encryptor is available yet; pass nil explicitly.
+				DrawCellLink(cell.Link, cellX, pageManager.CurrentYPos-cellHeight, cellWidth, cellHeight, pageManager, nil)
 			}
 			// Register named destination anchor if provided
 			if cell.Dest != "" {
@@ -2015,7 +2018,7 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			if useRowBatchUA {
 				pageManager.Structure.EndCellMarkedContentBuf(contentStream)
 			} else {
-				pageManager.Structure.EndMarkedContentBuf(contentStream)
+				pageManager.Structure.endMarkedContentBuf(contentStream)
 			}
 		}
 
@@ -2248,7 +2251,7 @@ func drawImage(image models.Image, pageManager *PageManager, borderConfig, water
 	}
 
 	// PDF/UA: End Figure structure
-	pageManager.Structure.EndMarkedContentBuf(contentStream)
+	pageManager.Structure.endMarkedContentBuf(contentStream)
 
 	pageManager.CurrentYPos -= (imageHeight + spacing)
 }
@@ -2296,7 +2299,7 @@ func drawImageWithXObjectInternal(image models.Image, imageXObjectRef string, pa
 	drawImageWithXObject(contentStream, image, imageXObjectRef, pageManager, originalImgWidth, originalImgHeight)
 
 	// PDF/UA: End Figure structure
-	pageManager.Structure.EndMarkedContentBuf(contentStream)
+	pageManager.Structure.endMarkedContentBuf(contentStream)
 }
 
 // drawWidget creates a widget annotation for a form field

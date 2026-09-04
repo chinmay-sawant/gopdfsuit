@@ -1,6 +1,10 @@
 // Environment configuration for API endpoints
 // Checks if the backend is deployed on Google Cloud Run
 
+// Shown when the static demo cannot reach a backend. Browser-local WASM ops
+// (compress today; merge/split/fill once plans/wasm/01-full-wasm-port.md
+// lands, via utils/wasmLoader.js) bypass this block because they never fetch;
+// every makeAuthenticatedRequest caller still throws here on GitHub Pages.
 export const OFFLINE_DEMO_MESSAGE =
   'Online PDF generation is disabled on this demo site. Run the application locally to generate PDFs.'
 
@@ -42,7 +46,11 @@ export const formatApiError = (error) => {
 
 /**
  * Check if the application is running on Google Cloud Run
- * Cloud Run sets K_SERVICE environment variable automatically
+ * Cloud Run sets K_SERVICE environment variable automatically.
+ *
+ * Public by default: returns false unless explicitly opted in via
+ * VITE_IS_CLOUD_RUN=true or VITE_ENVIRONMENT=cloudrun. Local builds,
+ * plain Docker, and GitHub Pages stay public.
  */
 export const isCloudRunEnvironment = () => {
   // In a frontend app, we need to check via backend or config
@@ -65,8 +73,9 @@ export const getApiBaseUrl = () => {
 }
 
 /**
- * Check if authentication is required
- * Only require auth when running on Cloud Run
+ * Check if authentication is required.
+ * Public by default: false unless explicitly opted in via
+ * VITE_IS_CLOUD_RUN=true or VITE_ENVIRONMENT=cloudrun.
  */
 export const isAuthRequired = () => {
   return isCloudRunEnvironment()
@@ -109,7 +118,9 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
     const errorText = await response.text()
     console.log('Error response body:', errorText)
     if (response.status === 401 || response.status === 403) {
-      throw new Error('Authentication failed. Please login again.')
+      const authError = new Error('Authentication failed. Please login again.')
+      authError.status = response.status
+      throw authError
     }
 
     let serverMessage = ''
@@ -123,9 +134,13 @@ export const makeAuthenticatedRequest = async (url, options = {}, getAuthHeaders
     }
 
     if (serverMessage) {
-      throw new Error(serverMessage)
+      const serverError = new Error(serverMessage)
+      serverError.status = response.status
+      throw serverError
     }
-    throw new Error(`API request failed: ${response.statusText}`)
+    const genericError = new Error(`API request failed: ${response.statusText}`)
+    genericError.status = response.status
+    throw genericError
   }
   
   return response

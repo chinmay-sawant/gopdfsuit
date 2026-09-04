@@ -26,7 +26,7 @@ Adds a Ghostscript-free PDF compressor on the existing engine: `gopdflib.Compres
 ### Library (`pkg/gopdflib`)
 
 - Public `CompressPDF` + `CompressOptions` alias and `CompressLight` / `CompressMedium` / `CompressHeavy`.
-- Docs and example updated (`guides/GETTING_STARTED_GOPDFLIB.md`, package doc).
+- Docs and example updated (`documentation/GETTING_STARTED_GOPDFLIB.md`, package doc).
 
 ### HTTP API
 

@@ -78,6 +78,9 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	if len(file) == 0 {
 		return nil, errors.New("empty file")
 	}
+	if len(file) > MaxMergeInputBytes {
+		return nil, fmt.Errorf("input PDF exceeds %d bytes", MaxMergeInputBytes)
+	}
 	if hasEncrypt(file) {
 		return nil, errors.New("cannot split encrypted PDF")
 	}
@@ -85,6 +88,9 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	fc := parseFile(file)
 	if fc == nil {
 		return nil, errors.New("invalid PDF")
+	}
+	if fc.MaxObj > MaxMergeObjects || len(fc.Objects) > MaxMergeObjects {
+		return nil, fmt.Errorf("input PDF exceeds %d objects", MaxMergeObjects)
 	}
 
 	totalPages := len(fc.Pages)
@@ -178,8 +184,10 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 				}
 			}
 		}
-		// find numeric refs in body (outside streams)
-		for _, m := range refRe.FindAllSubmatch(body, -1) {
+		// find numeric refs in the dict part only (up to stream start),
+		// never inside raw stream bytes which may coincidentally contain
+		// "N 0 R"-shaped text.
+		for _, m := range refRe.FindAllSubmatch(dictPart(body), -1) {
 			refNum, _ := strconv.Atoi(string(m[1]))
 			if refNum == 0 {
 				continue
@@ -271,7 +279,15 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 	return ctx.Output.Bytes(), nil
 }
 
-// isExcludedForSplit returns true for objects we must not copy into the new file
+// dictPart returns the dictionary portion of an object body: everything
+// up to the stream keyword, or the whole body when there is no stream.
+func dictPart(body []byte) []byte {
+	if start := FindStreamStart(body); start >= 0 {
+		return body[:start]
+	}
+	return body
+}
+
 func isExcludedForSplit(fc *FileContext, objNum int) bool {
 	if fc.OriginalCatalog > 0 && objNum == fc.OriginalCatalog {
 		return true

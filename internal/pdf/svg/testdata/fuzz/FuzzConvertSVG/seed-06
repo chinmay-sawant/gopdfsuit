@@ -1,0 +1,2 @@
+go test fuzz v1
+string("<svg><text x=\"10\">unclosed text")

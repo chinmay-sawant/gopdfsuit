@@ -40,7 +40,64 @@ type PDFSigner struct {
 	hasCachedPlacement   bool
 }
 
-var pdfSignerCache sync.Map // signerPEMCacheKey -> *PDFSigner
+// signerCache is a small bounded LRU cache guarded by a mutex. It replaces
+// the previous unbounded sync.Map caches so a stream of distinct PEM inputs
+// cannot grow memory without bound.
+type signerCache[K comparable, V any] struct {
+	mu      sync.Mutex
+	maxSize int
+	items   map[K]V
+	order   []K
+}
+
+// newSignerCache creates a bounded cache holding at most maxSize entries.
+func newSignerCache[K comparable, V any](maxSize int) *signerCache[K, V] {
+	if maxSize <= 0 {
+		maxSize = 128
+	}
+	return &signerCache[K, V]{maxSize: maxSize, items: make(map[K]V)}
+}
+
+// signerCacheMaxEntries caps each signer cache at 128 entries.
+const signerCacheMaxEntries = 128
+
+func (c *signerCache[K, V]) load(key K) (V, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	v, ok := c.items[key]
+	return v, ok
+}
+
+func (c *signerCache[K, V]) store(key K, val V) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if _, ok := c.items[key]; !ok {
+		c.order = append(c.order, key)
+	}
+	c.items[key] = val
+	for len(c.order) > c.maxSize {
+		oldest := c.order[0]
+		c.order = c.order[1:]
+		delete(c.items, oldest)
+	}
+}
+
+// clear removes all entries from the cache.
+func (c *signerCache[K, V]) clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.items = make(map[K]V)
+	c.order = nil
+}
+
+// size returns the number of entries currently cached.
+func (c *signerCache[K, V]) size() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.items)
+}
+
+var pdfSignerCache = newSignerCache[string, *PDFSigner](signerCacheMaxEntries) // signerPEMCacheKey -> *PDFSigner
 
 var (
 	marshaledOIDData        = mustMarshal(oidData)
@@ -72,7 +129,18 @@ func init() {
 	}
 }
 
-func digestByteRanges(pdfData []byte, byteRange [4]int) []byte {
+func digestByteRanges(pdfData []byte, byteRange [4]int) ([]byte, error) {
+	if len(byteRange) != 4 {
+		return nil, errors.New("invalid ByteRange length")
+	}
+	for _, v := range byteRange {
+		if v < 0 || v > len(pdfData) {
+			return nil, fmt.Errorf("ByteRange value %d out of bounds (pdf length %d)", v, len(pdfData))
+		}
+	}
+	if byteRange[1] < byteRange[0] || byteRange[2] < byteRange[1] || byteRange[2]+byteRange[3] > len(pdfData) {
+		return nil, fmt.Errorf("ByteRange %v is inconsistent with pdf length %d", byteRange, len(pdfData))
+	}
 	h := sha256HasherPool.Get().(hash.Hash)
 	h.Reset()
 	_, _ = h.Write(pdfData[byteRange[0]:byteRange[1]])
@@ -81,7 +149,7 @@ func digestByteRanges(pdfData []byte, byteRange [4]int) []byte {
 	digest := make([]byte, len(sum))
 	copy(digest, sum)
 	sha256HasherPool.Put(h)
-	return digest
+	return digest, nil
 }
 
 // SignatureIDs holds the object IDs for a signature field and its associated annotations.
@@ -121,7 +189,14 @@ type parsedSignerPEMEntry struct {
 	certChain []*x509.Certificate
 }
 
-var signerPEMMaterialCache sync.Map // hex(sha256(...)) -> *parsedSignerPEMEntry
+var signerPEMMaterialCache = newSignerCache[string, *parsedSignerPEMEntry](signerCacheMaxEntries) // hex(sha256(...)) -> *parsedSignerPEMEntry
+
+// ClearSignerCaches evicts all cached signers and parsed PEM materials.
+// It is safe for concurrent use.
+func ClearSignerCaches() {
+	pdfSignerCache.clear()
+	signerPEMMaterialCache.clear()
+}
 
 func signerPEMCacheKey(certPEM, keyPEM string, chain []string) string {
 	h := sha256.New()
@@ -137,9 +212,8 @@ func signerPEMCacheKey(certPEM, keyPEM string, chain []string) string {
 
 func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.Certificate, crypto.PrivateKey, []*x509.Certificate, error) {
 	cacheKey := signerPEMCacheKey(certPEM, keyPEM, chainPEMs)
-	if v, ok := signerPEMMaterialCache.Load(cacheKey); ok {
-		ent := v.(*parsedSignerPEMEntry)
-		return ent.cert, ent.key, ent.certChain, nil
+	if v, ok := signerPEMMaterialCache.load(cacheKey); ok {
+		return v.cert, v.key, v.certChain, nil
 	}
 
 	block, _ := pem.Decode([]byte(certPEM))
@@ -180,7 +254,7 @@ func parseSignerPEMMaterials(certPEM, keyPEM string, chainPEMs []string) (*x509.
 		}
 	}
 
-	signerPEMMaterialCache.Store(cacheKey, &parsedSignerPEMEntry{
+	signerPEMMaterialCache.store(cacheKey, &parsedSignerPEMEntry{
 		cert:      cert,
 		key:       privateKey,
 		certChain: chain,
@@ -195,8 +269,7 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	}
 
 	cacheKey := signerPEMCacheKey(config.CertificatePEM, config.PrivateKeyPEM, config.CertificateChain)
-	if v, ok := pdfSignerCache.Load(cacheKey); ok {
-		signer := v.(*PDFSigner)
+	if signer, ok := pdfSignerCache.load(cacheKey); ok {
 		signer.hasCachedPlacement = false
 		return signer, nil
 	}
@@ -237,11 +310,11 @@ func NewPDFSigner(config *models.SignatureConfig) (*PDFSigner, error) {
 	}
 	signer.derParts = buildPKCS7DERParts(signer)
 
-	if existing, loaded := pdfSignerCache.LoadOrStore(cacheKey, signer); loaded {
-		cached := existing.(*PDFSigner)
-		cached.hasCachedPlacement = false
-		return cached, nil
+	if existing, ok := pdfSignerCache.load(cacheKey); ok {
+		existing.hasCachedPlacement = false
+		return existing, nil
 	}
+	pdfSignerCache.store(cacheKey, signer)
 	return signer, nil
 }
 
@@ -512,11 +585,14 @@ func (s *PDFSigner) createSignatureAppearance(pageManager SignaturePageContext, 
 // SignPDF signs the PDF data and returns the PKCS#7 signature
 // This is called after the PDF is generated to compute the actual signature
 func (s *PDFSigner) SignPDF(pdfData []byte, byteRange [4]int) ([]byte, error) {
-	messageDigest := digestByteRanges(pdfData, byteRange)
+	messageDigest, err := digestByteRanges(pdfData, byteRange)
+	if err != nil {
+		return nil, err
+	}
 
 	signWorkerSlots <- struct{}{}
+	defer func() { <-signWorkerSlots }()
 	signedData, err := s.createPKCS7SignedData(messageDigest)
-	<-signWorkerSlots
 	if err != nil {
 		return nil, err
 	}
@@ -615,6 +691,10 @@ func (s *PDFSigner) signaturePlacementForPDF(pdfData []byte) (signaturePlacement
 		sp := s.cachedPlacement
 		beforeContents := sp.contentsStart - 1
 		afterContents := sp.contentsEnd + 1
+		if sp.contentsStart < 0 || sp.contentsEnd < sp.contentsStart || afterContents > len(pdfData) ||
+			sp.byteRangePos < 0 || sp.byteRangePos+len(sp.byteRangeMarker) > len(pdfData) {
+			return signaturePlacement{}, fmt.Errorf("cached signature placement out of bounds (pdf length %d)", len(pdfData))
+		}
 		sp.byteRange = [4]int{0, beforeContents, afterContents, len(pdfData) - afterContents}
 		return sp, nil
 	}
@@ -632,11 +712,7 @@ func locateSignaturePlacement(pdfData []byte) (signaturePlacement, error) {
 	contentsMarker := []byte("/Contents <" + strings.Repeat("0", 100))
 	contentsPos := bytes.Index(pdfData, contentsMarker)
 	if contentsPos < 0 {
-		contentsMarker = []byte("/Contents <")
-		contentsPos = bytes.Index(pdfData, contentsMarker)
-		if contentsPos < 0 {
-			return sp, fmt.Errorf("contents placeholder not found")
-		}
+		return sp, fmt.Errorf("contents placeholder not found (fail closed: exact sized-marker match required)")
 	}
 
 	sp.contentsStart = contentsPos + len("/Contents <")
@@ -712,6 +788,25 @@ func encodeHexUpper(dst, src []byte) {
 }
 
 func embedSignatureInPlace(pdfData []byte, signer *PDFSigner, sp signaturePlacement) error {
+	if signer == nil {
+		return errors.New("nil signer")
+	}
+	if sp.byteRangePos < 0 || sp.contentsStart < 0 || sp.contentsEnd < 0 {
+		return errors.New("negative signature placement offset")
+	}
+	if sp.byteRangePos+len(sp.byteRangeMarker) > len(pdfData) {
+		return fmt.Errorf("ByteRange placeholder [%d:%d] out of bounds (pdf length %d)",
+			sp.byteRangePos, sp.byteRangePos+len(sp.byteRangeMarker), len(pdfData))
+	}
+	if sp.contentsStart > sp.contentsEnd || sp.contentsEnd > len(pdfData) {
+		return fmt.Errorf("contents range [%d:%d] out of bounds (pdf length %d)",
+			sp.contentsStart, sp.contentsEnd, len(pdfData))
+	}
+	for _, v := range sp.byteRange {
+		if v < 0 || v > len(pdfData) {
+			return fmt.Errorf("ByteRange value %d out of bounds (pdf length %d)", v, len(pdfData))
+		}
+	}
 	var byteRangeScratch [48]byte
 	newByteRange := appendByteRangeMarker(byteRangeScratch[:0], sp.byteRange)
 	if len(newByteRange) != len(sp.byteRangeMarker) {

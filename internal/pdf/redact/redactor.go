@@ -192,6 +192,13 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		SecurityOutcome: "visual_only",
 	}
 
+	// WASM (GOOS=js) has no pdftoppm/tesseract subprocesses, so OCR cannot
+	// degrade to a warning here: fail fast with errOCRUnsupportedWASM, which
+	// the gopdflib seam classifies as CodeInvalidInput (invalid_input).
+	if isWASM() && opts.OCR != nil && opts.OCR.Enabled {
+		return nil, report, errOCRUnsupportedWASM
+	}
+
 	mode := strings.ToLower(opts.Mode)
 	if len(mode) > 0 && (mode[0] == ' ' || mode[len(mode)-1] == ' ') {
 		mode = strings.TrimSpace(mode)

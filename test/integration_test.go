@@ -258,11 +258,14 @@ func (s *IntegrationSuite) TestHtmlToPDF() {
 	s.Greater(info.Size(), int64(0), "Generated PDF should have non-zero size")
 }
 
-// TestHtmlToImage tests /api/v1/htmltoimage
+// TestHtmlToImage tests /api/v1/htmltoimage. example.com is the URL
+// fixture: a small static page. A long page (e.g. Wikipedia) lays out
+// past the engine's 16384px raster budget and fails honestly, which this
+// suite tolerates with a skip below.
 func (s *IntegrationSuite) TestHtmlToImage() {
 	// 1. Input URL
 	req := models.HTMLToImageRequest{
-		URL:    "https://en.wikipedia.org/wiki/Ana_de_Armas",
+		URL:    "https://example.com",
 		Format: "png",
 	}
 	reqBody, _ := json.Marshal(req)

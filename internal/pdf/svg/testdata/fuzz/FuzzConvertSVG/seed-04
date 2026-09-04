@@ -1,0 +1,2 @@
+go test fuzz v1
+string("<svg width=\"abc\" height=\"def\"><circle cx=\"50\" cy=\"50\" r=\"")

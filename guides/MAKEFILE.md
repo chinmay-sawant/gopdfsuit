@@ -1,24 +1,24 @@
-# 🛠️ Makefile Reference
+# Makefile reference
 
 Complete guide to the Makefile targets for building, testing, and deploying GoPdfSuit.
 
 ---
 
-## Table of Contents
+## Table of contents
 
 - [Overview](#overview)
 - [Variables](#variables)
-- [Docker Targets](#docker-targets)
-- [Build Targets](#build-targets)
-- [Development Targets](#development-targets)
-- [Benchmark Targets](#benchmark-targets)
-- [Quick Reference](#quick-reference)
+- [Docker targets](#docker-targets)
+- [Build targets](#build-targets)
+- [Development targets](#development-targets)
+- [Benchmark targets](#benchmark-targets)
+- [Quick reference](#quick-reference)
 
 ---
 
 ## Overview
 
-The Makefile provides convenient shortcuts for common development and deployment tasks. All targets are designed to work from the repository root directory.
+I use these targets so I do not have to remember long docker, go, and k6 commands. They wrap the repeatable steps for builds, tests, releases, and benchmarks. Run them from the repo root.
 
 ---
 
@@ -46,7 +46,7 @@ Customize behavior using environment variables:
 | `THROUGHPUT_GATE` | `0` | Minimum req/s gate for k6 script (0 = off) |
 | `BASE_URL` | `http://127.0.0.1:8080` | Target URL for k6 / pprof script |
 
-### Setting Variables
+### Setting variables
 
 ```bash
 # Inline
@@ -60,7 +60,7 @@ make docker
 
 ---
 
-## Docker Targets
+## Docker targets
 
 ### `make docker`
 
@@ -70,12 +70,10 @@ Build and run the Docker container locally.
 make docker
 ```
 
-**What it does:**
-1. Builds Docker image from `dockerfolder/Dockerfile`
-2. Tags image as `gopdfsuit:<VERSION>`
-3. Runs container on port 8080
+**What it does.** It builds the image from `dockerfolder/Dockerfile`, tags it as `gopdfsuit:<VERSION>`, and runs it on port 8080.
 
-**Equivalent commands:**
+**Same commands.**
+
 ```bash
 docker build -f dockerfolder/Dockerfile --build-arg VERSION=6.0.0 -t gopdfsuit:6.0.0 .
 docker run -d -p 8080:8080 gopdfsuit:6.0.0
@@ -91,13 +89,10 @@ Tag and push the Docker image to Docker Hub.
 make dockertag
 ```
 
-**What it does:**
-1. Tags image with version number
-2. Tags image as `latest`
-3. Prompts for Docker Hub login
-4. Pushes both tags to Docker Hub
+**What it does.** It tags the image with the version number and `latest`, prompts for Docker Hub login, and pushes both tags.
 
-**Equivalent commands:**
+**Same commands.**
+
 ```bash
 docker tag gopdfsuit:6.0.0 chinmaysawant/gopdfsuit:6.0.0
 docker tag gopdfsuit:6.0.0 chinmaysawant/gopdfsuit:latest
@@ -116,11 +111,10 @@ Pull and run the latest image from Docker Hub.
 make pull
 ```
 
-**What it does:**
-1. Pulls image from Docker Hub
-2. Runs container on port 8080
+**What it does.** It pulls the image from Docker Hub and runs it on port 8080.
 
-**Equivalent commands:**
+**Same commands.**
+
 ```bash
 docker pull chinmaysawant/gopdfsuit:6.0.0
 docker run -d -p 8080:8080 chinmaysawant/gopdfsuit:6.0.0
@@ -128,7 +122,7 @@ docker run -d -p 8080:8080 chinmaysawant/gopdfsuit:6.0.0
 
 ---
 
-## Build Targets
+## Build targets
 
 ### `make build`
 
@@ -138,11 +132,9 @@ Compile the Go application.
 make build
 ```
 
-**What it does:**
-1. Creates `bin/` directory
-2. Compiles to `bin/app`
+**What it does.** It creates `bin/` and compiles the binary to `bin/app`.
 
-**Output:** `bin/app`
+**Output.** `bin/app`.
 
 ---
 
@@ -154,14 +146,11 @@ Build the in-browser PDF compressor (`GOOS=js GOARCH=wasm`).
 make wasm-compress
 ```
 
-**What it does:**
-1. Compiles `cmd/wasmcompress` to `frontend/public/compress.wasm`
-2. Copies Go's `wasm_exec.js` next to it
-3. Copies both files into `sampledata/compress-js/` for the JS sample
+**What it does.** It compiles `cmd/wasmcompress` to `frontend/public/compress.wasm`, copies Go's `wasm_exec.js` next to it, and copies both files into `sampledata/compress-js/` for the JS sample.
 
-**Proof:** `file frontend/public/compress.wasm` reports `WebAssembly`.
+Check the result with `file frontend/public/compress.wasm`. It should report `WebAssembly`.
 
-Used by the `/compress` page and `cd sampledata/compress-js && node run.mjs`. Not a CLI.
+The `/compress` page and `cd sampledata/compress-js && node run.mjs` use this file. It is not a CLI.
 
 ---
 
@@ -173,11 +162,9 @@ Build frontend and run the application locally.
 make run
 ```
 
-**What it does:**
-1. Builds React frontend (`npm run build`)
-2. Runs Go application
+**What it does.** It builds the React frontend with `npm run build` and runs the Go application.
 
-**Access:** `http://localhost:8080`
+Open `http://localhost:8080` in a browser.
 
 ---
 
@@ -189,12 +176,11 @@ Remove build artifacts.
 make clean
 ```
 
-**What it does:**
-- Deletes `bin/` directory
+**What it does.** It deletes the `bin/` directory.
 
 ---
 
-## Development Targets
+## Development targets
 
 ### `make test`
 
@@ -204,7 +190,8 @@ Run all Go tests.
 make test
 ```
 
-**Equivalent:**
+**Same command.**
+
 ```bash
 go test ./...
 ```
@@ -219,7 +206,8 @@ Format Go source code.
 make fmt
 ```
 
-**Equivalent:**
+**Same command.**
+
 ```bash
 go fmt ./...
 ```
@@ -234,7 +222,8 @@ Run Go static analysis.
 make vet
 ```
 
-**Equivalent:**
+**Same command.**
+
 ```bash
 go vet ./...
 ```
@@ -249,14 +238,15 @@ Tidy Go module dependencies.
 make mod
 ```
 
-**Equivalent:**
+**Same command.**
+
 ```bash
 go mod tidy
 ```
 
 ---
 
-## Benchmark Targets
+## Benchmark targets
 
 All benchmark targets run from the repository root. List every target:
 
@@ -273,11 +263,11 @@ For result interpretation and latest numbers, see [INTEGRATION_AND_BENCHMARK_TES
 | `make bench-setup` | Download Typst binary and generate `sampledata/benchmarks/data.json` |
 | `make bench-k6-install` | Install k6 on Debian/Ubuntu WSL (`test/generate_template-pdf/install_k6.sh`) |
 
-### gopdfsuit HTTP (k6 + pprof)
+### Gopdfsuit HTTP (k6 + pprof)
 
 The `load-pprof*` and `bench-k6*` targets (except `bench-k6-load`, `bench-k6-smoke`, `bench-k6-spike`, `bench-k6-soak`) build the server, start it on port 8080, run k6, and capture CPU/heap profiles under `guides/cursor/baselines/gin_pprof_runs/`.
 
-Use **`make bench-k6-light`** when running on WSL with limited RAM, alongside other benchmarks, or when the full **48 VU × 35s** run OOM-kills the server mid-run.
+Use `make bench-k6-light` when you run on WSL with limited RAM, alongside other benchmarks, or when the full 48 VU by 35s run kills the server mid-run.
 
 | Target | Description |
 |--------|-------------|
@@ -291,14 +281,14 @@ Use **`make bench-k6-light`** when running on WSL with limited RAM, alongside ot
 | `make bench-k6-spike` | Traffic spike simulation (`spike_test.js`) |
 | `make bench-k6-soak` | 30-minute stability test (`soak_test.js`) |
 
-**k6-only workflow** (no auto server):
+k6-only workflow without auto server start:
 
 ```bash
 go run ./cmd/gopdfsuit &
 make bench-k6-smoke
 ```
 
-**Light run (WSL / shared machine):**
+Light run for WSL or a shared machine:
 
 ```bash
 make bench-k6-light
@@ -306,7 +296,7 @@ make bench-k6-light
 make bench-k6-light K6_LIGHT_VUS=16 K6_LIGHT_SECONDS=10
 ```
 
-**Custom gate example:**
+Custom gate example:
 
 ```bash
 make load-pprof THROUGHPUT_GATE=1500 LOAD_VUS=48 GO_BENCH=go1.26.4
@@ -335,7 +325,7 @@ High-volume contract-note workload in `sampledata/gopdflib/zerodha` (80% retail 
 | `make bench-pypdfsuit-zerodha-x5` | Five timing runs + phase profile (`run_pypdfsuit_bench_x5.sh`) |
 | `make bench-pypdfsuit-zerodha-x10` | Ten sequential timing runs (`run_pypdfsuit_bench_x10.sh`) |
 
-**Override iterations/workers:**
+Override iterations and workers:
 
 ```bash
 make bench-gopdflib-zerodha BENCH_ITERATIONS=1000 BENCH_WORKERS=24
@@ -367,7 +357,7 @@ Cross-engine comparisons in `sampledata/benchmarks`. Run `make bench-setup` firs
 | `make bench-pdflib` | pdf-lib | `pdflib/bench.js` |
 | `make bench-typst` | Typst | `typst/bench.sh` |
 
-> **Note:** `bench-pypdfsuit-legacy` uses the older `sampledata/benchmarks/pypdfsuit` harness. For Zerodha parity against gopdflib, prefer `bench-pypdfsuit-zerodha`.
+**Note.** `bench-pypdfsuit-legacy` uses the older `sampledata/benchmarks/pypdfsuit` harness. For Zerodha parity against gopdflib, prefer `bench-pypdfsuit-zerodha`.
 
 ### GoPDFKit apples-to-apples
 
@@ -394,7 +384,7 @@ Module: `sampledata/benchmarks/gopdfkit_compare`. Requires a real gopdfkit check
 
 ### Full suites
 
-Long-running; run when you want a full regression pass.
+Long-running. Run these when you want a full regression pass.
 
 | Target | Includes |
 |--------|----------|
@@ -404,7 +394,7 @@ Long-running; run when you want a full regression pass.
 
 ---
 
-## Quick Reference
+## Quick reference
 
 | Command | Description | Use Case |
 |---------|-------------|----------|
@@ -427,9 +417,9 @@ Long-running; run when you want a full regression pass.
 
 ---
 
-## Common Workflows
+## Common workflows
 
-### Development Cycle
+### Development cycle
 
 ```bash
 make fmt          # Format code
@@ -438,7 +428,7 @@ make test         # Run tests
 make run          # Start development server
 ```
 
-### Release Workflow
+### Release workflow
 
 ```bash
 export VERSION=6.0.0
@@ -446,7 +436,7 @@ make docker       # Build and test locally
 make dockertag    # Push to Docker Hub
 ```
 
-### Fresh Start
+### Fresh start
 
 ```bash
 make clean        # Remove old builds
@@ -454,7 +444,7 @@ make mod          # Update dependencies
 make build        # Compile fresh binary
 ```
 
-### Benchmark Regression
+### Benchmark regression
 
 ```bash
 make bench-help                              # See all targets
@@ -476,7 +466,7 @@ make bench-suite-x2 GO_BENCH=go1.26.4
 
 ## Troubleshooting
 
-### Port Already in Use
+### Port already in use
 
 ```bash
 # Find and kill existing container
@@ -487,7 +477,7 @@ docker stop <container_id>
 docker run -d -p 9090:8080 gopdfsuit:6.0.0
 ```
 
-### Docker Login Issues
+### Docker login issues
 
 ```bash
 # Manual login
@@ -497,7 +487,7 @@ docker login
 make dockertag
 ```
 
-### Build Failures
+### Build failures
 
 ```bash
 # Clean and rebuild
@@ -506,18 +496,18 @@ make mod
 make build
 ```
 
-### Benchmark Failures
+### Benchmark failures
 
-**k6 stops at ~70% with `connection reset` / `connection refused`:**
+k6 stops at about 70% with `connection reset` or `connection refused`.
 
-The gopdfsuit server process died mid-run (often OOM on WSL when other benchmarks run in parallel). Run k6 in isolation and use the lighter harness:
+The server process died mid-run, often from OOM on WSL when other benchmarks run in parallel. Stop competing jobs first, then run k6 alone with the lighter harness:
 
 ```bash
 # stop competing jobs first, then:
 make bench-k6-light
 ```
 
-**Port 8080 in use** (k6 / `load-pprof`):
+Port 8080 in use for k6 or `load-pprof`:
 
 ```bash
 fuser -k 8080/tcp
@@ -525,21 +515,21 @@ fuser -k 8080/tcp
 make load-pprof
 ```
 
-**GoPDFKit compare: empty PDF / module not found:**
+GoPDFKit compare fails with empty PDF or module not found:
 
 ```bash
 make bench-gopdfkit-setup
 make bench-gopdfkit-compare-test
 ```
 
-**Multi-library Typst / data.json missing:**
+Multi-library run misses Typst or `data.json`:
 
 ```bash
 make bench-setup
 make bench-typst
 ```
 
-**k6 not installed:**
+k6 is not installed:
 
 ```bash
 make bench-k6-install

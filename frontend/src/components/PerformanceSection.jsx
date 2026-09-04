@@ -283,7 +283,7 @@ const PerformanceSection = ({ isVisible }) => {
         </div>
 
         <p className="performance-disclaimer">
-          * All GoPDFLib headline benchmarks run with PDF/A-4, PDF/UA-2, Arlington-compatible tagging, XML metadata generation, ECDSA P-256 digital signatures, embedded fonts, bookmarks, and internal links enabled. GoPDFKit compare templates omit PDF/A flags for fair speed comparison. See guides/BENCHMARKS.md for raw logs and reproduction steps.
+          * All GoPDFLib headline benchmarks run with PDF/A-4, PDF/UA-2, Arlington-compatible tagging, XML metadata generation, ECDSA P-256 digital signatures, embedded fonts, bookmarks, and internal links enabled. GoPDFKit compare templates omit PDF/A flags for fair speed comparison. See documentation/BENCHMARKS.md for raw logs and reproduction steps.
         </p>
       </div>
     </div>

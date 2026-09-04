@@ -430,6 +430,17 @@ type Props struct {
 }
 
 // HTMLToPDFRequest represents the input for htmltopdf conversion.
+//
+// gowkhtmltopdf v0.2.5 equivalence gaps (pure-Go engine, no browser):
+//   - DPI: no equivalent, accepted but ignored.
+//   - LowQuality: no equivalent, accepted but ignored.
+//   - Zoom: no PDF-path equivalent, accepted but ignored.
+//   - Crop*: no PDF-path equivalent, accepted but ignored.
+//   - Options map: free-form wkhtmltopdf flags have no equivalent, accepted
+//     but ignored.
+//
+// PageSize, Orientation, margins ("10mm"-style, parsed to mm floats), and
+// Grayscale map onto Document fields; HTML/URL map onto Content.
 type HTMLToPDFRequest struct {
 	HTML         string            `json:"html,omitempty"`        // Raw HTML content
 	URL          string            `json:"url,omitempty"`         // URL to convert
@@ -447,6 +458,13 @@ type HTMLToPDFRequest struct {
 }
 
 // HTMLToImageRequest represents the input for htmltoimage conversion.
+//
+// gowkhtmltopdf v0.2.5 equivalence gaps (pure-Go engine, no browser):
+//   - Format "svg": no equivalent, rejected as invalid input (png/jpg only).
+//   - Options map: free-form flags have no equivalent, accepted but ignored.
+//
+// Zoom and Crop* map onto ImageDocument fields; Width, Height, Quality, and
+// Format (png|jpg) map directly; HTML/URL map onto Content.
 type HTMLToImageRequest struct {
 	HTML       string            `json:"html,omitempty"`        // Raw HTML content
 	URL        string            `json:"url,omitempty"`         // URL to convert

@@ -10,9 +10,10 @@ import (
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "https://chinmay-sawant.github.io")
-		c.Header("Access-Control-Allow-Headers", "*")
-		c.Header("Access-Control-Allow-Methods", "*")
-		c.Header("Access-Control-Expose-Headers", "X-Redaction-Report")
+		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With, X-Payload-Tier, X-Request-ID")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Header("Access-Control-Expose-Headers", "X-Redaction-Report, X-Request-ID")
+		c.Header("Vary", "Origin")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusOK)

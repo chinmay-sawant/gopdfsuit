@@ -1,15 +1,23 @@
 import { useState, useRef } from 'react'
-import { Merge, Upload, Download, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { Merge, Upload, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import OperationShell from '../components/OperationShell'
+import { formatFileSize } from '../utils/format'
 import BackgroundAnimation from '../components/BackgroundAnimation'
+import { mergePDFSmart, mergeViaServer, shouldUseServerWasmTransport } from '../utils/wasmLoader.js'
+
+const serverTransport = shouldUseServerWasmTransport()
 
 const MergePage = () => {
   const [files, setFiles] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [mergedPdfUrl, setMergedPdfUrl] = useState('')
   const fileInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const [fallbackOffer, setFallbackOffer] = useState(null)
+  const { isLoading, resultUrl: mergedPdfUrl, run, runLocal, download } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => alert(`Error merging PDFs: ${message}`),
+  })
 
   const handleFileUpload = (event) => {
     const newFiles = Array.from(event.target.files).filter(file => file.type === 'application/pdf')
@@ -30,27 +38,44 @@ const MergePage = () => {
 
   const mergePDFs = async () => {
     if (files.length < 2) return
-    setIsLoading(true)
-    try {
+    // Browser-local first via gopdfsuit.wasm goMergePDF (see
+    // plans/wasm/01-full-wasm-port.md); server only on explicit consent,
+    // Compress.jsx:83-92 pattern. Until the engine lands the WASM call throws
+    // missingEngine and the consent banner below offers the upload.
+    if (serverTransport) {
       const formData = new FormData()
       files.forEach(file => formData.append('pdf', file))
-      const response = await makeAuthenticatedRequest('/api/v1/merge', { method: 'POST', body: formData }, getAuthHeaders)
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      setMergedPdfUrl(url)
-      const link = document.createElement('a')
-      link.href = url; link.download = `merged-pdf-${Date.now()}.pdf`; link.click()
-    } catch (error) {
-      if (error.message.includes("401") || error.message.includes("403")) triggerLogin()
-      else alert('Error merging PDFs: ' + error.message)
-    } finally { setIsLoading(false) }
+      await run({
+        endpoint: '/api/v1/merge',
+        body: formData,
+        getAuthHeaders,
+        filename: `merged-pdf-${Date.now()}.pdf`,
+      })
+      return
+    }
+    setFallbackOffer(null)
+    let wasmMessage = ''
+    const snapshot = [...files]
+    const url = await runLocal(() => mergePDFSmart(snapshot, {}, { getAuthHeaders }), {
+      autoDownload: false,
+      onError: (message) => { wasmMessage = message },
+    })
+    if (url) return
+    if (!serverTransport && getAuthHeaders) {
+      setFallbackOffer({ message: wasmMessage })
+    }
+    if (url) return
   }
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const mergeViaServerConsent = async () => {
+    if (isLoading) return
+    setFallbackOffer(null)
+    const snapshot = [...files]
+    // Explicit consent click: upload to the server via runLocal so blob
+    // handling stays identical to the WASM path.
+    await runLocal(() => mergeViaServer(snapshot, getAuthHeaders), {
+      filename: `merged-pdf-${Date.now()}.pdf`,
+    })
   }
 
   return (
@@ -65,12 +90,28 @@ const MergePage = () => {
             <div className="feature-icon-box purple" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Merge size={28} /></div>
             PDF Merge Tool
           </h1>
-          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Combine multiple PDF files with drag-and-drop reordering</p>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>{serverTransport ? 'Server transport active (VITE_WASM_TRANSPORT=server): files are uploaded to /api/v1/merge.' : 'Combine multiple PDF files with drag-and-drop reordering - runs in your browser when the WASM engine lands, server upload only on consent.'}</p>
         </div>
       </section>
 
       <section style={{ padding: '2rem 0 4rem' }}>
         <div className="container">
+          {fallbackOffer && (
+            <div style={{ padding: '1rem', background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', borderRadius: '8px', marginBottom: '1rem', color: 'hsl(var(--foreground))' }}>
+              <div style={{ marginBottom: '0.75rem' }}>
+                Browser merge is not available in this build{fallbackOffer.message ? `: ${fallbackOffer.message}` : '.'} The files were not uploaded.
+                Upload them to the server to merge instead?
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button onClick={mergeViaServerConsent} disabled={isLoading} className="btn-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  Upload to server and merge
+                </button>
+                <button onClick={() => setFallbackOffer(null)} disabled={isLoading} className="btn-outline-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  Stay local
+                </button>
+              </div>
+            </div>
+          )}
           <div className="grid grid-2" style={{ gap: '2rem' }}>
             <div className="glass-card" style={{ padding: '2rem' }}>
               <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
@@ -112,27 +153,16 @@ const MergePage = () => {
               )}
             </div>
 
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
-                <div className="feature-icon-box teal" style={{ width: '40px', height: '40px', marginBottom: 0 }}><FileText size={18} /></div>Merged PDF Preview
-              </h3>
-              {mergedPdfUrl ? (
-                <div>
-                  <iframe src={mergedPdfUrl} style={{ width: '100%', height: '480px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px' }} title="Merged PDF" />
-                  <button onClick={() => { const link = document.createElement('a'); link.href = mergedPdfUrl; link.download = `merged-pdf-${Date.now()}.pdf`; link.click() }} className="btn-glow" style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-                    <Download size={16} />Download Merged PDF
-                  </button>
-                </div>
-              ) : (
-                <div style={{ height: '480px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
-                  <div>
-                    <div className="feature-icon-box purple" style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }}><Merge size={32} /></div>
-                    <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>Merged PDF preview will appear here</p>
-                    <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>Upload at least 2 PDF files to get started</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <OperationShell
+              resultUrl={mergedPdfUrl}
+              title="Merged PDF Preview"
+              icon={<FileText size={18} />}
+              emptyTitle="Merged PDF preview will appear here"
+              emptySubtitle="Upload at least 2 PDF files to get started"
+              onDownload={() => download(`merged-pdf-${Date.now()}.pdf`)}
+              downloadLabel="Download Merged PDF"
+              height={480}
+            />
           </div>
 
           <div className="glass-card" style={{ marginTop: '2rem', padding: '2rem' }}>

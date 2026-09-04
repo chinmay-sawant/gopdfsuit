@@ -61,3 +61,5 @@ functions/
 reports/
 .agents
 skills-lock.json
+gopdfsuit
+wasmcompress

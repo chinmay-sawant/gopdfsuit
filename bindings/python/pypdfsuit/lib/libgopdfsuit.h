@@ -21,7 +21,7 @@ extern const char *_GoStringPtr(_GoString_ s);
 /* Start of preamble from import "C" comments.  */
 
 
-#line 4 "exports.go"
+#line 9 "exports.go"
 
 #include <stdlib.h>
 #include <string.h>
@@ -106,6 +106,7 @@ extern ByteResult MergePDFs(char** pdfData, int* pdfLengths, int count);
 extern ByteArrayResult SplitPDF(char* pdfData, int pdfLength, char* specJSON);
 extern ByteResult ParsePageSpec(char* spec, int totalPages);
 extern ByteResult FillPDFWithXFDF(char* pdfData, int pdfLen, char* xfdfData, int xfdfLen);
+extern ByteResult CompressPDF(char* pdfData, int pdfLen, char* optsJSON);
 extern ByteResult ConvertHTMLToPDF(char* requestJSON);
 extern ByteResult ConvertHTMLToImage(char* requestJSON);
 extern ByteResult GetAvailableFonts(void);

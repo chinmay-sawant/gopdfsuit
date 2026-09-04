@@ -2,14 +2,10 @@ package compress
 
 import (
 	"bytes"
-	"compress/flate"
-	"compress/zlib"
-	"fmt"
-	"io"
 	"regexp"
 	"strconv"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
 const (
@@ -29,7 +25,7 @@ var (
 )
 
 func splitStream(body []byte) (dict, data []byte, ok bool) {
-	start := merge.FindStreamStart(body)
+	start := pdfobj.FindStreamStart(body)
 	if start < 0 {
 		return nil, nil, false
 	}
@@ -49,7 +45,10 @@ func splitStream(body []byte) (dict, data []byte, ok bool) {
 		return dict, body[ptr : ptr+n], true
 	}
 
-	end := bytes.LastIndex(body[ptr:], []byte("endstream"))
+	// Without a usable /Length, the stream ends at the first endstream
+	// token: LastIndex would swallow trailing objects when binary stream
+	// data itself contains that token.
+	end := bytes.Index(body[ptr:], []byte("endstream"))
 	if end < 0 {
 		return nil, nil, false
 	}
@@ -75,29 +74,7 @@ func buildStream(dict, data []byte) []byte {
 }
 
 func decompressFlate(data []byte) ([]byte, error) {
-	r, err := zlib.NewReader(bytes.NewReader(data))
-	if err == nil {
-		defer func() { _ = r.Close() }()
-		out, copyErr := readLimited(r)
-		if copyErr == nil {
-			return out, nil
-		}
-	}
-	fr := flate.NewReader(bytes.NewReader(data))
-	defer func() { _ = fr.Close() }()
-	return readLimited(fr)
-}
-
-func readLimited(r io.Reader) ([]byte, error) {
-	var out bytes.Buffer
-	n, err := io.Copy(&out, io.LimitReader(r, int64(MaxInflateBytes)+1))
-	if n > int64(MaxInflateBytes) {
-		return nil, fmt.Errorf("decompressed stream exceeds %d bytes", MaxInflateBytes)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+	return pdfobj.DecompressAny(data)
 }
 
 func streamFilter(dict []byte) string {
@@ -207,17 +184,17 @@ func dictNameAfter(dict []byte, re *regexp.Regexp) string {
 }
 
 func isImageXObject(dict []byte) bool {
-	return merge.HasSubstring(dict, []byte("/Subtype /Image")) ||
-		merge.HasSubstring(dict, []byte("/Subtype/Image"))
+	return pdfobj.HasSubstring(dict, []byte("/Subtype /Image")) ||
+		pdfobj.HasSubstring(dict, []byte("/Subtype/Image"))
 }
 
 func hasSMask(dict []byte) bool {
-	return merge.HasSubstring(dict, []byte("/SMask"))
+	return pdfobj.HasSubstring(dict, []byte("/SMask"))
 }
 
 func hasDecodeParms(dict []byte) bool {
-	return merge.HasSubstring(dict, []byte("/DecodeParms")) ||
-		merge.HasSubstring(dict, []byte("/DP "))
+	return pdfobj.HasSubstring(dict, []byte("/DecodeParms")) ||
+		pdfobj.HasSubstring(dict, []byte("/DP "))
 }
 
 func removeNamedValue(dict []byte, name string) []byte {
@@ -250,9 +227,9 @@ func skipPDFValue(data []byte, pos int) int {
 	}
 	switch {
 	case data[pos] == '<' && pos+1 < len(data) && data[pos+1] == '<':
-		return merge.SkipDictionary(data, pos)
+		return pdfobj.SkipDictionary(data, pos)
 	case data[pos] == '[':
-		return merge.SkipArray(data, pos)
+		return pdfobj.SkipArray(data, pos)
 	case data[pos] == '/':
 		pos++
 		for pos < len(data) && isNameContinue(data[pos]) {
@@ -260,7 +237,7 @@ func skipPDFValue(data []byte, pos int) int {
 		}
 		return pos
 	case data[pos] == '(':
-		return merge.SkipStringLiteral(data, pos)
+		return pdfobj.SkipStringLiteral(data, pos)
 	default:
 		return skipNumberOrRef(data, pos)
 	}

@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
 var namedRefRe = regexp.MustCompile(`/([A-Za-z]+)\s+(\d+)\s+\d+\s+R`)
@@ -31,8 +31,8 @@ func stripDocumentMetadata(objects map[int]pdfObject, catalogNum, infoNum int) {
 		if num == catalogNum {
 			continue
 		}
-		if merge.HasSubstring(obj.body, []byte("/Type /Metadata")) ||
-			merge.HasSubstring(obj.body, []byte("/Type/Metadata")) {
+		if pdfobj.HasSubstring(obj.body, []byte("/Type /Metadata")) ||
+			pdfobj.HasSubstring(obj.body, []byte("/Type/Metadata")) {
 			delete(objects, num)
 			continue
 		}
@@ -41,7 +41,7 @@ func stripDocumentMetadata(objects map[int]pdfObject, catalogNum, infoNum int) {
 			delete(objects, thumb)
 			body = removeNamedValue(body, "Thumb")
 		}
-		if merge.HasSubstring(body, []byte("/PieceInfo")) {
+		if pdfobj.HasSubstring(body, []byte("/PieceInfo")) {
 			body = removeNamedValue(body, "PieceInfo")
 		}
 		if !bytes.Equal(body, obj.body) {

@@ -50,6 +50,13 @@ from .generator import (
     get_available_fonts,
     serialize_template,
 )
+from ._bindings import (
+    GoPDFSuitError,
+    InvalidInputError,
+    LimitExceededError,
+    UpstreamError,
+    InternalError,
+)
 from .merge import merge_pdfs
 from .split import split_pdf, parse_page_spec
 from .fill import fill_pdf_with_xfdf
@@ -100,4 +107,10 @@ __all__ = [
     "apply_redactions",
     "find_text_occurrences",
     "apply_redactions_advanced",
+    # Errors
+    "GoPDFSuitError",
+    "InvalidInputError",
+    "LimitExceededError",
+    "UpstreamError",
+    "InternalError",
 ]

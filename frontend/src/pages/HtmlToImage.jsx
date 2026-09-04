@@ -1,44 +1,52 @@
 import { useState } from 'react'
-import { Image, Globe, Download, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
-import { isGitHubPagesHost, makeAuthenticatedRequest, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
+import { Image, Globe, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
+import { isGitHubPagesHost, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import { htmlToImageViaWasm } from '../utils/wasm/html.js'
+import OperationShell from '../components/OperationShell'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const HtmlToImage = () => {
   const [htmlContent, setHtmlContent] = useState('')
   const [url, setUrl] = useState('')
   const [inputType, setInputType] = useState('html')
-  const [isLoading, setIsLoading] = useState(false)
-  const [imageUrl, setImageUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const { isLoading, resultUrl: imageUrl, run, runLocal, download } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => alert(`Error: ${message}`),
+  })
 
   const [config, setConfig] = useState({
-    format: 'png', width: 800, height: 600, quality: 94, zoom: 1.0,
-    crop_width: 0, crop_height: 0, crop_x: 0, crop_y: 0,
+    format: 'png', width: 800, height: 600, quality: 94,
   })
 
   const convertToImage = async () => {
+    // Inline HTML renders in-browser via gopdfsuit.wasm (offline-capable,
+    // no upload). URL sources need the server fetch path (SSRF guard).
+    if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
+    if (inputType === 'html') {
+      await runLocal(() => htmlToImageViaWasm(htmlContent, config), {
+        filename: `html-to-image-${Date.now()}.${config.format}`,
+        autoDownload: false,
+        mimeType: `image/${config.format === 'jpg' ? 'jpeg' : config.format}`,
+      })
+      return
+    }
     if (isGitHubPagesHost()) {
       alert(OFFLINE_DEMO_MESSAGE)
       return
     }
-    if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
-    setIsLoading(true)
-    try {
-      const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
-      const response = await makeAuthenticatedRequest('/api/v1/htmltoimage', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody),
-      }, getAuthHeaders)
-      const blob = await response.blob()
-      const imageBlobUrl = URL.createObjectURL(blob)
-      setImageUrl(imageBlobUrl)
-      const link = document.createElement('a')
-      link.href = imageBlobUrl; link.download = `html-to-image-${Date.now()}.${config.format}`; link.click()
-    } catch (error) {
-      if (error.message.includes("401") || error.message.includes("403")) triggerLogin()
-      else alert('Error: ' + error.message)
-    } finally { setIsLoading(false) }
+    const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
+    await run({
+      endpoint: '/api/v1/htmltoimage',
+      body: JSON.stringify(requestBody),
+      headers: { 'Content-Type': 'application/json' },
+      getAuthHeaders,
+      filename: `html-to-image-${Date.now()}.${config.format}`,
+      mimeType: `image/${config.format === 'jpg' ? 'jpeg' : config.format}`,
+    })
   }
 
   const sampleHtml = `<!DOCTYPE html><html><head><style>body{font-family:Arial;background:#4ecdc4;color:white;text-align:center;padding:50px;margin:0;min-height:100vh;display:flex;flex-direction:column;justify-content:center}h1{font-size:3rem;margin-bottom:1rem}.card{background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border-radius:15px;padding:2rem}</style></head><body><div class="card"><h1>🎨 Beautiful Image</h1><p>Generated from HTML using GoPdfSuit</p></div></body></html>`
@@ -51,13 +59,13 @@ const HtmlToImage = () => {
       <section style={{ padding: '4rem 0 2rem', textAlign: 'center' }}>
         <div className="container">
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(240,147,251,0.1)', border: '1px solid rgba(240,147,251,0.3)', borderRadius: '50px', marginBottom: '1.5rem', color: '#f093fb', fontSize: '0.9rem', fontWeight: '500' }}>
-            <Sparkles size={16} />PNG, JPG, SVG Support
+            <Sparkles size={16} />PNG, JPG Support
           </div>
           <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem', fontSize: 'clamp(2rem,5vw,3rem)', fontWeight: '800', color: 'hsl(var(--foreground))' }}>
             <div className="feature-icon-box blue" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Image size={28} /></div>
             HTML to Image
           </h1>
-          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Convert HTML content or web pages to PNG, JPG, or SVG images</p>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Convert HTML content or web pages to PNG or JPG images</p>
         </div>
       </section>
 
@@ -110,7 +118,7 @@ const HtmlToImage = () => {
                 <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                   <div>
                     <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Format:</label>
-                    <select value={config.format} onChange={(e) => setConfig(p => ({ ...p, format: e.target.value }))} style={inputStyles}><option value="png">PNG</option><option value="jpg">JPG</option><option value="svg">SVG</option></select>
+                    <select value={config.format} onChange={(e) => setConfig(p => ({ ...p, format: e.target.value }))} style={inputStyles}><option value="png">PNG</option><option value="jpg">JPG</option></select>
                   </div>
                   <div>
                     <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Quality (1-100):</label>
@@ -127,32 +135,25 @@ const HtmlToImage = () => {
                     <input type="number" value={config.height} onChange={(e) => setConfig(p => ({ ...p, height: parseInt(e.target.value) || 600 }))} style={inputStyles} />
                   </div>
                 </div>
-                <div className="grid grid-2" style={{ gap: '1rem' }}>
-                  <div>
-                    <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Zoom Factor:</label>
-                    <input type="number" step="0.1" min="0.1" max="5" value={config.zoom} onChange={(e) => setConfig(p => ({ ...p, zoom: parseFloat(e.target.value) || 1.0 }))} style={inputStyles} />
-                  </div>
-                  <div>
-                    <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Crop (W×H):</label>
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <input type="number" placeholder="W" value={config.crop_width || ''} onChange={(e) => setConfig(p => ({ ...p, crop_width: parseInt(e.target.value) || 0 }))} style={{ ...inputStyles, flex: 1 }} />
-                      <input type="number" placeholder="H" value={config.crop_height || ''} onChange={(e) => setConfig(p => ({ ...p, crop_height: parseInt(e.target.value) || 0 }))} style={{ ...inputStyles, flex: 1 }} />
-                    </div>
-                  </div>
-                </div>
+                <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem', margin: '1rem 0 0' }}>Pure-Go engine: zoom and crop_* are no-ops and hidden. SVG output is not supported (png/jpg only).</p>
               </div>
               <button onClick={convertToImage} disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem', padding: '1rem 2rem' }}>
                 {isLoading ? <RefreshCw size={18} className="spin" /> : <Image size={18} />}Convert to Image
               </button>
               {imageUrl && (
-                <div>
-                  <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.75rem', fontSize: '0.95rem', fontWeight: '600' }}>Image Preview:</h4>
-                  <div style={{ border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '1rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', marginBottom: '1rem' }}>
-                    <img src={imageUrl} alt="Generated" style={{ maxWidth: '100%', maxHeight: '280px', borderRadius: '6px', boxShadow: '0 4px 8px rgba(0,0,0,0.3)' }} />
-                  </div>
-                  <button onClick={() => { const link = document.createElement('a'); link.href = imageUrl; link.download = `html-to-image-${Date.now()}.${config.format}`; link.click() }} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-                    <Download size={16} />Download Image
-                  </button>
+                <div style={{ marginTop: '1.5rem' }}>
+                  <OperationShell
+                    resultUrl={imageUrl}
+                    title="Image Preview"
+                    icon={<Image size={18} />}
+                    emptyTitle=""
+                    emptySubtitle=""
+                    onDownload={() => download(`html-to-image-${Date.now()}.${config.format}`)}
+                    downloadLabel="Download Image"
+                    height={280}
+                    kind="image"
+                    imageAlt="Generated"
+                  />
                 </div>
               )}
             </div>
@@ -163,9 +164,9 @@ const HtmlToImage = () => {
               <div className="feature-icon-box yellow" style={{ width: '40px', height: '40px', marginBottom: 0 }}><span style={{ fontSize: '1.2rem' }}>🎨</span></div>Quick Presets
             </h3>
             <div className="grid grid-3" style={{ gap: '1rem' }}>
-              <button onClick={() => setConfig(p => ({ ...p, width: 1920, height: 1080, zoom: 1.0 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>📺 HD (1920×1080)</button>
-              <button onClick={() => setConfig(p => ({ ...p, width: 800, height: 600, zoom: 1.0 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>🖥️ Standard (800×600)</button>
-              <button onClick={() => setConfig(p => ({ ...p, width: 400, height: 400, zoom: 1.0 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>🔲 Square (400×400)</button>
+              <button onClick={() => setConfig(p => ({ ...p, width: 1920, height: 1080 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>📺 HD (1920×1080)</button>
+              <button onClick={() => setConfig(p => ({ ...p, width: 800, height: 600 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>🖥️ Standard (800×600)</button>
+              <button onClick={() => setConfig(p => ({ ...p, width: 400, height: 400 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>🔲 Square (400×400)</button>
             </div>
           </div>
         </div>

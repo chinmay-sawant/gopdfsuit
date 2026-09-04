@@ -57,9 +57,34 @@
 //
 // # Thread Safety
 //
-// The font registry uses a global singleton. When generating PDFs concurrently,
-// the library calls ResetUsage() internally for each generation. For true concurrent
-// PDF generation, consider using external synchronization or generate PDFs sequentially.
+// The font registry is a mutex-guarded global singleton. Each GeneratePDF
+// call clones the registry for the generation, so concurrent GeneratePDF
+// calls sharing fonts are safe. Registering or clearing fonts mutates the
+// global registry: do that before spawning concurrent generations, or guard
+// it with external synchronization.
+//
+// Borrowed buffers: GeneratePDFBorrowed hands out a pooled buffer. Call
+// Release exactly once via defer; Bytes() borrows the buffer (invalid after
+// Release), CopyBytes() copies it for longer retention:
+//
+//	doc, err := gopdflib.GeneratePDFBorrowed(template)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer doc.Release()
+//	out := doc.CopyBytes()
+//
+// # Validation ownership
+//
+// gopdflib is the single validating interface for PDF operations. Every
+// public function rejects obviously-invalid input at the boundary (empty
+// PDFs, empty XFDF, empty search text, missing HTML/URL) before reaching the
+// engine, and applies shared defaults (see ParseCompressLevel and
+// normalizeCompressOptions). Entry points above this package - the CGO
+// exports in bindings/python/cgo, the HTTP handlers, the WASM shim - enforce
+// transport-only guards (nil pointers, insane lengths, malformed JSON) and
+// delegate all semantic validation here. Do not duplicate content checks in
+// those layers; fix them here so Go, Python, HTTP, and WASM share one policy.
 //
 // # Features
 //

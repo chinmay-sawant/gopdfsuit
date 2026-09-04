@@ -12,7 +12,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
 var (
@@ -25,12 +25,12 @@ var (
 )
 
 // buildObjectMap parses the PDF into object-number → body slices and complements
-// it with xref-stream and object-stream expansion via the merge helpers.
+// it with xref-stream and object-stream expansion via the pdfobj read seam.
 func buildObjectMap(pdfBytes []byte) (map[int][]byte, map[int]int, error) {
 	objMap := make(map[int][]byte)
 	objGen := make(map[int]int)
 
-	for _, b := range merge.FindObjectBoundaries(pdfBytes) {
+	for _, b := range pdfobj.FindObjectBoundaries(pdfBytes) {
 		bodyEnd := b.End - len("endobj")
 		for bodyEnd > b.BodyStart && isPDFWhitespace(pdfBytes[bodyEnd-1]) {
 			bodyEnd--
@@ -39,8 +39,8 @@ func buildObjectMap(pdfBytes []byte) (map[int][]byte, map[int]int, error) {
 		objMap[b.ObjNum] = body
 		objGen[b.ObjNum] = b.GenNum
 
-		if merge.IsObjectStream(body) {
-			for onum, frag := range merge.ParseObjectStream(body) {
+		if pdfobj.IsObjectStream(body) {
+			for onum, frag := range pdfobj.ParseObjectStream(body) {
 				objMap[onum] = frag
 				objGen[onum] = 0
 			}
@@ -828,29 +828,10 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 	}
 	sort.Ints(ids)
 
-	start := ids[0]
-	block := []int{ids[0]}
-	flushBlock := func() {
-		if len(block) == 0 {
-			return
-		}
-		out.WriteString(fmt.Sprintf("%d %d\n", start, len(block)))
-		for _, id := range block {
-			entry := offsetByObject[id]
-			out.Write(xrefEntryBytes(entry.offset, entry.gen))
-		}
-	}
-
-	for i := 1; i < len(ids); i++ {
-		if ids[i] == ids[i-1]+1 {
-			block = append(block, ids[i])
-			continue
-		}
-		flushBlock()
-		start = ids[i]
-		block = []int{ids[i]}
-	}
-	flushBlock()
+	pdfobj.WriteIncrementalXRef(&out, ids, func(id int) pdfobj.IncrementalEntry {
+		entry := offsetByObject[id]
+		return pdfobj.IncrementalEntry{ID: id, Offset: entry.offset, Gen: entry.gen}
+	})
 
 	trailerIDPart := ""
 	if trailerID != "" {
@@ -860,30 +841,6 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 	fmt.Fprintf(&out, "trailer\n<< /Size %d /Root %s R /Prev %d%s >>\nstartxref\n%d\n%%%%EOF\n", maxID+1, rootRefStr, prevStartXRef, trailerIDPart, xrefStart)
 
 	return out.Bytes(), nil
-}
-
-func xrefEntryBytes(offset, gen int) []byte {
-	var buf [20]byte
-	pos := 9
-	off := offset
-	for range 10 {
-		buf[pos] = byte('0' + off%10)
-		off /= 10
-		pos--
-	}
-	buf[10] = ' '
-	pos = 15
-	g := gen
-	for range 5 {
-		buf[pos] = byte('0' + g%10)
-		g /= 10
-		pos--
-	}
-	buf[16] = ' '
-	buf[17] = 'n'
-	buf[18] = ' '
-	buf[19] = '\n'
-	return buf[:]
 }
 
 func extractPrimaryTrailerID(pdfBytes []byte) string {

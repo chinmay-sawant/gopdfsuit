@@ -25,14 +25,14 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o gopdfsuit ./
 
 
 # --- Final stage ---
-# Use the smaller headless-shell runtime instead of installing full Chromium.
-FROM chromedp/headless-shell:latest
+# Pure-Go HTML pipeline (gowkhtmltopdf): no browser runtime.
+FROM debian:bookworm-slim
 
 ARG VERSION=latest
 LABEL version=$VERSION
 
 RUN rm -rf /usr/share/doc /usr/share/man /usr/share/locale && \
-	apt-get update && apt-get install -y --no-install-recommends dumb-init && \
+	apt-get update && apt-get install -y --no-install-recommends dumb-init ca-certificates && \
 	apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/
@@ -45,7 +45,6 @@ COPY --from=builder /app/LICENSE .
 COPY --from=builder /app/README.md .
 COPY --from=builder /app/temp_multiplepage.json .
 
-ENV CHROME_PATH=/headless-shell/headless-shell
 ENV GOPDFSUIT_ROOT=/app
 
 EXPOSE 8080

@@ -38,9 +38,82 @@ class ByteArrayResult(Structure):
 
 
 class GoPDFSuitError(Exception):
-    """Exception raised when the Go library returns an error."""
+    """Exception raised when the Go library returns an error.
 
-    pass
+    Carries the shared {code,message} envelope: ``code`` is one of
+    ``invalid_input``, ``limit_exceeded``, ``upstream`` or ``internal``.
+    ``str(exc)`` is the message, so existing handlers keep working.
+    """
+
+    code = "internal"
+
+    def __init__(self, message="", code="internal"):
+        super().__init__(message)
+        self.message = message
+        self.code = code
+
+
+class InvalidInputError(GoPDFSuitError):
+    """Malformed client input (HTTP 422)."""
+
+    code = "invalid_input"
+
+    def __init__(self, message=""):
+        super().__init__(message, "invalid_input")
+
+
+class LimitExceededError(GoPDFSuitError):
+    """Input over an accepted size cap (HTTP 413)."""
+
+    code = "limit_exceeded"
+
+    def __init__(self, message=""):
+        super().__init__(message, "limit_exceeded")
+
+
+class UpstreamError(GoPDFSuitError):
+    """Downstream dependency failure (HTTP 502)."""
+
+    code = "upstream"
+
+    def __init__(self, message=""):
+        super().__init__(message, "upstream")
+
+
+class InternalError(GoPDFSuitError):
+    """Engine failure (HTTP 500)."""
+
+    code = "internal"
+
+    def __init__(self, message=""):
+        super().__init__(message, "internal")
+
+
+_CODE_TO_ERROR = {
+    "invalid_input": InvalidInputError,
+    "limit_exceeded": LimitExceededError,
+    "upstream": UpstreamError,
+    "internal": InternalError,
+}
+
+
+def raise_for_error(raw_error: str) -> None:
+    """Raise the typed GoPDFSuitError subclass for a C error payload.
+
+    Newer libraries send the {code,message} JSON envelope; older payloads
+    are plain message strings and raise the base GoPDFSuitError.
+    """
+    import json
+
+    try:
+        payload = json.loads(raw_error)
+    except (ValueError, TypeError):
+        payload = None
+    if isinstance(payload, dict) and isinstance(payload.get("message"), str):
+        code = payload.get("code", "internal")
+        cls = _CODE_TO_ERROR.get(code, GoPDFSuitError)
+        raise cls(payload["message"])
+    raise GoPDFSuitError(raw_error)
 
 
 def _find_library() -> str:
@@ -181,7 +254,7 @@ def call_bytes_result(func, *args) -> bytes:
     try:
         if result.error:
             error_msg = result.error.decode("utf-8")
-            raise GoPDFSuitError(error_msg)
+            raise_for_error(error_msg)
 
         if result.data is None or result.data == 0 or result.length <= 0:
             return b""
@@ -214,7 +287,7 @@ def call_bytes_array_result(func, *args) -> list:
     try:
         if result.error:
             error_msg = result.error.decode("utf-8")
-            raise GoPDFSuitError(error_msg)
+            raise_for_error(error_msg)
 
         if result.count <= 0:
             return []

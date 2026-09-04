@@ -6,7 +6,8 @@ export const apiReferenceSection = {
       title: 'Generate PDF',
       method: 'POST',
       endpoint: '/api/v1/generate/template-pdf',
-      description: 'Generate a PDF document from a JSON template. Returns the PDF as binary data.',
+      transport: 'browser-local',
+      description: 'Generate a PDF document from a JSON template. Returns the PDF as binary data. Browser-local via gopdfsuit.wasm goGeneratePDF (offline once downloaded, pdfaCompliant embeds JS-registered Liberation subsets); server endpoint equivalent.',
       params: [
         { name: 'config', type: 'object', required: true, description: 'Page configuration (size, orientation, security, signature)' },
         { name: 'title', type: 'object', required: true, description: 'Document title section' },
@@ -124,7 +125,8 @@ if pdf_bytes:
       title: 'Merge PDFs',
       method: 'POST',
       endpoint: '/api/v1/merge',
-      description: 'Combine multiple PDF files into a single document. Send PDFs as multipart form data.',
+      transport: 'browser-local',
+      description: 'Combine multiple PDF files into a single document. Send PDFs as multipart form data. Browser-local (WASM-first via goMergePDF) with server consent fallback; VITE_WASM_TRANSPORT=server forces server.',
       params: [
         { name: 'pdf', type: 'file', required: true, description: 'PDF files to merge (multiple). Files are merged in order received.' }
       ],
@@ -152,7 +154,8 @@ const mergedPdf = await response.blob();`
       title: 'Fill PDF Form',
       method: 'POST',
       endpoint: '/api/v1/fill',
-      description: 'Fill AcroForm fields in a PDF using XFDF data. Returns the filled PDF.',
+      transport: 'browser-local',
+      description: 'Fill AcroForm fields in a PDF using XFDF data. Returns the filled PDF. Browser-local (WASM-first via goFillPDF after the 01 Fill binding) with server consent fallback.',
       params: [
         { name: 'pdf', type: 'file', required: true, description: 'The PDF file with form fields to fill' },
         { name: 'xfdf', type: 'file', required: true, description: 'XFDF file containing field values' }
@@ -179,7 +182,8 @@ const filledPdf = await response.blob();`
       title: 'HTML to PDF',
       method: 'POST',
       endpoint: '/api/v1/htmltopdf',
-      description: 'Convert HTML content or a URL to PDF using headless Chrome.',
+      transport: 'server-only',
+      description: 'Convert HTML content or a URL to PDF with the pure-Go engine (no browser). Fidelity limits: scripts stripped, partial flex/grid, backgrounds/gradients ignored, WOFF2 and data-URI font faces skipped. Server-only (never WASM; see plans/wasm/02-gowkhtmltopdf-replace.md).',
       params: [
         { name: 'html', type: 'string', required: false, description: 'Raw HTML content to convert' },
         { name: 'url', type: 'string', required: false, description: 'URL of the page to convert (if html not provided)' },
@@ -212,11 +216,12 @@ const pdfBlob = await response.blob();`
       title: 'HTML to Image',
       method: 'POST',
       endpoint: '/api/v1/htmltoimage',
-      description: 'Convert HTML content or a URL to PNG, JPG, or SVG using headless Chrome.',
+      transport: 'server-only',
+      description: 'Convert HTML content or a URL to PNG or JPG with the pure-Go engine (no browser). SVG output is not supported; zoom and crop_* are no-ops. Fidelity limits: scripts stripped, partial flex/grid, backgrounds ignored, WOFF2 skipped. Server-only (never WASM; see plans/wasm/02-gowkhtmltopdf-replace.md).',
       params: [
         { name: 'html', type: 'string', required: false, description: 'Raw HTML content to convert' },
         { name: 'url', type: 'string', required: false, description: 'URL of the page to convert' },
-        { name: 'format', type: 'string', default: 'png', description: 'Output format: png, jpg, svg' },
+        { name: 'format', type: 'string', default: 'png', description: 'Output format: png, jpg (svg unsupported)' },
         { name: 'width', type: 'int', default: '1920', description: 'Viewport width in pixels' },
         { name: 'height', type: 'int', default: '1080', description: 'Viewport height in pixels' }
       ],
@@ -248,7 +253,8 @@ const imageBlob = await response.blob();`
       title: 'Get Template Data',
       method: 'GET',
       endpoint: '/api/v1/template-data',
-      description: 'Retrieve a saved template JSON file from the server.',
+      transport: 'browser-local',
+      description: 'Retrieve a saved template JSON file. Bundled samples load from /templates/ offline (Cache API); arbitrary files still come from the server endpoint.',
       params: [
         { name: 'file', type: 'string', required: true, description: 'Filename of the template (e.g., temp_multiplepage.json)' }
       ],
@@ -263,7 +269,8 @@ const template = await response.json();`
       title: 'Redact PDF',
       method: 'POST',
       endpoint: '/api/v1/redact/apply',
-      description: 'Apply redactions to a PDF document using explicit regions or text search. Send as multipart form data.',
+      transport: 'server-side for now',
+      description: 'Apply redactions to a PDF document using explicit regions or text search. Send as multipart form data. Server-side for now (no privacy win yet; WASM text path after plans/wasm/01 engine lands). Page-info is already client-side via pdfjs.',
       params: [
         { name: 'pdf', type: 'file', required: true, description: 'The PDF file to redact' },
         { name: 'blocks', type: 'string', required: false, description: 'JSON array of RedactionRect objects' },

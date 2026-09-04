@@ -19,6 +19,7 @@ import (
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/encryption"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/signature"
 	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/fontutils"
 )
@@ -36,6 +37,13 @@ func (d *BorrowedPDF) Bytes() []byte {
 		return d.buf.Bytes()
 	}
 	return d.bytes
+}
+
+// CopyBytes returns a copy of the PDF bytes that remains valid after
+// Release. Prefer Bytes when the slice is only used before Release to
+// avoid the extra allocation.
+func (d *BorrowedPDF) CopyBytes() []byte {
+	return slices.Clone(d.Bytes())
 }
 
 func (d *BorrowedPDF) Len() int {
@@ -273,9 +281,8 @@ func maxXrefObjectID(xrefOffsets []int, floor int) int {
 	return maxID
 }
 
-// pageCompressSlots limits concurrent per-page zlib compression (C4: reduces flate.NewWriter churn).
-var pageCompressSlots = make(chan struct{}, maxPageCompressWorkers())
-
+// maxPageCompressWorkers bounds concurrent per-page zlib compression (C4:
+// reduces flate.NewWriter churn). Applied via errgroup.SetLimit at use sites.
 func maxPageCompressWorkers() int {
 	n := runtime.NumCPU()
 	if n < 4 {
@@ -292,23 +299,27 @@ var scratchBufPool = sync.Pool{
 	},
 }
 
-// signatureContextAdapter wraps PageManager to implement signature.SignaturePageContext
+// signatureContextAdapter wraps PageManager to implement signature.SignaturePageContext.
+// Object IDs flow through the generation Allocator so signature fields can
+// never collide with content, font, or other extra IDs (Phase 5 D1).
 type signatureContextAdapter struct {
-	pm *PageManager
+	pm    *PageManager
+	alloc *Allocator
 }
 
 func (a *signatureContextAdapter) AllocObjectID() int {
-	id := a.pm.NextObjectID
-	a.pm.NextObjectID++
-	return id
+	if a.alloc != nil {
+		return a.alloc.Alloc()
+	}
+	return a.pm.AllocObjectID()
 }
 
 func (a *signatureContextAdapter) SetExtraObject(id int, content string) {
-	a.pm.ExtraObjects[id] = []byte(content)
+	a.pm.CommitExtraObjectString(id, content)
 }
 
 func (a *signatureContextAdapter) SetExtraObjectBytes(id int, content []byte) {
-	a.pm.ExtraObjects[id] = content
+	a.pm.CommitExtraObject(id, content)
 }
 
 func (a *signatureContextAdapter) AppendPageAnnot(pageIndex int, annotID int) {
@@ -353,6 +364,10 @@ func GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	defer doc.Release()
 	return slices.Clone(doc.Bytes()), nil
 }
+
+// maxLowRegionFontObjects bounds the std-font dict/descriptor/width IDs
+// assigned after fontObjectStart in the dense low-region layout.
+const maxLowRegionFontObjects = 64
 
 //nolint:gocyclo // large template renderer with many element-type branches
 func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF, err error) {
@@ -426,6 +441,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Initialize page manager with Arlington compatibility flag and per-generation font registry
 	pageManager := NewPageManager(pageDims, pageMargins, template.Config.ArlingtonCompatible, fontRegistry, taggedPDF, estimateInitialContentStreamCap(template))
 	defer pageManager.ReleaseContentStreams()
+	// Phase 5 D1: one Allocator owns ID reservation, ExtraObjects commit,
+	// and xref-offset recording for the rest of generation.
+	alloc := pageManager.ObjectAllocator(xrefOffsets)
 	if taggedPDF {
 		pageManager.Structure.ReserveElementCapacity(estimateStructureElementCount(template))
 	}
@@ -439,7 +457,13 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	cellImageObjects := make(map[string]*ImageObject)
 	cellImageObjectIDs := make(map[string]int)
 
-	nextImageObjectID := 1000 // Start image objects at ID 1000
+	// Image object IDs come from the page manager allocator so they can never
+	// collide with page, content, font, or extra object IDs (a fixed base
+	// collided once documents grew past ~997 pages).
+	// extraRegionBase marks where allocator-backed IDs start; the dense
+	// low-region layout (pages/contents/fonts, below) must stay clear of it.
+	nextImageObjectID := alloc.Next()
+	extraRegionBase := nextImageObjectID
 
 	// Reuse identical decoded images across all document references so repeated
 	// cell PNGs point at one shared XObject instead of serializing duplicates.
@@ -534,8 +558,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// This ensures that when content streams are generated, custom font references
 	// (e.g., /CF2000) have valid object IDs. Custom fonts start AFTER image objects
 	// to avoid conflicts with image XObjects.
-	customFontObjectStart := nextImageObjectID
-	fontRegistry.AssignObjectIDs(customFontObjectStart)
+	alloc.SeekTo(nextImageObjectID)
+	customFontObjectStart := alloc.Next()
+	alloc.SeekTo(fontRegistry.AssignObjectIDs(customFontObjectStart))
 
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
@@ -588,7 +613,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		if template.Config.PdfTitle != "" && template.Config.PDFA.Title == "" {
 			template.Config.PDFA.Title = template.Config.PdfTitle
 		}
-		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor)
+		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor, alloc)
 	} else if template.Config.PDFACompliant {
 		// If using valid PDF/A mode but no explicit PDFA config, create one to ensure metadata
 		pdfaConfig := &models.PDFAConfig{
@@ -596,14 +621,16 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			Conformance: "4", // Default for PDF/A-4
 			Title:       template.Config.PdfTitle,
 		}
-		pdfaHandler = NewPDFAHandler(pdfaConfig, pageManager, encryptor)
+		pdfaHandler = NewPDFAHandler(pdfaConfig, pageManager, encryptor, alloc)
 	}
 
 	// Calculate object IDs for fonts early (needed for signature font embedding)
 	// Calculate total pages first
 	totalPages := len(pageManager.Pages)
-	contentObjectStart := totalPages + 3               // Content objects start after pages
-	fontObjectStart := contentObjectStart + totalPages // Fonts start after content
+	contentObjectStart, fontObjectStart, err := alloc.LayoutContentFontIDs(totalPages, extraRegionBase)
+	if err != nil {
+		return nil, err
+	}
 
 	// Standard fonts definition
 	fontNames := []string{
@@ -682,6 +709,13 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		}
 	}
 
+	// Keep the allocator past the font block so later extras (signature
+	// field, metadata, struct tree, ICC, AcroForm, info, encrypt) can never
+	// reuse those IDs. In the legacy layout this is a no-op (fonts sit far
+	// below NextObjectID); in a shifted layout it advances past the fonts.
+	// It must run before signature creation, which allocates via the manager.
+	alloc.EnsureBeyond(currentObjectID)
+
 	// Setup digital signature if enabled
 	var pdfSigner *signature.PDFSigner
 	var sigIDs *signature.SignatureIDs
@@ -702,7 +736,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 				Width:  pageDims.Width,
 				Height: pageDims.Height,
 			}
-			sigIDs = pdfSigner.CreateSignatureField(&signatureContextAdapter{pm: pageManager}, sigPageDims, signatureFontID)
+			sigIDs = pdfSigner.CreateSignatureField(&signatureContextAdapter{pm: pageManager, alloc: alloc}, sigPageDims, signatureFontID)
 		}
 	}
 
@@ -728,33 +762,25 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Reserve object IDs for PDF/A compliance objects (will be written at the end)
 	// These need to be referenced in the Catalog
 	// These need to be referenced in the Catalog
-	metadataObjectID := pageManager.NextObjectID
-	pageManager.NextObjectID++
+	metadataObjectID := alloc.Alloc()
 
 	var structTreeRootID int
 	if taggedPDF {
-		structTreeRootID = pageManager.NextObjectID
-		pageManager.NextObjectID++
+		structTreeRootID = alloc.Alloc()
 	}
 	var iccProfileObjectID, outputIntentObjectID, grayICCProfileObjID int
 	if template.Config.PDFACompliant {
-		iccProfileObjectID = pageManager.NextObjectID
-		pageManager.NextObjectID++
-		outputIntentObjectID = pageManager.NextObjectID
-		pageManager.NextObjectID++
+		iccProfileObjectID = alloc.Alloc()
+		outputIntentObjectID = alloc.Alloc()
 		// Reserve Gray ICC profile object ID for DeviceGray color space
-		grayICCProfileObjID = pageManager.NextObjectID
-		pageManager.NextObjectID++
+		grayICCProfileObjID = alloc.Alloc()
 	}
 
-	// Calculate total pages for bookmarks
-	// totalPages is already calculated above
-
-	// Bookmarks are generated using outlineBuilder earlier (lines 168-171)
-	// outlineRootID := pageManager.GenerateBookmarks(template.Bookmarks, xrefOffsets, &pdfBuffer)
+	// Bookmarks are generated using outlineBuilder above; the legacy
+	// GenerateBookmarks path was removed (see OutlineBuilder).
 
 	// Object 1: Catalog
-	setXrefOffset(xrefOffsets, 1, pdfBuffer.Len())
+	alloc.SetOffset(1, pdfBuffer.Len())
 	pdfBuffer.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R")
 	// Add language tag for accessibility (PDF/UA requirement)
 	pdfBuffer.WriteString(" /Lang (en-US)")
@@ -788,8 +814,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	}
 	if len(allWidgetIDs) > 0 {
 		// Create AcroForm object
-		acroFormID := pageManager.NextObjectID
-		pageManager.NextObjectID++
+		acroFormID := alloc.Alloc()
 
 		var fieldsRef strings.Builder
 		fieldsRef.WriteString("[")
@@ -820,7 +845,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			acroFormContent = append(acroFormContent, widgetFontRef...)
 			acroFormContent = append(acroFormContent, " 0 Tf 0 g) >>"...)
 		}
-		pageManager.ExtraObjects[acroFormID] = acroFormContent
+		alloc.Commit(acroFormID, acroFormContent)
 
 		pdfBuffer.WriteString(" /AcroForm ")
 		b = b[:0]
@@ -856,7 +881,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	pdfBuffer.WriteString(" >>\nendobj\n")
 
 	// Object 2: Pages (will be updated after we know total page count)
-	setXrefOffset(xrefOffsets, 2, pdfBuffer.Len())
+	alloc.SetOffset(2, pdfBuffer.Len())
 	pdfBuffer.WriteString("2 0 obj\n")
 	pdfBuffer.WriteString("<< /Type /Pages /Kids [")
 	pdfBuffer.WriteString(formatPageKids(pageManager.Pages))
@@ -963,7 +988,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 	// Generate page objects
 	for i, pageID := range pageManager.Pages {
-		setXrefOffset(xrefOffsets, pageID, pdfBuffer.Len())
+		alloc.SetOffset(pageID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(pageID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1048,11 +1073,9 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	compressedPages := make([]*bytes.Buffer, nStreams)
 	useFlate := make([]bool, nStreams)
 	var compGroup errgroup.Group
+	compGroup.SetLimit(maxPageCompressWorkers())
 	for si := range pageManager.ContentStreams {
 		compGroup.Go(func() error {
-			pageCompressSlots <- struct{}{}
-			defer func() { <-pageCompressSlots }()
-
 			contentStream := pageManager.ContentStreams[si]
 			compressedBuf, ok := compressContentStream(contentStream.Bytes())
 			if !ok {
@@ -1069,7 +1092,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	}
 	for i := range pageManager.ContentStreams {
 		objectID := contentObjectStart + i
-		setXrefOffset(xrefOffsets, objectID, pdfBuffer.Len())
+		alloc.SetOffset(objectID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(objectID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1132,7 +1155,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			group := widthGroups[name]
 			if !generatedGroupWidths[group] {
 				widthsID := fontWidthsIDs[group]
-				setXrefOffset(xrefOffsets, widthsID, pdfBuffer.Len())
+				alloc.SetOffset(widthsID, pdfBuffer.Len())
 				pdfBuffer.WriteString(GenerateWidthsArrayObject(name, widthsID))
 				generatedGroupWidths[group] = true
 			}
@@ -1149,11 +1172,11 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			widthsObjID := fontWidthsIDs[widthGroups[name]]
 
 			// Generate Font Dictionary
-			setXrefOffset(xrefOffsets, fontObjID, pdfBuffer.Len())
+			alloc.SetOffset(fontObjID, pdfBuffer.Len())
 			pdfBuffer.WriteString(GenerateFontObject(name, fontObjID, fdObjID, widthsObjID))
 
 			// Generate Font Descriptor
-			setXrefOffset(xrefOffsets, fdObjID, pdfBuffer.Len())
+			alloc.SetOffset(fdObjID, pdfBuffer.Len())
 			pdfBuffer.WriteString(GenerateFontDescriptorObject(name, fdObjID))
 		}
 	} else {
@@ -1164,7 +1187,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			}
 
 			fontObjID := fontObjectIDs[name]
-			setXrefOffset(xrefOffsets, fontObjID, pdfBuffer.Len())
+			alloc.SetOffset(fontObjID, pdfBuffer.Len())
 			pdfBuffer.WriteString(GenerateSimpleFontObject(name, fontRefs[i], fontObjID))
 		}
 	}
@@ -1191,7 +1214,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			imgObj.ColorSpace = iccColorSpace
 		}
 
-		setXrefOffset(xrefOffsets, imgObj.ObjectID, pdfBuffer.Len())
+		alloc.SetOffset(imgObj.ObjectID, pdfBuffer.Len())
 		if enc != nil {
 			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
 		} else {
@@ -1210,7 +1233,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			imgObj.ColorSpace = iccColorSpace
 		}
 
-		setXrefOffset(xrefOffsets, imgObj.ObjectID, pdfBuffer.Len())
+		alloc.SetOffset(imgObj.ObjectID, pdfBuffer.Len())
 		if enc != nil {
 			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
 		} else {
@@ -1229,7 +1252,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			imgObj.ColorSpace = iccColorSpace
 		}
 
-		setXrefOffset(xrefOffsets, imgObj.ObjectID, pdfBuffer.Len())
+		alloc.SetOffset(imgObj.ObjectID, pdfBuffer.Len())
 		if enc != nil {
 			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
 		} else {
@@ -1242,7 +1265,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	for _, font := range usedFonts {
 		fontObjects := GenerateTrueTypeFontObjects(font, encryptor)
 		for objID, content := range fontObjects {
-			setXrefOffset(xrefOffsets, objID, pdfBuffer.Len())
+			alloc.SetOffset(objID, pdfBuffer.Len())
 			b = b[:0]
 			b = strconv.AppendInt(b, int64(objID), 10)
 			b = append(b, " 0 obj\n"...)
@@ -1254,7 +1277,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 	// Generate Extra Objects (Widgets, Appearance Streams, AcroForm)
 	for id, content := range pageManager.ExtraObjects {
-		setXrefOffset(xrefOffsets, id, pdfBuffer.Len())
+		alloc.SetOffset(id, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(id), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1276,7 +1299,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		docIDForXMP := strconv.FormatInt(genTime.UnixNano(), 16)
 		_, metadataContent := pdfaHandler.GenerateXMPMetadata(docIDForXMP, genTime)
 		// Write metadata object using the pre-reserved ID that's already in the Catalog
-		setXrefOffset(xrefOffsets, metadataObjectID, pdfBuffer.Len())
+		alloc.SetOffset(metadataObjectID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(metadataObjectID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1290,7 +1313,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 		// Write ICC profile object (with stream)
 		if len(outputIntentObjs) > 0 {
-			setXrefOffset(xrefOffsets, iccProfileObjectID, pdfBuffer.Len())
+			alloc.SetOffset(iccProfileObjectID, pdfBuffer.Len())
 			// Write ICC profile dictionary header and compressed data
 			pdfBuffer.WriteString(outputIntentObjs[0])
 			pdfBuffer.Write(compressedICCData)
@@ -1299,13 +1322,13 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 		// Write Gray ICC profile object for DeviceGray color space compliance
 		if grayICCProfileObjID > 0 {
-			setXrefOffset(xrefOffsets, grayICCProfileObjID, pdfBuffer.Len())
+			alloc.SetOffset(grayICCProfileObjID, pdfBuffer.Len())
 			pdfBuffer.Write(GenerateGrayICCProfileObject(grayICCProfileObjID, encryptor))
 		}
 
 		// Write OutputIntent object
 		if len(outputIntentObjs) > 1 {
-			setXrefOffset(xrefOffsets, outputIntentObjectID, pdfBuffer.Len())
+			alloc.SetOffset(outputIntentObjectID, pdfBuffer.Len())
 			pdfBuffer.WriteString(outputIntentObjs[1])
 			pdfBuffer.WriteString("\n")
 		}
@@ -1315,8 +1338,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Generate Info dictionary - keeping minimal for PDF 2.0
 	// Note: Producer, Creator, Title are deprecated in PDF 2.0 but still widely used
 	// For full compliance, these should be in XMP metadata stream instead
-	infoObjectID := pageManager.NextObjectID
-	pageManager.NextObjectID++
+	infoObjectID := alloc.Alloc()
 	// Format date according to PDF spec: D:YYYYMMDDHHmmSSOHH'mm'
 	now := genTime
 	_, tzOffset := now.Zone()
@@ -1333,7 +1355,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Info key shall not be present in trailer unless PieceInfo exists in catalog
 	// All metadata should be in XMP stream instead
 	if !template.Config.PDFACompliant {
-		setXrefOffset(xrefOffsets, infoObjectID, pdfBuffer.Len())
+		alloc.SetOffset(infoObjectID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(infoObjectID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1349,9 +1371,8 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Write encryption dictionary object if encryption was set up
 	var encryptObjID int
 	if enc != nil {
-		encryptObjID = pageManager.NextObjectID
-		pageManager.NextObjectID++
-		setXrefOffset(xrefOffsets, encryptObjID, pdfBuffer.Len())
+		encryptObjID = alloc.Alloc()
+		alloc.SetOffset(encryptObjID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(encryptObjID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1385,23 +1406,23 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Always generate metadata (for document info)
 	// Only generate if not already generated by pdfaHandler
 	if pdfaHandler == nil {
-		setXrefOffset(xrefOffsets, metadataObjectID, pdfBuffer.Len())
+		alloc.SetOffset(metadataObjectID, pdfBuffer.Len())
 		pdfBuffer.WriteString(GenerateXMPMetadataObject(metadataObjectID, hex.EncodeToString(contentHashArr[:]), creationDate, encryptor))
 
 		// Only generate ICC profile and OutputIntent for PDF/A mode
 		// This is the key fix: without these, Adobe Acrobat won't apply color management
 		// and colors will appear as intended (same as in Chrome/browser)
 		if template.Config.PDFACompliant {
-			setXrefOffset(xrefOffsets, iccProfileObjectID, pdfBuffer.Len())
+			alloc.SetOffset(iccProfileObjectID, pdfBuffer.Len())
 			pdfBuffer.Write(GenerateICCProfileObject(iccProfileObjectID, encryptor))
 
 			// Write Gray ICC profile object for DeviceGray color space compliance
 			if grayICCProfileObjID > 0 {
-				setXrefOffset(xrefOffsets, grayICCProfileObjID, pdfBuffer.Len())
+				alloc.SetOffset(grayICCProfileObjID, pdfBuffer.Len())
 				pdfBuffer.Write(GenerateGrayICCProfileObject(grayICCProfileObjID, encryptor))
 			}
 
-			setXrefOffset(xrefOffsets, outputIntentObjectID, pdfBuffer.Len())
+			alloc.SetOffset(outputIntentObjectID, pdfBuffer.Len())
 			pdfBuffer.WriteString(GenerateOutputIntentObject(outputIntentObjectID, iccProfileObjectID, encryptor))
 		}
 	}
@@ -1418,25 +1439,22 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			if elem == nil || elem.ObjectID != 0 {
 				continue
 			}
-			elem.ObjectID = pageManager.NextObjectID
-			pageManager.NextObjectID++
+			elem.ObjectID = alloc.Alloc()
 		}
 
 		// 2. Generate ParentTree
-		parentTreeID := pageManager.NextObjectID
-		pageManager.NextObjectID++
+		parentTreeID := alloc.Alloc()
 
 		// 3. Generate PDF 2.0 Namespace for PDF/UA-2
-		namespaceID := pageManager.NextObjectID
-		pageManager.NextObjectID++
+		namespaceID := alloc.Alloc()
 
-		setXrefOffset(xrefOffsets, namespaceID, pdfBuffer.Len())
+		alloc.SetOffset(namespaceID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(namespaceID), 10)
 		b = append(b, " 0 obj\n<< /Type /Namespace /NS (http://iso.org/pdf2/ssn) >>\nendobj\n"...)
 		pdfBuffer.Write(b)
 
-		setXrefOffset(xrefOffsets, structTreeRootID, pdfBuffer.Len())
+		alloc.SetOffset(structTreeRootID, pdfBuffer.Len())
 		b = b[:0]
 		b = strconv.AppendInt(b, int64(structTreeRootID), 10)
 		b = append(b, " 0 obj\n"...)
@@ -1445,7 +1463,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		pdfBuffer.WriteString("\nendobj\n")
 
 		// Write ParentTree
-		setXrefOffset(xrefOffsets, parentTreeID, pdfBuffer.Len())
+		alloc.SetOffset(parentTreeID, pdfBuffer.Len())
 
 		// Build ParentTree Nums map
 		// Maps StructParents key (page index) to Array of IndirectRefs to StructElems
@@ -1522,12 +1540,12 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 				if len(tdBatch) > 0 && len(tdBatch)+128 > cap(tdLeafBatch) {
 					flushTDLeafBatch()
 				}
-				setXrefOffset(xrefOffsets, elem.ObjectID, pdfBuffer.Len()+len(tdBatch))
+				alloc.SetOffset(elem.ObjectID, pdfBuffer.Len()+len(tdBatch))
 				tdBatch = appendStructElemTDLeafBytes(tdBatch, elem, structFmt)
 				continue
 			}
 			flushTDLeafBatch()
-			setXrefOffset(xrefOffsets, elem.ObjectID, pdfBuffer.Len())
+			alloc.SetOffset(elem.ObjectID, pdfBuffer.Len())
 			if formatTRStructElemObjectTo(pdfBuffer, elem, structFmt) {
 				continue
 			}
@@ -1547,53 +1565,10 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	maxObjID := maxXrefObjectID(*xrefOffsets, infoObjectID)
 	totalObjects := maxObjID + 1
 
-	// Write compact XRef table using subsections
-	xrefStart := pdfBuffer.Len()
-	pdfBuffer.WriteString("xref\n")
-
-	// Group consecutive objects into subsections
-	var subsections []struct{ start, count int }
-	i := 0
-	for i < len(usedObjects) {
-		start := usedObjects[i]
-		count := 1
-		for i+count < len(usedObjects) && usedObjects[i+count] == start+count {
-			count++
-		}
-		subsections = append(subsections, struct{ start, count int }{start, count})
-		i += count
-	}
-
-	for _, sub := range subsections {
-		b = b[:0]
-		b = strconv.AppendInt(b, int64(sub.start), 10)
-		b = append(b, ' ')
-		b = strconv.AppendInt(b, int64(sub.count), 10)
-		b = append(b, '\n')
-		pdfBuffer.Write(b)
-		for j := 0; j < sub.count; j++ {
-			objID := sub.start + j
-			if objID == 0 {
-				pdfBuffer.WriteString("0000000000 65535 f \n")
-			} else if offset, exists := xrefOffsetAt(*xrefOffsets, objID); exists {
-				// Manual zero-padded 10-digit integer (replaces fmt.Sprintf("%010d 00000 n \n", offset))
-				b = b[:0]
-				b = strconv.AppendInt(b, int64(offset), 10)
-				// Pad to 10 digits
-				padding := 10 - len(b)
-				if padding > 0 {
-					// Shift existing digits right
-					b = b[:10]
-					copy(b[padding:], b[:10-padding])
-					for k := range padding {
-						b[k] = '0'
-					}
-				}
-				b = append(b, " 00000 n \n"...)
-				pdfBuffer.Write(b)
-			}
-		}
-	}
+	// Write compact XRef table using subsections (pdfobj write seam).
+	xrefStart := pdfobj.WriteCompactXRefSorted(pdfBuffer, usedObjects, func(objID int) (int, bool) {
+		return xrefOffsetAt(*xrefOffsets, objID)
+	}, b, pdfobj.GeneratorStyle)
 
 	// Trailer with Info and ID
 	// For PDF/A-4, The Info key shall not be present in the trailer dictionary unless there exists a PieceInfo entry

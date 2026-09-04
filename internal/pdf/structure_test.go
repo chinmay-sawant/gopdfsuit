@@ -5,31 +5,36 @@ import (
 	"testing"
 )
 
-func TestReserveMCIDs_batchAllocation(t *testing.T) {
+// TableTagger is the sole seam for row MCID reservation and TD BDC bytes;
+// these tests pin its accounting so the underlying StructureManager row
+// primitives can stay package-private.
+
+func TestTableTaggerReserveBatch(t *testing.T) {
 	sm := NewStructureManager(true)
-	start := sm.ReserveMCIDs(0, 7)
+	tagger := NewTableTagger(sm)
+	start := tagger.Reserve(0, 7)
 	if start != 0 {
 		t.Fatalf("expected start MCID 0, got %d", start)
 	}
 	if sm.NextMCID[0] != 7 {
 		t.Fatalf("expected NextMCID 7, got %d", sm.NextMCID[0])
 	}
-	next := sm.GetNextMCID(0)
-	if next != 7 {
-		t.Fatalf("expected next MCID 7, got %d", next)
+	if next := tagger.MCIDCursor(0); next != 7 {
+		t.Fatalf("expected cursor MCID 7, got %d", next)
 	}
 }
 
-func TestBeginMarkedContentBufWithMCID_usesReservedID(t *testing.T) {
+func TestTableTaggerReservedRowAccounting(t *testing.T) {
 	sm := NewStructureManager(true)
 	sm.BeginStructureElement(StructTR)
+	tagger := NewTableTagger(sm)
 
 	var buf bytes.Buffer
-	base := sm.ReserveMCIDs(0, 2)
-	sm.BeginMarkedContentBufWithMCID(&buf, 0, StructTD, nil, base)
-	sm.EndMarkedContentBuf(&buf)
-	sm.BeginMarkedContentBufWithMCID(&buf, 0, StructTD, nil, base+1)
-	sm.EndMarkedContentBuf(&buf)
+	base := tagger.Reserve(0, 2)
+	tagger.BeginRowWithBase(0, base, 2)
+	tagger.WriteCell(&buf, base)
+	tagger.WriteCell(&buf, base+1)
+	tagger.EndRow()
 
 	if sm.NextMCID[0] != 2 {
 		t.Fatalf("expected NextMCID 2 after reserved pair, got %d", sm.NextMCID[0])
@@ -39,21 +44,91 @@ func TestBeginMarkedContentBufWithMCID_usesReservedID(t *testing.T) {
 	}
 }
 
-func TestBeginMarkedContentBufWithMCID_createsTDUnderTR(t *testing.T) {
+func TestTableTaggerRowCreatesTDUnderTR(t *testing.T) {
 	sm := NewStructureManager(true)
 	sm.BeginStructureElement(StructTable)
 	table := sm.CurrentParent
-
-	sm.BeginStructureElementCap(StructTR, 3)
-	tr := sm.CurrentParent
+	tagger := NewTableTagger(sm)
 
 	var buf bytes.Buffer
-	base := sm.ReserveMCIDs(0, 3)
+	base := tagger.BeginRow(0, 3)
+	tr := sm.CurrentParent
 	for i := range 3 {
-		sm.BeginMarkedContentBufWithMCID(&buf, 0, StructTD, nil, base+i)
-		sm.EndMarkedContentBuf(&buf)
+		tagger.WriteCell(&buf, base+i)
 	}
-	sm.EndStructureElement()
+	tagger.EndRow()
+
+	if buf.Len() == 0 {
+		t.Fatal("expected cell BDC bytes in content buffer")
+	}
+	if len(table.Kids) != 1 || table.Kids[0].Elem != tr {
+		t.Fatal("expected Table kid to be TR element")
+	}
+	if len(tr.Kids) != 3 {
+		t.Fatalf("expected 3 TD kids on TR, got %d", len(tr.Kids))
+	}
+	for i, kid := range tr.Kids {
+		if kid.Elem == nil || kid.Elem.Type != StructTD {
+			t.Fatalf("kid %d: expected TD struct element, got %+v", i, kid)
+		}
+		if mcid, ok := kid.Elem.LeafMCID(); !ok || mcid != base+i {
+			t.Fatalf("kid %d: expected MCID %d, got %d ok=%v", i, base+i, mcid, ok)
+		}
+	}
+}
+
+func TestTableTaggerParentTreeReferencesTD(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	tagger := NewTableTagger(sm)
+	base := tagger.Reserve(0, 3)
+	tagger.BeginRowWithBase(0, base, 3)
+	tr := sm.CurrentParent
+
+	if len(sm.ParentTree[0]) != 3 {
+		t.Fatalf("expected 3 parent tree entries, got %d", len(sm.ParentTree[0]))
+	}
+	for i, ref := range sm.ParentTree[0] {
+		if ref.Type != StructTD {
+			t.Fatalf("ParentTree[%d] type=%s, want TD", i, ref.Type)
+		}
+		if mcid, ok := ref.LeafMCID(); !ok || mcid != base+i {
+			t.Fatalf("ParentTree[%d] MCID=%d ok=%v, want %d", i, mcid, ok, base+i)
+		}
+		if ref.Parent != tr {
+			t.Fatalf("ParentTree[%d] parent=%p, want TR %p", i, ref.Parent, tr)
+		}
+	}
+}
+
+func TestTableTaggerRowPageID(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	tagger := NewTableTagger(sm)
+	base := tagger.Reserve(2, 4)
+	if base != 0 {
+		t.Fatalf("fresh page cursor = %d, want 0", base)
+	}
+	tagger.BeginRowWithBase(2, base, 4)
+	tr := sm.CurrentParent
+	if tr.PageID != 2 {
+		t.Fatalf("TR PageID=%d, want 2", tr.PageID)
+	}
+	for i, kid := range tr.Kids {
+		if kid.Elem == nil || kid.Elem.PageID != 2 {
+			t.Fatalf("TD %d PageID=%v, want 2", i, kid.Elem)
+		}
+	}
+}
+
+func TestTableTaggerRowCreatesTD(t *testing.T) {
+	sm := NewStructureManager(true)
+	sm.BeginStructureElement(StructTable)
+	table := sm.CurrentParent
+	tagger := NewTableTagger(sm)
+
+	base := tagger.BeginRow(0, 3)
+	tr := sm.CurrentParent
 
 	if len(table.Kids) != 1 || table.Kids[0].Elem != tr {
 		t.Fatal("expected Table kid to be TR element")
@@ -66,68 +141,7 @@ func TestBeginMarkedContentBufWithMCID_createsTDUnderTR(t *testing.T) {
 			t.Fatalf("kid %d: expected TD struct element, got %+v", i, kid)
 		}
 		if mcid, ok := kid.Elem.LeafMCID(); !ok || mcid != base+i {
-			t.Fatalf("kid %d: expected MCID on TD, got kids=%+v inline=(%d,%v)", i, kid.Elem.Kids, kid.Elem.MCID, kid.Elem.HasMCID)
-		}
-	}
-}
-
-func TestBeginTableRowWithTDMCIDs_parentTreeReferencesTD(t *testing.T) {
-	sm := NewStructureManager(true)
-	sm.BeginStructureElement(StructTable)
-	sm.BeginTableRowWithTDMCIDs(0, 10, 3)
-	tr := sm.CurrentParent
-
-	if len(sm.ParentTree[0]) != 3 {
-		t.Fatalf("expected 3 parent tree entries, got %d", len(sm.ParentTree[0]))
-	}
-	for i, ref := range sm.ParentTree[0] {
-		if ref.Type != StructTD {
-			t.Fatalf("ParentTree[%d] type=%s, want TD", i, ref.Type)
-		}
-		if mcid, ok := ref.LeafMCID(); !ok || mcid != 10+i {
-			t.Fatalf("ParentTree[%d] MCID=%d ok=%v, want %d", i, mcid, ok, 10+i)
-		}
-		if ref.Parent != tr {
-			t.Fatalf("ParentTree[%d] parent=%p, want TR %p", i, ref.Parent, tr)
-		}
-	}
-}
-
-func TestBeginTableRowWithTDMCIDs_trPageID(t *testing.T) {
-	sm := NewStructureManager(true)
-	sm.BeginStructureElement(StructTable)
-	sm.BeginTableRowWithTDMCIDs(2, 0, 4)
-	tr := sm.CurrentParent
-	if tr.PageID != 2 {
-		t.Fatalf("TR PageID=%d, want 2", tr.PageID)
-	}
-	for i, kid := range tr.Kids {
-		if kid.Elem == nil || kid.Elem.PageID != 2 {
-			t.Fatalf("TD %d PageID=%v, want 2", i, kid.Elem)
-		}
-	}
-}
-
-func TestBeginTableRowWithTDMCIDs_createsTDUnderTR(t *testing.T) {
-	sm := NewStructureManager(true)
-	sm.BeginStructureElement(StructTable)
-	table := sm.CurrentParent
-
-	sm.BeginTableRowWithTDMCIDs(0, 10, 3)
-	tr := sm.CurrentParent
-
-	if len(table.Kids) != 1 || table.Kids[0].Elem != tr {
-		t.Fatal("expected Table kid to be TR element")
-	}
-	if len(tr.Kids) != 3 {
-		t.Fatalf("expected 3 TD kids on TR, got %d", len(tr.Kids))
-	}
-	for i, kid := range tr.Kids {
-		if kid.Elem == nil || kid.Elem.Type != StructTD {
-			t.Fatalf("kid %d: expected TD struct element, got %+v", i, kid)
-		}
-		if mcid, ok := kid.Elem.LeafMCID(); !ok || mcid != 10+i {
-			t.Fatalf("kid %d: expected MCID %d, got %d ok=%v", i, 10+i, mcid, ok)
+			t.Fatalf("kid %d: expected MCID %d, got %d ok=%v", i, base+i, mcid, ok)
 		}
 	}
 }
@@ -144,25 +158,27 @@ func TestReserveElementCapacityGrowsBackingSlice(t *testing.T) {
 	}
 }
 
-// TestBeginTableRowWithTDMCIDs_arenaAllocates asserts that the TD StructElems
-// allocated by BeginTableRowWithTDMCIDs set up a TR → TD hierarchy and that
+// TestTableTaggerArenaAllocates asserts that the TD StructElems
+// allocated by a tagger row set up a TR → TD hierarchy and that
 // ReleaseStructElemsToPool walks all elems back to the global pool. P1
 // (2026-06-20 checklist) originally specified a per-document arena; we
 // instead rely on the global sync.Pool + selective field clear (P2) to
 // avoid the per-elem memclr that the pool was paying. This test pins the
 // observable behaviour: the TD/TR shape is correct and release leaves the
 // Elements slice at root-only.
-func TestBeginTableRowWithTDMCIDs_arenaAllocates(t *testing.T) {
+func TestTableTaggerArenaAllocates(t *testing.T) {
 	sm := NewStructureManager(true)
 	sm.BeginStructureElement(StructTable)
 	table := sm.CurrentParent
 	sm.ReserveElementCapacity(arenaActivationThreshold)
+	tagger := NewTableTagger(sm)
 
 	const rows = 4
 	const cols = 7
 	for r := 0; r < rows; r++ {
-		sm.BeginTableRowWithTDMCIDs(0, r*cols, cols)
-		sm.EndStructureElement()
+		tagger.BeginRow(0, cols)
+		tagger.EndRow()
+		_ = r
 	}
 
 	if len(table.Kids) != rows {
@@ -211,10 +227,11 @@ func TestBeginTableRowWithTDMCIDs_arenaAllocates(t *testing.T) {
 func TestAssignStructIDsSequential(t *testing.T) {
 	sm := NewStructureManager(true)
 	sm.BeginStructureElement(StructTable)
-	sm.BeginTableRowWithTDMCIDs(0, 0, 3)
-	sm.EndStructureElement()
-	sm.BeginTableRowWithTDMCIDs(0, 3, 3)
-	sm.EndStructureElement()
+	tagger := NewTableTagger(sm)
+	tagger.BeginRow(0, 3)
+	tagger.EndRow()
+	tagger.BeginRow(0, 3)
+	tagger.EndRow()
 
 	startID := 5000
 	nextID := startID
@@ -246,22 +263,23 @@ func TestAssignStructIDsSequential(t *testing.T) {
 
 // TestReleaseStructElemsToPool_canRunTwice checks that the structure manager
 // can be released and a new sequence started, the way the Zerodha benchmark
-// uses one manager per PDF.
+// uses one PDF per manager.
 func TestReleaseStructElemsToPool_canRunTwice(t *testing.T) {
 	sm := NewStructureManager(true)
 	sm.BeginStructureElement(StructTable)
+	tagger := NewTableTagger(sm)
 	for r := 0; r < 3; r++ {
-		sm.BeginTableRowWithTDMCIDs(0, r*4, 4)
-		sm.EndStructureElement()
+		tagger.BeginRow(0, 4)
+		tagger.EndRow()
 	}
 	sm.ReleaseStructElemsToPool()
 
 	sm.BeginStructureElement(StructTable)
-	sm.BeginTableRowWithTDMCIDs(0, 0, 5)
+	tagger.BeginRow(0, 5)
 	tr := sm.CurrentParent
 	if len(tr.Kids) != 5 {
 		t.Fatalf("expected 5 TDs after reuse, got %d", len(tr.Kids))
 	}
-	sm.EndStructureElement()
+	tagger.EndRow()
 	sm.ReleaseStructElemsToPool()
 }

@@ -106,6 +106,7 @@ type PageManager struct {
 	NamedDests              map[string]NamedDest // Map of named destinations for internal linking
 	FontRegistry            *CustomFontRegistry  // Per-generation font registry for thread-safe font access
 	InitialStreamCap        int                  // Initial capacity for pooled page content streams
+	alloc                   *Allocator           // Sole owner of NextObjectID reservation (Phase 5 D1/A2)
 	sharedRowBytes          int                  // profiled shared-layout row emit size (P40)
 	cachedPageInit          []byte               // Reused border/watermark init bytes for continuation pages (C3)
 	cachedPageInitBorder    string
@@ -151,79 +152,34 @@ func NewPageManager(pageDims PageDimensions, margins PageMargins, arlingtonCompa
 		FontRegistry:          fontRegistry,
 		InitialStreamCap:      initialStreamCap,
 	}
+	pm.alloc = (&Allocator{}).BindPageManager(pm, nil)
 	return pm
 }
 
 // AddNewPage creates a new page when current page is full
 func (pm *PageManager) AddNewPage() {
-	// Calculate next page object ID
-	nextPageID := 3 + len(pm.Pages) // Sequential page IDs starting from 3
-	pm.Pages = append(pm.Pages, nextPageID)
-	pm.CurrentPageIndex = len(pm.Pages) - 1 // Move to new page
-	pm.CurrentYPos = pm.PageDimensions.Height - pm.Margins.Top
-	nb := getPageContentStreamBuffer(pm.InitialStreamCap)
-	pm.ContentStreams = append(pm.ContentStreams, nb)
-	pm.PageAnnots = append(pm.PageAnnots, []int{})
+	pm.layout().AddNewPage()
 }
 
 // ReleaseContentStreams returns pooled page content buffers after PDF generation completes.
 func (pm *PageManager) ReleaseContentStreams() {
-	for i, stream := range pm.ContentStreams {
-		putPageContentStreamBuffer(stream)
-		pm.ContentStreams[i] = nil
-	}
-	pm.ContentStreams = nil
+	pm.layout().ReleaseContentStreams()
 }
 
-// AddAnnotation adds an annotation object ID to the current page
+// AddAnnotation adds an annotation object ID to the current page,
+// growing PageAnnots like AppendPageAnnot when the index is out of range.
 func (pm *PageManager) AddAnnotation(objID int) {
-	pm.PageAnnots[pm.CurrentPageIndex] = append(pm.PageAnnots[pm.CurrentPageIndex], objID)
+	pm.objects().AddAnnotation(objID)
 }
 
 // AddExtraObject adds an extra object (like a widget) to the manager
 func (pm *PageManager) AddExtraObject(content string) int {
-	id := pm.NextObjectID
-	pm.NextObjectID++
-	pm.ExtraObjects[id] = []byte(content)
-	return id
+	return pm.objects().AddExtraObject(content)
 }
 
 // AddLinkAnnotation adds a link annotation to the current page
 func (pm *PageManager) AddLinkAnnotation(x, y, w, h float64, url string) {
-	if url == "" {
-		return
-	}
-
-	// Create annotation object
-	annotID := pm.NextObjectID
-	pm.NextObjectID++
-
-	// PDF Rectangle: [LLx LLy URx URy]
-	validURL := escapePDFString(url)
-	var content []byte
-	if pm.Structure.Enabled {
-		structParentIdx := pm.GetNextAnnotStructParent()
-		content = append(content, "<< /Type /Annot /Subtype /Link /Rect ["...)
-		content = appendRect(content, x, y, w, h)
-		content = append(content, "] /Border [0 0 0] /F 4 /StructParent "...)
-		content = strconv.AppendInt(content, int64(structParentIdx), 10)
-		content = append(content, " /A << /Type /Action /S /URI /URI ("...)
-		content = append(content, validURL...)
-		content = append(content, ") >> >>"...)
-		pm.ExtraObjects[annotID] = content
-		pm.AddAnnotation(annotID)
-		pm.AddLinkStructureElement(annotID, structParentIdx)
-		return
-	}
-
-	content = append(content, "<< /Type /Annot /Subtype /Link /Rect ["...)
-	content = appendRect(content, x, y, w, h)
-	content = append(content, "] /Border [0 0 0] /F 4 /A << /Type /Action /S /URI /URI ("...)
-	content = append(content, validURL...)
-	content = append(content, ") >> >>"...)
-
-	pm.ExtraObjects[annotID] = content
-	pm.AddAnnotation(annotID)
+	pm.objects().AddLinkAnnotation(x, y, w, h, url)
 }
 
 func appendRect(dst []byte, x, y, w, h float64) []byte {
@@ -239,86 +195,42 @@ func appendRect(dst []byte, x, y, w, h float64) []byte {
 
 // CheckPageBreak determines if a new page is needed based on required height
 func (pm *PageManager) CheckPageBreak(requiredHeight float64) bool {
-	return pm.CurrentYPos-requiredHeight < pm.Margins.Bottom
+	return pm.layout().CheckPageBreak(requiredHeight)
 }
 
 // RowsFitOnCurrentPage estimates how many rows of rowHeight fit above the bottom margin.
 func (pm *PageManager) RowsFitOnCurrentPage(rowHeight float64) int {
-	if rowHeight <= 0 {
-		return 1
-	}
-	available := pm.CurrentYPos - pm.Margins.Bottom
-	n := int(available / rowHeight)
-	if n < 1 {
-		return 1
-	}
-	return n
+	return pm.layout().RowsFitOnCurrentPage(rowHeight)
 }
 
 // PrepareLargeTableStripe sizes per-page stream capacity from row geometry for large tables.
 func (pm *PageManager) PrepareLargeTableStripe(rowHeight float64, cols int) {
-	if rowHeight <= 0 || cols <= 0 {
-		return
-	}
-	rowsPerPage := max(int((pm.CurrentYPos-pm.Margins.Bottom)/rowHeight), 1)
-	est := estimateSharedRowStripeCap(rowsPerPage, cols)
-	if est <= pm.InitialStreamCap {
-		return
-	}
-	pm.InitialStreamCap = est
+	pm.layout().PrepareLargeTableStripe(rowHeight, cols)
 }
 
 // NoteSharedRowBytes records the measured shared-layout row emit size for later stripes.
 func (pm *PageManager) NoteSharedRowBytes(n int) {
-	if n <= 0 {
-		return
-	}
-	if pm.sharedRowBytes == 0 || n > pm.sharedRowBytes {
-		pm.sharedRowBytes = n
-	}
+	pm.layout().NoteSharedRowBytes(n)
 }
 
 // GrowCurrentStreamForStripe pre-sizes the active page stream once per stripe.
 func (pm *PageManager) GrowCurrentStreamForStripe(rows, cols int) {
-	if rows <= 0 || cols <= 0 {
-		return
-	}
-	perRow := cols * pageStreamHFTRowBytes
-	if pm.sharedRowBytes > 0 {
-		perRow = pm.sharedRowBytes
-	}
-	need := pm.GetCurrentContentStream().Len() + rows*perRow + pageStreamStripeSlack
-	stream := pm.GetCurrentContentStream()
-	if stream.Cap() < need {
-		stream.Grow(need - stream.Cap())
-	}
+	pm.layout().GrowCurrentStreamForStripe(rows, cols)
 }
 
 // PageStreamProfile returns max per-page stream len/cap after generation.
 func (pm *PageManager) PageStreamProfile() (maxLen, maxCap, totalCap int) {
-	for _, stream := range pm.ContentStreams {
-		if stream == nil {
-			continue
-		}
-		if stream.Len() > maxLen {
-			maxLen = stream.Len()
-		}
-		if stream.Cap() > maxCap {
-			maxCap = stream.Cap()
-		}
-		totalCap += stream.Cap()
-	}
-	return maxLen, maxCap, totalCap
+	return pm.layout().PageStreamProfile()
 }
 
 // ContentWidth returns the available width for content on the current page.
 func (pm *PageManager) ContentWidth() float64 {
-	return pm.PageDimensions.Width - pm.Margins.Left - pm.Margins.Right
+	return pm.layout().ContentWidth()
 }
 
 // GetCurrentContentStream returns the current page's content stream
 func (pm *PageManager) GetCurrentContentStream() *bytes.Buffer {
-	return pm.ContentStreams[pm.CurrentPageIndex]
+	return pm.layout().GetCurrentContentStream()
 }
 
 // appendContentStream appends bytes to a page stream with a single upfront grow.
@@ -335,12 +247,158 @@ func appendContentStream(stream *bytes.Buffer, b []byte) {
 
 // GetCurrentPageID returns the current page object ID
 func (pm *PageManager) GetCurrentPageID() int {
-	return pm.Pages[pm.CurrentPageIndex]
+	return pm.layout().GetCurrentPageID()
 }
 
 // GetNextAnnotStructParent returns and increments the StructParent counter for annotations
 // PDF/UA-2: Each annotation needs a unique StructParent value for ParentTree lookup
 func (pm *PageManager) GetNextAnnotStructParent() int {
+	return pm.objects().GetNextAnnotStructParent()
+}
+
+// AddLinkStructureElement creates a Link structure element for an annotation
+// PDF/UA-2 requires link annotations to be wrapped in Link structure elements
+func (pm *PageManager) AddLinkStructureElement(annotObjID int, structParentIdx int) {
+	pm.objects().AddLinkStructureElement(annotObjID, structParentIdx)
+}
+
+// AllocObjectID reserves one object ID via the allocator counter.
+func (pm *PageManager) AllocObjectID() int {
+	return pm.objects().AllocObjectID()
+}
+
+// AllocObjectIDs reserves n consecutive object IDs and returns the first.
+func (pm *PageManager) AllocObjectIDs(n int) int {
+	return pm.objects().AllocObjectIDs(n)
+}
+
+// CommitExtraObject stores an extra object body under a reserved ID.
+func (pm *PageManager) CommitExtraObject(id int, content []byte) {
+	pm.objects().CommitExtraObject(id, content)
+}
+
+// CommitExtraObjectString stores an extra object body from a string.
+func (pm *PageManager) CommitExtraObjectString(id int, content string) {
+	pm.objects().CommitExtraObjectString(id, content)
+}
+
+// ObjectAllocator returns the single Allocator bound to this manager and
+// the generation xref offsets, owning ID reservation, ExtraObjects commit,
+// and xref-offset recording (Phase 5 D1). The instance is shared: calling it
+// rebinds the offsets of the manager-owned allocator instead of allocating.
+func (pm *PageManager) ObjectAllocator(offsets *[]int) *Allocator {
+	if pm.alloc == nil {
+		pm.alloc = &Allocator{}
+	}
+	return pm.alloc.BindPageManager(pm, offsets)
+}
+
+// Objects returns the object bookkeeping collaborator (IDs, extras,
+// annots, link structure elements). Structure and Fonts stay injected
+// collaborators on PageManager itself (Phase 5 D2).
+func (pm *PageManager) objects() *pageObjectStore {
+	if pm.alloc == nil {
+		pm.alloc = (&Allocator{}).BindPageManager(pm, nil)
+	}
+	return &pageObjectStore{pm: pm, alloc: pm.alloc}
+}
+
+// Layout returns the page geometry and stream collaborator (Phase 5 D2).
+func (pm *PageManager) layout() *pageLayoutStore {
+	return &pageLayoutStore{pm: pm}
+}
+
+// pageObjectStore owns object-ID allocation (via the bound Allocator),
+// ExtraObjects commit, per-page annotation lists, and link structure
+// element bookkeeping. Method bodies moved here from PageManager so the
+// manager stays a thin facade.
+type pageObjectStore struct {
+	pm    *PageManager
+	alloc *Allocator
+}
+
+// AddExtraObject adds an extra object (like a widget) to the manager
+func (s *pageObjectStore) AddExtraObject(content string) int {
+	id := s.alloc.Alloc()
+	s.alloc.Commit(id, []byte(content))
+	return id
+}
+
+// AllocObjectID reserves one object ID via the allocator counter.
+func (s *pageObjectStore) AllocObjectID() int {
+	return s.alloc.Alloc()
+}
+
+// AllocObjectIDs reserves n consecutive object IDs and returns the first.
+func (s *pageObjectStore) AllocObjectIDs(n int) int {
+	return s.alloc.AllocN(n)
+}
+
+// CommitExtraObject stores an extra object body under a reserved ID.
+func (s *pageObjectStore) CommitExtraObject(id int, content []byte) {
+	s.alloc.Commit(id, content)
+}
+
+// CommitExtraObjectString stores an extra object body from a string.
+func (s *pageObjectStore) CommitExtraObjectString(id int, content string) {
+	s.alloc.CommitString(id, content)
+}
+
+// AddAnnotation adds an annotation object ID to the current page,
+// growing PageAnnots like AppendPageAnnot when the index is out of range.
+func (s *pageObjectStore) AddAnnotation(objID int) {
+	pm := s.pm
+	if pm.CurrentPageIndex < 0 {
+		return
+	}
+	for len(pm.PageAnnots) <= pm.CurrentPageIndex {
+		pm.PageAnnots = append(pm.PageAnnots, []int{})
+	}
+	pm.PageAnnots[pm.CurrentPageIndex] = append(pm.PageAnnots[pm.CurrentPageIndex], objID)
+}
+
+// AddLinkAnnotation adds a link annotation to the current page
+func (s *pageObjectStore) AddLinkAnnotation(x, y, w, h float64, url string) {
+	pm := s.pm
+	if url == "" {
+		return
+	}
+
+	// Create annotation object
+	annotID := s.alloc.Alloc()
+
+	// PDF Rectangle: [LLx LLy URx URy]
+	validURL := escapePDFString(url)
+	var content []byte
+	if pm.Structure.Enabled {
+		structParentIdx := pm.GetNextAnnotStructParent()
+		content = append(content, "<< /Type /Annot /Subtype /Link /Rect ["...)
+		content = appendRect(content, x, y, w, h)
+		content = append(content, "] /Border [0 0 0] /F 4 /StructParent "...)
+		content = strconv.AppendInt(content, int64(structParentIdx), 10)
+		content = append(content, " /A << /Type /Action /S /URI /URI ("...)
+		content = append(content, validURL...)
+		content = append(content, ") >> >>"...)
+		s.alloc.Commit(annotID, content)
+		pm.AddAnnotation(annotID)
+		pm.AddLinkStructureElement(annotID, structParentIdx)
+		return
+	}
+
+	content = append(content, "<< /Type /Annot /Subtype /Link /Rect ["...)
+	content = appendRect(content, x, y, w, h)
+	content = append(content, "] /Border [0 0 0] /F 4 /A << /Type /Action /S /URI /URI ("...)
+	content = append(content, validURL...)
+	content = append(content, ") >> >>"...)
+
+	s.alloc.Commit(annotID, content)
+	pm.AddAnnotation(annotID)
+}
+
+// GetNextAnnotStructParent returns and increments the StructParent counter for annotations
+// PDF/UA-2: Each annotation needs a unique StructParent value for ParentTree lookup
+func (s *pageObjectStore) GetNextAnnotStructParent() int {
+	pm := s.pm
 	idx := pm.NextAnnotStructParent
 	pm.NextAnnotStructParent++
 	return idx
@@ -348,7 +406,8 @@ func (pm *PageManager) GetNextAnnotStructParent() int {
 
 // AddLinkStructureElement creates a Link structure element for an annotation
 // PDF/UA-2 requires link annotations to be wrapped in Link structure elements
-func (pm *PageManager) AddLinkStructureElement(annotObjID int, structParentIdx int) {
+func (s *pageObjectStore) AddLinkStructureElement(annotObjID int, structParentIdx int) {
+	pm := s.pm
 	// Track the annotation-to-structure relationship
 	pm.AnnotStructElems = append(pm.AnnotStructElems, AnnotStructElem{
 		AnnotObjID:      annotObjID,
@@ -359,4 +418,132 @@ func (pm *PageManager) AddLinkStructureElement(annotObjID int, structParentIdx i
 	// Create a Link structure element in the structure tree
 	// This will be properly connected during PDF generation
 	pm.Structure.AddLinkElement(annotObjID, pm.CurrentPageIndex)
+}
+
+// pageLayoutStore owns page geometry (dimensions, margins, Y cursor) and
+// content-stream buckets. Method bodies moved here from PageManager so the
+// manager stays a thin facade.
+type pageLayoutStore struct {
+	pm *PageManager
+}
+
+// AddNewPage creates a new page when current page is full
+func (s *pageLayoutStore) AddNewPage() {
+	pm := s.pm
+	// Calculate next page object ID
+	nextPageID := 3 + len(pm.Pages) // Sequential page IDs starting from 3
+	pm.Pages = append(pm.Pages, nextPageID)
+	pm.CurrentPageIndex = len(pm.Pages) - 1 // Move to new page
+	pm.CurrentYPos = pm.PageDimensions.Height - pm.Margins.Top
+	nb := getPageContentStreamBuffer(pm.InitialStreamCap)
+	pm.ContentStreams = append(pm.ContentStreams, nb)
+	pm.PageAnnots = append(pm.PageAnnots, []int{})
+}
+
+// ReleaseContentStreams returns pooled page content buffers after PDF generation completes.
+func (s *pageLayoutStore) ReleaseContentStreams() {
+	pm := s.pm
+	for i, stream := range pm.ContentStreams {
+		putPageContentStreamBuffer(stream)
+		pm.ContentStreams[i] = nil
+	}
+	pm.ContentStreams = nil
+}
+
+// CheckPageBreak determines if a new page is needed based on required height
+func (s *pageLayoutStore) CheckPageBreak(requiredHeight float64) bool {
+	pm := s.pm
+	return pm.CurrentYPos-requiredHeight < pm.Margins.Bottom
+}
+
+// RowsFitOnCurrentPage estimates how many rows of rowHeight fit above the bottom margin.
+func (s *pageLayoutStore) RowsFitOnCurrentPage(rowHeight float64) int {
+	pm := s.pm
+	if rowHeight <= 0 {
+		return 1
+	}
+	available := pm.CurrentYPos - pm.Margins.Bottom
+	n := int(available / rowHeight)
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
+// PrepareLargeTableStripe sizes per-page stream capacity from row geometry for large tables.
+func (s *pageLayoutStore) PrepareLargeTableStripe(rowHeight float64, cols int) {
+	pm := s.pm
+	if rowHeight <= 0 || cols <= 0 {
+		return
+	}
+	rowsPerPage := max(int((pm.CurrentYPos-pm.Margins.Bottom)/rowHeight), 1)
+	est := estimateSharedRowStripeCap(rowsPerPage, cols)
+	if est <= pm.InitialStreamCap {
+		return
+	}
+	pm.InitialStreamCap = est
+}
+
+// NoteSharedRowBytes records the measured shared-layout row emit size for later stripes.
+func (s *pageLayoutStore) NoteSharedRowBytes(n int) {
+	pm := s.pm
+	if n <= 0 {
+		return
+	}
+	if pm.sharedRowBytes == 0 || n > pm.sharedRowBytes {
+		pm.sharedRowBytes = n
+	}
+}
+
+// GrowCurrentStreamForStripe pre-sizes the active page stream once per stripe.
+func (s *pageLayoutStore) GrowCurrentStreamForStripe(rows, cols int) {
+	pm := s.pm
+	if rows <= 0 || cols <= 0 {
+		return
+	}
+	perRow := cols * pageStreamHFTRowBytes
+	if pm.sharedRowBytes > 0 {
+		perRow = pm.sharedRowBytes
+	}
+	need := pm.GetCurrentContentStream().Len() + rows*perRow + pageStreamStripeSlack
+	stream := pm.GetCurrentContentStream()
+	if stream.Cap() < need {
+		stream.Grow(need - stream.Cap())
+	}
+}
+
+// PageStreamProfile returns max per-page stream len/cap after generation.
+func (s *pageLayoutStore) PageStreamProfile() (maxLen, maxCap, totalCap int) {
+	pm := s.pm
+	for _, stream := range pm.ContentStreams {
+		if stream == nil {
+			continue
+		}
+		if stream.Len() > maxLen {
+			maxLen = stream.Len()
+		}
+		if stream.Cap() > maxCap {
+			maxCap = stream.Cap()
+		}
+		totalCap += stream.Cap()
+	}
+	return maxLen, maxCap, totalCap
+}
+
+// ContentWidth returns the available width for content on the current page.
+func (s *pageLayoutStore) ContentWidth() float64 {
+	pm := s.pm
+	return pm.PageDimensions.Width - pm.Margins.Left - pm.Margins.Right
+}
+
+// GetCurrentContentStream returns the current page's content stream
+func (s *pageLayoutStore) GetCurrentContentStream() *bytes.Buffer {
+	pm := s.pm
+	return pm.ContentStreams[pm.CurrentPageIndex]
+}
+
+// GetCurrentPageID returns the current page object ID
+func (s *pageLayoutStore) GetCurrentPageID() int {
+	pm := s.pm
+	return pm.Pages[pm.CurrentPageIndex]
 }

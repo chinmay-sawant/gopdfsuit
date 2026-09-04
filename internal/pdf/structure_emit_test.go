@@ -12,7 +12,7 @@ func TestFormatTRStructElemObjectToMatchesSlowPath(t *testing.T) {
 	table.ObjectID = 50
 
 	sm.ReserveElementCapacity(600)
-	sm.BeginTableRowWithTDMCIDs(0, 10, 3)
+	sm.beginTableRowWithTDMCIDs(0, 10, 3)
 	tr := sm.CurrentParent
 	tr.ObjectID = 60
 

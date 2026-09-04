@@ -38,6 +38,7 @@ cd .. && gcloud run deploy gopdfsuit --source . --region us-central1
 | Environment | Auth Required | Detection |
 |-------------|--------------|-----------|
 | Local Dev | ❌ No | `K_SERVICE` not set |
+| Local Dev + `REQUIRE_AUTH=1` | ✅ Yes | Forced, for testing authenticated paths |
 | Cloud Run | ✅ Yes | `K_SERVICE` set automatically |
 
 ## 📝 Environment Variables
@@ -50,6 +51,9 @@ cd .. && gcloud run deploy gopdfsuit --source . --region us-central1
 ### Backend (Auto)
 - `K_SERVICE` - Set by Cloud Run (triggers auth)
 - `K_REVISION` - Set by Cloud Run (backup check)
+
+### Backend (Optional)
+- `REQUIRE_AUTH=1` - Force auth even without `K_SERVICE` (staging/local testing)
 
 ## 🎯 Protected Endpoints
 
