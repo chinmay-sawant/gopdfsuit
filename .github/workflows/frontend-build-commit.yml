@@ -6,10 +6,14 @@ on:
     tags: ["v*"]
     paths:
       - "**"
+    paths-ignore:
+      - "docs/**"
   pull_request:
     branches: ["*"]
     paths:
       - "**"
+    paths-ignore:
+      - "docs/**"
   release:
     types: [published]
   workflow_dispatch:
@@ -139,7 +143,10 @@ jobs:
   build-and-commit-frontend:
     name: Frontend Build and Commit
     needs: [frontend-lint, backend-test]
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full-ci') }}
+    # Push-to-master only: run wasm plus npm build after a master merge and
+    # propose docs/ as a PR. Never run on pull_request events, on tags, or
+    # for the bot's own docs commits (prevents the merge -> rebuild -> new PR loop).
+    if: ${{ github.actor != 'github-actions[bot]' && ((github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')) || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full-ci')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -148,7 +155,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          ref: ${{ github.ref_name }}
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26.4"
@@ -187,7 +194,7 @@ jobs:
           committer: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
           author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
           branch: chore/auto-build-frontend
-          base: ${{ github.event_name == 'pull_request' && github.base_ref || 'master' }}
+          base: master
           delete-branch: true
           title: "chore: auto-build frontend"
           body: |
