@@ -3,21 +3,11 @@
 // bytes that a server check (or POST /api/v1/generate/template-pdf with the
 // same JSON) can verify.
 
-import { ensureGopdfsuitWasm } from './core.js'
+import { ensureGopdfsuitWasm, callWasm } from './core.js'
 import { ensurePDFAFonts } from './fonts.js'
 
 function callWasmPdf(fnName, args) {
-  const fn = globalThis[fnName]
-  if (typeof fn !== 'function') {
-    const err = new Error(`${fnName} is not in the shipped WASM bundle yet`)
-    err.fallbackAvailable = true
-    err.missingEngine = true
-    throw err
-  }
-  const result = fn(...args)
-  if (result instanceof Uint8Array) return result
-  const message = result && typeof result === 'object' ? result.error || result.message : undefined
-  throw new Error(message || `${fnName} failed`)
+  return callWasm(fnName, args)
 }
 
 function withPDFACompliant(template) {

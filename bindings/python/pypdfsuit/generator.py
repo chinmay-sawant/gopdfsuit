@@ -6,16 +6,12 @@ import json
 from typing import List, Dict, Any
 
 from .types import PDFTemplate, FontInfo
-from ._bindings import get_lib, call_bytes_result
+from ._bindings import get_lib, call_bytes_result, json_payload
 
 
 def serialize_template(template: PDFTemplate) -> bytes:
     """Serialize a template to fresh UTF-8 JSON bytes for GeneratePDF."""
-    return json.dumps(
-        template.to_dict(),
-        ensure_ascii=False,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    return json_payload(template)
 
 
 def generate_pdf(template: PDFTemplate) -> bytes:
@@ -43,8 +39,7 @@ def generate_pdf(template: PDFTemplate) -> bytes:
         ...     f.write(pdf_bytes)
     """
     lib = get_lib()
-    payload = serialize_template(template)
-    return call_bytes_result(lib.GeneratePDF, payload)
+    return call_bytes_result(lib.GeneratePDF, json_payload(template))
 
 
 def generate_pdf_from_dict(template_dict: Dict[str, Any]) -> bytes:
@@ -54,12 +49,7 @@ def generate_pdf_from_dict(template_dict: Dict[str, Any]) -> bytes:
     (mirrors the helper used in tests/test_integration.py).
     """
     lib = get_lib()
-    payload = json.dumps(
-        template_dict,
-        ensure_ascii=False,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return call_bytes_result(lib.GeneratePDF, payload)
+    return call_bytes_result(lib.GeneratePDF, json_payload(template_dict))
 
 
 def get_available_fonts() -> List[FontInfo]:

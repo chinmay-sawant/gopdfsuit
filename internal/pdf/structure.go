@@ -457,8 +457,8 @@ func (sm *StructureManager) ReserveElementCapacity(additional int) {
 }
 
 // reserveMCIDs allocates count consecutive MCIDs on a page and returns the first ID.
-// Used by drawTable to avoid per-cell ensurePageSlot/increment overhead (D4).
-// Reached through TableTagger; kept package-private with the other row primitives.
+// Used by EmitRowCells to avoid per-cell ensurePageSlot/increment overhead (D4).
+// Reached through EmitRowCells; kept package-private with the other row primitives.
 func (sm *StructureManager) reserveMCIDs(pageIndex, count int) int {
 	return sm.reserveMCIDsImpl(pageIndex, count, true)
 }
@@ -748,6 +748,27 @@ func (sm *StructureManager) beginTableRowWithTDMCIDs(pageIndex, startMCID, count
 	for i := range count {
 		sm.appendStructElemParentTreeRef(pageIndex, tr.Kids[i].Elem)
 	}
+}
+
+// EmitRowCells reserves count consecutive MCIDs on pageIndex, creates the
+// TR grouping element with one TD leaf per column, and returns the base
+// MCID plus an end func that closes the TR. It is the single seam for
+// tagged table rows: one call replaces the per-row Reserve /
+// BeginRowWithBase / EndRow sequence, with no per-row helper alloc on the
+// hot path. Per-cell TD BDC bytes stay with the caller via
+// writeCellMarkedContentBDC between the return and end.
+//
+// Nil-receiver, disabled-manager, and non-positive-count safe: returns 0
+// and a no-op end, emitting nothing.
+func (sm *StructureManager) EmitRowCells(buf *bytes.Buffer, pageIndex, count int) (int, func()) {
+	_ = buf // reserved: batch BDC emission stays a caller concern for now
+	noop := func() {}
+	if sm == nil || !sm.Enabled || count <= 0 {
+		return 0, noop
+	}
+	base := sm.ReserveMCIDsLite(pageIndex, count)
+	sm.beginTableRowWithTDMCIDs(pageIndex, base, count)
+	return base, sm.EndStructureElement
 }
 
 func (sm *StructureManager) appendStructElemParentTreeRef(pageIndex int, elem *StructElem) {

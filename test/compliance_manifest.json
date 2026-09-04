@@ -1,0 +1,300 @@
+{
+  "version": 1,
+  "notes": "Single source of truth for PDF compliance and size gates. Read by test/verify_pdfs.sh (bash runner) and test/zerodha_compliance_test.go. Validators stay layered: veraPDF is a hard gate, structure-tree is a hard gate on compliance entries, avalpdf warns by default. Per-entry avalStrict exists so directories can opt into hard avalpdf gates; zerodha was evaluated strict on 2026-09-04 and stays warn-only because the fixtures carry heuristic findings (no H1 headings, tables without TH headers) that need engine tagging changes outside this row's scope. Flip an entry to strict once its fixture is clean.",
+  "defaults": {
+    "tolerance": 0,
+    "flavours": [],
+    "avalStrict": false,
+    "media": "pdf"
+  },
+  "perDirectoryAvalStrict": {
+    "gopdflib/zerodha": false
+  },
+  "entries": [
+    {
+      "path": "editor/temp_editor.pdf",
+      "baseline": "editor/generated.pdf",
+      "tolerance": 8192,
+      "flavours": [
+        "4",
+        "ua2"
+      ],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "editor/temp_editor_python.pdf",
+      "baseline": "editor/generated.pdf",
+      "tolerance": 8192,
+      "flavours": [
+        "4",
+        "ua2"
+      ],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "filler/temp_filler.pdf",
+      "baseline": "filler/generated.pdf",
+      "tolerance": 700,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "filler/temp_filler_python.pdf",
+      "baseline": "filler/generated.pdf",
+      "tolerance": 700,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "filler/compressed/temp_filler_compressed.pdf",
+      "baseline": "filler/compressed/generated.pdf",
+      "tolerance": 700,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "filler/compressed/temp_filler_compressed_python.pdf",
+      "baseline": "filler/compressed/generated.pdf",
+      "tolerance": 500,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "htmltopdf/temp_htmltopdf.pdf",
+      "baseline": "htmltopdf/generated.pdf",
+      "skipSize": true,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "htmltopdf/temp_htmltopdf_python.pdf",
+      "baseline": "htmltopdf/generated.pdf",
+      "skipSize": true,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "htmltoimg/temp_htmltoimage.png",
+      "baseline": "htmltoimg/generated.png",
+      "skipSize": true,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "png",
+      "suite": "post-test"
+    },
+    {
+      "path": "htmltoimg/temp_htmltoimage_python.png",
+      "baseline": "htmltoimg/generated.png",
+      "skipSize": true,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "png",
+      "suite": "post-test"
+    },
+    {
+      "path": "merge/temp_merge.pdf",
+      "baseline": "merge/generated.pdf",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "merge/temp_merge_python.pdf",
+      "baseline": "merge/generated.pdf",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/temp_split.pdf",
+      "baseline": "split/split.pdf",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/temp_split_python.pdf",
+      "baseline": "split/split.pdf",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/temp_split_range.pdf",
+      "baseline": "split/split_range.pdf",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/temp_split_range_python.pdf",
+      "baseline": "split/split_range.pdf",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/temp_maxperfile.zip",
+      "baseline": "split/maxperfile.zip",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "zip",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/split.pdf",
+      "baseline": "split/split.pdf",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/split_range.pdf",
+      "baseline": "split/split_range.pdf",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/maxperfile.zip",
+      "baseline": "split/maxperfile.zip",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "zip",
+      "suite": "post-test"
+    },
+    {
+      "path": "split/temp_split_maxperfile_python.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "financialreport/financial_report.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "financialreport/temp_financial_report_redacted.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "typstsyntax/typst_math_showcase.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "typstsyntax/typst_math_showcase_python.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "typstsyntax/typst_sample.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "typstsyntax/typst_sample_python.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "post-test"
+    },
+    {
+      "path": "gopdflib/zerodha/zerodha_hft_output.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [
+        "4",
+        "ua2"
+      ],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "zerodha"
+    },
+    {
+      "path": "gopdflib/zerodha/zerodha_retail_output.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [
+        "4",
+        "ua2"
+      ],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "zerodha"
+    },
+    {
+      "path": "gopdflib/zerodha/zerodha_active_output.pdf",
+      "baseline": "",
+      "tolerance": 0,
+      "flavours": [
+        "4",
+        "ua2"
+      ],
+      "avalStrict": false,
+      "media": "pdf",
+      "suite": "zerodha"
+    }
+  ]
+}

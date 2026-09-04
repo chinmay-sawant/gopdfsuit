@@ -56,6 +56,13 @@ _JSON_KEY_MAPPING = {
     "display_name": "displayName",
     "max_per_file": "MaxPerFile",
     "math_enabled": "mathEnabled",
+    # Pinned wire spellings that differ from the Python attribute name:
+    # Go serializes Cell.Checkbox under the historical "chequebox" key
+    # (internal/models Cell json tag), so the Python `checkbox` attribute
+    # maps there. Do not "fix" the value without renaming the Go tag,
+    # sampledata fixtures, and frontend readers in the same change.
+    "checkbox": "chequebox",
+    "embed_standard_fonts": "embedStandardFonts",
 }
 
 
@@ -149,28 +156,7 @@ class SignatureConfig:
     name: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        result = {
-            "enabled": self.enabled,
-            "certificatePem": self.certificate_pem,
-            "privateKeyPem": self.private_key_pem,
-            "visible": self.visible,
-            "page": self.page,
-            "x": self.x,
-            "y": self.y,
-            "width": self.width,
-            "height": self.height,
-        }
-        if self.certificate_chain is not None:
-            result["certificateChain"] = self.certificate_chain
-        if self.reason is not None:
-            result["reason"] = self.reason
-        if self.location is not None:
-            result["location"] = self.location
-        if self.contact_info is not None:
-            result["contactInfo"] = self.contact_info
-        if self.name is not None:
-            result["name"] = self.name
-        return result
+        return _to_dict(self)
 
 
 @dataclass
@@ -235,32 +221,7 @@ class Config:
     pdfa_compliant: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
-        result = {
-            "page": self.page,
-            "pageAlignment": self.page_alignment,
-            "pageBorder": self.page_border,
-            "pdfaCompliant": self.pdfa_compliant,
-        }
-        if self.embed_fonts is not None:
-            result["embedFonts"] = self.embed_fonts
-        if self.embed_standard_fonts is not None:
-            result["embedStandardFonts"] = self.embed_standard_fonts
-        if self.watermark is not None:
-            result["watermark"] = self.watermark
-        if self.pdf_title is not None:
-            result["pdfTitle"] = self.pdf_title
-        result["arlingtonCompatible"] = self.arlington_compatible
-        if self.bookmarks is not None:
-            result["bookmarks"] = [bookmark.to_dict() for bookmark in self.bookmarks]
-        if self.security is not None:
-            result["security"] = self.security.to_dict()
-        if self.pdfa is not None:
-            result["pdfa"] = self.pdfa.to_dict()
-        if self.signature is not None:
-            result["signature"] = self.signature.to_dict()
-        if self.custom_fonts is not None:
-            result["customFonts"] = [font.to_dict() for font in self.custom_fonts]
-        return result
+        return _to_dict(self)
 
 
 @dataclass
@@ -329,33 +290,7 @@ class Cell:
     math_enabled: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        result = {
-            "props": self.props,
-            "text": self.text,
-        }
-        if self.checkbox is not None:
-            result["chequebox"] = self.checkbox
-        if self.image is not None:
-            result["image"] = self.image.to_dict()
-        if self.width is not None:
-            result["width"] = self.width
-        if self.height is not None:
-            result["height"] = self.height
-        if self.form_field is not None:
-            result["form_field"] = self.form_field.to_dict()
-        if self.bg_color is not None:
-            result["bgcolor"] = self.bg_color
-        if self.text_color is not None:
-            result["textcolor"] = self.text_color
-        if self.link is not None:
-            result["link"] = self.link
-        if self.wrap is not None:
-            result["wrap"] = self.wrap
-        if self.dest is not None:
-            result["dest"] = self.dest
-        if self.math_enabled is not None:
-            result["mathEnabled"] = self.math_enabled
-        return result
+        return _to_dict(self)
 
 
 @dataclass

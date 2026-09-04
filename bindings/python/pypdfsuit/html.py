@@ -7,7 +7,7 @@ Pure-Go conversion via gowkhtmltopdf, no browser needed.
 import json
 
 from .types import HtmlToPDFRequest, HtmlToImageRequest
-from ._bindings import get_lib, call_bytes_result
+from ._bindings import get_lib, call_bytes_result, json_payload
 
 
 def convert_html_to_pdf(request: HtmlToPDFRequest) -> bytes:
@@ -46,9 +46,7 @@ def convert_html_to_pdf(request: HtmlToPDFRequest) -> bytes:
         raise ValueError("Either html or url must be provided")
 
     lib = get_lib()
-    request_json = json.dumps(request.to_dict()).encode("utf-8")
-
-    return call_bytes_result(lib.ConvertHTMLToPDF, request_json)
+    return call_bytes_result(lib.ConvertHTMLToPDF, json_payload(request))
 
 
 def convert_html_to_image(request: HtmlToImageRequest) -> bytes:
@@ -84,6 +82,4 @@ def convert_html_to_image(request: HtmlToImageRequest) -> bytes:
         raise ValueError("Either html or url must be provided")
 
     lib = get_lib()
-    request_json = json.dumps(request.to_dict()).encode("utf-8")
-
-    return call_bytes_result(lib.ConvertHTMLToImage, request_json)
+    return call_bytes_result(lib.ConvertHTMLToImage, json_payload(request))

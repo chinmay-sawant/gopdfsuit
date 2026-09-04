@@ -146,28 +146,14 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
   }, [request, storeBlob, handleFailure])
 
   const runLocal = useCallback(async (task, options = {}) => {
-    // Browser-local path shared by Compress plus Merge/Split/Filler/Redact:
-    // task() must not upload anything. Server fallback (if any) lives in the
-    // caller behind an explicit consent click (Compress.jsx:83-92 pattern).
-    setIsLoading(true)
-    setError(null)
-    try {
-      const output = await task()
-      const blob = output instanceof Blob ? output : new Blob([output], { type: options.mimeType || 'application/pdf' })
-      return storeBlob(blob, options)
-    } catch (err) {
-      handleFailure(err, options.onError)
-      return null
-    } finally {
-      setIsLoading(false)
-    }
-  }, [storeBlob, handleFailure])
-
-  // Multi-file variant for Split: task() resolves to an array of
-  // Uint8Array/Blob parts. Stores the first part for preview and downloads
-  // the rest, so one local call yields N files with no upload.
-  const runLocalMulti = useCallback(async (task, options = {}) => {
-    const { filenames, autoDownload = true, onBlob, onError: onErrorOverride, ...storeOptions } = options
+    // Browser-local path shared by every op: task() must not upload
+    // anything. Single output (Uint8Array/Blob) stores one preview URL;
+    // array output (Split multi-file) stores the first part for preview and
+    // downloads the rest, so one local call yields N files with no upload.
+    // Server fallback (if any) lives behind an explicit consent click, which
+    // runSmart owns via consentOffer below.
+    const { filenames, filename, autoDownload = true, mimeType = 'application/pdf', onBlob, onError: onErrorOverride } = options
+    const names = Array.isArray(filenames) ? filenames : (filename ? [filename] : [])
     setIsLoading(true)
     setError(null)
     try {
@@ -175,20 +161,23 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
       const parts = Array.isArray(output) ? output : [output]
       if (parts.length === 0) throw new Error('Received empty document')
       const urls = parts.map((part, index) => {
-        const blob = part instanceof Blob ? part : new Blob([part], { type: storeOptions.mimeType || 'application/pdf' })
+        const blob = part instanceof Blob ? part : new Blob([part], { type: mimeType })
         if (blob.size === 0) throw new Error('Received empty document')
-        const url = toBlobUrl(blob, storeOptions.mimeType || 'application/pdf')
-        const name = Array.isArray(filenames) && filenames[index]
+        const url = toBlobUrl(blob, mimeType)
+        const name = names[index]
         if (autoDownload && name) downloadBlobUrl(url, name)
         return { blob, url }
       })
       revokeResult()
       urlRef.current = urls[0].url
       setResultUrl(urls[0].url)
-      if (onBlob) onBlob(urls.map((entry) => entry.blob), urls.map((entry) => entry.url))
+      if (onBlob) {
+        if (parts.length === 1) onBlob(urls[0].blob, urls[0].url)
+        else onBlob(urls.map((entry) => entry.blob), urls.map((entry) => entry.url))
+      }
       // Revoke non-preview URLs after download; keep urls[0] alive for preview.
       urls.slice(1).forEach((entry) => URL.revokeObjectURL(entry.url))
-      return urls.map((entry) => entry.url)
+      return parts.length === 1 ? urls[0].url : urls.map((entry) => entry.url)
     } catch (err) {
       handleFailure(err, onErrorOverride)
       return null
@@ -197,11 +186,90 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
     }
   }, [revokeResult, handleFailure])
 
+  // runLocalMulti was the Split-only twin of runLocal; it now aliases the
+  // unified runner above (arrays take the multi path). New code calls
+  // runLocal for both shapes.
+  const runLocalMulti = runLocal
+
+  // Hook-owned consent state (3.3): pages run browser-local work through
+  // runSmart(opSmart(...), { serverTask }) and render <ConsentBanner
+  // offer={consentOffer} onConsent={confirmConsentUpload}
+  // onDismiss={dismissConsent} />. The WASM error never alerts; the banner
+  // offers the upload as an explicit click instead.
+  const [consentOffer, setConsentOffer] = useState(null)
+
+  const dismissConsent = useCallback(() => setConsentOffer(null), [])
+
+  const runSmart = useCallback(async (smartTask, options = {}) => {
+    // smartTask: (transport) => Promise<bytes|bytes[]> with transport shaped
+    // as { getAuthHeaders, allowServerFallback: false }; the hook supplies
+    // consent by running serverTask only from confirmConsentUpload.
+    // serverTask: () => Promise<bytes|bytes[]> (explicit-consent upload).
+    const { serverTask, serverLabel, getAuthHeaders, onError: onErrorOverride, ...storeOptions } = options
+    setConsentOffer(null)
+    setIsLoading(true)
+    setError(null)
+    let wasmMessage = ''
+    try {
+      const output = await smartTask({ getAuthHeaders, allowServerFallback: false })
+      const parts = Array.isArray(output) ? output : [output]
+      if (parts.length === 0) throw new Error('Received empty document')
+      const mimeType = storeOptions.mimeType || 'application/pdf'
+      const names = Array.isArray(storeOptions.filenames)
+        ? storeOptions.filenames
+        : (storeOptions.filename ? [storeOptions.filename] : [])
+      const urls = parts.map((part, index) => {
+        const blob = part instanceof Blob ? part : new Blob([part], { type: mimeType })
+        if (blob.size === 0) throw new Error('Received empty document')
+        const url = toBlobUrl(blob, mimeType)
+        const name = names[index]
+        if (storeOptions.autoDownload && name) downloadBlobUrl(url, name)
+        return { blob, url }
+      })
+      revokeResult()
+      urlRef.current = urls[0].url
+      setResultUrl(urls[0].url)
+      if (storeOptions.onBlob) {
+        if (parts.length === 1) storeOptions.onBlob(urls[0].blob, urls[0].url)
+        else storeOptions.onBlob(urls.map((entry) => entry.blob), urls.map((entry) => entry.url))
+      }
+      urls.slice(1).forEach((entry) => URL.revokeObjectURL(entry.url))
+      return parts.length === 1 ? urls[0].url : urls.map((entry) => entry.url)
+    } catch (err) {
+      wasmMessage = err?.message || 'Request failed.'
+      if (err && err.fallbackAvailable && getAuthHeaders && serverTask) {
+        setConsentOffer({ message: wasmMessage, label: serverLabel, serverTask, storeOptions })
+        return null
+      }
+      const formatted = formatApiError(err)
+      const status = err?.status
+      if (status === 401 || status === 403) {
+        if (onAuthRequired) onAuthRequired()
+        return null
+      }
+      const message = formatted.message || fallbackMessageForStatus(status) || wasmMessage
+      setError(message)
+      if (onErrorOverride) onErrorOverride(message)
+      else if (onError) onError(message)
+      else alert(message)
+      return null
+    } finally {
+      setIsLoading(false)
+    }
+  }, [revokeResult, onAuthRequired, onError])
+
+  const confirmConsentUpload = useCallback(async () => {
+    if (!consentOffer) return null
+    const { serverTask, storeOptions } = consentOffer
+    setConsentOffer(null)
+    return runLocal(serverTask, storeOptions)
+  }, [consentOffer, runLocal])
+
   const download = useCallback((filename) => {
     downloadBlobUrl(resultUrl, filename)
   }, [resultUrl])
 
-  return { isLoading, resultUrl, error, setError, setResultUrl, run, runJson, runLocal, runLocalMulti, request, reset, revokeResult, download }
+  return { isLoading, resultUrl, error, setError, setResultUrl, run, runJson, runLocal, runLocalMulti, runSmart, consentOffer, dismissConsent, confirmConsentUpload, request, reset, revokeResult, download }
 }
 
 export default usePdfOperation

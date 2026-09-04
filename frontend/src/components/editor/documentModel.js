@@ -267,3 +267,117 @@ export default {
   parseTemplateJson,
   validateTemplate,
 }
+
+// --- Pure document reducers (3.6) ---
+// Editor.jsx keeps React state (title/components/footer/selection); every
+// structural mutation below is a pure array/object transform so it is
+// unit-testable (frontend/tests/documentModel.test.mjs) without rendering.
+
+export const parseComponentId = (id) => {
+  if (id === 'title' || id === 'footer') return { kind: id, index: -1 }
+  const dash = String(id || '').indexOf('-')
+  if (dash === -1) return { kind: null, index: NaN }
+  return { kind: String(id).slice(0, dash), index: parseInt(String(id).slice(dash + 1), 10) }
+}
+
+export const findElementById = ({ title = null, components = [], footer = null } = {}, id) => {
+  if (id === 'title') return title ? { ...title, type: 'title' } : null
+  if (id === 'footer') return footer ? { ...footer, type: 'footer' } : null
+  const { index } = parseComponentId(id)
+  if (!Number.isInteger(index) || index < 0 || index >= components.length) return null
+  return components[index] || null
+}
+
+export const insertComponent = (components = [], component, targetId = null) => {
+  const list = [...components]
+  if (targetId) {
+    const { index } = parseComponentId(targetId)
+    if (Number.isInteger(index) && index >= 0 && index <= list.length) {
+      list.splice(index, 0, component)
+      return list
+    }
+  }
+  list.push(component)
+  return list
+}
+
+export const deleteComponentById = (components = [], id) => {
+  const { index } = parseComponentId(id)
+  if (!Number.isInteger(index) || index < 0 || index >= components.length) return components
+  return components.filter((_, i) => i !== index)
+}
+
+export const updateComponentById = (components = [], id, updates) => {
+  const { index } = parseComponentId(id)
+  if (!Number.isInteger(index) || index < 0 || index >= components.length) return components
+  const list = [...components]
+  list[index] = { ...list[index], ...updates }
+  return list
+}
+
+export const moveComponentByIndex = (components = [], index, direction) => {
+  const list = [...components]
+  if (direction === 'up' && index > 0) {
+    [list[index], list[index - 1]] = [list[index - 1], list[index]]
+  } else if (direction === 'down' && index < list.length - 1) {
+    [list[index], list[index + 1]] = [list[index + 1], list[index]]
+  }
+  return list
+}
+
+export const reorderComponentsByIndex = (components = [], draggedIndex, targetIndex) => {
+  if (!Number.isInteger(draggedIndex) || !Number.isInteger(targetIndex)) return components
+  if (draggedIndex === targetIndex) return components
+  if (draggedIndex < 0 || draggedIndex >= components.length) return components
+  if (targetIndex < 0 || targetIndex >= components.length) return components
+  const list = [...components]
+  const [dragged] = list.splice(draggedIndex, 1)
+  list.splice(targetIndex, 0, dragged)
+  return list
+}
+
+export const pasteComponentAt = (components = [], clone, afterId = null) => {
+  if (!afterId || afterId === 'title' || afterId === 'footer') return [...components, clone]
+  const { index } = parseComponentId(afterId)
+  if (!Number.isInteger(index) || index < 0 || index >= components.length) return [...components, clone]
+  const list = [...components]
+  list.splice(index + 1, 0, clone)
+  return list
+}
+
+const CELL_DROP_PROPS = 'Helvetica:12:000:left:0:0:0:0'
+
+export const cellDropData = (type, stamp = Date.now()) => {
+  const base = { props: CELL_DROP_PROPS, text: undefined, image: undefined, chequebox: undefined, form_field: undefined }
+  if (type === 'checkbox') {
+    return { props: CELL_DROP_PROPS, form_field: { name: `checkbox_${stamp}`, checked: false, type: 'checkbox' }, text: undefined, image: undefined, chequebox: undefined }
+  }
+  if (type === 'checkbox_simple') {
+    return { ...base, chequebox: false }
+  }
+  if (type === 'text_input') {
+    return { props: CELL_DROP_PROPS, form_field: { name: `field_${stamp}`, value: '', type: 'text' }, text: undefined, image: undefined, chequebox: undefined }
+  }
+  if (type === 'radio') {
+    return { props: CELL_DROP_PROPS, form_field: { name: `radio_${stamp}`, checked: false, type: 'radio' }, text: undefined, image: undefined, chequebox: undefined }
+  }
+  if (type === 'radio_simple') {
+    return { ...base, radio: false }
+  }
+  if (type === 'image') {
+    return { props: CELL_DROP_PROPS, image: { imagename: '', imagedata: null, width: 100, height: 80 }, text: undefined, chequebox: undefined, form_field: undefined }
+  }
+  if (type === 'hyperlink') {
+    return { props: CELL_DROP_PROPS, text: 'Link Text', link: 'https://example.com', image: undefined, chequebox: undefined, form_field: undefined }
+  }
+  return null
+}
+
+export const applyCellDropToRows = (rows = [], rowIdx, colIdx, type, stamp = Date.now()) => {
+  const data = cellDropData(type, stamp)
+  if (!data || !rows[rowIdx] || !rows[rowIdx].row || !rows[rowIdx].row[colIdx]) return rows
+  const newRows = [...rows]
+  newRows[rowIdx] = { ...newRows[rowIdx], row: [...newRows[rowIdx].row] }
+  newRows[rowIdx].row[colIdx] = data
+  return newRows
+}

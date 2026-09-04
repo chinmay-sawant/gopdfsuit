@@ -3,8 +3,15 @@ package pdf
 import "testing"
 
 // Allocator hands out unique IDs and records offsets and extras.
+// The allocator is bound-only: the test binds a real PageManager instead of
+// using a standalone counter.
 func TestAllocatorUniqueness(t *testing.T) {
-	a := NewAllocator(2000)
+	reg := NewFontRegistry()
+	pm := NewPageManager(PageDimensions{Width: 595, Height: 842}, PageMargins{Top: 36, Bottom: 36, Left: 36, Right: 36}, false, reg, true, 32*1024)
+	defer pm.ReleaseContentStreams()
+	a := pm.ObjectAllocator(nil)
+	// Start the counter at 2000 like the old standalone allocator.
+	a.SeekTo(2000)
 	ids := make(map[int]bool)
 	for range 64 {
 		id := a.Alloc()

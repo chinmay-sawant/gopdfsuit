@@ -3,8 +3,9 @@ import { FileCheck, Upload, RefreshCw, FileText, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import OperationShell from '../components/OperationShell'
+import OpPageShell from '../components/OpPageShell'
+import ConsentBanner from '../components/ConsentBanner'
 import { formatFileSize } from '../utils/format'
-import BackgroundAnimation from '../components/BackgroundAnimation'
 import { fillPDFSmart, fillViaServer, shouldUseServerWasmTransport } from '../utils/wasmLoader.js'
 
 const serverTransport = shouldUseServerWasmTransport()
@@ -76,40 +77,17 @@ const Filler = () => {
   )
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative' }}>
-      <BackgroundAnimation />
-      <section style={{ padding: '4rem 0 2rem', textAlign: 'center' }}>
-        <div className="container">
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '50px', marginBottom: '1.5rem', color: '#10b981', fontSize: '0.9rem', fontWeight: '500' }}>
-            <Sparkles size={16} />AcroForm Support
-          </div>
-          <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem', fontSize: 'clamp(2rem,5vw,3rem)', fontWeight: '800', color: 'hsl(var(--foreground))' }}>
-            <div className="feature-icon-box green" style={{ width: '56px', height: '56px', marginBottom: 0 }}><FileCheck size={28} /></div>
-            PDF Form Filler
-          </h1>
-          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>{serverTransport ? 'Server transport active (VITE_WASM_TRANSPORT=server): files are uploaded to /api/v1/fill.' : 'Fill PDF forms using XFDF data with AcroForm support - runs in your browser when the WASM Fill binding lands, server upload only on consent.'}</p>
-        </div>
-      </section>
-
-      <section style={{ padding: '2rem 0 4rem' }}>
-        <div className="container">
-          {fallbackOffer && (
-            <div style={{ padding: '1rem', background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', borderRadius: '8px', marginBottom: '1rem', color: 'hsl(var(--foreground))' }}>
-              <div style={{ marginBottom: '0.75rem' }}>
-                Browser fill is not available in this build{fallbackOffer.message ? `: ${fallbackOffer.message}` : '.'} The files were not uploaded.
-                Upload them to the server to fill instead? Try sampledata/filler/* fixtures.
-              </div>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button onClick={fillViaServerConsent} disabled={isLoading} className="btn-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                  Upload to server and fill
-                </button>
-                <button onClick={() => setFallbackOffer(null)} disabled={isLoading} className="btn-outline-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                  Stay local
-                </button>
-              </div>
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
+    <OpPageShell
+      badge={<><Sparkles size={16} />AcroForm Support</>}
+      badgeTone="rgba(16,185,129,0.1)"
+      badgeBorder="rgba(16,185,129,0.3)"
+      badgeColor="#10b981"
+      title="PDF Form Filler"
+      icon={<div className="feature-icon-box green" style={{ width: '56px', height: '56px', marginBottom: 0 }}><FileCheck size={28} /></div>}
+      description={serverTransport ? 'Server transport active (VITE_WASM_TRANSPORT=server): files are uploaded to /api/v1/fill.' : 'Fill PDF forms using XFDF data with AcroForm support - runs in your browser when the WASM Fill binding lands, server upload only on consent.'}
+    >
+      <ConsentBanner offer={fallbackOffer ? { ...fallbackOffer, message: `${fallbackOffer.message || ''} Try sampledata/filler/* fixtures.` } : null} onConsent={fillViaServerConsent} onDismiss={() => setFallbackOffer(null)} isLoading={isLoading} actionLabel="Upload to server and fill" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
             <div className="glass-card" style={{ padding: '2rem' }}>
               <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
                 <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload Files
@@ -170,10 +148,8 @@ const Filler = () => {
               <p style={{ color: 'hsl(var(--muted-foreground))', marginBottom: 0, fontSize: '0.9rem' }}>Check the <code style={{ color: '#4ecdc4', background: 'rgba(78,205,196,0.15)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>sampledata/</code> directory for example files.</p>
             </div>
           </div>
-        </div>
-      </section>
       <style jsx>{`.spin{animation:spin 1s linear infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-    </div>
+    </OpPageShell>
   )
 }
 

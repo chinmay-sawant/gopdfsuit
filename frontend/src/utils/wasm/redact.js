@@ -2,29 +2,25 @@
 // Page dims prefer client-side pdfjs (react-pdf already bundles it); the
 // functions below cover the text-search plus apply engine calls.
 
-import { ensureGopdfsuitWasm, asUint8Array } from './core.js'
+import { ensureGopdfsuitWasm, asUint8Array, callWasm, missingEngineError } from './core.js'
 
-function missingEngineError(fnName) {
-  const err = new Error(
-    `${fnName} is not in the shipped WASM bundle yet (needs plans/wasm/01-full-wasm-port.md redact bindings)`,
-  )
-  err.fallbackAvailable = true
-  err.missingEngine = true
-  return err
+function callRedactWasm(fnName, args) {
+  try {
+    return callWasm(fnName, args)
+  } catch (err) {
+    if (err && err.missingEngine) {
+      throw missingEngineError(fnName, 'the shipped WASM bundle (needs plans/wasm/01-full-wasm-port.md redact bindings)')
+    }
+    throw err
+  }
 }
 
 export async function redactSearchViaWasm(bytes, terms) {
   await ensureGopdfsuitWasm()
-  const fn = globalThis.goRedactSearch
-  if (typeof fn !== 'function') throw missingEngineError('goRedactSearch')
-  return fn(asUint8Array(bytes), terms)
+  return callRedactWasm('goRedactSearch', [asUint8Array(bytes), terms])
 }
 
 export async function redactApplyViaWasm(bytes, blocks, textQueries, mode) {
   await ensureGopdfsuitWasm()
-  const fn = globalThis.goRedactApply
-  if (typeof fn !== 'function') throw missingEngineError('goRedactApply')
-  const out = fn(asUint8Array(bytes), blocks, textQueries, mode)
-  if (out instanceof Uint8Array) return out
-  throw new Error((out && out.error) || 'Redaction failed')
+  return callRedactWasm('goRedactApply', [asUint8Array(bytes), blocks, textQueries, mode])
 }

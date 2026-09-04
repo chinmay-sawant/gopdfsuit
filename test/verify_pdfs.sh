@@ -14,7 +14,11 @@
 #   AVALPDF_BIN       Path to avalpdf CLI (default: <repo>/.pdf-validators/venv/bin/avalpdf)
 #   VERIFY_STRUCTURE_TREE  Run structure_tree_check.py on compliance PDFs (default: 1)
 #   VERIFY_AVALPDF    Run avalpdf on compliance PDFs (default: 1)
-#   VERIFY_AVALPDF_STRICT  Fail on avalpdf issues (default: 0 - warnings only)
+#   VERIFY_AVALPDF_STRICT  Fail on avalpdf issues (default: 0 - warnings only;
+#                         overridden per entry by compliance_manifest.json avalStrict)
+#
+# Tolerances, baselines, flavours, and per-entry aval strictness live in
+# test/compliance_manifest.json (same file test/zerodha_compliance_test.go reads).
 #
 # Post-test manifest is built from:
 #   - Every sampledata/**/generated.* baseline (excluding oldata/)
@@ -28,6 +32,7 @@ SAMPLEDATA="${REPO_ROOT}/sampledata"
 VERAPDF="${VERAPDF_BIN:-${REPO_ROOT}/verapdf/verapdf}"
 VERAPDF_REPORT="${REPO_ROOT}/test/verapdf_report.py"
 STRUCTURE_TREE_CHECK="${REPO_ROOT}/test/structure_tree_check.py"
+COMPLIANCE_MANIFEST="${REPO_ROOT}/test/compliance_manifest.json"
 AVALPDF="${AVALPDF_BIN:-${REPO_ROOT}/.pdf-validators/venv/bin/avalpdf}"
 VERIFY_STRUCTURE_TREE="${VERIFY_STRUCTURE_TREE:-1}"
 VERIFY_AVALPDF="${VERIFY_AVALPDF:-1}"
@@ -200,6 +205,7 @@ check_structure_tree() {
 
 check_avalpdf() {
     local pdf="$1"
+    local strict="${2:-${VERIFY_AVALPDF_STRICT}}"
 
     if [[ "${VERIFY_AVALPDF}" != "1" ]]; then
         echo "skip|avalpdf checks disabled"
@@ -241,7 +247,7 @@ PY
     local issues="${counts%% *}"
     local warnings="${counts##* }"
 
-    if [[ "${VERIFY_AVALPDF_STRICT}" == "1" && "${issues}" -gt 0 ]]; then
+    if [[ "${strict}" == "1" && "${issues}" -gt 0 ]]; then
         echo "fail|avalpdf ${issues} issue(s), ${warnings} warning(s)"
     elif [[ "${issues}" -gt 0 || "${warnings}" -gt 0 ]]; then
         echo "warn|avalpdf ${issues} issue(s), ${warnings} warning(s) (non-blocking)"
@@ -324,26 +330,65 @@ wait_for_slot() {
     done
 }
 
+# Manifest lookup: prints "tolerance|flavours_csv|avalStrict|baseline" for a
+# sampledata-relative path, falling back to defaults (tolerance from $2,
+# no flavours, per-directory avalStrict) when the path has no entry.
+# Tolerances and flavours that used to live in manifest_tolerance() /
+# manifest_compliance() case statements now live in compliance_manifest.json.
+manifest_lookup() {
+    local rel="$1"
+    local default_tol="$2"
+    python3 - "${COMPLIANCE_MANIFEST}" "${rel}" "${default_tol}" <<'PY'
+import json, sys
+manifest_path, rel, default_tol = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(manifest_path, encoding="utf-8") as handle:
+    manifest = json.load(handle)
+entry = next((e for e in manifest.get("entries", []) if e.get("path") == rel), None)
+if entry is None:
+    strict_dirs = manifest.get("perDirectoryAvalStrict", {})
+    strict = False
+    for prefix, flag in strict_dirs.items():
+        if rel == prefix or rel.startswith(prefix.rstrip("/") + "/"):
+            strict = bool(flag)
+    print(f"{default_tol}||{1 if strict else 0}|")
+    sys.exit(0)
+tol = "skip" if entry.get("skipSize") else str(entry.get("tolerance", default_tol))
+flavours = ",".join(entry.get("flavours", []))
+strict = 1 if entry.get("avalStrict") else 0
+baseline = entry.get("baseline", "")
+print(f"{tol}|{flavours}|{strict}|{baseline}")
+PY
+}
+
 manifest_tolerance() {
     local rel="$1"
     local default_tol="$2"
-    case "${rel}" in
-        editor/temp_editor.pdf|editor/temp_editor_python.pdf) echo "8192" ;;
-        filler/temp_filler.pdf|filler/temp_filler_python.pdf) echo "700" ;;
-        filler/compressed/temp_filler_compressed.pdf) echo "700" ;;
-        filler/compressed/temp_filler_compressed_python.pdf) echo "500" ;;
-        htmltopdf/temp_htmltopdf.pdf|htmltopdf/temp_htmltopdf_python.pdf) echo "skip" ;;
-        htmltoimg/temp_htmltoimage.png|htmltoimg/temp_htmltoimage_python.png) echo "skip" ;;
-        *) echo "${default_tol}" ;;
-    esac
+    local looked
+    looked=$(manifest_lookup "${rel}" "${default_tol}")
+    printf '%s' "${looked%%|*}"
 }
 
 manifest_compliance() {
     local rel="$1"
-    case "${rel}" in
-        editor/temp_editor.pdf|editor/temp_editor_python.pdf) echo "4,ua2" ;;
-        *) echo "" ;;
-    esac
+    local looked
+    looked=$(manifest_lookup "${rel}" "0")
+    looked="${looked#*|}"
+    printf '%s' "${looked%%|*}"
+}
+
+manifest_aval_strict() {
+    local rel="$1"
+    local looked
+    looked=$(manifest_lookup "${rel}" "0")
+    looked="${looked#*|}"; looked="${looked#*|}"
+    printf '%s' "${looked%%|*}"
+}
+
+manifest_baseline() {
+    local rel="$1"
+    local looked
+    looked=$(manifest_lookup "${rel}" "0")
+    printf '%s' "${looked##*|}"
 }
 
 manifest_add_unique() {
@@ -359,7 +404,7 @@ manifest_add_unique() {
     _manifest_ref+=("${entry}")
 }
 
-# Manifest entry: generated_rel|baseline_rel|tolerance|flavours|media
+# Manifest entry: generated_rel|baseline_rel|tolerance|flavours|media|avalStrict
 build_post_test_manifest() {
     POST_TEST_MANIFEST=()
     declare -A MANIFEST_SEEN=()
@@ -375,32 +420,41 @@ build_post_test_manifest() {
 
         # Validate the committed baseline artifact itself
         manifest_add_unique MANIFEST_SEEN POST_TEST_MANIFEST "${rel}@baseline" \
-            "${rel}|${rel}|0||${media}"
+            "${rel}|${rel}|0||${media}|0"
 
         # temp_* outputs in the same folder as the baseline
         if [[ -d "${dir_path}" ]]; then
             while IFS= read -r -d '' temp; do
                 local temp_rel="${temp#${SAMPLEDATA}/}"
-                local tol flavours entry_media
-                tol=$(manifest_tolerance "${temp_rel}" "0")
-                flavours=$(manifest_compliance "${temp_rel}")
+                local tol flavours entry_media aval_strict looked
+                looked=$(manifest_lookup "${temp_rel}" "0")
+                tol="${looked%%|*}"
+                looked="${looked#*|}"
+                flavours="${looked%%|*}"
+                looked="${looked#*|}"
+                aval_strict="${looked%%|*}"
+                looked="${looked#*|}"
+                baseline_rel="${looked}"
+                if [[ -z "${baseline_rel}" ]]; then
+                    baseline_rel="${rel}"
+                fi
                 entry_media=$(media_type_for_path "${temp_rel}")
                 manifest_add_unique MANIFEST_SEEN POST_TEST_MANIFEST "${temp_rel}" \
-                    "${temp_rel}|${rel}|${tol}|${flavours}|${entry_media}"
+                    "${temp_rel}|${baseline_rel}|${tol}|${flavours}|${entry_media}|${aval_strict}"
             done < <(find "${dir_path}" -maxdepth 1 -type f -name 'temp_*' -print0 2>/dev/null | sort -z)
         fi
     done < <(find "${SAMPLEDATA}" \( -path '*/oldata/*' \) -prune -o -type f -name 'generated.*' -print0 | sort -z)
 
     # 2) Split reference baselines (not named generated.*)
     local split_entries=(
-        "split/temp_split.pdf|split/split.pdf|0||pdf"
-        "split/temp_split_python.pdf|split/split.pdf|0||pdf"
-        "split/temp_split_range.pdf|split/split_range.pdf|0||pdf"
-        "split/temp_split_range_python.pdf|split/split_range.pdf|0||pdf"
-        "split/temp_maxperfile.zip|split/maxperfile.zip|0||zip"
-        "split/split.pdf|split/split.pdf|0||pdf"
-        "split/split_range.pdf|split/split_range.pdf|0||pdf"
-        "split/maxperfile.zip|split/maxperfile.zip|0||zip"
+        "split/temp_split.pdf|split/split.pdf|0||pdf|0"
+        "split/temp_split_python.pdf|split/split.pdf|0||pdf|0"
+        "split/temp_split_range.pdf|split/split_range.pdf|0||pdf|0"
+        "split/temp_split_range_python.pdf|split/split_range.pdf|0||pdf|0"
+        "split/temp_maxperfile.zip|split/maxperfile.zip|0||zip|0"
+        "split/split.pdf|split/split.pdf|0||pdf|0"
+        "split/split_range.pdf|split/split_range.pdf|0||pdf|0"
+        "split/maxperfile.zip|split/maxperfile.zip|0||zip|0"
     )
     local entry
     for entry in "${split_entries[@]}"; do
@@ -411,13 +465,13 @@ build_post_test_manifest() {
     # 3) Other integration outputs without generated.* baselines
     zerodha_compliance_entries
     local extra_entries=(
-        "financialreport/financial_report.pdf||0||pdf"
-        "financialreport/temp_financial_report_redacted.pdf||0||pdf"
-        "typstsyntax/typst_math_showcase.pdf||0||pdf"
-        "typstsyntax/typst_math_showcase_python.pdf||0||pdf"
-        "typstsyntax/typst_sample.pdf||0||pdf"
-        "typstsyntax/typst_sample_python.pdf||0||pdf"
-        "split/temp_split_maxperfile_python.pdf||0||pdf"
+        "financialreport/financial_report.pdf||0||pdf|0"
+        "financialreport/temp_financial_report_redacted.pdf||0||pdf|0"
+        "typstsyntax/typst_math_showcase.pdf||0||pdf|0"
+        "typstsyntax/typst_math_showcase_python.pdf||0||pdf|0"
+        "typstsyntax/typst_sample.pdf||0||pdf|0"
+        "typstsyntax/typst_sample_python.pdf||0||pdf|0"
+        "split/temp_split_maxperfile_python.pdf||0||pdf|0"
         "${ZERODHA_MANIFEST[@]}"
     )
     for entry in "${extra_entries[@]}"; do
@@ -431,8 +485,9 @@ verify_manifest_entry() {
     local json_dir="$2"
     local failures=0
 
-    IFS='|' read -r generated_rel baseline_rel tolerance flavours_csv media <<< "${entry}"
+    IFS='|' read -r generated_rel baseline_rel tolerance flavours_csv media aval_strict <<< "${entry}"
     media="${media:-pdf}"
+    aval_strict="${aval_strict:-${VERIFY_AVALPDF_STRICT}}"
     local generated="${SAMPLEDATA}/${generated_rel}"
 
     echo ""
@@ -518,7 +573,7 @@ verify_manifest_entry() {
         esac
 
         local aval_result aval_status aval_details
-        aval_result=$(check_avalpdf "${generated}")
+        aval_result=$(check_avalpdf "${generated}" "${aval_strict}")
         aval_status="${aval_result%%|*}"
         aval_details="${aval_result#*|}"
         case "${aval_status}" in
@@ -568,10 +623,24 @@ scan_one_pdf() {
 }
 
 zerodha_compliance_entries() {
-    ZERODHA_MANIFEST=(
-        "gopdflib/zerodha/zerodha_hft_output.pdf||0|4,ua2|pdf"
-        "gopdflib/zerodha/zerodha_retail_output.pdf||0|4,ua2|pdf"
-        "gopdflib/zerodha/zerodha_active_output.pdf||0|4,ua2|pdf"
+    ZERODHA_MANIFEST=()
+    while IFS= read -r line; do
+        ZERODHA_MANIFEST+=("${line}")
+    done < <(python3 - "${COMPLIANCE_MANIFEST}" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as handle:
+    manifest = json.load(handle)
+for entry in manifest.get("entries", []):
+    if entry.get("suite") != "zerodha":
+        continue
+    flavours = ",".join(entry.get("flavours", []))
+    print("{path}||0|{flavours}|{media}|{strict}".format(
+        path=entry["path"],
+        flavours=flavours,
+        media=entry.get("media", "pdf"),
+        strict=1 if entry.get("avalStrict") else 0,
+    ))
+PY
     )
 }
 

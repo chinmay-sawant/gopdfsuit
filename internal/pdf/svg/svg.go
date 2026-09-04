@@ -7,21 +7,12 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-)
 
-var floatBuf [64]byte
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/vector"
+)
 
 // MaxSVGBytes caps accepted SVG input (4 MiB); larger payloads are rejected.
 const MaxSVGBytes = 4 << 20
-
-func writeFloats(b *bytes.Buffer, prec int, nums ...float64) {
-	for i, n := range nums {
-		if i > 0 {
-			b.WriteByte(' ')
-		}
-		b.Write(strconv.AppendFloat(floatBuf[:0], n, 'f', prec, 64))
-	}
-}
 
 // SVG support for converting simple vector graphics to PDF commands
 
@@ -97,9 +88,9 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 	// [  0   1   1 ]
 	// M = [1/w 0 0 -1/h 0 1]
 
-	b.Write(strconv.AppendFloat(floatBuf[:0], 1.0/width, 'f', 6, 64))
+	vector.WriteFloat(&b, 6, 1.0/width)
 	b.WriteString(" 0 0 ")
-	b.Write(strconv.AppendFloat(floatBuf[:0], -1.0/height, 'f', 6, 64))
+	vector.WriteFloat(&b, 6, -1.0/height)
 	b.WriteString(" 0 1 cm\n")
 
 	// State tracking
@@ -146,15 +137,13 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 				if fill, ok := attrs["fill"]; ok {
 					r, g, bVal, ok := parseColor(fill)
 					if ok {
-						writeFloats(&b, 3, r, g, bVal)
-						b.WriteString(" rg\n")
+						vector.SetFill(&b, 3, r, g, bVal)
 					}
 				}
 				if stroke, ok := attrs["stroke"]; ok {
 					r, g, bVal, ok := parseColor(stroke)
 					if ok {
-						writeFloats(&b, 3, r, g, bVal)
-						b.WriteString(" RG\n")
+						vector.SetStroke(&b, 3, r, g, bVal)
 					}
 				}
 			}
@@ -192,7 +181,7 @@ func ConvertSVGToPDFCommands(data []byte) ([]byte, int, int, error) {
 						// Apply use-specific transform/translation
 						if x != 0 || y != 0 {
 							b.WriteString("1 0 0 1 ")
-							writeFloats(&b, 6, x, -y)
+							vector.WriteFloats(&b, 6, x, -y)
 							b.WriteString(" cm\n")
 						}
 						if transform != "" {
@@ -279,7 +268,7 @@ func applyTransform(b *bytes.Buffer, t string) {
 				tx, _ := strconv.ParseFloat(args[0], 64)
 				ty, _ := strconv.ParseFloat(args[1], 64)
 				b.WriteString("1 0 0 1 ")
-				writeFloats(b, 2, tx, ty)
+				vector.WriteFloats(b, 2, tx, ty)
 				b.WriteString(" cm\n")
 			}
 		case strings.HasPrefix(parts[i], "scale("):
@@ -287,15 +276,15 @@ func applyTransform(b *bytes.Buffer, t string) {
 			if len(args) >= 2 {
 				sx, _ := strconv.ParseFloat(args[0], 64)
 				sy, _ := strconv.ParseFloat(args[1], 64)
-				writeFloats(b, 4, sx)
+				vector.WriteFloats(b, 4, sx)
 				b.WriteString(" 0 0 ")
-				writeFloats(b, 4, sy)
+				vector.WriteFloats(b, 4, sy)
 				b.WriteString(" 0 0 cm\n")
 			} else if len(args) == 1 {
 				s, _ := strconv.ParseFloat(args[0], 64)
-				writeFloats(b, 4, s)
+				vector.WriteFloats(b, 4, s)
 				b.WriteString(" 0 0 ")
-				writeFloats(b, 4, s)
+				vector.WriteFloats(b, 4, s)
 				b.WriteString(" 0 0 cm\n")
 			}
 		case strings.HasPrefix(parts[i], "matrix("):
@@ -427,8 +416,7 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 
 	// Apply styles
 	if r, g, blue, ok := parseColor(stroke); ok {
-		writeFloats(b, 2, r, g, blue)
-		b.WriteString(" RG\n")
+		vector.SetStroke(b, 2, r, g, blue)
 	}
 
 	// SVG default: fill is black if not specified, NOT transparent
@@ -441,16 +429,14 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		// Explicit no fill - keep as "none" for drawOp logic
 		fill = "none"
 	} else if r, g, blue, ok := parseColor(fill); ok {
-		writeFloats(b, 2, r, g, blue)
-		b.WriteString(" rg\n")
+		vector.SetFill(b, 2, r, g, blue)
 	} else {
 		// Unknown fill value - default to black
 		fill = "black"
 		b.WriteString("0.00 0.00 0.00 rg\n")
 	}
 
-	writeFloats(b, 2, sw)
-	b.WriteString(" w\n")
+	vector.LineWidth(b, 2, sw)
 
 	switch name {
 	case "rect":
@@ -458,7 +444,7 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y := parseDimension(attrs["y"])
 		w := parseDimension(attrs["width"])
 		h := parseDimension(attrs["height"])
-		writeFloats(b, 2, x, y, w, h)
+		vector.WriteFloats(b, 2, x, y, w, h)
 		b.WriteString(" re\n")
 		drawOp(b, fill, stroke)
 
@@ -467,11 +453,7 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		y1 := parseDimension(attrs["y1"])
 		x2 := parseDimension(attrs["x2"])
 		y2 := parseDimension(attrs["y2"])
-		writeFloats(b, 2, x1, y1)
-		b.WriteString(" m ")
-		writeFloats(b, 2, x2, y2)
-		b.WriteString(" l\n")
-		b.WriteString("S\n")
+		vector.StrokeLine(b, 2, x1, y1, x2, y2)
 
 	case "circle":
 		cx := parseDimension(attrs["cx"])
@@ -479,15 +461,15 @@ func processVisualElement(b *bytes.Buffer, name string, attrs map[string]string)
 		r := parseDimension(attrs["r"])
 		magic := 0.551784
 		d := r * magic
-		writeFloats(b, 2, cx, cy-r)
+		vector.WriteFloats(b, 2, cx, cy-r)
 		b.WriteString(" m\n")
-		writeFloats(b, 2, cx+d, cy-r, cx+r, cy-d, cx+r, cy)
+		vector.WriteFloats(b, 2, cx+d, cy-r, cx+r, cy-d, cx+r, cy)
 		b.WriteString(" c\n")
-		writeFloats(b, 2, cx+r, cy+d, cx+d, cy+r, cx, cy+r)
+		vector.WriteFloats(b, 2, cx+r, cy+d, cx+d, cy+r, cx, cy+r)
 		b.WriteString(" c\n")
-		writeFloats(b, 2, cx-d, cy+r, cx-r, cy+d, cx-r, cy)
+		vector.WriteFloats(b, 2, cx-d, cy+r, cx-r, cy+d, cx-r, cy)
 		b.WriteString(" c\n")
-		writeFloats(b, 2, cx-r, cy-d, cx-d, cy-r, cx, cy-r)
+		vector.WriteFloats(b, 2, cx-r, cy-d, cx-d, cy-r, cx, cy-r)
 		b.WriteString(" c\n")
 		drawOp(b, fill, stroke)
 
@@ -558,19 +540,19 @@ func (c *pathCursor) take(n int) ([]float64, bool) {
 }
 
 func (c *pathCursor) lineto(x, y float64) {
-	writeFloats(c.b, 2, x, y)
+	vector.WriteFloats(c.b, 2, x, y)
 	c.b.WriteString(" l ")
 	c.cx, c.cy = x, y
 }
 
 func (c *pathCursor) moveto(x, y float64) {
-	writeFloats(c.b, 2, x, y)
+	vector.WriteFloats(c.b, 2, x, y)
 	c.b.WriteString(" m ")
 	c.cx, c.cy = x, y
 }
 
 func (c *pathCursor) curveto(x1, y1, x2, y2, x, y float64) {
-	writeFloats(c.b, 2, x1, y1, x2, y2, x, y)
+	vector.WriteFloats(c.b, 2, x1, y1, x2, y2, x, y)
 	c.b.WriteString(" c ")
 	c.cx, c.cy = x, y
 }

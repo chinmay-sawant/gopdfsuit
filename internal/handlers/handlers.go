@@ -71,8 +71,22 @@ func getProjectRoot() string {
 	return "."
 }
 
-// RegisterRoutes wires up API routes onto the provided Gin router.
+// RegisterRoutes wires up API routes onto the provided Gin router with the
+// startup-resolved RoutePolicy (see ResolveServerConfig).
 func RegisterRoutes(router *gin.Engine) {
+	RegisterRoutesWithPolicy(router, ResolveServerConfig().Policy)
+}
+
+// RegisterRoutesWithPolicy wires up API routes with an explicit policy.
+// Auth approach is env-based, not code removal: GoogleAuthMiddleware stays
+// registered on the v1 group and self-gates via authEnforced() (public
+// unless REQUIRE_AUTH=1 or K_SERVICE/K_REVISION is set). To enforce auth
+// locally or in staging, set REQUIRE_AUTH=1 rather than editing routes.
+// Benchmark fast path (!EnableCORS, i.e. GIN_FAST_API=1): skip extra
+// non-auth middleware such as CORS, but NEVER skip authentication. The
+// template-pdf route always lives inside the v1 auth group so
+// GoogleAuthMiddleware still runs.
+func RegisterRoutesWithPolicy(router *gin.Engine, policy RoutePolicy) {
 	// Resolve project base directory so paths work whether binary is run from
 	// the repo root or from inside cmd/gopdfsuit (where the exe often lives).
 	base := getProjectRoot()
@@ -89,18 +103,11 @@ func RegisterRoutes(router *gin.Engine) {
 	staticWithCache("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
 	staticWithCache("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
 
-	// Auth approach is env-based, not code removal: GoogleAuthMiddleware stays
-	// registered on the v1 group and self-gates via authEnforced() (public
-	// unless REQUIRE_AUTH=1 or K_SERVICE/K_REVISION is set). To enforce auth
-	// locally or in staging, set REQUIRE_AUTH=1 rather than editing routes.
-	// Benchmark fast path (GIN_FAST_API=1): skip extra non-auth middleware such
-	// as CORS, but NEVER skip authentication. The template-pdf route always
-	// lives inside the v1 auth group so GoogleAuthMiddleware still runs.
-	fastAPI := os.Getenv("GIN_FAST_API") == "1"
-
-	// API endpoints - protected with Google OAuth when running on Cloud Run
+	// API endpoints - protected with Google OAuth when running on Cloud Run.
+	// policy.EnableCORS is false only on the GIN_FAST_API=1 benchmark path;
+	// authentication is never skipped (see RegisterRoutesWithPolicy).
 	v1 := router.Group("/api/v1")
-	if !fastAPI {
+	if policy.EnableCORS {
 		v1.Use(middleware.CORSMiddleware()) // Add CORS middleware
 	}
 	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run (or REQUIRE_AUTH=1)

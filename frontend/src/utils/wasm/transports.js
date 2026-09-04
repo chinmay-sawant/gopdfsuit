@@ -7,7 +7,8 @@
 // Transport matrix (template: levels.js COMPRESS_TRANSPORT):
 // VITE_WASM_TRANSPORT=wasm (default) -> browser-local first, server only on
 // explicit consent. VITE_WASM_TRANSPORT=server -> server endpoint directly.
-// Per-op VITE_COMPRESS_TRANSPORT still wins for compress.
+// VITE_COMPRESS_TRANSPORT only overrides compress when explicitly set;
+// otherwise compress follows VITE_WASM_TRANSPORT (see levels.js).
 export const WASM_TRANSPORT = import.meta.env.VITE_WASM_TRANSPORT || 'wasm'
 export const shouldUseServerWasmTransport = () => WASM_TRANSPORT === 'server'
 
@@ -21,3 +22,9 @@ export async function smartLocal(localFn, serverFn, { allowServerFallback = fals
     throw wasmError
   }
 }
+
+// Canonical name for the consent-first wrapper. Pages call
+// runSmart(opSmart(localFn, serverFn, { allowServerFallback: consent }))
+// with the hook owning the consent state; smartLocal stays as an alias so
+// existing op modules keep working.
+export const opSmart = smartLocal

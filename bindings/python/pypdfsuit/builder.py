@@ -387,7 +387,7 @@ class TemplateBuilder:
         self.config = Config(page=page, page_alignment=1 if portrait else 2)
         self.title = Title(props=_DEFAULT_TITLE_PROPS, text="")
         self._elements: List[Element] = []
-        self._tables: List[TableBuilder] = []
+        self._tables: List[Tuple[Element, TableBuilder]] = []
 
     def add_title(
         self,
@@ -411,8 +411,9 @@ class TemplateBuilder:
         """Start a table element; rows are added via the returned TableBuilder."""
         widths = list(column_widths) if column_widths else None
         tb = TableBuilder(max_columns, widths)
-        self._tables.append(tb)
-        self._elements.append(Element(type="table", table=tb.build()))
+        placeholder = Element(type="table", table=None)
+        self._tables.append((placeholder, tb))
+        self._elements.append(placeholder)
         return tb
 
     def add_spacer(self, height: float) -> "TemplateBuilder":
@@ -422,16 +423,9 @@ class TemplateBuilder:
 
     def build(self) -> PDFTemplate:
         """Materialize pending table rows into elements and return the template."""
-        table_builds = [tb.build() for tb in self._tables]
-        elements: List[Element] = []
-        ti = 0
-        for el in self._elements:
-            if el.type == "table":
-                elements.append(Element(type="table", table=table_builds[ti]))
-                ti += 1
-            else:
-                elements.append(el)
-        return PDFTemplate(config=self.config, title=self.title, elements=elements)
+        for placeholder, tb in self._tables:
+            placeholder.table = tb.build()
+        return PDFTemplate(config=self.config, title=self.title, elements=list(self._elements))
 
     def generate(self) -> bytes:
         """Build the template and render it to PDF bytes."""

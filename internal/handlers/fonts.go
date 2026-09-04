@@ -23,7 +23,7 @@ func handleGetFonts(c *gin.Context) {
 func handleUploadFont(c *gin.Context) {
 	file, err := c.FormFile("font")
 	if err != nil {
-		abortError(c, http.StatusBadRequest, "No font file provided")
+		abortError(c, http.StatusBadRequest, "font file is required")
 		return
 	}
 
@@ -34,25 +34,9 @@ func handleUploadFont(c *gin.Context) {
 		return
 	}
 
-	// Read file content, capped to reject oversized uploads with 413
-	f, err := file.Open()
-	if err != nil {
-		log.Printf("handleUploadFont: open failed: %v", err)
-		abortError(c, http.StatusInternalServerError, "failed to process font upload")
-		return
-	}
-	defer func() {
-		_ = f.Close()
-	}()
-
-	data, ok, err := pdfService.ReadUpload(f, UploadKindFont)
-	if err != nil {
-		log.Printf("handleUploadFont: read failed: %v", err)
-		abortError(c, http.StatusBadRequest, "invalid request")
-		return
-	}
-	if !ok {
-		abortError(c, http.StatusRequestEntityTooLarge, "font file exceeds maximum size")
+	// Read file content through the shared upload policy (413 on over-limit).
+	data := readUploadData(c, file, UploadKindFont)
+	if data == nil {
 		return
 	}
 

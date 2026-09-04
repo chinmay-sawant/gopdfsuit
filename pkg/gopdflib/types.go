@@ -4,6 +4,13 @@
 // the only place that converts between public and internal representations,
 // so internal refactors cannot silently change the public API and callers
 // recompile untouched as long as field names are stable.
+//
+// Decision (Phase 4.4): the owned-type split is kept, not aliased to
+// internal models. Aliasing (`type PDFTemplate = models.PDFTemplate`) would
+// leak internal field changes into the public API without a compile break.
+// The cost control is translation shape, not type identity: translate whole
+// slices in one JSON round-trip (see redact.go) instead of per-item loops,
+// so per-call overhead stays constant regardless of item count.
 package gopdflib
 
 // PDFTemplate is the main input structure for PDF generation.
@@ -246,6 +253,11 @@ type FontInfo struct {
 }
 
 // HTMLToPDFRequest represents the input for HTML to PDF conversion.
+//
+// Field-to-knob mapping lives in internal/pdf/html_convert.go (single
+// mapping table). DPI, LowQuality, and Options have no gowkhtmltopdf
+// equivalent: accepted but ignored, with a warning logged for non-empty
+// Options.
 type HTMLToPDFRequest struct {
 	HTML         string            `json:"html,omitempty"`
 	URL          string            `json:"url,omitempty"`
@@ -263,6 +275,9 @@ type HTMLToPDFRequest struct {
 }
 
 // HTMLToImageRequest represents the input for HTML to image conversion.
+//
+// Field-to-knob mapping lives in internal/pdf/html_convert.go. Options has
+// no gowkhtmltopdf equivalent: accepted but ignored with a warning.
 type HTMLToImageRequest struct {
 	HTML       string            `json:"html,omitempty"`
 	URL        string            `json:"url,omitempty"`

@@ -4,9 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/check-wasm-manifests.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test:schema": "node scripts/schema-selfcheck.mjs",
+    "test": "node --test tests/*.test.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {

@@ -6,7 +6,7 @@ import json
 from typing import List, Optional
 
 from .types import SplitSpec
-from ._bindings import get_lib, call_bytes_result, call_bytes_array_result
+from ._bindings import get_lib, call_bytes_result, call_bytes_array_result, json_payload, pdf_args
 
 
 def split_pdf(pdf_data: bytes, spec: SplitSpec) -> List[bytes]:
@@ -35,18 +35,8 @@ def split_pdf(pdf_data: bytes, spec: SplitSpec) -> List[bytes]:
         >>> spec = SplitSpec(max_per_file=5)
         >>> parts = split_pdf(pdf_data, spec)
     """
-    if not pdf_data:
-        raise ValueError("PDF data cannot be empty")
-
     lib = get_lib()
-    spec_json = json.dumps(spec.to_dict()).encode("utf-8")
-
-    return call_bytes_array_result(
-        lib.SplitPDF,
-        pdf_data,
-        len(pdf_data),
-        spec_json,
-    )
+    return call_bytes_array_result(lib.SplitPDF, *pdf_args(pdf_data), json_payload(spec))
 
 
 def parse_page_spec(spec: str, total_pages: int = 0) -> List[int]:

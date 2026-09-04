@@ -10,7 +10,7 @@ import (
 
 func TestPDFAHandlerGenerateXMPMetadataUsesCachedTemplateSections(t *testing.T) {
 	pm := &PageManager{NextObjectID: 9, ExtraObjects: make(map[int][]byte)}
-	alloc := NewAllocator(0).BindPageManager(pm, nil)
+	alloc := (&Allocator{}).BindPageManager(pm, nil)
 	handler := NewPDFAHandler(&models.PDFAConfig{
 		Conformance: "4",
 		Title:       "Quarterly Note",

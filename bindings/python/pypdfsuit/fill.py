@@ -2,7 +2,7 @@
 PDF form filling functionality.
 """
 
-from ._bindings import get_lib, call_bytes_result
+from ._bindings import get_lib, call_bytes_result, pdf_args
 
 
 def fill_pdf_with_xfdf(pdf_data: bytes, xfdf_data: bytes) -> bytes:
@@ -33,17 +33,5 @@ def fill_pdf_with_xfdf(pdf_data: bytes, xfdf_data: bytes) -> bytes:
         >>> with open("filled.pdf", "wb") as f:
         ...     f.write(filled)
     """
-    if not pdf_data:
-        raise ValueError("PDF data cannot be empty")
-    if not xfdf_data:
-        raise ValueError("XFDF data cannot be empty")
-
     lib = get_lib()
-
-    return call_bytes_result(
-        lib.FillPDFWithXFDF,
-        pdf_data,
-        len(pdf_data),
-        xfdf_data,
-        len(xfdf_data),
-    )
+    return call_bytes_result(lib.FillPDFWithXFDF, *pdf_args(pdf_data), *pdf_args(xfdf_data, "XFDF data"))

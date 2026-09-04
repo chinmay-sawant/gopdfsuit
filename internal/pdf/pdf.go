@@ -3,13 +3,10 @@
 package pdf
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/url"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	gowkhtmltopdf "github.com/chinmay-sawant/gowkhtmltopdf"
@@ -62,29 +59,17 @@ func ConvertHTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) {
 	// Defense in depth: handlers run validateFetchURL first; the restricted
 	// policy additionally blocks private/link-local fetches and cross-host
 	// redirects for the page plus its subresource CSS inside the engine.
-	policy := gowkhtmltopdf.RestrictedNetworkPolicy()
-	doc := &gowkhtmltopdf.Document{
-		Pages:       []gowkhtmltopdf.Page{{Source: content}},
-		PageSize:    req.PageSize,
-		Orientation: req.Orientation,
-		Margin: gowkhtmltopdf.Margin{
-			Top:    parseMarginMM(req.MarginTop),
-			Right:  parseMarginMM(req.MarginRight),
-			Bottom: parseMarginMM(req.MarginBottom),
-			Left:   parseMarginMM(req.MarginLeft),
-		},
-		Grayscale: req.Grayscale,
-		Network:   &policy,
-	}
-	// Note: LowQuality, DPI, and free-form Options have no gowkhtmltopdf
-	// equivalent and are accepted but ignored (see models.HTMLToPDFRequest).
+	// DPI, LowQuality, and Options have no gowkhtmltopdf equivalent and are
+	// accepted but ignored (see the mapping table in html_convert.go).
+	warnUnmappedHTMLOptions("ConvertHTMLToPDF", req.Options)
+	doc := buildPDFDocument(req, content)
 
 	htmlDebugf("ConvertHTMLToPDF: Options prepared - PageSize: %s, Orientation: %s, Grayscale: %t",
 		req.PageSize, req.Orientation, req.Grayscale)
 
-	pdfData, err := doc.PDF(context.Background())
+	pdfData, err := runPDFDocument(doc)
 	if err != nil {
-		return nil, fmt.Errorf("PDF conversion failed: %w", err)
+		return nil, err
 	}
 
 	htmlDebugf("ConvertHTMLToPDF: Conversion successful. PDF size: %d bytes", len(pdfData))
@@ -102,41 +87,23 @@ func ConvertHTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
 		return nil, err
 	}
 
-	format := strings.ToLower(strings.TrimSpace(req.Format))
-	if format == "" {
-		format = "png"
-	}
-	if format == "svg" {
-		return nil, fmt.Errorf("unsupported image format %q: gowkhtmltopdf supports png and jpg only", req.Format)
-	}
-
-	var crop *gowkhtmltopdf.Crop
-	if req.CropWidth > 0 && req.CropHeight > 0 {
-		crop = &gowkhtmltopdf.Crop{Left: req.CropX, Top: req.CropY, Width: req.CropWidth, Height: req.CropHeight}
+	format, err := normalizeImageFormat(req.Format)
+	if err != nil {
+		return nil, err
 	}
 
 	htmlDebugf("ConvertHTMLToImage: Options prepared - Format: %s, Width: %d, Height: %d, Quality: %d",
 		format, req.Width, req.Height, req.Quality)
 
 	// Defense in depth: see ConvertHTMLToPDF on validateFetchURL plus the
-	// restricted in-engine network policy.
-	policy := gowkhtmltopdf.RestrictedNetworkPolicy()
-	imgDoc := &gowkhtmltopdf.ImageDocument{
-		Source:  content,
-		Width:   req.Width,
-		Height:  req.Height,
-		Format:  format,
-		Quality: req.Quality,
-		Zoom:    req.Zoom,
-		Crop:    crop,
-		Network: &policy,
-	}
-	// Note: free-form Options has no gowkhtmltopdf equivalent and is
-	// accepted but ignored (see models.HTMLToImageRequest).
+	// restricted in-engine network policy. Options has no gowkhtmltopdf
+	// equivalent and is accepted but ignored (see html_convert.go).
+	warnUnmappedHTMLOptions("ConvertHTMLToImage", req.Options)
+	imgDoc := buildImageDocument(req, content, format)
 
-	imageData, err := imgDoc.Image(context.Background())
+	imageData, err := runImageDocument(imgDoc)
 	if err != nil {
-		return nil, fmt.Errorf("image conversion failed: %w", err)
+		return nil, err
 	}
 
 	htmlDebugf("ConvertHTMLToImage: Conversion successful. Image size: %d bytes", len(imageData))
@@ -156,39 +123,5 @@ func htmlSourceContent(html, rawURL string) (gowkhtmltopdf.Content, error) {
 	}
 }
 
-// defaultMarginMM is the fallback when a margin string is empty or
-// unparseable. It matches the handler default of "10mm".
-const defaultMarginMM = 10
-
-// parseMarginMM parses "10mm"-style margin strings to millimetres. Bare
-// numbers mean mm; cm, in, pt, and px (96dpi) are converted. Unparseable or
-// negative values fall back to defaultMarginMM rather than failing the
-// conversion.
-func parseMarginMM(raw string) float64 {
-	s := strings.TrimSpace(strings.ToLower(raw))
-	if s == "" {
-		return defaultMarginMM
-	}
-	mult := 1.0
-	for _, suffix := range []struct {
-		suffix string
-		mult   float64
-	}{
-		{"mm", 1.0},
-		{"cm", 10.0},
-		{"in", 25.4},
-		{"pt", 25.4 / 72.0},
-		{"px", 25.4 / 96.0},
-	} {
-		if strings.HasSuffix(s, suffix.suffix) {
-			mult = suffix.mult
-			s = strings.TrimSpace(strings.TrimSuffix(s, suffix.suffix))
-			break
-		}
-	}
-	v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
-	if err != nil || v < 0 {
-		return defaultMarginMM
-	}
-	return v * mult
-}
+// defaultMarginMM, parseMarginMM, and the Document/ImageDocument builders
+// live in html_convert.go, shared with the WASM build.

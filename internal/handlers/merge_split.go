@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,21 +32,9 @@ func handleMergePDFs(c *gin.Context) {
 	var pdfBytesList [][]byte
 	// Process files in the exact order they appear in the form to maintain selection sequence
 	for _, fh := range files {
-		f, err := fh.Open()
-		if err != nil {
-			log.Printf("handleMergePDFs: open upload failed: %v", err)
-			abortErrorAndStop(c, http.StatusInternalServerError, "failed to process upload")
-			return
-		}
-		buf, ok, err := pdfService.ReadUpload(f, UploadKindPDF)
-		_ = f.Close()
-		if err != nil {
-			log.Printf("handleMergePDFs: read upload failed: %v", err)
-			abortErrorAndStop(c, http.StatusBadRequest, "invalid request")
-			return
-		}
-		if !ok {
-			abortErrorAndStop(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
+		buf := readUploadData(c, fh, UploadKindPDF)
+		if buf == nil {
+			// Rejection already written by readUploadData.
 			return
 		}
 		pdfBytesList = append(pdfBytesList, buf)
@@ -53,7 +42,7 @@ func handleMergePDFs(c *gin.Context) {
 
 	merged, err := pdfService.MergePDFs(pdfBytesList)
 	if err != nil {
-		abortPDFError(c, err)
+		abortPDFError(c, err, "PDF processing failed")
 		return
 	}
 
@@ -66,22 +55,8 @@ func handleMergePDFs(c *gin.Context) {
 // and returns the resulting PDFs in a zip file as application/zip
 func handlerSplitPDF(c *gin.Context) {
 	// Read uploaded PDF file
-	pdfFile, _, err := c.Request.FormFile("pdf")
-	if err != nil {
-		abortError(c, http.StatusBadRequest, "Missing pdf file: "+err.Error())
-		return
-	}
-	defer func() {
-		_ = pdfFile.Close()
-	}()
-	pdfBytes, ok, err := pdfService.ReadUpload(pdfFile, UploadKindPDF)
-	if err != nil {
-		log.Printf("handlerSplitPDF: read upload failed: %v", err)
-		abortError(c, http.StatusBadRequest, "invalid request")
-		return
-	}
-	if !ok {
-		abortError(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
+	pdfBytes := readSingleUpload(c, "pdf", UploadKindPDF)
+	if pdfBytes == nil {
 		return
 	}
 
@@ -94,8 +69,9 @@ func handlerSplitPDF(c *gin.Context) {
 		}
 	}
 
-	// Parse pages into []int
-	pages, err := merge.ParsePageSpec(pagesSpec, 0)
+	// Page specs route through the gopdflib constructor so handler input
+	// shares validation with the Go/CGO/WASM split entry points.
+	pages, err := gopdflib.ParsePageSpec(pagesSpec, 0)
 	if err != nil {
 		abortError(c, http.StatusBadRequest, "Invalid pages spec: "+err.Error())
 		return
@@ -108,7 +84,7 @@ func handlerSplitPDF(c *gin.Context) {
 
 	outs, err := pdfService.SplitPDF(pdfBytes, spec)
 	if err != nil {
-		abortPDFError(c, err)
+		abortPDFError(c, err, "PDF processing failed")
 		return
 	}
 

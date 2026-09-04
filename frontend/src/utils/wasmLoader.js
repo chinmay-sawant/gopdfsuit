@@ -8,10 +8,15 @@ export {
   ensureWasmModule,
   ensureCompressWasm,
   ensureGopdfsuitWasm,
+  callWasm,
+  callWasmObject,
+  missingEngineError,
+  cachedFetch,
+  WASM_CACHE_NAME,
   COMPRESS_WASM_URL,
   GOPDFSUIT_WASM_URL,
 } from './wasm/core.js'
-export { shouldUseServerWasmTransport, WASM_TRANSPORT, smartLocal } from './wasm/transports.js'
+export { shouldUseServerWasmTransport, WASM_TRANSPORT, smartLocal, opSmart } from './wasm/transports.js'
 export {
   mergePDFViaWasm,
   splitPDFViaWasm,

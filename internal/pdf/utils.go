@@ -107,7 +107,7 @@ func parseProps(props string) models.Props {
 	fontName := "Helvetica" //nolint:goconst
 	fontSize := 12
 	styleCode := "000"
-	alignment := "left"
+	alignment := alignLeft
 	borders := [4]int{0, 0, 0, 0}
 
 	// Helper to safe index
@@ -124,7 +124,7 @@ func parseProps(props string) models.Props {
 	}
 
 	// 2. Font Size
-	if sizeStr := getPart(1); sizeStr != "" {
+	if sizeStr := strings.TrimSpace(getPart(1)); sizeStr != "" {
 		if s, err := strconv.Atoi(sizeStr); err == nil && s > 0 {
 			fontSize = s
 		}
@@ -139,24 +139,25 @@ func parseProps(props string) models.Props {
 	italic := styleCode[1] == '1'
 	underline := styleCode[2] == '1'
 
-	// 4. Alignment
-	if align := getPart(3); align != "" {
-		alignment = align
+	// 4. Alignment: canonical fallback policy shared with
+	// pkg/gopdflib ParseFontOpts. Empty keeps the left default;
+	// center/right (any case, trimmed) are kept; anything else is left.
+	if align := strings.TrimSpace(getPart(3)); align != "" {
+		switch strings.ToLower(align) {
+		case alignCenter:
+			alignment = alignCenter
+		case alignRight:
+			alignment = alignRight
+		default:
+			alignment = alignLeft
+		}
 	}
 
-	// 5-8. Borders
-	if len(parts) >= 8 {
-		for i := 4; i < 8; i++ {
-			if val, err := strconv.Atoi(parts[i]); err == nil {
-				borders[i-4] = val
-			}
-		}
-	} else if len(parts) >= 5 {
-		// Try to parse as many borders as available starting from index 4
-		for i := 4; i < len(parts) && i < 8; i++ {
-			if val, err := strconv.Atoi(parts[i]); err == nil {
-				borders[i-4] = val
-			}
+	// 5-8. Borders: up to four L:R:T:B values, unparseable stays 0.
+	// Mirrors ParseFontOpts (trimmed, errors ignored).
+	for i := 0; i < 4; i++ {
+		if val, err := strconv.Atoi(strings.TrimSpace(getPart(4 + i))); err == nil {
+			borders[i] = val
 		}
 	}
 

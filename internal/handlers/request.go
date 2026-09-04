@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
@@ -60,49 +61,29 @@ func readBounded(r io.Reader, limit int64) (data []byte, ok bool, err error) {
 }
 
 // pdfErrorStatus maps backend failures to HTTP codes. Sentinel-classified
-// errors (errors.Is/As against the gopdflib taxonomy) win; the substring
-// list below is the pinned legacy fallback for foreign errors that carry
-// only message text (e.g. test mocks, pre-taxonomy engine errors). Keep it
-// in sync with pkg/gopdflib's invalidInputSubstrings.
+// errors resolve through the shared gopdflib taxonomy (CodeOf); the legacy
+// substring fallback for foreign errors that carry only message text (e.g.
+// test mocks) delegates to gopdflib.ClassifyMessage, the single source that
+// also feeds wrapEngineError, so the signal lists cannot drift (notably
+// "limit" is consistently an over-cap signal on both sides).
 func pdfErrorStatus(err error) int {
 	if err == nil {
 		return http.StatusOK
 	}
-	if errors.Is(err, gopdflib.ErrInvalidInput) {
-		return http.StatusUnprocessableEntity
+	if errors.Is(err, gopdflib.ErrInternal) {
+		return http.StatusInternalServerError
 	}
-	if errors.Is(err, gopdflib.ErrLimitExceeded) {
-		return http.StatusRequestEntityTooLarge
+	if code := gopdflib.CodeOf(err); code != gopdflib.CodeInternal {
+		return gopdflib.StatusForCode(code)
 	}
-	if errors.Is(err, gopdflib.ErrUpstream) || errors.Is(err, font.ErrUpstream) {
+	if errors.Is(err, font.ErrUpstream) {
 		return http.StatusBadGateway
 	}
 	var httpErr *font.HTTPStatusError
 	if errors.As(err, &httpErr) {
 		return http.StatusBadGateway
 	}
-	if errors.Is(err, gopdflib.ErrInternal) {
-		return http.StatusInternalServerError
-	}
-	msg := strings.ToLower(err.Error())
-	for _, s := range []string{
-		"exceed", "too large", "maximum size",
-	} {
-		if strings.Contains(msg, s) {
-			return http.StatusRequestEntityTooLarge
-		}
-	}
-	for _, s := range []string{
-		"invalid", "malformed", "corrupt", "parse", "password", "encrypt",
-		"spec", "page", "range", "empty", "not a pdf", "unsupported",
-		"too small", "trailer", "xref", "header", "crypt",
-		"no valid", "missing",
-	} {
-		if strings.Contains(msg, s) {
-			return http.StatusUnprocessableEntity
-		}
-	}
-	return http.StatusInternalServerError
+	return gopdflib.StatusForCode(gopdflib.ClassifyMessage(err))
 }
 
 // errorBody renders the shared {code,message} envelope plus a legacy
@@ -124,8 +105,10 @@ func abortErrorAndStop(c *gin.Context, status int, message string) {
 }
 
 // abortPDFError logs backend detail server-side and replies with a generic
-// client message plus the mapped status code and envelope code.
-func abortPDFError(c *gin.Context, err error) {
+// client message plus the mapped status code and envelope code. fallbackMsg
+// is the message for unclassified (500) failures, letting redaction and
+// other ops name the operation without owning a parallel abort helper.
+func abortPDFError(c *gin.Context, err error, fallbackMsg string) {
 	log.Printf("pdf handler %s failed: %v", c.Request.URL.Path, err)
 	status := pdfService.ClassifyError(err)
 	var message string
@@ -138,7 +121,7 @@ func abortPDFError(c *gin.Context, err error) {
 		message = "upstream dependency failed"
 	default:
 		status = http.StatusInternalServerError
-		message = "PDF processing failed"
+		message = fallbackMsg
 	}
 	c.JSON(status, errorBody(gopdflib.CodeForStatus(status), message))
 }
@@ -198,7 +181,61 @@ func isBlockedFetchIP(ip net.IP) bool {
 	return false
 }
 
-var pprofForbiddenResp = gin.H{"error": "Forbidden: Pprof is only accessible from localhost"}
+// pprofForbiddenResp uses the shared errorBody envelope so pprof denials
+// carry the same code/message/error shape as every other handler rejection.
+var pprofForbiddenResp = errorBody(gopdflib.CodeForStatus(http.StatusForbidden), "Forbidden: Pprof is only accessible from localhost")
+
+// overLimitMessage names the upload kind in 413 rejections so every handler
+// shares one policy vocabulary.
+func overLimitMessage(kind string) string {
+	if kind == UploadKindFont {
+		return "font file exceeds maximum size"
+	}
+	return kind + " exceeds maximum size"
+}
+
+// readUploadData reads an opened multipart file header through the
+// service-owned body-limit policy. It returns nil after writing the
+// rejection when the handler must abort.
+func readUploadData(c *gin.Context, fh *multipart.FileHeader, kind string) []byte {
+	f, err := fh.Open()
+	if err != nil {
+		log.Printf("upload: open %s failed: %v", fh.Filename, err)
+		abortError(c, http.StatusInternalServerError, "failed to process upload")
+		return nil
+	}
+	defer func() { _ = f.Close() }()
+
+	data, ok, err := pdfService.ReadUpload(f, kind)
+	if err != nil {
+		log.Printf("upload: read %s failed: %v", fh.Filename, err)
+		abortError(c, http.StatusBadRequest, "invalid request")
+		return nil
+	}
+	if !ok {
+		abortError(c, http.StatusRequestEntityTooLarge, overLimitMessage(kind))
+		return nil
+	}
+	if len(data) == 0 {
+		abortError(c, http.StatusBadRequest, kind+" file is empty")
+		return nil
+	}
+	return data
+}
+
+// readSingleUpload opens the form file for field and reads it through the
+// service-owned body-limit policy, rejecting oversized uploads with 413 and
+// missing or empty uploads with 400. It returns nil when the handler must
+// abort (response already written). This is the single upload policy for
+// the redact, compress, split, fill, and font handlers.
+func readSingleUpload(c *gin.Context, field, kind string) []byte {
+	fh, err := c.FormFile(field)
+	if err != nil {
+		abortError(c, http.StatusBadRequest, field+" file is required")
+		return nil
+	}
+	return readUploadData(c, fh, kind)
+}
 
 // isLoopbackPeer reports whether req arrived over a loopback connection,
 // based on the direct peer address. Unlike Gin's ClientIP it ignores

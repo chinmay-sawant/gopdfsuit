@@ -1,29 +1,21 @@
 // Merge / Split / Fill via gopdfsuit.wasm, with explicit-consent server
 // fallbacks. Split returns a JS array of Uint8Array (multi-file download is
-// assembled by usePdfOperation.runLocalMulti); zipping stays in JS so
+// assembled by usePdfOperation.runLocal (arrays take the multi path);
 // archive/zip never enters the WASM closure.
 
-import { ensureGopdfsuitWasm, asUint8Array } from './core.js'
+import { ensureGopdfsuitWasm, asUint8Array, callWasm, missingEngineError } from './core.js'
 import { makeAuthenticatedRequest } from '../apiConfig.js'
 import { smartLocal } from './transports.js'
 
-function missingEngineError(fnName) {
-  const err = new Error(
-    `${fnName} is not in the shipped WASM bundle yet (needs plans/wasm/01-full-wasm-port.md Fill/Merge/Split bindings)`,
-  )
-  err.fallbackAvailable = true
-  err.missingEngine = true
-  return err
-}
-
 function callWasmArray(fnName, args) {
-  const fn = globalThis[fnName]
-  if (typeof fn !== 'function') throw missingEngineError(fnName)
-  const result = fn(...args)
-  if (result instanceof Uint8Array) return result
-  if (Array.isArray(result) && result.every((entry) => entry instanceof Uint8Array)) return result
-  const message = result && typeof result === 'object' ? result.error || result.message : undefined
-  throw new Error(message || `${fnName} failed`)
+  try {
+    return callWasm(fnName, args, { allowArray: true })
+  } catch (err) {
+    if (err && err.missingEngine) {
+      throw missingEngineError(fnName, 'the shipped WASM bundle (needs plans/wasm/01-full-wasm-port.md Fill/Merge/Split bindings)')
+    }
+    throw err
+  }
 }
 
 export async function mergePDFViaWasm(files) {

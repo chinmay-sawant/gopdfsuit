@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,8 +31,11 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 	c.Header("Content-Type", mimeTypePDF)
 	c.Header("Content-Disposition", "attachment; filename=generated.pdf")
 
-	if _, ok := pdfService.(defaultPDFService); ok {
-		doc, err := pdf.GenerateTemplatePDFBorrowed(*template)
+	// Borrowed-render seam: services that expose the pooled fast path
+	// stream it directly; mocks implement the seam so this branch is
+	// test-covered, and any service without it falls back to the copy.
+	if fast, ok := pdfService.(FastGenerateService); ok {
+		doc, err := fast.GenerateTemplatePDFBorrowed(*template)
 		if err != nil {
 			log.Printf("handleGenerateTemplatePDF: generation failed: %v", err)
 			abortError(c, http.StatusInternalServerError, "PDF generation failed")

@@ -32,9 +32,33 @@ func NewDocument(page string, portrait bool) *DocumentBuilder {
 // TitleOption customizes the title set by AddTitle.
 type TitleOption func(*Title)
 
+// TitleFontOptions customizes the title font set by AddTitle without
+// positional bools.
+type TitleFontOptions struct {
+	Name      string
+	Size      int
+	Bold      bool
+	Italic    bool
+	Underline bool
+}
+
+// WithTitleFontOpts overrides the title font from options. The title stays
+// centered with no borders.
+func WithTitleFontOpts(o TitleFontOptions) TitleOption {
+	return func(t *Title) {
+		if t == nil {
+			return
+		}
+		t.Props = MakeProps(o.Name, o.Size, o.Bold, o.Italic, o.Underline, "center", [4]int{0, 0, 0, 0})
+	}
+}
+
 // WithTitleFont overrides the title font. The optional extra bools are
 // italic and underline in that order; the title stays centered with no
 // borders.
+//
+// Deprecated: use WithTitleFontOpts with TitleFontOptions instead. Kept
+// because builder-snippets samples and Editor snippets emit this name.
 func WithTitleFont(name string, size int, bold bool, rest ...bool) TitleOption {
 	italic, underline := false, false
 	if len(rest) > 0 {
@@ -43,12 +67,7 @@ func WithTitleFont(name string, size int, bold bool, rest ...bool) TitleOption {
 	if len(rest) > 1 {
 		underline = rest[1]
 	}
-	return func(t *Title) {
-		if t == nil {
-			return
-		}
-		t.Props = MakeProps(name, size, bold, italic, underline, "center", [4]int{0, 0, 0, 0})
-	}
+	return WithTitleFontOpts(TitleFontOptions{Name: name, Size: size, Bold: bold, Italic: italic, Underline: underline})
 }
 
 // AddTitle sets the document title text and applies any options.
@@ -84,6 +103,17 @@ func (b *DocumentBuilder) AddTable(maxCols int, colWidths ...float64) *TableBuil
 	return &TableBuilder{table: tbl}
 }
 
+// appendRowCells is the single row-append path behind TableBuilder.AddRow
+// and TitleTableBuilder.AddRow. It appends the cells as one row and returns
+// the stored row, which aliases the stored cells so SetCell* calls on its
+// elements apply to the table.
+func appendRowCells(rows *[]Row, cells []Cell) []Cell {
+	row := make([]Cell, len(cells))
+	copy(row, cells)
+	*rows = append(*rows, Row{Row: row})
+	return (*rows)[len(*rows)-1].Row
+}
+
 // AddRow appends the cells as one row and returns the stored row. The
 // returned slice aliases the stored row, so SetCell* calls on its elements
 // apply to the table.
@@ -91,10 +121,7 @@ func (t *TableBuilder) AddRow(cells ...Cell) []Cell {
 	if t == nil || t.table == nil {
 		return nil
 	}
-	row := make([]Cell, len(cells))
-	copy(row, cells)
-	t.table.Rows = append(t.table.Rows, Row{Row: row})
-	return t.table.Rows[len(t.table.Rows)-1].Row
+	return appendRowCells(&t.table.Rows, cells)
 }
 
 // TitleTableBuilder appends rows to the document title's embedded table.
@@ -121,10 +148,7 @@ func (t *TitleTableBuilder) AddRow(cells ...Cell) []Cell {
 	if t == nil || t.table == nil {
 		return nil
 	}
-	row := make([]Cell, len(cells))
-	copy(row, cells)
-	t.table.Rows = append(t.table.Rows, Row{Row: row})
-	return t.table.Rows[len(t.table.Rows)-1].Row
+	return appendRowCells(&t.table.Rows, cells)
 }
 
 // AddSpacer appends a vertical gap element of height h.
@@ -167,7 +191,10 @@ func (b *DocumentBuilder) Generate() ([]byte, error) {
 }
 
 // MakeProps renders a props string from typed parts. It is the function
-// form of FontOpts.String for snippet call sites.
+// form of FontOpts.String for snippet call sites: the single canonical
+// props grammar (fallbacks: empty name to Helvetica, size <= 0 to 12,
+// non-3-char style to regular, unknown align to left) shared with the
+// engine's parseProps.
 func MakeProps(name string, size int, bold, italic, underline bool, align string, borders [4]int) string {
 	return FontOpts{
 		Name:      name,
@@ -180,7 +207,10 @@ func MakeProps(name string, size int, bold, italic, underline bool, align string
 	}.String()
 }
 
-// NewCell returns a cell with the given text and props string.
+// NewCell returns a cell with the given text and props string. It is the
+// single cell path: every spelling (FontOpts struct, Cell literal, option
+// functions like SetCellFont, FontBuilder, CellBuilder) renders through
+// FontOpts.String, so all of them produce the same props grammar.
 func NewCell(text, props string) Cell {
 	return Cell{Props: props, Text: text}
 }
@@ -215,7 +245,8 @@ func NewImageCell(name, data string, width, height float64, props string) Cell {
 
 // SetCellFont rewrites the cell's font name, size, and style flags while
 // preserving its alignment and borders. Empty name and size <= 0 keep the
-// current values.
+// current values. It round-trips through the canonical FontOpts grammar
+// (ParseFontOpts/String), never a bespoke parser.
 func SetCellFont(c *Cell, name string, size int, bold, italic, underline bool) {
 	if c == nil {
 		return
@@ -298,17 +329,18 @@ func SetTableColors(t *TableBuilder, bgColor, textColor string) {
 	}
 }
 
-// AddBracketText wraps the cell text as open + text + close (v1 bracket
+// AddBracketText wraps the cell text as open + text + closeDelim (v1 bracket
 // support without rich-text segments).
-func AddBracketText(c *Cell, open, close string) {
+func AddBracketText(c *Cell, open, closeDelim string) {
 	if c == nil {
 		return
 	}
-	c.Text = open + c.Text + close
+	c.Text = open + c.Text + closeDelim
 }
 
 // SetBracketFont overrides the cell's font name and size, preserving style,
 // alignment, and borders. Empty font and size <= 0 keep current values.
+// Like SetCellFont it round-trips through the canonical FontOpts grammar.
 func SetBracketFont(c *Cell, font string, size int) {
 	if c == nil {
 		return

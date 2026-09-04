@@ -42,7 +42,7 @@ func NewOutlineBuilder(pm *PageManager, encryptor ObjectEncryptor) *OutlineBuild
 	return &OutlineBuilder{
 		pageManager: pm,
 		encryptor:   encryptor,
-		dests:       NewDestinationStore(pm, pm.objects().alloc, encryptor),
+		dests:       NewDestinationStore(pm, pm.allocator(), encryptor),
 	}
 }
 

@@ -5,20 +5,15 @@ import "fmt"
 // Allocator is the single seam for object-ID reservation, ExtraObjects
 // commit, and xref-offset recording during generation (Phase 5 D1).
 //
-// Bound mode wraps a live PageManager plus the generation xref offsets
-// slice, so every reservation flows through one counter. Standalone mode
-// (NewAllocator) owns its counter, extras, and offsets for unit tests.
+// It is bound-only: it wraps a live PageManager plus the generation xref
+// offsets slice, so every reservation flows through one counter. There is no
+// standalone mode; unit tests bind a real PageManager (see allocator_test.go
+// and metadata_test.go). When offsets is nil (tests, lazy binds), offsets
+// are recorded in a private slice instead of the generation table.
 type Allocator struct {
 	pm      *PageManager
 	offsets *[]int
-	next    int
-	extra   map[int][]byte
 	own     []int
-}
-
-// NewAllocator creates a standalone allocator starting at start.
-func NewAllocator(start int) *Allocator {
-	return &Allocator{next: start, extra: make(map[int][]byte)}
 }
 
 // BindPageManager binds the allocator to live generation state.
@@ -30,10 +25,7 @@ func (a *Allocator) BindPageManager(pm *PageManager, offsets *[]int) *Allocator 
 
 // Next peeks at the next object ID without reserving it.
 func (a *Allocator) Next() int {
-	if a.pm != nil {
-		return a.pm.NextObjectID
-	}
-	return a.next
+	return a.pm.NextObjectID
 }
 
 // Alloc reserves one object ID.
@@ -46,13 +38,8 @@ func (a *Allocator) AllocN(n int) int {
 	if n <= 0 {
 		n = 1
 	}
-	if a.pm != nil {
-		id := a.pm.NextObjectID
-		a.pm.NextObjectID += n
-		return id
-	}
-	id := a.next
-	a.next += n
+	id := a.pm.NextObjectID
+	a.pm.NextObjectID += n
 	return id
 }
 
@@ -60,38 +47,21 @@ func (a *Allocator) AllocN(n int) int {
 // the counter with externally assigned ID blocks (image deduper, font
 // registry) instead of writing the counter field directly.
 func (a *Allocator) SeekTo(id int) {
-	if a.pm != nil {
-		a.pm.NextObjectID = id
-		return
-	}
-	a.next = id
+	a.pm.NextObjectID = id
 }
 
 // EnsureBeyond advances the counter to id when it lags behind a
 // caller-computed high-water mark (e.g. the dense font block). It never
 // moves the counter backwards.
 func (a *Allocator) EnsureBeyond(id int) {
-	if a.pm != nil {
-		if a.pm.NextObjectID < id {
-			a.pm.NextObjectID = id
-		}
-		return
-	}
-	if a.next < id {
-		a.next = id
+	if a.pm.NextObjectID < id {
+		a.pm.NextObjectID = id
 	}
 }
 
 // Commit stores an extra object body under a reserved ID.
 func (a *Allocator) Commit(id int, content []byte) {
-	if a.pm != nil {
-		a.pm.ExtraObjects[id] = content
-		return
-	}
-	if a.extra == nil {
-		a.extra = make(map[int][]byte)
-	}
-	a.extra[id] = content
+	a.pm.ExtraObjects[id] = content
 }
 
 // CommitString stores an extra object body from a string.
@@ -101,11 +71,7 @@ func (a *Allocator) CommitString(id int, content string) {
 
 // Lookup returns a committed extra object body.
 func (a *Allocator) Lookup(id int) ([]byte, bool) {
-	if a.pm != nil {
-		b, ok := a.pm.ExtraObjects[id]
-		return b, ok
-	}
-	b, ok := a.extra[id]
+	b, ok := a.pm.ExtraObjects[id]
 	return b, ok
 }
 

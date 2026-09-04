@@ -24,7 +24,7 @@ type DestinationStore struct {
 // NewDestinationStore creates a destination store bound to a page manager.
 func NewDestinationStore(pm *PageManager, alloc *Allocator, encryptor ObjectEncryptor) *DestinationStore {
 	if alloc == nil {
-		alloc = pm.objects().alloc
+		alloc = pm.allocator()
 	}
 	return &DestinationStore{pm: pm, alloc: alloc, encryptor: encryptor}
 }

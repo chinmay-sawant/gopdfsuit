@@ -10,7 +10,7 @@ func TestDestinationsDefineResolve(t *testing.T) {
 	reg := NewFontRegistry()
 	pm := NewPageManager(PageDimensions{Width: 595, Height: 842}, PageMargins{Top: 36, Bottom: 36, Left: 36, Right: 36}, false, reg, true, 32*1024)
 	defer pm.ReleaseContentStreams()
-	d := NewDestinationStore(pm, pm.objects().alloc, nil)
+	d := NewDestinationStore(pm, pm.allocator(), nil)
 
 	d.Define("ch1", 0, 700)
 	dest, ok := d.Lookup("ch1")
@@ -34,7 +34,7 @@ func TestDestinationsEmitNameTree(t *testing.T) {
 	reg := NewFontRegistry()
 	pm := NewPageManager(PageDimensions{Width: 595, Height: 842}, PageMargins{Top: 36, Bottom: 36, Left: 36, Right: 36}, false, reg, true, 32*1024)
 	defer pm.ReleaseContentStreams()
-	d := NewDestinationStore(pm, pm.objects().alloc, nil)
+	d := NewDestinationStore(pm, pm.allocator(), nil)
 
 	if _, ok := d.EmitNameTree(); ok {
 		t.Fatal("Emit with no dests succeeded")
@@ -73,7 +73,7 @@ func TestDestinationsLinkAnnotation(t *testing.T) {
 	reg := NewFontRegistry()
 	pm := NewPageManager(PageDimensions{Width: 595, Height: 842}, PageMargins{Top: 36, Bottom: 36, Left: 36, Right: 36}, false, reg, true, 32*1024)
 	defer pm.ReleaseContentStreams()
-	d := NewDestinationStore(pm, pm.objects().alloc, nil)
+	d := NewDestinationStore(pm, pm.allocator(), nil)
 
 	external := d.CreateLinkAnnotation(LinkAnnotation{Rect: [4]float64{0, 0, 10, 10}, URI: "https://example.com"})
 	internal := d.CreateLinkAnnotation(LinkAnnotation{Rect: [4]float64{0, 0, 10, 10}, Dest: "a-dest"})

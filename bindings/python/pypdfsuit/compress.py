@@ -1,8 +1,6 @@
 """PDF compression via the Go shared library."""
 
-import json
-
-from ._bindings import get_lib, call_bytes_result
+from ._bindings import get_lib, call_bytes_result, json_payload, pdf_args
 
 _VALID_LEVELS = ("light", "medium", "heavy")
 
@@ -18,8 +16,6 @@ def compress_pdf(src: bytes, level: str = "medium") -> bytes:
     Returns:
         bytes: The compressed PDF content.
     """
-    if not src:
-        raise ValueError("src PDF bytes cannot be empty")
     if level is None:
         level = ""
     level = str(level).lower()
@@ -27,5 +23,4 @@ def compress_pdf(src: bytes, level: str = "medium") -> bytes:
         raise ValueError(f"level must be one of {list(_VALID_LEVELS)}, got {level!r}")
 
     lib = get_lib()
-    opts = json.dumps({"level": level}, separators=(",", ":")).encode("utf-8")
-    return call_bytes_result(lib.CompressPDF, src, len(src), opts)
+    return call_bytes_result(lib.CompressPDF, *pdf_args(src, "src PDF bytes"), json_payload({"level": level}))

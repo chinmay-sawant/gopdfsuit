@@ -441,16 +441,13 @@ type Props struct {
 
 // HTMLToPDFRequest represents the input for htmltopdf conversion.
 //
-// gowkhtmltopdf v0.2.5 equivalence gaps (pure-Go engine, no browser):
-//   - DPI: no equivalent, accepted but ignored.
-//   - LowQuality: no equivalent, accepted but ignored.
-//   - Zoom: no PDF-path equivalent, accepted but ignored.
-//   - Crop*: no PDF-path equivalent, accepted but ignored.
-//   - Options map: free-form wkhtmltopdf flags have no equivalent, accepted
-//     but ignored.
-//
-// PageSize, Orientation, margins ("10mm"-style, parsed to mm floats), and
-// Grayscale map onto Document fields; HTML/URL map onto Content.
+// Field-to-knob mapping lives in exactly one place:
+// internal/pdf/html_convert.go (buildPDFDocument plus the mapping table
+// comment). PageSize, Orientation, margins ("10mm"-style, parsed to mm
+// floats), and Grayscale map onto Document fields; HTML/URL map onto
+// Content. DPI, LowQuality, and the Options map have no gowkhtmltopdf
+// equivalent: they are accepted but ignored, and non-empty Options logs
+// a warning via warnUnmappedHTMLOptions.
 type HTMLToPDFRequest struct {
 	HTML         string            `json:"html,omitempty"`        // Raw HTML content
 	URL          string            `json:"url,omitempty"`         // URL to convert
@@ -469,12 +466,12 @@ type HTMLToPDFRequest struct {
 
 // HTMLToImageRequest represents the input for htmltoimage conversion.
 //
-// gowkhtmltopdf v0.2.5 equivalence gaps (pure-Go engine, no browser):
-//   - Format "svg": no equivalent, rejected as invalid input (png/jpg only).
-//   - Options map: free-form flags have no equivalent, accepted but ignored.
-//
-// Zoom and Crop* map onto ImageDocument fields; Width, Height, Quality, and
-// Format (png|jpg) map directly; HTML/URL map onto Content.
+// Field-to-knob mapping lives in internal/pdf/html_convert.go
+// (buildImageDocument plus the mapping table comment). Zoom and Crop* map
+// onto ImageDocument fields; Width, Height, Quality, and Format (png|jpg)
+// map directly; HTML/URL map onto Content. Format "svg" has no equivalent
+// and is rejected as invalid input; the Options map has no equivalent and
+// is accepted but ignored with a warning.
 type HTMLToImageRequest struct {
 	HTML       string            `json:"html,omitempty"`        // Raw HTML content
 	URL        string            `json:"url,omitempty"`         // URL to convert
