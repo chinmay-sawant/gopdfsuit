@@ -5,7 +5,7 @@ description: Cut AI tells from any writing. Must always apply.
 
 # Unslop
 
-Edit text to remove AI patterns and add human voice.
+Edit text to remove AI patterns and add human voice. Apply to all gopdfsuit prose: `guides/`, `plans/`, PR bodies, and `frontend/` copy. Name real paths and commands instead of generic claims.
 
 ## Process
 
@@ -78,3 +78,9 @@ Removing patterns is half the job. Sterile, voiceless writing is just as obvious
 29. **Active voice.** Prefer it. Catch "is/are/was/were + past participle" and name the actor: "queries are validated" becomes "the compiler validates queries", "the file is parsed by the loader" becomes "the loader parses the file". Passive is fine only when the actor is unknown or genuinely doesn't matter.
 30. **Cut adverbs, or use a stronger verb.** "runs quickly" becomes "is fast" or the number. "significantly improves" becomes the measured delta. An adverb propping up a weak verb means the verb is wrong.
 31. **Prefer the plain word.** "utilize" becomes "use", "leverage" becomes "use", "facilitate" becomes "help", "numerous" becomes "many", "in the event that" becomes "if". The fancier synonym is rarely clearer.
+
+## Use in gopdfsuit
+
+- Replace generic filler with repo facts. Bad: "the PDF engine is robust and scalable." Good: "`internal/pdf/` renders template JSON with pooled Sonic decoders; `make test-verify-pdfs` passed."
+- Name the op and path. Say `pkg/gopdflib compress Heavy tier` or `internal/handlers template-pdf`, not "the system" or "the API surface".
+- Keep AGENTS.md rule: no em dashes in docs. Use commas or periods.

@@ -1,6 +1,6 @@
-# goslop - Issue / PR Comment Template
+# gopdfsuit - Issue / PR Comment Template
 
-Use this for **progress updates** on GitHub issues and pull requests. Keep comments factual and complete. Avoid dangling next-step teases aimed at the human (“when you want”, “let me know”, “remaining for you”).
+Use this for **progress updates** on GitHub issues and pull requests. Keep comments factual and complete. Avoid dangling next-step teases aimed at the human ("when you want", "let me know", "remaining for you").
 
 ---
 
@@ -15,12 +15,12 @@ Use this for **progress updates** on GitHub issues and pull requests. Keep comme
 
 **Do not**
 
-- End with casual prompts: “PR when you want”, “let me know once done”, “Remaining checklist: Phase 7 ship…”.
+- End with casual prompts: "PR when you want", "let me know once done", "Remaining checklist: Phase 7 ship...".
 - Address the maintainer as if the comment is a chat thread.
 - Leave success criteria half-checked without stating whether the issue/PR is ready to close.
 
-If work is complete for this issue: say **ready for review** / **issue can close on merge** and stop.  
-If work continues: list **next batch candidates** under a clear “Out of scope for this update” or “Future work (new issue)” heading - never “still need you to…”.
+If work is complete for this issue: say **ready for review** / **issue can close on merge** and stop.
+If work continues: list **next batch candidates** under a clear "Out of scope for this update" or "Future work (new issue)" heading - never "still need you to...".
 
 ---
 
@@ -36,21 +36,23 @@ If work continues: list **next batch candidates** under a clear “Out of scope 
 
 | Area | Result |
 |------|--------|
-| … | … |
+| ... | ... |
 
 ### Validation
 
 - `make lint` - pass
 - `make test` - N passed
+- `make test-verify-pdfs` - pass (when PDF output changed)
 
 ### Plans / evidence
 
 - `plans/...`
+- `sampledata/<area>/` fixture updated (when relevant)
 
 ### Issue status
 
 - **This issue:** ready to close on PR merge | still open for [concrete incomplete criterion]
-- **Future work (optional, new issue):** short bullets only if useful - no “waiting on you” language
+- **Future work (optional, new issue):** short bullets only if useful - no "waiting on you" language
 ```
 
 ---
@@ -69,6 +71,7 @@ If work continues: list **next batch candidates** under a clear “Out of scope 
 ### Validation
 
 - `make lint` / `make test` - pass
+- `make test-integration` - pass (when handlers or engine changed)
 
 ### Notes for reviewers
 
@@ -82,7 +85,7 @@ If work continues: list **next batch candidates** under a clear “Out of scope 
 ```markdown
 ## Ship
 
-PR: https://github.com/chinmay-sawant/goslop/pull/N
+PR: https://github.com/chinmay-sawant/gopdfsuit/pull/N
 
 Implements the checklist for this issue. Merge closes the process gate via `Closes #N` on the PR body.
 
@@ -90,17 +93,18 @@ Implements the checklist for this issue. Merge closes the process gate via `Clos
 
 - `make lint` - pass
 - `make test` - N passed
+- `make test-verify-pdfs` - pass (when PDF output changed)
 
 ### Future work (optional)
 
-Further domain audits should open a **new** issue; do not reopen this one for unrelated families.
+Further PDF op audits should open a **new** issue; do not reopen this one for unrelated ops.
 ```
 
 ---
 
 ## Author checklist before posting
 
-- [ ] No “when you want” / “let me know” / chatty remaining-phase lines
+- [ ] No "when you want" / "let me know" / chatty remaining-phase lines
 - [ ] Commit/PR/branch identified when work landed
 - [ ] Tables used if more than two outcomes
 - [ ] Incomplete work phrased as optional future backlog or explicit open success criteria

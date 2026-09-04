@@ -4,7 +4,7 @@ description: Feynman technique. Explain a topic in plain words, hunt your own ga
 disable-model-invocation: true
 ---
 
-The rule: if you cannot explain something in a simple way, you do not fully understand it yet. This skill runs that rule as a loop until the explanation holds.
+The rule: if you cannot explain something in a simple way, you do not fully understand it yet. This skill runs that rule as a loop until the explanation holds. In gopdfsuit use it for PDF engine ideas such as font subsetting, xref tables, compress tiers, XFDF fill, tagging and ParentTree, or Sonic pooling.
 
 ## Unslop first
 
@@ -24,7 +24,7 @@ No topic? Ask once, wait for the answer.
 
 Never explain from memory alone.
 
-- Topic touches this repo: read the actual code first. Every claim about it cites `file:line`.
+- Topic touches this repo: read the actual code first. Every claim about it cites `file:line`. For gopdfsuit start in `internal/pdf/`, `pkg/gopdflib/`, `internal/handlers/`, or `internal/models/` and name the exact file.
 - Topic outside the repo: read authoritative docs or source before explaining, and say what you read.
 - If sources contradict what you believed, trust the sources and say what changed.
 
@@ -55,5 +55,5 @@ You become the listener.
 - Let the user finish a full attempt before interrupting.
 - Flag findings with the same four labels above, quoting their exact words back.
 - After flags, drill one question at a time: "why does that work?" until they hit bedrock or hit a wall. A wall is the method working, never mock it.
-- Point every gap to the file or doc that closes it.
+- Point every gap to the file or doc that closes it. For gopdfsuit point to `internal/pdf/*`, `guides/TEMPLATE_REFERENCE.md`, or `sampledata/<area>/` fixtures.
 - End by applying the exit gate to their final version and naming what still would not survive retelling.

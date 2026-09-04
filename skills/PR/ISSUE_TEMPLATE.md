@@ -1,18 +1,18 @@
-# goslop - GitHub Issue Creation Template
+# gopdfsuit - GitHub Issue Creation Template
 
 Use this when opening a **process-gated** implementation issue (same discipline as `PR_TEMPLATE.md`). Fill the body sections, then create the issue with the CLI so **assignee**, **labels**, and **title** are set correctly.
 
-Repo: [chinmay-sawant/goslop](https://github.com/chinmay-sawant/goslop) (Go port of goslop).
+Repo: [chinmay-sawant/gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) (template-based PDF platform: Gin REST API plus `gopdflib` Go lib plus `pypdfsuit` Python bindings).
 
 ---
 
 ## How to use
 
-1. **Pick a title** - short, imperative or noun phrase; include the work area (`engine parse…`, `CWE catalog…`).
+1. **Pick a title** - short, imperative or noun phrase; include the work area (`compress tiers...`, `fill XFDF...`, `redact positions...`, `htmltopdf...`, `frontend viewer...`).
 2. **Fill the body** below (Context, Scope, Out of scope, Success criteria, Plan, References).
-3. **Save a record** (optional but recommended) under `plans/PR/issue-<slug>-body.md` or `plans/v0.0.x/`.
+3. **Save a record** (optional but recommended) under `plans/PR/issue-<slug>-body.md` or `plans/`.
 4. **Create the issue** with the `gh` command in [Open the issue](#open-the-issue-gh--required-metadata).
-5. **Open a local branch** after the issue exists (e.g. `feat/go-ast-no-cgo`).
+5. **Open a local branch** after the issue exists (e.g. `feat/compress-heavy-tier`, `fix/fill-compressed-stream`).
 6. When shipping: open the PR with `PR_TEMPLATE.md` and `Closes #N` / `Relates to #N`.
 7. Progress comments on the issue must follow `COMMENT_TEMPLATE.md` (factual tables; no chatty remaining-step lines).
 
@@ -34,7 +34,7 @@ gh issue create \
 | `--assignee "@me"` | **Required.** Self-assign the author. |
 | `--label …` | **Required.** At least one. Prefer `documentation` + `enhancement` for plan/engine work; use `bug` for defect-driven issues. |
 | `--body-file` or `--body` | **Required.** Full body with Context / Scope / Success criteria. |
-| `--title` | Specific enough to find later; include domain (engine, CWE, BP). |
+| `--title` | Specific enough to find later; include domain (generate, compress, fill, redact, html, frontend, bindings). |
 
 If the issue already exists without metadata:
 
@@ -62,9 +62,9 @@ gh label list
 
 | Label | Use when |
 |-------|----------|
-| `enhancement` | Product/detector/engine work, new capability |
-| `documentation` | Plans, audits, decision records, ledger |
-| `bug` | Incorrect behavior / regression |
+| `enhancement` | Product work, new PDF op, new capability (`generate`, `compress`, `redact`, `htmltopdf`) |
+| `documentation` | Plans, audits, decision records, `guides/` updates |
+| `bug` | Incorrect PDF output, regression, compliance failure |
 | `duplicate` / `wontfix` / `invalid` | Triage only |
 | `good first issue` / `help wanted` | Community contribution issues |
 
@@ -79,7 +79,7 @@ Mixed plan + code batches: **`documentation` + `enhancement`**.
 | Link closed parents (`#8`, `#16`) | Continuity |
 | Link merged PRs | Evidence |
 | Link plan paths | Single source of checklist |
-| Link architecture docs | Policy boundaries |
+| Link architecture docs | Policy boundaries (`guides/TEMPLATE_REFERENCE.md`, `guides/AUTHENTICATION.md`) |
 
 When the work ships, the PR must use:
 
@@ -122,14 +122,15 @@ Copy from the line below into `--body` / body file. Delete HTML comments before 
 
 ## Plan
 
-- Checklist: `plans/port-phasewise-checklist.md`
+- Checklist: `plans/<area>-checklist.md`
 - Parent: `plans/...`
 
 ## References
 
 - Relates to #N / Continues from #N
 - PRs: #N
-- Docs: `plans/...`
+- Docs: `plans/...`, `guides/...`
+- Fixtures: `sampledata/<area>/`
 
 ---
 
@@ -148,9 +149,9 @@ Copy from the line below into `--body` / body file. Delete HTML comments before 
 
 ```sh
 gh issue create \
-  --title "engine: replace tree-sitter/CGO with go/ast pure-Go parse" \
+  --title "compress: add Heavy tier preset for scanned PDFs" \
   --assignee "@me" \
   --label documentation \
   --label enhancement \
-  --body-file plans/PR/issue-go-ast-no-cgo-body.md
+  --body-file plans/PR/issue-compress-heavy-tier-body.md
 ```

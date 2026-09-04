@@ -5,11 +5,11 @@ description: Create or maintain evidence-backed, phase-wise implementation check
 
 # Phase-Wise Checklist
 
-Create one canonical plan under `plans/` and treat it as a live execution ledger.
+Create one canonical plan under `plans/` and treat it as a live execution ledger. For gopdfsuit this usually means one ledger per PDF op or frontend area, with fixtures in `sampledata/<area>/`.
 
 ## Workflow
 
-1. Read the named parent plan/checklist and inspect the current implementation before changing any status.
+1. Read the named parent plan/checklist and inspect the current implementation before changing any status. For engine work read `internal/pdf/` plus `pkg/gopdflib/` first. For API work read `internal/handlers/` plus `internal/models/`.
 2. Use the repository graph tools for code discovery when available; otherwise use focused source search. Treat plan prose as a claim, not evidence.
 3. Start with the required plan shape:
 
@@ -30,8 +30,8 @@ Create one canonical plan under `plans/` and treat it as a live execution ledger
    ## Dependencies
    ```
 
-4. Make every checklist row atomic: one code change or one validation result. Include the affected path, rule/issue ID, expected behavior, and required proof where useful.
-5. Order phases by dependency and risk: correctness/security first, then API/data contracts, then performance/cleanup, then closure gates.
+4. Make every checklist row atomic: one code change or one validation result. Include the affected path, rule/issue ID, expected behavior, and required proof where useful. Example: `internal/pdf/compress/* - Heavy tier keeps text sharp - proof: make test-verify-pdfs`.
+5. Order phases by dependency and risk: correctness/security first, then API/data contracts, then performance/cleanup, then closure gates. For PDF work put correctness plus PDF/A-4 and PDF/UA-2 compliance before perf tiers.
 6. Use statuses consistently:
    - `[ ]` not started or not proven;
    - `[x]` implemented and validated with current evidence;
@@ -45,7 +45,8 @@ Create one canonical plan under `plans/` and treat it as a live execution ledger
 - Prefer current code, tests, benchmarks, scanner output, and CI configuration over historical notes.
 - State negative results precisely: e.g. "no production `unsafe` beyond X found in this audit", never "no bugs exist".
 - Keep risk statements separate from confirmed defects. Label hypotheses and give their validation step.
-- For performance items, include the exact release command, dataset/path, cold/warm cache state, and metric; successful execution is not benchmark proof.
+- For performance items, include the exact release command, dataset/path, cold/warm cache state, and metric; successful execution is not benchmark proof. Use `sampledata/gopdflib/zerodha/` or `sampledata/benchmarks/` paths when relevant.
+- For PDF output items, cite `test/verify_pdfs.sh` output plus veraPDF plus structure tree check, not just `go test`.
 
 ## Completion Handoff
 
@@ -53,5 +54,5 @@ Before declaring a phase complete, confirm its rows, run the smallest relevant v
 
 ## Required Checks
 
-- For documentation-only changes, do not run lint or test checks.
-- For every non-documentation change, run `make lint` and `make test` before marking the phase complete. Record both outcomes in the canonical checklist; leave the row unchecked if either command fails.
+- For documentation-only changes (`guides/`, `plans/`, `*.md`), do not run lint or test checks.
+- For every non-documentation change, run `make fmt && make lint && make test` before marking the phase complete. Add `make test-integration` when `internal/handlers/` or `internal/pdf/` changed. Add `make test-verify-pdfs` when PDF bytes changed. Add `cd frontend && npm run build` when `frontend/src/` changed. Record all outcomes in the canonical checklist; leave the row unchecked if any command fails.

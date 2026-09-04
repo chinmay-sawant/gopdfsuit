@@ -1,6 +1,6 @@
-# goslop - Pull Request Template
+# gopdfsuit - Pull Request Template
 
-Use this document as the base when authoring GitHub pull requests for [chinmay-sawant/goslop](https://github.com/chinmay-sawant/goslop). Copy the sections below into the PR description and fill in each section. Delete guidance comments before submitting.
+Use this document as the base when authoring GitHub pull requests for [chinmay-sawant/gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit). Copy the sections below into the PR description and fill in each section. Delete guidance comments before submitting.
 
 ---
 
@@ -21,7 +21,7 @@ Use this document as the base when authoring GitHub pull requests for [chinmay-s
 ```sh
 # From the feature branch (already pushed):
 gh pr create \
-  --base main \
+  --base master \
   --head "$(git branch --show-current)" \
   --title "<type>(<scope>): <short imperative description>" \
   --body-file plans/PR/pr-<short-slug>.md \
@@ -36,7 +36,7 @@ gh pr create \
 | `--label …` | **Required.** At least one label. |
 | `--body-file …` | **Required.** Full template body with **Related issues** filled. |
 | `--title` | Must match [PR title](#pr-title) convention. |
-| `--base main` | Default integration branch is **`main`** (not `master`). |
+| `--base master` | Default integration branch is **`master`** (not `main`). |
 
 If the PR already exists without metadata:
 
@@ -49,15 +49,15 @@ gh pr edit <NUMBER> --add-label documentation --add-label enhancement
 
 ## Multi-workstream / epic integration (parallel agents)
 
-When **multiple issue-sized branches** are developed in parallel, also ship a **single integration branch** targeting `main`.
+When **multiple issue-sized branches** are developed in parallel, also ship a **single integration branch** targeting `master`.
 
 ```sh
-git fetch origin main
-git checkout -b chore/epic-N-integration origin/main
-# merge child heads, validate, push, open PR to main
+git fetch origin master
+git checkout -b chore/epic-N-integration origin/master
+# merge child heads, validate, push, open PR to master
 ```
 
-Prefer **merging only the integration PR** into `main` when an epic stack exists.
+Prefer **merging only the integration PR** into `master` when an epic stack exists.
 
 ---
 
@@ -95,6 +95,8 @@ Prefer **merging only the integration PR** into `main` when an epic stack exists
 ```
 
 Types: `feat`, `fix`, `perf`, `refactor`, `test`, `docs`, `chore`, `ci`.
+
+Scopes for gopdfsuit: `generate`, `merge`, `split`, `compress`, `fill`, `redact`, `html`, `fonts`, `handlers`, `engine`, `frontend`, `bindings`, `verapdf`, `docs`.
 
 ---
 
@@ -138,9 +140,10 @@ Copy everything below this line into the GitHub PR body (and into `plans/PR/pr-<
 | **Performance** | |
 | **Memory** | |
 | **Behavior / correctness** | |
-| **API / CLI** | |
+| **API (`/api/v1/*`) / UI** | |
 | **Dependencies** | |
 | **Binary size / build time** | |
+| **PDF compliance (PDF/A-4, PDF/UA-2)** | |
 
 ---
 
@@ -154,17 +157,22 @@ Copy everything below this line into the GitHub PR body (and into `plans/PR/pr-<
 
 ## Test plan
 
-- [ ] `make test`
-- [ ] `make lint` / `go vet`
-- [ ] `CGO_ENABLED=0 go build -o bin/goslop ./cmd/goslop` (when pure-Go is required)
-- [ ] `make run` wall time vs baseline (hard &lt; 400ms; soft ±50ms of reference)
-- [ ] `make reference-metrics` / gopdfsuit hard metrics if detector surface changed
+- [ ] `make test` (`go test ./...` plus Python bindings plus `test/verify_pdfs.sh`)
+- [ ] `make test-integration` (`go test -count=1 -v ./test`) when handlers or engine changed
+- [ ] `make lint` plus `go vet` (zero ESLint warnings in `frontend/`)
+- [ ] `make build` (`go build -o bin/app ./cmd/gopdfsuit`) when shippable change
+- [ ] `make test-verify-pdfs` or `make test-scan-pdfs-compliance` when PDF output changed
+- [ ] `cd frontend && npm run build` when UI changed (never hand-edit `docs/`)
+- [ ] `make wasm-compress` when `cmd/wasmcompress/` changed
 
 ### Commands
 
 ```sh
+make fmt && make lint
 make test
-make run
+# plus when relevant:
+make test-integration
+make test-verify-pdfs
 ```
 
 ---
@@ -172,8 +180,10 @@ make run
 ## Screenshots / sample output
 
 ```
-(paste make run summary)
+(paste handler response, verify_pdfs.sh summary, or UI screenshot path)
 ```
+
+For PDF output changes, attach a fixture from `sampledata/` and the `verify_pdfs.sh` result.
 
 ---
 
@@ -203,31 +213,32 @@ make run
 
 - [ ] Behavior matches summary and test plan
 - [ ] No unrelated changes in diff
-- [ ] Public API / CLI changes documented
-- [ ] New rules have fixture coverage when applicable
+- [ ] Public API (`pkg/gopdflib`, `/api/v1/*`) or UI changes documented in `guides/` when needed
+- [ ] New engine behavior has fixture coverage in `sampledata/` when applicable
 - [ ] PR has assignee and labels
 - [ ] Related issues use correct Closes/Relates keywords
-- [ ] No secrets or generated artifacts committed
+- [ ] No secrets, certs, `.env`, `verapdf/` binaries, or generated `docs/` edits committed
 
 ---
 
-## Example titles (goslop)
+## Example titles (gopdfsuit)
 
 ```
-feat(engine): replace tree-sitter with go/ast pure-Go parse
-fix: respect --skip when GoScan bundle runs
-perf(engine): parallel file scan without CGO
-docs: align README with §12.4 parity baseline
-chore: drop tree-sitter CGO dependencies
+feat(compress): add Heavy tier preset for scanned PDFs
+fix(fill): handle XFDF fill on compressed object streams
+perf(engine): reuse sync.Pool buffers in template-pdf hot path
+feat(html): support header footer in htmltopdf via gochromedp
+docs: update TEMPLATE_REFERENCE for redact capabilities
+chore: refresh zerodha fixtures in sampledata
 ```
 
 ## Example `gh pr create` (full)
 
 ```sh
 gh pr create \
-  --base main \
-  --title "feat(engine): replace tree-sitter/CGO with go/ast" \
-  --body-file plans/PR/pr-go-ast-no-cgo.md \
+  --base master \
+  --title "feat(compress): add Heavy tier preset for scanned PDFs" \
+  --body-file plans/PR/pr-compress-heavy-tier.md \
   --assignee "@me" \
   --label documentation \
   --label enhancement
