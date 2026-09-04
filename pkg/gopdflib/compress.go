@@ -7,28 +7,14 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
 )
 
-// CompressOptions controls how aggressively CompressPDF rewrites streams and images.
-// Empty Level selects Medium (JPEG 75, max image edge 1275). JPEGQuality and
-// MaxImageDim override the preset when greater than zero.
-//
-// Tiers match the Ghostscript product:
-//
-//	Light  — JPEG 92, max edge 1920
-//	Medium — JPEG 75, max edge 1275
-//	Heavy  — JPEG 50, max edge 612
-type CompressOptions = compress.Options
-
-// Compression tiers for CompressOptions.Level.
-const (
-	CompressLight  = compress.LevelLight
-	CompressMedium = compress.LevelMedium
-	CompressHeavy  = compress.LevelHeavy
-)
+// MaxCompressInputBytes is the largest PDF CompressPDF accepts (32 MiB,
+// shared with the HTTP and WASM entry points).
+const MaxCompressInputBytes = compress.MaxInputBytes
 
 // CompressPDF rewrites an existing PDF: bicubic image downsample and JPEG
 // recompression at the chosen tier, unused TTF glyph outlines dropped,
 // document metadata stripped, and streams Flate-compressed. Encrypted files
-// are rejected. Input larger than 32 MiB is rejected.
+// are rejected. Input larger than MaxCompressInputBytes is rejected.
 //
 // Example:
 //
@@ -42,5 +28,5 @@ func CompressPDF(data []byte, opts CompressOptions) ([]byte, error) {
 	if len(data) == 0 {
 		return nil, errors.New("gopdflib: CompressPDF needs a non-empty PDF")
 	}
-	return compress.CompressPDF(data, opts)
+	return compress.CompressPDF(data, toInternalCompressOptions(opts))
 }

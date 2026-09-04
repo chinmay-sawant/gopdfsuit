@@ -8,9 +8,6 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
 
-// SplitSpec defines split criteria for splitting PDFs.
-type SplitSpec = merge.SplitSpec
-
 // SplitPDF splits a PDF into multiple parts based on the specification.
 // Returns a slice of PDF byte slices, one for each output part.
 //
@@ -28,7 +25,7 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 	if len(file) == 0 {
 		return nil, errors.New("gopdflib: SplitPDF needs a non-empty PDF")
 	}
-	return merge.SplitPDF(file, spec)
+	return merge.SplitPDF(file, toInternalSplitSpec(spec))
 }
 
 // ParsePageSpec parses a page specification string like "1-3,5,7-9" into a sorted

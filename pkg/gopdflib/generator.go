@@ -4,6 +4,7 @@ package gopdflib
 import (
 	"sync"
 
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 )
 
@@ -77,7 +78,7 @@ func SnapshotPDFCapacityHighWater() PDFCapacityHighWater {
 //	os.WriteFile("output.pdf", pdfBytes, 0644)
 func GeneratePDF(template PDFTemplate) ([]byte, error) {
 	ensureRuntimePools()
-	return pdf.GenerateTemplatePDF(template)
+	return pdf.GenerateTemplatePDF(toInternalTemplate(template))
 }
 
 // GeneratePDFBorrowed creates a PDF document without cloning the final pooled
@@ -95,13 +96,18 @@ func GeneratePDF(template PDFTemplate) ([]byte, error) {
 // must not be retained. Use CopyBytes when the bytes must outlive Release.
 func GeneratePDFBorrowed(template PDFTemplate) (*BorrowedPDF, error) {
 	ensureRuntimePools()
-	return pdf.GenerateTemplatePDFBorrowed(template)
+	return pdf.GenerateTemplatePDFBorrowed(toInternalTemplate(template))
 }
 
 // GetAvailableFonts returns a list of available fonts for PDF generation.
 // This includes standard PDF fonts and any custom fonts that have been registered.
 func GetAvailableFonts() []FontInfo {
-	return pdf.GetAvailableFonts()
+	internal := pdf.GetAvailableFonts()
+	out := make([]FontInfo, 0, len(internal))
+	for _, f := range internal {
+		out = append(out, mustFromInternal[models.FontInfo, FontInfo](f))
+	}
+	return out
 }
 
 // GetFontRegistry returns the global font registry for registering custom fonts.

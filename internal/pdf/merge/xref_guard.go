@@ -1,61 +1,24 @@
 package merge
 
 import (
-	"bytes"
-	"compress/flate"
-	"compress/zlib"
-	"fmt"
-	"io"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
 // MaxXRefEntryWidth caps the total byte width of one cross-reference stream
-// entry (/W array sum). Field widths come from the file, so they must be
-// validated before slicing: W=[0 0 0] would make the entry loop never
-// advance (hang) and negative widths panic on slicing.
-const MaxXRefEntryWidth = 32
+// entry. Owned by pdfobj; kept here as an alias for existing callers.
+const MaxXRefEntryWidth = pdfobj.MaxXRefEntryWidth
 
-// MaxInflateBytes caps a single decompressed stream (48 MiB, matching the
-// merge parser and compress tiers) so a crafted Flate stream cannot act as
-// a zip bomb.
-const MaxInflateBytes = 48 << 20
+// MaxInflateBytes caps a single decompressed stream. Owned by pdfobj.
+const MaxInflateBytes = pdfobj.MaxInflateBytes
 
-// InflateCapped decompresses zlib-wrapped (rawZlib=false) or raw flate data,
-// rejecting outputs over MaxInflateBytes.
+// InflateCapped decompresses zlib-wrapped (rawFlate=false) or raw flate data,
+// rejecting outputs over MaxInflateBytes. Owned by pdfobj.
 func InflateCapped(b []byte, rawFlate bool) ([]byte, error) {
-	var r io.ReadCloser
-	if rawFlate {
-		r = flate.NewReader(bytes.NewReader(b))
-	} else {
-		var err error
-		r, err = zlib.NewReader(bytes.NewReader(b))
-		if err != nil {
-			return nil, err
-		}
-	}
-	defer func() {
-		_ = r.Close()
-	}()
-	var out bytes.Buffer
-	n, err := io.Copy(&out, io.LimitReader(r, int64(MaxInflateBytes)+1))
-	if err != nil {
-		return nil, err
-	}
-	if n > int64(MaxInflateBytes) {
-		return nil, fmt.Errorf("decompressed stream exceeds %d bytes", MaxInflateBytes)
-	}
-	return out.Bytes(), nil
+	return pdfobj.InflateCapped(b, rawFlate)
 }
 
 // ValidXRefWidths checks /W field widths from a cross-reference stream.
-// It returns the entry width and true when the widths are safe to slice
-// with: all non-negative, total in (0, MaxXRefEntryWidth].
+// Owned by pdfobj.
 func ValidXRefWidths(w0, w1, w2 int) (total int, ok bool) {
-	if w0 < 0 || w1 < 0 || w2 < 0 {
-		return 0, false
-	}
-	total = w0 + w1 + w2
-	if total <= 0 || total > MaxXRefEntryWidth {
-		return 0, false
-	}
-	return total, true
+	return pdfobj.ValidXRefWidths(w0, w1, w2)
 }

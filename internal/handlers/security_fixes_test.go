@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"errors"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -15,11 +16,23 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+// stubServicePolicy gives the mock the real body-limit/error policy so tests
+// exercise production 413/422 semantics without per-test expectations.
+func stubServicePolicy(mockSvc *mocks.MockPDFService) {
+	mockSvc.EXPECT().ReadUpload(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(r io.Reader, kind string) ([]byte, bool, error) {
+			return readBounded(r, uploadLimitFor(kind))
+		}).AnyTimes()
+	mockSvc.EXPECT().UploadLimit(gomock.Any()).DoAndReturn(uploadLimitFor).AnyTimes()
+	mockSvc.EXPECT().ClassifyError(gomock.Any()).DoAndReturn(pdfErrorStatus).AnyTimes()
+}
+
 func setupSecurityRouter(t *testing.T) (*gin.Engine, *mocks.MockPDFService) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	ctrl := gomock.NewController(t)
 	mockSvc := mocks.NewMockPDFService(ctrl)
+	stubServicePolicy(mockSvc)
 	SetPDFService(mockSvc)
 	t.Cleanup(func() {
 		SetPDFService(nil)
@@ -36,8 +49,8 @@ func setupSecurityRouter(t *testing.T) (*gin.Engine, *mocks.MockPDFService) {
 	r.POST("/api/v1/fonts", handleUploadFont)
 	r.POST("/api/v1/htmltopdf", handleHTMLToPDF)
 	r.POST("/api/v1/htmltoimage", handleHTMLToImage)
-	r.POST("/api/v1/redact/page-info", HandleRedactPageInfo)
-	r.POST("/api/v1/redact/apply", HandleRedactApply)
+	r.POST("/api/v1/redact/page-info", handleRedactPageInfo)
+	r.POST("/api/v1/redact/apply", handleRedactApply)
 	return r, mockSvc
 }
 

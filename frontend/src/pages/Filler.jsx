@@ -1,43 +1,35 @@
 import { useState, useRef } from 'react'
-import { FileCheck, Upload, Download, RefreshCw, FileText, Sparkles } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { FileCheck, Upload, RefreshCw, FileText, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import OperationShell from '../components/OperationShell'
+import { formatFileSize } from '../utils/format'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const Filler = () => {
   const [pdfFile, setPdfFile] = useState(null)
   const [xfdfFile, setXfdfFile] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [filledPdfUrl, setFilledPdfUrl] = useState('')
   const pdfInputRef = useRef(null)
   const xfdfInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const { isLoading, resultUrl: filledPdfUrl, run, download } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => alert(`Error filling PDF: ${message}`),
+  })
 
   const handlePdfUpload = (event) => { const file = event.target.files[0]; if (file?.type === 'application/pdf') setPdfFile(file) }
   const handleXfdfUpload = (event) => { const file = event.target.files[0]; if (file) setXfdfFile(file) }
 
   const fillPDF = async () => {
     if (!pdfFile || !xfdfFile) return
-    setIsLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append('pdf', pdfFile); formData.append('xfdf', xfdfFile)
-      const response = await makeAuthenticatedRequest('/api/v1/fill', { method: 'POST', body: formData }, getAuthHeaders)
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      setFilledPdfUrl(url)
-      const link = document.createElement('a'); link.href = url; link.download = `filled-${pdfFile.name}`; link.click()
-    } catch (error) {
-      if (error.message.includes("401") || error.message.includes("403")) triggerLogin()
-      else alert('Error filling PDF: ' + error.message)
-    } finally { setIsLoading(false) }
-  }
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    const formData = new FormData()
+    formData.append('pdf', pdfFile); formData.append('xfdf', xfdfFile)
+    await run({
+      endpoint: '/api/v1/fill',
+      body: formData,
+      getAuthHeaders,
+      filename: `filled-${pdfFile.name}`,
+    })
   }
 
   const FileUploadBox = ({ file, label, onClick }) => (
@@ -89,27 +81,16 @@ const Filler = () => {
               </button>
             </div>
 
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
-                <div className="feature-icon-box purple" style={{ width: '40px', height: '40px', marginBottom: 0 }}><FileText size={18} /></div>Filled PDF Preview
-              </h3>
-              {filledPdfUrl ? (
-                <div>
-                  <iframe src={filledPdfUrl} style={{ width: '100%', height: '550px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', overflow: 'hidden' }} title="Filled PDF" />
-                  <button onClick={() => { const link = document.createElement('a'); link.href = filledPdfUrl; link.download = `filled-${pdfFile?.name || 'form.pdf'}`; link.click() }} className="btn-glow" style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-                    <Download size={16} />Download Filled PDF
-                  </button>
-                </div>
-              ) : (
-                <div style={{ height: '550px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
-                  <div>
-                    <div className="feature-icon-box green" style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }}><FileCheck size={32} /></div>
-                    <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>Filled PDF preview will appear here</p>
-                    <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>Upload both PDF and XFDF files</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <OperationShell
+              resultUrl={filledPdfUrl}
+              title="Filled PDF Preview"
+              icon={<FileText size={18} />}
+              emptyTitle="Filled PDF preview will appear here"
+              emptySubtitle="Upload both PDF and XFDF files"
+              onDownload={() => download(`filled-${pdfFile?.name || 'form.pdf'}`)}
+              downloadLabel="Download Filled PDF"
+              height={550}
+            />
           </div>
 
           <div className="glass-card" style={{ marginTop: '2rem', padding: '2rem' }}>

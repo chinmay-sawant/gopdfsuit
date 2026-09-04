@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { Upload, Download, Eraser, Trash2, ChevronLeft, ChevronRight, AlertCircle, Check, Search } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { usePdfOperation } from '../hooks/usePdfOperation'
 import { useAuth } from '../contexts/AuthContext'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
@@ -34,10 +34,14 @@ const Redaction = () => {
 
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
-  const { getAuthHeaders } = useAuth()
+  const { getAuthHeaders, triggerLogin } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [successMsg, setSuccessMsg] = useState(null)
+  const { runJson, request } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => setError(message),
+  })
 
     const readErrorResponse = async (response, fallbackMessage) => {
         try {
@@ -112,14 +116,14 @@ const Redaction = () => {
       try {
         const formData = new FormData()
         formData.append('pdf', selectedFile)
-        const response = await makeAuthenticatedRequest('/api/v1/redact/page-info', {
-            method: 'POST',
-            body: formData
-        }, getAuthHeaders)
-        
-        if (response.ok) {
-            const info = await response.json()
-            if (info.pages && info.pages.length > 0) {
+        const info = await runJson({
+          endpoint: '/api/v1/redact/page-info',
+          body: formData,
+          getAuthHeaders,
+          onError: (message) => console.error('Failed to fetch page info', message),
+        })
+
+        if (info && info.pages && info.pages.length > 0) {
                 // Store all pages? For now just assume they are similar or store map?
                 // The current component assumes single page dim for conversion (simplification).
                 // Ideally, we should look up dim by pageNumber.
@@ -130,7 +134,6 @@ const Redaction = () => {
                     allPages: info.pages 
                 })
             }
-        }
       } catch (e) {
         console.error("Failed to fetch page info", e)
       }
@@ -267,17 +270,13 @@ const Redaction = () => {
                 formData.append('text', terms.join(','))
                 formData.append('texts', JSON.stringify(terms))
 
-        const response = await makeAuthenticatedRequest('/api/v1/redact/search', {
-            method: 'POST',
+        const payload = await runJson({
+            endpoint: '/api/v1/redact/search',
             body: formData,
-        }, getAuthHeaders)
+            getAuthHeaders,
+        })
+        if (!payload) return
 
-                if (!response.ok) {
-                    const message = await readErrorResponse(response, 'Search failed')
-                    throw new Error(message)
-                }
-
-                const payload = await response.json()
                 const results = Array.isArray(payload)
                     ? payload
                     : (Array.isArray(payload?.rects) ? payload.rects : [])
@@ -359,11 +358,12 @@ const Redaction = () => {
 
             for (let i = 0; i < modesToTry.length; i += 1) {
                 const candidateMode = modesToTry[i]
-                const tryResponse = await makeAuthenticatedRequest('/api/v1/redact/apply', {
-                    method: 'POST',
+                const tryResponse = await request({
+                    endpoint: '/api/v1/redact/apply',
                     body: buildPayload(candidateMode),
+                    getAuthHeaders,
                     throwOnError: false,
-                }, getAuthHeaders)
+                })
 
                 if (tryResponse.ok) {
                     response = tryResponse

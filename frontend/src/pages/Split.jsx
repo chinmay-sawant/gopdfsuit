@@ -1,17 +1,21 @@
 import { useState, useRef } from 'react'
-import { Scissors, Upload, Download, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { Scissors, Upload, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import OperationShell from '../components/OperationShell'
+import { formatFileSize } from '../utils/format'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const SplitPage = () => {
   const [file, setFile] = useState(null)
   const [pages, setPages] = useState('')
   const [maxPerFile, setMaxPerFile] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [splitPdfUrl, setSplitPdfUrl] = useState('')
   const fileInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const { isLoading, resultUrl: splitPdfUrl, run, download, reset } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => alert(`Error splitting PDF: ${message}`),
+  })
 
   const handleFileUpload = (event) => {
     const selectedFile = Array.from(event.target.files).find(f => f.type === 'application/pdf')
@@ -19,30 +23,20 @@ const SplitPage = () => {
     event.target.value = ''
   }
 
-  const removeFile = () => { setFile(null); setSplitPdfUrl('') }
+  const removeFile = () => { setFile(null); reset() }
 
   const splitPDF = async () => {
     if (!file) return
-    setIsLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append('pdf', file)
-      if (pages) formData.append('pages', pages)
-      if (maxPerFile) formData.append('max_per_file', maxPerFile)
-      const response = await makeAuthenticatedRequest('/api/v1/split', { method: 'POST', body: formData }, getAuthHeaders)
-      const blob = await response.blob()
-      setSplitPdfUrl(URL.createObjectURL(blob))
-    } catch (error) {
-      if (error.message.includes("401") || error.message.includes("403")) triggerLogin()
-      else alert('Error splitting PDF: ' + error.message)
-    } finally { setIsLoading(false) }
-  }
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    const formData = new FormData()
+    formData.append('pdf', file)
+    if (pages) formData.append('pages', pages)
+    if (maxPerFile) formData.append('max_per_file', maxPerFile)
+    await run({
+      endpoint: '/api/v1/split',
+      body: formData,
+      getAuthHeaders,
+      autoDownload: false,
+    })
   }
 
   const inputStyles = { width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }
@@ -108,27 +102,16 @@ const SplitPage = () => {
               )}
             </div>
 
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
-                <div className="feature-icon-box purple" style={{ width: '40px', height: '40px', marginBottom: 0 }}><FileText size={18} /></div>Split PDF Preview
-              </h3>
-              {splitPdfUrl ? (
-                <div>
-                  <iframe src={splitPdfUrl} style={{ width: '100%', height: '550px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', overflow: 'hidden' }} title="Split PDF" />
-                  <button onClick={() => { const link = document.createElement('a'); link.href = splitPdfUrl; link.download = `split-pdf-${Date.now()}.pdf`; link.click() }} className="btn-glow" style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-                    <Download size={16} />Download Split PDF
-                  </button>
-                </div>
-              ) : (
-                <div style={{ height: '550px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
-                  <div>
-                    <div className="feature-icon-box yellow" style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }}><Scissors size={32} /></div>
-                    <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>Split PDF preview will appear here</p>
-                    <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>Upload a PDF file to get started</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <OperationShell
+              resultUrl={splitPdfUrl}
+              title="Split PDF Preview"
+              icon={<FileText size={18} />}
+              emptyTitle="Split PDF preview will appear here"
+              emptySubtitle="Upload a PDF file to get started"
+              onDownload={() => download(`split-pdf-${Date.now()}.pdf`)}
+              downloadLabel="Download Split PDF"
+              height={550}
+            />
           </div>
 
           <div className="glass-card" style={{ marginTop: '2rem', padding: '2rem' }}>

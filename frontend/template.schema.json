@@ -1,0 +1,241 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/chinmay-sawant/gopdfsuit/frontend/template.schema.json",
+  "title": "GoPdfSuit PDFTemplate",
+  "description": "Authoritative shape is internal/models PDFTemplate (Go). This schema mirrors it for editor validation and the cross-tier golden test. Props grammar (Go internal/pdf parseProps): font:size:style:align:borders, e.g. Helvetica:12:000:left:1:1:1:1 where style is 3 chars of 0/1 (bold/italic/underline), align is left|center|right, borders are left:right:top:bottom ints. Page margins: left:right:top:bottom in points.",
+  "type": "object",
+  "required": ["config"],
+  "properties": {
+    "config": {
+      "type": "object",
+      "required": ["page"],
+      "properties": {
+        "pageBorder": { "type": "string", "pattern": "^\\d+:\\d+:\\d+:\\d+$", "description": "Page border widths left:right:top:bottom" },
+        "pageMargin": { "type": "string", "pattern": "^\\d+(\\.\\d+)?:\\d+(\\.\\d+)?:\\d+(\\.\\d+)?:\\d+(\\.\\d+)$", "description": "Page margins in points left:right:top:bottom, default 72:72:72:72" },
+        "page": { "type": "string", "enum": ["A4", "LETTER", "LEGAL", "A3", "A5", "a4", "letter", "legal", "a3", "a5"], "description": "Page size (engine matches case-insensitively, defaults to A4)" },
+        "pageAlignment": { "type": "integer", "enum": [1, 2], "description": "1 portrait, 2 landscape" },
+        "watermark": { "type": "string" },
+        "pdfTitle": { "type": "string" },
+        "arlingtonCompatible": { "type": "boolean" },
+        "pdfaCompliant": { "type": "boolean" },
+        "taggedPDF": { "type": "boolean" },
+        "embedFonts": { "type": "boolean", "description": "Legacy key for embedStandardFonts" },
+        "embedStandardFonts": { "type": "boolean" },
+        "customFonts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "filePath": { "type": "string" },
+              "fontData": { "type": "string" }
+            }
+          }
+        },
+        "security": {
+          "type": "object",
+          "required": ["ownerPassword"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "userPassword": { "type": "string" },
+            "ownerPassword": { "type": "string" },
+            "allowPrinting": { "type": "boolean" },
+            "allowModifying": { "type": "boolean" },
+            "allowCopying": { "type": "boolean" },
+            "allowAnnotations": { "type": "boolean" },
+            "allowFormFilling": { "type": "boolean" },
+            "allowAccessibility": { "type": "boolean" },
+            "allowAssembly": { "type": "boolean" },
+            "allowHighQualityPrint": { "type": "boolean" }
+          }
+        },
+        "pdfa": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "conformance": { "type": "string" },
+            "title": { "type": "string" },
+            "author": { "type": "string" },
+            "subject": { "type": "string" },
+            "creator": { "type": "string" },
+            "keywords": { "type": "string" }
+          }
+        },
+        "signature": {
+          "type": "object",
+          "required": ["enabled", "certificatePem", "privateKeyPem"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "certificatePem": { "type": "string" },
+            "privateKeyPem": { "type": "string" },
+            "certificateChain": { "type": "array", "items": { "type": "string" } },
+            "visible": { "type": "boolean" },
+            "page": { "type": "integer" },
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "width": { "type": "number" },
+            "height": { "type": "number" },
+            "reason": { "type": "string" },
+            "location": { "type": "string" },
+            "contactInfo": { "type": "string" },
+            "name": { "type": "string" }
+          }
+        },
+        "bookmarks": { "$ref": "#/definitions/bookmarks" }
+      },
+      "additionalProperties": true
+    },
+    "title": { "$ref": "#/definitions/title" },
+    "table": { "type": "array", "items": { "$ref": "#/definitions/table" } },
+    "spacer": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["height"],
+        "properties": { "height": { "type": "number" } }
+      }
+    },
+    "image": { "type": "array", "items": { "$ref": "#/definitions/image" } },
+    "elements": {
+      "type": "array",
+      "description": "Ordered elements; each entry wraps exactly one of table, spacer, image",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["table", "spacer", "image"] },
+          "index": { "type": "integer" },
+          "table": { "$ref": "#/definitions/table" },
+          "spacer": {
+            "type": "object",
+            "required": ["height"],
+            "properties": { "height": { "type": "number" } }
+          },
+          "image": { "$ref": "#/definitions/image" }
+        }
+      }
+    },
+    "footer": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "font": { "type": "string" },
+        "props": { "$ref": "#/definitions/props" },
+        "text": { "type": "string" },
+        "link": { "type": "string" }
+      }
+    },
+    "bookmarks": { "$ref": "#/definitions/bookmarks" }
+  },
+  "definitions": {
+    "props": {
+      "type": "string",
+      "pattern": "^[^:]+:\\d+:[01]{3}:(left|center|right):\\d+:\\d+:\\d+:\\d+$"
+    },
+    "title": {
+      "type": "object",
+      "required": ["props", "text"],
+      "properties": {
+        "props": { "$ref": "#/definitions/props" },
+        "text": { "type": "string" },
+        "textprops": { "$ref": "#/definitions/props" },
+        "table": {
+          "type": "object",
+          "required": ["maxcolumns", "rows"],
+          "properties": {
+            "maxcolumns": { "type": "integer", "minimum": 1 },
+            "columnwidths": { "type": "array", "items": { "type": "number" } },
+            "rows": { "$ref": "#/definitions/rows" }
+          }
+        },
+        "bgcolor": { "type": "string" },
+        "textcolor": { "type": "string" },
+        "link": { "type": "string" }
+      }
+    },
+    "table": {
+      "type": "object",
+      "required": ["maxcolumns", "rows"],
+      "properties": {
+        "maxcolumns": { "type": "integer", "minimum": 1 },
+        "rows": { "$ref": "#/definitions/rows" },
+        "columnwidths": { "type": "array", "items": { "type": "number" } },
+        "rowheights": { "type": "array", "items": { "type": "number" } },
+        "bgcolor": { "type": "string" },
+        "textcolor": { "type": "string" },
+        "sharedRowLayout": { "type": "boolean" },
+        "sharedRowTemplateRow": { "type": "integer" }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["row"],
+        "properties": {
+          "row": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/cell" }
+          }
+        }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "required": ["props"],
+      "properties": {
+        "props": { "$ref": "#/definitions/props" },
+        "text": { "type": "string" },
+        "chequebox": { "type": "boolean" },
+        "image": { "$ref": "#/definitions/image" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "form_field": {
+          "type": "object",
+          "required": ["type", "name"],
+          "properties": {
+            "type": { "type": "string", "enum": ["checkbox", "radio", "text"] },
+            "name": { "type": "string" },
+            "value": { "type": "string" },
+            "checked": { "type": "boolean" },
+            "group_name": { "type": "string" },
+            "shape": { "type": "string" }
+          }
+        },
+        "bgcolor": { "type": "string" },
+        "textcolor": { "type": "string" },
+        "link": { "type": "string" },
+        "wrap": { "type": "boolean" },
+        "dest": { "type": "string" },
+        "mathEnabled": { "type": "boolean" }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "imagename": { "type": "string" },
+        "imagedata": { "type": "string" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "link": { "type": "string" }
+      }
+    },
+    "bookmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string" },
+          "dest": { "type": "string" },
+          "page": { "type": "integer" },
+          "y": { "type": "number" },
+          "children": { "$ref": "#/definitions/bookmarks" },
+          "open": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

@@ -343,14 +343,26 @@ const (
 	fontHelveticaBold        = "Helvetica-Bold"
 	fontHelveticaOblique     = "Helvetica-Oblique"
 	fontHelveticaBoldOblique = "Helvetica-BoldOblique"
+	fontTimesRoman           = "Times-Roman"
+	fontTimesBold            = "Times-Bold"
+	fontTimesItalic          = "Times-Italic"
+	fontTimesBoldItalic      = "Times-BoldItalic"
+	fontCourier              = "Courier"
+	fontCourierBold          = "Courier-Bold"
+	fontCourierOblique       = "Courier-Oblique"
+	fontCourierBoldOblique   = "Courier-BoldOblique"
+	fontSymbol               = "Symbol"
+	fontZapfDingbats         = "ZapfDingbats"
+
+	fontRefF1 = "/F1"
 )
 
 // standardFontSet is pre-allocated once to avoid per-call map allocation in IsCustomFont.
 var standardFontSet = map[string]bool{
 	fontHelvetica: true, fontHelveticaBold: true, fontHelveticaOblique: true, fontHelveticaBoldOblique: true,
-	"Times-Roman": true, "Times-Bold": true, "Times-Italic": true, "Times-BoldItalic": true,
-	"Courier": true, "Courier-Bold": true, "Courier-Oblique": true, "Courier-BoldOblique": true,
-	"Symbol": true, "ZapfDingbats": true,
+	fontTimesRoman: true, fontTimesBold: true, fontTimesItalic: true, fontTimesBoldItalic: true,
+	fontCourier: true, fontCourierBold: true, fontCourierOblique: true, fontCourierBoldOblique: true,
+	fontSymbol: true, fontZapfDingbats: true,
 	"font1": true, "font2": true, // Legacy font references
 }
 
@@ -455,19 +467,56 @@ func (r *CustomFontRegistry) IsCustomFont(fontName string) bool {
 	return ok
 }
 
-// ResolveFontName resolves the actual font name to use, handling fallbacks
+// ResolveFontName resolves the actual font name to use, handling fallbacks.
+// It is the single home for standard-vs-custom resolution (Phase 5 D3):
+// registered (custom or PDF/A-substituted) names win, base families honor
+// bold/italic style flags, known styled names pass through, and unknown
+// names fall back to the Helvetica family.
 func (r *CustomFontRegistry) ResolveFontName(props models.Props) string {
 	// 1. Check if the requested font is registered as a custom font
 	if r.IsCustomFont(props.FontName) {
 		return props.FontName
 	}
 
-	// 2. Check if it's a known standard font name
+	// 2. Map base standard fonts with style flags to styled variants.
 	switch props.FontName {
-	case fontHelvetica, fontHelveticaBold, fontHelveticaOblique, fontHelveticaBoldOblique,
-		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic",
-		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique",
-		"Symbol", "ZapfDingbats":
+	case fontHelvetica:
+		switch {
+		case props.Bold && props.Italic:
+			return fontHelveticaBoldOblique
+		case props.Bold:
+			return fontHelveticaBold
+		case props.Italic:
+			return fontHelveticaOblique
+		default:
+			return fontHelvetica
+		}
+	case fontTimesRoman:
+		switch {
+		case props.Bold && props.Italic:
+			return fontTimesBoldItalic
+		case props.Bold:
+			return fontTimesBold
+		case props.Italic:
+			return fontTimesItalic
+		default:
+			return fontTimesRoman
+		}
+	case fontCourier:
+		switch {
+		case props.Bold && props.Italic:
+			return fontCourierBoldOblique
+		case props.Bold:
+			return fontCourierBold
+		case props.Italic:
+			return fontCourierOblique
+		default:
+			return fontCourier
+		}
+	case fontHelveticaBold, fontHelveticaOblique, fontHelveticaBoldOblique,
+		fontTimesBold, fontTimesItalic, fontTimesBoldItalic,
+		fontCourierBold, fontCourierOblique, fontCourierBoldOblique,
+		fontSymbol, fontZapfDingbats:
 		return props.FontName
 	}
 
@@ -485,4 +534,139 @@ func (r *CustomFontRegistry) ResolveFontName(props models.Props) string {
 	}
 
 	return fallbackName
+}
+
+// RefFor resolves props to an actual font name and returns its PDF
+// resource reference (e.g. "/F2" or "/CF2000").
+func (r *CustomFontRegistry) RefFor(props models.Props) string {
+	return r.RefByName(r.ResolveFontName(props))
+}
+
+// RefByName returns the PDF resource reference for an already-resolved
+// font name: the custom reference when registered, else the standard code.
+func (r *CustomFontRegistry) RefByName(actualFontName string) string {
+	if r.IsCustomFont(actualFontName) {
+		if ref := r.GetFontReference(actualFontName); ref != "" {
+			return ref
+		}
+	}
+	switch actualFontName {
+	case fontHelvetica:
+		return fontRefF1
+	case fontHelveticaBold:
+		return "/F2"
+	case fontHelveticaOblique:
+		return "/F3"
+	case fontHelveticaBoldOblique:
+		return "/F4"
+	case fontTimesRoman:
+		return "/F5"
+	case fontTimesBold:
+		return "/F6"
+	case fontTimesItalic:
+		return "/F7"
+	case fontTimesBoldItalic:
+		return "/F8"
+	case fontCourier:
+		return "/F9"
+	case fontCourierBold:
+		return "/F10"
+	case fontCourierOblique:
+		return "/F11"
+	case fontCourierBoldOblique:
+		return "/F12"
+	case fontSymbol:
+		return "/F13"
+	case fontZapfDingbats:
+		return "/F14"
+	}
+	return fontRefF1
+}
+
+// Measure returns the width of text in points for a resolved font name,
+// using custom glyph metrics when registered and standard metrics otherwise.
+func (r *CustomFontRegistry) Measure(resolvedName, text string, fontSize float64) float64 {
+	if r.IsCustomFont(resolvedName) {
+		return r.GetScaledTextWidth(resolvedName, text, fontSize)
+	}
+	if w := StandardTextWidth(resolvedName, text, fontSize); w > 0 {
+		return w
+	}
+	avgCharWidth := 0.5
+	switch resolvedName {
+	case fontCourier, fontCourierBold, fontCourierOblique, fontCourierBoldOblique:
+		avgCharWidth = 0.6
+	case fontTimesRoman, fontTimesBold, fontTimesItalic, fontTimesBoldItalic:
+		avgCharWidth = 0.45
+	}
+	return float64(len([]rune(text))) * fontSize * avgCharWidth
+}
+
+// AppendEncoded appends PDF text for a Tj operator: hex string for custom
+// fonts, or a parenthesized escaped literal for standard fonts.
+func (r *CustomFontRegistry) AppendEncoded(dst []byte, resolvedName, text string) []byte {
+	if r.IsCustomFont(resolvedName) {
+		return AppendTextForCustomFont(dst, resolvedName, text, r)
+	}
+	dst = append(dst, '(')
+	dst = appendEscapedPDFLiteralFont(dst, text)
+	return append(dst, ')')
+}
+
+// EncodeForPDF formats text for a PDF content stream Tj operator.
+func (r *CustomFontRegistry) EncodeForPDF(resolvedName, text string) string {
+	buf := make([]byte, 0, len(text)+4)
+	buf = r.AppendEncoded(buf, resolvedName, text)
+	return string(buf)
+}
+
+// WidgetRef returns the font reference for form-field widget DA strings,
+// honoring PDF/A Liberation substitution when Helvetica is registered.
+func (r *CustomFontRegistry) WidgetRef() string {
+	if r.IsCustomFont(fontHelvetica) {
+		if ref := r.GetFontReference(fontHelvetica); ref != "" {
+			return ref
+		}
+	}
+	return fontRefF1
+}
+
+// WidgetFontName returns the font name for widget resource dictionaries.
+// Empty means the caller should use page-level font resources (PDF/A mode).
+func (r *CustomFontRegistry) WidgetFontName() string {
+	if r.IsCustomFont(fontHelvetica) {
+		return ""
+	}
+	return fontHelvetica
+}
+
+// WidgetFontObjectID returns the PDF object ID of the widget font in
+// PDF/A mode, or 0 when standard Helvetica is used.
+func (r *CustomFontRegistry) WidgetFontObjectID() int {
+	if f, ok := r.GetFont(fontHelvetica); ok {
+		return f.ObjectID
+	}
+	return 0
+}
+
+// appendEscapedPDFLiteralFont appends PDF literal-string contents for s
+// (not including outer parentheses), escaping `(`, `)`, and `\`.
+func appendEscapedPDFLiteralFont(dst []byte, s string) []byte {
+	needsEscape := false
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c == '(' || c == ')' || c == '\\' {
+			needsEscape = true
+			break
+		}
+	}
+	if !needsEscape {
+		return append(dst, s...)
+	}
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c == '(' || c == ')' || c == '\\' {
+			dst = append(dst, '\\')
+		}
+		dst = append(dst, s[i])
+	}
+	return dst
 }

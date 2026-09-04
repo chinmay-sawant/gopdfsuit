@@ -1,4 +1,9 @@
 // Package main provides CGO exports for the Python bindings.
+//
+// Validation ownership: this layer enforces transport-only guards (nil
+// pointers, insane lengths, malformed JSON). All semantic validation lives
+// in pkg/gopdflib, the single validating interface shared by Go, Python,
+// HTTP, and WASM callers. Do not add content checks here.
 package main
 
 /*
@@ -25,7 +30,6 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
@@ -87,104 +91,73 @@ func cString(p *C.char) (string, error) {
 	return C.GoString(p), nil
 }
 
-// GeneratePDF generates a PDF from a JSON template.
-// The caller must free the result using FreeBytesResult.
-//
-//export GeneratePDF
-func GeneratePDF(jsonTemplate *C.char) C.ByteResult {
-	goTemplate, err := cString(jsonTemplate)
-	if err != nil {
-		return errResult(err)
+// pdfBytes is the transport guard for a PDF input buffer: representable
+// length within the payload cap. Empty content passes through so gopdflib
+// owns the "non-empty PDF" error.
+func pdfBytes(p *C.char, n C.int) ([]byte, error) {
+	if err := checkByteLen(int(n)); err != nil {
+		return nil, err
 	}
-	var template gopdflib.PDFTemplate
-	if err := json.Unmarshal([]byte(goTemplate), &template); err != nil {
-		return errResult(err)
+	if int64(n) > maxCGOPayloadBytes {
+		return nil, errors.New("PDF length out of range")
 	}
-
-	pdfBytes, err := gopdflib.GeneratePDF(template)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(pdfBytes)
+	return cBytes(p, n)
 }
 
-// MergePDFs merges multiple PDF files into one.
-// The caller must free the result using FreeBytesResult.
-//
-//export MergePDFs
-func MergePDFs(pdfData **C.char, pdfLengths *C.int, count C.int) C.ByteResult {
-	if pdfData == nil || pdfLengths == nil {
-		return errResult(errors.New("nil array pointer"))
+// jsonArg parses a C JSON string argument into T. Malformed JSON is a
+// transport error; semantic validation of the decoded value belongs to
+// gopdflib.
+func jsonArg[T any](p *C.char) (T, error) {
+	var v T
+	s, err := cString(p)
+	if err != nil {
+		return v, err
 	}
-	if count <= 0 || int64(count) >= 1<<16 {
-		return errResult(errors.New("invalid PDF count (must be 0 < count < 65536)"))
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		return v, err
 	}
+	return v, nil
+}
 
-	// Convert C arrays to Go slices
-	dataSlice := unsafe.Slice(pdfData, int(count))
-	lengthSlice := unsafe.Slice(pdfLengths, int(count))
-
-	files := make([][]byte, int(count))
-	for i := 0; i < int(count); i++ {
-		length := int(lengthSlice[i])
-		if length < 0 || length > maxCGOPayloadBytes {
-			return errResult(errors.New("PDF part length out of range"))
-		}
-		if length == 0 {
-			files[i] = nil
-			continue
-		}
-		if dataSlice[i] == nil {
-			return errResult(errors.New("nil PDF data pointer"))
-		}
-		files[i] = C.GoBytes(unsafe.Pointer(dataSlice[i]), C.int(length))
-	}
-
-	merged, err := gopdflib.MergePDFs(files)
+// bytesOp is the generic adapter for byte-or-JSON-out operations: run the op
+// and map its result to a ByteResult.
+func bytesOp(op func() ([]byte, error)) C.ByteResult {
+	out, err := op()
 	if err != nil {
 		return errResult(err)
 	}
-
-	return bytesResult(merged)
+	return bytesResult(out)
 }
 
-// SplitPDF splits a PDF according to the given specification.
-// The caller must free the result using FreeBytesArrayResult.
-//
-//export SplitPDF
-func SplitPDF(pdfData *C.char, pdfLength C.int, specJSON *C.char) C.ByteArrayResult {
+// jsonOp is the generic adapter for value-out operations: run the op and
+// return its result marshaled as JSON.
+func jsonOp(op func() (any, error)) C.ByteResult {
+	return bytesOp(func() ([]byte, error) {
+		v, err := op()
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(v)
+	})
+}
+
+// bytesArrayOp is the generic adapter for multi-part byte-out operations
+// (SplitPDF): run the op and map its parts to a ByteArrayResult.
+func bytesArrayOp(op func() ([][]byte, error)) C.ByteArrayResult {
 	var result C.ByteArrayResult
+	fail := func(err error) C.ByteArrayResult {
+		result.error = C.CString(err.Error())
+		return result
+	}
 
-	file, err := cBytes(pdfData, pdfLength)
+	parts, err := op()
 	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
+		return fail(err)
 	}
-	specStr, err := cString(specJSON)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	var spec merge.SplitSpec
-	if err := json.Unmarshal([]byte(specStr), &spec); err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
-	parts, err := gopdflib.SplitPDF(file, spec)
-	if err != nil {
-		result.error = C.CString(err.Error())
-		return result
-	}
-
 	if len(parts) == 0 {
-		result.error = C.CString("no output parts generated")
-		return result
+		return fail(errors.New("no output parts generated"))
 	}
 
-	// Allocate arrays for data and lengths
 	result.count = C.int(len(parts))
 	result.data = (**C.char)(C.malloc(C.size_t(len(parts)) * C.size_t(unsafe.Sizeof((*C.char)(nil)))))
 	result.lengths = (*C.int)(C.malloc(C.size_t(len(parts)) * C.size_t(unsafe.Sizeof(C.int(0)))))
@@ -197,8 +170,7 @@ func SplitPDF(pdfData *C.char, pdfLength C.int, specJSON *C.char) C.ByteArrayRes
 			continue
 		}
 		if err := checkByteLen(len(part)); err != nil {
-			result.error = C.CString(err.Error())
-			return result
+			return fail(err)
 		}
 		lengthSlice[i] = C.int(len(part))
 		dataSlice[i] = (*C.char)(C.malloc(C.size_t(len(part))))
@@ -208,27 +180,90 @@ func SplitPDF(pdfData *C.char, pdfLength C.int, specJSON *C.char) C.ByteArrayRes
 	return result
 }
 
+// GeneratePDF generates a PDF from a JSON template.
+// The caller must free the result using FreeBytesResult.
+//
+//export GeneratePDF
+func GeneratePDF(jsonTemplate *C.char) C.ByteResult {
+	return bytesOp(func() ([]byte, error) {
+		template, err := jsonArg[gopdflib.PDFTemplate](jsonTemplate)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.GeneratePDF(template)
+	})
+}
+
+// MergePDFs merges multiple PDF files into one.
+// The caller must free the result using FreeBytesResult.
+//
+//export MergePDFs
+func MergePDFs(pdfData **C.char, pdfLengths *C.int, count C.int) C.ByteResult {
+	return bytesOp(func() ([]byte, error) {
+		if pdfData == nil || pdfLengths == nil {
+			return nil, errors.New("nil array pointer")
+		}
+		if count <= 0 || int64(count) >= 1<<16 {
+			return nil, errors.New("invalid PDF count (must be 0 < count < 65536)")
+		}
+
+		dataSlice := unsafe.Slice(pdfData, int(count))
+		lengthSlice := unsafe.Slice(pdfLengths, int(count))
+
+		files := make([][]byte, int(count))
+		for i := 0; i < int(count); i++ {
+			length := int(lengthSlice[i])
+			if length < 0 || length > maxCGOPayloadBytes {
+				return nil, errors.New("PDF part length out of range")
+			}
+			if length == 0 {
+				files[i] = nil
+				continue
+			}
+			if dataSlice[i] == nil {
+				return nil, errors.New("nil PDF data pointer")
+			}
+			files[i] = C.GoBytes(unsafe.Pointer(dataSlice[i]), C.int(length))
+		}
+
+		return gopdflib.MergePDFs(files)
+	})
+}
+
+// SplitPDF splits a PDF according to the given specification.
+// The caller must free the result using FreeBytesArrayResult.
+//
+//export SplitPDF
+func SplitPDF(pdfData *C.char, pdfLength C.int, specJSON *C.char) C.ByteArrayResult {
+	return bytesArrayOp(func() ([][]byte, error) {
+		file, err := pdfBytes(pdfData, pdfLength)
+		if err != nil {
+			return nil, err
+		}
+		spec, err := jsonArg[gopdflib.SplitSpec](specJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.SplitPDF(file, spec)
+	})
+}
+
 // ParsePageSpec parses a page specification string.
 // The caller must free the result using FreeIntArrayResult.
 //
 //export ParsePageSpec
 func ParsePageSpec(spec *C.char, totalPages C.int) C.ByteResult {
-	specStr, err := cString(spec)
-	if err != nil {
-		return errResult(err)
-	}
-	pages, err := gopdflib.ParsePageSpec(specStr, int(totalPages))
-	if err != nil {
-		return errResult(err)
-	}
-
-	// Return pages as JSON array
-	pagesJSON, err := json.Marshal(pages)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(pagesJSON)
+	return bytesOp(func() ([]byte, error) {
+		specStr, err := cString(spec)
+		if err != nil {
+			return nil, err
+		}
+		pages, err := gopdflib.ParsePageSpec(specStr, int(totalPages))
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(pages)
+	})
 }
 
 // FillPDFWithXFDF fills a PDF form with XFDF data.
@@ -236,21 +271,39 @@ func ParsePageSpec(spec *C.char, totalPages C.int) C.ByteResult {
 //
 //export FillPDFWithXFDF
 func FillPDFWithXFDF(pdfData *C.char, pdfLen C.int, xfdfData *C.char, xfdfLen C.int) C.ByteResult {
-	pdfBytes, err := cBytes(pdfData, pdfLen)
-	if err != nil {
-		return errResult(err)
-	}
-	xfdfBytes, err := cBytes(xfdfData, xfdfLen)
-	if err != nil {
-		return errResult(err)
-	}
+	return bytesOp(func() ([]byte, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		if int64(xfdfLen) > maxCGOPayloadBytes {
+			return nil, errors.New("XFDF length out of range")
+		}
+		xfdfBytes, err := cBytes(xfdfData, xfdfLen)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.FillPDFWithXFDF(pdfBytes, xfdfBytes)
+	})
+}
 
-	filled, err := gopdflib.FillPDFWithXFDF(pdfBytes, xfdfBytes)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(filled)
+// CompressPDF compresses a PDF at the tier selected by the JSON options
+// ({"level":"light|medium|heavy"}; empty selects Medium).
+// The caller must free the result using FreeBytesResult.
+//
+//export CompressPDF
+func CompressPDF(pdfData *C.char, pdfLen C.int, optsJSON *C.char) C.ByteResult {
+	return bytesOp(func() ([]byte, error) {
+		file, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		opts, err := jsonArg[gopdflib.CompressOptions](optsJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.CompressPDF(file, opts)
+	})
 }
 
 // ConvertHTMLToPDF converts HTML to PDF.
@@ -258,21 +311,13 @@ func FillPDFWithXFDF(pdfData *C.char, pdfLen C.int, xfdfData *C.char, xfdfLen C.
 //
 //export ConvertHTMLToPDF
 func ConvertHTMLToPDF(requestJSON *C.char) C.ByteResult {
-	reqStr, err := cString(requestJSON)
-	if err != nil {
-		return errResult(err)
-	}
-	var req gopdflib.HTMLToPDFRequest
-	if err := json.Unmarshal([]byte(reqStr), &req); err != nil {
-		return errResult(err)
-	}
-
-	pdfBytes, err := gopdflib.ConvertHTMLToPDF(req)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(pdfBytes)
+	return bytesOp(func() ([]byte, error) {
+		req, err := jsonArg[gopdflib.HTMLToPDFRequest](requestJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ConvertHTMLToPDF(req)
+	})
 }
 
 // ConvertHTMLToImage converts HTML to an image.
@@ -280,21 +325,13 @@ func ConvertHTMLToPDF(requestJSON *C.char) C.ByteResult {
 //
 //export ConvertHTMLToImage
 func ConvertHTMLToImage(requestJSON *C.char) C.ByteResult {
-	reqStr, err := cString(requestJSON)
-	if err != nil {
-		return errResult(err)
-	}
-	var req gopdflib.HTMLToImageRequest
-	if err := json.Unmarshal([]byte(reqStr), &req); err != nil {
-		return errResult(err)
-	}
-
-	imgBytes, err := gopdflib.ConvertHTMLToImage(req)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(imgBytes)
+	return bytesOp(func() ([]byte, error) {
+		req, err := jsonArg[gopdflib.HTMLToImageRequest](requestJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ConvertHTMLToImage(req)
+	})
 }
 
 // GetAvailableFonts returns the list of available fonts as JSON.
@@ -302,13 +339,9 @@ func ConvertHTMLToImage(requestJSON *C.char) C.ByteResult {
 //
 //export GetAvailableFonts
 func GetAvailableFonts() C.ByteResult {
-	fonts := gopdflib.GetAvailableFonts()
-	fontsJSON, err := json.Marshal(fonts)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(fontsJSON)
+	return jsonOp(func() (any, error) {
+		return gopdflib.GetAvailableFonts(), nil
+	})
 }
 
 // GetPageInfo returns metadata about PDF pages.
@@ -316,21 +349,13 @@ func GetAvailableFonts() C.ByteResult {
 //
 //export GetPageInfo
 func GetPageInfo(pdfData *C.char, pdfLen C.int) C.ByteResult {
-	pdfBytes, err := cBytes(pdfData, pdfLen)
-	if err != nil {
-		return errResult(err)
-	}
-	info, err := gopdflib.GetPageInfo(pdfBytes)
-	if err != nil {
-		return errResult(err)
-	}
-
-	infoJSON, err := json.Marshal(info)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(infoJSON)
+	return jsonOp(func() (any, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.GetPageInfo(pdfBytes)
+	})
 }
 
 // ExtractTextPositions extracts text coordinates from a specific page.
@@ -338,21 +363,13 @@ func GetPageInfo(pdfData *C.char, pdfLen C.int) C.ByteResult {
 //
 //export ExtractTextPositions
 func ExtractTextPositions(pdfData *C.char, pdfLen C.int, pageNum C.int) C.ByteResult {
-	pdfBytes, err := cBytes(pdfData, pdfLen)
-	if err != nil {
-		return errResult(err)
-	}
-	positions, err := gopdflib.ExtractTextPositions(pdfBytes, int(pageNum))
-	if err != nil {
-		return errResult(err)
-	}
-
-	posJSON, err := json.Marshal(positions)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(posJSON)
+	return jsonOp(func() (any, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ExtractTextPositions(pdfBytes, int(pageNum))
+	})
 }
 
 // FindTextOccurrences searches for text and returns redaction candidate rectangles.
@@ -360,25 +377,17 @@ func ExtractTextPositions(pdfData *C.char, pdfLen C.int, pageNum C.int) C.ByteRe
 //
 //export FindTextOccurrences
 func FindTextOccurrences(pdfData *C.char, pdfLen C.int, searchText *C.char) C.ByteResult {
-	pdfBytes, err := cBytes(pdfData, pdfLen)
-	if err != nil {
-		return errResult(err)
-	}
-	text, err := cString(searchText)
-	if err != nil {
-		return errResult(err)
-	}
-	rects, err := gopdflib.FindTextOccurrences(pdfBytes, text)
-	if err != nil {
-		return errResult(err)
-	}
-
-	rectsJSON, err := json.Marshal(rects)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(rectsJSON)
+	return jsonOp(func() (any, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		text, err := cString(searchText)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.FindTextOccurrences(pdfBytes, text)
+	})
 }
 
 // ApplyRedactions applies redaction rectangles to the PDF.
@@ -386,26 +395,17 @@ func FindTextOccurrences(pdfData *C.char, pdfLen C.int, searchText *C.char) C.By
 //
 //export ApplyRedactions
 func ApplyRedactions(pdfData *C.char, pdfLen C.int, redactionsJSON *C.char) C.ByteResult {
-	pdfBytes, err := cBytes(pdfData, pdfLen)
-	if err != nil {
-		return errResult(err)
-	}
-	redactionsStr, err := cString(redactionsJSON)
-	if err != nil {
-		return errResult(err)
-	}
-
-	var redactions []gopdflib.RedactionRect
-	if err := json.Unmarshal([]byte(redactionsStr), &redactions); err != nil {
-		return errResult(err)
-	}
-
-	out, err := gopdflib.ApplyRedactions(pdfBytes, redactions)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(out)
+	return bytesOp(func() ([]byte, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		redactions, err := jsonArg[[]gopdflib.RedactionRect](redactionsJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ApplyRedactions(pdfBytes, redactions)
+	})
 }
 
 // ApplyRedactionsAdvanced applies a unified redaction request to the PDF.
@@ -413,26 +413,17 @@ func ApplyRedactions(pdfData *C.char, pdfLen C.int, redactionsJSON *C.char) C.By
 //
 //export ApplyRedactionsAdvanced
 func ApplyRedactionsAdvanced(pdfData *C.char, pdfLen C.int, optionsJSON *C.char) C.ByteResult {
-	pdfBytes, err := cBytes(pdfData, pdfLen)
-	if err != nil {
-		return errResult(err)
-	}
-	optionsStr, err := cString(optionsJSON)
-	if err != nil {
-		return errResult(err)
-	}
-
-	var options gopdflib.ApplyRedactionOptions
-	if err := json.Unmarshal([]byte(optionsStr), &options); err != nil {
-		return errResult(err)
-	}
-
-	out, err := gopdflib.ApplyRedactionsAdvanced(pdfBytes, options)
-	if err != nil {
-		return errResult(err)
-	}
-
-	return bytesResult(out)
+	return bytesOp(func() ([]byte, error) {
+		pdfBytes, err := pdfBytes(pdfData, pdfLen)
+		if err != nil {
+			return nil, err
+		}
+		options, err := jsonArg[gopdflib.ApplyRedactionOptions](optionsJSON)
+		if err != nil {
+			return nil, err
+		}
+		return gopdflib.ApplyRedactionsAdvanced(pdfBytes, options)
+	})
 }
 
 // FreeBytesResult frees memory allocated by functions returning ByteResult.

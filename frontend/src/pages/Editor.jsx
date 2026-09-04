@@ -13,7 +13,20 @@ import PropertiesPanel from '../components/editor/PropertiesPanel'
 import JsonTemplate from '../components/editor/JsonTemplate'
 import ComponentItem from '../components/editor/ComponentItem'
 import { PAGE_SIZES, DEFAULT_FONTS, COMPONENT_TYPES } from '../components/editor/constants'
-import { getFontFamily, parsePageMargins, parseProps, formatProps } from '../components/editor/utils'
+import { getFontFamily } from '../components/editor/utils'
+import { parseProps, formatProps } from '../components/editor/utils'
+import {
+  DEFAULT_CONFIG,
+  buildTemplate,
+  buildTemplateJson,
+  createComponent,
+  createFooter,
+  createTitle,
+  parsePageMargins,
+  parseTemplateData,
+  parseTemplateJson,
+  validateTemplate,
+} from '../components/editor/documentModel'
 
 import Toolbar from '../components/editor/Toolbar'
 import ContextMenu from '../components/shortcut/ContextMenu'
@@ -26,7 +39,7 @@ let _fontsFetchPromise = null
 export default function Editor() {
   const { theme, setTheme } = useTheme()
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const [config, setConfig] = useState({ pageBorder: '1:1:1:1', pageMargin: '72:72:72:72', page: 'A4', pageAlignment: 1, watermark: '', pdfTitle: '', pdfaCompliant: true, signature: { enabled: false } })
+  const [config, setConfig] = useState({ ...DEFAULT_CONFIG, signature: { enabled: false } })
   const [title, setTitle] = useState(null)
   const [components, setComponents] = useState([]) // Combined ordered array for tables and spacers
   const [footer, setFooter] = useState(null)
@@ -118,38 +131,11 @@ export default function Editor() {
   // --- Handlers ---
   const handleDropElement = (type, targetId = null) => {
     if (type === 'title') {
-      if (!title) setTitle({
-        props: 'Helvetica:12:000:left:1:1:1:1',
-        text: 'Document Title',
-        textprops: 'Helvetica:18:100:center:1:1:1:1',
-        table: {
-          maxcolumns: 3,
-          columnwidths: [1, 2, 1],
-          rows: [{
-            row: [
-              { props: 'Helvetica:12:000:left:1:1:1:1', text: '', image: null },
-              { props: 'Helvetica:18:100:center:1:1:1:1', text: 'Document Title' },
-              { props: 'Helvetica:12:000:right:1:1:1:1', text: '' }
-            ]
-          }]
-        }
-      })
+      if (!title) setTitle(createTitle())
     } else if (type === 'footer') {
-      if (!footer) setFooter({ props: 'Helvetica:10:000:center:1:0:0:0', text: 'Page footer text' })
+      if (!footer) setFooter(createFooter())
     } else {
-      const newComponent = type === 'table'
-        ? {
-          type: 'table',
-          maxcolumns: 3,
-          rows: [
-            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] },
-            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] },
-            { row: [{ props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }, { props: 'Helvetica:12:000:left:1:1:1:1', text: '' }] }
-          ]
-        }
-        : type === 'image'
-          ? { type: 'image', width: 200, height: 150, imagedata: null, imagename: '' }
-          : { type: 'spacer', height: 20 }
+      const newComponent = createComponent(type)
 
       if (targetId) {
         // Insert before target
@@ -549,22 +535,7 @@ export default function Editor() {
 
   useEffect(() => {
     if (isJsonEditing) return
-    const template = {
-      config: config,
-      title: title,
-      elements: components.map(c => {
-        if (c.type === 'table') return { type: 'table', table: c }
-        if (c.type === 'spacer') return { type: 'spacer', spacer: c }
-        if (c.type === 'image') return { type: 'image', image: c }
-        return c
-      }),
-      footer: footer,
-      bookmarks: bookmarks
-    }
-    if (!title) delete template.title
-    if (!footer) delete template.footer
-    if (!bookmarks || bookmarks.length === 0) delete template.bookmarks
-    setJsonText(JSON.stringify(template, null, 2))
+    setJsonText(buildTemplateJson({ config, title, components, footer, bookmarks }))
   }, [config, title, components, footer, bookmarks, isJsonEditing])
 
   const handleJsonChange = (e) => setJsonText(e.target.value)
@@ -572,72 +543,12 @@ export default function Editor() {
   const handleJsonBlur = () => {
     setIsJsonEditing(false)
     try {
-      const parsed = JSON.parse(jsonText)
-      const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = parsed
-
-      // Fix embedStandardFonts loading - check both key names since templates may use either
-      const embedValue = newConfig?.embedStandardFonts !== undefined
-        ? newConfig.embedStandardFonts
-        : (newConfig?.embedFonts !== undefined ? newConfig.embedFonts : undefined)
-
-      setConfig(prev => ({
-        ...prev,
-        ...(newConfig || {}),
-        embedStandardFonts: embedValue !== undefined ? embedValue : prev.embedStandardFonts,
-        arlingtonCompatible: newConfig?.arlingtonCompatible !== undefined ? newConfig.arlingtonCompatible : prev.arlingtonCompatible,
-        pdfaCompliant: newConfig?.pdfaCompliant !== undefined ? newConfig.pdfaCompliant : prev.pdfaCompliant
-      }))
-      setTitle(newTitle || null)
-
-      // Handle various input formats (legacy content, table, or new elements)
-      let rawComponents = elements || content || []
-
-      // If there's a separate table array (raw tables format), process it
-      if (table && Array.isArray(table)) {
-        rawComponents = table.map(t => ({ ...t, type: 'table' }))
-      }
-
-      // If there's a separate spacer array, add those too
-      if (spacer && Array.isArray(spacer)) {
-        const spacerComponents = spacer.map(s => ({ ...s, type: 'spacer' }))
-        rawComponents = [...rawComponents, ...spacerComponents]
-      }
-
-      // If we have an "elements" array that references indices, process that
-      if (parsed.elements && Array.isArray(parsed.elements) && parsed.elements[0]?.index !== undefined) {
-        // This is the reference format: elements: [{type: 'table', index: 0}, ...]
-        const orderedComponents = []
-        for (const ref of parsed.elements) {
-          if (ref.type === 'table' && table && table[ref.index]) {
-            orderedComponents.push({ ...table[ref.index], type: 'table' })
-          } else if (ref.type === 'spacer' && spacer && spacer[ref.index]) {
-            orderedComponents.push({ ...spacer[ref.index], type: 'spacer' })
-          }
-        }
-        if (orderedComponents.length > 0) {
-          rawComponents = orderedComponents
-        }
-      }
-
-      const processedComponents = rawComponents.map(c => {
-        // If it's the wrapped format (element.table), unwrap it
-        if (c.table) return { ...c.table, type: 'table' }
-        if (c.spacer) return { ...c.spacer, type: 'spacer' }
-        if (c.image) return { ...c.image, type: 'image' }
-
-        // Auto-detect component type if not specified
-        if (!c.type) {
-          if (c.maxcolumns && c.rows) return { ...c, type: 'table' }
-          if (c.height && !c.width) return { ...c, type: 'spacer' }
-          if (c.imagedata || c.imagename) return { ...c, type: 'image' }
-        }
-
-        return c
-      })
-
-      setComponents(Array.isArray(processedComponents) ? processedComponents : [])
-      setFooter(newFooter || null)
-      setBookmarks(newBookmarks || null)
+      const parsed = parseTemplateJson(jsonText, config)
+      setConfig(parsed.config)
+      setTitle(parsed.title)
+      setComponents(parsed.components)
+      setFooter(parsed.footer)
+      setBookmarks(parsed.bookmarks)
     } catch (e) {
       console.error('Invalid JSON', e)
     }
@@ -647,21 +558,11 @@ export default function Editor() {
   const handleGeneratePdf = async (isPreview = false) => {
     try {
       setIsJsonEditing(false)
-      const template = {
-        config: config,
-        title: title,
-        elements: components.map(c => {
-          if (c.type === 'table') return { type: 'table', table: c }
-          if (c.type === 'spacer') return { type: 'spacer', spacer: c }
-          if (c.type === 'image') return { type: 'image', image: c }
-          return c
-        }),
-        footer: footer,
-        bookmarks: bookmarks
+      const template = buildTemplate({ config, title, components, footer, bookmarks })
+      const { errors, warnings } = validateTemplate(template)
+      if (errors.length > 0 || warnings.length > 0) {
+        console.warn('Template schema issues:', { errors, warnings })
       }
-      if (!title) delete template.title
-      if (!footer) delete template.footer
-      if (!bookmarks || bookmarks.length === 0) delete template.bookmarks
 
       const response = await makeAuthenticatedRequest(
         '/api/v1/generate/template-pdf',
@@ -766,71 +667,12 @@ export default function Editor() {
       }
 
       // Parse and load the template data
-      const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = templateData
-
-      // Fix embedStandardFonts loading - check both key names since templates may use either
-      const embedValue = newConfig?.embedStandardFonts !== undefined
-        ? newConfig.embedStandardFonts
-        : (newConfig?.embedFonts !== undefined ? newConfig.embedFonts : undefined)
-
-      setConfig(prev => ({
-        ...prev,
-        ...(newConfig || {}),
-        embedStandardFonts: embedValue !== undefined ? embedValue : prev.embedStandardFonts,
-        arlingtonCompatible: newConfig?.arlingtonCompatible !== undefined ? newConfig.arlingtonCompatible : prev.arlingtonCompatible,
-        pdfaCompliant: newConfig?.pdfaCompliant !== undefined ? newConfig.pdfaCompliant : prev.pdfaCompliant
-      }))
-      setTitle(newTitle || null)
-
-      // Handle various input formats (legacy content, table, or new elements)
-      let rawComponents = elements || content || []
-
-      // If there's a separate table array (raw tables format), process it
-      if (table && Array.isArray(table)) {
-        rawComponents = table.map(t => ({ ...t, type: 'table' }))
-      }
-
-      // If there's a separate spacer array, add those too
-      if (spacer && Array.isArray(spacer)) {
-        const spacerComponents = spacer.map(s => ({ ...s, type: 'spacer' }))
-        rawComponents = [...rawComponents, ...spacerComponents]
-      }
-
-      // If we have an "elements" array that references indices, process that
-      if (templateData.elements && Array.isArray(templateData.elements) && templateData.elements[0]?.index !== undefined) {
-        // This is the reference format: elements: [{type: 'table', index: 0}, ...]
-        const orderedComponents = []
-        for (const ref of templateData.elements) {
-          if (ref.type === 'table' && table && table[ref.index]) {
-            orderedComponents.push({ ...table[ref.index], type: 'table' })
-          } else if (ref.type === 'spacer' && spacer && spacer[ref.index]) {
-            orderedComponents.push({ ...spacer[ref.index], type: 'spacer' })
-          }
-        }
-        if (orderedComponents.length > 0) {
-          rawComponents = orderedComponents
-        }
-      }
-
-      const processedComponents = rawComponents.map(c => {
-        // If it's the wrapped format (element.table), unwrap it
-        if (c.table) return { ...c.table, type: 'table' }
-        if (c.spacer) return { ...c.spacer, type: 'spacer' }
-        if (c.image) return { ...c.image, type: 'image' }
-
-        // Auto-detect component type if not specified
-        if (!c.type) {
-          if (c.maxcolumns && c.rows) return { ...c, type: 'table' }
-          if (c.height && !c.width) return { ...c, type: 'spacer' }
-          if (c.imagedata || c.imagename) return { ...c, type: 'image' }
-        }
-
-        return c
-      })
-
-      setComponents(Array.isArray(processedComponents) ? processedComponents : [])
-      setFooter(newFooter || null)
-      setBookmarks(newBookmarks || null)
+      const parsed = parseTemplateData(templateData, config)
+      setConfig(parsed.config)
+      setTitle(parsed.title)
+      setComponents(parsed.components)
+      setFooter(parsed.footer)
+      setBookmarks(parsed.bookmarks)
 
       // Update JSON display
       setIsJsonEditing(false)

@@ -443,8 +443,8 @@ func drawSharedDeferRow(
 		cellX := currentX
 		currentX += cellWidth
 
-		pageManager.Structure.WriteCellMarkedContentBDC(
-			contentStream, StructTD, rowMCIDBase+colIdx,
+		NewTableTagger(pageManager.Structure).WriteCell(
+			contentStream, rowMCIDBase+colIdx,
 		)
 
 		if cell.BgColor != "" {
@@ -542,8 +542,9 @@ func drawSharedLayoutRow(
 	charsPreScanned bool,
 ) {
 	cellCount := min(len(row.Row), maxColumns)
-	rowMCIDBase := pageManager.Structure.ReserveMCIDsLite(pageManager.CurrentPageIndex, cellCount)
 	pageIndex := pageManager.CurrentPageIndex
+	tagger := NewTableTagger(pageManager.Structure)
+	rowMCIDBase := tagger.Reserve(pageIndex, cellCount)
 
 	if rowPtr != nil {
 		cacheKey := sharedRowRenderCacheKey{
@@ -553,9 +554,9 @@ func drawSharedLayoutRow(
 			y:        scaledCoordKey(pageManager.CurrentYPos),
 		}
 		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
-			pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
+			tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
 			appendContentStream(contentStream, cached)
-			pageManager.Structure.EndStructureElement()
+			tagger.EndRow()
 			pageManager.CurrentYPos -= rowHeight
 			return
 		}
@@ -571,7 +572,7 @@ func drawSharedLayoutRow(
 		// P6: build TR + 7 TD struct elems in a single arena pass; the per-cell
 		// BDC/EMC is then emitted by drawSharedDeferRow via the lightweight
 		// WriteCellMarkedContentBDC / EndCellMarkedContentBuf pair.
-		pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
+		tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
 		drawSharedDeferRow(
 			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 			scratchBuf, textTjBuf, borderBuf,
@@ -582,7 +583,7 @@ func drawSharedLayoutRow(
 		pageManager.NoteSharedRowBytes(len(rendered))
 		sharedRowRenderCache.Store(cacheKey, rendered)
 		appendContentStream(contentStream, rendered)
-		pageManager.Structure.EndStructureElement()
+		tagger.EndRow()
 		pageManager.CurrentYPos -= rowHeight
 		return
 	}
@@ -590,14 +591,14 @@ func drawSharedLayoutRow(
 	// P6: same fast path as the cached branch - set up TR + TDs up front
 	// (arena allocation, no sync.Pool churn) and let drawSharedDeferRow emit
 	// BDC/EMC per cell without re-allocating a struct elem each time.
-	pageManager.Structure.BeginTableRowWithTDMCIDs(pageIndex, rowMCIDBase, cellCount)
+	tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
 		rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
 		maxColumns, charsPreScanned,
 	)
-	pageManager.Structure.EndStructureElement()
+	tagger.EndRow()
 	pageManager.CurrentYPos -= rowHeight
 }
 

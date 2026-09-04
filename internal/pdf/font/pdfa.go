@@ -3,12 +3,12 @@ package font
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -76,6 +76,20 @@ const defaultLiberationFontsArchiveURL = "https://github.com/liberationfonts/lib
 const liberationFontsArchiveSHA256 = "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0"
 
 var liberationFontsArchiveURL = defaultLiberationFontsArchiveURL
+
+// liberationArchiveMaxBytes caps the Liberation tarball download (64 MiB;
+// the 2.1.5 release is ~1 MiB, so anything larger is not the pinned asset).
+const liberationArchiveMaxBytes = 64 << 20
+
+// liberationArchiveDigest returns the pinned digest when fetching from the
+// default URL. Test overrides (httptest servers) carry different bytes and
+// skip verification by returning "".
+func liberationArchiveDigest() string {
+	if liberationFontsArchiveURL != defaultLiberationFontsArchiveURL {
+		return ""
+	}
+	return liberationFontsArchiveSHA256
+}
 
 // verifyLiberationDigest checks the downloaded archive against the pinned
 // digest when fetching from the default URL. Test overrides (httptest
@@ -261,54 +275,35 @@ func (m *PDFAFontManager) checkFontDir(dir string) bool {
 	return false
 }
 
-// downloadFonts downloads Liberation font files
+// downloadFonts downloads Liberation font files via the shared provision
+// helper (timeout fetch, size cap, digest pin, temp file), then extracts the
+// known TTFs. The URL-override test seam is preserved: httptest overrides
+// skip digest verification through liberationArchiveDigest.
 func (m *PDFAFontManager) downloadFonts() error {
 	fmt.Printf("Downloading Liberation fonts from %s...\n", liberationFontsArchiveURL)
 
-	// Create temp file for the tar.gz
-	tmpFile, err := os.CreateTemp("", "liberation-fonts-*.tar.gz")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer func() {
-		_ = os.Remove(tmpFile.Name()) // Clean up
-	}()
-	defer func() {
-		_ = tmpFile.Close()
-	}()
-
 	// Download the file with a timeout so a network hang cannot block
 	// PDF generation forever.
-	fontHTTPClient := &http.Client{Timeout: 30 * time.Second}
-	resp, err := fontHTTPClient.Get(liberationFontsArchiveURL)
+	tmpPath, err := FetchToTemp(context.Background(), liberationFontsArchiveURL, "",
+		"liberation-fonts-*.tar.gz", liberationArchiveMaxBytes, liberationArchiveDigest(), 30*time.Second)
 	if err != nil {
+		var httpErr *HTTPStatusError
+		if errors.As(err, &httpErr) {
+			return fmt.Errorf("failed to download fonts: HTTP %d", httpErr.Status)
+		}
 		return fmt.Errorf("failed to download fonts: %w", err)
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		_ = os.Remove(tmpPath) // Clean up
 	}()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download fonts: HTTP %d", resp.StatusCode)
-	}
-
-	_, err = io.Copy(tmpFile, resp.Body)
+	tmpFile, err := os.Open(tmpPath)
 	if err != nil {
-		return fmt.Errorf("failed to save fonts archive: %w", err)
+		return fmt.Errorf("failed to open fonts archive: %w", err)
 	}
-
-	// Seek back to start
-	if _, err := tmpFile.Seek(0, 0); err != nil {
-		return fmt.Errorf("failed to seek temp file: %w", err)
-	}
-
-	// Verify the pinned digest before extracting. The test override
-	// (liberationFontsArchiveURL) points at httptest servers whose bytes
-	// are not the pinned release, so verification only applies to the
-	// default URL.
-	if err := verifyLiberationDigest(tmpFile); err != nil {
-		return err
-	}
+	defer func() {
+		_ = tmpFile.Close()
+	}()
 
 	// Extract the tar.gz
 	gzr, err := gzip.NewReader(tmpFile)

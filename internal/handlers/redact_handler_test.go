@@ -16,7 +16,7 @@ import (
 func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.POST("/api/v1/redact/apply", HandleRedactApply)
+	r.POST("/api/v1/redact/apply", handleRedactApply)
 
 	pdfPath := filepath.Join("..", "..", "sampledata", "EpsteinFiles", "Epsteinfiles.pdf")
 	pdfBytes, err := os.ReadFile(pdfPath)
@@ -89,7 +89,7 @@ func TestHandleRedactApply_TextSearchWorksViaMultipart(t *testing.T) {
 func TestHandleRedactApply_RejectsEmptyPDF(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.POST("/api/v1/redact/apply", HandleRedactApply)
+	r.POST("/api/v1/redact/apply", handleRedactApply)
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)

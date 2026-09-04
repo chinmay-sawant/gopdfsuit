@@ -84,9 +84,7 @@ func decodeTemplateJSON(r io.Reader, contentLength int, tier string, template *m
 		putBodyBuf(bufPtr, buf)
 		return err
 	}
-	if contentLength > maxPooledDecodeBody && contentLength <= maxHFTEncodeBody {
-		return decoder.NewStreamDecoder(r).Decode(template)
-	}
+	// Large or unknown-size bodies stream with no intermediate copy.
 	return decoder.NewStreamDecoder(r).Decode(template)
 }
 

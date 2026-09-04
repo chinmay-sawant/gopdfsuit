@@ -4,17 +4,15 @@ package fontutils
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
+
+	provfont "github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
 )
 
 // MathFontInfo describes a math-capable font with its system paths and download URL.
@@ -213,9 +211,10 @@ func fontExistsOnSystem(font MathFontInfo) bool {
 // exhaustion. It is a var (not const) so tests can shrink it.
 var maxFontDownloadSize = 20 * 1024 * 1024
 
-// downloadFontContext is the context-aware download core. Fonts larger than
-// maxFontDownloadSize are rejected: the temp file is removed and an error is
-// returned instead of caching a truncated TTF.
+// downloadFontContext is the context-aware download core. It delegates the
+// fetch (timeout client, size cap, digest pin, temp file) to the shared
+// provision helper in internal/pdf/font, then atomically installs the result.
+// Fonts larger than maxFontDownloadSize are rejected and never cached.
 func downloadFontContext(ctx context.Context, font MathFontInfo) error {
 	if font.DownloadURL == "" {
 		return fmt.Errorf("no download URL for font %s", font.Name)
@@ -226,80 +225,17 @@ func downloadFontContext(ctx context.Context, font MathFontInfo) error {
 		return fmt.Errorf("create fonts dir: %w", err)
 	}
 
+	tmpPath, err := provfont.FetchToTemp(ctx, font.DownloadURL, destDir,
+		font.FileName+".tmp.*", int64(maxFontDownloadSize), font.SHA256, 60*time.Second)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", font.Name, err)
+	}
+
 	destPath := downloadedFontPath(font.FileName)
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, font.DownloadURL, nil)
-	if err != nil {
-		return fmt.Errorf("download %s: %w", font.Name, err)
-	}
-	resp, err := client.Do(req) //nolint:gosec // URLs are hardcoded constants, not user input
-	if err != nil {
-		return fmt.Errorf("download %s: %w", font.Name, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download %s: HTTP %d", font.Name, resp.StatusCode)
-	}
-
-	// Write to temp file first then rename for atomicity
-	tmpFile, err := os.CreateTemp(destDir, font.FileName+".tmp.*")
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-
-	// Read one byte past the cap so truncation is detectable: a full
-	// maxFontDownloadSize+1 bytes means the source was larger than allowed.
-	limitedReader := io.LimitReader(resp.Body, int64(maxFontDownloadSize)+1)
-
-	n, err := io.Copy(tmpFile, limitedReader)
-	if closeErr := tmpFile.Close(); closeErr != nil && err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("write font file: %w", err)
-	}
-	if n > int64(maxFontDownloadSize) {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("font %s exceeds maximum size (%d bytes)", font.Name, maxFontDownloadSize)
-	}
-
-	// Verify the pinned digest before the file becomes visible. A mismatch
-	// means upstream re-released the file or the transfer was tampered with.
-	if font.SHA256 != "" {
-		sum, err := sha256File(tmpPath)
-		if err != nil {
-			_ = os.Remove(tmpPath)
-			return fmt.Errorf("checksum font %s: %w", font.Name, err)
-		}
-		if sum != font.SHA256 {
-			_ = os.Remove(tmpPath)
-			return fmt.Errorf("font %s checksum mismatch (got %s, want %s from %s): refresh the SHA256 pin",
-				font.Name, sum, font.SHA256, font.DownloadURL)
-		}
-	}
-
 	if err := os.Rename(tmpPath, destPath); err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("rename temp file: %w", err)
 	}
 
 	return nil
-}
-
-// sha256File digests a file without loading it fully into memory.
-func sha256File(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = f.Close() }()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }

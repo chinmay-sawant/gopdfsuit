@@ -1,9 +1,6 @@
 package pdf
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
 // LinkAnnotation represents a hyperlink annotation in a PDF
 type LinkAnnotation struct {
@@ -17,71 +14,10 @@ type LinkAnnotation struct {
 // CreateLinkAnnotation creates a PDF link annotation object with PDF/UA-2 structure
 // For external links (URLs), it creates a /URI action
 // For internal links (bookmarks), it creates a /GoTo action with named destination
-// Returns the annotation object ID
+// Returns the annotation object ID. Emission lives in DestinationStore so
+// link annots and their structure elements share one home with named dests.
 func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager) int {
-	var annotDict strings.Builder
-	var structParentIdx int
-
-	annotDict.WriteString("<< /Type /Annot /Subtype /Link")
-	annotDict.WriteString(fmt.Sprintf(" /Rect [%s %s %s %s]",
-		fmtNum(annot.Rect[0]), fmtNum(annot.Rect[1]),
-		fmtNum(annot.Rect[2]), fmtNum(annot.Rect[3])))
-
-	// Border style - no visible border (0 0 0 means no border)
-	annotDict.WriteString(" /Border [0 0 0]")
-
-	// Highlight mode - invert when clicked
-	annotDict.WriteString(" /H /I")
-
-	// PDF/A-4 compliance: F key is required
-	// Flag 4 = Print. This ensures the annotation is considered printable,
-	// satisfying the requirement that all non-popup annotations must have an F key.
-	annotDict.WriteString(" /F 4")
-
-	// PDF/UA-2: StructParent links annotation to structure tree
-	if pageManager.Structure.Enabled {
-		structParentIdx = pageManager.GetNextAnnotStructParent()
-		annotDict.WriteString(fmt.Sprintf(" /StructParent %d", structParentIdx))
-	}
-
-	// Add action based on link type
-	switch {
-	case annot.URI != "":
-		// External URL - use URI action
-		annotDict.WriteString(fmt.Sprintf(" /A << /Type /Action /S /URI /URI (%s) >>",
-			escapeText(annot.URI)))
-	case annot.Dest != "":
-		// Internal link - use named destination
-		// PDF/UA-2: Use /Dest (name) - the named destination contains both /D and /SD
-		annotDict.WriteString(fmt.Sprintf(" /Dest (%s)", escapeText(annot.Dest)))
-	case annot.PageIndex >= 0:
-		// Internal link with explicit page destination
-		// Format: [pageRef /XYZ left top zoom]
-		// XYZ = position at (left, top) with zoom factor.
-		// Page IDs live in pageManager.Pages; fall back to the first page
-		// when the index is out of range instead of assuming 3+index.
-		pageIdx := annot.PageIndex
-		if pageIdx < 0 || pageIdx >= len(pageManager.Pages) {
-			pageIdx = 0
-		}
-		pageObjID := 3 // First page starts at object 3
-		if len(pageManager.Pages) > 0 {
-			pageObjID = pageManager.Pages[pageIdx]
-		}
-		annotDict.WriteString(fmt.Sprintf(" /Dest [%d 0 R /XYZ null %s null]",
-			pageObjID, fmtNum(annot.DestY)))
-	}
-
-	annotDict.WriteString(" >>")
-
-	objID := pageManager.AddExtraObject(annotDict.String())
-
-	if pageManager.Structure.Enabled {
-		// PDF/UA-2: Link structure element that references this annotation
-		pageManager.AddLinkStructureElement(objID, structParentIdx)
-	}
-
-	return objID
+	return NewDestinationStore(pageManager, nil).CreateLinkAnnotation(annot)
 }
 
 // ParseLink parses a link string and determines if it's external or internal

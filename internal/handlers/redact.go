@@ -8,7 +8,6 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/redact"
 	"github.com/gin-gonic/gin"
 )
 
@@ -63,9 +62,9 @@ func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.Re
 	return normalized
 }
 
-// readBoundedUpload opens the "pdf" form file and reads it capped at
-// maxPDFBytes, rejecting oversized uploads with 413. It returns nil when the
-// handler must abort (response already written).
+// readBoundedUpload opens the "pdf" form file and reads it through the
+// service-owned body-limit policy, rejecting oversized uploads with 413. It
+// returns nil when the handler must abort (response already written).
 func readBoundedUpload(c *gin.Context) []byte {
 	file, err := c.FormFile("pdf")
 	if err != nil {
@@ -81,7 +80,7 @@ func readBoundedUpload(c *gin.Context) []byte {
 	}
 	defer func() { _ = f.Close() }()
 
-	pdfBytes, ok, err := readBounded(f, maxPDFBytes)
+	pdfBytes, ok, err := pdfService.ReadUpload(f, UploadKindPDF)
 	if err != nil {
 		log.Printf("redact: read pdf failed: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -98,11 +97,11 @@ func readBoundedUpload(c *gin.Context) []byte {
 	return pdfBytes
 }
 
-// abortRedactLoad handles NewRedactor failures (client-malformed PDFs -> 422)
-// without echoing backend internals.
+// abortRedactLoad handles redactor-construction failures (client-malformed
+// PDFs -> 422) without echoing backend internals.
 func abortRedactLoad(c *gin.Context, err error) {
 	log.Printf("redact: failed to load PDF: %v", err)
-	if pdfErrorStatus(err) == http.StatusUnprocessableEntity {
+	if pdfService.ClassifyError(err) == http.StatusUnprocessableEntity {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "invalid PDF input"})
 		return
 	}
@@ -112,57 +111,47 @@ func abortRedactLoad(c *gin.Context, err error) {
 // abortRedactOp handles redaction operation failures the same way.
 func abortRedactOp(c *gin.Context, err error) {
 	log.Printf("redact: operation failed: %v", err)
-	if pdfErrorStatus(err) == http.StatusUnprocessableEntity {
+	if pdfService.ClassifyError(err) == http.StatusUnprocessableEntity {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "invalid PDF input"})
 		return
 	}
 	c.JSON(http.StatusInternalServerError, gin.H{"error": "redaction failed"})
 }
 
-// HandleRedactPageInfo handles requests to get PDF page dimensions
-func HandleRedactPageInfo(c *gin.Context) {
+// handleRedactPageInfo handles requests to get PDF page dimensions
+func handleRedactPageInfo(c *gin.Context) {
 	pdfBytes := readBoundedUpload(c)
 	if pdfBytes == nil {
 		return
 	}
 
-	r, err := redact.NewRedactor(pdfBytes)
+	info, err := pdfService.RedactPageInfo(pdfBytes)
 	if err != nil {
 		abortRedactLoad(c, err)
-		return
-	}
-	info, err := r.GetPageInfo()
-	if err != nil {
-		abortRedactOp(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, info)
 }
 
-// HandleRedactCapabilities returns per-page capability information for redaction.
-func HandleRedactCapabilities(c *gin.Context) {
+// handleRedactCapabilities returns per-page capability information for redaction.
+func handleRedactCapabilities(c *gin.Context) {
 	pdfBytes := readBoundedUpload(c)
 	if pdfBytes == nil {
 		return
 	}
 
-	r, err := redact.NewRedactor(pdfBytes)
+	caps, err := pdfService.RedactCapabilities(pdfBytes)
 	if err != nil {
 		abortRedactLoad(c, err)
-		return
-	}
-	caps, err := r.AnalyzePageCapabilities()
-	if err != nil {
-		abortRedactOp(c, err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"capabilities": caps})
 }
 
-// HandleRedactTextPositions handles requests to extract text positions from a page
-func HandleRedactTextPositions(c *gin.Context) {
+// handleRedactTextPositions handles requests to extract text positions from a page
+func handleRedactTextPositions(c *gin.Context) {
 	pageNumStr := c.PostForm("page")
 	if pageNumStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "page number is required"})
@@ -179,12 +168,7 @@ func HandleRedactTextPositions(c *gin.Context) {
 		return
 	}
 
-	r, err := redact.NewRedactor(pdfBytes)
-	if err != nil {
-		abortRedactLoad(c, err)
-		return
-	}
-	positions, err := r.ExtractTextPositions(pageNum)
+	positions, err := pdfService.RedactTextPositions(pdfBytes, pageNum)
 	if err != nil {
 		abortRedactOp(c, err)
 		return
@@ -193,8 +177,8 @@ func HandleRedactTextPositions(c *gin.Context) {
 	c.JSON(http.StatusOK, positions)
 }
 
-// HandleRedactApply handles requests to apply redactions to a PDF
-func HandleRedactApply(c *gin.Context) {
+// handleRedactApply handles requests to apply redactions to a PDF
+func handleRedactApply(c *gin.Context) {
 	if _, err := c.FormFile("pdf"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is required"})
 		return
@@ -272,12 +256,7 @@ func HandleRedactApply(c *gin.Context) {
 		return
 	}
 
-	r, err := redact.NewRedactor(pdfBytes)
-	if err != nil {
-		abortRedactLoad(c, err)
-		return
-	}
-	redactedPDF, report, err := r.ApplyRedactionsAdvancedWithReport(options)
+	redactedPDF, report, err := pdfService.RedactApply(pdfBytes, options)
 	if err != nil {
 		abortRedactOp(c, err)
 		return
@@ -290,8 +269,8 @@ func HandleRedactApply(c *gin.Context) {
 	c.Data(http.StatusOK, mimeTypePDF, redactedPDF)
 }
 
-// HandleRedactSearch searches for text and returns potential redaction rectangles
-func HandleRedactSearch(c *gin.Context) {
+// handleRedactSearch searches for text and returns potential redaction rectangles
+func handleRedactSearch(c *gin.Context) {
 	if _, err := c.FormFile("pdf"); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "pdf file is required"})
 		return
@@ -324,12 +303,7 @@ func HandleRedactSearch(c *gin.Context) {
 		return
 	}
 
-	r, err := redact.NewRedactor(pdfBytes)
-	if err != nil {
-		abortRedactLoad(c, err)
-		return
-	}
-	rects, err := r.FindTextOccurrencesMulti(terms)
+	rects, err := pdfService.RedactSearch(pdfBytes, terms)
 	if err != nil {
 		abortRedactOp(c, err)
 		return

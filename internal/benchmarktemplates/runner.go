@@ -1,4 +1,11 @@
 // Package benchmarktemplates provides reusable benchmark document builders and runners.
+//
+// Layering seam (resolved by construction): builders here take and return only
+// public pkg/gopdflib types (BuildZerodhaRetailTemplate returns
+// gopdflib.PDFTemplate, runners render via gopdflib.GeneratePDF) and never
+// import internal/pdf directly. Sampledata bench mains may import this package,
+// but no bench file may import internal/pdf - that keeps the engine an
+// implementation detail behind the public library surface.
 package benchmarktemplates
 
 import (

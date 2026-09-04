@@ -41,6 +41,20 @@ var (
 	trueTypeFontObjectsCache sync.Map
 )
 
+// Standard font names as constants (goconst: each appears 3+ times).
+const (
+	metricsFontTimesRoman         = "Times-Roman"
+	metricsFontTimesBold          = "Times-Bold"
+	metricsFontTimesItalic        = "Times-Italic"
+	metricsFontTimesBoldItalic    = "Times-BoldItalic"
+	metricsFontCourier            = "Courier"
+	metricsFontCourierBold        = "Courier-Bold"
+	metricsFontCourierOblique     = "Courier-Oblique"
+	metricsFontCourierBoldOblique = "Courier-BoldOblique"
+	metricsFontSymbol             = "Symbol"
+	metricsFontZapfDingbats       = "ZapfDingbats"
+)
+
 // PDF 2.0 compliant font definitions for the standard 14 fonts
 // These include FirstChar, LastChar, Widths, and FontDescriptor as required by Arlington Model
 
@@ -316,14 +330,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 			},
 		}
 	// Times family
-	case "Times-Roman":
+	case metricsFontTimesRoman:
 		return FontMetrics{
-			BaseFont:  "Times-Roman",
+			BaseFont:  metricsFontTimesRoman,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    timesRomanWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Times-Roman",
+				FontName:    metricsFontTimesRoman,
 				Flags:       34, // Serif + Non-symbolic
 				FontBBox:    [4]int{-168, -218, 1000, 898},
 				ItalicAngle: 0,
@@ -334,14 +348,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     450,
 			},
 		}
-	case "Times-Bold":
+	case metricsFontTimesBold:
 		return FontMetrics{
-			BaseFont:  "Times-Bold",
+			BaseFont:  metricsFontTimesBold,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    timesBoldWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Times-Bold",
+				FontName:    metricsFontTimesBold,
 				Flags:       34 | 262144, // Serif + Non-symbolic + ForceBold
 				FontBBox:    [4]int{-168, -218, 1000, 935},
 				ItalicAngle: 0,
@@ -352,14 +366,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     461,
 			},
 		}
-	case "Times-Italic":
+	case metricsFontTimesItalic:
 		return FontMetrics{
-			BaseFont:  "Times-Italic",
+			BaseFont:  metricsFontTimesItalic,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    timesItalicWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Times-Italic",
+				FontName:    metricsFontTimesItalic,
 				Flags:       34 | 64, // Serif + Non-symbolic + Italic
 				FontBBox:    [4]int{-169, -217, 1010, 883},
 				ItalicAngle: -15,
@@ -370,14 +384,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     442,
 			},
 		}
-	case "Times-BoldItalic":
+	case metricsFontTimesBoldItalic:
 		return FontMetrics{
-			BaseFont:  "Times-BoldItalic",
+			BaseFont:  metricsFontTimesBoldItalic,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    timesBoldItalicWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Times-BoldItalic",
+				FontName:    metricsFontTimesBoldItalic,
 				Flags:       34 | 64 | 262144, // Serif + Non-symbolic + Italic + ForceBold
 				FontBBox:    [4]int{-200, -218, 996, 921},
 				ItalicAngle: -15,
@@ -389,14 +403,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 			},
 		}
 	// Courier family
-	case "Courier":
+	case metricsFontCourier:
 		return FontMetrics{
-			BaseFont:  "Courier",
+			BaseFont:  metricsFontCourier,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    courierWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Courier",
+				FontName:    metricsFontCourier,
 				Flags:       33, // FixedPitch + Non-symbolic
 				FontBBox:    [4]int{-23, -250, 715, 805},
 				ItalicAngle: 0,
@@ -407,14 +421,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     426,
 			},
 		}
-	case "Courier-Bold":
+	case metricsFontCourierBold:
 		return FontMetrics{
-			BaseFont:  "Courier-Bold",
+			BaseFont:  metricsFontCourierBold,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    courierWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Courier-Bold",
+				FontName:    metricsFontCourierBold,
 				Flags:       33 | 262144, // FixedPitch + Non-symbolic + ForceBold
 				FontBBox:    [4]int{-113, -250, 749, 801},
 				ItalicAngle: 0,
@@ -425,14 +439,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     439,
 			},
 		}
-	case "Courier-Oblique":
+	case metricsFontCourierOblique:
 		return FontMetrics{
-			BaseFont:  "Courier-Oblique",
+			BaseFont:  metricsFontCourierOblique,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    courierWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Courier-Oblique",
+				FontName:    metricsFontCourierOblique,
 				Flags:       33 | 64, // FixedPitch + Non-symbolic + Italic
 				FontBBox:    [4]int{-27, -250, 849, 805},
 				ItalicAngle: -12,
@@ -443,14 +457,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     426,
 			},
 		}
-	case "Courier-BoldOblique":
+	case metricsFontCourierBoldOblique:
 		return FontMetrics{
-			BaseFont:  "Courier-BoldOblique",
+			BaseFont:  metricsFontCourierBoldOblique,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    courierWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Courier-BoldOblique",
+				FontName:    metricsFontCourierBoldOblique,
 				Flags:       33 | 64 | 262144, // FixedPitch + Non-symbolic + Italic + ForceBold
 				FontBBox:    [4]int{-57, -250, 869, 801},
 				ItalicAngle: -12,
@@ -462,14 +476,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 			},
 		}
 	// Symbol fonts
-	case "Symbol":
+	case metricsFontSymbol:
 		return FontMetrics{
-			BaseFont:  "Symbol",
+			BaseFont:  metricsFontSymbol,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    symbolWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "Symbol",
+				FontName:    metricsFontSymbol,
 				Flags:       4, // Symbolic
 				FontBBox:    [4]int{-180, -293, 1090, 1010},
 				ItalicAngle: 0,
@@ -480,14 +494,14 @@ func GetFontMetrics(fontName string) FontMetrics {
 				XHeight:     500,
 			},
 		}
-	case "ZapfDingbats":
+	case metricsFontZapfDingbats:
 		return FontMetrics{
-			BaseFont:  "ZapfDingbats",
+			BaseFont:  metricsFontZapfDingbats,
 			FirstChar: 32,
 			LastChar:  255,
 			Widths:    zapfDingbatsWidths,
 			FontDescriptor: FontDescriptor{
-				FontName:    "ZapfDingbats",
+				FontName:    metricsFontZapfDingbats,
 				Flags:       4, // Symbolic
 				FontBBox:    [4]int{-1, -143, 981, 820},
 				ItalicAngle: 0,
@@ -663,20 +677,20 @@ func GetAvailableFonts() []models.FontInfo {
 		{ID: "Helvetica-BoldOblique", Name: "Helvetica-BoldOblique", DisplayName: "Helvetica Bold Italic", Reference: "/F4"},
 
 		// Standard PDF Type 1 Fonts - Times family (F5-F8)
-		{ID: "Times-Roman", Name: "Times-Roman", DisplayName: "Times Roman", Reference: "/F5"},
-		{ID: "Times-Bold", Name: "Times-Bold", DisplayName: "Times Bold", Reference: "/F6"},
-		{ID: "Times-Italic", Name: "Times-Italic", DisplayName: "Times Italic", Reference: "/F7"},
-		{ID: "Times-BoldItalic", Name: "Times-BoldItalic", DisplayName: "Times Bold Italic", Reference: "/F8"},
+		{ID: metricsFontTimesRoman, Name: metricsFontTimesRoman, DisplayName: "Times Roman", Reference: "/F5"},
+		{ID: metricsFontTimesBold, Name: metricsFontTimesBold, DisplayName: "Times Bold", Reference: "/F6"},
+		{ID: metricsFontTimesItalic, Name: metricsFontTimesItalic, DisplayName: "Times Italic", Reference: "/F7"},
+		{ID: metricsFontTimesBoldItalic, Name: metricsFontTimesBoldItalic, DisplayName: "Times Bold Italic", Reference: "/F8"},
 
 		// Standard PDF Type 1 Fonts - Courier family (F9-F12)
-		{ID: "Courier", Name: "Courier", DisplayName: "Courier", Reference: "/F9"},
-		{ID: "Courier-Bold", Name: "Courier-Bold", DisplayName: "Courier Bold", Reference: "/F10"},
-		{ID: "Courier-Oblique", Name: "Courier-Oblique", DisplayName: "Courier Italic", Reference: "/F11"},
-		{ID: "Courier-BoldOblique", Name: "Courier-BoldOblique", DisplayName: "Courier Bold Italic", Reference: "/F12"},
+		{ID: metricsFontCourier, Name: metricsFontCourier, DisplayName: metricsFontCourier, Reference: "/F9"},
+		{ID: metricsFontCourierBold, Name: metricsFontCourierBold, DisplayName: "Courier Bold", Reference: "/F10"},
+		{ID: metricsFontCourierOblique, Name: metricsFontCourierOblique, DisplayName: "Courier Italic", Reference: "/F11"},
+		{ID: metricsFontCourierBoldOblique, Name: metricsFontCourierBoldOblique, DisplayName: "Courier Bold Italic", Reference: "/F12"},
 
 		// Standard PDF Type 1 Fonts - Symbol and Decorative (F13-F14)
-		{ID: "Symbol", Name: "Symbol", DisplayName: "Symbol", Reference: "/F13"},
-		{ID: "ZapfDingbats", Name: "ZapfDingbats", DisplayName: "Zapf Dingbats", Reference: "/F14"},
+		{ID: metricsFontSymbol, Name: metricsFontSymbol, DisplayName: metricsFontSymbol, Reference: "/F13"},
+		{ID: metricsFontZapfDingbats, Name: metricsFontZapfDingbats, DisplayName: "Zapf Dingbats", Reference: "/F14"},
 	}
 
 	// Add registered custom fonts

@@ -1,14 +1,16 @@
 //go:build js && wasm
 
-// Package main exposes compress.CompressPDF to JavaScript via WebAssembly.
-// Import only the compress engine — not gin, not gochromedp.
+// Package main exposes gopdflib.CompressPDF to JavaScript via WebAssembly.
+// All validation, level parsing, and size caps are shared with the Go, HTTP,
+// and CGO entry points through pkg/gopdflib; this shim only translates
+// between JS values and Go values.
 package main
 
 import (
 	"fmt"
 	"syscall/js"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
+	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
 func main() {
@@ -32,8 +34,8 @@ func compressPDF(_ js.Value, args []js.Value) (result any) {
 	if n <= 0 {
 		return map[string]any{"error": "empty PDF"}
 	}
-	if n > compress.MaxInputBytes {
-		return map[string]any{"error": fmt.Sprintf("PDF exceeds maximum size (%d bytes)", compress.MaxInputBytes)}
+	if n > gopdflib.MaxCompressInputBytes {
+		return map[string]any{"error": fmt.Sprintf("PDF exceeds maximum size (%d bytes)", gopdflib.MaxCompressInputBytes)}
 	}
 
 	in := make([]byte, n)
@@ -43,12 +45,12 @@ func compressPDF(_ js.Value, args []js.Value) (result any) {
 	}
 	in = in[:copied]
 
-	opts := compress.Options{}
+	opts := gopdflib.CompressOptions{Level: gopdflib.CompressMedium}
 	if len(args) >= 2 && args[1].Type() == js.TypeString {
-		opts.Level = compress.Level(args[1].String())
+		opts.Level = gopdflib.ParseCompressLevel(args[1].String())
 	}
 
-	out, err := compress.CompressPDF(in, opts)
+	out, err := gopdflib.CompressPDF(in, opts)
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}

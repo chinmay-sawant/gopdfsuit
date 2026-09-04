@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { Globe, FileText, Download, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
-import { isGitHubPagesHost, makeAuthenticatedRequest, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
+import { Globe, FileText, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
+import { isGitHubPagesHost, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import OperationShell from '../components/OperationShell'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const HtmlToPdf = () => {
   const [htmlContent, setHtmlContent] = useState('')
   const [url, setUrl] = useState('')
   const [inputType, setInputType] = useState('html')
-  const [isLoading, setIsLoading] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const { isLoading, resultUrl: pdfUrl, run, download } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => alert(`Error: ${message}`),
+  })
 
   const [config, setConfig] = useState({
     page_size: 'A4', orientation: 'Portrait',
@@ -25,21 +29,14 @@ const HtmlToPdf = () => {
       return
     }
     if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
-    setIsLoading(true)
-    try {
-      const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
-      const response = await makeAuthenticatedRequest('/api/v1/htmltopdf', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody),
-      }, getAuthHeaders)
-      const blob = await response.blob()
-      const pdfBlobUrl = URL.createObjectURL(blob)
-      setPdfUrl(pdfBlobUrl)
-      const link = document.createElement('a')
-      link.href = pdfBlobUrl; link.download = `html-to-pdf-${Date.now()}.pdf`; link.click()
-    } catch (error) {
-      if (error.message.includes("401") || error.message.includes("403")) triggerLogin()
-      else alert('Error: ' + error.message)
-    } finally { setIsLoading(false) }
+    const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
+    await run({
+      endpoint: '/api/v1/htmltopdf',
+      body: JSON.stringify(requestBody),
+      headers: { 'Content-Type': 'application/json' },
+      getAuthHeaders,
+      filename: `html-to-pdf-${Date.now()}.pdf`,
+    })
   }
 
   const sampleHtml = `<!DOCTYPE html><html><head><style>body{font-family:Arial;padding:20px}h1{color:#2c3e50;border-bottom:2px solid #3498db}.highlight{background:#4ecdc4;color:white;padding:15px;border-radius:8px;margin:20px 0}</style></head><body><h1>Sample PDF</h1><p>Sample document for conversion.</p><div class="highlight"><h3>Highlighted</h3><p>This section has styling.</p></div></body></html>`
@@ -153,12 +150,17 @@ const HtmlToPdf = () => {
                 {isLoading ? <RefreshCw size={18} className="spin" /> : <FileText size={18} />}Convert to PDF
               </button>
               {pdfUrl && (
-                <div>
-                  <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.75rem', fontSize: '0.95rem', fontWeight: '600' }}>PDF Preview:</h4>
-                  <iframe src={pdfUrl} style={{ width: '100%', height: '280px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px' }} title="PDF" />
-                  <button onClick={() => { const link = document.createElement('a'); link.href = pdfUrl; link.download = `html-to-pdf-${Date.now()}.pdf`; link.click() }} className="btn-glow" style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-                    <Download size={16} />Download PDF
-                  </button>
+                <div style={{ marginTop: '1.5rem' }}>
+                  <OperationShell
+                    resultUrl={pdfUrl}
+                    title="PDF Preview"
+                    icon={<FileText size={18} />}
+                    emptyTitle=""
+                    emptySubtitle=""
+                    onDownload={() => download(`html-to-pdf-${Date.now()}.pdf`)}
+                    downloadLabel="Download PDF"
+                    height={280}
+                  />
                 </div>
               )}
             </div>

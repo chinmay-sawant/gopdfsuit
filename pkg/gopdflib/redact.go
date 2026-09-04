@@ -7,33 +7,6 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/redact"
 )
 
-// PageInfo holds information about a PDF's pages for redaction.
-type PageInfo = models.PageInfo
-
-// PageDetail holds dimensions and metadata for a single page.
-type PageDetail = models.PageDetail
-
-// TextPosition represents the coordinates and content of a text string on a page.
-type TextPosition = models.TextPosition
-
-// RedactionRect represents a rectangle to be redacted on a page.
-type RedactionRect = models.RedactionRect
-
-// RedactionTextQuery holds search parameters for text-based redaction.
-type RedactionTextQuery = models.RedactionTextQuery
-
-// ApplyRedactionOptions configures advanced redaction behavior.
-type ApplyRedactionOptions = models.ApplyRedactionOptions
-
-// OCRSettings configures OCR fallback for image-only pages.
-type OCRSettings = models.OCRSettings
-
-// PageCapability describes if a page can be redacted via text search or requires OCR.
-type PageCapability = models.PageCapability
-
-// RedactionApplyReport provides results and warnings from an advanced redaction operation.
-type RedactionApplyReport = models.RedactionApplyReport
-
 // GetPageInfo extracts page information from a PDF for redaction planning.
 func GetPageInfo(pdfBytes []byte) (PageInfo, error) {
 	if len(pdfBytes) == 0 {
@@ -43,7 +16,11 @@ func GetPageInfo(pdfBytes []byte) (PageInfo, error) {
 	if err != nil {
 		return PageInfo{}, err
 	}
-	return r.GetPageInfo()
+	info, err := r.GetPageInfo()
+	if err != nil {
+		return PageInfo{}, err
+	}
+	return mustFromInternal[models.PageInfo, PageInfo](info), nil
 }
 
 // ExtractTextPositions retrieves all text chunks and their coordinates from a specific page.
@@ -55,7 +32,15 @@ func ExtractTextPositions(pdfBytes []byte, pageNum int) ([]TextPosition, error) 
 	if err != nil {
 		return nil, err
 	}
-	return r.ExtractTextPositions(pageNum)
+	positions, err := r.ExtractTextPositions(pageNum)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]TextPosition, 0, len(positions))
+	for _, p := range positions {
+		out = append(out, mustFromInternal[models.TextPosition, TextPosition](p))
+	}
+	return out, nil
 }
 
 // FindTextOccurrences searches for text and returns match rectangles for redaction.
@@ -70,7 +55,15 @@ func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, e
 	if err != nil {
 		return nil, err
 	}
-	return r.FindTextOccurrences(searchText)
+	rects, err := r.FindTextOccurrences(searchText)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RedactionRect, 0, len(rects))
+	for _, rc := range rects {
+		out = append(out, mustFromInternal[models.RedactionRect, RedactionRect](rc))
+	}
+	return out, nil
 }
 
 // ApplyRedactions applies visual redaction rectangles to the PDF
@@ -82,7 +75,11 @@ func ApplyRedactions(pdfBytes []byte, redactions []RedactionRect) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	return r.ApplyRedactions(redactions)
+	internal := make([]models.RedactionRect, 0, len(redactions))
+	for _, rc := range redactions {
+		internal = append(internal, mustToInternal[RedactionRect, models.RedactionRect](rc))
+	}
+	return r.ApplyRedactions(internal)
 }
 
 // ApplyRedactionsAdvanced applies redaction using advanced options (search, OCR fallback, etc).
@@ -94,7 +91,7 @@ func ApplyRedactionsAdvanced(pdfBytes []byte, options ApplyRedactionOptions) ([]
 	if err != nil {
 		return nil, err
 	}
-	return r.ApplyRedactionsAdvanced(options)
+	return r.ApplyRedactionsAdvanced(mustToInternal[ApplyRedactionOptions, models.ApplyRedactionOptions](options))
 }
 
 // ApplyRedactionsAdvancedWithReport applies redaction and returns a detailed execution report.
@@ -106,7 +103,11 @@ func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, options ApplyRedactionOp
 	if err != nil {
 		return nil, RedactionApplyReport{}, err
 	}
-	return r.ApplyRedactionsAdvancedWithReport(options)
+	out, report, err := r.ApplyRedactionsAdvancedWithReport(mustToInternal[ApplyRedactionOptions, models.ApplyRedactionOptions](options))
+	if err != nil {
+		return nil, RedactionApplyReport{}, err
+	}
+	return out, mustFromInternal[models.RedactionApplyReport, RedactionApplyReport](report), nil
 }
 
 // AnalyzePageCapabilities determines which pages have searchable text or require OCR.
@@ -118,5 +119,13 @@ func AnalyzePageCapabilities(pdfBytes []byte) ([]PageCapability, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.AnalyzePageCapabilities()
+	caps, err := r.AnalyzePageCapabilities()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PageCapability, 0, len(caps))
+	for _, c := range caps {
+		out = append(out, mustFromInternal[models.PageCapability, PageCapability](c))
+	}
+	return out, nil
 }

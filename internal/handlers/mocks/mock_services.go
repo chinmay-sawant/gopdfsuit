@@ -16,6 +16,7 @@ import (
 	compress "github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
 	merge "github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 	gomock "go.uber.org/mock/gomock"
+	io "io"
 )
 
 // MockPDFService is a mock of PDFService interface.
@@ -40,6 +41,20 @@ func NewMockPDFService(ctrl *gomock.Controller) *MockPDFService {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPDFService) EXPECT() *MockPDFServiceMockRecorder {
 	return m.recorder
+}
+
+// ClassifyError mocks base method.
+func (m *MockPDFService) ClassifyError(err error) int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClassifyError", err)
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// ClassifyError indicates an expected call of ClassifyError.
+func (mr *MockPDFServiceMockRecorder) ClassifyError(err any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClassifyError", reflect.TypeOf((*MockPDFService)(nil).ClassifyError), err)
 }
 
 // CompressPDF mocks base method.
@@ -146,6 +161,98 @@ func (mr *MockPDFServiceMockRecorder) MergePDFs(pdfBytesList any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MergePDFs", reflect.TypeOf((*MockPDFService)(nil).MergePDFs), pdfBytesList)
 }
 
+// ReadUpload mocks base method.
+func (m *MockPDFService) ReadUpload(r io.Reader, kind string) ([]byte, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReadUpload", r, kind)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ReadUpload indicates an expected call of ReadUpload.
+func (mr *MockPDFServiceMockRecorder) ReadUpload(r, kind any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadUpload", reflect.TypeOf((*MockPDFService)(nil).ReadUpload), r, kind)
+}
+
+// RedactApply mocks base method.
+func (m *MockPDFService) RedactApply(pdfBytes []byte, opts models.ApplyRedactionOptions) ([]byte, models.RedactionApplyReport, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedactApply", pdfBytes, opts)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(models.RedactionApplyReport)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// RedactApply indicates an expected call of RedactApply.
+func (mr *MockPDFServiceMockRecorder) RedactApply(pdfBytes, opts any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedactApply", reflect.TypeOf((*MockPDFService)(nil).RedactApply), pdfBytes, opts)
+}
+
+// RedactCapabilities mocks base method.
+func (m *MockPDFService) RedactCapabilities(pdfBytes []byte) ([]models.PageCapability, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedactCapabilities", pdfBytes)
+	ret0, _ := ret[0].([]models.PageCapability)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RedactCapabilities indicates an expected call of RedactCapabilities.
+func (mr *MockPDFServiceMockRecorder) RedactCapabilities(pdfBytes any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedactCapabilities", reflect.TypeOf((*MockPDFService)(nil).RedactCapabilities), pdfBytes)
+}
+
+// RedactPageInfo mocks base method.
+func (m *MockPDFService) RedactPageInfo(pdfBytes []byte) (models.PageInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedactPageInfo", pdfBytes)
+	ret0, _ := ret[0].(models.PageInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RedactPageInfo indicates an expected call of RedactPageInfo.
+func (mr *MockPDFServiceMockRecorder) RedactPageInfo(pdfBytes any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedactPageInfo", reflect.TypeOf((*MockPDFService)(nil).RedactPageInfo), pdfBytes)
+}
+
+// RedactSearch mocks base method.
+func (m *MockPDFService) RedactSearch(pdfBytes []byte, terms []string) ([]models.RedactionRect, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedactSearch", pdfBytes, terms)
+	ret0, _ := ret[0].([]models.RedactionRect)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RedactSearch indicates an expected call of RedactSearch.
+func (mr *MockPDFServiceMockRecorder) RedactSearch(pdfBytes, terms any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedactSearch", reflect.TypeOf((*MockPDFService)(nil).RedactSearch), pdfBytes, terms)
+}
+
+// RedactTextPositions mocks base method.
+func (m *MockPDFService) RedactTextPositions(pdfBytes []byte, page int) ([]models.TextPosition, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedactTextPositions", pdfBytes, page)
+	ret0, _ := ret[0].([]models.TextPosition)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RedactTextPositions indicates an expected call of RedactTextPositions.
+func (mr *MockPDFServiceMockRecorder) RedactTextPositions(pdfBytes, page any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedactTextPositions", reflect.TypeOf((*MockPDFService)(nil).RedactTextPositions), pdfBytes, page)
+}
+
 // RegisterFont mocks base method.
 func (m *MockPDFService) RegisterFont(name string, data []byte) error {
 	m.ctrl.T.Helper()
@@ -173,4 +280,18 @@ func (m *MockPDFService) SplitPDF(pdfBytes []byte, spec merge.SplitSpec) ([][]by
 func (mr *MockPDFServiceMockRecorder) SplitPDF(pdfBytes, spec any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SplitPDF", reflect.TypeOf((*MockPDFService)(nil).SplitPDF), pdfBytes, spec)
+}
+
+// UploadLimit mocks base method.
+func (m *MockPDFService) UploadLimit(kind string) int64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UploadLimit", kind)
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+// UploadLimit indicates an expected call of UploadLimit.
+func (mr *MockPDFServiceMockRecorder) UploadLimit(kind any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadLimit", reflect.TypeOf((*MockPDFService)(nil).UploadLimit), kind)
 }

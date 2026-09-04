@@ -1,35 +1,33 @@
-import { useState, useRef, useEffect } from 'react'
-import { Minimize2, Upload, Download, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Minimize2, Upload, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
 import BackgroundAnimation from '../components/BackgroundAnimation'
-import { compressPDF } from '../utils/compressPdf.js'
+import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import OperationShell from '../components/OperationShell'
+import { formatFileSize, resetDropStyles } from '../utils/format'
+import { compressPDFSmart } from '../utils/compressPdf.js'
+import { COMPRESS_LEVELS, DEFAULT_COMPRESS_LEVEL, MAX_COMPRESS_BYTES } from '../utils/compressLevels.js'
 
-const LEVELS = [
-  { value: 1, name: 'Light', jpeg: 92, maxEdge: 1920 },
-  { value: 2, name: 'Medium', jpeg: 75, maxEdge: 1275 },
-  { value: 3, name: 'Heavy', jpeg: 50, maxEdge: 612 },
-]
+const MAX_COMPRESS_MIB = MAX_COMPRESS_BYTES / (1024 * 1024)
 
 const CompressPage = () => {
   const [file, setFile] = useState(null)
-  const [level, setLevel] = useState(2)
-  const [isLoading, setIsLoading] = useState(false)
-  const [compressedPdfUrl, setCompressedPdfUrl] = useState('')
+  const [level, setLevel] = useState(DEFAULT_COMPRESS_LEVEL)
   const [compressedSize, setCompressedSize] = useState(0)
   const fileInputRef = useRef(null)
-  const compressedPdfUrlRef = useRef('')
-
-  const revokeCompressedUrl = () => {
-    if (compressedPdfUrlRef.current) {
-      URL.revokeObjectURL(compressedPdfUrlRef.current)
-      compressedPdfUrlRef.current = ''
-    }
-  }
-
-  useEffect(() => () => { revokeCompressedUrl() }, [])
+  const { getAuthHeaders } = useAuth()
+  const {
+    isLoading,
+    resultUrl: compressedPdfUrl,
+    runLocal,
+    reset: resetOperation,
+    download,
+  } = usePdfOperation({
+    onError: (message) => alert(`Error compressing PDF: ${message}`),
+  })
 
   const clearCompressed = () => {
-    revokeCompressedUrl()
-    setCompressedPdfUrl('')
+    resetOperation()
     setCompressedSize(0)
   }
 
@@ -53,52 +51,26 @@ const CompressPage = () => {
 
   const compressFile = async () => {
     if (!file || isLoading) return
-    if (file.size > 32 * 1024 * 1024) {
-      alert('Error compressing PDF: PDF exceeds maximum size (32 MiB)')
+    if (file.size > MAX_COMPRESS_BYTES) {
+      alert(`Error compressing PDF: PDF exceeds maximum size (${MAX_COMPRESS_MIB} MiB)`)
       return
     }
-    setIsLoading(true)
-    try {
-      const buf = await file.arrayBuffer()
-      const uint8 = new Uint8Array(buf)
-      const out = await compressPDF(uint8, { level })
-      const bytes = out instanceof Uint8Array ? out : new Uint8Array(out)
-      revokeCompressedUrl()
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
-      compressedPdfUrlRef.current = url
-      setCompressedPdfUrl(url)
-      setCompressedSize(bytes.byteLength)
-    } catch (error) {
-      alert('Error compressing PDF: ' + (error?.message || error))
-    } finally {
-      setIsLoading(false)
-    }
+    const buf = await file.arrayBuffer()
+    await runLocal(() => compressPDFSmart(new Uint8Array(buf), { level }, { getAuthHeaders }), {
+      autoDownload: false,
+      onBlob: (blob) => setCompressedSize(blob.size),
+    })
   }
 
   const downloadCompressed = () => {
     if (!compressedPdfUrl || !file) return
     const originalBase = file.name.replace(/\.pdf$/i, '')
-    const link = document.createElement('a')
-    link.href = compressedPdfUrl
-    link.download = `compressed-${originalBase}-${level}.pdf`
-    link.click()
-  }
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    download(`compressed-${originalBase}-${level}.pdf`)
   }
 
   const percentSmaller = file && compressedSize > 0 && file.size > 0
     ? Math.max(0, ((file.size - compressedSize) / file.size) * 100)
     : 0
-
-  const resetDropStyles = (el) => {
-    el.style.borderColor = 'rgba(255,255,255,0.15)'
-    el.style.background = 'rgba(255,255,255,0.02)'
-  }
 
   return (
     <div style={{ minHeight: '100vh', position: 'relative' }}>
@@ -147,7 +119,7 @@ const CompressPage = () => {
                   <div style={{ marginBottom: '1rem' }}>
                     <label style={{ display: 'block', marginBottom: '0.75rem', color: 'hsl(var(--foreground))', fontWeight: '600', fontSize: '0.9rem' }}>Compression level</label>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-                      {LEVELS.map((opt) => {
+                      {COMPRESS_LEVELS.map((opt) => {
                         const selected = level === opt.value
                         return (
                           <button key={opt.value} type="button" onClick={() => setLevel(opt.value)} disabled={isLoading}
@@ -176,46 +148,36 @@ const CompressPage = () => {
               )}
             </div>
 
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
-                <div className="feature-icon-box purple" style={{ width: '40px', height: '40px', marginBottom: 0 }}><FileText size={18} /></div>Compressed PDF Preview
-              </h3>
-              {compressedPdfUrl ? (
-                <div>
-                  {file && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Original</div>
-                        <div style={{ fontWeight: '700', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }}>{formatFileSize(file.size)}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{file.size.toLocaleString()} bytes</div>
-                      </div>
-                      <div style={{ padding: '0.75rem', background: 'rgba(78,205,196,0.08)', border: '1px solid rgba(78,205,196,0.2)', borderRadius: '8px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Compressed</div>
-                        <div style={{ fontWeight: '700', color: '#4ecdc4', fontSize: '0.95rem' }}>{formatFileSize(compressedSize)}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{compressedSize.toLocaleString()} bytes</div>
-                      </div>
-                      <div style={{ padding: '0.75rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Smaller by</div>
-                        <div style={{ fontWeight: '700', color: '#10b981', fontSize: '0.95rem' }}>{percentSmaller.toFixed(1)}%</div>
-                        <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{Math.max(0, file.size - compressedSize).toLocaleString()} bytes</div>
-                      </div>
-                    </div>
-                  )}
-                  <iframe src={compressedPdfUrl} style={{ width: '100%', height: '550px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', overflow: 'hidden' }} title="Compressed PDF" />
-                  <button onClick={downloadCompressed} disabled={isLoading} className="btn-glow" style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}>
-                    <Download size={16} />Download Compressed PDF
-                  </button>
-                </div>
-              ) : (
-                <div style={{ height: '550px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
-                  <div>
-                    <div className="feature-icon-box teal" style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }}><Minimize2 size={32} /></div>
-                    <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>Compressed PDF preview will appear here</p>
-                    <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>Pick a local PDF and compress in the browser</p>
+            <OperationShell
+              resultUrl={compressedPdfUrl}
+              title="Compressed PDF Preview"
+              icon={<FileText size={18} />}
+              emptyTitle="Compressed PDF preview will appear here"
+              emptySubtitle="Pick a local PDF and compress in the browser"
+              onDownload={downloadCompressed}
+              downloadLabel="Download Compressed PDF"
+              height={550}
+              isLoading={isLoading}
+              stats={file && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Original</div>
+                    <div style={{ fontWeight: '700', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }}>{formatFileSize(file.size)}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{file.size.toLocaleString()} bytes</div>
+                  </div>
+                  <div style={{ padding: '0.75rem', background: 'rgba(78,205,196,0.08)', border: '1px solid rgba(78,205,196,0.2)', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Compressed</div>
+                    <div style={{ fontWeight: '700', color: '#4ecdc4', fontSize: '0.95rem' }}>{formatFileSize(compressedSize)}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{compressedSize.toLocaleString()} bytes</div>
+                  </div>
+                  <div style={{ padding: '0.75rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Smaller by</div>
+                    <div style={{ fontWeight: '700', color: '#10b981', fontSize: '0.95rem' }}>{percentSmaller.toFixed(1)}%</div>
+                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{Math.max(0, file.size - compressedSize).toLocaleString()} bytes</div>
                   </div>
                 </div>
               )}
-            </div>
+            />
           </div>
 
           <div className="glass-card" style={{ marginTop: '2rem', padding: '2rem' }}>

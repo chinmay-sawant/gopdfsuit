@@ -3,8 +3,6 @@ package pdf
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -19,6 +17,7 @@ type OutlineBuilder struct {
 	outlineObjID int             // Root outline object ID
 	outlineItems []OutlineItem   // Flat list of all outline items with their object IDs
 	encryptor    ObjectEncryptor // Encryptor for strings
+	dests        *DestinationStore
 }
 
 // OutlineItem represents a single outline entry with its object ID
@@ -43,15 +42,13 @@ func NewOutlineBuilder(pm *PageManager, encryptor ObjectEncryptor) *OutlineBuild
 	return &OutlineBuilder{
 		pageManager: pm,
 		encryptor:   encryptor,
+		dests:       NewDestinationStore(pm, encryptor),
 	}
 }
 
 // RegisterNamedDest registers a named destination for internal linking
 func (ob *OutlineBuilder) RegisterNamedDest(name string, pageIndex int, y float64) {
-	ob.pageManager.NamedDests[name] = NamedDest{
-		PageIndex: pageIndex,
-		Y:         y,
-	}
+	ob.dests.Define(name, pageIndex, y)
 }
 
 // BuildOutlines creates the outline tree from bookmarks
@@ -70,8 +67,7 @@ func (ob *OutlineBuilder) BuildOutlines(bookmarks []models.Bookmark) int {
 	}
 
 	// Create root outline object
-	ob.outlineObjID = ob.pageManager.NextObjectID
-	ob.pageManager.NextObjectID++
+	ob.outlineObjID = ob.dests.AllocID()
 
 	// Set up parent/sibling relationships
 	ob.buildTreeRelationships(bookmarks, ob.outlineObjID, 0)
@@ -89,16 +85,15 @@ func (ob *OutlineBuilder) BuildOutlines(bookmarks []models.Bookmark) int {
 func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 	for _, bm := range bookmarks {
 		item := OutlineItem{
-			ObjectID: ob.pageManager.NextObjectID,
+			ObjectID: ob.dests.AllocID(),
 			Title:    bm.Title,
 			Open:     bm.Open,
 		}
-		ob.pageManager.NextObjectID++
 
 		switch {
 		case bm.Dest != "":
 			// Try to find named destination
-			if dest, exists := ob.pageManager.NamedDests[bm.Dest]; exists {
+			if dest, exists := ob.dests.Lookup(bm.Dest); exists {
 				if dest.PageIndex < len(ob.pageManager.Pages) {
 					item.DestPageID = ob.pageManager.Pages[dest.PageIndex]
 				} else if len(ob.pageManager.Pages) > 0 {
@@ -166,8 +161,7 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 		var destStructElemID int
 		if sectElem != nil {
 			// Assign Object ID immediately so we can reference it in the outline dictionary
-			sectElem.ObjectID = ob.pageManager.NextObjectID
-			ob.pageManager.NextObjectID++
+			sectElem.ObjectID = ob.dests.AllocID()
 			destStructElemID = sectElem.ObjectID
 		}
 		item.DestStructElemID = destStructElemID
@@ -190,15 +184,12 @@ func (ob *OutlineBuilder) allocateOutlineIDs(bookmarks []models.Bookmark) {
 				break
 			}
 		}
-		ob.pageManager.NamedDests[item.DestKey] = nd
+		ob.dests.DefineFull(item.DestKey, nd)
 
 		// PDF/UA-2: If this bookmark defines a user-specified destination (bm.Dest),
 		// update that destination with the structure element ID so internal links work
 		if bm.Dest != "" && item.DestStructElemID > 0 {
-			if existingDest, exists := ob.pageManager.NamedDests[bm.Dest]; exists {
-				existingDest.StructElemID = item.DestStructElemID
-				ob.pageManager.NamedDests[bm.Dest] = existingDest
-			}
+			ob.dests.UpdateStructElemID(bm.Dest, item.DestStructElemID)
 		}
 
 		ob.outlineItems = append(ob.outlineItems, item)
@@ -334,7 +325,7 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 		rootDict.Write(strconv.AppendInt(buf[:0], int64(totalCount), 10))
 	}
 	rootDict.WriteString(" >>")
-	ob.pageManager.ExtraObjects[ob.outlineObjID] = rootDict.Bytes()
+	ob.dests.Commit(ob.outlineObjID, rootDict.Bytes())
 
 	// Generate each outline item
 	var buf [20]byte
@@ -424,7 +415,7 @@ func (ob *OutlineBuilder) generateOutlineObjects() {
 		}
 
 		itemDict.WriteString(" >>")
-		ob.pageManager.ExtraObjects[item.ObjectID] = itemDict.Bytes()
+		ob.dests.Commit(item.ObjectID, itemDict.Bytes())
 	}
 }
 
@@ -482,87 +473,8 @@ func escapeTextUnicode(s string) string {
 }
 
 // GetNamedDestinations returns the names dictionary object content for catalog
-// This enables internal links to work with named destinations
+// This enables internal links to work with named destinations.
+// Emission lives in DestinationStore so the name-tree invariant has one home.
 func (ob *OutlineBuilder) GetNamedDestinations() (int, bool) {
-	if len(ob.pageManager.NamedDests) == 0 {
-		return 0, false
-	}
-
-	// Build Names array for Dests name tree
-	var namesArray bytes.Buffer
-	namesArray.WriteString("[")
-
-	// Sort names for binary search tree compliance
-	names := make([]string, 0, len(ob.pageManager.NamedDests))
-	for name := range ob.pageManager.NamedDests {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	// Create Dests name tree object ID upfront for encryption key generation
-	destsTreeID := ob.pageManager.NextObjectID
-	ob.pageManager.NextObjectID++
-
-	var numBuf [20]byte
-	for i, name := range names {
-		dest := ob.pageManager.NamedDests[name]
-		pageObjID := 0
-		if dest.PageIndex < len(ob.pageManager.Pages) {
-			pageObjID = ob.pageManager.Pages[dest.PageIndex]
-		} else if len(ob.pageManager.Pages) > 0 {
-			pageObjID = ob.pageManager.Pages[0]
-		}
-		if i > 0 {
-			namesArray.WriteString(" ")
-		}
-
-		// Handle Name encryption
-		nameStr := ""
-		if ob.encryptor != nil {
-			// Names in name tree are strings and must be encrypted.
-			// Copy into a fresh slice first: EncryptString may pad in
-			// place, which must never mutate immutable string bytes.
-			nameBytes := append([]byte(nil), name...)
-			encrypted := ob.encryptor.EncryptString(nameBytes, destsTreeID, 0)
-			nameStr = "<" + hex.EncodeToString(encrypted) + ">"
-		} else {
-			nameStr = "(" + escapeText(name) + ")"
-		}
-
-		// PDF/UA-2: Output as dictionary with both /D and /SD keys
-		// /D is the page-based destination (for compatibility)
-		// /SD is the structure destination (required for PDF/UA-2)
-		if dest.StructElemID > 0 {
-			namesArray.WriteString(nameStr)
-			namesArray.WriteString(" << /D [")
-			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(pageObjID), 10))
-			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.Write(appendFmtNum(numBuf[:0], dest.Y))
-			namesArray.WriteString(" null] /SD [")
-			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(dest.StructElemID), 10))
-			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.Write(appendFmtNum(numBuf[:0], dest.Y))
-			namesArray.WriteString(" null] >>")
-		} else {
-			namesArray.WriteString(nameStr)
-			namesArray.WriteString(" [")
-			namesArray.Write(strconv.AppendInt(numBuf[:0], int64(pageObjID), 10))
-			namesArray.WriteString(" 0 R /XYZ null ")
-			namesArray.Write(appendFmtNum(numBuf[:0], dest.Y))
-			namesArray.WriteString(" null]")
-		}
-	}
-	namesArray.WriteString("]")
-
-	destsTreeContent := "<< /Names " + namesArray.String() + " >>"
-	ob.pageManager.ExtraObjects[destsTreeID] = append([]byte(nil), destsTreeContent...)
-
-	// Create Names dictionary object
-	namesID := ob.pageManager.NextObjectID
-	ob.pageManager.NextObjectID++
-
-	namesContent := fmt.Appendf(nil, "<< /Dests %d 0 R >>", destsTreeID)
-	ob.pageManager.ExtraObjects[namesID] = namesContent
-
-	return namesID, true
+	return ob.dests.EmitNameTree()
 }

@@ -20,6 +20,7 @@ func setupMockRouter(t *testing.T) (*gin.Engine, *mocks.MockPDFService) {
 	gin.SetMode(gin.TestMode)
 	ctrl := gomock.NewController(t)
 	mockSvc := mocks.NewMockPDFService(ctrl)
+	stubServicePolicy(mockSvc)
 	SetPDFService(mockSvc)
 	t.Cleanup(func() {
 		SetPDFService(nil)

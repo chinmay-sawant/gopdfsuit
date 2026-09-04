@@ -1,81 +1,63 @@
 import { useState, useRef } from 'react'
 import { FileText, Download, Upload, Play, RefreshCw, Sparkles } from 'lucide-react'
-import { formatApiError, makeAuthenticatedRequest } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const Viewer = () => {
   const [templateData, setTemplateData] = useState('')
   const [fileName, setFileName] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [pdfUrl, setPdfUrl] = useState('')
   const fileInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const { isLoading, resultUrl: pdfUrl, run, runJson, download } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+  })
 
-  const showError = (message) => {
-    alert(message)
+  const prefixError = (prefix) => (message) => {
+    alert(message.startsWith('Online PDF') ? message : `${prefix}${message}`)
   }
 
   const loadTemplate = async () => {
     if (!fileName.trim()) return
 
-    setIsLoading(true)
-    try {
-      const response = await makeAuthenticatedRequest(`/api/v1/template-data?file=${encodeURIComponent(fileName)}`, {}, getAuthHeaders)
-      const data = await response.json()
-      setTemplateData(JSON.stringify(data, null, 2))
+    const data = await runJson({
+      endpoint: `/api/v1/template-data?file=${encodeURIComponent(fileName)}`,
+      method: 'GET',
+      getAuthHeaders,
+      onError: prefixError('Error loading template: '),
+    })
+    if (!data) return
+    setTemplateData(JSON.stringify(data, null, 2))
 
-      // Directly call the generate PDF API
-      const pdfResponse = await makeAuthenticatedRequest('/api/v1/generate/template-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }, getAuthHeaders)
-
-      const blob = await pdfResponse.blob()
-      const url = URL.createObjectURL(blob)
-      setPdfUrl(url)
-    } catch (error) {
-      const err = formatApiError(error)
-      if (err.message.includes("Authentication failed") || err.message.includes("401") || err.message.includes("403") || err.message.includes("Not authenticated")) {
-        triggerLogin()
-      } else {
-        showError(err.message.startsWith('Online PDF') ? err.message : 'Error loading template: ' + err.message)
-      }
-    } finally {
-      setIsLoading(false)
-    }
+    // Directly call the generate PDF API
+    await run({
+      endpoint: '/api/v1/generate/template-pdf',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      getAuthHeaders,
+      autoDownload: false,
+      onError: prefixError('Error loading template: '),
+    })
   }
 
   const generatePDF = async () => {
     if (!templateData.trim()) return
 
-    setIsLoading(true)
+    let data
     try {
-      const data = JSON.parse(templateData)
-      const response = await makeAuthenticatedRequest('/api/v1/generate/template-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }, getAuthHeaders)
-
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      setPdfUrl(url)
-    } catch (error) {
-      const err = formatApiError(error)
-      if (err.message.includes("Authentication failed") || err.message.includes("401") || err.message.includes("403") || err.message.includes("Not authenticated")) {
-        triggerLogin()
-      } else {
-        showError(err.message.startsWith('Online PDF') ? err.message : 'Error generating PDF: ' + err.message)
-      }
-    } finally {
-      setIsLoading(false)
+      data = JSON.parse(templateData)
+    } catch {
+      alert('Error generating PDF: invalid JSON template')
+      return
     }
+    await run({
+      endpoint: '/api/v1/generate/template-pdf',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      getAuthHeaders,
+      autoDownload: false,
+      onError: prefixError('Error generating PDF: '),
+    })
   }
 
   const handleFileUpload = (event) => {
@@ -329,14 +311,7 @@ const Viewer = () => {
                 </h3>
                 {pdfUrl && (
                   <button
-                    onClick={() => {
-                      const link = document.createElement('a')
-                      link.href = pdfUrl
-                      link.download = `template-pdf-${Date.now()}.pdf`
-                      document.body.appendChild(link)
-                      link.click()
-                      document.body.removeChild(link)
-                    }}
+                    onClick={() => download(`template-pdf-${Date.now()}.pdf`)}
                     className="btn-glow"
                     style={{
                       padding: '0.5rem 1rem',
@@ -423,14 +398,7 @@ const Viewer = () => {
                       </span>
                     </div>
                     <button
-                      onClick={() => {
-                        const link = document.createElement('a')
-                        link.href = pdfUrl
-                        link.download = `template-pdf-${Date.now()}.pdf`
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
-                      }}
+                      onClick={() => download(`template-pdf-${Date.now()}.pdf`)}
                       className="btn-glow"
                       style={{
                         padding: '0.5rem 1rem',

@@ -12,7 +12,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
 var (
@@ -25,12 +25,12 @@ var (
 )
 
 // buildObjectMap parses the PDF into object-number → body slices and complements
-// it with xref-stream and object-stream expansion via the merge helpers.
+// it with xref-stream and object-stream expansion via the pdfobj read seam.
 func buildObjectMap(pdfBytes []byte) (map[int][]byte, map[int]int, error) {
 	objMap := make(map[int][]byte)
 	objGen := make(map[int]int)
 
-	for _, b := range merge.FindObjectBoundaries(pdfBytes) {
+	for _, b := range pdfobj.FindObjectBoundaries(pdfBytes) {
 		bodyEnd := b.End - len("endobj")
 		for bodyEnd > b.BodyStart && isPDFWhitespace(pdfBytes[bodyEnd-1]) {
 			bodyEnd--
@@ -39,8 +39,8 @@ func buildObjectMap(pdfBytes []byte) (map[int][]byte, map[int]int, error) {
 		objMap[b.ObjNum] = body
 		objGen[b.ObjNum] = b.GenNum
 
-		if merge.IsObjectStream(body) {
-			for onum, frag := range merge.ParseObjectStream(body) {
+		if pdfobj.IsObjectStream(body) {
+			for onum, frag := range pdfobj.ParseObjectStream(body) {
 				objMap[onum] = frag
 				objGen[onum] = 0
 			}

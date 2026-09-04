@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
 // Level is a Ghostscript-style compression tier.
@@ -121,11 +121,11 @@ func CompressPDF(data []byte, opts Options) ([]byte, error) {
 		return nil, fmt.Errorf("PDF trailer /Root not found")
 	}
 	infoNum, _, _ := lastRef(infoRefRe, data)
-	version := merge.DetectPDFVersion(data)
+	version := pdfobj.DetectVersion(data)
 
 	stmCount := 0
 	for _, obj := range objects {
-		if merge.IsObjectStream(obj.body) {
+		if pdfobj.IsObjectStream(obj.body) {
 			stmCount++
 		}
 	}
@@ -167,7 +167,7 @@ func CompressPDF(data []byte, opts Options) ([]byte, error) {
 }
 
 func parseObjects(data []byte) (map[int]pdfObject, int, error) {
-	boundaries := merge.FindObjectBoundaries(data)
+	boundaries := pdfobj.FindObjectBoundaries(data)
 	if len(boundaries) == 0 {
 		return nil, 0, fmt.Errorf("no PDF objects found")
 	}
@@ -188,7 +188,7 @@ func parseObjects(data []byte) (map[int]pdfObject, int, error) {
 
 	stmCount := 0
 	for _, obj := range objects {
-		if merge.IsObjectStream(obj.body) {
+		if pdfobj.IsObjectStream(obj.body) {
 			stmCount++
 		}
 	}
@@ -199,10 +199,10 @@ func parseObjects(data []byte) (map[int]pdfObject, int, error) {
 	}
 
 	for num, obj := range objects {
-		if !merge.IsObjectStream(obj.body) {
+		if !pdfobj.IsObjectStream(obj.body) {
 			continue
 		}
-		extracted := merge.ParseObjectStream(obj.body)
+		extracted := pdfobj.ParseObjectStream(obj.body)
 		if len(extracted) == 0 {
 			continue
 		}
@@ -222,13 +222,13 @@ func parseObjects(data []byte) (map[int]pdfObject, int, error) {
 }
 
 func shouldDrop(body []byte) bool {
-	if merge.HasSubstring(body, []byte("/Type /XRef")) || merge.HasSubstring(body, []byte("/Type/XRef")) {
+	if pdfobj.HasSubstring(body, []byte("/Type /XRef")) || pdfobj.HasSubstring(body, []byte("/Type/XRef")) {
 		return true
 	}
-	if merge.HasSubstring(body, []byte("/Type /Metadata")) || merge.HasSubstring(body, []byte("/Type/Metadata")) {
+	if pdfobj.HasSubstring(body, []byte("/Type /Metadata")) || pdfobj.HasSubstring(body, []byte("/Type/Metadata")) {
 		return true
 	}
-	if merge.HasSubstring(body, []byte("/Linearized")) {
+	if pdfobj.HasSubstring(body, []byte("/Linearized")) {
 		return true
 	}
 	return false

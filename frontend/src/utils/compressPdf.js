@@ -1,28 +1,24 @@
-// In-browser PDF compress via Go WASM. Never POSTs to /api/v1/compress.
+// In-browser PDF compress via Go WASM, with optional server transport.
+// Server endpoint (/api/v1/compress) accepts light|medium|heavy; WASM takes 1|2/3.
+
+import { makeAuthenticatedRequest } from './apiConfig'
+import {
+  MAX_COMPRESS_BYTES,
+  assertCompressSize,
+  shouldUseServerCompress,
+  toServerLevel,
+  toWasmLevel,
+} from './compressLevels'
 
 const WASM_EXEC_URL = `${import.meta.env.BASE_URL}wasm_exec.js`
 const COMPRESS_WASM_URL = `${import.meta.env.BASE_URL}compress.wasm`
-const MAX_INPUT_BYTES = 32 * 1024 * 1024 // keep in sync with compress.MaxInputBytes
 
-const LEVEL_MAP = {
-  1: 'light',
-  2: 'medium',
-  3: 'heavy',
-  light: 'light',
-  medium: 'medium',
-  heavy: 'heavy',
-}
+export { MAX_COMPRESS_BYTES }
 
 let initPromise
 
-function mapLevel(level) {
-  if (level === undefined || level === null || level === '') return 'medium'
-  const key = typeof level === 'string' ? level.trim().toLowerCase() : level
-  const mapped = LEVEL_MAP[key]
-  if (!mapped) {
-    throw new Error(`invalid compression level: ${level} (use 1|2|3 or light|medium|heavy)`)
-  }
-  return mapped
+export function mapLevel(level) {
+  return toServerLevel(level)
 }
 
 function asUint8Array(input) {
@@ -127,6 +123,28 @@ function ensureWasm() {
   return initPromise
 }
 
+async function compressViaWasm(bytes, level) {
+  await ensureWasm()
+
+  const result = globalThis.goCompressPDF(bytes, toWasmLevel(level))
+  if (result instanceof Uint8Array) return result
+
+  const message = result && typeof result === 'object' ? result.error : undefined
+  throw new Error(message || 'PDF compression failed')
+}
+
+export async function compressViaServer(bytes, level, getAuthHeaders) {
+  assertCompressSize(bytes.byteLength)
+  const formData = new FormData()
+  formData.append('pdf', new Blob([bytes], { type: 'application/pdf' }), 'document.pdf')
+  formData.append('level', toServerLevel(level))
+  const response = await makeAuthenticatedRequest('/api/v1/compress', { method: 'POST', body: formData }, getAuthHeaders)
+  const blob = await response.blob()
+  const out = new Uint8Array(await blob.arrayBuffer())
+  if (out.byteLength === 0) throw new Error('Received empty document')
+  return out
+}
+
 /**
  * Compress PDF bytes in the browser (Go WASM).
  * @param {Uint8Array|ArrayBufferView|ArrayBuffer} uint8 PDF bytes
@@ -135,15 +153,26 @@ function ensureWasm() {
  */
 export async function compressPDF(uint8, opts = {}) {
   const bytes = asUint8Array(uint8)
-  if (bytes.byteLength > MAX_INPUT_BYTES) {
-    throw new Error(`PDF exceeds maximum size (${MAX_INPUT_BYTES} bytes)`)
+  assertCompressSize(bytes.byteLength)
+  const level = opts == null ? undefined : opts.level
+  return compressViaWasm(bytes, level)
+}
+
+/**
+ * Transport-aware compression: WASM first (local, no upload) with server
+ * fallback, or server first when VITE_COMPRESS_TRANSPORT=server.
+ */
+export async function compressPDFSmart(uint8, opts = {}, { getAuthHeaders } = {}) {
+  const bytes = asUint8Array(uint8)
+  assertCompressSize(bytes.byteLength)
+  const level = opts == null ? undefined : opts.level
+  if (shouldUseServerCompress()) {
+    return compressViaServer(bytes, level, getAuthHeaders)
   }
-  const level = mapLevel(opts == null ? undefined : opts.level)
-  await ensureWasm()
-
-  const result = globalThis.goCompressPDF(bytes, level)
-  if (result instanceof Uint8Array) return result
-
-  const message = result && typeof result === 'object' ? result.error : undefined
-  throw new Error(message || 'PDF compression failed')
+  try {
+    return await compressViaWasm(bytes, level)
+  } catch (wasmError) {
+    if (!getAuthHeaders) throw wasmError
+    return compressViaServer(bytes, level, getAuthHeaders)
+  }
 }

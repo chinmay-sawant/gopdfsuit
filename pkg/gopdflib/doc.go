@@ -74,6 +74,18 @@
 //	defer doc.Release()
 //	out := doc.CopyBytes()
 //
+// # Validation ownership
+//
+// gopdflib is the single validating interface for PDF operations. Every
+// public function rejects obviously-invalid input at the boundary (empty
+// PDFs, empty XFDF, empty search text, missing HTML/URL) before reaching the
+// engine, and applies shared defaults (see ParseCompressLevel and
+// normalizeCompressOptions). Entry points above this package - the CGO
+// exports in bindings/python/cgo, the HTTP handlers, the WASM shim - enforce
+// transport-only guards (nil pointers, insane lengths, malformed JSON) and
+// delegate all semantic validation here. Do not duplicate content checks in
+// those layers; fix them here so Go, Python, HTTP, and WASM share one policy.
+//
 // # Features
 //
 //   - [GeneratePDF] - Generate PDF from template

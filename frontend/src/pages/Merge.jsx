@@ -1,15 +1,19 @@
 import { useState, useRef } from 'react'
-import { Merge, Upload, Download, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
-import { makeAuthenticatedRequest } from '../utils/apiConfig'
+import { Merge, Upload, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import OperationShell from '../components/OperationShell'
+import { formatFileSize } from '../utils/format'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const MergePage = () => {
   const [files, setFiles] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [mergedPdfUrl, setMergedPdfUrl] = useState('')
   const fileInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const { isLoading, resultUrl: mergedPdfUrl, run, download } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => alert(`Error merging PDFs: ${message}`),
+  })
 
   const handleFileUpload = (event) => {
     const newFiles = Array.from(event.target.files).filter(file => file.type === 'application/pdf')
@@ -30,27 +34,14 @@ const MergePage = () => {
 
   const mergePDFs = async () => {
     if (files.length < 2) return
-    setIsLoading(true)
-    try {
-      const formData = new FormData()
-      files.forEach(file => formData.append('pdf', file))
-      const response = await makeAuthenticatedRequest('/api/v1/merge', { method: 'POST', body: formData }, getAuthHeaders)
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      setMergedPdfUrl(url)
-      const link = document.createElement('a')
-      link.href = url; link.download = `merged-pdf-${Date.now()}.pdf`; link.click()
-    } catch (error) {
-      if (error.message.includes("401") || error.message.includes("403")) triggerLogin()
-      else alert('Error merging PDFs: ' + error.message)
-    } finally { setIsLoading(false) }
-  }
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    const formData = new FormData()
+    files.forEach(file => formData.append('pdf', file))
+    await run({
+      endpoint: '/api/v1/merge',
+      body: formData,
+      getAuthHeaders,
+      filename: `merged-pdf-${Date.now()}.pdf`,
+    })
   }
 
   return (
@@ -112,27 +103,16 @@ const MergePage = () => {
               )}
             </div>
 
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
-                <div className="feature-icon-box teal" style={{ width: '40px', height: '40px', marginBottom: 0 }}><FileText size={18} /></div>Merged PDF Preview
-              </h3>
-              {mergedPdfUrl ? (
-                <div>
-                  <iframe src={mergedPdfUrl} style={{ width: '100%', height: '480px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px' }} title="Merged PDF" />
-                  <button onClick={() => { const link = document.createElement('a'); link.href = mergedPdfUrl; link.download = `merged-pdf-${Date.now()}.pdf`; link.click() }} className="btn-glow" style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-                    <Download size={16} />Download Merged PDF
-                  </button>
-                </div>
-              ) : (
-                <div style={{ height: '480px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
-                  <div>
-                    <div className="feature-icon-box purple" style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }}><Merge size={32} /></div>
-                    <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>Merged PDF preview will appear here</p>
-                    <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>Upload at least 2 PDF files to get started</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <OperationShell
+              resultUrl={mergedPdfUrl}
+              title="Merged PDF Preview"
+              icon={<FileText size={18} />}
+              emptyTitle="Merged PDF preview will appear here"
+              emptySubtitle="Upload at least 2 PDF files to get started"
+              onDownload={() => download(`merged-pdf-${Date.now()}.pdf`)}
+              downloadLabel="Download Merged PDF"
+              height={480}
+            />
           </div>
 
           <div className="glass-card" style={{ marginTop: '2rem', padding: '2rem' }}>

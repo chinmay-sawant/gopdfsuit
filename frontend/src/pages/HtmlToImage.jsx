@@ -1,17 +1,21 @@
 import { useState } from 'react'
-import { Image, Globe, Download, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
-import { isGitHubPagesHost, makeAuthenticatedRequest, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
+import { Image, Globe, RefreshCw, Eye, Settings, Sparkles } from 'lucide-react'
+import { isGitHubPagesHost, OFFLINE_DEMO_MESSAGE } from '../utils/apiConfig'
 import { useAuth } from '../contexts/AuthContext'
+import { usePdfOperation } from '../hooks/usePdfOperation'
+import OperationShell from '../components/OperationShell'
 import BackgroundAnimation from '../components/BackgroundAnimation'
 
 const HtmlToImage = () => {
   const [htmlContent, setHtmlContent] = useState('')
   const [url, setUrl] = useState('')
   const [inputType, setInputType] = useState('html')
-  const [isLoading, setIsLoading] = useState(false)
-  const [imageUrl, setImageUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
   const { getAuthHeaders, triggerLogin } = useAuth()
+  const { isLoading, resultUrl: imageUrl, run, download } = usePdfOperation({
+    onAuthRequired: triggerLogin,
+    onError: (message) => alert(`Error: ${message}`),
+  })
 
   const [config, setConfig] = useState({
     format: 'png', width: 800, height: 600, quality: 94, zoom: 1.0,
@@ -24,21 +28,15 @@ const HtmlToImage = () => {
       return
     }
     if ((!htmlContent.trim() && inputType === 'html') || (!url.trim() && inputType === 'url')) return
-    setIsLoading(true)
-    try {
-      const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
-      const response = await makeAuthenticatedRequest('/api/v1/htmltoimage', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody),
-      }, getAuthHeaders)
-      const blob = await response.blob()
-      const imageBlobUrl = URL.createObjectURL(blob)
-      setImageUrl(imageBlobUrl)
-      const link = document.createElement('a')
-      link.href = imageBlobUrl; link.download = `html-to-image-${Date.now()}.${config.format}`; link.click()
-    } catch (error) {
-      if (error.message.includes("401") || error.message.includes("403")) triggerLogin()
-      else alert('Error: ' + error.message)
-    } finally { setIsLoading(false) }
+    const requestBody = { ...config, ...(inputType === 'html' ? { html: htmlContent } : { url }) }
+    await run({
+      endpoint: '/api/v1/htmltoimage',
+      body: JSON.stringify(requestBody),
+      headers: { 'Content-Type': 'application/json' },
+      getAuthHeaders,
+      filename: `html-to-image-${Date.now()}.${config.format}`,
+      mimeType: `image/${config.format === 'jpg' ? 'jpeg' : config.format}`,
+    })
   }
 
   const sampleHtml = `<!DOCTYPE html><html><head><style>body{font-family:Arial;background:#4ecdc4;color:white;text-align:center;padding:50px;margin:0;min-height:100vh;display:flex;flex-direction:column;justify-content:center}h1{font-size:3rem;margin-bottom:1rem}.card{background:rgba(255,255,255,0.1);backdrop-filter:blur(10px);border-radius:15px;padding:2rem}</style></head><body><div class="card"><h1>🎨 Beautiful Image</h1><p>Generated from HTML using GoPdfSuit</p></div></body></html>`
@@ -145,14 +143,19 @@ const HtmlToImage = () => {
                 {isLoading ? <RefreshCw size={18} className="spin" /> : <Image size={18} />}Convert to Image
               </button>
               {imageUrl && (
-                <div>
-                  <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '0.75rem', fontSize: '0.95rem', fontWeight: '600' }}>Image Preview:</h4>
-                  <div style={{ border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '1rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', marginBottom: '1rem' }}>
-                    <img src={imageUrl} alt="Generated" style={{ maxWidth: '100%', maxHeight: '280px', borderRadius: '6px', boxShadow: '0 4px 8px rgba(0,0,0,0.3)' }} />
-                  </div>
-                  <button onClick={() => { const link = document.createElement('a'); link.href = imageUrl; link.download = `html-to-image-${Date.now()}.${config.format}`; link.click() }} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
-                    <Download size={16} />Download Image
-                  </button>
+                <div style={{ marginTop: '1.5rem' }}>
+                  <OperationShell
+                    resultUrl={imageUrl}
+                    title="Image Preview"
+                    icon={<Image size={18} />}
+                    emptyTitle=""
+                    emptySubtitle=""
+                    onDownload={() => download(`html-to-image-${Date.now()}.${config.format}`)}
+                    downloadLabel="Download Image"
+                    height={280}
+                    kind="image"
+                    imageAlt="Generated"
+                  />
                 </div>
               )}
             </div>
