@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	compress "github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
 	merge "github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -39,6 +40,21 @@ func NewMockPDFService(ctrl *gomock.Controller) *MockPDFService {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPDFService) EXPECT() *MockPDFServiceMockRecorder {
 	return m.recorder
+}
+
+// CompressPDF mocks base method.
+func (m *MockPDFService) CompressPDF(pdfBytes []byte, opts compress.Options) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CompressPDF", pdfBytes, opts)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CompressPDF indicates an expected call of CompressPDF.
+func (mr *MockPDFServiceMockRecorder) CompressPDF(pdfBytes, opts any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompressPDF", reflect.TypeOf((*MockPDFService)(nil).CompressPDF), pdfBytes, opts)
 }
 
 // FillPDFWithXFDF mocks base method.

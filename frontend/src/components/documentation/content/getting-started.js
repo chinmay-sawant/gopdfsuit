@@ -47,6 +47,7 @@ Web interfaces available:
 • /editor - Drag-and-drop Template Builder
 • /merge - PDF Merger
 • /split - PDF Splitter
+• /compress - PDF Compressor (in-browser WASM, file stays on device)
 • /filler - Form Filler
 • /htmltopdf - HTML to PDF Converter
 • /htmltoimage - HTML to Image Converter`,

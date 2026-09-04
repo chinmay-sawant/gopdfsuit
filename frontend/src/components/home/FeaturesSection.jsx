@@ -11,6 +11,7 @@ import {
   Eraser,
   Sigma,
   ArrowRight,
+  Minimize2,
 } from 'lucide-react'
 
 const features = [
@@ -66,6 +67,13 @@ const features = [
     description: 'Combine multiple PDFs with drag-and-drop reordering and live preview.',
     link: '/merge',
     color: 'purple',
+  },
+  {
+    icon: <Minimize2 size={24} />,
+    title: 'PDF Compress',
+    description: 'Shrink PDFs in the browser with WASM — Light, Medium, or Heavy. No upload, no Ghostscript.',
+    link: '/compress',
+    color: 'teal',
   },
   {
     icon: <FileCheck size={24} />,

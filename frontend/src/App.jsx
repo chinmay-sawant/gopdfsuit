@@ -8,6 +8,7 @@ import Editor from './pages/Editor'
 import Viewer from './pages/Viewer'
 import Merge from './pages/Merge'
 import Split from './pages/Split'
+import Compress from './pages/Compress'
 import Filler from './pages/Filler'
 import HtmlToPdf from './pages/HtmlToPdf'
 import HtmlToImage from './pages/HtmlToImage'
@@ -36,6 +37,7 @@ function App() {
           <Route path="/editor" element={EditorRoute} />
           <Route path="/merge" element={<Merge />} />
           <Route path="/split" element={<Split />} />
+          <Route path="/compress" element={<Compress />} />
           <Route path="/filler" element={<Filler />} />
           <Route path="/htmltopdf" element={<HtmlToPdf />} />
           <Route path="/htmltoimage" element={<HtmlToImage />} />

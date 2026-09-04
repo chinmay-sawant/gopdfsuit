@@ -146,6 +146,25 @@ make build
 
 ---
 
+### `make wasm-compress`
+
+Build the in-browser PDF compressor (`GOOS=js GOARCH=wasm`).
+
+```bash
+make wasm-compress
+```
+
+**What it does:**
+1. Compiles `cmd/wasmcompress` to `frontend/public/compress.wasm`
+2. Copies Go's `wasm_exec.js` next to it
+3. Copies both files into `sampledata/compress-js/` for the JS sample
+
+**Proof:** `file frontend/public/compress.wasm` reports `WebAssembly`.
+
+Used by the `/compress` page and `cd sampledata/compress-js && node run.mjs`. Not a CLI.
+
+---
+
 ### `make run`
 
 Build frontend and run the application locally.

@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/form"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
@@ -15,6 +16,7 @@ type PDFService interface {
 	FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error)
 	MergePDFs(pdfBytesList [][]byte) ([]byte, error)
 	SplitPDF(pdfBytes []byte, spec merge.SplitSpec) ([][]byte, error)
+	CompressPDF(pdfBytes []byte, opts compress.Options) ([]byte, error)
 }
 
 type defaultPDFService struct{}
@@ -33,6 +35,10 @@ func (defaultPDFService) MergePDFs(pdfBytesList [][]byte) ([]byte, error) {
 
 func (defaultPDFService) SplitPDF(pdfBytes []byte, spec merge.SplitSpec) ([][]byte, error) {
 	return merge.SplitPDF(pdfBytes, spec)
+}
+
+func (defaultPDFService) CompressPDF(pdfBytes []byte, opts compress.Options) ([]byte, error) {
+	return compress.CompressPDF(pdfBytes, opts)
 }
 
 // pdfService is the active PDF backend (swap in tests via SetPDFService).

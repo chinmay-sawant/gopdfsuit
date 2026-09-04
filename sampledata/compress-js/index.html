@@ -1,0 +1,110 @@
+<!--
+  Serve this folder (`python3 -m http.server`) after `make wasm-compress`.
+  Do not POST to /api/v1/compress — compression is local WASM.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>gopdfsuit compress (WASM)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.4; }
+    button { margin: 0.25rem 0.5rem 0.25rem 0; padding: 0.4rem 0.8rem; }
+    #sizes, #status { margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <h1>PDF compress</h1>
+  <p>Light / Medium / Heavy run in this tab via <code>compress.wasm</code>. No API.</p>
+  <p><input id="file" type="file" accept="application/pdf,.pdf" /></p>
+  <p>
+    <button type="button" data-level="light" disabled>Light</button>
+    <button type="button" data-level="medium" disabled>Medium</button>
+    <button type="button" data-level="heavy" disabled>Heavy</button>
+  </p>
+  <div id="sizes"></div>
+  <p><a id="download" hidden>Download compressed PDF</a></p>
+  <p id="status">Loading WASM…</p>
+
+  <script src="wasm_exec.js"></script>
+  <script>
+    (async function () {
+      var statusEl = document.getElementById('status')
+      var sizesEl = document.getElementById('sizes')
+      var downloadEl = document.getElementById('download')
+      var fileEl = document.getElementById('file')
+      var buttons = Array.prototype.slice.call(document.querySelectorAll('button[data-level]'))
+      var lastUrl = ''
+
+      function setStatus(msg) {
+        statusEl.textContent = msg
+      }
+
+      if (typeof Go !== 'function') {
+        setStatus('wasm_exec.js did not define Go. Run make wasm-compress and serve this folder.')
+        return
+      }
+
+      try {
+        var go = new Go()
+        var res = await fetch('compress.wasm')
+        if (!res.ok) {
+          throw new Error('compress.wasm missing')
+        }
+        var result = await WebAssembly.instantiate(await res.arrayBuffer(), go.importObject)
+        go.run(result.instance) // Go main blocks; do not await
+        if (typeof goCompressPDF !== 'function') {
+          throw new Error('goCompressPDF was not registered')
+        }
+      } catch (err) {
+        setStatus((err && err.message ? err.message : String(err)) +
+          ' — run make wasm-compress, then python3 -m http.server')
+        return
+      }
+
+      buttons.forEach(function (b) { b.disabled = false })
+      setStatus('WASM ready. Choose a PDF.')
+
+      async function compress(level) {
+        var file = fileEl.files && fileEl.files[0]
+        if (!file) {
+          setStatus('Pick a PDF first.')
+          return
+        }
+        setStatus('Compressing…')
+        buttons.forEach(function (b) { b.disabled = true })
+        try {
+          if (file.size > 32 * 1024 * 1024) {
+            throw new Error('PDF exceeds maximum size (32 MiB)')
+          }
+          var input = new Uint8Array(await file.arrayBuffer())
+          var out = goCompressPDF(input, level)
+          if (out && out.error) {
+            throw new Error(out.error)
+          }
+          var pct = (100 - (out.byteLength * 100) / input.byteLength).toFixed(1)
+          sizesEl.textContent = 'original ' + input.byteLength + ' bytes → compressed ' +
+            out.byteLength + ' bytes (' + pct + '% smaller, ' + level + ')'
+          if (lastUrl) {
+            URL.revokeObjectURL(lastUrl)
+          }
+          lastUrl = URL.createObjectURL(new Blob([out], { type: 'application/pdf' }))
+          downloadEl.href = lastUrl
+          downloadEl.download = file.name.replace(/\.pdf$/i, '') + '_' + level + '.pdf'
+          downloadEl.hidden = false
+          setStatus('Done.')
+        } catch (err) {
+          setStatus(err && err.message ? err.message : String(err))
+        } finally {
+          buttons.forEach(function (b) { b.disabled = false })
+        }
+      }
+
+      buttons.forEach(function (b) {
+        b.addEventListener('click', function () { compress(b.getAttribute('data-level')) })
+      })
+    })()
+  </script>
+</body>
+</html>
