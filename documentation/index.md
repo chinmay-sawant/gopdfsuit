@@ -5,6 +5,8 @@ documentation/ is truth for current behavior per plans/adr-2026-09-04-doc-homes.
 ## Start here
 
 - GETTING_STARTED_GOPDFLIB.md: Go library quickstart.
+- FEATURES.md: every feature with snippets, all ops in one page.
+- ARCHITECTURE.md: gopdfsuit server, gopdflib plus engine, pypdfsuit, frontend WASM.
 - TEMPLATE_REFERENCE.md: template JSON shape, props grammar, aliases.
 - TODAY_2026-09-04_INDEX.md: what changed on 2026-09-04 on feat/builder-snippets, file map for the batch below.
 
