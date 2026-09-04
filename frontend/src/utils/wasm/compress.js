@@ -2,7 +2,7 @@
 // Server endpoint (/api/v1/compress) accepts light|medium|heavy; WASM takes
 // the same light|medium|heavy strings (toServerLevel maps 1|2|3 for callers).
 
-import { ensureCompressWasm, asUint8Array } from './core.js'
+import { ensureCompressWasm, asUint8Array, callWasm, COMPRESS_WASM_URL, GOPDFSUIT_WASM_URL } from './core.js'
 import { makeAuthenticatedRequest } from '../apiConfig.js'
 import {
   MAX_COMPRESS_BYTES,
@@ -12,14 +12,11 @@ import {
 } from './levels.js'
 
 export { MAX_COMPRESS_BYTES }
+export { COMPRESS_WASM_URL, GOPDFSUIT_WASM_URL }
 
 async function compressViaWasmMainThread(bytes, level) {
   await ensureCompressWasm()
-  const result = globalThis.goCompressPDF(bytes, toServerLevel(level))
-  if (result instanceof Uint8Array) return result
-
-  const message = result && typeof result === 'object' ? result.error : undefined
-  throw new Error(message || 'PDF compression failed')
+  return callWasm('goCompressPDF', [bytes, toServerLevel(level)])
 }
 
 async function compressViaWasm(bytes, level) {
@@ -47,6 +44,9 @@ function ensureWorker() {
   workerInit = (async () => {
     const worker = new Worker(new URL('./compressWorker.js', import.meta.url))
     const base = import.meta.env.BASE_URL || '/'
+    // Single source of truth for the artifact URL lives in core.js
+    // (COMPRESS_WASM_URL); the worker init below passes the resolved name
+    // through so main thread and worker can never drift apart.
     const ready = new Promise((resolve, reject) => {
       const onMessage = (event) => {
         const msg = event.data || {}
@@ -64,7 +64,9 @@ function ensureWorker() {
     worker.postMessage({
       type: 'init',
       wasmExecUrl: `${base}wasm_exec.js`,
-      wasmUrl: `${base}compress.wasm`,
+      // COMPRESS_WASM_URL already carries BASE_URL; the worker fetches it
+      // as an absolute path so main thread and worker share one constant.
+      wasmUrl: COMPRESS_WASM_URL,
     })
     return ready
   })()

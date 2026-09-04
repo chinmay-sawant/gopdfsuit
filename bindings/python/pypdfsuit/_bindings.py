@@ -179,6 +179,10 @@ def _load_library():
     lib.FillPDFWithXFDF.argtypes = [c_char_p, c_int, c_char_p, c_int]
     lib.FillPDFWithXFDF.restype = ByteResult
 
+    # CompressPDF (pdf bytes + JSON {"level": "light|medium|heavy"})
+    lib.CompressPDF.argtypes = [c_char_p, c_int, c_char_p]
+    lib.CompressPDF.restype = ByteResult
+
     # ConvertHTMLToPDF
     lib.ConvertHTMLToPDF.argtypes = [c_char_p]
     lib.ConvertHTMLToPDF.restype = ByteResult
@@ -304,3 +308,53 @@ def call_bytes_array_result(func, *args) -> list:
         return parts
     finally:
         lib.FreeBytesArrayResult(result)
+
+
+def require_bytes(data: bytes, name: str = "PDF data") -> bytes:
+    """Reject empty inputs with a uniform ValueError.
+
+    Python owns type/shape checks: every op module calls this before
+    crossing the ABI so empty-input errors never depend on CGO or engine
+    behavior.
+    """
+    if not data:
+        raise ValueError(f"{name} cannot be empty")
+    return data
+
+
+def json_payload(obj) -> bytes:
+    """Serialize a request to compact UTF-8 JSON bytes.
+
+    Accepts a dataclass with to_dict(), a plain dict, or a list.
+    """
+    if hasattr(obj, "to_dict"):
+        obj = obj.to_dict()
+    import json
+
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def pdf_args(data: bytes, name: str = "PDF data") -> tuple:
+    """Return the (data, length) ctypes arg pair after the empty check."""
+    require_bytes(data, name)
+    return (data, len(data))
+
+
+def merge_args(pdf_files) -> tuple:
+    """Build the (data array, lengths array, count) triple for MergePDFs."""
+    from ctypes import c_char_p, c_int, POINTER, cast
+
+    if not pdf_files:
+        raise ValueError("At least one PDF file is required")
+    count = len(pdf_files)
+    pdf_data_array = (c_char_p * count)()
+    pdf_lengths_array = (c_int * count)()
+    for i, pdf in enumerate(pdf_files):
+        require_bytes(pdf, f"PDF file at index {i}")
+        pdf_data_array[i] = ctypes.create_string_buffer(pdf).raw
+        pdf_lengths_array[i] = len(pdf)
+    return (
+        cast(pdf_data_array, POINTER(c_char_p)),
+        cast(pdf_lengths_array, POINTER(c_int)),
+        count,
+    )

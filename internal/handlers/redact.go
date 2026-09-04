@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 	"github.com/gin-gonic/gin"
 )
 
@@ -67,66 +65,7 @@ func normalizeTextSearchQueries(queries []models.RedactionTextQuery) []models.Re
 // service-owned body-limit policy, rejecting oversized uploads with 413. It
 // returns nil when the handler must abort (response already written).
 func readBoundedUpload(c *gin.Context) []byte {
-	file, err := c.FormFile("pdf")
-	if err != nil {
-		abortError(c, http.StatusBadRequest, "pdf file is required")
-		return nil
-	}
-
-	f, err := file.Open()
-	if err != nil {
-		log.Printf("redact: open pdf failed: %v", err)
-		abortError(c, http.StatusInternalServerError, "failed to process upload")
-		return nil
-	}
-	defer func() { _ = f.Close() }()
-
-	pdfBytes, ok, err := pdfService.ReadUpload(f, UploadKindPDF)
-	if err != nil {
-		log.Printf("redact: read pdf failed: %v", err)
-		abortError(c, http.StatusBadRequest, "invalid request")
-		return nil
-	}
-	if !ok {
-		abortError(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
-		return nil
-	}
-	if len(pdfBytes) == 0 {
-		abortError(c, http.StatusBadRequest, "pdf file is empty")
-		return nil
-	}
-	return pdfBytes
-}
-
-// abortRedactLoad handles redactor-construction failures (client-malformed
-// PDFs -> 422) without echoing backend internals.
-func abortRedactLoad(c *gin.Context, err error) {
-	abortRedact(c, err, "load")
-}
-
-// abortRedactOp handles redaction operation failures the same way.
-func abortRedactOp(c *gin.Context, err error) {
-	abortRedact(c, err, "operation")
-}
-
-// abortRedact maps the classified status to a generic client message plus
-// the envelope code, mirroring abortPDFError.
-func abortRedact(c *gin.Context, err error, op string) {
-	log.Printf("redact: %s failed: %v", op, err)
-	status := pdfService.ClassifyError(err)
-	var message string
-	switch status {
-	case http.StatusUnprocessableEntity:
-		message = "invalid PDF input"
-	case http.StatusRequestEntityTooLarge:
-		message = "pdf exceeds maximum size"
-	case http.StatusBadGateway:
-		message = "upstream dependency failed"
-	default:
-		status = http.StatusInternalServerError
-		message = "redaction failed"
-	}
-	c.JSON(status, errorBody(gopdflib.CodeForStatus(status), message))
+	return readSingleUpload(c, "pdf", UploadKindPDF)
 }
 
 // handleRedactPageInfo handles requests to get PDF page dimensions
@@ -138,7 +77,7 @@ func handleRedactPageInfo(c *gin.Context) {
 
 	info, err := pdfService.RedactPageInfo(pdfBytes)
 	if err != nil {
-		abortRedactLoad(c, err)
+		abortPDFError(c, err, "redaction failed")
 		return
 	}
 
@@ -154,7 +93,7 @@ func handleRedactCapabilities(c *gin.Context) {
 
 	caps, err := pdfService.RedactCapabilities(pdfBytes)
 	if err != nil {
-		abortRedactLoad(c, err)
+		abortPDFError(c, err, "redaction failed")
 		return
 	}
 
@@ -181,7 +120,7 @@ func handleRedactTextPositions(c *gin.Context) {
 
 	positions, err := pdfService.RedactTextPositions(pdfBytes, pageNum)
 	if err != nil {
-		abortRedactOp(c, err)
+		abortPDFError(c, err, "redaction failed")
 		return
 	}
 
@@ -195,72 +134,19 @@ func handleRedactApply(c *gin.Context) {
 		return
 	}
 
-	var options models.ApplyRedactionOptions
-	options.Mode = fastTrimSpace(c.PostForm("mode"))
-	options.Password = c.PostForm("password")
-
-	blocksJSON := c.PostForm("blocks")
-	if blocksJSON != "" {
-		if err := sonic.Unmarshal([]byte(blocksJSON), &options.Blocks); err != nil {
-			abortError(c, http.StatusBadRequest, "invalid blocks json")
-			return
-		}
+	options, err := parseRedactApply(redactApplyForm{
+		mode:       c.PostForm("mode"),
+		password:   c.PostForm("password"),
+		blocks:     c.PostForm("blocks"),
+		textSearch: c.PostForm("textSearch"),
+		ocr:        c.PostForm("ocr"),
+		redactions: c.PostForm("redactions"),
+		text:       c.PostForm("text"),
+	})
+	if err != nil {
+		abortError(c, http.StatusBadRequest, err.Error())
+		return
 	}
-
-	textSearchJSON := c.PostForm("textSearch")
-	if textSearchJSON != "" {
-		textSearchBytes := []byte(textSearchJSON)
-		if err := sonic.Unmarshal(textSearchBytes, &options.TextSearch); err != nil {
-			var plain []string
-			if err2 := sonic.Unmarshal(textSearchBytes, &plain); err2 != nil {
-				abortError(c, http.StatusBadRequest, "invalid textSearch json")
-				return
-			}
-			for _, text := range plain {
-				text = fastTrimSpace(text)
-				if text == "" {
-					continue
-				}
-				options.TextSearch = append(options.TextSearch, models.RedactionTextQuery{Text: text})
-			}
-		}
-	}
-
-	ocrJSON := c.PostForm("ocr")
-	if fastTrimSpace(ocrJSON) != "" {
-		var ocr models.OCRSettings
-		if err := sonic.Unmarshal([]byte(ocrJSON), &ocr); err != nil {
-			abortError(c, http.StatusBadRequest, "invalid ocr json")
-			return
-		}
-		options.OCR = &ocr
-	}
-
-	// Backward compatibility: old frontend sends "redactions".
-	if len(options.Blocks) == 0 {
-		redactionsJSON := c.PostForm("redactions")
-		if redactionsJSON != "" {
-			if err := sonic.Unmarshal([]byte(redactionsJSON), &options.Blocks); err != nil {
-				abortError(c, http.StatusBadRequest, "invalid redactions json")
-				return
-			}
-		}
-	}
-
-	// Backward compatibility: allow plain text search field for one-shot apply.
-	if len(options.TextSearch) == 0 {
-		if searchText := fastTrimSpace(c.PostForm("text")); searchText != "" {
-			terms := parseCommaSeparatedTerms(searchText)
-			if len(terms) == 0 {
-				terms = []string{searchText}
-			}
-			options.TextSearch = make([]models.RedactionTextQuery, 0, len(terms))
-			for _, t := range terms {
-				options.TextSearch = append(options.TextSearch, models.RedactionTextQuery{Text: t})
-			}
-		}
-	}
-	options.TextSearch = normalizeTextSearchQueries(options.TextSearch)
 
 	pdfBytes := readBoundedUpload(c)
 	if pdfBytes == nil {
@@ -269,7 +155,7 @@ func handleRedactApply(c *gin.Context) {
 
 	redactedPDF, report, err := pdfService.RedactApply(pdfBytes, options)
 	if err != nil {
-		abortRedactOp(c, err)
+		abortPDFError(c, err, "redaction failed")
 		return
 	}
 	if b, err := sonic.Marshal(report); err == nil {
@@ -316,7 +202,7 @@ func handleRedactSearch(c *gin.Context) {
 
 	rects, err := pdfService.RedactSearch(pdfBytes, terms)
 	if err != nil {
-		abortRedactOp(c, err)
+		abortPDFError(c, err, "redaction failed")
 		return
 	}
 

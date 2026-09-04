@@ -4,6 +4,13 @@
 // the only place that converts between public and internal representations,
 // so internal refactors cannot silently change the public API and callers
 // recompile untouched as long as field names are stable.
+//
+// Decision (Phase 4.4): the owned-type split is kept, not aliased to
+// internal models. Aliasing (`type PDFTemplate = models.PDFTemplate`) would
+// leak internal field changes into the public API without a compile break.
+// The cost control is translation shape, not type identity: translate whole
+// slices in one JSON round-trip (see redact.go) instead of per-item loops,
+// so per-call overhead stays constant regardless of item count.
 package gopdflib
 
 // PDFTemplate is the main input structure for PDF generation.
@@ -83,8 +90,11 @@ type Config struct {
 	Signature           *SignatureConfig   `json:"signature,omitempty"`
 	EmbedFonts          *bool              `json:"embedFonts,omitempty"`
 	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`
-	PDFACompliant       bool               `json:"pdfaCompliant,omitempty"`
-	TaggedPDF           bool               `json:"taggedPDF,omitempty"`
+	// EmbedStandardFonts is an optional alias for EmbedFonts (frontend parity).
+	// When set, it takes precedence over EmbedFonts.
+	EmbedStandardFonts *bool `json:"embedStandardFonts,omitempty"`
+	PDFACompliant      bool  `json:"pdfaCompliant,omitempty"`
+	TaggedPDF          bool  `json:"taggedPDF,omitempty"`
 }
 
 // SecurityConfig holds PDF encryption and permission settings.
@@ -140,8 +150,12 @@ type CustomFontConfig struct {
 
 // Title represents the header section of the document.
 type Title struct {
-	Props     string      `json:"props"`
-	Text      string      `json:"text"`
+	Props string `json:"props"`
+	Text  string `json:"text"`
+	// TextProps is an optional alias for Props for simple text titles.
+	// When set, the engine prefers TextProps over Props. Title.Table
+	// takes precedence over both.
+	TextProps string      `json:"textprops,omitempty"`
 	Table     *TitleTable `json:"table,omitempty"`
 	BgColor   string      `json:"bgcolor,omitempty"`
 	TextColor string      `json:"textcolor,omitempty"`
@@ -212,7 +226,10 @@ type Image struct {
 type Footer struct {
 	Font string `json:"font"`
 	Text string `json:"text"`
-	Link string `json:"link,omitempty"`
+	// Props is an optional alias for Font. When set, the engine prefers
+	// Props over Font.
+	Props string `json:"props,omitempty"`
+	Link  string `json:"link,omitempty"`
 }
 
 // Props defines the stylistic properties for document elements.
@@ -236,6 +253,11 @@ type FontInfo struct {
 }
 
 // HTMLToPDFRequest represents the input for HTML to PDF conversion.
+//
+// Field-to-knob mapping lives in internal/pdf/html_convert.go (single
+// mapping table). DPI, LowQuality, and Options have no gowkhtmltopdf
+// equivalent: accepted but ignored, with a warning logged for non-empty
+// Options.
 type HTMLToPDFRequest struct {
 	HTML         string            `json:"html,omitempty"`
 	URL          string            `json:"url,omitempty"`
@@ -253,6 +275,9 @@ type HTMLToPDFRequest struct {
 }
 
 // HTMLToImageRequest represents the input for HTML to image conversion.
+//
+// Field-to-knob mapping lives in internal/pdf/html_convert.go. Options has
+// no gowkhtmltopdf equivalent: accepted but ignored with a warning.
 type HTMLToImageRequest struct {
 	HTML       string            `json:"html,omitempty"`
 	URL        string            `json:"url,omitempty"`

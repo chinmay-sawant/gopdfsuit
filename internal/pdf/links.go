@@ -19,7 +19,7 @@ type LinkAnnotation struct {
 // A nil encryptor preserves the legacy unencrypted URI output; pass the
 // document encryptor once encryption is set up so URI strings are encrypted.
 func CreateLinkAnnotation(annot LinkAnnotation, pageManager *PageManager, encryptor ObjectEncryptor) int {
-	return NewDestinationStore(pageManager, pageManager.objects().alloc, encryptor).CreateLinkAnnotation(annot)
+	return NewDestinationStore(pageManager, pageManager.allocator(), encryptor).CreateLinkAnnotation(annot)
 }
 
 // ParseLink parses a link string and determines if it's external or internal

@@ -14,6 +14,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RoutePolicy is the request-policy half of ServerConfig: auth, CORS, and
+// body-limit decisions resolved once at startup from the environment.
+// RegisterRoutes consults this instead of reading env per router so the
+// benchmark fast path (GIN_FAST_API=1) can shed CORS without ever shedding
+// authentication.
+type RoutePolicy struct {
+	// RequireAuth enforces GoogleAuthMiddleware on the v1 group.
+	// True when REQUIRE_AUTH=1 or on Cloud Run (K_SERVICE/K_REVISION).
+	RequireAuth bool
+	// EnableCORS registers CORSMiddleware on the v1 group.
+	// False only for the GIN_FAST_API=1 benchmark path.
+	EnableCORS bool
+	// MaxConcurrent caps in-flight requests (concurrencyLimiter semaphore).
+	MaxConcurrent int
+	// MaxHTMLBodyBytes caps HTML-to-PDF/Image JSON request bodies.
+	MaxHTMLBodyBytes int64
+}
+
 // ServerConfig is the composition-root input for the HTTP server. It is
 // resolved once at startup from flags/env (ResolveServerConfig) and then
 // threaded through NewRouter / NewServer so main only declares the wiring.
@@ -24,6 +42,7 @@ type ServerConfig struct {
 	WriteTimeout    time.Duration
 	ShutdownTimeout time.Duration
 	EnableProfiling bool
+	Policy          RoutePolicy
 }
 
 // ResolveServerConfig reads MAX_CONCURRENT / BENCH_MODE / ENABLE_PROFILING
@@ -31,14 +50,31 @@ type ServerConfig struct {
 // explicit MAX_CONCURRENT wins, BENCH_MODE scales with CPU capped at 48,
 // otherwise NumCPU.
 func ResolveServerConfig() ServerConfig {
+	maxConcurrent := resolveMaxConcurrent()
 	return ServerConfig{
 		Addr:            ":8080",
-		MaxConcurrent:   resolveMaxConcurrent(),
+		MaxConcurrent:   maxConcurrent,
 		ReadTimeout:     30 * time.Second,
 		WriteTimeout:    60 * time.Second,
 		ShutdownTimeout: 15 * time.Second,
 		EnableProfiling: os.Getenv("ENABLE_PROFILING") == "1",
+		Policy: RoutePolicy{
+			RequireAuth:      resolveRequireAuth(),
+			EnableCORS:       os.Getenv("GIN_FAST_API") != "1",
+			MaxConcurrent:    maxConcurrent,
+			MaxHTMLBodyBytes: maxHTMLBodyBytes,
+		},
 	}
+}
+
+// resolveRequireAuth mirrors middleware auth enforcement (REQUIRE_AUTH=1 or
+// Cloud Run) without importing the middleware package (import cycle:
+// middleware must not depend on handlers).
+func resolveRequireAuth() bool {
+	if os.Getenv("REQUIRE_AUTH") == "1" {
+		return true
+	}
+	return os.Getenv("K_SERVICE") != "" || os.Getenv("K_REVISION") != ""
 }
 
 func resolveMaxConcurrent() int {
@@ -120,8 +156,7 @@ func concurrencyLimiter(n int) gin.HandlerFunc {
 }
 
 // NewRouter composes the middleware chain (recovery, concurrency limit) and
-// the API route table. Auth/CORS behavior lives in RegisterRoutes and the
-// middleware package and is unchanged.
+// the API route table. Auth/CORS behavior comes from cfg.Policy and is unchanged.
 func NewRouter(cfg ServerConfig) *gin.Engine {
 	router := gin.New()
 	router.Use(middleware.RequestIDMiddleware())
@@ -129,7 +164,7 @@ func NewRouter(cfg ServerConfig) *gin.Engine {
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}))
 	router.Use(concurrencyLimiter(cfg.MaxConcurrent))
-	RegisterRoutes(router)
+	RegisterRoutesWithPolicy(router, cfg.Policy)
 	return router
 }
 

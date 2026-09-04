@@ -12,6 +12,11 @@ import (
 // per Uint8Array before copying the files into the module.
 const MaxMergeInputBytes = merge.MaxMergeInputBytes
 
+// MaxMergeFileCount caps the number of input files accepted by MergePDFs.
+// The CGO MergePDFs entry point enforces the same cap on its count argument
+// before copying parts, so all callers share one policy sourced here.
+const MaxMergeFileCount = 1 << 16
+
 // MergePDFs combines multiple PDF files into a single PDF document.
 // Files should be provided as byte slices in the desired order.
 // At least one non-empty PDF is required.
@@ -33,6 +38,9 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	const op = "gopdflib: MergePDFs"
 	if len(files) == 0 {
 		return nil, invalidInputError(op, "needs at least 1 PDF file")
+	}
+	if len(files) >= MaxMergeFileCount {
+		return nil, invalidInputError(op, "too many PDF files")
 	}
 	for i, f := range files {
 		if len(f) == 0 {

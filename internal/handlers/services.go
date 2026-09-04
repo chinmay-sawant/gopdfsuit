@@ -59,10 +59,23 @@ type PDFService interface {
 	RedactApply(pdfBytes []byte, opts models.ApplyRedactionOptions) ([]byte, models.RedactionApplyReport, error)
 }
 
+// FastGenerateService is the optional borrowed-render seam for the generate
+// path. When the active PDFService implements it, handleGenerateTemplatePDF
+// renders through the pooled buffer and streams without an extra copy;
+// otherwise it falls back to GenerateTemplatePDF. Mocks implement it in
+// mocks/mock_fast_generate.go so the hot path is test-covered.
+type FastGenerateService interface {
+	GenerateTemplatePDFBorrowed(template models.PDFTemplate) (*pdf.BorrowedPDF, error)
+}
+
 type defaultPDFService struct{}
 
 func (defaultPDFService) GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
 	return pdf.GenerateTemplatePDF(template)
+}
+
+func (defaultPDFService) GenerateTemplatePDFBorrowed(template models.PDFTemplate) (*pdf.BorrowedPDF, error) {
+	return pdf.GenerateTemplatePDFBorrowed(template)
 }
 
 func (defaultPDFService) FillPDFWithXFDF(pdfBytes, xfdfBytes []byte) ([]byte, error) {

@@ -1,6 +1,30 @@
 # Integration & Benchmark Tests
 
+> Doc home: this file is truth for test layers (see `plans/adr-2026-09-04-doc-homes.md`).
+> `guides/` copies are frozen archive; `test/compliance_manifest.json` is truth for compliance gates.
+
 **Date:** 2026-06-11 (updated 2026-06-14 01:10 IST)
+
+## Test pyramid
+
+| Layer | Where | Speed | Gate |
+|-------|-------|-------|------|
+| Unit (base, widest) | `pkg/...`, `internal/...` `*_test.go` beside sources | Seconds (`make test-fast` runs with `SHORT=1`) | Must pass; library behavior (generate, merge, split, compress, fill, redact, read APIs) is pinned here, not in the suite |
+| Integration (middle) | `test/` suite over HTTP + library (`TestIntegrationSuite`, `TestZerodhaPDFCompliance`) | Minutes (`make test-integration`) | Must pass; asserts endpoints, fixtures, and veraPDF compliance on zerodha outputs |
+| Compliance (top, narrow) | `test/verify_pdfs.sh` driven by `test/compliance_manifest.json` (veraPDF hard, structure-tree hard, avalpdf warn-by-default) | Minutes (`make test-verify-pdfs`) | Must pass; size variance + PDF/A-4 + PDF/UA-2 |
+| Benchmarks (not a gate) | `make bench-*` (see `make bench-help`) | Minutes to hours | Never blocking; numbers only |
+
+Rules:
+
+- New library behavior gets a package-level test first. The suite must not
+  duplicate package coverage with `TestCoverage*` shims (deleted; coverage
+  still passes via `pkg/gopdflib` and `internal/...` tests).
+- Suite outputs (`temp_*` under `sampledata/`, plus `test/output/` for future
+  hermetic runs) are gitignored work products, never baselines.
+  `sampledata/` keeps baselines (`generated.*`, reference PDFs) only.
+- Compliance thresholds (path, baseline, tolerance, flavours, avalStrict)
+  live in `test/compliance_manifest.json`, read by both the bash runner and
+  `test/zerodha_compliance_test.go`. Do not hardcode them in a second place.
 
 ## Run everything in one shot
 

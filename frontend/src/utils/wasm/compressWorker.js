@@ -20,8 +20,11 @@ async function init(wasmExecUrl, wasmUrl) {
       throw new Error('wasm_exec.js did not provide global Go')
     }
     const go = new Go()
-    // Cache-first so compress works offline once downloaded (same story as
-    // wasm/core.js fetchCached on the main-thread path).
+    // Cache-first so compress works offline once downloaded. This is the
+    // same policy as wasm/core.js cachedFetch on the main-thread path,
+    // inlined here because a classic worker cannot import ESM: keep the
+    // cache name ('gopdfsuit-wasm-v1') and the {code,message,error}
+    // envelope reads in sync with core.js/envelope.js by hand.
     let response
     try {
       const cache = await caches.open('gopdfsuit-wasm-v1')
@@ -87,7 +90,9 @@ self.onmessage = (event) => {
       self.postMessage({ type: 'result', id, ok: true, bytes: result }, [result.buffer])
       return
     }
-    const message = result && typeof result === 'object' ? result.error : undefined
+    // Envelope read matches envelope.js wasmErrorMessage: message first,
+    // legacy `error` alias second.
+    const message = result && typeof result === 'object' ? result.message || result.error : undefined
     self.postMessage({ type: 'result', id, ok: false, error: message || 'PDF compression failed' })
   } catch (err) {
     self.postMessage({ type: 'result', id, ok: false, error: err instanceof Error ? err.message : String(err) })

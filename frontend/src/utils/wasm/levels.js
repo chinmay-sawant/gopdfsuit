@@ -47,18 +47,14 @@ export const assertCompressSize = (byteLength) => {
 
 /**
  * Transport selection for compression. Default is in-browser WASM (the file
- * never leaves the device); VITE_COMPRESS_TRANSPORT=server forces the server
- * endpoint, and callers may fall back to the server when WASM is unavailable.
- *
- * Env matrix (see also wasm/transports.js WASM_TRANSPORT):
- * - VITE_COMPRESS_TRANSPORT unset or "wasm" -> compressPDFSmart runs WASM first.
- * - VITE_COMPRESS_TRANSPORT=server -> server endpoint directly.
- * - VITE_WASM_TRANSPORT=server -> merge/split/fill pages go server-first;
- *   compress still honors VITE_COMPRESS_TRANSPORT above.
- * - Either *_TRANSPORT=wasm (default) + allowServerFallback consent -> server
- *   only after an explicit user click, never silently.
+ * never leaves the device). VITE_WASM_TRANSPORT=server forces the server
+ * endpoint for every op including compress; VITE_COMPRESS_TRANSPORT=server
+ * overrides compress alone and exists only for deployments that already set
+ * it (no other per-op override is provided: one global switch plus explicit
+ * per-click consent is the whole matrix, see wasm/transports.js).
  */
-export const COMPRESS_TRANSPORT = import.meta.env.VITE_COMPRESS_TRANSPORT || 'wasm'
+export const COMPRESS_TRANSPORT =
+  import.meta.env.VITE_COMPRESS_TRANSPORT || import.meta.env.VITE_WASM_TRANSPORT || 'wasm'
 
 export const shouldUseServerCompress = () => COMPRESS_TRANSPORT === 'server'
 

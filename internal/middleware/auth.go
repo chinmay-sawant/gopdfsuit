@@ -2,6 +2,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,12 +13,13 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
-// isCloudRunCached is evaluated once at package init to avoid per-request os.Getenv overhead.
-var isCloudRunCached = os.Getenv("K_SERVICE") != "" || os.Getenv("K_REVISION") != ""
-
-// IsCloudRun checks if the application is running on Google Cloud Run
+// IsCloudRun checks if the application is running on Google Cloud Run.
+// It reads the environment on every call: Cloud Run sets K_SERVICE or
+// K_REVISION for the life of the instance, so there is nothing to cache,
+// and a package-init snapshot would freeze test overrides (t.Setenv) and
+// any late-arriving environment.
 func IsCloudRun() bool {
-	return isCloudRunCached
+	return os.Getenv("K_SERVICE") != "" || os.Getenv("K_REVISION") != ""
 }
 
 // authEnforced reports whether GoogleAuthMiddleware must validate tokens.
@@ -33,6 +35,26 @@ func authEnforced() bool {
 		return true
 	}
 	return IsCloudRun()
+}
+
+// resolveAudience returns the expected Google OAuth audience:
+// GOOGLE_OAUTH_AUDIENCE, else GOOGLE_CLIENT_ID, else CLOUD_RUN_SERVICE_URL.
+// Shared by the enforcing and optional middlewares so the precedence lives
+// in one place.
+func resolveAudience() string {
+	if audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE"); audience != "" {
+		return audience
+	}
+	if audience := os.Getenv("GOOGLE_CLIENT_ID"); audience != "" {
+		return audience
+	}
+	return os.Getenv("CLOUD_RUN_SERVICE_URL")
+}
+
+// validateToken validates a Google OAuth ID token against audience. It is
+// the single seam over idtoken.Validate for both middlewares (and tests).
+func validateToken(ctx context.Context, token, audience string) (*idtoken.Payload, error) {
+	return idtoken.Validate(ctx, token, audience)
 }
 
 // GoogleAuthMiddleware validates Google OAuth ID tokens.
@@ -76,21 +98,9 @@ func GoogleAuthMiddleware() gin.HandlerFunc {
 
 		token := parts[1]
 
-		// Get the expected audience (your Cloud Run service URL)
-		// This should be set as an environment variable
-		audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
-		if audience == "" {
-			// Try Client ID as audience (common for Google Sign-In)
-			audience = os.Getenv("GOOGLE_CLIENT_ID")
-		}
-		if audience == "" {
-			// If not set, try to get from Cloud Run metadata
-			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
-		}
-
-		// Validate the ID token
+		// Validate the ID token against the shared audience precedence.
 		ctx := c.Request.Context()
-		payload, err := idtoken.Validate(ctx, token, audience)
+		payload, err := validateToken(ctx, token, resolveAudience())
 		if err != nil {
 			log.Printf("GoogleAuthMiddleware: token validation failed: %v", err)
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -134,16 +144,8 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 		}
 
 		token := parts[1]
-		audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE")
-		if audience == "" {
-			audience = os.Getenv("GOOGLE_CLIENT_ID")
-		}
-		if audience == "" {
-			audience = os.Getenv("CLOUD_RUN_SERVICE_URL")
-		}
-
 		ctx := c.Request.Context()
-		payload, err := idtoken.Validate(ctx, token, audience)
+		payload, err := validateToken(ctx, token, resolveAudience())
 		if err == nil {
 			// Token is valid, store user info
 			c.Set("user_email", payload.Claims["email"])

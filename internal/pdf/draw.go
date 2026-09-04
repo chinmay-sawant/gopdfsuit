@@ -409,7 +409,7 @@ func sharedColsUniformBorder(cols []sharedColumnLayout) (width int, ok bool) {
 // P6 (2026-06-20 checklist): the per-cell BDC/EMC is emitted via the
 // lightweight writeCellMarkedContentBDC / EndCellMarkedContentBuf pair. The
 // caller (drawSharedLayoutRow) is expected to have already created the
-// TR + per-column TD struct elems via beginTableRowWithTDMCIDs, so this
+// TR + per-column TD struct elems via EmitRowCells, so this
 // function does not allocate any struct-elem nodes.
 func drawSharedDeferRow(
 	contentStream *bytes.Buffer,
@@ -443,9 +443,9 @@ func drawSharedDeferRow(
 		cellX := currentX
 		currentX += cellWidth
 
-		NewTableTagger(pageManager.Structure).WriteCell(
-			contentStream, rowMCIDBase+colIdx,
-		)
+		if sm := pageManager.Structure; sm != nil {
+			sm.writeCellMarkedContentBDC(contentStream, StructTD, rowMCIDBase+colIdx)
+		}
 
 		if cell.BgColor != "" {
 			if r, g, b, _, valid := parseHexColor(cell.BgColor); valid {
@@ -519,8 +519,8 @@ func drawSharedDeferRow(
 }
 
 // drawSharedLayoutRow draws a shared-layout data row with PDF/UA Table → TR → TD hierarchy.
-// P6 (2026-06-20 checklist): the HFT fast path now sets up the TR + 7 TD struct
-// elems in a single call to beginTableRowWithTDMCIDs (arena path) and emits
+// P6 (2026-06-20 checklist): the HFT fast path sets up the TR + 7 TD struct
+// elems in a single EmitRowCells call (arena path) and emits
 // the per-cell BDC/EMC through the lightweight writeCellMarkedContentBDC /
 // EndCellMarkedContentBuf pair (no per-cell struct allocation, no per-cell
 // beginMarkedContentBuf grow).
@@ -543,8 +543,7 @@ func drawSharedLayoutRow(
 ) {
 	cellCount := min(len(row.Row), maxColumns)
 	pageIndex := pageManager.CurrentPageIndex
-	tagger := NewTableTagger(pageManager.Structure)
-	rowMCIDBase := tagger.Reserve(pageIndex, cellCount)
+	rowMCIDBase, endRow := pageManager.Structure.EmitRowCells(contentStream, pageIndex, cellCount)
 
 	if rowPtr != nil {
 		cacheKey := sharedRowRenderCacheKey{
@@ -554,9 +553,8 @@ func drawSharedLayoutRow(
 			y:        scaledCoordKey(pageManager.CurrentYPos),
 		}
 		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
-			tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
 			appendContentStream(contentStream, cached)
-			tagger.EndRow()
+			endRow()
 			pageManager.CurrentYPos -= rowHeight
 			return
 		}
@@ -569,10 +567,10 @@ func drawSharedLayoutRow(
 		rowBuf.Grow(rowGrow)
 		prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, maxColumns)
 		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, maxColumns)
-		// P6: build TR + 7 TD struct elems in a single arena pass; the per-cell
+		// P6: TR + 7 TD struct elems were built up front by EmitRowCells
+		// (arena allocation, no sync.Pool churn); the per-cell
 		// BDC/EMC is then emitted by drawSharedDeferRow via the lightweight
 		// writeCellMarkedContentBDC / EndCellMarkedContentBuf pair.
-		tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
 		drawSharedDeferRow(
 			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 			scratchBuf, textTjBuf, borderBuf,
@@ -583,22 +581,22 @@ func drawSharedLayoutRow(
 		pageManager.NoteSharedRowBytes(len(rendered))
 		sharedRowRenderCache.Store(cacheKey, rendered)
 		appendContentStream(contentStream, rendered)
-		tagger.EndRow()
+		endRow()
 		pageManager.CurrentYPos -= rowHeight
 		return
 	}
 
-	// P6: same fast path as the cached branch - set up TR + TDs up front
-	// (arena allocation, no sync.Pool churn) and let drawSharedDeferRow emit
-	// BDC/EMC per cell without re-allocating a struct elem each time.
-	tagger.BeginRowWithBase(pageIndex, rowMCIDBase, cellCount)
+	// P6: same fast path as the cached branch - TR + TDs were set up up front
+	// by EmitRowCells (arena allocation, no sync.Pool churn) and
+	// drawSharedDeferRow emits BDC/EMC per cell without re-allocating a
+	// struct elem each time.
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
 		rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
 		maxColumns, charsPreScanned,
 	)
-	tagger.EndRow()
+	endRow()
 	pageManager.CurrentYPos -= rowHeight
 }
 
@@ -716,6 +714,12 @@ func drawPageBorder(contentStream *bytes.Buffer, borderConfig string, pageDims P
 
 // drawTitle renders the document title (either simple text or embedded table)
 func drawTitle(contentStream *bytes.Buffer, title models.Title, titleProps models.Props, pageManager *PageManager, cellImageObjectIDs map[string]int) {
+	// TextProps alias: prefer textprops over props for simple text titles.
+	// Title.Table precedence is preserved: the table path below still wins
+	// when a table is present; titleProps only supplies its defaultProps.
+	if title.Table == nil && title.TextProps != "" {
+		titleProps = parseProps(title.TextProps)
+	}
 	// Check if title has an embedded table
 	if title.Table != nil && len(title.Table.Rows) > 0 {
 		drawTitleTable(contentStream, title.Table, pageManager, cellImageObjectIDs, title.BgColor, title.TextColor, titleProps)
@@ -2040,7 +2044,11 @@ func drawSpacer(spacer models.Spacer, pageManager *PageManager) {
 
 // drawFooter renders the document footer
 func drawFooter(contentStream *bytes.Buffer, footer models.Footer, pageManager *PageManager) {
-	footerProps := parseProps(footer.Font)
+	footerFont := footer.Props
+	if footerFont == "" {
+		footerFont = footer.Font
+	}
+	footerProps := parseProps(footerFont)
 	// PDF/UA: Start Artifact mark (Footer)
 	contentStream.WriteString("/Artifact <</Attached [/Bottom] /Type /Pagination >> BDC\n")
 

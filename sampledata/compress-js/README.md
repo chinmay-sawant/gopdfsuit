@@ -15,9 +15,13 @@ A closed-source SaaS (an iLovePDF-style site) can ship this as a static asset on
 ## Run
 
 ```bash
-make wasm-compress                 # from repo root, once
+make wasm-compress                 # from repo root, once (writes frontend/public/)
+cp frontend/public/compress.wasm frontend/public/wasm_exec.js sampledata/compress-js/
 node sampledata/compress-js/run.mjs
 ```
+
+The local `compress.wasm` / `wasm_exec.js` copies are gitignored work
+products, never committed (row 5.6). Re-copy after rebuilding.
 
 Writes `report_js_level_1.pdf` (Light), `report_js_level_2.pdf` (Medium), `report_js_level_3.pdf` (Heavy).
 

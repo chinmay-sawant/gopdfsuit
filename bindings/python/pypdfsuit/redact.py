@@ -3,7 +3,7 @@ PDF Redaction functionality.
 """
 
 import json
-from ._bindings import get_lib, call_bytes_result
+from ._bindings import get_lib, call_bytes_result, json_payload, pdf_args
 
 def get_page_info(pdf_data: bytes) -> dict:
     """
@@ -15,16 +15,9 @@ def get_page_info(pdf_data: bytes) -> dict:
     Returns:
         dict: Page information (totalPages, pages list with dimensions)
     """
-    if not pdf_data:
-        raise ValueError("PDF data cannot be empty")
-
     lib = get_lib()
-    result_bytes = call_bytes_result(
-        lib.GetPageInfo,
-        pdf_data,
-        len(pdf_data)
-    )
-    
+    result_bytes = call_bytes_result(lib.GetPageInfo, *pdf_args(pdf_data))
+
     return json.loads(result_bytes)
 
 def extract_text_positions(pdf_data: bytes, page_num: int) -> list:
@@ -38,17 +31,9 @@ def extract_text_positions(pdf_data: bytes, page_num: int) -> list:
     Returns:
         list: List of dictionaries containing text and coordinates
     """
-    if not pdf_data:
-        raise ValueError("PDF data cannot be empty")
-
     lib = get_lib()
-    result_bytes = call_bytes_result(
-        lib.ExtractTextPositions,
-        pdf_data,
-        len(pdf_data),
-        page_num
-    )
-    
+    result_bytes = call_bytes_result(lib.ExtractTextPositions, *pdf_args(pdf_data), page_num)
+
     return json.loads(result_bytes)
 
 def apply_redactions(pdf_data: bytes, redactions: list[dict]) -> bytes:
@@ -62,21 +47,8 @@ def apply_redactions(pdf_data: bytes, redactions: list[dict]) -> bytes:
     Returns:
         bytes: The redacted PDF content
     """
-    if not pdf_data:
-        raise ValueError("PDF data cannot be empty")
-    
-    if not redactions:
-        return pdf_data
-
-    redactions_json = json.dumps(redactions).encode("utf-8")
-    
     lib = get_lib()
-    return call_bytes_result(
-        lib.ApplyRedactions,
-        pdf_data,
-        len(pdf_data),
-        redactions_json
-    )
+    return call_bytes_result(lib.ApplyRedactions, *pdf_args(pdf_data), json_payload(redactions))
 
 def find_text_occurrences(pdf_data: bytes, text: str) -> list[dict]:
     """
@@ -89,16 +61,8 @@ def find_text_occurrences(pdf_data: bytes, text: str) -> list[dict]:
     Returns:
         list[dict]: Redaction rectangles (pageNum, x, y, width, height)
     """
-    if not pdf_data:
-        raise ValueError("PDF data cannot be empty")
-
     lib = get_lib()
-    result_bytes = call_bytes_result(
-        lib.FindTextOccurrences,
-        pdf_data,
-        len(pdf_data),
-        text.encode("utf-8"),
-    )
+    result_bytes = call_bytes_result(lib.FindTextOccurrences, *pdf_args(pdf_data), text.encode("utf-8"))
 
     return json.loads(result_bytes)
 
@@ -117,15 +81,5 @@ def apply_redactions_advanced(pdf_data: bytes, options: dict) -> bytes:
     Returns:
         bytes: The redacted PDF content
     """
-    if not pdf_data:
-        raise ValueError("PDF data cannot be empty")
-
-    options_json = json.dumps(options).encode("utf-8")
-
     lib = get_lib()
-    return call_bytes_result(
-        lib.ApplyRedactionsAdvanced,
-        pdf_data,
-        len(pdf_data),
-        options_json,
-    )
+    return call_bytes_result(lib.ApplyRedactionsAdvanced, *pdf_args(pdf_data), json_payload(options))

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,43 +9,22 @@ import (
 // handleFillPDF accepts multipart form data with fields 'pdf' and 'xfdf' (files or raw bytes)
 // and returns the filled PDF bytes as application/pdf
 func handleFillPDF(c *gin.Context) {
-	// Try multipart form file upload (bounded reads; oversized yields 413)
-	pdfFile, _, _ := c.Request.FormFile("pdf")
+	// Multipart file uploads read through the shared upload policy; when a
+	// field is absent the raw body-field fallback below still applies.
 	var pdfBytes []byte
-	if pdfFile != nil {
-		defer func() {
-			_ = pdfFile.Close()
-		}()
-		data, ok, err := pdfService.ReadUpload(pdfFile, UploadKindPDF)
-		if err != nil {
-			log.Printf("handleFillPDF: read pdf failed: %v", err)
-			abortError(c, http.StatusBadRequest, "invalid request")
+	if _, err := c.FormFile("pdf"); err == nil {
+		pdfBytes = readSingleUpload(c, "pdf", UploadKindPDF)
+		if pdfBytes == nil {
 			return
 		}
-		if !ok {
-			abortError(c, http.StatusRequestEntityTooLarge, "pdf exceeds maximum size")
-			return
-		}
-		pdfBytes = data
 	}
 
-	xfdfFile, _, _ := c.Request.FormFile("xfdf")
 	var xfdfBytes []byte
-	if xfdfFile != nil {
-		defer func() {
-			_ = xfdfFile.Close()
-		}()
-		data, ok, err := pdfService.ReadUpload(xfdfFile, UploadKindXFDF)
-		if err != nil {
-			log.Printf("handleFillPDF: read xfdf failed: %v", err)
-			abortError(c, http.StatusBadRequest, "invalid request")
+	if _, err := c.FormFile("xfdf"); err == nil {
+		xfdfBytes = readSingleUpload(c, "xfdf", UploadKindXFDF)
+		if xfdfBytes == nil {
 			return
 		}
-		if !ok {
-			abortError(c, http.StatusRequestEntityTooLarge, "xfdf exceeds maximum size")
-			return
-		}
-		xfdfBytes = data
 	}
 
 	// If files not provided, try to read raw body fields
@@ -76,7 +54,7 @@ func handleFillPDF(c *gin.Context) {
 
 	out, err := pdfService.FillPDFWithXFDF(pdfBytes, xfdfBytes)
 	if err != nil {
-		abortPDFError(c, err)
+		abortPDFError(c, err, "PDF processing failed")
 		return
 	}
 

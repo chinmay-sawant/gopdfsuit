@@ -1,3 +1,7 @@
+// HeadlessUI keep-decision (3.5): Tab* stays because it owns keyboard
+// roving-tabindex, focus trapping, and aria-selected wiring for the API
+// tablist that a hand-rolled tab strip would have to reimplement (and test)
+// for a11y parity. Revisit only if the tab UI is redesigned away.
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
 import { Zap, Globe } from 'lucide-react'
 

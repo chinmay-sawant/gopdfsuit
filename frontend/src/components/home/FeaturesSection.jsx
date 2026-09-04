@@ -1,4 +1,8 @@
 import { Link } from 'react-router-dom'
+// HeadlessUI keep-decision (3.5): Transition stays because it coordinates
+// enter/leave classes with focus-safe unmount for the feature cards; a
+// hand-rolled CSS toggle would drop the exit animation and the reduced-motion
+// handling HeadlessUI wires for free.
 import { Transition } from '@headlessui/react'
 import {
   FileText,
@@ -71,7 +75,7 @@ const features = [
   {
     icon: <Minimize2 size={24} />,
     title: 'PDF Compress',
-    description: 'Shrink PDFs in the browser with WASM — Light, Medium, or Heavy. No upload, no Ghostscript.',
+    description: 'Shrink PDFs in the browser with WASM - Light, Medium, or Heavy. No upload, no Ghostscript.',
     link: '/compress',
     color: 'teal',
   },

@@ -49,13 +49,13 @@ func ExtractTextPositions(pdfBytes []byte, pageNum int) ([]TextPosition, error) 
 	if err != nil {
 		return nil, wrapEngineError(op, err)
 	}
-	out := make([]TextPosition, 0, len(positions))
-	for _, p := range positions {
-		pub, err := fromInternal[models.TextPosition, TextPosition](p)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s response translation: %w", ErrInternal, op, err)
-		}
-		out = append(out, pub)
+	// One slice-level translation instead of a per-item JSON round-trip.
+	out, err := fromInternal[[]models.TextPosition, []TextPosition](positions)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s response translation: %w", ErrInternal, op, err)
+	}
+	if out == nil {
+		out = []TextPosition{}
 	}
 	return out, nil
 }
@@ -77,13 +77,13 @@ func FindTextOccurrences(pdfBytes []byte, searchText string) ([]RedactionRect, e
 	if err != nil {
 		return nil, wrapEngineError(op, err)
 	}
-	out := make([]RedactionRect, 0, len(rects))
-	for _, rc := range rects {
-		pub, err := fromInternal[models.RedactionRect, RedactionRect](rc)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s response translation: %w", ErrInternal, op, err)
-		}
-		out = append(out, pub)
+	// One slice-level translation instead of a per-item JSON round-trip.
+	out, err := fromInternal[[]models.RedactionRect, []RedactionRect](rects)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s response translation: %w", ErrInternal, op, err)
+	}
+	if out == nil {
+		out = []RedactionRect{}
 	}
 	return out, nil
 }
@@ -98,13 +98,13 @@ func ApplyRedactions(pdfBytes []byte, redactions []RedactionRect) ([]byte, error
 	if err != nil {
 		return nil, wrapEngineError(op, err)
 	}
-	internal := make([]models.RedactionRect, 0, len(redactions))
-	for _, rc := range redactions {
-		in, err := toInternal[RedactionRect, models.RedactionRect](rc)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s request translation: %w", ErrInvalidInput, op, err)
-		}
-		internal = append(internal, in)
+	// One slice-level translation instead of a per-item JSON round-trip.
+	internal, err := toInternal[[]RedactionRect, []models.RedactionRect](redactions)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s request translation: %w", ErrInvalidInput, op, err)
+	}
+	if internal == nil {
+		internal = []models.RedactionRect{}
 	}
 	out, err := r.ApplyRedactions(internal)
 	if err != nil {
@@ -177,13 +177,13 @@ func AnalyzePageCapabilities(pdfBytes []byte) ([]PageCapability, error) {
 	if err != nil {
 		return nil, wrapEngineError(op, err)
 	}
-	out := make([]PageCapability, 0, len(caps))
-	for _, c := range caps {
-		pub, err := fromInternal[models.PageCapability, PageCapability](c)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %s response translation: %w", ErrInternal, op, err)
-		}
-		out = append(out, pub)
+	// One slice-level translation instead of a per-item JSON round-trip.
+	out, err := fromInternal[[]models.PageCapability, []PageCapability](caps)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s response translation: %w", ErrInternal, op, err)
+	}
+	if out == nil {
+		out = []PageCapability{}
 	}
 	return out, nil
 }

@@ -1,5 +1,9 @@
 # Makefile reference
 
+> Frozen archive (see `plans/adr-2026-09-04-doc-homes.md`). Do not update;
+> current make targets are documented in the makefile itself (`make bench-help`)
+> and `documentation/`.
+
 Complete guide to the Makefile targets for building, testing, and deploying GoPdfSuit.
 
 ---

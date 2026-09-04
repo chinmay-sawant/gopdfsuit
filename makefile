@@ -27,16 +27,21 @@ build: test-go
 #   GOMEMLIMIT makes the Go runtime GC earlier under pressure,
 #   VERIFY_PDFS_JOBS caps concurrent veraPDF JVMs (each ~0.5-1GB).
 #
-# Usage:
-#   make test                    # full gate: go + python + verify (sequential)
-#   make test-go                 # go only (unit pkgs, then ./test integration)
+# Usage (tiers - cheapest first):
+#   make test-fast                # tier 1 (<2 min): SHORT=1 unit + python, no verify
+#   make test-prepush             # tier 2: test-fast + ./test integration (run before push)
+#   make test                     # tier 3 (full): go + python + verify (sequential)
+#   make test-nightly             # tier 4: full test + scan-all-compliance + race
+#   make test-go                  # go only (unit pkgs, then ./test integration)
 #   make test-unit                # go only, skip ./test integration package
 #   make test-integration         # ./test split: suite, then zerodha (standalone)
 #   make test-integration-suite   # only TestIntegrationSuite process
 #   make test-integration-zerodha # only TestZerodhaPDFCompliance process
 #   make test-python              # python only
-#   make test-verify              # veraPDF verify only
-#   make test-fast                # SHORT=1 unit + python, no verify
+#   make test-verify-pdfs         # veraPDF verify only (test-verify is an alias)
+#   make test-fast                # tier 1: SHORT=1 unit + python, no verify
+#   make test-prepush             # tier 2: test-fast + test-integration
+#   make test-nightly             # tier 4: full test + scan-all-compliance + race
 #   make test-list                # list packages and test names
 #
 # Filters (all optional, overridable on CLI):
@@ -108,12 +113,20 @@ test-integration-zerodha:
 test-python:
 	cd bindings/python && python3 -m pytest tests $(PY_V_FLAG) $(PY_K_FLAG) $(PYTEST_FLAGS)
 
-test-verify:
+# Canonical verify target. test-verify stays as an alias so existing CI
+# and muscle memory keep working (row 5.5: one name, one alias).
+test-verify-pdfs:
 	VERIFY_PDFS_JOBS=$(P) bash test/verify_pdfs.sh
+
+test-verify: test-verify-pdfs
 
 test-fast:
 	@$(MAKE) test-unit SHORT=1 P=$(P) PKG='$(PKG)' T='$(T)' COUNT=$(COUNT) V=$(V)
 	@$(MAKE) test-python PY_K='$(PY_K)' PYTEST_FLAGS='$(PYTEST_FLAGS)'
+
+test-prepush: test-fast test-integration
+
+test-nightly: test test-scan-pdfs-compliance test-race
 
 test-list:
 	@go list ./...
@@ -144,9 +157,6 @@ install-verapdf:
 install-pdf-validators:
 	bash test/install_pdf_validators.sh
 
-test-verify-pdfs:
-	VERIFY_PDFS_JOBS=$(P) bash test/verify_pdfs.sh
-
 test-scan-pdfs:
 	VERIFY_PDFS_JOBS=$(P) bash test/verify_pdfs.sh --scan-all
 
@@ -167,22 +177,21 @@ endif
 
 # In-browser compressor: GOOS=js GOARCH=wasm, no gin / browser deps.
 # HTML conversion is server-side pure-Go via gowkhtmltopdf, no Chrome needed.
-# Copies wasm + wasm_exec.js to frontend/public and sampledata/compress-js.
+# Output goes to frontend/public only; sampledata harnesses copy it locally
+# for runs (gitignored, row 5.6 - wasm is never committed under sampledata/).
 wasm-compress:
-	mkdir -p frontend/public sampledata/compress-js
+	mkdir -p frontend/public
 	GOOS=js GOARCH=wasm go build -o frontend/public/compress.wasm ./cmd/wasmcompress
 	cp "$(WASM_EXEC)" frontend/public/wasm_exec.js
-	cp frontend/public/compress.wasm frontend/public/wasm_exec.js sampledata/compress-js/
 	file frontend/public/compress.wasm
 
 # Full browser bundle: Generate, Merge, Split, Compress, Fill, text-path Redact.
 # HTML conversion and the OCR subprocess stay server-side and are never
 # referenced by ./cmd/wasm (see plans/wasm/01-full-wasm-port.md Phase 2.1).
 wasm:
-	mkdir -p frontend/public sampledata/wasm-js
+	mkdir -p frontend/public
 	GOOS=js GOARCH=wasm go build -o frontend/public/gopdfsuit.wasm ./cmd/wasm
 	cp "$(WASM_EXEC)" frontend/public/wasm_exec.js
-	cp frontend/public/gopdfsuit.wasm frontend/public/wasm_exec.js sampledata/wasm-js/
 	file frontend/public/gopdfsuit.wasm
 
 .PHONY: wasm wasm-compress
@@ -204,7 +213,7 @@ mod:
 	go mod tidy
 
 lint:
-	golangci-lint run -E revive,gocritic,gocyclo,goconst ./...
+	golangci-lint run --timeout 10m -E revive,gocritic,gocyclo,goconst ./...
 	cd frontend && npm run lint
 	cd .. 
 
@@ -257,7 +266,7 @@ K6_LIGHT_SECONDS ?= 15
 K6_LIGHT_MAX_CONCURRENT ?= 24
 K6_LIGHT_GOMAXPROCS ?= 12
 
-.PHONY: build test test-go test-unit test-integration test-integration-suite test-integration-zerodha test-python test-verify test-fast test-list test-schema bench-smoke test-race install-verapdf install-pdf-validators test-verify-pdfs test-scan-pdfs test-scan-pdfs-compliance test-zerodha-compliance clean run fmt vet mod lint \
+.PHONY: build test test-go test-unit test-integration test-integration-suite test-integration-zerodha test-python test-verify test-fast test-prepush test-nightly test-list test-schema bench-smoke test-race install-verapdf install-pdf-validators test-verify-pdfs test-scan-pdfs test-scan-pdfs-compliance test-zerodha-compliance clean run fmt vet mod lint \
 	load-pprof load-pprof-gate load-pprof-1k load-pprof-1500 \
 	bench-help bench-setup \
 	bench-k6 bench-k6-light bench-k6-retail bench-k6-1k bench-k6-1500 bench-k6-load \
@@ -289,75 +298,11 @@ bench-help:
 	@echo "    make bench-setup                 # Typst binary + data.json (sampledata/benchmarks)"
 	@echo "    make bench-k6-install            # install k6 on Debian/Ubuntu WSL"
 	@echo ""
-	@echo "  gopdfsuit HTTP (k6 + pprof - server started by script unless noted):"
-	@echo "    make load-pprof                  # weighted tagged_ecdsa, 48 VU x 35s + CPU/heap pprof"
-	@echo "    make bench-k6                    # alias for load-pprof"
-	@echo "    make bench-k6-light              # 24 VU x 15s, lighter CPU/RAM (WSL / shared machine)"
-	@echo "    make load-pprof-gate             # retail-only signed (bench-k6-retail)"
-	@echo "    make load-pprof-1k               # weighted, 1000 req/s gate"
-	@echo "    make load-pprof-1500             # weighted, 1500 req/s gate"
-	@echo "    make bench-k6-load               # k6 load_test.js only (start server yourself)"
-	@echo "    make bench-k6-smoke              # quick smoke_test.js"
-	@echo "    make bench-k6-spike              # spike_test.js"
-	@echo "    make bench-k6-soak               # 30 min soak_test.js"
+	@echo "  Targets below are generated from this makefile (row 5.5: no hand-kept list):"
 	@echo ""
-	@echo "  Gotenberg HTML→PDF (Docker + k6, sampledata/benchmarks/gotenberg):"
-	@echo "    make bench-gotenberg             # weighted tagged_ecdsa, 48 VU x 35s"
-	@echo "    make bench-gotenberg-load        # k6 only (start Gotenberg yourself)"
-	@echo "    make bench-gotenberg-smoke       # 1 VU smoke_test.js"
-	@echo "    make bench-gotenberg-start       # docker run Gotenberg on :3010"
-	@echo ""
-	@echo "  Zerodha gold standard (sampledata/gopdflib/zerodha):"
-	@echo "    make bench-gopdflib-zerodha            # PDF/A-4 + PDF/UA-2 compliant"
-	@echo "    make bench-gopdflib-zerodha-nocomply   # same workload, compliance off"
-	@echo "    make bench-gopdflib-zerodha-nocomply-x10 # 10 sequential non-compliant runs"
-	@echo "    make bench-gopdflib-zerodha-x2"
-	@echo "    make bench-gopdflib-zerodha-x5   # 5 runs + CPU/heap pprof"
-	@echo "    make bench-gopdflib-zerodha-x10  # 10 sequential timing runs"
-	@echo "    make bench-gopdflib-zerodha-x10-pprof # x10 timing + CPU/heap pprof"
-	@echo "    make bench-pypdfsuit-zerodha"
-	@echo "    make bench-pypdfsuit-zerodha-nocomply   # same workload, compliance off"
-	@echo "    make bench-pypdfsuit-zerodha-nocomply-x10 # 10 sequential non-compliant runs"
-	@echo "    make bench-pypdfsuit-zerodha-x2"
-	@echo "    make bench-pypdfsuit-zerodha-x5   # 5 runs + phase profile (run_pypdfsuit_bench_x5.sh)"
-	@echo "    make bench-pypdfsuit-zerodha-x10  # 10 sequential timing runs"
-	@echo "    make bench-pypdfsuit-zerodha-x10-pprof # x10 timing + x5/profile"
-	@echo "    make bench-pypdfsuit-profile      # phase breakdown (pypdfsuit_profile.py)"
-	@echo ""
-	@echo "  gpdf Zerodha gold standard (sampledata/gpdf/zerodha):"
-	@echo "    make bench-gpdf-zerodha           # PDF/A-2b + ECDSA retail signing"
-	@echo "    make bench-gpdf-zerodha-nocomply  # same workload, compliance off"
-	@echo "    make bench-gpdf-zerodha-x10       # 10 sequential timing runs"
-	@echo ""
-	@echo "  GoPDFLib data-table + pprof (sampledata/benchmarks/gopdflib):"
-	@echo "    make bench-gopdflib-data"
-	@echo "    make bench-gopdflib-data-pprof   # 5000x + 5 CPU + 1 heap profile"
-	@echo ""
-	@echo "  Multi-library suite (sampledata/benchmarks - run bench-setup first):"
-	@echo "    make bench-all-libraries         # all engines sequentially"
-	@echo "    make bench-gopdfsuit-zerodha     # GoPDFSuit via benchmarktemplates"
-	@echo "    make bench-pypdfsuit-legacy      # pypdfsuit bench.py (benchmarks dir)"
-	@echo "    make bench-fpdf bench-jspdf bench-pdfkit-lib bench-pdflib bench-typst"
-	@echo ""
-	@echo "  GoPDFKit apples-to-apples (sampledata/benchmarks/gopdfkit_compare):"
-	@echo "    make bench-gopdfkit-setup        # symlink real gopdfkit module"
-	@echo "    make bench-gopdfkit-compare-test # PDF output sanity before timing"
-	@echo "    make bench-gopdfkit-compare"
-	@echo "    make bench-gopdfkit-compare-x2"
-	@echo "    make bench-gopdfkit-html         # HTML subset (needs Chrome; opt-in)"
-	@echo ""
-	@echo "  Go test benchmarks:"
-	@echo "    make bench-handler-all           # Gin handler financial_report.json"
-	@echo "    make bench-handler               # serial only"
-	@echo "    make bench-handler-parallel      # parallel only"
-	@echo "    make bench-pdf-micro             # Rows2000 + data.json (internal/pdf)"
-	@echo "    make bench-pdf-macro             # Rows2000/10000/25000 synthetic tables"
-	@echo "    make bench-pdf-typst             # Typst compile (requires bench-setup + compare tag)"
-	@echo ""
-	@echo "  Full suites (sequential - allow several minutes):"
-	@echo "    make bench-suite                 # zerodha + pypdfsuit + gopdfkit + handler + k6"
-	@echo "    make bench-suite-x2              # two passes each harness in bench-suite"
-	@echo "    make bench-suite-full            # bench-suite + multi-library run_all_benchmarks.sh"
+	@grep -E '^(bench|load)-[A-Za-z0-9-]+:' makefile | sed -E 's/:.*//' | sort -u | \
+		awk -F'-' '{key = $$2; sub(/^bench$$/, "misc", key); print key" "$$0}' | sort | \
+		awk '{if ($$1 != prev) {printf "  %s:\n", $$1; prev = $$1} printf "    make %s\n", $$2}'
 
 # ── gopdfsuit: k6 HTTP load + pprof ──────────────────────────────────────────
 

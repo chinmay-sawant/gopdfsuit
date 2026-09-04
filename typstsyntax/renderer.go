@@ -3,8 +3,9 @@ package typstsyntax
 import (
 	"bytes"
 	"math"
-	"strconv"
 	"strings"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/vector"
 )
 
 // RenderContext holds state needed during PDF rendering of math expressions.
@@ -1165,16 +1166,16 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 			buf.WriteString("BT\n")
 			buf.WriteString(fontRef)
 			buf.WriteString(" ")
-			buf.WriteString(fmtFloat(fontSize))
+			buf.WriteString(vector.FormatFloat(fontSize))
 			buf.WriteString(" Tf\n")
 			if ctx.TextColor != "" {
 				buf.WriteString(ctx.TextColor)
 				buf.WriteString(" rg\n")
 			}
 			buf.WriteString("1 0 0 1 0 0 Tm\n")
-			buf.WriteString(fmtFloat(x))
+			buf.WriteString(vector.FormatFloat(x))
 			buf.WriteString(" ")
-			buf.WriteString(fmtFloat(y))
+			buf.WriteString(vector.FormatFloat(y))
 			buf.WriteString(" Td\n")
 
 			// Format text for PDF
@@ -1182,7 +1183,7 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 				buf.WriteString(ctx.FormatText(el.Text))
 			} else {
 				buf.WriteString("(")
-				buf.WriteString(escapePDFText(el.Text))
+				buf.WriteString(vector.EscapeText(el.Text))
 				buf.WriteString(")")
 			}
 			buf.WriteString(" Tj\n")
@@ -1203,16 +1204,13 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 				buf.WriteString(ctx.TextColor)
 				buf.WriteString(" RG\n")
 			}
-			buf.WriteString(fmtFloat(lineW))
-			buf.WriteString(" w\n")
-			buf.WriteString(fmtFloat(x1))
-			buf.WriteString(" ")
-			buf.WriteString(fmtFloat(y1))
-			buf.WriteString(" m ")
-			buf.WriteString(fmtFloat(x2))
-			buf.WriteString(" ")
-			buf.WriteString(fmtFloat(y2))
-			buf.WriteString(" l S\n")
+			buf.WriteString("q\n")
+			if ctx.TextColor != "" {
+				buf.WriteString(ctx.TextColor)
+				buf.WriteString(" RG\n")
+			}
+			vector.LineWidth(buf, 2, lineW)
+			vector.StrokeLine(buf, 2, x1, y1, x2, y2)
 			buf.WriteString("Q\n")
 
 		case ElemPath:
@@ -1229,31 +1227,18 @@ func renderElements(buf *bytes.Buffer, elements []MathElement, baseX, baseY floa
 				buf.WriteString(" RG\n")
 			}
 			buf.WriteString("1 J 1 j\n") // round line cap + round line join
-			buf.WriteString(fmtFloat(lineW))
-			buf.WriteString(" w\n")
-			p0 := el.PathPoints[0]
-			buf.WriteString(fmtFloat(baseX + el.X + p0[0]))
-			buf.WriteString(" ")
-			buf.WriteString(fmtFloat(baseY + el.Y + p0[1]))
-			buf.WriteString(" m\n")
-			for _, pt := range el.PathPoints[1:] {
-				buf.WriteString(fmtFloat(baseX + el.X + pt[0]))
-				buf.WriteString(" ")
-				buf.WriteString(fmtFloat(baseY + el.Y + pt[1]))
-				buf.WriteString(" l\n")
+			vector.LineWidth(buf, 2, lineW)
+			pts := make([][2]float64, len(el.PathPoints))
+			for i, pt := range el.PathPoints {
+				pts[i] = [2]float64{baseX + el.X + pt[0], baseY + el.Y + pt[1]}
 			}
-			buf.WriteString("S\n")
+			vector.StrokePath(buf, 2, pts)
 			buf.WriteString("Q\n")
 
 		case ElemGroup:
 			renderElements(buf, el.Children, baseX+el.X, baseY+el.Y, ctx)
 		}
 	}
-}
-
-// fmtFloat formats a float64 for PDF with 2 decimal places.
-func fmtFloat(f float64) string {
-	return strconv.FormatFloat(f, 'f', 2, 64)
 }
 
 // isSpace checks whether s contains only whitespace characters without allocating.
@@ -1338,12 +1323,4 @@ func makeParenRight(x, top, bottom float64) MathElement {
 		points[i] = [2]float64{px, py}
 	}
 	return MathElement{Type: ElemPath, X: 0, Y: 0, PathPoints: points, LineWidth: parenLineWidth}
-}
-
-// escapePDFText escapes special characters for PDF literal strings.
-func escapePDFText(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "(", "\\(")
-	s = strings.ReplaceAll(s, ")", "\\)")
-	return s
 }

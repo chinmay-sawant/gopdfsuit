@@ -1,9 +1,17 @@
 // Package main provides CGO exports for the Python bindings.
 //
-// Validation ownership: this layer enforces transport-only guards (nil
-// pointers, insane lengths, malformed JSON). All semantic validation lives
-// in pkg/gopdflib, the single validating interface shared by Go, Python,
-// HTTP, and WASM callers. Do not add content checks here.
+// Validation ownership (do not blur these lines):
+//
+//   - Python (bindings/python/pypdfsuit/*.py): type and shape checks on
+//     caller-owned values (non-empty bytes, required fields, level names).
+//     Python raises ValueError before crossing the ABI.
+//   - CGO (this file): transport-only guards (nil pointers, representable
+//     lengths, payload caps, malformed JSON). All semantic validation lives
+//     in pkg/gopdflib, the single validating interface shared by Go,
+//     Python, HTTP, and WASM callers. Do not add content checks here.
+//   - gopdflib: semantics (empty PDFs, page specs, format policy, count
+//     caps such as MaxMergeFileCount). CGO passes inputs through so
+//     gopdflib owns the resulting errors.
 package main
 
 /*
@@ -218,8 +226,8 @@ func MergePDFs(pdfData **C.char, pdfLengths *C.int, count C.int) C.ByteResult {
 		if pdfData == nil || pdfLengths == nil {
 			return nil, invalidArg(errors.New("nil array pointer"))
 		}
-		if count <= 0 || int64(count) >= 1<<16 {
-			return nil, invalidArg(errors.New("invalid PDF count (must be 0 < count < 65536)"))
+		if count <= 0 || int64(count) >= gopdflib.MaxMergeFileCount {
+			return nil, invalidArg(errors.New("invalid PDF count"))
 		}
 
 		dataSlice := unsafe.Slice(pdfData, int(count))

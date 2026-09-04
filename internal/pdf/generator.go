@@ -448,108 +448,10 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		pageManager.Structure.ReserveElementCapacity(estimateStructureElementCount(template))
 	}
 
-	// Process images and create XObjects
-	imageObjects := make(map[int]*ImageObject) // map imageIndex to ImageObject
-	imageObjectIDs := make(map[int]int)        // map imageIndex to PDF object ID
-
-	// Process cell images - map tableIdx:rowIdx:colIdx to XObject ID
-	// Also process title table images with prefix "title:"
-	cellImageObjects := make(map[string]*ImageObject)
-	cellImageObjectIDs := make(map[string]int)
-
-	// Image object IDs come from the page manager allocator so they can never
-	// collide with page, content, font, or extra object IDs (a fixed base
-	// collided once documents grew past ~997 pages).
-	// extraRegionBase marks where allocator-backed IDs start; the dense
-	// low-region layout (pages/contents/fonts, below) must stay clear of it.
-	nextImageObjectID := alloc.Next()
-	extraRegionBase := nextImageObjectID
-
-	// Reuse identical decoded images across all document references so repeated
-	// cell PNGs point at one shared XObject instead of serializing duplicates.
-	imageDeduper := newImageObjectDeduper()
-
-	// Process standalone images
-	for i, img := range template.Image {
-		if img.ImageData != "" {
-			imgObj, err := DecodeImageData(img.ImageData)
-			if err == nil {
-				imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
-				imageObjects[i] = imgObj
-				imageObjectIDs[i] = imgObj.ObjectID
-			}
-		}
-	}
-
-	// Process title table images
-	if template.Title.Table != nil {
-		for rowIdx, row := range template.Title.Table.Rows {
-			for colIdx, cell := range row.Row {
-				if cell.Image != nil && cell.Image.ImageData != "" {
-					imgObj, err := DecodeImageData(cell.Image.ImageData)
-					if err == nil {
-						imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
-						cellKey := buildCellKey2("title", rowIdx, colIdx)
-						cellImageObjects[cellKey] = imgObj
-						cellImageObjectIDs[cellKey] = imgObj.ObjectID
-					}
-				}
-			}
-		}
-	}
-
-	// Process cell images in tables (indexed tables from top-level Table array)
-	for tableIdx, table := range template.Table {
-		for rowIdx, row := range table.Rows {
-			for colIdx, cell := range row.Row {
-				if cell.Image != nil && cell.Image.ImageData != "" {
-					imgObj, err := DecodeImageData(cell.Image.ImageData)
-					if err == nil {
-						imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
-						// Key for indexed tables: "0:0:0" (tableIdx:rowIdx:colIdx)
-						cellKey := buildCellKey3(tableIdx, rowIdx, colIdx)
-						cellImageObjects[cellKey] = imgObj
-						cellImageObjectIDs[cellKey] = imgObj.ObjectID
-					}
-				}
-			}
-		}
-	}
-
-	// Process inline table images in Elements array
-	for elemIdx, elem := range template.Elements {
-		if elem.Type == "table" && elem.Table != nil { //nolint:goconst
-			for rowIdx, row := range elem.Table.Rows {
-				for colIdx, cell := range row.Row {
-					if cell.Image != nil && cell.Image.ImageData != "" {
-						imgObj, err := DecodeImageData(cell.Image.ImageData)
-						if err == nil {
-							imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
-							// Key for inline tables: "elem_inline:5:0:0" (elem_inline:elemIdx:rowIdx:colIdx)
-							cellKey := buildCellKeyElemInline(elemIdx, rowIdx, colIdx)
-							cellImageObjects[cellKey] = imgObj
-							cellImageObjectIDs[cellKey] = imgObj.ObjectID
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Process inline images in elements array
-	// These are images specified directly in the elements array with type="image" and image:{...}
-	elemImageObjects := make(map[int]*ImageObject) // map element index to ImageObject
-	elemImageObjectIDs := make(map[int]int)        // map element index to PDF object ID
-	for elemIdx, elem := range template.Elements {
-		if elem.Type == "image" && elem.Image != nil && elem.Image.ImageData != "" {
-			imgObj, err := DecodeImageData(elem.Image.ImageData)
-			if err == nil {
-				imgObj = imageDeduper.intern(imgObj, &nextImageObjectID)
-				elemImageObjects[elemIdx] = imgObj
-				elemImageObjectIDs[elemIdx] = imgObj.ObjectID
-			}
-		}
-	}
+	// Decode every image reference over one iterator; duplicates intern to a
+	// shared XObject through the generation deduper.
+	gen := newGeneration(template, pageManager, alloc)
+	gen.decodeImages()
 
 	pdfBuffer.WriteString("%PDF-2.0\n")
 	pdfBuffer.WriteString("%âãÏÓ\n")
@@ -558,15 +460,15 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// This ensures that when content streams are generated, custom font references
 	// (e.g., /CF2000) have valid object IDs. Custom fonts start AFTER image objects
 	// to avoid conflicts with image XObjects.
-	alloc.SeekTo(nextImageObjectID)
+	alloc.SeekTo(gen.nextImageObjectID)
 	customFontObjectStart := alloc.Next()
 	alloc.SeekTo(fontRegistry.AssignObjectIDs(customFontObjectStart))
 
 	// Generate all content first to know how many pages we need
 	// Pass imageObjects, imageObjectIDs, cellImageObjectIDs and elemImageObjectIDs so content generation can reference them
-	generateAllContentWithImages(template, pageManager, imageObjects, cellImageObjectIDs, elemImageObjects)
+	generateAllContentWithImages(template, pageManager, gen.imageObjects, gen.cellImageObjectIDs, gen.elemImageObjects)
 	preContentCap := pdfBuffer.Cap()
-	finalEstimate := estimateFinalPDFSize(pageManager, imageDeduper.uniqueObjectCount())
+	finalEstimate := estimateFinalPDFSize(pageManager, gen.deduper.uniqueObjectCount())
 	ensurePDFBufferCapacity(pdfBuffer, finalEstimate)
 	if benchCapacityDebugEnabled() && pdfBuffer.Cap() > preContentCap {
 		pdfCapacityHighWater.PostCapGrow++
@@ -625,96 +527,20 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	}
 
 	// Calculate object IDs for fonts early (needed for signature font embedding)
-	// Calculate total pages first
-	totalPages := len(pageManager.Pages)
-	contentObjectStart, fontObjectStart, err := alloc.LayoutContentFontIDs(totalPages, extraRegionBase)
+	fl, err := gen.layoutFontIDs(fontRegistry)
 	if err != nil {
 		return nil, err
 	}
+	// NOTE: Font ID calculation has been moved into the layout phase above;
+	// the aliases below keep the emit code unchanged.
+	contentObjectStart := fl.contentStart
+	fontObjectIDs, fontDescriptorIDs, fontWidthsIDs := fl.objectIDs, fl.descriptorIDs, fl.widthsIDs
+	usedStandardFonts, shouldEmbed, widthGroups := fl.used, fl.shouldEmbed, fl.widthGroups
+	fontNames, fontRefs := standardFontNames, standardFontRefs
 
-	// Standard fonts definition
-	fontNames := []string{
-		"Helvetica", "Helvetica-Bold", "Helvetica-Oblique", "Helvetica-BoldOblique", // F1-F4
-		"Times-Roman", "Times-Bold", "Times-Italic", "Times-BoldItalic", // F5-F8
-		"Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique", // F9-F12
-		"Symbol", "ZapfDingbats", // F13-F14
-	}
-	fontRefs := []string{"/F1", "/F2", "/F3", "/F4", "/F5", "/F6", "/F7", "/F8", "/F9", "/F10", "/F11", "/F12", "/F13", "/F14"}
-
-	// Identify used standard fonts
-	usedStandardFonts := collectUsedStandardFonts(template, fontRegistry)
-
-	// If signature is enabled and visible, force usage of Helvetica
+	// If signature is enabled and visible, Helvetica was force-marked used
+	// in the layout phase above.
 	signatureEnabled := template.Config.Signature != nil && template.Config.Signature.Enabled
-	if signatureEnabled && template.Config.Signature.Visible {
-		usedStandardFonts["Helvetica"] = true
-	}
-
-	shouldEmbed := template.Config.EmbedFonts == nil || *template.Config.EmbedFonts
-
-	// Calculate Object IDs for standard fonts dynamically
-	// Only assign IDs for fonts that are used
-	fontObjectIDs := make(map[string]int)     // Font Name -> Font Dictionary Object ID
-	fontDescriptorIDs := make(map[string]int) // Font Name -> Font Descriptor Object ID
-	fontWidthsIDs := make(map[string]int)     // Font Name (group) -> Widths Array Object ID
-
-	currentObjectID := fontObjectStart
-
-	// Phase 1: Assign IDs for Font Dictionaries
-	for _, name := range fontNames {
-		if usedStandardFonts[name] {
-			fontObjectIDs[name] = currentObjectID
-			currentObjectID++
-		}
-	}
-
-	// Phase 2: Assign IDs for Descriptors and Widths (Arlington mode only)
-	widthGroups := map[string]string{
-		"Helvetica":             "helvetica-regular",
-		"Helvetica-Oblique":     "helvetica-regular",
-		"Helvetica-Bold":        "helvetica-bold",
-		"Helvetica-BoldOblique": "helvetica-bold",
-		"Times-Roman":           "times-roman",
-		"Times-Bold":            "times-bold",
-		"Times-Italic":          "times-italic",
-		"Times-BoldItalic":      "times-bolditalic",
-		"Courier":               "courier",
-		"Courier-Bold":          "courier",
-		"Courier-Oblique":       "courier",
-		"Courier-BoldOblique":   "courier",
-		"Symbol":                "symbol",
-		"ZapfDingbats":          "zapfdingbats",
-	}
-
-	if template.Config.ArlingtonCompatible && shouldEmbed {
-		// Assign Descriptor IDs
-		for _, name := range fontNames {
-			if usedStandardFonts[name] {
-				fontDescriptorIDs[name] = currentObjectID
-				currentObjectID++
-			}
-		}
-
-		// Assign Widths IDs (deduplicated by group)
-		assignedGroups := make(map[string]bool)
-		for _, name := range fontNames {
-			if usedStandardFonts[name] {
-				group := widthGroups[name]
-				if !assignedGroups[group] {
-					fontWidthsIDs[group] = currentObjectID
-					currentObjectID++
-					assignedGroups[group] = true
-				}
-			}
-		}
-	}
-
-	// Keep the allocator past the font block so later extras (signature
-	// field, metadata, struct tree, ICC, AcroForm, info, encrypt) can never
-	// reuse those IDs. In the legacy layout this is a no-op (fonts sit far
-	// below NextObjectID); in a shifted layout it advances past the fonts.
-	// It must run before signature creation, which allocates via the manager.
-	alloc.EnsureBeyond(currentObjectID)
 
 	// Setup digital signature if enabled
 	var pdfSigner *signature.PDFSigner
@@ -924,16 +750,16 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 			xobjBuilder.WriteString(" 0 R")
 		}
 
-		if len(imageObjects) > 0 || len(cellImageObjects) > 0 || len(elemImageObjects) > 0 {
+		if len(gen.imageObjects) > 0 || len(gen.cellImageObjects) > 0 || len(gen.elemImageObjects) > 0 {
 			xobjBuilder.WriteString(" /XObject <<")
-			for i, objID := range imageObjectIDs {
+			for i, objID := range gen.imageObjectIDs {
 				writeXObjRefInt("I", i, objID)
 			}
-			for cellKey, objID := range cellImageObjectIDs {
+			for cellKey, objID := range gen.cellImageObjectIDs {
 				shortKey := strings.ReplaceAll(cellKey, ":", "_")
 				writeXObjRef("C", shortKey, objID)
 			}
-			for elemIdx, objID := range elemImageObjectIDs {
+			for elemIdx, objID := range gen.elemImageObjectIDs {
 				writeXObjRefInt("E", elemIdx, objID)
 			}
 			for id, content := range pageManager.ExtraObjects {
@@ -1202,63 +1028,10 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Pre-compute ICC-based color space string for PDF/A images
 	iccColorSpace := "[/ICCBased " + strconv.Itoa(actualICCProfileObjID) + " 0 R]"
 
-	// Generate image XObjects (standalone images)
-	writtenImageObjects := make(map[int]struct{}, imageDeduper.uniqueObjectCount())
-	for _, imgObj := range imageObjects {
-		if _, exists := writtenImageObjects[imgObj.ObjectID]; exists {
-			continue
-		}
-		writtenImageObjects[imgObj.ObjectID] = struct{}{}
-		// PDF/UA-2: Ensure images use the ICC profile for color space
-		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = iccColorSpace
-		}
-
-		alloc.SetOffset(imgObj.ObjectID, pdfBuffer.Len())
-		if enc != nil {
-			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
-		} else {
-			pdfBuffer.Write(CreateImageXObject(imgObj, imgObj.ObjectID))
-		}
-	}
-
-	// Generate image XObjects (cell images)
-	for _, imgObj := range cellImageObjects {
-		if _, exists := writtenImageObjects[imgObj.ObjectID]; exists {
-			continue
-		}
-		writtenImageObjects[imgObj.ObjectID] = struct{}{}
-		// PDF/UA-2: Ensure images use the ICC profile for color space
-		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = iccColorSpace
-		}
-
-		alloc.SetOffset(imgObj.ObjectID, pdfBuffer.Len())
-		if enc != nil {
-			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
-		} else {
-			pdfBuffer.Write(CreateImageXObject(imgObj, imgObj.ObjectID))
-		}
-	}
-
-	// Generate image XObjects (element images)
-	for _, imgObj := range elemImageObjects {
-		if _, exists := writtenImageObjects[imgObj.ObjectID]; exists {
-			continue
-		}
-		writtenImageObjects[imgObj.ObjectID] = struct{}{}
-		// PDF/UA-2: Ensure images use the ICC profile for color space
-		if template.Config.PDFACompliant && actualICCProfileObjID > 0 {
-			imgObj.ColorSpace = iccColorSpace
-		}
-
-		alloc.SetOffset(imgObj.ObjectID, pdfBuffer.Len())
-		if enc != nil {
-			pdfBuffer.Write(CreateEncryptedImageXObject(imgObj, imgObj.ObjectID, enc))
-		} else {
-			pdfBuffer.Write(CreateImageXObject(imgObj, imgObj.ObjectID))
-		}
-	}
+	// Generate image XObjects over one deduped map (standalone, cell, and
+	// element images share ObjectIDs through the generation deduper).
+	useICC := template.Config.PDFACompliant && actualICCProfileObjID > 0
+	gen.emitImageXObjects(pdfBuffer, iccColorSpace, useICC, enc)
 
 	// Generate custom font objects (TrueType/OpenType embedded fonts)
 	usedFonts := fontRegistry.GetUsedFonts()
@@ -2243,7 +2016,11 @@ func generateAllContentWithImages(template models.PDFTemplate, pageManager *Page
 
 	// Title - Process if title text is provided OR if title has a table
 	if template.Title.Text != "" || template.Title.Table != nil {
-		titleProps := parseProps(template.Title.Props)
+		titlePropsStr := template.Title.TextProps
+		if titlePropsStr == "" {
+			titlePropsStr = template.Title.Props
+		}
+		titleProps := parseProps(titlePropsStr)
 
 		// Calculate title height based on content
 		var titleHeight float64
@@ -2401,7 +2178,11 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 
 	// Scan title
 	if template.Title.Text != "" {
-		markFont(template.Title.Props)
+		titlePropsStr := template.Title.TextProps
+		if titlePropsStr == "" {
+			titlePropsStr = template.Title.Props
+		}
+		markFont(titlePropsStr)
 	}
 
 	// Scan title table
@@ -2451,7 +2232,11 @@ func collectUsedStandardFonts(template models.PDFTemplate, registry *CustomFontR
 
 	// Scan footer
 	if template.Footer.Text != "" {
-		markFont(template.Footer.Font)
+		footerPropsStr := template.Footer.Props
+		if footerPropsStr == "" {
+			footerPropsStr = template.Footer.Font
+		}
+		markFont(footerPropsStr)
 	}
 
 	// Scan watermark (always uses Helvetica if present)
@@ -2537,7 +2322,11 @@ func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]b
 
 	// Scan title
 	if template.Title.Text != "" {
-		markFont(template.Title.Props)
+		titlePropsStr := template.Title.TextProps
+		if titlePropsStr == "" {
+			titlePropsStr = template.Title.Props
+		}
+		markFont(titlePropsStr)
 	}
 
 	// Scan title table
@@ -2587,7 +2376,11 @@ func collectAllStandardFontsInTemplate(template models.PDFTemplate) map[string]b
 
 	// Scan footer
 	if template.Footer.Text != "" {
-		markFont(template.Footer.Font)
+		footerPropsStr := template.Footer.Props
+		if footerPropsStr == "" {
+			footerPropsStr = template.Footer.Font
+		}
+		markFont(footerPropsStr)
 	}
 
 	return used

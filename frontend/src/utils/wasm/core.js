@@ -1,6 +1,19 @@
 // Loader primitives for Go WASM bundles (browser main thread).
 // No op logic here: see sibling modules (compress, generate, document,
 // redact, fonts, compliance) plus transports.js for the consent matrix.
+// Envelope ownership lives in ./envelope.js (callWasm); caching lives in
+// cachedFetch below, shared by fonts.js, templates.js, and (by copy) the
+// classic-worker compressWorker.js, which cannot import ESM.
+//
+// Artifact split (permanent, 2026-09-04): compress.wasm (~8M, only the
+// compress binding) stays separate from gopdfsuit.wasm (~31M, full engine).
+// Merging would force the full engine into the compress Worker and into
+// every CSP worker-src allowlist that today scopes to the small bundle, for
+// no behavior gain now that the envelope and loader are unified here.
+
+import { callWasm, callWasmObject, missingEngineError } from './envelope.js'
+
+export { callWasm, callWasmObject, missingEngineError }
 
 const WASM_EXEC_URL = `${import.meta.env.BASE_URL}wasm_exec.js`
 export const COMPRESS_WASM_URL = `${import.meta.env.BASE_URL}compress.wasm`
@@ -8,24 +21,37 @@ export const GOPDFSUIT_WASM_URL = `${import.meta.env.BASE_URL}gopdfsuit.wasm`
 
 const modulePromises = new Map()
 
-// Cache-first fetch for WASM binaries: once downloaded, pages work fully
-// offline (same Cache API story as fonts.js and templates.js). Falls back
-// to plain fetch where Cache API is unavailable.
-const WASM_CACHE_NAME = 'gopdfsuit-wasm-v1'
+// One cache-first fetch for every WASM-adjacent download (binaries, fonts,
+// templates manifests). Falls back to plain fetch where Cache API is
+// unavailable. `as: 'json'` parses JSON, `as: 'bytes'` returns Uint8Array,
+// default returns the Response. Once downloaded, pages work fully offline
+// (same Cache API story as fonts.js and templates.js).
+export const WASM_CACHE_NAME = 'gopdfsuit-wasm-v1'
 
-async function fetchCached(url) {
+export async function cachedFetch(url, { cacheName = WASM_CACHE_NAME, as = 'response' } = {}) {
+  const readAs = async (response) => {
+    if (!response.ok) throw new Error(`fetch failed: ${url} (${response.status})`)
+    if (as === 'json') return response.json()
+    if (as === 'bytes') return new Uint8Array(await response.arrayBuffer())
+    return response
+  }
   try {
-    const cache = await caches.open(WASM_CACHE_NAME)
+    const cache = await caches.open(cacheName)
     const hit = await cache.match(url)
-    if (hit) return hit
+    if (hit) return readAs(hit)
     const response = await fetch(url)
     if (response.ok) {
       cache.put(url, response.clone()).catch(() => {})
     }
-    return response
+    return readAs(response)
   } catch {
-    return fetch(url)
+    const response = await fetch(url)
+    return readAs(response)
   }
+}
+
+async function fetchCached(url) {
+  return cachedFetch(url)
 }
 
 export function asUint8Array(input, label = 'expected a Uint8Array or ArrayBuffer view of PDF bytes') {

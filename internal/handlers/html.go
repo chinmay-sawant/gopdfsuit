@@ -5,68 +5,46 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/gin-gonic/gin"
 )
 
-// handleHTMLToPDF handles HTML to PDF conversion using htmltopdf
-func handleHTMLToPDF(c *gin.Context) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxHTMLBodyBytes)
-
-	var req models.HTMLToPDFRequest
-	data, err := c.GetRawData()
-	if err != nil {
-		if isBodyTooLargeErr(err) {
-			abortError(c, http.StatusRequestEntityTooLarge, "request body too large")
-			return
-		}
-		log.Printf("handleHTMLToPDF: read body failed: %v", err)
-		abortError(c, http.StatusBadRequest, "invalid request")
-		return
-	}
-
-	if err := sonic.Unmarshal(data, &req); err != nil {
-		log.Printf("handleHTMLToPDF: invalid JSON: %v", err)
-		abortError(c, http.StatusBadRequest, "invalid request")
-		return
-	}
-
-	if req.HTML == "" && req.URL == "" {
+// rejectHTMLSource enforces the shared HTML-source policy: either html or
+// url is required, and fetch URLs pass the SSRF guard. It returns false
+// after writing the rejection when the handler must abort.
+func rejectHTMLSource(c *gin.Context, html, url string) bool {
+	if html == "" && url == "" {
 		abortError(c, http.StatusBadRequest, "either html or url is required")
-		return
+		return false
 	}
-	if err := validateFetchURL(req.URL); err != nil {
+	if err := validateFetchURL(url); err != nil {
 		if errors.Is(err, errFetchURLBlocked) {
 			abortError(c, http.StatusForbidden, "url target is not allowed")
-			return
+			return false
 		}
 		abortError(c, http.StatusBadRequest, "invalid url")
+		return false
+	}
+	return true
+}
+
+// handleHTMLToPDF handles HTML to PDF conversion using htmltopdf
+func handleHTMLToPDF(c *gin.Context) {
+	req, tooLarge, err := decodeJSONBody[models.HTMLToPDFRequest](c, maxHTMLBodyBytes)
+	if tooLarge {
+		abortError(c, http.StatusRequestEntityTooLarge, "request body too large")
+		return
+	}
+	if err != nil {
+		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
-	// Set defaults
-	if req.PageSize == "" {
-		req.PageSize = "A4"
+	if !rejectHTMLSource(c, req.HTML, req.URL) {
+		return
 	}
-	if req.Orientation == "" {
-		req.Orientation = "Portrait"
-	}
-	if req.MarginTop == "" {
-		req.MarginTop = "10mm" //nolint:goconst
-	}
-	if req.MarginRight == "" {
-		req.MarginRight = "10mm"
-	}
-	if req.MarginBottom == "" {
-		req.MarginBottom = "10mm"
-	}
-	if req.MarginLeft == "" {
-		req.MarginLeft = "10mm"
-	}
-	if req.DPI == 0 {
-		req.DPI = 300
-	}
+
+	req = newHTMLToPDFRequest(req)
 
 	pdfBytes, err := pdfService.HTMLToPDF(req)
 	if err != nil {
@@ -82,48 +60,28 @@ func handleHTMLToPDF(c *gin.Context) {
 
 // handleHTMLToImage handles HTML to image conversion using htmltoimage
 func handleHTMLToImage(c *gin.Context) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxHTMLBodyBytes)
-
-	var req models.HTMLToImageRequest
-	data, err := c.GetRawData()
+	req, tooLarge, err := decodeJSONBody[models.HTMLToImageRequest](c, maxHTMLBodyBytes)
+	if tooLarge {
+		abortError(c, http.StatusRequestEntityTooLarge, "request body too large")
+		return
+	}
 	if err != nil {
-		if isBodyTooLargeErr(err) {
-			abortError(c, http.StatusRequestEntityTooLarge, "request body too large")
-			return
-		}
-		log.Printf("handleHTMLToImage: read body failed: %v", err)
 		abortError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
-	if err := sonic.Unmarshal(data, &req); err != nil {
-		log.Printf("handleHTMLToImage: invalid JSON: %v", err)
-		abortError(c, http.StatusBadRequest, "invalid request")
+	if !rejectHTMLSource(c, req.HTML, req.URL) {
 		return
 	}
 
-	if req.HTML == "" && req.URL == "" {
-		abortError(c, http.StatusBadRequest, "either html or url is required")
-		return
-	}
-	if err := validateFetchURL(req.URL); err != nil {
-		if errors.Is(err, errFetchURLBlocked) {
-			abortError(c, http.StatusForbidden, "url target is not allowed")
-			return
-		}
-		abortError(c, http.StatusBadRequest, "invalid url")
-		return
-	}
+	req = newHTMLToImageRequest(req)
 
-	// Set defaults
-	if req.Format == "" {
-		req.Format = "png"
-	}
-	if req.Quality == 0 {
-		req.Quality = 94
-	}
-	if req.Zoom == 0 {
-		req.Zoom = 1.0
+	// gopdflib.ConvertHTMLToImage owns the format policy: svg has no image
+	// equivalent and is rejected there, so the handler mirrors the
+	// rejection up front to keep the 400 on this side of the service seam.
+	if req.Format == "svg" {
+		abortError(c, http.StatusBadRequest, "format svg is not supported: use png or jpg")
+		return
 	}
 
 	imageBytes, err := pdfService.HTMLToImage(req)

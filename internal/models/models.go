@@ -223,21 +223,24 @@ type Element struct {
 
 // Config holds document-wide settings such as page size, margins, and security.
 type Config struct {
-	PageBorder          string             `json:"pageBorder"`
-	PageMargin          string             `json:"pageMargin,omitempty"`          // Page margins in points: "left:right:top:bottom" (default: "72:72:72:72")
-	Page                string             `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
-	PageAlignment       int                `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
-	Watermark           string             `json:"watermark,omitempty"`           // Optional diagonal watermark text
-	PdfTitle            string             `json:"pdfTitle,omitempty"`            // Document title for PDF metadata
-	ArlingtonCompatible bool               `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
-	Bookmarks           []Bookmark         `json:"bookmarks,omitempty"`           // Document outline/bookmarks for navigation
-	Security            *SecurityConfig    `json:"security,omitempty"`            // Password protection and encryption settings
-	PDFA                *PDFAConfig        `json:"pdfa,omitempty"`                // PDF/A compliance settings
-	Signature           *SignatureConfig   `json:"signature,omitempty"`           // Digital signature settings
-	EmbedFonts          *bool              `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
-	CustomFonts         []CustomFontConfig `json:"customFonts,omitempty"`         // Custom TTF/OTF fonts to embed
-	PDFACompliant       bool               `json:"pdfaCompliant,omitempty"`       // Enable PDF/A-4 compliance mode (PDF 2.0, requires all fonts to be embedded via Liberation fonts)
-	TaggedPDF           bool               `json:"taggedPDF,omitempty"`           // Emit structure tree/marked content; implied when pdfaCompliant is true via generator logic
+	PageBorder          string           `json:"pageBorder"`
+	PageMargin          string           `json:"pageMargin,omitempty"`          // Page margins in points: "left:right:top:bottom" (default: "72:72:72:72")
+	Page                string           `json:"page"`                          // Page size: "A4", "Letter", "Legal", etc.
+	PageAlignment       int              `json:"pageAlignment"`                 // 1 = Portrait (vertical), 2 = Landscape (horizontal)
+	Watermark           string           `json:"watermark,omitempty"`           // Optional diagonal watermark text
+	PdfTitle            string           `json:"pdfTitle,omitempty"`            // Document title for PDF metadata
+	ArlingtonCompatible bool             `json:"arlingtonCompatible,omitempty"` // Enable PDF 2.0 Arlington Model compliance (full font metrics)
+	Bookmarks           []Bookmark       `json:"bookmarks,omitempty"`           // Document outline/bookmarks for navigation
+	Security            *SecurityConfig  `json:"security,omitempty"`            // Password protection and encryption settings
+	PDFA                *PDFAConfig      `json:"pdfa,omitempty"`                // PDF/A compliance settings
+	Signature           *SignatureConfig `json:"signature,omitempty"`           // Digital signature settings
+	EmbedFonts          *bool            `json:"embedFonts,omitempty"`          // Control standard font embedding optimization (default: true)
+	// EmbedStandardFonts is an optional alias for EmbedFonts (frontend parity).
+	// When set, it takes precedence over EmbedFonts.
+	EmbedStandardFonts *bool              `json:"embedStandardFonts,omitempty"`
+	CustomFonts        []CustomFontConfig `json:"customFonts,omitempty"`   // Custom TTF/OTF fonts to embed
+	PDFACompliant      bool               `json:"pdfaCompliant,omitempty"` // Enable PDF/A-4 compliance mode (PDF 2.0, requires all fonts to be embedded via Liberation fonts)
+	TaggedPDF          bool               `json:"taggedPDF,omitempty"`     // Emit structure tree/marked content; implied when pdfaCompliant is true via generator logic
 }
 
 // SecurityConfig holds PDF encryption and permission settings
@@ -300,6 +303,10 @@ type CustomFontConfig struct {
 type Title struct {
 	Props string `json:"props"`
 	Text  string `json:"text"`
+	// TextProps is an optional alias for Props for simple text titles.
+	// When set, the engine prefers TextProps over Props. Title.Table
+	// takes precedence over both.
+	TextProps string `json:"textprops,omitempty"`
 	// Table allows embedding a table inside the title for complex layouts (e.g., logo + text)
 	// When Table is provided, Text is ignored and the table is rendered instead
 	Table *TitleTable `json:"table,omitempty"`
@@ -413,6 +420,9 @@ type Image struct {
 type Footer struct {
 	Font string `json:"font"`
 	Text string `json:"text"`
+	// Props is an optional alias for Font. When set, the engine prefers
+	// Props over Font.
+	Props string `json:"props,omitempty"`
 	// Link URL for the footer text
 	Link string `json:"link,omitempty"`
 }
@@ -431,16 +441,13 @@ type Props struct {
 
 // HTMLToPDFRequest represents the input for htmltopdf conversion.
 //
-// gowkhtmltopdf v0.2.5 equivalence gaps (pure-Go engine, no browser):
-//   - DPI: no equivalent, accepted but ignored.
-//   - LowQuality: no equivalent, accepted but ignored.
-//   - Zoom: no PDF-path equivalent, accepted but ignored.
-//   - Crop*: no PDF-path equivalent, accepted but ignored.
-//   - Options map: free-form wkhtmltopdf flags have no equivalent, accepted
-//     but ignored.
-//
-// PageSize, Orientation, margins ("10mm"-style, parsed to mm floats), and
-// Grayscale map onto Document fields; HTML/URL map onto Content.
+// Field-to-knob mapping lives in exactly one place:
+// internal/pdf/html_convert.go (buildPDFDocument plus the mapping table
+// comment). PageSize, Orientation, margins ("10mm"-style, parsed to mm
+// floats), and Grayscale map onto Document fields; HTML/URL map onto
+// Content. DPI, LowQuality, and the Options map have no gowkhtmltopdf
+// equivalent: they are accepted but ignored, and non-empty Options logs
+// a warning via warnUnmappedHTMLOptions.
 type HTMLToPDFRequest struct {
 	HTML         string            `json:"html,omitempty"`        // Raw HTML content
 	URL          string            `json:"url,omitempty"`         // URL to convert
@@ -459,12 +466,12 @@ type HTMLToPDFRequest struct {
 
 // HTMLToImageRequest represents the input for htmltoimage conversion.
 //
-// gowkhtmltopdf v0.2.5 equivalence gaps (pure-Go engine, no browser):
-//   - Format "svg": no equivalent, rejected as invalid input (png/jpg only).
-//   - Options map: free-form flags have no equivalent, accepted but ignored.
-//
-// Zoom and Crop* map onto ImageDocument fields; Width, Height, Quality, and
-// Format (png|jpg) map directly; HTML/URL map onto Content.
+// Field-to-knob mapping lives in internal/pdf/html_convert.go
+// (buildImageDocument plus the mapping table comment). Zoom and Crop* map
+// onto ImageDocument fields; Width, Height, Quality, and Format (png|jpg)
+// map directly; HTML/URL map onto Content. Format "svg" has no equivalent
+// and is rejected as invalid input; the Options map has no equivalent and
+// is accepted but ignored with a warning.
 type HTMLToImageRequest struct {
 	HTML       string            `json:"html,omitempty"`        // Raw HTML content
 	URL        string            `json:"url,omitempty"`         // URL to convert

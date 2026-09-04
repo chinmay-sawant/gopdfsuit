@@ -57,6 +57,29 @@ sampledata/benchmarks/typst-*/
 sampledata/benchmarks/data.json
 sampledata/benchmarks/typst.tar.xz
 *node_modules*
+
+# Suite work products (row 5.6, minimal variant): regenerated on every run,
+# never baselines. sampledata/ keeps baselines (generated.*, reference PDFs)
+# only. oldata/temp_* stays tracked as frozen history.
+sampledata/**/temp_*
+test/output/
+# WASM build outputs under sampledata harnesses (CI builds via make
+# wasm-compress / make wasm into frontend/public; harness dirs copy locally).
+sampledata/**/*.wasm
+sampledata/**/wasm_exec.js
+# Regenerable write-only suite outputs (row 5.2/5.6): every writer below
+# regenerates unconditionally; nothing reads the committed bytes back.
+# Kept tracked on purpose: financial_report.pdf (redact-test input),
+# compliant_*.pdf (fixtures), generated.* (baselines), spa-after-purego.pdf.
+sampledata/financialreport/*_test_output.pdf
+sampledata/htmltopdf/purego_invoice.pdf
+sampledata/htmltoimg/purego_invoice.png
+sampledata/typstsyntax/typst_math_equation_bank.pdf
+sampledata/typstsyntax/typst_math_image_style_showcase.pdf
+sampledata/typstsyntax/typst_math_showcase.pdf
+sampledata/typstsyntax/typst_math_showcase_python.pdf
+sampledata/typstsyntax/typst_sample.pdf
+sampledata/typstsyntax/typst_sample_python.pdf
 functions/
 reports/
 .agents

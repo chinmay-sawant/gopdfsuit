@@ -25,9 +25,13 @@ Binding names match `cmd/wasm` (Phase 2.1) and the frontend loader
 ## Run
 
 ```bash
-make wasm                         # from repo root, once
+make wasm                         # from repo root, once (writes frontend/public/)
+cp frontend/public/gopdfsuit.wasm frontend/public/wasm_exec.js sampledata/wasm-js/
 node sampledata/wasm-js/run.mjs
 ```
+
+The local `gopdfsuit.wasm` / `wasm_exec.js` copies are gitignored work
+products, never committed (row 5.6). Re-copy after rebuilding.
 
 Writes `generated.pdf`, `merged.pdf`, `split_part_N.pdf`, `filled.pdf`,
 and `redacted.pdf` next to this file, using fixtures from

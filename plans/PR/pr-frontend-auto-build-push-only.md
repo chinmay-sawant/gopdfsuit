@@ -101,6 +101,21 @@ For PDF output changes, attach a fixture from `sampledata/` and the `verify_pdfs
 
 ---
 
+## Supersedes `pr-frontend-auto-build.md` (merged 2026-09-04)
+
+The earlier `plans/PR/pr-frontend-auto-build.md` ledger is deleted; this file
+is the single survivor. Unique content preserved from it:
+
+- The `docs/` rebuild moved from `stefanzweifel/git-auto-commit-action@v5`
+  (direct push to protected `master`, rejected with GH013, plus a Node 20
+  deprecation warning) to `peter-evans/create-pull-request@v8` (Node 24
+  runtime) on branch `chore/auto-build-frontend` with the `documentation`
+  label and `delete-branch: true`.
+- `build-and-commit-frontend` setup-node moved from Node 20 (EOL April 2026)
+  to Node 22. `frontend-lint` stays on Node 18, out of scope here.
+- No loop risk: the auto commit carries `[skip ci]`, and the follow-up run
+  finds no diff so it converges without opening another PR.
+
 ## Reviewer checklist
 
 - [ ] Behavior matches summary and test plan

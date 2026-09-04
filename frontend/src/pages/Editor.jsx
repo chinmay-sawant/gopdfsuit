@@ -4,7 +4,11 @@ import { useTheme } from '../theme'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import { useToast } from '../hooks/useToast'
-import PdfPreview from '../components/PdfPreview'
+import { useFonts } from '../hooks/useFonts'
+import { useBundledTemplate } from '../hooks/useBundledTemplate'
+import { useEditorShortcuts } from '../hooks/useEditorShortcuts'
+import OperationShell from '../components/OperationShell'
+import ConsentBanner from '../components/ConsentBanner'
 import { ToastContainer } from '../components/Toast'
 
 // Imported Components
@@ -13,33 +17,38 @@ import DocumentSettings from '../components/editor/DocumentSettings'
 import PropertiesPanel from '../components/editor/PropertiesPanel'
 import JsonTemplate from '../components/editor/JsonTemplate'
 import ComponentItem from '../components/editor/ComponentItem'
-import { PAGE_SIZES, DEFAULT_FONTS, COMPONENT_TYPES } from '../components/editor/constants'
+import { PAGE_SIZES, COMPONENT_TYPES } from '../components/editor/constants'
 import { generatePDFSmart, generateViaServer } from '../utils/wasm/generate.js'
-import { loadBundledTemplate } from '../utils/wasm/templates.js'
 import { shouldUseServerWasmTransport } from '../utils/wasm/transports.js'
 import { registerFontLocal } from '../utils/wasm/fonts.js'
 import { getFontFamily } from '../components/editor/utils'
 import { parseProps, formatProps } from '../components/editor/utils'
+import { templateToGoSnippet, templateToPythonSnippet } from '../components/editor/snippet.js'
 import {
   DEFAULT_CONFIG,
+  applyCellDropToRows,
   buildTemplate,
   buildTemplateJson,
   createComponent,
   createFooter,
   createTitle,
+  deleteComponentById,
+  findElementById as findDocumentElement,
+  insertComponent,
+  moveComponentByIndex,
+  parseComponentId,
   parsePageMargins,
   parseTemplateData,
   parseTemplateJson,
+  pasteComponentAt,
+  reorderComponentsByIndex,
+  updateComponentById,
   validateTemplate,
 } from '../components/editor/documentModel'
 
 import Toolbar from '../components/editor/Toolbar'
 import ContextMenu from '../components/shortcut/ContextMenu'
 import useContextMenu from '../components/shortcut/useContextMenu'
-
-// Module-level font cache - cleared on any page refresh (hard or soft)
-let _fontsCache = null
-let _fontsFetchPromise = null
 
 export default function Editor() {
   const { theme, setTheme } = useTheme()
@@ -56,7 +65,6 @@ export default function Editor() {
   const [draggedComponentId, setDraggedComponentId] = useState(null)
   const [pdfUrl, setPdfUrl] = useState(null)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
-  const [fonts, setFonts] = useState(DEFAULT_FONTS)
 
   const [copiedId, setCopiedId] = useState(null)
   const [clipboard, setClipboard] = useState(null)
@@ -67,6 +75,18 @@ export default function Editor() {
   const { menuState, showMenu, hideMenu } = useContextMenu()
   const { runJson, runLocal } = usePdfOperation({
     onAuthRequired: triggerLogin,
+    onError: (message) => showToast(message, 'error'),
+  })
+  // Shared font registry cache (replaces the old module _fontsCache pair).
+  const { fonts, setFonts, refreshFonts } = useFonts({
+    runJson,
+    getAuthHeaders,
+    onError: (message) => showToast(message, 'error'),
+  })
+  // Offline-first template load shared with Viewer (bundled -> server).
+  const { loadTemplateData } = useBundledTemplate({
+    runJson,
+    getAuthHeaders,
     onError: (message) => showToast(message, 'error'),
   })
 
@@ -81,42 +101,6 @@ export default function Editor() {
     document.body.removeChild(element)
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
-
-  // Fetch fonts from API on component mount (module-level cache, single request).
-  // Offline-first: failures fall back to DEFAULT_FONTS with a warning, and
-  // user uploads register locally via goRegisterFont (see onUploadFont).
-  useEffect(() => {
-    const loadFonts = async () => {
-      if (_fontsCache) {
-        setFonts(_fontsCache)
-        return
-      }
-      if (!_fontsFetchPromise) {
-        _fontsFetchPromise = runJson(
-          {
-            endpoint: '/api/v1/fonts',
-            method: 'GET',
-            getAuthHeaders,
-            onError: (message) => console.warn('Failed to fetch fonts, using defaults:', message),
-          }
-        ).then((data) => {
-          if (data && data.fonts && Array.isArray(data.fonts)) {
-            _fontsCache = data.fonts
-            return data.fonts
-          }
-          console.warn('Failed to fetch fonts, using defaults')
-          return null
-        }).catch((error) => {
-          console.error('Error fetching fonts:', error)
-          _fontsFetchPromise = null
-          return null
-        })
-      }
-      const fonts = await _fontsFetchPromise
-      if (fonts) setFonts(fonts)
-    }
-    loadFonts()
-  }, [getAuthHeaders, runJson])
 
   // Get all elements in order for display
   const allElements = useMemo(() => {
@@ -143,32 +127,14 @@ export default function Editor() {
   const currentPageSize = PAGE_SIZES[config.page] || PAGE_SIZES.A4
   const pageMargins = parsePageMargins(config.pageMargin)
 
-  // --- Handlers ---
+  // --- Handlers (structural mutations are pure documentModel reducers) ---
   const handleDropElement = (type, targetId = null) => {
     if (type === 'title') {
       if (!title) setTitle(createTitle())
     } else if (type === 'footer') {
       if (!footer) setFooter(createFooter())
     } else {
-      const newComponent = createComponent(type)
-
-      if (targetId) {
-        // Insert before target
-        const targetIndex = components.findIndex((c, i) =>
-          targetId.startsWith('table-') ? `table-${i}` === targetId :
-            targetId.startsWith('spacer-') ? `spacer-${i}` === targetId :
-              `image-${i}` === targetId
-        )
-        if (targetIndex !== -1) {
-          const newComponents = [...components]
-          newComponents.splice(targetIndex, 0, newComponent)
-          setComponents(newComponents)
-        } else {
-          setComponents([...components, newComponent])
-        }
-      } else {
-        setComponents([...components, newComponent])
-      }
+      setComponents(insertComponent(components, createComponent(type), targetId))
     }
   }
 
@@ -176,8 +142,7 @@ export default function Editor() {
     if (id === 'title') setTitle(null)
     else if (id === 'footer') setFooter(null)
     else {
-      const idx = parseInt(id.split('-')[1])
-      setComponents(components.filter((_, i) => i !== idx))
+      setComponents(deleteComponentById(components, id))
       if (selectedId === id) setSelectedId(null)
     }
   }
@@ -186,58 +151,22 @@ export default function Editor() {
     if (id === 'title') setTitle({ ...title, ...updates })
     else if (id === 'footer') setFooter({ ...footer, ...updates })
     else {
-      const idx = parseInt(id.split('-')[1])
-      const newComponents = [...components]
-      newComponents[idx] = { ...newComponents[idx], ...updates }
-      setComponents(newComponents)
+      setComponents(updateComponentById(components, id, updates))
     }
   }
 
   const handleCellDrop = (element, elementId, onUpdate, rowIdx, colIdx, type) => {
-    const defaultProps = 'Helvetica:12:000:left:0:0:0:0'
-    const newRows = [...element.rows]
-    const currentCell = newRows[rowIdx].row[colIdx]
-
-    let newCellData = { ...currentCell }
-
-    if (type === 'checkbox') {
-      newCellData = { props: defaultProps, form_field: { name: `checkbox_${Date.now()}`, checked: false, type: 'checkbox' }, text: undefined, image: undefined, chequebox: undefined }
-    } else if (type === 'checkbox_simple') {
-      newCellData = { props: defaultProps, chequebox: false, text: undefined, image: undefined, form_field: undefined }
-    } else if (type === 'text_input') {
-      newCellData = { props: defaultProps, form_field: { name: `field_${Date.now()}`, value: '', type: 'text' }, text: undefined, image: undefined, chequebox: undefined }
-    } else if (type === 'radio') {
-      newCellData = { props: defaultProps, form_field: { name: `radio_${Date.now()}`, checked: false, type: 'radio' }, text: undefined, image: undefined, chequebox: undefined }
-    } else if (type === 'radio_simple') {
-      newCellData = { props: defaultProps, radio: false, text: undefined, image: undefined, form_field: undefined, chequebox: undefined }
-    } else if (type === 'image') {
-      newCellData = { props: defaultProps, image: { imagename: '', imagedata: null, width: 100, height: 80 }, text: undefined, chequebox: undefined, form_field: undefined }
-    } else if (type === 'hyperlink') {
-      newCellData = { props: defaultProps, text: 'Link Text', link: 'https://example.com', image: undefined, chequebox: undefined, form_field: undefined }
-    }
-
-    newRows[rowIdx].row[colIdx] = newCellData
-    onUpdate({ rows: newRows })
+    onUpdate({ rows: applyCellDropToRows(element.rows, rowIdx, colIdx, type) })
   }
 
   const handleMove = (index, direction) => {
-    const newComponents = [...components]
-    if (direction === 'up' && index > 0) {
-      [newComponents[index], newComponents[index - 1]] = [newComponents[index - 1], newComponents[index]]
-      const currentId = components[index].type === 'table' ? `table-${index}` : components[index].type === 'image' ? `image-${index}` : `spacer-${index}`
-      if (selectedId === currentId) {
-        const nextId = newComponents[index - 1].type === 'table' ? `table-${index - 1}` : newComponents[index - 1].type === 'image' ? `image-${index - 1}` : `spacer-${index - 1}`
-        setSelectedId(nextId)
-      }
-    } else if (direction === 'down' && index < components.length - 1) {
-      [newComponents[index], newComponents[index + 1]] = [newComponents[index + 1], newComponents[index]]
-      const currentId = components[index].type === 'table' ? `table-${index}` : components[index].type === 'image' ? `image-${index}` : `spacer-${index}`
-      if (selectedId === currentId) {
-        const nextId = newComponents[index + 1].type === 'table' ? `table-${index + 1}` : newComponents[index + 1].type === 'image' ? `image-${index + 1}` : `spacer-${index + 1}`
-        setSelectedId(nextId)
-      }
+    const moved = moveComponentByIndex(components, index, direction)
+    const at = direction === 'up' ? index - 1 : index + 1
+    const currentId = components[index] && `${components[index].type}-${index}`
+    if (selectedId === currentId && moved[at]) {
+      setSelectedId(`${moved[at].type}-${at}`)
     }
-    setComponents(newComponents)
+    setComponents(moved)
   }
 
   // Handle drag and drop reordering of components
@@ -256,34 +185,29 @@ export default function Editor() {
     }
 
     // Get indices from IDs
-    const draggedIndex = parseInt(draggedId.split('-')[1])
-    const targetIndex = parseInt(targetId.split('-')[1])
+    const { index: draggedIndex } = parseComponentId(draggedId)
+    const { index: targetIndex } = parseComponentId(targetId)
 
-    if (isNaN(draggedIndex) || isNaN(targetIndex) || draggedIndex === targetIndex) {
+    if (!Number.isInteger(draggedIndex) || !Number.isInteger(targetIndex) || draggedIndex === targetIndex) {
       return
     }
 
     // Reorder the components array
-    const newComponents = [...components]
-    const [draggedComponent] = newComponents.splice(draggedIndex, 1)
-    newComponents.splice(targetIndex, 0, draggedComponent)
-    setComponents(newComponents)
+    const reordered = reorderComponentsByIndex(components, draggedIndex, targetIndex)
+    if (reordered === components) return
+    setComponents(reordered)
 
     // Update selection to follow the dragged component
-    const newId = `${draggedComponent.type}-${targetIndex}`
-    setSelectedId(newId)
+    const draggedComponent = components[draggedIndex]
+    if (draggedComponent) {
+      setSelectedId(`${draggedComponent.type}-${targetIndex}`)
+    }
   }
 
   // --- Context Menu Handlers ---
 
   // Find element by ID across title, components, footer
-  const findElementById = (id) => {
-    if (id === 'title') return title ? { ...title, type: 'title' } : null
-    if (id === 'footer') return footer ? { ...footer, type: 'footer' } : null
-    const idx = parseInt(id.split('-')[1])
-    const comp = components[idx]
-    return comp || null
-  }
+  const findElementById = (id) => findDocumentElement({ title, components, footer }, id)
 
   const handleCopy = (id) => {
     const el = findElementById(id)
@@ -311,14 +235,7 @@ export default function Editor() {
       else showToast('Footer already exists', 'error', 2000)
     } else {
       // Insert after the target, or append at end
-      if (afterId && afterId !== 'title' && afterId !== 'footer') {
-        const idx = parseInt(afterId.split('-')[1])
-        const newComponents = [...components]
-        newComponents.splice(idx + 1, 0, clone)
-        setComponents(newComponents)
-      } else {
-        setComponents([...components, clone])
-      }
+      setComponents(pasteComponentAt(components, clone, afterId))
     }
   }
 
@@ -336,10 +253,9 @@ export default function Editor() {
       return
     }
 
-    const idx = parseInt(id.split('-')[1])
-    const newComponents = [...components]
-    newComponents.splice(idx + 1, 0, clone)
-    setComponents(newComponents)
+    const { index } = parseComponentId(id)
+    if (!Number.isInteger(index)) return
+    setComponents(pasteComponentAt(components, clone, id))
   }
 
   // Toggle style bit (0=bold, 1=italic, 2=underline) on an element's props
@@ -639,7 +555,37 @@ export default function Editor() {
     }
   }
 
-  // --- File Upload ---
+  const goSnippet = useMemo(
+    () => templateToGoSnippet(buildTemplate({ config, title, components, footer, bookmarks })),
+    [config, title, components, footer, bookmarks]
+  )
+  const pythonSnippet = useMemo(
+    () => templateToPythonSnippet(buildTemplate({ config, title, components, footer, bookmarks })),
+    [config, title, components, footer, bookmarks]
+  )
+
+  const handleCopyGo = async () => {
+    try {
+      await navigator.clipboard.writeText(goSnippet)
+      setCopiedId('go')
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (error) {
+      console.error('Copy failed:', error)
+    }
+  }
+
+  const handleCopyPython = async () => {
+    try {
+      await navigator.clipboard.writeText(pythonSnippet)
+      setCopiedId('python')
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (error) {
+      console.error('Copy failed:', error)
+    }
+  }
+
+  // --- File Upload (fetch via the shared useBundledTemplate hook: bundled
+  // /templates/ copies first, server fallback; github source direct) ---
   const onLoadTemplate = async (filename, source = 'local') => {
     if (!filename || !filename.trim()) {
       showToast('Please enter a template filename', 'error')
@@ -647,36 +593,7 @@ export default function Editor() {
     }
 
     try {
-      let templateData;
-
-      if (source === 'github') {
-        const response = await fetch(`https://raw.githubusercontent.com/chinmay-sawant/gopdfsuit/master/sampledata/${filename}`);
-        if (!response.ok) {
-          throw new Error(`Failed to load from GitHub: ${response.status} ${response.statusText}`);
-        }
-        templateData = await response.json();
-      } else {
-        // Offline-first: bundled samples from /templates/ (Cache API, no
-        // server). Unknown names fall through to the server endpoint below.
-        try {
-          templateData = await loadBundledTemplate(filename)
-        } catch (bundledError) {
-          if (!bundledError || !bundledError.fallbackAvailable) throw bundledError
-          // GET the template through the shared hook (auth retry + error mapping included)
-          templateData = await runJson(
-            {
-              endpoint: `/api/v1/template-data?file=${encodeURIComponent(filename)}`,
-              method: 'GET',
-              headers: {
-                'Accept': 'application/json'
-              },
-              getAuthHeaders,
-              onError: (message) => showToast(message, 'error'),
-            }
-          )
-          if (!templateData) return
-        }
-      }
+      const templateData = await loadTemplateData(filename, { source })
 
       // Parse and load the template data
       const parsed = parseTemplateData(templateData, config)
@@ -699,86 +616,27 @@ export default function Editor() {
     }
   }
 
-  // --- Keyboard Shortcuts ---
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // Skip shortcuts when typing in input fields
-      const tag = e.target.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-        // Only handle Ctrl+S to save JSON even in inputs
-        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-          e.preventDefault()
-          downloadJsonTemplate()
-        }
-        return
-      }
-
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault()
-        downloadJsonTemplate()
-        return
-      }
-
-      if (!selectedId) return
-
-      const ctrl = e.metaKey || e.ctrlKey
-
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault()
-        handleDelete(selectedId)
-      } else if (ctrl && e.key === 'c') {
-        e.preventDefault()
-        handleCopy(selectedId)
-      } else if (ctrl && e.key === 'x') {
-        e.preventDefault()
-        handleCut(selectedId)
-      } else if (ctrl && e.key === 'v') {
-        e.preventDefault()
-        handlePaste(selectedId)
-      } else if (ctrl && e.key === 'd') {
-        e.preventDefault()
-        handleDuplicate(selectedId)
-      } else if (ctrl && e.key === 'b') {
-        e.preventDefault()
-        if (selectedCell) {
-          handleToggleCellStyle(selectedCell.elementId, selectedCell.rowIdx, selectedCell.colIdx, 0)
-        } else {
-          handleToggleStyle(selectedId, 0)
-        }
-      } else if (ctrl && e.key === 'i') {
-        e.preventDefault()
-        if (selectedCell) {
-          handleToggleCellStyle(selectedCell.elementId, selectedCell.rowIdx, selectedCell.colIdx, 1)
-        } else {
-          handleToggleStyle(selectedId, 1)
-        }
-      } else if (ctrl && e.key === 'u') {
-        e.preventDefault()
-        if (selectedCell) {
-          handleToggleCellStyle(selectedCell.elementId, selectedCell.rowIdx, selectedCell.colIdx, 2)
-        } else {
-          handleToggleStyle(selectedId, 2)
-        }
-      } else if (e.altKey && e.key === 'ArrowUp') {
-        e.preventDefault()
-        const el = allElements.find(el => el.id === selectedId)
-        if (el && el.type !== 'title' && el.type !== 'footer') {
-          const idx = parseInt(selectedId.split('-')[1])
-          handleMove(idx, 'up')
-        }
-      } else if (e.altKey && e.key === 'ArrowDown') {
-        e.preventDefault()
-        const el = allElements.find(el => el.id === selectedId)
-        if (el && el.type !== 'title' && el.type !== 'footer') {
-          const idx = parseInt(selectedId.split('-')[1])
-          handleMove(idx, 'down')
-        }
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jsonText, selectedId, selectedCell, clipboard, allElements, components, title, footer])
+  // --- Keyboard Shortcuts (owned by useEditorShortcuts; the page passes
+  // document state plus mutation callbacks) ---
+  useEditorShortcuts({
+    selectedId,
+    selectedCell,
+    clipboard,
+    allElements,
+    components,
+    title,
+    footer,
+    jsonText,
+    onSaveJson: downloadJsonTemplate,
+    onDelete: handleDelete,
+    onCopy: handleCopy,
+    onCut: handleCut,
+    onPaste: handlePaste,
+    onDuplicate: handleDuplicate,
+    onToggleStyle: handleToggleStyle,
+    onToggleCellStyle: handleToggleCellStyle,
+    onMove: handleMove,
+  })
 
   return (
     <div style={{
@@ -800,19 +658,13 @@ export default function Editor() {
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
         {serverRetry && (
-          <div style={{ padding: '0.75rem 1rem', background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', borderRadius: '8px', marginBottom: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem' }}>
-            <div style={{ marginBottom: '0.5rem' }}>
-              Browser generate is not available in this build{serverRetry.message ? `: ${serverRetry.message}` : '.'} The template was not uploaded.
-              Upload it to the server to generate instead?
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={retryServerGenerate} className="btn-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                Upload to server and generate
-              </button>
-              <button onClick={() => setServerRetry(null)} className="btn-outline-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
-                Stay local
-              </button>
-            </div>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <ConsentBanner
+              offer={serverRetry}
+              onConsent={retryServerGenerate}
+              onDismiss={() => setServerRetry(null)}
+              actionLabel="Upload to server and generate"
+            />
           </div>
         )}
         <Toolbar
@@ -821,6 +673,8 @@ export default function Editor() {
           onLoadTemplate={onLoadTemplate}
           onPreviewPDF={handlePreviewPdf}
           onCopyJSON={handleCopyJson}
+          onCopyGo={handleCopyGo}
+          onCopyPython={handleCopyPython}
           onDownloadPDF={handleGeneratePdf}
           templateInput={templateInput}
           setTemplateInput={setTemplateInput}
@@ -858,21 +712,8 @@ export default function Editor() {
               )
               if (data) {
                 showToast(`Font "${data.name}" uploaded successfully!`, 'success')
-                // Refresh fonts list (invalidate cache)
-                _fontsCache = null
-                _fontsFetchPromise = null
-                const fontsData = await runJson(
-                  {
-                    endpoint: '/api/v1/fonts',
-                    method: 'GET',
-                    getAuthHeaders,
-                    onError: (message) => showToast(message, 'error'),
-                  }
-                )
-                if (fontsData && fontsData.fonts && Array.isArray(fontsData.fonts)) {
-                  _fontsCache = fontsData.fonts
-                  setFonts(fontsData.fonts)
-                }
+                // Refresh fonts list (invalidates the shared useFonts cache)
+                await refreshFonts()
               }
             } catch (error) {
               console.error('Error uploading font:', error)
@@ -1220,6 +1061,8 @@ export default function Editor() {
             handleJsonBlur={handleJsonBlur}
             copiedId={copiedId}
             setCopiedId={setCopiedId}
+            goSnippet={goSnippet}
+            pythonSnippet={pythonSnippet}
           />
         </div>
       </div>
@@ -1276,8 +1119,25 @@ export default function Editor() {
                 Close
               </button>
             </div>
-            <div style={{ flex: 1, background: '#525659', overflow: 'hidden', borderRadius: '8px' }}>
-              <PdfPreview pdfUrl={pdfUrl} />
+            <div style={{ flex: 1, overflow: 'hidden', borderRadius: '8px' }}>
+              {/* Native iframe via OperationShell (3.5: one preview stack;
+                  the bespoke PdfPreview wrapper is deleted). */}
+              <OperationShell
+                resultUrl={pdfUrl}
+                title="PDF Preview"
+                icon={<span style={{ fontSize: '1rem' }}>PDF</span>}
+                emptyTitle="No preview yet"
+                emptySubtitle="Generate the document to preview it here"
+                onDownload={() => {
+                  if (!pdfUrl) return
+                  const link = document.createElement('a')
+                  link.href = pdfUrl
+                  link.download = 'generated_document.pdf'
+                  link.click()
+                }}
+                downloadLabel="Download PDF"
+                height={600}
+              />
             </div>
           </div>
         </div>

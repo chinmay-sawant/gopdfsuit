@@ -148,6 +148,25 @@ func containsAny(lower string, subs []string) bool {
 	return false
 }
 
+// ClassifyMessage maps a legacy free-text error (no sentinel in the chain)
+// to an envelope code using the pinned substring lists above. It is the
+// single source for the handlers fallback path (pdfErrorStatus delegates
+// here), so the two lists cannot drift again. Limit signals win over
+// invalid-input signals, matching wrapEngineError.
+func ClassifyMessage(err error) ErrorCode {
+	if err == nil {
+		return ""
+	}
+	lower := strings.ToLower(err.Error())
+	if containsAny(lower, limitSubstrings) {
+		return CodeLimitExceeded
+	}
+	if containsAny(lower, invalidInputSubstrings) {
+		return CodeInvalidInput
+	}
+	return CodeInternal
+}
+
 // wrapEngineError folds a raw engine error into the sentinel taxonomy once,
 // at this seam. Limit signals win over invalid-input signals (an oversized
 // but otherwise valid PDF is a 413, not a 422); anything else is internal.

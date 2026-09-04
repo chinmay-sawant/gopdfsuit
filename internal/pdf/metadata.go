@@ -42,7 +42,7 @@ type PDFAHandler struct {
 // NewPDFAHandler creates a new PDF/A handler
 func NewPDFAHandler(config *models.PDFAConfig, pm *PageManager, encryptor ObjectEncryptor, alloc *Allocator) *PDFAHandler {
 	if alloc == nil {
-		alloc = pm.objects().alloc
+		alloc = pm.allocator()
 	}
 	return &PDFAHandler{
 		config:      config,

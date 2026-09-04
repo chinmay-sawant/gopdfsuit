@@ -78,3 +78,48 @@ func TestTemplateSchemaGolden(t *testing.T) {
 		t.Fatal("golden template has neither tables nor elements")
 	}
 }
+
+// TestTemplateAliasFields allows (but does not require) the Phase 1 snippet
+// aliases: title.textprops, footer.props, config.embedStandardFonts. They must
+// round-trip through models.PDFTemplate without disturbing the canonical
+// props/font/embedFonts fields.
+func TestTemplateAliasFields(t *testing.T) {
+	raw := []byte(`{"config":{"pageBorder":"1","page":"A4","pageAlignment":1,"embedStandardFonts":false},` +
+		`"title":{"props":"Helvetica:12:000:left:1:1:1:1","textprops":"Helvetica:18:100:center:1:1:1:1","text":"Alias title"},` +
+		`"table":[],"footer":{"font":"Helvetica:10:000:left:0:0:0:0","props":"Helvetica:10:100:center:0:0:0:0","text":"Alias footer"}}`)
+	var tmpl PDFTemplate
+	if err := sonic.Unmarshal(raw, &tmpl); err != nil {
+		t.Fatalf("parse alias template: %v", err)
+	}
+	if tmpl.Title.TextProps != "Helvetica:18:100:center:1:1:1:1" {
+		t.Fatalf("title.textprops = %q", tmpl.Title.TextProps)
+	}
+	if tmpl.Title.Props != "Helvetica:12:000:left:1:1:1:1" {
+		t.Fatalf("title.props = %q", tmpl.Title.Props)
+	}
+	if tmpl.Footer.Props != "Helvetica:10:100:center:0:0:0:0" {
+		t.Fatalf("footer.props = %q", tmpl.Footer.Props)
+	}
+	if tmpl.Config.EmbedStandardFonts == nil || *tmpl.Config.EmbedStandardFonts {
+		t.Fatal("config.embedStandardFonts should parse as false pointer")
+	}
+	// Canonical fields stay untouched.
+	if tmpl.Footer.Font != "Helvetica:10:000:left:0:0:0:0" {
+		t.Fatalf("footer.font = %q", tmpl.Footer.Font)
+	}
+	// Round-trip preserves aliases.
+	out, err := sonic.Marshal(tmpl)
+	if err != nil {
+		t.Fatalf("marshal alias template: %v", err)
+	}
+	var back PDFTemplate
+	if err := sonic.Unmarshal(out, &back); err != nil {
+		t.Fatalf("re-parse alias template: %v", err)
+	}
+	if back.Title.TextProps != tmpl.Title.TextProps || back.Footer.Props != tmpl.Footer.Props {
+		t.Fatal("alias fields did not round-trip")
+	}
+	if back.Config.EmbedStandardFonts == nil || *back.Config.EmbedStandardFonts != *tmpl.Config.EmbedStandardFonts {
+		t.Fatal("embedStandardFonts did not round-trip")
+	}
+}

@@ -1,5 +1,11 @@
 
 import { useState, useRef } from 'react'
+// Preview-stack decision (3.5): every other op previews through a native
+// iframe inside OperationShell. react-pdf stays ONLY because Redact renders
+// an interactive <Document>/<Page> canvas (box drawing needs per-page pixel
+// dims plus a live render layer an iframe cannot provide). If Redact ever
+// moves to pure coordinate math over iframe preview, delete this import and
+// drop react-pdf from package.json.
 import { Document, Page, pdfjs } from 'react-pdf'
 import { Upload, Download, Eraser, Trash2, ChevronLeft, ChevronRight, AlertCircle, Check, Search } from 'lucide-react'
 import { usePdfOperation } from '../hooks/usePdfOperation'

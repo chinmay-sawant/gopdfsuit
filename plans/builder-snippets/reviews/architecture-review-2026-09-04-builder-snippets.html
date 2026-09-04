@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gopdfsuit Architecture Review Round 3 - Builder-Snippets</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+<style>
+.badge-strong{background:#dc2626;color:#fff}
+.badge-worth{background:#d97706;color:#fff}
+.badge-spec{background:#57534e;color:#fff}
+.bar-before{background:repeating-linear-gradient(45deg,#fecaca,#fecaca 8px,#fee2e2 8px,#fee2e2 16px)}
+.bar-after{background:linear-gradient(90deg,#bbf7d0,#86efac)}
+.card{break-inside:avoid}
+code.fn{font-size:.78rem}
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+@media(max-width:768px){.ba-grid{grid-template-columns:1fr}}
+pre.mini{font-size:.72rem;line-height:1.35}
+</style>
+</head>
+<body class="bg-stone-100 text-stone-900">
+<div class="max-w-6xl mx-auto px-6 py-10">
+<header class="mb-10">
+<p class="text-sm uppercase tracking-widest text-stone-500">gopdfsuit &middot; round 3 &middot; 2026-09-04 &middot; branch feat/builder-snippets &middot; 5 subagent walks</p>
+<h1 class="text-4xl font-bold mt-2">Builder-Snippets Architecture Review</h1>
+<p class="mt-3 text-stone-600 max-w-3xl">Engine core, API/contracts, frontend/WASM, bindings/HTML/Typst, compliance/ops. Hotspots: fluent builder <code class="fn">449200c</code>, wasm-first viewer/editor, gowkhtmltopdf swap <code class="fn">091d9ee</code>, compress-no-ghostscript. Prior round 1 closed, round 2 open and deferred-to (no duplicate rows). Full ledger: <code class="fn">architecture-review-2026-09-04-builder-snippets.md</code>.</p>
+<div class="mt-4 flex gap-4 text-sm flex-wrap">
+<span><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span> tackle</span>
+<span><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span> grill first</span>
+<span><span class="inline-block px-2 py-0.5 rounded text-xs font-bold badge-spec">Speculative</span> note</span>
+</div>
+</header>
+
+<section class="mb-10 bg-white rounded-xl shadow p-6">
+<h2 class="text-xl font-bold mb-2">Dependency map</h2>
+<pre class="mermaid">graph LR
+P1[Phase 1: correctness] --> P2[Phase 2: contracts]
+P2 --> P3[Phase 3: frontend/WASM]
+P1 --> P4[Phase 4: engine depth]
+P4 --> P6[Phase 6: gates]
+P2 --> P6
+P3 --> P6
+P5[Phase 5: ops cleanup] --> P6
+R2[Round 2: error taxonomy] -. defers .-> P1</pre>
+</section>
+
+<div class="columns-1 lg:columns-2 gap-6 space-y-6">
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">1. Props grammar x3</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">internal/pdf/utils.go:98-185</code>, <code class="fn">pkg/gopdflib/props.go:38-135</code>, <code class="fn">pkg/gopdflib/fontbuilder.go</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> fallback policy (Helvetica default, size 12, len-3 style, align left) duplicated with comments saying each copy mirrors the other. One fix diverges silently; every SetCell pays split + re-emit.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> one canonical grammar package; builders become thin constructors.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> one policy; cross-boundary mismatch becomes impossible. Tests: unit parity.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">parseProps (engine)
+ParseFontOpts (gopdflib)
+FontBuilder grammar (overlay)
+3 fallbacks, 0 owners</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">props.Package
+parse + String once
+engine + builder import it</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">2. pdf.go vs pdf_js.go twins</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">internal/pdf/pdf.go:49-194</code>, <code class="fn">internal/pdf/pdf_js.go:25-138</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> ConvertHTMLToPDF/Image, margins, Document construction copied twice behind build tag. Only divergence is URL policy. Already drifted (debug logging).</p>
+<p class="mt-2 text-sm"><b>Solution:</b> shared html_convert.go + two 5-line source-policy files.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> one place for gowkhtmltopdf options; kills server/WASM drift.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">pdf.go (full copy)
+pdf_js.go (full copy)
+fix twice, drift</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">html_convert.go (shared)
+html_source_js/other.go (5 lines)</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">3. Phantom HTML options</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">internal/models/models.go:442-491</code>, <code class="fn">pkg/gopdflib/types.go:249-280</code>, <code class="fn">pypdfsuit/types.py:541-581</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> DPI / LowQuality / Options accepted in Go + Python + JSON, then explicitly ignored before gowkhtmltopdf. Callers think they control output; engine drops it.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> delete everywhere + reject unknown keys, or map to real knobs with one table.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> no phantom API across three mirrors.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">Go type (DPI) -&gt; ignored
+Python type (DPI) -&gt; ignored
+JSON (DPI) -&gt; ignored</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">deleted OR mapped
+one mapping table
+warn on Options</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">4. Op pages x7 paste</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">frontend/src/pages/Merge|Split|Compress|Viewer|Filler|HtmlToPdf|HtmlToImage.jsx</code>, <code class="fn">OperationShell.jsx</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> hero + dropzone + file-list + consent banner + how-to grid pasted 7 times (~600-800 lines). Consent wording fixed in 5 places.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> OpPageShell + FileDropzone + ConsentBanner; HtmlToPdf/Image collapse to one mode prop.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> new ops become ~60 lines; wording fixed once.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">7 pages x shell
+5 consent banners
+OperationShell (half)</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">OpPageShell (full)
+pages keep form + call
+HtmlConvertPage(mode)</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">5. WASM glue x5 + 2 binaries</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">frontend/src/utils/wasm/*.js</code>, <code class="fn">core.js vs compressWorker.js</code>, <code class="fn">compress.wasm 8.3M + gopdfsuit.wasm 31M</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> same 10-line envelope check pasted per op; loader cache hand-rolled twice; 39M combined download with compress in both.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> one callWasm in core.js; merge compress.wasm into gopdfsuit.wasm or document split; share fetchCachedWasm.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> kills envelope-drift bug class; halves Compress download.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">5x callWasm*
+2 loaders, 2 WASMs
+envelope per file</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">callWasm(fn,args)
+1 loader, 1 WASM
+envelope test</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">6. PageManager facade + Allocator</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">internal/pdf/pagemanager.go:159-549</code>, <code class="fn">internal/pdf/allocator.go:1-157</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> ~20 one-line delegates bounce reader across 3 types; stores mutate via back-pointer and own no state; Allocator branches if pm != nil per method.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> inline stores into PageManager; Allocator bound-only.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> one owner for page/object state; bound path actually tested.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">PageManager -&gt; objects()
+-&gt; layout() -&gt; Allocator?
+20 delegates</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">PageManager (owns)
+Allocator (bound-only)</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">7. Handler decode + upload copies</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">internal/handlers/html.go|generate.go|redact.go|compress.go|merge_split.go|fill.go|fonts.go</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> HTML twins share 90% shape; 5 handlers reimplement bounded upload with drift; redact helper private + untestable; defaults live in handlers not request types.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> generic decodeJSONBody[T]; shared readSingleUpload; defaults/Validate on models.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> ~110 lines deleted; limits testable without Gin.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">7 decode idioms
+5 upload copies
+defaults in handlers</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">decodeJSONBody[T]
+readSingleUpload
+SetDefaults/Validate</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">8. Python ctypes + chequebox</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">bindings/python/pypdfsuit/*.py</code>, <code class="fn">types.py:337</code>, <code class="fn">_bindings.py:241-310</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> 7 ops repeat empty-check + get_lib + json.dumps + call_bytes_result; Cell.checkbox emits chequebox; two key-mapping systems.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> require_bytes + json_payload + pdf_args helpers; fix typo; one mapping mechanism + parity test vs Go tags.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> uniform errors; renames cannot silently break Python.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">7 prologues
+chequebox typo live
+2 mappings</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">3-line ops
+1 mapping + test
+keys pinned</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">9. Compliance 4 severities, 1 bash</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">test/verify_pdfs.sh:822</code>, <code class="fn">structure_tree_check.py</code>, <code class="fn">verapdf_report.py</code>, <code class="fn">makefile:111-157</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> veraPDF hard-fail + tree hard-fail + avalpdf warnings-only + parse hard-fail wired only in bash; tolerance table is code; two Zerodha paths can drift.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> compliance_manifest.json data file; thin runner; Zerodha Go test reads same manifest.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> one severity policy; auditable matrix.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">bash owns policy
+tolerances inline
+2 zerodha paths</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">manifest.json (data)
+bash = runner
+1 zerodha reader</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">10. Sampledata sprawl</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">sampledata/ (111 PDFs, 25 temp_*)</code>, <code class="fn">compress-js/ + wasm-js/ committed wasm</code>, <code class="fn">gopdflib/zerodha vs gpdf/zerodha</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> suite writes temp_*.pdf next to baselines, scan-all validates committed temp outputs; wasm duplicates rot; two zerodha harnesses.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> fixtures/outputs/goldens split; gitignore temp_*; CI builds wasm; pick zerodha survivor.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> smaller repo; meaningful scan-all.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">baselines + temps mixed
+wasm committed x2
+2 zerodhas</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">fixtures/outputs/goldens
+wasm from CI
+1 zerodha</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">11. Generator god-function</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-worth">Worth exploring</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">internal/pdf/generator.go:373-1600</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> 1200-line wiring; pure extractions left sequencing bugs in caller; 4 image-decode loops + 3 emit loops differ only in key/map name.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> generation struct with phase methods sharing genState; unify loops over iterators.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> phases reviewable; ~120 lines collapse.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">1 fn, 1200 lines
+4 decode + 3 emit
+IDs in head</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">decode/layout/emit/trailer
+1 decode + 1 emit</pre></div></div>
+</div>
+
+<div class="card bg-white rounded-xl shadow p-6">
+<div class="flex justify-between items-start"><h3 class="font-bold text-lg">12. Vector emitters x2</h3><span class="px-2 py-0.5 rounded text-xs font-bold badge-strong">Strong</span></div>
+<p class="text-xs text-stone-500 mt-1">Files: <code class="fn">typstsyntax/renderer.go:1138-1349</code>, <code class="fn">internal/pdf/svg/svg.go</code></p>
+<p class="mt-2 text-sm"><b>Problem:</b> two mini-PDF-backends (fmtFloat/escape/q..Q/rg/w/m/l/c) spelled differently, different precision.</p>
+<p class="mt-2 text-sm"><b>Solution:</b> internal/pdf/vector/ shared by both via small interface.</p>
+<p class="mt-1 text-sm text-stone-600"><b>Benefits:</b> one float/color policy; SVG path cursor reusable for typst curves.</p>
+<div class="ba-grid mt-3 text-xs"><div class="bar-before rounded p-2"><b>Before</b><pre class="mini">typst fmtFloat/escape
+svg writeFloats/parseColor
+2 precisions</pre></div><div class="bar-after rounded p-2"><b>After</b><pre class="mini">vector.WriteFloat/Escape
+SetFill/SetStroke
+1 precision</pre></div></div>
+</div>
+
+</div>
+
+<section class="mt-10 bg-emerald-50 border border-emerald-200 rounded-xl p-6">
+<h2 class="text-xl font-bold">Top recommendation</h2>
+<p class="mt-2 text-sm">Do <b>props grammar (Phase 1.1)</b> first. It is the only candidate where a one-line fallback fix today silently diverges across engine, public library, and the new fluent builder from <code class="fn">449200c</code>. One canonical package, then pin with a cross-boundary test. Second: <b>pdf.go/pdf_js.go merge (1.2)</b> plus <b>phantom options decision</b> in the same pass, since both touch the HTML contract. Third: <b>handler decode/upload helpers (2.1)</b> and <b>Python ctypes/chequebox (1.5 + 2.5)</b> as cheap parallel wins. Defer error taxonomy to Round 2. Which of these would you like to explore?</p>
+</section>
+
+<footer class="mt-8 text-xs text-stone-500">Round 3 &middot; 5 walks &middot; 11 Strong / 14 Worth / 5 Speculative (full 30 in markdown ledger) &middot; no code changed &middot; docs-only, no lint/test per skill.</footer>
+</div>
+</body>
+</html>

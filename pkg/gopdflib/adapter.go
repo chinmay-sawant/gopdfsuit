@@ -46,8 +46,12 @@ func toInternalTemplate(t PDFTemplate) (models.PDFTemplate, error) {
 	if err != nil {
 		return in, err
 	}
-	// The font hint is not part of the JSON shape, so it does not survive
-	// translation above: carry it over explicitly.
+	// Alias fields (Title.TextProps, Footer.Props, Config.EmbedStandardFonts)
+	// share identical JSON tags on both sides, so the generic JSON round-trip
+	// above carries them in both directions (toInternalTemplate and the
+	// fromInternal callers that serve as toPublic). The font hint is not part
+	// of the JSON shape, so it does not survive translation above: carry it
+	// over explicitly.
 	in.SetPrecomputedStandardFonts(t.precomputedStandardFonts...)
 	return in, nil
 }
