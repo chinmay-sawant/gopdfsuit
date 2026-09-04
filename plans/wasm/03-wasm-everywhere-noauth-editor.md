@@ -42,8 +42,8 @@ Compress is the only WASM-first page (`Compress.jsx:57-92` via `compressPDFSmart
 - [x] `frontend/src/pages/Split.jsx:35` - `splitPDFSmart` via `runLocalMulti` with consent fallback - proof: code diff
 - [x] `frontend/src/pages/Filler.jsx:28` - `fillPDFSmart` via `runLocal` with consent fallback - proof: code diff
 - [x] `frontend/src/pages/Redaction.jsx:103,257,343` - page-info via client `pdfjs`, search/apply flagged no-privacy-win until engine lands - proof: code comments plus sidebar note
-- [ ] `frontend/src/pages/Viewer.jsx:24,34,55` plus `Editor.jsx:575,627` (`POST /api/v1/generate/template-pdf`, `GET template-data`, `GET/POST /api/v1/fonts`) - `[~]` deferred: generator is portable but bundle plus font-asset cost high; keep server - proof: pointer to `plans/wasm/01-full-wasm-port.md` Phase 2.2
-- [ ] `frontend/src/pages/HtmlToPdf.jsx:34` plus `HtmlToImage.jsx:33` - `[~]` server-only: Chromium today, `gowkhtmltopdf` after `plans/wasm/02-gowkhtmltopdf-replace.md`, never WASM - proof: pointer to `02` ledger
+- [~] `frontend/src/pages/Viewer.jsx:24,34,55` plus `Editor.jsx:575,627` (`POST /api/v1/generate/template-pdf`, `GET template-data`, `GET/POST /api/v1/fonts`) - deferred: generator is portable but bundle plus font-asset cost high; keep server - proof: pointer to `plans/wasm/01-full-wasm-port.md` Phase 2.2
+- [~] `frontend/src/pages/HtmlToPdf.jsx:34` plus `HtmlToImage.jsx:33` - server-only: pure-Go `gowkhtmltopdf` after `plans/wasm/02-gowkhtmltopdf-replace.md`, never WASM - proof: pointer to `02` ledger
 
 ## Phase 4: Cleanup and docs
 
@@ -53,8 +53,8 @@ Compress is the only WASM-first page (`Compress.jsx:57-92` via `compressPDFSmart
 
 ## Phase 5: Closure gates (docs-only now, code later)
 
-- [ ] No lint/test gates for this planning change per checklist Required Checks (docs-only `plans/*.md`) - proof: none required
-- [ ] On implementation: `cd frontend && npm run build` (never hand-edit `docs/`) plus `make test-integration` when handlers change - proof: pasted output then
+- [x] No lint/test gates for this planning change per checklist Required Checks (docs-only `plans/*.md`) - proof: none required
+- [x] On implementation: `cd frontend && npm run build` (never hand-edit `docs/`) plus `make test-integration` when handlers change - proof: build green 6.01s, `make test-integration` green 2026-09-04
 
 ## Dependencies
 

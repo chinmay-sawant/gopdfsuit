@@ -44,14 +44,14 @@ Verified 2026-09-04 from release page: v0.2.5 is pure-Go, no-cgo, no-Qt/WebKit, 
 
 ## Phase 4: Compliance and perf gates
 
-- [ ] `test/verify_pdfs.sh` plus veraPDF plus `structure_tree_check.py` - re-baseline htmltopdf goldens (Chrome PDF vs unclaimed 1.4 or opt-in profile) - proof: paste verifier output
-- [ ] Bench template/invoice/report HTML strings, files, and server-rendered URLs (priority 1-3 per upstream); record `~3.7ms/2p` reference vs local host - proof: numbers with cold/warm state in ledger
-- [ ] JS-heavy SPA URL - record as known regression with hypothesis label, not defect - proof: before/after PDF pair in `sampledata/`
+- [x] `test/verify_pdfs.sh` plus veraPDF plus `structure_tree_check.py` - re-baseline htmltopdf goldens (Chrome PDF vs unclaimed 1.4 or opt-in profile) - proof: `make test` verify step 10/10 PASS (PDF/A-4 plus PDF/UA-2), htmltopdf goldens from pure-Go engine
+- [x] Bench template/invoice/report HTML strings, files, and server-rendered URLs (priority 1-3 per upstream); record `~3.7ms/2p` reference vs local host - proof: numbers in `plans/wasm/02-html-bench-prep.md` (cold dev-host fetch+layout)
+- [~] JS-heavy SPA URL - known regression hypothesis, not defect - proof: hypothesis plus pair location in `plans/wasm/02-html-bench-prep.md` (pair files not yet captured)
 
 ## Phase 5: Closure
 
-- [ ] `make fmt && make lint && make test && make test-integration` - record outcomes in ledger; leave rows unchecked on failure - proof: pasted gate output
-- [ ] `plans/wasm/01-full-wasm-port.md` - confirm HTML stays server-side `[~]` with pointer to this ledger - proof: no duplicate active HTML-in-WASM rows
+- [x] Gates recorded 2026-09-04: `make fmt` clean, `make lint` clean (2 pre-existing findings fixed), `make test` green, `make test-integration` green, `cd frontend && npm run build` green - proof: `plans/wasm/02-html-bench-prep.md` gate section
+- [x] `plans/wasm/01-full-wasm-port.md` - confirm HTML stays server-side `[~]` with pointer to this ledger - proof: 01 ledger Dependencies plus 03 ledger Phase 3 already mark HTML server-only
 
 ## Dependencies
 

@@ -35,7 +35,7 @@ func TestSubsetCacheOverflowRace(t *testing.T) {
 
 // TestCompressShardOverflowRace hammers per-shard overflow clears against
 // concurrent cached compressions. Run with -race (C5).
-func TestCompressShardOverflowRace(t *testing.T) {
+func TestCompressShardOverflowRace(_ *testing.T) {
 	ClearPageCompressCache()
 	raw := bytes.Repeat([]byte("BT /F1 12 Tf (race) Tj ET\n"), 64)
 	var wg sync.WaitGroup

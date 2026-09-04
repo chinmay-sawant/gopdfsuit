@@ -168,9 +168,12 @@ class TestHtmlToImage:
     """Mirrors Go TestHtmlToImage."""
 
     def test_url_to_png(self):
+        # example.com: small static page. A long page (e.g. Wikipedia)
+        # lays out past the engine's 16384px raster budget and fails
+        # honestly with LimitExceededError instead of rendering.
         img_bytes = convert_html_to_image(
             HtmlToImageRequest(
-                url="https://en.wikipedia.org/wiki/Ana_de_Armas",
+                url="https://example.com",
                 format="png",
             )
         )

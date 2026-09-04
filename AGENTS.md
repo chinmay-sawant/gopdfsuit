@@ -63,7 +63,7 @@ Run targeted checks during a session. Run the full set once at session end befor
 | Gate | Command | What it proves |
 |------|---------|----------------|
 | Full Go plus Python plus PDF compliance | `make test` | `go test ./...` plus `bindings/python pytest` plus `test/verify_pdfs.sh` pass |
-| Integration suite | `make test-integration` | `make test` plus `go test -count=1 -v ./test` handler suite passes |
+| Integration suite | `make test-integration` | `go test -count=1 -v ./test` handler suite standalone (full gate is `make test`: go plus python plus verify, sequential) |
 | Lint backend plus frontend | `make lint` | `golangci-lint run -E revive,gocritic,gocyclo,goconst ./...` plus `frontend npm run lint` clean |
 | Build binary | `make build` | Integration tests pass plus `go build -o bin/app ./cmd/gopdfsuit` succeeds |
 | Frontend bundle | `cd frontend && npm run build` | Vite build plus WASM compressor bundle succeed |

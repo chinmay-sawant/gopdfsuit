@@ -843,12 +843,6 @@ func rebuildPDF(objMap map[int][]byte, objGen map[int]int, originalBytes []byte)
 	return out.Bytes(), nil
 }
 
-// xrefEntryBytes formats one incremental-update xref entry via the pdfobj
-// write seam (10-digit offset, 5-digit generation).
-func xrefEntryBytes(offset, gen int) []byte {
-	return pdfobj.AppendXRefEntry(nil, offset, gen)
-}
-
 func extractPrimaryTrailerID(pdfBytes []byte) string {
 	if len(pdfBytes) == 0 {
 		return ""
