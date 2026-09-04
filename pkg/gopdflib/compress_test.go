@@ -109,13 +109,7 @@ func TestCompressPDF_StripsMetadata(t *testing.T) {
 }
 
 func TestCompressPDF_LevelOverride(t *testing.T) {
-	src, err := gopdflib.GeneratePDF(gopdflib.PDFTemplate{
-		Config: gopdflib.Config{Page: "A4", PageAlignment: 1},
-		Title:  gopdflib.Title{Props: "Helvetica:12:000:left:0:0:0:0", Text: "nogs"},
-	})
-	if err != nil {
-		t.Fatalf("GeneratePDF: %v", err)
-	}
+	src := dummyTextPDF(t, "Dummy Compress Fixture", "Seeded dummy paragraph for level override.")
 	out, err := gopdflib.CompressPDF(src, gopdflib.CompressOptions{Level: gopdflib.CompressLight})
 	if err != nil {
 		t.Fatalf("CompressPDF light: %v", err)
@@ -123,6 +117,39 @@ func TestCompressPDF_LevelOverride(t *testing.T) {
 	if !bytes.HasPrefix(out, []byte("%PDF-")) {
 		t.Fatal("light compress did not return a PDF")
 	}
+}
+
+func TestCompressPDF_DummyTextFixture(t *testing.T) {
+	src := dummyTextPDF(t, "Dummy Seed Title", "Seeded dummy paragraph for compress fixture.")
+	out, err := gopdflib.CompressPDF(src, gopdflib.CompressOptions{Level: gopdflib.CompressMedium})
+	if err != nil {
+		t.Fatalf("CompressPDF: %v", err)
+	}
+	if !bytes.HasPrefix(out, []byte("%PDF-")) {
+		t.Fatal("compressed dummy fixture is not a PDF")
+	}
+	if !bytes.Contains(out, []byte("%%EOF")) {
+		t.Fatal("compressed dummy fixture missing EOF marker")
+	}
+	if len(out) == 0 {
+		t.Fatal("compressed dummy fixture is empty")
+	}
+	t.Logf("dummy original=%d compressed=%d", len(src), len(out))
+}
+
+func dummyTextPDF(t *testing.T, title, paragraph string) []byte {
+	t.Helper()
+	src, err := gopdflib.GeneratePDF(gopdflib.PDFTemplate{
+		Config: gopdflib.Config{Page: "A4", PageAlignment: 1, PdfTitle: title},
+		Title:  gopdflib.Title{Props: "Helvetica:12:000:left:0:0:0:0", Text: paragraph},
+	})
+	if err != nil {
+		t.Fatalf("GeneratePDF dummy seed: %v", err)
+	}
+	if !bytes.HasPrefix(src, []byte("%PDF-")) {
+		t.Fatal("dummy seed is not a PDF")
+	}
+	return src
 }
 
 func noisyJPEG(w, h int) []byte {

@@ -181,9 +181,14 @@ func TestHandleSplitPDF_MockSingleOutput(t *testing.T) {
 
 func TestHandleCompressPDF_MockSuccess(t *testing.T) {
 	r, mockSvc := setupMockRouter(t)
+	dummyPDF := dummyCompressPDF()
+	dummyOut := append([]byte("%PDF-1.4\n% dummy compressed output\n"), dummyPDF[8:]...)
 	mockSvc.EXPECT().
 		CompressPDF(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ []byte, opts compress.Options) ([]byte, error) {
+		DoAndReturn(func(got []byte, opts compress.Options) ([]byte, error) {
+			if !bytes.Equal(got, dummyPDF) {
+				t.Fatalf("expected dummy PDF %d bytes, got %d bytes", len(dummyPDF), len(got))
+			}
 			if opts.Level != compress.LevelHeavy {
 				t.Fatalf("Level=%q want %q", opts.Level, compress.LevelHeavy)
 			}
@@ -193,13 +198,13 @@ func TestHandleCompressPDF_MockSuccess(t *testing.T) {
 			if opts.MaxImageDim != 800 {
 				t.Fatalf("MaxImageDim=%d want 800", opts.MaxImageDim)
 			}
-			return []byte("%PDF-compressed"), nil
+			return dummyOut, nil
 		})
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, _ := writer.CreateFormFile("pdf", "doc.pdf")
-	_, _ = part.Write([]byte("%PDF-src"))
+	_, _ = part.Write(dummyPDF)
 	_ = writer.WriteField("level", "heavy")
 	_ = writer.WriteField("quality", "50")
 	_ = writer.WriteField("max_image_dim", "800")
@@ -216,9 +221,17 @@ func TestHandleCompressPDF_MockSuccess(t *testing.T) {
 	if ct := w.Header().Get("Content-Type"); ct != mimeTypePDF {
 		t.Fatalf("content-type=%q", ct)
 	}
-	if !bytes.Equal(w.Body.Bytes(), []byte("%PDF-compressed")) {
+	if !bytes.Equal(w.Body.Bytes(), dummyOut) {
 		t.Fatalf("unexpected body: %q", w.Body.Bytes())
 	}
+}
+
+func dummyCompressPDF() []byte {
+	return []byte("%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n" +
+		"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
+		"3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >> endobj\n" +
+		"xref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000056 00000 n \n0000000111 00000 n \n" +
+		"trailer << /Size 4 /Root 1 0 R >>\nstartxref\n190\n%%EOF")
 }
 
 func TestHandleCompressPDF_MissingFile(t *testing.T) {
