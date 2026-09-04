@@ -4,7 +4,6 @@
 [![Gin Framework](https://img.shields.io/badge/Gin-Web%20Framework-00ADD8?style=flat)](https://gin-gonic.com/)
 [![Python](https://img.shields.io/badge/Python-Bindings-3776AB?style=flat&logo=python)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=flat&logo=docker)](https://hub.docker.com/)
-[![gochromedp](https://img.shields.io/badge/gochromedp-1.0+-00ADD8?style=flat)](https://github.com/chinmay-sawant/gochromedp)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/chinmay-sawant/gopdfsuit)
 
@@ -68,10 +67,10 @@ Key features.
 - **Redaction.** Redacts by coordinates or by text search.
 - **Merge and split.** Combines PDFs or splits them by page ranges.
 - **PDF compress.** Shrinks PDFs in gopdflib or in the browser with WASM. No Ghostscript, no server round trip. Light, Medium, and Heavy JPEG tiers.
-- **HTML conversion.** Turns HTML into PDF or image with headless Chrome.
+- **HTML conversion.** Turns HTML into PDF or image with pure-Go gowkhtmltopdf, no browser needed.
 - **Web interfaces.** React UI for viewer, editor, merger, filler, and converters.
 
-Requirements. Go 1.26.4, Google Chrome for HTML conversion, Make for build and test targets. See [Prerequisites](#prerequisites) for the full list.
+Requirements. Go 1.26.4, Make for build and test targets. HTML conversion is pure-Go, no Chrome needed. See [Prerequisites](#prerequisites) for the full list.
 
 ---
 
@@ -81,7 +80,7 @@ Requirements. Go 1.26.4, Google Chrome for HTML conversion, Make for build and t
 |-------------|-----------------|
 | Go | 1.26.4, must match `go.mod` |
 | Make | Needed for `make build`, `make test`, `make run` |
-| Google Chrome | Needed for HTML to PDF or image |
+| HTML conversion | Pure-Go via gowkhtmltopdf, no browser needed |
 | Node.js plus npm | Frontend build, Node 18 or later |
 | Python 3.8 or later | Python bindings tests for pypdfsuit |
 | Java 11 or later | Optional, only for veraPDF PDF/A-4 and PDF/UA-2 validation with `make install-pdf-validators` |
@@ -117,13 +116,9 @@ For older toolchains, you can try editing the `go` directive in `go.mod` and run
 </details>
 
 <details>
-<summary><b>Chrome not found error?</b></summary>
+<summary><b>HTML conversion needs Chrome?</b></summary>
 
-Install Google Chrome. The HTML to PDF or image path needs it.
-
-```bash
-sudo apt install -y google-chrome-stable
-```
+No. HTML to PDF or image is pure-Go via gowkhtmltopdf. No browser install needed.
 
 </details>
 

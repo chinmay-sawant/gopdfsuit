@@ -1,3 +1,10 @@
+// WASM text path: the browser bindings goRedactSearch/goRedactApply expose
+// GetPageInfo, ExtractTextPositions, FindTextOccurrences, ApplyRedactions,
+// and ApplyRedactionsAdvancedWithReport over searchable text only. OCR stays
+// disabled in WASM (no pdftoppm/tesseract subprocess in the browser); the
+// WASM entrypoint rejects options with OCR.Enabled=true and callers must
+// leave the OCR field unset. Image-only pages report through
+// AnalyzePageCapabilities instead of being OCRed.
 package gopdflib
 
 import (
@@ -107,6 +114,9 @@ func ApplyRedactions(pdfBytes []byte, redactions []RedactionRect) ([]byte, error
 }
 
 // ApplyRedactionsAdvanced applies redaction using advanced options (search, OCR fallback, etc).
+// WASM text path only: leave OCR unset. OCR.Enabled=true requires the
+// pdftoppm/tesseract subprocess pipeline, which cannot run in the browser;
+// the WASM entrypoint rejects it with an invalid_input envelope.
 func ApplyRedactionsAdvanced(pdfBytes []byte, options ApplyRedactionOptions) ([]byte, error) {
 	const op = "gopdflib: ApplyRedactionsAdvanced"
 	if len(pdfBytes) == 0 {
@@ -128,6 +138,7 @@ func ApplyRedactionsAdvanced(pdfBytes []byte, options ApplyRedactionOptions) ([]
 }
 
 // ApplyRedactionsAdvancedWithReport applies redaction and returns a detailed execution report.
+// WASM text path only: leave OCR unset (see ApplyRedactionsAdvanced).
 func ApplyRedactionsAdvancedWithReport(pdfBytes []byte, options ApplyRedactionOptions) ([]byte, RedactionApplyReport, error) {
 	const op = "gopdflib: ApplyRedactionsAdvancedWithReport"
 	if len(pdfBytes) == 0 {

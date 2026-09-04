@@ -7,9 +7,18 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
 )
 
+// MaxMergeInputBytes caps a single input file accepted by MergePDFs
+// (32 MiB, shared with the engine). The WASM shim enforces the same cap
+// per Uint8Array before copying the files into the module.
+const MaxMergeInputBytes = merge.MaxMergeInputBytes
+
 // MergePDFs combines multiple PDF files into a single PDF document.
 // Files should be provided as byte slices in the desired order.
 // At least one non-empty PDF is required.
+//
+// WASM mapping: the JS shim passes an Array of Uint8Array, copying each
+// element with js.CopyBytesToGo into a [][]byte in order and calling this
+// function directly. No other translation is needed.
 //
 // Example:
 //

@@ -20,7 +20,7 @@ Template-based PDF platform in Go with React UI and Python bindings.
   - `dockerfolder/Dockerfile` and `Dockerfile_cloudrun` images
 - Pipeline / architecture overview:
   - Upload JSON template plus base64 assets to `/api/v1/*`, handlers in `internal/handlers/` decode with pooled Sonic JSON, in-memory engine in `internal/pdf/` renders (fonts embed, tagging, XMP, ECDSA sign, AES-256), PDF bytes in response.
-  - Ops: `generate/template-pdf`, `fill` (AcroForm/XFDF), `merge`/`split`, `compress` (Light/Med/Heavy tiers, server or WASM, no Ghostscript), `htmltopdf/htmltoimage` (headless Chrome via gochromedp fork), `redact/*`, `fonts` GET/POST, `template-data`.
+  - Ops: `generate/template-pdf`, `fill` (AcroForm/XFDF), `merge`/`split`, `compress` (Light/Med/Heavy tiers, server or WASM, no Ghostscript), `htmltopdf/htmltoimage` (pure-Go via gowkhtmltopdf, no browser), `redact/*`, `fonts` GET/POST, `template-data`.
   - Compliance: PDF 2.0 base, opt-in PDF/A-4 (`pdfaCompliant:true`) plus PDF/UA-2 (tagging, MCID, ParentTree), PKCS#7/X.509 RSA plus ECDSA P-256 signatures. Validation via vendored `verapdf/` (needs Java 11+) plus `structure_tree_check.py` and `test/verify_pdfs.sh`.
 
 ## Todo protocol - response-only (mandatory)
@@ -110,8 +110,8 @@ Skills live under `skills/<name>/`. Current inventory:
 
 Allowed runtime deps are pinned in `go.mod` (`v6`, `go 1.26.4` exact):
 
-- `gin-gonic/gin`, `chinmay-sawant/gochromedp` fork, `bytedance/sonic`, `golang.org/x/sync`, `google.golang.org/api`. Indirect: `chromedp/cdproto/sysutil`, `goccy/go-json`, `ugorji/go`.
-- No Ghostscript. System prereqs only: Chrome (HTML render), Java 11+ (veraPDF), Node 18+ (frontend), Python 3.8+ (bindings).
+- `gin-gonic/gin`, `chinmay-sawant/gowkhtmltopdf` (pure-Go HTML), `bytedance/sonic`, `golang.org/x/sync`, `google.golang.org/api`. Indirect: `goccy/go-json`, `ugorji/go`.
+- No Ghostscript. No browser. System prereqs only: Java 11+ (veraPDF), Node 18+ (frontend), Python 3.8+ (bindings).
 - `policy.json` is GAR artifact retention only, not a PDF policy.
 - Add deps only via `go mod tidy` plus `setup-auth.sh` flow. Frontend deps via `frontend/package.json` plus `npm ci`. Keep `go.sum` in sync.
 

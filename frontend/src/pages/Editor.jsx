@@ -78,6 +78,8 @@ export default function Editor() {
   }
 
   // Fetch fonts from API on component mount (module-level cache, single request)
+  // [~] deferred per plans/wasm/03 Phase 3: server font-install stays
+  // server-side (never in-browser); see plans/wasm/01-full-wasm-port.md.
   useEffect(() => {
     const loadFonts = async () => {
       if (_fontsCache) {
@@ -563,6 +565,9 @@ export default function Editor() {
   }
 
   // --- PDF Generation ---
+  // [~] deferred per plans/wasm/03 Phase 3: POST /api/v1/generate/template-pdf
+  // plus GET template-data and GET/POST /api/v1/fonts stay server-side until
+  // plans/wasm/01-full-wasm-port.md Phase 2.2 (bundle + font-asset cost).
   const handleGeneratePdf = async (isPreview = false) => {
     setIsJsonEditing(false)
     const template = buildTemplate({ config, title, components, footer, bookmarks })
@@ -622,6 +627,7 @@ export default function Editor() {
         templateData = await response.json();
       } else {
         // GET the template through the shared hook (auth retry + error mapping included)
+        // [~] deferred per plans/wasm/03 Phase 3: template-data stays server-side.
         templateData = await runJson(
           {
             endpoint: `/api/v1/template-data?file=${encodeURIComponent(filename)}`,

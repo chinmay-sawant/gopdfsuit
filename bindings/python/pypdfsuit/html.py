@@ -1,7 +1,7 @@
 """
 HTML to PDF/Image conversion functionality.
 
-Note: These functions require Chrome/Chromium to be available on the system.
+Pure-Go conversion via gowkhtmltopdf, no browser needed.
 """
 
 import json
@@ -14,7 +14,7 @@ def convert_html_to_pdf(request: HtmlToPDFRequest) -> bytes:
     """
     Convert HTML content or a URL to a PDF document.
 
-    This function requires Chrome/Chromium to be available on the system.
+    Pure-Go conversion, no browser needed.
 
     Args:
         request: HtmlToPDFRequest with HTML content or URL and conversion options
@@ -55,8 +55,8 @@ def convert_html_to_image(request: HtmlToImageRequest) -> bytes:
     """
     Convert HTML content or a URL to an image.
 
-    Supported formats: png, jpg/jpeg, svg (default: png).
-    This function requires Chrome/Chromium to be available on the system.
+    Supported formats: png, jpg/jpeg (default: png).
+    Pure-Go conversion, no browser needed.
 
     Args:
         request: HtmlToImageRequest with HTML content or URL and conversion options

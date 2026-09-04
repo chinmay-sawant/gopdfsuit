@@ -89,6 +89,10 @@ func RegisterRoutes(router *gin.Engine) {
 	staticWithCache("/gopdfsuit/assets", filepath.Join(base, "docs", "assets"))
 	staticWithCache("/assets", filepath.Join(base, "docs", "assets")) // Fallback for backward compatibility
 
+	// Auth approach is env-based, not code removal: GoogleAuthMiddleware stays
+	// registered on the v1 group and self-gates via authEnforced() (public
+	// unless REQUIRE_AUTH=1 or K_SERVICE/K_REVISION is set). To enforce auth
+	// locally or in staging, set REQUIRE_AUTH=1 rather than editing routes.
 	// Benchmark fast path (GIN_FAST_API=1): skip extra non-auth middleware such
 	// as CORS, but NEVER skip authentication. The template-pdf route always
 	// lives inside the v1 auth group so GoogleAuthMiddleware still runs.

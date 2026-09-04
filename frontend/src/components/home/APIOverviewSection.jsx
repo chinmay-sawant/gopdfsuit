@@ -1,18 +1,20 @@
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
 import { Zap, Globe } from 'lucide-react'
 
+// Transport labels per plans/wasm/03 Phase 4: browser-local (WASM-first with
+// server consent fallback) vs server-only / server-side for now.
 const restEndpoints = [
-  { method: 'POST', path: '/api/v1/generate/template-pdf', desc: 'Generate PDF' },
-  { method: 'POST', path: '/api/v1/merge', desc: 'Merge PDFs' },
-  { method: 'POST', path: '/api/v1/split', desc: 'Split PDFs' },
-  { method: 'POST', path: '/api/v1/fill', desc: 'Fill forms' },
-  { method: 'GET', path: '/api/v1/template-data', desc: 'Get template data' },
-  { method: 'GET', path: '/api/v1/fonts', desc: 'List fonts' },
-  { method: 'POST', path: '/api/v1/htmltopdf', desc: 'HTML to PDF' },
-  { method: 'POST', path: '/api/v1/htmltoimage', desc: 'HTML to Image' },
-  { method: 'POST', path: '/api/v1/redact/page-info', desc: 'Get page info' },
-  { method: 'POST', path: '/api/v1/redact/search', desc: 'Search text for redaction' },
-  { method: 'POST', path: '/api/v1/redact/apply', desc: 'Apply redactions' },
+  { method: 'POST', path: '/api/v1/generate/template-pdf', desc: 'Generate PDF', transport: 'server-only' },
+  { method: 'POST', path: '/api/v1/merge', desc: 'Merge PDFs', transport: 'browser-local' },
+  { method: 'POST', path: '/api/v1/split', desc: 'Split PDFs', transport: 'browser-local' },
+  { method: 'POST', path: '/api/v1/fill', desc: 'Fill forms', transport: 'browser-local' },
+  { method: 'GET', path: '/api/v1/template-data', desc: 'Get template data', transport: 'server-only' },
+  { method: 'GET', path: '/api/v1/fonts', desc: 'List fonts', transport: 'server-only' },
+  { method: 'POST', path: '/api/v1/htmltopdf', desc: 'HTML to PDF', transport: 'server-only' },
+  { method: 'POST', path: '/api/v1/htmltoimage', desc: 'HTML to Image', transport: 'server-only' },
+  { method: 'POST', path: '/api/v1/redact/page-info', desc: 'Get page info (client pdfjs)', transport: 'browser-local' },
+  { method: 'POST', path: '/api/v1/redact/search', desc: 'Search text for redaction', transport: 'server-side for now' },
+  { method: 'POST', path: '/api/v1/redact/apply', desc: 'Apply redactions', transport: 'server-side for now' },
 ]
 
 const webRoutes = [
@@ -72,6 +74,9 @@ const APIOverviewSection = ({ isVisible }) => {
                       </span>
                       <code className="api-endpoint-path">{api.path}</code>
                       <span className="api-endpoint-desc">{api.desc}</span>
+                      {api.transport && (
+                        <span className="api-endpoint-desc" style={{ opacity: 0.7 }}>({api.transport})</span>
+                      )}
                     </div>
                   ))}
                 </div>

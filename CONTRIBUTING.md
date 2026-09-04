@@ -8,7 +8,7 @@ Thank you for your interest in contributing to **GoPdfSuit**. This guide covers 
 |-------------|-----------------|
 | **Go** | **1.26.4** (required - matches `go.mod`) |
 | **Make** | Required for build, test, and lint targets |
-| **Google Chrome** | Required for HTML→PDF/Image conversion |
+| **HTML conversion** | Pure-Go via gowkhtmltopdf, no browser needed |
 | **Node.js + npm** | Frontend build (Node 18+ recommended) |
 | **Python 3.8+** | Python bindings tests (`pypdfsuit`) |
 | **Java 11+** | Optional - needed for veraPDF (PDF/A-4 + PDF/UA-2 validation) |
@@ -34,11 +34,7 @@ cd frontend && npm ci && cp .env.example .env && cd ..
 make install-pdf-validators   # veraPDF + avalpdf (see documentation/PDF_VALIDATORS.md)
 ```
 
-Install Google Chrome on Linux:
-
-```bash
-sudo apt install -y google-chrome-stable
-```
+HTML conversion is pure-Go via gowkhtmltopdf. No browser install needed.
 
 ## Project overview
 

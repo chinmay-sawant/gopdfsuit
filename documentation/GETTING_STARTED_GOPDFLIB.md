@@ -286,3 +286,26 @@ The JavaScript/WASM sample is separate:
 make wasm-compress
 node sampledata/compress-js/run.mjs
 ```
+
+---
+
+## Browser-local (WASM) vs server-only ops
+
+Pure-Go ops also run in the browser as WebAssembly (`make wasm`, demo in
+`sampledata/wasm-js/`). The file never leaves the tab: no `POST /api/v1/*`.
+
+| Op | Browser-local (WASM) | Server-only |
+|----|----------------------|-------------|
+| Generate | yes (`goGeneratePDF`) | also via API |
+| Merge | yes (`goMergePDF`) | also via API |
+| Split | yes (`goSplitPDF`, returns JS array, zip in JS) | also via API |
+| Compress | yes (`goCompressPDF`, Light/Medium/Heavy) | also via API |
+| Fill (XFDF) | yes (`goFillPDF`, two `Uint8Array`) | also via API |
+| Redact | yes, **text path only** (`goRedactSearch`/`goRedactApply`, no OCR) | full path incl. OCR via API |
+| HTML to PDF/Image | no | yes, server-side only |
+
+Redact in WASM leaves the `OCR` field unset: there is no
+pdftoppm/tesseract subprocess in a browser tab, so image-only pages are
+reported, not OCRed. Fill notes one limit: `/NeedAppearances true` is a
+byte-level patch, so files whose AcroForm lives inside a compressed
+object stream may not auto-regenerate appearances on open.

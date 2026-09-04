@@ -18,11 +18,12 @@ const HtmlToImage = () => {
   })
 
   const [config, setConfig] = useState({
-    format: 'png', width: 800, height: 600, quality: 94, zoom: 1.0,
-    crop_width: 0, crop_height: 0, crop_x: 0, crop_y: 0,
+    format: 'png', width: 800, height: 600, quality: 94,
   })
 
   const convertToImage = async () => {
+    // [~] server-only per plans/wasm/03 Phase 3: Chromium today, gowkhtmltopdf
+    // after plans/wasm/02-gowkhtmltopdf-replace.md; never WASM.
     if (isGitHubPagesHost()) {
       alert(OFFLINE_DEMO_MESSAGE)
       return
@@ -49,13 +50,13 @@ const HtmlToImage = () => {
       <section style={{ padding: '4rem 0 2rem', textAlign: 'center' }}>
         <div className="container">
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(240,147,251,0.1)', border: '1px solid rgba(240,147,251,0.3)', borderRadius: '50px', marginBottom: '1.5rem', color: '#f093fb', fontSize: '0.9rem', fontWeight: '500' }}>
-            <Sparkles size={16} />PNG, JPG, SVG Support
+            <Sparkles size={16} />PNG, JPG Support
           </div>
           <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem', fontSize: 'clamp(2rem,5vw,3rem)', fontWeight: '800', color: 'hsl(var(--foreground))' }}>
             <div className="feature-icon-box blue" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Image size={28} /></div>
             HTML to Image
           </h1>
-          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Convert HTML content or web pages to PNG, JPG, or SVG images</p>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Convert HTML content or web pages to PNG or JPG images</p>
         </div>
       </section>
 
@@ -108,7 +109,7 @@ const HtmlToImage = () => {
                 <div className="grid grid-2" style={{ gap: '1rem', marginBottom: '1rem' }}>
                   <div>
                     <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Format:</label>
-                    <select value={config.format} onChange={(e) => setConfig(p => ({ ...p, format: e.target.value }))} style={inputStyles}><option value="png">PNG</option><option value="jpg">JPG</option><option value="svg">SVG</option></select>
+                    <select value={config.format} onChange={(e) => setConfig(p => ({ ...p, format: e.target.value }))} style={inputStyles}><option value="png">PNG</option><option value="jpg">JPG</option></select>
                   </div>
                   <div>
                     <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Quality (1-100):</label>
@@ -125,19 +126,7 @@ const HtmlToImage = () => {
                     <input type="number" value={config.height} onChange={(e) => setConfig(p => ({ ...p, height: parseInt(e.target.value) || 600 }))} style={inputStyles} />
                   </div>
                 </div>
-                <div className="grid grid-2" style={{ gap: '1rem' }}>
-                  <div>
-                    <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Zoom Factor:</label>
-                    <input type="number" step="0.1" min="0.1" max="5" value={config.zoom} onChange={(e) => setConfig(p => ({ ...p, zoom: parseFloat(e.target.value) || 1.0 }))} style={inputStyles} />
-                  </div>
-                  <div>
-                    <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Crop (W×H):</label>
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <input type="number" placeholder="W" value={config.crop_width || ''} onChange={(e) => setConfig(p => ({ ...p, crop_width: parseInt(e.target.value) || 0 }))} style={{ ...inputStyles, flex: 1 }} />
-                      <input type="number" placeholder="H" value={config.crop_height || ''} onChange={(e) => setConfig(p => ({ ...p, crop_height: parseInt(e.target.value) || 0 }))} style={{ ...inputStyles, flex: 1 }} />
-                    </div>
-                  </div>
-                </div>
+                <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem', margin: '1rem 0 0' }}>Pure-Go engine: zoom and crop_* are no-ops and hidden. SVG output is not supported (png/jpg only).</p>
               </div>
               <button onClick={convertToImage} disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem', padding: '1rem 2rem' }}>
                 {isLoading ? <RefreshCw size={18} className="spin" /> : <Image size={18} />}Convert to Image
@@ -166,9 +155,9 @@ const HtmlToImage = () => {
               <div className="feature-icon-box yellow" style={{ width: '40px', height: '40px', marginBottom: 0 }}><span style={{ fontSize: '1.2rem' }}>🎨</span></div>Quick Presets
             </h3>
             <div className="grid grid-3" style={{ gap: '1rem' }}>
-              <button onClick={() => setConfig(p => ({ ...p, width: 1920, height: 1080, zoom: 1.0 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>📺 HD (1920×1080)</button>
-              <button onClick={() => setConfig(p => ({ ...p, width: 800, height: 600, zoom: 1.0 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>🖥️ Standard (800×600)</button>
-              <button onClick={() => setConfig(p => ({ ...p, width: 400, height: 400, zoom: 1.0 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>🔲 Square (400×400)</button>
+              <button onClick={() => setConfig(p => ({ ...p, width: 1920, height: 1080 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>📺 HD (1920×1080)</button>
+              <button onClick={() => setConfig(p => ({ ...p, width: 800, height: 600 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>🖥️ Standard (800×600)</button>
+              <button onClick={() => setConfig(p => ({ ...p, width: 400, height: 400 }))} className="btn-outline-glow" style={{ fontSize: '0.9rem', padding: '0.75rem 1rem' }}>🔲 Square (400×400)</button>
             </div>
           </div>
         </div>

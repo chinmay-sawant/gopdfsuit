@@ -5,6 +5,9 @@ import { usePdfOperation } from '../hooks/usePdfOperation'
 import OperationShell from '../components/OperationShell'
 import { formatFileSize } from '../utils/format'
 import BackgroundAnimation from '../components/BackgroundAnimation'
+import { fillPDFSmart, fillViaServer, shouldUseServerWasmTransport } from '../utils/wasmLoader.js'
+
+const serverTransport = shouldUseServerWasmTransport()
 
 const Filler = () => {
   const [pdfFile, setPdfFile] = useState(null)
@@ -12,7 +15,8 @@ const Filler = () => {
   const pdfInputRef = useRef(null)
   const xfdfInputRef = useRef(null)
   const { getAuthHeaders, triggerLogin } = useAuth()
-  const { isLoading, resultUrl: filledPdfUrl, run, download } = usePdfOperation({
+  const [fallbackOffer, setFallbackOffer] = useState(null)
+  const { isLoading, resultUrl: filledPdfUrl, run, runLocal, download } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => alert(`Error filling PDF: ${message}`),
   })
@@ -22,13 +26,41 @@ const Filler = () => {
 
   const fillPDF = async () => {
     if (!pdfFile || !xfdfFile) return
-    const formData = new FormData()
-    formData.append('pdf', pdfFile); formData.append('xfdf', xfdfFile)
-    await run({
-      endpoint: '/api/v1/fill',
-      body: formData,
-      getAuthHeaders,
-      filename: `filled-${pdfFile.name}`,
+    // Browser-local first via gopdfsuit.wasm goFillPDF after the 01 Fill
+    // binding lands (see plans/wasm/01-full-wasm-port.md); server only on
+    // explicit consent, Compress.jsx:83-92 pattern.
+    if (serverTransport) {
+      const formData = new FormData()
+      formData.append('pdf', pdfFile); formData.append('xfdf', xfdfFile)
+      await run({
+        endpoint: '/api/v1/fill',
+        body: formData,
+        getAuthHeaders,
+        filename: `filled-${pdfFile.name}`,
+      })
+      return
+    }
+    setFallbackOffer(null)
+    const pdfBytes = new Uint8Array(await pdfFile.arrayBuffer())
+    const xfdfBytes = new Uint8Array(await xfdfFile.arrayBuffer())
+    const pdfName = pdfFile.name
+    let wasmMessage = ''
+    const url = await runLocal(() => fillPDFSmart(pdfBytes, xfdfBytes, pdfName, { getAuthHeaders }), {
+      autoDownload: false,
+      onError: (message) => { wasmMessage = message },
+    })
+    if (url) return
+    if (getAuthHeaders) {
+      setFallbackOffer({ pdfBytes, xfdfBytes, pdfName, message: wasmMessage })
+    }
+  }
+
+  const fillViaServerConsent = async () => {
+    if (!fallbackOffer || isLoading) return
+    const { pdfBytes, xfdfBytes, pdfName } = fallbackOffer
+    setFallbackOffer(null)
+    await runLocal(() => fillViaServer(pdfBytes, xfdfBytes, pdfName, getAuthHeaders), {
+      filename: `filled-${pdfName}`,
     })
   }
 
@@ -55,12 +87,28 @@ const Filler = () => {
             <div className="feature-icon-box green" style={{ width: '56px', height: '56px', marginBottom: 0 }}><FileCheck size={28} /></div>
             PDF Form Filler
           </h1>
-          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Fill PDF forms using XFDF data with AcroForm support</p>
+          <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>{serverTransport ? 'Server transport active (VITE_WASM_TRANSPORT=server): files are uploaded to /api/v1/fill.' : 'Fill PDF forms using XFDF data with AcroForm support - runs in your browser when the WASM Fill binding lands, server upload only on consent.'}</p>
         </div>
       </section>
 
       <section style={{ padding: '2rem 0 4rem' }}>
         <div className="container">
+          {fallbackOffer && (
+            <div style={{ padding: '1rem', background: 'rgba(255, 193, 7, 0.1)', border: '1px solid #ffc107', borderRadius: '8px', marginBottom: '1rem', color: 'hsl(var(--foreground))' }}>
+              <div style={{ marginBottom: '0.75rem' }}>
+                Browser fill is not available in this build{fallbackOffer.message ? `: ${fallbackOffer.message}` : '.'} The files were not uploaded.
+                Upload them to the server to fill instead? Try sampledata/filler/* fixtures.
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button onClick={fillViaServerConsent} disabled={isLoading} className="btn-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  Upload to server and fill
+                </button>
+                <button onClick={() => setFallbackOffer(null)} disabled={isLoading} className="btn-outline-glow" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                  Stay local
+                </button>
+              </div>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
             <div className="glass-card" style={{ padding: '2rem' }}>
               <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>

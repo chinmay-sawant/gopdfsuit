@@ -150,7 +150,7 @@ const Navbar = () => {
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />} {/* Reduced icon size */}
               </button>
 
-              {/* User Profile and Sign Out - only show when authenticated and auth is required */}
+              {/* User Profile and Sign Out - only show when auth is explicitly required (public by default) */}
               {authRequired && isAuthenticated && user && (
                 <>
                   <div
@@ -310,7 +310,7 @@ const Navbar = () => {
                 <span className="text-muted">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
               </button>
 
-              {/* User Profile and Sign Out - mobile */}
+              {/* User Profile and Sign Out (mobile) - hidden unless auth is explicitly required */}
               {authRequired && isAuthenticated && user && (
                 <>
                   <div style={{

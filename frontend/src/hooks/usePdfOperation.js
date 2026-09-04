@@ -146,6 +146,9 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
   }, [request, storeBlob, handleFailure])
 
   const runLocal = useCallback(async (task, options = {}) => {
+    // Browser-local path shared by Compress plus Merge/Split/Filler/Redact:
+    // task() must not upload anything. Server fallback (if any) lives in the
+    // caller behind an explicit consent click (Compress.jsx:83-92 pattern).
     setIsLoading(true)
     setError(null)
     try {
@@ -160,11 +163,45 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
     }
   }, [storeBlob, handleFailure])
 
+  // Multi-file variant for Split: task() resolves to an array of
+  // Uint8Array/Blob parts. Stores the first part for preview and downloads
+  // the rest, so one local call yields N files with no upload.
+  const runLocalMulti = useCallback(async (task, options = {}) => {
+    const { filenames, autoDownload = true, onBlob, onError: onErrorOverride, ...storeOptions } = options
+    setIsLoading(true)
+    setError(null)
+    try {
+      const output = await task()
+      const parts = Array.isArray(output) ? output : [output]
+      if (parts.length === 0) throw new Error('Received empty document')
+      const urls = parts.map((part, index) => {
+        const blob = part instanceof Blob ? part : new Blob([part], { type: storeOptions.mimeType || 'application/pdf' })
+        if (blob.size === 0) throw new Error('Received empty document')
+        const url = toBlobUrl(blob, storeOptions.mimeType || 'application/pdf')
+        const name = Array.isArray(filenames) && filenames[index]
+        if (autoDownload && name) downloadBlobUrl(url, name)
+        return { blob, url }
+      })
+      revokeResult()
+      urlRef.current = urls[0].url
+      setResultUrl(urls[0].url)
+      if (onBlob) onBlob(urls.map((entry) => entry.blob), urls.map((entry) => entry.url))
+      // Revoke non-preview URLs after download; keep urls[0] alive for preview.
+      urls.slice(1).forEach((entry) => URL.revokeObjectURL(entry.url))
+      return urls.map((entry) => entry.url)
+    } catch (err) {
+      handleFailure(err, onErrorOverride)
+      return null
+    } finally {
+      setIsLoading(false)
+    }
+  }, [revokeResult, handleFailure])
+
   const download = useCallback((filename) => {
     downloadBlobUrl(resultUrl, filename)
   }, [resultUrl])
 
-  return { isLoading, resultUrl, error, setError, setResultUrl, run, runJson, runLocal, request, reset, revokeResult, download }
+  return { isLoading, resultUrl, error, setError, setResultUrl, run, runJson, runLocal, runLocalMulti, request, reset, revokeResult, download }
 }
 
 export default usePdfOperation

@@ -1,8 +1,7 @@
 """
 Tests for HTML conversion functionality.
 
-Note: These tests require Chrome/Chromium to be installed on the system.
-They may be skipped if Chrome is not available.
+Pure-Go conversion via gowkhtmltopdf, no browser needed.
 """
 
 import pytest
@@ -15,13 +14,6 @@ from pypdfsuit import (
 from pypdfsuit._bindings import GoPDFSuitError
 
 
-# Mark tests that require Chrome
-requires_chrome = pytest.mark.skipif(
-    True,  # Set to False if Chrome is available
-    reason="Chrome/Chromium not available for testing",
-)
-
-
 class TestConvertHTMLToPDF:
     """Tests for convert_html_to_pdf function."""
 
@@ -31,7 +23,6 @@ class TestConvertHTMLToPDF:
         with pytest.raises(ValueError):
             convert_html_to_pdf(request)
 
-    @requires_chrome
     def test_convert_html_string(self):
         """Test converting HTML string to PDF."""
         request = HtmlToPDFRequest(
@@ -45,7 +36,6 @@ class TestConvertHTMLToPDF:
         assert pdf_bytes is not None
         assert pdf_bytes.startswith(b"%PDF-")
 
-    @requires_chrome
     def test_convert_with_margins(self):
         """Test converting HTML with custom margins."""
         request = HtmlToPDFRequest(
@@ -72,7 +62,6 @@ class TestConvertHTMLToImage:
         with pytest.raises(ValueError):
             convert_html_to_image(request)
 
-    @requires_chrome
     def test_convert_html_to_png(self):
         """Test converting HTML to PNG image."""
         request = HtmlToImageRequest(
@@ -88,7 +77,6 @@ class TestConvertHTMLToImage:
         # PNG magic bytes
         assert img_bytes[:8] == b"\x89PNG\r\n\x1a\n"
 
-    @requires_chrome
     def test_convert_html_to_jpeg(self):
         """Test converting HTML to JPEG image."""
         request = HtmlToImageRequest(

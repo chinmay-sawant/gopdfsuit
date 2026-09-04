@@ -31,7 +31,7 @@ const competitors = [
     webInterface: 'Built-in viewer / editor',
     formFilling: 'XFDF advanced detection',
     pdfMerge: 'Drag and drop + form preservation',
-    htmlConversion: 'gochromedp (Chromium)',
+    htmlConversion: 'gowkhtmltopdf (pure-Go)',
     multipage: 'Auto page breaks',
     styling: 'Font styles + borders + images',
     pdfaCompliance: 'PDF/A-4 with ICC profiles',

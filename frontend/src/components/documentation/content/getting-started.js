@@ -48,6 +48,7 @@ Web interfaces available:
 • /merge - PDF Merger
 • /split - PDF Splitter
 • /compress - PDF Compressor (in-browser WASM, file stays on device)
+• /merge, /split, /filler - Merge, Split, Fill run browser-local via WASM when available (gopdfsuit.wasm), server fallback only on explicit consent; HTML conversion stays server-side
 • /filler - Form Filler
 • /htmltopdf - HTML to PDF Converter
 • /htmltoimage - HTML to Image Converter`,

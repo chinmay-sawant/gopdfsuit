@@ -20,10 +20,12 @@ const HtmlToPdf = () => {
   const [config, setConfig] = useState({
     page_size: 'A4', orientation: 'Portrait',
     margin_top: '10mm', margin_right: '10mm', margin_bottom: '10mm', margin_left: '10mm',
-    dpi: 300, grayscale: false, low_quality: false,
+    grayscale: false,
   })
 
   const convertToPdf = async () => {
+    // [~] server-only per plans/wasm/03 Phase 3: Chromium today, gowkhtmltopdf
+    // after plans/wasm/02-gowkhtmltopdf-replace.md; never WASM.
     if (isGitHubPagesHost()) {
       alert(OFFLINE_DEMO_MESSAGE)
       return
@@ -49,7 +51,7 @@ const HtmlToPdf = () => {
       <section style={{ padding: '4rem 0 2rem', textAlign: 'center' }}>
         <div className="container">
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'rgba(0,122,204,0.1)', border: '1px solid rgba(0,122,204,0.3)', borderRadius: '50px', marginBottom: '1.5rem', color: '#007acc', fontSize: '0.9rem', fontWeight: '500' }}>
-            <Sparkles size={16} />Chromium-powered
+            <Sparkles size={16} />Pure-Go conversion
           </div>
           <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem', fontSize: 'clamp(2rem,5vw,3rem)', fontWeight: '800', color: 'hsl(var(--foreground))' }}>
             <div className="feature-icon-box green" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Globe size={28} /></div>
@@ -131,19 +133,11 @@ const HtmlToPdf = () => {
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-2" style={{ gap: '1rem' }}>
-                  <div>
-                    <label style={{ color: 'hsl(var(--foreground))', fontSize: '0.9rem', display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>DPI Quality:</label>
-                    <select value={config.dpi} onChange={(e) => setConfig(p => ({ ...p, dpi: parseInt(e.target.value) }))} style={inputStyles}><option value={150}>150 DPI</option><option value={300}>300 DPI</option><option value={600}>600 DPI</option></select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', justifyContent: 'center' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={config.grayscale} onChange={(e) => setConfig(p => ({ ...p, grayscale: e.target.checked }))} style={{ width: '18px', height: '18px', accentColor: '#4ecdc4' }} />Grayscale
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={config.low_quality} onChange={(e) => setConfig(p => ({ ...p, low_quality: e.target.checked }))} style={{ width: '18px', height: '18px', accentColor: '#4ecdc4' }} />Low Quality
-                    </label>
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', justifyContent: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'hsl(var(--foreground))', fontSize: '0.9rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={config.grayscale} onChange={(e) => setConfig(p => ({ ...p, grayscale: e.target.checked }))} style={{ width: '18px', height: '18px', accentColor: '#4ecdc4' }} />Grayscale
+                  </label>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem', margin: 0 }}>Pure-Go engine: dpi / low_quality are no-ops and hidden. Scripts are stripped, flex/grid support is partial, backgrounds ignored, WOFF2 fonts skipped.</p>
                 </div>
               </div>
               <button onClick={convertToPdf} disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem', padding: '1rem 2rem' }}>

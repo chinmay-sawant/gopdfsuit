@@ -73,7 +73,8 @@ ifeq ($(wildcard $(WASM_EXEC)),)
 WASM_EXEC := $(shell go env GOROOT)/misc/wasm/wasm_exec.js
 endif
 
-# In-browser compressor: GOOS=js GOARCH=wasm, no gin / gochromedp.
+# In-browser compressor: GOOS=js GOARCH=wasm, no gin / browser deps.
+# HTML conversion is server-side pure-Go via gowkhtmltopdf, no Chrome needed.
 # Copies wasm + wasm_exec.js to frontend/public and sampledata/compress-js.
 wasm-compress:
 	mkdir -p frontend/public sampledata/compress-js
@@ -81,6 +82,18 @@ wasm-compress:
 	cp "$(WASM_EXEC)" frontend/public/wasm_exec.js
 	cp frontend/public/compress.wasm frontend/public/wasm_exec.js sampledata/compress-js/
 	file frontend/public/compress.wasm
+
+# Full browser bundle: Generate, Merge, Split, Compress, Fill, text-path Redact.
+# HTML conversion and the OCR subprocess stay server-side and are never
+# referenced by ./cmd/wasm (see plans/wasm/01-full-wasm-port.md Phase 2.1).
+wasm:
+	mkdir -p frontend/public sampledata/wasm-js
+	GOOS=js GOARCH=wasm go build -o frontend/public/gopdfsuit.wasm ./cmd/wasm
+	cp "$(WASM_EXEC)" frontend/public/wasm_exec.js
+	cp frontend/public/gopdfsuit.wasm frontend/public/wasm_exec.js sampledata/wasm-js/
+	file frontend/public/gopdfsuit.wasm
+
+.PHONY: wasm wasm-compress
 
 run: test-integration lint wasm-compress
 	export VITE_IS_CLOUD_RUN=false;\

@@ -45,7 +45,16 @@ func (e *HTTPStatusError) Unwrap() error {
 // wantSHA256 is non-empty the bytes must match that hex digest before the
 // path is returned. The caller owns the file: rename it into place or
 // remove it.
+//
+// WASM (GOOS=js): unsupported and rejected up front. Browsers have no temp
+// filesystem for os.CreateTemp and no direct server-style fetch here; WASM
+// callers must obtain font bytes in JS (fetch to Uint8Array) and register
+// them with (CustomFontRegistry).RegisterFontFromData or
+// RegisterFontFromBase64, which are pure in-memory.
 func FetchToTemp(ctx context.Context, url, dir, pattern string, maxBytes int64, wantSHA256 string, timeout time.Duration) (string, error) {
+	if isWASM() {
+		return "", errors.New("font: FetchToTemp unsupported in WASM (GOOS=js): load font bytes in JS and use RegisterFontFromData/RegisterFontFromBase64")
+	}
 	if url == "" {
 		return "", fmt.Errorf("empty download URL")
 	}
@@ -71,6 +80,8 @@ func FetchToTemp(ctx context.Context, url, dir, pattern string, maxBytes int64, 
 		return "", &HTTPStatusError{URL: url, Status: resp.StatusCode}
 	}
 
+	// NOTE (!js path): WASM (GOOS=js) returns above via isWASM; os.CreateTemp
+	// has no browser filesystem, so this line is unreachable in WASM builds.
 	tmpFile, err := os.CreateTemp(dir, pattern)
 	if err != nil {
 		return "", fmt.Errorf("create temp file: %w", err)

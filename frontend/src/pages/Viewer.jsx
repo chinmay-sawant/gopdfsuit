@@ -20,6 +20,9 @@ const Viewer = () => {
     if (!target) return
     setError(null)
 
+    // [~] deferred per plans/wasm/03 Phase 3: generate + template-data stay
+    // server-side. The generator is portable but the WASM bundle plus font
+    // asset cost is high; see plans/wasm/01-full-wasm-port.md Phase 2.2.
     const data = await runJson({
       endpoint: `/api/v1/template-data?file=${encodeURIComponent(target)}`,
       method: 'GET',

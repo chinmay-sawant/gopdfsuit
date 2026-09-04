@@ -1,3 +1,5 @@
+//go:build !js
+
 // Package gopdflib provides HTML to PDF/Image conversion functionality.
 package gopdflib
 
@@ -9,7 +11,7 @@ import (
 )
 
 // ConvertHTMLToPDF converts HTML content or a URL to a PDF document.
-// This function requires Chrome/Chromium to be available on the system.
+// This function is pure-Go via gowkhtmltopdf; no browser required.
 //
 // Example - Convert HTML string:
 //
@@ -44,8 +46,9 @@ func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
 }
 
 // ConvertHTMLToImage converts HTML content or a URL to an image.
-// Supported formats: png, jpg/jpeg, svg (default: png).
-// This function requires Chrome/Chromium to be available on the system.
+// Supported formats: png, jpg/jpeg (default: png). Format svg has no
+// gowkhtmltopdf equivalent and is rejected as invalid input.
+// This function is pure-Go via gowkhtmltopdf; no browser required.
 //
 // Example:
 //
@@ -60,6 +63,9 @@ func ConvertHTMLToImage(req HTMLToImageRequest) ([]byte, error) {
 	const op = "gopdflib: ConvertHTMLToImage"
 	if req.HTML == "" && req.URL == "" {
 		return nil, invalidInputError(op, "needs HTML content or a URL")
+	}
+	if req.Format == "svg" {
+		return nil, invalidInputError(op, "format svg is not supported: use png or jpg")
 	}
 	in, err := toInternal[HTMLToImageRequest, models.HTMLToImageRequest](req)
 	if err != nil {

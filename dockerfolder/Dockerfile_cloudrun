@@ -16,13 +16,13 @@ COPY README.md LICENSE ./
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/gopdfsuit/main.go
 
 # --- Stage 2: Optimized Runtime ---
-# This image contains a stripped-down Chromium optimized for automation
-# Uncompressed size is approx ~300-350MB
-FROM chromedp/headless-shell:latest
+# Pure-Go HTML pipeline (gowkhtmltopdf): no Chromium runtime.
+# Uncompressed size is approx ~30-40MB (Go static binary + debian-slim base).
+FROM debian:bookworm-slim
 RUN rm -rf /usr/share/doc /usr/share/man /usr/share/locale
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-# Install dumb-init to prevent zombie processes (common issue with Chrome in Docker)
-RUN apt-get update && apt-get install -y --no-install-recommends dumb-init \
+# Install dumb-init to prevent zombie processes (common issue with servers in Docker)
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -30,8 +30,6 @@ WORKDIR /app
 COPY --from=builder /app/server .
 COPY --from=builder /app/docs ./docs
 
-# The headless-shell binary is located here
-ENV CHROME_PATH="/headless-shell/headless-shell"
 ENV GOPDFSUIT_ROOT="/app"
 
 EXPOSE 8080

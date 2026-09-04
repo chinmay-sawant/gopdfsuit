@@ -10,6 +10,22 @@ The application now includes Google OAuth authentication that:
 - Protects all API endpoints when deployed to Cloud Run
 - Uses Google ID tokens for secure, serverless authentication
 
+## Public by default
+
+Auth is opt-in. Both sides default to public:
+
+- Frontend: `isAuthRequired()` returns false unless `VITE_IS_CLOUD_RUN=true`
+  or `VITE_ENVIRONMENT=cloudrun` is set. The `/editor` route renders
+  unwrapped `<Editor/>` by default and only uses `AuthGuard` when required.
+  Navbar hides avatar and Sign Out when auth is not required.
+- Backend: `GoogleAuthMiddleware` is a no-op `c.Next()` when `REQUIRE_AUTH`
+  is unset (or `0`) and neither `K_SERVICE` nor `K_REVISION` is set. Local
+  dev, plain Docker, and unit tests pass through untouched.
+
+To enable auth, opt in on both sides: build the frontend with
+`VITE_IS_CLOUD_RUN=true` plus `VITE_GOOGLE_CLIENT_ID`, and run the backend
+on Cloud Run (auto-sets `K_SERVICE`) or with `REQUIRE_AUTH=1`.
+
 ## Architecture
 
 ### Frontend (React)
@@ -95,6 +111,18 @@ REQUIRE_AUTH=1
 
 This forces the middleware to validate tokens everywhere. Use it in staging
 or in local testing before release.
+
+Local enforcement test:
+
+```bash
+# Public by default: 200 with no token
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/api/v1/fonts
+
+# Opt-in enforcement: 401 with no token
+REQUIRE_AUTH=1 go run ./cmd/gopdfsuit &
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/api/v1/fonts
+kill %1
+```
 
 Note: the `GIN_FAST_API=1` benchmark fast path only skips CORS overhead - it
 never bypasses authentication. The template-pdf route always runs inside the

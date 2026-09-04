@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/bytedance/sonic"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 )
@@ -17,7 +18,10 @@ import (
 var warmPoolsOnce sync.Once
 
 // WarmRuntimePools pre-warms compression and buffer pools. It is safe to
-// call multiple times; only the first call allocates.
+// call multiple times; only the first call allocates. The guard is a
+// sync.Once with no goroutines, so it is also safe single-threaded under
+// GOOS=js GOARCH=wasm: the WASM entry point may call it once at startup or
+// rely on the lazy ensureRuntimePools path inside each Generate call.
 func WarmRuntimePools() {
 	warmPoolsOnce.Do(func() {
 		pdf.WarmRuntimePools()
@@ -77,6 +81,68 @@ func SnapshotPDFCapacityHighWater() PDFCapacityHighWater {
 //	    log.Fatal(err)
 //	}
 //	os.WriteFile("output.pdf", pdfBytes, 0644)
+
+// MaxTemplateJSONBytes caps the template JSON document accepted by the
+// JSON entry points below (8 MiB, shared with the HTTP handler body cap).
+// The WASM shim enforces the same cap on the JSON string length before
+// copying it into the module.
+const MaxTemplateJSONBytes = 8 << 20
+
+// DecodeTemplateJSON decodes a template JSON document into a PDFTemplate.
+//
+// This is the WASM template path: the JS caller passes the template as a
+// JSON string (JSON.stringify(templateObject)), the shim copies the bytes,
+// and this function decodes them with the same policy as the HTTP handler:
+// models.PDFTemplate.PreallocForDecode sizes the slice backing arrays from
+// the document length before decode, then the result is translated to the
+// owned public type. Base64 imagedata/fontData stay plain JSON strings end
+// to end; for very large assets prefer passing raw Uint8Array bytes plus an
+// id map handled in JS instead of embedding data URIs in the JSON.
+func DecodeTemplateJSON(data []byte) (PDFTemplate, error) {
+	const op = "gopdflib: DecodeTemplateJSON"
+	if len(data) == 0 {
+		return PDFTemplate{}, invalidInputError(op, "needs a non-empty template JSON document")
+	}
+	if len(data) > MaxTemplateJSONBytes {
+		return PDFTemplate{}, limitExceededError(op, "template JSON exceeds maximum size")
+	}
+	var in models.PDFTemplate
+	in.PreallocForDecode(len(data), "")
+	if err := sonic.Unmarshal(data, &in); err != nil {
+		return PDFTemplate{}, fmt.Errorf("%w: %s: %w", ErrInvalidInput, op, err)
+	}
+	out, err := fromInternal[models.PDFTemplate, PDFTemplate](in)
+	if err != nil {
+		return PDFTemplate{}, fmt.Errorf("%w: %s: %w", ErrInvalidInput, op, err)
+	}
+	// The font hint is not part of the JSON shape, so it does not survive
+	// translation above: carry it over explicitly.
+	out.SetPrecomputedStandardFonts(in.PrecomputedStandardFonts()...)
+	return out, nil
+}
+
+// GeneratePDFFromJSON decodes a template JSON document (see DecodeTemplateJSON)
+// and generates the PDF in one call. It is the primary WASM generate binding:
+// callable with a JS template object serialized to a JSON string.
+func GeneratePDFFromJSON(data []byte) ([]byte, error) {
+	template, err := DecodeTemplateJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	return GeneratePDF(template)
+}
+
+// GeneratePDFBorrowedFromJSON is the pooled-buffer variant of
+// GeneratePDFFromJSON. The caller owns the buffer until Release is called
+// and MUST call Release exactly once, preferably via defer. See
+// GeneratePDFBorrowed for the borrow rules.
+func GeneratePDFBorrowedFromJSON(data []byte) (*BorrowedPDF, error) {
+	template, err := DecodeTemplateJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	return GeneratePDFBorrowed(template)
+}
 func GeneratePDF(template PDFTemplate) ([]byte, error) {
 	ensureRuntimePools()
 	in, err := toInternalTemplate(template)

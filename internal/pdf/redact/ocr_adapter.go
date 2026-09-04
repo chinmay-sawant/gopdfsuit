@@ -27,6 +27,14 @@ type ocrWord struct {
 	Text    string
 }
 
+// errOCRUnsupportedWASM is returned whenever OCR is requested under GOOS=js.
+// pdftoppm/tesseract subprocesses plus a temp directory cannot exist in the
+// browser, so OCR must fail fast here instead of reaching os/exec. The
+// message carries "unsupported" so the pkg/gopdflib seam classifies it as
+// CodeInvalidInput (invalid_input) through its legacy substring fallback
+// (this package cannot import pkg/gopdflib: import cycle via internal/pdf).
+var errOCRUnsupportedWASM = errors.New("redact: OCR unsupported in WASM (GOOS=js): pdftoppm/tesseract subprocesses cannot run in the browser; use the text path (FindTextOccurrences) or run OCR server-side")
+
 // OCRProvider is an adapter interface for OCR backends.
 type OCRProvider interface {
 	ExtractWords(pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error)
@@ -57,6 +65,9 @@ func getOCRProvider(settings models.OCRSettings) (OCRProvider, error) {
 }
 
 func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings models.OCRSettings) ([]models.RedactionRect, error) {
+	if isWASM() {
+		return nil, errOCRUnsupportedWASM
+	}
 	if len(queries) == 0 {
 		return nil, nil
 	}
@@ -119,6 +130,9 @@ func (r *Redactor) runOCRSearch(queries []models.RedactionTextQuery, settings mo
 }
 
 func (tesseractProvider) ExtractWords(pdfBytes []byte, settings models.OCRSettings) ([]ocrWord, error) {
+	if isWASM() {
+		return nil, errOCRUnsupportedWASM
+	}
 	if _, err := exec.LookPath("pdftoppm"); err != nil {
 		return nil, errors.New("pdftoppm command not found for OCR pipeline")
 	}

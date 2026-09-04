@@ -1,0 +1,117 @@
+<!--
+  Serve this folder (`python3 -m http.server`) after `make wasm`.
+  Generate, merge, split, fill, and text-path redact run in this tab via
+  gopdfsuit.wasm. No /api/v1/* calls. HTML conversion stays server-side.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>gopdfsuit full port (WASM)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.4; }
+    button { margin: 0.25rem 0.5rem 0.25rem 0; padding: 0.4rem 0.8rem; }
+    section { border-top: 1px solid #ddd; padding: 1rem 0; }
+    #status { margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <h1>gopdfsuit in the browser</h1>
+  <p>Generate, merge, split, fill, and redact (text path, no OCR) run locally via
+    <code>gopdfsuit.wasm</code>. HTML conversion stays server-side.</p>
+  <p id="status">Loading WASM…</p>
+
+  <section>
+    <h2>Merge</h2>
+    <p><input id="mergeFiles" type="file" accept="application/pdf,.pdf" multiple /></p>
+    <p><button type="button" id="mergeBtn" disabled>Merge</button>
+      <a id="mergeDownload" hidden>Download merged PDF</a></p>
+  </section>
+
+  <section>
+    <h2>Fill</h2>
+    <p>PDF <input id="fillPdf" type="file" accept="application/pdf,.pdf" />
+      XFDF <input id="fillXfdf" type="file" accept=".xfdf,.xml" /></p>
+    <p><button type="button" id="fillBtn" disabled>Fill</button>
+      <a id="fillDownload" hidden>Download filled PDF</a></p>
+  </section>
+
+  <section>
+    <h2>Redact (text search, no OCR)</h2>
+    <p><input id="redactFile" type="file" accept="application/pdf,.pdf" />
+      <input id="redactTerm" type="text" placeholder="search term" value="Confidential" /></p>
+    <p><button type="button" id="redactBtn" disabled>Redact</button>
+      <a id="redactDownload" hidden>Download redacted PDF</a></p>
+  </section>
+
+  <script src="wasm_exec.js"></script>
+  <script type="module">
+    import { fillPDF, mergePDFs, ready, redactApply } from './gopdfsuit.js'
+
+    var statusEl = document.getElementById('status')
+    function setStatus(msg) { statusEl.textContent = msg }
+    function offerDownload(el, bytes, name) {
+      el.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+      el.download = name
+      el.hidden = false
+    }
+
+    try {
+      // Load gopdfsuit.wasm; buttons enable only when all five bindings register.
+      await ready()
+      document.getElementById('mergeBtn').disabled = false
+      document.getElementById('fillBtn').disabled = false
+      document.getElementById('redactBtn').disabled = false
+      setStatus('WASM ready. Pick files per section.')
+    } catch (err) {
+      setStatus((err && err.message ? err.message : String(err)) +
+        ' — run make wasm, then python3 -m http.server')
+    }
+
+    document.getElementById('mergeBtn').addEventListener('click', async function () {
+      var files = document.getElementById('mergeFiles').files
+      if (!files || files.length < 2) { setStatus('Pick at least two PDFs to merge.') ; return }
+      setStatus('Merging…')
+      try {
+        var parts = await Promise.all(Array.prototype.map.call(files, function (f) {
+          return f.arrayBuffer().then(function (buf) { return new Uint8Array(buf) })
+        }))
+        var out = await mergePDFs(parts)
+        offerDownload(document.getElementById('mergeDownload'), out, 'merged.pdf')
+        setStatus('Done: merged ' + parts.length + ' files (' + out.byteLength + ' bytes).')
+      } catch (err) { setStatus(err && err.message ? err.message : String(err)) }
+    })
+
+    document.getElementById('fillBtn').addEventListener('click', async function () {
+      var pdf = document.getElementById('fillPdf').files[0]
+      var xfdf = document.getElementById('fillXfdf').files[0]
+      if (!pdf || !xfdf) { setStatus('Pick both a PDF and its XFDF file.') ; return }
+      setStatus('Filling…')
+      try {
+        var out = await fillPDF(
+          new Uint8Array(await pdf.arrayBuffer()),
+          new Uint8Array(await xfdf.arrayBuffer()),
+        )
+        offerDownload(document.getElementById('fillDownload'), out, 'filled.pdf')
+        setStatus('Done: filled (' + out.byteLength + ' bytes).')
+      } catch (err) { setStatus(err && err.message ? err.message : String(err)) }
+    })
+
+    document.getElementById('redactBtn').addEventListener('click', async function () {
+      var file = document.getElementById('redactFile').files[0]
+      var term = document.getElementById('redactTerm').value
+      if (!file || !term) { setStatus('Pick a PDF and enter a search term.') ; return }
+      setStatus('Redacting…')
+      try {
+        var out = await redactApply(new Uint8Array(await file.arrayBuffer()), {
+          textQueries: [{ text: term }],
+          mode: 'secure_required',
+        })
+        offerDownload(document.getElementById('redactDownload'), out, 'redacted.pdf')
+        setStatus('Done: redacted "' + term + '" (' + out.byteLength + ' bytes).')
+      } catch (err) { setStatus(err && err.message ? err.message : String(err)) }
+    })
+  </script>
+</body>
+</html>

@@ -145,6 +145,12 @@ func abortPDFError(c *gin.Context, err error) {
 
 // validateFetchURL allows only http/https URLs whose host does not resolve to
 // loopback, private, link-local (incl. cloud metadata), or multicast targets.
+// It is the outer SSRF guard for the htmltopdf/htmltoimage URL path: handlers
+// run it before internal/pdf builds a gowkhtmltopdf Content{URL:}, and the
+// adapter additionally sets RestrictedNetworkPolicy (blocks private
+// destinations plus cross-host redirects) for the page fetch and subresource
+// CSS inside the engine. Base/Allow/AllowLocalFiles stay at engine defaults
+// (local file reads disabled), so subresource CSS loads over http(s) only.
 func validateFetchURL(raw string) error {
 	if raw == "" {
 		return nil // HTML-content path: no fetch performed.

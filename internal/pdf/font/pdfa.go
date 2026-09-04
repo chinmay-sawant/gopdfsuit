@@ -194,8 +194,17 @@ func (m *PDFAFontManager) initialize(config PDFAFontConfig) error {
 	return nil
 }
 
-// EnsureFontsAvailable ensures Liberation fonts are available, downloading if necessary
+// EnsureFontsAvailable ensures Liberation fonts are available, downloading if necessary.
+//
+// WASM (GOOS=js): unsupported and rejected up front. The Liberation
+// download needs net/http plus a writable fonts directory, neither of which
+// exists in the browser; WASM callers needing PDF/A embedding must fetch
+// TTF bytes in JS and register them via
+// (CustomFontRegistry).RegisterFontFromData or RegisterFontFromBase64.
 func (m *PDFAFontManager) EnsureFontsAvailable() error {
+	if isWASM() {
+		return errors.New("liberation fonts unsupported in WASM (GOOS=js): load TTF bytes in JS and use RegisterFontFromData/RegisterFontFromBase64")
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -279,7 +288,12 @@ func (m *PDFAFontManager) checkFontDir(dir string) bool {
 // helper (timeout fetch, size cap, digest pin, temp file), then extracts the
 // known TTFs. The URL-override test seam is preserved: httptest overrides
 // skip digest verification through liberationArchiveDigest.
+// WASM (GOOS=js): never reached; EnsureFontsAvailable rejects first. The
+// guard below is defense in depth.
 func (m *PDFAFontManager) downloadFonts() error {
+	if isWASM() {
+		return errors.New("liberation font download unsupported in WASM (GOOS=js): load TTF bytes in JS and use RegisterFontFromData/RegisterFontFromBase64")
+	}
 	fmt.Printf("Downloading Liberation fonts from %s...\n", liberationFontsArchiveURL)
 
 	// Download the file with a timeout so a network hang cannot block

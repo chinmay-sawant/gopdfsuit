@@ -95,30 +95,49 @@ const Redaction = () => {
       setError(null)
       setPdfPageDims({ width: 0, height: 0 }) // Reset
       
-      // Fetch authoritative page info from backend
+      // Page dims come from client pdfjs (react-pdf renders locally, no
+      // network). The /api/v1/redact/page-info endpoint stays as a fallback
+      // only when local parsing fails. See plans/wasm/03 Phase 3.
       try {
-        const formData = new FormData()
-        formData.append('pdf', selectedFile)
-        const info = await runJson({
-          endpoint: '/api/v1/redact/page-info',
-          body: formData,
-          getAuthHeaders,
-          onError: (message) => console.error('Failed to fetch page info', message),
-        })
-
-        if (info && info.pages && info.pages.length > 0) {
-                // Store all pages? For now just assume they are similar or store map?
-                // The current component assumes single page dim for conversion (simplification).
-                // Ideally, we should look up dim by pageNumber.
-                // Let's store the whole info.
-                setPdfPageDims({ 
-                    width: info.pages[0].width, 
-                    height: info.pages[0].height,
-                    allPages: info.pages 
-                })
-            }
+        const buf = await selectedFile.arrayBuffer()
+        const loadingTask = pdfjs.getDocument({ data: buf.slice(0) })
+        const pdf = await loadingTask.promise
+        const pagesDims = []
+        for (let i = 1; i <= pdf.numPages; i += 1) {
+          const page = await pdf.getPage(i)
+          const viewport = page.getViewport({ scale: 1 })
+          pagesDims.push({ width: viewport.width, height: viewport.height })
+          page.cleanup()
+        }
+        await pdf.destroy()
+        if (pagesDims.length > 0) {
+          setPdfPageDims({
+            width: pagesDims[0].width,
+            height: pagesDims[0].height,
+            allPages: pagesDims,
+          })
+        }
       } catch (e) {
-        console.error("Failed to fetch page info", e)
+        console.error('Failed to read page info locally', e)
+        try {
+          const formData = new FormData()
+          formData.append('pdf', selectedFile)
+          const info = await runJson({
+            endpoint: '/api/v1/redact/page-info',
+            body: formData,
+            getAuthHeaders,
+            onError: (message) => console.error('Failed to fetch page info', message),
+          })
+          if (info && info.pages && info.pages.length > 0) {
+            setPdfPageDims({
+              width: info.pages[0].width,
+              height: info.pages[0].height,
+              allPages: info.pages,
+            })
+          }
+        } catch (fallbackErr) {
+          console.error('Failed to fetch page info', fallbackErr)
+        }
       }
 
     } else {
@@ -248,6 +267,10 @@ const Redaction = () => {
     setError(null)
         setSuccessMsg(null)
     try {
+        // NOTE: no privacy win yet. Search uploads the file to
+        // /api/v1/redact/search; the WASM text path (goRedactSearch in
+        // utils/wasmLoader.js, engine from plans/wasm/01-full-wasm-port.md)
+        // is not in the shipped bundle, so this stays server-side.
         const formData = new FormData()
         formData.append('pdf', file)
                 formData.append('text', terms.join(','))
@@ -335,6 +358,10 @@ const Redaction = () => {
             let report = null
 
             const url = await runLocal(async () => {
+                // NOTE: no privacy win yet. runLocal wraps request() here, so
+                // apply still uploads to /api/v1/redact/apply. Switch the body
+                // to redactApplyViaWasm (utils/wasmLoader.js) once the engine
+                // lands per plans/wasm/01-full-wasm-port.md.
                 let lastError = 'Redaction failed'
                 for (let i = 0; i < modesToTry.length; i += 1) {
                     const candidateMode = modesToTry[i]
@@ -525,6 +552,9 @@ const Redaction = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div className="glass-card" style={{ padding: '1.5rem' }}>
                             <h3 style={{ marginBottom: '1rem' }}>Redact by Text</h3>
+                            <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.75rem' }}>
+                              Server-side for now (uploads file): browser WASM text path lands with the redact engine.
+                            </p>
                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                                 <input 
                                     type="text" 

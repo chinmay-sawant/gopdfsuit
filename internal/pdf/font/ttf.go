@@ -56,7 +56,11 @@ type TableEntry struct {
 	Length   uint32
 }
 
-// LoadTTFFromFile loads and parses a TTF/OTF font from a file path
+// LoadTTFFromFile loads and parses a TTF/OTF font from a file path.
+//
+// Server-only: reads via os.ReadFile and is forbidden in WASM (GOOS=js)
+// builds, which have no filesystem. WASM callers must pass bytes obtained
+// in JS (fetch/Uint8Array) to LoadTTFFromData.
 func LoadTTFFromFile(path string) (*TTFFont, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -65,7 +69,10 @@ func LoadTTFFromFile(path string) (*TTFFont, error) {
 	return ParseTTF(data)
 }
 
-// LoadTTFFromData loads and parses a TTF/OTF font from raw bytes
+// LoadTTFFromData loads and parses a TTF/OTF font from raw bytes.
+//
+// WASM path: pure in-memory parsing with no filesystem access; this is the
+// supported font entry point under GOOS=js.
 func LoadTTFFromData(data []byte) (*TTFFont, error) {
 	return ParseTTF(data)
 }

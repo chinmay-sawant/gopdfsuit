@@ -54,7 +54,11 @@ func NewFontRegistry() *CustomFontRegistry {
 	}
 }
 
-// RegisterFontFromFile loads and registers a TTF/OTF font from a file path
+// RegisterFontFromFile loads and registers a TTF/OTF font from a file path.
+//
+// Server-only: reads via os.ReadFile and is not usable in WASM (GOOS=js)
+// builds, which have no filesystem. WASM callers must use
+// RegisterFontFromData or RegisterFontFromBase64 with bytes supplied from JS.
 func (r *CustomFontRegistry) RegisterFontFromFile(name string, path string) error {
 	font, err := LoadTTFFromFile(path)
 	if err != nil {
@@ -64,7 +68,11 @@ func (r *CustomFontRegistry) RegisterFontFromFile(name string, path string) erro
 	return r.RegisterFont(name, font)
 }
 
-// RegisterFontFromData loads and registers a TTF/OTF font from raw bytes
+// RegisterFontFromData loads and registers a TTF/OTF font from raw bytes.
+//
+// WASM path: pure in-memory parsing via LoadTTFFromData with no
+// os.ReadFile/os.ReadDir access, so this (and RegisterFontFromBase64) is the
+// supported way to provision fonts under GOOS=js.
 func (r *CustomFontRegistry) RegisterFontFromData(name string, data []byte) error {
 	font, err := LoadTTFFromData(data)
 	if err != nil {
@@ -74,7 +82,10 @@ func (r *CustomFontRegistry) RegisterFontFromData(name string, data []byte) erro
 	return r.RegisterFont(name, font)
 }
 
-// RegisterFontFromBase64 loads and registers a TTF/OTF font from base64-encoded data
+// RegisterFontFromBase64 loads and registers a TTF/OTF font from base64-encoded data.
+//
+// WASM path: pure in-memory base64 decode plus LoadTTFFromData with no
+// os.ReadFile/os.ReadDir access; safe under GOOS=js.
 func (r *CustomFontRegistry) RegisterFontFromBase64(name string, base64Data string) error {
 	data, err := base64.StdEncoding.DecodeString(base64Data)
 	if err != nil {
@@ -370,7 +381,11 @@ func IsCustomFont(fontName string) bool {
 	return !standardFontSet[fontName]
 }
 
-// LoadFontsFromDirectory loads all TTF/OTF fonts from a directory
+// LoadFontsFromDirectory loads all TTF/OTF fonts from a directory.
+//
+// Server-only: walks the OS filesystem via os.ReadDir plus
+// RegisterFontFromFile (os.ReadFile). Not usable in WASM (GOOS=js) builds;
+// WASM callers must use RegisterFontFromData or RegisterFontFromBase64.
 func (r *CustomFontRegistry) LoadFontsFromDirectory(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
