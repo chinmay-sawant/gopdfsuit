@@ -2,6 +2,9 @@ package pdf
 
 import (
 	"testing"
+	"time"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 )
 
 func TestPropsCacheReusesParsedProps(t *testing.T) {
@@ -49,5 +52,25 @@ func TestPropsCacheClear(t *testing.T) {
 
 	if _, ok := propsCache.Load(input); ok {
 		t.Fatal("expected cache miss after clear")
+	}
+}
+
+func TestPropsCacheExpiresAfterTTL(t *testing.T) {
+	old := cachettl.Get()
+	defer cachettl.SetCacheTTL(old)
+	cachettl.SetCacheTTL(30 * time.Millisecond)
+	ClearPropsCache()
+
+	input := "Helvetica:12:000:left:0:0:0:0"
+	parseProps(input)
+	if _, ok := propsCache.Load(input); !ok {
+		t.Fatal("expected entry before TTL expiry")
+	}
+
+	time.Sleep(60 * time.Millisecond)
+	// Lookup treats the stale entry as a miss and re-parses on demand.
+	got := parseProps(input)
+	if got.FontName != "Helvetica" || got.FontSize != 12 {
+		t.Fatalf("expected re-parsed props after expiry, got %+v", got)
 	}
 }

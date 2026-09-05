@@ -7,11 +7,15 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 )
 
 type cachedSubset struct {
-	data     []byte
-	oldToNew map[uint16]uint16
+	data      []byte
+	oldToNew  map[uint16]uint16
+	expiresAt time.Time
 }
 
 const maxSubsetCacheEntries = 1024
@@ -55,6 +59,14 @@ func lookupCachedSubset(font *TTFFont, usedGlyphs []uint16) (*cachedSubset, bool
 	key := glyphSubsetFingerprint(font, usedGlyphs)
 	if v, ok := subsetCache.Load(key); ok {
 		if cs, ok := v.(*cachedSubset); ok && cs != nil {
+			if cachettl.Expired(cs.expiresAt, time.Now()) {
+				subsetCache.Delete(key)
+				// Count left untouched: it is an overflow-trip approximation
+				// that resets on clear-all. Decrementing here could race the
+				// reset and delay eviction; upward drift only triggers an
+				// earlier (safe) clear.
+				return nil, false
+			}
 			return cs, true
 		}
 	}
@@ -75,7 +87,8 @@ func storeCachedSubset(font *TTFFont, usedGlyphs []uint16, data []byte, oldToNew
 		subsetCacheCount.Store(1)
 	}
 	subsetCache.Store(key, &cachedSubset{
-		data:     append([]byte(nil), data...),
-		oldToNew: oldCopy,
+		data:      append([]byte(nil), data...),
+		oldToNew:  oldCopy,
+		expiresAt: cachettl.ExpiresAt(time.Now()),
 	})
 }

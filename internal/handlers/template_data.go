@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/gin-gonic/gin"
 )
@@ -24,6 +25,10 @@ type templateDataEntry struct {
 	data    []byte
 	modTime time.Time
 	size    int64
+	// expiresAt bounds serving a cached payload even when the file is
+	// unchanged, per the shared cachettl policy (default 3m,
+	// GOPDFSUIT_CACHE_TTL to override).
+	expiresAt time.Time
 }
 
 var (
@@ -41,8 +46,9 @@ func TemplateDataEvictionCount() int64 {
 }
 
 // templateDataLookup returns a copy of the cached payload when the on-disk
-// file is unchanged (same mtime and size). Caller must hold no lock;
-// stat is done before acquiring the mutex to keep the hot path short.
+// file is unchanged (same mtime and size) and the entry has not passed its
+// TTL. Caller must hold no lock; stat is done before acquiring the mutex to
+// keep the hot path short.
 func templateDataLookup(filePath string, fi os.FileInfo) ([]byte, bool) {
 	templateDataMu.Lock()
 	defer templateDataMu.Unlock()
@@ -51,6 +57,11 @@ func templateDataLookup(filePath string, fi os.FileInfo) ([]byte, bool) {
 		return nil, false
 	}
 	if !e.modTime.Equal(fi.ModTime()) || e.size != fi.Size() {
+		delete(templateDataEntries, filePath)
+		templateDataBytes -= int64(len(e.data))
+		return nil, false
+	}
+	if cachettl.Expired(e.expiresAt, time.Now()) {
 		delete(templateDataEntries, filePath)
 		templateDataBytes -= int64(len(e.data))
 		return nil, false
@@ -74,9 +85,10 @@ func templateDataStore(filePath string, data []byte, fi os.FileInfo) {
 		templateDataEvictions.Add(1)
 	}
 	templateDataEntries[filePath] = &templateDataEntry{
-		data:    data,
-		modTime: fi.ModTime(),
-		size:    fi.Size(),
+		data:      data,
+		modTime:   fi.ModTime(),
+		size:      fi.Size(),
+		expiresAt: cachettl.ExpiresAt(time.Now()),
 	}
 	templateDataBytes += int64(len(data))
 }

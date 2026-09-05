@@ -10,8 +10,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/svg"
 )
@@ -43,8 +45,9 @@ const maxImageCacheEntries = 256
 // whenever the same base64 string is decoded back-to-back, which is the
 // common case for image rows in a table.
 type imageCache struct {
-	mu    sync.RWMutex
-	cache map[uint64]*ImageObject // FNV-1a hash -> decoded image
+	mu        sync.RWMutex
+	cache     map[uint64]*ImageObject // FNV-1a hash -> decoded image
+	expiresAt map[uint64]time.Time    // FNV-1a hash -> expiry instant (shared TTL)
 
 	// Single-slot MRU: if the incoming base64 string shares the same
 	// (data pointer, length) as the last one, we know the hash matches
@@ -52,25 +55,29 @@ type imageCache struct {
 	// lastData roots the string backing lastDataPtr so the GC cannot
 	// free and reuse that address (which would cause false-positive
 	// pointer matches against a different string).
-	lastData    string
-	lastDataPtr *byte
-	lastDataLen int
-	lastHash    uint64
-	lastObj     *ImageObject
+	lastData      string
+	lastDataPtr   *byte
+	lastDataLen   int
+	lastHash      uint64
+	lastObj       *ImageObject
+	lastExpiresAt time.Time
 }
 
 var imgCache = &imageCache{
-	cache: make(map[uint64]*ImageObject),
+	cache:     make(map[uint64]*ImageObject),
+	expiresAt: make(map[uint64]time.Time),
 }
 
 // clear drops all cached image entries and the MRU slot.
 func (c *imageCache) clear() {
 	c.cache = make(map[uint64]*ImageObject)
+	c.expiresAt = make(map[uint64]time.Time)
 	c.lastData = ""
 	c.lastDataPtr = nil
 	c.lastDataLen = 0
 	c.lastHash = 0
 	c.lastObj = nil
+	c.lastExpiresAt = time.Time{}
 }
 
 // fnv1aHash computes FNV-1a hash for quick image deduplication
@@ -169,8 +176,10 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	// full FNV-1a hash on the hot path of repeated image rows.
 	dataPtr := unsafe.StringData(cleanData)
 	dataLen := len(cleanData)
+	now := time.Now()
 	imgCache.mu.RLock()
-	if imgCache.lastObj != nil && imgCache.lastDataPtr == dataPtr && imgCache.lastDataLen == dataLen {
+	if imgCache.lastObj != nil && imgCache.lastDataPtr == dataPtr && imgCache.lastDataLen == dataLen &&
+		!cachettl.Expired(imgCache.lastExpiresAt, now) {
 		cached := imgCache.lastObj
 		imgCache.mu.RUnlock()
 		return copyCachedImageObject(cached), nil
@@ -181,16 +190,31 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	hash := fnv1aHash(cleanData)
 	imgCache.mu.Lock()
 	if cached, ok := imgCache.cache[hash]; ok {
-		// Promote the matched entry to the MRU slot so subsequent calls
-		// can skip the hash entirely. Full Lock: this path mutates the
-		// MRU slot and must not run under RLock.
-		imgCache.lastData = cleanData
-		imgCache.lastDataPtr = dataPtr
-		imgCache.lastDataLen = dataLen
-		imgCache.lastHash = hash
-		imgCache.lastObj = cached
-		imgCache.mu.Unlock()
-		return copyCachedImageObject(cached), nil
+		if exp, hasExp := imgCache.expiresAt[hash]; hasExp && cachettl.Expired(exp, now) {
+			// Stale entry: drop and fall through to decode a fresh one.
+			delete(imgCache.cache, hash)
+			delete(imgCache.expiresAt, hash)
+			if imgCache.lastHash == hash {
+				imgCache.lastData = ""
+				imgCache.lastDataPtr = nil
+				imgCache.lastDataLen = 0
+				imgCache.lastHash = 0
+				imgCache.lastObj = nil
+				imgCache.lastExpiresAt = time.Time{}
+			}
+		} else {
+			// Promote the matched entry to the MRU slot so subsequent calls
+			// can skip the hash entirely. Full Lock: this path mutates the
+			// MRU slot and must not run under RLock.
+			imgCache.lastData = cleanData
+			imgCache.lastDataPtr = dataPtr
+			imgCache.lastDataLen = dataLen
+			imgCache.lastHash = hash
+			imgCache.lastObj = cached
+			imgCache.lastExpiresAt = exp
+			imgCache.mu.Unlock()
+			return copyCachedImageObject(cached), nil
+		}
 	}
 	imgCache.mu.Unlock()
 
@@ -338,12 +362,15 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	if len(imgCache.cache) >= maxImageCacheEntries {
 		imgCache.clear()
 	}
+	exp := cachettl.ExpiresAt(time.Now())
 	imgCache.cache[hash] = imgObj
+	imgCache.expiresAt[hash] = exp
 	imgCache.lastData = cleanData
 	imgCache.lastDataPtr = dataPtr
 	imgCache.lastDataLen = dataLen
 	imgCache.lastHash = hash
 	imgCache.lastObj = imgObj
+	imgCache.lastExpiresAt = exp
 	imgCache.mu.Unlock()
 
 	return copyCachedImageObject(imgObj), nil

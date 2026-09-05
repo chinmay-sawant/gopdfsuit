@@ -5,11 +5,13 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unicode"
 	"unsafe"
 
 	"unicode/utf8"
 
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
@@ -84,10 +86,16 @@ func parseHexColor(hexColor string) (r, g, b, a float64, valid bool) {
 const maxPropsCacheEntries = 8192
 
 var (
-	propsCache      sync.Map // string -> models.Props
+	propsCache      sync.Map // string -> *propsCacheEntry
 	propsCacheCount atomic.Int64
 	propsCacheMu    sync.Mutex // serializes the bounded-size clear path below
 )
+
+// propsCacheEntry pairs a parsed Props value with its expiry instant.
+type propsCacheEntry struct {
+	props     models.Props
+	expiresAt time.Time
+}
 
 // ClearPropsCache drops all cached prop parses (tests / memory pressure).
 func ClearPropsCache() {
@@ -96,9 +104,14 @@ func ClearPropsCache() {
 }
 
 func parseProps(props string) models.Props {
-	// Fast path: check cache
+	// Fast path: check cache, treating expired entries as misses.
 	if cached, ok := propsCache.Load(props); ok {
-		return cached.(models.Props)
+		if e, ok := cached.(*propsCacheEntry); ok && e != nil {
+			if !cachettl.Expired(e.expiresAt, time.Now()) {
+				return e.props
+			}
+			propsCache.Delete(props)
+		}
 	}
 
 	parts := strings.Split(props, ":")
@@ -180,7 +193,7 @@ func parseProps(props string) models.Props {
 		ClearPropsCache()
 		propsCacheCount.Store(1)
 	}
-	propsCache.Store(props, result)
+	propsCache.Store(props, &propsCacheEntry{props: result, expiresAt: cachettl.ExpiresAt(time.Now())})
 	propsCacheMu.Unlock()
 	return result
 }

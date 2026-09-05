@@ -1,0 +1,23 @@
+# Zerodha BOPS x10 latest summary (bypass-cache, no content reuse)
+
+Runs: 10
+Best throughput: 5488.99 ops/sec
+Worst throughput: 4917.98 ops/sec
+Mean throughput: 5285.85 ops/sec
+Median throughput: 5286.73 ops/sec
+Stddev throughput: 197.19 ops/sec
+Mean avg latency: 8.095 ms
+Mean peak allocated: 151.39 MB
+
+| Run | Throughput | Avg latency | Peak allocated |
+|-----|-----------:|------------:|---------------:|
+| zerodha_bops_run1.txt | 5201.60 ops/sec | 8.204 ms | 146.18 MB |
+| zerodha_bops_run2.txt | 5488.82 ops/sec | 7.761 ms | 142.45 MB |
+| zerodha_bops_run3.txt | 5439.80 ops/sec | 7.858 ms | 138.83 MB |
+| zerodha_bops_run4.txt | 5218.71 ops/sec | 8.270 ms | 173.20 MB |
+| zerodha_bops_run5.txt | 5488.99 ops/sec | 7.548 ms | 154.83 MB |
+| zerodha_bops_run6.txt | 5478.42 ops/sec | 7.884 ms | 140.85 MB |
+| zerodha_bops_run7.txt | 5203.09 ops/sec | 8.266 ms | 166.40 MB |
+| zerodha_bops_run8.txt | 5354.75 ops/sec | 8.076 ms | 149.26 MB |
+| zerodha_bops_run9.txt | 4917.98 ops/sec | 8.790 ms | 148.73 MB |
+| zerodha_bops_run10.txt | 5066.39 ops/sec | 8.297 ms | 153.13 MB |
