@@ -220,7 +220,7 @@ func parseFile(data []byte) (*FileContext, error) {
 
 // findCatalogAndPages finds the original Catalog and Pages tree object numbers
 func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pagesNum int) {
-	rootRef := findRootRef(data)
+	rootRef := findRootRef(data, objMap)
 	if rootRef == "" {
 		return 0, 0
 	}
@@ -246,7 +246,7 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 func extractPagesFromTree(data []byte, objMap map[int][]byte) ([]int, error) {
 	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
 
-	rootRef := findRootRef(data)
+	rootRef := findRootRef(data, objMap)
 	if rootRef == "" {
 		return nil, nil
 	}
