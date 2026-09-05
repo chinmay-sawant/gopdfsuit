@@ -1,7 +1,7 @@
 
 import { FileText, Check, Copy } from 'lucide-react'
 
-export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEditing, handleJsonBlur, copiedId, setCopiedId, goSnippet = '', pythonSnippet = '' }) {
+export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEditing, handleJsonBlur, copiedId, setCopiedId }) {
     const copyButtonStyle = {
         padding: '0.25rem 0.5rem',
         fontSize: '0.75rem',
@@ -37,30 +37,6 @@ export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEdit
                     <FileText size={16} /> JSON Template
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <button
-                    onClick={() => copyText(goSnippet, 'go')}
-                    style={copyButtonStyle}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'hsl(var(--accent))'
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'hsl(var(--secondary))'
-                    }}
-                >
-                    {copiedId === 'go' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Go</>}
-                </button>
-                <button
-                    onClick={() => copyText(pythonSnippet, 'python')}
-                    style={copyButtonStyle}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'hsl(var(--accent))'
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'hsl(var(--secondary))'
-                    }}
-                >
-                    {copiedId === 'python' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Py</>}
-                </button>
                 <button
                     onClick={() => copyText(jsonText, 'json')}
                     style={copyButtonStyle}
@@ -100,7 +76,7 @@ export default function JsonTemplate({ jsonText, handleJsonChange, setIsJsonEdit
                 fontSize: '0.7rem',
                 color: 'hsl(var(--muted-foreground))'
             }}>
-                Edit JSON directly or paste to load template. Changes apply on blur. Copy Go / Copy Py emit builder snippets for the current template.
+                Edit JSON directly or paste to load template. Changes apply on blur.
             </p>
         </div>
     )
