@@ -46,6 +46,70 @@ func TestConcurrentGenerateSharedFonts(t *testing.T) {
 	}
 }
 
+func TestConcurrentPreparedTemplateGeneration(t *testing.T) {
+	prepared, err := gopdflib.PrepareTemplate(seedTemplate("Prepared Race"))
+	if err != nil {
+		t.Fatalf("PrepareTemplate: %v", err)
+	}
+	var wg sync.WaitGroup
+	errs := make([]error, 8)
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			doc, err := prepared.GeneratePDFBorrowed()
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			if !bytes.HasPrefix(doc.Bytes(), []byte("%PDF-")) {
+				errs[i] = errNotPDF
+			}
+			doc.Release()
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("goroutine %d: %v", i, err)
+		}
+	}
+}
+
+func TestConcurrentPreparedPDFATitleGeneration(t *testing.T) {
+	tmpl := seedTemplate("PDF/A Race")
+	tmpl.Config.PdfTitle = "PDF/A Race"
+	tmpl.Config.PDFA = &gopdflib.PDFAConfig{Enabled: true, Conformance: "4"}
+	prepared, err := gopdflib.PrepareTemplate(tmpl)
+	if err != nil {
+		t.Fatalf("PrepareTemplate: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errs := make([]error, 8)
+	for i := range errs {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			doc, err := prepared.GeneratePDFBorrowed()
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			if !bytes.HasPrefix(doc.Bytes(), []byte("%PDF-")) {
+				errs[i] = errNotPDF
+			}
+			doc.Release()
+		}(i)
+	}
+	wg.Wait()
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("goroutine %d: %v", i, err)
+		}
+	}
+}
+
 // TestBorrowedCopyBytes verifies the copying helper survives Release.
 func TestBorrowedCopyBytes(t *testing.T) {
 	doc, err := gopdflib.GeneratePDFBorrowed(seedTemplate("Borrowed"))

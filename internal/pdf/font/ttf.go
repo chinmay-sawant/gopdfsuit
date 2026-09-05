@@ -2,6 +2,7 @@ package font
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -44,6 +45,11 @@ type TTFFont struct {
 	// Raw font data for embedding
 	RawData []byte
 
+	// contentID is computed when the font is parsed and remains stable for the
+	// lifetime of the parsed font. It prevents subset-cache reuse across fonts
+	// that happen to share names and glyph IDs.
+	contentID [sha256.Size]byte
+
 	// Table offsets for subsetting
 	Tables map[string]TableEntry
 }
@@ -85,6 +91,7 @@ func ParseTTF(data []byte) (*TTFFont, error) {
 
 	font := &TTFFont{
 		RawData:     data,
+		contentID:   sha256.Sum256(data),
 		Tables:      make(map[string]TableEntry),
 		CharToGlyph: make(map[rune]uint16),
 		GlyphToChar: make(map[uint16]rune),

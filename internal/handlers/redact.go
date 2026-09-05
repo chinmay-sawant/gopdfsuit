@@ -70,6 +70,9 @@ func readBoundedUpload(c *gin.Context) []byte {
 
 // handleRedactPageInfo handles requests to get PDF page dimensions
 func handleRedactPageInfo(c *gin.Context) {
+	if !ensureMultipartBodyLimit(c) {
+		return
+	}
 	pdfBytes := readBoundedUpload(c)
 	if pdfBytes == nil {
 		return
@@ -86,6 +89,9 @@ func handleRedactPageInfo(c *gin.Context) {
 
 // handleRedactCapabilities returns per-page capability information for redaction.
 func handleRedactCapabilities(c *gin.Context) {
+	if !ensureMultipartBodyLimit(c) {
+		return
+	}
 	pdfBytes := readBoundedUpload(c)
 	if pdfBytes == nil {
 		return
@@ -102,6 +108,9 @@ func handleRedactCapabilities(c *gin.Context) {
 
 // handleRedactTextPositions handles requests to extract text positions from a page
 func handleRedactTextPositions(c *gin.Context) {
+	if !ensureMultipartBodyLimit(c) {
+		return
+	}
 	pageNumStr := c.PostForm("page")
 	if pageNumStr == "" {
 		abortError(c, http.StatusBadRequest, "page number is required")
@@ -129,7 +138,14 @@ func handleRedactTextPositions(c *gin.Context) {
 
 // handleRedactApply handles requests to apply redactions to a PDF
 func handleRedactApply(c *gin.Context) {
+	if !ensureMultipartBodyLimit(c) {
+		return
+	}
 	if _, err := c.FormFile("pdf"); err != nil {
+		if isBodyTooLargeErr(err) {
+			abortError(c, http.StatusRequestEntityTooLarge, overLimitMessage(UploadKindPDF))
+			return
+		}
 		abortError(c, http.StatusBadRequest, "pdf file is required")
 		return
 	}
@@ -168,7 +184,14 @@ func handleRedactApply(c *gin.Context) {
 
 // handleRedactSearch searches for text and returns potential redaction rectangles
 func handleRedactSearch(c *gin.Context) {
+	if !ensureMultipartBodyLimit(c) {
+		return
+	}
 	if _, err := c.FormFile("pdf"); err != nil {
+		if isBodyTooLargeErr(err) {
+			abortError(c, http.StatusRequestEntityTooLarge, overLimitMessage(UploadKindPDF))
+			return
+		}
 		abortError(c, http.StatusBadRequest, "pdf file is required")
 		return
 	}

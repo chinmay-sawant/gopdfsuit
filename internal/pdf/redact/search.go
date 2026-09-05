@@ -22,11 +22,18 @@ func (r *Redactor) ExtractTextPositions(pageNum int) ([]models.TextPosition, err
 		if err != nil {
 			return nil, err
 		}
+		r.objMap = objMap
 	}
 
-	pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
+	pageObjNum, err := r.pageObjectForPage(pageNum)
 	if err != nil {
 		return nil, err
+	}
+	if r.pageTextPositions == nil {
+		r.pageTextPositions = make(map[int][]models.TextPosition)
+	}
+	if positions, ok := r.pageTextPositions[pageNum]; ok {
+		return positions, nil
 	}
 
 	pageBody := objMap[pageObjNum]
@@ -37,7 +44,9 @@ func (r *Redactor) ExtractTextPositions(pageNum int) ([]models.TextPosition, err
 
 	// Simple text extraction logic
 	// This is a simplified parser and might not handle all PDF complexity (rotations, complex encodings)
-	return parseTextOperators(contentBytes), nil
+	positions := parseTextOperators(contentBytes)
+	r.pageTextPositions[pageNum] = positions
+	return positions, nil
 }
 
 // FindTextOccurrences searches for text across all pages and returns redaction rectangles

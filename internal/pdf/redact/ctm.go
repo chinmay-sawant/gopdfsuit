@@ -39,6 +39,8 @@ type contentToken struct {
 
 // tokenizeContent splits raw (decoded) content-stream bytes into ordered
 // tokens, skipping comments and inline-image data.
+//
+//nolint:gocyclo // token kinds require independent PDF lexical branches.
 func tokenizeContent(content []byte) []contentToken {
 	src := string(content)
 	var tokens []contentToken

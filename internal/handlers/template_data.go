@@ -59,6 +59,9 @@ func templateDataLookup(filePath string, fi os.FileInfo) ([]byte, bool) {
 }
 
 func templateDataStore(filePath string, data []byte, fi os.FileInfo) {
+	if len(data) > maxTemplateDataBytes {
+		return
+	}
 	templateDataMu.Lock()
 	defer templateDataMu.Unlock()
 	if _, ok := templateDataEntries[filePath]; ok {

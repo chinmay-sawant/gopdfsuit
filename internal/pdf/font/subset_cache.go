@@ -1,8 +1,8 @@
 package font
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
-	"hash/fnv"
 	"maps"
 	"slices"
 	"sync"
@@ -17,7 +17,7 @@ type cachedSubset struct {
 const maxSubsetCacheEntries = 1024
 
 var (
-	subsetCache      sync.Map // uint64 fingerprint -> *cachedSubset
+	subsetCache      sync.Map // [32]byte fingerprint -> *cachedSubset
 	subsetCacheCount atomic.Int64
 	// subsetCacheMu makes clear-all atomic with overflow stores: both the
 	// count reset and the map clear happen under one mutex so concurrent
@@ -33,9 +33,9 @@ func ClearSubsetCache() {
 	subsetCacheCount.Store(0)
 }
 
-func glyphSubsetFingerprint(font *TTFFont, usedGlyphs []uint16) uint64 {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte(font.PostScriptName))
+func glyphSubsetFingerprint(font *TTFFont, usedGlyphs []uint16) [sha256.Size]byte {
+	h := sha256.New()
+	_, _ = h.Write(font.contentID[:])
 	glyphs := append([]uint16(nil), usedGlyphs...)
 	slices.Sort(glyphs)
 	for _, g := range glyphs {
@@ -43,7 +43,9 @@ func glyphSubsetFingerprint(font *TTFFont, usedGlyphs []uint16) uint64 {
 		binary.BigEndian.PutUint16(b[:], g)
 		_, _ = h.Write(b[:])
 	}
-	return h.Sum64()
+	var fingerprint [sha256.Size]byte
+	copy(fingerprint[:], h.Sum(nil))
+	return fingerprint
 }
 
 func lookupCachedSubset(font *TTFFont, usedGlyphs []uint16) (*cachedSubset, bool) {

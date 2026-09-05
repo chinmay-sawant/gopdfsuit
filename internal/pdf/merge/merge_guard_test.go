@@ -2,6 +2,7 @@ package merge
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -137,5 +138,121 @@ func TestDictPartScansDictOnly(t *testing.T) {
 	}
 	if !strings.Contains(string(dictPart(body)), "4 0 R") {
 		t.Fatalf("dictPart dropped dict refs")
+	}
+}
+
+func TestMergeAndSplitPreservePageTreeOrderAndInheritance(t *testing.T) {
+	const objects = `1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 3 0 R] /Count 2 /MediaBox [0 0 200 300] /Resources 9 0 R >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Contents 4 0 R /PieceInfo (first-in-serialization) >>
+endobj
+4 0 obj
+<< /Length 0 >>
+stream
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /Contents 7 0 R /PieceInfo (first-in-tree) >>
+endobj
+7 0 obj
+<< /Length 0 >>
+stream
+endstream
+endobj
+9 0 obj
+<< /ProcSet [/PDF] >>
+endobj
+`
+	pdf := minimalPDF(objects)
+
+	merged, err := MergePDFs([][]byte{pdf})
+	if err != nil {
+		t.Fatalf("MergePDFs failed: %v", err)
+	}
+	assertOrderedPagesAndInheritance(t, merged)
+
+	parts, err := SplitPDF(pdf, SplitSpec{})
+	if err != nil {
+		t.Fatalf("SplitPDF failed: %v", err)
+	}
+	if len(parts) != 1 {
+		t.Fatalf("expected one split output, got %d", len(parts))
+	}
+	assertOrderedPagesAndInheritance(t, parts[0])
+}
+
+func assertOrderedPagesAndInheritance(t *testing.T, pdf []byte) {
+	t.Helper()
+	if !bytes.Contains(pdf, []byte("/Kids [8 0 R 5 0 R]")) {
+		t.Fatalf("page tree order changed: %s", pdf)
+	}
+	if !bytes.Contains(pdf, []byte("/MediaBox [0 0 200 300]")) {
+		t.Fatalf("inherited MediaBox was not materialized: %s", pdf)
+	}
+	if !bytes.Contains(pdf, []byte("/Resources 11 0 R")) {
+		t.Fatalf("inherited Resources were not materialized: %s", pdf)
+	}
+}
+
+func TestMergeAndSplitRejectPageTreeCycles(t *testing.T) {
+	tests := []struct {
+		name    string
+		objects string
+	}{
+		{
+			name: "self cycle",
+			objects: `1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [2 0 R] /Count 1 >>
+endobj
+`,
+		},
+		{
+			name: "two object cycle",
+			objects: `1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Pages /Kids [2 0 R] /Count 1 >>
+endobj
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pdf := minimalPDF(tt.objects)
+			if _, err := MergePDFs([][]byte{pdf}); err == nil || !strings.Contains(err.Error(), "cycle") {
+				t.Fatalf("MergePDFs error = %v, want cycle error", err)
+			}
+			if _, err := SplitPDF(pdf, SplitSpec{}); err == nil || !strings.Contains(err.Error(), "cycle") {
+				t.Fatalf("SplitPDF error = %v, want cycle error", err)
+			}
+		})
+	}
+}
+
+func TestMergeRejectsExcessivePageTreeDepth(t *testing.T) {
+	const depth = 1100
+	var objects strings.Builder
+	objects.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+	for num := 2; num < depth+2; num++ {
+		fmt.Fprintf(&objects, "%d 0 obj\n<< /Type /Pages /Kids [%d 0 R] /Count 1 >>\nendobj\n", num, num+1)
+	}
+	fmt.Fprintf(&objects, "%d 0 obj\n<< /Type /Page /MediaBox [0 0 10 10] >>\nendobj\n", depth+2)
+
+	_, err := MergePDFs([][]byte{minimalPDF(objects.String())})
+	if err == nil || !strings.Contains(err.Error(), "depth") {
+		t.Fatalf("MergePDFs error = %v, want depth error", err)
 	}
 }

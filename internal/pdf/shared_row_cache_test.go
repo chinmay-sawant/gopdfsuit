@@ -5,36 +5,59 @@ import (
 	"testing"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
-func TestSharedRowRenderCacheBoundsEntries(t *testing.T) {
-	cache := &sharedRowRenderCacheStore{}
-	rows := make([]models.Row, sharedRowRenderCacheMaxEntries+1)
-	for i := 0; i <= sharedRowRenderCacheMaxEntries; i++ {
-		key := sharedRowRenderCacheKey{row: &rows[i]}
-		cache.Store(key, []byte{byte(i)})
+func TestSharedLayoutRendersMutatedRowContent(t *testing.T) {
+	const props = "Helvetica:12:000:left"
+	template := models.PDFTemplate{
+		Elements: []models.Element{{
+			Type: "table",
+			Table: &models.Table{
+				MaxColumns:           1,
+				SharedRowLayout:      true,
+				SharedRowTemplateRow: 1,
+				Rows: []models.Row{
+					{Row: []models.Cell{{Props: props, Text: "first request"}}},
+					{Row: []models.Cell{{Props: props, Text: "template row"}}},
+				},
+			},
+		}},
 	}
 
-	cache.mu.RLock()
-	entries := len(cache.entries)
-	retainedBytes := cache.bytes
-	cache.mu.RUnlock()
-
-	if entries >= sharedRowRenderCacheMaxEntries {
-		t.Fatalf("cache entries = %d, want below cap after overflow clear", entries)
+	if _, err := GenerateTemplatePDF(template); err != nil {
+		t.Fatalf("first generation: %v", err)
 	}
-	if retainedBytes >= sharedRowRenderCacheMaxEntries {
-		t.Fatalf("cache bytes = %d, want below cap after overflow clear", retainedBytes)
+	template.Elements[0].Table.Rows[0].Row[0].Text = "second request"
+	pdfBytes, err := GenerateTemplatePDF(template)
+	if err != nil {
+		t.Fatalf("second generation: %v", err)
+	}
+
+	content := inflatePDFStreams(t, pdfBytes)
+	if !bytes.Contains(content, []byte("second request")) {
+		t.Fatalf("second generation content does not contain mutated row text: %q", content)
+	}
+	if bytes.Contains(content, []byte("first request")) {
+		t.Fatalf("second generation content reused stale row text: %q", content)
 	}
 }
 
-func TestSharedRowRenderCacheSkipsOversizedValues(t *testing.T) {
-	cache := &sharedRowRenderCacheStore{}
-	oversized := bytes.Repeat([]byte("x"), sharedRowRenderCacheMaxValue+1)
-	row := &models.Row{}
-	cache.Store(sharedRowRenderCacheKey{row: row}, oversized)
-
-	if _, ok := cache.Load(sharedRowRenderCacheKey{row: row}); ok {
-		t.Fatal("expected oversized render to skip cache storage")
+func inflatePDFStreams(t *testing.T, pdfBytes []byte) []byte {
+	t.Helper()
+	var content []byte
+	streams := bytes.Split(pdfBytes, []byte("\nstream\n"))[1:]
+	for _, stream := range streams {
+		end := bytes.Index(stream, []byte("\nendstream"))
+		if end < 0 {
+			continue
+		}
+		decoded, err := pdfobj.DecompressAny(stream[:end])
+		if err != nil {
+			content = append(content, stream[:end]...)
+			continue
+		}
+		content = append(content, decoded...)
 	}
+	return content
 }

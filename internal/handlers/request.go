@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -27,11 +28,24 @@ const (
 	maxFontBytes = 10 << 20
 	// maxHTMLBodyBytes caps HTML-to-PDF/Image JSON request bodies.
 	maxHTMLBodyBytes = 2 << 20
+	// maxMultipartBodyBytes caps non-merge multipart request bodies before
+	// multipart parsing begins.
+	maxMultipartBodyBytes = 40 << 20
+	// maxMergeBodyBytes caps both the merge request body and accepted PDF bytes.
+	maxMergeBodyBytes = 128 << 20
+	// maxMergeFiles caps the number of PDFs accepted by one merge request.
+	maxMergeFiles = 32
 )
 
 // errFetchURLBlocked is returned when a requested fetch URL targets a
 // non-public address (SSRF guard).
 var errFetchURLBlocked = errors.New("url target is not allowed")
+
+type fetchURLResolver interface {
+	LookupIP(context.Context, string, string) ([]net.IP, error)
+}
+
+var defaultFetchURLResolver fetchURLResolver = net.DefaultResolver
 
 // uploadLimitFor resolves the byte cap owned by the body-limit policy for a
 // given upload kind. PDFService.UploadLimit delegates here so handlers and
@@ -134,7 +148,7 @@ func abortPDFError(c *gin.Context, err error, fallbackMsg string) {
 // destinations plus cross-host redirects) for the page fetch and subresource
 // CSS inside the engine. Base/Allow/AllowLocalFiles stay at engine defaults
 // (local file reads disabled), so subresource CSS loads over http(s) only.
-func validateFetchURL(raw string) error {
+func validateFetchURL(ctx context.Context, raw string) error {
 	if raw == "" {
 		return nil // HTML-content path: no fetch performed.
 	}
@@ -159,7 +173,7 @@ func validateFetchURL(raw string) error {
 		}
 		return nil
 	}
-	ips, err := net.LookupIP(host)
+	ips, err := defaultFetchURLResolver.LookupIP(ctx, "ip", host)
 	if err != nil || len(ips) == 0 {
 		return errors.New("invalid url")
 	}
@@ -229,8 +243,15 @@ func readUploadData(c *gin.Context, fh *multipart.FileHeader, kind string) []byt
 // abort (response already written). This is the single upload policy for
 // the redact, compress, split, fill, and font handlers.
 func readSingleUpload(c *gin.Context, field, kind string) []byte {
+	if !ensureMultipartBodyLimit(c) {
+		return nil
+	}
 	fh, err := c.FormFile(field)
 	if err != nil {
+		if isBodyTooLargeErr(err) {
+			abortError(c, http.StatusRequestEntityTooLarge, overLimitMessage(kind))
+			return nil
+		}
 		abortError(c, http.StatusBadRequest, field+" file is required")
 		return nil
 	}

@@ -21,8 +21,15 @@ func handleGetFonts(c *gin.Context) {
 
 // handleUploadFont handles the upload of custom font files
 func handleUploadFont(c *gin.Context) {
+	if !ensureMultipartBodyLimit(c) {
+		return
+	}
 	file, err := c.FormFile("font")
 	if err != nil {
+		if isBodyTooLargeErr(err) {
+			abortError(c, http.StatusRequestEntityTooLarge, overLimitMessage(UploadKindFont))
+			return
+		}
 		abortError(c, http.StatusBadRequest, "font file is required")
 		return
 	}

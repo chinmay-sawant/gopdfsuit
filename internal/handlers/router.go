@@ -26,10 +26,16 @@ type RoutePolicy struct {
 	// EnableCORS registers CORSMiddleware on the v1 group.
 	// False only for the GIN_FAST_API=1 benchmark path.
 	EnableCORS bool
-	// MaxConcurrent caps in-flight requests (concurrencyLimiter semaphore).
-	MaxConcurrent int
 	// MaxHTMLBodyBytes caps HTML-to-PDF/Image JSON request bodies.
 	MaxHTMLBodyBytes int64
+	// MaxTemplateBodyBytes caps template-pdf JSON request bodies.
+	MaxTemplateBodyBytes int64
+	// MaxMultipartBodyBytes caps non-merge multipart request bodies.
+	MaxMultipartBodyBytes int64
+	// MaxMergeBodyBytes caps merge request bodies and accepted PDF bytes.
+	MaxMergeBodyBytes int64
+	// MaxMergeFiles caps the number of PDFs accepted by one merge request.
+	MaxMergeFiles int
 }
 
 // ServerConfig is the composition-root input for the HTTP server. It is
@@ -59,12 +65,34 @@ func ResolveServerConfig() ServerConfig {
 		ShutdownTimeout: 15 * time.Second,
 		EnableProfiling: os.Getenv("ENABLE_PROFILING") == "1",
 		Policy: RoutePolicy{
-			RequireAuth:      resolveRequireAuth(),
-			EnableCORS:       os.Getenv("GIN_FAST_API") != "1",
-			MaxConcurrent:    maxConcurrent,
-			MaxHTMLBodyBytes: maxHTMLBodyBytes,
+			RequireAuth:           resolveRequireAuth(),
+			EnableCORS:            os.Getenv("GIN_FAST_API") != "1",
+			MaxHTMLBodyBytes:      maxHTMLBodyBytes,
+			MaxTemplateBodyBytes:  maxTemplateJSONBody,
+			MaxMultipartBodyBytes: maxMultipartBodyBytes,
+			MaxMergeBodyBytes:     maxMergeBodyBytes,
+			MaxMergeFiles:         maxMergeFiles,
 		},
 	}
+}
+
+func normalizeRoutePolicy(policy RoutePolicy) RoutePolicy {
+	if policy.MaxHTMLBodyBytes <= 0 {
+		policy.MaxHTMLBodyBytes = maxHTMLBodyBytes
+	}
+	if policy.MaxTemplateBodyBytes <= 0 {
+		policy.MaxTemplateBodyBytes = maxTemplateJSONBody
+	}
+	if policy.MaxMultipartBodyBytes <= 0 {
+		policy.MaxMultipartBodyBytes = maxMultipartBodyBytes
+	}
+	if policy.MaxMergeBodyBytes <= 0 {
+		policy.MaxMergeBodyBytes = maxMergeBodyBytes
+	}
+	if policy.MaxMergeFiles <= 0 {
+		policy.MaxMergeFiles = maxMergeFiles
+	}
+	return policy
 }
 
 // resolveRequireAuth mirrors middleware auth enforcement (REQUIRE_AUTH=1 or

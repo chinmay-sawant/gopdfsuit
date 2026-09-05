@@ -52,15 +52,29 @@ func buildObjectMap(pdfBytes []byte) (map[int][]byte, map[int]int, error) {
 	return objMap, objGen, nil
 }
 
+const maxPageTreeDepth = 1000
+
 func traversePages(pageTreeObjNum int, objMap map[int][]byte, dims *[]models.PageDetail) error {
+	return traversePagesWithState(pageTreeObjNum, objMap, dims, make(map[int]bool), 0)
+}
+
+func traversePagesWithState(pageTreeObjNum int, objMap map[int][]byte, dims *[]models.PageDetail, active map[int]bool, depth int) error {
+	if depth > maxPageTreeDepth {
+		return fmt.Errorf("page tree exceeds maximum depth %d", maxPageTreeDepth)
+	}
 	body, ok := objMap[pageTreeObjNum]
 	if !ok {
 		return nil
 	}
 
 	if isPDFTypePages(body) {
+		if active[pageTreeObjNum] {
+			return fmt.Errorf("page tree cycle at object %d", pageTreeObjNum)
+		}
+		active[pageTreeObjNum] = true
+		defer delete(active, pageTreeObjNum)
 		for _, kidNum := range extractKidsRefs(body) {
-			if err := traversePages(kidNum, objMap, dims); err != nil {
+			if err := traversePagesWithState(kidNum, objMap, dims, active, depth+1); err != nil {
 				return err
 			}
 		}
@@ -130,8 +144,9 @@ func findPageObject(objMap map[int][]byte, pdfBytes []byte, targetPage int) (int
 	found := false
 	var currentPage int
 
-	var walk func(int) error
-	walk = func(objNum int) error {
+	var walk func(int, int) error
+	active := make(map[int]bool)
+	walk = func(objNum, depth int) error {
 		if found {
 			return nil
 		}
@@ -141,8 +156,16 @@ func findPageObject(objMap map[int][]byte, pdfBytes []byte, targetPage int) (int
 		}
 
 		if isPDFTypePages(body) {
+			if active[objNum] {
+				return fmt.Errorf("page tree cycle at object %d", objNum)
+			}
+			if depth > maxPageTreeDepth {
+				return fmt.Errorf("page tree exceeds maximum depth %d", maxPageTreeDepth)
+			}
+			active[objNum] = true
+			defer delete(active, objNum)
 			for _, kidNum := range extractKidsRefs(body) {
-				if err := walk(kidNum); err != nil {
+				if err := walk(kidNum, depth+1); err != nil {
 					return err
 				}
 			}
@@ -160,7 +183,7 @@ func findPageObject(objMap map[int][]byte, pdfBytes []byte, targetPage int) (int
 		return nil
 	}
 
-	if err := walk(pagesNum); err != nil {
+	if err := walk(pagesNum, 0); err != nil {
 		return 0, err
 	}
 

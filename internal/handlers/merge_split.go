@@ -15,9 +15,16 @@ import (
 // handleMergePDFs accepts multiple 'pdf' form files, merges them into a single PDF,
 // and returns the merged PDF as application/pdf
 func handleMergePDFs(c *gin.Context) {
+	if !applyBodyLimit(c, requestBodyLimit(c, maxMergeBodyBytes)) {
+		return
+	}
 	// Parse multipart form (let Gin handle it) - use Request.MultipartReader via FormFile in a loop
 	form, err := c.MultipartForm()
 	if err != nil {
+		if isBodyTooLargeErr(err) {
+			abortError(c, http.StatusRequestEntityTooLarge, "merge request body too large")
+			return
+		}
 		log.Printf("handleMergePDFs: invalid multipart form: %v", err)
 		abortError(c, http.StatusBadRequest, "invalid request")
 		return
@@ -28,10 +35,20 @@ func handleMergePDFs(c *gin.Context) {
 		abortError(c, http.StatusBadRequest, "No pdf files provided; use field name 'pdf' multiple times")
 		return
 	}
+	if len(files) > mergeFileCountLimit(c) {
+		abortError(c, http.StatusRequestEntityTooLarge, "too many PDF files")
+		return
+	}
 
-	var pdfBytesList [][]byte
+	pdfBytesList := make([][]byte, 0, len(files))
+	var totalBytes int64
 	// Process files in the exact order they appear in the form to maintain selection sequence
 	for _, fh := range files {
+		if fh.Size < 0 || fh.Size > mergeBodyLimit(c) || totalBytes > mergeBodyLimit(c)-fh.Size {
+			abortError(c, http.StatusRequestEntityTooLarge, "merge input exceeds maximum size")
+			return
+		}
+		totalBytes += fh.Size
 		buf := readUploadData(c, fh, UploadKindPDF)
 		if buf == nil {
 			// Rejection already written by readUploadData.
@@ -49,6 +66,10 @@ func handleMergePDFs(c *gin.Context) {
 	c.Header("Content-Type", mimeTypePDF)
 	c.Header("Content-Disposition", "attachment; filename=merged.pdf")
 	c.Data(http.StatusOK, mimeTypePDF, merged)
+}
+
+func mergeBodyLimit(c *gin.Context) int64 {
+	return requestBodyLimit(c, maxMergeBodyBytes)
 }
 
 // handlerSplitPDF accepts a 'pdf' file and splits it according to optional 'pages' and 'max_per_file' form fields,

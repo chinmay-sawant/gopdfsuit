@@ -42,8 +42,7 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 )
 
-// maxCGOPayloadBytes caps a single input buffer accepted from C callers
-// (512 MiB, matching the MergePDFs per-part limit).
+// maxCGOPayloadBytes caps a generic input buffer accepted from C callers.
 const maxCGOPayloadBytes = 512 << 20
 
 // errResult builds an error ByteResult. The ABI is unchanged (the `error`
@@ -233,12 +232,21 @@ func MergePDFs(pdfData **C.char, pdfLengths *C.int, count C.int) C.ByteResult {
 		dataSlice := unsafe.Slice(pdfData, int(count))
 		lengthSlice := unsafe.Slice(pdfLengths, int(count))
 
+		var totalBytes uint64
+		for i := 0; i < int(count); i++ {
+			length := int64(lengthSlice[i])
+			if length < 0 || length > gopdflib.MaxMergeInputBytes {
+				return nil, limitArg(errors.New("PDF part length out of range"))
+			}
+			totalBytes += uint64(length)
+			if totalBytes > gopdflib.MaxMergeTotalInputBytes {
+				return nil, limitArg(errors.New("combined PDF input length out of range"))
+			}
+		}
+
 		files := make([][]byte, int(count))
 		for i := 0; i < int(count); i++ {
 			length := int(lengthSlice[i])
-			if length < 0 || length > maxCGOPayloadBytes {
-				return nil, limitArg(errors.New("PDF part length out of range"))
-			}
 			if length == 0 {
 				files[i] = nil
 				continue

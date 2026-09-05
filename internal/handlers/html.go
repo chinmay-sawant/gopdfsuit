@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -17,7 +18,7 @@ func rejectHTMLSource(c *gin.Context, html, url string) bool {
 		abortError(c, http.StatusBadRequest, "either html or url is required")
 		return false
 	}
-	if err := validateFetchURL(url); err != nil {
+	if err := validateFetchURL(c.Request.Context(), url); err != nil {
 		if errors.Is(err, errFetchURLBlocked) {
 			abortError(c, http.StatusForbidden, "url target is not allowed")
 			return false
@@ -46,7 +47,7 @@ func handleHTMLToPDF(c *gin.Context) {
 
 	req = newHTMLToPDFRequest(req)
 
-	pdfBytes, err := pdfService.HTMLToPDF(req)
+	pdfBytes, err := htmlToPDF(c.Request.Context(), req)
 	if err != nil {
 		log.Printf("handleHTMLToPDF: conversion failed: %v", err)
 		abortError(c, http.StatusInternalServerError, "PDF conversion failed")
@@ -84,7 +85,7 @@ func handleHTMLToImage(c *gin.Context) {
 		return
 	}
 
-	imageBytes, err := pdfService.HTMLToImage(req)
+	imageBytes, err := htmlToImage(c.Request.Context(), req)
 	if err != nil {
 		log.Printf("handleHTMLToImage: conversion failed: %v", err)
 		abortError(c, http.StatusInternalServerError, "image conversion failed")
@@ -93,7 +94,7 @@ func handleHTMLToImage(c *gin.Context) {
 
 	contentType := "image/png"
 	switch req.Format {
-	case "jpg", "jpeg":
+	case "jpg", "jpeg": //nolint:goconst // jpeg is an accepted input alias
 		contentType = "image/jpeg"
 	case "svg":
 		contentType = "image/svg+xml"
@@ -102,4 +103,18 @@ func handleHTMLToImage(c *gin.Context) {
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", "attachment; filename=converted."+req.Format)
 	c.Data(http.StatusOK, contentType, imageBytes)
+}
+
+func htmlToPDF(ctx context.Context, req models.HTMLToPDFRequest) ([]byte, error) {
+	if service, ok := pdfService.(ContextHTMLService); ok {
+		return service.HTMLToPDFContext(ctx, req)
+	}
+	return pdfService.HTMLToPDF(req)
+}
+
+func htmlToImage(ctx context.Context, req models.HTMLToImageRequest) ([]byte, error) {
+	if service, ok := pdfService.(ContextHTMLService); ok {
+		return service.HTMLToImageContext(ctx, req)
+	}
+	return pdfService.HTMLToImage(req)
 }

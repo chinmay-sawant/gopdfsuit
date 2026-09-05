@@ -1,6 +1,8 @@
 package gopdflib_test
 
 import (
+	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
@@ -58,6 +60,25 @@ func TestCompressLevelValues(t *testing.T) {
 	if gopdflib.MaxCompressInputBytes != 32<<20 {
 		t.Fatalf("MaxCompressInputBytes = %d, want %d", gopdflib.MaxCompressInputBytes, 32<<20)
 	}
+	if gopdflib.MaxMergeInputBytes != 32<<20 {
+		t.Fatalf("MaxMergeInputBytes = %d, want %d", gopdflib.MaxMergeInputBytes, 32<<20)
+	}
+	if gopdflib.MaxMergeTotalInputBytes != 128<<20 {
+		t.Fatalf("MaxMergeTotalInputBytes = %d, want %d", gopdflib.MaxMergeTotalInputBytes, 128<<20)
+	}
+}
+
+func TestMergePDFsRejectsInputLimitsBeforeParsing(t *testing.T) {
+	part := make([]byte, gopdflib.MaxMergeInputBytes-1)
+	files := make([][]byte, 5)
+	for i := range files {
+		files[i] = part
+	}
+	if _, err := gopdflib.MergePDFs(files); err == nil {
+		t.Fatal("MergePDFs accepted input over the aggregate limit")
+	} else if !errors.Is(err, gopdflib.ErrLimitExceeded) {
+		t.Fatalf("MergePDFs aggregate-limit error = %v, want ErrLimitExceeded", err)
+	}
 }
 
 // TestPrecomputedStandardFontsPassthrough pins the startup font hint on the
@@ -84,6 +105,36 @@ func TestPrecomputedStandardFontsPassthrough(t *testing.T) {
 	tmpl.SetPrecomputedStandardFonts()
 	if got := tmpl.PrecomputedStandardFonts(); len(got) != 0 {
 		t.Fatalf("cleared hint = %v, want empty", got)
+	}
+}
+
+func TestPreparedTemplateOwnsTranslatedTemplate(t *testing.T) {
+	tmpl := seedTemplate("prepared")
+	prepared, err := gopdflib.PrepareTemplate(tmpl)
+	if err != nil {
+		t.Fatalf("PrepareTemplate: %v", err)
+	}
+	first, err := prepared.GeneratePDF()
+	if err != nil {
+		t.Fatalf("prepared GeneratePDF: %v", err)
+	}
+	tmpl.Title.Text = "changed after prepare"
+	second, err := prepared.GeneratePDF()
+	if err != nil {
+		t.Fatalf("prepared GeneratePDF after source mutation: %v", err)
+	}
+	for name, output := range map[string][]byte{"first": first, "second": second} {
+		if !bytes.HasPrefix(output, []byte("%PDF-")) {
+			t.Fatalf("%s prepared output is not a PDF", name)
+		}
+		if matches, err := gopdflib.FindTextOccurrences(output, "prepared"); err != nil || len(matches) == 0 {
+			t.Fatalf("%s prepared output lost the prepared title: matches=%d err=%v", name, len(matches), err)
+		}
+		if matches, err := gopdflib.FindTextOccurrences(output, "changed after prepare"); err != nil {
+			t.Fatalf("%s prepared output search: %v", name, err)
+		} else if len(matches) != 0 {
+			t.Fatalf("%s prepared output observed source mutation", name)
+		}
 	}
 }
 

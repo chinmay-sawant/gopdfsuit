@@ -52,7 +52,7 @@ func TestDecodeHFTPayload_FillRowsInPlace(t *testing.T) {
 	if big.Rows[1].Row[1].TextColor != "#000" {
 		t.Fatalf("row1 col1 textcolor: %q", big.Rows[1].Row[1].TextColor)
 	}
-	if cap(big.Rows) < 2001 {
-		t.Fatalf("expected prealloc cap >= 2001, got %d", cap(big.Rows))
+	if cap(big.Rows) < 2 {
+		t.Fatalf("expected rows capacity for decoded rows, got %d", cap(big.Rows))
 	}
 }

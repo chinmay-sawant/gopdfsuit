@@ -7,7 +7,7 @@ import (
 func TestSubsetCacheReusesIdenticalGlyphSet(t *testing.T) {
 	ClearSubsetCache()
 
-	font := &TTFFont{PostScriptName: "TestFont"}
+	font := &TTFFont{PostScriptName: "TestFont", contentID: [32]byte{1}}
 	usedGlyphs := []uint16{1, 5, 10}
 	data := []byte("subset-bytes")
 	oldToNew := map[uint16]uint16{1: 1, 5: 2, 10: 3}
@@ -29,7 +29,7 @@ func TestSubsetCacheReusesIdenticalGlyphSet(t *testing.T) {
 func TestSubsetCacheBoundsEntries(t *testing.T) {
 	ClearSubsetCache()
 
-	base := &TTFFont{PostScriptName: "BoundFont"}
+	base := &TTFFont{PostScriptName: "BoundFont", contentID: [32]byte{2}}
 	data := []byte("x")
 	mapping := map[uint16]uint16{1: 1}
 
@@ -54,7 +54,7 @@ func TestSubsetCacheBoundsEntries(t *testing.T) {
 func TestSubsetCacheClear(t *testing.T) {
 	ClearSubsetCache()
 
-	font := &TTFFont{PostScriptName: "ClearFont"}
+	font := &TTFFont{PostScriptName: "ClearFont", contentID: [32]byte{3}}
 	storeCachedSubset(font, []uint16{1}, []byte("d"), map[uint16]uint16{1: 1})
 
 	if _, ok := lookupCachedSubset(font, []uint16{1}); !ok {
@@ -65,5 +65,43 @@ func TestSubsetCacheClear(t *testing.T) {
 
 	if _, ok := lookupCachedSubset(font, []uint16{1}); ok {
 		t.Fatal("expected cache miss after clear")
+	}
+}
+
+func TestSubsetCacheSeparatesFontContentsWithSameNameAndGlyphs(t *testing.T) {
+	ClearSubsetCache()
+
+	fontA := &TTFFont{
+		PostScriptName: "SharedName",
+		contentID:      [32]byte{1},
+	}
+	fontB := &TTFFont{
+		PostScriptName: "SharedName",
+		contentID:      [32]byte{2},
+	}
+	glyphs := []uint16{0, 7}
+
+	storeCachedSubset(fontA, glyphs, []byte("font-a-subset"), map[uint16]uint16{0: 0, 7: 1})
+	if _, ok := lookupCachedSubset(fontB, glyphs); ok {
+		t.Fatal("font B reused font A subset despite different content identity")
+	}
+
+	storeCachedSubset(fontB, glyphs, []byte("font-b-subset"), map[uint16]uint16{0: 0, 7: 1})
+	for name, test := range map[string]struct {
+		font *TTFFont
+		want string
+	}{
+		"font A": {font: fontA, want: "font-a-subset"},
+		"font B": {font: fontB, want: "font-b-subset"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cached, ok := lookupCachedSubset(test.font, glyphs)
+			if !ok {
+				t.Fatal("expected cache hit")
+			}
+			if string(cached.data) != test.want {
+				t.Fatalf("cached subset = %q, want %q", cached.data, test.want)
+			}
+		})
 	}
 }

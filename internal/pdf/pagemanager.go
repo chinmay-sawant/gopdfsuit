@@ -328,18 +328,6 @@ func (pm *PageManager) GetCurrentContentStream() *bytes.Buffer {
 	return pm.ContentStreams[pm.CurrentPageIndex]
 }
 
-// appendContentStream appends bytes to a page stream with a single upfront grow.
-func appendContentStream(stream *bytes.Buffer, b []byte) {
-	if len(b) == 0 {
-		return
-	}
-	need := stream.Len() + len(b)
-	if need > stream.Cap() {
-		stream.Grow(need - stream.Cap())
-	}
-	_, _ = stream.Write(b)
-}
-
 // GetCurrentPageID returns the current page object ID
 func (pm *PageManager) GetCurrentPageID() int {
 	return pm.Pages[pm.CurrentPageIndex]

@@ -34,6 +34,8 @@ var rgbDataPool = sync.Pool{
 // keeping pool memory bounded on large-image soaks.
 const maxPooledRGBDataCap = 8 * 1024 * 1024
 
+const maxDecodedImagePixels int64 = 16_000_000
+
 const maxImageCacheEntries = 256
 
 // imageCache stores decoded images keyed by a hash of their base64 data.
@@ -218,15 +220,22 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		// Let's try to proceed, maybe it's not really SVG
 	}
 
-	// Try to decode as PNG/JPEG
-	img, format, err := image.Decode(bytes.NewReader(imageBytes))
+	// Read the image header before decoding a raster. DecodeConfig validates
+	// dimensions without allocating width*height pixel storage.
+	config, format, err := image.DecodeConfig(bytes.NewReader(imageBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %v", err)
 	}
 
-	bounds := img.Bounds()
-	width := bounds.Dx()
-	height := bounds.Dy()
+	width := config.Width
+	height := config.Height
+	if width <= 0 || height <= 0 {
+		return nil, fmt.Errorf("image dimensions must be positive: %dx%d", width, height)
+	}
+	pixels := int64(width) * int64(height)
+	if pixels > maxDecodedImagePixels {
+		return nil, fmt.Errorf("decoded image exceeds %d pixels: %dx%d", maxDecodedImagePixels, width, height)
+	}
 
 	imgObj := &ImageObject{
 		Width:       width,
@@ -240,6 +249,10 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 	// Convert image to raw RGB data for PDF
 	switch format {
 	case "png":
+		img, _, err := image.Decode(bytes.NewReader(imageBytes))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode image: %v", err)
+		}
 		// For PNG, convert to RGB with proper alpha handling
 		// Check if image has transparency
 		hasAlpha := false
@@ -288,6 +301,10 @@ func DecodeImageData(base64Data string) (*ImageObject, error) {
 		imgObj.ImageDataLen = len(imageBytes)
 
 	default:
+		img, _, err := image.Decode(bytes.NewReader(imageBytes))
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode image: %v", err)
+		}
 		// For other formats, convert to RGB and compress with zlib
 		rgbSize := width * height * 3
 		rawRGB := getRGBDataBuffer(rgbSize)

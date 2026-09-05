@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"runtime"
@@ -371,6 +372,10 @@ const maxLowRegionFontObjects = 64
 
 //nolint:gocyclo // large template renderer with many element-type branches
 func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF, err error) {
+	if security := template.Config.Security; security != nil && security.Enabled && security.OwnerPassword == "" {
+		return nil, errors.New("encryption is enabled but owner password is empty")
+	}
+
 	initialCap := estimateTemplatePDFBufferSize(template)
 	pdfBuffer := getPDFBuffer(initialCap)
 	ensurePDFBufferCapacity(pdfBuffer, initialCap)
@@ -410,8 +415,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 
 		pdfaManager := GetPDFAFontManager()
 		if err := pdfaManager.RegisterLiberationFontsForPDFA(fontRegistry, usedFontsList); err != nil {
-			fmt.Printf("Warning: Failed to load Liberation fonts for PDF/A: %v\n", err)
-			// Continue without PDF/A font compliance
+			return nil, fmt.Errorf("failed to provision PDF/A fonts: %w", err)
 		}
 	}
 
@@ -420,18 +424,19 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		if fontConfig.Name == "" {
 			continue
 		}
-		if fontConfig.FontData != "" {
+		switch {
+		case fontConfig.FontData != "":
 			// Load from base64 data
 			if err := fontRegistry.RegisterFontFromBase64(fontConfig.Name, fontConfig.FontData); err != nil {
-				// Log error but continue
-				fmt.Printf("Warning: failed to load custom font %s from data: %v\n", fontConfig.Name, err)
+				return nil, fmt.Errorf("failed to load custom font %s from data: %w", fontConfig.Name, err)
 			}
-		} else if fontConfig.FilePath != "" {
+		case fontConfig.FilePath != "":
 			// Load from file path
 			if err := fontRegistry.RegisterFontFromFile(fontConfig.Name, fontConfig.FilePath); err != nil {
-				// Log error but continue
-				fmt.Printf("Warning: failed to load custom font %s from file: %v\n", fontConfig.Name, err)
+				return nil, fmt.Errorf("failed to load custom font %s from file: %w", fontConfig.Name, err)
 			}
+		default:
+			return nil, fmt.Errorf("custom font %s has no font data or file path", fontConfig.Name)
 		}
 	}
 
@@ -481,13 +486,12 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Setup encryption EARLY if security config is provided (before writing content)
 	// This is needed because content streams need to be encrypted
 	var enc *encryption.PDFEncryption
-	if template.Config.Security != nil && template.Config.Security.Enabled && template.Config.Security.OwnerPassword != "" {
+	if template.Config.Security != nil && template.Config.Security.Enabled {
 		// Generate a preliminary document ID for encryption setup
 		preliminaryID := encryption.GenerateDocumentID(append([]byte(template.Title.Text), strconv.AppendInt((*scratchPtr)[:0], int64(len(pageManager.Pages)), 10)...))
-		var err error
 		enc, err = encryption.NewPDFEncryption(template.Config.Security, preliminaryID)
 		if err != nil {
-			enc = nil // Fall back to no encryption on error
+			return nil, fmt.Errorf("failed to initialize encryption: %w", err)
 		}
 	}
 
@@ -511,11 +515,13 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	// Setup PDF/A handler if enabled
 	var pdfaHandler *PDFAHandler
 	if template.Config.PDFA != nil && template.Config.PDFA.Enabled {
-		// If main PdfTitle is set but PDFA Title isn't, copy it over
-		if template.Config.PdfTitle != "" && template.Config.PDFA.Title == "" {
-			template.Config.PDFA.Title = template.Config.PdfTitle
+		// Keep the caller-owned config immutable during generation. Prepared
+		// templates may be rendered concurrently.
+		pdfaConfig := *template.Config.PDFA
+		if template.Config.PdfTitle != "" && pdfaConfig.Title == "" {
+			pdfaConfig.Title = template.Config.PdfTitle
 		}
-		pdfaHandler = NewPDFAHandler(template.Config.PDFA, pageManager, encryptor, alloc)
+		pdfaHandler = NewPDFAHandler(&pdfaConfig, pageManager, encryptor, alloc)
 	} else if template.Config.PDFACompliant {
 		// If using valid PDF/A mode but no explicit PDFA config, create one to ensure metadata
 		pdfaConfig := &models.PDFAConfig{
@@ -546,30 +552,37 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 	var pdfSigner *signature.PDFSigner
 	var sigIDs *signature.SignatureIDs
 	if signatureEnabled {
-		var err error
 		pdfSigner, err = signature.NewPDFSigner(template.Config.Signature)
-		if err == nil && pdfSigner != nil {
-			// Get the font ID for signature appearance
-			// In PDF/A mode, this returns the Liberation font ID that replaces Helvetica
-			// In standard mode, this returns the standard Helvetica font ID
-			signatureFontID := getWidgetFontObjectID(pageManager.FontRegistry)
-			if signatureFontID == 0 {
-				// Fallback to standard font object ID if no custom font
-				signatureFontID = fontObjectIDs["Helvetica"]
-			}
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize signer: %w", err)
+		}
+		if pdfSigner == nil {
+			return nil, errors.New("signing is enabled but signer initialization returned no signer")
+		}
 
-			sigPageDims := signature.PageDimensions{
-				Width:  pageDims.Width,
-				Height: pageDims.Height,
-			}
-			sigIDs = pdfSigner.CreateSignatureField(&signatureContextAdapter{pm: pageManager, alloc: alloc}, sigPageDims, signatureFontID)
+		// Get the font ID for signature appearance
+		// In PDF/A mode, this returns the Liberation font ID that replaces Helvetica
+		// In standard mode, this returns the standard Helvetica font ID
+		signatureFontID := getWidgetFontObjectID(pageManager.FontRegistry)
+		if signatureFontID == 0 {
+			// Fallback to standard font object ID if no custom font
+			signatureFontID = fontObjectIDs["Helvetica"]
+		}
+
+		sigPageDims := signature.PageDimensions{
+			Width:  pageDims.Width,
+			Height: pageDims.Height,
+		}
+		sigIDs = pdfSigner.CreateSignatureField(&signatureContextAdapter{pm: pageManager, alloc: alloc}, sigPageDims, signatureFontID)
+		if sigIDs == nil {
+			return nil, errors.New("failed to create signature field")
 		}
 	}
 
 	// Generate font subsets after content generation AND signature creation
 	// This ensures characters used in signature appearance are included in the subset
 	if err := fontRegistry.GenerateSubsets(); err != nil {
-		fmt.Printf("Warning: failed to generate font subsets: %v\n", err)
+		return nil, fmt.Errorf("failed to generate font subsets: %w", err)
 	}
 
 	// Collect all widget IDs for AcroForm (filter out link annotations)
@@ -1376,7 +1389,7 @@ func GenerateTemplatePDFBorrowed(template models.PDFTemplate) (doc *BorrowedPDF,
 		if err := signature.UpdatePDFWithSignatureBuffer(pdfBuffer, pdfSigner); err != nil {
 			logPDFCapacityDebug("final", template, pdfBuffer, finalEstimate, pageManager)
 			recordPDFCapacityHighWater(templateCapacityTier(template), pdfBuffer)
-			return &BorrowedPDF{buf: pdfBuffer}, nil
+			return nil, fmt.Errorf("failed to embed PDF signature: %w", err)
 		}
 	}
 

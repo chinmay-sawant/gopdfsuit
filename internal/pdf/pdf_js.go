@@ -65,3 +65,9 @@ func inlineHTMLContent(html, rawURL string) (gowkhtmltopdf.Content, error) {
 		return gowkhtmltopdf.Content{}, fmt.Errorf("either HTML content or URL must be provided")
 	}
 }
+
+// htmlSourceContent keeps the shared context-aware conversion path on the
+// same inline-only source policy as the public browser wrappers.
+func htmlSourceContent(html, rawURL string) (gowkhtmltopdf.Content, error) {
+	return inlineHTMLContent(html, rawURL)
+}

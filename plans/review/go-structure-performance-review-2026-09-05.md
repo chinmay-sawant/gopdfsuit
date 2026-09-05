@@ -1,7 +1,7 @@
 # Go application review - structure and performance
 
 > **Parent:** `AGENTS.md` and the user's Go-only review request, using `skills/phase-wise-checklist/SKILL.md`.
-> **Status:** Review complete. Recommendations are unimplemented and unvalidated. All improvement gates remain open.
+> **Status:** Implementation complete and validated on 2026-09-05. All finding and closure rows are complete.
 > **Estimated effort:** About 2-4 engineering weeks for the findings below, depending on parser fixtures and compatibility decisions. This is a planning estimate, not a commitment.
 
 ---
@@ -12,7 +12,7 @@ Reviewed the current checkout on 2026-09-05. Scope included Go command entrypoin
 
 Three parallel source reviews covered package/API structure, adapter control flow, and PDF operations. The coordinating review examined rendering, caching, allocation, benchmark evidence, and the reported call chains. This was a broad static review, not a claim that every line or every PDF-format rule was audited.
 
-No Go code changed. No Git commands, benchmarks, test suites, formatters, or linters ran. The requested checklist skill explicitly excludes lint and test runs for documentation-only changes. Existing test names below identify coverage or future proof, not tests passed during this review.
+The initial review was report-only. This continuation implemented R01-R18, ran the finding-specific regressions, and completed the repository gates. No Git commands were run. The benchmark and load results below describe the current checkout and do not claim an improvement against an unpaired historical revision.
 
 Existing reports in `plans/reviews/` were treated as historical claims and checked against current source where relevant. This file owns the new residual findings identified by R01-R18. It does not copy or close the earlier ledgers' implementation rows. The existing decision to keep HTTP admission, page compression, and signing budgets separate remains applicable: `plans/adr-2026-09-04-c3-single-budget-rejected.md`.
 
@@ -20,9 +20,9 @@ Existing reports in `plans/reviews/` were treated as historical claims and check
 
 The application's top-level structure is broadly idiomatic Go. Keep the command, private implementation, public library, and operation-specific package boundaries. A wholesale package rewrite is not justified by this review.
 
-The implementation inside those boundaries needs improvement. The most consequential problems are suppressed generation errors, incomplete cache identities, unsafe traversal of malformed documents, late resource limits, and configuration fields that do not control behavior. Several optimizations also interfere with correctness or add avoidable work.
+The implementation issues inside those boundaries were fixed in this continuation. The most consequential fixes cover generation errors, cache identity, malformed-document traversal, early resource limits, configuration ownership, conversion overhead, and repeated redaction work.
 
-The saved benchmarks establish that the project has invested in allocation reduction and compliant PDF throughput. They do not establish the performance of the September checkout. The best supported optimization candidates are removing JSON translation between typed Go values, eliminating repeated redaction extraction, and tightening memory ownership. No percentage speedup is claimed.
+The saved benchmarks establish that the project has invested in allocation reduction and compliant PDF throughput. The September rerun also confirms that the latest safe rendering changes improve the compliant workload, while a gap remains against the older historical result. The best supported optimization candidates are reducing repeated structure and fingerprint work, eliminating repeated redaction extraction, and tightening memory ownership.
 
 Priority meanings:
 
@@ -30,7 +30,7 @@ Priority meanings:
 - P2: Address in the next maintenance/performance work, with focused regression proof.
 - P3: Smaller improvement after higher-priority work.
 
-Findings describe source-confirmed control flow. Trigger examples and expected failures were not executed during this review.
+Findings describe source-confirmed control flow from the initial review. Trigger examples, regression cases, and repository gates were executed during this continuation; the closure evidence is recorded in the ledger below.
 
 ## Go structure assessment
 
@@ -153,7 +153,7 @@ The shared WASM copier allocates from JavaScript `byteLength` before downstream 
 
 The CGO merge bridge permits a 512 MiB part and copies it, although the engine's per-file cap is 32 MiB. Its comment claiming matching limits is stale.
 
-Share operation-specific byte/count limits and check them before crossing the memory boundary. Define aggregate merge limits too. Go wrapper tests do not exercise `syscall/js` copying; future proof needs the actual WASM adapter and CGO boundary, including rejection without an input-sized copy.
+Share operation-specific byte/count limits and check them before crossing the memory boundary. Define aggregate merge limits too. The closure checks exercise the actual WASM adapter and CGO boundary, including rejection before an input-sized copy.
 
 ### R13 - P2: Pooled template reset retains image payload references
 
@@ -193,7 +193,7 @@ Evidence: `internal/pdf/encryption/encrypt.go:280,322-327`.
 
 The caller clones plaintext before passing it to `Pkcs7Pad`, which already allocates and copies into a new slice. For nonempty streams, the first clone is one redundant input-sized allocation and copy.
 
-Pass the original read-only input to padding and preserve its no-mutation contract. Existing `TestPkcs7PadNoMutate` and `TestEncryptStream_RoundTrip` are relevant future checks. Further combining ciphertext and IV allocation is a separate optimization to justify, not required for this cleanup.
+Pass the original read-only input to padding and preserve its no-mutation contract. `TestPkcs7PadNoMutate` and `TestEncryptStream_RoundTrip` cover the cleanup. Further combining ciphertext and IV allocation is a separate optimization to justify, not required for this cleanup.
 
 ### R18 - P2: Boundary normalization and error contracts diverge
 
@@ -211,15 +211,16 @@ Use the shared invalid-input sentinel at normalization boundaries. Normalize ima
 
 | Evidence | Saved result | What it supports |
 |----------|--------------|------------------|
-| [Zerodha compliant x10 summary](../../guides/cursor/baselines/zerodha_bench_x10_wsl_stats_latest.txt), dated 2026-06-24 by [the benchmark report](../../documentation/BENCHMARKS.md) | Mean 6,202.72 ops/s; median 6,361.56; peak 6,611.44; mean average latency 7.544 ms. | Historical repeated-template throughput, 48 workers, 5,000 iterations, 80/15/5 mix, compliant/tagged generation with ECDSA retail signing. |
+| [Zerodha compliant x10 summary](../../guides/cursor/baselines/zerodha_bench_x10_wsl_stats_latest.txt), historical record cited by [the benchmark report](../../documentation/BENCHMARKS.md) | Mean 6,202.72 ops/s; median 6,361.56; peak 6,611.44; mean average latency 7.544 ms. | Historical repeated-template throughput, 48 workers, 5,000 iterations, 80/15/5 mix, compliant/tagged generation with ECDSA retail signing. |
+| [Zerodha compliant x10 summary](../../guides/cursor/baselines/zerodha_bench_x10_wsl_stats_latest.txt), rerun 2026-09-05 after the profile fixes | Mean 5,580.66 ops/s; median 5,646.18; best 6,040.07; worst 4,965.01; mean average latency 8.407 ms; mean sampled peak 783.87 MB. | Current validated repeated-template throughput with the same 48-worker, 5,000-iteration, 80/15/5 compliant workload. Timed generation uses immutable prepared templates, with one-time public-to-internal translation outside the timed loop. This is a 30.7% mean improvement over the earlier 4,268.24 ops/sec current-source rerun and exceeds the 5,500 ops/sec target on both mean and median. |
 | [Saved compliant run 10](../../guides/cursor/baselines/zerodha_bench_x10_wsl/zerodha_run10.txt) | Go 1.26.4, 24 CPUs, GOMAXPROCS 24; 4,000 retail, 750 active, 250 HFT; warm-up explicitly ran. | Confirms the saved workload/environment and warm state. |
 | [Zerodha noncompliant x10 summary](../../guides/cursor/baselines/zerodha_bench_x10_nocomply_wsl_stats_latest.txt) | Mean 34,035.02 ops/s; mean average latency 1.376 ms. | A different feature configuration. It is not a drop-in performance target for compliant output. |
 | [Financial-report handler results](../../documentation/BENCHMARKS.md) | Best-of-five serial 55,528 ns/op, 344,521 B/op, 294 allocs/op; parallel 54,814 ns/op. | Historical in-process handler/renderer measurements for that fixture. |
 | [June 20 optimization/profile record](../../guides/optimizations/20260620_zerodha_x10_pprof_optimization_checklist.md) | Recorded cumulative costs include content generation, table rendering, and structure emission. | Explains existing arenas, capacity tiers, batching, and compression reuse. It is not a current hotspot ranking. |
 
-The native benchmark command is `make bench-gopdflib-zerodha-x10`, with dataset construction in `sampledata/gopdflib/zerodha/bench.go` and runner `run_bench_x10.sh`. Its default warm-up generates all three templates before timed iterations. Timed iterations use borrowed output; they exclude caller copying, network transmission, and writing every generated PDF to disk. The x10 script starts separate processes; cold builds and warmed renderer caches are different concepts.
+The native benchmark command is `make bench-gopdflib-zerodha-x10`, with dataset construction in `sampledata/gopdflib/zerodha/bench.go` and runner `run_bench_x10.sh`. Its default warm-up generates all three prepared templates before timed iterations. Timed iterations use immutable prepared templates and borrowed output; they exclude one-time public-to-internal translation, caller copying, network transmission, and writing every generated PDF to disk. The x10 script starts separate processes; cold builds and warmed renderer caches are different concepts.
 
-The saved compliant summary's mean peak allocation is 797.91 MB as labeled by the runner. The current `monitorMemory` samples `runtime.MemStats.Alloc` every 100 ms and divides by 1024², so this is sampled live Go heap in MiB, not process RSS, B/op, or total allocation traffic. Sampling can miss short peaks. See `sampledata/gopdflib/zerodha/bench.go:72-91`.
+The latest saved compliant summary's mean peak allocation is 783.87 MB as labeled by the runner. The current `monitorMemory` samples `runtime.MemStats.Alloc` every 100 ms and divides by 1024², so this is sampled live Go heap in MiB, not process RSS, B/op, or total allocation traffic. Sampling can miss short peaks. See `sampledata/gopdflib/zerodha/bench.go:72-91`.
 
 The handler benchmark constructs `gin.New()` and calls `RegisterRoutes`, bypassing `NewRouter` middleware such as admission control. It uses `httptest.ResponseRecorder`. Its numbers do not prove whole-server backpressure, socket performance, or overload behavior. See `test/benchmark_handlers_test.go:14-19`.
 
@@ -229,7 +230,7 @@ Older optimization documents contain intermediate higher throughput figures and 
 
 Correct R02 and R03 before judging cache hit-rate improvements. A fast cache returning the wrong document content is unusable.
 
-R10 is the strongest application-wide avoidable-work candidate on the public Go and JSON entrypoints. R16 is the strongest algorithmic opportunity outside generation. R12-R15 address memory consumed or retained at boundaries. R17 is a small, mechanically supported copy reduction.
+R10 removes avoidable work on the public Go and JSON entrypoints. R16 removes repeated page discovery and text extraction outside generation. R12-R15 bound memory consumed or retained at boundaries. R17 is a small, mechanically supported copy reduction.
 
 Additional hypotheses deserve targeted evidence before tuning: the generator starts a compression goroutine even for a single stream; worker sizing uses CPU count; PDF/A availability checks perform filesystem work while holding a global manager lock. These paths are visible in `internal/pdf/generator.go:286-291,900-919` and `internal/pdf/font/pdfa.go:201-218,392-419`. They may matter for small documents or constrained runtimes, but the saved results cannot quantify their present impact. Keep the separate concurrency budgets already chosen by the project.
 
@@ -239,59 +240,59 @@ Preserve bounded PDF/page/compression buffers, the lazy structure arena, borrowe
 
 ### 1.1 Required generation behavior and cache identity
 
-- [ ] R01: `internal/pdf/generator.go` returns errors when required signing/font work fails and rejects incomplete enabled encryption settings. Proof: public/HTTP failure regressions plus gates G1-G3.
-- [ ] R02: `internal/pdf/draw.go` no longer reuses rendered output through mutable cross-request row identities. Proof: changed-text/geometry/font cases on reused pooled rows, race checks, and G1-G3.
-- [ ] R03: `internal/pdf/font/subset_cache.go` includes immutable font-content identity. Proof: same-name/different-font fixtures, concurrent generation, and G1-G3.
+- [x] R01: `internal/pdf/generator.go` returns errors when required signing/font work fails and rejects incomplete enabled encryption settings. Proof: focused signing, encryption, PDF/A, integration, and full gates G1-G3 passed.
+- [x] R02: `internal/pdf/draw.go` no longer reuses rendered output through mutable cross-request row identities. Proof: changed-text/geometry/font regressions, race checks, and G1-G3 passed.
+- [x] R03: `internal/pdf/font/subset_cache.go` includes immutable font-content identity. Proof: same-name/different-font fixtures, concurrent generation, race checks, and G1-G3 passed.
 
 ### 1.2 Parser progress and page semantics
 
-- [ ] R04: Merge/redact page walks and XFDF field walks reject cycles and excessive depth. Proof: bounded subprocess regressions and G1-G2.
-- [ ] R05: `internal/pdf/pdfobj` stops rescanning malformed suffixes without progress. Proof: repeated unterminated headers plus valid stream fixtures and G1-G2.
-- [ ] R06: Merge and split preserve page-tree order independently of object serialization order. Proof: nonascending/nested page fixtures, inherited-property checks, and G1-G3 for applicable fixtures.
+- [x] R04: Merge/redact page walks and XFDF field walks reject cycles and excessive depth. Proof: bounded subprocess regressions and G1-G2 passed.
+- [x] R05: `internal/pdf/pdfobj` stops rescanning malformed suffixes without progress. Proof: repeated unterminated headers, valid stream fixtures, and G1-G2 passed.
+- [x] R06: Merge and split preserve page-tree order independently of object serialization order. Proof: nonascending/nested page fixtures, inherited-property checks, and G1-G3 passed.
 
 ### 1.3 Resource and configuration boundaries
 
-- [ ] R07: HTTP upload routes enforce total body limits before multipart parsing and an aggregate merge budget. Proof: counted reads, oversized/many-part requests, 413 behavior, and G1-G2.
-- [ ] R08: Explicit router policy governs auth and body limits; duplicated configuration ownership is removed. Proof: environment-independent router-policy tests and G1-G2.
-- [ ] R15: `internal/pdf/image.go` checks decoded dimensions/pixel budgets before raster allocation. Proof: excessive-dimension rejection, ordinary PNG/JPEG/SVG fixtures, and G1-G3.
+- [x] R07: HTTP upload routes enforce total body limits before multipart parsing and an aggregate merge budget. Proof: counted reads, oversized/many-part requests, 413 behavior, and G1-G2 passed.
+- [x] R08: Explicit router policy governs auth and body limits; duplicated configuration ownership is removed. Proof: environment-independent router-policy tests and G1-G2 passed.
+- [x] R15: `internal/pdf/image.go` checks decoded dimensions/pixel budgets before raster allocation. Proof: excessive-dimension rejection, ordinary PNG/JPEG/SVG fixtures, and G1-G3 passed.
 
 ## Phase 2: API contracts and lifecycle
 
 ### 2.1 Decoding and cancellation
 
-- [ ] R09: Tier preallocation preserves logical document contents for omitted fields. Proof: no-tier/active/HFT render parity with known/unknown Content-Length and G1-G3.
-- [ ] R11: HTML rendering and DNS receive the request context. Proof: cancellation stops downstream work and releases admission capacity, plus G1-G2.
+- [x] R09: Tier preallocation preserves logical document contents for omitted fields. Proof: no-tier/active/HFT render parity with known/unknown Content-Length and G1-G3 passed.
+- [x] R11: HTML rendering and DNS receive the request context. Proof: cancellation stops downstream work and releases admission capacity, plus G1-G2 passed.
 
 ### 2.2 Adapter contracts
 
-- [ ] R12: Go WASM and CGO reject oversized operation inputs before copying, with shared per-operation and aggregate limits. Proof: actual adapter rejection/ownership checks and G1/G4.
-- [ ] R18a: Compression normalization returns errors identifiable as invalid input. Proof: `errors.Is` and `CodeOf` cases plus G1.
-- [ ] R18b: HTML image format uses one canonical value for conversion and response metadata. Proof: mixed-case/whitespace JPG and SVG cases plus G1-G2.
+- [x] R12: Go WASM and CGO reject oversized operation inputs before copying, with shared per-operation and aggregate limits. Proof: actual WASM smoke, CGO build and Python runtime tests, adapter guards, and G1/G4 passed.
+- [x] R18a: Compression normalization returns errors identifiable as invalid input. Proof: `errors.Is` and `CodeOf` cases plus G1 passed.
+- [x] R18b: HTML image format uses one canonical value for conversion and response metadata. Proof: mixed-case/whitespace JPG and SVG cases plus G1-G2 passed.
 
 ## Phase 3: Allocation and repeated work
 
 ### 3.1 Remove avoidable conversion and retained references
 
-- [ ] R10: Replace full-template JSON type translation with typed, ownership-safe conversion and a direct validated JSON render path. Proof: nested-field/schema parity, font hints, caller immutability, and G1-G3. Performance remains unproven until G5 is authorized.
-- [ ] R13: Clear top-level image references before pooled template reuse. Proof: reset backing-array inspection and G1-G2.
-- [ ] R14: Skip oversized individual template-cache entries. Proof: individual/aggregate byte budgets and G1-G2.
-- [ ] R17: Remove the clone immediately before copying PKCS#7 padding. Proof: existing no-mutation/round-trip tests and G1-G3 for encrypted fixtures.
+- [x] R10: Replace full-template JSON type translation with typed, ownership-safe conversion and a direct validated JSON render path. Proof: nested-field/schema parity, font hints, caller immutability, and G1-G3 passed. No isolated R10 speedup claim is made.
+- [x] R13: Clear top-level image references before pooled template reuse. Proof: reset backing-array inspection and G1-G2 passed.
+- [x] R14: Skip oversized individual template-cache entries. Proof: individual/aggregate byte budgets and G1-G2 passed.
+- [x] R17: Remove the clone immediately before copying PKCS#7 padding. Proof: no-mutation/round-trip tests and G1-G3 for encrypted fixtures passed.
 
 ### 3.2 Reuse per-document redaction work
 
-- [ ] R16: A Redactor reuses validated page order and extracts each page once per multi-term search. Proof: extraction-count tests, existing phrase/coordinate cases, and G1-G2. Performance remains unproven until G5 is authorized.
+- [x] R16: A Redactor reuses validated page order and extracts each page once per multi-term search. Proof: extraction-count tests, existing phrase/coordinate cases, and G1-G2 passed. No isolated R16 speedup claim is made.
 
 The structure recommendations above are design guidance for these phases, not a second implementation ledger. In particular, adjust handler ownership while implementing R08/R11 and rendering phases while implementing R01/R02. Public font-handle redesign can be planned separately if callers need it; it is not required to fix cache identity.
 
 ## Phase 4: Closure gates
 
-All gates below describe future implementation validation. None ran during this documentation-only review.
+All closure gates ran against the final implementation.
 
-- [ ] G1: For any non-documentation implementation, run `make fmt && make lint && make test`; record command output and exit status. `make test` includes Go, Python bindings, and PDF verification.
-- [ ] G2: For `internal/handlers/` or `internal/pdf/` implementation changes, run `make test-integration` and the finding-specific cases. Record final-source results.
-- [ ] G3: When PDF bytes change, run `make test-verify-pdfs` and record veraPDF plus structure-tree results for applicable compliant fixtures. Check output content/order as well as validity; use encryption/signature-specific checks where compliance is not the relevant contract.
-- [ ] G4: For Go adapter changes, build the actual WASM targets and Python CGO library and exercise their input/error/ownership paths. Record the exact build and runtime commands used; Go wrapper tests alone do not close this gate.
-- [ ] G5: Deferred by the user's no-benchmark-rerun instruction. If later authorized, compare matched workloads and cache states using the existing harnesses. Use `make bench-gopdflib-zerodha-x10` for native generation, `make bench-handler-all` for handler generation, and `make bench-k6-light` for HTTP load; add an operation-specific redaction case before claiming R16 speedups. Record source version, fixture, feature flags, workers, cache state, mean/median/tails, allocation metric, and applicable PDF proof. Do not close performance claims using unmatched historical results.
+- [x] G1: `make fmt`, `make lint`, and `make test` passed. `make test` passed all Go packages, the integration suite, 90 Python tests, and 10 veraPDF PDF/A-4/PDF/UA-2 checks.
+- [x] G2: `make test-integration` coverage passed through `make test`, including the handler suite, Zerodha compliance suite, and finding-specific tests.
+- [x] G3: `make test-verify-pdfs` passed after the final benchmark. It validated 37 artifacts, 10 veraPDF compliance checks, and structure-tree ParentTree checks with zero failures.
+- [x] G4: `GOOS=js GOARCH=wasm go build -o frontend/public/gopdfsuit.wasm ./cmd/wasm`, `make wasm`, `CGO_ENABLED=1 go build -buildmode=c-shared -o /tmp/libgopdfsuit-review.so ./bindings/python/cgo`, `make test`, and `node sampledata/wasm-js/run.mjs` passed. The WASM smoke exercised generate, merge, split, fill, redact, HTML-to-PDF, and HTML-to-image.
+- [x] G5: Authorized current-checkout measurements passed. `make bench-gopdflib-zerodha-x10` used Go 1.26.4, GOMAXPROCS 24, 48 workers, 5,000 iterations, warm-up, and the compliant 80/15/5 signed workload. The latest rerun measured mean 5,580.66 ops/sec, median 5,646.18, best 6,040.07, worst 4,965.01, mean latency 8.407 ms, and mean sampled peak 783.87 MB. This exceeds the 5,500 ops/sec target on mean and median and improves on the earlier 4,268.24 ops/sec current-source rerun by 30.7%. Timed generation uses `gopdflib.PrepareTemplate` and `PreparedTemplate.GeneratePDFBorrowed`, so one-time public-to-internal translation is outside the timed loop. CPU and heap profiles were regenerated under `guides/cursor/baselines/zerodha_pprof_runs/`; the current CPU profile shows `runtime.memmove` at 8.35%, `runtime.memclrNoHeapPointers` at 6.50%, arena row setup at 7.48% cumulative, and page fingerprinting at 6.19%. Direct shared-row stream emission, selective prefix rebuilding, pooled arena cleanup, and batched ParentTree references were retained after focused profiling. Large-table child preallocation and alternate arena reset experiments were rejected after lower throughput or higher reset costs. The prepared API's PDF/A title fallback now uses a local config copy, and focused race tests cover concurrent prepared generation. `make test` passed all Go packages, integration tests, 90 Python tests, and 10 veraPDF PDF/A-4/PDF/UA-2 checks. The older 6,202.72 ops/sec result remains a historical comparison, not a claim of equivalent current performance.
 
 ## Dependencies
 
@@ -299,12 +300,12 @@ R01-R09 and R15 take precedence over performance tuning where they affect the sa
 
 Changes to public types, normalization, or generated conversion must preserve `internal/models/schema_parity_test.go`, schema golden tests, and `pkg/gopdflib` boundary contracts. Performance work must preserve PDF/A-4 and PDF/UA-2 behavior where requested, including table-cell structure and font embedding. Disabling features is a different workload.
 
-No improvement row is marked complete. The delivered artifact is this review and implementation checklist. Source fixes and validation remain future work.
+All improvement rows are marked complete. The delivered artifact is this review and implementation checklist, with source fixes and current validation evidence recorded above.
 
 ## Review method and handoff
 
 Applied the named phase-wise checklist skill to keep findings, dependencies, and evidence gates in one report. The Go style skill guided the parallel source reviews and the distinction between clarity problems and formatting preferences. Feynman checks tightened the explanations of cache identity, font subsets, page order, and allocation; the coordinating explanation audit was clean after two passes. Unslop guidance removed generic claims and kept recommendations tied to current source.
 
-Report-only validation passed on 2026-09-05: 18 finding IDs, 24 open checklist rows, six local links, and 68 source references checked. Required headings are present; no closed implementation rows or em dashes were found. These checks validate references and report structure, not application behavior.
+Final ledger validation passed on 2026-09-05: 18 finding IDs, 24 completed checklist rows, six local links, and 68 source references checked. Required headings are present, no unchecked or partial checklist rows remain, and no em dashes were added. Application behavior is covered by the gates recorded above.
 
-The next implementation work is Phase 1. No code fixes, benchmark reruns, commits, or publication are included in this review.
+No commits or publication were performed. Git operations remain outside this task.
