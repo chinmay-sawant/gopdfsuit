@@ -119,6 +119,9 @@ const SplitPage = () => {
   }
 
   const inputStyles = { width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }
+  // Preview column stays hidden on file select alone. It expands only
+  // while splitting or after split results exist.
+  const hasPreview = Boolean(isLoading || resultFiles.length > 0 || splitPdfUrl)
 
   return (
     <OpPageShell
@@ -126,7 +129,7 @@ const SplitPage = () => {
       badgeBorder="rgba(255,193,7,0.3)"
       badgeColor="#ffc107"
       title="PDF Split Tool"
-      className="split-page tool-wide"
+      className={`split-page tool-wide${hasPreview ? '' : ' tool-single-page'}`}
       icon={<div className="feature-icon-box yellow" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Scissors size={28} /></div>}
       description={serverTransport ? 'Server transport active (VITE_WASM_TRANSPORT=server): the file is uploaded to /api/v1/split.' : 'Extract specific pages or split PDF into multiple files - runs in your browser when the WASM engine lands, server upload only on consent.'}
       steps={[
@@ -136,7 +139,7 @@ const SplitPage = () => {
       ]}
     >
       <ConsentBanner offer={fallbackOffer} onConsent={splitViaServerConsent} onDismiss={() => setFallbackOffer(null)} isLoading={isLoading} actionLabel="Upload to server and split" />
-      <div className="split-layout">
+      <div className={`split-layout${hasPreview ? '' : ' tool-single'}`}>
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
             <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload PDF File
@@ -174,6 +177,7 @@ const SplitPage = () => {
               )}
             </div>
 
+            {hasPreview && (
             <div className="split-preview-col">
             {resultFiles.length > 1 && (
               <section ref={resultsRef} className="split-results" aria-labelledby="split-results-title" aria-live="polite">
@@ -203,9 +207,9 @@ const SplitPage = () => {
               emptySubtitle="Upload a PDF file to get started"
               onDownload={() => download(`split-pdf-${Date.now()}.pdf`)}
               downloadLabel="Download Split PDF"
-              height={800}
             />
             </div>
+            )}
           </div>
       <style jsx>{`.spin{animation:spin 1s linear infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </OpPageShell>

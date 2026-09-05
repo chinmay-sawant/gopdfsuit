@@ -98,11 +98,14 @@ const CompressPage = () => {
   const percentSmaller = file && compressedSize > 0 && file.size > 0
     ? Math.max(0, ((file.size - compressedSize) / file.size) * 100)
     : 0
+  // Keep the layout single-column on file select alone. The preview
+  // column appears only while generating or after a result exists.
+  const hasPreview = Boolean(isLoading || compressedPdfUrl)
 
   return (
     <OpPageShell
       title="PDF Compress Tool"
-      className="compress-page tool-wide"
+      className={`compress-page tool-wide${hasPreview ? '' : ' tool-single-page'}`}
       icon={<div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Minimize2 size={28} /></div>}
       description={serverTransport ? `Server transport active (VITE_COMPRESS_TRANSPORT=${COMPRESS_TRANSPORT}): the file is uploaded to /api/v1/compress.` : 'Shrink PDFs locally with WASM - the file never leaves this device. No upload.'}
       steps={[
@@ -117,7 +120,7 @@ const CompressPage = () => {
         </div>
       )}
       <ConsentBanner offer={consentOffer} onConsent={confirmConsentUpload} onDismiss={dismissConsent} isLoading={isLoading} actionLabel="Upload to server and compress" />
-      <div className="tool-layout">
+      <div className={`tool-layout${hasPreview ? '' : ' tool-single'}`}>
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
             <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload PDF File
@@ -171,6 +174,7 @@ const CompressPage = () => {
               )}
             </div>
 
+            {hasPreview && (
             <OperationShell
               resultUrl={compressedPdfUrl}
               title="Compressed PDF Preview"
@@ -179,7 +183,6 @@ const CompressPage = () => {
               emptySubtitle="Pick a local PDF and compress in the browser"
               onDownload={downloadCompressed}
               downloadLabel="Download Compressed PDF"
-              height={550}
               isLoading={isLoading}
               stats={file && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
@@ -201,6 +204,7 @@ const CompressPage = () => {
                 </div>
               )}
             />
+            )}
           </div>
       <style jsx>{`.spin{animation:spin 1s linear infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </OpPageShell>

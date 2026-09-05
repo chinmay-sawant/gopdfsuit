@@ -1,9 +1,12 @@
 import { Download } from 'lucide-react'
+import PdfPreview from './PdfPreview'
 
 /**
  * OperationShell owns the shared result panel for PDF operations:
- * preview (PDF iframe or image), optional stats row, download action,
- * and the empty placeholder shown before the first run.
+ * preview (shared PdfPreview iframe or image), optional stats row,
+ * download action, and the empty placeholder shown before the first run.
+ * Sizing lives in one place (.pdf-preview in index.css): the preview
+ * fills the available width and viewport height on every tool.
  */
 const OperationShell = ({
   resultUrl,
@@ -13,7 +16,6 @@ const OperationShell = ({
   emptySubtitle,
   onDownload,
   downloadLabel = 'Download',
-  height = 550,
   kind = 'pdf',
   imageAlt = 'Generated output',
   stats = null,
@@ -27,24 +29,18 @@ const OperationShell = ({
     {resultUrl ? (
       <div className="operation-shell-result">
         {stats}
-        {kind === 'image' ? (
-          <div className="operation-shell-image">
-            <img src={resultUrl} alt={imageAlt} style={{ maxHeight: `${height}px` }} />
-          </div>
-        ) : (
-          <iframe className="operation-shell-frame" src={resultUrl} style={{ height: `${height}px` }} title={title} />
-        )}
+        <PdfPreview url={resultUrl} title={title} kind={kind} imageAlt={imageAlt} />
         <button
           onClick={() => { if (onDownload) onDownload() }}
           disabled={isLoading}
-          className="btn-glow"
-          style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}
+          className="btn-glow operation-shell-download"
+          style={{ width: 'auto', alignSelf: 'flex-start', marginTop: '1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.6rem 1.1rem' }}
         >
           <Download size={16} />{isLoading && loadingLabel ? loadingLabel : downloadLabel}
         </button>
       </div>
     ) : (
-      <div className="operation-shell-empty" style={{ minHeight: `${height}px` }}>
+      <div className="operation-shell-empty">
         <div>
           <div className="operation-shell-empty-icon" aria-hidden="true">{icon}</div>
           <p>{emptyTitle}</p>

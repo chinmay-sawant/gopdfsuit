@@ -1074,8 +1074,7 @@ export default function Editor() {
               </button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden', borderRadius: '8px' }}>
-              {/* Native iframe via OperationShell (3.5: one preview stack;
-                  the bespoke PdfPreview wrapper is deleted). */}
+              {/* Shared PdfPreview via OperationShell: one preview stack. */}
               <OperationShell
                 resultUrl={pdfUrl}
                 title="PDF Preview"
@@ -1090,7 +1089,6 @@ export default function Editor() {
                   link.click()
                 }}
                 downloadLabel="Download PDF"
-                height={600}
               />
             </div>
           </div>

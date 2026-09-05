@@ -1,7 +1,7 @@
 
 import { useState, useRef } from 'react'
-// Preview-stack decision (3.5): every other op previews through a native
-// iframe inside OperationShell. react-pdf stays ONLY because Redact renders
+// Preview-stack decision (3.5): every other op previews through the shared
+// PdfPreview inside OperationShell. react-pdf stays ONLY because Redact renders
 // an interactive <Document>/<Page> canvas (box drawing needs per-page pixel
 // dims plus a live render layer an iframe cannot provide). If Redact ever
 // moves to pure coordinate math over iframe preview, delete this import and
@@ -593,7 +593,7 @@ const Redaction = () => {
 
   return (
     <div className="redaction-workspace">
-        <div className="container" style={{ padding: '2rem 1rem', position: 'relative', zIndex: 1 }}>
+        <div className="container" style={file ? { padding: '2rem 1rem', position: 'relative', zIndex: 1 } : { padding: '2rem 1rem', position: 'relative', zIndex: 1, maxWidth: '42rem', margin: '0 auto' }}>
             <h1 style={{ fontSize: '2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Eraser size={32} /> PDF Redaction
             </h1>
@@ -606,7 +606,7 @@ const Redaction = () => {
             />
 
             {!file ? (
-                <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+                <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', maxWidth: '42rem', width: '100%', margin: '0 auto' }}>
                     <div style={{ marginBottom: '1.5rem' }}>
                         <Upload size={48} className="text-muted" style={{ opacity: 0.5 }} />
                     </div>

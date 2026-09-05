@@ -181,27 +181,26 @@ const HtmlConvertPage = ({ mode = 'pdf' }) => {
               <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem', margin: '1rem 0 0' }}>Pure-Go engine: zoom and crop_* are no-ops and hidden. SVG output is not supported (png/jpg only).</p>
             </div>
           )}
-          <button onClick={convert} disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem', padding: '1rem 2rem' }}>
+          <button onClick={convert} disabled={isLoading || (inputType === 'html' && !htmlContent.trim()) || (inputType === 'url' && !url.trim())} className="btn-glow" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '1rem 2rem' }}>
             {isLoading ? <RefreshCw size={18} className="spin" /> : <ActionIcon size={18} />}{isPdf ? 'Convert to PDF' : 'Convert to Image'}
           </button>
-          {resultUrl && (
-            <div style={{ marginTop: '1.5rem' }}>
-              <OperationShell
-                resultUrl={resultUrl}
-                title={isPdf ? 'PDF Preview' : 'Image Preview'}
-                icon={<ActionIcon size={18} />}
-                emptyTitle=""
-                emptySubtitle=""
-                onDownload={() => download(filename)}
-                downloadLabel={isPdf ? 'Download PDF' : 'Download Image'}
-                height={280}
-                kind={isPdf ? 'pdf' : 'image'}
-                imageAlt="Generated"
-              />
-            </div>
-          )}
         </div>
       </div>
+      {resultUrl && (
+        <div style={{ marginTop: '1.5rem' }}>
+          <OperationShell
+            resultUrl={resultUrl}
+            title={isPdf ? 'PDF Preview' : 'Image Preview'}
+            icon={<ActionIcon size={18} />}
+            emptyTitle=""
+            emptySubtitle=""
+            onDownload={() => download(filename)}
+            downloadLabel={isPdf ? 'Download PDF' : 'Download Image'}
+            kind={isPdf ? 'pdf' : 'image'}
+            imageAlt="Generated"
+          />
+        </div>
+      )}
       <section className="engine-note">
         <h2>Built on our own engine</h2>
         <p>Runs on <a href="https://github.com/chinmay-sawant/gowkhtmltopdf" rel="noreferrer" target="_blank">GoWK</a>, our in-house custom engine for generating PDFs. No third-party applications or wrappers.</p>

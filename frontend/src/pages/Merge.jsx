@@ -15,18 +15,41 @@ const MergePage = () => {
   const [files, setFiles] = useState([])
   const { getAuthHeaders, triggerLogin } = useAuth()
   const [fallbackOffer, setFallbackOffer] = useState(null)
-  const { isLoading, resultUrl: mergedPdfUrl, run, runLocal, download } = usePdfOperation({
+  const [mergedSize, setMergedSize] = useState(0)
+  const { isLoading, resultUrl: mergedPdfUrl, run, runLocal, download, reset } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => alert(`Error merging PDFs: ${message}`),
   })
 
-  const removeFile = (index) => setFiles(prev => prev.filter((_, i) => i !== index))
+  const totalInputSize = files.reduce((sum, file) => sum + (file.size || 0), 0)
+  // Preview column stays hidden on file select alone. It expands only
+  // when generating (loading) or after a result exists, so selecting
+  // PDFs never shifts the layout.
+  const hasPreview = Boolean(isLoading || mergedPdfUrl)
+
+  const clearResult = () => {
+    reset()
+    setMergedSize(0)
+  }
+
+  const addFiles = (dropped) => {
+    const pdfs = dropped.filter(f => f.type === 'application/pdf')
+    if (pdfs.length === 0) return
+    clearResult()
+    setFiles(prev => [...prev, ...pdfs])
+  }
+
+  const removeFile = (index) => {
+    clearResult()
+    setFiles(prev => prev.filter((_, i) => i !== index))
+  }
 
   const moveFile = (index, direction) => {
     const newFiles = [...files]
     const targetIndex = direction === 'up' ? index - 1 : index + 1
     if (targetIndex >= 0 && targetIndex < files.length) {
-      [newFiles[index], newFiles[targetIndex]] = [newFiles[targetIndex], newFiles[index]]
+      clearResult()
+      ;[newFiles[index], newFiles[targetIndex]] = [newFiles[targetIndex], newFiles[index]]
       setFiles(newFiles)
     }
   }
@@ -45,6 +68,8 @@ const MergePage = () => {
         body: formData,
         getAuthHeaders,
         filename: `merged-pdf-${Date.now()}.pdf`,
+        autoDownload: false,
+        onBlob: (blob) => setMergedSize(blob.size),
       })
       return
     }
@@ -53,6 +78,7 @@ const MergePage = () => {
     const snapshot = [...files]
     const url = await runLocal(() => mergePDFSmart(snapshot, {}, { getAuthHeaders }), {
       autoDownload: false,
+      onBlob: (blob) => setMergedSize(blob.size),
       onError: (message) => { wasmMessage = message },
     })
     if (url) return
@@ -70,6 +96,8 @@ const MergePage = () => {
     // handling stays identical to the WASM path.
     await runLocal(() => mergeViaServer(snapshot, getAuthHeaders), {
       filename: `merged-pdf-${Date.now()}.pdf`,
+      autoDownload: false,
+      onBlob: (blob) => setMergedSize(blob.size),
     })
   }
 
@@ -79,7 +107,7 @@ const MergePage = () => {
       badgeBorder="rgba(240,147,251,0.3)"
       badgeColor="#f093fb"
       title="PDF Merge Tool"
-      className="merge-page tool-wide"
+      className={`merge-page tool-wide${hasPreview ? '' : ' tool-single-page'}`}
       icon={<div className="feature-icon-box purple" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Merge size={28} /></div>}
       description={serverTransport ? 'Server transport active (VITE_WASM_TRANSPORT=server): files are uploaded to /api/v1/merge.' : 'Combine multiple PDF files with drag-and-drop reordering - runs in your browser when the WASM engine lands, server upload only on consent.'}
       steps={[
@@ -89,14 +117,14 @@ const MergePage = () => {
       ]}
     >
       <ConsentBanner offer={fallbackOffer} onConsent={mergeViaServerConsent} onDismiss={() => setFallbackOffer(null)} isLoading={isLoading} actionLabel="Upload to server and merge" />
-      <div className="tool-layout">
+      <div className={`tool-layout${hasPreview ? '' : ' tool-single'}`}>
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
             <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload PDF Files
           </h3>
           <FileDropzone
             multiple
-            onFiles={(dropped) => setFiles(prev => [...prev, ...dropped.filter(f => f.type === 'application/pdf')])}
+            onFiles={addFiles}
             subtitle="Select multiple PDF files to merge"
           />
 
@@ -126,16 +154,40 @@ const MergePage = () => {
               )}
             </div>
 
+            {hasPreview && (
             <OperationShell
               resultUrl={mergedPdfUrl}
-              title="Merged PDF Preview"
+              title={`Merged PDF Preview${files.length > 0 ? ` (${files.length} file${files.length === 1 ? '' : 's'} in order)` : ''}`}
               icon={<FileText size={18} />}
               emptyTitle="Merged PDF preview will appear here"
-              emptySubtitle="Upload at least 2 PDF files to get started"
+              emptySubtitle={files.length >= 2
+                ? `${files.length} PDFs ready (${formatFileSize(totalInputSize)} total) - click "Merge PDFs" to combine them in the listed order`
+                : 'Upload at least 2 PDF files to get started'}
               onDownload={() => download(`merged-pdf-${Date.now()}.pdf`)}
               downloadLabel="Download Merged PDF"
-              height={480}
+              isLoading={isLoading}
+              loadingLabel="Merging PDFs..."
+              stats={mergedPdfUrl && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Files merged</div>
+                    <div style={{ fontWeight: '700', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }}>{files.length}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>in listed order</div>
+                  </div>
+                  <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Input total</div>
+                    <div style={{ fontWeight: '700', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }}>{formatFileSize(totalInputSize)}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{totalInputSize.toLocaleString()} bytes</div>
+                  </div>
+                  <div style={{ padding: '0.75rem', background: 'rgba(78,205,196,0.08)', border: '1px solid rgba(78,205,196,0.2)', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Merged</div>
+                    <div style={{ fontWeight: '700', color: '#4ecdc4', fontSize: '0.95rem' }}>{formatFileSize(mergedSize)}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{mergedSize.toLocaleString()} bytes</div>
+                  </div>
+                </div>
+              )}
             />
+            )}
           </div>
       <style jsx>{`.spin{animation:spin 1s linear infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </OpPageShell>

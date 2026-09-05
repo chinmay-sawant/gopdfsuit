@@ -2485,8 +2485,9 @@ textarea {
     padding: 1rem !important;
   }
 
-  .workspace-main .operation-shell-frame {
+  .workspace-main .operation-shell .pdf-preview {
     height: min(40dvh, 365px) !important;
+    min-height: min(40dvh, 365px) !important;
   }
 
   .workspace-main .operation-shell-empty {
@@ -2585,7 +2586,7 @@ textarea {
     flex-direction: column;
   }
 
-  .workspace-main .filler-page .operation-shell-frame {
+  .workspace-main .filler-page .operation-shell .pdf-preview {
     flex: 1 1 auto;
     height: auto !important;
     min-height: 0 !important;
@@ -2790,7 +2791,7 @@ textarea {
     flex-direction: column;
   }
 
-  .workspace-main .viewer-page .operation-shell-frame {
+  .workspace-main .viewer-page .operation-shell .pdf-preview {
     flex: 1 1 auto;
     height: auto !important;
     min-height: 0 !important;
@@ -3282,8 +3283,11 @@ textarea {
   color: hsl(var(--primary));
 }
 
-.operation-shell-image,
-.operation-shell-frame,
+/* Shared result preview: one frame used by every tool. It fills 100% of
+   the available width and stretches toward the viewport height, so pages
+   never own competing pixel heights. The empty placeholder matches the
+   same minimum height to avoid layout jumps on first run. */
+.pdf-preview,
 .operation-shell-empty {
   width: 100%;
   border: 1px solid hsl(var(--border));
@@ -3291,25 +3295,48 @@ textarea {
   background: hsl(var(--background));
 }
 
-.operation-shell-image {
+.pdf-preview {
+  display: flex;
+  height: 100%;
+  min-height: min(78vh, 760px);
+  overflow: hidden;
+}
+
+.pdf-preview iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  flex: 1 1 auto;
+  border: 0;
+}
+
+.pdf-preview[data-kind='image'] {
   display: grid;
   place-items: center;
   padding: 0.7rem;
 }
 
-.operation-shell-image img {
+.pdf-preview img {
   max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   border-radius: 0.25rem;
 }
 
-.operation-shell-frame {
-  display: block;
-  border: 1px solid hsl(var(--border));
+.operation-shell-result {
+  display: flex;
+  flex-direction: column;
+}
+
+.operation-shell-result .pdf-preview {
+  flex: 1 1 auto;
 }
 
 .operation-shell-empty {
   display: grid;
   place-items: center;
+  min-height: min(78vh, 760px);
   padding: 1.5rem;
   border-style: dashed;
   color: hsl(var(--muted-foreground));
@@ -3335,9 +3362,15 @@ textarea {
 }
 
 .operation-shell .btn-glow {
-  width: 100%;
-  min-height: 2.75rem;
+  width: auto;
+  align-self: flex-start;
+  min-height: 2.5rem;
   margin-top: 0.9rem;
+}
+
+.operation-shell .btn-glow.operation-shell-download {
+  width: auto;
+  align-self: flex-start;
 }
 
 .redaction-workspace {
@@ -3452,6 +3485,34 @@ textarea {
   min-width: 0;
 }
 
+/* Single-column pre-input state: compact centered card instead of a
+   full-width stretched dropzone. Applied when the preview column is
+   hidden (no file or sample selected yet). */
+.tool-layout.tool-single,
+.split-layout.tool-single,
+.filler-grid.tool-single,
+.viewer-grid.tool-single {
+  grid-template-columns: 1fr !important;
+  max-width: 42rem;
+  width: 100%;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.tool-single .file-dropzone {
+  min-height: 8rem;
+}
+
+/* Pre-input state: keep the title block the same compact width as the
+   centered card so the heading does not span the full tool width. */
+.tool-page.tool-wide.tool-single-page .tool-page-header,
+.tool-page.tool-wide.tool-single-page .tool-page-content {
+  width: 100%;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .split-preview-col {
   display: grid;
   gap: 1rem;
@@ -3468,13 +3529,6 @@ textarea {
   overflow-y: auto;
 }
 
-.split-page .operation-shell-frame,
-.split-page .operation-shell-empty {
-  width: 100%;
-  height: min(80vh, 800px) !important;
-  min-height: min(80vh, 800px) !important;
-}
-
 @media (max-width: 900px) {
   .split-layout,
   .tool-layout,
@@ -3482,7 +3536,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .split-page .operation-shell-frame,
+  .split-page .pdf-preview,
   .split-page .operation-shell-empty {
     height: 70vh !important;
     min-height: 420px !important;

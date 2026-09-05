@@ -29,6 +29,9 @@ const Viewer = () => {
     getAuthHeaders,
     onError: (message) => setError(`Error loading template: ${message}`),
   })
+  // Preview column stays hidden while entering JSON or picking a sample.
+  // It expands only while generating or after a PDF result exists.
+  const hasPreview = Boolean(isLoading || pdfUrl)
 
   const loadTemplate = async (name) => {
     const target = (name ?? fileName).trim()
@@ -137,7 +140,7 @@ const Viewer = () => {
   return (
     <OpPageShell
       title="PDF Viewer"
-      className="viewer-page tool-wide"
+      className={`viewer-page tool-wide${hasPreview ? '' : ' tool-single-page'}`}
       icon={<div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}><FileText size={28} /></div>}
       description="Load JSON templates and generate PDFs with live preview"
     >
@@ -174,7 +177,7 @@ const Viewer = () => {
             ))}
           </div>
         </div>
-        <div className="viewer-grid">
+        <div className={`viewer-grid${hasPreview ? '' : ' tool-single'}`}>
           {/* Template Input Section */}
           <div className="glass-card viewer-input-card">
             <h3 className="viewer-card-title">
@@ -241,9 +244,10 @@ const Viewer = () => {
             </button>
           </div>
 
-          {/* PDF Preview Section: native iframe via OperationShell (3.5:
-              one preview stack; the bespoke PdfPreview iframe wrapper is
-              deleted and react-pdf stays only for Redact dims). */}
+          {/* PDF Preview Section: hidden until generation starts or a
+              result exists; selecting samples or typing JSON keeps the
+              single-column layout. */}
+          {hasPreview && (
           <OperationShell
             resultUrl={pdfUrl}
             title="PDF Preview"
@@ -252,10 +256,10 @@ const Viewer = () => {
             emptySubtitle="Enter template data and click &quot;Generate PDF&quot; to see the preview"
             onDownload={() => download(`template-pdf-${Date.now()}.pdf`)}
             downloadLabel="Download PDF"
-            height={480}
             isLoading={isLoading}
             loadingLabel="Generating PDF..."
           />
+          )}
         </div>
       </div>
 

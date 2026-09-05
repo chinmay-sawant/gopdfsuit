@@ -19,6 +19,9 @@ export default function Filler() {
     onAuthRequired: triggerLogin,
     onError: (message) => alert(`Error filling PDF: ${message}`),
   })
+  // Preview stays hidden when files are only selected. It appears while
+  // filling or after the filled result exists.
+  const hasPreview = Boolean(isLoading || resultUrl)
 
   const fillPDF = async () => {
     if (!pdfFile || !xfdfFile) return
@@ -62,7 +65,7 @@ export default function Filler() {
   return (
     <OpPageShell
       title="Fill a PDF form"
-      className="filler-page tool-wide"
+      className={`filler-page tool-wide${hasPreview ? '' : ' tool-single-page'}`}
       icon={<FileCheck aria-hidden="true" size={31} />}
       description={serverTransport
         ? 'This configuration sends the PDF and XFDF file to the fill endpoint.'
@@ -76,7 +79,7 @@ export default function Filler() {
         onDismiss={() => setFallbackOffer(null)}
       />
       <div className="container-full filler-fit">
-      <div className="filler-grid">
+      <div className={`filler-grid${hasPreview ? '' : ' tool-single'}`}>
         <section className="glass-card filler-input-card">
           <h2 className="workspace-card-title">Choose the files</h2>
           <div className="filler-dropzone-stack">
@@ -114,6 +117,7 @@ export default function Filler() {
           <p className="filler-hint">The PDF needs AcroForm fields. The XFDF file names the matching fields and values. Text fields, checkboxes, and radio buttons are supported.</p>
         </section>
 
+        {hasPreview && (
         <OperationShell
           resultUrl={resultUrl}
           title="Filled PDF"
@@ -122,8 +126,8 @@ export default function Filler() {
           emptySubtitle="Choose both files, then run the fill operation."
           onDownload={() => download(`filled-${pdfFile?.name || 'form.pdf'}`)}
           downloadLabel="Download filled PDF"
-          height={480}
         />
+        )}
       </div>
       </div>
     </OpPageShell>
