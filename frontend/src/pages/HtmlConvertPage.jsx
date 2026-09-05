@@ -75,7 +75,7 @@ const HtmlConvertPage = ({ mode = 'pdf' }) => {
       badgeColor={isPdf ? '#007acc' : '#f093fb'}
       title={isPdf ? 'HTML to PDF' : 'HTML to Image'}
       icon={<div className={`feature-icon-box ${isPdf ? 'green' : 'blue'}`} style={{ width: '56px', height: '56px', marginBottom: 0 }}>{isPdf ? <Globe size={28} /> : <ImageIcon size={28} />}</div>}
-      description={isPdf ? 'Convert HTML content or web pages to PDF' : 'Convert HTML content or web pages to PNG or JPG images'}
+      description={isPdf ? 'Convert HTML content or web pages to PDF with GoWK, our in-house engine' : 'Convert HTML content or web pages to PNG or JPG images with GoWK, our in-house engine'}
     >
       <div className="grid grid-2" style={{ gap: '2rem' }}>
         <div className="glass-card" style={{ padding: '2rem' }}>
@@ -201,6 +201,10 @@ const HtmlConvertPage = ({ mode = 'pdf' }) => {
           )}
         </div>
       </div>
+      <section className="engine-note">
+        <h2>Built on our own engine</h2>
+        <p>Runs on <a href="https://github.com/chinmay-sawant/gowkhtmltopdf" rel="noreferrer" target="_blank">GoWK</a>, our in-house custom engine for generating PDFs. No third-party applications or wrappers.</p>
+      </section>
       <style jsx>{`.spin{animation:spin 1s linear infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </OpPageShell>
   )

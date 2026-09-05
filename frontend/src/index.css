@@ -850,14 +850,14 @@ select:focus {
 /* Enhanced CTA buttons */
 .btn-glow {
   position: relative;
-  background: var(--primary);
+  background: hsl(var(--primary));
   border: none;
   padding: 1rem 2.5rem;
   font-size: 1.1rem;
   font-weight: 600;
   border-radius: 8px;
   /* Sharper corners for modern look */
-  color: var(--primary-foreground);
+  color: hsl(var(--primary-foreground));
   cursor: pointer;
   transition: all 0.2s ease;
   overflow: hidden;
@@ -872,7 +872,7 @@ select:focus {
 
 .btn-outline-glow {
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid hsl(var(--border));
   padding: 1rem 2.5rem;
   font-size: 1.1rem;
   font-weight: 600;
@@ -2796,11 +2796,23 @@ textarea {
 
 .tool-page .glass-card,
 .redaction-workspace .glass-card {
-  border: 1px solid hsl(var(--border));
+  border: none;
   border-radius: 0.7rem;
-  background: hsl(var(--card)) !important;
+  background: transparent !important;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+.tool-page .glass-card:hover,
+.redaction-workspace .glass-card:hover {
+  background: transparent;
+  border-color: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+.tool-page.viewer-page .viewer-sample-btn:hover {
+  transform: none;
 }
 
 .tool-page .feature-icon-box,
@@ -3312,6 +3324,31 @@ textarea {
   margin: 2rem 0 0;
   padding: 1.3rem;
   border-left: 2px solid hsl(var(--primary));
+}
+
+.engine-note {
+  max-width: 47rem;
+  margin: 2rem 0 0;
+  padding: 1.3rem;
+  border-left: 2px solid hsl(var(--primary));
+}
+
+.engine-note h2 {
+  margin: 0 0 0.6rem;
+  color: hsl(var(--foreground));
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.engine-note p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+}
+
+.engine-note a {
+  color: hsl(var(--primary));
+  font-weight: 600;
 }
 
 .form-requirements p {

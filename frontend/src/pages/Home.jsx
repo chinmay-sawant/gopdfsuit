@@ -13,7 +13,7 @@ const Home = () => {
           <div className="home-actions">
             <Link className="button button-primary" to="/editor">Open the editor <ArrowRight aria-hidden="true" size={17} /></Link>
             <Link className="button button-secondary" to="/viewer">Preview a template</Link>
-            <GitHubStars className="button button-secondary" iconSize={17} />
+            <GitHubStars className="button button-secondary" />
           </div>
         </div>
       </section>
