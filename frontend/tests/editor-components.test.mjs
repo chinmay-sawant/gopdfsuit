@@ -68,20 +68,22 @@ describe('editor component creators', () => {
 
 describe('editor structural reducers', () => {
   it('inserts, deletes, and updates by id without mutating the input', () => {
-    const list = [table('a'), spacer('b')]
+    const list = [table('a'), table('b')]
     const inserted = insertComponent(list, table('x'), 'table-1')
     assert.deepEqual(inserted.map((c) => c.tag), ['a', 'x', 'b'])
     assert.equal(list.length, 2)
-    assert.deepEqual(deleteComponentById(list, 'spacer-1'), [list[0]])
+    const mixed = [table('a'), spacer('b')]
+    assert.deepEqual(deleteComponentById(mixed, 'spacer-1'), [mixed[0]])
     const updated = updateComponentById(list, 'table-0', { tag: 'a2' })
     assert.equal(updated[0].tag, 'a2')
     assert.equal(list[0].tag, 'a')
   })
 
   it('ignores cross-kind ids instead of acting by bare index', () => {
-    const list = [spacer('a'), spacer('b')]
+    const list = [{ type: 'spacer', height: 1 }, { type: 'spacer', height: 2 }]
     assert.equal(deleteComponentById(list, 'table-0'), list)
     const updated = updateComponentById(list, 'image-0', { tag: 'x' })
+    assert.equal(updated, list)
     assert.ok(!('tag' in updated[0]))
     assert.equal(findElementById({ components: [{ type: 'table', tag: 't' }] }, 'spacer-0'), null)
   })
@@ -107,7 +109,8 @@ describe('editor structural reducers', () => {
     const clone = { type: 'spacer', height: 7 }
     const once = pasteComponentAt([table('a')], clone, 'table-0')
     assert.equal(once.length, 2)
-    assert.equal(once[1], clone)
+    assert.deepEqual(once[1], clone)
+    assert.notEqual(once[1], clone)
     const twice = pasteComponentAt(pasteComponentAt([], clone, null), clone, null)
     twice[0].height = 99
     assert.equal(twice[1].height, 7)

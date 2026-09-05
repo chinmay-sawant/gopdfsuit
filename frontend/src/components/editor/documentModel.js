@@ -101,7 +101,7 @@ export const buildTemplate = ({ config, title, components = [], footer, bookmark
   const template = {
     config: { ...config },
     title,
-    elements: components.map(wrapComponent),
+    elements: (components || []).map(wrapComponent),
     footer,
     bookmarks,
   }
@@ -114,33 +114,39 @@ export const buildTemplate = ({ config, title, components = [], footer, bookmark
 export const buildTemplateJson = (state) => JSON.stringify(buildTemplate(state), null, 2)
 
 export const normalizeConfig = (incoming = {}, prev = DEFAULT_CONFIG) => {
-  const embedValue = incoming.embedStandardFonts !== undefined
-    ? incoming.embedStandardFonts
-    : (incoming.embedFonts !== undefined ? incoming.embedFonts : undefined)
+  const defined = Object.fromEntries(Object.entries(incoming).filter(([, value]) => value !== undefined))
+  const { embedFonts, ...rest } = defined
+  const embedValue = rest.embedStandardFonts !== undefined
+    ? rest.embedStandardFonts
+    : (embedFonts !== undefined ? embedFonts : undefined)
   return {
     ...prev,
-    ...incoming,
+    ...rest,
     embedStandardFonts: embedValue !== undefined ? embedValue : prev.embedStandardFonts,
-    arlingtonCompatible: incoming.arlingtonCompatible !== undefined ? incoming.arlingtonCompatible : prev.arlingtonCompatible,
-    pdfaCompliant: incoming.pdfaCompliant !== undefined ? incoming.pdfaCompliant : prev.pdfaCompliant,
+    arlingtonCompatible: rest.arlingtonCompatible !== undefined ? rest.arlingtonCompatible : prev.arlingtonCompatible,
+    pdfaCompliant: rest.pdfaCompliant !== undefined ? rest.pdfaCompliant : prev.pdfaCompliant,
   }
 }
 
 export const parseTemplateData = (data = {}, prevConfig = DEFAULT_CONFIG) => {
-  const { config: newConfig, title: newTitle, elements, table, spacer, content, footer: newFooter, bookmarks: newBookmarks } = data
+  const { config: newConfig, title: newTitle, elements, table, spacer, image, content, footer: newFooter, bookmarks: newBookmarks } = data
 
-  let rawComponents = elements || content || []
-  if (table && Array.isArray(table)) {
-    rawComponents = table.map((entry) => ({ ...entry, type: 'table' }))
-  }
-  if (spacer && Array.isArray(spacer)) {
-    rawComponents = [...rawComponents, ...spacer.map((entry) => ({ ...entry, type: 'spacer' }))]
+  const hasElements = Array.isArray(elements) && elements.length > 0
+  let rawComponents = hasElements ? elements : (content || [])
+  if (!hasElements) {
+    if (table && Array.isArray(table)) {
+      rawComponents = table.map((entry) => ({ ...entry, type: 'table' }))
+    }
+    if (spacer && Array.isArray(spacer)) {
+      rawComponents = [...rawComponents, ...spacer.map((entry) => ({ ...entry, type: 'spacer' }))]
+    }
   }
   if (data.elements && Array.isArray(data.elements) && data.elements[0]?.index !== undefined) {
     const ordered = []
     for (const ref of data.elements) {
       if (ref.type === 'table' && table && table[ref.index]) ordered.push({ ...table[ref.index], type: 'table' })
       else if (ref.type === 'spacer' && spacer && spacer[ref.index]) ordered.push({ ...spacer[ref.index], type: 'spacer' })
+      else if (ref.type === 'image' && image && image[ref.index]) ordered.push({ ...image[ref.index], type: 'image' })
     }
     if (ordered.length > 0) rawComponents = ordered
   }
@@ -175,9 +181,11 @@ const checkProps = (value, path, errors, warnings) => {
   const parts = value.split(':')
   if (parts.length >= 4 && !['left', 'center', 'right'].includes(parts[3])) {
     warnings.push(`${path}: unknown alignment "${parts[3]}" (engine falls back to left)`)
-    return
   }
-  errors.push(`${path}: malformed props "${value}" (want font:size:style:align:borders)`)
+  const borders = parts.slice(4)
+  if (parts.length !== 8 || borders.some((border) => !/^\d+$/.test(border))) {
+    errors.push(`${path}: malformed props "${value}" (want font:size:style:align:borders)`)
+  }
 }
 
 const checkCell = (cell, path, errors, warnings) => {
@@ -254,8 +262,13 @@ export const validateTemplate = (template = {}) => {
     })
   }
 
-  if (template.footer && typeof template.footer.text !== 'string') {
-    errors.push('footer.text: must be a string')
+  if (template.footer) {
+    if (template.footer.props !== undefined) {
+      checkProps(template.footer.props, 'footer.props', errors, warnings)
+    }
+    if (typeof template.footer.text !== 'string') {
+      errors.push('footer.text: must be a string')
+    }
   }
   return { errors, warnings }
 }
@@ -277,24 +290,35 @@ export const parseComponentId = (id) => {
   if (id === 'title' || id === 'footer') return { kind: id, index: -1 }
   const dash = String(id || '').indexOf('-')
   if (dash === -1) return { kind: null, index: NaN }
-  return { kind: String(id).slice(0, dash), index: parseInt(String(id).slice(dash + 1), 10) }
+  const kind = String(id).slice(0, dash)
+  const rawIndex = String(id).slice(dash + 1)
+  if (!/^\d+$/.test(rawIndex)) return { kind, index: NaN }
+  return { kind, index: parseInt(rawIndex, 10) }
+}
+
+const kindMatches = (components, kind, index) => {
+  if (!Number.isInteger(index) || index < 0 || index >= components.length) return false
+  return components[index]?.type === kind
 }
 
 export const findElementById = ({ title = null, components = [], footer = null } = {}, id) => {
   if (id === 'title') return title ? { ...title, type: 'title' } : null
   if (id === 'footer') return footer ? { ...footer, type: 'footer' } : null
-  const { index } = parseComponentId(id)
-  if (!Number.isInteger(index) || index < 0 || index >= components.length) return null
+  const { kind, index } = parseComponentId(id)
+  if (!kindMatches(components, kind, index)) return null
   return components[index] || null
 }
 
 export const insertComponent = (components = [], component, targetId = null) => {
   const list = [...components]
   if (targetId) {
-    const { index } = parseComponentId(targetId)
+    const { kind, index } = parseComponentId(targetId)
     if (Number.isInteger(index) && index >= 0 && index <= list.length) {
-      list.splice(index, 0, component)
-      return list
+      const target = list[index]
+      if (target === undefined || target.type === undefined || target.type === kind) {
+        list.splice(index, 0, component)
+        return list
+      }
     }
   }
   list.push(component)
@@ -302,20 +326,21 @@ export const insertComponent = (components = [], component, targetId = null) => 
 }
 
 export const deleteComponentById = (components = [], id) => {
-  const { index } = parseComponentId(id)
-  if (!Number.isInteger(index) || index < 0 || index >= components.length) return components
+  const { kind, index } = parseComponentId(id)
+  if (!kindMatches(components, kind, index)) return components
   return components.filter((_, i) => i !== index)
 }
 
 export const updateComponentById = (components = [], id, updates) => {
-  const { index } = parseComponentId(id)
-  if (!Number.isInteger(index) || index < 0 || index >= components.length) return components
+  const { kind, index } = parseComponentId(id)
+  if (!kindMatches(components, kind, index)) return components
   const list = [...components]
   list[index] = { ...list[index], ...updates }
   return list
 }
 
 export const moveComponentByIndex = (components = [], index, direction) => {
+  if (!Number.isInteger(index)) return components
   const list = [...components]
   if (direction === 'up' && index > 0) {
     [list[index], list[index - 1]] = [list[index - 1], list[index]]
@@ -337,11 +362,12 @@ export const reorderComponentsByIndex = (components = [], draggedIndex, targetIn
 }
 
 export const pasteComponentAt = (components = [], clone, afterId = null) => {
-  if (!afterId || afterId === 'title' || afterId === 'footer') return [...components, clone]
-  const { index } = parseComponentId(afterId)
-  if (!Number.isInteger(index) || index < 0 || index >= components.length) return [...components, clone]
+  const copy = clone === undefined ? clone : structuredClone(clone)
+  if (!afterId || afterId === 'title' || afterId === 'footer') return [...components, copy]
+  const { kind, index } = parseComponentId(afterId)
+  if (!kindMatches(components, kind, index)) return [...components, copy]
   const list = [...components]
-  list.splice(index + 1, 0, clone)
+  list.splice(index + 1, 0, copy)
   return list
 }
 
@@ -375,9 +401,16 @@ export const cellDropData = (type, stamp = Date.now()) => {
 
 export const applyCellDropToRows = (rows = [], rowIdx, colIdx, type, stamp = Date.now()) => {
   const data = cellDropData(type, stamp)
-  if (!data || !rows[rowIdx] || !rows[rowIdx].row || !rows[rowIdx].row[colIdx]) return rows
+  if (!data || !rows[rowIdx] || !Array.isArray(rows[rowIdx].row) || !rows[rowIdx].row[colIdx]) return rows
+  const prev = { ...rows[rowIdx].row[colIdx] }
+  delete prev.text
+  delete prev.image
+  delete prev.chequebox
+  delete prev.form_field
+  delete prev.radio
+  const clean = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))
   const newRows = [...rows]
   newRows[rowIdx] = { ...newRows[rowIdx], row: [...newRows[rowIdx].row] }
-  newRows[rowIdx].row[colIdx] = data
+  newRows[rowIdx].row[colIdx] = { ...prev, ...clean }
   return newRows
 }
