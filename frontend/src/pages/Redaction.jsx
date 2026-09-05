@@ -627,7 +627,7 @@ const Redaction = () => {
                     </label>
                 </div>
             ) : (
-                <div className="grid" style={{ gridTemplateColumns: '1fr 300px', gap: '2rem', alignItems: 'start' }}>
+                <div className="grid tool-layout-flip" style={{ gap: '2rem', alignItems: 'start' }}>
                     
                     {/* Main Viewer Area */}
                     <div className="glass-card" style={{ padding: '1rem', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>

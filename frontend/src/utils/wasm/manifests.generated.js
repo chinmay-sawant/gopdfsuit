@@ -55,6 +55,8 @@ export const PDFA_FONT_MANIFEST = [
 
 export const BUNDLED_TEMPLATES = [
   "financial_report.json",
+  "invoice.json",
   "resume1.json",
-  "resume2.json"
+  "resume2.json",
+  "resume3.json"
 ]

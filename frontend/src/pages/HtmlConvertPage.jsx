@@ -74,10 +74,11 @@ const HtmlConvertPage = ({ mode = 'pdf' }) => {
       badgeBorder={isPdf ? 'rgba(0,122,204,0.3)' : 'rgba(240,147,251,0.3)'}
       badgeColor={isPdf ? '#007acc' : '#f093fb'}
       title={isPdf ? 'HTML to PDF' : 'HTML to Image'}
+      className="html-convert-page tool-wide"
       icon={<div className={`feature-icon-box ${isPdf ? 'green' : 'blue'}`} style={{ width: '56px', height: '56px', marginBottom: 0 }}>{isPdf ? <Globe size={28} /> : <ImageIcon size={28} />}</div>}
       description={isPdf ? 'Convert HTML content or web pages to PDF with GoWK, our in-house engine' : 'Convert HTML content or web pages to PNG or JPG images with GoWK, our in-house engine'}
     >
-      <div className="grid grid-2" style={{ gap: '2rem' }}>
+      <div className="tool-layout">
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
             <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><FileText size={18} /></div>HTML Input

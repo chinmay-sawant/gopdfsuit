@@ -151,7 +151,12 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
     // A multi-file operation keeps every result URL until reset or unmount so
     // the caller can offer a named download for every part.
     const { filenames, filename, autoDownload = true, mimeType = 'application/pdf', onBlob, onError: onErrorOverride } = options
-    const names = Array.isArray(filenames) ? filenames : (filename ? [filename] : [])
+    // filenames accepts an array (legacy) or a function (index => name) so
+    // Split can name an unbounded part count; the old 8-slot array capped
+    // names and left part 9+ as generic result-N.pdf.
+    const resolveName = typeof filenames === 'function'
+      ? filenames
+      : (index) => (Array.isArray(filenames) ? filenames[index] : undefined) || (filename && index === 0 ? filename : undefined)
     setIsLoading(true)
     setError(null)
     try {
@@ -162,7 +167,7 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
         const blob = part instanceof Blob ? part : new Blob([part], { type: mimeType })
         if (blob.size === 0) throw new Error('Received empty document')
         const url = toBlobUrl(blob, mimeType)
-        const name = names[index]
+        const name = resolveName(index)
         if (autoDownload && name) downloadBlobUrl(url, name)
         return { blob, url }
       })
@@ -171,8 +176,9 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
       setResultUrl(urls[0].url)
       setResultFiles(parts.length > 1
         ? urls.map((entry, index) => ({
-          filename: names[index] || `result-${index + 1}.pdf`,
+          filename: resolveName(index) || `result-${index + 1}.pdf`,
           url: entry.url,
+          blob: entry.blob,
         }))
         : [])
       if (onBlob) {
@@ -217,14 +223,16 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
       const parts = Array.isArray(output) ? output : [output]
       if (parts.length === 0) throw new Error('Received empty document')
       const mimeType = storeOptions.mimeType || 'application/pdf'
-      const names = Array.isArray(storeOptions.filenames)
+      const resolveName = typeof storeOptions.filenames === 'function'
         ? storeOptions.filenames
-        : (storeOptions.filename ? [storeOptions.filename] : [])
+        : (index) => (Array.isArray(storeOptions.filenames)
+          ? storeOptions.filenames[index]
+          : undefined) || (storeOptions.filename && index === 0 ? storeOptions.filename : undefined)
       const urls = parts.map((part, index) => {
         const blob = part instanceof Blob ? part : new Blob([part], { type: mimeType })
         if (blob.size === 0) throw new Error('Received empty document')
         const url = toBlobUrl(blob, mimeType)
-        const name = names[index]
+        const name = resolveName(index)
         if (storeOptions.autoDownload && name) downloadBlobUrl(url, name)
         return { blob, url }
       })
@@ -233,8 +241,9 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
       setResultUrl(urls[0].url)
       setResultFiles(parts.length > 1
         ? urls.map((entry, index) => ({
-          filename: names[index] || `result-${index + 1}.pdf`,
+          filename: resolveName(index) || `result-${index + 1}.pdf`,
           url: entry.url,
+          blob: entry.blob,
         }))
         : [])
       if (storeOptions.onBlob) {

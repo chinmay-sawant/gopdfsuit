@@ -102,6 +102,7 @@ const CompressPage = () => {
   return (
     <OpPageShell
       title="PDF Compress Tool"
+      className="compress-page tool-wide"
       icon={<div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Minimize2 size={28} /></div>}
       description={serverTransport ? `Server transport active (VITE_COMPRESS_TRANSPORT=${COMPRESS_TRANSPORT}): the file is uploaded to /api/v1/compress.` : 'Shrink PDFs locally with WASM - the file never leaves this device. No upload.'}
       steps={[
@@ -116,7 +117,7 @@ const CompressPage = () => {
         </div>
       )}
       <ConsentBanner offer={consentOffer} onConsent={confirmConsentUpload} onDismiss={dismissConsent} isLoading={isLoading} actionLabel="Upload to server and compress" />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
+      <div className="tool-layout">
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
             <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload PDF File

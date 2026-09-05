@@ -102,7 +102,7 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                         </button>
                     </div>
 
-                    {/* File Picker */}
+                    {/* File Picker - fixed width so GitHub/Local toggle does not shift layout */}
                     {loadMethod === 'local' ? (
                         <input
                             type="text"
@@ -112,7 +112,9 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                             style={{
                                 padding: '0.35rem 0.6rem',
                                 fontSize: '0.8rem',
-                                minWidth: '200px',
+                                width: '220px',
+                                flex: '0 0 220px',
+                                boxSizing: 'border-box',
                                 borderRadius: '5px',
                                 border: '1px solid hsl(var(--border))',
                                 background: 'hsl(var(--background))',
@@ -130,7 +132,9 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                             style={{
                                 padding: '0.35rem 0.6rem',
                                 fontSize: '0.8rem',
-                                minWidth: '220px',
+                                width: '220px',
+                                flex: '0 0 220px',
+                                boxSizing: 'border-box',
                                 borderRadius: '5px',
                                 border: '1px solid hsl(var(--border))',
                                 background: 'hsl(var(--background))',

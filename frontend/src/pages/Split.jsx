@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Download, Scissors, Upload, RefreshCw, FileText, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Download, Scissors, Upload, RefreshCw, FileText, X, Archive } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import OperationShell from '../components/OperationShell'
@@ -8,8 +8,15 @@ import FileDropzone from '../components/FileDropzone'
 import ConsentBanner from '../components/ConsentBanner'
 import { formatFileSize } from '../utils/format'
 import { splitPDFSmart, splitViaServer, shouldUseServerWasmTransport } from '../utils/wasmLoader.js'
+import { createZip } from '../utils/zip.js'
+import { downloadBlobUrl } from '../hooks/usePdfOperation'
 
 const serverTransport = shouldUseServerWasmTransport()
+
+// Unbounded per-part naming: the old fixed 8-slot array left part 9+ as
+// generic result-N.pdf. A 3-page PDF with max 1 per file yields exactly 3
+// parts named <base>-part1..3.pdf.
+const splitNameFor = (base) => (index) => `split-${base}-part${index + 1}.pdf`
 
 const SplitPage = () => {
   const [file, setFile] = useState(null)
@@ -17,12 +24,25 @@ const SplitPage = () => {
   const [maxPerFile, setMaxPerFile] = useState('')
   const { getAuthHeaders, triggerLogin } = useAuth()
   const [fallbackOffer, setFallbackOffer] = useState(null)
+  const [isZipping, setIsZipping] = useState(false)
+  const resultsRef = useRef(null)
+  const announcedCount = useRef(0)
   const { isLoading, resultUrl: splitPdfUrl, resultFiles, run, runLocal, download, downloadResultFile, reset } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => alert(`Error splitting PDF: ${message}`),
   })
 
   const removeFile = () => { setFile(null); reset() }
+
+  // Bring fresh results on screen: the preview is tall, so without this the
+  // count plus Download All panel lands below the fold and users miss it.
+  useEffect(() => {
+    if (resultFiles.length > 1 && announcedCount.current !== resultFiles.length) {
+      announcedCount.current = resultFiles.length
+      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+    if (resultFiles.length === 0) announcedCount.current = 0
+  }, [resultFiles])
 
   const splitPDF = async () => {
     if (!file) return
@@ -44,13 +64,14 @@ const SplitPage = () => {
       return
     }
     setFallbackOffer(null)
+    reset()
     const buf = await file.arrayBuffer()
     const bytes = new Uint8Array(buf)
     const splitOpts = { pages, maxPerFile }
     let wasmMessage = ''
     const base = file.name.replace(/\.pdf$/i, '')
     const urls = await runLocal(() => splitPDFSmart(bytes, splitOpts, { getAuthHeaders }), {
-      filenames: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => `split-${base}-part${i + 1}.pdf`),
+      filenames: splitNameFor(base),
       autoDownload: false,
       onError: (message) => { wasmMessage = message },
     })
@@ -64,11 +85,37 @@ const SplitPage = () => {
     if (!fallbackOffer || isLoading) return
     const { bytes, splitOpts } = fallbackOffer
     setFallbackOffer(null)
+    reset()
     const base = (file?.name || 'document.pdf').replace(/\.pdf$/i, '')
     await runLocal(() => splitViaServer(bytes, splitOpts, getAuthHeaders), {
-      filenames: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => `split-${base}-part${i + 1}.pdf`),
+      filenames: splitNameFor(base),
       autoDownload: false,
     })
+  }
+
+  const downloadAllAsZip = async () => {
+    if (resultFiles.length === 0 || isZipping) return
+    setIsZipping(true)
+    try {
+      const entries = []
+      for (const resultFile of resultFiles) {
+        const data = resultFile.blob
+          ? new Uint8Array(await resultFile.blob.arrayBuffer())
+          : new Uint8Array(await (await fetch(resultFile.url)).arrayBuffer())
+        entries.push({ name: resultFile.filename, data })
+      }
+      const zipBytes = createZip(entries)
+      const blob = new Blob([zipBytes], { type: 'application/zip' })
+      const url = URL.createObjectURL(blob)
+      try {
+        const base = (file?.name || 'document.pdf').replace(/\.pdf$/i, '')
+        downloadBlobUrl(url, `split-${base}.zip`)
+      } finally {
+        setTimeout(() => URL.revokeObjectURL(url), 5000)
+      }
+    } finally {
+      setIsZipping(false)
+    }
   }
 
   const inputStyles = { width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }
@@ -79,6 +126,7 @@ const SplitPage = () => {
       badgeBorder="rgba(255,193,7,0.3)"
       badgeColor="#ffc107"
       title="PDF Split Tool"
+      className="split-page tool-wide"
       icon={<div className="feature-icon-box yellow" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Scissors size={28} /></div>}
       description={serverTransport ? 'Server transport active (VITE_WASM_TRANSPORT=server): the file is uploaded to /api/v1/split.' : 'Extract specific pages or split PDF into multiple files - runs in your browser when the WASM engine lands, server upload only on consent.'}
       steps={[
@@ -88,7 +136,7 @@ const SplitPage = () => {
       ]}
     >
       <ConsentBanner offer={fallbackOffer} onConsent={splitViaServerConsent} onDismiss={() => setFallbackOffer(null)} isLoading={isLoading} actionLabel="Upload to server and split" />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
+      <div className="split-layout">
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
             <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload PDF File
@@ -120,12 +168,33 @@ const SplitPage = () => {
                     <small style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.8rem' }}>Split into files with this many pages each</small>
                   </div>
                   <button onClick={splitPDF} disabled={isLoading} className="btn-glow" style={{ width: '100%', marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '1rem 2rem' }}>
-                    {isLoading ? <RefreshCw size={18} className="spin" /> : <Scissors size={18} />}Split PDF
+                    {isLoading ? <RefreshCw size={18} className="spin" /> : <Scissors size={18} />}{isLoading ? 'Splitting…' : 'Split PDF'}
                   </button>
                 </div>
               )}
             </div>
 
+            <div className="split-preview-col">
+            {resultFiles.length > 1 && (
+              <section ref={resultsRef} className="split-results" aria-labelledby="split-results-title" aria-live="polite">
+                <h3 id="split-results-title">Split files ({resultFiles.length})</h3>
+                <p>Showing part 1 of {resultFiles.length} in the preview below. Download each part, or grab them all as one zip.</p>
+                <div className="split-results-actions">
+                  <button onClick={downloadAllAsZip} disabled={isZipping} type="button" className="split-results-zip">
+                    {isZipping ? <RefreshCw aria-hidden="true" size={16} className="spin" /> : <Archive aria-hidden="true" size={16} />}
+                    {isZipping ? 'Zipping…' : 'Download all (.zip)'}
+                  </button>
+                </div>
+                <div className="split-results-list">
+                  {resultFiles.map((resultFile, index) => (
+                    <button key={`${resultFile.filename}-${index}`} onClick={() => downloadResultFile(resultFile)} type="button">
+                      <Download aria-hidden="true" size={16} />
+                      {resultFile.filename}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             <OperationShell
               resultUrl={splitPdfUrl}
               title="Split PDF Preview"
@@ -134,23 +203,10 @@ const SplitPage = () => {
               emptySubtitle="Upload a PDF file to get started"
               onDownload={() => download(`split-pdf-${Date.now()}.pdf`)}
               downloadLabel="Download Split PDF"
-              height={550}
+              height={800}
             />
+            </div>
           </div>
-          {resultFiles.length > 1 && (
-            <section className="split-results" aria-labelledby="split-results-title">
-              <h3 id="split-results-title">Split files</h3>
-              <p>Each part is ready to download.</p>
-              <div>
-                {resultFiles.map((resultFile) => (
-                  <button key={resultFile.filename} onClick={() => downloadResultFile(resultFile)} type="button">
-                    <Download aria-hidden="true" size={16} />
-                    {resultFile.filename}
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
       <style jsx>{`.spin{animation:spin 1s linear infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </OpPageShell>
   )

@@ -137,7 +137,7 @@ const Viewer = () => {
   return (
     <OpPageShell
       title="PDF Viewer"
-      className="viewer-page"
+      className="viewer-page tool-wide"
       icon={<div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}><FileText size={28} /></div>}
       description="Load JSON templates and generate PDFs with live preview"
     >

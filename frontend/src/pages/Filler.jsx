@@ -62,7 +62,7 @@ export default function Filler() {
   return (
     <OpPageShell
       title="Fill a PDF form"
-      className="filler-page"
+      className="filler-page tool-wide"
       icon={<FileCheck aria-hidden="true" size={31} />}
       description={serverTransport
         ? 'This configuration sends the PDF and XFDF file to the fill endpoint.'

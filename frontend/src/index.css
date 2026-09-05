@@ -2444,10 +2444,14 @@ textarea {
   }
 
   .workspace-main .tool-page-header {
-    width: min(1180px, calc(100% - 3rem));
+    width: min(1600px, calc(100% - 2rem));
     max-width: none;
     flex: 0 0 auto;
     margin-bottom: 0.9rem;
+  }
+
+  .workspace-main .tool-page-content {
+    width: min(1600px, calc(100% - 2rem));
   }
 
   .workspace-main .tool-page-kicker {
@@ -2494,6 +2498,11 @@ textarea {
     box-sizing: border-box;
     padding: clamp(1rem, 2vw, 1.6rem) 0;
     overflow: auto;
+  }
+
+  .workspace-main .redaction-workspace > .container {
+    width: min(2000px, calc(100% - 2rem));
+    max-width: none;
   }
 }
 
@@ -2548,7 +2557,7 @@ textarea {
   .workspace-main .filler-grid {
     flex: 1 1 auto;
     min-height: 0;
-    grid-template-columns: minmax(340px, 5fr) minmax(0, 7fr);
+    grid-template-columns: minmax(280px, 1fr) minmax(0, 4fr);
     align-items: stretch;
     overflow: hidden;
   }
@@ -2597,7 +2606,9 @@ textarea {
 
 @media (min-width: 901px) {
   .tool-page.viewer-page .tool-page-header,
-  .tool-page.viewer-page .tool-page-content {
+  .tool-page.viewer-page .tool-page-content,
+  .tool-page.split-page .tool-page-header,
+  .tool-page.split-page .tool-page-content {
     width: min(1600px, calc(80vw - 1.5rem));
   }
 }
@@ -2755,7 +2766,7 @@ textarea {
   .workspace-main .viewer-grid {
     flex: 1 1 auto;
     min-height: 0;
-    grid-template-columns: minmax(340px, 5fr) minmax(0, 7fr);
+    grid-template-columns: minmax(300px, 1fr) minmax(0, 4fr);
     align-items: stretch;
     overflow: hidden;
   }
@@ -2833,7 +2844,7 @@ textarea {
 
 .tool-page-header,
 .tool-page-content {
-  width: min(1180px, calc(100% - 3rem));
+  width: min(1600px, calc(100% - 3rem));
   margin: 0 auto;
 }
 
@@ -3175,7 +3186,7 @@ textarea {
   .not-found-page,
   .tool-page-header,
   .tool-page-content {
-    width: min(100% - 2rem, 1180px);
+    width: min(100% - 2rem, 1600px);
   }
 
   .site-repository-link,
@@ -3334,6 +3345,11 @@ textarea {
   padding: clamp(2.5rem, 5vw, 4.5rem) 0;
 }
 
+.redaction-workspace > .container {
+  width: min(2000px, calc(100% - 2rem));
+  max-width: none;
+}
+
 .redaction-workspace > .container > h1 {
   color: hsl(var(--foreground));
   font-family: var(--font-ui);
@@ -3373,6 +3389,17 @@ textarea {
   margin-top: 0.9rem;
 }
 
+.split-results-actions {
+  margin-top: 0.9rem;
+}
+
+.split-results-zip {
+  border-color: hsl(var(--primary)) !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  font-weight: 700;
+}
+
 .split-results button {
   min-height: 2.5rem;
   display: inline-flex;
@@ -3388,6 +3415,78 @@ textarea {
 
 .split-results button:hover {
   background: hsl(var(--accent));
+}
+
+.tool-page.tool-wide .tool-page-content {
+  width: min(2000px, calc(100% - 2rem));
+}
+
+.tool-page.tool-wide .tool-page-header {
+  width: min(2000px, calc(100% - 2rem));
+  max-width: none;
+}
+
+.tool-page.tool-wide .tool-page-description {
+  max-width: none;
+}
+
+.split-layout,
+.tool-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Mirrored variant: preview left, narrow controls right (Redact workspace). */
+.tool-layout-flip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.split-layout .operation-shell,
+.tool-layout .operation-shell {
+  width: 100%;
+  min-width: 0;
+}
+
+.split-preview-col {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  min-width: 0;
+}
+
+.split-preview-col .split-results {
+  margin-top: 0;
+}
+
+.split-results-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.split-page .operation-shell-frame,
+.split-page .operation-shell-empty {
+  width: 100%;
+  height: min(80vh, 800px) !important;
+  min-height: min(80vh, 800px) !important;
+}
+
+@media (max-width: 900px) {
+  .split-layout,
+  .tool-layout,
+  .tool-layout-flip {
+    grid-template-columns: 1fr;
+  }
+
+  .split-page .operation-shell-frame,
+  .split-page .operation-shell-empty {
+    height: 70vh !important;
+    min-height: 420px !important;
+  }
 }
 
 .workspace-card-title {
@@ -3432,6 +3531,10 @@ textarea {
 .engine-note a {
   color: hsl(var(--primary));
   font-weight: 600;
+}
+
+.tool-page.tool-wide .engine-note {
+  max-width: none;
 }
 
 .home-lede,

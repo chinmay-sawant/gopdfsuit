@@ -79,6 +79,7 @@ const MergePage = () => {
       badgeBorder="rgba(240,147,251,0.3)"
       badgeColor="#f093fb"
       title="PDF Merge Tool"
+      className="merge-page tool-wide"
       icon={<div className="feature-icon-box purple" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Merge size={28} /></div>}
       description={serverTransport ? 'Server transport active (VITE_WASM_TRANSPORT=server): files are uploaded to /api/v1/merge.' : 'Combine multiple PDF files with drag-and-drop reordering - runs in your browser when the WASM engine lands, server upload only on consent.'}
       steps={[
@@ -88,7 +89,7 @@ const MergePage = () => {
       ]}
     >
       <ConsentBanner offer={fallbackOffer} onConsent={mergeViaServerConsent} onDismiss={() => setFallbackOffer(null)} isLoading={isLoading} actionLabel="Upload to server and merge" />
-      <div className="grid grid-2" style={{ gap: '2rem' }}>
+      <div className="tool-layout">
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
             <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload PDF Files
