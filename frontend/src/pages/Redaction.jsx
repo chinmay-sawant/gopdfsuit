@@ -10,11 +10,15 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { Upload, Download, Eraser, Trash2, ChevronLeft, ChevronRight, AlertCircle, Check, Search } from 'lucide-react'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import { useAuth } from '../contexts/AuthContext'
+import ConsentBanner from '../components/ConsentBanner'
+import { redactAdvancedViaWasm, redactSearchViaWasm, shouldUseServerWasmTransport } from '../utils/wasmLoader.js'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
 // Valid for React-PDF v7/v8/v9. Configure worker.
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
+
+const serverTransport = shouldUseServerWasmTransport()
 
 const Redaction = () => {
   const [file, setFile] = useState(null)
@@ -41,6 +45,7 @@ const Redaction = () => {
   const { getAuthHeaders, triggerLogin } = useAuth()
   const [error, setError] = useState(null)
   const [successMsg, setSuccessMsg] = useState(null)
+  const [fallbackOffer, setFallbackOffer] = useState(null)
   const { isLoading, runJson, runLocal, request } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => setError(message),
@@ -261,164 +266,314 @@ const Redaction = () => {
     })
   }
 
-  const handleSearch = async () => {
-        const terms = parseSearchTerms(searchText)
-        if (!file || terms.length === 0) return
-        if (file.size === 0) {
-            setError('Selected PDF is empty. Please re-upload a valid PDF.')
-            return
+  const collectUniqueSearches = () => {
+    const allSearches = [...searchQueries]
+    allSearches.push(...parseSearchTerms(searchText))
+    const seen = new Set()
+    return allSearches.filter((term) => {
+      const key = term.trim().toLowerCase()
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }
+
+  const buildApplyPayload = (pdfBlob, blocks, textQueries, modeToUse, pwd) => {
+    const formData = new FormData()
+    formData.append('pdf', pdfBlob)
+    formData.append('blocks', JSON.stringify(blocks))
+    formData.append('mode', modeToUse)
+    if (pwd.trim()) {
+      formData.append('password', pwd)
+    }
+    if (textQueries.length > 0) {
+      formData.append('textSearch', JSON.stringify(textQueries.map((text) => ({ text }))))
+    }
+    return formData
+  }
+
+  const serverSearchRequest = (pdfBlob, terms) => {
+    const formData = new FormData()
+    formData.append('pdf', pdfBlob)
+    formData.append('text', terms.join(','))
+    formData.append('texts', JSON.stringify(terms))
+    return runJson({
+      endpoint: '/api/v1/redact/search',
+      body: formData,
+      getAuthHeaders,
+    })
+  }
+
+  const mergeSearchResults = (payload, terms) => {
+    const results = Array.isArray(payload)
+      ? payload
+      : (Array.isArray(payload?.rects) ? payload.rects : [])
+
+    if (results && results.length > 0) {
+      // Merge new redactions
+      setRedactions(prev => {
+        const next = { ...prev }
+        results.forEach(r => {
+          const p = r.pageNum
+          if (!next[p]) next[p] = []
+          next[p].push(r)
+        })
+        return next
+      })
+      setSuccessMsg(`Found and marked ${results.length} occurrence(s) for ${terms.join(', ')}`)
+    } else {
+      setSuccessMsg(`No occurrences found for ${terms.join(', ')}`)
+    }
+    setSearchQueries(prev => {
+      const existing = new Set(prev.map((x) => x.toLowerCase()))
+      const additions = terms.filter((term) => !existing.has(term.toLowerCase()))
+      if (additions.length === 0) return prev
+      return [...prev, ...additions]
+    })
+  }
+
+  const runServerApplyChain = async (pdfBlob, blocks, textQueries, pwd, modeSetting, filename) => {
+    const modesToTry = modeSetting === 'auto' ? ['secure_required', 'visual_allowed'] : [modeSetting]
+    let appliedMode = ''
+    let fallbackUsed = false
+    let report = null
+
+    const url = await runLocal(async () => {
+      let lastError = 'Redaction failed'
+      for (let i = 0; i < modesToTry.length; i += 1) {
+        const candidateMode = modesToTry[i]
+        try {
+          const tryResponse = await request({
+            endpoint: '/api/v1/redact/apply',
+            body: buildApplyPayload(pdfBlob, blocks, textQueries, candidateMode, pwd),
+            getAuthHeaders,
+            throwOnError: true,
+          })
+          const reportHeader = tryResponse.headers.get('X-Redaction-Report')
+          if (reportHeader) {
+            try { report = JSON.parse(reportHeader) } catch { /* ignore */ }
+          }
+          appliedMode = candidateMode
+          fallbackUsed = modeSetting === 'auto' && i > 0
+          return await tryResponse.blob()
+        } catch (err) {
+          const message = err.message || lastError
+          lastError = message
+          const canFallback = modeSetting === 'auto' && candidateMode === 'secure_required'
+          const secureUnavailable = message.toLowerCase().includes('secure_required requested but no secure text content could be removed')
+          if (canFallback && secureUnavailable) {
+            continue
+          }
+          throw err
         }
+      }
+      throw new Error(lastError)
+    }, {
+      filename,
+      autoDownload: true,
+    })
+
+    if (!url) return null
+    return { url, appliedMode, fallbackUsed, report }
+  }
+
+  const reportApplySuccess = ({ appliedMode, fallbackUsed, report }) => {
+    if (report && report.generatedRects === 0) {
+      setSuccessMsg(
+        'No redactable text content was found in this PDF - the downloaded file is unchanged. ' +
+        'This usually means the PDF is scanned/image-based and its text is not embedded as selectable text. ' +
+        'Try drawing redaction boxes manually instead, or use a PDF with embedded text.'
+      )
+    } else if (fallbackUsed) {
+      const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
+      setSuccessMsg(`Secure redaction was unavailable for this PDF; visual redaction fallback was applied and downloaded successfully.${rectInfo}`)
+    } else if (appliedMode === 'secure_required') {
+      const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
+      setSuccessMsg(`Secure redaction applied and PDF downloaded successfully!${rectInfo}`)
+    } else {
+      const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
+      setSuccessMsg(`Visual redaction applied and PDF downloaded successfully!${rectInfo}`)
+    }
+  }
+
+  const handleSearch = async () => {
+    const terms = parseSearchTerms(searchText)
+    if (!file || terms.length === 0) return
+    if (file.size === 0) {
+      setError('Selected PDF is empty. Please re-upload a valid PDF.')
+      return
+    }
     setIsSearching(true)
     setError(null)
-        setSuccessMsg(null)
+    setSuccessMsg(null)
     try {
-        // NOTE: no privacy win yet. Search uploads the file to
-        // /api/v1/redact/search; the WASM text path (goRedactSearch in
-        // utils/wasmLoader.js, engine from plans/wasm/01-full-wasm-port.md)
-        // is not in the shipped bundle, so this stays server-side.
-        const formData = new FormData()
-        formData.append('pdf', file)
-                formData.append('text', terms.join(','))
-                formData.append('texts', JSON.stringify(terms))
-
-        const payload = await runJson({
-            endpoint: '/api/v1/redact/search',
-            body: formData,
-            getAuthHeaders,
-        })
+      if (serverTransport) {
+        const payload = await serverSearchRequest(file, terms)
         if (!payload) return
-
-                const results = Array.isArray(payload)
-                    ? payload
-                    : (Array.isArray(payload?.rects) ? payload.rects : [])
-
-        if (results && results.length > 0) {
-            // Merge new redactions
-            setRedactions(prev => {
-                const next = { ...prev }
-                results.forEach(r => {
-                    const p = r.pageNum
-                    if (!next[p]) next[p] = []
-                    next[p].push(r)
-                })
-                return next
-            })
-            setSuccessMsg(`Found and marked ${results.length} occurrence(s) for ${terms.join(', ')}`)
-        } else {
-            setSuccessMsg(`No occurrences found for ${terms.join(', ')}`)
+        mergeSearchResults(payload, terms)
+        return
+      }
+      // Browser-local first via goRedactSearch; the server search below runs
+      // only from the consent banner, never silently.
+      setFallbackOffer(null)
+      let bytes
+      try {
+        bytes = new Uint8Array(await file.arrayBuffer())
+      } catch (readErr) {
+        setError(readErr?.message || 'Unable to read the PDF in the browser.')
+        return
+      }
+      let results
+      try {
+        results = await redactSearchViaWasm(bytes, terms)
+      } catch (wasmErr) {
+        if (wasmErr && wasmErr.missingEngine && getAuthHeaders) {
+          setFallbackOffer({ kind: 'search', message: wasmErr.message, file, terms })
+          return
         }
-        setSearchQueries(prev => {
-          const existing = new Set(prev.map((x) => x.toLowerCase()))
-          const additions = terms.filter((term) => !existing.has(term.toLowerCase()))
-          if (additions.length === 0) return prev
-          return [...prev, ...additions]
-        })
+        setError(wasmErr?.message || 'Text search failed.')
+        return
+      }
+      mergeSearchResults(results, terms)
     } finally {
-        setIsSearching(false)
+      setIsSearching(false)
     }
+  }
+
+  // Browser-local apply chain mirroring runServerApplyChain, but through
+  // goRedactAdvanced, which returns {pdf, report}. The report carries the
+  // same appliedSecure/appliedRectangles proof as the server header, so the
+  // shared reportApplySuccess messaging stays honest on both transports.
+  const runWasmApplyChain = async (bytes, blocks, textQueries, pwd, modeSetting, filename) => {
+    const modesToTry = modeSetting === 'auto' ? ['secure_required', 'visual_allowed'] : [modeSetting]
+    let appliedMode = ''
+    let fallbackUsed = false
+    let report = null
+    let pdfBytes = null
+    let lastError = 'Redaction failed'
+    for (let i = 0; i < modesToTry.length; i += 1) {
+      const candidateMode = modesToTry[i]
+      try {
+        const outcome = await redactAdvancedViaWasm(bytes, {
+          blocks,
+          textSearch: textQueries,
+          mode: candidateMode,
+          password: pwd,
+        })
+        pdfBytes = outcome?.pdf || null
+        report = outcome?.report || null
+        appliedMode = candidateMode
+        fallbackUsed = modeSetting === 'auto' && i > 0
+        break
+      } catch (err) {
+        if (err && err.missingEngine) throw err
+        const message = err?.message || lastError
+        lastError = message
+        const canFallback = modeSetting === 'auto' && candidateMode === 'secure_required'
+        const secureUnavailable = message.toLowerCase().includes('secure_required requested but no secure text content could be removed')
+        if (canFallback && secureUnavailable) {
+          continue
+        }
+        throw err
+      }
+    }
+    if (!pdfBytes) throw new Error(lastError)
+    const url = await runLocal(async () => pdfBytes, {
+      filename,
+      autoDownload: true,
+    })
+    if (!url) return null
+    return { url, appliedMode, fallbackUsed, report }
   }
 
   const applyRedactions = async () => {
     // Robust check for empty redactions
-        const hasAny = Object.values(redactions).some(arr => arr && arr.length > 0)
-        const hasTextCriteria = searchQueries.length > 0 || parseSearchTerms(searchText).length > 0
-        if (!file || (!hasAny && !hasTextCriteria)) return
-        if (file.size === 0) {
-            setError('Selected PDF is empty. Please re-upload a valid PDF.')
-            return
-        }
+    const hasAny = Object.values(redactions).some(arr => arr && arr.length > 0)
+    const hasTextCriteria = searchQueries.length > 0 || parseSearchTerms(searchText).length > 0
+    if (!file || (!hasAny && !hasTextCriteria)) return
+    if (file.size === 0) {
+      setError('Selected PDF is empty. Please re-upload a valid PDF.')
+      return
+    }
 
-      // Flatten redactions map to array
-      const allRedactions = Object.values(redactions).flat()
+    // Flatten redactions map to array
+    const allRedactions = Object.values(redactions).flat()
+    const uniqueSearches = collectUniqueSearches()
+    const pwd = password
+    const modeSetting = mode
+    const filename = `redacted_${file.name}`
 
-            const buildPayload = (modeToUse) => {
-                const formData = new FormData()
-                formData.append('pdf', file)
-                formData.append('blocks', JSON.stringify(allRedactions))
-                formData.append('mode', modeToUse)
-                if (password.trim()) {
-                    formData.append('password', password)
-                }
+    if (serverTransport) {
+      const outcome = await runServerApplyChain(file, allRedactions, uniqueSearches, pwd, modeSetting, filename)
+      if (!outcome) return
+      reportApplySuccess(outcome)
+      return
+    }
 
-                const allSearches = [...searchQueries]
-                const inlineTerms = parseSearchTerms(searchText)
-                allSearches.push(...inlineTerms)
-                const seen = new Set()
-                const uniqueSearches = allSearches.filter((term) => {
-                    const key = term.trim().toLowerCase()
-                    if (!key || seen.has(key)) return false
-                    seen.add(key)
-                    return true
-                })
-
-                if (uniqueSearches.length > 0) {
-                    formData.append('textSearch', JSON.stringify(uniqueSearches.map((text) => ({ text }))))
-                }
-                return formData
-            }
-
-            const modesToTry = mode === 'auto' ? ['secure_required', 'visual_allowed'] : [mode]
-            let appliedMode = ''
-            let fallbackUsed = false
-            let report = null
-
-            const url = await runLocal(async () => {
-                // NOTE: no privacy win yet. runLocal wraps request() here, so
-                // apply still uploads to /api/v1/redact/apply. Switch the body
-                // to redactApplyViaWasm (utils/wasmLoader.js) once the engine
-                // lands per plans/wasm/01-full-wasm-port.md.
-                let lastError = 'Redaction failed'
-                for (let i = 0; i < modesToTry.length; i += 1) {
-                    const candidateMode = modesToTry[i]
-                    try {
-                        const tryResponse = await request({
-                            endpoint: '/api/v1/redact/apply',
-                            body: buildPayload(candidateMode),
-                            getAuthHeaders,
-                            throwOnError: true,
-                        })
-                        const reportHeader = tryResponse.headers.get('X-Redaction-Report')
-                        if (reportHeader) {
-                            try { report = JSON.parse(reportHeader) } catch { /* ignore */ }
-                        }
-                        appliedMode = candidateMode
-                        fallbackUsed = mode === 'auto' && i > 0
-                        return await tryResponse.blob()
-                    } catch (err) {
-                        const message = err.message || lastError
-                        lastError = message
-                        const canFallback = mode === 'auto' && candidateMode === 'secure_required'
-                        const secureUnavailable = message.toLowerCase().includes('secure_required requested but no secure text content could be removed')
-                        if (canFallback && secureUnavailable) {
-                            continue
-                        }
-                        throw err
-                    }
-                }
-                throw new Error(lastError)
-            }, {
-                filename: `redacted_${file.name}`,
-                autoDownload: true,
-            })
-
-            if (!url) return
-
-      if (report && report.generatedRects === 0) {
-        setSuccessMsg(
-          'No redactable text content was found in this PDF - the downloaded file is unchanged. ' +
-          'This usually means the PDF is scanned/image-based and its text is not embedded as selectable text. ' +
-          'Try drawing redaction boxes manually instead, or use a PDF with embedded text.'
-        )
-      } else if (fallbackUsed) {
-        const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
-        setSuccessMsg(`Secure redaction was unavailable for this PDF; visual redaction fallback was applied and downloaded successfully.${rectInfo}`)
-      } else if (appliedMode === 'secure_required') {
-        const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
-        setSuccessMsg(`Secure redaction applied and PDF downloaded successfully!${rectInfo}`)
-      } else {
-        const rectInfo = report ? ` ${report.appliedRectangles} region(s) redacted.` : ''
-        setSuccessMsg(`Visual redaction applied and PDF downloaded successfully!${rectInfo}`)
+    // Every mode runs browser-local first via goRedactAdvanced. The engine
+    // returns the same report the server header carries, so secure claims
+    // stay provable. The server chain runs only from the consent banner:
+    // missing engine, or scanned pages needing OCR.
+    setFallbackOffer(null)
+    let bytes
+    try {
+      bytes = new Uint8Array(await file.arrayBuffer())
+    } catch (readErr) {
+      setError(readErr?.message || 'Unable to read the PDF in the browser.')
+      return
+    }
+    let outcome
+    try {
+      outcome = await runWasmApplyChain(bytes, allRedactions, uniqueSearches, pwd, modeSetting, filename)
+    } catch (wasmErr) {
+      if (wasmErr && wasmErr.missingEngine && getAuthHeaders) {
+        setFallbackOffer({
+          kind: 'apply',
+          message: wasmErr.message,
+          file,
+          blocks: allRedactions,
+          textQueries: uniqueSearches,
+          pwd,
+          modeSetting,
+          filename,
+        })
+        return
       }
+      setError(wasmErr?.message || 'Redaction failed')
+      return
+    }
+    if (!outcome) return
+    reportApplySuccess(outcome)
+  }
+
+  const runConsentSearch = async (offer) => {
+    setIsSearching(true)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      const payload = await serverSearchRequest(offer.file, offer.terms)
+      if (!payload) return
+      mergeSearchResults(payload, offer.terms)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const runConsentApply = async (offer) => {
+    const outcome = await runServerApplyChain(offer.file, offer.blocks, offer.textQueries, offer.pwd, offer.modeSetting, offer.filename)
+    if (!outcome) return
+    reportApplySuccess(outcome)
+  }
+
+  const handleFallbackConsent = async () => {
+    const offer = fallbackOffer
+    if (!offer || isLoading || isSearching) return
+    setFallbackOffer(null)
+    if (offer.kind === 'search') {
+      await runConsentSearch(offer)
+      return
+    }
+    await runConsentApply(offer)
   }
 
   // Handle page load to get dimensions
@@ -442,6 +597,13 @@ const Redaction = () => {
             <h1 style={{ fontSize: '2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Eraser size={32} /> PDF Redaction
             </h1>
+            <ConsentBanner
+              offer={fallbackOffer}
+              onConsent={handleFallbackConsent}
+              onDismiss={() => setFallbackOffer(null)}
+              isLoading={isLoading || isSearching}
+              actionLabel={fallbackOffer?.kind === 'search' ? 'Upload to server and search' : 'Upload to server and apply'}
+            />
 
             {!file ? (
                 <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
@@ -556,7 +718,7 @@ const Redaction = () => {
                         <div className="glass-card" style={{ padding: '1.5rem' }}>
                             <h3 style={{ marginBottom: '1rem' }}>Redact by Text</h3>
                             <p style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.75rem' }}>
-                              Server-side for now (uploads file): browser WASM text path lands with the redact engine.
+                              {serverTransport ? 'Server transport active: the file is uploaded to the redact endpoints.' : 'Search and redaction run in your browser with the same engine and report as the server. The server is used only on consent, for example scanned pages needing OCR.'}
                             </p>
                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                                 <input 

@@ -62,6 +62,7 @@ export default function Filler() {
   return (
     <OpPageShell
       title="Fill a PDF form"
+      className="filler-page"
       icon={<FileCheck aria-hidden="true" size={31} />}
       description={serverTransport
         ? 'This configuration sends the PDF and XFDF file to the fill endpoint.'
@@ -74,8 +75,9 @@ export default function Filler() {
         onConsent={fillViaServerConsent}
         onDismiss={() => setFallbackOffer(null)}
       />
-      <div className="grid grid-2" style={{ gap: '2rem' }}>
-        <section className="glass-card" style={{ padding: '2rem' }}>
+      <div className="container-full filler-fit">
+      <div className="filler-grid">
+        <section className="glass-card filler-input-card">
           <h2 className="workspace-card-title">Choose the files</h2>
           <div className="filler-dropzone-stack">
             <FileDropzone
@@ -109,6 +111,7 @@ export default function Filler() {
             {isLoading ? <RefreshCw aria-hidden="true" className="spin" size={18} /> : <FileCheck aria-hidden="true" size={18} />}
             Fill PDF form
           </button>
+          <p className="filler-hint">The PDF needs AcroForm fields. The XFDF file names the matching fields and values. Text fields, checkboxes, and radio buttons are supported.</p>
         </section>
 
         <OperationShell
@@ -119,13 +122,10 @@ export default function Filler() {
           emptySubtitle="Choose both files, then run the fill operation."
           onDownload={() => download(`filled-${pdfFile?.name || 'form.pdf'}`)}
           downloadLabel="Download filled PDF"
-          height={550}
+          height={480}
         />
       </div>
-      <section className="form-requirements">
-        <h2>What the files need</h2>
-        <p>The PDF needs AcroForm fields. The XFDF file names the matching fields and values. Text fields, checkboxes, and radio buttons are supported by this workflow.</p>
-      </section>
+      </div>
     </OpPageShell>
   )
 }

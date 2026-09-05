@@ -11,7 +11,7 @@
 // every CSP worker-src allowlist that today scopes to the small bundle, for
 // no behavior gain now that the envelope and loader are unified here.
 
-import { callWasm, callWasmObject, missingEngineError } from './envelope.js'
+import { callWasm, callWasmObject, isWasmDebugEnabled, missingEngineError } from './envelope.js'
 
 export { callWasm, callWasmObject, missingEngineError }
 
@@ -21,11 +21,12 @@ export const GOPDFSUIT_WASM_URL = `${import.meta.env.BASE_URL}gopdfsuit.wasm`
 
 const modulePromises = new Map()
 
-// One cache-first fetch for every WASM-adjacent download (binaries, fonts,
-// templates manifests). Falls back to plain fetch where Cache API is
-// unavailable. `as: 'json'` parses JSON, `as: 'bytes'` returns Uint8Array,
-// default returns the Response. Once downloaded, pages work fully offline
-// (same Cache API story as fonts.js and templates.js).
+// Network-first fetch for every WASM-adjacent download (binaries, fonts,
+// templates manifests). A pure cache-first loader pins the first binary it
+// ever saw: Cache Storage survives hard refreshes, so rebuilt engines would
+// never reach the page. Network-first lets rebuilt files replace stale
+// entries while the stored entry keeps pages working fully offline.
+// Falls back to plain fetch where Cache API is unavailable.
 export const WASM_CACHE_NAME = 'gopdfsuit-wasm-v1'
 
 export async function cachedFetch(url, { cacheName = WASM_CACHE_NAME, as = 'response' } = {}) {
@@ -35,19 +36,34 @@ export async function cachedFetch(url, { cacheName = WASM_CACHE_NAME, as = 'resp
     if (as === 'bytes') return new Uint8Array(await response.arrayBuffer())
     return response
   }
+  let cache = null
   try {
-    const cache = await caches.open(cacheName)
-    const hit = await cache.match(url)
-    if (hit) return readAs(hit)
-    const response = await fetch(url)
-    if (response.ok) {
-      cache.put(url, response.clone()).catch(() => {})
-    }
-    return readAs(response)
+    if (typeof caches !== 'undefined') cache = await caches.open(cacheName)
   } catch {
-    const response = await fetch(url)
-    return readAs(response)
+    cache = null
   }
+  if (cache) {
+    try {
+      // Network first: rebuilt binaries replace stale entries (plain HTTP
+      // caching turns unchanged files into cheap 304s). The stored entry
+      // keeps pages working fully offline afterwards.
+      const response = await fetch(url)
+      if (response.ok) {
+        if (isWasmDebugEnabled()) console.log('[wasm] engine', url, 'network')
+        cache.put(url, response.clone()).catch(() => {})
+        return readAs(response)
+      }
+    } catch {
+      // Offline or unreachable: fall through to the cache below.
+    }
+    const hit = await cache.match(url).catch(() => null)
+    if (hit) {
+      if (isWasmDebugEnabled()) console.log('[wasm] engine', url, 'cached')
+      return readAs(hit)
+    }
+  }
+  const response = await fetch(url)
+  return readAs(response)
 }
 
 async function fetchCached(url) {

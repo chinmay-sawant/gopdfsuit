@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -450,27 +451,31 @@ func parseTextOperators(content []byte) []models.TextPosition {
 	var positions []models.TextPosition
 
 	strContent := string(content)
-	blocks := btEtRe.FindAllStringSubmatch(strContent, -1)
+	events := graphicsEvents(content)
+	blocks := btEtRe.FindAllStringSubmatchIndex(strContent, -1)
 
 	for _, block := range blocks {
-		inner := block[1]
+		// block[0],block[1] bound "BT...ET"; block[2],block[3] bound inner.
+		inner := strContent[block[2]:block[3]]
+		base := block[2]
 		currentX, currentY := 0.0, 0.0
 		lineStartX, lineStartY := 0.0, 0.0
 		currentFontSize := 10.0
-		for _, token := range tokenRe.FindAllString(inner, -1) {
-			token = strings.TrimSpace(token)
-			if token == "" {
+		for _, token := range tokenRe.FindAllStringIndex(inner, -1) {
+			absolute := base + token[0]
+			text := strings.TrimSpace(inner[token[0]:token[1]])
+			if text == "" {
 				continue
 			}
 
-			if m := tmRe.FindStringSubmatch(token); m != nil {
+			if m := tmRe.FindStringSubmatch(text); m != nil {
 				currentX, _ = strconv.ParseFloat(m[5], 64)
 				currentY, _ = strconv.ParseFloat(m[6], 64)
 				lineStartX = currentX
 				lineStartY = currentY
 				continue
 			}
-			if m := tdRe.FindStringSubmatch(token); m != nil {
+			if m := tdRe.FindStringSubmatch(text); m != nil {
 				dx, _ := strconv.ParseFloat(m[1], 64)
 				dy, _ := strconv.ParseFloat(m[2], 64)
 				lineStartX += dx
@@ -479,17 +484,17 @@ func parseTextOperators(content []byte) []models.TextPosition {
 				currentY = lineStartY
 				continue
 			}
-			if m := tfRe.FindStringSubmatch(token); m != nil {
+			if m := tfRe.FindStringSubmatch(text); m != nil {
 				if fs, err := strconv.ParseFloat(m[1], 64); err == nil && fs > 0 {
 					currentFontSize = fs
 				}
 				continue
 			}
-			if !textOpRe.MatchString(token) {
+			if !textOpRe.MatchString(text) {
 				continue
 			}
 
-			textStr := strings.TrimSpace(extractTextFromOperator(token))
+			textStr := strings.TrimSpace(extractTextFromOperator(text))
 			if textStr == "" {
 				continue
 			}
@@ -501,18 +506,44 @@ func parseTextOperators(content []byte) []models.TextPosition {
 			if width < currentFontSize {
 				width = currentFontSize
 			}
+			x0, y0, x1, y1 := mapTextRect(ctmAtOffset(events, absolute), currentX, currentY-(0.25*height), width, height)
 			positions = append(positions, models.TextPosition{
 				Text:   textStr,
-				X:      currentX,
-				Y:      currentY - (0.25 * height),
-				Width:  width,
-				Height: height,
+				X:      x0,
+				Y:      y0,
+				Width:  x1 - x0,
+				Height: y1 - y0,
 			})
 			currentX += width
 		}
 	}
 
 	return positions
+}
+
+// mapTextRect maps an axis-aligned text-run rect through a CTM and returns
+// the bounding box. Identity CTMs reproduce the input exactly.
+func mapTextRect(m affine, x, y, w, h float64) (float64, float64, float64, float64) {
+	xs := [4]float64{x, x + w, x, x + w}
+	ys := [4]float64{y, y, y + h, y + h}
+	minX, maxX := math.Inf(1), math.Inf(-1)
+	minY, maxY := math.Inf(1), math.Inf(-1)
+	for i := 0; i < 4; i++ {
+		px, py := applyAffine(m, xs[i], ys[i])
+		if px < minX {
+			minX = px
+		}
+		if px > maxX {
+			maxX = px
+		}
+		if py < minY {
+			minY = py
+		}
+		if py > maxY {
+			maxY = py
+		}
+	}
+	return minX, minY, maxX, maxY
 }
 
 func extractTextFromOperator(op string) string {
