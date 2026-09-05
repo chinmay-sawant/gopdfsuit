@@ -10,7 +10,6 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { Upload, Download, Eraser, Trash2, ChevronLeft, ChevronRight, AlertCircle, Check, Search } from 'lucide-react'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import { useAuth } from '../contexts/AuthContext'
-import BackgroundAnimation from '../components/BackgroundAnimation'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
@@ -438,9 +437,7 @@ const Redaction = () => {
     const canApply = hasBlockRedactions || hasTextCriteria
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative' }}>
-        <BackgroundAnimation />
-        
+    <div className="redaction-workspace">
         <div className="container" style={{ padding: '2rem 1rem', position: 'relative', zIndex: 1 }}>
             <h1 style={{ fontSize: '2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Eraser size={32} /> PDF Redaction

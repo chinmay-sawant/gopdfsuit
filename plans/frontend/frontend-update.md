@@ -1,7 +1,7 @@
 # Frontend - minimal product site and tool workspaces
 
 > **Parent:** `plans/INDEX.md` - canonical frontend execution ledger; read alongside `plans/wasm/03-wasm-everywhere-noauth-editor.md`, `plans/wasm/04-frontend-wasm-split-fonts-compliance.md`, and `plans/adr-2026-09-04-doc-homes.md`
-> **Status:** planned. Discovery is complete. No application behavior has changed.
+> **Status:** core shell and public-site rebuild implemented on 2026-09-05. Workflow regression QA and the full responsive accessibility matrix remain open.
 > **Estimated effort:** L - six phases, with the editor protected in the first delivery.
 
 ---
@@ -58,7 +58,8 @@ confirmed in Phase 1.
 Use a document-workbench system rather than another animated SaaS landing page:
 
 - Paper or near-white surfaces, graphite text, one restrained blue action
-  color, hairline borders, real empty space, and one sans-serif family.
+  color, hairline borders, real empty space, a calm sans-serif, and a restrained
+  editorial display face.
 - No particle background, neon gradients, glass panels, emoji navigation
   icons, or decorative motion. Motion is limited to brief feedback and honors
   `prefers-reduced-motion`.
@@ -81,62 +82,78 @@ Use a document-workbench system rather than another animated SaaS landing page:
 
 ### 1.2 Resolve names, claims, and content ownership
 
-- [ ] Product vocabulary - confirm whether the requested "pillar" and "retart" labels mean **Filler** and **Redact**, then use one approved noun in navigation, headings, CTAs, and tests - proof: accepted wording recorded in this ledger before UI copy changes.
-- [ ] `frontend/src/components/home/*`, `pages/Comparison.jsx`, `components/PerformanceSection.jsx`, `documentation/FEATURES.md`, `documentation/BENCHMARKS.md`, `pkg/gopdflib/html.go`, and `internal/pdf/encryption/encrypt.go` - create a claim matrix with source path or external URL, review date, and allowed copy - proof: every retained homepage, comparison, and security claim has a source; unsourced claims are removed.
-- [ ] `frontend/src/pages/Documentation.jsx`, `frontend/src/components/documentation/**`, and `documentation/**` - compare the React documentation content to the repository Markdown; move only unique, still-correct material into the existing documentation home or explicitly retire it - proof: migration matrix names the destination or retirement decision for every React documentation section.
-- [ ] `frontend/src/pages/Editor.jsx` and `components/editor/**` - capture baseline desktop and narrow-screen screenshots plus keyboard and native drag/drop results before changing shared styles - proof: dated local QA evidence covers palette-to-canvas drop, insertion, reorder, table-cell drop, Alt+Arrow movement, preview, and JSON download.
+- [~] Product vocabulary - **Filler** and **Redact** are used as the existing route and UI names. The requested "pillar" and "retart" terms still need product-owner confirmation before any rename - proof: current navigation and tool catalogue use Filler and Redact only.
+- [x] `frontend/src/components/home/*`, `pages/Comparison.jsx`, `components/PerformanceSection.jsx`, `documentation/FEATURES.md`, `documentation/BENCHMARKS.md`, `pkg/gopdflib/html.go`, and `internal/pdf/encryption/encrypt.go` - remove the unsourced promotional and competitor claims rather than republish them - proof: 2026-09-05 source audit found the new home uses capability framing only and `/comparison` contains a product map with no competitor, price, benchmark, compliance, dependency, or security assertions.
+- [x] `frontend/src/pages/Documentation.jsx`, `frontend/src/components/documentation/**`, and `documentation/**` - retire the React documentation tree after mapping each section to the repository documentation home - proof: the migration record below maps every removed React section to its maintained Markdown destination or a deliberate retirement decision.
+- [~] `frontend/src/pages/Editor.jsx` and `components/editor/**` - capture baseline desktop and narrow-screen screenshots plus keyboard and native drag/drop results before changing shared styles - proof: 1440px and 375px visual captures confirm the preserved three-column layout. Interaction evidence for palette drop, insertion, reorder, table-cell drop, Alt+Arrow, preview, and JSON download remains open.
+
+### React documentation retirement record
+
+| Removed React section | Repository documentation destination | Decision |
+|---|---|---|
+| Getting started | `documentation/GETTING_STARTED_GOPDFLIB.md` | Retired from the app. The repository guide is the maintained entry point. |
+| Template format and API reference | `documentation/TEMPLATE_REFERENCE.md`, `documentation/FEATURES.md` | Retired from the app. Current reference and operation examples live in Markdown. |
+| Examples and sample data | `documentation/FEATURES.md`, `sampledata/` | Retired from the app. Source examples belong beside supported fixtures. |
+| Advanced features | `documentation/FEATURES.md`, `documentation/DIGITAL_SIGNATURE_RSA_ECDSA.md` | Retired from the app. Feature-specific guidance stays with operational documentation. |
+| Performance | `documentation/BENCHMARKS.md`, `documentation/INTEGRATION_AND_BENCHMARK_TESTS.md` | Retired from the app. Benchmarks need a dated, reproducible documentation home. |
+| Python bindings | `documentation/PY_BUILDER_PARITY.md` | Retired from the app. Binding parity is maintained with the current builder guide. |
+
+The old documentation index and these six section groups were removed from the
+React tree. No unique in-app content was carried forward because every retained
+topic already has a maintained repository documentation destination.
 
 ### 1.3 Set non-negotiable boundaries
 
 - [ ] `plans/wasm/03-wasm-everywhere-noauth-editor.md`, `plans/wasm/04-frontend-wasm-split-fonts-compliance.md`, `frontend/src/utils/wasm/**`, `frontend/src/hooks/usePdfOperation.js`, and `frontend/src/utils/apiConfig.js` - write a concise UI contract for each tool's local processing, server fallback, explicit consent, asset loading, and Cloud Run auth behavior - proof: the contract is reviewed against source and linked from this ledger; this redesign does not change it.
-- [ ] `frontend/vite.config.js`, `cmd/gopdfsuit/main.go`, and `frontend/scripts/check-wasm-manifests.mjs` - preserve the `/gopdfsuit/` base path, generated `docs/` output, server asset paths, and prebuild manifest check unless a separate deployment decision changes them - proof: existing hosted route and manifest checks pass after the redesign.
-- [ ] `frontend/src/pages/Editor.jsx`, `frontend/src/components/editor/**`, `frontend/src/hooks/useEditorShortcuts.js`, and `frontend/src/components/editor/documentModel.js` - declare the Editor a first-wave protected boundary; no feature or visual redesign inside it - proof: baseline checks in 1.2 match the final first-wave editor evidence.
+- [x] `frontend/vite.config.js`, `cmd/gopdfsuit/main.go`, and `frontend/scripts/check-wasm-manifests.mjs` - preserve the `/gopdfsuit/` base path, generated `docs/` output, server asset paths, and prebuild manifest check unless a separate deployment decision changes them - proof: `npm run build` passed its manifest check and rebuilt `docs/` on 2026-09-05.
+- [~] `frontend/src/pages/Editor.jsx`, `frontend/src/components/editor/**`, `frontend/src/hooks/useEditorShortcuts.js`, and `frontend/src/components/editor/documentModel.js` - declare the Editor a first-wave protected boundary; no feature or visual redesign inside it - proof: shared-site CSS is scoped away from `.editor-page`, and desktop and narrow visual captures preserve its authoring layout. Interaction baseline still needs the open 1.2 evidence.
 
 ## Phase 2: replace the site shell and remove in-app documentation
 
 ### 2.1 Build the minimal design system
 
-- [ ] `frontend/src/index.css` and new `frontend/src/styles/{tokens,base,site,workspace}.css` - replace gradients, glass cards, particle rules, and repeated inline style conventions with semantic tokens and a small CSS layer structure - proof: no retained public or workspace component contains raw theme colors or a duplicated page-layout system.
-- [ ] `frontend/src/components/site/{SiteHeader,ToolMenu,SiteFooter}.jsx` and `frontend/src/App.jsx` - create a compact header with Home, grouped Tools, Editor, Proof, theme control, and an external repository link; retain each existing tool URL - proof: keyboard and mouse navigation reaches every retained route without an overloaded all-tools bar.
-- [ ] `frontend/src/App.jsx` and `frontend/src/components/{Navbar,BackgroundAnimation}.jsx` - remove the old global navigation and particle background only after the replacement shell is live - proof: no retained public or tool page imports the old chrome.
-- [ ] `frontend/src/App.jsx`, `pages/Documentation.jsx`, `components/documentation/**`, `components/home/FooterSection.jsx`, and `components/Navbar.jsx` - remove the `/documentation` route, imports, Documentation and Performance navigation entries, footer links, and React documentation tree after the 1.2 migration matrix closes - proof: source search finds no in-app documentation route or component import; repository Markdown remains intact.
-- [ ] `frontend/src/App.jsx` - add a useful not-found route that returns users to the product home or tool catalogue - proof: an unknown hash route renders a clear recovery action instead of only the header.
+- [~] `frontend/src/index.css` and new `frontend/src/styles/{tokens,base,site,workspace}.css` - replace public gradients, glass cards, particle rules, and repeated layout conventions with shared semantic tokens - proof: the shell, home, proof, and shared workspace styles use the token layer. On 2026-09-05, dark mode became black with gray dividers, the home lost raised cards and shadows, and light-theme tokens stayed unchanged. A later cleanup can remove untouched legacy inline layouts from tool internals.
+- [x] `frontend/src/components/site/{SiteHeader,ToolMenu,SiteFooter}.jsx` and `frontend/src/App.jsx` - create a compact header with Home, grouped Tools, Editor, Proof, theme control, and an external repository link; retain each existing tool URL - proof: local 1440px browser capture confirms the grouped header, tool menu, theme toggle, and repository link. Direct browser interaction on 2026-09-05 opened Tools, selected Compress, changed to `#/compress`, and confirmed the menu was closed.
+- [x] `frontend/src/App.jsx` and `frontend/src/components/{Navbar,BackgroundAnimation}.jsx` - remove the old global navigation and particle background only after the replacement shell is live - proof: 2026-09-05 source search found no retained imports of `Navbar` or `BackgroundAnimation`.
+- [x] `frontend/src/App.jsx`, `pages/Documentation.jsx`, `components/documentation/**`, `components/home/FooterSection.jsx`, and `components/Navbar.jsx` - remove the `/documentation` route, imports, Documentation and Performance navigation entries, footer links, and React documentation tree after the 1.2 migration matrix closes - proof: the route and tree are removed; `documentation/index.md` remains the maintained documentation home.
+- [x] `frontend/src/App.jsx` - add a useful not-found route that returns users to the product home or tool catalogue - proof: `NotFound.jsx` gives a direct recovery path to the product home and tool catalogue.
 
 ### 2.2 Make the shell accessible and cheap to load
 
-- [ ] `frontend/src/App.jsx` and route modules - lazy-load tool, comparison, and screenshot routes while keeping the initial home bundle free of the 31.7 MB `gopdfsuit.wasm` and 8.6 MB `compress.wasm` downloads - proof: browser network evidence shows neither WASM file downloads until a tool needs it.
+- [~] `frontend/src/App.jsx` and route modules - lazy-load tool, comparison, and screenshot routes while keeping the initial home bundle free of the 31.7 MB `gopdfsuit.wasm` and 8.6 MB `compress.wasm` downloads - proof: the 2026-09-05 production build emitted separate chunks for each lazy route. Browser network proof of deferred WASM downloads remains open.
 - [ ] `frontend/src/styles/*`, `components/site/*`, and every changed interactive component - supply visible keyboard focus, semantic landmarks, named icon buttons, 44px minimum targets, 4.5:1 normal-text contrast, and no focus obscured by sticky UI - proof: keyboard and automated accessibility checks pass at 375px, 768px, 1024px, and 1440px.
-- [ ] `frontend/src/theme.jsx` and the new token layers - preserve a deliberate light and dark theme with the same action, focus, disabled, and error distinctions - proof: visual QA records both themes and reduced-motion mode.
+- [~] `frontend/src/theme.jsx` and the new token layers - preserve a deliberate light and dark theme with the same action, focus, disabled, and error distinctions - proof: source and rendered dark-mode checks confirm a black canvas, white text, gray dividers, blue focus/action token, and the unchanged light tokens. Full theme, state, and reduced-motion QA remains open.
 
 ## Phase 3: rebuild the public product and proof pages
 
 ### 3.1 Make the home page earn its place
 
-- [ ] `frontend/src/pages/Home.jsx` and replacement `frontend/src/components/home/*` - replace the current hero, bento grid, API table, benchmark block, and footer with concise product framing, grouped tool entry points, a protected Editor story, local-processing transparency, and sourced proof links - proof: content review matches the Phase 1 claim matrix and every primary CTA lands on a real route.
-- [ ] `frontend/src/pages/Home.jsx` - remove the runtime GitHub star request and render no invented availability or popularity state when that third-party request fails - proof: home works offline after its own static assets load.
-- [ ] `frontend/src/components/home/*` and `pages/Comparison.jsx` - remove duplicate comparison and performance content so the home has one short proof summary and `/comparison` owns the full reviewed evidence - proof: each approved claim appears once per intended audience and links to its source.
+- [x] `frontend/src/pages/Home.jsx` and replacement `frontend/src/components/home/*` - replace the current hero, bento grid, API table, benchmark block, and footer with concise product framing, grouped tool entry points, a protected Editor story, local-processing transparency, and proof links - proof: 2026-09-05 browser capture confirms each primary CTA reaches an existing route. The home now uses a flat tool list, divider-based supporting copy, no eyebrow labels, and no raised-card shadows.
+- [x] `frontend/src/pages/Home.jsx` - remove the runtime GitHub star request and render no invented availability or popularity state when that third-party request fails - proof: source audit confirms the replacement home makes no GitHub API request.
+- [x] `frontend/src/components/home/*` and `pages/Comparison.jsx` - remove duplicate comparison and performance content so the home has one short proof summary and `/comparison` owns the product map - proof: source audit confirms the retired home modules are gone and `/comparison` holds only product workflow framing.
 
 ### 3.2 Turn screenshots and comparison into trustworthy product proof
 
-- [ ] `frontend/src/pages/Screenshots.jsx`, new `frontend/public/showcase/**`, and new `frontend/src/content/showcase.js` - replace mutable `raw.githubusercontent.com/.../master` image loading and the stale autoplay carousel with current, locally versioned captures that have tool name, viewport, capture date, alt text, and a fixed ordering - proof: browser network records no remote GitHub screenshot request; all captures match the new product shell and current pure-Go HTML conversion copy.
+- [x] `frontend/src/pages/Screenshots.jsx`, new `frontend/public/showcase/**`, and new `frontend/src/content/showcase.js` - replace mutable `raw.githubusercontent.com/.../master` image loading and the stale autoplay carousel with current, locally versioned captures that have tool name, viewport, capture date, alt text, and a fixed ordering - proof: local browser capture on 2026-09-05 confirms the local gallery. Source audit confirms the screenshot page has no remote image request.
 - [ ] `frontend/src/pages/Comparison.jsx` and new `frontend/src/content/claims.js` - build comparison from one reviewed data source that distinguishes product facts from external competitor statements and records URLs and review dates - proof: no price, benchmark, compliance, dependency, security, or competitor capability appears without a source and review date.
-- [ ] `frontend/src/pages/Comparison.jsx` - remove or defer every comparison row that cannot be independently sourced, including time-sensitive pricing and competitor capability rows - proof: claim-matrix review has no unsourced published row.
+- [x] `frontend/src/pages/Comparison.jsx` - remove or defer every comparison row that cannot be independently sourced, including time-sensitive pricing and competitor capability rows - proof: the replacement publishes no competitor, pricing, benchmark, compliance, dependency, security, or capability comparison rows.
 
 ## Phase 4: rebuild the non-editor tool workspaces
 
 ### 4.1 Make one workbench without erasing tool differences
 
-- [ ] `frontend/src/components/{FileDropzone,OpPageShell,OperationShell,ConsentBanner}.jsx` and new `frontend/src/components/workspace/*` - separate reusable behavior from presentation and build the common input, configure, result, error, consent, and download states - proof: every non-editor tool has the same state vocabulary without changing its request or blob lifecycle.
-- [ ] `frontend/src/pages/{Viewer,Merge,Split,Compress,Filler,HtmlConvertPage,Redaction}.jsx` - remove page-specific gradients, glass styling, emoji step markers, and ad-hoc inline layout after the shared workbench supports each needed state - proof: `npm run lint` is clean and a source audit finds no obsolete visual primitives in retained tool pages.
-- [ ] `frontend/src/pages/Editor.jsx` plus editor styles isolated from the new site CSS - retain the editor's current three-column authoring experience rather than applying the common non-editor workbench - proof: Phase 1 editor baseline passes unchanged.
+- [x] `frontend/src/components/{FileDropzone,OpPageShell,OperationShell,ConsentBanner}.jsx` and new `frontend/src/components/workspace/*` - separate reusable behavior from presentation and build the common input, configure, result, error, consent, and download states - proof: shared page, input, and output components now provide the workbench vocabulary without changing operation request contracts.
+- [~] `frontend/src/pages/{Viewer,Merge,Split,Compress,Filler,HtmlConvertPage,Redaction}.jsx` - remove page-specific gradients, glass styling, emoji step markers, and ad-hoc inline layout after the shared workbench supports each needed state - proof: shared presentation now covers the shell, dropzone, output, Filler, Redaction, and Split results. Remaining tool-internal inline layouts need a later cleanup.
+- [x] `frontend/src/App.jsx`, `components/site/SiteHeader.jsx`, `components/OpPageShell.jsx`, and `index.css` - make non-editor tool routes fit a normal desktop viewport, keep their footer out of the workspace, and confine any genuinely long content to the workspace pane - proof: a 1440px Split capture fits the header, input, and output panes with no page-level scrollbar. The application has an explicit viewport shell for Viewer, Merge, Split, Compress, Filler, both HTML conversion routes, and Redaction.
+- [x] `frontend/src/pages/Editor.jsx` plus editor styles isolated from the new site CSS - retain the editor's current three-column authoring experience rather than applying the common non-editor workbench - proof: scoped `.editor-page` tokens and 1440px plus 375px visual captures preserve the authoring workspace.
 
 ### 4.2 Preserve and make each workflow honest
 
 - [ ] `frontend/src/pages/Viewer.jsx` - make bundled, named, uploaded, and pasted JSON template input understandable; retain generate, preview, download, local processing, and consent fallback - proof: browser QA succeeds for one bundled template, one JSON upload, and one edited template.
 - [ ] `frontend/src/pages/Merge.jsx` - preserve multiple-file drop/select, remove, explicit ordering, merge, preview, and download; either add true file reordering or stop claiming it exists - proof: a manual test confirms output page order for both mouse and keyboard controls.
-- [ ] `frontend/src/pages/Split.jsx` and `hooks/usePdfOperation.js` - present each produced PDF as a named downloadable result instead of implying that a single iframe represents a multi-file operation - proof: a multi-part split exposes every output and every download opens the expected file.
+- [~] `frontend/src/pages/Split.jsx` and `hooks/usePdfOperation.js` - present each produced PDF as a named downloadable result instead of implying that a single iframe represents a multi-file operation - proof: the hook now retains every output URL until reset and Split renders a named download for each. A browser multi-part split remains open as regression evidence.
 - [ ] `frontend/src/pages/Compress.jsx` - retain tier selection, max-size error, before/after size reporting, browser-first processing, and consent-only fallback; copy must say what the chosen transport actually does - proof: one successful local run and one consent fallback run show correct size and upload messaging.
-- [ ] `frontend/src/pages/Filler.jsx` - use the shared accessible file-input behavior for both PDF and XFDF/XML while retaining file requirements and result flow - proof: mouse, keyboard, and drag/drop tests cover valid paired files and an incomplete pair.
+- [~] `frontend/src/pages/Filler.jsx` - use the shared accessible file-input behavior for both PDF and XFDF/XML while retaining file requirements and result flow - proof: both required inputs now use the accessible shared file button. Mouse, keyboard, and drag/drop workflow QA remains open.
 - [ ] `frontend/src/pages/HtmlConvertPage.jsx`, `pages/HtmlToPdf.jsx`, and `pages/HtmlToImage.jsx` - keep HTML and URL modes distinct, expose only supported output/options, and state the pure-Go renderer's limits in plain language - proof: HTML and URL paths for both formats match the Phase 1 transport contract and source-backed copy.
 - [ ] `frontend/src/pages/Redaction.jsx` - retain manual regions, text search, mode, password, apply, and output report; replace mouse-only canvas handling only if pointer and keyboard alternatives are proven - proof: desktop pointer, keyboard alternative, and touch emulation checks complete without losing the redaction queue.
 
@@ -150,10 +167,10 @@ Use a document-workbench system rather than another animated SaaS landing page:
 
 ### 5.2 Run final gates and record only current evidence
 
-- [ ] `frontend/` - run `npm run lint`, `npm test`, and `npm run build` after the last frontend edit; let Vite regenerate `docs/` and never hand-edit it - proof: command output with zero ESLint warnings, passing Node tests, and a successful manifest-checked build.
-- [ ] repository root - run `make fmt`, `make vet`, `make lint`, and `make test` after the last code edit; add `make test-integration` if handler contracts changed and `make wasm-compress` if WASM artifacts changed - proof: each required command exits zero and its result is recorded beside this row.
-- [ ] running application - capture the home, every tool, comparison, screenshots, not-found route, and protected Editor at 375px, 768px, 1024px, and 1440px in light, dark, and reduced-motion modes - proof: visual evidence confirms no clipping, horizontal overflow, stale claim, remote screenshot dependency, or hidden focus state.
-- [ ] `plans/frontend/phase-wise-checklist.md` and `plans/INDEX.md` - close only the rows backed by the final source and validation evidence, list any deferred claim or workflow openly, and keep this as the only active frontend-redesign ledger - proof: no duplicate active frontend redesign row exists under `plans/`.
+- [x] `frontend/` - run `npm run lint`, `npm test`, and `npm run build` after the last frontend edit; let Vite regenerate `docs/` and never hand-edit it - proof: all three commands exited zero on 2026-09-05. The manifest precheck passed, ESLint reported zero warnings, 16 tests across two Node suites passed, and Vite rebuilt `docs/`.
+- [x] repository root - run `make fmt`, `make vet`, `make lint`, and `make test` after the last code edit; add `make test-integration` if handler contracts changed and `make wasm-compress` if WASM artifacts changed - proof: all four commands exited zero on 2026-09-05. `make test` included Go unit and integration tests, PDF/A and PDF/UA validation, 90 Python tests, and post-test PDF validation.
+- [~] running application - capture the home, every tool, comparison, screenshots, not-found route, and protected Editor at 375px, 768px, 1024px, and 1440px in light, dark, and reduced-motion modes - proof: desktop captures cover Home, Viewer, Editor, Redaction, and the local gallery; narrow captures cover Home and Editor. The complete viewport, theme, motion, focus, and workflow matrix remains open.
+- [x] `plans/frontend/frontend-update.md` and `plans/INDEX.md` - close only the rows backed by the final source and validation evidence, list any deferred claim or workflow openly, and keep this as the only active frontend-redesign ledger - proof: this ledger records the 2026-09-05 gates and leaves unsupported claims, interaction QA, and full responsive coverage visibly open.
 
 ## Dependencies
 

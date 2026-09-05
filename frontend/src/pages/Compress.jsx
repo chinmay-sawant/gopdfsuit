@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Minimize2, Upload, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
+import { Minimize2, Upload, RefreshCw, FileText, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import OperationShell from '../components/OperationShell'
@@ -101,7 +101,6 @@ const CompressPage = () => {
 
   return (
     <OpPageShell
-      badge={<><Sparkles size={16} />{serverTransport ? 'Server compression (uploads file)' : 'Runs in your browser'}</>}
       title="PDF Compress Tool"
       icon={<div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Minimize2 size={28} /></div>}
       description={serverTransport ? `Server transport active (VITE_COMPRESS_TRANSPORT=${COMPRESS_TRANSPORT}): the file is uploaded to /api/v1/compress.` : 'Shrink PDFs locally with WASM - the file never leaves this device. No upload.'}

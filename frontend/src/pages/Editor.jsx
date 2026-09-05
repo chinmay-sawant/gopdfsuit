@@ -639,7 +639,7 @@ export default function Editor() {
   })
 
   return (
-    <div style={{
+    <div className="editor-page" style={{
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',

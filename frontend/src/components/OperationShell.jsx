@@ -20,19 +20,19 @@ const OperationShell = ({
   isLoading = false,
   loadingLabel = '',
 }) => (
-  <div className="glass-card" style={{ padding: '2rem' }}>
-    <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
-      <div className="feature-icon-box purple" style={{ width: '40px', height: '40px', marginBottom: 0 }}>{icon}</div>{title}
+  <div className="glass-card operation-shell">
+    <h3 className="operation-shell-title">
+      <span className="operation-shell-icon" aria-hidden="true">{icon}</span>{title}
     </h3>
     {resultUrl ? (
-      <div>
+      <div className="operation-shell-result">
         {stats}
         {kind === 'image' ? (
-          <div style={{ border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '1rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', marginBottom: '1rem' }}>
-            <img src={resultUrl} alt={imageAlt} style={{ maxWidth: '100%', maxHeight: `${height}px`, borderRadius: '6px', boxShadow: '0 4px 8px rgba(0,0,0,0.3)' }} />
+          <div className="operation-shell-image">
+            <img src={resultUrl} alt={imageAlt} style={{ maxHeight: `${height}px` }} />
           </div>
         ) : (
-          <iframe src={resultUrl} style={{ width: '100%', height: `${height}px`, border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', overflow: 'hidden' }} title={title} />
+          <iframe className="operation-shell-frame" src={resultUrl} style={{ height: `${height}px` }} title={title} />
         )}
         <button
           onClick={() => { if (onDownload) onDownload() }}
@@ -44,11 +44,11 @@ const OperationShell = ({
         </button>
       </div>
     ) : (
-      <div style={{ height: `${height}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
+      <div className="operation-shell-empty" style={{ minHeight: `${height}px` }}>
         <div>
-          <div className="feature-icon-box purple" style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }}>{icon}</div>
-          <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>{emptyTitle}</p>
-          <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>{emptySubtitle}</p>
+          <div className="operation-shell-empty-icon" aria-hidden="true">{icon}</div>
+          <p>{emptyTitle}</p>
+          <span>{emptySubtitle}</span>
         </div>
       </div>
     )}

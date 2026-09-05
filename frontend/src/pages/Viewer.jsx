@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { FileText, Download, Upload, Play, RefreshCw, Sparkles } from 'lucide-react'
+import { FileText, Download, Upload, Play, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import { useBundledTemplate } from '../hooks/useBundledTemplate'
@@ -136,7 +136,6 @@ const Viewer = () => {
 
   return (
     <OpPageShell
-      badge={<><Sparkles size={16} />Template-based PDF Generation</>}
       title="PDF Viewer"
       icon={<div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}><FileText size={28} /></div>}
       description="Load JSON templates and generate PDFs with live preview"

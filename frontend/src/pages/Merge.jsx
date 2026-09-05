@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Merge, Upload, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
+import { Merge, Upload, RefreshCw, FileText, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import OperationShell from '../components/OperationShell'
@@ -75,7 +75,6 @@ const MergePage = () => {
 
   return (
     <OpPageShell
-      badge={<><Sparkles size={16} />Combine Multiple PDFs</>}
       badgeTone="rgba(240,147,251,0.1)"
       badgeBorder="rgba(240,147,251,0.3)"
       badgeColor="#f093fb"

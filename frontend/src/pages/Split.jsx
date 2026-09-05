@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Scissors, Upload, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
+import { Download, Scissors, Upload, RefreshCw, FileText, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import OperationShell from '../components/OperationShell'
@@ -17,7 +17,7 @@ const SplitPage = () => {
   const [maxPerFile, setMaxPerFile] = useState('')
   const { getAuthHeaders, triggerLogin } = useAuth()
   const [fallbackOffer, setFallbackOffer] = useState(null)
-  const { isLoading, resultUrl: splitPdfUrl, run, runLocal, download, reset } = usePdfOperation({
+  const { isLoading, resultUrl: splitPdfUrl, resultFiles, run, runLocal, download, downloadResultFile, reset } = usePdfOperation({
     onAuthRequired: triggerLogin,
     onError: (message) => alert(`Error splitting PDF: ${message}`),
   })
@@ -75,7 +75,6 @@ const SplitPage = () => {
 
   return (
     <OpPageShell
-      badge={<><Sparkles size={16} />Extract & Split Pages</>}
       badgeTone="rgba(255,193,7,0.1)"
       badgeBorder="rgba(255,193,7,0.3)"
       badgeColor="#ffc107"
@@ -138,6 +137,20 @@ const SplitPage = () => {
               height={550}
             />
           </div>
+          {resultFiles.length > 1 && (
+            <section className="split-results" aria-labelledby="split-results-title">
+              <h3 id="split-results-title">Split files</h3>
+              <p>Each part is ready to download.</p>
+              <div>
+                {resultFiles.map((resultFile) => (
+                  <button key={resultFile.filename} onClick={() => downloadResultFile(resultFile)} type="button">
+                    <Download aria-hidden="true" size={16} />
+                    {resultFile.filename}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
       <style jsx>{`.spin{animation:spin 1s linear infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </OpPageShell>
   )

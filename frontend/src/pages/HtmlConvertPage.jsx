@@ -70,7 +70,6 @@ const HtmlConvertPage = ({ mode = 'pdf' }) => {
 
   return (
     <OpPageShell
-      badge={isPdf ? 'Pure-Go conversion' : 'PNG, JPG Support'}
       badgeTone={isPdf ? 'rgba(0,122,204,0.1)' : 'rgba(240,147,251,0.1)'}
       badgeBorder={isPdf ? 'rgba(0,122,204,0.3)' : 'rgba(240,147,251,0.3)'}
       badgeColor={isPdf ? '#007acc' : '#f093fb'}
