@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -239,21 +241,70 @@ func TestValidateFetchURL(t *testing.T) {
 		"http://example.localhost/",
 	}
 	for _, raw := range blocked {
-		if err := validateFetchURL(raw); !errors.Is(err, errFetchURLBlocked) {
+		if err := validateFetchURL(context.Background(), raw); !errors.Is(err, errFetchURLBlocked) {
 			t.Fatalf("url %q should be blocked, got %v", raw, err)
 		}
 	}
 	invalid := []string{"ftp://example.com/x", "notaurl", "http://"}
 	for _, raw := range invalid {
-		if err := validateFetchURL(raw); err == nil || errors.Is(err, errFetchURLBlocked) {
+		if err := validateFetchURL(context.Background(), raw); err == nil || errors.Is(err, errFetchURLBlocked) {
 			t.Fatalf("url %q should be invalid, got %v", raw, err)
 		}
 	}
-	if err := validateFetchURL(""); err != nil {
+	if err := validateFetchURL(context.Background(), ""); err != nil {
 		t.Fatalf("empty url (html path) should pass, got %v", err)
 	}
-	if err := validateFetchURL("http://93.184.216.1/"); err != nil {
+	if err := validateFetchURL(context.Background(), "http://93.184.216.1/"); err != nil {
 		t.Fatalf("public IP literal should pass, got %v", err)
+	}
+}
+
+type recordingFetchURLResolver struct {
+	ctx context.Context
+}
+
+func (r *recordingFetchURLResolver) LookupIP(ctx context.Context, _, _ string) ([]net.IP, error) {
+	r.ctx = ctx
+	return []net.IP{net.ParseIP("93.184.216.1")}, nil
+}
+
+func TestValidateFetchURLUsesRequestContext(t *testing.T) {
+	resolver := &recordingFetchURLResolver{}
+	previous := defaultFetchURLResolver
+	defaultFetchURLResolver = resolver
+	t.Cleanup(func() { defaultFetchURLResolver = previous })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := validateFetchURL(ctx, "http://example.test/"); err != nil {
+		t.Fatalf("validateFetchURL: %v", err)
+	}
+	if resolver.ctx != ctx {
+		t.Fatal("DNS lookup did not receive the request context")
+	}
+}
+
+func TestHandleHTMLToImageCanonicalizesFormatForMIME(t *testing.T) {
+	r, mockSvc := setupSecurityRouter(t)
+	mockSvc.EXPECT().HTMLToImage(gomock.Any()).DoAndReturn(func(req models.HTMLToImageRequest) ([]byte, error) {
+		if req.Format != "jpg" {
+			t.Fatalf("format passed to service = %q, want jpg", req.Format)
+		}
+		return []byte("jpeg bytes"), nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/htmltoimage", bytes.NewBufferString(`{"html":"<h1>ok</h1>","format":" JPEG "}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Content-Type"); got != "image/jpeg" {
+		t.Fatalf("content type = %q, want image/jpeg", got)
+	}
+	if got := w.Header().Get("Content-Disposition"); got != "attachment; filename=converted.jpg" {
+		t.Fatalf("content disposition = %q, want canonical jpg filename", got)
 	}
 }
 

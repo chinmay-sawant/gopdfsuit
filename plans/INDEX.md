@@ -32,6 +32,7 @@ decisions, `documentation/` holds truth, `guides/` is a frozen archive,
 | `plans/wasm/04-frontend-wasm-split-fonts-compliance.md` | Active unless its parent track closed it |
 | `plans/ADR-compress-fallback-default.md` | Active unless superseded |
 | `plans/pdf-compress-nogs.md` | Active unless superseded |
+| `plans/frontend/frontend-update.md` | Planned, owns the minimal product site, React documentation removal, proof pages, and tool-workspace presentation |
 
 ## Gate
 

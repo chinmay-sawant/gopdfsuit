@@ -719,21 +719,32 @@ func runBenchmark() error {
 	activeTemplate := buildActiveTraderTemplate()
 	hftTemplate := buildHFTTemplate()
 	fmt.Println("Templates built.")
+	retailPrepared, err := gopdflib.PrepareTemplate(retailTemplate)
+	if err != nil {
+		return fmt.Errorf("error preparing retail template: %w", err)
+	}
+	activePrepared, err := gopdflib.PrepareTemplate(activeTemplate)
+	if err != nil {
+		return fmt.Errorf("error preparing active template: %w", err)
+	}
+	hftPrepared, err := gopdflib.PrepareTemplate(hftTemplate)
+	if err != nil {
+		return fmt.Errorf("error preparing HFT template: %w", err)
+	}
 
 	var retailPDF, activePDF, hftPDF []byte
 	if os.Getenv("BENCH_WARMUP") != "0" {
 		// Warm-up runs
-		fmt.Println("Warm-up runs...")
-		var err error
-		retailPDF, err = gopdflib.GeneratePDF(retailTemplate)
+		fmt.Println("Warm-up runs (prepared templates)...")
+		retailPDF, err = retailPrepared.GeneratePDF()
 		if err != nil {
 			return fmt.Errorf("error generating retail PDF: %w", err)
 		}
-		activePDF, err = gopdflib.GeneratePDF(activeTemplate)
+		activePDF, err = activePrepared.GeneratePDF()
 		if err != nil {
 			return fmt.Errorf("error generating active PDF: %w", err)
 		}
-		hftPDF, err = gopdflib.GeneratePDF(hftTemplate)
+		hftPDF, err = hftPrepared.GeneratePDF()
 		if err != nil {
 			return fmt.Errorf("error generating HFT PDF: %w", err)
 		}
@@ -810,21 +821,21 @@ func runBenchmark() error {
 			defer wg.Done()
 			stats := &workerStats[workerID]
 			for jobIdx := range jobs {
-				var tmpl gopdflib.PDFTemplate
+				var tmpl *gopdflib.PreparedTemplate
 				switch schedule[jobIdx] {
 				case workloadRetail:
-					tmpl = retailTemplate
+					tmpl = retailPrepared
 					atomic.AddInt64(&retailCount, 1)
 				case workloadActive:
-					tmpl = activeTemplate
+					tmpl = activePrepared
 					atomic.AddInt64(&activeCount, 1)
 				default:
-					tmpl = hftTemplate
+					tmpl = hftPrepared
 					atomic.AddInt64(&hftCount, 1)
 				}
 
 				start := time.Now()
-				doc, err := gopdflib.GeneratePDFBorrowed(tmpl)
+				doc, err := tmpl.GeneratePDFBorrowed()
 				elapsed := time.Since(start)
 				if doc != nil {
 					doc.Release()

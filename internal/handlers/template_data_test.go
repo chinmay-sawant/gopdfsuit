@@ -107,3 +107,21 @@ func TestTemplateDataConcurrentReadStore(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestTemplateDataStoreSkipsOversizedEntry(t *testing.T) {
+	clearTemplateDataCache()
+	path := filepath.Join(t.TempDir(), "large.json")
+	if err := os.WriteFile(path, []byte(`{"pages":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	templateDataStore(path, make([]byte, maxTemplateDataBytes+1), fi)
+	templateDataMu.Lock()
+	defer templateDataMu.Unlock()
+	if len(templateDataEntries) != 0 || templateDataBytes != 0 {
+		t.Fatalf("oversized entry changed cache: entries=%d bytes=%d", len(templateDataEntries), templateDataBytes)
+	}
+}

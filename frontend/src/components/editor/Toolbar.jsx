@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
-import { Upload, Moon, Sun, Eye, Download, Copy, Check, Edit, Github, HardDrive, FolderOpen } from 'lucide-react'
+import { Upload, Moon, Sun, Eye, Download, Edit, Github, HardDrive, FolderOpen } from 'lucide-react'
 
-export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onCopyJSON, onCopyGo, onCopyPython, onDownloadPDF, templateInput, setTemplateInput, copiedId, elementCount = 0, pageSize = 'A4', onUploadFont }) {
+export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF, onDownloadPDF, templateInput, setTemplateInput, elementCount = 0, pageSize = 'A4', onUploadFont }) {
     const fileInputRef = useRef(null)
     const [githubFiles, setGithubFiles] = useState([])
     const [loadMethod, setLoadMethod] = useState('github')
@@ -102,7 +102,7 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                         </button>
                     </div>
 
-                    {/* File Picker */}
+                    {/* File Picker - fixed width so GitHub/Local toggle does not shift layout */}
                     {loadMethod === 'local' ? (
                         <input
                             type="text"
@@ -112,7 +112,9 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                             style={{
                                 padding: '0.35rem 0.6rem',
                                 fontSize: '0.8rem',
-                                minWidth: '200px',
+                                width: '220px',
+                                flex: '0 0 220px',
+                                boxSizing: 'border-box',
                                 borderRadius: '5px',
                                 border: '1px solid hsl(var(--border))',
                                 background: 'hsl(var(--background))',
@@ -130,7 +132,9 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                             style={{
                                 padding: '0.35rem 0.6rem',
                                 fontSize: '0.8rem',
-                                minWidth: '220px',
+                                width: '220px',
+                                flex: '0 0 220px',
+                                boxSizing: 'border-box',
                                 borderRadius: '5px',
                                 border: '1px solid hsl(var(--border))',
                                 background: 'hsl(var(--background))',
@@ -187,15 +191,6 @@ export default function Toolbar({ theme, setTheme, onLoadTemplate, onPreviewPDF,
                     style={{ display: 'none' }}
                     onChange={handleFontUpload}
                 />
-                <button onClick={onCopyJSON} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '6px' }}>
-                    {copiedId === 'json' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-                </button>
-                <button onClick={onCopyGo} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '6px' }} title="Copy Go builder snippet for the current template">
-                    {copiedId === 'go' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Go</>}
-                </button>
-                <button onClick={onCopyPython} className="btn" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem', borderRadius: '6px' }} title="Copy Python builder snippet for the current template">
-                    {copiedId === 'python' ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Py</>}
-                </button>
 
                 <div style={{ width: '1px', height: '24px', background: 'hsl(var(--border))' }}></div>
 

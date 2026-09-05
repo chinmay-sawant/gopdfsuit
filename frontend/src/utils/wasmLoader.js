@@ -28,7 +28,7 @@ export {
   splitPDFSmart,
   fillPDFSmart,
 } from './wasm/document.js'
-export { redactSearchViaWasm, redactApplyViaWasm } from './wasm/redact.js'
+export { redactSearchViaWasm, redactApplyViaWasm, redactAdvancedViaWasm } from './wasm/redact.js'
 export { generatePDFViaWasm } from './wasm/generate.js'
 export { generateViaServer, generatePDFSmart } from './wasm/generate.js'
 export { BUNDLED_TEMPLATES, loadBundledTemplate } from './wasm/templates.js'

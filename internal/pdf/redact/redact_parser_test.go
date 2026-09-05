@@ -2,7 +2,13 @@ package redact
 
 import (
 	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
 	"testing"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
 func TestBuildObjectMapUsesMergeScanner(t *testing.T) {
@@ -48,5 +54,63 @@ func TestFindPageObjectByIntKey(t *testing.T) {
 	}
 	if page1 == page2 {
 		t.Fatalf("expected distinct page objects, both were %d", page1)
+	}
+}
+
+func TestFindTextOccurrencesMultiCachesPageExtraction(t *testing.T) {
+	r, err := NewRedactor(minimalMultiPagePDF)
+	if err != nil {
+		t.Fatalf("NewRedactor failed: %v", err)
+	}
+
+	if _, err := r.FindTextOccurrencesMulti([]string{"Alpha", "Beta"}); err != nil {
+		t.Fatalf("FindTextOccurrencesMulti failed: %v", err)
+	}
+	if got, want := len(r.pageTextPositions), 2; got != want {
+		t.Fatalf("cached page extractions = %d, want %d", got, want)
+	}
+}
+
+func TestPageWalkRejectsCyclesInSubprocess(t *testing.T) {
+	if os.Getenv("GOPDFSUIT_PAGE_CYCLE_HELPER") == "1" {
+		objMap := map[int][]byte{
+			2: []byte("<< /Type /Pages /Kids [2 0 R] /Count 1 >>"),
+		}
+		var dims []models.PageDetail
+		if err := traversePages(2, objMap, &dims); err == nil || !strings.Contains(err.Error(), "cycle") {
+			os.Exit(2)
+		}
+		if _, err := findPageObject(
+			map[int][]byte{
+				1: []byte("<< /Type /Catalog /Pages 2 0 R >>"),
+				2: []byte("<< /Type /Pages /Kids [2 0 R] /Count 1 >>"),
+			},
+			[]byte("/Root 1 0 R"),
+			1,
+		); err == nil || !strings.Contains(err.Error(), "cycle") {
+			os.Exit(3)
+		}
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run", "^TestPageWalkRejectsCyclesInSubprocess$")
+	cmd.Env = append(os.Environ(), "GOPDFSUIT_PAGE_CYCLE_HELPER=1")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("page cycle helper failed: %v\n%s", err, output)
+	}
+}
+
+func TestPageWalkRejectsExcessiveDepth(t *testing.T) {
+	const depth = 1100
+	objMap := make(map[int][]byte, depth+1)
+	for num := 1; num <= depth; num++ {
+		objMap[num] = []byte(fmt.Sprintf("<< /Type /Pages /Kids [%d 0 R] /Count 1 >>", num+1))
+	}
+	objMap[depth+1] = []byte("<< /Type /Page /MediaBox [0 0 10 10] >>")
+
+	var dims []models.PageDetail
+	err := traversePages(1, objMap, &dims)
+	if err == nil || !strings.Contains(err.Error(), "depth") {
+		t.Fatalf("traversePages error = %v, want depth error", err)
 	}
 }

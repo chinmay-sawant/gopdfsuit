@@ -1,7 +1,14 @@
 package pdf
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/binary"
+	"hash/crc32"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -121,5 +128,38 @@ func TestImageCacheReturnsCopy(t *testing.T) {
 	}
 	if img2.ColorSpace == "/Mutated" {
 		t.Fatal("cache entry was corrupted by mutating a returned object")
+	}
+}
+
+func TestDecodeImageDataRejectsExcessiveDecodedPixels(t *testing.T) {
+	raw, err := base64.StdEncoding.DecodeString(tinyPNG1x1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const width, height = 4097, 4097
+	binary.BigEndian.PutUint32(raw[16:20], width)
+	binary.BigEndian.PutUint32(raw[20:24], height)
+	binary.BigEndian.PutUint32(raw[29:33], crc32.ChecksumIEEE(raw[12:29]))
+
+	_, err = DecodeImageData(base64.StdEncoding.EncodeToString(raw))
+	if err == nil || !strings.Contains(err.Error(), "pixels") {
+		t.Fatalf("DecodeImageData error = %v, want pixel-budget error", err)
+	}
+}
+
+func TestDecodeImageDataPreservesJPEG(t *testing.T) {
+	var encoded bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, 2, 3))
+	img.Set(0, 0, color.RGBA{R: 255, A: 255})
+	if err := jpeg.Encode(&encoded, img, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	decoded, err := DecodeImageData(base64.StdEncoding.EncodeToString(encoded.Bytes()))
+	if err != nil {
+		t.Fatalf("DecodeImageData JPEG failed: %v", err)
+	}
+	if decoded.Filter != "/DCTDecode" || decoded.Width != 2 || decoded.Height != 3 {
+		t.Fatalf("JPEG image = filter %q, dimensions %dx%d", decoded.Filter, decoded.Width, decoded.Height)
 	}
 }

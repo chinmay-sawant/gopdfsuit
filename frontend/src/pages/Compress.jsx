@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Minimize2, Upload, RefreshCw, FileText, X, Sparkles } from 'lucide-react'
+import { Minimize2, Upload, RefreshCw, FileText, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePdfOperation } from '../hooks/usePdfOperation'
 import OperationShell from '../components/OperationShell'
@@ -98,11 +98,14 @@ const CompressPage = () => {
   const percentSmaller = file && compressedSize > 0 && file.size > 0
     ? Math.max(0, ((file.size - compressedSize) / file.size) * 100)
     : 0
+  // Keep the layout single-column on file select alone. The preview
+  // column appears only while generating or after a result exists.
+  const hasPreview = Boolean(isLoading || compressedPdfUrl)
 
   return (
     <OpPageShell
-      badge={<><Sparkles size={16} />{serverTransport ? 'Server compression (uploads file)' : 'Runs in your browser'}</>}
       title="PDF Compress Tool"
+      className={`compress-page tool-wide${hasPreview ? '' : ' tool-single-page'}`}
       icon={<div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}><Minimize2 size={28} /></div>}
       description={serverTransport ? `Server transport active (VITE_COMPRESS_TRANSPORT=${COMPRESS_TRANSPORT}): the file is uploaded to /api/v1/compress.` : 'Shrink PDFs locally with WASM - the file never leaves this device. No upload.'}
       steps={[
@@ -117,7 +120,7 @@ const CompressPage = () => {
         </div>
       )}
       <ConsentBanner offer={consentOffer} onConsent={confirmConsentUpload} onDismiss={dismissConsent} isLoading={isLoading} actionLabel="Upload to server and compress" />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '2rem' }}>
+      <div className={`tool-layout${hasPreview ? '' : ' tool-single'}`}>
         <div className="glass-card" style={{ padding: '2rem' }}>
           <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
             <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}><Upload size={18} /></div>Upload PDF File
@@ -129,7 +132,7 @@ const CompressPage = () => {
           />
 
               {file && (
-                <div>
+                <div style={{ marginTop: '1.5rem' }}>
                   <h4 style={{ color: 'hsl(var(--foreground))', marginBottom: '1rem', fontSize: '0.95rem', fontWeight: '600' }}>Selected File</h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', background: 'rgba(78,205,196,0.08)', border: '1px solid rgba(78,205,196,0.2)', borderRadius: '8px', marginBottom: '1.5rem' }}>
                     <FileText size={18} style={{ color: '#4ecdc4' }} />
@@ -165,44 +168,45 @@ const CompressPage = () => {
                     </div>
                   </div>
                   <button onClick={compressFile} disabled={isLoading} className="btn-glow" style={{ width: '100%', marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '1rem 2rem', opacity: isLoading ? 0.7 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}>
-                    {isLoading ? <RefreshCw size={18} className="spin" /> : <Minimize2 size={18} />}{isLoading ? 'Compressing…' : 'Compress PDF'}
+                    {isLoading ? <RefreshCw size={18} className="animate-spin" /> : <Minimize2 size={18} />}{isLoading ? 'Compressing…' : 'Compress PDF'}
                   </button>
                 </div>
               )}
             </div>
 
-            <OperationShell
-              resultUrl={compressedPdfUrl}
-              title="Compressed PDF Preview"
-              icon={<FileText size={18} />}
-              emptyTitle="Compressed PDF preview will appear here"
-              emptySubtitle="Pick a local PDF and compress in the browser"
-              onDownload={downloadCompressed}
-              downloadLabel="Download Compressed PDF"
-              height={550}
-              isLoading={isLoading}
-              stats={file && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                  <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Original</div>
-                    <div style={{ fontWeight: '700', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }}>{formatFileSize(file.size)}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{file.size.toLocaleString()} bytes</div>
+            {hasPreview && (
+              <OperationShell
+                resultUrl={compressedPdfUrl}
+                title="Compressed PDF Preview"
+                icon={<FileText size={18} />}
+                emptyTitle="Compressed PDF preview will appear here"
+                emptySubtitle="Pick a local PDF and compress in the browser"
+                onDownload={downloadCompressed}
+                downloadLabel="Download Compressed PDF"
+                isLoading={isLoading}
+                loadingLabel="Compressing…"
+                stats={compressedPdfUrl && file && (
+                  <div className="stat-grid">
+                    <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Original</div>
+                      <div style={{ fontWeight: '700', color: 'hsl(var(--foreground))', fontSize: '0.95rem' }}>{formatFileSize(file.size)}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{file.size.toLocaleString()} bytes</div>
+                    </div>
+                    <div style={{ padding: '0.75rem', background: 'rgba(78,205,196,0.08)', border: '1px solid rgba(78,205,196,0.2)', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Compressed</div>
+                      <div style={{ fontWeight: '700', color: '#4ecdc4', fontSize: '0.95rem' }}>{formatFileSize(compressedSize)}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{compressedSize.toLocaleString()} bytes</div>
+                    </div>
+                    <div style={{ padding: '0.75rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Smaller by</div>
+                      <div style={{ fontWeight: '700', color: '#10b981', fontSize: '0.95rem' }}>{percentSmaller.toFixed(1)}%</div>
+                      <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{Math.max(0, file.size - compressedSize).toLocaleString()} bytes</div>
+                    </div>
                   </div>
-                  <div style={{ padding: '0.75rem', background: 'rgba(78,205,196,0.08)', border: '1px solid rgba(78,205,196,0.2)', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Compressed</div>
-                    <div style={{ fontWeight: '700', color: '#4ecdc4', fontSize: '0.95rem' }}>{formatFileSize(compressedSize)}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{compressedSize.toLocaleString()} bytes</div>
-                  </div>
-                  <div style={{ padding: '0.75rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'hsl(var(--muted-foreground))', marginBottom: '0.25rem' }}>Smaller by</div>
-                    <div style={{ fontWeight: '700', color: '#10b981', fontSize: '0.95rem' }}>{percentSmaller.toFixed(1)}%</div>
-                    <div style={{ fontSize: '0.7rem', color: 'hsl(var(--muted-foreground))' }}>{Math.max(0, file.size - compressedSize).toLocaleString()} bytes</div>
-                  </div>
-                </div>
               )}
-            />
+              />
+            )}
           </div>
-      <style jsx>{`.spin{animation:spin 1s linear infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </OpPageShell>
   )
 }

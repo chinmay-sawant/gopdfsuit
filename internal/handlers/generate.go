@@ -8,6 +8,9 @@ import (
 )
 
 func handleGenerateTemplatePDF(c *gin.Context) {
+	if !applyBodyLimit(c, requestBodyLimit(c, maxTemplateJSONBody)) {
+		return
+	}
 	template := acquireTemplate()
 	defer releaseTemplate(template)
 
@@ -16,8 +19,6 @@ func handleGenerateTemplatePDF(c *gin.Context) {
 		template.PreallocForDecode(int(cl), tier)
 	}
 
-	// Bound the JSON body before streaming decode.
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxTemplateJSONBody)
 	if err := decodeTemplate(c.Request.Body, int(c.Request.ContentLength), tier, template); err != nil {
 		if isBodyTooLargeErr(err) {
 			abortError(c, http.StatusRequestEntityTooLarge, "template too large")

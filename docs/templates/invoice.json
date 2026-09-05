@@ -1,0 +1,445 @@
+{
+  "config": {
+    "pageBorder": "0:0:0:0",
+    "pageMargin": "72:72:72:72",
+    "page": "A4",
+    "pageAlignment": 1,
+    "watermark": "",
+    "pdfTitle": "Services Invoice INV-2026-041",
+    "pdfaCompliant": false,
+    "arlingtonCompatible": true,
+    "embedFonts": true
+  },
+  "title": {
+    "props": "Helvetica:12:000:left:0:0:0:0",
+    "text": "SERVICES INVOICE",
+    "textprops": "Helvetica:24:100:center:0:0:0:0",
+    "table": {
+      "maxcolumns": 1,
+      "columnwidths": [
+        1
+      ],
+      "rows": [
+        {
+          "row": [
+            {
+              "props": "Helvetica:24:100:center:0:0:0:0",
+              "text": "SERVICES INVOICE",
+              "bgcolor": "#1F4E79",
+              "textcolor": "#FFFFFF"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "props": "Helvetica:10:000:center:0:0:0:0",
+              "text": "Invoice INV-2026-041 | Issued March 1, 2026 | Due March 31, 2026"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "elements": [
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [
+          1,
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:0:0:1",
+                "text": "From:",
+                "bgcolor": "#D6EAF8"
+              },
+              {
+                "props": "Helvetica:11:100:left:0:1:0:1",
+                "text": "Invoice Details:",
+                "bgcolor": "#D6EAF8"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:1:1",
+                "text": "Northwind DevOps Studio"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:1:1",
+                "text": "Invoice No: INV-2026-041"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:1:1",
+                "text": "14 Harbor Lane, Springfield"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:1:1",
+                "text": "Issued March 1, 2026"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:1:1",
+                "text": "billing@northwind-studio.example.com"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:1:1",
+                "text": "Due March 31, 2026"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:1:1",
+                "text": "(555) 302-1177"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:1:1",
+                "text": ""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 2,
+        "columnwidths": [
+          1,
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:left:1:0:0:1",
+                "text": "Bill To:",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:11:100:left:0:1:0:1",
+                "text": "Payment:",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:1:1",
+                "text": "Acme Widgets LLC"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:1:1",
+                "text": "Net 30, bank transfer"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:1:1",
+                "text": "9 Factory Road, Springfield"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:1:1",
+                "text": "Reference INV-2026-041"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:1:1",
+                "text": "accounts@acmewidgets.example.com"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:1:1:1",
+                "text": ""
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 4,
+        "columnwidths": [
+          3,
+          1,
+          1.5,
+          1.5
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:100:left:1:1:1:1",
+                "text": "Description",
+                "bgcolor": "#1F4E79",
+                "textcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:100:center:1:1:1:1",
+                "text": "Qty",
+                "bgcolor": "#1F4E79",
+                "textcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:100:right:1:1:1:1",
+                "text": "Unit Price",
+                "bgcolor": "#1F4E79",
+                "textcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:100:right:1:1:1:1",
+                "text": "Amount",
+                "bgcolor": "#1F4E79",
+                "textcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "CI/CD pipeline setup and automation",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:center:0:0:0:1",
+                "text": "12",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Courier:10:000:right:0:0:0:1",
+                "text": "$150.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Courier:10:000:right:0:1:0:1",
+                "text": "$1,800.00",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Kubernetes cluster deployment",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:000:center:0:0:0:1",
+                "text": "8",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Courier:10:000:right:0:0:0:1",
+                "text": "$175.00",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Courier:10:000:right:0:1:0:1",
+                "text": "$1,400.00",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Infrastructure monitoring configuration",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:center:0:0:0:1",
+                "text": "6",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Courier:10:000:right:0:0:0:1",
+                "text": "$125.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Courier:10:000:right:0:1:0:1",
+                "text": "$750.00",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "Technical documentation",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Helvetica:10:000:center:0:0:0:1",
+                "text": "4",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Courier:10:000:right:0:0:0:1",
+                "text": "$100.00",
+                "bgcolor": "#F4F6F7"
+              },
+              {
+                "props": "Courier:10:000:right:0:1:0:1",
+                "text": "$400.00",
+                "bgcolor": "#F4F6F7"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:1:0:0:1",
+                "text": "On-call support retainer",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:center:0:0:0:1",
+                "text": "1",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Courier:10:000:right:0:0:0:1",
+                "text": "$500.00",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Courier:10:000:right:0:1:0:1",
+                "text": "$500.00",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:100:right:1:0:1:0",
+                "text": "Subtotal",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:0:1:0",
+                "text": "",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:0:1:0",
+                "text": "",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Courier:10:000:right:0:1:1:0",
+                "text": "$4,850.00",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:right:1:0:0:0",
+                "text": "Tax (8%)",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "",
+                "bgcolor": "#FFFFFF"
+              },
+              {
+                "props": "Courier:10:000:right:0:1:0:0",
+                "text": "$388.00",
+                "bgcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:11:100:right:1:0:1:1",
+                "text": "Total Due",
+                "bgcolor": "#D6EAF8"
+              },
+              {
+                "props": "Helvetica:11:000:left:0:0:1:1",
+                "text": "",
+                "bgcolor": "#D6EAF8"
+              },
+              {
+                "props": "Helvetica:11:000:left:0:0:1:1",
+                "text": "",
+                "bgcolor": "#D6EAF8"
+              },
+              {
+                "props": "Courier:11:100:right:0:1:1:1",
+                "text": "$5,238.00",
+                "bgcolor": "#D6EAF8"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [
+          1
+        ],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:010:left:1:1:1:1",
+                "text": "Payment Terms: Net 30. Please pay by March 31, 2026. A 1.5% monthly late fee applies to overdue balances."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 20
+      }
+    }
+  ],
+  "footer": {
+    "props": "Helvetica:9:000:center:0:0:0:0",
+    "text": "Thank you for your business! | billing@northwind-studio.example.com | (555) 302-1177"
+  }
+}

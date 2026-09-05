@@ -1,9 +1,12 @@
-import { Download } from 'lucide-react'
+import { Download, RefreshCw } from 'lucide-react'
+import PdfPreview from './PdfPreview'
 
 /**
  * OperationShell owns the shared result panel for PDF operations:
- * preview (PDF iframe or image), optional stats row, download action,
- * and the empty placeholder shown before the first run.
+ * preview (shared PdfPreview iframe or image), optional stats row,
+ * download action, plus loading and empty placeholders.
+ * Sizing lives in one place (.pdf-preview in index.css): the preview
+ * fills the available width and viewport height on every tool.
  */
 const OperationShell = ({
   resultUrl,
@@ -13,42 +16,40 @@ const OperationShell = ({
   emptySubtitle,
   onDownload,
   downloadLabel = 'Download',
-  height = 550,
   kind = 'pdf',
   imageAlt = 'Generated output',
   stats = null,
   isLoading = false,
   loadingLabel = '',
 }) => (
-  <div className="glass-card" style={{ padding: '2rem' }}>
-    <h3 style={{ color: 'hsl(var(--foreground))', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1.2rem', fontWeight: '700' }}>
-      <div className="feature-icon-box purple" style={{ width: '40px', height: '40px', marginBottom: 0 }}>{icon}</div>{title}
+  <div className="glass-card operation-shell">
+    <h3 className="operation-shell-title">
+      <span className="operation-shell-icon" aria-hidden="true">{icon}</span>{title}
     </h3>
     {resultUrl ? (
-      <div>
+      <div className="operation-shell-result">
         {stats}
-        {kind === 'image' ? (
-          <div style={{ border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '1rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', marginBottom: '1rem' }}>
-            <img src={resultUrl} alt={imageAlt} style={{ maxWidth: '100%', maxHeight: `${height}px`, borderRadius: '6px', boxShadow: '0 4px 8px rgba(0,0,0,0.3)' }} />
-          </div>
-        ) : (
-          <iframe src={resultUrl} style={{ width: '100%', height: `${height}px`, border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', overflow: 'hidden' }} title={title} />
-        )}
+        <PdfPreview url={resultUrl} title={title} kind={kind} imageAlt={imageAlt} />
         <button
           onClick={() => { if (onDownload) onDownload() }}
           disabled={isLoading}
-          className="btn-glow"
-          style={{ width: '100%', marginTop: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}
+          className="btn-glow operation-shell-download"
+          style={{ width: 'auto', alignSelf: 'flex-start', marginTop: '1rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', padding: '0.6rem 1.1rem' }}
         >
           <Download size={16} />{isLoading && loadingLabel ? loadingLabel : downloadLabel}
         </button>
       </div>
+    ) : isLoading ? (
+      <div className="operation-shell-loading" role="status" aria-live="polite">
+        <RefreshCw size={22} className="animate-spin" aria-hidden="true" />
+        <p>{loadingLabel || 'Working…'}</p>
+      </div>
     ) : (
-      <div style={{ height: `${height}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '2px dashed rgba(255,255,255,0.1)', color: 'hsl(var(--muted-foreground))', textAlign: 'center' }}>
+      <div className="operation-shell-empty">
         <div>
-          <div className="feature-icon-box purple" style={{ width: '64px', height: '64px', margin: '0 auto 1rem', opacity: 0.5 }}>{icon}</div>
-          <p style={{ marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>{emptyTitle}</p>
-          <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 0 }}>{emptySubtitle}</p>
+          <div className="operation-shell-empty-icon" aria-hidden="true">{icon}</div>
+          <p>{emptyTitle}</p>
+          <span>{emptySubtitle}</span>
         </div>
       </div>
     )}

@@ -8,9 +8,8 @@
 // Decision (Phase 4.4): the owned-type split is kept, not aliased to
 // internal models. Aliasing (`type PDFTemplate = models.PDFTemplate`) would
 // leak internal field changes into the public API without a compile break.
-// The cost control is translation shape, not type identity: translate whole
-// slices in one JSON round-trip (see redact.go) instead of per-item loops,
-// so per-call overhead stays constant regardless of item count.
+// The cost control is explicit deep conversion at the adapter boundary. It
+// preserves type ownership without serializing the complete template.
 package gopdflib
 
 // PDFTemplate is the main input structure for PDF generation.

@@ -19,6 +19,11 @@ const MaxMergeObjects = 50000
 // MaxMergeInputBytes caps a single input file accepted by MergePDFs.
 const MaxMergeInputBytes = 32 << 20 // 32 MiB
 
+const maxPDFTreeDepth = 1000
+
+// MaxMergeTotalInputBytes caps the combined size of all merge inputs.
+const MaxMergeTotalInputBytes = 128 << 20 // 128 MiB
+
 // encryptRefRe matches a real /Encrypt entry: an indirect reference or an
 // inline encryption dictionary. Bare "/Encrypt" text inside content streams
 // or strings must not count.
@@ -32,6 +37,7 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	if len(files) == 0 {
 		return nil, errors.New("no PDF files provided")
 	}
+	var totalBytes uint64
 
 	ctx := NewMergeContext()
 
@@ -41,11 +47,18 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 		if len(f) > MaxMergeInputBytes {
 			return nil, fmt.Errorf("input PDF exceeds %d bytes", MaxMergeInputBytes)
 		}
+		totalBytes += uint64(len(f))
+		if totalBytes > MaxMergeTotalInputBytes {
+			return nil, fmt.Errorf("combined PDF inputs exceed %d bytes", MaxMergeTotalInputBytes)
+		}
 		if hasEncrypt(f) {
 			return nil, errors.New("cannot merge encrypted PDF")
 		}
 
-		fc := parseFile(f)
+		fc, err := parseFile(f)
+		if err != nil {
+			return nil, fmt.Errorf("parse PDF: %w", err)
+		}
 		if fc == nil {
 			continue
 		}
@@ -84,6 +97,11 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 		// Collect all objects to process (including annotation dependencies)
 		objectsToProcess := collectObjectsWithDependencies(fc)
+		for _, pageNum := range fc.Pages {
+			if _, exists := fc.Objects[pageNum]; exists {
+				ctx.MergedPages = append(ctx.MergedPages, offset+pageNum)
+			}
+		}
 
 		// Process objects maintaining order
 		for _, origNum := range objectsToProcess {
@@ -94,13 +112,13 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 
 			newNum := offset + origNum
 
-			// Remap references in body
-			newBody := ReplaceRefsOutsideStreams(body, offset)
-
-			// Special handling for Page objects - update annotations
-			if IsPageObject(newBody) && !IsPagesTreeObject(newBody) {
-				ctx.MergedPages = append(ctx.MergedPages, newNum)
+			// Materialize inherited page properties before removing the source
+			// page tree, then remap all references in the copied body.
+			newBody, err := materializeInheritedPageProperties(origNum, body, fc.Objects)
+			if err != nil {
+				return nil, err
 			}
+			newBody = ReplaceRefsOutsideStreams(newBody, offset)
 
 			appendedObjects = append(appendedObjects, struct {
 				num  int
@@ -141,13 +159,13 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 }
 
 // parseFile parses a PDF file into a FileContext
-func parseFile(data []byte) *FileContext {
+func parseFile(data []byte) (*FileContext, error) {
 	fc := NewFileContext(data)
 
 	// Find all objects
 	boundaries := FindObjectBoundaries(data)
 	if len(boundaries) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	for _, b := range boundaries {
@@ -183,15 +201,21 @@ func parseFile(data []byte) *FileContext {
 	}
 
 	// Extract pages from Pages tree
-	fc.Pages = extractPagesFromTree(data, fc.Objects)
+	var err error
+	fc.Pages, err = extractPagesFromTree(data, fc.Objects)
+	if err != nil {
+		return nil, err
+	}
 
 	// Find the original catalog and pages tree to exclude them
 	fc.OriginalCatalog, fc.OriginalPagesTree = findCatalogAndPages(data, fc.Objects)
 
 	// Extract form fields and annotation dependencies
-	ExtractFormFields(fc)
+	if err := ExtractFormFields(fc); err != nil {
+		return nil, err
+	}
 
-	return fc
+	return fc, nil
 }
 
 // findCatalogAndPages finds the original Catalog and Pages tree object numbers
@@ -219,71 +243,208 @@ func findCatalogAndPages(data []byte, objMap map[int][]byte) (catalogNum int, pa
 }
 
 // extractPagesFromTree extracts page object numbers from the Pages tree
-func extractPagesFromTree(data []byte, objMap map[int][]byte) []int {
-	var pages []int
+func extractPagesFromTree(data []byte, objMap map[int][]byte) ([]int, error) {
 	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
 
 	rootRef := findRootRef(data)
 	if rootRef == "" {
-		return pages
+		return nil, nil
 	}
 
 	// Parse root object number
 	var rootNum int
 	if _, err := fmt.Sscanf(rootRef, "%d", &rootNum); err != nil {
-		return pages
+		return nil, nil
 	}
 
 	rootBody, exists := objMap[rootNum]
 	if !exists {
-		return pages
+		return nil, nil
 	}
 
 	// Find /Pages reference
 	pagesRe := regexp.MustCompile(`/Pages\s+(\d+)\s+\d+\s+R`)
 	match := pagesRe.FindSubmatch(rootBody)
 	if match == nil {
-		return pages
+		return nil, nil
 	}
 
 	pagesNum, _ := strconv.Atoi(string(match[1]))
-	pagesBody, exists := objMap[pagesNum]
-	if !exists {
-		return pages
-	}
-
-	// Recursively extract kids
-	return extractKidsRecursive(pagesBody, objMap, refRe)
+	return extractKidsRecursive(pagesNum, objMap, refRe, make(map[int]bool), 0)
 }
 
 // extractKidsRecursive extracts page numbers from /Kids array
-func extractKidsRecursive(pagesBody []byte, objMap map[int][]byte, refRe *regexp.Regexp) []int {
+func extractKidsRecursive(pageObjNum int, objMap map[int][]byte, refRe *regexp.Regexp, active map[int]bool, depth int) ([]int, error) {
+	if depth > maxPDFTreeDepth {
+		return nil, fmt.Errorf("page tree exceeds maximum depth %d", maxPDFTreeDepth)
+	}
+	if active[pageObjNum] {
+		return nil, fmt.Errorf("page tree cycle at object %d", pageObjNum)
+	}
+
+	pageBody, ok := objMap[pageObjNum]
+	if !ok || !IsPagesTreeObject(pageBody) {
+		return []int{pageObjNum}, nil
+	}
+
+	active[pageObjNum] = true
+	defer delete(active, pageObjNum)
+
 	var pages []int
 	kidsRe := regexp.MustCompile(`/Kids\s*\[(.*?)\]`)
 
-	match := kidsRe.FindSubmatch(pagesBody)
+	match := kidsRe.FindSubmatch(pageBody)
 	if match == nil {
-		return pages
+		return pages, nil
 	}
 
 	for _, r := range refRe.FindAllSubmatch(match[1], -1) {
 		kidNum, _ := strconv.Atoi(string(r[1]))
-		kidBody, ok := objMap[kidNum]
-		if !ok {
-			pages = append(pages, kidNum)
-			continue
+		kidPages, err := extractKidsRecursive(kidNum, objMap, refRe, active, depth+1)
+		if err != nil {
+			return nil, err
 		}
-
-		if IsPagesTreeObject(kidBody) {
-			// Recursive: nested Pages node
-			pages = append(pages, extractKidsRecursive(kidBody, objMap, refRe)...)
-		} else {
-			// Leaf: Page object
-			pages = append(pages, kidNum)
-		}
+		pages = append(pages, kidPages...)
 	}
 
-	return pages
+	return pages, nil
+}
+
+var inheritablePageKeys = []string{
+	"Resources",
+	"MediaBox",
+	"CropBox",
+	"BleedBox",
+	"TrimBox",
+	"ArtBox",
+	"BoxColorInfo",
+	"Rotate",
+	"UserUnit",
+}
+
+var indirectObjectRefRe = regexp.MustCompile(`^\d+\s+\d+\s+R`)
+
+func materializeInheritedPageProperties(pageNum int, body []byte, objMap map[int][]byte) ([]byte, error) {
+	values := make(map[string][]byte, len(inheritablePageKeys))
+	active := make(map[int]bool)
+	currentNum := pageNum
+	currentBody := body
+
+	for depth := 0; ; depth++ {
+		if depth > maxPDFTreeDepth {
+			return nil, fmt.Errorf("page parent chain exceeds maximum depth %d", maxPDFTreeDepth)
+		}
+		if active[currentNum] {
+			return nil, fmt.Errorf("page parent cycle at object %d", currentNum)
+		}
+		active[currentNum] = true
+
+		for _, key := range inheritablePageKeys {
+			if _, found := values[key]; !found {
+				if value := pdfKeyValue(dictPart(currentBody), key); value != nil {
+					values[key] = value
+				}
+			}
+		}
+
+		parentValue := pdfKeyValue(dictPart(currentBody), "Parent")
+		parentNum, ok := parseIndirectObjectNumber(parentValue)
+		if !ok {
+			break
+		}
+		parentBody, ok := objMap[parentNum]
+		if !ok {
+			break
+		}
+		currentNum = parentNum
+		currentBody = parentBody
+	}
+
+	var additions bytes.Buffer
+	for _, key := range inheritablePageKeys {
+		if pdfKeyValue(dictPart(body), key) != nil {
+			continue
+		}
+		if value := values[key]; value != nil {
+			additions.WriteByte(' ')
+			additions.WriteByte('/')
+			additions.WriteString(key)
+			additions.WriteByte(' ')
+			additions.Write(value)
+		}
+	}
+	if additions.Len() == 0 {
+		return body, nil
+	}
+
+	dictStart := bytes.Index(body, []byte("<<"))
+	if dictStart < 0 {
+		return body, nil
+	}
+	var result bytes.Buffer
+	result.Write(body[:dictStart+2])
+	result.Write(additions.Bytes())
+	result.Write(body[dictStart+2:])
+	return result.Bytes(), nil
+}
+
+func pdfKeyValue(body []byte, key string) []byte {
+	needle := []byte("/" + key)
+	for search := 0; search < len(body); {
+		rel := bytes.Index(body[search:], needle)
+		if rel < 0 {
+			return nil
+		}
+		keyStart := search + rel
+		valueStart := keyStart + len(needle)
+		if keyStart > 0 && !isWhitespace(body[keyStart-1]) && body[keyStart-1] != '<' {
+			search = valueStart
+			continue
+		}
+		for valueStart < len(body) && isWhitespace(body[valueStart]) {
+			valueStart++
+		}
+		if valueStart >= len(body) {
+			return nil
+		}
+		valueEnd := valueStart
+		switch {
+		case body[valueStart] == '<' && valueStart+1 < len(body) && body[valueStart+1] == '<':
+			valueEnd = pdfobj.SkipDictionary(body, valueStart)
+		case body[valueStart] == '[':
+			valueEnd = pdfobj.SkipArray(body, valueStart)
+		case body[valueStart] == '(':
+			valueEnd = pdfobj.SkipStringLiteral(body, valueStart)
+		case body[valueStart] == '<':
+			valueEnd = pdfobj.SkipHexString(body, valueStart)
+		default:
+			if ref := indirectObjectRefRe.Find(body[valueStart:]); ref != nil {
+				valueEnd += len(ref)
+			} else {
+				for valueEnd < len(body) && !isWhitespace(body[valueEnd]) && body[valueEnd] != '>' {
+					valueEnd++
+				}
+			}
+		}
+		if valueEnd > valueStart && valueEnd <= len(body) {
+			return body[valueStart:valueEnd]
+		}
+		search = valueStart + 1
+	}
+	return nil
+}
+
+func parseIndirectObjectNumber(value []byte) (int, bool) {
+	if len(value) == 0 {
+		return 0, false
+	}
+	var num int
+	var gen int
+	var marker string
+	if _, err := fmt.Sscanf(string(value), "%d %d %1s", &num, &gen, &marker); err != nil || marker != "R" || num <= 0 {
+		return 0, false
+	}
+	return num, true
 }
 
 // collectObjectsWithDependencies returns all object numbers to process

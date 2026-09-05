@@ -1,23 +1,27 @@
 package font
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
-	"hash/fnv"
 	"maps"
 	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 )
 
 type cachedSubset struct {
-	data     []byte
-	oldToNew map[uint16]uint16
+	data      []byte
+	oldToNew  map[uint16]uint16
+	expiresAt time.Time
 }
 
 const maxSubsetCacheEntries = 1024
 
 var (
-	subsetCache      sync.Map // uint64 fingerprint -> *cachedSubset
+	subsetCache      sync.Map // [32]byte fingerprint -> *cachedSubset
 	subsetCacheCount atomic.Int64
 	// subsetCacheMu makes clear-all atomic with overflow stores: both the
 	// count reset and the map clear happen under one mutex so concurrent
@@ -33,9 +37,9 @@ func ClearSubsetCache() {
 	subsetCacheCount.Store(0)
 }
 
-func glyphSubsetFingerprint(font *TTFFont, usedGlyphs []uint16) uint64 {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte(font.PostScriptName))
+func glyphSubsetFingerprint(font *TTFFont, usedGlyphs []uint16) [sha256.Size]byte {
+	h := sha256.New()
+	_, _ = h.Write(font.contentID[:])
 	glyphs := append([]uint16(nil), usedGlyphs...)
 	slices.Sort(glyphs)
 	for _, g := range glyphs {
@@ -43,7 +47,9 @@ func glyphSubsetFingerprint(font *TTFFont, usedGlyphs []uint16) uint64 {
 		binary.BigEndian.PutUint16(b[:], g)
 		_, _ = h.Write(b[:])
 	}
-	return h.Sum64()
+	var fingerprint [sha256.Size]byte
+	copy(fingerprint[:], h.Sum(nil))
+	return fingerprint
 }
 
 func lookupCachedSubset(font *TTFFont, usedGlyphs []uint16) (*cachedSubset, bool) {
@@ -53,6 +59,14 @@ func lookupCachedSubset(font *TTFFont, usedGlyphs []uint16) (*cachedSubset, bool
 	key := glyphSubsetFingerprint(font, usedGlyphs)
 	if v, ok := subsetCache.Load(key); ok {
 		if cs, ok := v.(*cachedSubset); ok && cs != nil {
+			if cachettl.Expired(cs.expiresAt, time.Now()) {
+				subsetCache.Delete(key)
+				// Count left untouched: it is an overflow-trip approximation
+				// that resets on clear-all. Decrementing here could race the
+				// reset and delay eviction; upward drift only triggers an
+				// earlier (safe) clear.
+				return nil, false
+			}
 			return cs, true
 		}
 	}
@@ -73,7 +87,8 @@ func storeCachedSubset(font *TTFFont, usedGlyphs []uint16, data []byte, oldToNew
 		subsetCacheCount.Store(1)
 	}
 	subsetCache.Store(key, &cachedSubset{
-		data:     append([]byte(nil), data...),
-		oldToNew: oldCopy,
+		data:      append([]byte(nil), data...),
+		oldToNew:  oldCopy,
+		expiresAt: cachettl.ExpiresAt(time.Now()),
 	})
 }

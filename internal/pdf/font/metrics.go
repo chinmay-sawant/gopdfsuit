@@ -8,9 +8,11 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"strconv"
 
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
@@ -40,6 +42,43 @@ var (
 	compressedFontDataCache  sync.Map
 	trueTypeFontObjectsCache sync.Map
 )
+
+// ttlEntry wraps a cached font payload with its expiry instant. Both font
+// object caches were unbounded with no eviction; entries now expire per the
+// shared cachettl policy (default 3m, GOPDFSUIT_CACHE_TTL to override).
+type ttlEntry struct {
+	expiresAt time.Time
+	payload   any
+}
+
+func loadTTLCache(cache *sync.Map, key any, now time.Time) (any, bool) {
+	if v, ok := cache.Load(key); ok {
+		if e, ok := v.(*ttlEntry); ok && e != nil {
+			if cachettl.Expired(e.expiresAt, now) {
+				cache.Delete(key)
+				return nil, false
+			}
+			return e.payload, true
+		}
+	}
+	return nil, false
+}
+
+func storeTTLCache(cache *sync.Map, key any, payload any, now time.Time) {
+	cache.Store(key, &ttlEntry{
+		expiresAt: cachettl.ExpiresAt(now),
+		payload:   payload,
+	})
+}
+
+// ClearFontObjectCaches drops cached compressed font bytes and generated
+// TrueType object maps. BOPS (bypass-cache) benchmarks call this between
+// iterations so repeated templates pay full font rebuild cost.
+
+func ClearFontObjectCaches() {
+	compressedFontDataCache.Clear()
+	trueTypeFontObjectsCache.Clear()
+}
 
 // Standard font names as constants (goconst: each appears 3+ times).
 const (
@@ -722,7 +761,7 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	var cacheKey trueTypeFontObjectsKey
 	if encryptor == nil {
 		cacheKey = buildTrueTypeFontObjectsKey(font, fontData)
-		if cached, ok := trueTypeFontObjectsCache.Load(cacheKey); ok {
+		if cached, ok := loadTTLCache(&trueTypeFontObjectsCache, cacheKey, time.Now()); ok {
 			return cloneFontObjectMap(cached.(map[int]string))
 		}
 	}
@@ -764,7 +803,7 @@ func GenerateTrueTypeFontObjects(font *RegisteredFont, encryptor ObjectEncryptor
 	objects[font.ObjectID] = generateType0FontDict(font)
 
 	if encryptor == nil {
-		trueTypeFontObjectsCache.LoadOrStore(cacheKey, cloneFontObjectMap(objects))
+		storeTTLCache(&trueTypeFontObjectsCache, cacheKey, cloneFontObjectMap(objects), time.Now())
 	}
 	return objects
 }
@@ -793,7 +832,8 @@ func cloneFontObjectMap(src map[int]string) map[int]string {
 
 func compressedFontData(fontData []byte) []byte {
 	key := compressedFontDataKey{hash: hashFontData(fontData), size: len(fontData)}
-	if cached, ok := compressedFontDataCache.Load(key); ok {
+	now := time.Now()
+	if cached, ok := loadTTLCache(&compressedFontDataCache, key, now); ok {
 		return cached.([]byte)
 	}
 	compressedBuf := GetCompressBuffer()
@@ -808,9 +848,10 @@ func compressedFontData(fontData []byte) []byte {
 	PutZlibWriter(zlibWriter)
 	compressedData := append([]byte(nil), compressedBuf.Bytes()...)
 	CompressBufPool.Put(compressedBuf)
-	if existing, loaded := compressedFontDataCache.LoadOrStore(key, compressedData); loaded {
+	if existing, ok := loadTTLCache(&compressedFontDataCache, key, now); ok {
 		return existing.([]byte)
 	}
+	storeTTLCache(&compressedFontDataCache, key, compressedData, now)
 	return compressedData
 }
 

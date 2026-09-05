@@ -1,11 +1,41 @@
 package handlers
 
 import (
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
+
+func TestDecodeTemplatePreservesLegacyTableAcrossPreallocationPaths(t *testing.T) {
+	const payload = `{"table":[{"maxcolumns":1,"rows":[{"row":[{"text":"legacy"}]}]}]}`
+	for _, tc := range []struct {
+		name string
+		tier string
+		len  int
+	}{
+		{name: "retail-known", tier: "retail", len: len(payload)},
+		{name: "active-known", tier: "active", len: len(payload)},
+		{name: "hft-known", tier: "hft", len: len(payload)},
+		{name: "hft-unknown", tier: "hft", len: -1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var tmpl models.PDFTemplate
+			tmpl.PreallocForDecode(tc.len, tc.tier)
+			var body io.Reader = strings.NewReader(payload)
+			if err := decodeTemplate(body, tc.len, tc.tier, &tmpl); err != nil {
+				t.Fatalf("decodeTemplate: %v", err)
+			}
+			if len(tmpl.Elements) != 0 {
+				t.Fatalf("elements len = %d, want 0 for legacy table", len(tmpl.Elements))
+			}
+			if len(tmpl.Table) != 1 || tmpl.Table[0].Rows[0].Row[0].Text != "legacy" {
+				t.Fatalf("legacy table was not decoded: %+v", tmpl.Table)
+			}
+		})
+	}
+}
 
 const decodeTestRetailJSON = `{"config":{"page":"A4","pageAlignment":1},"title":{"props":"a","text":"b"},"footer":{"font":"a","text":"b"}}`
 

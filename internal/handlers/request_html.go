@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
@@ -40,7 +42,11 @@ func newHTMLToPDFRequest(req models.HTMLToPDFRequest) models.HTMLToPDFRequest {
 // newHTMLToImageRequest applies engine defaults to a decoded HTML-to-image
 // request: png format, quality 94, zoom 1.0.
 func newHTMLToImageRequest(req models.HTMLToImageRequest) models.HTMLToImageRequest {
-	if req.Format == "" {
+	req.Format = strings.ToLower(strings.TrimSpace(req.Format))
+	switch req.Format {
+	case "jpeg":
+		req.Format = "jpg"
+	case "":
 		req.Format = "png"
 	}
 	if req.Quality == 0 {

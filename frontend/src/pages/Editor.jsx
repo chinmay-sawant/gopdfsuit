@@ -23,7 +23,6 @@ import { shouldUseServerWasmTransport } from '../utils/wasm/transports.js'
 import { registerFontLocal } from '../utils/wasm/fonts.js'
 import { getFontFamily } from '../components/editor/utils'
 import { parseProps, formatProps } from '../components/editor/utils'
-import { templateToGoSnippet, templateToPythonSnippet } from '../components/editor/snippet.js'
 import {
   DEFAULT_CONFIG,
   applyCellDropToRows,
@@ -545,45 +544,6 @@ export default function Editor() {
 
   const handlePreviewPdf = () => handleGeneratePdf(true)
 
-  const handleCopyJson = async () => {
-    try {
-      await navigator.clipboard.writeText(jsonText)
-      setCopiedId('json')
-      setTimeout(() => setCopiedId(null), 2000)
-    } catch (error) {
-      console.error('Copy failed:', error)
-    }
-  }
-
-  const goSnippet = useMemo(
-    () => templateToGoSnippet(buildTemplate({ config, title, components, footer, bookmarks })),
-    [config, title, components, footer, bookmarks]
-  )
-  const pythonSnippet = useMemo(
-    () => templateToPythonSnippet(buildTemplate({ config, title, components, footer, bookmarks })),
-    [config, title, components, footer, bookmarks]
-  )
-
-  const handleCopyGo = async () => {
-    try {
-      await navigator.clipboard.writeText(goSnippet)
-      setCopiedId('go')
-      setTimeout(() => setCopiedId(null), 2000)
-    } catch (error) {
-      console.error('Copy failed:', error)
-    }
-  }
-
-  const handleCopyPython = async () => {
-    try {
-      await navigator.clipboard.writeText(pythonSnippet)
-      setCopiedId('python')
-      setTimeout(() => setCopiedId(null), 2000)
-    } catch (error) {
-      console.error('Copy failed:', error)
-    }
-  }
-
   // --- File Upload (fetch via the shared useBundledTemplate hook: bundled
   // /templates/ copies first, server fallback; github source direct) ---
   const onLoadTemplate = async (filename, source = 'local') => {
@@ -639,7 +599,7 @@ export default function Editor() {
   })
 
   return (
-    <div style={{
+    <div className="editor-page" style={{
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',
@@ -672,13 +632,9 @@ export default function Editor() {
           setTheme={setTheme}
           onLoadTemplate={onLoadTemplate}
           onPreviewPDF={handlePreviewPdf}
-          onCopyJSON={handleCopyJson}
-          onCopyGo={handleCopyGo}
-          onCopyPython={handleCopyPython}
           onDownloadPDF={handleGeneratePdf}
           templateInput={templateInput}
           setTemplateInput={setTemplateInput}
-          copiedId={copiedId}
           elementCount={allElements.length}
           pageSize={config.page}
           onUploadFont={async (file) => {
@@ -1061,8 +1017,6 @@ export default function Editor() {
             handleJsonBlur={handleJsonBlur}
             copiedId={copiedId}
             setCopiedId={setCopiedId}
-            goSnippet={goSnippet}
-            pythonSnippet={pythonSnippet}
           />
         </div>
       </div>
@@ -1120,8 +1074,7 @@ export default function Editor() {
               </button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden', borderRadius: '8px' }}>
-              {/* Native iframe via OperationShell (3.5: one preview stack;
-                  the bespoke PdfPreview wrapper is deleted). */}
+              {/* Shared PdfPreview via OperationShell: one preview stack. */}
               <OperationShell
                 resultUrl={pdfUrl}
                 title="PDF Preview"
@@ -1136,7 +1089,6 @@ export default function Editor() {
                   link.click()
                 }}
                 downloadLabel="Download PDF"
-                height={600}
               />
             </div>
           </div>

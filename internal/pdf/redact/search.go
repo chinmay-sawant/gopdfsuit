@@ -22,11 +22,18 @@ func (r *Redactor) ExtractTextPositions(pageNum int) ([]models.TextPosition, err
 		if err != nil {
 			return nil, err
 		}
+		r.objMap = objMap
 	}
 
-	pageObjNum, err := findPageObject(objMap, r.pdfBytes, pageNum)
+	pageObjNum, err := r.pageObjectForPage(pageNum)
 	if err != nil {
 		return nil, err
+	}
+	if r.pageTextPositions == nil {
+		r.pageTextPositions = make(map[int][]models.TextPosition)
+	}
+	if positions, ok := r.pageTextPositions[pageNum]; ok {
+		return positions, nil
 	}
 
 	pageBody := objMap[pageObjNum]
@@ -37,11 +44,25 @@ func (r *Redactor) ExtractTextPositions(pageNum int) ([]models.TextPosition, err
 
 	// Simple text extraction logic
 	// This is a simplified parser and might not handle all PDF complexity (rotations, complex encodings)
-	return parseTextOperators(contentBytes), nil
+	positions := parseTextOperators(contentBytes)
+	r.pageTextPositions[pageNum] = positions
+	return positions, nil
 }
 
 // FindTextOccurrences searches for text across all pages and returns redaction rectangles
 func (r *Redactor) FindTextOccurrences(searchText string) ([]models.RedactionRect, error) {
+	rects, err := r.findTextOccurrences(searchText)
+	if err != nil {
+		return nil, err
+	}
+	// Clients render the cropped/rotated view, so matches go out in
+	// display space. The apply pipeline maps them back before painting.
+	return r.mapRectsToDisplay(rects), nil
+}
+
+// findTextOccurrences is the MediaBox-space core shared by the public
+// finder and the apply pipeline (which must NOT receive display rects).
+func (r *Redactor) findTextOccurrences(searchText string) ([]models.RedactionRect, error) {
 	if len(r.pdfBytes) == 0 {
 		return nil, errors.New("empty pdf bytes")
 	}

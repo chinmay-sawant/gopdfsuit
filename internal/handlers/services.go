@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"io"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
@@ -68,6 +69,13 @@ type FastGenerateService interface {
 	GenerateTemplatePDFBorrowed(template models.PDFTemplate) (*pdf.BorrowedPDF, error)
 }
 
+// ContextHTMLService is the cancellation-aware HTML seam. The legacy
+// PDFService methods remain available for existing mocks and callers.
+type ContextHTMLService interface {
+	HTMLToPDFContext(context.Context, models.HTMLToPDFRequest) ([]byte, error)
+	HTMLToImageContext(context.Context, models.HTMLToImageRequest) ([]byte, error)
+}
+
 type defaultPDFService struct{}
 
 func (defaultPDFService) GenerateTemplatePDF(template models.PDFTemplate) ([]byte, error) {
@@ -106,8 +114,16 @@ func (defaultPDFService) HTMLToPDF(req models.HTMLToPDFRequest) ([]byte, error) 
 	return pdf.ConvertHTMLToPDF(req)
 }
 
+func (defaultPDFService) HTMLToPDFContext(ctx context.Context, req models.HTMLToPDFRequest) ([]byte, error) {
+	return pdf.ConvertHTMLToPDFContext(ctx, req)
+}
+
 func (defaultPDFService) HTMLToImage(req models.HTMLToImageRequest) ([]byte, error) {
 	return pdf.ConvertHTMLToImage(req)
+}
+
+func (defaultPDFService) HTMLToImageContext(ctx context.Context, req models.HTMLToImageRequest) ([]byte, error) {
+	return pdf.ConvertHTMLToImageContext(ctx, req)
 }
 
 func (defaultPDFService) UploadLimit(kind string) int64 {

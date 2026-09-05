@@ -13,10 +13,12 @@ import (
 // Redactor provides an object-oriented interface for PDF redaction,
 // caching the parsed PDF structure to avoid redundant processing.
 type Redactor struct {
-	pdfBytes []byte
-	objMap   map[int][]byte
-	objGen   map[int]int
-	info     *models.PageInfo
+	pdfBytes          []byte
+	objMap            map[int][]byte
+	objGen            map[int]int
+	info              *models.PageInfo
+	pageObjects       []int
+	pageTextPositions map[int][]models.TextPosition
 }
 
 // NewRedactor initializes a new Redactor with the given PDF bytes.
@@ -75,6 +77,7 @@ func (r *Redactor) GetPageInfo() (models.PageInfo, error) {
 		if err != nil {
 			return models.PageInfo{}, err
 		}
+		r.objMap = objMap
 	}
 
 	rootBody, ok := objMap[rootNum]
@@ -97,10 +100,35 @@ func (r *Redactor) GetPageInfo() (models.PageInfo, error) {
 		return models.PageInfo{}, fmt.Errorf("error traversing page tree: %w", err)
 	}
 
-	return models.PageInfo{
+	pageObjects := make([]int, len(pageDims))
+	for i := range pageObjects {
+		pageObjNum, err := findPageObject(objMap, r.pdfBytes, i+1)
+		if err != nil {
+			return models.PageInfo{}, fmt.Errorf("error indexing page tree: %w", err)
+		}
+		pageObjects[i] = pageObjNum
+	}
+
+	info := models.PageInfo{
 		TotalPages: len(pageDims),
 		Pages:      pageDims,
-	}, nil
+	}
+	r.info = &info
+	r.pageObjects = pageObjects
+	if r.pageTextPositions == nil {
+		r.pageTextPositions = make(map[int][]models.TextPosition)
+	}
+	return info, nil
+}
+
+func (r *Redactor) pageObjectForPage(pageNum int) (int, error) {
+	if pageNum < 1 {
+		return 0, fmt.Errorf("page %d not found", pageNum)
+	}
+	if pageNum <= len(r.pageObjects) {
+		return r.pageObjects[pageNum-1], nil
+	}
+	return findPageObject(r.objMap, r.pdfBytes, pageNum)
 }
 
 // AnalyzePageCapabilities classifies each page for text/image redaction capability.
@@ -228,6 +256,8 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		r.objMap = objMap
 		r.objGen = objGen
 		r.info = nil // Reset cached info to force recalculation on decrypted bytes
+		r.pageObjects = nil
+		r.pageTextPositions = nil
 		report.Warnings = append(report.Warnings, "input PDF was decrypted using in-house pipeline and output is emitted decrypted")
 	}
 
@@ -241,7 +271,10 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 	}
 
 	all := make([]models.RedactionRect, 0, len(opts.Blocks)+8)
-	all = append(all, opts.Blocks...)
+	// Client blocks arrive in display space (crop applied, rotation
+	// applied, top-left origin); the paint operators below need MediaBox
+	// user space. Search and OCR rects appended next are already there.
+	all = append(all, r.mapBlocksToMedia(opts.Blocks)...)
 	activeTextQueries := opts.TextSearch
 
 	for _, q := range activeTextQueries {
@@ -249,7 +282,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		if query == "" {
 			continue
 		}
-		rects, err := r.FindTextOccurrences(query)
+		rects, err := r.findTextOccurrences(query)
 		if err != nil {
 			return nil, report, err
 		}
@@ -288,7 +321,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		// Note: ApplyRedactions visual overlays still use the original ApplyRedactions design
 		// We can make applyRedactionsToPage a method later.
 		rOut, _ := NewRedactor(secureOut)
-		visualOut, err := rOut.ApplyRedactions(all)
+		visualOut, err := rOut.applyRedactionsMedia(all)
 		if err != nil {
 			report.SecurityOutcome = "failed"
 			return nil, report, err
@@ -300,7 +333,7 @@ func (r *Redactor) ApplyRedactionsAdvancedWithReport(opts models.ApplyRedactionO
 		return visualOut, report, nil
 	}
 
-	out, err := r.ApplyRedactions(all)
+	out, err := r.applyRedactionsMedia(all)
 	if err != nil {
 		report.SecurityOutcome = "failed"
 		return nil, report, err

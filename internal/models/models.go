@@ -30,11 +30,8 @@ func (t *PDFTemplate) preallocForTier(tier string) {
 		t.ensureTableLen(0, 1)
 	case "active":
 		t.ensureElementsLen(0, 8)
-		t.preallocInlineTableRows(1, 41, 5)
 	case "hft":
-		t.ensureElementsLen(2, 4)
-		t.preallocInlineTableRows(0, 1, 4)
-		t.preallocInlineTableRows(1, 2001, 7)
+		t.ensureElementsLen(0, 4)
 	default:
 		t.ensureElementsLen(0, 8)
 	}
@@ -62,37 +59,6 @@ func (t *PDFTemplate) ensureTableLen(length, capHint int) {
 	t.Table = t.Table[:length]
 }
 
-func (t *PDFTemplate) preallocInlineTableRows(elemIdx, rowCap, maxCols int) {
-	if rowCap <= 0 || elemIdx < 0 {
-		return
-	}
-	for len(t.Elements) <= elemIdx {
-		t.Elements = append(t.Elements, Element{})
-	}
-	elem := &t.Elements[elemIdx]
-	if elem.Table == nil {
-		elem.Table = &Table{MaxColumns: maxCols}
-	}
-	// Pre-size row and cell slices so sonic unmarshals in-place (avoids 2001× GrowSlice).
-	if cap(elem.Table.Rows) < rowCap {
-		rows := make([]Row, rowCap)
-		for i := range rows {
-			rows[i].Row = make([]Cell, 0, maxCols)
-		}
-		elem.Table.Rows = rows[:0]
-		return
-	}
-	elem.Table.Rows = elem.Table.Rows[:0]
-	for i := 0; i < cap(elem.Table.Rows); i++ {
-		row := &elem.Table.Rows[:cap(elem.Table.Rows)][i]
-		if cap(row.Row) < maxCols {
-			row.Row = make([]Cell, 0, maxCols)
-		} else {
-			row.Row = row.Row[:0]
-		}
-	}
-}
-
 // ResetForReuse clears request-visible state while keeping hot backing arrays
 // available for the next pooled decode.
 func (t *PDFTemplate) ResetForReuse() {
@@ -113,6 +79,7 @@ func (t *PDFTemplate) ResetForReuse() {
 	t.Footer = Footer{}
 	t.Table = t.Table[:0]
 	t.Spacer = t.Spacer[:0]
+	clear(t.Image)
 	t.Image = t.Image[:0]
 	t.Elements = t.Elements[:0]
 	t.Bookmarks = t.Bookmarks[:0]

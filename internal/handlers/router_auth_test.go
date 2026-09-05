@@ -43,3 +43,20 @@ func TestV1GroupAlwaysCarriesAuthMiddleware(t *testing.T) {
 		})
 	}
 }
+
+func TestExplicitRoutePolicyEnforcesAuthWithoutEnvironment(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("REQUIRE_AUTH", "")
+	t.Setenv("K_SERVICE", "")
+	t.Setenv("K_REVISION", "")
+	router := NewRouter(ServerConfig{
+		MaxConcurrent: 1,
+		Policy:        RoutePolicy{RequireAuth: true},
+	})
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/v1/compress", nil))
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401 for explicit RequireAuth", w.Code)
+	}
+}

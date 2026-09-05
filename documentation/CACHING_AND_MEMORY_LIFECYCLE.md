@@ -6,6 +6,28 @@ This guide explains what gopdfsuit/gopdflib **actually caches**, what **expires*
 
 ---
 
+## TTL policy: 3 minutes by default, configurable
+
+All process-global content caches share one time-to-live policy owned by
+`internal/cachettl`:
+
+| Property | Value |
+|----------|-------|
+| **Default TTL** | 3 minutes (`cachettl.DefaultTTL`) |
+| **Env override** | `GOPDFSUIT_CACHE_TTL` (Go duration, e.g. `"2m"`, `"90s"`), read once at startup |
+| **Code override** | `gopdflib.SetCacheTTL(d)` / `gopdflib.CacheTTL()` |
+| **Disable expiry** | Set TTL `<= 0` to restore size-only eviction |
+| **Mechanism** | Lazy expiry on lookup: stale entries are dropped and recomputed on demand. No background goroutine. |
+| **Not affected** | `sync.Pool` buffers (recycle memory, never reuse document content) |
+
+Covered caches: font subsets, page compress output, compressed font bytes,
+TrueType object maps, prop parses, decoded images, signers/PEM materials,
+template-data files. BOPS benchmarks bypass them entirely with
+`gopdflib.ClearBOPSCaches()`; see `sampledata/gopdflib/zerodha_bops/` and
+`make bench-gopdflib-bops-x10`.
+
+---
+
 ## Important distinction: “template” means three different things
 
 | Term | What it is | Cached across requests? |
@@ -134,10 +156,13 @@ These reuse allocations but **do not retain your data** across requests in a pre
 |-------|------|----------|------------------------------------------|
 | Request `PDFTemplate` data | N/A (not cached) | Per-request | **Yes** |
 | `templatePDFPool` shell | GC | De facto bounded | **Yes** |
-| Page compress cache | No | **Yes (~2048)** | **Yes** |
-| Font subset cache | No | No | **Caution** if glyph sets are always unique |
-| Image cache | No | No | **Caution** if every PDF has a new image |
-| `templateDataCache` | No | No | N/A for POST generate |
+| Page compress cache | **Yes (3m default)** | **Yes (~2048)** | **Yes** |
+| Font subset cache | **Yes (3m default)** | **Yes (1024)** | **Yes** - stale glyph sets age out |
+| Compressed font / TrueType objects | **Yes (3m default)** | No (TTL is the bound) | **Yes** - entries expire even under cardinality |
+| Props parse cache | **Yes (3m default)** | **Yes (8192)** | **Yes** |
+| Image cache | **Yes (3m default)** | **Yes (256)** | **Yes** - unique images age out |
+| Signer / PEM caches | **Yes (3m default)** | **Yes (FIFO 128 each)** | **Yes** - rotated certs re-parsed after TTL |
+| `templateDataCache` | **Yes (3m default)** | **Yes (64 entries / 16 MiB)** | N/A for POST generate |
 | HFT shared-row layout | N/A (not a cache) | Per-table | **Yes** |
 
 ---
@@ -155,16 +180,17 @@ These reuse allocations but **do not retain your data** across requests in a pre
 ## Manual cache clearing (operations)
 
 ```go
-import (
-    "github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf"
-    "github.com/chinmay-sawant/gopdfsuit/v5/internal/pdf/font"
-)
+import "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
 
-font.ClearPageCompressCache() // page zlib cache
-pdf.ResetImageCache()         // decoded image cache
+gopdflib.ClearBOPSCaches() // drops every content cache at once (BOPS path)
+
+gopdflib.SetCacheTTL(2 * time.Minute) // shrink TTL; <= 0 disables expiry
 ```
 
-There is currently **no** public API to clear `subsetCache` or `templateDataCache`. Process restart clears all global caches.
+Process restart clears all global caches. Individual clear functions also
+remain available (`font.ClearSubsetCache`, `font.ClearPageCompressCache`,
+`font.ClearFontObjectCaches`, `pdf.ClearPropsCache`, `pdf.ResetImageCache`,
+`signature.ClearSignerCaches`).
 
 ---
 

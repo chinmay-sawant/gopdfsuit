@@ -100,16 +100,9 @@ const MaxTemplateJSONBytes = 8 << 20
 // id map handled in JS instead of embedding data URIs in the JSON.
 func DecodeTemplateJSON(data []byte) (PDFTemplate, error) {
 	const op = "gopdflib: DecodeTemplateJSON"
-	if len(data) == 0 {
-		return PDFTemplate{}, invalidInputError(op, "needs a non-empty template JSON document")
-	}
-	if len(data) > MaxTemplateJSONBytes {
-		return PDFTemplate{}, limitExceededError(op, "template JSON exceeds maximum size")
-	}
-	var in models.PDFTemplate
-	in.PreallocForDecode(len(data), "")
-	if err := sonic.Unmarshal(data, &in); err != nil {
-		return PDFTemplate{}, fmt.Errorf("%w: %s: %w", ErrInvalidInput, op, err)
+	in, err := decodeInternalTemplateJSON(data)
+	if err != nil {
+		return PDFTemplate{}, err
 	}
 	out, err := fromInternal[models.PDFTemplate, PDFTemplate](in)
 	if err != nil {
@@ -121,15 +114,36 @@ func DecodeTemplateJSON(data []byte) (PDFTemplate, error) {
 	return out, nil
 }
 
+func decodeInternalTemplateJSON(data []byte) (models.PDFTemplate, error) {
+	const op = "gopdflib: DecodeTemplateJSON"
+	if len(data) == 0 {
+		return models.PDFTemplate{}, invalidInputError(op, "needs a non-empty template JSON document")
+	}
+	if len(data) > MaxTemplateJSONBytes {
+		return models.PDFTemplate{}, limitExceededError(op, "template JSON exceeds maximum size")
+	}
+	var in models.PDFTemplate
+	in.PreallocForDecode(len(data), "")
+	if err := sonic.Unmarshal(data, &in); err != nil {
+		return models.PDFTemplate{}, fmt.Errorf("%w: %s: %w", ErrInvalidInput, op, err)
+	}
+	return in, nil
+}
+
 // GeneratePDFFromJSON decodes a template JSON document (see DecodeTemplateJSON)
 // and generates the PDF in one call. It is the primary WASM generate binding:
 // callable with a JS template object serialized to a JSON string.
 func GeneratePDFFromJSON(data []byte) ([]byte, error) {
-	template, err := DecodeTemplateJSON(data)
+	in, err := decodeInternalTemplateJSON(data)
 	if err != nil {
 		return nil, err
 	}
-	return GeneratePDF(template)
+	ensureRuntimePools()
+	out, err := pdf.GenerateTemplatePDF(in)
+	if err != nil {
+		return nil, wrapEngineError("gopdflib: GeneratePDFFromJSON", err)
+	}
+	return out, nil
 }
 
 // GeneratePDFBorrowedFromJSON is the pooled-buffer variant of
@@ -137,11 +151,16 @@ func GeneratePDFFromJSON(data []byte) ([]byte, error) {
 // and MUST call Release exactly once, preferably via defer. See
 // GeneratePDFBorrowed for the borrow rules.
 func GeneratePDFBorrowedFromJSON(data []byte) (*BorrowedPDF, error) {
-	template, err := DecodeTemplateJSON(data)
+	in, err := decodeInternalTemplateJSON(data)
 	if err != nil {
 		return nil, err
 	}
-	return GeneratePDFBorrowed(template)
+	ensureRuntimePools()
+	doc, err := pdf.GenerateTemplatePDFBorrowed(in)
+	if err != nil {
+		return nil, wrapEngineError("gopdflib: GeneratePDFBorrowedFromJSON", err)
+	}
+	return doc, nil
 }
 func GeneratePDF(template PDFTemplate) ([]byte, error) {
 	ensureRuntimePools()

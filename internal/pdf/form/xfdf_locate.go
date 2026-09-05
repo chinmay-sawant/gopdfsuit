@@ -12,6 +12,8 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
 )
 
+const maxFieldTreeDepth = 1000
+
 // findBalancedDictBounds returns the [start, end) slice of a PDF dictionary opened at openIdx (<<).
 func findBalancedDictBounds(data []byte, openIdx int) (start, end int, ok bool) {
 	if openIdx < 0 || openIdx+1 >= len(data) || data[openIdx] != '<' || data[openIdx+1] != '<' {
@@ -149,11 +151,19 @@ func extractStringFromBytes(b []byte) string {
 }
 
 // traverseField resolves a field object and extracts field names and values
-func traverseField(ref string, objMap map[string][]byte, parentPrefix string, out map[string]string) {
+func traverseField(ref string, objMap map[string][]byte, parentPrefix string, out map[string]string, active map[string]bool, depth int) error {
+	if depth > maxFieldTreeDepth {
+		return fmt.Errorf("field tree exceeds maximum depth %d", maxFieldTreeDepth)
+	}
+	if active[ref] {
+		return fmt.Errorf("field tree cycle at object %s", ref)
+	}
 	body, ok := objMap[ref]
 	if !ok {
-		return
+		return nil
 	}
+	active[ref] = true
+	defer delete(active, ref)
 
 	tv := ""
 	name := ""
@@ -202,13 +212,18 @@ func traverseField(ref string, objMap map[string][]byte, parentPrefix string, ou
 		inner := m[1]
 		for _, r := range reRef.FindAllSubmatch(inner, -1) {
 			kidRef := string(r[1]) + " " + string(r[2])
-			traverseField(kidRef, objMap, fullName, out)
+			if err := traverseField(kidRef, objMap, fullName, out, active, depth+1); err != nil {
+				return err
+			}
 		}
 	}
 	if m := reSingleKids.FindSubmatch(body); m != nil {
 		kidRef := string(m[1]) + " " + string(m[2])
-		traverseField(kidRef, objMap, fullName, out)
+		if err := traverseField(kidRef, objMap, fullName, out, active, depth+1); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // resolveValueRef attempts to resolve /V value references
@@ -315,7 +330,11 @@ func DetectFormFieldsAdvanced(pdfBytes []byte) (map[string]string, error) {
 	}
 
 	// Try the structured locate seam first.
-	if structured := LocateFields(objMap, pdfBytes); len(structured) > 0 {
+	structured, err := locateFields(objMap, pdfBytes)
+	if err != nil {
+		return nil, err
+	}
+	if len(structured) > 0 {
 		return structured, nil
 	}
 
@@ -412,7 +431,13 @@ func buildFieldObjectMap(pdfBytes []byte) map[string][]byte {
 // resolves field names and values. It needs no full PDF, only the map
 // plus the raw bytes for the /Root fallback lookup.
 func LocateFields(objMap map[string][]byte, pdfBytes []byte) map[string]string {
+	structured, _ := locateFields(objMap, pdfBytes)
+	return structured
+}
+
+func locateFields(objMap map[string][]byte, pdfBytes []byte) (map[string]string, error) {
 	structured := make(map[string]string)
+	active := make(map[string]bool)
 	if rootRef, ok := findRootRef(pdfBytes); ok {
 		if rootBody, ok2 := objMap[rootRef]; ok2 {
 			if acroRef, ok3 := getAcroFormRef(rootBody, pdfBytes); ok3 {
@@ -423,13 +448,17 @@ func LocateFields(objMap map[string][]byte, pdfBytes []byte) map[string]string {
 						refRe := regexp.MustCompile(`(\d+)\s+(\d+)\s+R`)
 						for _, r := range refRe.FindAllSubmatch(inner, -1) {
 							fref := string(r[1]) + " " + string(r[2])
-							traverseField(fref, objMap, "", structured)
+							if err := traverseField(fref, objMap, "", structured, active, 0); err != nil {
+								return nil, err
+							}
 						}
 					} else {
 						singleFields := regexp.MustCompile(`/Fields\s+(\d+)\s+(\d+)\s+R`)
 						if sm := singleFields.FindSubmatch(afBody); sm != nil {
 							fref := string(sm[1]) + " " + string(sm[2])
-							traverseField(fref, objMap, "", structured)
+							if err := traverseField(fref, objMap, "", structured, active, 0); err != nil {
+								return nil, err
+							}
 						}
 					}
 				}
@@ -437,7 +466,7 @@ func LocateFields(objMap map[string][]byte, pdfBytes []byte) map[string]string {
 		}
 	}
 
-	return structured
+	return structured, nil
 }
 
 // detectFormFieldsNaive performs simple field detection by scanning for /T tokens

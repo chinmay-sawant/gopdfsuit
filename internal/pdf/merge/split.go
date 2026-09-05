@@ -85,7 +85,10 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 		return nil, errors.New("cannot split encrypted PDF")
 	}
 
-	fc := parseFile(file)
+	fc, err := parseFile(file)
+	if err != nil {
+		return nil, err
+	}
 	if fc == nil {
 		return nil, errors.New("invalid PDF")
 	}
@@ -158,6 +161,8 @@ func SplitPDF(file []byte, spec SplitSpec) ([][]byte, error) {
 }
 
 // buildPDFFromPageObjs builds a single PDF containing only the provided original page object numbers.
+//
+//nolint:gocyclo // PDF object inclusion has several independent reference shapes.
 func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) ([]byte, error) {
 	// collect included objects via DFS starting from page objects
 	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
@@ -236,13 +241,19 @@ func buildPDFFromPageObjs(fc *FileContext, pageObjs []int, originalFile []byte) 
 			continue
 		}
 		newNum := offset + origNum
-		newBody := ReplaceRefsOutsideStreams(body, offset)
-
-		// If page leaf, record remapped page number
-		if IsPageObject(newBody) && !IsPagesTreeObject(newBody) {
-			mergedPages = append(mergedPages, newNum)
+		newBody, err := materializeInheritedPageProperties(origNum, body, fc.Objects)
+		if err != nil {
+			return nil, err
 		}
+		newBody = ReplaceRefsOutsideStreams(newBody, offset)
 		appended = append(appended, appendedObj{num: newNum, body: newBody})
+	}
+	for _, origNum := range pageObjs {
+		if included[origNum] {
+			if body, ok := fc.Objects[origNum]; ok && IsPageObject(body) && !IsPagesTreeObject(body) {
+				mergedPages = append(mergedPages, offset+origNum)
+			}
+		}
 	}
 
 	// track form fields that are included

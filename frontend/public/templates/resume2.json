@@ -5,14 +5,13 @@
     "page": "A4",
     "pageAlignment": 1,
     "watermark": "",
-    "pdfTitle": "Jane Smith - Graphic Designer",
+    "pdfTitle": "Maya Chen - Product Designer",
     "pdfaCompliant": true,
-    "signature": {
-      "enabled": false
-    }
+    "embedStandardFonts": true
   },
   "title": {
-    "props": "Helvetica:24:100:center:0:0:0:0",
+    "props": "Times-Roman:20:100:center:0:0:0:0",
+    "text": "MAYA CHEN - PRODUCT DESIGNER",
     "table": {
       "maxcolumns": 1,
       "columnwidths": [1],
@@ -20,22 +19,22 @@
         {
           "row": [
             {
-              "props": "Courier:40:100:center:0:0:0:0",
-              "text": "JANE SMITH",
-              "bgcolor": "#0D1117",
-              "textcolor": "#00FFC4",
-              "height": 60
+              "props": "Times-Roman:30:100:center:0:0:0:0",
+              "text": "MAYA CHEN",
+              "bgcolor": "#1D3557",
+              "textcolor": "#FFFFFF",
+              "height": 46
             }
           ]
         },
         {
           "row": [
             {
-              "props": "Courier:16:000:center:0:0:0:0",
-              "text": "CREATIVE DIRECTOR & UX DESIGNER",
-              "bgcolor": "#0D1117",
-              "textcolor": "#FFFFFF",
-              "height": 40
+              "props": "Helvetica:12:100:center:0:0:0:0",
+              "text": "PRODUCT DESIGNER",
+              "bgcolor": "#1D3557",
+              "textcolor": "#F1FAEE",
+              "height": 24
             }
           ]
         },
@@ -43,9 +42,9 @@
           "row": [
             {
               "props": "Helvetica:10:000:center:0:0:0:0",
-              "text": "jane.smith@creative.com  •  +1 (987) 654-3210  •  Los Angeles, CA  •  janesmith.design",
-              "bgcolor": "#00FFC4",
-              "textcolor": "#0D1117",
+              "text": "Austin, TX  |  maya.chen@example.com  |  +1 (555) 340-7712",
+              "bgcolor": "#A8DADC",
+              "textcolor": "#1D3557",
               "height": 20
             }
           ]
@@ -55,25 +54,141 @@
   },
   "elements": [
     {
+      "type": "spacer",
+      "spacer": {
+        "height": 8,
+        "type": "spacer"
+      }
+    },
+    {
       "type": "table",
       "table": {
-        "maxcolumns": 2,
-        "columnwidths": [1, 2.5],
+        "maxcolumns": 4,
+        "columnwidths": [1, 1, 1, 1],
         "rows": [
           {
             "row": [
               {
-                "props": "Courier:16:100:center:1:0:1:1",
+                "props": "Helvetica:9:000:center:0:0:0:0",
+                "text": "maya.chen@example.com"
+              },
+              {
+                "props": "Helvetica:9:000:center:0:0:0:0",
+                "text": "Austin, TX"
+              },
+              {
+                "props": "Helvetica:9:001:center:0:0:0:0",
+                "text": "mayachen.example.com",
+                "link": "https://example.com/portfolio/mayachen"
+              },
+              {
+                "props": "Helvetica:9:001:center:0:0:0:0",
+                "text": "linkedin.com/in/mayachen",
+                "link": "https://example.com/in/mayachen"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:010:center:0:0:0:0",
+                "text": "Jump to Experience",
+                "textcolor": "#457B9D",
+                "link": "#experience"
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 6,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Times-Roman:14:100:left:0:0:0:0",
                 "text": "PROFILE",
-                "bgcolor": "#161B22",
-                "textcolor": "#00FFC4"
-              },
+                "bgcolor": "#1D3557",
+                "textcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
               {
-                "props": "Helvetica:11:000:left:0:1:1:1",
-                "text": "Passionate and innovative Creative Director with 10+ years of experience leading design teams in producing award-winning brand identities, marketing campaigns, and digital experiences. Adept at turning complex concepts into visually compelling narratives and highly usable interfaces.",
-                "bgcolor": "#F0F3F4",
-                "textcolor": "#0D1117",
+                "props": "Helvetica:8:000:left:0:0:0:0",
+                "text": "",
+                "bgcolor": "#E9C46A",
+                "height": 4
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "Product designer with 7+ years of experience turning ambiguous problems into clear, usable interfaces for health-tech and SaaS products. I pair evidence from research with systems thinking, and I stay in the build loop with engineers until the details ship.",
+                "bgcolor": "#F1FAEE",
                 "wrap": true
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 6,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Times-Roman:14:100:left:0:0:0:0",
+                "text": "SKILLS",
+                "bgcolor": "#1D3557",
+                "textcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:8:000:left:0:0:0:0",
+                "text": "",
+                "bgcolor": "#E9C46A",
+                "height": 4
               }
             ]
           }
@@ -84,69 +199,88 @@
     {
       "type": "table",
       "table": {
-        "maxcolumns": 2,
-        "columnwidths": [1, 2.5],
+        "maxcolumns": 3,
+        "columnwidths": [1, 1, 1],
         "rows": [
           {
             "row": [
               {
-                "props": "Courier:16:100:center:1:0:1:0",
+                "props": "Helvetica:10:100:center:0:0:0:0",
+                "text": "DESIGN",
+                "bgcolor": "#457B9D",
+                "textcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:100:center:0:0:0:0",
+                "text": "TOOLS",
+                "bgcolor": "#457B9D",
+                "textcolor": "#FFFFFF"
+              },
+              {
+                "props": "Helvetica:10:100:center:0:0:0:0",
+                "text": "METHODS",
+                "bgcolor": "#457B9D",
+                "textcolor": "#FFFFFF"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:9:000:left:0:0:0:0",
+                "text": "Interaction Design\nVisual Design\nPrototyping\nDesign Systems",
+                "bgcolor": "#F1FAEE",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:9:000:left:0:0:0:0",
+                "text": "Figma\nFigJam\nMaze\nWebflow",
+                "bgcolor": "#F1FAEE",
+                "wrap": true
+              },
+              {
+                "props": "Helvetica:9:000:left:0:0:0:0",
+                "text": "User Interviews\nUsability Testing\nJourney Mapping\nA/B Testing",
+                "bgcolor": "#F1FAEE",
+                "wrap": true
+              }
+            ]
+          }
+        ],
+        "type": "table"
+      }
+    },
+    {
+      "type": "spacer",
+      "spacer": {
+        "height": 6,
+        "type": "spacer"
+      }
+    },
+    {
+      "type": "table",
+      "table": {
+        "maxcolumns": 1,
+        "columnwidths": [1],
+        "rows": [
+          {
+            "row": [
+              {
+                "props": "Times-Roman:14:100:left:0:0:0:0",
                 "text": "EXPERIENCE",
-                "bgcolor": "#161B22",
-                "textcolor": "#00FFC4"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:1:0",
-                "text": "Creative Director | Studio Design Co.",
-                "bgcolor": "#FFFFFF"
+                "bgcolor": "#1D3557",
+                "textcolor": "#FFFFFF",
+                "dest": "experience"
               }
             ]
           },
           {
             "row": [
               {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2019 - Present\nLos Angeles, CA",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E",
-                "wrap": true
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "• Spearheaded the rebranding of 3 Fortune 500 companies, increasing market engagement by 35%.\n• Directed a cross-functional team of 15 designers, animators, and copywriters.\n• Managed annual project budgets exceeding $2M while delivering all campaigns on time.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2015 - 2019\nSeattle, WA",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E",
-                "wrap": true
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "Senior Graphic Designer | Alpha Agency\n\n",
-                "bgcolor": "#FFFFFF"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:1",
+                "props": "Helvetica:8:000:left:0:0:0:0",
                 "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:1",
-                "text": "• Designed UI/UX for a major e-commerce platform utilized by over 1M monthly active users.\n• Created comprehensive brand guidelines for tech startups and local businesses.\n• Collaborated with marketing teams to boost ad click-through rates by 22%.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
+                "bgcolor": "#E9C46A",
+                "height": 4
               }
             ]
           }
@@ -158,316 +292,57 @@
       "type": "table",
       "table": {
         "maxcolumns": 2,
-        "columnwidths": [1, 2.5],
+        "columnwidths": [2, 1],
         "rows": [
           {
             "row": [
               {
-                "props": "Courier:16:100:center:1:0:1:0",
-                "text": "PROJECTS",
-                "bgcolor": "#161B22",
-                "textcolor": "#00FFC4"
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Senior Product Designer | Lumen Health Labs"
               },
               {
-                "props": "Helvetica:12:100:left:0:1:1:0",
-                "text": "Design System Modernization",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/design-sys"
+                "props": "Helvetica:9:000:right:0:0:0:0",
+                "text": "2021 - Present"
               }
             ]
           },
           {
             "row": [
               {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2023 - Present",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "Created an open-source, scalable design system component library in Figma integrated with Storybook, adopted by 50+ enterprise product teams.",
-                "bgcolor": "#FFFFFF",
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "- Led the redesign of patient onboarding, lifting activation by 28% across web and mobile.\n- Built Prism, a 120-component design system now used by 4 product squads.\n- Ran weekly usability sessions; findings cut support tickets by 19% in two quarters.",
                 "wrap": true
+              },
+              {
+                "props": "Helvetica:9:010:right:0:0:0:0",
+                "text": "Austin, TX",
+                "textcolor": "#457B9D"
               }
             ]
           },
           {
             "row": [
               {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2023 - 2023",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "Product Designer | Brightline Studio"
               },
               {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "AI-Powered Logo Generator UI",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/ai-logo-ui"
+                "props": "Helvetica:9:000:right:0:0:0:0",
+                "text": "2018 - 2021"
               }
             ]
           },
           {
             "row": [
               {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "Designed the front-end user experience mapped onto an AI backend, achieving a 45% increase in user retention in the first quarter.",
-                "bgcolor": "#FFFFFF",
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "- Shipped an analytics dashboard used by 40,000 teams, raising weekly retention 12%.\n- Partnered with engineers on tokens and specs, cutting handoff rework by 35%.\n- Prototyped and tested 3 onboarding concepts; winner became the default flow.",
                 "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2022 - 2023",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
               },
               {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "Minimalist CSS Framework",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/min-css"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "Developed a lightweight (under 3kb) CSS utility framework aimed at rapid prototyping with a focus on dark mode support out of the box.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2022 - 2022",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "E-Commerce App Redesign",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/ecomm-ux"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "Complete visual and UX overhaul of a popular Shopify template resulting in a 20% conversion rate increase for beta testers.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2021 - 2022",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "Crypto Wallet Interface Prototype",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/crypto-ui"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "A conceptual design implementation in React and styled-components for a multi-currency decentralized wallet application.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2021 - 2021",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "Figma Auto-Layout Plugin",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/figma-tools"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "Authored a Figma plugin using TypeScript that automatically structures nested elements to adhere to 8pt grid systems.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2020 - 2021",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "Accessible Color Palette Generator",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/a11y-palettes"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "A robust tool simulating color blindness types to automatically generate WCAG 2.1 AA/AAA compliant palettes for designers.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2019 - 2020",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "CSS Grid Layout Generator",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/grid-gen"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "Visual tool to create complex CSS Grid layouts, exporting production-ready code instantly.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "2018 - 2019",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "Portfolio Template Builder",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/portfolio-tpl"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:0",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:0",
-                "text": "Next.js and Tailwind based portfolio template tailored for creatives with built-in MDX blog support.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:1",
-                "text": "2016 - 2018",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:0:0",
-                "text": "SVG Icon Library",
-                "bgcolor": "#FFFFFF",
-                "link": "https://github.com/janesmith/svg-icons"
-              }
-            ]
-          },
-          {
-            "row": [
-              {
-                "props": "Courier:10:000:center:1:0:0:1",
-                "text": "",
-                "bgcolor": "#161B22"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:0:1",
-                "text": "Collection of 500+ hand-crafted SVG line icons matching a 2px stroke width, fully customizable and MIT licensed.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
+                "props": "Helvetica:9:010:right:0:0:0:0",
+                "text": "Remote",
+                "textcolor": "#457B9D"
               }
             ]
           }
@@ -476,39 +351,35 @@
       }
     },
     {
+      "type": "spacer",
+      "spacer": {
+        "height": 6,
+        "type": "spacer"
+      }
+    },
+    {
       "type": "table",
       "table": {
-        "maxcolumns": 2,
-        "columnwidths": [1, 2.5],
+        "maxcolumns": 1,
+        "columnwidths": [1],
         "rows": [
           {
             "row": [
               {
-                "props": "Courier:16:100:center:1:0:1:0",
+                "props": "Times-Roman:14:100:left:0:0:0:0",
                 "text": "EDUCATION",
-                "bgcolor": "#161B22",
-                "textcolor": "#00FFC4"
-              },
-              {
-                "props": "Helvetica:12:100:left:0:1:1:0",
-                "text": "Bachelor of Fine Arts (BFA) in Graphic Design",
-                "bgcolor": "#FFFFFF"
+                "bgcolor": "#1D3557",
+                "textcolor": "#FFFFFF"
               }
             ]
           },
           {
             "row": [
               {
-                "props": "Courier:10:000:center:1:0:0:1",
-                "text": "2011 - 2015",
-                "bgcolor": "#161B22",
-                "textcolor": "#8B949E"
-              },
-              {
-                "props": "Helvetica:11:010:left:0:1:0:1",
-                "text": "Pacific Northwest College of Art\nGraduated with Honors",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
+                "props": "Helvetica:8:000:left:0:0:0:0",
+                "text": "",
+                "bgcolor": "#E9C46A",
+                "height": 4
               }
             ]
           }
@@ -520,21 +391,30 @@
       "type": "table",
       "table": {
         "maxcolumns": 2,
-        "columnwidths": [1, 2.5],
+        "columnwidths": [2, 1],
         "rows": [
           {
             "row": [
               {
-                "props": "Courier:16:100:center:1:0:1:1",
-                "text": "EXPERTISE",
-                "bgcolor": "#161B22",
-                "textcolor": "#00FFC4"
+                "props": "Helvetica:11:100:left:0:0:0:0",
+                "text": "B.A., Communication Design"
               },
               {
-                "props": "Helvetica:11:000:left:0:1:1:1",
-                "text": "Design: UI/UX, Typography, Brand Identity, Packaging, Print Design\nSoftware: Adobe CC (Photoshop, Illustrator, InDesign, After Effects), Figma, Sketch\nOther: Team Leadership, Agile Methodology, Client Presentations",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
+                "props": "Helvetica:9:000:right:0:0:0:0",
+                "text": "2014 - 2018"
+              }
+            ]
+          },
+          {
+            "row": [
+              {
+                "props": "Helvetica:10:000:left:0:0:0:0",
+                "text": "Texas State University, San Marcos, TX"
+              },
+              {
+                "props": "Helvetica:9:010:right:0:0:0:0",
+                "text": "Graduated cum laude",
+                "textcolor": "#457B9D"
               }
             ]
           }
@@ -543,34 +423,22 @@
       }
     },
     {
-      "type": "table",
-      "table": {
-        "maxcolumns": 2,
-        "columnwidths": [1, 2.5],
-        "rows": [
-          {
-            "row": [
-              {
-                "props": "Courier:16:100:center:1:0:1:1",
-                "text": "HOBBIES",
-                "bgcolor": "#161B22",
-                "textcolor": "#00FFC4"
-              },
-              {
-                "props": "Helvetica:11:000:left:0:1:1:1",
-                "text": "Calligraphy and Hand Lettering, Abstract Painting, Mentoring Junior Designers on ADPList, Pottery, Traveling and Architectural Photography.",
-                "bgcolor": "#FFFFFF",
-                "wrap": true
-              }
-            ]
-          }
-        ],
-        "type": "table"
+      "type": "spacer",
+      "spacer": {
+        "height": 10,
+        "type": "spacer"
       }
     }
   ],
   "footer": {
-    "font": "Courier:8:000:center",
-    "text": "JANE SMITH | CREATIVE DIRECTOR | PAGE 1"
-  }
+    "props": "Helvetica:8:000:center:0:0:0:0",
+    "text": "Maya Chen | Product Designer | References available on request"
+  },
+  "bookmarks": [
+    {
+      "title": "Experience",
+      "dest": "experience",
+      "page": 1
+    }
+  ]
 }

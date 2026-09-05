@@ -6,6 +6,7 @@ import (
 	"compress/zlib"
 	"strings"
 	"testing"
+	"time"
 )
 
 func minimalPDF(objects string) []byte {
@@ -88,6 +89,20 @@ endobj
 				t.Fatalf("object count = %d, want %d", len(p.Objects), len(tc.wantObjs))
 			}
 		})
+	}
+}
+
+func TestFindObjectBoundariesDoesNotRescanUnterminatedHeaders(t *testing.T) {
+	data := append([]byte("1 0 obj\n<< /Type /Example >>\nendobj\n"),
+		[]byte(strings.Repeat("2 0 obj\n", 8000))...)
+
+	start := time.Now()
+	boundaries := FindObjectBoundaries(data)
+	if len(boundaries) != 1 {
+		t.Fatalf("found %d boundaries, want the one complete object", len(boundaries))
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("unterminated-header scan took %s", elapsed)
 	}
 }
 

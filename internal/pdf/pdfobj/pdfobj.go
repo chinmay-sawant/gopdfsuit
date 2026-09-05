@@ -173,8 +173,10 @@ func FindObjectBoundaries(data []byte) []ObjectBoundary {
 
 		endPos := FindEndObj(data, bodyStart)
 		if endPos == -1 {
-			pos = start + 1
-			continue
+			// An object without an endobj marker cannot be recovered safely.
+			// Stop at this header so the scanner never retries the same suffix
+			// from each later header and turns malformed input quadratic.
+			break
 		}
 
 		results = append(results, ObjectBoundary{

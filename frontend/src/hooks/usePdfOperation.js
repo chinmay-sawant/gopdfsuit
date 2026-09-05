@@ -47,14 +47,13 @@ const toBlobUrl = (blob, mimeType) => {
 export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
   const [isLoading, setIsLoading] = useState(false)
   const [resultUrl, setResultUrl] = useState('')
+  const [resultFiles, setResultFiles] = useState([])
   const [error, setError] = useState(null)
-  const urlRef = useRef('')
+  const urlRefs = useRef([])
 
   const revokeResult = useCallback(() => {
-    if (urlRef.current) {
-      URL.revokeObjectURL(urlRef.current)
-      urlRef.current = ''
-    }
+    urlRefs.current.forEach((url) => URL.revokeObjectURL(url))
+    urlRefs.current = []
   }, [])
 
   useEffect(() => () => revokeResult(), [revokeResult])
@@ -62,6 +61,7 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
   const reset = useCallback(() => {
     revokeResult()
     setResultUrl('')
+    setResultFiles([])
     setError(null)
   }, [revokeResult])
 
@@ -112,8 +112,9 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
     if (!blob || blob.size === 0) throw new Error('Received empty document')
     revokeResult()
     const url = toBlobUrl(blob, mimeType)
-    urlRef.current = url
+    urlRefs.current = [url]
     setResultUrl(url)
+    setResultFiles([])
     if (onBlob) onBlob(blob, url)
     if (autoDownload && filename) downloadBlobUrl(url, filename)
     return url
@@ -146,14 +147,16 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
   }, [request, storeBlob, handleFailure])
 
   const runLocal = useCallback(async (task, options = {}) => {
-    // Browser-local path shared by every op: task() must not upload
-    // anything. Single output (Uint8Array/Blob) stores one preview URL;
-    // array output (Split multi-file) stores the first part for preview and
-    // downloads the rest, so one local call yields N files with no upload.
-    // Server fallback (if any) lives behind an explicit consent click, which
-    // runSmart owns via consentOffer below.
+    // Browser-local path shared by every op. task() must not upload anything.
+    // A multi-file operation keeps every result URL until reset or unmount so
+    // the caller can offer a named download for every part.
     const { filenames, filename, autoDownload = true, mimeType = 'application/pdf', onBlob, onError: onErrorOverride } = options
-    const names = Array.isArray(filenames) ? filenames : (filename ? [filename] : [])
+    // filenames accepts an array (legacy) or a function (index => name) so
+    // Split can name an unbounded part count; the old 8-slot array capped
+    // names and left part 9+ as generic result-N.pdf.
+    const resolveName = typeof filenames === 'function'
+      ? filenames
+      : (index) => (Array.isArray(filenames) ? filenames[index] : undefined) || (filename && index === 0 ? filename : undefined)
     setIsLoading(true)
     setError(null)
     try {
@@ -164,19 +167,24 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
         const blob = part instanceof Blob ? part : new Blob([part], { type: mimeType })
         if (blob.size === 0) throw new Error('Received empty document')
         const url = toBlobUrl(blob, mimeType)
-        const name = names[index]
+        const name = resolveName(index)
         if (autoDownload && name) downloadBlobUrl(url, name)
         return { blob, url }
       })
       revokeResult()
-      urlRef.current = urls[0].url
+      urlRefs.current = urls.map((entry) => entry.url)
       setResultUrl(urls[0].url)
+      setResultFiles(parts.length > 1
+        ? urls.map((entry, index) => ({
+          filename: resolveName(index) || `result-${index + 1}.pdf`,
+          url: entry.url,
+          blob: entry.blob,
+        }))
+        : [])
       if (onBlob) {
         if (parts.length === 1) onBlob(urls[0].blob, urls[0].url)
         else onBlob(urls.map((entry) => entry.blob), urls.map((entry) => entry.url))
       }
-      // Revoke non-preview URLs after download; keep urls[0] alive for preview.
-      urls.slice(1).forEach((entry) => URL.revokeObjectURL(entry.url))
       return parts.length === 1 ? urls[0].url : urls.map((entry) => entry.url)
     } catch (err) {
       handleFailure(err, onErrorOverride)
@@ -215,25 +223,33 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
       const parts = Array.isArray(output) ? output : [output]
       if (parts.length === 0) throw new Error('Received empty document')
       const mimeType = storeOptions.mimeType || 'application/pdf'
-      const names = Array.isArray(storeOptions.filenames)
+      const resolveName = typeof storeOptions.filenames === 'function'
         ? storeOptions.filenames
-        : (storeOptions.filename ? [storeOptions.filename] : [])
+        : (index) => (Array.isArray(storeOptions.filenames)
+          ? storeOptions.filenames[index]
+          : undefined) || (storeOptions.filename && index === 0 ? storeOptions.filename : undefined)
       const urls = parts.map((part, index) => {
         const blob = part instanceof Blob ? part : new Blob([part], { type: mimeType })
         if (blob.size === 0) throw new Error('Received empty document')
         const url = toBlobUrl(blob, mimeType)
-        const name = names[index]
+        const name = resolveName(index)
         if (storeOptions.autoDownload && name) downloadBlobUrl(url, name)
         return { blob, url }
       })
       revokeResult()
-      urlRef.current = urls[0].url
+      urlRefs.current = urls.map((entry) => entry.url)
       setResultUrl(urls[0].url)
+      setResultFiles(parts.length > 1
+        ? urls.map((entry, index) => ({
+          filename: resolveName(index) || `result-${index + 1}.pdf`,
+          url: entry.url,
+          blob: entry.blob,
+        }))
+        : [])
       if (storeOptions.onBlob) {
         if (parts.length === 1) storeOptions.onBlob(urls[0].blob, urls[0].url)
         else storeOptions.onBlob(urls.map((entry) => entry.blob), urls.map((entry) => entry.url))
       }
-      urls.slice(1).forEach((entry) => URL.revokeObjectURL(entry.url))
       return parts.length === 1 ? urls[0].url : urls.map((entry) => entry.url)
     } catch (err) {
       wasmMessage = err?.message || 'Request failed.'
@@ -269,7 +285,12 @@ export const usePdfOperation = ({ onAuthRequired, onError } = {}) => {
     downloadBlobUrl(resultUrl, filename)
   }, [resultUrl])
 
-  return { isLoading, resultUrl, error, setError, setResultUrl, run, runJson, runLocal, runLocalMulti, runSmart, consentOffer, dismissConsent, confirmConsentUpload, request, reset, revokeResult, download }
+  const downloadResultFile = useCallback((resultFile) => {
+    if (!resultFile) return
+    downloadBlobUrl(resultFile.url, resultFile.filename)
+  }, [])
+
+  return { isLoading, resultUrl, resultFiles, error, setError, setResultUrl, run, runJson, runLocal, runLocalMulti, runSmart, consentOffer, dismissConsent, confirmConsentUpload, request, reset, revokeResult, download, downloadResultFile }
 }
 
 export default usePdfOperation

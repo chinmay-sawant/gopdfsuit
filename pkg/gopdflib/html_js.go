@@ -9,17 +9,17 @@ import (
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
 )
 
-// ConvertHTMLToPDF renders an inline HTML string in-browser via pure-Go
-// gowkhtmltopdf. URL sources need the server fetch path (SSRF guard plus
-// network) and return ErrUpstream; use POST /api/v1/htmltopdf for those.
+// ConvertHTMLToPDF renders HTML in-browser via pure-Go gowkhtmltopdf. Pass
+// inline markup as HTML, optionally with URL set as the document base URL
+// so relative subresource references resolve against the page origin (this
+// is the shape the WASM binding sends after pre-fetching page HTML via
+// browser fetch). URL-only requests fail fast in the engine with guidance
+// instead of dialing: raw sockets cannot work under js/wasm.
 // Empty requests still report ErrInvalidInput, matching the server contract.
 func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
 	const op = "gopdflib: ConvertHTMLToPDF"
 	if req.HTML == "" && req.URL == "" {
 		return nil, invalidInputError(op, "needs HTML content or a URL")
-	}
-	if req.URL != "" && req.HTML == "" {
-		return nil, fmt.Errorf("%w: %s: URL conversion is server-side only", ErrUpstream, op)
 	}
 	in, err := toInternal[HTMLToPDFRequest, models.HTMLToPDFRequest](req)
 	if err != nil {
@@ -32,9 +32,10 @@ func ConvertHTMLToPDF(req HTMLToPDFRequest) ([]byte, error) {
 	return out, nil
 }
 
-// ConvertHTMLToImage renders an inline HTML string in-browser via pure-Go
-// gowkhtmltopdf (png/jpg; svg rejected as invalid input). URL sources need
-// the server fetch path and return ErrUpstream; use POST /api/v1/htmltoimage.
+// ConvertHTMLToImage renders HTML in-browser via pure-Go gowkhtmltopdf
+// (png/jpg; svg rejected as invalid input). Like ConvertHTMLToPDF it takes
+// inline HTML plus an optional base URL; URL-only requests fail fast with
+// guidance because the engine cannot dial under js/wasm.
 func ConvertHTMLToImage(req HTMLToImageRequest) ([]byte, error) {
 	const op = "gopdflib: ConvertHTMLToImage"
 	if req.HTML == "" && req.URL == "" {
@@ -42,9 +43,6 @@ func ConvertHTMLToImage(req HTMLToImageRequest) ([]byte, error) {
 	}
 	if req.Format == "svg" {
 		return nil, invalidInputError(op, "format svg is not supported: use png or jpg")
-	}
-	if req.URL != "" && req.HTML == "" {
-		return nil, fmt.Errorf("%w: %s: URL conversion is server-side only", ErrUpstream, op)
 	}
 	in, err := toInternal[HTMLToImageRequest, models.HTMLToImageRequest](req)
 	if err != nil {

@@ -255,6 +255,7 @@ BENCH_WORKERS ?= 48
 BENCH_COUNT ?= 1
 BENCH_TIME ?= 5s
 ZERODHA_DIR := sampledata/gopdflib/zerodha
+ZERODHA_BOPS_DIR := sampledata/gopdflib/zerodha_bops
 GPDF_ZERODHA_DIR := sampledata/gpdf/zerodha
 BENCHMARKS_DIR := sampledata/benchmarks
 GOPDFKIT_COMPARE_DIR := $(BENCHMARKS_DIR)/gopdfkit_compare
@@ -273,6 +274,7 @@ K6_LIGHT_GOMAXPROCS ?= 12
 	bench-k6-smoke bench-k6-spike bench-k6-soak bench-k6-install \
 	bench-gotenberg bench-gotenberg-load bench-gotenberg-smoke bench-gotenberg-start \
 	bench-gopdflib-zerodha bench-gopdflib-zerodha-nocomply bench-gopdflib-zerodha-x2 bench-gopdflib-zerodha-x5 bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x10-pprof \
+	bench-gopdflib-bops-x10 \
 	bench-gopdflib-zerodha-nocomply-x10 \
 	bench-gpdf-zerodha bench-gpdf-zerodha-nocomply bench-gpdf-zerodha-x10 \
 	bench-gopdflib-data bench-gopdflib-data-pprof \
@@ -396,6 +398,11 @@ bench-gopdflib-zerodha-x5:
 
 bench-gopdflib-zerodha-x10:
 	bash $(ZERODHA_DIR)/run_bench_x10.sh
+
+# BOPS (bypass-cache ops/sec): fresh template per op, all content caches
+# cleared, unique doc IDs. Cold-path truth vs the warm x10 above.
+bench-gopdflib-bops-x10:
+	bash $(ZERODHA_BOPS_DIR)/run_bops_x10.sh
 
 bench-gopdflib-zerodha-x10-pprof: bench-gopdflib-zerodha-x10 bench-gopdflib-zerodha-x5
 

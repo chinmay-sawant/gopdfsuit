@@ -86,14 +86,6 @@ type StructElem struct {
 	groupEmitFast bool // TR grouping element eligible for formatTRStructElemObjectTo
 }
 
-var arenaTDTemplate StructElem
-
-func init() {
-	arenaTDTemplate.Type = StructTD
-	arenaTDTemplate.HasMCID = true
-	arenaTDTemplate.tdLeafFast = true
-}
-
 func (elem *StructElem) LeafMCID() (int, bool) {
 	if elem == nil {
 		return 0, false
@@ -231,6 +223,9 @@ func releaseArenaSlab(slabPtr *[]StructElem) {
 	if cap(*slabPtr) > maxArenaSlabEntries {
 		return
 	}
+	// Arena slots are initialized once before reuse. This keeps the hot row
+	// path from copying or clearing a full StructElem for every TR and TD.
+	clear(*slabPtr)
 	*slabPtr = (*slabPtr)[:0]
 	arenaSlabPool.Put(slabPtr)
 }
@@ -688,7 +683,6 @@ func (sm *StructureManager) beginTableRowArena(pageIndex, startMCID, count int) 
 	sm.arenaNext = need
 
 	tr := &slab[base]
-	*tr = StructElem{}
 	tr.Type = StructTR
 	tr.Parent = sm.CurrentParent
 	tr.PageID = pageIndex
@@ -711,15 +705,23 @@ func (sm *StructureManager) beginTableRowArena(pageIndex, startMCID, count int) 
 
 	for i := range count {
 		td := &slab[tdBase+i]
-		*td = arenaTDTemplate
+		td.Type = StructTD
 		td.Parent = tr
 		td.PageID = pageIndex
 		td.MCID = startMCID + i
 		tr.Kids[i] = StructKid{Elem: td}
 		sm.Elements[elemBase+1+i] = td
 	}
+	sm.ensurePageSlot(pageIndex)
+	parentTree := &sm.ParentTree[pageIndex]
+	parentTreeStart := len(*parentTree)
+	parentTreeNeed := parentTreeStart + count
+	if cap(*parentTree) < parentTreeNeed {
+		*parentTree = growPtrSlice(*parentTree, parentTreeNeed, 32)
+	}
+	*parentTree = (*parentTree)[:parentTreeNeed]
 	for i := range count {
-		sm.appendStructElemParentTreeRef(pageIndex, &slab[tdBase+i])
+		(*parentTree)[parentTreeStart+i] = &slab[tdBase+i]
 	}
 	return tr, true
 }

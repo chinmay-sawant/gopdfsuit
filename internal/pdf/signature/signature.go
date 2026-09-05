@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
 )
 
@@ -42,11 +43,14 @@ type PDFSigner struct {
 
 // signerCache is a small bounded LRU cache guarded by a mutex. It replaces
 // the previous unbounded sync.Map caches so a stream of distinct PEM inputs
-// cannot grow memory without bound.
+// cannot grow memory without bound. Entries additionally expire per the
+// shared cachettl policy (default 3m, GOPDFSUIT_CACHE_TTL to override) so
+// long-lived servers re-parse rotated certificates without a restart.
 type signerCache[K comparable, V any] struct {
 	mu      sync.Mutex
 	maxSize int
 	items   map[K]V
+	stamps  map[K]time.Time
 	order   []K
 }
 
@@ -55,7 +59,7 @@ func newSignerCache[K comparable, V any](maxSize int) *signerCache[K, V] {
 	if maxSize <= 0 {
 		maxSize = 128
 	}
-	return &signerCache[K, V]{maxSize: maxSize, items: make(map[K]V)}
+	return &signerCache[K, V]{maxSize: maxSize, items: make(map[K]V), stamps: make(map[K]time.Time)}
 }
 
 // signerCacheMaxEntries caps each signer cache at 128 entries.
@@ -65,20 +69,63 @@ func (c *signerCache[K, V]) load(key K) (V, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	v, ok := c.items[key]
-	return v, ok
+	if !ok {
+		return v, false
+	}
+	if exp, hasExp := c.stamps[key]; hasExp && cachettl.Expired(exp, time.Now()) {
+		delete(c.items, key)
+		delete(c.stamps, key)
+		var zero V
+		return zero, false
+	}
+	return v, true
 }
 
 func (c *signerCache[K, V]) store(key K, val V) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	now := time.Now()
 	if _, ok := c.items[key]; !ok {
 		c.order = append(c.order, key)
 	}
 	c.items[key] = val
+	c.stamps[key] = cachettl.ExpiresAt(now)
+	c.evictLocked(now)
+}
+
+// evictLocked first drops expired entries, then FIFO-evicts the oldest live
+// ones. Caller must hold c.mu.
+func (c *signerCache[K, V]) evictLocked(now time.Time) {
+	for _, key := range c.order {
+		if _, ok := c.items[key]; !ok {
+			continue
+		}
+		if exp, hasExp := c.stamps[key]; hasExp && cachettl.Expired(exp, now) {
+			delete(c.items, key)
+			delete(c.stamps, key)
+		}
+	}
 	for len(c.order) > c.maxSize {
 		oldest := c.order[0]
 		c.order = c.order[1:]
-		delete(c.items, oldest)
+		// The key may already be gone via expiry above; order can hold
+		// duplicates after re-store, so only delete when present.
+		if _, ok := c.items[oldest]; ok {
+			delete(c.items, oldest)
+			delete(c.stamps, oldest)
+			break
+		}
+	}
+	// Compact order down to live keys so repeated expiry cycles cannot grow
+	// the slice without bound.
+	if len(c.order) > 2*c.maxSize {
+		live := c.order[:0]
+		for _, key := range c.order {
+			if _, ok := c.items[key]; ok {
+				live = append(live, key)
+			}
+		}
+		c.order = live
 	}
 }
 
@@ -87,6 +134,7 @@ func (c *signerCache[K, V]) clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.items = make(map[K]V)
+	c.stamps = make(map[K]time.Time)
 	c.order = nil
 }
 

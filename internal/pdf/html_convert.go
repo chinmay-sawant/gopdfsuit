@@ -13,11 +13,16 @@ import (
 	gowkhtmltopdf "github.com/chinmay-sawant/gowkhtmltopdf"
 )
 
+const (
+	imageFormatPNG = "png"
+	imageFormatJPG = "jpg"
+)
+
 // Shared HTML-convert core for the server (!js) and WASM (js) builds.
 // pdf.go and pdf_js.go keep only their source-policy funcs
-// (htmlSourceContent allows URL fetches; inlineHTMLContent returns
-// ErrUpstream) plus thin Convert wrappers; everything below is identical
-// on both targets.
+// (htmlSourceContent and inlineHTMLContent both map exactly-one-of HTML/URL
+// onto engine content) plus thin Convert wrappers; everything below is
+// identical on both targets.
 
 // Request-field to gowkhtmltopdf-knob mapping (single table, both builds):
 //
@@ -57,21 +62,29 @@ func buildPDFDocument(req models.HTMLToPDFRequest, content gowkhtmltopdf.Content
 
 // runPDFDocument renders doc and folds failures into the shared message.
 func runPDFDocument(doc *gowkhtmltopdf.Document) ([]byte, error) {
-	pdfData, err := doc.PDF(context.Background())
+	return runPDFDocumentContext(context.Background(), doc)
+}
+
+func runPDFDocumentContext(ctx context.Context, doc *gowkhtmltopdf.Document) ([]byte, error) {
+	pdfData, err := doc.PDF(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("PDF conversion failed: %w", err)
 	}
 	return pdfData, nil
 }
 
-// normalizeImageFormat lowercases/trims the requested image format,
-// defaulting empty to png. svg has no engine equivalent and fails fast.
+// normalizeImageFormat returns the one format spelling used by the renderer.
+// Empty selects png, jpeg is canonicalized to jpg, and unsupported formats
+// fail before the engine is invoked.
 func normalizeImageFormat(raw string) (string, error) {
 	format := strings.ToLower(strings.TrimSpace(raw))
-	if format == "" {
-		format = "png"
-	}
-	if format == "svg" {
+	switch format {
+	case "":
+		format = imageFormatPNG
+	case "jpeg":
+		format = imageFormatJPG
+	case imageFormatPNG, imageFormatJPG:
+	default:
 		return "", fmt.Errorf("unsupported image format %q: gowkhtmltopdf supports png and jpg only", raw)
 	}
 	return format, nil
@@ -104,11 +117,50 @@ func buildImageDocument(req models.HTMLToImageRequest, content gowkhtmltopdf.Con
 
 // runImageDocument renders imgDoc and folds failures into the shared message.
 func runImageDocument(imgDoc *gowkhtmltopdf.ImageDocument) ([]byte, error) {
-	imageData, err := imgDoc.Image(context.Background())
+	return runImageDocumentContext(context.Background(), imgDoc)
+}
+
+func runImageDocumentContext(ctx context.Context, imgDoc *gowkhtmltopdf.ImageDocument) ([]byte, error) {
+	imageData, err := imgDoc.Image(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("image conversion failed: %w", err)
 	}
 	return imageData, nil
+}
+
+// ConvertHTMLToPDFContext renders HTML using the caller's context. The
+// context-aware entry point is used by HTTP handlers so disconnects and
+// deadlines reach the renderer; ConvertHTMLToPDF remains the public
+// background-context compatibility entry point.
+func ConvertHTMLToPDFContext(ctx context.Context, req models.HTMLToPDFRequest) ([]byte, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	content, err := htmlSourceContent(req.HTML, req.URL)
+	if err != nil {
+		return nil, err
+	}
+	warnUnmappedHTMLOptions("ConvertHTMLToPDF", req.Options)
+	return runPDFDocumentContext(ctx, buildPDFDocument(req, content))
+}
+
+// ConvertHTMLToImageContext renders HTML to an image using the caller's
+// context. It mirrors ConvertHTMLToImage while preserving the HTTP request
+// cancellation chain.
+func ConvertHTMLToImageContext(ctx context.Context, req models.HTMLToImageRequest) ([]byte, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	content, err := htmlSourceContent(req.HTML, req.URL)
+	if err != nil {
+		return nil, err
+	}
+	format, err := normalizeImageFormat(req.Format)
+	if err != nil {
+		return nil, err
+	}
+	warnUnmappedHTMLOptions("ConvertHTMLToImage", req.Options)
+	return runImageDocumentContext(ctx, buildImageDocument(req, content, format))
 }
 
 // defaultMarginMM is the fallback when a margin string is empty or

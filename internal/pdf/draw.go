@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"unicode/utf8"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
@@ -179,58 +178,6 @@ type sharedColumnLayout struct {
 	borderWidth    int
 }
 
-type sharedRowRenderCacheKey struct {
-	row      *models.Row
-	page     int
-	mcidBase int
-	y        int64
-}
-
-const (
-	sharedRowRenderCacheMaxEntries = 4096
-	sharedRowRenderCacheMaxBytes   = 64 * 1024 * 1024
-	sharedRowRenderCacheMaxValue   = 256 * 1024
-	sharedRowBufInitialCap         = 768 // profiled compliant 7-col HFT row emit
-)
-
-type sharedRowRenderCacheStore struct {
-	mu      sync.RWMutex
-	entries map[sharedRowRenderCacheKey][]byte
-	bytes   int
-}
-
-var sharedRowRenderCache = &sharedRowRenderCacheStore{}
-
-func (c *sharedRowRenderCacheStore) Load(key sharedRowRenderCacheKey) ([]byte, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	if c.entries == nil {
-		return nil, false
-	}
-	rendered, ok := c.entries[key]
-	return rendered, ok
-}
-
-func (c *sharedRowRenderCacheStore) Store(key sharedRowRenderCacheKey, rendered []byte) {
-	if len(rendered) == 0 || len(rendered) > sharedRowRenderCacheMaxValue {
-		return
-	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.entries == nil {
-		c.entries = make(map[sharedRowRenderCacheKey][]byte, 512)
-	}
-	if existing, ok := c.entries[key]; ok {
-		c.bytes -= len(existing)
-	}
-	if len(c.entries) >= sharedRowRenderCacheMaxEntries || c.bytes+len(rendered) > sharedRowRenderCacheMaxBytes {
-		c.entries = make(map[sharedRowRenderCacheKey][]byte, 512)
-		c.bytes = 0
-	}
-	c.entries[key] = rendered
-	c.bytes += len(rendered)
-}
-
 func stdFontCharWidth(resolvedName string) float64 {
 	switch resolvedName {
 	case "Courier", "Courier-Bold", "Courier-Oblique", "Courier-BoldOblique": //nolint:goconst
@@ -242,27 +189,32 @@ func stdFontCharWidth(resolvedName string) float64 {
 	}
 }
 
-func buildTextColorCmd(textColor string) []byte {
+func appendTextColorCmd(dst []byte, textColor string) []byte {
 	if r, g, b, _, valid := parseHexColor(textColor); valid {
-		cmd := make([]byte, 0, 24)
-		cmd = appendFmtNum(cmd, r)
-		cmd = append(cmd, ' ')
-		cmd = appendFmtNum(cmd, g)
-		cmd = append(cmd, ' ')
-		cmd = appendFmtNum(cmd, b)
-		return append(cmd, " rg\n"...)
+		dst = appendFmtNum(dst, r)
+		dst = append(dst, ' ')
+		dst = appendFmtNum(dst, g)
+		dst = append(dst, ' ')
+		dst = appendFmtNum(dst, b)
+		return append(dst, " rg\n"...)
 	}
-	return []byte("0 0 0 rg\n")
+	return append(dst, "0 0 0 rg\n"...)
 }
 
 // markSharedTableCharsUsed registers every glyph in a shared-layout table before subsetting.
 // The HFT fast path skips the slow drawTable loop, so this pre-pass is required for PDF/A-4.
 func markSharedTableCharsUsed(table models.Table, sharedCols []sharedColumnLayout, maxColumns int, registry *CustomFontRegistry) {
-	type fontTextKey struct {
-		font string
-		text string
+	hasCustomFont := false
+	for _, col := range sharedCols {
+		if col.usesCustomFont {
+			hasCustomFont = true
+			break
+		}
 	}
-	seen := make(map[fontTextKey]struct{}, 256)
+	if !hasCustomFont {
+		return
+	}
+
 	for _, row := range table.Rows {
 		for colIdx, cell := range row.Row {
 			if colIdx >= maxColumns || colIdx >= len(sharedCols) {
@@ -272,11 +224,6 @@ func markSharedTableCharsUsed(table models.Table, sharedCols []sharedColumnLayou
 			if cell.Text == "" || !sc.usesCustomFont {
 				continue
 			}
-			key := fontTextKey{font: sc.resolvedFont, text: cell.Text}
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
 			registry.MarkCharsUsed(sc.resolvedFont, cell.Text)
 		}
 	}
@@ -287,6 +234,8 @@ func prepSharedDeferRow(
 	row models.Row,
 	sharedCols []sharedColumnLayout,
 	rowTextColorCmds [][]byte,
+	rowTextColorOverrides []string,
+	rowTextColorChanged []bool,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
 ) {
@@ -301,29 +250,30 @@ func prepSharedDeferRow(
 		} else {
 			rowSingleLineTextWidths[colIdx] = 0
 		}
-		if cell.TextColor != "" {
-			rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], buildTextColorCmd(cell.TextColor)...)
-		} else {
-			rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], sc.textColorCmd...)
+		colorOverrideChanged := rowTextColorOverrides[colIdx] != cell.TextColor
+		rowTextColorChanged[colIdx] = colorOverrideChanged
+		if colorOverrideChanged {
+			if cell.TextColor != "" {
+				rowTextColorCmds[colIdx] = appendTextColorCmd(rowTextColorCmds[colIdx][:0], cell.TextColor)
+			} else {
+				rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], sc.textColorCmd...)
+			}
+			rowTextColorOverrides[colIdx] = cell.TextColor
 		}
 	}
 }
 
-func prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes [][]byte, maxColumns int) {
+func prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes [][]byte, changed []bool, maxColumns int) {
 	for colIdx := range maxColumns {
+		if changed != nil && !changed[colIdx] {
+			continue
+		}
 		prefix := rowTextPrefixes[colIdx][:0]
 		prefix = append(prefix, rowFontDecls[colIdx]...)
 		prefix = append(prefix, rowTextColorCmds[colIdx]...)
 		prefix = append(prefix, "1 0 0 1 0 0 Tm\n"...)
 		rowTextPrefixes[colIdx] = prefix
 	}
-}
-
-func scaledCoordKey(v float64) int64 {
-	if v < 0 {
-		return int64(v*100 - 0.5)
-	}
-	return int64(v*100 + 0.5)
 }
 
 func appendTextForSharedColumn(dst []byte, sc sharedColumnLayout, text string) []byte {
@@ -527,7 +477,6 @@ func drawSharedDeferRow(
 func drawSharedLayoutRow(
 	pageManager *PageManager,
 	contentStream *bytes.Buffer,
-	rowPtr *models.Row,
 	row models.Row,
 	colWidths []float64,
 	sharedCols []sharedColumnLayout,
@@ -537,6 +486,8 @@ func drawSharedLayoutRow(
 	rowFontDecls [][]byte,
 	rowTextColorCmds [][]byte,
 	rowTextPrefixes [][]byte,
+	rowTextColorOverrides []string,
+	rowTextColorChanged []bool,
 	rowSingleLineTextWidths []float64,
 	maxColumns int,
 	charsPreScanned bool,
@@ -545,57 +496,28 @@ func drawSharedLayoutRow(
 	pageIndex := pageManager.CurrentPageIndex
 	rowMCIDBase, endRow := pageManager.Structure.EmitRowCells(contentStream, pageIndex, cellCount)
 
-	if rowPtr != nil {
-		cacheKey := sharedRowRenderCacheKey{
-			row:      rowPtr,
-			page:     pageIndex,
-			mcidBase: rowMCIDBase,
-			y:        scaledCoordKey(pageManager.CurrentYPos),
-		}
-		if cached, ok := sharedRowRenderCache.Load(cacheKey); ok {
-			appendContentStream(contentStream, cached)
-			endRow()
-			pageManager.CurrentYPos -= rowHeight
-			return
-		}
-
-		var rowBuf bytes.Buffer
-		rowGrow := sharedRowBufInitialCap
-		if pageManager.sharedRowBytes > 0 {
-			rowGrow = pageManager.sharedRowBytes
-		}
-		rowBuf.Grow(rowGrow)
-		prepSharedDeferRow(row, sharedCols, rowTextColorCmds, rowSingleLineTextWidths, maxColumns)
-		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, maxColumns)
-		// P6: TR + 7 TD struct elems were built up front by EmitRowCells
-		// (arena allocation, no sync.Pool churn); the per-cell
-		// BDC/EMC is then emitted by drawSharedDeferRow via the lightweight
-		// writeCellMarkedContentBDC / EndCellMarkedContentBuf pair.
-		drawSharedDeferRow(
-			&rowBuf, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
-			scratchBuf, textTjBuf, borderBuf,
-			rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
-			maxColumns, charsPreScanned,
-		)
-		rendered := append([]byte(nil), rowBuf.Bytes()...)
-		pageManager.NoteSharedRowBytes(len(rendered))
-		sharedRowRenderCache.Store(cacheKey, rendered)
-		appendContentStream(contentStream, rendered)
-		endRow()
-		pageManager.CurrentYPos -= rowHeight
-		return
-	}
-
-	// P6: same fast path as the cached branch - TR + TDs were set up up front
-	// by EmitRowCells (arena allocation, no sync.Pool churn) and
-	// drawSharedDeferRow emits BDC/EMC per cell without re-allocating a
-	// struct elem each time.
+	rowStart := contentStream.Len()
+	prepSharedDeferRow(
+		row, sharedCols, rowTextColorCmds, rowTextColorOverrides, rowTextColorChanged,
+		rowSingleLineTextWidths, maxColumns,
+	)
+	prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, rowTextColorChanged, maxColumns)
+	// P6: TR + 7 TD struct elems were built up front by EmitRowCells
+	// (arena allocation, no sync.Pool churn); the per-cell
+	// BDC/EMC is then emitted by drawSharedDeferRow via the lightweight
+	// writeCellMarkedContentBDC / EndCellMarkedContentBuf pair.
 	drawSharedDeferRow(
 		contentStream, row, colWidths, sharedCols, rowHeight, rowMCIDBase, pageManager,
 		scratchBuf, textTjBuf, borderBuf,
 		rowCellProps, rowTextPrefixes, rowSingleLineTextWidths,
 		maxColumns, charsPreScanned,
 	)
+	pageManager.NoteSharedRowBytes(contentStream.Len() - rowStart)
+
+	// P6: TR + TDs were set up up front
+	// by EmitRowCells (arena allocation, no sync.Pool churn) and
+	// drawSharedDeferRow emits BDC/EMC per cell without re-allocating a
+	// struct elem each time.
 	endRow()
 	pageManager.CurrentYPos -= rowHeight
 }
@@ -627,7 +549,7 @@ func buildSharedColumnLayouts(table models.Table, templateRow int, registry *Cus
 			resolvedFont:   resolved,
 			fontRef:        getFontReferenceByResolvedName(resolved, registry),
 			fontDecl:       decl,
-			textColorCmd:   buildTextColorCmd(textColor),
+			textColorCmd:   appendTextColorCmd(nil, textColor),
 			registeredFont: registeredFont,
 			stdCharWidth:   stdFontCharWidth(resolved),
 			usesCustomFont: registry.IsCustomFont(resolved),
@@ -1299,6 +1221,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 	rowFontDecls := make([][]byte, table.MaxColumns)
 	rowTextColorCmds := make([][]byte, table.MaxColumns)
 	rowTextPrefixes := make([][]byte, table.MaxColumns)
+	rowTextColorOverrides := make([]string, table.MaxColumns)
+	rowTextColorChanged := make([]bool, table.MaxColumns)
 	rowUsesCustomFonts := make([]bool, table.MaxColumns)
 	rowSingleLineTextWidths := make([]float64, table.MaxColumns)
 	// Scratch buffers reused across all cells to reduce allocations
@@ -1341,8 +1265,8 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			rowFontDecls[colIdx] = append(rowFontDecls[colIdx][:0], sc.fontDecl...)
 			rowTextColorCmds[colIdx] = append(rowTextColorCmds[colIdx][:0], sc.textColorCmd...)
 		}
+		prepSharedTextPrefixes(rowFontDecls, rowTextColorCmds, rowTextPrefixes, nil, table.MaxColumns)
 	}
-
 	for rowIdx, row := range table.Rows {
 		fastRow := useSharedLayout && rowIdx != templateRow
 
@@ -1367,9 +1291,10 @@ func drawTable(table models.Table, imageKeyPrefix string, pageManager *PageManag
 			}
 
 			drawSharedLayoutRow(
-				pageManager, pageManager.GetCurrentContentStream(), &table.Rows[rowIdx], row, colWidths, sharedCols, rowHeight,
+				pageManager, pageManager.GetCurrentContentStream(), row, colWidths, sharedCols, rowHeight,
 				scratchBuf, textTjBuf, borderBuf,
-				rowCellProps, rowFontDecls, rowTextColorCmds, rowTextPrefixes, rowSingleLineTextWidths,
+				rowCellProps, rowFontDecls, rowTextColorCmds, rowTextPrefixes,
+				rowTextColorOverrides, rowTextColorChanged, rowSingleLineTextWidths,
 				table.MaxColumns, charsPreScanned,
 			)
 			continue

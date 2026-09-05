@@ -12,6 +12,10 @@ import (
 // per Uint8Array before copying the files into the module.
 const MaxMergeInputBytes = merge.MaxMergeInputBytes
 
+// MaxMergeTotalInputBytes caps the combined size of all files accepted by
+// MergePDFs before the merge operation allocates working memory.
+const MaxMergeTotalInputBytes = merge.MaxMergeTotalInputBytes
+
 // MaxMergeFileCount caps the number of input files accepted by MergePDFs.
 // The CGO MergePDFs entry point enforces the same cap on its count argument
 // before copying parts, so all callers share one policy sourced here.
@@ -42,9 +46,17 @@ func MergePDFs(files [][]byte) ([]byte, error) {
 	if len(files) >= MaxMergeFileCount {
 		return nil, invalidInputError(op, "too many PDF files")
 	}
+	var totalBytes uint64
 	for i, f := range files {
 		if len(f) == 0 {
 			return nil, invalidInputError(op, fmt.Sprintf("file at index %d is empty", i))
+		}
+		if len(f) > MaxMergeInputBytes {
+			return nil, limitExceededError(op, fmt.Sprintf("file at index %d exceeds %d bytes", i, MaxMergeInputBytes))
+		}
+		totalBytes += uint64(len(f))
+		if totalBytes > MaxMergeTotalInputBytes {
+			return nil, limitExceededError(op, fmt.Sprintf("combined input exceeds %d bytes", MaxMergeTotalInputBytes))
 		}
 	}
 	out, err := merge.MergePDFs(files)

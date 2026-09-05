@@ -2,13 +2,16 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/chinmay-sawant/gopdfsuit/v6/internal/middleware"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/api/idtoken"
 )
 
 // getProjectRoot returns the base directory where the `web` folder lives.
@@ -107,10 +110,12 @@ func RegisterRoutesWithPolicy(router *gin.Engine, policy RoutePolicy) {
 	// policy.EnableCORS is false only on the GIN_FAST_API=1 benchmark path;
 	// authentication is never skipped (see RegisterRoutesWithPolicy).
 	v1 := router.Group("/api/v1")
+	policy = normalizeRoutePolicy(policy)
 	if policy.EnableCORS {
 		v1.Use(middleware.CORSMiddleware()) // Add CORS middleware
 	}
-	v1.Use(middleware.GoogleAuthMiddleware()) // Only enforces auth on Cloud Run (or REQUIRE_AUTH=1)
+	v1.Use(routeAuthMiddleware(policy.RequireAuth))
+	v1.Use(routeBodyLimitMiddleware(policy))
 	{
 		// Handle all OPTIONS requests for CORS
 		v1.OPTIONS("/*path", func(c *gin.Context) { //nolint:revive
@@ -172,6 +177,78 @@ func RegisterRoutesWithPolicy(router *gin.Engine, policy RoutePolicy) {
 
 	// Serve React app for all frontend routes (SPA fallback)
 	router.NoRoute(handleSPA)
+}
+
+func routeBodyLimitMiddleware(policy RoutePolicy) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request.Method != http.MethodPost {
+			c.Next()
+			return
+		}
+
+		limit := int64(0)
+		switch c.Request.URL.Path {
+		case "/api/v1/generate/template-pdf":
+			limit = policy.MaxTemplateBodyBytes
+		case "/api/v1/htmltopdf", "/api/v1/htmltoimage":
+			limit = policy.MaxHTMLBodyBytes
+		case "/api/v1/merge":
+			limit = policy.MaxMergeBodyBytes
+			c.Set(mergeFileLimitContextKey, policy.MaxMergeFiles)
+		default:
+			limit = policy.MaxMultipartBodyBytes
+		}
+		if !applyBodyLimit(c, limit) {
+			return
+		}
+		c.Next()
+	}
+}
+
+func routeAuthMiddleware(requireAuth bool) gin.HandlerFunc {
+	if !requireAuth {
+		return func(c *gin.Context) { c.Next() }
+	}
+	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodOptions {
+			c.Next()
+			return
+		}
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+			c.Abort()
+			return
+		}
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format. Expected: Bearer <token>"})
+			c.Abort()
+			return
+		}
+		payload, err := idtoken.Validate(c.Request.Context(), parts[1], resolveAuthAudience())
+		if err != nil {
+			log.Printf("route authentication failed: %v", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication failed"})
+			c.Abort()
+			return
+		}
+		c.Set("user_email", payload.Claims["email"])
+		c.Set("user_name", payload.Claims["name"])
+		c.Set("user_picture", payload.Claims["picture"])
+		c.Set("user_sub", payload.Subject)
+		c.Next()
+	}
+}
+
+func resolveAuthAudience() string {
+	if audience := os.Getenv("GOOGLE_OAUTH_AUDIENCE"); audience != "" {
+		return audience
+	}
+	if audience := os.Getenv("GOOGLE_CLIENT_ID"); audience != "" {
+		return audience
+	}
+	return os.Getenv("CLOUD_RUN_SERVICE_URL")
 }
 
 // handleSPA serves the React SPA for all frontend routes

@@ -9,6 +9,9 @@ import (
 // handleFillPDF accepts multipart form data with fields 'pdf' and 'xfdf' (files or raw bytes)
 // and returns the filled PDF bytes as application/pdf
 func handleFillPDF(c *gin.Context) {
+	if !ensureMultipartBodyLimit(c) {
+		return
+	}
 	// Multipart file uploads read through the shared upload policy; when a
 	// field is absent the raw body-field fallback below still applies.
 	var pdfBytes []byte
@@ -17,6 +20,9 @@ func handleFillPDF(c *gin.Context) {
 		if pdfBytes == nil {
 			return
 		}
+	} else if isBodyTooLargeErr(err) {
+		abortError(c, http.StatusRequestEntityTooLarge, overLimitMessage(UploadKindPDF))
+		return
 	}
 
 	var xfdfBytes []byte
@@ -25,6 +31,9 @@ func handleFillPDF(c *gin.Context) {
 		if xfdfBytes == nil {
 			return
 		}
+	} else if isBodyTooLargeErr(err) {
+		abortError(c, http.StatusRequestEntityTooLarge, overLimitMessage(UploadKindXFDF))
+		return
 	}
 
 	// If files not provided, try to read raw body fields

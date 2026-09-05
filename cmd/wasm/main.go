@@ -80,6 +80,32 @@ func copyBytes(v js.Value, what string, op string) ([]byte, error) {
 	return buf[:copied], nil
 }
 
+func jsByteLength(v js.Value, what, op string) (int, error) {
+	if v.Type() != js.TypeObject {
+		return 0, invalidInput(op, "expected a Uint8Array of "+what)
+	}
+	sizeVal := v.Get("byteLength")
+	if sizeVal.Type() != js.TypeNumber {
+		return 0, invalidInput(op, "expected a Uint8Array of "+what)
+	}
+	n := sizeVal.Int()
+	if n <= 0 {
+		return 0, invalidInput(op, "empty "+what)
+	}
+	return n, nil
+}
+
+func copyMergeBytes(v js.Value, what, op string) ([]byte, error) {
+	n, err := jsByteLength(v, what, op)
+	if err != nil {
+		return nil, err
+	}
+	if n > gopdflib.MaxMergeInputBytes {
+		return nil, fmt.Errorf("%w: %s: %s exceeds %d bytes", gopdflib.ErrLimitExceeded, op, what, gopdflib.MaxMergeInputBytes)
+	}
+	return copyBytes(v, what, op)
+}
+
 // bytesToJS copies Go bytes out as a fresh Uint8Array.
 func bytesToJS(b []byte) js.Value {
 	dst := js.Global().Get("Uint8Array").New(len(b))
@@ -159,9 +185,26 @@ func mergePDFs(_ js.Value, args []js.Value) (result any) {
 	if n == 0 {
 		return errResult(invalidInput(op, "needs at least 1 PDF file"))
 	}
+	if n >= gopdflib.MaxMergeFileCount {
+		return errResult(invalidInput(op, "too many PDF files"))
+	}
+	var totalBytes uint64
+	for i := 0; i < n; i++ {
+		length, err := jsByteLength(args[0].Index(i), fmt.Sprintf("PDF bytes at index %d", i), op)
+		if err != nil {
+			return errResult(err)
+		}
+		if length > gopdflib.MaxMergeInputBytes {
+			return errResult(fmt.Errorf("%w: %s: PDF bytes at index %d exceeds %d bytes", gopdflib.ErrLimitExceeded, op, i, gopdflib.MaxMergeInputBytes))
+		}
+		totalBytes += uint64(length)
+		if totalBytes > gopdflib.MaxMergeTotalInputBytes {
+			return errResult(fmt.Errorf("%w: %s: combined input exceeds %d bytes", gopdflib.ErrLimitExceeded, op, gopdflib.MaxMergeTotalInputBytes))
+		}
+	}
 	files := make([][]byte, 0, n)
 	for i := 0; i < n; i++ {
-		b, err := copyBytes(args[0].Index(i), fmt.Sprintf("PDF bytes at index %d", i), op)
+		b, err := copyMergeBytes(args[0].Index(i), fmt.Sprintf("PDF bytes at index %d", i), op)
 		if err != nil {
 			return errResult(err)
 		}

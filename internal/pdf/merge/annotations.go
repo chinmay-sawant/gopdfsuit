@@ -88,7 +88,7 @@ func ExtractAPDependencies(widgetBody []byte, objMap map[int][]byte) []int {
 
 // ExtractFormFields extracts all form field objects from a PDF
 // This includes widgets, their dependencies, and AcroForm fields
-func ExtractFormFields(fc *FileContext) {
+func ExtractFormFields(fc *FileContext) error {
 	refRe := regexp.MustCompile(`(\d+)\s+\d+\s+R`)
 	fieldSet := make(map[int]bool)
 
@@ -98,7 +98,9 @@ func ExtractFormFields(fc *FileContext) {
 		var rootNum int
 		if err := parseObjRef(rootRef, &rootNum); err == nil {
 			if rootBody, exists := fc.Objects[rootNum]; exists {
-				extractFromAcroForm(rootBody, fc.Objects, &fc.FormFields, fieldSet, refRe)
+				if err := extractFromAcroForm(rootBody, fc.Objects, &fc.FormFields, fieldSet, refRe); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -149,16 +151,20 @@ func ExtractFormFields(fc *FileContext) {
 			}
 		}
 	}
+	return nil
 }
 
 // extractFromAcroForm extracts field references from AcroForm
-func extractFromAcroForm(catalogBody []byte, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp) {
+func extractFromAcroForm(catalogBody []byte, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp) error {
+	active := make(map[int]bool)
 	// Try indirect AcroForm: /AcroForm N 0 R
 	acroFormRefRe := regexp.MustCompile(`/AcroForm\s+(\d+)\s+\d+\s+R`)
 	if match := acroFormRefRe.FindSubmatch(catalogBody); match != nil {
 		if acroFormNum, err := strconv.Atoi(string(match[1])); err == nil {
 			if acroFormBody, exists := objMap[acroFormNum]; exists {
-				extractFieldsArray(acroFormBody, objMap, fields, fieldSet, refRe)
+				if err := extractFieldsArray(acroFormBody, objMap, fields, fieldSet, refRe, active); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -166,18 +172,23 @@ func extractFromAcroForm(catalogBody []byte, objMap map[int][]byte, fields *[]in
 	// Try inline AcroForm: /AcroForm << ... >>
 	acroFormInlineRe := regexp.MustCompile(`(?s)/AcroForm\s*<<(.+?)>>`)
 	if match := acroFormInlineRe.FindSubmatch(catalogBody); match != nil {
-		extractFieldsArray(match[1], objMap, fields, fieldSet, refRe)
+		if err := extractFieldsArray(match[1], objMap, fields, fieldSet, refRe, active); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // extractFieldsArray extracts fields from /Fields array
-func extractFieldsArray(acroFormBody []byte, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp) {
+func extractFieldsArray(acroFormBody []byte, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp, active map[int]bool) error {
 	// Inline array: /Fields [...]
 	fieldsArrayRe := regexp.MustCompile(`/Fields\s*\[(.*?)\]`)
 	if match := fieldsArrayRe.FindSubmatch(acroFormBody); match != nil {
 		for _, ref := range refRe.FindAllSubmatch(match[1], -1) {
 			if fieldNum, err := strconv.Atoi(string(ref[1])); err == nil {
-				addFieldRecursive(fieldNum, objMap, fields, fieldSet, refRe)
+				if err := addFieldRecursive(fieldNum, objMap, fields, fieldSet, refRe, active, 0); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -189,21 +200,33 @@ func extractFieldsArray(acroFormBody []byte, objMap map[int][]byte, fields *[]in
 			if fieldsBody, exists := objMap[fieldsObjNum]; exists {
 				for _, ref := range refRe.FindAllSubmatch(fieldsBody, -1) {
 					if fieldNum, err := strconv.Atoi(string(ref[1])); err == nil {
-						addFieldRecursive(fieldNum, objMap, fields, fieldSet, refRe)
+						if err := addFieldRecursive(fieldNum, objMap, fields, fieldSet, refRe, active, 0); err != nil {
+							return err
+						}
 					}
 				}
 			}
 		}
 	}
+	return nil
 }
 
 // addFieldRecursive adds a field and its children (hierarchical form fields)
-func addFieldRecursive(fieldNum int, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp) {
-	if fieldSet[fieldNum] {
-		return
+
+func addFieldRecursive(fieldNum int, objMap map[int][]byte, fields *[]int, fieldSet map[int]bool, refRe *regexp.Regexp, active map[int]bool, depth int) error {
+	if depth > maxPDFTreeDepth {
+		return fmt.Errorf("field tree exceeds maximum depth %d", maxPDFTreeDepth)
 	}
+	if active[fieldNum] {
+		return fmt.Errorf("field tree cycle at object %d", fieldNum)
+	}
+	if fieldSet[fieldNum] {
+		return nil
+	}
+	active[fieldNum] = true
+	defer delete(active, fieldNum)
+
 	*fields = append(*fields, fieldNum)
-	fieldSet[fieldNum] = true
 
 	// Check for /Kids in the field (hierarchical fields)
 	if fieldBody, exists := objMap[fieldNum]; exists {
@@ -211,11 +234,15 @@ func addFieldRecursive(fieldNum int, objMap map[int][]byte, fields *[]int, field
 		if match := kidsRe.FindSubmatch(fieldBody); match != nil {
 			for _, ref := range refRe.FindAllSubmatch(match[1], -1) {
 				if kidNum, err := strconv.Atoi(string(ref[1])); err == nil {
-					addFieldRecursive(kidNum, objMap, fields, fieldSet, refRe)
+					if err := addFieldRecursive(kidNum, objMap, fields, fieldSet, refRe, active, depth+1); err != nil {
+						return err
+					}
 				}
 			}
 		}
 	}
+	fieldSet[fieldNum] = true
+	return nil
 }
 
 // findRootRef finds the /Root reference in PDF trailer

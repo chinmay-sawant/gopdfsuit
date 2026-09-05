@@ -3,6 +3,8 @@ package form
 import (
 	"bytes"
 	"compress/zlib"
+	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +76,33 @@ func TestBuildFieldObjectMapExpandsObjStm(t *testing.T) {
 	}
 	if string(body) != inner {
 		t.Fatalf("member body = %q, want %q", body, inner)
+	}
+}
+
+func TestLocateFieldsRejectsCyclesAndExcessiveDepth(t *testing.T) {
+	cycleMap := map[string][]byte{
+		"1 0": []byte(`<< /Type /Catalog /AcroForm 2 0 R >>`),
+		"2 0": []byte(`<< /Fields [3 0 R] >>`),
+		"3 0": []byte(`<< /T (cycle) /Kids [3 0 R] >>`),
+	}
+	if _, err := locateFields(cycleMap, []byte(`/Root 1 0 R`)); err == nil || !strings.Contains(err.Error(), "cycle") {
+		t.Fatalf("locateFields cycle error = %v, want cycle error", err)
+	}
+
+	const depth = 1100
+	deepMap := map[string][]byte{
+		"1 0": []byte(`<< /Type /Catalog /AcroForm 2 0 R >>`),
+		"2 0": []byte(`<< /Fields [3 0 R] >>`),
+	}
+	for num := 3; num < depth+3; num++ {
+		deepMap[fmt.Sprintf("%d 0", num)] = []byte(fmt.Sprintf(
+			"<< /T (field%d) /Kids [%d 0 R] >>",
+			num,
+			num+1,
+		))
+	}
+	deepMap[fmt.Sprintf("%d 0", depth+3)] = []byte(`<< /T (leaf) /V (value) >>`)
+	if _, err := locateFields(deepMap, []byte(`/Root 1 0 R`)); err == nil || !strings.Contains(err.Error(), "depth") {
+		t.Fatalf("locateFields depth error = %v, want depth error", err)
 	}
 }

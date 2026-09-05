@@ -5,11 +5,15 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
+
+	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
 )
 
 type pageCompressEntry struct {
-	data     []byte
-	useFlate bool
+	data      []byte
+	useFlate  bool
+	expiresAt time.Time
 }
 
 type pageCompressKey struct {
@@ -84,26 +88,34 @@ func CompressContentStreamCached(raw []byte) (compressed *bytes.Buffer, useFlate
 	shard := &compressShards[compressShardIndex(key.fingerprint)]
 	if v, ok := shard.entries.Load(key); ok {
 		entry := v.(*pageCompressEntry)
-		if !entry.useFlate {
-			return nil, false
+		if cachettl.Expired(entry.expiresAt, time.Now()) {
+			// Drop and fall through to the miss path below, which
+			// recompresses and stores a fresh entry with a new expiry.
+			shard.entries.Delete(key)
+		} else {
+			if !entry.useFlate {
+				return nil, false
+			}
+			buf := GetCompressBuffer()
+			buf.Write(entry.data)
+			return buf, true
 		}
-		buf := GetCompressBuffer()
-		buf.Write(entry.data)
-		return buf, true
 	}
 
 	compressedBuf, ok := CompressContentStream(raw)
 	if !ok {
 		storePageCompressEntry(shard, key, &pageCompressEntry{
-			useFlate: false,
+			useFlate:  false,
+			expiresAt: cachettl.ExpiresAt(time.Now()),
 		})
 		return nil, false
 	}
 
 	data := append([]byte(nil), compressedBuf.Bytes()...)
 	storePageCompressEntry(shard, key, &pageCompressEntry{
-		data:     data,
-		useFlate: true,
+		data:      data,
+		useFlate:  true,
+		expiresAt: cachettl.ExpiresAt(time.Now()),
 	})
 	return compressedBuf, true
 }

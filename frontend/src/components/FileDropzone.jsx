@@ -1,6 +1,5 @@
-import { useRef } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Upload } from 'lucide-react'
-import { resetDropStyles } from '../utils/format'
 
 /**
  * FileDropzone owns the shared click-or-drag file input every op page
@@ -14,9 +13,10 @@ const FileDropzone = ({
   title = 'Click to upload or drag & drop',
   subtitle = 'Select a PDF file',
   disabled = false,
-  compact = false,
 }) => {
   const fileInputRef = useRef(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const helpId = useId()
 
   const emit = (files) => {
     if (disabled) return
@@ -35,17 +35,20 @@ const FileDropzone = ({
         disabled={disabled}
         style={{ display: 'none' }}
       />
-      <div
+      <button
+        aria-describedby={helpId}
+        className={`file-dropzone${isDragging ? ' is-dragging' : ''}`}
         onClick={() => { if (!disabled) fileInputRef.current?.click() }}
-        style={{ border: '2px dashed rgba(255,255,255,0.15)', borderRadius: '8px', padding: compact ? '2rem' : '3rem 2rem', textAlign: 'center', cursor: disabled ? 'not-allowed' : 'pointer', transition: 'all 0.3s ease', marginBottom: '2rem', background: 'rgba(255,255,255,0.02)', opacity: disabled ? 0.6 : 1 }}
-        onDragOver={(e) => { e.preventDefault(); if (disabled) return; e.currentTarget.style.borderColor = '#4ecdc4'; e.currentTarget.style.background = 'rgba(78,205,196,0.1)' }}
-        onDragLeave={(e) => { resetDropStyles(e.currentTarget) }}
-        onDrop={(e) => { e.preventDefault(); resetDropStyles(e.currentTarget); if (disabled) return; emit(e.dataTransfer.files) }}
+        disabled={disabled}
+        onDragOver={(event) => { event.preventDefault(); if (!disabled) setIsDragging(true) }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(event) => { event.preventDefault(); setIsDragging(false); if (!disabled) emit(event.dataTransfer.files) }}
+        type="button"
       >
-        <div className="feature-icon-box teal" style={{ width: '56px', height: '56px', margin: '0 auto 1rem', opacity: 0.6 }}><Upload size={28} /></div>
-        <p style={{ color: 'hsl(var(--foreground))', marginBottom: '0.5rem', fontSize: '1.1rem', fontWeight: '600' }}>{title}</p>
-        <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '0.9rem', marginBottom: 0 }}>{subtitle}</p>
-      </div>
+        <Upload aria-hidden="true" size={28} />
+        <strong>{title}</strong>
+        <span id={helpId}>{subtitle}</span>
+      </button>
     </>
   )
 }

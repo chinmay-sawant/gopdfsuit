@@ -276,8 +276,8 @@ func (enc *PDFEncryption) EncryptStreamE(data []byte, objNum, genNum int, randRe
 		return nil, fmt.Errorf("failed to generate IV: %w", err)
 	}
 
-	// Pad data (on a copy so the caller's slice is never mutated)
-	padded := Pkcs7Pad(append([]byte(nil), data...), aes.BlockSize)
+	// Pkcs7Pad allocates its own output and never mutates data.
+	padded := Pkcs7Pad(data, aes.BlockSize)
 
 	// Encrypt
 	block, err := aes.NewCipher(key)
