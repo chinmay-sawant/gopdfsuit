@@ -65,11 +65,11 @@ Operators who relied on indefinite caching can set `GOPDFSUIT_CACHE_TTL=0` to re
 - [x] `go vet` plus `gofmt` clean on all touched packages
 - [x] `golangci-lint -E revive,gocritic,gocyclo,goconst` on `internal/cachettl`, `pkg/gopdflib`, `internal/benchmarktemplates`, `internal/pdf/font`, `internal/pdf/signature`
 - [x] `go test` on `internal/cachettl`, `pkg/gopdflib`, `internal/pdf`, `internal/pdf/font`, `internal/pdf/signature`, `internal/handlers` (includes new `TestPropsCacheExpiresAfterTTL` and existing cache race/bounds tests)
-- [ ] `make test` (full: `go test ./...` plus Python bindings plus `test/verify_pdfs.sh`) - only targeted packages run so far
-- [ ] `make test-integration` (`go test -count=1 -v ./test`)
-- [ ] `make lint` full including `frontend npm run lint`
-- [ ] `make build` (`go build -o bin/app ./cmd/gopdfsuit`)
-- [ ] `make test-verify-pdfs` for the new sample PDFs
+- [x] `make test` (full: `go test ./...` plus Python bindings plus `test/verify_pdfs.sh`) - PASS, exit 0
+- [x] `make test-integration` (`go test -count=1 -v ./test`) - PASS (`TestIntegrationSuite` 9.8s, `TestZerodhaPDFCompliance` 13.0s)
+- [x] `make lint` full including `frontend npm run lint` - PASS, exit 0, zero ESLint warnings
+- [x] `make build` (`go build -o bin/app ./cmd/gopdfsuit`) - PASS, exit 0 (includes `test-go` gate)
+- [x] `make test-verify-pdfs` for the new sample PDFs - PASS (veraPDF 10 passed, 0 failed; PDF/A-4 plus PDF/UA-2)
 - [x] BOPS x10 script at smoke scale (`BENCH_ITERATIONS=100 BENCH_WORKERS=4`), exit 0, stats file written
 - [ ] Full-scale `make bench-gopdflib-bops-x10` (defaults 5000/48)
 
@@ -115,7 +115,7 @@ Fixtures: `sampledata/caching/caching_example.pdf`, `guides/cursor/baselines/zer
 ## Follow-ups (out of scope)
 
 - Full-scale BOPS run (`make bench-gopdflib-bops-x10` at 5000/48) for the true WOPS/BOPS ratio.
-- Full `make test`, `make test-integration`, frontend lint/build, and veraPDF verification before merge.
+- `cd frontend && npm run build` and `make wasm-compress` were not run (wasm dir untouched; `docs/` is CI-owned).
 - Pre-existing branch hygiene (not from this session's commit): committed `docs/` build output (31 files, normally CI-owned) and 3 stray root PDFs (`zerodha_*_output.pdf` from `0b8b387`) should be reverted or moved under `sampledata/` before merge.
 
 ---
