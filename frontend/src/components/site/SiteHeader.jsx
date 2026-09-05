@@ -3,6 +3,7 @@ import { ExternalLink, FileText, Moon, Sun } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { allTools } from '../../content/tools'
 import { useTheme } from '../../theme'
+import GitHubStars from './GitHubStars'
 
 const navClass = ({ isActive }) => `site-nav-link${isActive ? ' active' : ''}`
 
@@ -52,6 +53,7 @@ export default function SiteHeader() {
             <a className="site-repository-link" href="https://github.com/chinmay-sawant/gopdfsuit" rel="noreferrer" target="_blank">
               Repository <ExternalLink aria-hidden="true" size={14} />
             </a>
+            <GitHubStars className="site-stars-link" />
           </div>
         </div>
       </header>

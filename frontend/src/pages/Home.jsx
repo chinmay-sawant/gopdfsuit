@@ -1,5 +1,6 @@
-import { ArrowRight, FileCode2, ShieldCheck } from 'lucide-react'
+import { ArrowRight, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import GitHubStars from '../components/site/GitHubStars'
 import { toolGroups } from '../content/tools'
 
 const Home = () => {
@@ -7,25 +8,20 @@ const Home = () => {
     <div className="home-page">
       <section className="home-hero">
         <div className="home-hero-copy">
-          <h1>PDF work, without the detour.</h1>
-          <p className="home-lede">Build templates and work with PDF files. Render HTML when that is where you start.</p>
+          <h1>PDF tools that run in your browser.</h1>
+          <p className="home-lede">Generate PDFs from JSON templates, merge, split, compress, fill forms, redact, and convert HTML. Work happens locally wherever the engine supports it, and anything that needs the server asks before uploading.</p>
           <div className="home-actions">
             <Link className="button button-primary" to="/editor">Open the editor <ArrowRight aria-hidden="true" size={17} /></Link>
             <Link className="button button-secondary" to="/viewer">Preview a template</Link>
+            <GitHubStars className="button button-secondary" iconSize={17} />
           </div>
         </div>
-        <aside className="home-note" aria-label="How the tools work">
-          <FileCode2 aria-hidden="true" size={24} strokeWidth={1.6} />
-          <h2>Made for a real document flow.</h2>
-          <p>Each workspace keeps input, options, output, and download in one place.</p>
-          <p>When a tool can process a file in the browser, it says so. When it needs the service, it asks before uploading.</p>
-        </aside>
       </section>
 
       <section className="tool-catalogue" aria-labelledby="tool-catalogue-title">
         <div className="section-heading-row">
           <div>
-            <h2 id="tool-catalogue-title">Start with the document in front of you.</h2>
+            <h2 id="tool-catalogue-title">Build your own documents, or modify the existing.</h2>
           </div>
           <Link className="text-link" to="/comparison">See the product map <ArrowRight aria-hidden="true" size={16} /></Link>
         </div>

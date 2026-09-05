@@ -4,8 +4,9 @@ const OpPageShell = ({
   description,
   children,
   steps = null,
+  className = '',
 }) => (
-  <div className="tool-page">
+  <div className={`tool-page${className ? ` ${className}` : ''}`}>
     <header className="tool-page-header">
       <h1 className="tool-page-title">
         {icon}

@@ -137,230 +137,127 @@ const Viewer = () => {
   return (
     <OpPageShell
       title="PDF Viewer"
+      className="viewer-page"
       icon={<div className="feature-icon-box teal" style={{ width: '56px', height: '56px', marginBottom: 0 }}><FileText size={28} /></div>}
       description="Load JSON templates and generate PDFs with live preview"
     >
-      <div className="container-full">
+      <div className="container-full viewer-fit">
         {error && (
           <div style={{
-            padding: '1rem',
+            padding: '0.6rem 0.9rem',
             background: 'rgba(255, 0, 0, 0.1)',
             border: '1px solid red',
             borderRadius: '8px',
-            marginBottom: '1rem',
+            marginBottom: '0.6rem',
             color: 'hsl(var(--foreground))',
           }}>
             {error}
           </div>
         )}
         <ConsentBanner offer={fallbackOffer} onConsent={renderViaServerConsent} onDismiss={() => setFallbackOffer(null)} isLoading={isLoading} actionLabel="Upload to server and generate" />
-        <div className="grid grid-2" style={{ gap: '2rem' }}>
-            {/* Template Input Section */}
-            <div className="glass-card" style={{ padding: '2rem' }}>
-              <h3 style={{
-                color: 'hsl(var(--foreground))',
-                marginBottom: '1.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                fontSize: '1.2rem',
-                fontWeight: '700',
-              }}>
-                <div className="feature-icon-box blue" style={{ width: '40px', height: '40px', marginBottom: 0 }}>
-                  <Upload size={18} />
-                </div>
-                Template Input
-              </h3>
-
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '0.5rem',
-                  color: 'hsl(var(--foreground))',
-                  fontWeight: '600',
-                  fontSize: '0.9rem',
-                }}>
-                  Load from file:
-                </label>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                  <input
-                    type="text"
-                    value={fileName}
-                    onChange={(e) => setFileName(e.target.value)}
-                    placeholder="Enter filename (e.g., temp.json)"
-                    style={{
-                      flex: 1,
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      color: 'hsl(var(--foreground))',
-                      fontSize: '0.95rem',
-                      transition: 'all 0.2s ease',
-                    }}
-                  />
-                  <button
-                    onClick={() => loadTemplate()}
-                    disabled={isLoading || !fileName.trim()}
-                    className="btn-glow"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.75rem 1.25rem',
-                    }}
-                  >
-                    {isLoading ? <RefreshCw size={16} className="spin" /> : <Download size={16} />}
-                    Load
-                  </button>
-                </div>
-
-                <div style={{
-                  textAlign: 'center',
-                  margin: '1.25rem 0',
-                  color: 'hsl(var(--muted-foreground))',
-                  fontSize: '0.9rem',
-                  position: 'relative',
-                }}>
-                  <span style={{
-                    background: 'hsl(var(--background))',
-                    padding: '0 1rem',
-                    position: 'relative',
-                    zIndex: 1,
-                  }}>or</span>
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: 0,
-                    right: 0,
-                    height: '1px',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                  }} />
-                </div>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileUpload}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="btn-outline-glow"
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                  }}
-                >
-                  <Upload size={16} />
-                  Upload JSON File
-                </button>
-              </div>
-
-              <label style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                color: 'hsl(var(--foreground))',
-                fontWeight: '600',
-                fontSize: '0.9rem',
-              }}>
-                JSON Template:
-              </label>
-              <textarea
-                value={templateData}
-                onChange={(e) => setTemplateData(e.target.value)}
-                placeholder="Enter or paste your JSON template here..."
-                style={{
-                  width: '100%',
-                  height: '350px',
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  color: 'hsl(var(--foreground))',
-                  fontSize: '0.9rem',
-                  fontFamily: "'SF Mono', 'Monaco', 'Cascadia Code', 'Consolas', monospace",
-                  resize: 'vertical',
-                  transition: 'all 0.2s ease',
-                }}
-              />
-
+        {/* Sample templates sit above the fold so no scroll is needed to reach them. */}
+        <div className="glass-card viewer-samples">
+          <span className="viewer-samples-label">Samples</span>
+          <div className="viewer-samples-list">
+            {BUNDLED_TEMPLATES.map((sample) => (
               <button
-                onClick={generatePDF}
-                disabled={isLoading || !templateData.trim()}
-                className="btn-glow"
-                style={{
-                  width: '100%',
-                  marginTop: '1.5rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  padding: '1rem 2rem',
+                key={sample}
+                onClick={() => {
+                  setFileName(sample)
+                  loadTemplate(sample)
                 }}
+                className="btn-outline-glow viewer-sample-btn"
+                type="button"
               >
-                {isLoading ? <RefreshCw size={18} className="spin" /> : <Play size={18} />}
-                Generate PDF
+                {sample}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="viewer-grid">
+          {/* Template Input Section */}
+          <div className="glass-card viewer-input-card">
+            <h3 className="viewer-card-title">
+              <div className="feature-icon-box blue" style={{ width: '32px', height: '32px', marginBottom: 0 }}>
+                <Upload size={15} />
+              </div>
+              Template Input
+            </h3>
+
+            <div className="viewer-file-row">
+              <input
+                type="text"
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                placeholder="Enter filename (e.g., temp.json)"
+                aria-label="Template filename"
+              />
+              <button
+                onClick={() => loadTemplate()}
+                disabled={isLoading || !fileName.trim()}
+                className="btn-glow viewer-load-btn"
+                type="button"
+              >
+                {isLoading ? <RefreshCw size={15} className="spin" /> : <Download size={15} />}
+                Load
               </button>
             </div>
 
-            {/* PDF Preview Section: native iframe via OperationShell (3.5:
-                one preview stack; the bespoke PdfPreview iframe wrapper is
-                deleted and react-pdf stays only for Redact dims). */}
-            <OperationShell
-              resultUrl={pdfUrl}
-              title="PDF Preview"
-              icon={<FileText size={18} />}
-              emptyTitle="Load a JSON template to start"
-              emptySubtitle="Enter template data and click &quot;Generate PDF&quot; to see the preview"
-              onDownload={() => download(`template-pdf-${Date.now()}.pdf`)}
-              downloadLabel="Download PDF"
-              height={550}
-              isLoading={isLoading}
-              loadingLabel="Generating PDF..."
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
             />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="btn-outline-glow viewer-upload-btn"
+              type="button"
+            >
+              <Upload size={15} />
+              Upload JSON File
+            </button>
+
+            <label className="viewer-json-label" htmlFor="viewer-json-template">
+              JSON Template:
+            </label>
+            <textarea
+              id="viewer-json-template"
+              className="viewer-json"
+              value={templateData}
+              onChange={(e) => setTemplateData(e.target.value)}
+              placeholder="Enter or paste your JSON template here..."
+            />
+
+            <button
+              onClick={generatePDF}
+              disabled={isLoading || !templateData.trim()}
+              className="btn-glow viewer-generate-btn"
+              type="button"
+            >
+              {isLoading ? <RefreshCw size={16} className="spin" /> : <Play size={16} />}
+              Generate PDF
+            </button>
           </div>
 
-          {/* Sample Templates */}
-          <div className="glass-card" style={{ marginTop: '2rem', padding: '2rem' }}>
-            <h3 style={{
-              color: 'hsl(var(--foreground))',
-              marginBottom: '1.25rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              fontSize: '1.1rem',
-              fontWeight: '700',
-            }}>
-              <div className="feature-icon-box yellow" style={{ width: '40px', height: '40px', marginBottom: 0 }}>
-                <span style={{ fontSize: '1.2rem' }}>📋</span>
-              </div>
-              Sample Templates
-            </h3>
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {BUNDLED_TEMPLATES.map((sample) => (
-                <button
-                  key={sample}
-                  onClick={() => {
-                    setFileName(sample)
-                    loadTemplate(sample)
-                  }}
-                  className="btn-outline-glow"
-                  style={{
-                    fontSize: '0.9rem',
-                    padding: '0.75rem 1.25rem',
-                  }}
-                >
-                  {sample}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* PDF Preview Section: native iframe via OperationShell (3.5:
+              one preview stack; the bespoke PdfPreview iframe wrapper is
+              deleted and react-pdf stays only for Redact dims). */}
+          <OperationShell
+            resultUrl={pdfUrl}
+            title="PDF Preview"
+            icon={<FileText size={18} />}
+            emptyTitle="Load a JSON template to start"
+            emptySubtitle="Enter template data and click &quot;Generate PDF&quot; to see the preview"
+            onDownload={() => download(`template-pdf-${Date.now()}.pdf`)}
+            downloadLabel="Download PDF"
+            height={480}
+            isLoading={isLoading}
+            loadingLabel="Generating PDF..."
+          />
         </div>
+      </div>
 
       <style jsx>{`
         @keyframes spin {

@@ -1900,7 +1900,6 @@ select option {
   --ring: 214 82% 42%;
   --secondary-color: hsl(var(--primary));
   --font-ui: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
-  --font-display: 'DM Serif Display', Georgia, serif;
   --paper-shadow: 0 18px 46px rgba(38, 43, 53, 0.08);
 }
 
@@ -2126,6 +2125,30 @@ textarea {
   border: 1px solid hsl(var(--border));
 }
 
+.site-stars-link {
+  min-height: 2.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.45rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.89rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.site-stars-link:hover {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.site-stars-link svg {
+  color: hsl(var(--primary));
+}
+
 .home-page,
 .proof-page,
 .screens-page,
@@ -2140,7 +2163,7 @@ textarea {
 
 .home-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: end;
   gap: clamp(2rem, 7vw, 7rem);
   padding-bottom: clamp(4rem, 8vw, 7rem);
@@ -2162,19 +2185,19 @@ textarea {
 .not-found-page h1 {
   margin: 0;
   color: hsl(var(--foreground));
-  font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.045em;
+  font-family: var(--font-ui);
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .home-hero h1 {
-  max-width: 10ch;
+  max-width: 16ch;
   font-size: clamp(3.3rem, 7vw, 6.15rem);
-  line-height: 0.92;
+  line-height: 1;
 }
 
 .home-lede {
-  max-width: 36rem;
+  max-width: 46rem;
   margin: 1.7rem 0 0;
   color: hsl(var(--muted-foreground));
   font-size: clamp(1.05rem, 1.8vw, 1.25rem);
@@ -2227,31 +2250,14 @@ textarea {
   background: hsl(var(--accent));
 }
 
-.home-note {
-  padding: 0.35rem 0 0.35rem 1.5rem;
-  border-left: 1px solid hsl(var(--border));
-}
-
-.home-note > svg,
 .proof-callout > svg {
   color: hsl(var(--primary));
 }
 
-.home-note h2 {
-  margin-top: 1.4rem;
-  font-size: 1.65rem;
-  line-height: 1.04;
-}
-
-.home-note p,
 .proof-callout p,
 .site-footer p {
   color: hsl(var(--muted-foreground));
   line-height: 1.55;
-}
-
-.home-note p:last-child {
-  margin-bottom: 0;
 }
 
 .tool-catalogue {
@@ -2304,37 +2310,34 @@ textarea {
 .tool-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 2rem;
-  border-top: 1px solid hsl(var(--border));
+  gap: 0.75rem;
 }
 
 .tool-card {
-  min-height: 11.5rem;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 1.35rem 0;
-  border: 0;
-  border-bottom: 1px solid hsl(var(--border));
-  border-radius: 0;
+  padding: 1.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
   background: transparent;
   color: hsl(var(--foreground));
   text-decoration: none;
-  transition: color 160ms ease, border-color 160ms ease;
+  transition: background-color 160ms ease;
 }
 
 .tool-card:hover {
-  border-color: hsl(var(--primary));
-  color: hsl(var(--primary));
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
 }
 
 .tool-card > svg:first-child {
-  margin-bottom: auto;
+  margin-bottom: 1rem;
   color: hsl(var(--primary));
 }
 
 .tool-card span {
-  margin-top: 1.3rem;
+  margin-top: 0;
   font-size: 1rem;
   font-weight: 700;
 }
@@ -2348,8 +2351,13 @@ textarea {
 }
 
 .tool-card-arrow {
-  margin-top: 1.2rem;
+  margin-top: 1rem;
   color: hsl(var(--muted-foreground));
+  transition: transform 160ms ease;
+}
+
+.tool-card:hover .tool-card-arrow {
+  transform: translateX(3px);
 }
 
 .proof-callout {
@@ -2357,14 +2365,16 @@ textarea {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 1.4rem;
-  margin-top: 6rem;
-  padding: 2rem 0;
-  border-top: 1px solid hsl(var(--border));
-  border-bottom: 1px solid hsl(var(--border));
+  margin-top: 5rem;
+  padding: 0;
 }
 
 .proof-callout h2 {
   font-size: clamp(1.7rem, 3vw, 2.4rem);
+}
+
+.proof-callout p {
+  margin-top: 0.9rem;
 }
 
 .proof-callout p:last-child {
@@ -2487,6 +2497,220 @@ textarea {
   }
 }
 
+/* Viewer (template review) fits a single viewport like Merge/Split/Compress:
+   samples sit above the fold, the two-column grid never pagescrolls on
+   desktop, and only the JSON box scrolls internally when content overflows. */
+.tool-page.viewer-page .tool-page-header {
+  max-width: none;
+}
+
+@media (min-width: 901px) {
+  .tool-page.viewer-page .tool-page-header,
+  .tool-page.viewer-page .tool-page-content {
+    width: min(1600px, calc(80vw - 1.5rem));
+  }
+}
+
+.tool-page.viewer-page .feature-icon-box {
+  border: none !important;
+  background: transparent !important;
+}
+
+.tool-page.viewer-page .viewer-samples {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+}
+
+.viewer-samples-label {
+  flex: 0 0 auto;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.viewer-samples-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.viewer-sample-btn {
+  font-size: 0.8rem !important;
+  padding: 0.45rem 0.7rem !important;
+}
+
+.viewer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.tool-page.viewer-page .viewer-input-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+}
+
+.tool-page.viewer-page .operation-shell {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+}
+
+.viewer-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.viewer-file-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.viewer-file-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.viewer-load-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem !important;
+  white-space: nowrap;
+}
+
+.viewer-upload-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem !important;
+}
+
+.viewer-json-label {
+  display: block;
+  color: hsl(var(--foreground));
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.viewer-json {
+  width: 100%;
+  min-height: 240px;
+  padding: 0.75rem;
+  border: 1px solid hsl(var(--input));
+  border-radius: 8px;
+  background: hsl(var(--background));
+  font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 0.85rem;
+  resize: vertical;
+  scrollbar-width: thin;
+}
+
+.viewer-generate-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem !important;
+}
+
+@media (min-width: 901px) {
+  .workspace-main .viewer-page {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .workspace-main .viewer-page .tool-page-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .workspace-main .viewer-fit {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    overflow: hidden;
+  }
+
+  .workspace-main .viewer-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-columns: minmax(340px, 5fr) minmax(0, 7fr);
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .workspace-main .viewer-input-card {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workspace-main .viewer-page .operation-shell {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .workspace-main .viewer-page .operation-shell-result {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-main .viewer-page .operation-shell-frame {
+    flex: 1 1 auto;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .workspace-main .viewer-page .operation-shell-empty {
+    flex: 1 1 auto;
+    min-height: 0 !important;
+  }
+
+  .workspace-main .viewer-json {
+    flex: 1 1 auto;
+    min-height: 0;
+    resize: none;
+    overflow-y: auto;
+  }
+
+  .workspace-main .viewer-generate-btn {
+    flex: 0 0 auto;
+  }
+}
+
 .not-found-page,
 .route-loading {
   min-height: 55vh;
@@ -2545,11 +2769,11 @@ textarea {
   gap: 0.8rem;
   margin: 0;
   color: hsl(var(--foreground));
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: clamp(2.35rem, 5vw, 4rem);
-  font-weight: 500;
-  letter-spacing: -0.04em;
-  line-height: 0.98;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 
 .tool-page-title .feature-icon-box {
@@ -2729,6 +2953,7 @@ textarea {
 
 .proof-page header > p:last-child,
 .screens-page header > p:last-child {
+  margin-top: 0.9rem;
   color: hsl(var(--muted-foreground));
   font-size: 1.05rem;
   line-height: 1.6;
@@ -2754,6 +2979,7 @@ textarea {
 }
 
 .workflow-card h2 {
+  margin: 1rem 0;
   font-size: 1.7rem;
 }
 
@@ -2849,7 +3075,8 @@ textarea {
     width: min(100% - 2rem, 1180px);
   }
 
-  .site-repository-link {
+  .site-repository-link,
+  .site-stars-link {
     display: none;
   }
 
@@ -2884,10 +3111,6 @@ textarea {
   .workflow-map,
   .screen-grid {
     grid-template-columns: 1fr;
-  }
-
-  .tool-card {
-    min-height: 10.5rem;
   }
 
   .site-footer-inner {
@@ -3010,10 +3233,10 @@ textarea {
 
 .redaction-workspace > .container > h1 {
   color: hsl(var(--foreground));
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: clamp(2.4rem, 5vw, 4rem) !important;
-  font-weight: 500;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .split-results {
@@ -3068,9 +3291,9 @@ textarea {
 .form-requirements h2 {
   margin: 0 0 1rem;
   color: hsl(var(--foreground));
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: 1.65rem;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .filler-dropzone-stack {
