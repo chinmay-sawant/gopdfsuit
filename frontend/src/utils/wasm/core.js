@@ -11,9 +11,9 @@
 // every CSP worker-src allowlist that today scopes to the small bundle, for
 // no behavior gain now that the envelope and loader are unified here.
 
-import { callWasm, callWasmObject, isWasmDebugEnabled, missingEngineError } from './envelope.js'
+import { callWasm, callWasmAsync, callWasmObject, isWasmDebugEnabled, missingEngineError } from './envelope.js'
 
-export { callWasm, callWasmObject, missingEngineError }
+export { callWasm, callWasmAsync, callWasmObject, missingEngineError }
 
 const WASM_EXEC_URL = `${import.meta.env.BASE_URL}wasm_exec.js`
 export const COMPRESS_WASM_URL = `${import.meta.env.BASE_URL}compress.wasm`

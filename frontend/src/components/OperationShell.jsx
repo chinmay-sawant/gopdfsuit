@@ -1,10 +1,10 @@
-import { Download } from 'lucide-react'
+import { Download, RefreshCw } from 'lucide-react'
 import PdfPreview from './PdfPreview'
 
 /**
  * OperationShell owns the shared result panel for PDF operations:
  * preview (shared PdfPreview iframe or image), optional stats row,
- * download action, and the empty placeholder shown before the first run.
+ * download action, plus loading and empty placeholders.
  * Sizing lives in one place (.pdf-preview in index.css): the preview
  * fills the available width and viewport height on every tool.
  */
@@ -38,6 +38,11 @@ const OperationShell = ({
         >
           <Download size={16} />{isLoading && loadingLabel ? loadingLabel : downloadLabel}
         </button>
+      </div>
+    ) : isLoading ? (
+      <div className="operation-shell-loading" role="status" aria-live="polite">
+        <RefreshCw size={22} className="animate-spin" aria-hidden="true" />
+        <p>{loadingLabel || 'Working…'}</p>
       </div>
     ) : (
       <div className="operation-shell-empty">

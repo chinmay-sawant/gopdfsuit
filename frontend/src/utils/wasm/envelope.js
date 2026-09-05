@@ -115,6 +115,26 @@ export function callWasm(fnName, args, { allowArray = false } = {}) {
   }
 }
 
+// Async variant for WASM exports that return a JS Promise (URL-mode HTML
+// conversion: the Go binding pre-fetches page HTML via browser fetch, so it
+// resolves async). Awaits the raw return, then normalizes exactly like
+// callWasm: Uint8Array (or array of, with allowArray) passes through, the
+// {code,message,error} envelope throws Error(message).
+export async function callWasmAsync(fnName, args, { allowArray = false } = {}) {
+  const fn = globalThis[fnName]
+  if (typeof fn !== 'function') throw missingEngineError(fnName)
+  const startedMs = Date.now()
+  logWasmRequest(fnName, args)
+  try {
+    const result = normalizeWasmResult(fnName, await fn(...args), { allowArray })
+    logWasmResult(fnName, startedMs, result)
+    return result
+  } catch (err) {
+    logWasmError(fnName, startedMs, err)
+    throw err
+  }
+}
+
 // Non-bytes variant for calls returning status objects (e.g.
 // goEnsurePDFAFonts -> {registered, missing}). Error envelopes always carry
 // a string `message` (plus legacy `error` alias), so any object with one is

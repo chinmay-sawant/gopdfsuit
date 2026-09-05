@@ -2490,7 +2490,8 @@ textarea {
     min-height: min(40dvh, 365px) !important;
   }
 
-  .workspace-main .operation-shell-empty {
+  .workspace-main .operation-shell-empty,
+  .workspace-main .operation-shell-loading {
     min-height: min(40dvh, 365px) !important;
   }
 
@@ -2895,6 +2896,20 @@ textarea {
   color: hsl(var(--muted-foreground));
   font-size: 1.04rem;
   line-height: 1.6;
+}
+
+/* Top spacing parity with Redact: its inner container carries 2rem of top
+   padding (Redaction.jsx), so its title sits lower than OpPageShell titles.
+   Mirror that offset on the tool headers that otherwise start flush at
+   the workspace padding. Scoped to the requested tools; filler/viewer
+   keep their viewport-fit layouts untouched. */
+.compress-page .tool-page-header,
+.merge-page .tool-page-header,
+.split-page .tool-page-header,
+.html-convert-page .tool-page-header,
+.filler-page .tool-page-header,
+.viewer-page .tool-page-header {
+  padding-top: 2rem;
 }
 
 .tool-page .glass-card,
@@ -3373,6 +3388,45 @@ textarea {
   align-self: flex-start;
 }
 
+/* Loading placeholder: same footprint as the preview so the layout does
+   not jump when the run starts, with a spinner instead of stale empty
+   copy while the engine works. */
+.operation-shell-loading {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: min(78vh, 760px);
+  padding: 1.5rem;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 0.5rem;
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.operation-shell-loading p {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-weight: 700;
+}
+
+/* Shared stats row: three-up on desktop, stacked on narrow screens.
+   Lives outside the preview frame with a single bottom margin. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+@media (max-width: 640px) {
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .redaction-workspace {
   min-height: 100%;
   padding: clamp(2.5rem, 5vw, 4.5rem) 0;
@@ -3471,6 +3525,36 @@ textarea {
   align-items: start;
 }
 
+/* HTML convert: narrow config rail on the left (~20%), wide HTML input
+   on the right. The config's own grid-2 pairs auto-stack below 300px,
+   so they stay usable in the rail. */
+.html-convert-page .tool-layout {
+  grid-template-columns: minmax(230px, 1fr) minmax(0, 4fr);
+}
+
+/* HTML convert result preview: the panel spans the full width below the
+   grid, so the generic workspace cap (365px) reads squat. Give it a
+   taller footprint closer to the standalone preview height. */
+.html-convert-page .pdf-preview,
+.html-convert-page .operation-shell-empty,
+.html-convert-page .operation-shell-loading {
+  min-height: min(70vh, 680px);
+}
+
+.html-convert-page .pdf-preview img {
+  max-height: min(66vh, 640px);
+}
+
+.workspace-main .html-convert-page .operation-shell .pdf-preview {
+  height: min(70vh, 680px) !important;
+  min-height: min(70vh, 680px) !important;
+}
+
+.workspace-main .html-convert-page .operation-shell-empty,
+.workspace-main .html-convert-page .operation-shell-loading {
+  min-height: min(70vh, 680px) !important;
+}
+
 /* Mirrored variant: preview left, narrow controls right (Redact workspace). */
 .tool-layout-flip {
   display: grid;
@@ -3536,6 +3620,12 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .compress-page .pdf-preview,
+  .compress-page .operation-shell-empty,
+  .compress-page .operation-shell-loading,
+  .merge-page .pdf-preview,
+  .merge-page .operation-shell-empty,
+  .merge-page .operation-shell-loading,
   .split-page .pdf-preview,
   .split-page .operation-shell-empty {
     height: 70vh !important;

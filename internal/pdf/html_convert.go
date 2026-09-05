@@ -15,9 +15,9 @@ import (
 
 // Shared HTML-convert core for the server (!js) and WASM (js) builds.
 // pdf.go and pdf_js.go keep only their source-policy funcs
-// (htmlSourceContent allows URL fetches; inlineHTMLContent returns
-// ErrUpstream) plus thin Convert wrappers; everything below is identical
-// on both targets.
+// (htmlSourceContent and inlineHTMLContent both map exactly-one-of HTML/URL
+// onto engine content) plus thin Convert wrappers; everything below is
+// identical on both targets.
 
 // Request-field to gowkhtmltopdf-knob mapping (single table, both builds):
 //

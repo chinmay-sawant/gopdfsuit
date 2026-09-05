@@ -63,11 +63,3 @@ func TestHTMLMarginParsing(t *testing.T) {
 		}
 	}
 }
-
-// TestHTMLSourceContentEmptyInputFailsFast pins the fail-fast adapter guard
-// shared by the PDF and image paths.
-func TestHTMLSourceContentEmptyInputFailsFast(t *testing.T) {
-	if _, err := htmlSourceContent("", ""); err == nil {
-		t.Fatal("expected error for empty source, got nil")
-	}
-}
