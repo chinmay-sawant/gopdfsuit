@@ -83,22 +83,24 @@
 
 ## Test plan
 
-- [ ] `make test` (`go test ./...` plus Python bindings plus `test/verify_pdfs.sh`)
-- [ ] `make test-integration` (`go test -count=1 -v ./test`) when handlers or engine changed
-- [ ] `make lint` plus `go vet` (zero ESLint warnings in `frontend/`)
-- [ ] `make build` (`go build -o bin/app ./cmd/gopdfsuit`) when shippable change
-- [ ] `make test-verify-pdfs` or `make test-scan-pdfs-compliance` when PDF output changed
-- [ ] `cd frontend && npm run build` when UI changed (never hand-edit `docs/`)
-- [ ] `make wasm-compress` when `cmd/wasmcompress/` changed
+- [x] `make test` (`go test ./...` plus Python bindings plus `test/verify_pdfs.sh`) - PASS 2026-09-06, exit 0; veraPDF 10/10 checks (PDF/A-4 + PDF/UA-2 on editor + zerodha hft/retail/active)
+- [x] `make test-integration` (`go test -count=1 -v ./test`) - PASS, exit 0 (`TestZerodhaPDFCompliance` all profiles)
+- [x] `make lint` plus `go vet` - PASS, exit 0; frontend ESLint zero warnings (`--max-warnings 0`)
+- [x] `make build` (`go build -o bin/app ./cmd/gopdfsuit`) - PASS, exit 0; `bin/app` 47M (local only, not committed)
+- [x] `make test-verify-pdfs` (via `make test`) - PASS; structure-tree TR mismatches 0, avalpdf non-blocking warnings only
+- [x] `cd frontend && npm run build` - PASS, exit 0, built in 2.65s to `docs/`
+- [x] `make wasm-compress` - PASS, exit 0; `frontend/public/compress.wasm` 8.3M rebuilt
 
 ### Commands
 
 ```sh
-make fmt && make lint
-make test
-# plus when relevant:
-make test-integration
-make test-verify-pdfs
+make fmt && make lint          # PASS
+go vet ./...                   # PASS exit 0
+make build                     # PASS exit 0 (runs integration first)
+make wasm-compress             # PASS exit 0
+make test-integration          # PASS exit 0
+cd frontend && npm run build   # PASS exit 0
+make test                      # PASS exit 0 (go + python + verify_pdfs 10/10)
 ```
 
 Done locally on this branch so far: `go mod tidy` clean, `go build ./...` clean, `go vet ./...` clean. Full `make test`, frontend build, and veraPDF spot check pending before tag.
@@ -108,11 +110,18 @@ Done locally on this branch so far: `go mod tidy` clean, `go build ./...` clean,
 ## Screenshots / sample output
 
 ```
-go mod tidy -> clean
-go build ./... -> clean
-go vet ./... -> clean
-git status -> 157 files changed (import rewrite + versions + docs), no commits on master
+go vet ./... -> VET-EXIT:0
+make build -> BUILD-EXIT:0, bin/app 47M (not committed)
+make lint -> LINT-EXIT:0 (golangci-lint + eslint --max-warnings 0)
+make wasm-compress -> WASM-EXIT:0, compress.wasm 8.3M
+make test-integration -> INTEGRATION-EXIT:0 (TestZerodhaPDFCompliance PASS all profiles)
+frontend npm run build -> built in 2.65s to docs/
+make test -> FULLTEST-EXIT:0
+  veraPDF: 10 passed, 0 failed (editor + zerodha hft/retail/active, PDF/A-4 + PDF/UA-2)
+  structure-tree: TR mismatches 0; avalpdf non-blocking only
 ```
+
+All gates ran locally on branch `chore/release-v7.0.0`, 2026-09-06. No merge, no tag.
 
 ---
 
