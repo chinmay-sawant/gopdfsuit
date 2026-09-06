@@ -17,7 +17,7 @@ Install the `gopdflib` package with the `v7.0.0` release tag.
 
 ### Prerequisites
 
-- You need Go 1.21 or later.
+- You need Go 1.26.4 or later.
 
 ### Steps to download
 
@@ -61,6 +61,25 @@ func main() {
     fmt.Printf("gopdflib Config initialized: %+v\n", config)
 }
 ```
+
+#### Fluent builder (preferred)
+
+Build the template in Go instead of hand-writing `Config` literals.
+Font chains are the preferred spelling. Raw `Props` strings stay supported
+as the low-level form.
+
+```go
+b := gopdflib.NewDocument("A4", true)
+b.AddTitle("Document Title", gopdflib.WithTitleFontOpts(gopdflib.TitleFontOptions{Name: "Helvetica", Size: 18, Bold: true}))
+row := b.AddTable(2, 2, 1).AddRow(
+    gopdflib.Font("Helvetica").Size(10).Cell("Total Revenue"),
+    gopdflib.Font("Helvetica").Size(10).Right().Cell("$2,450,000"),
+)
+gopdflib.SetCellTextColor(&row[1], "#B00020")
+pdfBytes, err := b.Generate()
+```
+
+Full runnable sample: `sampledata/gopdflib/builder-snippets/main.go`.
 
 ### Updating the library
 

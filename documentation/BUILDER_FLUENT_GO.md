@@ -37,7 +37,7 @@ Middle layer from 449200c: DocumentBuilder overlay.
 
 ```go
 b := gopdflib.NewDocument("A4", true)
-b.AddTitle("Document Title", gopdflib.WithTitleFont("Helvetica", 18, true))
+b.AddTitle("Document Title", gopdflib.WithTitleFontOpts(gopdflib.TitleFontOptions{Name: "Helvetica", Size: 18, Bold: true}))
 pdfBytes, err := b.Generate()
 ```
 

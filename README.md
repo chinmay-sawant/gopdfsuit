@@ -60,13 +60,14 @@ Three apps, one repo. Pick what fits your stack.
 Key features.
 
 - **Template-based generation.** You send JSON, the engine returns PDF. It handles page breaks and flow across pages.
+- **Fluent builders.** Go `gopdflib.NewDocument("A4", true)` plus `Font(...).Size(...).Cell(...)` in `pkg/gopdflib`, mirrored by Python `TemplateBuilder` in `bindings/python/pypdfsuit/builder.py`. See `documentation/BUILDER_FLUENT_GO.md` and `documentation/PY_BUILDER_PARITY.md`.
 - **Security and compliance.** PKCS#7 and X.509 signatures, AES-256 encryption, granular permissions, PDF/A-4 and PDF/UA-2 when you opt in.
 - **Advanced elements.** Text styling, tables, barcodes, QR codes, SVG vector graphics, and interactive forms with checkboxes and radio buttons.
 - **Navigation.** Bookmarks, internal links, and named destinations the engine wires up for you.
 - **Form filling.** Fills AcroForms and XFDF data.
 - **Redaction.** Redacts by coordinates or by text search.
 - **Merge and split.** Combines PDFs or splits them by page ranges.
-- **PDF compress.** Shrinks PDFs in gopdflib or in the browser with WASM. No Ghostscript, no server round trip. Light, Medium, and Heavy JPEG tiers.
+- **PDF compress.** Shrinks PDFs in gopdflib or in the browser with WASM. No Ghostscript, no server round trip. Light, Medium, and Heavy JPEG tiers. Default path is local-first: `compress.wasm` on the Compress page, `gopdfsuit.wasm` elsewhere, server upload only after explicit consent. See `documentation/WASM_VIEWER_EDITOR.md`.
 - **HTML conversion.** Turns HTML into PDF or image with pure-Go gowkhtmltopdf, no browser needed.
 - **Web interfaces.** React UI for viewer, editor, merger, filler, and converters.
 

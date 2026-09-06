@@ -184,8 +184,8 @@ Before opening a PR:
 |-------------|--------|
 | API endpoints / request shape | `frontend/src/components/documentation/content/api-reference.js` |
 | Template JSON schema | `documentation/TEMPLATE_REFERENCE.md`, `frontend/.../template-format.js` |
-| gopdflib public API | `pkg/gopdflib/doc.go`, `example_test.go`, `documentation/GETTING_STARTED_GOPDFLIB.md` |
-| Python bindings | `bindings/python/README.md` |
+| gopdflib public API | `pkg/gopdflib/doc.go`, `builder.go`, `fontbuilder.go`, `props.go`, `example_test.go`, `builder_test.go`, `documentation/BUILDER_FLUENT_GO.md`, `documentation/GETTING_STARTED_GOPDFLIB.md` |
+| Python bindings | `bindings/python/README.md`, `bindings/python/pypdfsuit/builder.py`, `documentation/PY_BUILDER_PARITY.md` |
 | New sample templates | Add under `sampledata/<feature>/`, reference in web docs |
 | Performance / benchmarks | `documentation/INTEGRATION_AND_BENCHMARK_TESTS.md`, dated reports under `guides/optimizations/` |
 

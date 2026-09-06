@@ -28,15 +28,12 @@ def generate_pdf(template: PDFTemplate) -> bytes:
         GoPDFSuitError: If PDF generation fails
 
     Example:
-        >>> from pypdfsuit import generate_pdf, PDFTemplate, Config, Title
-        >>> template = PDFTemplate(
-        ...     config=Config(page="A4", page_alignment=1),
-        ...     title=Title(props="Helvetica:18:100:center:0:0:0:0", text="My Document"),
-        ...     elements=[]
-        ... )
-        >>> pdf_bytes = generate_pdf(template)
-        >>> with open("output.pdf", "wb") as f:
-        ...     f.write(pdf_bytes)
+        >>> from pypdfsuit.builder import TemplateBuilder, Font
+        >>> b = TemplateBuilder("A4", True)
+        >>> b.add_title("My Document", font="Helvetica", size=18, bold=True)
+        >>> tb = b.add_table(2, 1.0, 1.0)
+        >>> tb.add_row(Font("Helvetica").size(12).bold().cell("Name"), Font("Helvetica").size(12).cell("John Doe"))
+        >>> pdf_bytes = b.generate()
     """
     lib = get_lib()
     return call_bytes_result(lib.GeneratePDF, json_payload(template))
