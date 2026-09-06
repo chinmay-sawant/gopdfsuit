@@ -1,6 +1,6 @@
 # pypdfsuit
 
-Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a comprehensive PDF library for generation, merging, splitting, form filling, and HTML to PDF/Image conversion.
+Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a comprehensive PDF library for generation, merging, splitting, form filling, HTML to PDF/Image conversion, compression, and redaction.
 
 ## Features
 
@@ -8,8 +8,9 @@ Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a
 - **PDF Merging**: Combine multiple PDFs into a single document
 - **PDF Splitting**: Split PDFs by pages, ranges, or maximum pages per file
 - **Form Filling**: Fill PDF forms using XFDF data
-- **HTML to PDF**: Convert HTML content or URLs to PDF documents
-- **HTML to Image**: Convert HTML content or URLs to images (PNG, JPG, SVG)
+- **HTML to PDF**: Convert HTML content or URLs to PDF documents (pure-Go, no browser needed)
+- **HTML to Image**: Convert HTML content or URLs to images (PNG, JPG)
+- **PDF Compression**: Compress PDFs with Light/Medium/Heavy tiers, no Ghostscript needed
 - **PDF Redaction**: Securely redact sensitive information using coordinates or text search
 
 ## Installation
@@ -48,8 +49,8 @@ Sample data for the Python bindings is available here:
 ### Requirements
 
 - Python 3.8+
-- Go 1.22+ (for building the shared library)
-- Chrome/Chromium (for HTML to PDF/Image conversion)
+- Go 1.26.4+ (for building the shared library)
+- No browser or Ghostscript needed - HTML conversion is pure-Go via gowkhtmltopdf
 
 ## Quick Start
 
