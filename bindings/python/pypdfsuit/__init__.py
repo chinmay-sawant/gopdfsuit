@@ -2,24 +2,23 @@
 pypdfsuit - Python bindings for gopdfsuit PDF library.
 
 A comprehensive PDF library for generation, merging, splitting, form filling,
-and HTML to PDF/Image conversion.
+HTML to PDF/Image conversion, compression, and redaction.
 
-Example usage:
+Example usage (fluent builder, preferred):
 
-    from pypdfsuit import generate_pdf, PDFTemplate, Config, Title
+    from pypdfsuit.builder import TemplateBuilder, Font
 
-    template = PDFTemplate(
-        config=Config(page="A4", page_alignment=1),
-        title=Title(props="Helvetica:18:100:center:0:0:0:0", text="My Document"),
-        elements=[]
+    b = TemplateBuilder("A4", True)
+    b.add_title("My Document", font="Helvetica", size=24, bold=True)
+    tb = b.add_table(2, 1.0, 1.0)
+    tb.add_row(
+        Font("Helvetica").size(12).bold().cell("Name"),
+        Font("Helvetica").size(12).cell("John Doe"),
     )
-    pdf_bytes = generate_pdf(template)
-
-    with open("output.pdf", "wb") as f:
-        f.write(pdf_bytes)
+    pdf_bytes = b.generate()
 """
 
-__version__ = "7.0.0"
+__version__ = "7.0.1"
 
 from .types import (
     PDFTemplate,

@@ -70,7 +70,7 @@
 // Right-cell color example:
 //
 //	b := gopdflib.NewDocument("A4", true)
-//	b.AddTitle("Document Title", gopdflib.WithTitleFont("Helvetica", 18, true))
+//	b.AddTitle("Document Title", gopdflib.WithTitleFontOpts(gopdflib.TitleFontOptions{Name: "Helvetica", Size: 18, Bold: true}))
 //	tb := b.AddTable(3, 1, 2, 1)
 //	row := tb.AddRow(
 //	    gopdflib.Font("Helvetica").Size(12).Bordered().Cell(""),

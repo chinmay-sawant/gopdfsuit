@@ -34,22 +34,39 @@ const hasBrackets = (text) => (
     typeof text === 'string' && (/\[.*\]/.test(text) || /\(.*\)/.test(text))
 )
 
-const goMakeProps = (cell = {}) => {
+const goFontChain = (cell = {}) => {
     const p = parseProps(cell.props)
     const f = styleFlags(p.style)
     const borders = safeBorders(p.borders)
-    return `gopdflib.MakeProps(${goString(p.font)}, ${p.size}, ${goBool(f.bold)}, ${goBool(f.italic)}, ${goBool(f.underline)}, ${goString(p.align)}, [4]int{${borders.join(', ')}})`
+    const parts = [`gopdflib.Font(${goString(p.font)})`, `Size(${p.size})`]
+    if (f.bold) parts.push('Bold()')
+    if (f.italic) parts.push('Italic()')
+    if (f.underline) parts.push('Underline()')
+    if (p.align === 'center') parts.push('Center()')
+    else if (p.align === 'right') parts.push('Right()')
+    if (borders.every((b) => b === 1)) parts.push('Bordered()')
+    else if (!borders.every((b) => b === 0)) parts.push(`Borders(${borders.join(', ')})`)
+    return parts.join('.')
 }
 
-const pyMakeProps = (cell = {}) => {
+const pyFontChain = (cell = {}) => {
     const p = parseProps(cell.props)
     const f = styleFlags(p.style)
     const borders = safeBorders(p.borders)
-    return `make_props(${pyString(p.font)}, ${p.size}, ${pyBool(f.bold)}, ${pyBool(f.italic)}, ${pyBool(f.underline)}, ${pyString(p.align)}, (${borders.join(', ')}))`
+    const parts = [`Font(${pyString(p.font)})`, `size(${p.size})`]
+    if (f.bold) parts.push('bold()')
+    if (f.italic) parts.push('italic()')
+    if (f.underline) parts.push('underline()')
+    if (p.align === 'center') parts.push('center()')
+    else if (p.align === 'right') parts.push('right()')
+    if (borders.every((b) => b === 1)) parts.push('bordered()')
+    else if (borders.every((b) => b === 0)) parts.push('borderless()')
+    else parts.push(`borders(${borders.join(', ')})`)
+    return parts.join('.')
 }
 
-const goCellExpr = (cell = {}) => `gopdflib.NewCell(${goString(cell.text ?? '')}, ${goMakeProps(cell)})`
-const pyCellExpr = (cell = {}) => `new_cell(${pyString(cell.text ?? '')}, ${pyMakeProps(cell)})`
+const goCellExpr = (cell = {}) => `${goFontChain(cell)}.Cell(${goString(cell.text ?? '')})`
+const pyCellExpr = (cell = {}) => `${pyFontChain(cell)}.cell(${pyString(cell.text ?? '')})`
 
 const imageTag = (image = {}) => {
     const name = image.imagename || image.ImageName || ''
@@ -176,7 +193,7 @@ const goTitleLines = (title) => {
     if (!title) return []
     const tp = parseProps(title.textprops || title.props)
     const f = styleFlags(tp.style)
-    const lines = [`b.AddTitle(${goString(title.text ?? '')}, gopdflib.WithTitleFont(${goString(tp.font)}, ${tp.size}, ${goBool(f.bold)}))`]
+    const lines = [`b.AddTitle(${goString(title.text ?? '')}, gopdflib.WithTitleFontOpts(gopdflib.TitleFontOptions{Name: ${goString(tp.font)}, Size: ${tp.size}, Bold: ${goBool(f.bold)}, Italic: ${goBool(f.italic)}, Underline: ${goBool(f.underline)}}))`]
     if (title.table) lines.push(...goTableLines(title.table, 'titleTb', 'titleRow'))
     return lines
 }
@@ -185,7 +202,7 @@ const pyTitleLines = (title) => {
     if (!title) return []
     const tp = parseProps(title.textprops || title.props)
     const f = styleFlags(tp.style)
-    const lines = [`b.add_title(${pyString(title.text ?? '')}, ${pyString(tp.font)}, ${tp.size}, ${pyBool(f.bold)})`]
+    const lines = [`b.add_title(${pyString(title.text ?? '')}, ${pyString(tp.font)}, ${tp.size}, ${pyBool(f.bold)}, ${pyBool(f.italic)}, ${pyBool(f.underline)})`]
     if (title.table) lines.push(...pyTableLines(title.table, 'title_tb', 'title_row'))
     return lines
 }
@@ -223,7 +240,7 @@ export const templateToGoSnippet = (template = {}) => {
 export const templateToPythonSnippet = (template = {}) => {
     const page = template.config?.page || 'A4'
     const lines = [
-        '# from pypdfsuit.builder import TemplateBuilder, make_props, new_cell, set_cell_color, add_bracket_text',
+        '# from pypdfsuit.builder import TemplateBuilder, Font, set_cell_color, set_cell_text_color, add_bracket_text',
         `b = TemplateBuilder(${pyString(page)}, True)`,
     ]
     lines.push(...pyTitleLines(template.title))

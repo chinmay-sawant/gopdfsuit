@@ -12,11 +12,12 @@ curl -X POST localhost:8080/api/v1/generate/template-pdf \
 ```
 
 ```python
-from pypdfsuit import generate_pdf, PDFTemplate, Config, Title
-pdf_bytes = generate_pdf(PDFTemplate(
-    config=Config(page="A4", page_alignment=1),
-    title=Title(props="Helvetica:18:100:center:0:0:0:0", text="My Document"),
-    elements=[]))
+from pypdfsuit.builder import Font, TemplateBuilder
+b = TemplateBuilder("A4", True)
+b.add_title("My Document", font="Helvetica", size=18, bold=True)
+tb = b.add_table(2, 1.0, 1.0)
+tb.add_row(Font("Helvetica").size(12).bold().cell("Name"), Font("Helvetica").size(12).cell("John Doe"))
+pdf_bytes = b.generate()
 ```
 
 Props grammar for every cell and title: Name:Size:Style:Align:L:R:T:B, for example Helvetica:12:100:left:1:1:1:1. Colors live in bgcolor and textcolor hex fields, never in props. Full shape lives in documentation/TEMPLATE_REFERENCE.md. Handy aliases: title.textprops beats title.props, footer.props beats footer.font.
@@ -27,7 +28,7 @@ Go overlay in pkg/gopdflib/builder.go plus fontbuilder.go plus props.go. Python 
 
 ```go
 b := gopdflib.NewDocument("A4", true)
-b.AddTitle("Document Title", gopdflib.WithTitleFont("Helvetica", 18, true))
+b.AddTitle("Document Title", gopdflib.WithTitleFontOpts(gopdflib.TitleFontOptions{Name: "Helvetica", Size: 18, Bold: true}))
 row := b.AddTable(2, 2, 1).AddRow(
   gopdflib.Font("Helvetica").Size(10).Cell("Total Revenue"),
   gopdflib.Font("Helvetica").Size(10).Right().Cell("$2,450,000"))
@@ -36,10 +37,10 @@ pdfBytes, err := b.Generate()
 ```
 
 ```python
-from pypdfsuit import TemplateBuilder, Font, new_cell, make_props, set_cell_text_color
+from pypdfsuit.builder import Font, TemplateBuilder, set_cell_text_color
 b = TemplateBuilder(page="A4", portrait=True)
 t = b.add_table(2, 2, 1)
-row = t.add_row(new_cell("Total", make_props("Helvetica", 10)), new_cell("$5", make_props("Helvetica", 10)))
+row = t.add_row(Font("Helvetica").size(10).cell("Total"), Font("Helvetica").size(10).cell("$5"))
 set_cell_text_color(row[1], "#B00020")
 pdf_bytes = b.generate()
 ```
@@ -143,7 +144,7 @@ curl "localhost:8080/api/v1/template-data?file=financial_report.json"
 
 ## Python bindings
 
-Wheel pypdfsuit, version 6.0.0. Pure Python types plus ctypes into libgopdfsuit.so. Import surface: generate_pdf, generate_pdf_from_dict, get_available_fonts, merge_pdfs, split_pdf, parse_page_spec, fill_pdf_with_xfdf, compress_pdf, convert_html_to_pdf, convert_html_to_image, redact ops, fluent Font and Text plus cell helpers plus TemplateBuilder, typed errors. CGO exports live in bindings/python/cgo/exports.go.
+Wheel pypdfsuit, version 7.0.1. Pure Python types plus ctypes into libgopdfsuit.so. Import surface: generate_pdf, generate_pdf_from_dict, get_available_fonts, merge_pdfs, split_pdf, parse_page_spec, fill_pdf_with_xfdf, compress_pdf, convert_html_to_pdf, convert_html_to_image, redact ops, fluent Font and Text plus cell helpers plus TemplateBuilder, typed errors. CGO exports live in bindings/python/cgo/exports.go.
 
 ## Math, SVG, navigation, decor
 

@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pypdfsuit"
-version = "7.0.0"
-description = "Python bindings for gopdfsuit - PDF generation, merging, splitting, and more"
+version = "7.0.1"
+description = "Python bindings for gopdfsuit - PDF generation, merging, splitting, form filling, HTML conversion, compression, and redaction"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
     {name = "Chinmay Sawant"}
 ]
-keywords = ["pdf", "generation", "merge", "split", "html", "form filling", "gopdfsuit"]
+keywords = ["pdf", "generation", "merge", "split", "html", "form filling", "compression", "redaction", "gopdfsuit"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -33,7 +33,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/chinmay-sawant/gopdfsuit"
-Documentation = "https://github.com/chinmay-sawant/gopdfsuit/tree/main/bindings/python"
+Documentation = "https://github.com/chinmay-sawant/gopdfsuit/tree/master/bindings/python"
 Repository = "https://github.com/chinmay-sawant/gopdfsuit"
 Issues = "https://github.com/chinmay-sawant/gopdfsuit/issues"
 

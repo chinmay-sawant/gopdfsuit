@@ -1,6 +1,6 @@
 # pypdfsuit
 
-Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a comprehensive PDF library for generation, merging, splitting, form filling, and HTML to PDF/Image conversion.
+Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a comprehensive PDF library for generation, merging, splitting, form filling, HTML to PDF/Image conversion, compression, and redaction.
 
 ## Features
 
@@ -8,8 +8,9 @@ Python bindings for [gopdfsuit](https://github.com/chinmay-sawant/gopdfsuit) - a
 - **PDF Merging**: Combine multiple PDFs into a single document
 - **PDF Splitting**: Split PDFs by pages, ranges, or maximum pages per file
 - **Form Filling**: Fill PDF forms using XFDF data
-- **HTML to PDF**: Convert HTML content or URLs to PDF documents
-- **HTML to Image**: Convert HTML content or URLs to images (PNG, JPG, SVG)
+- **HTML to PDF**: Convert HTML content or URLs to PDF documents (pure-Go, no browser needed)
+- **HTML to Image**: Convert HTML content or URLs to images (PNG, JPG)
+- **PDF Compression**: Compress PDFs with Light/Medium/Heavy tiers, no Ghostscript needed
 - **PDF Redaction**: Securely redact sensitive information using coordinates or text search
 
 ## Installation
@@ -48,42 +49,47 @@ Sample data for the Python bindings is available here:
 ### Requirements
 
 - Python 3.8+
-- Go 1.22+ (for building the shared library)
-- Chrome/Chromium (for HTML to PDF/Image conversion)
+- Go 1.26.4+ (for building the shared library)
+- No browser or Ghostscript needed - HTML conversion is pure-Go via gowkhtmltopdf
 
 ## Quick Start
 
 ### Generate a PDF
 
 ```python
-from pypdfsuit import generate_pdf, PDFTemplate, Config, Title, Element, Table, Row, Cell
+from pypdfsuit.builder import TemplateBuilder, Font
+
+b = TemplateBuilder("A4", True)
+b.add_title("My Document", font="Helvetica", size=24, bold=True)
+
+tb = b.add_table(2, 1.0, 1.0)
+tb.add_row(
+    Font("Helvetica").size(12).bold().cell("Name"),
+    Font("Helvetica").size(12).cell("John Doe"),
+)
+
+pdf_bytes = b.generate()
+with open("output.pdf", "wb") as f:
+    f.write(pdf_bytes)
+```
+
+Prefer raw templates? `generate_pdf` also accepts a hand-built `PDFTemplate`
+(low-level; the builder above is preferred):
+
+```python
+from pypdfsuit import generate_pdf, PDFTemplate, Config, Title
+from pypdfsuit.builder import make_props
 
 template = PDFTemplate(
     config=Config(page="A4", page_alignment=1),
     title=Title(
-        props="Helvetica:24:100:center:0:0:0:0",
+        props=make_props("Helvetica", 24, bold=True, align="center", borders=(0, 0, 0, 0)),
         text="My Document"
     ),
-    elements=[
-        Element(
-            type="table",
-            table=Table(
-                max_columns=2,
-                column_widths=[1.0, 1.0],
-                rows=[
-                    Row(row=[
-                        Cell(props="Helvetica:12:100:left:1:1:1:1", text="Name"),
-                        Cell(props="Helvetica:12:000:left:1:1:1:1", text="John Doe"),
-                    ])
-                ]
-            )
-        )
-    ]
+    elements=[]
 )
 
 pdf_bytes = generate_pdf(template)
-with open("output.pdf", "wb") as f:
-    f.write(pdf_bytes)
 ```
 
 ### Merge PDFs
@@ -213,7 +219,7 @@ with open("redacted.pdf", "wb") as f:
 
 ## Props String Format
 
-The props string format for cells and titles is:
+Cells and titles carry a props string:
 
 ```
 FontName:FontSize:StyleCode:Alignment:BorderLeft:BorderRight:BorderTop:BorderBottom
@@ -227,6 +233,17 @@ FontName:FontSize:StyleCode:Alignment:BorderLeft:BorderRight:BorderTop:BorderBot
 
 Example: `"Helvetica:12:100:center:1:1:1:1"` = Helvetica 12pt, bold, centered, all borders
 
+You rarely need to hand-write these: the fluent builder spells the same string.
+
+```python
+from pypdfsuit.builder import Font, make_props
+
+Font("Helvetica").size(12).bold().center().bordered().cell("Name")
+# same bytes as Cell(props="Helvetica:12:100:center:1:1:1:1", text="Name")
+
+make_props("Helvetica", 12, bold=True, align="center", borders=(1, 1, 1, 1))
+```
+
 ## License
 
-MIT License - see [LICENSE](../../LICENSE) for details.
+MIT License - see [LICENSE](https://github.com/chinmay-sawant/gopdfsuit/blob/master/LICENSE) for details.

@@ -50,13 +50,14 @@ assert new_cell("hi", explicit, font=f).props == explicit
 Table flow from sampledata/pypdflib/builder-snippets/main.py:
 
 ```python
+from pypdfsuit.builder import Font
 builder = TemplateBuilder(page="A4", portrait=True)
 builder.add_title("Document Title", font="Helvetica", size=18, bold=True)
 table = builder.add_table(2, 2, 1)
 table.add_row(header_cell("Item"), header_cell("Price"))
 amounts = table.add_row(
-    new_cell("Total Revenue", make_props("Helvetica", 10, align="left", borders=(1, 1, 1, 1))),
-    new_cell("$2,450,000", make_props("Helvetica", 10, align="right", borders=(1, 1, 1, 1))),
+    Font("Helvetica").size(10).left().bordered().cell("Total Revenue"),
+    Font("Helvetica").size(10).right().bordered().cell("$2,450,000"),
 )
 set_cell_text_color(amounts[1], "#B00020")
 template = builder.build()

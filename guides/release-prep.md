@@ -1,8 +1,8 @@
 # Release Prep Guide
 
-Reusable checklist for preparing a GoPdfSuit release. Based on the **v6.0.0** prep (June 2026).
+Reusable checklist for preparing a GoPdfSuit release. Based on the **v7.0.0** prep (September 2026).
 
-Replace `X.Y.Z` / `vN` below with your target version (e.g. `6.0.0` / `v6`).
+Replace `X.Y.Z` / `vN` below with your target version (e.g. `7.0.0` / `v7`).
 
 ---
 
@@ -15,7 +15,7 @@ Pushing a git tag matching `v*` triggers CI (`.github/workflows/frontend-build-c
 | `python-build` | Tag push `refs/tags/v*` | Builds CGO lib + sdist (Linux) + wheels (macOS, Windows) |
 | `publish-pypi` | After `python-build` succeeds | Uploads to PyPI if `pypdfsuit==X.Y.Z` is not already published |
 
-**Requirement:** `bindings/python/pyproject.toml` version must match the tag (e.g. tag `v6.0.0` → `version = "6.0.0"`).
+**Requirement:** `bindings/python/pyproject.toml` version must match the tag (e.g. tag `v7.0.0` → `version = "7.0.0"`).
 
 Manual publish (without tag):
 
@@ -40,7 +40,7 @@ Manual publish (without tag):
 | **Docs (built)** | `docs/**` - regenerate via frontend build (do not hand-edit) |
 | **Generated** | `internal/handlers/mocks/mock_services.go`, `bindings/python/pypdfsuit/lib/libgopdfsuit.so` |
 
-### Bulk module-path migration (v5 → v6 example)
+### Bulk module-path migration (v6 → v7 example)
 
 ```bash
 cd /path/to/gopdfsuit
@@ -48,23 +48,22 @@ cd /path/to/gopdfsuit
 # Go imports + go.mod module paths
 find . -type f \( -name '*.go' -o -name 'go.mod' \) \
   ! -path './.git/*' ! -path './sampledata/benchmarks/node_modules/*' \
-  -exec sed -i 's|github.com/chinmay-sawant/gopdfsuit/v5|github.com/chinmay-sawant/gopdfsuit/v6|g' {} +
+  -exec sed -i 's|github.com/chinmay-sawant/gopdfsuit/v6|github.com/chinmay-sawant/gopdfsuit/v7|g' {} +
 
 # Sampledata require lines
-sed -i 's|github.com/chinmay-sawant/gopdfsuit/v5 v5.0.0|github.com/chinmay-sawant/gopdfsuit/v6 v6.0.0|g' \
+sed -i 's|github.com/chinmay-sawant/gopdfsuit/v6 v6.0.0|github.com/chinmay-sawant/gopdfsuit/v7 v7.0.0|g' \
   sampledata/go.mod sampledata/benchmarks/gopdfkit_compare/go.mod
 
 # App + Python version strings
-sed -i 's|VERSION ?= 5.0.0|VERSION ?= 6.0.0|' makefile
-sed -i 's|version = "5.0.0"|version = "6.0.0"|' bindings/python/pyproject.toml
-sed -i 's|__version__ = "5.0.0"|__version__ = "6.0.0"|' bindings/python/pypdfsuit/__init__.py
+sed -i 's|VERSION ?= 6.0.0|VERSION ?= 7.0.0|' makefile
+sed -i 's|version = "6.0.0"|version = "7.0.0"|' bindings/python/pyproject.toml
+sed -i 's|__version__ = "6.0.0"|__version__ = "7.0.0"|' bindings/python/pypdfsuit/__init__.py
 
 # Frontend doc source + guides
-sed -i 's|gopdfsuit/v5|gopdfsuit/v6|g; s|@v5.0.0|@v6.0.0|g; s|v5.0.0|v6.0.0|g' \
-  frontend/src/components/documentation/content/getting-started.js
-sed -i 's|gopdfsuit/v5|gopdfsuit/v6|g; s|@v5.0.0|@v6.0.0|g; s|v5.0.0|v6.0.0|g' \
+sed -i 's|gopdfsuit/v6|gopdfsuit/v7|g; s|@v6.0.0|@v7.0.0|g; s|v6.0.0|v7.0.0|g' \
+  frontend/src/components/editor/snippet.js
+sed -i 's|gopdfsuit/v6|gopdfsuit/v7|g; s|@v6.0.0|@v7.0.0|g; s|v6.0.0|v7.0.0|g' \
   documentation/GETTING_STARTED_GOPDFLIB.md
-sed -i 's|5\.0\.0|6.0.0|g' guides/MAKEFILE.md
 
 go mod tidy
 ```
@@ -73,10 +72,10 @@ go mod tidy
 
 ```bash
 # Should return no matches in maintained source
-grep -r 'gopdfsuit/v5' --include='*.go' --include='go.mod' --include='*.js' --include='*.toml' --include='*.py' \
+grep -r 'gopdfsuit/v6' --include='*.go' --include='go.mod' --include='*.js' --include='*.toml' --include='*.py' \
   . --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs
 
-grep -r 'v5\.0\.0' frontend/src guides bindings/python README.md CONTRIBUTING.md makefile
+grep -r 'v6\.0\.0' frontend/src guides bindings/python README.md CONTRIBUTING.md makefile
 ```
 
 For a **patch/minor** release (same major module path), skip the bulk `sed` and only bump `VERSION`, `pyproject.toml`, and `__init__.py`.
@@ -147,8 +146,8 @@ cd ..
 **Verify built docs:**
 
 ```bash
-grep -r 'gopdfsuit/v6' docs/assets/
-grep -r 'gopdfsuit/v5' docs/   # should be empty
+grep -r 'gopdfsuit/v7' docs/assets/
+grep -r 'gopdfsuit/v7' docs/   # should be empty
 ```
 
 ---
@@ -166,10 +165,10 @@ CI runs `make test` on every PR and branch push via the **Backend Test** job (`.
 Optional Docker smoke test:
 
 ```bash
-VERSION=6.0.0 make docker
+VERSION=7.0.0 make docker
 # or
-docker build -f dockerfolder/Dockerfile --build-arg VERSION=6.0.0 -t gopdfsuit:6.0.0 .
-docker run --rm -p 8080:8080 gopdfsuit:6.0.0
+docker build -f dockerfolder/Dockerfile --build-arg VERSION=7.0.0 -t gopdfsuit:7.0.0 .
+docker run --rm -p 8080:8080 gopdfsuit:7.0.0
 ```
 
 ---
@@ -178,19 +177,19 @@ docker run --rm -p 8080:8080 gopdfsuit:6.0.0
 
 ```bash
 git add -A
-git commit -m "chore: release prep v6.0.0"
-git tag v6.0.0
+git commit -m "chore: release prep v7.0.0"
+git tag v7.0.0
 git push origin HEAD
-git push origin v6.0.0
+git push origin v7.0.0
 ```
 
 **CI will then:**
 
 1. Lint Go + frontend (on branch push, not tag-only paths)
 2. Build Python wheels on Linux/macOS/Windows
-3. Publish `pypdfsuit==6.0.0` to PyPI (if not already published)
+3. Publish `pypdfsuit==7.0.0` to PyPI (if not already published)
 
-Create a GitHub Release with upgrade notes (breaking change: `/v5` → `/v6` imports).
+Create a GitHub Release with upgrade notes (breaking change: `/v6` → `/v7` imports).
 
 ---
 
@@ -215,7 +214,7 @@ Create a GitHub Release with upgrade notes (breaking change: `/v5` → `/v6` imp
 
 | File | Change |
 |------|--------|
-| `go.mod` | Module → `github.com/chinmay-sawant/gopdfsuit/v6` |
+| `go.mod` | Module → `github.com/chinmay-sawant/gopdfsuit/v7` |
 | All `*.go` | Imports `/v5` → `/v6` |
 | `makefile` | `VERSION ?= 6.0.0` |
 | `bindings/python/pyproject.toml` | `version = "6.0.0"` |
