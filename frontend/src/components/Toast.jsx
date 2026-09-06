@@ -101,7 +101,7 @@ export default function Toast({ message, type = 'success', duration = 3000, onCl
                 <X size={16} />
             </button>
 
-            <style jsx>{`
+            <style>{`
                 @keyframes slideIn {
                     from {
                         transform: translateX(100%);

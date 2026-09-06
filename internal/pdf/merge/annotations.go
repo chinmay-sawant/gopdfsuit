@@ -1,6 +1,7 @@
 package merge
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -93,7 +94,7 @@ func ExtractFormFields(fc *FileContext) error {
 	fieldSet := make(map[int]bool)
 
 	// Method 1: Find widgets via AcroForm in Catalog
-	rootRef := findRootRef(fc.Data)
+	rootRef := findRootRef(fc.Data, fc.Objects)
 	if rootRef != "" {
 		var rootNum int
 		if err := parseObjRef(rootRef, &rootNum); err == nil {
@@ -245,11 +246,32 @@ func addFieldRecursive(fieldNum int, objMap map[int][]byte, fields *[]int, field
 	return nil
 }
 
-// findRootRef finds the /Root reference in PDF trailer
-func findRootRef(data []byte) string {
-	rootRe := regexp.MustCompile(`/Root\s+(\d+\s+\d+)\s+R`)
-	if m := rootRe.FindSubmatch(data); m != nil {
-		return string(m[1])
+// findRootRef finds the /Root reference for the document catalog.
+// It walks matches newest-first and returns the first one that resolves to
+// a real catalog object. A first-match scan is wrong here: stale
+// incremental-update trailers and even literal text inside content streams
+// (e.g. a drawn "(/Root 99 0 R)" string) can precede the real trailer, and
+// honoring such a decoy silently extracts zero pages for the file.
+func findRootRef(data []byte, objMap map[int][]byte) string {
+	rootRe := regexp.MustCompile(`/Root\s+(\d+)\s+(\d+)\s+R`)
+	matches := rootRe.FindAllSubmatch(data, -1)
+	for i := len(matches) - 1; i >= 0; i-- {
+		num, _ := strconv.Atoi(string(matches[i][1]))
+		if num <= 0 {
+			continue
+		}
+		if objMap != nil {
+			body, ok := objMap[num]
+			if !ok {
+				continue // dangling reference: decoy text, not a catalog
+			}
+			if !bytes.Contains(body, []byte("/Pages")) &&
+				!bytes.Contains(body, []byte("/Type/Catalog")) &&
+				!bytes.Contains(body, []byte("/Type /Catalog")) {
+				continue // not a catalog object
+			}
+		}
+		return string(matches[i][1]) + " " + string(matches[i][2])
 	}
 	return ""
 }

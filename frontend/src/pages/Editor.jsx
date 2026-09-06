@@ -1104,7 +1104,7 @@ export default function Editor() {
         hasTitle={!!title}
       />
 
-      <style jsx>{`
+      <style>{`
         .dragging {
           transform: rotate(3deg) scale(0.95);
         }

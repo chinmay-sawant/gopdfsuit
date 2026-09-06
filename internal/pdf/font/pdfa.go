@@ -419,8 +419,15 @@ func (m *PDFAFontManager) GetLiberationFont(standardFontName string) (*TTFFont, 
 // In PDF/A mode, standard fonts are replaced with Liberation equivalents
 // This registers them under their STANDARD names so getFontReference picks them up
 func (m *PDFAFontManager) RegisterLiberationFontsForPDFA(registry *CustomFontRegistry, usedStandardFonts []string) error {
-	if err := m.EnsureFontsAvailable(); err != nil {
-		return err
+	// Skip the ensure step when every needed face is already registered.
+	// In WASM (GOOS=js) EnsureFontsAvailable always rejects (no net/http,
+	// no writable fonts dir), while the JS side pre-registers the same
+	// faces via RegisterFontFromData - requiring ensure first made every
+	// compliant browser generation fail even with a fully primed registry.
+	if !m.neededFacesRegistered(registry, usedStandardFonts) {
+		if err := m.EnsureFontsAvailable(); err != nil {
+			return err
+		}
 	}
 
 	for _, stdFont := range usedStandardFonts {
@@ -447,6 +454,24 @@ func (m *PDFAFontManager) RegisterLiberationFontsForPDFA(registry *CustomFontReg
 	}
 
 	return nil
+}
+
+// neededFacesRegistered reports whether every mappable used standard font
+// is already present in the registry, making the ensure/download step
+// unnecessary.
+func (m *PDFAFontManager) neededFacesRegistered(registry *CustomFontRegistry, usedStandardFonts []string) bool {
+	if registry == nil {
+		return false
+	}
+	for _, stdFont := range usedStandardFonts {
+		if _, ok := LiberationFontMapping[stdFont]; !ok {
+			continue
+		}
+		if !registry.HasFont(stdFont) {
+			return false
+		}
+	}
+	return true
 }
 
 // GetMappedFontName returns the Liberation font name for a standard font
