@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 // ledgerRows is tuned so the table flows onto exactly 2 A4 pages.

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	provfont "github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
+	provfont "github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/font"
 )
 
 // MathFontInfo describes a math-capable font with its system paths and download URL.

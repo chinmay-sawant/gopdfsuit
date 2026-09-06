@@ -8,7 +8,7 @@
 
 Template-based PDF platform in Go with React UI and Python bindings.
 
-- Module: `github.com/chinmay-sawant/gopdfsuit/v6` (Go 1.26.4)
+- Module: `github.com/chinmay-sawant/gopdfsuit/v7` (Go 1.26.4)
 - GitHub repo: `https://github.com/chinmay-sawant/gopdfsuit`
 - Default branch: `master` (`origin/HEAD` points to `origin/master`)
 - Binaries / libraries / apps:
@@ -108,7 +108,7 @@ Skills live under `skills/<name>/`. Current inventory:
 
 ## Dependency policy
 
-Allowed runtime deps are pinned in `go.mod` (`v6`, `go 1.26.4` exact):
+Allowed runtime deps are pinned in `go.mod` (`v7`, `go 1.26.4` exact):
 
 - `gin-gonic/gin`, `chinmay-sawant/gowkhtmltopdf` (pure-Go HTML), `bytedance/sonic`, `golang.org/x/sync`, `google.golang.org/api`. Indirect: `goccy/go-json`, `ugorji/go`.
 - No Ghostscript. No browser. System prereqs only: Java 11+ (veraPDF), Node 18+ (frontend), Python 3.8+ (bindings).

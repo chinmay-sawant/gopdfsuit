@@ -193,7 +193,7 @@ const pyTitleLines = (title) => {
 export const templateToGoSnippet = (template = {}) => {
     const page = template.config?.page || 'A4'
     const lines = [
-        '// import "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"',
+        '// import "github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"',
         `b := gopdflib.NewDocument(${goString(page)}, true)`,
     ]
     lines.push(...goTitleLines(template.title))

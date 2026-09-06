@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/font"
 )
 
 // P9 (2026-06-20 checklist): static ICC profiles are identical across PDFs;

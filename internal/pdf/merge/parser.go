@@ -1,7 +1,7 @@
 package merge
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/pdfobj"
 )
 
 // PDF parsing functions for the merge package.

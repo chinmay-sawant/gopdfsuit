@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/merge"
 )
 
 // SplitPDF splits a PDF into multiple parts based on the specification.

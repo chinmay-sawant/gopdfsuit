@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 // TestOwnedTypesRoundTrip asserts owned public types survive the

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/font"
 )
 
 var compressedSRGBICCProfileCache = sync.OnceValue(compressSRGBICCProfile)

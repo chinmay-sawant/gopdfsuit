@@ -1,8 +1,8 @@
 package mocks
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf"
 )
 
 // FastMockPDFService embeds MockPDFService and additionally implements the

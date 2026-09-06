@@ -18,11 +18,11 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/encryption"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/signature"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/fontutils"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/encryption"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/pdfobj"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/signature"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/fontutils"
 )
 
 type BorrowedPDF struct {

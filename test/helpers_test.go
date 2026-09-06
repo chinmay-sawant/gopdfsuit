@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/form"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/form"
 )
 
 func repoRoot(t testing.TB) string {

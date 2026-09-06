@@ -180,7 +180,7 @@ These reuse allocations but **do not retain your data** across requests in a pre
 ## Manual cache clearing (operations)
 
 ```go
-import "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+import "github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 
 gopdflib.ClearBOPSCaches() // drops every content cache at once (BOPS path)
 

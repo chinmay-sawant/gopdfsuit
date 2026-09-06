@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 func floatPtr(value float64) *float64 {

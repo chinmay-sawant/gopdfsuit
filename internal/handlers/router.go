@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/middleware"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/middleware"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf"
 	"github.com/gin-gonic/gin"
 )
 

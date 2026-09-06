@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 func testEncryption(t *testing.T) *PDFEncryption {

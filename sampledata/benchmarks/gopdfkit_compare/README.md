@@ -6,7 +6,7 @@ This directory is a separate Go module for apples-to-apples comparison of
 
 The module pins:
 
-- **gopdfsuit:** `github.com/chinmay-sawant/gopdfsuit/v6` (local `replace` to repo root)
+- **gopdfsuit:** `github.com/chinmay-sawant/gopdfsuit/v7` (local `replace` to repo root)
 - **GoPDFKit:** real checkout via `replace` → `/tmp/gopdfkit-real/.../gopdfkit@v0.5.2`
 
 ## Quick start (from repo root)

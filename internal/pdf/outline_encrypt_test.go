@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unicode/utf16"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // identityEncryptor passes plaintext through so tests can inspect the exact

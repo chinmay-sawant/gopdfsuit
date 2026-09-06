@@ -12,8 +12,8 @@ import (
 
 	"strconv"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/cachettl"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // hexDigits is a lookup table for fast hex encoding, avoiding fmt.Sprintf("%04X") per character.

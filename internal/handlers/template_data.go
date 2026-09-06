@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/cachettl"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 	"github.com/gin-gonic/gin"
 )
 

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/compress"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 	"github.com/gin-gonic/gin"
 )
 

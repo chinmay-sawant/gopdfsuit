@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // TestOCRExtractWordsTimeout proves a hanging pdftoppm cannot block the

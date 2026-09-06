@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/benchmarktemplates"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/benchmarktemplates"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 const warmup = 5

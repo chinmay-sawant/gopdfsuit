@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 // tinyPNGBase64 is a 1x1 PNG used for image cells and image elements.

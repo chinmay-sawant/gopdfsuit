@@ -13,9 +13,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/svg"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/cachettl"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/svg"
 )
 
 // fmtNumImg formats a float with 2 decimal places for image dimensions

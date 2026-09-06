@@ -6,7 +6,7 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/benchmarktemplates"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/benchmarktemplates"
 )
 
 var (

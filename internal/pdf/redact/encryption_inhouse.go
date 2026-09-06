@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/encryption"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/encryption"
 )
 
 // pdfPasswordPadding is the PDF spec password padding; owned by encryption.

@@ -10,8 +10,8 @@ package gopdflib
 import (
 	"fmt"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/redact"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/redact"
 )
 
 // GetPageInfo extracts page information from a PDF for redaction planning.

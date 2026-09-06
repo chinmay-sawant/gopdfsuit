@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 // placeholderPNG is a 1x1 PNG used so the sample needs no image files.

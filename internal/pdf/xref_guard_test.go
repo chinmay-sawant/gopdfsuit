@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/merge"
 )
 
 func TestValidXRefWidths(t *testing.T) {

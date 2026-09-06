@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/vector"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/vector"
 )
 
 // MaxSVGBytes caps accepted SVG input (4 MiB); larger payloads are rejected.
