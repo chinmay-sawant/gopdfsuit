@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/bytedance/sonic"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // redactApplyForm carries the raw multipart text fields of a redact-apply

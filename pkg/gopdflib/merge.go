@@ -4,7 +4,7 @@ package gopdflib
 import (
 	"fmt"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/merge"
 )
 
 // MaxMergeInputBytes caps a single input file accepted by MergePDFs

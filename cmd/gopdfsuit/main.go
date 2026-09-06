@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/fontutils"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/handlers"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/fontutils"
 	"github.com/gin-gonic/gin"
 )
 

@@ -2,7 +2,7 @@
 package gopdflib
 
 import (
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/compress"
 )
 
 // MaxCompressInputBytes is the largest PDF CompressPDF accepts (32 MiB,

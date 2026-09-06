@@ -4,15 +4,15 @@ import (
 	"context"
 	"io"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/form"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/redact"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/compress"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/form"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/redact"
 )
 
-//go:generate go run go.uber.org/mock/mockgen@latest -destination=mocks/mock_services.go -package=mocks github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers PDFService
+//go:generate go run go.uber.org/mock/mockgen@latest -destination=mocks/mock_services.go -package=mocks github.com/chinmay-sawant/gopdfsuit/v7/internal/handlers PDFService
 
 // Upload-kind selectors for the body-limit policy. Untyped string constants
 // (rather than a named type) so mocks/mock_services.go can implement

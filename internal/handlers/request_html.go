@@ -3,7 +3,7 @@ package handlers
 import (
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // This file owns HTML conversion request defaults and source checks.

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/merge"
 )
 
 // Edge inputs to the page-spec parser via its public entry must never panic.

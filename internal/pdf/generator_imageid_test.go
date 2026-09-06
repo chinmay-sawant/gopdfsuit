@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // tinyPNG is a 1x1 red PNG used to exercise image XObject emission.

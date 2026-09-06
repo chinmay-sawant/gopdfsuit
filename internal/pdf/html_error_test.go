@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // Empty requests must fail fast in the validation layer before the

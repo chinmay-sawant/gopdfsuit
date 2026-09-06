@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 	"github.com/cssbruno/gopdfkit/document"
 	"github.com/cssbruno/gopdfkit/inspect"
 )

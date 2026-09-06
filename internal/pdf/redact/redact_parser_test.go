@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 func TestBuildObjectMapUsesMergeScanner(t *testing.T) {

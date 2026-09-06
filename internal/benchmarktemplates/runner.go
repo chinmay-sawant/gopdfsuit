@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 const (

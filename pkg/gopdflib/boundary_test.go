@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 // TestWrapperBoundaryValidation asserts every public wrapper rejects

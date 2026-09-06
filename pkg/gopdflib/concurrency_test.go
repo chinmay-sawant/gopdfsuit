@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 var errNotPDF = errors.New("output is not a PDF")

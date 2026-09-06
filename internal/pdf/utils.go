@@ -11,8 +11,8 @@ import (
 
 	"unicode/utf8"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/cachettl"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // hexNibble maps ASCII byte to hex value (0-15). 0xFF = invalid.

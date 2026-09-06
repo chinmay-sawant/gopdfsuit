@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/vector"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/vector"
 )
 
 // RenderContext holds state needed during PDF rendering of math expressions.

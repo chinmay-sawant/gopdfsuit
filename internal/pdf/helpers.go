@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/pdfobj"
 )
 
 var (

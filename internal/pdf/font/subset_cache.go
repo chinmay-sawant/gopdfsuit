@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/cachettl"
 )
 
 type cachedSubset struct {

@@ -2,7 +2,7 @@
 package main
 import (
 	"fmt"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 func estStructCount(t gopdflib.PDFTemplate) int {
 	count := 1

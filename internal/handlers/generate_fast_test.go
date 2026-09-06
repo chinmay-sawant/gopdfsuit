@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers/mocks"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/handlers/mocks"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 )

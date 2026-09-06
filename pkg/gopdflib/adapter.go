@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/bytedance/sonic"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/compress"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/merge"
 )
 
 // This file is the only place that converts between owned public types and

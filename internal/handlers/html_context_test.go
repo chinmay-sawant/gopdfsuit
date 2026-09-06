@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/handlers/mocks"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/handlers/mocks"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 	"go.uber.org/mock/gomock"
 )
 

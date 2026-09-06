@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/bytedance/sonic"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 func TestSentinelValidationErrors(t *testing.T) {

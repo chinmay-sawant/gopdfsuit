@@ -3,10 +3,10 @@ package gopdflib
 import (
 	"time"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/cachettl"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/signature"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/cachettl"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/font"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/signature"
 )
 
 // ClearBOPSCaches drops every cross-request content cache so the next

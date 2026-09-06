@@ -39,7 +39,7 @@ import (
 	"unsafe"
 
 	"github.com/bytedance/sonic"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 // maxCGOPayloadBytes caps a generic input buffer accepted from C callers.

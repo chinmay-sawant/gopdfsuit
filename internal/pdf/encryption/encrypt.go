@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 )
 
 // PDFEncryption handles PDF document encryption using AES-128 (V=4, R=4)

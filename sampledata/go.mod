@@ -1,11 +1,11 @@
 // This module file has been added to skip the download for go get
-module github.com/chinmay-sawant/gopdfsuit/v6/sampledata
+module github.com/chinmay-sawant/gopdfsuit/v7/sampledata
 
 go 1.26.4
 
 require (
 	github.com/chinmay-sawant/gopdfsuit-client v1.0.1
-	github.com/chinmay-sawant/gopdfsuit/v6 v6.0.0
+	github.com/chinmay-sawant/gopdfsuit/v7 v7.0.0
 	github.com/gpdf-dev/gpdf v1.0.12-0.20260518120514-0c04e85a529e
 )
 
@@ -47,4 +47,4 @@ require (
 	star-tex.org/x/tex v0.7.1 // indirect
 )
 
-replace github.com/chinmay-sawant/gopdfsuit/v6 => ../
+replace github.com/chinmay-sawant/gopdfsuit/v7 => ../

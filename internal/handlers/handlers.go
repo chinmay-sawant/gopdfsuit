@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/middleware"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/middleware"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/api/idtoken"
 )

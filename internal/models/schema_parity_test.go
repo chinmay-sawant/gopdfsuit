@@ -13,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/compress"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/merge"
-	"github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/compress"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/merge"
+	"github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 // jsonNames returns the sorted base JSON names of a struct type's fields,

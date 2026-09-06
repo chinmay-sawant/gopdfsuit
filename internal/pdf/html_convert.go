@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
 	gowkhtmltopdf "github.com/chinmay-sawant/gowkhtmltopdf"
 )
 

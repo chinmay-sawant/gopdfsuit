@@ -3,7 +3,7 @@ package redact
 import (
 	"strings"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/pdfobj"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/pdfobj"
 )
 
 // bytesIndex is a helper to find a subsequence in a []byte

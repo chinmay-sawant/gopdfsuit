@@ -5,7 +5,7 @@ package main
 import (
 	"syscall/js"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf/font"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf/font"
 )
 
 // pdfaStandardFaces mirrors font.LiberationFontMapping keys: the standard

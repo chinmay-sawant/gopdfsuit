@@ -3,8 +3,8 @@ package gopdflib
 import (
 	"fmt"
 
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/models"
-	"github.com/chinmay-sawant/gopdfsuit/v6/internal/pdf"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/models"
+	"github.com/chinmay-sawant/gopdfsuit/v7/internal/pdf"
 )
 
 // PreparedTemplate owns one translated copy of a PDFTemplate for repeated

@@ -13,7 +13,7 @@ I use gopdflib when I need PDFs straight from Go code without shelling out to an
 
 ## Downloading and installing
 
-Install the `gopdflib` package with the `v6.0.0` release tag.
+Install the `gopdflib` package with the `v7.0.0` release tag.
 
 ### Prerequisites
 
@@ -24,7 +24,7 @@ Install the `gopdflib` package with the `v6.0.0` release tag.
 1.  Run the following command in your terminal to download the package:
 
     ```bash
-    go get github.com/chinmay-sawant/gopdfsuit/v6@v6.0.0
+    go get github.com/chinmay-sawant/gopdfsuit/v7@v7.0.0
     ```
 
     This command downloads the source code and adds the dependency to your `go.mod` file.
@@ -35,7 +35,7 @@ To use the library in your Go code, import the `gopdflib` package:
 
 ```go
 import (
-    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 ```
 
@@ -48,7 +48,7 @@ package main
 
 import (
     "fmt"
-    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 func main() {
@@ -64,10 +64,10 @@ func main() {
 
 ### Updating the library
 
-To update to a specific v6 release in the future, run:
+To update to a specific v7 release in the future, run:
 
 ```bash
-go get github.com/chinmay-sawant/gopdfsuit/v6@v6.0.0
+go get github.com/chinmay-sawant/gopdfsuit/v7@v7.0.0
 ```
 
 ---
@@ -97,7 +97,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 func main() {
@@ -180,7 +180,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 func main() {
@@ -249,7 +249,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/chinmay-sawant/gopdfsuit/v6/pkg/gopdflib"
+    "github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
 )
 
 func main() {
