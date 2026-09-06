@@ -274,10 +274,8 @@ cd .. && gcloud run deploy gopdfsuit --source . --region us-central1
 
 ## 📝 Documentation References
 
-- Full Guide: [docs/AUTHENTICATION.md](AUTHENTICATION.md)
-- Summary: [AUTHENTICATION_SUMMARY.md](../AUTHENTICATION_SUMMARY.md)
+- Full Guide: [AUTHENTICATION.md](AUTHENTICATION.md)
 - Quick Reference: [QUICK_AUTH_REFERENCE.md](../QUICK_AUTH_REFERENCE.md)
-- Flow Diagrams: [docs/AUTH_FLOW_DIAGRAMS.md](AUTH_FLOW_DIAGRAMS.md)
 
 ## ✅ Final Verification
 

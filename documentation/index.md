@@ -23,6 +23,19 @@ documentation/ is truth for current behavior per plans/adr-2026-09-04-doc-homes.
 - INTEGRATION_AND_BENCHMARK_TESTS.md: integration layers and older bench numbers.
 - GATES_BENCHMARKS_TODAY.md (2026-09-04): make gates, test tiers, pool inventory with bounds, reproduce commands.
 
+## API and guides (routers with copy-paste snippets)
+
+- gopdflib-api.md: every `pkg/gopdflib` op with Go snippets.
+- pypdfsuit-api.md: every `pypdfsuit` function with Python snippets.
+- rest-api.md: every `/api/v1/*` endpoint with curl, auth, envelope, caps.
+- engine-overview.md: in-memory pipeline (decode, render, fonts, tagging, XMP, sign, encrypt).
+- compress-guide.md: Light/Medium/Heavy tiers, limits, passthrough rules.
+- html-guide.md: pure-Go conversion fields, defaults, limits.
+- document-ops-guide.md: merge, split page specs, XFDF fill, redact modes.
+- wasm-frontend.md: local-first browser app, artifacts, consent, offline.
+- compliance-benchmarks.md: PDF/A-4, PDF/UA-2, signatures, validation and bench commands.
+- samples-catalog.md: every `sampledata/` directory with run commands.
+
 ## Build PDFs
 
 - BUILDER_FLUENT_GO.md (2026-09-04): DocumentBuilder, Font chain, Cell chain, props grammar, helpers.

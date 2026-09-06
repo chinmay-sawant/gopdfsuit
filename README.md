@@ -41,9 +41,68 @@ Compliant runs turn on PDF/A-4, PDF/UA-2, Arlington-compatible tagging, ECDSA P-
 
 ### Documentation
 
-- [Web documentation](https://chinmay-sawant.github.io/gopdfsuit/#/documentation) - interactive API docs and playground
+Start with the suite guide, then pick your surface:
+
+- [PDF suite guide](documentation/PDF_SUITE_GUIDE.md) - one detailed walkthrough: install, generate, compress, merge, split, HTML, redact, fill, limits, privacy
+- [Go library API](documentation/gopdflib-api.md) - every `pkg/gopdflib` op with copy-paste Go snippets
+- [Python API](documentation/pypdfsuit-api.md) - every `pypdfsuit` function with copy-paste Python snippets ([package README](bindings/python/README.md))
+- [REST API](documentation/rest-api.md) - every `/api/v1/*` endpoint with curl, auth, error envelope, caps
+- [Engine overview](documentation/engine-overview.md) - in-memory pipeline: decode, render, fonts, tagging, XMP, sign, encrypt
+- [Compress guide](documentation/compress-guide.md) - Light/Medium/Heavy tiers, limits, passthrough rules
+- [HTML guide](documentation/html-guide.md) - pure-Go conversion fields, defaults, limits
+- [Document ops guide](documentation/document-ops-guide.md) - merge, split page specs, XFDF fill, redact modes
+- [WASM frontend](documentation/wasm-frontend.md) - local-first browser app, artifacts, consent, offline
+- [Compliance and benchmarks](documentation/compliance-benchmarks.md) - PDF/A-4, PDF/UA-2, signatures, validation and bench commands
+- [Samples catalog](documentation/samples-catalog.md) - every `sampledata/` directory with run commands
 - [Template reference](documentation/TEMPLATE_REFERENCE.md) - JSON template format with examples
+- [Docs index](documentation/index.md) - full map of `documentation/` (truth) vs `guides/` (frozen archive)
+- [Web documentation](https://chinmay-sawant.github.io/gopdfsuit/#/documentation) - interactive API docs and playground
 - [Makefile reference](guides/MAKEFILE.md) - build, test, and deployment commands
+
+### Quickstart
+
+Go library:
+
+```bash
+go get github.com/chinmay-sawant/gopdfsuit/v7@v7.0.0
+```
+
+```go
+import "github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib"
+
+b := gopdflib.NewDocument("A4", true)
+b.AddTitle("Hello", gopdflib.WithTitleFontOpts(gopdflib.TitleFontOptions{Name: "Helvetica", Size: 18, Bold: true}))
+pdfBytes, err := b.Generate()
+```
+
+See [Go library API](documentation/gopdflib-api.md) and [suite guide](documentation/PDF_SUITE_GUIDE.md).
+
+Python bindings:
+
+```bash
+cd bindings/python && ./build.sh && pip install .
+```
+
+```python
+from pypdfsuit.builder import TemplateBuilder, Font
+
+b = TemplateBuilder("A4", True)
+b.add_title("Hello", font="Helvetica", size=18, bold=True)
+pdf_bytes = b.generate()
+```
+
+See [Python API](documentation/pypdfsuit-api.md) and [package README](bindings/python/README.md).
+
+REST API (server on `:8080`):
+
+```bash
+docker run --rm -p 8080:8080 chinmaysawant/gopdfsuit:7.0.0
+curl -X POST http://localhost:8080/api/v1/generate/template-pdf \
+  -H "Content-Type: application/json" \
+  --data-binary @template.json --output out.pdf
+```
+
+See [REST API](documentation/rest-api.md). Samples live in [sampledata/](sampledata/) ([catalog](documentation/samples-catalog.md)).
 
 ---
 
@@ -54,8 +113,8 @@ Three apps, one repo. Pick what fits your stack.
 | Component | Type | Use case |
 | :-------- | :--- | :------- |
 | gopdfsuit | Language-agnostic REST API | Run as a service. Call it from Go, Python, JS, curl, and others |
-| gopdflib | Go library | Import `github.com/chinmay-sawant/gopdfsuit/pkg/gopdflib` in your Go project |
-| pypdfsuit | Python bindings | Use `from pypdfsuit import Generator`. CGO wrapper around gopdflib |
+| gopdflib | Go library | Import `github.com/chinmay-sawant/gopdfsuit/v7/pkg/gopdflib` in your Go project |
+| pypdfsuit | Python bindings | Use `from pypdfsuit.builder import TemplateBuilder, Font`. CGO wrapper around gopdflib |
 
 Key features.
 
