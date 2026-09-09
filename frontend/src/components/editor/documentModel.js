@@ -140,15 +140,25 @@ export const parseTemplateData = (data = {}, prevConfig = DEFAULT_CONFIG) => {
     if (spacer && Array.isArray(spacer)) {
       rawComponents = [...rawComponents, ...spacer.map((entry) => ({ ...entry, type: 'spacer' }))]
     }
-  }
-  if (data.elements && Array.isArray(data.elements) && data.elements[0]?.index !== undefined) {
-    const ordered = []
-    for (const ref of data.elements) {
-      if (ref.type === 'table' && table && table[ref.index]) ordered.push({ ...table[ref.index], type: 'table' })
-      else if (ref.type === 'spacer' && spacer && spacer[ref.index]) ordered.push({ ...spacer[ref.index], type: 'spacer' })
-      else if (ref.type === 'image' && image && image[ref.index]) ordered.push({ ...image[ref.index], type: 'image' })
+    if (image && Array.isArray(image)) {
+      rawComponents = [...rawComponents, ...image.map((entry) => ({ ...entry, type: 'image' }))]
     }
-    if (ordered.length > 0) rawComponents = ordered
+  } else {
+    rawComponents = elements.map((ref) => {
+      if (!ref || typeof ref !== 'object') return ref
+      if (ref.index !== undefined) {
+        if (ref.type === 'table' && table && table[ref.index]) {
+          return { ...table[ref.index], type: 'table' }
+        }
+        if (ref.type === 'spacer' && spacer && spacer[ref.index]) {
+          return { ...spacer[ref.index], type: 'spacer' }
+        }
+        if (ref.type === 'image' && image && image[ref.index]) {
+          return { ...image[ref.index], type: 'image' }
+        }
+      }
+      return ref
+    }).filter(Boolean)
   }
 
   const components = (Array.isArray(rawComponents) ? rawComponents : []).map(unwrapComponent)

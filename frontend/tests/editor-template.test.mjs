@@ -100,6 +100,68 @@ describe('editor template parse', () => {
     assert.equal(parsed.components[0].height, 4)
     assert.equal(parsed.footer.text, 'F')
   })
+
+  it('preserves spacer positions when round-tripping through JSON template (issue 79)', () => {
+    const state = {
+      config: { ...DEFAULT_CONFIG },
+      title: createTitle(),
+      components: [
+        createTable(1, 1),
+        createSpacer(20),
+        createTable(2, 2),
+        createSpacer(30),
+        createTable(1, 1),
+      ],
+      footer: createFooter(),
+    }
+    const json = buildTemplateJson(state)
+    const back = parseTemplateJson(json, DEFAULT_CONFIG)
+
+    assert.equal(back.components.length, 5)
+    assert.equal(back.components[0].type, 'table')
+    assert.equal(back.components[1].type, 'spacer')
+    assert.equal(back.components[1].height, 20)
+    assert.equal(back.components[2].type, 'table')
+    assert.equal(back.components[3].type, 'spacer')
+    assert.equal(back.components[3].height, 30)
+    assert.equal(back.components[4].type, 'table')
+  })
+
+  it('preserves interleaved spacer positions in indexed elements format', () => {
+    const data = {
+      table: [{ maxcolumns: 1, rows: [] }, { maxcolumns: 2, rows: [] }],
+      spacer: [{ height: 25 }],
+      elements: [
+        { type: 'table', index: 0 },
+        { type: 'spacer', index: 0 },
+        { type: 'table', index: 1 },
+      ],
+    }
+    const parsed = parseTemplateData(data, DEFAULT_CONFIG)
+    assert.equal(parsed.components.length, 3)
+    assert.equal(parsed.components[0].type, 'table')
+    assert.equal(parsed.components[1].type, 'spacer')
+    assert.equal(parsed.components[1].height, 25)
+    assert.equal(parsed.components[2].type, 'table')
+  })
+
+  it('resolves mixed inline and indexed elements without dropping components', () => {
+    const data = {
+      spacer: [{ height: 40 }],
+      elements: [
+        { type: 'table', table: { maxcolumns: 1, rows: [] } },
+        { type: 'spacer', index: 0 },
+        { type: 'spacer', spacer: { height: 15 } },
+      ],
+    }
+    const parsed = parseTemplateData(data, DEFAULT_CONFIG)
+    assert.equal(parsed.components.length, 3)
+    assert.equal(parsed.components[0].type, 'table')
+    assert.equal(parsed.components[1].type, 'spacer')
+    assert.equal(parsed.components[1].height, 40)
+    assert.equal(parsed.components[2].type, 'spacer')
+    assert.equal(parsed.components[2].height, 15)
+  })
 })
 
 describe('editor config normalization', () => {
